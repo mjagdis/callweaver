@@ -14,25 +14,11 @@
 # the GNU General Public License
 #
 
-CHANNEL_LIBS=chan_modem.so chan_sip.so \
-	     chan_modem_aopen.so \
-             chan_modem_bestdata.so \
-             chan_agent.so chan_mgcp.so chan_iax2.so \
-	     chan_local.so chan_skinny.so chan_features.so
+CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so \
+	     chan_local.so chan_features.so
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
-ifeq (${OSARCH},OpenBSD)
-  PTLIB=-lpt_OpenBSD_x86_r
-  H323LIB=-lh323_OpenBSD_x86_r
-endif
-
-ifeq (${OSARCH},Linux)
-  PTLIB=-lpt_linux_x86_r
-  H323LIB=-lh323_linux_x86_r
-  CHANH323LIB=-ldl
 endif
 
 ifeq ($(PROC),sparc64)
@@ -40,56 +26,17 @@ ifeq ($(PROC),sparc64)
   CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
-ifeq (${OSARCH},FreeBSD)
-  PTLIB=-lpt_FreeBSD_x86_r
-  H323LIB=-lh323_FreeBSD_x86_r
-  CHANH323LIB=-pthread
-endif
-
-ifeq (${OSARCH},NetBSD)
-  PTLIB=-lpt_NetBSD_x86_r
-  H323LIB=-lh323_NetBSD_x86_r
-endif
-
-ifneq (${OSARCH},Darwin)
-  ifneq (${OSARCH},SunOS)
-    CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
-  endif
-endif
-
 ifeq (${OSARCH},SunOS)
   SOLINK+=-lrt
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/ixjuser.h),)
-  CHANNEL_LIBS+=chan_phone.so
-endif
 
-ifneq ($(wildcard h323/libchanh323.a),)
-  CHANNEL_LIBS+=chan_h323.so
-endif
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
-  CHANNEL_LIBS+=chan_alsa.so
-endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libpri.so.1),)
   CFLAGS+=-DZAPATA_PRI
   ZAPPRI=-lpri
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
-  CFLAGS+=-DZAPATA_R2
-  ZAPR2=-lmfcr2
-endif
-
-ALSA_SRC=chan_alsa.c
-
-ifneq ($(wildcard alsa-monitor.h),)
-  CFLAGS+=-DALSA_MONITOR
-  ALSA_SRC+=alsa-monitor.h
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
@@ -103,29 +50,12 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard 
   CHANNEL_LIBS+=chan_zap.so
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
-  CHANNEL_LIBS+=chan_vpb.so
-  CFLAGS+=-DLINUX
-endif
-
 CFLAGS+=-DCRYPTO
 CFLAGS+=-fPIC
 
 CFLAGS+=#-DVOFRDUMPER
 
 ZAPDIR=/usr/lib
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/nbs.h),)
-  CHANNEL_LIBS+=chan_nbs.so
-endif
-
-ifndef OPENH323DIR
-  OPENH323DIR=$(HOME)/openh323
-endif
-
-ifndef PWLIBDIR
-  PWLIBDIR=$(HOME)/pwlib
-endif
 
 #CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
 
@@ -140,10 +70,6 @@ clean:
 
 ifneq ($(wildcard .depend),)
   include .depend
-endif
-
-ifneq ($(wildcard h323/Makefile.ast),)
-  include h323/Makefile.ast
 endif
 
 gentone: gentone.c

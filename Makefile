@@ -375,7 +375,7 @@ db1-ast/libdb1.a: FORCE
 	@if [ -d db1-ast ]; then \
 		$(MAKE) -C db1-ast libdb1.a ; \
 	else \
-		echo "You need to do a cvs update -d not just cvs update"; \
+		echo "You need to do a svn update not just svn update"; \
 		exit 1; \
 	fi
 
@@ -449,7 +449,7 @@ stdtime/libtime.a: FORCE
 	@if [ -d stdtime ]; then \
 		$(MAKE) -C stdtime libtime.a ; \
 	else \
-		echo "You need to do a cvs update -d not just cvs update"; \
+		echo "You need to do a svn update -d not just svn update"; \
 		exit 1; \
 	fi
 
@@ -607,7 +607,7 @@ bininstall: all
 	if [ -d contrib/firmware/iax ]; then \
 		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
 	else \
-		echo "You need to do cvs update -d not just cvs update" ; \
+		echo "You need to do svn update -d not just svn update" ; \
 	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
