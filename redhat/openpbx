@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# chkconfig: 2345 99 15
+# description: Open source PBX 
+# processname: openpbx
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+RETVAL=0
+
+case "$1" in
+  start)
+	echo -n "Starting OpenPBX PBX: "
+	/sbin/modprobe ixj	
+	daemon /usr/sbin/openpbx
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/openpbx
+	;;
+  stop)
+	echo -n "Shutting OpenPBX PBX: "
+	killproc openpbx
+	/sbin/rmmod -r ixj	
+	RETVAL=$?
+
+	echo
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/openpbx
+	;;
+  restart|reload)
+	$0 stop
+	$0 start
+	RETVAL=$?
+	;;
+  status)
+	status openpbx
+	RETVAL=$?
+	;;
+  *)
+	echo "Usage: openpbx {start|stop|status|restart|reload}"
+	exit 1
+esac
+
+exit $RETVAL
+
