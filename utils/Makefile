@@ -27,7 +27,7 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/popt.h)$(wildcard -f $(CRO
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/newt.h)$(wildcard -f $(CROSS_COMPILE_TARGET)/usr/local/include/newt.h),)
-  TARGET+=astman
+  TARGET+=opbxman
 endif
 
 ifeq (${OSARCH},SunOS)
@@ -44,11 +44,11 @@ install:
 	done 
 
 clean:
-	rm -f *.o astman smsq stereorize streamplayer check_expr .depend
+	rm -f *.o opbxman smsq stereorize streamplayer check_expr .depend
 	rm -f ast_expr2.o ast_expr2f.o
 
-astman: astman.o ../md5.o
-	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
+opbxman: opbxman.o ../md5.o
+	$(CC) $(CFLAGS) -o opbxman opbxman.o ../md5.o -lnewt
 
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm

@@ -53,46 +53,46 @@
  */
 #define _NEWT_CAST (void *)
 
-static struct opbx_mansession {
+static struct ast_mansession {
 	struct sockaddr_in sin;
 	int fd;
 	char inbuf[MAX_LEN];
 	int inlen;
 } session;
 
-static struct opbx_chan {
+static struct ast_chan {
 	char name[80];
 	char exten[20];
 	char context[20];
 	char priority[20];
 	char callerid[40];
 	char state[10];
-	struct opbx_chan *next;
+	struct ast_chan *next;
 } *chans;
 
 /* dummy functions to be compatible with the OpenPBX core for md5.c */
-void opbx_register_file_version(const char *file, const char *version);
-void opbx_register_file_version(const char *file, const char *version)
+void ast_register_file_version(const char *file, const char *version);
+void ast_register_file_version(const char *file, const char *version)
 {
 }
 
-void opbx_unregister_file_version(const char *file);
-void opbx_unregister_file_version(const char *file)
+void ast_unregister_file_version(const char *file);
+void ast_unregister_file_version(const char *file)
 {
 }
 
-static struct opbx_chan *find_chan(char *name)
+static struct ast_chan *find_chan(char *name)
 {
-	struct opbx_chan *prev = NULL, *chan = chans;
+	struct ast_chan *prev = NULL, *chan = chans;
 	while(chan) {
 		if (!strcmp(name, chan->name))
 			return chan;
 		prev = chan;
 		chan = chan->next;
 	}
-	chan = malloc(sizeof(struct opbx_chan));
+	chan = malloc(sizeof(struct ast_chan));
 	if (chan) {
-		memset(chan, 0, sizeof(struct opbx_chan));
+		memset(chan, 0, sizeof(struct ast_chan));
 		strncpy(chan->name, name, sizeof(chan->name) - 1);
 		if (prev) 
 			prev->next = chan;
@@ -104,7 +104,7 @@ static struct opbx_chan *find_chan(char *name)
 
 static void del_chan(char *name)
 {
-	struct opbx_chan *prev = NULL, *chan = chans;
+	struct ast_chan *prev = NULL, *chan = chans;
 	while(chan) {
 		if (!strcmp(name, chan->name)) {
 			if (prev)
@@ -139,17 +139,17 @@ static char *get_header(struct message *m, char *var)
 	return "";
 }
 
-static int event_newstate(struct opbx_mansession *s, struct message *m)
+static int event_newstate(struct ast_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->state, get_header(m, "State"), sizeof(chan->state) - 1);
 	return 0;
 }
 
-static int event_newexten(struct opbx_mansession *s, struct message *m)
+static int event_newexten(struct ast_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->exten, get_header(m, "Extension"), sizeof(chan->exten) - 1);
 	strncpy(chan->context, get_header(m, "Context"), sizeof(chan->context) - 1);
@@ -157,18 +157,18 @@ static int event_newexten(struct opbx_mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_newchannel(struct opbx_mansession *s, struct message *m)
+static int event_newchannel(struct ast_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->state, get_header(m, "State"), sizeof(chan->state) - 1);
 	strncpy(chan->callerid, get_header(m, "Callerid"), sizeof(chan->callerid) - 1);
 	return 0;
 }
 
-static int event_status(struct opbx_mansession *s, struct message *m)
+static int event_status(struct ast_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
 	strncpy(chan->state, get_header(m, "State"), sizeof(chan->state) - 1);
 	strncpy(chan->callerid, get_header(m, "Callerid"), sizeof(chan->callerid) - 1);
@@ -178,27 +178,27 @@ static int event_status(struct opbx_mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_hangup(struct opbx_mansession *s, struct message *m)
+static int event_hangup(struct ast_mansession *s, struct message *m)
 {
 	del_chan(get_header(m, "Channel"));
 	return 0;
 }
 
-static int event_ignore(struct opbx_mansession *s, struct message *m)
+static int event_ignore(struct ast_mansession *s, struct message *m)
 {
 	return 0;
 }
 
-static int event_rename(struct opbx_mansession *s, struct message *m)
+static int event_rename(struct ast_mansession *s, struct message *m)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Oldname"));
 	strncpy(chan->name, get_header(m, "Newname"), sizeof(chan->name) - 1);
 	return 0;
 }
 static struct event {
 	char *event;
-	int (*func)(struct opbx_mansession *s, struct message *m);
+	int (*func)(struct ast_mansession *s, struct message *m);
 } events[] = {
 	{ "Newstate", event_newstate },
 	{ "Newchannel", event_newchannel },
@@ -211,7 +211,7 @@ static struct event {
 	{ "StatusComplete", event_ignore }
 };
 
-static int process_message(struct opbx_mansession *s, struct message *m)
+static int process_message(struct ast_mansession *s, struct message *m)
 {
 	int x;
 	char event[80] = "";
@@ -240,7 +240,7 @@ static int process_message(struct opbx_mansession *s, struct message *m)
 static void rebuild_channels(newtComponent c)
 {
 	void *prev = NULL;
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	char tmpn[42];
 	char tmp[256];
 	int x=0;
@@ -265,7 +265,7 @@ static void rebuild_channels(newtComponent c)
 	newtListboxSetCurrentByKey(c, prev);
 }
 
-static int has_input(struct opbx_mansession *s)
+static int has_input(struct ast_mansession *s)
 {
 	int x;
 	for (x=1;x<s->inlen;x++) 
@@ -274,7 +274,7 @@ static int has_input(struct opbx_mansession *s)
 	return 0;
 }
 
-static int get_input(struct opbx_mansession *s, char *output)
+static int get_input(struct ast_mansession *s, char *output)
 {
 	/* output must have at least sizeof(s->inbuf) space */
 	int res;
@@ -314,7 +314,7 @@ static int get_input(struct opbx_mansession *s, char *output)
 	return 0;
 }
 
-static int input_check(struct opbx_mansession *s, struct message **mout)
+static int input_check(struct ast_mansession *s, struct message **mout)
 {
 	static struct message m;
 	int res;
@@ -375,7 +375,7 @@ static struct message *wait_for_response(int timeout)
 
 static int manager_action(char *action, char *fmt, ...)
 {
-	struct opbx_mansession *s;
+	struct ast_mansession *s;
 	char tmp[4096];
 	va_list ap;
 
@@ -444,7 +444,7 @@ static void try_status(void)
 
 static void try_hangup(newtComponent c)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	struct message *m;
 
 	chan = newtListboxGetCurrent(c);
@@ -490,7 +490,7 @@ static int get_user_input(char *msg, char *buf, int buflen)
 
 static void try_redirect(newtComponent c)
 {
-	struct opbx_chan *chan;
+	struct ast_chan *chan;
 	char dest[256];
 	struct message *m;
 	char channame[256];
