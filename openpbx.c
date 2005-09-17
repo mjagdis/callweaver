@@ -87,7 +87,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #define OPBX_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
-#define WELCOME_MESSAGE opbx_verbose( "OpenPBX " OPENPBX_VERSION "\n"); \
+#define WELCOME_MESSAGE opbx_verbose( "OpenPBX " OPENPBX_VERSION " http://www.openpbx.org - The True Open Source PBX\n"); \
 		opbx_verbose( "=========================================================================\n")
 
 int option_verbose=0;
