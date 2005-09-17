@@ -18,7 +18,7 @@
 
 /*
  *
- * Implementation of Inter-OpenPBX eXchange Version 2
+ * Implementation of Inter-Asterisk eXchange Version 2
  *
  */
 
@@ -132,8 +132,8 @@ static int nochecksums = 0;
 
 static struct opbx_codec_pref prefs;
 
-static const char desc[] = "Inter OpenPBX eXchange (Ver 2)";
-static const char tdesc[] = "Inter OpenPBX eXchange Driver (Ver 2)";
+static const char desc[] = "Inter Asterisk eXchange (Ver 2)";
+static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
 static const char channeltype[] = "IAX2";
 
 static char context[80] = "default";
