@@ -541,6 +541,8 @@ static struct opbx_codec_alias_table {
 } opbx_codec_alias_table[] = {
 	{"slinear","slin"},
 	{"g723.1","g723"},
+	{"g711u","ulaw"},
+	{"g711a","alaw"},
 };
 
 static char *opbx_expand_codec_alias(char *in) {
