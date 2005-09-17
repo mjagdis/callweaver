@@ -76,21 +76,6 @@ static struct loadupdate {
 	struct loadupdate *next;
 } *updaters = NULL;
 
-static int printdigest(unsigned char *d)
-{
-	int x;
-	char buf[256];
-	char buf2[16];
-	snprintf(buf, sizeof(buf), "Unexpected signature:");
-	for (x=0; x<16; x++) {
-		snprintf(buf2, sizeof(buf2), " %02x", *(d++));
-		strcat(buf, buf2);
-	}
-	strcat(buf, "\n");
-	opbx_log(LOG_DEBUG, "%s", buf);
-	return 0;
-}
-
 int opbx_unload_resource(const char *resource_name, int force)
 {
 	struct module *m, *ml = NULL;
