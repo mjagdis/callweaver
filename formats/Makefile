@@ -20,7 +20,7 @@ FORMAT_LIBS+=format_jpeg.so
 #
 # G723 simple frame is deprecated
 #
-FORMAT_LIBS+=format_g723.so
+FORMAT_LIBS+=format_g723_1.so
 
 #
 # OGG/Vorbis format

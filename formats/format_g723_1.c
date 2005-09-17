@@ -62,9 +62,9 @@ struct opbx_filestream {
 OPBX_MUTEX_DEFINE_STATIC(g723_lock);
 static int glistcnt = 0;
 
-static char *name = "g723sf";
+static char *name = "g723.1";
 static char *desc = "G.723.1 Simple Timestamp File Format";
-static char *exts = "g723|g723sf";
+static char *exts = "g723.1|g723";
 
 static struct opbx_filestream *g723_open(int fd)
 {
