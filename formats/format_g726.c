@@ -44,20 +44,14 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/endian.h"
 
-#define	RATE_40		0
 #define	RATE_32		1
-#define	RATE_24		2
-#define	RATE_16		3
 
 /* We can only read/write chunks of FRAME_TIME ms G.726 data */
 #define	FRAME_TIME	10	/* 10 ms size */
 
 /* Frame sizes in bytes */
 static int frame_size[4] = { 
-		FRAME_TIME * 5,
 		FRAME_TIME * 4,
-		FRAME_TIME * 3,
-		FRAME_TIME * 2
 };
 
 struct opbx_filestream {
@@ -75,50 +69,14 @@ struct opbx_filestream {
 OPBX_MUTEX_DEFINE_STATIC(g726_lock);
 static int glistcnt = 0;
 
-static char *desc = "Raw G.726 (16/24/32/40kbps) data";
-static char *name40 = "g726-40";
+static char *desc = "Raw G.726 (32kbps) data";
 static char *name32 = "g726-32";
-static char *name24 = "g726-24";
-static char *name16 = "g726-16";
-static char *exts40 = "g726-40";
 static char *exts32 = "g726-32";
-static char *exts24 = "g726-24";
-static char *exts16 = "g726-16";
+
 
 /*
  * Rate dependant format functions (open, rewrite)
  */
-static struct opbx_filestream *g726_40_open(int fd)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
-		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g726_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->fd = fd;
-		tmp->rate = RATE_40;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name40;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		opbx_mutex_unlock(&g726_lock);
-		opbx_update_use_count();
-	}
-	return tmp;
-}
-
 static struct opbx_filestream *g726_32_open(int fd)
 {
 	/* We don't have any header to read or anything really, but
@@ -150,94 +108,6 @@ static struct opbx_filestream *g726_32_open(int fd)
 	return tmp;
 }
 
-static struct opbx_filestream *g726_24_open(int fd)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
-		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g726_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->fd = fd;
-		tmp->rate = RATE_24;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name24;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		opbx_mutex_unlock(&g726_lock);
-		opbx_update_use_count();
-	}
-	return tmp;
-}
-
-static struct opbx_filestream *g726_16_open(int fd)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
-		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g726_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->fd = fd;
-		tmp->rate = RATE_16;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name16;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		opbx_mutex_unlock(&g726_lock);
-		opbx_update_use_count();
-	}
-	return tmp;
-}
-
-static struct opbx_filestream *g726_40_rewrite(int fd, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
-		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g726_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->fd = fd;
-		tmp->rate = RATE_40;
-		glistcnt++;
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		opbx_mutex_unlock(&g726_lock);
-		opbx_update_use_count();
-	} else
-		opbx_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
 static struct opbx_filestream *g726_32_rewrite(int fd, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
@@ -253,58 +123,6 @@ static struct opbx_filestream *g726_32_rewrite(int fd, const char *comment)
 		}
 		tmp->fd = fd;
 		tmp->rate = RATE_32;
-		glistcnt++;
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		opbx_mutex_unlock(&g726_lock);
-		opbx_update_use_count();
-	} else
-		opbx_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static struct opbx_filestream *g726_24_rewrite(int fd, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
-		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g726_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->fd = fd;
-		tmp->rate = RATE_24;
-		glistcnt++;
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		opbx_mutex_unlock(&g726_lock);
-		opbx_update_use_count();
-	} else
-		opbx_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static struct opbx_filestream *g726_16_rewrite(int fd, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
-		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g726_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->fd = fd;
-		tmp->rate = RATE_16;
 		glistcnt++;
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
@@ -407,20 +225,6 @@ int load_module()
 {
 	int res;
 
-	res = opbx_format_register(name40, exts40, OPBX_FORMAT_G726,
-								g726_40_open,
-								g726_40_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		opbx_log(LOG_WARNING, "Failed to register format %s.\n", name40);
-		return(-1);
-	}
 	res = opbx_format_register(name32, exts32, OPBX_FORMAT_G726,
 								g726_32_open,
 								g726_32_rewrite,
@@ -435,34 +239,6 @@ int load_module()
 		opbx_log(LOG_WARNING, "Failed to register format %s.\n", name32);
 		return(-1);
 	}
-	res = opbx_format_register(name24, exts24, OPBX_FORMAT_G726,
-								g726_24_open,
-								g726_24_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		opbx_log(LOG_WARNING, "Failed to register format %s.\n", name24);
-		return(-1);
-	}
-	res = opbx_format_register(name16, exts16, OPBX_FORMAT_G726,
-								g726_16_open,
-								g726_16_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		opbx_log(LOG_WARNING, "Failed to register format %s.\n", name16);
-		return(-1);
-	}
 	return(0);
 }
 
@@ -470,24 +246,9 @@ int unload_module()
 {
 	int res;
 
-	res = opbx_format_unregister(name16);
-	if (res) {
-		opbx_log(LOG_WARNING, "Failed to unregister format %s.\n", name16);
-		return(-1);
-	}
-	res = opbx_format_unregister(name24);
-	if (res) {
-		opbx_log(LOG_WARNING, "Failed to unregister format %s.\n", name24);
-		return(-1);
-	}
 	res = opbx_format_unregister(name32);
 	if (res) {
 		opbx_log(LOG_WARNING, "Failed to unregister format %s.\n", name32);
-		return(-1);
-	}
-	res = opbx_format_unregister(name40);
-	if (res) {
-		opbx_log(LOG_WARNING, "Failed to unregister format %s.\n", name40);
 		return(-1);
 	}
 	return(0);
@@ -502,6 +263,3 @@ char *description()
 {
 	return desc;
 }
-
-
-
