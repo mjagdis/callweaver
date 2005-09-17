@@ -60,16 +60,11 @@ OPBX_MUTEX_DEFINE_STATIC(reloadlock);
 static struct module *module_list=NULL;
 static int modlistver = 0;
 
-static unsigned char expected_key[] =
-{ 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
-  0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
-
 struct module {
 	int (*load_module)(void);
 	int (*unload_module)(void);
 	int (*usecount)(void);
 	char *(*description)(void);
-	char *(*key)(void);
 	int (*reload)(void);
 	void *lib;
 	char resource[256];
@@ -94,29 +89,6 @@ static int printdigest(unsigned char *d)
 	strcat(buf, "\n");
 	opbx_log(LOG_DEBUG, "%s", buf);
 	return 0;
-}
-
-static int key_matches(unsigned char *key1, unsigned char *key2)
-{
-	int match = 1;
-	int x;
-	for (x=0; x<16; x++) {
-		match &= (key1[x] == key2[x]);
-	}
-	return match;
-}
-
-static int verify_key(unsigned char *key)
-{
-	struct MD5Context c;
-	unsigned char digest[16];
-	MD5Init(&c);
-	MD5Update(&c, key, strlen((char *)key));
-	MD5Final(digest, &c);
-	if (key_matches(expected_key, digest))
-		return 0;
-	printdigest(digest);
-	return -1;
 }
 
 int opbx_unload_resource(const char *resource_name, int force)
@@ -277,7 +249,6 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 #ifdef RTLD_GLOBAL
 	char *val;
 #endif
-	unsigned char *key;
 	char tmp[80];
 
 	if (strncasecmp(resource_name, "res_", 4)) {
@@ -355,27 +326,11 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 		opbx_log(LOG_WARNING, "No description in module %s\n", fn);
 		errors++;
 	}
-	m->key = dlsym(m->lib, "key");
-	if (m->key == NULL)
-		m->key = dlsym(m->lib, "_key");
-	if (!m->key) {
-		opbx_log(LOG_WARNING, "No key routine in module %s\n", fn);
-		errors++;
-	}
 
 	m->reload = dlsym(m->lib, "reload");
 	if (m->reload == NULL)
 		m->reload = dlsym(m->lib, "_reload");
 
-	if (!m->key || !(key = (unsigned char *) m->key())) {
-		opbx_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
-		key = NULL;
-		errors++;
-	}
-	if (key && verify_key(key)) {
-		opbx_log(LOG_WARNING, "Unexpected key returned by module %s\n", fn);
-		errors++;
-	}
 	if (errors) {
 		opbx_log(LOG_WARNING, "%d error%s loading module %s, aborted\n", errors, (errors != 1) ? "s" : "", fn);
 		dlclose(m->lib);
