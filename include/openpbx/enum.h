@@ -44,7 +44,7 @@
        \param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list
 
 */
-extern int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
+extern int opbx_get_enum(struct opbx_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel
        \param number   E164 number with or without the leading +
@@ -55,9 +55,9 @@ extern int ast_get_enum(struct ast_channel *chan, const char *number, char *loca
 	\param txt	Text string (return value)
 	\param maxtxt	Max length of "txt"
 */
-extern int ast_get_txt(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char *txt, int maxtxt);
+extern int opbx_get_txt(struct opbx_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char *txt, int maxtxt);
 
-extern int ast_enum_init(void);
-extern int ast_enum_reload(void);
+extern int opbx_enum_init(void);
+extern int opbx_enum_reload(void);
 
 #endif /* _OPENPBX_ENUM_H */

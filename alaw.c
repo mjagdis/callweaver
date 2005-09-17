@@ -77,10 +77,10 @@ static inline short int alaw2linear (unsigned char alaw)
     return (short int) ((alaw & 0x80)  ?  i  :  -i);
 }
 
-unsigned char __ast_lin2a[8192];
-short __ast_alaw[256];
+unsigned char __opbx_lin2a[8192];
+short __opbx_alaw[256];
 
-void ast_alaw_init(void)
+void opbx_alaw_init(void)
 {
 	int i;
 	/* 
@@ -88,12 +88,12 @@ void ast_alaw_init(void)
 	 */
 	for(i = 0;i < 256;i++)
 	   {
-	        __ast_alaw[i] = alaw2linear(i);
+	        __opbx_alaw[i] = alaw2linear(i);
 	   }
 	  /* set up the reverse (mu-law) conversion table */
 	for(i = -32768; i < 32768; i++)
 	   {
-		__ast_lin2a[((unsigned short)i) >> 3] = linear2alaw(i);
+		__opbx_lin2a[((unsigned short)i) >> 3] = linear2alaw(i);
 	   }
 
 }

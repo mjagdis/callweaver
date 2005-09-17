@@ -63,15 +63,15 @@ static char *descrip2 =
 "\n"
 ;
 
-static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
+static int setcallerid_pres_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
 	int pres = -1;
 
-	pres = ast_parse_caller_presentation(data);
+	pres = opbx_parse_caller_presentation(data);
 
 	if (pres < 0) {
-		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
+		opbx_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
 			(char *) data);
 		return 0;
 	}
@@ -94,7 +94,7 @@ static char *descrip =
 "  SetCallerID(clid[|a]): Set Caller*ID on a call to a new\n"
 "value.  Sets ANI as well if a flag is used.  Always returns 0\n";
 
-static int setcallerid_exec(struct ast_channel *chan, void *data)
+static int setcallerid_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	char tmp[256] = "";
@@ -104,7 +104,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	char *opt;
 	int anitoo = 0;
 	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+		opbx_copy_string(tmp, (char *)data, sizeof(tmp));
 	opt = strchr(tmp, '|');
 	if (opt) {
 		*opt = '\0';
@@ -113,8 +113,8 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 			anitoo = 1;
 	}
 	LOCAL_USER_ADD(u);
-	ast_callerid_split(tmp, name, sizeof(name), num, sizeof(num));
-	ast_set_callerid(chan, num, name, anitoo ? num : NULL);
+	opbx_callerid_split(tmp, name, sizeof(name), num, sizeof(num));
+	opbx_set_callerid(chan, num, name, anitoo ? num : NULL);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -122,14 +122,14 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(app2);
-	return ast_unregister_application(app);
+	opbx_unregister_application(app2);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	ast_register_application(app2, setcallerid_pres_exec, synopsis2, descrip2);
-	return ast_register_application(app, setcallerid_exec, synopsis, descrip);
+	opbx_register_application(app2, setcallerid_pres_exec, synopsis2, descrip2);
+	return opbx_register_application(app, setcallerid_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -88,7 +88,7 @@ static inline void gen_tones(unsigned char *buf, int len, int codec, float ddr1,
 		t = 2.0 - (*cr2 * *cr2 + *ci2 * *ci2);
 		*cr2 *= t;
 		*ci2 *= t; 	
-		buf[x] = AST_LIN2X((*cr1 + *cr2) * 2048.0);
+		buf[x] = OPBX_LIN2X((*cr1 + *cr2) * 2048.0);
 	}
 }
 
@@ -103,7 +103,7 @@ static inline void gen_tone(unsigned char *buf, int len, int codec, float ddr1, 
 		t = 2.0 - (*cr1 * *cr1 + *ci1 * *ci1);
 		*cr1 *= t;
 		*ci1 *= t; 	
-		buf[x] = AST_LIN2X(*cr1 * 8192.0);
+		buf[x] = OPBX_LIN2X(*cr1 * 8192.0);
 	}
 }
 
@@ -150,7 +150,7 @@ struct callerid_state *callerid_new(int cid_signalling)
 		cid->flags = CID_UNKNOWN_NAME | CID_UNKNOWN_NUMBER;
 		cid->pos = 0;
 	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(LOG_WARNING, "Out of memory\n");
 	return cid;
 }
 
@@ -176,7 +176,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 	number[0] = 0;
 
 	if (strlen(cidstring) < 2) {
-		ast_log(LOG_DEBUG, "No cid detected\n");
+		opbx_log(LOG_DEBUG, "No cid detected\n");
 		*flags = CID_UNKNOWN_NUMBER;
 		return;
 	}
@@ -190,7 +190,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 		else if (code == 10) 
 			*flags = CID_PRIVATE_NUMBER;
 		else
-			ast_log(LOG_DEBUG, "Unknown DTMF code %d\n", code);
+			opbx_log(LOG_DEBUG, "Unknown DTMF code %d\n", code);
 	} else if (cidstring[0] == 'D' && cidstring[2] == '#') {
 		/* .DK special code */
 		if (cidstring[1] == '1')
@@ -205,14 +205,14 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 			if (isdigit(cidstring[i]))
 				number[i-1] = cidstring[i];
 			else
-				ast_log(LOG_DEBUG, "Unknown CID digit '%c'\n",
+				opbx_log(LOG_DEBUG, "Unknown CID digit '%c'\n",
 					cidstring[i]);
 		}
 		number[i-1] = 0;
 	} else if (isdigit(cidstring[0])) {
 		/* It begins with a digit, so we parse it as a number and hope
 		 * for the best */
-		ast_log(LOG_WARNING, "Couldn't detect start-character. CID "
+		opbx_log(LOG_WARNING, "Couldn't detect start-character. CID "
 			"parsing might be unreliable\n");
 		for (i = 0; i < strlen(cidstring); i++) {
 			if (isdigit(cidstring[i]))
@@ -222,13 +222,13 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 		}
 		number[i] = 0;
 	} else {
-		ast_log(LOG_DEBUG, "Unknown CID protocol, start digit '%c'\n", 
+		opbx_log(LOG_DEBUG, "Unknown CID protocol, start digit '%c'\n", 
 			cidstring[0]);
 		*flags = CID_UNKNOWN_NUMBER;
 	}
 }
 
-int ast_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
+int opbx_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
 {
 	int pos = 0;
 	int saslen=2400;
@@ -259,24 +259,24 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 	short *buf = malloc(2 * len + cid->oldlen);
 	short *obuf = buf;
 	if (!buf) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	memset(buf, 0, 2 * len + cid->oldlen);
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
 	for (x=0;x<len;x++) 
-		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
+		buf[x+cid->oldlen/2] = OPBX_XLAW(ubuf[x]);
 	while(mylen >= 160) {
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			opbx_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
 			return -1;
 		}
 		buf += (olen - mylen);
 		if (res < 0) {
-			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			opbx_log(LOG_NOTICE, "fsk_serie failed\n");
 			return -1;
 		}
 		if (res == 1) {
@@ -304,7 +304,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 				break;
 			case 4: /* Retrieve message */
 				if (cid->pos >= 128) {
-					ast_log(LOG_WARNING, "Caller ID too long???\n");
+					opbx_log(LOG_WARNING, "Caller ID too long???\n");
 					return -1;
 				}
 				cid->rawdata[cid->pos++] = b;
@@ -317,7 +317,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 				break;
 			case 5: /* Check checksum */
 				if (b != (256 - (cid->cksum & 0xff))) {
-					ast_log(LOG_NOTICE, "Caller*ID failed checksum\n");
+					opbx_log(LOG_NOTICE, "Caller*ID failed checksum\n");
 					/* Try again */
 					cid->sawflag = 0;
 					break;
@@ -339,10 +339,10 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 						case 4: /* Number */
 							res = cid->rawdata[x];
 							if (res > 32) {
-								ast_log(LOG_NOTICE, "Truncating long caller ID number from %d bytes to 32\n", cid->rawdata[x]);
+								opbx_log(LOG_NOTICE, "Truncating long caller ID number from %d bytes to 32\n", cid->rawdata[x]);
 								res = 32; 
 							}
-							if (ast_strlen_zero(cid->number)) {
+							if (opbx_strlen_zero(cid->number)) {
 								memcpy(cid->number, cid->rawdata + x + 1, res);
 								/* Null terminate */
 								cid->number[res] = '\0';
@@ -354,7 +354,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 						case 8: /* Name */
 							res = cid->rawdata[x];
 							if (res > 32) {
-								ast_log(LOG_NOTICE, "Truncating long caller ID name from %d bytes to 32\n", cid->rawdata[x]);
+								opbx_log(LOG_NOTICE, "Truncating long caller ID name from %d bytes to 32\n", cid->rawdata[x]);
 								res = 32; 
 							}
 							memcpy(cid->name, cid->rawdata + x + 1, res);
@@ -365,35 +365,35 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 						case 22: /* Something French */
 							break;
 						default:
-							ast_log(LOG_NOTICE, "Unknown IE %d\n", cid->rawdata[x-1]);
+							opbx_log(LOG_NOTICE, "Unknown IE %d\n", cid->rawdata[x-1]);
 						}
 						x += cid->rawdata[x];
 						x++;
 					}
 				} else {
 					/* SDMF */
-					ast_copy_string(cid->number, cid->rawdata + 8, sizeof(cid->number));
+					opbx_copy_string(cid->number, cid->rawdata + 8, sizeof(cid->number));
 				}
 				/* Update flags */
 				cid->flags = 0;
 				if (!strcmp(cid->number, "P")) {
 					strcpy(cid->number, "");
 					cid->flags |= CID_PRIVATE_NUMBER;
-				} else if (!strcmp(cid->number, "O") || ast_strlen_zero(cid->number)) {
+				} else if (!strcmp(cid->number, "O") || opbx_strlen_zero(cid->number)) {
 					strcpy(cid->number, "");
 					cid->flags |= CID_UNKNOWN_NUMBER;
 				}
 				if (!strcmp(cid->name, "P")) {
 					strcpy(cid->name, "");
 					cid->flags |= CID_PRIVATE_NAME;
-				} else if (!strcmp(cid->name, "O") || ast_strlen_zero(cid->name)) {
+				} else if (!strcmp(cid->name, "O") || opbx_strlen_zero(cid->name)) {
 					strcpy(cid->name, "");
 					cid->flags |= CID_UNKNOWN_NAME;
 				}
 				return 1;
 				break;
 			default:
-				ast_log(LOG_ERROR, "Dunno what to do with a digit in sawflag %d\n", cid->sawflag);
+				opbx_log(LOG_ERROR, "Dunno what to do with a digit in sawflag %d\n", cid->sawflag);
 			}
 		}
 	}
@@ -429,7 +429,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 				tm.tm_mday, tm.tm_hour, tm.tm_min);
 	size -= res;
 	ptr += res;
-	if (!number || ast_strlen_zero(number) || (flags & CID_UNKNOWN_NUMBER)) {
+	if (!number || opbx_strlen_zero(number) || (flags & CID_UNKNOWN_NUMBER)) {
 		/* Indicate number not known */
 		res = snprintf(ptr, size, "\004\001O");
 		size -= res;
@@ -453,7 +453,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 		size -= i;
 	}
 
-	if (!name || ast_strlen_zero(name) || (flags & CID_UNKNOWN_NAME)) {
+	if (!name || opbx_strlen_zero(name) || (flags & CID_UNKNOWN_NAME)) {
 		/* Indicate name not known */
 		res = snprintf(ptr, size, "\010\001O");
 		size -= res;
@@ -584,7 +584,7 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	return bytes;
 }
 
-void ast_shrink_phone_number(char *n)
+void opbx_shrink_phone_number(char *n)
 {
 	int x,y=0;
 	int bracketed=0;
@@ -614,10 +614,10 @@ void ast_shrink_phone_number(char *n)
 	n[y] = '\0';
 }
 
-int ast_isphonenumber(char *n)
+int opbx_isphonenumber(char *n)
 {
 	int x;
-	if (!n || ast_strlen_zero(n))
+	if (!n || opbx_strlen_zero(n))
 		return 0;
 	for (x=0;n[x];x++)
 		if (!strchr("0123456789*#+", n[x]))
@@ -625,7 +625,7 @@ int ast_isphonenumber(char *n)
 	return 1;
 }
 
-int ast_callerid_parse(char *instr, char **name, char **location)
+int opbx_callerid_parse(char *instr, char **name, char **location)
 {
 	char *ns, *ne;
 	char *ls, *le;
@@ -646,7 +646,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 		} else {
 			/* Just trim off any trailing spaces */
 			*name = instr;
-			while(!ast_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
+			while(!opbx_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
 				instr[strlen(instr) - 1] = '\0';
 			/* And leading spaces */
 			while(**name && (**name < 33))
@@ -654,9 +654,9 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 			return 0;
 		}
 	} else {
-		ast_copy_string(tmp, instr, sizeof(tmp));
-		ast_shrink_phone_number(tmp);
-		if (ast_isphonenumber(tmp)) {
+		opbx_copy_string(tmp, instr, sizeof(tmp));
+		opbx_shrink_phone_number(tmp);
+		if (opbx_isphonenumber(tmp)) {
 			/* Assume it's just a location */
 			*name = NULL;
 			*location = instr;
@@ -673,57 +673,57 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 	return -1;
 }
 
-static int __ast_callerid_generate(unsigned char *buf, char *name, char *number, int callwaiting, int codec)
+static int __opbx_callerid_generate(unsigned char *buf, char *name, char *number, int callwaiting, int codec)
 {
-	if (name && ast_strlen_zero(name))
+	if (name && opbx_strlen_zero(name))
 		name = NULL;
-	if (number && ast_strlen_zero(number))
+	if (number && opbx_strlen_zero(number))
 		number = NULL;
 	return callerid_generate(buf, number, name, 0, callwaiting, codec);
 }
 
-int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec)
+int opbx_callerid_generate(unsigned char *buf, char *name, char *number, int codec)
 {
-	return __ast_callerid_generate(buf, name, number, 0, codec);
+	return __opbx_callerid_generate(buf, name, number, 0, codec);
 }
 
-int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec)
+int opbx_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec)
 {
-	return __ast_callerid_generate(buf, name, number, 1, codec);
+	return __opbx_callerid_generate(buf, name, number, 1, codec);
 }
 
-char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown)
+char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown)
 {
 	if (!unknown)
 		unknown = "<unknown>";
 	if (name && num)
 		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
 	else if (name) 
-		ast_copy_string(buf, name, bufsiz);
+		opbx_copy_string(buf, name, bufsiz);
 	else if (num)
-		ast_copy_string(buf, num, bufsiz);
+		opbx_copy_string(buf, num, bufsiz);
 	else
-		ast_copy_string(buf, unknown, bufsiz);
+		opbx_copy_string(buf, unknown, bufsiz);
 	return buf;
 }
-int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)
+int opbx_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)
 {
 	char *tmp;
 	char *l = NULL, *n = NULL;
-	tmp = ast_strdupa(buf);
+	tmp = opbx_strdupa(buf);
 	if (!tmp) {
 		name[0] = '\0';
 		num[0] = '\0';
 		return -1;
 	}
-	ast_callerid_parse(tmp, &n, &l);
+	opbx_callerid_parse(tmp, &n, &l);
 	if (n)
-		ast_copy_string(name, n, namelen);
+		opbx_copy_string(name, n, namelen);
 	else
 		name[0] = '\0';
 	if (l) {
-		ast_shrink_phone_number(l);
-		ast_copy_string(num, l, numlen);
+		opbx_shrink_phone_number(l);
+		opbx_copy_string(num, l, numlen);
 	} else
 		num[0] = '\0';
 	return 0;
@@ -734,18 +734,18 @@ static struct {
 	char *name;
 	char *description;
 } pres_types[] = {
-	{  AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", "Presentation Allowed, Not Screened"},
-	{  AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", "Presentation Allowed, Passed Screen"},
-	{  AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN, "allowed_failed_screen", "Presentation Allowed, Failed Screen"},
-	{  AST_PRES_ALLOWED_NETWORK_NUMBER, "allowed", "Presentation Allowed, Network Number"},
-	{  AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED, "prohib_not_screened", "Presentation Prohibited, Not Screened"},
-	{  AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN, "prohib_passed_screen", "Presentation Prohibited, Passed Screen"},
-	{  AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN, "prohib_failed_screen", "Presentation Prohibited, Failed Screen"},
-	{  AST_PRES_PROHIB_NETWORK_NUMBER, "prohib", "Presentation Prohibited, Network Number"},
-	{  AST_PRES_NUMBER_NOT_AVAILABLE, "unavailable", "Number Unavailable"},
+	{  OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", "Presentation Allowed, Not Screened"},
+	{  OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", "Presentation Allowed, Passed Screen"},
+	{  OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN, "allowed_failed_screen", "Presentation Allowed, Failed Screen"},
+	{  OPBX_PRES_ALLOWED_NETWORK_NUMBER, "allowed", "Presentation Allowed, Network Number"},
+	{  OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED, "prohib_not_screened", "Presentation Prohibited, Not Screened"},
+	{  OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN, "prohib_passed_screen", "Presentation Prohibited, Passed Screen"},
+	{  OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN, "prohib_failed_screen", "Presentation Prohibited, Failed Screen"},
+	{  OPBX_PRES_PROHIB_NETWORK_NUMBER, "prohib", "Presentation Prohibited, Network Number"},
+	{  OPBX_PRES_NUMBER_NOT_AVAILABLE, "unavailable", "Number Unavailable"},
 };
 
-int ast_parse_caller_presentation(const char *data)
+int opbx_parse_caller_presentation(const char *data)
 {
 	int i;
 
@@ -757,7 +757,7 @@ int ast_parse_caller_presentation(const char *data)
 	return -1;
 }
 
-const char *ast_describe_caller_presentation(int data)
+const char *opbx_describe_caller_presentation(int data)
 {
 	int i;
 

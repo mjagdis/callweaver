@@ -126,7 +126,7 @@ typedef void* yyscan_t;
 #define yycolumn (YY_CURRENT_BUFFER_LVALUE->yy_bs_column)
 #define yy_flex_debug yyg->yy_flex_debug_r
 
-int ast_yylex_init (yyscan_t* scanner);
+int opbx_yylex_init (yyscan_t* scanner);
 
 /* Enter a start condition.  This macro really ought to take a parameter,
  * but we do it the disgusting crufty way forced on us by the ()-less
@@ -145,7 +145,7 @@ int ast_yylex_init (yyscan_t* scanner);
 #define YY_STATE_EOF(state) (YY_END_OF_BUFFER + state + 1)
 
 /* Special action meaning "start processing a new file". */
-#define YY_NEW_FILE ast_yyrestart(yyin ,yyscanner )
+#define YY_NEW_FILE opbx_yyrestart(yyin ,yyscanner )
 
 #define YY_END_OF_BUFFER_CHAR 0
 
@@ -161,7 +161,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 
 #define EOB_ACT_CONTINUE_SCAN 0
 #define EOB_ACT_END_OF_FILE 1
-#define EOB_ACT_LAST_MATCH 2
+#define EOB_ACT_LOPBX_MATCH 2
 
     #define YY_LESS_LINENO(n)
     
@@ -248,7 +248,7 @@ struct yy_buffer_state
 	 * possible backing-up.
 	 *
 	 * When we actually see the EOF, we change the status to "new"
-	 * (via ast_yyrestart()), so that the user can continue scanning by
+	 * (via opbx_yyrestart()), so that the user can continue scanning by
 	 * just pointing yyin at a new input file.
 	 */
 #define YY_BUFFER_EOF_PENDING 2
@@ -271,36 +271,36 @@ struct yy_buffer_state
  */
 #define YY_CURRENT_BUFFER_LVALUE yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]
 
-void ast_yyrestart (FILE *input_file ,yyscan_t yyscanner );
-void ast_yy_switch_to_buffer (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
-YY_BUFFER_STATE ast_yy_create_buffer (FILE *file,int size ,yyscan_t yyscanner );
-void ast_yy_delete_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
-void ast_yy_flush_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
-void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
-void ast_yypop_buffer_state (yyscan_t yyscanner );
+void opbx_yyrestart (FILE *input_file ,yyscan_t yyscanner );
+void opbx_yy_switch_to_buffer (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
+YY_BUFFER_STATE opbx_yy_create_buffer (FILE *file,int size ,yyscan_t yyscanner );
+void opbx_yy_delete_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
+void opbx_yy_flush_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
+void opbx_yypush_buffer_state (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
+void opbx_yypop_buffer_state (yyscan_t yyscanner );
 
-static void ast_yyensure_buffer_stack (yyscan_t yyscanner );
-static void ast_yy_load_buffer_state (yyscan_t yyscanner );
-static void ast_yy_init_buffer (YY_BUFFER_STATE b,FILE *file ,yyscan_t yyscanner );
+static void opbx_yyensure_buffer_stack (yyscan_t yyscanner );
+static void opbx_yy_load_buffer_state (yyscan_t yyscanner );
+static void opbx_yy_init_buffer (YY_BUFFER_STATE b,FILE *file ,yyscan_t yyscanner );
 
-#define YY_FLUSH_BUFFER ast_yy_flush_buffer(YY_CURRENT_BUFFER ,yyscanner)
+#define YY_FLUSH_BUFFER opbx_yy_flush_buffer(YY_CURRENT_BUFFER ,yyscanner)
 
-YY_BUFFER_STATE ast_yy_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
-YY_BUFFER_STATE ast_yy_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
-YY_BUFFER_STATE ast_yy_scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
+YY_BUFFER_STATE opbx_yy_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
+YY_BUFFER_STATE opbx_yy_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
+YY_BUFFER_STATE opbx_yy_scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
 
-void *ast_yyalloc (yy_size_t ,yyscan_t yyscanner );
-void *ast_yyrealloc (void *,yy_size_t ,yyscan_t yyscanner );
-void ast_yyfree (void * ,yyscan_t yyscanner );
+void *opbx_yyalloc (yy_size_t ,yyscan_t yyscanner );
+void *opbx_yyrealloc (void *,yy_size_t ,yyscan_t yyscanner );
+void opbx_yyfree (void * ,yyscan_t yyscanner );
 
-#define yy_new_buffer ast_yy_create_buffer
+#define yy_new_buffer opbx_yy_create_buffer
 
 #define yy_set_interactive(is_interactive) \
 	{ \
 	if ( ! YY_CURRENT_BUFFER ){ \
-        ast_yyensure_buffer_stack (yyscanner); \
+        opbx_yyensure_buffer_stack (yyscanner); \
 		YY_CURRENT_BUFFER_LVALUE =    \
-            ast_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
+            opbx_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
 	} \
 	YY_CURRENT_BUFFER_LVALUE->yy_is_interactive = is_interactive; \
 	}
@@ -308,9 +308,9 @@ void ast_yyfree (void * ,yyscan_t yyscanner );
 #define yy_set_bol(at_bol) \
 	{ \
 	if ( ! YY_CURRENT_BUFFER ){\
-        ast_yyensure_buffer_stack (yyscanner); \
+        opbx_yyensure_buffer_stack (yyscanner); \
 		YY_CURRENT_BUFFER_LVALUE =    \
-            ast_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
+            opbx_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
 	} \
 	YY_CURRENT_BUFFER_LVALUE->yy_at_bol = at_bol; \
 	}
@@ -319,7 +319,7 @@ void ast_yyfree (void * ,yyscan_t yyscanner );
 
 /* Begin user sect3 */
 
-#define ast_yywrap(n) 1
+#define opbx_yywrap(n) 1
 #define YY_SKIP_YYWRAP
 
 typedef unsigned char YY_CHAR;
@@ -463,7 +463,7 @@ static yyconst flex_int16_t yy_chk[56] =
 #include <openpbx/strings.h>
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
 } ;
 
 struct val {
@@ -476,9 +476,9 @@ struct val {
 
 #include "opbx_expr2.h" /* the o/p of the bison on opbx_expr2.y */
 
-#define SET_COLUMNS yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);yylloc_param->last_column = yylloc_param->last_column + yyleng - 1; yylloc_param->first_line = yylloc_param->last_line = 1
-#define SET_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_string; yylval_param->val->u.s = strdup(yytext);
-#define SET_NUMERIC_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_numeric_string; yylval_param->val->u.s = strdup(yytext);
+#define SET_COLUMNS yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);yylloc_param->lopbx_column = yylloc_param->lopbx_column + yyleng - 1; yylloc_param->first_line = yylloc_param->lopbx_line = 1
+#define SET_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = OPBX_EXPR_string; yylval_param->val->u.s = strdup(yytext);
+#define SET_NUMERIC_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = OPBX_EXPR_numeric_string; yylval_param->val->u.s = strdup(yytext);
 
 struct parse_io
 {
@@ -487,8 +487,8 @@ struct parse_io
 	yyscan_t scanner;
 };
  
-void ast_yyset_column(int column_no, yyscan_t yyscanner);
-int ast_yyget_column(yyscan_t yyscanner);
+void opbx_yyset_column(int column_no, yyscan_t yyscanner);
+int opbx_yyget_column(yyscan_t yyscanner);
 
 #line 494 "opbx_expr2f.c"
 
@@ -528,8 +528,8 @@ struct yyguts_t
     int yy_start_stack_ptr;
     int yy_start_stack_depth;
     int *yy_start_stack;
-    yy_state_type yy_last_accepting_state;
-    char* yy_last_accepting_cpos;
+    yy_state_type yy_lopbx_accepting_state;
+    char* yy_lopbx_accepting_cpos;
 
     int yylineno_r;
     int yy_flex_debug_r;
@@ -553,39 +553,39 @@ struct yyguts_t
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-int ast_yylex_destroy (yyscan_t yyscanner );
+int opbx_yylex_destroy (yyscan_t yyscanner );
 
-int ast_yyget_debug (yyscan_t yyscanner );
+int opbx_yyget_debug (yyscan_t yyscanner );
 
-void ast_yyset_debug (int debug_flag ,yyscan_t yyscanner );
+void opbx_yyset_debug (int debug_flag ,yyscan_t yyscanner );
 
-YY_EXTRA_TYPE ast_yyget_extra (yyscan_t yyscanner );
+YY_EXTRA_TYPE opbx_yyget_extra (yyscan_t yyscanner );
 
-void ast_yyset_extra (YY_EXTRA_TYPE user_defined ,yyscan_t yyscanner );
+void opbx_yyset_extra (YY_EXTRA_TYPE user_defined ,yyscan_t yyscanner );
 
-FILE *ast_yyget_in (yyscan_t yyscanner );
+FILE *opbx_yyget_in (yyscan_t yyscanner );
 
-void ast_yyset_in  (FILE * in_str ,yyscan_t yyscanner );
+void opbx_yyset_in  (FILE * in_str ,yyscan_t yyscanner );
 
-FILE *ast_yyget_out (yyscan_t yyscanner );
+FILE *opbx_yyget_out (yyscan_t yyscanner );
 
-void ast_yyset_out  (FILE * out_str ,yyscan_t yyscanner );
+void opbx_yyset_out  (FILE * out_str ,yyscan_t yyscanner );
 
-int ast_yyget_leng (yyscan_t yyscanner );
+int opbx_yyget_leng (yyscan_t yyscanner );
 
-char *ast_yyget_text (yyscan_t yyscanner );
+char *opbx_yyget_text (yyscan_t yyscanner );
 
-int ast_yyget_lineno (yyscan_t yyscanner );
+int opbx_yyget_lineno (yyscan_t yyscanner );
 
-void ast_yyset_lineno (int line_number ,yyscan_t yyscanner );
+void opbx_yyset_lineno (int line_number ,yyscan_t yyscanner );
 
-YYSTYPE * ast_yyget_lval (yyscan_t yyscanner );
+YYSTYPE * opbx_yyget_lval (yyscan_t yyscanner );
 
-void ast_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
+void opbx_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
-       YYLTYPE *ast_yyget_lloc (yyscan_t yyscanner );
+       YYLTYPE *opbx_yyget_lloc (yyscan_t yyscanner );
     
-        void ast_yyset_lloc (YYLTYPE * yylloc_param ,yyscan_t yyscanner );
+        void opbx_yyset_lloc (YYLTYPE * yylloc_param ,yyscan_t yyscanner );
     
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -593,9 +593,9 @@ void ast_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
 #ifndef YY_SKIP_YYWRAP
 #ifdef __cplusplus
-extern "C" int ast_yywrap (yyscan_t yyscanner );
+extern "C" int opbx_yywrap (yyscan_t yyscanner );
 #else
-extern int ast_yywrap (yyscan_t yyscanner );
+extern int opbx_yywrap (yyscan_t yyscanner );
 #endif
 #endif
 
@@ -694,9 +694,9 @@ static int input (yyscan_t yyscanner );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int ast_yylex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
+extern int opbx_yylex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int ast_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int opbx_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -750,12 +750,12 @@ YY_DECL
 			yyout = stdout;
 
 		if ( ! YY_CURRENT_BUFFER ) {
-			ast_yyensure_buffer_stack (yyscanner);
+			opbx_yyensure_buffer_stack (yyscanner);
 			YY_CURRENT_BUFFER_LVALUE =
-				ast_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
+				opbx_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
 		}
 
-		ast_yy_load_buffer_state(yyscanner );
+		opbx_yy_load_buffer_state(yyscanner );
 		}
 
 	while ( 1 )		/* loops until end-of-file is reached */
@@ -777,8 +777,8 @@ yy_match:
 			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)];
 			if ( yy_accept[yy_current_state] )
 				{
-				yyg->yy_last_accepting_state = yy_current_state;
-				yyg->yy_last_accepting_cpos = yy_cp;
+				yyg->yy_lopbx_accepting_state = yy_current_state;
+				yyg->yy_lopbx_accepting_cpos = yy_cp;
 				}
 			while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 				{
@@ -790,8 +790,8 @@ yy_match:
 			++yy_cp;
 			}
 		while ( yy_current_state != 33 );
-		yy_cp = yyg->yy_last_accepting_cpos;
-		yy_current_state = yyg->yy_last_accepting_state;
+		yy_cp = yyg->yy_lopbx_accepting_cpos;
+		yy_current_state = yyg->yy_lopbx_accepting_state;
 
 yy_find_action:
 		yy_act = yy_accept[yy_current_state];
@@ -805,8 +805,8 @@ do_action:	/* This label is used only to access EOF actions. */
 			case 0: /* must back up */
 			/* undo the effects of YY_DO_BEFORE_ACTION */
 			*yy_cp = yyg->yy_hold_char;
-			yy_cp = yyg->yy_last_accepting_cpos;
-			yy_current_state = yyg->yy_last_accepting_state;
+			yy_cp = yyg->yy_lopbx_accepting_cpos;
+			yy_current_state = yyg->yy_lopbx_accepting_state;
 			goto yy_find_action;
 
 case 1:
@@ -951,7 +951,7 @@ case YY_STATE_EOF(INITIAL):
 			/* We're scanning a new file or input source.  It's
 			 * possible that this happened because the user
 			 * just pointed yyin at a new source and called
-			 * ast_yylex().  If so, then we have to assure
+			 * opbx_yylex().  If so, then we have to assure
 			 * consistency between YY_CURRENT_BUFFER and our
 			 * globals.  Here is the right place to do so, because
 			 * this is the first action (other than possibly a
@@ -1000,8 +1000,8 @@ case YY_STATE_EOF(INITIAL):
 
 			else
 				{
-				yy_cp = yyg->yy_last_accepting_cpos;
-				yy_current_state = yyg->yy_last_accepting_state;
+				yy_cp = yyg->yy_lopbx_accepting_cpos;
+				yy_current_state = yyg->yy_lopbx_accepting_state;
 				goto yy_find_action;
 				}
 			}
@@ -1012,7 +1012,7 @@ case YY_STATE_EOF(INITIAL):
 				{
 				yyg->yy_did_buffer_switch_on_eof = 0;
 
-				if ( ast_yywrap(yyscanner ) )
+				if ( opbx_yywrap(yyscanner ) )
 					{
 					/* Note: because we've taken care in
 					 * yy_get_next_buffer() to have set up
@@ -1047,7 +1047,7 @@ case YY_STATE_EOF(INITIAL):
 				yy_bp = yyg->yytext_ptr + YY_MORE_ADJ;
 				goto yy_match;
 
-			case EOB_ACT_LAST_MATCH:
+			case EOB_ACT_LOPBX_MATCH:
 				yyg->yy_c_buf_p =
 				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[yyg->yy_n_chars];
 
@@ -1065,12 +1065,12 @@ case YY_STATE_EOF(INITIAL):
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
-} /* end of ast_yylex */
+} /* end of opbx_yylex */
 
 /* yy_get_next_buffer - try to read in a new buffer
  *
  * Returns a code representing an action:
- *	EOB_ACT_LAST_MATCH -
+ *	EOB_ACT_LOPBX_MATCH -
  *	EOB_ACT_CONTINUE_SCAN - continue scanning from current position
  *	EOB_ACT_END_OF_FILE - end of file
  */
@@ -1101,7 +1101,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 			/* We matched some text prior to the EOB, first
 			 * process it.
 			 */
-			return EOB_ACT_LAST_MATCH;
+			return EOB_ACT_LOPBX_MATCH;
 			}
 		}
 
@@ -1144,7 +1144,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 				b->yy_ch_buf = (char *)
 					/* Include room in for 2 EOB chars. */
-					ast_yyrealloc((void *) b->yy_ch_buf,b->yy_buf_size + 2 ,yyscanner );
+					opbx_yyrealloc((void *) b->yy_ch_buf,b->yy_buf_size + 2 ,yyscanner );
 				}
 			else
 				/* Can't grow it, we don't own it. */
@@ -1176,12 +1176,12 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		if ( number_to_move == YY_MORE_ADJ )
 			{
 			ret_val = EOB_ACT_END_OF_FILE;
-			ast_yyrestart(yyin  ,yyscanner);
+			opbx_yyrestart(yyin  ,yyscanner);
 			}
 
 		else
 			{
-			ret_val = EOB_ACT_LAST_MATCH;
+			ret_val = EOB_ACT_LOPBX_MATCH;
 			YY_CURRENT_BUFFER_LVALUE->yy_buffer_status =
 				YY_BUFFER_EOF_PENDING;
 			}
@@ -1214,8 +1214,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		if ( yy_accept[yy_current_state] )
 			{
-			yyg->yy_last_accepting_state = yy_current_state;
-			yyg->yy_last_accepting_cpos = yy_cp;
+			yyg->yy_lopbx_accepting_state = yy_current_state;
+			yyg->yy_lopbx_accepting_cpos = yy_cp;
 			}
 		while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 			{
@@ -1243,8 +1243,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	register YY_CHAR yy_c = 1;
 	if ( yy_accept[yy_current_state] )
 		{
-		yyg->yy_last_accepting_state = yy_current_state;
-		yyg->yy_last_accepting_cpos = yy_cp;
+		yyg->yy_lopbx_accepting_state = yy_current_state;
+		yyg->yy_lopbx_accepting_cpos = yy_cp;
 		}
 	while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 		{
@@ -1326,25 +1326,25 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			switch ( yy_get_next_buffer( yyscanner ) )
 				{
-				case EOB_ACT_LAST_MATCH:
+				case EOB_ACT_LOPBX_MATCH:
 					/* This happens because yy_g_n_b()
 					 * sees that we've accumulated a
 					 * token and flags that we need to
 					 * try matching the token before
 					 * proceeding.  But for input(),
 					 * there's no matching to consider.
-					 * So convert the EOB_ACT_LAST_MATCH
+					 * So convert the EOB_ACT_LOPBX_MATCH
 					 * to EOB_ACT_END_OF_FILE.
 					 */
 
 					/* Reset buffer status. */
-					ast_yyrestart(yyin ,yyscanner);
+					opbx_yyrestart(yyin ,yyscanner);
 
 					/*FALLTHROUGH*/
 
 				case EOB_ACT_END_OF_FILE:
 					{
-					if ( ast_yywrap(yyscanner ) )
+					if ( opbx_yywrap(yyscanner ) )
 						return EOF;
 
 					if ( ! yyg->yy_did_buffer_switch_on_eof )
@@ -1376,34 +1376,34 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  * @note This function does not reset the start condition to @c INITIAL .
  */
-    void ast_yyrestart  (FILE * input_file , yyscan_t yyscanner)
+    void opbx_yyrestart  (FILE * input_file , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	if ( ! YY_CURRENT_BUFFER ){
-        ast_yyensure_buffer_stack (yyscanner);
+        opbx_yyensure_buffer_stack (yyscanner);
 		YY_CURRENT_BUFFER_LVALUE =
-            ast_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
+            opbx_yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
 	}
 
-	ast_yy_init_buffer(YY_CURRENT_BUFFER,input_file ,yyscanner);
-	ast_yy_load_buffer_state(yyscanner );
+	opbx_yy_init_buffer(YY_CURRENT_BUFFER,input_file ,yyscanner);
+	opbx_yy_load_buffer_state(yyscanner );
 }
 
 /** Switch to a different input buffer.
  * @param new_buffer The new input buffer.
  * @param yyscanner The scanner object.
  */
-    void ast_yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
+    void opbx_yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	/* TODO. We should be able to replace this entire function body
 	 * with
-	 *		ast_yypop_buffer_state();
-	 *		ast_yypush_buffer_state(new_buffer);
+	 *		opbx_yypop_buffer_state();
+	 *		opbx_yypush_buffer_state(new_buffer);
      */
-	ast_yyensure_buffer_stack (yyscanner);
+	opbx_yyensure_buffer_stack (yyscanner);
 	if ( YY_CURRENT_BUFFER == new_buffer )
 		return;
 
@@ -1416,17 +1416,17 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		}
 
 	YY_CURRENT_BUFFER_LVALUE = new_buffer;
-	ast_yy_load_buffer_state(yyscanner );
+	opbx_yy_load_buffer_state(yyscanner );
 
 	/* We don't actually know whether we did this switch during
-	 * EOF (ast_yywrap()) processing, but the only time this flag
-	 * is looked at is after ast_yywrap() is called, so it's safe
+	 * EOF (opbx_yywrap()) processing, but the only time this flag
+	 * is looked at is after opbx_yywrap() is called, so it's safe
 	 * to go ahead and always set it.
 	 */
 	yyg->yy_did_buffer_switch_on_eof = 1;
 }
 
-static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
+static void opbx_yy_load_buffer_state  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	yyg->yy_n_chars = YY_CURRENT_BUFFER_LVALUE->yy_n_chars;
@@ -1441,35 +1441,35 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  * @return the allocated buffer state.
  */
-    YY_BUFFER_STATE ast_yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
+    YY_BUFFER_STATE opbx_yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
     
-	b = (YY_BUFFER_STATE) ast_yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
+	b = (YY_BUFFER_STATE) opbx_yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
-		YY_FATAL_ERROR( "out of dynamic memory in ast_yy_create_buffer()" );
+		YY_FATAL_ERROR( "out of dynamic memory in opbx_yy_create_buffer()" );
 
 	b->yy_buf_size = size;
 
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
 	 */
-	b->yy_ch_buf = (char *) ast_yyalloc(b->yy_buf_size + 2 ,yyscanner );
+	b->yy_ch_buf = (char *) opbx_yyalloc(b->yy_buf_size + 2 ,yyscanner );
 	if ( ! b->yy_ch_buf )
-		YY_FATAL_ERROR( "out of dynamic memory in ast_yy_create_buffer()" );
+		YY_FATAL_ERROR( "out of dynamic memory in opbx_yy_create_buffer()" );
 
 	b->yy_is_our_buffer = 1;
 
-	ast_yy_init_buffer(b,file ,yyscanner);
+	opbx_yy_init_buffer(b,file ,yyscanner);
 
 	return b;
 }
 
 /** Destroy the buffer.
- * @param b a buffer created with ast_yy_create_buffer()
+ * @param b a buffer created with opbx_yy_create_buffer()
  * @param yyscanner The scanner object.
  */
-    void ast_yy_delete_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
+    void opbx_yy_delete_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
@@ -1480,9 +1480,9 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
 		YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) 0;
 
 	if ( b->yy_is_our_buffer )
-		ast_yyfree((void *) b->yy_ch_buf ,yyscanner );
+		opbx_yyfree((void *) b->yy_ch_buf ,yyscanner );
 
-	ast_yyfree((void *) b ,yyscanner );
+	opbx_yyfree((void *) b ,yyscanner );
 }
 
 #ifndef __cplusplus
@@ -1491,21 +1491,21 @@ extern int isatty (int );
     
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
- * such as during a ast_yyrestart() or at EOF.
+ * such as during a opbx_yyrestart() or at EOF.
  */
-    static void ast_yy_init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yyscanner)
+    static void opbx_yy_init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yyscanner)
 
 {
 	int oerrno = errno;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-	ast_yy_flush_buffer(b ,yyscanner);
+	opbx_yy_flush_buffer(b ,yyscanner);
 
 	b->yy_input_file = file;
 	b->yy_fill_buffer = 1;
 
-    /* If b is the current buffer, then ast_yy_init_buffer was _probably_
-     * called from ast_yyrestart() or through yy_get_next_buffer.
+    /* If b is the current buffer, then opbx_yy_init_buffer was _probably_
+     * called from opbx_yyrestart() or through yy_get_next_buffer.
      * In that case, we don't want to reset the lineno or column.
      */
     if (b != YY_CURRENT_BUFFER){
@@ -1522,7 +1522,7 @@ extern int isatty (int );
  * @param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
  * @param yyscanner The scanner object.
  */
-    void ast_yy_flush_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
+    void opbx_yy_flush_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	if ( ! b )
@@ -1543,7 +1543,7 @@ extern int isatty (int );
 	b->yy_buffer_status = YY_BUFFER_NEW;
 
 	if ( b == YY_CURRENT_BUFFER )
-		ast_yy_load_buffer_state(yyscanner );
+		opbx_yy_load_buffer_state(yyscanner );
 }
 
 /** Pushes the new state onto the stack. The new state becomes
@@ -1552,15 +1552,15 @@ extern int isatty (int );
  *  @param new_buffer The new state.
  *  @param yyscanner The scanner object.
  */
-void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
+void opbx_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	if (new_buffer == NULL)
 		return;
 
-	ast_yyensure_buffer_stack(yyscanner);
+	opbx_yyensure_buffer_stack(yyscanner);
 
-	/* This block is copied from ast_yy_switch_to_buffer. */
+	/* This block is copied from opbx_yy_switch_to_buffer. */
 	if ( YY_CURRENT_BUFFER )
 		{
 		/* Flush out information for old buffer. */
@@ -1574,8 +1574,8 @@ void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 		yyg->yy_buffer_stack_top++;
 	YY_CURRENT_BUFFER_LVALUE = new_buffer;
 
-	/* copied from ast_yy_switch_to_buffer. */
-	ast_yy_load_buffer_state(yyscanner );
+	/* copied from opbx_yy_switch_to_buffer. */
+	opbx_yy_load_buffer_state(yyscanner );
 	yyg->yy_did_buffer_switch_on_eof = 1;
 }
 
@@ -1583,19 +1583,19 @@ void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
  *  The next element becomes the new top.
  *  @param yyscanner The scanner object.
  */
-void ast_yypop_buffer_state (yyscan_t yyscanner)
+void opbx_yypop_buffer_state (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	if (!YY_CURRENT_BUFFER)
 		return;
 
-	ast_yy_delete_buffer(YY_CURRENT_BUFFER ,yyscanner);
+	opbx_yy_delete_buffer(YY_CURRENT_BUFFER ,yyscanner);
 	YY_CURRENT_BUFFER_LVALUE = NULL;
 	if (yyg->yy_buffer_stack_top > 0)
 		--yyg->yy_buffer_stack_top;
 
 	if (YY_CURRENT_BUFFER) {
-		ast_yy_load_buffer_state(yyscanner );
+		opbx_yy_load_buffer_state(yyscanner );
 		yyg->yy_did_buffer_switch_on_eof = 1;
 	}
 }
@@ -1603,7 +1603,7 @@ void ast_yypop_buffer_state (yyscan_t yyscanner)
 /* Allocates the stack if it does not exist.
  *  Guarantees space for at least one push.
  */
-static void ast_yyensure_buffer_stack (yyscan_t yyscanner)
+static void opbx_yyensure_buffer_stack (yyscan_t yyscanner)
 {
 	int num_to_alloc;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
@@ -1615,7 +1615,7 @@ static void ast_yyensure_buffer_stack (yyscan_t yyscanner)
 		 * immediate realloc on the next call.
          */
 		num_to_alloc = 1;
-		yyg->yy_buffer_stack = (struct yy_buffer_state**)ast_yyalloc
+		yyg->yy_buffer_stack = (struct yy_buffer_state**)opbx_yyalloc
 								(num_to_alloc * sizeof(struct yy_buffer_state*)
 								, yyscanner);
 		
@@ -1632,7 +1632,7 @@ static void ast_yyensure_buffer_stack (yyscan_t yyscanner)
 		int grow_size = 8 /* arbitrary grow size */;
 
 		num_to_alloc = yyg->yy_buffer_stack_max + grow_size;
-		yyg->yy_buffer_stack = (struct yy_buffer_state**)ast_yyrealloc
+		yyg->yy_buffer_stack = (struct yy_buffer_state**)opbx_yyrealloc
 								(yyg->yy_buffer_stack,
 								num_to_alloc * sizeof(struct yy_buffer_state*)
 								, yyscanner);
@@ -1649,7 +1649,7 @@ static void ast_yyensure_buffer_stack (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object. 
  */
-YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
+YY_BUFFER_STATE opbx_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
     
@@ -1659,9 +1659,9 @@ YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 		/* They forgot to leave room for the EOB's. */
 		return 0;
 
-	b = (YY_BUFFER_STATE) ast_yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
+	b = (YY_BUFFER_STATE) opbx_yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
-		YY_FATAL_ERROR( "out of dynamic memory in ast_yy_scan_buffer()" );
+		YY_FATAL_ERROR( "out of dynamic memory in opbx_yy_scan_buffer()" );
 
 	b->yy_buf_size = size - 2;	/* "- 2" to take care of EOB's */
 	b->yy_buf_pos = b->yy_ch_buf = base;
@@ -1673,33 +1673,33 @@ YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 	b->yy_fill_buffer = 0;
 	b->yy_buffer_status = YY_BUFFER_NEW;
 
-	ast_yy_switch_to_buffer(b ,yyscanner );
+	opbx_yy_switch_to_buffer(b ,yyscanner );
 
 	return b;
 }
 
-/** Setup the input buffer state to scan a string. The next call to ast_yylex() will
+/** Setup the input buffer state to scan a string. The next call to opbx_yylex() will
  * scan from a @e copy of @a str.
  * @param str a NUL-terminated string to scan
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  * @note If you want to scan bytes that may contain NUL values, then use
- *       ast_yy_scan_bytes() instead.
+ *       opbx_yy_scan_bytes() instead.
  */
-YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yy_str , yyscan_t yyscanner)
+YY_BUFFER_STATE opbx_yy_scan_string (yyconst char * yy_str , yyscan_t yyscanner)
 {
     
-	return ast_yy_scan_bytes(yy_str,strlen(yy_str) ,yyscanner);
+	return opbx_yy_scan_bytes(yy_str,strlen(yy_str) ,yyscanner);
 }
 
-/** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
+/** Setup the input buffer state to scan the given bytes. The next call to opbx_yylex() will
  * scan from a @e copy of @a bytes.
  * @param bytes the byte buffer to scan
  * @param len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * bytes, int  len , yyscan_t yyscanner)
+YY_BUFFER_STATE opbx_yy_scan_bytes  (yyconst char * bytes, int  len , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
 	char *buf;
@@ -1708,18 +1708,18 @@ YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * bytes, int  len , yyscan_t yy
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = len + 2;
-	buf = (char *) ast_yyalloc(n ,yyscanner );
+	buf = (char *) opbx_yyalloc(n ,yyscanner );
 	if ( ! buf )
-		YY_FATAL_ERROR( "out of dynamic memory in ast_yy_scan_bytes()" );
+		YY_FATAL_ERROR( "out of dynamic memory in opbx_yy_scan_bytes()" );
 
 	for ( i = 0; i < len; ++i )
 		buf[i] = bytes[i];
 
 	buf[len] = buf[len+1] = YY_END_OF_BUFFER_CHAR;
 
-	b = ast_yy_scan_buffer(buf,n ,yyscanner);
+	b = opbx_yy_scan_buffer(buf,n ,yyscanner);
 	if ( ! b )
-		YY_FATAL_ERROR( "bad buffer in ast_yy_scan_bytes()" );
+		YY_FATAL_ERROR( "bad buffer in opbx_yy_scan_bytes()" );
 
 	/* It's okay to grow etc. this buffer, and we should throw it
 	 * away when we're done.
@@ -1761,7 +1761,7 @@ static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
 /** Get the user-defined data for this scanner.
  * @param yyscanner The scanner object.
  */
-YY_EXTRA_TYPE ast_yyget_extra  (yyscan_t yyscanner)
+YY_EXTRA_TYPE opbx_yyget_extra  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyextra;
@@ -1770,7 +1770,7 @@ YY_EXTRA_TYPE ast_yyget_extra  (yyscan_t yyscanner)
 /** Get the current line number.
  * @param yyscanner The scanner object.
  */
-int ast_yyget_lineno  (yyscan_t yyscanner)
+int opbx_yyget_lineno  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     
@@ -1783,7 +1783,7 @@ int ast_yyget_lineno  (yyscan_t yyscanner)
 /** Get the current column number.
  * @param yyscanner The scanner object.
  */
-int ast_yyget_column  (yyscan_t yyscanner)
+int opbx_yyget_column  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     
@@ -1796,7 +1796,7 @@ int ast_yyget_column  (yyscan_t yyscanner)
 /** Get the input stream.
  * @param yyscanner The scanner object.
  */
-FILE *ast_yyget_in  (yyscan_t yyscanner)
+FILE *opbx_yyget_in  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyin;
@@ -1805,7 +1805,7 @@ FILE *ast_yyget_in  (yyscan_t yyscanner)
 /** Get the output stream.
  * @param yyscanner The scanner object.
  */
-FILE *ast_yyget_out  (yyscan_t yyscanner)
+FILE *opbx_yyget_out  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyout;
@@ -1814,7 +1814,7 @@ FILE *ast_yyget_out  (yyscan_t yyscanner)
 /** Get the length of the current token.
  * @param yyscanner The scanner object.
  */
-int ast_yyget_leng  (yyscan_t yyscanner)
+int opbx_yyget_leng  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyleng;
@@ -1824,7 +1824,7 @@ int ast_yyget_leng  (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  */
 
-char *ast_yyget_text  (yyscan_t yyscanner)
+char *opbx_yyget_text  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yytext;
@@ -1834,7 +1834,7 @@ char *ast_yyget_text  (yyscan_t yyscanner)
  * @param user_defined The data to be associated with this scanner.
  * @param yyscanner The scanner object.
  */
-void ast_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
+void opbx_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yyextra = user_defined ;
@@ -1844,13 +1844,13 @@ void ast_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
  * @param line_number
  * @param yyscanner The scanner object.
  */
-void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
+void opbx_yyset_lineno (int  line_number , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "ast_yyset_lineno called with no buffer" , yyscanner); 
+           yy_fatal_error( "opbx_yyset_lineno called with no buffer" , yyscanner); 
     
     yylineno = line_number;
 }
@@ -1859,13 +1859,13 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
  * @param line_number
  * @param yyscanner The scanner object.
  */
-void ast_yyset_column (int  column_no , yyscan_t yyscanner)
+void opbx_yyset_column (int  column_no , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "ast_yyset_column called with no buffer" , yyscanner); 
+           yy_fatal_error( "opbx_yyset_column called with no buffer" , yyscanner); 
     
     yycolumn = column_no;
 }
@@ -1874,27 +1874,27 @@ void ast_yyset_column (int  column_no , yyscan_t yyscanner)
  * input buffer.
  * @param in_str A readable stream.
  * @param yyscanner The scanner object.
- * @see ast_yy_switch_to_buffer
+ * @see opbx_yy_switch_to_buffer
  */
-void ast_yyset_in (FILE *  in_str , yyscan_t yyscanner)
+void opbx_yyset_in (FILE *  in_str , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yyin = in_str ;
 }
 
-void ast_yyset_out (FILE *  out_str , yyscan_t yyscanner)
+void opbx_yyset_out (FILE *  out_str , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yyout = out_str ;
 }
 
-int ast_yyget_debug  (yyscan_t yyscanner)
+int opbx_yyget_debug  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yy_flex_debug;
 }
 
-void ast_yyset_debug (int  bdebug , yyscan_t yyscanner)
+void opbx_yyset_debug (int  bdebug , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yy_flex_debug = bdebug ;
@@ -1902,25 +1902,25 @@ void ast_yyset_debug (int  bdebug , yyscan_t yyscanner)
 
 /* Accessor methods for yylval and yylloc */
 
-YYSTYPE * ast_yyget_lval  (yyscan_t yyscanner)
+YYSTYPE * opbx_yyget_lval  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yylval;
 }
 
-void ast_yyset_lval (YYSTYPE *  yylval_param , yyscan_t yyscanner)
+void opbx_yyset_lval (YYSTYPE *  yylval_param , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yylval = yylval_param;
 }
 
-YYLTYPE *ast_yyget_lloc  (yyscan_t yyscanner)
+YYLTYPE *opbx_yyget_lloc  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yylloc;
 }
     
-void ast_yyset_lloc (YYLTYPE *  yylloc_param , yyscan_t yyscanner)
+void opbx_yyset_lloc (YYLTYPE *  yylloc_param , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yylloc = yylloc_param;
@@ -1952,19 +1952,19 @@ static int yy_init_globals (yyscan_t yyscanner)
 #endif
 
     /* For future reference: Set errno on error, since we are called by
-     * ast_yylex_init()
+     * opbx_yylex_init()
      */
     return 0;
 }
 
 /* User-visible API */
 
-/* ast_yylex_init is special because it creates the scanner itself, so it is
+/* opbx_yylex_init is special because it creates the scanner itself, so it is
  * the ONLY reentrant function that doesn't take the scanner as the last argument.
  * That's why we explicitly handle the declaration, instead of using our macros.
  */
 
-int ast_yylex_init(yyscan_t* ptr_yy_globals)
+int opbx_yylex_init(yyscan_t* ptr_yy_globals)
 
 {
     if (ptr_yy_globals == NULL){
@@ -1972,7 +1972,7 @@ int ast_yylex_init(yyscan_t* ptr_yy_globals)
         return 1;
     }
 
-    *ptr_yy_globals = (yyscan_t) ast_yyalloc ( sizeof( struct yyguts_t ), NULL );
+    *ptr_yy_globals = (yyscan_t) opbx_yyalloc ( sizeof( struct yyguts_t ), NULL );
 
     if (*ptr_yy_globals == NULL){
         errno = ENOMEM;
@@ -1984,28 +1984,28 @@ int ast_yylex_init(yyscan_t* ptr_yy_globals)
     return yy_init_globals ( *ptr_yy_globals );
 }
 
-/* ast_yylex_destroy is for both reentrant and non-reentrant scanners. */
-int ast_yylex_destroy  (yyscan_t yyscanner)
+/* opbx_yylex_destroy is for both reentrant and non-reentrant scanners. */
+int opbx_yylex_destroy  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
     /* Pop the buffer stack, destroying each element. */
 	while(YY_CURRENT_BUFFER){
-		ast_yy_delete_buffer(YY_CURRENT_BUFFER ,yyscanner );
+		opbx_yy_delete_buffer(YY_CURRENT_BUFFER ,yyscanner );
 		YY_CURRENT_BUFFER_LVALUE = NULL;
-		ast_yypop_buffer_state(yyscanner);
+		opbx_yypop_buffer_state(yyscanner);
 	}
 
 	/* Destroy the stack itself. */
-	ast_yyfree(yyg->yy_buffer_stack ,yyscanner);
+	opbx_yyfree(yyg->yy_buffer_stack ,yyscanner);
 	yyg->yy_buffer_stack = NULL;
 
     /* Destroy the start condition stack. */
-        ast_yyfree(yyg->yy_start_stack ,yyscanner );
+        opbx_yyfree(yyg->yy_start_stack ,yyscanner );
         yyg->yy_start_stack = NULL;
 
     /* Destroy the main struct (reentrant only). */
-    ast_yyfree ( yyscanner , yyscanner );
+    opbx_yyfree ( yyscanner , yyscanner );
     return 0;
 }
 
@@ -2035,12 +2035,12 @@ static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 }
 #endif
 
-void *ast_yyalloc (yy_size_t  size , yyscan_t yyscanner)
+void *opbx_yyalloc (yy_size_t  size , yyscan_t yyscanner)
 {
 	return (void *) malloc( size );
 }
 
-void *ast_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
+void *opbx_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 {
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
@@ -2052,9 +2052,9 @@ void *ast_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 	return (void *) realloc( (char *) ptr, size );
 }
 
-void ast_yyfree (void * ptr , yyscan_t yyscanner)
+void opbx_yyfree (void * ptr , yyscan_t yyscanner)
 {
-	free( (char *) ptr );	/* see ast_yyrealloc() for (char *) cast */
+	free( (char *) ptr );	/* see opbx_yyrealloc() for (char *) cast */
 }
 
 #define YYTABLES_NAME "yytables"
@@ -2078,11 +2078,11 @@ void ast_yyfree (void * ptr , yyscan_t yyscanner)
 /* I'm putting the interface routine to the whole parse here in the flexer input file
    mainly because of all the flexer initialization that has to be done. Shouldn't matter
    where it is, as long as it's somewhere. I didn't want to define a prototype for the
-   ast_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
+   opbx_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
 	UGH! that would be inappropriate. */
 
-int ast_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
-int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
+int opbx_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
+int opbx_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
 int opbx_expr(char *expr, char *buf, int length)
 {
@@ -2091,13 +2091,13 @@ int opbx_expr(char *expr, char *buf, int length)
 	io = calloc(sizeof(struct parse_io),1);
 	io->string = expr;  /* to pass to the error routine */
 	
-	ast_yylex_init(&io->scanner);
+	opbx_yylex_init(&io->scanner);
 	
-	ast_yy_scan_string(expr, io->scanner);
+	opbx_yy_scan_string(expr, io->scanner);
 	
-	ast_yyparse ((void *) io);
+	opbx_yyparse ((void *) io);
 
-	ast_yylex_destroy(io->scanner);
+	opbx_yylex_destroy(io->scanner);
 
 	if (io->val == NULL) {
 		if (length > 1) {
@@ -2105,7 +2105,7 @@ int opbx_expr(char *expr, char *buf, int length)
 			return 1;
 		}
 	} else {
-		if (io->val->type == AST_EXPR_integer) {
+		if (io->val->type == OPBX_EXPR_integer) {
 			int res_length;
 
 			res_length = snprintf(buf, length, "%ld", (long int) io->val->u.i);
@@ -2114,7 +2114,7 @@ int opbx_expr(char *expr, char *buf, int length)
 #ifdef STANDALONE
 			strncpy(buf, io->val->u.s, length - 1);
 #else /* !STANDALONE */
-			ast_copy_string(buf, io->val->u.s, length);
+			opbx_copy_string(buf, io->val->u.s, length);
 #endif /* STANDALONE */
 			return strlen(buf);
 		}
@@ -2124,7 +2124,7 @@ int opbx_expr(char *expr, char *buf, int length)
 	return 0;
 }
 
-int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
+int opbx_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 {	
 	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
 	char spacebuf[8000]; /* best safe than sorry */
@@ -2135,10 +2135,10 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 #ifdef WHEN_LOC_MEANS_SOMETHING
 	if( loc->first_column > 7990 ) /* if things get out of whack, why crash? */
 		loc->first_column = 7990;
-	if( loc->last_column > 7990 )
-		loc->last_column = 7990;
+	if( loc->lopbx_column > 7990 )
+		loc->lopbx_column = 7990;
 	for(i=0;i<loc->first_column;i++) spacebuf[i] = ' ';
-	for(   ;i<loc->last_column;i++) spacebuf[i] = '^';
+	for(   ;i<loc->lopbx_column;i++) spacebuf[i] = '^';
 	spacebuf[i] = 0;
 #endif
 	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,
@@ -2149,7 +2149,7 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 															may not relate to the entire string/buffer because of the
 															buffering.
 														b. but, analysis of the situation is that when you use the
-															ast_yy_scan_string func, it creates a single buffer the size of
+															opbx_yy_scan_string func, it creates a single buffer the size of
 															string, so the two would be the same... 
 													so, in the end, the yycolumn macro is available, shorter, therefore easier. */
 	spacebuf2[i++]='^';
@@ -2157,14 +2157,14 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 
 #ifdef STANDALONE3
 	/* easier to read in the standalone version */
-	printf("ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
+	printf("opbx_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
 			s, parseio->string,spacebuf2);
 #else
-	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
+	opbx_log(LOG_WARNING,"opbx_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
 			s, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
-	ast_log(LOG_WARNING,"If you have questions, please refer to doc/README.variables in the openpbx source.\n");
+	opbx_log(LOG_WARNING,"If you have questions, please refer to doc/README.variables in the openpbx source.\n");
 #endif
 	return(0);
 }

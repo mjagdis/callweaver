@@ -126,20 +126,20 @@ static int dns_parse_answer(void *context,
 
 	for (x = 0; x < ntohs(h->qdcount); x++) {
 		if ((res = skip_name(answer, len)) < 0) {
-			ast_log(LOG_WARNING, "Couldn't skip over name\n");
+			opbx_log(LOG_WARNING, "Couldn't skip over name\n");
 			return -1;
 		}
 		answer += res + 4;	/* Skip name and QCODE / QCLASS */
 		len -= res + 4;
 		if (len < 0) {
-			ast_log(LOG_WARNING, "Strange query size\n");
+			opbx_log(LOG_WARNING, "Strange query size\n");
 			return -1;
 		}
 	}
 
 	for (x = 0; x < ntohs(h->ancount); x++) {
 		if ((res = skip_name(answer, len)) < 0) {
-			ast_log(LOG_WARNING, "Failed skipping name\n");
+			opbx_log(LOG_WARNING, "Failed skipping name\n");
 			return -1;
 		}
 		answer += res;
@@ -148,18 +148,18 @@ static int dns_parse_answer(void *context,
 		answer += sizeof(struct dn_answer);
 		len -= sizeof(struct dn_answer);
 		if (len < 0) {
-			ast_log(LOG_WARNING, "Strange result size\n");
+			opbx_log(LOG_WARNING, "Strange result size\n");
 			return -1;
 		}
 		if (len < 0) {
-			ast_log(LOG_WARNING, "Length exceeds frame\n");
+			opbx_log(LOG_WARNING, "Length exceeds frame\n");
 			return -1;
 		}
 
 		if (ntohs(ans->class) == class && ntohs(ans->rtype) == type) {
 			if (callback) {
 				if ((res = callback(context, answer, ntohs(ans->size), fullanswer)) < 0) {
-					ast_log(LOG_WARNING, "Failed to parse result\n");
+					opbx_log(LOG_WARNING, "Failed to parse result\n");
 					return -1;
 				}
 				if (res > 0)
@@ -175,14 +175,14 @@ static int dns_parse_answer(void *context,
 #if defined(res_ninit)
 #define HAS_RES_NINIT
 #else
-AST_MUTEX_DEFINE_STATIC(res_lock);
+OPBX_MUTEX_DEFINE_STATIC(res_lock);
 #if 0
 #warning "Warning, res_ninit is missing...  Could have reentrancy issues"
 #endif
 #endif
 
-/*--- ast_search_dns: Lookup record in DNS */
-int ast_search_dns(void *context,
+/*--- opbx_search_dns: Lookup record in DNS */
+int opbx_search_dns(void *context,
 	   const char *dname, int class, int type,
 	   int (*callback)(void *context, char *answer, int len, char *fullanswer))
 {
@@ -199,17 +199,17 @@ int ast_search_dns(void *context,
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, (unsigned char *)answer, sizeof(answer));
 #else
-	ast_mutex_lock(&res_lock);
+	opbx_mutex_lock(&res_lock);
 	res_init();
 	res = res_search(dname, class, type, answer, sizeof(answer));
 #endif
 	if (res > 0) {
 		if ((res = dns_parse_answer(context, class, type, answer, res, callback)) < 0) {
-			ast_log(LOG_WARNING, "DNS Parse error for %s\n", dname);
+			opbx_log(LOG_WARNING, "DNS Parse error for %s\n", dname);
 			ret = -1;
 		}
 		else if (ret == 0) {
-			ast_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
+			opbx_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
 			ret = 0;
 		}
 		else
@@ -221,7 +221,7 @@ int ast_search_dns(void *context,
 #ifndef __APPLE__
 	res_close();
 #endif
-	ast_mutex_unlock(&res_lock);
+	opbx_mutex_unlock(&res_lock);
 #endif
 	return ret;
 }

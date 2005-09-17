@@ -30,22 +30,22 @@
 #include "openpbx/pbx.h"
 #include "openpbx/utils.h"
 
-static char *function_moh_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_moh_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	ast_copy_string(buf, chan->musicclass, len);
+	opbx_copy_string(buf, chan->musicclass, len);
 
 	return buf;
 }
 
-static void function_moh_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void function_moh_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
 {
-	ast_copy_string(chan->musicclass, value, MAX_MUSICCLASS);
+	opbx_copy_string(chan->musicclass, value, MAX_MUSICCLASS);
 }
 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function moh_function = {
+struct opbx_custom_function moh_function = {
 	.name = "MUSICCLASS",
 	.synopsis = "Read or Set the MusicOnHold class",
 	.syntax = "MUSICCLASS()",

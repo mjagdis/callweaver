@@ -67,7 +67,7 @@ static int mp3play(char *filename, int fd)
 	int x;
 	res = fork();
 	if (res < 0) 
-		ast_log(LOG_WARNING, "Fork failed\n");
+		opbx_log(LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
 	dup2(fd, STDOUT_FILENO);
@@ -92,7 +92,7 @@ static int mp3play(char *filename, int fd)
 		/* As a last-ditch effort, try to use PATH */
 	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 	}
-	ast_log(LOG_WARNING, "Execute of mpg123 failed\n");
+	opbx_log(LOG_WARNING, "Execute of mpg123 failed\n");
 	return -1;
 }
 
@@ -104,14 +104,14 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 	fds[0].events = POLLIN;
 	res = poll(fds, 1, timeout);
 	if (res < 1) {
-		ast_log(LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
+		opbx_log(LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
 		return -1;
 	}
 	return read(fd, data, datalen);
 	
 }
 
-static int mp3_exec(struct ast_channel *chan, void *data)
+static int mp3_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -121,27 +121,27 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	int owriteformat;
 	int timeout = 2000;
 	struct timeval next;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	struct myframe {
-		struct ast_frame f;
-		char offset[AST_FRIENDLY_OFFSET];
+		struct opbx_frame f;
+		char offset[OPBX_FRIENDLY_OFFSET];
 		short frdata[160];
 	} myf;
 	if (!data) {
-		ast_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
+		opbx_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
 		return -1;
 	}
 	if (pipe(fds)) {
-		ast_log(LOG_WARNING, "Unable to create pipe\n");
+		opbx_log(LOG_WARNING, "Unable to create pipe\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	ast_stopstream(chan);
+	opbx_stopstream(chan);
 
 	owriteformat = chan->writeformat;
-	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+	res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		opbx_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
 	}
 	
@@ -150,58 +150,58 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		timeout = 10000;
 	}
 	/* Wait 1000 ms first */
-	next = ast_tvnow();
+	next = opbx_tvnow();
 	next.tv_sec += 1;
 	if (res >= 0) {
 		pid = res;
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
 		for (;;) {
-			ms = ast_tvdiff_ms(next, ast_tvnow());
+			ms = opbx_tvdiff_ms(next, opbx_tvnow());
 			if (ms <= 0) {
 				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 				if (res > 0) {
-					myf.f.frametype = AST_FRAME_VOICE;
-					myf.f.subclass = AST_FORMAT_SLINEAR;
+					myf.f.frametype = OPBX_FRAME_VOICE;
+					myf.f.subclass = OPBX_FORMAT_SLINEAR;
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
 					myf.f.mallocd = 0;
-					myf.f.offset = AST_FRIENDLY_OFFSET;
+					myf.f.offset = OPBX_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
 					myf.f.delivery.tv_sec = 0;
 					myf.f.delivery.tv_usec = 0;
 					myf.f.data = myf.frdata;
-					if (ast_write(chan, &myf.f) < 0) {
+					if (opbx_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
 					}
 				} else {
-					ast_log(LOG_DEBUG, "No more mp3\n");
+					opbx_log(LOG_DEBUG, "No more mp3\n");
 					res = 0;
 					break;
 				}
-				next = ast_tvadd(next, ast_samp2tv(myf.f.samples, 8000));
+				next = opbx_tvadd(next, opbx_samp2tv(myf.f.samples, 8000));
 			} else {
-				ms = ast_waitfor(chan, ms);
+				ms = opbx_waitfor(chan, ms);
 				if (ms < 0) {
-					ast_log(LOG_DEBUG, "Hangup detected\n");
+					opbx_log(LOG_DEBUG, "Hangup detected\n");
 					res = -1;
 					break;
 				}
 				if (ms) {
-					f = ast_read(chan);
+					f = opbx_read(chan);
 					if (!f) {
-						ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+						opbx_log(LOG_DEBUG, "Null frame == hangup() detected\n");
 						res = -1;
 						break;
 					}
-					if (f->frametype == AST_FRAME_DTMF) {
-						ast_log(LOG_DEBUG, "User pressed a key\n");
-						ast_frfree(f);
+					if (f->frametype == OPBX_FRAME_DTMF) {
+						opbx_log(LOG_DEBUG, "User pressed a key\n");
+						opbx_frfree(f);
 						res = 0;
 						break;
 					}
-					ast_frfree(f);
+					opbx_frfree(f);
 				} 
 			}
 		}
@@ -212,19 +212,19 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && owriteformat)
-		ast_set_write_format(chan, owriteformat);
+		opbx_set_write_format(chan, owriteformat);
 	return res;
 }
 
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, mp3_exec, synopsis, descrip);
+	return opbx_register_application(app, mp3_exec, synopsis, descrip);
 }
 
 char *description(void)

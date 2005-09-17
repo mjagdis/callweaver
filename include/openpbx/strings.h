@@ -30,7 +30,7 @@
 #include "openpbx/compiler.h"
 #include "openpbx/compat.h"
 
-static inline int ast_strlen_zero(const char *s)
+static inline int opbx_strlen_zero(const char *s)
 {
 	return (*s == '\0');
 }
@@ -40,8 +40,8 @@ static inline int ast_strlen_zero(const char *s)
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
-AST_INLINE_API(
-char *ast_skip_blanks(char *str),
+OPBX_INLINE_API(
+char *opbx_skip_blanks(char *str),
 {
 	while (*str && *str < 33)
 		str++;
@@ -54,15 +54,15 @@ char *ast_skip_blanks(char *str),
   \param str the input string
   \return a pointer to the NULL following the string
  */
-AST_INLINE_API(
-char *ast_trim_blanks(char *str),
+OPBX_INLINE_API(
+char *opbx_trim_blanks(char *str),
 {
 	char *work = str;
 
 	if (work) {
 		work += strlen(work) - 1;
 		/* It's tempting to only want to erase after we exit this loop, 
-		   but since ast_trim_blanks *could* receive a constant string
+		   but since opbx_trim_blanks *could* receive a constant string
 		   (which we presumably wouldn't have to touch), we shouldn't
 		   actually set anything unless we must, and it's easier just
 		   to set each position to \0 than to keep track of a variable
@@ -79,8 +79,8 @@ char *ast_trim_blanks(char *str),
   \param str the input string
   \return a pointer to the first whitespace character
  */
-AST_INLINE_API(
-char *ast_skip_nonblanks(char *str),
+OPBX_INLINE_API(
+char *opbx_skip_nonblanks(char *str),
 {
 	while (*str && *str > 32)
 		str++;
@@ -97,12 +97,12 @@ char *ast_skip_nonblanks(char *str),
   characters from the input string, and returns a pointer to
   the resulting string. The string is modified in place.
 */
-AST_INLINE_API(
-char *ast_strip(char *s),
+OPBX_INLINE_API(
+char *opbx_strip(char *s),
 {
-	s = ast_skip_blanks(s);
+	s = opbx_skip_blanks(s);
 	if (s)
-		ast_trim_blanks(s);
+		opbx_trim_blanks(s);
 	return s;
 } 
 )
@@ -126,12 +126,12 @@ char *ast_strip(char *s),
 
   Examples:
   \code
-  ast_strip_quoted(buf, "\"", "\"");
-  ast_strip_quoted(buf, "'", "'");
-  ast_strip_quoted(buf, "[{(", "]})");
+  opbx_strip_quoted(buf, "\"", "\"");
+  opbx_strip_quoted(buf, "'", "'");
+  opbx_strip_quoted(buf, "[{(", "]})");
   \endcode
  */
-char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
+char *opbx_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 /*!
   \brief Size-limited null-terminating string copy.
@@ -148,8 +148,8 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
   reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
   to be initialized to zeroes prior to calling this function.
 */
-AST_INLINE_API(
-void ast_copy_string(char *dst, const char *src, size_t size),
+OPBX_INLINE_API(
+void opbx_copy_string(char *dst, const char *src, size_t size),
 {
 	while (*src && size) {
 		*dst++ = *src++;
@@ -172,7 +172,7 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   \param space remaining space in buffer (will be updated on return)
   \param fmt printf-style format string
 */
-int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+int opbx_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 /*! Make sure something is true */
 /*!
@@ -181,7 +181,7 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
  *
  * Returns 0 if val is a NULL pointer, -1 if "true", and 0 otherwise.
  */
-int ast_true(const char *val);
+int opbx_true(const char *val);
 
 /*! Make sure something is false */
 /*!
@@ -190,16 +190,16 @@ int ast_true(const char *val);
  *
  * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
  */
-int ast_false(const char *val);
+int opbx_false(const char *val);
 
-/* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
+/* The realloca lets us opbx_restrdupa(), but you can't mix any other opbx_strdup calls! */
 
-struct ast_realloca {
+struct opbx_realloca {
 	char *ptr;
 	int alloclen;
 };
 
-#define ast_restrdupa(ra, s) \
+#define opbx_restrdupa(ra, s) \
 	({ \
 		if ((ra)->ptr && strlen(s) + 1 < (ra)->alloclen) { \
 			strcpy((ra)->ptr, s); \
@@ -214,7 +214,7 @@ struct ast_realloca {
 char *strcasestr(const char *, const char *);
 #endif
 
-#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC)
 char *strndup(const char *, size_t);
 #endif
 
@@ -222,7 +222,7 @@ char *strndup(const char *, size_t);
 size_t strnlen(const char *, size_t);
 #endif
 
-#if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 

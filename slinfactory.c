@@ -36,44 +36,44 @@
 #include "openpbx/translate.h"
 
 
-void ast_slinfactory_init(struct ast_slinfactory *sf) 
+void opbx_slinfactory_init(struct opbx_slinfactory *sf) 
 {
-	memset(sf, 0, sizeof(struct ast_slinfactory));
+	memset(sf, 0, sizeof(struct opbx_slinfactory));
 	sf->offset = sf->hold;
 	sf->queue = NULL;
 }
 
-void ast_slinfactory_destroy(struct ast_slinfactory *sf) 
+void opbx_slinfactory_destroy(struct opbx_slinfactory *sf) 
 {
-	struct ast_frame *f;
+	struct opbx_frame *f;
 
 	if (sf->trans) {
-		ast_translator_free_path(sf->trans);
+		opbx_translator_free_path(sf->trans);
 		sf->trans = NULL;
 	}
 
 	while((f = sf->queue)) {
 		sf->queue = f->next;
-		ast_frfree(f);
+		opbx_frfree(f);
 	}
 }
 
-int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
+int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 {
-	struct ast_frame *frame, *frame_ptr;
+	struct opbx_frame *frame, *frame_ptr;
 
 	if (!f) {
 		return 0;
 	}
 
-	if (f->subclass != AST_FORMAT_SLINEAR) {
+	if (f->subclass != OPBX_FORMAT_SLINEAR) {
 		if (sf->trans && f->subclass != sf->format) {
-			ast_translator_free_path(sf->trans);
+			opbx_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
 		if (!sf->trans) {
-			if ((sf->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, f->subclass)) == NULL) {
-				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(f->subclass));
+			if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, f->subclass)) == NULL) {
+				opbx_log(LOG_WARNING, "Cannot build a path from %s to slin\n", opbx_getformatname(f->subclass));
 				return 0;
 			} else {
 				sf->format = f->subclass;
@@ -82,9 +82,9 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	}
 
 	if (sf->trans) {
-		frame = ast_translate(sf->trans, f, 0);
+		frame = opbx_translate(sf->trans, f, 0);
 	} else {
-		frame = ast_frdup(f);
+		frame = opbx_frdup(f);
 	}
 
 	if (frame) {
@@ -106,9 +106,9 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	
 }
 
-int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes) 
+int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes) 
 {
-	struct ast_frame *frame_ptr;
+	struct opbx_frame *frame_ptr;
 	int sofar = 0, ineed, remain;
 	short *frame_data, *offset = buf;
 
@@ -148,7 +148,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes)
 				memcpy(sf->hold, frame_data, remain);
 				sf->holdlen = remain;
 			}
-			ast_frfree(frame_ptr);
+			opbx_frfree(frame_ptr);
 		} else {
 			break;
 		}

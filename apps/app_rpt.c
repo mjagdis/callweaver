@@ -206,7 +206,7 @@ char *discstr = "!!DISCONNECT!!";
 static char *remote_rig_ft897="ft897";
 static char *remote_rig_rbi="rbi";
 
-struct	ast_config *cfg;
+struct	opbx_config *cfg;
 
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
@@ -242,8 +242,8 @@ struct rpt_link
 	long 	retrytimer;
 	long	retxtimer;
 	int	retries;
-	struct ast_channel *chan;	
-	struct ast_channel *pchan;	
+	struct opbx_channel *chan;	
+	struct opbx_channel *pchan;	
 } ;
 
 struct rpt_tele
@@ -251,7 +251,7 @@ struct rpt_tele
 	struct rpt_tele *next;
 	struct rpt_tele *prev;
 	struct rpt *rpt;
-	struct ast_channel *chan;
+	struct opbx_channel *chan;
 	int	mode;
 	struct rpt_link mylink;
 	char param[TELEPARAMSIZE];
@@ -282,7 +282,7 @@ struct telem_defaults
 static struct rpt
 {
 	char *name;
-	ast_mutex_t lock;
+	opbx_mutex_t lock;
 	char *rxchanname;
 	char *txchanname;
 	char *ourcontext;
@@ -311,8 +311,8 @@ static struct rpt
 	char dtmfbuf[MAXDTMF];
 	char rem_dtmfbuf[MAXDTMF];
 	char cmdnode[50];
-	struct ast_channel *rxchannel,*txchannel;
-	struct ast_channel *pchannel,*txpchannel, *remchannel;
+	struct opbx_channel *rxchannel,*txchannel;
+	struct opbx_channel *pchannel,*txpchannel, *remchannel;
 	struct rpt_tele tele;
 	pthread_t rpt_call_thread,rpt_thread;
 	time_t rem_dtmf_time,dtmf_time_rem;
@@ -323,7 +323,7 @@ static struct rpt
 	long	retxtimer;
 	char mydtmf;
 	int iobase;
-	char exten[AST_MAX_EXTENSION];
+	char exten[OPBX_MAX_EXTENSION];
 	char freq[MAXREMSTR],rxpl[MAXREMSTR],txpl[MAXREMSTR];
 	char offset;
 	char powerlevel;
@@ -356,7 +356,7 @@ static char debug_usage[] =
 "Usage: rpt debug level {0-7}\n"
 "       Enables debug messages in app_rpt\n";
                                                                                                                                 
-static struct ast_cli_entry  cli_debug =
+static struct opbx_cli_entry  cli_debug =
         { { "rpt", "debug", "level" }, rpt_do_debug, "Enable app_rpt debugging", debug_usage };
 
 
@@ -436,9 +436,9 @@ static int rpt_do_debug(int fd, int argc, char *argv[])
         if((newlevel < 0) || (newlevel > 7))
                 return RESULT_SHOWUSAGE;
         if(newlevel)
-                ast_cli(fd, "app_rpt Debugging enabled, previous level: %d, new level: %d\n", debug, newlevel);
+                opbx_cli(fd, "app_rpt Debugging enabled, previous level: %d, new level: %d\n", debug, newlevel);
         else
-                ast_cli(fd, "app_rpt Debugging disabled\n");
+                opbx_cli(fd, "app_rpt Debugging disabled\n");
 
         debug = newlevel;                                                                                                                          
         return RESULT_SUCCESS;
@@ -446,32 +446,32 @@ static int rpt_do_debug(int fd, int argc, char *argv[])
                                                                                                                                  
 
 
-static int play_tone_pair(struct ast_channel *chan, int f1, int f2, int duration, int amplitude)
+static int play_tone_pair(struct opbx_channel *chan, int f1, int f2, int duration, int amplitude)
 {
 	int res;
 
-        if ((res = ast_tonepair_start(chan, f1, f2, duration, amplitude)))
+        if ((res = opbx_tonepair_start(chan, f1, f2, duration, amplitude)))
                 return res;
                                                                                                                                             
         while(chan->generatordata) {
-		if (ast_safe_sleep(chan,1)) return -1;
+		if (opbx_safe_sleep(chan,1)) return -1;
 	}
 
         return 0;
 }
 
-static int play_tone(struct ast_channel *chan, int freq, int duration, int amplitude)
+static int play_tone(struct opbx_channel *chan, int freq, int duration, int amplitude)
 {
 	return play_tone_pair(chan, freq, 0, duration, amplitude);
 }
 
-static int play_silence(struct ast_channel *chan, int duration)
+static int play_silence(struct opbx_channel *chan, int duration)
 {
 	return play_tone_pair(chan, 0, 0, duration, 0);
 }
 
 
-static int send_morse(struct ast_channel *chan, char *string, int speed, int freq, int amplitude)
+static int send_morse(struct opbx_channel *chan, char *string, int speed, int freq, int amplitude)
 {
 
 static struct morse_bits mbits[] = {
@@ -611,8 +611,8 @@ static struct morse_bits mbits[] = {
 	/* Wait for all the frames to be sent */
 	
 	if (!res) 
-		res = ast_waitstream(chan, "");
-	ast_stopstream(chan);
+		res = opbx_waitstream(chan, "");
+	opbx_stopstream(chan);
 	
 	/*
 	* Wait for the zaptel driver to physically write the tone blocks to the hardware
@@ -623,7 +623,7 @@ static struct morse_bits mbits[] = {
 		res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
 		if(flags & ZT_IOMUX_WRITEEMPTY)
 			break;
-		if( ast_safe_sleep(chan, 50)){
+		if( opbx_safe_sleep(chan, 50)){
 			res = -1;
 			break;
 		}
@@ -633,7 +633,7 @@ static struct morse_bits mbits[] = {
 	return res;
 }
 
-static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
+static int send_tone_telemetry(struct opbx_channel *chan, char *tonestring)
 {
 	char *stringp;
 	char *tonesubset;
@@ -646,7 +646,7 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 	
 	res = 0;
 	
-	stringp = ast_strdupa(tonestring);
+	stringp = opbx_strdupa(tonestring);
 
 	for(;tonestring;){
 		tonesubset = strsep(&stringp,")");
@@ -662,8 +662,8 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 		res = play_tone_pair(chan, 0, 0, 100, 0); /* This is needed to ensure the last tone segment is timed correctly */
 	
 	if (!res) 
-		res = ast_waitstream(chan, "");
-	ast_stopstream(chan);
+		res = opbx_waitstream(chan, "");
+	opbx_stopstream(chan);
 
 	/*
 	* Wait for the zaptel driver to physically write the tone blocks to the hardware
@@ -674,7 +674,7 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 		res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
 		if(flags & ZT_IOMUX_WRITEEMPTY)
 			break;
-		if( ast_safe_sleep(chan, 50)){
+		if( opbx_safe_sleep(chan, 50)){
 			res = -1;
 			break;
 		}
@@ -685,41 +685,41 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 }
 	
 
-static int sayfile(struct ast_channel *mychannel,char *fname)
+static int sayfile(struct opbx_channel *mychannel,char *fname)
 {
 int	res;
 
-	res = ast_streamfile(mychannel, fname, mychannel->language);
+	res = opbx_streamfile(mychannel, fname, mychannel->language);
 	if (!res) 
-		res = ast_waitstream(mychannel, "");
+		res = opbx_waitstream(mychannel, "");
 	else
-		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-	ast_stopstream(mychannel);
+		 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+	opbx_stopstream(mychannel);
 	return res;
 }
 
-static int saycharstr(struct ast_channel *mychannel,char *str)
+static int saycharstr(struct opbx_channel *mychannel,char *str)
 {
 int	res;
 
-	res = ast_say_character_str(mychannel,str,NULL,mychannel->language);
+	res = opbx_say_character_str(mychannel,str,NULL,mychannel->language);
 	if (!res) 
-		res = ast_waitstream(mychannel, "");
+		res = opbx_waitstream(mychannel, "");
 	else
-		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-	ast_stopstream(mychannel);
+		 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+	opbx_stopstream(mychannel);
 	return res;
 }
 
-static int saynum(struct ast_channel *mychannel, int num)
+static int saynum(struct opbx_channel *mychannel, int num)
 {
 	int res;
-	res = ast_say_number(mychannel, num, NULL, mychannel->language, NULL);
+	res = opbx_say_number(mychannel, num, NULL, mychannel->language, NULL);
 	if(!res)
-		res = ast_waitstream(mychannel, "");
+		res = opbx_waitstream(mychannel, "");
 	else
-		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-	ast_stopstream(mychannel);
+		opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+	opbx_stopstream(mychannel);
 	return res;
 }
 
@@ -731,7 +731,7 @@ static int retrieve_astcfgint(char *category, char *name, int min, int max, int 
         char *var;
         int ret;
                                                                                 
-        var = ast_variable_retrieve(cfg, category, name);
+        var = opbx_variable_retrieve(cfg, category, name);
         if(var){
                 ret = myatoi(var);
                 if(ret < min)
@@ -744,7 +744,7 @@ static int retrieve_astcfgint(char *category, char *name, int min, int max, int 
         return ret;
 }
 
-static int telem_any(struct ast_channel *chan, char *entry)
+static int telem_any(struct opbx_channel *chan, char *entry)
 {
 	int res;
 	char c;
@@ -800,7 +800,7 @@ static int telem_any(struct ast_channel *chan, char *entry)
 * 4 types of telemtry are handled: Morse ID, Morse Message, Tone Sequence, and a File containing a recording.
 */
 
-static int telem_lookup(struct ast_channel *chan, char *node, char *name)
+static int telem_lookup(struct opbx_channel *chan, char *node, char *name)
 {
 	
 	int res;
@@ -816,14 +816,14 @@ static int telem_lookup(struct ast_channel *chan, char *node, char *name)
 	
 	/* Retrieve the section name for telemetry from the node section */
 	
-	telemetry = ast_variable_retrieve(cfg, node, TELEMETRY);
+	telemetry = opbx_variable_retrieve(cfg, node, TELEMETRY);
 	if(telemetry){
-		telemetry_save = ast_strdupa(telemetry);
+		telemetry_save = opbx_strdupa(telemetry);
 		if(!telemetry_save){
-			ast_log(LOG_WARNING,"ast_strdupa() failed in telem_lookup()\n");
+			opbx_log(LOG_WARNING,"opbx_strdupa() failed in telem_lookup()\n");
 			return res;
 		}
-		entry = ast_variable_retrieve(cfg, telemetry_save, name);
+		entry = opbx_variable_retrieve(cfg, telemetry_save, name);
 	}
 	
 	/* Try to look up the telemetry name */
@@ -838,7 +838,7 @@ static int telem_lookup(struct ast_channel *chan, char *node, char *name)
 	if(entry)	
 		telem_any(chan, entry);
 	else{
-		ast_log(LOG_WARNING, "Telemetry name not found: %s\n", name);
+		opbx_log(LOG_WARNING, "Telemetry name not found: %s\n", name);
 		res = -1;
 	}
 	return res;
@@ -855,12 +855,12 @@ static int get_wait_interval(struct rpt *myrpt, int type)
         char *wait_times_save;
                                                                                                                   
         wait_times_save = NULL;
-        wait_times = ast_variable_retrieve(cfg, myrpt->name, "wait_times");
+        wait_times = opbx_variable_retrieve(cfg, myrpt->name, "wait_times");
                                                                                                                   
         if(wait_times){
-                wait_times_save = ast_strdupa(wait_times);
+                wait_times_save = opbx_strdupa(wait_times);
                 if(!wait_times_save){
-                        ast_log(LOG_WARNING, "Out of memory in wait_interval()\n");
+                        opbx_log(LOG_WARNING, "Out of memory in wait_interval()\n");
                         wait_times = NULL;
                 }
         }
@@ -906,11 +906,11 @@ static int get_wait_interval(struct rpt *myrpt, int type)
 */
 
 
-static void wait_interval(struct rpt *myrpt, int type, struct ast_channel *chan)
+static void wait_interval(struct rpt *myrpt, int type, struct opbx_channel *chan)
 {
 	int interval;
 	if((interval = get_wait_interval(myrpt, type)))
-		ast_safe_sleep(chan,interval);
+		opbx_safe_sleep(chan,interval);
 	return;
 }
 
@@ -923,7 +923,7 @@ struct	rpt_tele *mytele = (struct rpt_tele *)this;
 struct  rpt_tele *tlist;
 struct	rpt *myrpt;
 struct	rpt_link *l,*m,linkbase;
-struct	ast_channel *mychannel;
+struct	opbx_channel *mychannel;
 int vmajor, vminor;
 char *p,*ct,*ct_copy,*ident, *nodename;
 time_t t;
@@ -934,26 +934,26 @@ struct tm localtm;
 	myrpt = mytele->rpt;
 
 	/* Snag copies of a few key myrpt variables */
-	ast_mutex_lock(&myrpt->lock);
-	nodename = ast_strdupa(myrpt->name);
-	ident = ast_strdupa(myrpt->ident);
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
+	nodename = opbx_strdupa(myrpt->name);
+	ident = opbx_strdupa(myrpt->ident);
+	opbx_mutex_unlock(&myrpt->lock);
 	
 	
 	/* allocate a pseudo-channel thru openpbx */
-	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+	mychannel = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!mychannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		remque((struct qelem *)mytele);
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		free(mytele);		
 		pthread_exit(NULL);
 	}
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	mytele->chan = mychannel; /* Save a copy of the channel so we can access it externally if need be */
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	
 	/* make a conference for the tx */
 	ci.chan = 0;
@@ -965,15 +965,15 @@ struct tm localtm;
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_mutex_lock(&myrpt->lock);
+		opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		opbx_mutex_lock(&myrpt->lock);
 		remque((struct qelem *)mytele);
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		free(mytele);		
-		ast_hangup(mychannel);
+		opbx_hangup(mychannel);
 		pthread_exit(NULL);
 	}
-	ast_stopstream(mychannel);
+	opbx_stopstream(mychannel);
 	switch(mytele->mode)
 	{
 	    case ID:
@@ -987,7 +987,7 @@ struct tm localtm;
 		
 		
 	    case IDTALKOVER:
-	    	p = ast_variable_retrieve(cfg, nodename, "idtalkover");
+	    	p = opbx_variable_retrieve(cfg, nodename, "idtalkover");
 	    	if(p)
 			res = telem_any(mychannel, p); 
 		imdone=1;	
@@ -996,12 +996,12 @@ struct tm localtm;
 	    case PROC:
 		/* wait a little bit longer */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/callproceeding", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/callproceeding", mychannel->language);
 		break;
 	    case TERM:
 		/* wait a little bit longer */
 		wait_interval(myrpt, DLY_CALLTERM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/callterminated", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/callterminated", mychannel->language);
 		break;
 	    case COMPLETE:
 		/* wait a little bit */
@@ -1015,9 +1015,9 @@ struct tm localtm;
 		*/
 
 		x = get_wait_interval(myrpt, DLY_UNKEY);
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		myrpt->unkeytocttimer = x; /* Must be protected as it is changed below */
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 
 		/*
 		* If there's one already queued, don't do another
@@ -1027,12 +1027,12 @@ struct tm localtm;
 		unkeys_queued = 0;
                 if (tlist != &myrpt->tele)
                 {
-                        ast_mutex_lock(&myrpt->lock);
+                        opbx_mutex_lock(&myrpt->lock);
                         while(tlist != &myrpt->tele){
                                 if (tlist->mode == UNKEY) unkeys_queued++;
                                 tlist = tlist->next;
                         }
-                        ast_mutex_unlock(&myrpt->lock);
+                        opbx_mutex_unlock(&myrpt->lock);
 		}
 		if( unkeys_queued > 1){
 			imdone = 1;
@@ -1049,13 +1049,13 @@ struct tm localtm;
 				ctint = 100;
 			else
 				ctint = myrpt->unkeytocttimer;
-			ast_safe_sleep(mychannel, ctint);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_safe_sleep(mychannel, ctint);
+			opbx_mutex_lock(&myrpt->lock);
 			if(myrpt->unkeytocttimer < ctint)
 				myrpt->unkeytocttimer = 0;
 			else
 				myrpt->unkeytocttimer -= ctint;
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 		}
 	
 
@@ -1073,7 +1073,7 @@ struct tm localtm;
 		l = myrpt->links.next;
 		if (l != &myrpt->links)
 		{
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			while(l != &myrpt->links)
 			{
 				if (l->mode) {
@@ -1082,28 +1082,28 @@ struct tm localtm;
 				}
 				l = l->next;
 			}
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 
 			res = telem_lookup(mychannel, myrpt->name, (!hastx) ? "remotemon" : "remotetx");
 			if(res)
-				ast_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", mychannel->name);
+				opbx_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", mychannel->name);
 			
 		
 		/* if in remote cmd mode, indicate it */
 			if (myrpt->cmdnode[0])
 			{
-				ast_safe_sleep(mychannel,200);
+				opbx_safe_sleep(mychannel,200);
 				res = telem_lookup(mychannel, myrpt->name, "cmdmode");
 				if(res)
-				 	ast_log(LOG_WARNING, "telem_lookup:cmdmode failed on %s\n", mychannel->name);
-				ast_stopstream(mychannel);
+				 	opbx_log(LOG_WARNING, "telem_lookup:cmdmode failed on %s\n", mychannel->name);
+				opbx_stopstream(mychannel);
 			}
 		}
-		else if((ct = ast_variable_retrieve(cfg, nodename, "unlinkedct"))){ /* Unlinked Courtesy Tone */
-			ct_copy = ast_strdupa(ct);
+		else if((ct = opbx_variable_retrieve(cfg, nodename, "unlinkedct"))){ /* Unlinked Courtesy Tone */
+			ct_copy = opbx_strdupa(ct);
 			res = telem_lookup(mychannel, myrpt->name, ct_copy);
 			if(res)
-			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
+			 	opbx_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
 		}	
 			
 		if (hasremote && (!myrpt->cmdnode[0]))
@@ -1115,20 +1115,20 @@ struct tm localtm;
 			/* first put the channel on the conference in announce mode */
 			if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
 			{
-				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-				ast_mutex_lock(&myrpt->lock);
+				opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				opbx_mutex_lock(&myrpt->lock);
 				remque((struct qelem *)mytele);
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 				free(mytele);		
-				ast_hangup(mychannel);
+				opbx_hangup(mychannel);
 				pthread_exit(NULL);
 			}
-			if((ct = ast_variable_retrieve(cfg, nodename, "remotect"))){ /* Unlinked Courtesy Tone */
-				ast_safe_sleep(mychannel,200);
-				ct_copy = ast_strdupa(ct);
+			if((ct = opbx_variable_retrieve(cfg, nodename, "remotect"))){ /* Unlinked Courtesy Tone */
+				opbx_safe_sleep(mychannel,200);
+				ct_copy = opbx_strdupa(ct);
 				res = telem_lookup(mychannel, myrpt->name, ct_copy);
 				if(res)
-				 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
+				 	opbx_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
 			}	
 		}
 		imdone = 1;
@@ -1136,52 +1136,52 @@ struct tm localtm;
 	    case REMDISC:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-		ast_stopstream(mychannel);
-		ast_say_character_str(mychannel,mytele->mylink.name,NULL,mychannel->language);
-		res = ast_streamfile(mychannel, ((mytele->mylink.connected) ? 
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+		opbx_stopstream(mychannel);
+		opbx_say_character_str(mychannel,mytele->mylink.name,NULL,mychannel->language);
+		res = opbx_streamfile(mychannel, ((mytele->mylink.connected) ? 
 			"rpt/remote_disc" : "rpt/remote_busy"), mychannel->language);
 		break;
 	    case REMALREADY:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/remote_already", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/remote_already", mychannel->language);
 		break;
 	    case REMNOTFOUND:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/remote_notfound", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/remote_notfound", mychannel->language);
 		break;
 	    case REMGO:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/remote_go", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/remote_go", mychannel->language);
 		break;
 	    case CONNECTED:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM,  mychannel);
-		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-		ast_stopstream(mychannel);
-		ast_say_character_str(mychannel,mytele->mylink.name,NULL,mychannel->language);
-		res = ast_streamfile(mychannel, "rpt/connected", mychannel->language);
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+		opbx_stopstream(mychannel);
+		opbx_say_character_str(mychannel,mytele->mylink.name,NULL,mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/connected", mychannel->language);
 		break;
 	    case CONNFAIL:
-		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-		ast_stopstream(mychannel);
-		ast_say_character_str(mychannel,mytele->mylink.name,NULL,mychannel->language);
-		res = ast_streamfile(mychannel, "rpt/connection_failed", mychannel->language);
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+		opbx_stopstream(mychannel);
+		opbx_say_character_str(mychannel,mytele->mylink.name,NULL,mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/connection_failed", mychannel->language);
 		break;
 	    case STATUS:
 		/* wait a little bit */
@@ -1189,7 +1189,7 @@ struct tm localtm;
 		hastx = 0;
 		linkbase.next = &linkbase;
 		linkbase.prev = &linkbase;
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		/* make our own list of links */
 		l = myrpt->links.next;
 		while(l != &myrpt->links)
@@ -1197,12 +1197,12 @@ struct tm localtm;
 			m = malloc(sizeof(struct rpt_link));
 			if (!m)
 			{
-				ast_log(LOG_WARNING, "Cannot alloc memory on %s\n", mychannel->name);
-				ast_mutex_lock(&myrpt->lock);
+				opbx_log(LOG_WARNING, "Cannot alloc memory on %s\n", mychannel->name);
+				opbx_mutex_lock(&myrpt->lock);
 				remque((struct qelem *)mytele);
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 				free(mytele);		
-				ast_hangup(mychannel);
+				opbx_hangup(mychannel);
 				pthread_exit(NULL);
 			}
 			memcpy(m,l,sizeof(struct rpt_link));
@@ -1210,62 +1210,62 @@ struct tm localtm;
 			insque((struct qelem *)m,(struct qelem *)linkbase.next);
 			l = l->next;
 		}
-		ast_mutex_unlock(&myrpt->lock);
-		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+		opbx_mutex_unlock(&myrpt->lock);
+		res = opbx_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-		ast_stopstream(mychannel);
-		ast_say_character_str(mychannel,myrpt->name,NULL,mychannel->language);
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+		opbx_stopstream(mychannel);
+		opbx_say_character_str(mychannel,myrpt->name,NULL,mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-		ast_stopstream(mychannel);
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+		opbx_stopstream(mychannel);
 		if (myrpt->callmode)
 		{
 			hastx = 1;
-			res = ast_streamfile(mychannel, "rpt/autopatch_on", mychannel->language);
+			res = opbx_streamfile(mychannel, "rpt/autopatch_on", mychannel->language);
 			if (!res) 
-				res = ast_waitstream(mychannel, "");
+				res = opbx_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-			ast_stopstream(mychannel);
+				 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+			opbx_stopstream(mychannel);
 		}
 		l = linkbase.next;
 		while(l != &linkbase)
 		{
 			hastx = 1;
-			res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+			res = opbx_streamfile(mychannel, "rpt/node", mychannel->language);
 			if (!res) 
-				res = ast_waitstream(mychannel, "");
+				res = opbx_waitstream(mychannel, "");
 			else
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-			ast_stopstream(mychannel);
-			ast_say_character_str(mychannel,l->name,NULL,mychannel->language);
+				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+			opbx_stopstream(mychannel);
+			opbx_say_character_str(mychannel,l->name,NULL,mychannel->language);
 			if (!res) 
-				res = ast_waitstream(mychannel, "");
+				res = opbx_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-			ast_stopstream(mychannel);
-			res = ast_streamfile(mychannel, ((l->mode) ? 
+				 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+			opbx_stopstream(mychannel);
+			res = opbx_streamfile(mychannel, ((l->mode) ? 
 				"rpt/tranceive" : "rpt/monitor"), mychannel->language);
 			if (!res) 
-				res = ast_waitstream(mychannel, "");
+				res = opbx_waitstream(mychannel, "");
 			else
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-			ast_stopstream(mychannel);
+				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+			opbx_stopstream(mychannel);
 			l = l->next;
 		}			
 		if (!hastx)
 		{
-			res = ast_streamfile(mychannel, "rpt/repeat_only", mychannel->language);
+			res = opbx_streamfile(mychannel, "rpt/repeat_only", mychannel->language);
 			if (!res) 
-				res = ast_waitstream(mychannel, "");
+				res = opbx_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-			ast_stopstream(mychannel);
+				 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+			opbx_stopstream(mychannel);
 		}
 		/* destroy our local link queue */
 		l = linkbase.next;
@@ -1279,14 +1279,14 @@ struct tm localtm;
 		imdone = 1;
 		break;
 	    case TIMEOUT:
-		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-		ast_stopstream(mychannel);
-		ast_say_character_str(mychannel,myrpt->name,NULL,mychannel->language);
-		res = ast_streamfile(mychannel, "rpt/timeout", mychannel->language);
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
+		opbx_stopstream(mychannel);
+		opbx_say_character_str(mychannel,myrpt->name,NULL,mychannel->language);
+		res = opbx_streamfile(mychannel, "rpt/timeout", mychannel->language);
 		break;
 		
 	    case STATS_TIME:
@@ -1312,10 +1312,10 @@ struct tm localtm;
 			break;
 		}
 		/* Say the time */				
-	    	res = ast_say_time(mychannel, t, "", mychannel->language);
+	    	res = opbx_say_time(mychannel, t, "", mychannel->language);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
-		ast_stopstream(mychannel);		
+			res = opbx_waitstream(mychannel, "");
+		opbx_stopstream(mychannel);		
 		imdone = 1;
 	    	break;
 	    case STATS_VERSION:
@@ -1332,23 +1332,23 @@ struct tm localtm;
 			break;
 		}
 		if(!res) /* Say "X" */
-			ast_say_number(mychannel, vmajor, "", mychannel->language, (char *) NULL);
+			opbx_say_number(mychannel, vmajor, "", mychannel->language, (char *) NULL);
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
-		ast_stopstream(mychannel);	
+			res = opbx_waitstream(mychannel, "");
+		opbx_stopstream(mychannel);	
 		if (saycharstr(mychannel,".") == -1)
 		{
 			imdone = 1;
 			break;
 		}
 		if(!res) /* Say "Y" */
-			ast_say_number(mychannel, vminor, "", mychannel->language, (char *) NULL);
+			opbx_say_number(mychannel, vminor, "", mychannel->language, (char *) NULL);
 		if (!res){
-			res = ast_waitstream(mychannel, "");
-			ast_stopstream(mychannel);
+			res = opbx_waitstream(mychannel, "");
+			opbx_stopstream(mychannel);
 		}	
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
 		imdone = 1;
 	    	break;
 	    case ARB_ALPHA:
@@ -1360,10 +1360,10 @@ struct tm localtm;
 	    case TEST_TONE:
 		imdone = 1;
 		myrpt->stopgen = 0;
-	        if ((res = ast_tonepair_start(mychannel, 1004.0, 0, 99999999, 7200.0))) 
+	        if ((res = opbx_tonepair_start(mychannel, 1004.0, 0, 99999999, 7200.0))) 
 			break;
 	        while(mychannel->generatordata && (!myrpt->stopgen)) {
-			if (ast_safe_sleep(mychannel,1)) break;
+			if (opbx_safe_sleep(mychannel,1)) break;
 		    	imdone = 1;
 			}
 		break;
@@ -1374,18 +1374,18 @@ struct tm localtm;
 	if (!imdone)
 	{
 		if (!res) 
-			res = ast_waitstream(mychannel, "");
+			res = opbx_waitstream(mychannel, "");
 		else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			opbx_log(LOG_WARNING, "opbx_streamfile failed on %s\n", mychannel->name);
 			res = 0;
 		}
 	}
-	ast_stopstream(mychannel);
-	ast_mutex_lock(&myrpt->lock);
+	opbx_stopstream(mychannel);
+	opbx_mutex_lock(&myrpt->lock);
 	remque((struct qelem *)mytele);
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	free(mytele);		
-	ast_hangup(mychannel);
+	opbx_hangup(mychannel);
 	pthread_exit(NULL);
 }
 
@@ -1398,7 +1398,7 @@ pthread_attr_t attr;
 	tele = malloc(sizeof(struct rpt_tele));
 	if (!tele)
 	{
-		ast_log(LOG_WARNING, "Unable to allocate memory\n");
+		opbx_log(LOG_WARNING, "Unable to allocate memory\n");
 		pthread_exit(NULL);
 		return;
 	}
@@ -1406,7 +1406,7 @@ pthread_attr_t attr;
 	memset((char *)tele,0,sizeof(struct rpt_tele));
 	tele->rpt = myrpt;
 	tele->mode = mode;
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	if((mode == CONNFAIL) || (mode == REMDISC) || (mode == CONNECTED)){
 		memset(&tele->mylink,0,sizeof(struct rpt_link));
 		if (mylink){
@@ -1418,10 +1418,10 @@ pthread_attr_t attr;
 		tele->param[TELEPARAMSIZE - 1] = 0;
 	}
 	insque((struct qelem *)tele,(struct qelem *)myrpt->tele.next); 
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
+	opbx_pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
 	return;
 }
 
@@ -1430,13 +1430,13 @@ static void *rpt_call(void *this)
 ZT_CONFINFO ci;  /* conference info */
 struct	rpt *myrpt = (struct rpt *)this;
 int	res;
-struct	ast_frame wf;
+struct	opbx_frame wf;
 int stopped,congstarted;
-struct ast_channel *mychannel,*genchannel;
+struct opbx_channel *mychannel,*genchannel;
 
 	myrpt->mydtmf = 0;
 	/* allocate a pseudo-channel thru openpbx */
-	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+	mychannel = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!mychannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -1449,17 +1449,17 @@ struct ast_channel *mychannel,*genchannel;
 	/* first put the channel on the conference */
 	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_hangup(mychannel);
+		opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		opbx_hangup(mychannel);
 		myrpt->callmode = 0;
 		pthread_exit(NULL);
 	}
 	/* allocate a pseudo-channel thru openpbx */
-	genchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+	genchannel = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!genchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
-		ast_hangup(mychannel);
+		opbx_hangup(mychannel);
 		pthread_exit(NULL);
 	}
 	ci.chan = 0;
@@ -1469,34 +1469,34 @@ struct ast_channel *mychannel,*genchannel;
 	/* first put the channel on the conference */
 	if (ioctl(genchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_hangup(mychannel);
-		ast_hangup(genchannel);
+		opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		opbx_hangup(mychannel);
+		opbx_hangup(genchannel);
 		myrpt->callmode = 0;
 		pthread_exit(NULL);
 	}
 	if (myrpt->tonezone && (tone_zone_set_zone(mychannel->fds[0],myrpt->tonezone) == -1))
 	{
-		ast_log(LOG_WARNING, "Unable to set tone zone %s\n",myrpt->tonezone);
-		ast_hangup(mychannel);
-		ast_hangup(genchannel);
+		opbx_log(LOG_WARNING, "Unable to set tone zone %s\n",myrpt->tonezone);
+		opbx_hangup(mychannel);
+		opbx_hangup(genchannel);
 		myrpt->callmode = 0;
 		pthread_exit(NULL);
 	}
 	if (myrpt->tonezone && (tone_zone_set_zone(genchannel->fds[0],myrpt->tonezone) == -1))
 	{
-		ast_log(LOG_WARNING, "Unable to set tone zone %s\n",myrpt->tonezone);
-		ast_hangup(mychannel);
-		ast_hangup(genchannel);
+		opbx_log(LOG_WARNING, "Unable to set tone zone %s\n",myrpt->tonezone);
+		opbx_hangup(mychannel);
+		opbx_hangup(genchannel);
 		myrpt->callmode = 0;
 		pthread_exit(NULL);
 	}
 	/* start dialtone */
 	if (tone_zone_play_tone(mychannel->fds[0],ZT_TONE_DIALTONE) < 0)
 	{
-		ast_log(LOG_WARNING, "Cannot start dialtone\n");
-		ast_hangup(mychannel);
-		ast_hangup(genchannel);
+		opbx_log(LOG_WARNING, "Cannot start dialtone\n");
+		opbx_hangup(mychannel);
+		opbx_hangup(genchannel);
 		myrpt->callmode = 0;
 		pthread_exit(NULL);
 	}
@@ -1517,14 +1517,14 @@ struct ast_channel *mychannel,*genchannel;
 			/* start congestion tone */
 			tone_zone_play_tone(mychannel->fds[0],ZT_TONE_CONGESTION);
 		}
-		res = ast_safe_sleep(mychannel, MSWAIT);
+		res = opbx_safe_sleep(mychannel, MSWAIT);
 		if (res < 0)
 		{
-			ast_hangup(mychannel);
-			ast_hangup(genchannel);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_hangup(mychannel);
+			opbx_hangup(genchannel);
+			opbx_mutex_lock(&myrpt->lock);
 			myrpt->callmode = 0;
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			pthread_exit(NULL);
 		}
 	}
@@ -1533,11 +1533,11 @@ struct ast_channel *mychannel,*genchannel;
 	/* end if done */
 	if (!myrpt->callmode)
 	{
-		ast_hangup(mychannel);
-		ast_hangup(genchannel);
-		ast_mutex_lock(&myrpt->lock);
+		opbx_hangup(mychannel);
+		opbx_hangup(genchannel);
+		opbx_mutex_lock(&myrpt->lock);
 		myrpt->callmode = 0;
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		pthread_exit(NULL);			
 	}
 
@@ -1545,7 +1545,7 @@ struct ast_channel *mychannel,*genchannel;
 		char *name, *loc, *instr;
 		instr = strdup(myrpt->ourcallerid);
 		if(instr){
-			ast_callerid_parse(instr, &name, &loc);
+			opbx_callerid_parse(instr, &name, &loc);
 			if(loc){
 				if(mychannel->cid.cid_num)
 					free(mychannel->cid.cid_num);
@@ -1565,66 +1565,66 @@ struct ast_channel *mychannel,*genchannel;
 	if (myrpt->acctcode)
 		strncpy(mychannel->accountcode, myrpt->acctcode, sizeof(mychannel->accountcode) - 1);
 	mychannel->priority = 1;
-	ast_channel_undefer_dtmf(mychannel);
-	if (ast_pbx_start(mychannel) < 0)
+	opbx_channel_undefer_dtmf(mychannel);
+	if (opbx_pbx_start(mychannel) < 0)
 	{
-		ast_log(LOG_WARNING, "Unable to start PBX!!\n");
-		ast_hangup(mychannel);
-		ast_hangup(genchannel);
-		ast_mutex_lock(&myrpt->lock);
+		opbx_log(LOG_WARNING, "Unable to start PBX!!\n");
+		opbx_hangup(mychannel);
+		opbx_hangup(genchannel);
+		opbx_mutex_lock(&myrpt->lock);
 	 	myrpt->callmode = 0;
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		pthread_exit(NULL);
 	}
 	usleep(10000);
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	myrpt->callmode = 3;
 	while(myrpt->callmode)
 	{
 		if ((!mychannel->pbx) && (myrpt->callmode != 4))
 		{
 			myrpt->callmode = 4;
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			/* start congestion tone */
 			tone_zone_play_tone(genchannel->fds[0],ZT_TONE_CONGESTION);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		if (myrpt->mydtmf)
 		{
-			wf.frametype = AST_FRAME_DTMF;
+			wf.frametype = OPBX_FRAME_DTMF;
 			wf.subclass = myrpt->mydtmf;
 			wf.offset = 0;
 			wf.mallocd = 0;
 			wf.data = NULL;
 			wf.datalen = 0;
 			wf.samples = 0;
-			ast_mutex_unlock(&myrpt->lock);
-			ast_write(genchannel,&wf); 
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_write(genchannel,&wf); 
+			opbx_mutex_lock(&myrpt->lock);
 			myrpt->mydtmf = 0;
 		}
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		usleep(MSWAIT * 1000);
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 	}
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	tone_zone_play_tone(genchannel->fds[0],-1);
-	if (mychannel->pbx) ast_softhangup(mychannel,AST_SOFTHANGUP_DEV);
-	ast_hangup(genchannel);
-	ast_mutex_lock(&myrpt->lock);
+	if (mychannel->pbx) opbx_softhangup(mychannel,OPBX_SOFTHANGUP_DEV);
+	opbx_hangup(genchannel);
+	opbx_mutex_lock(&myrpt->lock);
 	myrpt->callmode = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	pthread_exit(NULL);
 }
 
 static void send_link_dtmf(struct rpt *myrpt,char c)
 {
 char	str[300];
-struct	ast_frame wf;
+struct	opbx_frame wf;
 struct	rpt_link *l;
 
 	snprintf(str, sizeof(str), "D %s %s %d %c", myrpt->cmdnode, myrpt->name, ++(myrpt->dtmfidx), c);
-	wf.frametype = AST_FRAME_TEXT;
+	wf.frametype = OPBX_FRAME_TEXT;
 	wf.subclass = 0;
 	wf.offset = 0;
 	wf.mallocd = 1;
@@ -1638,7 +1638,7 @@ struct	rpt_link *l;
 		if (!strcmp(l->name,myrpt->cmdnode))
 		{
 			wf.data = strdup(str);
-			if (l->chan) ast_write(l->chan,&wf);
+			if (l->chan) opbx_write(l->chan,&wf);
 			return;
 		}
 		l = l->next;
@@ -1648,7 +1648,7 @@ struct	rpt_link *l;
 	while(l != &myrpt->links)
 	{
 		wf.data = strdup(str);
-		if (l->chan) ast_write(l->chan,&wf);
+		if (l->chan) opbx_write(l->chan,&wf);
 		l = l->next;
 	}
 	return;
@@ -1683,7 +1683,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		case 1: /* Link off */
 			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
 				strcpy(digitbuf,myrpt->lastlinknode);
-			val = ast_variable_retrieve(cfg, NODES, digitbuf);
+			val = opbx_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
 					return DC_ERROR;
@@ -1692,7 +1692,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			strncpy(tmp,val,sizeof(tmp) - 1);
 			s = tmp;
 			s1 = strsep(&s,",");
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			l = myrpt->links.next;
 			/* try to find this one in queue */
 			while(l != &myrpt->links){
@@ -1702,13 +1702,13 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				l = l->next;
 			}
 			if (l != &myrpt->links){ /* if found */
-				struct	ast_frame wf;
+				struct	opbx_frame wf;
 
 				strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 				l->retries = MAX_RETRIES + 1;
 				l->disced = 1;
-				ast_mutex_unlock(&myrpt->lock);
-				wf.frametype = AST_FRAME_TEXT;
+				opbx_mutex_unlock(&myrpt->lock);
+				wf.frametype = OPBX_FRAME_TEXT;
 				wf.subclass = 0;
 				wf.offset = 0;
 				wf.mallocd = 1;
@@ -1717,19 +1717,19 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				wf.data = strdup(discstr);
 				if (l->chan)
 				{
-					ast_write(l->chan,&wf);
-					if (ast_safe_sleep(l->chan,250) == -1) return DC_ERROR;
-					ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
+					opbx_write(l->chan,&wf);
+					if (opbx_safe_sleep(l->chan,250) == -1) return DC_ERROR;
+					opbx_softhangup(l->chan,OPBX_SOFTHANGUP_DEV);
 				}
 				rpt_telemetry(myrpt, COMPLETE, NULL);
 				return DC_COMPLETE;
 			}
-			ast_mutex_unlock(&myrpt->lock);	
+			opbx_mutex_unlock(&myrpt->lock);	
 			return DC_COMPLETE;
 		case 2: /* Link Monitor */
 			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
 				strcpy(digitbuf,myrpt->lastlinknode);
-			val = ast_variable_retrieve(cfg, NODES, digitbuf);
+			val = opbx_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
 					return DC_ERROR;
@@ -1738,7 +1738,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			strncpy(tmp,val,sizeof(tmp) - 1);
 			s = tmp;
 			s1 = strsep(&s,",");
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			l = myrpt->links.next;
 			/* try to find this one in queue */
 			while(l != &myrpt->links){
@@ -1752,23 +1752,23 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			{
 				/* if already in this mode, just ignore */
 				if ((!l->mode) || (!l->chan)) {
-					ast_mutex_unlock(&myrpt->lock);
+					opbx_mutex_unlock(&myrpt->lock);
 					rpt_telemetry(myrpt,REMALREADY,NULL);
 					return DC_COMPLETE;
 					
 				}
-				ast_mutex_unlock(&myrpt->lock);
-				if (l->chan) ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
+				opbx_mutex_unlock(&myrpt->lock);
+				if (l->chan) opbx_softhangup(l->chan,OPBX_SOFTHANGUP_DEV);
 				l->retries = MAX_RETRIES + 1;
 				l->disced = 2;
 				modechange = 1;
 			} else
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in monitor mode */
 			l = malloc(sizeof(struct rpt_link));
 			if (!l){
-				ast_log(LOG_WARNING, "Unable to malloc\n");
+				opbx_log(LOG_WARNING, "Unable to malloc\n");
 				return DC_ERROR;
 			}
 			/* zero the silly thing */
@@ -1780,43 +1780,43 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				return DC_ERROR;
 			}
 			*tele++ = 0;
-			l->isremote = (s && ast_true(s));
+			l->isremote = (s && opbx_true(s));
 			strncpy(l->name, digitbuf, MAXNODESTR - 1);
-			l->chan = ast_request(deststr,AST_FORMAT_SLINEAR,tele,NULL);
+			l->chan = opbx_request(deststr,OPBX_FORMAT_SLINEAR,tele,NULL);
 			if (modechange) l->connected = 1;
 			if (l->chan){
-				ast_set_read_format(l->chan,AST_FORMAT_SLINEAR);
-				ast_set_write_format(l->chan,AST_FORMAT_SLINEAR);
+				opbx_set_read_format(l->chan,OPBX_FORMAT_SLINEAR);
+				opbx_set_write_format(l->chan,OPBX_FORMAT_SLINEAR);
 				l->chan->whentohangup = 0;
 				l->chan->appl = "Apprpt";
 				l->chan->data = "(Remote Rx)";
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
+					opbx_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
 						deststr,tele,l->chan->name);
 				if(l->chan->cid.cid_num)
 					free(l->chan->cid.cid_num);
 				l->chan->cid.cid_num = strdup(myrpt->name);
-				ast_call(l->chan,tele,0);
+				opbx_call(l->chan,tele,0);
 			}
 			else
 			{
 				rpt_telemetry(myrpt,CONNFAIL,l);
 				free(l);
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
+					opbx_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
 						deststr,tele,l->chan->name);
 				return DC_ERROR;
 			}
 			/* allocate a pseudo-channel thru openpbx */
-			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+			l->pchan = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 			if (!l->pchan){
 				fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
-				ast_hangup(l->chan);
+				opbx_hangup(l->chan);
 				free(l);
 				return DC_ERROR;
 			}
-			ast_set_read_format(l->pchan,AST_FORMAT_SLINEAR);
-			ast_set_write_format(l->pchan,AST_FORMAT_SLINEAR);
+			opbx_set_read_format(l->pchan,OPBX_FORMAT_SLINEAR);
+			opbx_set_write_format(l->pchan,OPBX_FORMAT_SLINEAR);
 			/* make a conference for the pseudo-one */
 			ci.chan = 0;
 			ci.confno = myrpt->conf;
@@ -1824,22 +1824,22 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			/* first put the channel on the conference in proper mode */
 			if (ioctl(l->pchan->fds[0],ZT_SETCONF,&ci) == -1)
 			{
-				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-				ast_hangup(l->chan);
-				ast_hangup(l->pchan);
+				opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				opbx_hangup(l->chan);
+				opbx_hangup(l->pchan);
 				free(l);
 				return DC_ERROR;
 			}
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			/* insert at end of queue */
 			insque((struct qelem *)l,(struct qelem *)myrpt->links.next);
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt,COMPLETE,NULL);
 			return DC_COMPLETE;
 		case 3: /* Link transceive */
 			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
 				strcpy(digitbuf,myrpt->lastlinknode);
-			val = ast_variable_retrieve(cfg, NODES, digitbuf);
+			val = opbx_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
 					return DC_ERROR;
@@ -1848,7 +1848,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			strncpy(tmp,val,sizeof(tmp) - 1);
 			s = tmp;
 			s1 = strsep(&s,",");
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			l = myrpt->links.next;
 			/* try to find this one in queue */
 			while(l != &myrpt->links){
@@ -1861,22 +1861,22 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			if (l != &myrpt->links){ 
 				/* if already in this mode, just ignore */
 				if ((l->mode) || (!l->chan)) {
-					ast_mutex_unlock(&myrpt->lock);
+					opbx_mutex_unlock(&myrpt->lock);
 					rpt_telemetry(myrpt, REMALREADY, NULL);
 					return DC_COMPLETE;
 				}
-				ast_mutex_unlock(&myrpt->lock);
-				if (l->chan) ast_softhangup(l->chan, AST_SOFTHANGUP_DEV);
+				opbx_mutex_unlock(&myrpt->lock);
+				if (l->chan) opbx_softhangup(l->chan, OPBX_SOFTHANGUP_DEV);
 				l->retries = MAX_RETRIES + 1;
 				l->disced = 2;
 				modechange = 1;
 			} else
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in tranceive mode */
 			l = malloc(sizeof(struct rpt_link));
 			if (!l){
-				ast_log(LOG_WARNING, "Unable to malloc\n");
+				opbx_log(LOG_WARNING, "Unable to malloc\n");
 				return(DC_ERROR);
 			}
 			/* zero the silly thing */
@@ -1884,7 +1884,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l->mode = 1;
 			l->outbound = 1;
 			strncpy(l->name, digitbuf, MAXNODESTR - 1);
-			l->isremote = (s && ast_true(s));
+			l->isremote = (s && opbx_true(s));
 			if (modechange) l->connected = 1;
 			snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
 			tele = strchr(deststr, '/');
@@ -1894,39 +1894,39 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				return DC_ERROR;
 			}
 			*tele++ = 0;
-			l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, tele,NULL);
+			l->chan = opbx_request(deststr, OPBX_FORMAT_SLINEAR, tele,NULL);
 			if (l->chan){
-				ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
-				ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
+				opbx_set_read_format(l->chan, OPBX_FORMAT_SLINEAR);
+				opbx_set_write_format(l->chan, OPBX_FORMAT_SLINEAR);
 				l->chan->whentohangup = 0;
 				l->chan->appl = "Apprpt";
 				l->chan->data = "(Remote Rx)";
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
+					opbx_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
 						deststr, tele, l->chan->name);
 				if(l->chan->cid.cid_num)
 					free(l->chan->cid.cid_num);
 				l->chan->cid.cid_num = strdup(myrpt->name);
-				ast_call(l->chan,tele,999);
+				opbx_call(l->chan,tele,999);
 			}
 			else{
 				rpt_telemetry(myrpt,CONNFAIL,l);
 				free(l);
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
+					opbx_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
 						deststr,tele,l->chan->name);
 				return DC_ERROR;
 			}
 			/* allocate a pseudo-channel thru openpbx */
-			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+			l->pchan = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 			if (!l->pchan){
 				fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
-				ast_hangup(l->chan);
+				opbx_hangup(l->chan);
 				free(l);
 				return DC_ERROR;
 			}
-			ast_set_read_format(l->pchan, AST_FORMAT_SLINEAR);
-			ast_set_write_format(l->pchan, AST_FORMAT_SLINEAR);
+			opbx_set_read_format(l->pchan, OPBX_FORMAT_SLINEAR);
+			opbx_set_write_format(l->pchan, OPBX_FORMAT_SLINEAR);
 			/* make a conference for the tx */
 			ci.chan = 0;
 			ci.confno = myrpt->conf;
@@ -1934,16 +1934,16 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			/* first put the channel on the conference in proper mode */
 			if (ioctl(l->pchan->fds[0], ZT_SETCONF, &ci) == -1)
 			{
-				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-				ast_hangup(l->chan);
-				ast_hangup(l->pchan);
+				opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				opbx_hangup(l->chan);
+				opbx_hangup(l->pchan);
 				free(l);
 				return DC_ERROR;
 			}
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			/* insert at end of queue */
 			insque((struct qelem *)l,(struct qelem *)myrpt->links.next);
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt,COMPLETE,NULL);
 			return DC_COMPLETE;
 		case 4: /* Enter Command Mode */
@@ -1961,17 +1961,17 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
 				strcpy(digitbuf,myrpt->lastlinknode);
 			/* node must at least exist in list */
-			val = ast_variable_retrieve(cfg, NODES, digitbuf);
+			val = opbx_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
 					return DC_ERROR;
 				break;
 			
 			}
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			strcpy(myrpt->lastlinknode,digitbuf);
 			strncpy(myrpt->cmdnode, digitbuf, sizeof(myrpt->cmdnode) - 1);
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt, REMGO, NULL);	
 			return DC_COMPLETE;
 			
@@ -1984,7 +1984,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l = myrpt->links.next;
 			
 			while(l != &myrpt->links){
-				if (l->chan) ast_softhangup(l->chan, AST_SOFTHANGUP_DEV); /* Hang 'em up */
+				if (l->chan) opbx_softhangup(l->chan, OPBX_SOFTHANGUP_DEV); /* Hang 'em up */
 				l = l->next;
 			}
 			rpt_telemetry(myrpt, COMPLETE, NULL);
@@ -2013,7 +2013,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 	if(debug)
 		printf("@@@@ Autopatch up\n");
 
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	
 	/* if on call, force * into current audio stream */
 	
@@ -2021,16 +2021,16 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 		myrpt->mydtmf = myrpt->funcchar;
 	}
 	if (myrpt->callmode){
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		return DC_COMPLETE;
 	}
 	myrpt->callmode = 1;
 	myrpt->cidx = 0;
 	myrpt->exten[myrpt->cidx] = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *) myrpt);
+	opbx_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *) myrpt);
 	return DC_COMPLETE;
 }
 
@@ -2046,15 +2046,15 @@ static int function_autopatchdn(struct rpt *myrpt, char *param, char *digitbuf, 
 	if(debug)
 		printf("@@@@ Autopatch down\n");
 		
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	
 	if (!myrpt->callmode){
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		return DC_COMPLETE;
 	}
 	
 	myrpt->callmode = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	rpt_telemetry(myrpt, TERM, NULL);
 	return DC_COMPLETE;
 }
@@ -2136,7 +2136,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 	char function_table_name[30] = "";
 	char workstring[80];
 	
-	struct ast_variable *vp;
+	struct opbx_variable *vp;
 	
 	if(debug)	
 		printf("@@@@ Digits collected: %s, source: %d\n", digits, command_source);
@@ -2145,7 +2145,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 		strncpy(function_table_name, myrpt->link_functions, sizeof(function_table_name) - 1);
 	else
 		strncpy(function_table_name, myrpt->functions, sizeof(function_table_name) - 1);
-	vp = ast_variable_browse(cfg, function_table_name);
+	vp = opbx_variable_browse(cfg, function_table_name);
 	while(vp) {
 		if(!strncasecmp(vp->name, digits, strlen(vp->name)))
 			break;
@@ -2193,9 +2193,9 @@ static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink,
 char	tmp[300],cmd[300] = "",dest[300],src[300],c;
 int	seq, res;
 struct rpt_link *l;
-struct	ast_frame wf;
+struct	opbx_frame wf;
 
-	wf.frametype = AST_FRAME_TEXT;
+	wf.frametype = OPBX_FRAME_TEXT;
 	wf.subclass = 0;
 	wf.offset = 0;
 	wf.mallocd = 1;
@@ -2208,17 +2208,17 @@ struct	ast_frame wf;
         {
                 mylink->disced = 1;
 		mylink->retries = MAX_RETRIES + 1;
-                ast_softhangup(mylink->chan,AST_SOFTHANGUP_DEV);
+                opbx_softhangup(mylink->chan,OPBX_SOFTHANGUP_DEV);
                 return;
         }
 	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
 	{
-		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+		opbx_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 		return;
 	}
 	if (strcmp(cmd,"D"))
 	{
-		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+		opbx_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 		return;
 	}
 	/* if not for me, redistribute to all links */
@@ -2240,7 +2240,7 @@ struct	ast_frame wf;
 				/* send, but not to src */
 				if (strcmp(l->name,src)) {
 					wf.data = strdup(str);
-					if (l->chan) ast_write(l->chan,&wf);
+					if (l->chan) opbx_write(l->chan,&wf);
 				}
 				return;
 			}
@@ -2259,25 +2259,25 @@ struct	ast_frame wf;
 			/* send, but not to src */
 			if (strcmp(l->name,src)) {
 				wf.data = strdup(str);
-				if (l->chan) ast_write(l->chan,&wf);
+				if (l->chan) opbx_write(l->chan,&wf);
 			}
 			l = l->next;
 		}
 		return;
 	}
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	if (myrpt->callmode == 1)
 	{
 		myrpt->exten[myrpt->cidx++] = c;
 		myrpt->exten[myrpt->cidx] = 0;
 		/* if this exists */
-		if (ast_exists_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
+		if (opbx_exists_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
 		{
 			myrpt->callmode = 2;
 			rpt_telemetry(myrpt,PROC,NULL); 
 		}
 		/* if can continue, do so */
-		if (!ast_canmatch_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL)) 
+		if (!opbx_canmatch_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL)) 
 		{
 			/* call has failed, inform user */
 			myrpt->callmode = 4;
@@ -2292,7 +2292,7 @@ struct	ast_frame wf;
 		myrpt->rem_dtmfidx = 0;
 		myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
 		time(&myrpt->rem_dtmf_time);
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		return;
 	} 
 	else if ((c != myrpt->endchar) && (myrpt->rem_dtmfidx >= 0))
@@ -2303,10 +2303,10 @@ struct	ast_frame wf;
 			myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx++] = c;
 			myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
 			
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			strncpy(cmd, myrpt->rem_dtmfbuf, sizeof(cmd) - 1);
 			res = collect_function_digits(myrpt, cmd, SOURCE_LNK);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 			
 			switch(res){
 
@@ -2335,7 +2335,7 @@ struct	ast_frame wf;
 		}
 
 	}
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	return;
 }
 
@@ -2544,7 +2544,7 @@ struct zt_radio_param r;
 	memcpy(&r.data,data,5);
 	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
 	{
-		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->rxchannel->name);
+		opbx_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->rxchannel->name);
 		return;
 	}
 }
@@ -3272,19 +3272,19 @@ static int service_scan(struct rpt *myrpt)
 }
 
 
-static int rmt_telem_start(struct rpt *myrpt, struct ast_channel *chan, int delay)
+static int rmt_telem_start(struct rpt *myrpt, struct opbx_channel *chan, int delay)
 {
 			myrpt->remotetx = 0;
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 			if (!myrpt->remoterx)
-				ast_indicate(chan,AST_CONTROL_RADIO_KEY);
-			if (ast_safe_sleep(chan, delay) == -1)
+				opbx_indicate(chan,OPBX_CONTROL_RADIO_KEY);
+			if (opbx_safe_sleep(chan, delay) == -1)
 					return -1;
 			return 0;
 }
 
 
-static int rmt_telem_finish(struct rpt *myrpt, struct ast_channel *chan)
+static int rmt_telem_finish(struct rpt *myrpt, struct opbx_channel *chan)
 {
 
 struct zt_params par;
@@ -3296,7 +3296,7 @@ struct zt_params par;
 	}
 	if (!par.rxisoffhook)
 	{
-		ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_UNKEY);
+		opbx_indicate(myrpt->remchannel,OPBX_CONTROL_RADIO_UNKEY);
 		myrpt->remoterx = 0;
 	}
 	else
@@ -3307,7 +3307,7 @@ struct zt_params par;
 }
 
 
-static int rmt_sayfile(struct rpt *myrpt, struct ast_channel *chan, int delay, char *filename)
+static int rmt_sayfile(struct rpt *myrpt, struct opbx_channel *chan, int delay, char *filename)
 {
 	int res;
 
@@ -3321,7 +3321,7 @@ static int rmt_sayfile(struct rpt *myrpt, struct ast_channel *chan, int delay, c
 	return res;
 }
 
-static int rmt_saycharstr(struct rpt *myrpt, struct ast_channel *chan, int delay, char *charstr)
+static int rmt_saycharstr(struct rpt *myrpt, struct opbx_channel *chan, int delay, char *charstr)
 {
 	int res;
 
@@ -3349,7 +3349,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 	char oc;
 	char tmp[20], freq[20] = "", savestr[20] = "";
 	char mhz[MAXREMSTR], decimals[MAXREMSTR];
-	struct ast_channel *mychannel;
+	struct opbx_channel *mychannel;
 
 	if((!param) || (command_source != SOURCE_RMT))
 		return DC_ERROR;
@@ -3371,9 +3371,9 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 					return DC_ERROR;
 			}
 	    
-			val = ast_variable_retrieve(cfg, MEMORY, digitbuf);
+			val = opbx_variable_retrieve(cfg, MEMORY, digitbuf);
 			if (!val){
-				if (ast_safe_sleep(mychannel,1000) == -1)
+				if (opbx_safe_sleep(mychannel,1000) == -1)
 					return DC_ERROR;
 				sayfile(mychannel,"rpt/memory_notfound");
 				return DC_COMPLETE;
@@ -3838,10 +3838,10 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 		case 117:
 		case 118:
 			myrpt->remotetx = 0;
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 			if (!myrpt->remoterx)
-				ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
-			if (ast_safe_sleep(mychannel,1000) == -1)
+				opbx_indicate(mychannel,OPBX_CONTROL_RADIO_KEY);
+			if (opbx_safe_sleep(mychannel,1000) == -1)
 					return DC_ERROR;
 		
 			switch(myatoi(param)){
@@ -4132,12 +4132,12 @@ int	seq,res;
 	if (!strcmp(tmp,discstr)) return 0;
 	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
 	{
-		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+		opbx_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 		return 0;
 	}
 	if (strcmp(cmd,"D"))
 	{
-		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+		opbx_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 		return 0;
 	}
 	/* if not for me, ignore */
@@ -4146,12 +4146,12 @@ int	seq,res;
 	if (res != 1)
 		return res;
 	myrpt->remotetx = 0;
-	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+	opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 	if (!myrpt->remoterx)
 	{
-		ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_KEY);
+		opbx_indicate(myrpt->remchannel,OPBX_CONTROL_RADIO_KEY);
 	}
-	if (ast_safe_sleep(myrpt->remchannel,1000) == -1) return -1;
+	if (opbx_safe_sleep(myrpt->remchannel,1000) == -1) return -1;
 	res = telem_lookup(myrpt->remchannel, myrpt->name, "functcomplete");
 	rmt_telem_finish(myrpt,myrpt->remchannel);
 	return res;
@@ -4162,17 +4162,17 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	char *val, *s, *s1, *tele;
 	char tmp[300], deststr[300] = "";
 
-	val = ast_variable_retrieve(cfg, NODES, l->name);
+	val = opbx_variable_retrieve(cfg, NODES, l->name);
 	if (!val)
 	{
 		fprintf(stderr,"attempt_reconnect: cannot find node %s\n",l->name);
 		return -1;
 	}
 
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	/* remove from queue */
 	remque((struct qelem *) l);
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	strncpy(tmp,val,sizeof(tmp) - 1);
 	s = tmp;
 	s1 = strsep(&s,",");
@@ -4184,34 +4184,34 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	}
 	*tele++ = 0;
 	l->elaptime = 0;
-	l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, tele,NULL);
+	l->chan = opbx_request(deststr, OPBX_FORMAT_SLINEAR, tele,NULL);
 	if (l->chan){
-		ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
+		opbx_set_read_format(l->chan, OPBX_FORMAT_SLINEAR);
+		opbx_set_write_format(l->chan, OPBX_FORMAT_SLINEAR);
 		l->chan->whentohangup = 0;
 		l->chan->appl = "Apprpt";
 		l->chan->data = "(Remote Rx)";
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
+			opbx_verbose(VERBOSE_PREFIX_3 "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
 				deststr, tele, l->chan->name);
 		if(l->chan->cid.cid_num)
 			free(l->chan->cid.cid_num);
 		l->chan->cid.cid_num = strdup(myrpt->name);
-                ast_call(l->chan,tele,999); 
+                opbx_call(l->chan,tele,999); 
 
 	}
 	else 
 	{
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
+			opbx_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
 				deststr,tele,l->chan->name);
 		return -1;
 	}
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	/* put back in queue queue */
 	insque((struct qelem *)l,(struct qelem *)myrpt->links.next);
-	ast_mutex_unlock(&myrpt->lock);
-	ast_log(LOG_NOTICE,"Reconnect Attempt to %s in process\n",l->name);
+	opbx_mutex_unlock(&myrpt->lock);
+	opbx_log(LOG_NOTICE,"Reconnect Attempt to %s in process\n",l->name);
 	return 0;
 }
 
@@ -4221,7 +4221,7 @@ static void *rpt(void *this)
 struct	rpt *myrpt = (struct rpt *)this;
 char *tele,*idtalkover;
 int ms = MSWAIT,lasttx=0,val,remrx=0,identqueued,nonidentqueued,res;
-struct ast_channel *who;
+struct opbx_channel *who;
 ZT_CONFINFO ci;  /* conference info */
 time_t	dtmf_time,t;
 struct rpt_link *l,*m;
@@ -4231,50 +4231,50 @@ char tmpstr[300];
 char cmd[MAXDTMF+1] = "";
 
 
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	strncpy(tmpstr,myrpt->rxchanname,sizeof(tmpstr) - 1);
 	tele = strchr(tmpstr,'/');
 	if (!tele)
 	{
 		fprintf(stderr,"rpt:Dial number (%s) must be in format tech/number\n",myrpt->rxchanname);
-		ast_mutex_unlock(&myrpt->lock);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+		opbx_mutex_unlock(&myrpt->lock);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele,NULL);
+	myrpt->rxchannel = opbx_request(tmpstr,OPBX_FORMAT_SLINEAR,tele,NULL);
 	if (myrpt->rxchannel)
 	{
-		if (myrpt->rxchannel->_state == AST_STATE_BUSY)
+		if (myrpt->rxchannel->_state == OPBX_STATE_BUSY)
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
-			ast_mutex_unlock(&myrpt->lock);
-			ast_hangup(myrpt->rxchannel);
-			myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
-		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
-		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		opbx_set_read_format(myrpt->rxchannel,OPBX_FORMAT_SLINEAR);
+		opbx_set_write_format(myrpt->rxchannel,OPBX_FORMAT_SLINEAR);
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Repeater Rx)";
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
+			opbx_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
 				tmpstr,tele,myrpt->rxchannel->name);
-		ast_call(myrpt->rxchannel,tele,999);
-		if (myrpt->rxchannel->_state != AST_STATE_UP)
+		opbx_call(myrpt->rxchannel,tele,999);
+		if (myrpt->rxchannel->_state != OPBX_STATE_UP)
 		{
-			ast_mutex_unlock(&myrpt->lock);
-			ast_hangup(myrpt->rxchannel);
-			myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 	}
 	else
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
-		ast_mutex_unlock(&myrpt->lock);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+		opbx_mutex_unlock(&myrpt->lock);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	if (myrpt->txchanname)
@@ -4284,48 +4284,48 @@ char cmd[MAXDTMF+1] = "";
 		if (!tele)
 		{
 			fprintf(stderr,"rpt:Dial number (%s) must be in format tech/number\n",myrpt->txchanname);
-			ast_mutex_unlock(&myrpt->lock);
-			ast_hangup(myrpt->rxchannel);
-			myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele,NULL);
+		myrpt->txchannel = opbx_request(tmpstr,OPBX_FORMAT_SLINEAR,tele,NULL);
 		if (myrpt->txchannel)
 		{
-			if (myrpt->txchannel->_state == AST_STATE_BUSY)
+			if (myrpt->txchannel->_state == OPBX_STATE_BUSY)
 			{
 				fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
-				ast_mutex_unlock(&myrpt->lock);
-				ast_hangup(myrpt->txchannel);
-				ast_hangup(myrpt->rxchannel);
-				myrpt->rpt_thread = AST_PTHREADT_STOP;
+				opbx_mutex_unlock(&myrpt->lock);
+				opbx_hangup(myrpt->txchannel);
+				opbx_hangup(myrpt->rxchannel);
+				myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 				pthread_exit(NULL);
 			}			
-			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
-			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			opbx_set_read_format(myrpt->txchannel,OPBX_FORMAT_SLINEAR);
+			opbx_set_write_format(myrpt->txchannel,OPBX_FORMAT_SLINEAR);
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Repeater Rx)";
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
+				opbx_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
 					tmpstr,tele,myrpt->txchannel->name);
-			ast_call(myrpt->txchannel,tele,999);
-			if (myrpt->rxchannel->_state != AST_STATE_UP)
+			opbx_call(myrpt->txchannel,tele,999);
+			if (myrpt->rxchannel->_state != OPBX_STATE_UP)
 			{
-				ast_mutex_unlock(&myrpt->lock);
-				ast_hangup(myrpt->rxchannel);
-				ast_hangup(myrpt->txchannel);
-				myrpt->rpt_thread = AST_PTHREADT_STOP;
+				opbx_mutex_unlock(&myrpt->lock);
+				opbx_hangup(myrpt->rxchannel);
+				opbx_hangup(myrpt->txchannel);
+				myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 				pthread_exit(NULL);
 			}
 		}
 		else
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
-			ast_mutex_unlock(&myrpt->lock);
-			ast_hangup(myrpt->rxchannel);
-			myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 	}
@@ -4333,18 +4333,18 @@ char cmd[MAXDTMF+1] = "";
 	{
 		myrpt->txchannel = myrpt->rxchannel;
 	}
-	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
-	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+	opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_KEY);
+	opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 	/* allocate a pseudo-channel thru openpbx */
-	myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+	myrpt->pchannel = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!myrpt->pchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		if (myrpt->txchannel != myrpt->rxchannel) 
-			ast_hangup(myrpt->txchannel);
-		ast_hangup(myrpt->rxchannel);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_hangup(myrpt->txchannel);
+		opbx_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* make a conference for the tx */
@@ -4354,13 +4354,13 @@ char cmd[MAXDTMF+1] = "";
 	/* first put the channel on the conference in proper mode */
 	if (ioctl(myrpt->txchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_mutex_unlock(&myrpt->lock);
-		ast_hangup(myrpt->pchannel);
+		opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		opbx_mutex_unlock(&myrpt->lock);
+		opbx_hangup(myrpt->pchannel);
 		if (myrpt->txchannel != myrpt->rxchannel) 
-			ast_hangup(myrpt->txchannel);
-		ast_hangup(myrpt->rxchannel);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_hangup(myrpt->txchannel);
+		opbx_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* save tx conference number */
@@ -4372,28 +4372,28 @@ char cmd[MAXDTMF+1] = "";
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(myrpt->pchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_mutex_unlock(&myrpt->lock);
-		ast_hangup(myrpt->pchannel);
+		opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		opbx_mutex_unlock(&myrpt->lock);
+		opbx_hangup(myrpt->pchannel);
 		if (myrpt->txchannel != myrpt->rxchannel) 
-			ast_hangup(myrpt->txchannel);
-		ast_hangup(myrpt->rxchannel);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_hangup(myrpt->txchannel);
+		opbx_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* save pseudo channel conference number */
 	myrpt->conf = ci.confno;
 	/* allocate a pseudo-channel thru openpbx */
-	myrpt->txpchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+	myrpt->txpchannel = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!myrpt->txpchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
-		ast_mutex_unlock(&myrpt->lock);
-		ast_hangup(myrpt->pchannel);
+		opbx_mutex_unlock(&myrpt->lock);
+		opbx_hangup(myrpt->pchannel);
 		if (myrpt->txchannel != myrpt->rxchannel) 
-			ast_hangup(myrpt->txchannel);
-		ast_hangup(myrpt->rxchannel);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_hangup(myrpt->txchannel);
+		opbx_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* make a conference for the tx */
@@ -4403,14 +4403,14 @@ char cmd[MAXDTMF+1] = "";
  	/* first put the channel on the conference in proper mode */
 	if (ioctl(myrpt->txpchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
-		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
-		ast_mutex_unlock(&myrpt->lock);
-		ast_hangup(myrpt->txpchannel);
-		ast_hangup(myrpt->pchannel);
+		opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		opbx_mutex_unlock(&myrpt->lock);
+		opbx_hangup(myrpt->txpchannel);
+		opbx_hangup(myrpt->pchannel);
 		if (myrpt->txchannel != myrpt->rxchannel) 
-			ast_hangup(myrpt->txchannel);
-		ast_hangup(myrpt->rxchannel);
-		myrpt->rpt_thread = AST_PTHREADT_STOP;
+			opbx_hangup(myrpt->txchannel);
+		opbx_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* Now, the idea here is to copy from the physical rx channel buffer
@@ -4428,7 +4428,7 @@ char cmd[MAXDTMF+1] = "";
 	myrpt->retxtimer = 0;
 	lasttx = 0;
 	myrpt->keyed = 0;
-	idtalkover = ast_variable_retrieve(cfg, myrpt->name, "idtalkover");
+	idtalkover = opbx_variable_retrieve(cfg, myrpt->name, "idtalkover");
 	myrpt->dtmfidx = -1;
 	myrpt->dtmfbuf[0] = 0;
 	myrpt->rem_dtmfidx = -1;
@@ -4437,15 +4437,15 @@ char cmd[MAXDTMF+1] = "";
 	myrpt->rem_dtmf_time = 0;
 	myrpt->enable = 1;
 	myrpt->disgorgetime = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	val = 0;
-	ast_channel_setoption(myrpt->rxchannel,AST_OPTION_TONE_VERIFY,&val,sizeof(char),0);
+	opbx_channel_setoption(myrpt->rxchannel,OPBX_OPTION_TONE_VERIFY,&val,sizeof(char),0);
 	val = 1;
-	ast_channel_setoption(myrpt->rxchannel,AST_OPTION_RELAXDTMF,&val,sizeof(char),0);
+	opbx_channel_setoption(myrpt->rxchannel,OPBX_OPTION_RELAXDTMF,&val,sizeof(char),0);
 	while (ms >= 0)
 	{
-		struct ast_frame *f;
-		struct ast_channel *cs[300];
+		struct opbx_frame *f;
+		struct opbx_channel *cs[300];
 		int totx=0,elap=0,n,toexit=0;
 
 		/* DEBUG Dump */
@@ -4454,49 +4454,49 @@ char cmd[MAXDTMF+1] = "";
 			struct rpt_tele *zt;
 
 			myrpt->disgorgetime = 0;
-			ast_log(LOG_NOTICE,"********** Variable Dump Start (app_rpt) **********\n");
-			ast_log(LOG_NOTICE,"totx = %d\n",totx);
-			ast_log(LOG_NOTICE,"remrx = %d\n",remrx);
-			ast_log(LOG_NOTICE,"lasttx = %d\n",lasttx);
-			ast_log(LOG_NOTICE,"elap = %d\n",elap);
-			ast_log(LOG_NOTICE,"toexit = %d\n",toexit);
+			opbx_log(LOG_NOTICE,"********** Variable Dump Start (app_rpt) **********\n");
+			opbx_log(LOG_NOTICE,"totx = %d\n",totx);
+			opbx_log(LOG_NOTICE,"remrx = %d\n",remrx);
+			opbx_log(LOG_NOTICE,"lasttx = %d\n",lasttx);
+			opbx_log(LOG_NOTICE,"elap = %d\n",elap);
+			opbx_log(LOG_NOTICE,"toexit = %d\n",toexit);
 
-			ast_log(LOG_NOTICE,"myrpt->keyed = %d\n",myrpt->keyed);
-			ast_log(LOG_NOTICE,"myrpt->localtx = %d\n",myrpt->localtx);
-			ast_log(LOG_NOTICE,"myrpt->callmode = %d\n",myrpt->callmode);
-			ast_log(LOG_NOTICE,"myrpt->enable = %d\n",myrpt->enable);
-			ast_log(LOG_NOTICE,"myrpt->mustid = %d\n",myrpt->mustid);
-			ast_log(LOG_NOTICE,"myrpt->tounkeyed = %d\n",myrpt->tounkeyed);
-			ast_log(LOG_NOTICE,"myrpt->tonotify = %d\n",myrpt->tonotify);
-			ast_log(LOG_NOTICE,"myrpt->retxtimer = %ld\n",myrpt->retxtimer);
-			ast_log(LOG_NOTICE,"myrpt->totimer = %d\n",myrpt->totimer);
-			ast_log(LOG_NOTICE,"myrpt->tailtimer = %d\n",myrpt->tailtimer);
+			opbx_log(LOG_NOTICE,"myrpt->keyed = %d\n",myrpt->keyed);
+			opbx_log(LOG_NOTICE,"myrpt->localtx = %d\n",myrpt->localtx);
+			opbx_log(LOG_NOTICE,"myrpt->callmode = %d\n",myrpt->callmode);
+			opbx_log(LOG_NOTICE,"myrpt->enable = %d\n",myrpt->enable);
+			opbx_log(LOG_NOTICE,"myrpt->mustid = %d\n",myrpt->mustid);
+			opbx_log(LOG_NOTICE,"myrpt->tounkeyed = %d\n",myrpt->tounkeyed);
+			opbx_log(LOG_NOTICE,"myrpt->tonotify = %d\n",myrpt->tonotify);
+			opbx_log(LOG_NOTICE,"myrpt->retxtimer = %ld\n",myrpt->retxtimer);
+			opbx_log(LOG_NOTICE,"myrpt->totimer = %d\n",myrpt->totimer);
+			opbx_log(LOG_NOTICE,"myrpt->tailtimer = %d\n",myrpt->tailtimer);
 
 			zl = myrpt->links.next;
               		while(zl != &myrpt->links){
-				ast_log(LOG_NOTICE,"*** Link Name: %s ***\n",zl->name);
-				ast_log(LOG_NOTICE,"        link->lasttx %d\n",zl->lasttx);
-				ast_log(LOG_NOTICE,"        link->lastrx %d\n",zl->lastrx);
-				ast_log(LOG_NOTICE,"        link->connected %d\n",zl->connected);
-				ast_log(LOG_NOTICE,"        link->hasconnected %d\n",zl->hasconnected);
-				ast_log(LOG_NOTICE,"        link->outbound %d\n",zl->outbound);
-				ast_log(LOG_NOTICE,"        link->disced %d\n",zl->disced);
-				ast_log(LOG_NOTICE,"        link->killme %d\n",zl->killme);
-				ast_log(LOG_NOTICE,"        link->disctime %ld\n",zl->disctime);
-				ast_log(LOG_NOTICE,"        link->retrytimer %ld\n",zl->retrytimer);
-				ast_log(LOG_NOTICE,"        link->retries = %d\n",zl->retries);
+				opbx_log(LOG_NOTICE,"*** Link Name: %s ***\n",zl->name);
+				opbx_log(LOG_NOTICE,"        link->lasttx %d\n",zl->lasttx);
+				opbx_log(LOG_NOTICE,"        link->lastrx %d\n",zl->lastrx);
+				opbx_log(LOG_NOTICE,"        link->connected %d\n",zl->connected);
+				opbx_log(LOG_NOTICE,"        link->hasconnected %d\n",zl->hasconnected);
+				opbx_log(LOG_NOTICE,"        link->outbound %d\n",zl->outbound);
+				opbx_log(LOG_NOTICE,"        link->disced %d\n",zl->disced);
+				opbx_log(LOG_NOTICE,"        link->killme %d\n",zl->killme);
+				opbx_log(LOG_NOTICE,"        link->disctime %ld\n",zl->disctime);
+				opbx_log(LOG_NOTICE,"        link->retrytimer %ld\n",zl->retrytimer);
+				opbx_log(LOG_NOTICE,"        link->retries = %d\n",zl->retries);
 
                         	zl = zl->next;
                 	}
                                                                                                                                
 			zt = myrpt->tele.next;
 			if(zt != &myrpt->tele)
-				ast_log(LOG_NOTICE,"*** Telemetry Queue ***\n");
+				opbx_log(LOG_NOTICE,"*** Telemetry Queue ***\n");
               		while(zt != &myrpt->tele){
-				ast_log(LOG_NOTICE,"        Telemetry mode: %d\n",zt->mode);
+				opbx_log(LOG_NOTICE,"        Telemetry mode: %d\n",zt->mode);
                         	zt = zt->next;
                 	}
-			ast_log(LOG_NOTICE,"******* Variable Dump End (app_rpt) *******\n");
+			opbx_log(LOG_NOTICE,"******* Variable Dump End (app_rpt) *******\n");
 
 		}	
 
@@ -4504,11 +4504,11 @@ char cmd[MAXDTMF+1] = "";
 
 
 
-		ast_mutex_lock(&myrpt->lock);
-		if (ast_check_hangup(myrpt->rxchannel)) break;
-		if (ast_check_hangup(myrpt->txchannel)) break;
-		if (ast_check_hangup(myrpt->pchannel)) break;
-		if (ast_check_hangup(myrpt->txpchannel)) break;
+		opbx_mutex_lock(&myrpt->lock);
+		if (opbx_check_hangup(myrpt->rxchannel)) break;
+		if (opbx_check_hangup(myrpt->txchannel)) break;
+		if (opbx_check_hangup(myrpt->pchannel)) break;
+		if (opbx_check_hangup(myrpt->txpchannel)) break;
 		myrpt->localtx = myrpt->keyed && (myrpt->dtmfidx == -1) && (!myrpt->cmdnode[0]);
 		
 		/* If someone's connected, and they're transmitting from their end to us, set remrx true */
@@ -4569,9 +4569,9 @@ char cmd[MAXDTMF+1] = "";
 		if ((!myrpt->totimer) && (!myrpt->tonotify))
 		{
 			myrpt->tonotify = 1;
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt,TIMEOUT,NULL);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		/* if wants to transmit and in phone call, but timed out, 
 			reset time-out timer if keyed */
@@ -4584,7 +4584,7 @@ char cmd[MAXDTMF+1] = "";
 			myrpt->totimer = myrpt->totime;
 			myrpt->tounkeyed = 0;
 			myrpt->tonotify = 0;
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			continue;
 		}
 		/* if timed-out and in circuit busy after call */
@@ -4603,15 +4603,15 @@ char cmd[MAXDTMF+1] = "";
 			telem = myrpt->tele.next;
 			while(telem != &myrpt->tele){
 				if(telem->mode == ID){
-					if (telem->chan) ast_softhangup(telem->chan, AST_SOFTHANGUP_DEV); /* Whoosh! */
+					if (telem->chan) opbx_softhangup(telem->chan, OPBX_SOFTHANGUP_DEV); /* Whoosh! */
 					hasid = 1;
 				}
 				if (telem->mode == IDTALKOVER) hastalkover = 1;
 				telem = telem->next;
 			}
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			if (hasid && (!hastalkover)) rpt_telemetry(myrpt, IDTALKOVER, NULL); /* Start Talkover ID */
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		/* Try to be polite */
 		/* If the repeater has been inactive for longer than the ID time, do an initial ID in the tail*/
@@ -4623,26 +4623,26 @@ char cmd[MAXDTMF+1] = "";
 		{
 			myrpt->mustid = 0;
 			myrpt->idtimer = myrpt->idtime; /* Reset our ID timer */
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt,ID,NULL);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		/* let telemetry transmit anyway (regardless of timeout) */
 		totx = totx || (myrpt->tele.next != &myrpt->tele);
 		if (totx && (!lasttx))
 		{
 			lasttx = 1;
-			ast_mutex_unlock(&myrpt->lock);
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_KEY);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		totx = totx && myrpt->enable;
 		if ((!totx) && lasttx)
 		{
 			lasttx = 0;
-			ast_mutex_unlock(&myrpt->lock);
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		time(&t);
 		/* if DTMF timeout */
@@ -4668,12 +4668,12 @@ char cmd[MAXDTMF+1] = "";
 				remque((struct qelem *) l);
 				if (!strcmp(myrpt->cmdnode,l->name))
 					myrpt->cmdnode[0] = 0;
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 				/* hang-up on call to device */
-				if (l->chan) ast_hangup(l->chan);
-				ast_hangup(l->pchan);
+				if (l->chan) opbx_hangup(l->chan);
+				opbx_hangup(l->pchan);
 				free(l);
-				ast_mutex_lock(&myrpt->lock);
+				opbx_mutex_lock(&myrpt->lock);
 				/* re-start link traversal */
 				l = myrpt->links.next;
 				continue;
@@ -4695,12 +4695,12 @@ char cmd[MAXDTMF+1] = "";
 			}
 			l = l->next;
 		}
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		ms = MSWAIT;
-		who = ast_waitfor_n(cs,n,&ms);
+		who = opbx_waitfor_n(cs,n,&ms);
 		if (who == NULL) ms = 0;
 		elap = MSWAIT - ms;
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		l = myrpt->links.next;
 		while(l != &myrpt->links)
 		{
@@ -4709,7 +4709,7 @@ char cmd[MAXDTMF+1] = "";
 				if ((l->retxtimer += elap) >= REDUNDANT_TX_TIME)
 				{
 					l->retxtimer = 0;
-					if (l->chan) ast_indicate(l->chan,AST_CONTROL_RADIO_UNKEY);
+					if (l->chan) opbx_indicate(l->chan,OPBX_CONTROL_RADIO_UNKEY);
 				}
 			} else l->retxtimer = 0;
 #ifdef	RECONNECT_KLUDGE
@@ -4735,28 +4735,28 @@ char cmd[MAXDTMF+1] = "";
 			l->elaptime += elap;
 			/* if connection has taken too long */
 			if ((l->elaptime > MAXCONNECTTIME) && 
-			   ((!l->chan) || (l->chan->_state != AST_STATE_UP)))
+			   ((!l->chan) || (l->chan->_state != OPBX_STATE_UP)))
 			{
 				l->elaptime = 0;
-				ast_mutex_unlock(&myrpt->lock);
-				if (l->chan) ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
+				opbx_mutex_unlock(&myrpt->lock);
+				if (l->chan) opbx_softhangup(l->chan,OPBX_SOFTHANGUP_DEV);
 #ifndef	RECONNECT_KLUDGE
 				rpt_telemetry(myrpt,CONNFAIL,l);
 #endif
-				ast_mutex_lock(&myrpt->lock);
+				opbx_mutex_lock(&myrpt->lock);
 				break;
 			}
 #ifdef	RECONNECT_KLUDGE
 			if ((!l->chan) && (!l->retrytimer) && l->outbound && 
 				(l->retries++ < MAX_RETRIES) && (l->hasconnected))
 			{
-				if (l->chan) ast_hangup(l->chan);
-				ast_mutex_unlock(&myrpt->lock);
+				if (l->chan) opbx_hangup(l->chan);
+				opbx_mutex_unlock(&myrpt->lock);
 				if (attempt_reconnect(myrpt,l) == -1)
 				{
 					l->retrytimer = RETRY_TIMER_MS;
 				}
-				ast_mutex_lock(&myrpt->lock);
+				opbx_mutex_lock(&myrpt->lock);
 				break;
 			}
 			if ((!l->chan) && (!l->retrytimer) && l->outbound &&
@@ -4766,14 +4766,14 @@ char cmd[MAXDTMF+1] = "";
 				remque((struct qelem *) l);
 				if (!strcmp(myrpt->cmdnode,l->name))
 					myrpt->cmdnode[0] = 0;
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 				if (!l->hasconnected)
 					rpt_telemetry(myrpt,CONNFAIL,l);
 				else rpt_telemetry(myrpt,REMDISC,l);
 				/* hang-up on call to device */
-				ast_hangup(l->pchan);
+				opbx_hangup(l->pchan);
 				free(l);
-                                ast_mutex_lock(&myrpt->lock);
+                                opbx_mutex_lock(&myrpt->lock);
 				break;
 			}
                         if ((!l->chan) && (!l->disctime) && (!l->outbound))
@@ -4782,12 +4782,12 @@ char cmd[MAXDTMF+1] = "";
                                 remque((struct qelem *) l);
                                 if (!strcmp(myrpt->cmdnode,l->name))
                                         myrpt->cmdnode[0] = 0;
-                                ast_mutex_unlock(&myrpt->lock);
+                                opbx_mutex_unlock(&myrpt->lock);
                                 rpt_telemetry(myrpt,REMDISC,l);
                                 /* hang-up on call to device */
-                                ast_hangup(l->pchan);
+                                opbx_hangup(l->pchan);
                                 free(l);
-                                ast_mutex_lock(&myrpt->lock);
+                                opbx_mutex_lock(&myrpt->lock);
                                 break;
                         }
 #endif
@@ -4799,56 +4799,56 @@ char cmd[MAXDTMF+1] = "";
 		if (myrpt->totimer < 0) myrpt->totimer = 0;
 		if (myrpt->idtimer) myrpt->idtimer -= elap;
 		if (myrpt->idtimer < 0) myrpt->idtimer = 0;
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		if (!ms) continue;
 		if (who == myrpt->rxchannel) /* if it was a read from rx */
 		{
-			f = ast_read(myrpt->rxchannel);
+			f = opbx_read(myrpt->rxchannel);
 			if (!f)
 			{
 				if (debug) printf("@@@@ rpt:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_VOICE)
+			if (f->frametype == OPBX_FRAME_VOICE)
 			{
 				if (!myrpt->localtx)
 					memset(f->data,0,f->datalen);
-				ast_write(myrpt->pchannel,f);
+				opbx_write(myrpt->pchannel,f);
 			}
-			else if (f->frametype == AST_FRAME_DTMF)
+			else if (f->frametype == OPBX_FRAME_DTMF)
 			{
 				char c;
 
 				c = (char) f->subclass; /* get DTMF char */
-				ast_frfree(f);
+				opbx_frfree(f);
 				if (!myrpt->keyed) continue;
 				if (c == myrpt->endchar)
 				{
 					/* if in simple mode, kill autopatch */
 					if (myrpt->simple && myrpt->callmode)
 					{
-						ast_mutex_lock(&myrpt->lock);
+						opbx_mutex_lock(&myrpt->lock);
 						myrpt->callmode = 0;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 						rpt_telemetry(myrpt,TERM,NULL);
 						continue;
 					}
-					ast_mutex_lock(&myrpt->lock);
+					opbx_mutex_lock(&myrpt->lock);
 					myrpt->stopgen = 1;
 					if (myrpt->cmdnode[0])
 					{
 						myrpt->cmdnode[0] = 0;
 						myrpt->dtmfidx = -1;
 						myrpt->dtmfbuf[0] = 0;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 						rpt_telemetry(myrpt,COMPLETE,NULL);
-					} else ast_mutex_unlock(&myrpt->lock);
+					} else opbx_mutex_unlock(&myrpt->lock);
 					continue;
 				}
-				ast_mutex_lock(&myrpt->lock);
+				opbx_mutex_lock(&myrpt->lock);
 				if (myrpt->cmdnode[0])
 				{
-					ast_mutex_unlock(&myrpt->lock);
+					opbx_mutex_unlock(&myrpt->lock);
 					send_link_dtmf(myrpt,c);
 					continue;
 				}
@@ -4858,7 +4858,7 @@ char cmd[MAXDTMF+1] = "";
 					{
 						myrpt->dtmfidx = 0;
 						myrpt->dtmfbuf[myrpt->dtmfidx] = 0;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 						time(&dtmf_time);
 						continue;
 					} 
@@ -4873,9 +4873,9 @@ char cmd[MAXDTMF+1] = "";
 							
 							strncpy(cmd, myrpt->dtmfbuf, sizeof(cmd) - 1);
 							
-							ast_mutex_unlock(&myrpt->lock);
+							opbx_mutex_unlock(&myrpt->lock);
 							res = collect_function_digits(myrpt, cmd, SOURCE_RPT);
-							ast_mutex_lock(&myrpt->lock);
+							opbx_mutex_lock(&myrpt->lock);
 
 							switch(res){
 			
@@ -4902,7 +4902,7 @@ char cmd[MAXDTMF+1] = "";
 									break;
 							}
 							if(res != DC_INDETERMINATE) {
-								ast_mutex_unlock(&myrpt->lock);
+								opbx_mutex_unlock(&myrpt->lock);
 								continue;
 							}
 						} 
@@ -4915,10 +4915,10 @@ char cmd[MAXDTMF+1] = "";
 						myrpt->callmode = 1;
 						myrpt->cidx = 0;
 						myrpt->exten[myrpt->cidx] = 0;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 					        pthread_attr_init(&attr);
 			 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-						ast_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
+						opbx_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
 						continue;
 					}
 				}
@@ -4927,45 +4927,45 @@ char cmd[MAXDTMF+1] = "";
 					myrpt->exten[myrpt->cidx++] = c;
 					myrpt->exten[myrpt->cidx] = 0;
 					/* if this exists */
-					if (ast_exists_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
+					if (opbx_exists_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
 					{
 						myrpt->callmode = 2;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 						rpt_telemetry(myrpt,PROC,NULL); 
 						continue;
 					}
 					/* if can continue, do so */
-					if (!ast_canmatch_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
+					if (!opbx_canmatch_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
 					{
 						/* call has failed, inform user */
 						myrpt->callmode = 4;
 					}
-					ast_mutex_unlock(&myrpt->lock);
+					opbx_mutex_unlock(&myrpt->lock);
 					continue;
 				}
 				if ((myrpt->callmode == 2) || (myrpt->callmode == 3))
 				{
 					myrpt->mydtmf = c;
 				}
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 				continue;
 			}						
-			else if (f->frametype == AST_FRAME_CONTROL)
+			else if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 				/* if RX key */
-				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				if (f->subclass == OPBX_CONTROL_RADIO_KEY)
 				{
 					if (debug) printf("@@@@ rx key\n");
 					myrpt->keyed = 1;
 				}
 				/* if RX un-key */
-				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				if (f->subclass == OPBX_CONTROL_RADIO_UNKEY)
 				{
 					if (debug) printf("@@@@ rx un-key\n");
 					if(myrpt->keyed) {
@@ -4974,55 +4974,55 @@ char cmd[MAXDTMF+1] = "";
 					myrpt->keyed = 0;
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 		if (who == myrpt->pchannel) /* if it was a read from pseudo */
 		{
-			f = ast_read(myrpt->pchannel);
+			f = opbx_read(myrpt->pchannel);
 			if (!f)
 			{
 				if (debug) printf("@@@@ rpt:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_VOICE)
+			if (f->frametype == OPBX_FRAME_VOICE)
 			{
-				ast_write(myrpt->txpchannel,f);
+				opbx_write(myrpt->txpchannel,f);
 			}
-			if (f->frametype == AST_FRAME_CONTROL)
+			if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 		if (who == myrpt->txchannel) /* if it was a read from tx */
 		{
-			f = ast_read(myrpt->txchannel);
+			f = opbx_read(myrpt->txchannel);
 			if (!f)
 			{
 				if (debug) printf("@@@@ rpt:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_CONTROL)
+			if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 		toexit = 0;
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		l = myrpt->links.next;
 		while(l != &myrpt->links)
 		{
@@ -5042,80 +5042,80 @@ char cmd[MAXDTMF+1] = "";
 					if ((m != l) && (m->lastrx)) remrx = 1;
 					m = m->next;
 				}
-				ast_mutex_unlock(&myrpt->lock);
+				opbx_mutex_unlock(&myrpt->lock);
 				totx = (((l->isremote) ? myrpt->localtx : 
 					myrpt->exttx) || remrx) && l->mode;
 				if (l->chan && (l->lasttx != totx))
 				{
 					if (totx)
 					{
-						ast_indicate(l->chan,AST_CONTROL_RADIO_KEY);
+						opbx_indicate(l->chan,OPBX_CONTROL_RADIO_KEY);
 					}
 					else
 					{
-						ast_indicate(l->chan,AST_CONTROL_RADIO_UNKEY);
+						opbx_indicate(l->chan,OPBX_CONTROL_RADIO_UNKEY);
 					}
 				}
 				l->lasttx = totx;
-				f = ast_read(l->chan);
+				f = opbx_read(l->chan);
 				if (!f)
 				{
 #ifdef	RECONNECT_KLUDGE
 					if ((!l->disced) && (!l->outbound))
 					{
 						l->disctime = DISC_TIME;
-						ast_mutex_lock(&myrpt->lock);
-						ast_hangup(l->chan);
+						opbx_mutex_lock(&myrpt->lock);
+						opbx_hangup(l->chan);
 						l->chan = 0;
 						break;
 					}
 
 					if (l->retrytimer) 
 					{
-						ast_mutex_lock(&myrpt->lock);
+						opbx_mutex_lock(&myrpt->lock);
 						break; 
 					}
 					if (l->outbound && (l->retries++ < MAX_RETRIES) && (l->hasconnected))
 					{
-						ast_mutex_lock(&myrpt->lock);
-						ast_hangup(l->chan);
+						opbx_mutex_lock(&myrpt->lock);
+						opbx_hangup(l->chan);
 						l->chan = 0;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 						if (attempt_reconnect(myrpt,l) == -1)
 						{
 							l->retrytimer = RETRY_TIMER_MS;
 						}
-						ast_mutex_lock(&myrpt->lock);
+						opbx_mutex_lock(&myrpt->lock);
 						break;
 					}
 #endif
-					ast_mutex_lock(&myrpt->lock);
+					opbx_mutex_lock(&myrpt->lock);
 					/* remove from queue */
 					remque((struct qelem *) l);
 					if (!strcmp(myrpt->cmdnode,l->name))
 						myrpt->cmdnode[0] = 0;
-					ast_mutex_unlock(&myrpt->lock);
+					opbx_mutex_unlock(&myrpt->lock);
 					if (!l->hasconnected)
 						rpt_telemetry(myrpt,CONNFAIL,l);
 					else if (l->disced != 2) rpt_telemetry(myrpt,REMDISC,l);
 					/* hang-up on call to device */
-					ast_hangup(l->chan);
-					ast_hangup(l->pchan);
+					opbx_hangup(l->chan);
+					opbx_hangup(l->pchan);
 					free(l);
-					ast_mutex_lock(&myrpt->lock);
+					opbx_mutex_lock(&myrpt->lock);
 					break;
 				}
-				if (f->frametype == AST_FRAME_VOICE)
+				if (f->frametype == OPBX_FRAME_VOICE)
 				{
-					ast_write(l->pchan,f);
+					opbx_write(l->pchan,f);
 				}
-				if (f->frametype == AST_FRAME_TEXT)
+				if (f->frametype == OPBX_FRAME_TEXT)
 				{
 					handle_link_data(myrpt,l,f->data);
 				}
-				if (f->frametype == AST_FRAME_CONTROL)
+				if (f->frametype == OPBX_FRAME_CONTROL)
 				{
-					if (f->subclass == AST_CONTROL_ANSWER)
+					if (f->subclass == OPBX_CONTROL_ANSWER)
 					{
 						char lconnected = l->connected;
 						l->connected = 1;
@@ -5125,130 +5125,130 @@ char cmd[MAXDTMF+1] = "";
 						if (!lconnected) rpt_telemetry(myrpt,CONNECTED,l);
 					}
 					/* if RX key */
-					if (f->subclass == AST_CONTROL_RADIO_KEY)
+					if (f->subclass == OPBX_CONTROL_RADIO_KEY)
 					{
 						if (debug) printf("@@@@ rx key\n");
 						l->lastrx = 1;
 					}
 					/* if RX un-key */
-					if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+					if (f->subclass == OPBX_CONTROL_RADIO_UNKEY)
 					{
 						if (debug) printf("@@@@ rx un-key\n");
 						l->lastrx = 0;
 					}
-					if (f->subclass == AST_CONTROL_HANGUP)
+					if (f->subclass == OPBX_CONTROL_HANGUP)
 					{
-						ast_frfree(f);
+						opbx_frfree(f);
 #ifdef	RECONNECT_KLUDGE
 						if ((!l->outbound) && (!l->disced))
 						{
 							l->disctime = DISC_TIME;
-							ast_mutex_lock(&myrpt->lock);
-							ast_hangup(l->chan);
+							opbx_mutex_lock(&myrpt->lock);
+							opbx_hangup(l->chan);
 							l->chan = 0;
 							break;
 						}
 						if (l->retrytimer) 
 						{
-							ast_mutex_lock(&myrpt->lock);
+							opbx_mutex_lock(&myrpt->lock);
 							break;
 						}
 						if (l->outbound && (l->retries++ < MAX_RETRIES) && (l->hasconnected))
 						{
-							ast_mutex_lock(&myrpt->lock);
-							ast_hangup(l->chan);
+							opbx_mutex_lock(&myrpt->lock);
+							opbx_hangup(l->chan);
 							l->chan = 0;
-							ast_mutex_unlock(&myrpt->lock);
+							opbx_mutex_unlock(&myrpt->lock);
 							if (attempt_reconnect(myrpt,l) == -1)
 							{
 								l->retrytimer = RETRY_TIMER_MS;
 							}
-							ast_mutex_lock(&myrpt->lock);
+							opbx_mutex_lock(&myrpt->lock);
 							break;
 						}
 #endif
-						ast_mutex_lock(&myrpt->lock);
+						opbx_mutex_lock(&myrpt->lock);
 						/* remove from queue */
 						remque((struct qelem *) l);
 						if (!strcmp(myrpt->cmdnode,l->name))
 							myrpt->cmdnode[0] = 0;
-						ast_mutex_unlock(&myrpt->lock);
+						opbx_mutex_unlock(&myrpt->lock);
 						if (!l->hasconnected)
 							rpt_telemetry(myrpt,CONNFAIL,l);
 						else if (l->disced != 2) rpt_telemetry(myrpt,REMDISC,l);
 						/* hang-up on call to device */
-						ast_hangup(l->chan);
-						ast_hangup(l->pchan);
+						opbx_hangup(l->chan);
+						opbx_hangup(l->pchan);
 						free(l);
-						ast_mutex_lock(&myrpt->lock);
+						opbx_mutex_lock(&myrpt->lock);
 						break;
 					}
 				}
-				ast_frfree(f);
-				ast_mutex_lock(&myrpt->lock);
+				opbx_frfree(f);
+				opbx_mutex_lock(&myrpt->lock);
 				break;
 			}
 			if (who == l->pchan) 
 			{
-				ast_mutex_unlock(&myrpt->lock);
-				f = ast_read(l->pchan);
+				opbx_mutex_unlock(&myrpt->lock);
+				f = opbx_read(l->pchan);
 				if (!f)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					toexit = 1;
-					ast_mutex_lock(&myrpt->lock);
+					opbx_mutex_lock(&myrpt->lock);
 					break;
 				}
-				if (f->frametype == AST_FRAME_VOICE)
+				if (f->frametype == OPBX_FRAME_VOICE)
 				{
-					if (l->chan) ast_write(l->chan,f);
+					if (l->chan) opbx_write(l->chan,f);
 				}
-				if (f->frametype == AST_FRAME_CONTROL)
+				if (f->frametype == OPBX_FRAME_CONTROL)
 				{
-					if (f->subclass == AST_CONTROL_HANGUP)
+					if (f->subclass == OPBX_CONTROL_HANGUP)
 					{
 						if (debug) printf("@@@@ rpt:Hung Up\n");
-						ast_frfree(f);
+						opbx_frfree(f);
 						toexit = 1;
-						ast_mutex_lock(&myrpt->lock);
+						opbx_mutex_lock(&myrpt->lock);
 						break;
 					}
 				}
-				ast_frfree(f);
-				ast_mutex_lock(&myrpt->lock);
+				opbx_frfree(f);
+				opbx_mutex_lock(&myrpt->lock);
 				break;
 			}
 			l = l->next;
 		}
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		if (toexit) break;
 		if (who == myrpt->txpchannel) /* if it was a read from remote tx */
 		{
-			f = ast_read(myrpt->txpchannel);
+			f = opbx_read(myrpt->txpchannel);
 			if (!f)
 			{
 				if (debug) printf("@@@@ rpt:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_CONTROL)
+			if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 	}
 	usleep(100000);
-	ast_hangup(myrpt->pchannel);
-	ast_hangup(myrpt->txpchannel);
-	if (myrpt->txchannel != myrpt->rxchannel) ast_hangup(myrpt->txchannel);
-	ast_hangup(myrpt->rxchannel);
-	ast_mutex_lock(&myrpt->lock);
+	opbx_hangup(myrpt->pchannel);
+	opbx_hangup(myrpt->txpchannel);
+	if (myrpt->txchannel != myrpt->rxchannel) opbx_hangup(myrpt->txchannel);
+	opbx_hangup(myrpt->rxchannel);
+	opbx_mutex_lock(&myrpt->lock);
 	l = myrpt->links.next;
 	while(l != &myrpt->links)
 	{
@@ -5256,14 +5256,14 @@ char cmd[MAXDTMF+1] = "";
 		/* remove from queue */
 		remque((struct qelem *) l);
 		/* hang-up on call to device */
-		if (l->chan) ast_hangup(l->chan);
-		ast_hangup(l->pchan);
+		if (l->chan) opbx_hangup(l->chan);
+		opbx_hangup(l->pchan);
 		l = l->next;
 		free(ll);
 	}
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	if (debug) printf("@@@@ rpt:Hung up channel\n");
-	myrpt->rpt_thread = AST_PTHREADT_STOP;
+	myrpt->rpt_thread = OPBX_PTHREADT_STOP;
 	pthread_exit(NULL); 
 	return NULL;
 }
@@ -5272,16 +5272,16 @@ char cmd[MAXDTMF+1] = "";
 static void *rpt_master(void *ignore)
 {
 char *this,*val;
-struct ast_variable *vp;
+struct opbx_variable *vp;
 int	i,j,n,longestnode;
 pthread_attr_t attr;
 
 	/* start with blank config */
 	memset(&rpt_vars,0,sizeof(rpt_vars));
 
-	cfg = ast_config_load("rpt.conf");
+	cfg = opbx_config_load("rpt.conf");
 	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
+		opbx_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
 		pthread_exit(NULL);
 	}
 
@@ -5290,7 +5290,7 @@ pthread_attr_t attr;
 	*/
 		longestnode = 0;
 
-		vp = ast_variable_browse(cfg, NODES);
+		vp = opbx_variable_browse(cfg, NODES);
 		
 		while(vp){
 			j = strlen(vp->name);
@@ -5302,7 +5302,7 @@ pthread_attr_t attr;
 	/* go thru all the specified repeaters */
 	this = NULL;
 	n = 0;
-	while((this = ast_category_browse(cfg,this)) != NULL)
+	while((this = opbx_category_browse(cfg,this)) != NULL)
 	{
 	
 		for(i = 0 ; i < strlen(this) ; i++){
@@ -5312,56 +5312,56 @@ pthread_attr_t attr;
 		if(i != strlen(this))
 			continue; /* Not a node defn */
 			
-		ast_log(LOG_DEBUG,"Loading config for repeater %s\n",this);
-		ast_mutex_init(&rpt_vars[n].lock);
+		opbx_log(LOG_DEBUG,"Loading config for repeater %s\n",this);
+		opbx_mutex_init(&rpt_vars[n].lock);
 		rpt_vars[n].tele.next = &rpt_vars[n].tele;
 		rpt_vars[n].tele.prev = &rpt_vars[n].tele;
-		rpt_vars[n].rpt_thread = AST_PTHREADT_NULL;
+		rpt_vars[n].rpt_thread = OPBX_PTHREADT_NULL;
 		rpt_vars[n].name = this;
-		rpt_vars[n].rxchanname = ast_variable_retrieve(cfg,this,"rxchannel");
-		rpt_vars[n].txchanname = ast_variable_retrieve(cfg,this,"txchannel");
-		rpt_vars[n].ourcontext = ast_variable_retrieve(cfg,this,"context");
+		rpt_vars[n].rxchanname = opbx_variable_retrieve(cfg,this,"rxchannel");
+		rpt_vars[n].txchanname = opbx_variable_retrieve(cfg,this,"txchannel");
+		rpt_vars[n].ourcontext = opbx_variable_retrieve(cfg,this,"context");
 		if (!rpt_vars[n].ourcontext) rpt_vars[n].ourcontext = this;
-		rpt_vars[n].ourcallerid = ast_variable_retrieve(cfg,this,"callerid");
-		rpt_vars[n].acctcode = ast_variable_retrieve(cfg,this,"accountcode");
-		rpt_vars[n].ident = ast_variable_retrieve(cfg,this,"idrecording");
-		val = ast_variable_retrieve(cfg,this,"hangtime");
+		rpt_vars[n].ourcallerid = opbx_variable_retrieve(cfg,this,"callerid");
+		rpt_vars[n].acctcode = opbx_variable_retrieve(cfg,this,"accountcode");
+		rpt_vars[n].ident = opbx_variable_retrieve(cfg,this,"idrecording");
+		val = opbx_variable_retrieve(cfg,this,"hangtime");
 		if (val) rpt_vars[n].hangtime = atoi(val);
 			else rpt_vars[n].hangtime = HANGTIME;
-		val = ast_variable_retrieve(cfg,this,"totime");
+		val = opbx_variable_retrieve(cfg,this,"totime");
 		if (val) rpt_vars[n].totime = atoi(val);
 			else rpt_vars[n].totime = TOTIME;
 		
 		rpt_vars[n].idtime = retrieve_astcfgint( this, "idtime", 60000, 2400000, IDTIME);	/* Enforce a min max */
 		rpt_vars[n].politeid = retrieve_astcfgint( this, "politeid", 30000, 300000, POLITEID); /* Enforce a min max */
-		rpt_vars[n].remote = ast_variable_retrieve(cfg,this,"remote");
-		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
-		val = ast_variable_retrieve(cfg,this,"iobase");
+		rpt_vars[n].remote = opbx_variable_retrieve(cfg,this,"remote");
+		rpt_vars[n].tonezone = opbx_variable_retrieve(cfg,this,"tonezone");
+		val = opbx_variable_retrieve(cfg,this,"iobase");
 		/* do not use atoi() here, we need to be able to have
 			the input specified in hex or decimal so we use
 			sscanf with a %i */
 		if ((!val) || (sscanf(val,"%i",&rpt_vars[n].iobase) != 1))
 			rpt_vars[n].iobase = DEFAULT_IOBASE;
 		rpt_vars[n].simple = 0;
-		rpt_vars[n].functions = ast_variable_retrieve(cfg,this,"functions");
+		rpt_vars[n].functions = opbx_variable_retrieve(cfg,this,"functions");
 		if (!rpt_vars[n].functions) 
 		{
 			rpt_vars[n].functions = FUNCTIONS;
 			rpt_vars[n].simple = 1;
 		}
-		rpt_vars[n].link_functions = ast_variable_retrieve(cfg,this,"link_functions");
+		rpt_vars[n].link_functions = opbx_variable_retrieve(cfg,this,"link_functions");
 		if (!rpt_vars[n].link_functions) 
 			rpt_vars[n].link_functions = rpt_vars[n].functions;
-		val = ast_variable_retrieve(cfg,this,"funcchar");
+		val = opbx_variable_retrieve(cfg,this,"funcchar");
 		if (!val) rpt_vars[n].funcchar = FUNCCHAR; else 
 			rpt_vars[n].funcchar = *val;		
-		val = ast_variable_retrieve(cfg,this,"endchar");
+		val = opbx_variable_retrieve(cfg,this,"endchar");
 		if (!val) rpt_vars[n].endchar = ENDCHAR; else 
 			rpt_vars[n].endchar = *val;		
 		n++;
 	}
 	nrpts = n;
-	ast_log(LOG_DEBUG, "Total of %d repeaters configured.\n",n);
+	opbx_log(LOG_DEBUG, "Total of %d repeaters configured.\n",n);
 	/* start em all */
 	for(i = 0; i < n; i++)
 	{
@@ -5371,7 +5371,7 @@ pthread_attr_t attr;
 		* For this repeater, Determine the length of the longest function 
 		*/
 		rpt_vars[i].longestfunc = 0;
-		vp = ast_variable_browse(cfg, rpt_vars[i].functions);
+		vp = opbx_variable_browse(cfg, rpt_vars[i].functions);
 		while(vp){
 			j = strlen(vp->name);
 			if (j > rpt_vars[i].longestfunc)
@@ -5382,7 +5382,7 @@ pthread_attr_t attr;
 		* For this repeater, Determine the length of the longest function 
 		*/
 		rpt_vars[i].link_longestfunc = 0;
-		vp = ast_variable_browse(cfg, rpt_vars[i].link_functions);
+		vp = opbx_variable_browse(cfg, rpt_vars[i].link_functions);
 		while(vp){
 			j = strlen(vp->name);
 			if (j > rpt_vars[i].link_longestfunc)
@@ -5391,7 +5391,7 @@ pthread_attr_t attr;
 		}
 		if (!rpt_vars[i].rxchanname)
 		{
-			ast_log(LOG_WARNING,"Did not specify rxchanname for node %s\n",rpt_vars[i].name);
+			opbx_log(LOG_WARNING,"Did not specify rxchanname for node %s\n",rpt_vars[i].name);
 			pthread_exit(NULL);
 		}
 		/* if is a remote, dont start one for it */
@@ -5408,12 +5408,12 @@ pthread_attr_t attr;
 		}
 		if (!rpt_vars[i].ident)
 		{
-			ast_log(LOG_WARNING,"Did not specify ident for node %s\n",rpt_vars[i].name);
+			opbx_log(LOG_WARNING,"Did not specify ident for node %s\n",rpt_vars[i].name);
 			pthread_exit(NULL);
 		}
 	        pthread_attr_init(&attr);
 	        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		ast_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
+		opbx_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
 	}
 	usleep(500000);
 	for(;;)
@@ -5423,7 +5423,7 @@ pthread_attr_t attr;
 		{ 
 			int rv;
 			if (rpt_vars[i].remote) continue;
-			if (rpt_vars[i].rpt_thread == AST_PTHREADT_STOP) 
+			if (rpt_vars[i].rpt_thread == OPBX_PTHREADT_STOP) 
 				rv = -1;
 			else
 				rv = pthread_kill(rpt_vars[i].rpt_thread,0);
@@ -5433,12 +5433,12 @@ pthread_attr_t attr;
 				{
 					if(rpt_vars[i].threadrestarts >= 5)
 					{
-						ast_log(LOG_ERROR,"Continual RPT thread restarts, killing OpenPBX\n");
+						opbx_log(LOG_ERROR,"Continual RPT thread restarts, killing OpenPBX\n");
 						exit(1); /* Stuck in a restart loop, kill OpenPBX and start over */
 					}
 					else
 					{
-						ast_log(LOG_NOTICE,"RPT thread restarted on %s\n",rpt_vars[i].name);
+						opbx_log(LOG_NOTICE,"RPT thread restarted on %s\n",rpt_vars[i].name);
 						rpt_vars[i].threadrestarts++;
 					}
 				}
@@ -5448,8 +5448,8 @@ pthread_attr_t attr;
 				rpt_vars[i].lastthreadrestarttime = time(NULL);
 			        pthread_attr_init(&attr);
 	 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-				ast_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
-				ast_log(LOG_WARNING, "rpt_thread restarted on node %s\n", rpt_vars[i].name);
+				opbx_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
+				opbx_log(LOG_WARNING, "rpt_thread restarted on node %s\n", rpt_vars[i].name);
 			}
 
 		}
@@ -5458,23 +5458,23 @@ pthread_attr_t attr;
 	pthread_exit(NULL);
 }
 
-static int rpt_exec(struct ast_channel *chan, void *data)
+static int rpt_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1,i,keyed = 0,rem_totx,n;
 	struct localuser *u;
 	char tmp[256];
 	char *options,*stringp,*tele;
 	struct	rpt *myrpt;
-	struct ast_frame *f;
-	struct ast_channel *who;
-	struct ast_channel *cs[20];
+	struct opbx_frame *f;
+	struct opbx_channel *who;
+	struct opbx_channel *cs[20];
 	struct	rpt_link *l;
 	ZT_CONFINFO ci;  /* conference info */
 	ZT_PARAMS par;
 	int ms,elap;
 
-	if (!data || ast_strlen_zero((char *)data)) {
-		ast_log(LOG_WARNING, "Rpt requires an argument (system node)\n");
+	if (!data || opbx_strlen_zero((char *)data)) {
+		opbx_log(LOG_WARNING, "Rpt requires an argument (system node)\n");
 		return -1;
 	}
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
@@ -5494,7 +5494,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	if (myrpt == NULL)
 	{
-		ast_log(LOG_WARNING, "Cannot find specified system node %s\n",tmp);
+		opbx_log(LOG_WARNING, "Cannot find specified system node %s\n",tmp);
 		return -1;
 	}
 	/* if is not a remote */
@@ -5506,18 +5506,18 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* look at callerid to see what node this comes from */
 		if (!chan->cid.cid_num) /* if doesn't have caller id */
 		{
-			ast_log(LOG_WARNING, "Doesnt have callerid on %s\n",tmp);
+			opbx_log(LOG_WARNING, "Doesnt have callerid on %s\n",tmp);
 			return -1;
 		}
 
-		ast_callerid_parse(chan->cid.cid_num,&b,&b1);
-		ast_shrink_phone_number(b1);
+		opbx_callerid_parse(chan->cid.cid_num,&b,&b1);
+		opbx_shrink_phone_number(b1);
 		if (!strcmp(myrpt->name,b1))
 		{
-			ast_log(LOG_WARNING, "Trying to link to self!!\n");
+			opbx_log(LOG_WARNING, "Trying to link to self!!\n");
 			return -1;
 		}
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		l = myrpt->links.next;
 		/* try to find this one in queue */
 		while(l != &myrpt->links)
@@ -5532,15 +5532,15 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			l->killme = 1;
 			l->retries = MAX_RETRIES + 1;
 			l->disced = 2;
-                        ast_mutex_unlock(&myrpt->lock);
+                        opbx_mutex_unlock(&myrpt->lock);
 			usleep(500000);	
 		} else 
-			ast_mutex_unlock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
 		/* establish call in tranceive mode */
 		l = malloc(sizeof(struct rpt_link));
 		if (!l)
 		{
-			ast_log(LOG_WARNING, "Unable to malloc\n");
+			opbx_log(LOG_WARNING, "Unable to malloc\n");
 			pthread_exit(NULL);
 		}
 		/* zero the silly thing */
@@ -5551,17 +5551,17 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		l->chan = chan;
 		l->connected = 1;
 		l->hasconnected = 1;
-		ast_set_read_format(l->chan,AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->chan,AST_FORMAT_SLINEAR);
+		opbx_set_read_format(l->chan,OPBX_FORMAT_SLINEAR);
+		opbx_set_write_format(l->chan,OPBX_FORMAT_SLINEAR);
 		/* allocate a pseudo-channel thru openpbx */
-		l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+		l->pchan = opbx_request("zap",OPBX_FORMAT_SLINEAR,"pseudo",NULL);
 		if (!l->pchan)
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 			pthread_exit(NULL);
 		}
-		ast_set_read_format(l->pchan,AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->pchan,AST_FORMAT_SLINEAR);
+		opbx_set_read_format(l->pchan,OPBX_FORMAT_SLINEAR);
+		opbx_set_write_format(l->pchan,OPBX_FORMAT_SLINEAR);
 		/* make a conference for the tx */
 		ci.chan = 0;
 		ci.confno = myrpt->conf;
@@ -5569,36 +5569,36 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* first put the channel on the conference in proper mode */
 		if (ioctl(l->pchan->fds[0],ZT_SETCONF,&ci) == -1)
 		{
-			ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+			opbx_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 			pthread_exit(NULL);
 		}
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 		/* insert at end of queue */
 		insque((struct qelem *)l,(struct qelem *)myrpt->links.next);
-		ast_mutex_unlock(&myrpt->lock);
-		if (chan->_state != AST_STATE_UP) {
-			ast_answer(chan);
+		opbx_mutex_unlock(&myrpt->lock);
+		if (chan->_state != OPBX_STATE_UP) {
+			opbx_answer(chan);
 		}
-		return AST_PBX_KEEPALIVE;
+		return OPBX_PBX_KEEPALIVE;
 	}
-	ast_mutex_lock(&myrpt->lock);
+	opbx_mutex_lock(&myrpt->lock);
 	/* if remote, error if anyone else already linked */
 	if (myrpt->remoteon)
 	{
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		usleep(500000);
 		if (myrpt->remoteon)
 		{
-			ast_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
+			opbx_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
 			return -1;
 		}		
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_lock(&myrpt->lock);
 	}
 	myrpt->remoteon = 1;
 	if (ioperm(myrpt->iobase,1,1) == -1)
 	{
-		ast_mutex_unlock(&myrpt->lock);
-		ast_log(LOG_WARNING, "Cant get io permission on IO port %x hex\n",myrpt->iobase);
+		opbx_mutex_unlock(&myrpt->lock);
+		opbx_log(LOG_WARNING, "Cant get io permission on IO port %x hex\n",myrpt->iobase);
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
@@ -5606,29 +5606,29 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	if (!tele)
 	{
 		fprintf(stderr,"rpt:Dial number must be in format tech/number\n");
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(myrpt->rxchanname,AST_FORMAT_SLINEAR,tele,NULL);
+	myrpt->rxchannel = opbx_request(myrpt->rxchanname,OPBX_FORMAT_SLINEAR,tele,NULL);
 	if (myrpt->rxchannel)
 	{
-		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
-		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		opbx_set_read_format(myrpt->rxchannel,OPBX_FORMAT_SLINEAR);
+		opbx_set_write_format(myrpt->rxchannel,OPBX_FORMAT_SLINEAR);
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Link Rx)";
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
+			opbx_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
 				myrpt->rxchanname,tele,myrpt->rxchannel->name);
-		ast_mutex_unlock(&myrpt->lock);
-		ast_call(myrpt->rxchannel,tele,999);
-		ast_mutex_lock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
+		opbx_call(myrpt->rxchannel,tele,999);
+		opbx_mutex_lock(&myrpt->lock);
 	}
 	else
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
-		ast_mutex_unlock(&myrpt->lock);
+		opbx_mutex_unlock(&myrpt->lock);
 		pthread_exit(NULL);
 	}
 	*--tele = '/';
@@ -5638,31 +5638,31 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		if (!tele)
 		{
 			fprintf(stderr,"rpt:Dial number must be in format tech/number\n");
-			ast_mutex_unlock(&myrpt->lock);
-			ast_hangup(myrpt->rxchannel);
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_hangup(myrpt->rxchannel);
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(myrpt->txchanname,AST_FORMAT_SLINEAR,tele,NULL);
+		myrpt->txchannel = opbx_request(myrpt->txchanname,OPBX_FORMAT_SLINEAR,tele,NULL);
 		if (myrpt->txchannel)
 		{
-			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
-			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			opbx_set_read_format(myrpt->txchannel,OPBX_FORMAT_SLINEAR);
+			opbx_set_write_format(myrpt->txchannel,OPBX_FORMAT_SLINEAR);
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Link Tx)";
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
+				opbx_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
 					myrpt->txchanname,tele,myrpt->txchannel->name);
-			ast_mutex_unlock(&myrpt->lock);
-			ast_call(myrpt->txchannel,tele,999);
-			ast_mutex_lock(&myrpt->lock);
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_call(myrpt->txchannel,tele,999);
+			opbx_mutex_lock(&myrpt->lock);
 		}
 		else
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
-			ast_mutex_unlock(&myrpt->lock);
-			ast_hangup(myrpt->rxchannel);
+			opbx_mutex_unlock(&myrpt->lock);
+			opbx_hangup(myrpt->rxchannel);
 			pthread_exit(NULL);
 		}
 		*--tele = '/';
@@ -5680,25 +5680,25 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->dtmf_time_rem = 0;
 	myrpt->hfscanmode = 0;
 	myrpt->hfscanstatus = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	setrem(myrpt); 
-	ast_set_write_format(chan, AST_FORMAT_SLINEAR);
-	ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+	opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
+	opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 	/* if we are on 2w loop and are a remote, turn EC on */
 	if (myrpt->remote && (myrpt->rxchannel == myrpt->txchannel))
 	{
 		i = 128;
 		ioctl(myrpt->rxchannel->fds[0],ZT_ECHOCANCEL,&i);
 	}
-	if (chan->_state != AST_STATE_UP) {
-		ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP) {
+		opbx_answer(chan);
 	}
 
 	if (ioctl(myrpt->txchannel->fds[0],ZT_GET_PARAMS,&par) != -1)
 	{
 		if (par.rxisoffhook)
 		{
-			ast_indicate(chan,AST_CONTROL_RADIO_KEY);
+			opbx_indicate(chan,OPBX_CONTROL_RADIO_KEY);
 			myrpt->remoterx = 1;
 		}
 	}
@@ -5709,10 +5709,10 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		cs[n++] = myrpt->txchannel;
 	for(;;) 
 	{
-		if (ast_check_hangup(chan)) break;
-		if (ast_check_hangup(myrpt->rxchannel)) break;
+		if (opbx_check_hangup(chan)) break;
+		if (opbx_check_hangup(myrpt->rxchannel)) break;
 		ms = MSWAIT;
-		who = ast_waitfor_n(cs,n,&ms);
+		who = opbx_waitfor_n(cs,n,&ms);
 		if (who == NULL) ms = 0;
 		elap = MSWAIT - ms;
 		if (!ms) continue;
@@ -5724,18 +5724,18 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			if ((myrpt->retxtimer += elap) >= REDUNDANT_TX_TIME)
 			{
 				myrpt->retxtimer = 0;
-				ast_indicate(chan,AST_CONTROL_RADIO_UNKEY);
+				opbx_indicate(chan,OPBX_CONTROL_RADIO_UNKEY);
 			}
 		} else myrpt->retxtimer = 0;
 		if (rem_totx && (!myrpt->remotetx)) /* Remote base radio TX key */
 		{
 			myrpt->remotetx = 1;
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_KEY);
 		}
 		if ((!rem_totx) && myrpt->remotetx) /* Remote base radio TX unkey */
 		{
 			myrpt->remotetx = 0;
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 		}
 
 		if(myrpt->tunerequest && (!strcmp(myrpt->remote, remote_rig_ft897))){ /* ft-897 specific for now... */
@@ -5743,9 +5743,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			set_mode_ft897(myrpt, REM_MODE_AM);
 			simple_command_ft897(myrpt, 8);
 			myrpt->remotetx = 0;
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 			if (!myrpt->remoterx)
-				ast_indicate(chan, AST_CONTROL_RADIO_KEY);
+				opbx_indicate(chan, OPBX_CONTROL_RADIO_KEY);
 			if(play_tone(chan, 800, 6000, 8192) == -1)
 				break;
 
@@ -5765,45 +5765,45 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 
 		if (who == chan) /* if it was a read from incomming */
 		{
-			f = ast_read(chan);
+			f = opbx_read(chan);
 			if (!f)
 			{
 				if (debug) printf("@@@@ link:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_VOICE)
+			if (f->frametype == OPBX_FRAME_VOICE)
 			{
 				/* if not transmitting, zero-out audio */
 				if (!myrpt->remotetx)
 					memset(f->data,0,f->datalen);
-				ast_write(myrpt->txchannel,f);
+				opbx_write(myrpt->txchannel,f);
 			}
-			if (f->frametype == AST_FRAME_TEXT)
+			if (f->frametype == OPBX_FRAME_TEXT)
 			{
 				myrpt->remchannel = chan; /* Save copy of channel */
 				if (handle_remote_data(myrpt,f->data) == -1)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 			}
-			if (f->frametype == AST_FRAME_CONTROL)
+			if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 				/* if RX key */
-				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				if (f->subclass == OPBX_CONTROL_RADIO_KEY)
 				{
 					if (debug) printf("@@@@ rx key\n");
 					keyed = 1;
 				}
 				/* if RX un-key */
-				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				if (f->subclass == OPBX_CONTROL_RADIO_UNKEY)
 				{
 					if (debug) printf("@@@@ rx un-key\n");
 					keyed = 0;
@@ -5812,14 +5812,14 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			if (myrpt->hfscanstatus){
 				myrpt->remchannel = chan; /* Save copy of channel */
 				myrpt->remotetx = 0;
-				ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+				opbx_indicate(myrpt->txchannel,OPBX_CONTROL_RADIO_UNKEY);
 				if (!myrpt->remoterx)
 				{
-					ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_KEY);
+					opbx_indicate(myrpt->remchannel,OPBX_CONTROL_RADIO_KEY);
 				}
 				if(myrpt->hfscanstatus < 0) {
 					if (myrpt->hfscanstatus == -1) {
-						if (ast_safe_sleep(myrpt->remchannel,1000) == -1) break;
+						if (opbx_safe_sleep(myrpt->remchannel,1000) == -1) break;
 					}
 					sayfile(myrpt->remchannel, "rpt/stop");
 				}
@@ -5830,85 +5830,85 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				rmt_telem_finish(myrpt,myrpt->remchannel);
 				myrpt->hfscanstatus = 0;
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 		if (who == myrpt->rxchannel) /* if it was a read from radio */
 		{
-			f = ast_read(myrpt->rxchannel);
+			f = opbx_read(myrpt->rxchannel);
 			if (!f)
 			{
 				if (debug) printf("@@@@ link:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_VOICE)
+			if (f->frametype == OPBX_FRAME_VOICE)
 			{
 				if ((myrpt->remote) && (myrpt->remotetx))
 					memset(f->data,0,f->datalen);
-				 ast_write(chan,f);
+				 opbx_write(chan,f);
 			}
-			else if (f->frametype == AST_FRAME_CONTROL)
+			else if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 				/* if RX key */
-				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				if (f->subclass == OPBX_CONTROL_RADIO_KEY)
 				{
 					if (debug) printf("@@@@ remote rx key\n");
 					if (!myrpt->remotetx)
 					{
-						ast_indicate(chan,AST_CONTROL_RADIO_KEY);
+						opbx_indicate(chan,OPBX_CONTROL_RADIO_KEY);
 						myrpt->remoterx = 1;
 					}
 				}
 				/* if RX un-key */
-				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				if (f->subclass == OPBX_CONTROL_RADIO_UNKEY)
 				{
 					if (debug) printf("@@@@ remote rx un-key\n");
 					if (!myrpt->remotetx) 
 					{
-						ast_indicate(chan,AST_CONTROL_RADIO_UNKEY);
+						opbx_indicate(chan,OPBX_CONTROL_RADIO_UNKEY);
 						myrpt->remoterx = 0;
 					}
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 		if ((myrpt->rxchannel != myrpt->txchannel) && 
 			(who == myrpt->txchannel)) /* do this cuz you have to */
 		{
-			f = ast_read(myrpt->txchannel);
+			f = opbx_read(myrpt->txchannel);
 			if (!f)
 			{
 				if (debug) printf("@@@@ link:Hung Up\n");
 				break;
 			}
-			if (f->frametype == AST_FRAME_CONTROL)
+			if (f->frametype == OPBX_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass == OPBX_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 
 	}
-	ast_mutex_lock(&myrpt->lock);
-	if (myrpt->rxchannel != myrpt->txchannel) ast_hangup(myrpt->txchannel);
-	ast_hangup(myrpt->rxchannel);
+	opbx_mutex_lock(&myrpt->lock);
+	if (myrpt->rxchannel != myrpt->txchannel) opbx_hangup(myrpt->txchannel);
+	opbx_hangup(myrpt->rxchannel);
 	myrpt->hfscanmode = 0;
 	myrpt->hfscanstatus = 0;
 	myrpt->remoteon = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	opbx_mutex_unlock(&myrpt->lock);
 	closerem(myrpt);
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -5921,24 +5921,24 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	for(i = 0; i < nrpts; i++) {
 		if (!strcmp(rpt_vars[i].name,NODES)) continue;
-                ast_mutex_destroy(&rpt_vars[i].lock);
+                opbx_mutex_destroy(&rpt_vars[i].lock);
 	}
-	i = ast_unregister_application(app);
+	i = opbx_unregister_application(app);
 
 	/* Unregister cli extensions */
-	ast_cli_unregister(&cli_debug);
+	opbx_cli_unregister(&cli_debug);
 
 	return i;
 }
 
 int load_module(void)
 {
-	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
+	opbx_pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
 
 	/* Register cli extensions */
-	ast_cli_register(&cli_debug);
+	opbx_cli_register(&cli_debug);
 
-	return ast_register_application(app, rpt_exec, synopsis, descrip);
+	return opbx_register_application(app, rpt_exec, synopsis, descrip);
 }
 
 char *description(void)

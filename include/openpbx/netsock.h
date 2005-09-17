@@ -32,32 +32,32 @@ extern "C" {
 #include "openpbx/io.h"
 #include "openpbx/astobj.h"
 
-struct ast_netsock;
+struct opbx_netsock;
 
-struct ast_netsock_list;
+struct opbx_netsock_list;
 
-struct ast_netsock_list *ast_netsock_list_alloc(void);
+struct opbx_netsock_list *opbx_netsock_list_alloc(void);
 
-int ast_netsock_init(struct ast_netsock_list *list);
+int opbx_netsock_init(struct opbx_netsock_list *list);
 
-struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc,
-				     const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data);
+struct opbx_netsock *opbx_netsock_bind(struct opbx_netsock_list *list, struct io_context *ioc,
+				     const char *bindinfo, int defaultport, int tos, opbx_io_cb callback, void *data);
 
-struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc,
-					 struct sockaddr_in *bindaddr, int tos, ast_io_cb callback, void *data);
+struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struct io_context *ioc,
+					 struct sockaddr_in *bindaddr, int tos, opbx_io_cb callback, void *data);
 
-int ast_netsock_free(struct ast_netsock_list *list, struct ast_netsock *netsock);
+int opbx_netsock_free(struct opbx_netsock_list *list, struct opbx_netsock *netsock);
 
-int ast_netsock_release(struct ast_netsock_list *list);
+int opbx_netsock_release(struct opbx_netsock_list *list);
 
-struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
+struct opbx_netsock *opbx_netsock_find(struct opbx_netsock_list *list,
 				     struct sockaddr_in *sa);
 
-int ast_netsock_sockfd(const struct ast_netsock *ns);
+int opbx_netsock_sockfd(const struct opbx_netsock *ns);
 
-const struct sockaddr_in *ast_netsock_boundaddr(const struct ast_netsock *ns);
+const struct sockaddr_in *opbx_netsock_boundaddr(const struct opbx_netsock *ns);
 
-void *ast_netsock_data(const struct ast_netsock *ns);
+void *opbx_netsock_data(const struct opbx_netsock *ns);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

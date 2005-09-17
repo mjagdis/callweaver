@@ -61,14 +61,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int background_detect_exec(struct ast_channel *chan, void *data)
+static int background_detect_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
 	char tmp[256];
 	char *options;
 	char *stringp;
-	struct ast_frame *fr;
+	struct opbx_frame *fr;
 	int notsilent=0;
 	struct timeval start = { 0, 0};
 	int sil = 1000;
@@ -76,12 +76,12 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	int max = -1;
 	int x;
 	int origrformat=0;
-	struct ast_dsp *dsp;
-	if (!data || ast_strlen_zero((char *)data)) {
-		ast_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
+	struct opbx_dsp *dsp;
+	if (!data || opbx_strlen_zero((char *)data)) {
+		opbx_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
 	}
-	ast_copy_string(tmp, (char *)data, sizeof(tmp));
+	opbx_copy_string(tmp, (char *)data, sizeof(tmp));
 	stringp=tmp;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
@@ -99,109 +99,109 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-	ast_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", 
+	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", 
 						tmp, sil, min, max);
 	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != OPBX_STATE_UP) {
 		/* Otherwise answer unless we're supposed to send this while on-hook */
-		res = ast_answer(chan);
+		res = opbx_answer(chan);
 	}
 	if (!res) {
 		origrformat = chan->readformat;
-		if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR))) 
-			ast_log(LOG_WARNING, "Unable to set read format to linear!\n");
+		if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR))) 
+			opbx_log(LOG_WARNING, "Unable to set read format to linear!\n");
 	}
-	if (!(dsp = ast_dsp_new())) {
-		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
+	if (!(dsp = opbx_dsp_new())) {
+		opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
 		res = -1;
 	}
 	if (!res) {
-		ast_stopstream(chan);
-		res = ast_streamfile(chan, tmp, chan->language);
+		opbx_stopstream(chan);
+		res = opbx_streamfile(chan, tmp, chan->language);
 		if (!res) {
 			while(chan->stream) {
-				res = ast_sched_wait(chan->sched);
+				res = opbx_sched_wait(chan->sched);
 				if ((res < 0) && !chan->timingfunc) {
 					res = 0;
 					break;
 				}
 				if (res < 0)
 					res = 1000;
-				res = ast_waitfor(chan, res);
+				res = opbx_waitfor(chan, res);
 				if (res < 0) {
-					ast_log(LOG_WARNING, "Waitfor failed on %s\n", chan->name);
+					opbx_log(LOG_WARNING, "Waitfor failed on %s\n", chan->name);
 					break;
 				} else if (res > 0) {
-					fr = ast_read(chan);
+					fr = opbx_read(chan);
 					if (!fr) {
 						res = -1;
 						break;
-					} else if (fr->frametype == AST_FRAME_DTMF) {
+					} else if (fr->frametype == OPBX_FRAME_DTMF) {
 						char t[2];
 						t[0] = fr->subclass;
 						t[1] = '\0';
-						if (ast_canmatch_extension(chan, chan->context, t, 1, chan->cid.cid_num)) {
+						if (opbx_canmatch_extension(chan, chan->context, t, 1, chan->cid.cid_num)) {
 							/* They entered a valid  extension, or might be anyhow */
 							res = fr->subclass;
-							ast_frfree(fr);
+							opbx_frfree(fr);
 							break;
 						}
-					} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass == AST_FORMAT_SLINEAR)) {
+					} else if ((fr->frametype == OPBX_FRAME_VOICE) && (fr->subclass == OPBX_FORMAT_SLINEAR)) {
 						int totalsilence;
 						int ms;
-						res = ast_dsp_silence(dsp, fr, &totalsilence);
+						res = opbx_dsp_silence(dsp, fr, &totalsilence);
 						if (res && (totalsilence > sil)) {
 							/* We've been quiet a little while */
 							if (notsilent) {
 								/* We had heard some talking */
-								ms = ast_tvdiff_ms(ast_tvnow(), start);
+								ms = opbx_tvdiff_ms(opbx_tvnow(), start);
 								ms -= sil;
 								if (ms < 0)
 									ms = 0;
 								if ((ms > min) && ((max < 0) || (ms < max))) {
 									char ms_str[10];
-									ast_log(LOG_DEBUG, "Found qualified token of %d ms\n", ms);
+									opbx_log(LOG_DEBUG, "Found qualified token of %d ms\n", ms);
 
 									/* Save detected talk time (in milliseconds) */ 
 									sprintf(ms_str, "%d", ms );	
 									pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 									
-									ast_goto_if_exists(chan, chan->context, "talk", 1);
+									opbx_goto_if_exists(chan, chan->context, "talk", 1);
 									res = 0;
-									ast_frfree(fr);
+									opbx_frfree(fr);
 									break;
 								} else
-									ast_log(LOG_DEBUG, "Found unqualified token of %d ms\n", ms);
+									opbx_log(LOG_DEBUG, "Found unqualified token of %d ms\n", ms);
 								notsilent = 0;
 							}
 						} else {
 							if (!notsilent) {
 								/* Heard some audio, mark the begining of the token */
-								start = ast_tvnow();
-								ast_log(LOG_DEBUG, "Start of voice token!\n");
+								start = opbx_tvnow();
+								opbx_log(LOG_DEBUG, "Start of voice token!\n");
 								notsilent = 1;
 							}
 						}
 						
 					}
-					ast_frfree(fr);
+					opbx_frfree(fr);
 				}
-				ast_sched_runq(chan->sched);
+				opbx_sched_runq(chan->sched);
 			}
-			ast_stopstream(chan);
+			opbx_stopstream(chan);
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
+			opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, (char *)data);
 			res = 0;
 		}
 	}
 	if (res > -1) {
-		if (origrformat && ast_set_read_format(chan, origrformat)) {
-			ast_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
-				chan->name, ast_getformatname(origrformat));
+		if (origrformat && opbx_set_read_format(chan, origrformat)) {
+			opbx_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
+				chan->name, opbx_getformatname(origrformat));
 		}
 	}
 	if (dsp)
-		ast_dsp_free(dsp);
+		opbx_dsp_free(dsp);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -209,12 +209,12 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, background_detect_exec, synopsis, descrip);
+	return opbx_register_application(app, background_detect_exec, synopsis, descrip);
 }
 
 char *description(void)

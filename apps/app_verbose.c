@@ -52,19 +52,19 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int verbose_exec(struct ast_channel *chan, void *data)
+static int verbose_exec(struct opbx_channel *chan, void *data)
 {
 	char *vtext;
 	int vsize;
 
 	if (data) {
-		vtext = ast_strdupa((char *)data);
+		vtext = opbx_strdupa((char *)data);
 		if (vtext) {
 			char *tmp = strsep(&vtext, "|,");
 			if (vtext) {
 				if (sscanf(tmp, "%d", &vsize) != 1) {
 					vsize = 0;
-					ast_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
+					opbx_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
 				}
 			} else {
 				vtext = tmp;
@@ -73,23 +73,23 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 			if (option_verbose >= vsize) {
 				switch (vsize) {
 				case 0:
-					ast_verbose("%s\n", vtext);
+					opbx_verbose("%s\n", vtext);
 					break;
 				case 1:
-					ast_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
+					opbx_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
 					break;
 				case 2:
-					ast_verbose(VERBOSE_PREFIX_2 "%s\n", vtext);
+					opbx_verbose(VERBOSE_PREFIX_2 "%s\n", vtext);
 					break;
 				case 3:
-					ast_verbose(VERBOSE_PREFIX_3 "%s\n", vtext);
+					opbx_verbose(VERBOSE_PREFIX_3 "%s\n", vtext);
 					break;
 				default:
-					ast_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
+					opbx_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
 				}
 			}
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
+			opbx_log(LOG_ERROR, "Out of memory\n");
 		}
 	}
 
@@ -99,12 +99,12 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_verbose);
+	return opbx_unregister_application(app_verbose);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app_verbose, verbose_exec, verbose_synopsis, verbose_descrip);
+	return opbx_register_application(app_verbose, verbose_exec, verbose_synopsis, verbose_descrip);
 }
 
 char *description(void)

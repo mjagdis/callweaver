@@ -76,6 +76,6 @@ extern void tdd_free(struct tdd_state *tdd);
  * \param len This is the length (in samples) of the tone data to generate
  * Returns 0 if no error, and -1 if error.
  */
-extern int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len);
+extern int opbx_tdd_gen_ecdisa(unsigned char *outbuf, int len);
 
 #endif /* _OPENPBX_TDD_H */

@@ -54,13 +54,13 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "db1-ast/include/db.h"
 
 static DB *astdb;
-AST_MUTEX_DEFINE_STATIC(dblock);
+OPBX_MUTEX_DEFINE_STATIC(dblock);
 
 static int dbinit(void) 
 {
 	if (!astdb) {
-		if (!(astdb = dbopen((char *)ast_config_AST_DB, O_CREAT | O_RDWR, 0664, DB_BTREE, NULL))) {
-			ast_log(LOG_WARNING, "Unable to open OpenPBX database\n");
+		if (!(astdb = dbopen((char *)opbx_config_OPBX_DB, O_CREAT | O_RDWR, 0664, DB_BTREE, NULL))) {
+			opbx_log(LOG_WARNING, "Unable to open OpenPBX database\n");
 		}
 	}
 	if (astdb)
@@ -96,7 +96,7 @@ static inline int subkeymatch(const char *key, const char *suffix)
 	return 0;
 }
 
-int ast_db_deltree(const char *family, const char *keytree)
+int opbx_db_deltree(const char *family, const char *keytree)
 {
 	char prefix[256];
 	DBT key, data;
@@ -116,7 +116,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 		prefix[0] = '\0';
 	}
 	
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) 
 		return -1;
 	
@@ -135,19 +135,19 @@ int ast_db_deltree(const char *family, const char *keytree)
 		}
 	}
 	astdb->sync(astdb, 0);
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 	return 0;
 }
 
-int ast_db_put(const char *family, const char *keys, char *value)
+int opbx_db_put(const char *family, const char *keys, char *value)
 {
 	char fullkey[256];
 	DBT key, data;
 	int res, fullkeylen;
 
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_mutex_unlock(&dblock);
+		opbx_mutex_unlock(&dblock);
 		return -1;
 	}
 
@@ -160,21 +160,21 @@ int ast_db_put(const char *family, const char *keys, char *value)
 	data.size = strlen(value) + 1;
 	res = astdb->put(astdb, &key, &data, 0);
 	astdb->sync(astdb, 0);
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 	if (res)
-		ast_log(LOG_WARNING, "Unable to put value '%s' for key '%s' in family '%s'\n", value, keys, family);
+		opbx_log(LOG_WARNING, "Unable to put value '%s' for key '%s' in family '%s'\n", value, keys, family);
 	return res;
 }
 
-int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
+int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 {
 	char fullkey[256] = "";
 	DBT key, data;
 	int res, fullkeylen;
 
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_mutex_unlock(&dblock);
+		opbx_mutex_unlock(&dblock);
 		return -1;
 	}
 
@@ -187,11 +187,11 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	
 	res = astdb->get(astdb, &key, &data, 0);
 	
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 
 	/* Be sure to NULL terminate our data either way */
 	if (res) {
-		ast_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
+		opbx_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
 	} else {
 #if 0
 		printf("Got value of size %d\n", data.size);
@@ -202,21 +202,21 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 			strncpy(value, data.data, (valuelen > data.size) ? data.size : valuelen);
 			value[valuelen - 1] = '\0';
 		} else {
-			ast_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
+			opbx_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
 		}
 	}
 	return res;
 }
 
-int ast_db_del(const char *family, const char *keys)
+int opbx_db_del(const char *family, const char *keys)
 {
 	char fullkey[256];
 	DBT key;
 	int res, fullkeylen;
 
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_mutex_unlock(&dblock);
+		opbx_mutex_unlock(&dblock);
 		return -1;
 	}
 	
@@ -228,10 +228,10 @@ int ast_db_del(const char *family, const char *keys)
 	res = astdb->del(astdb, &key, 0);
 	astdb->sync(astdb, 0);
 	
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 
 	if (res) 
-		ast_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
+		opbx_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
 	return res;
 }
 
@@ -240,11 +240,11 @@ static int database_put(int fd, int argc, char *argv[])
 	int res;
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	res = ast_db_put(argv[2], argv[3], argv[4]);
+	res = opbx_db_put(argv[2], argv[3], argv[4]);
 	if (res)  {
-		ast_cli(fd, "Failed to update entry\n");
+		opbx_cli(fd, "Failed to update entry\n");
 	} else {
-		ast_cli(fd, "Updated database successfully\n");
+		opbx_cli(fd, "Updated database successfully\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -255,11 +255,11 @@ static int database_get(int fd, int argc, char *argv[])
 	char tmp[256];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
+	res = opbx_db_get(argv[2], argv[3], tmp, sizeof(tmp));
 	if (res) {
-		ast_cli(fd, "Database entry not found.\n");
+		opbx_cli(fd, "Database entry not found.\n");
 	} else {
-		ast_cli(fd, "Value: %s\n", tmp);
+		opbx_cli(fd, "Value: %s\n", tmp);
 	}
 	return RESULT_SUCCESS;
 }
@@ -269,11 +269,11 @@ static int database_del(int fd, int argc, char *argv[])
 	int res;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = ast_db_del(argv[2], argv[3]);
+	res = opbx_db_del(argv[2], argv[3]);
 	if (res) {
-		ast_cli(fd, "Database entry does not exist.\n");
+		opbx_cli(fd, "Database entry does not exist.\n");
 	} else {
-		ast_cli(fd, "Database entry removed.\n");
+		opbx_cli(fd, "Database entry removed.\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -284,14 +284,14 @@ static int database_deltree(int fd, int argc, char *argv[])
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
 	if (argc == 4) {
-		res = ast_db_deltree(argv[2], argv[3]);
+		res = opbx_db_deltree(argv[2], argv[3]);
 	} else {
-		res = ast_db_deltree(argv[2], NULL);
+		res = opbx_db_deltree(argv[2], NULL);
 	}
 	if (res) {
-		ast_cli(fd, "Database entries do not exist.\n");
+		opbx_cli(fd, "Database entries do not exist.\n");
 	} else {
-		ast_cli(fd, "Database entries removed.\n");
+		opbx_cli(fd, "Database entries removed.\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -316,10 +316,10 @@ static int database_show(int fd, int argc, char *argv[])
 	} else {
 		return RESULT_SHOWUSAGE;
 	}
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_mutex_unlock(&dblock);
-		ast_cli(fd, "Database unavailable\n");
+		opbx_mutex_unlock(&dblock);
+		opbx_cli(fd, "Database unavailable\n");
 		return RESULT_SUCCESS;	
 	}
 	memset(&key, 0, sizeof(key));
@@ -339,10 +339,10 @@ static int database_show(int fd, int argc, char *argv[])
 			values = "<bad value>";
 		}
 		if (keymatch(keys, prefix)) {
-				ast_cli(fd, "%-50s: %-25s\n", keys, values);
+				opbx_cli(fd, "%-50s: %-25s\n", keys, values);
 		}
 	}
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 	return RESULT_SUCCESS;	
 }
 
@@ -360,10 +360,10 @@ static int database_showkey(int fd, int argc, char *argv[])
 	} else {
 		return RESULT_SHOWUSAGE;
 	}
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_mutex_unlock(&dblock);
-		ast_cli(fd, "Database unavailable\n");
+		opbx_mutex_unlock(&dblock);
+		opbx_cli(fd, "Database unavailable\n");
 		return RESULT_SUCCESS;	
 	}
 	memset(&key, 0, sizeof(key));
@@ -383,25 +383,25 @@ static int database_showkey(int fd, int argc, char *argv[])
 			values = "<bad value>";
 		}
 		if (subkeymatch(keys, suffix)) {
-				ast_cli(fd, "%-50s: %-25s\n", keys, values);
+				opbx_cli(fd, "%-50s: %-25s\n", keys, values);
 		}
 	}
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 	return RESULT_SUCCESS;	
 }
 
-struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
+struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 {
 	char prefix[256];
 	DBT key, data;
 	char *keys, *values;
 	int res;
 	int pass;
-	struct ast_db_entry *last = NULL;
-	struct ast_db_entry *cur, *ret=NULL;
+	struct opbx_db_entry *last = NULL;
+	struct opbx_db_entry *cur, *ret=NULL;
 
-	if (family && !ast_strlen_zero(family)) {
-		if (keytree && !ast_strlen_zero(keytree)) {
+	if (family && !opbx_strlen_zero(family)) {
+		if (keytree && !opbx_strlen_zero(keytree)) {
 			/* Family and key tree */
 			snprintf(prefix, sizeof(prefix), "/%s/%s", family, prefix);
 		} else {
@@ -411,10 +411,10 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 	} else {
 		prefix[0] = '\0';
 	}
-	ast_mutex_lock(&dblock);
+	opbx_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_mutex_unlock(&dblock);
-		ast_log(LOG_WARNING, "Database unavailable\n");
+		opbx_mutex_unlock(&dblock);
+		opbx_log(LOG_WARNING, "Database unavailable\n");
 		return NULL;	
 	}
 	memset(&key, 0, sizeof(key));
@@ -434,7 +434,7 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 			values = "<bad value>";
 		}
 		if (keymatch(keys, prefix)) {
-			cur = malloc(sizeof(struct ast_db_entry) + strlen(keys) + strlen(values) + 2);
+			cur = malloc(sizeof(struct opbx_db_entry) + strlen(keys) + strlen(values) + 2);
 			if (cur) {
 				cur->next = NULL;
 				cur->key = cur->data + strlen(values) + 1;
@@ -449,13 +449,13 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 			}
 		}
 	}
-	ast_mutex_unlock(&dblock);
+	opbx_mutex_unlock(&dblock);
 	return ret;	
 }
 
-void ast_db_freetree(struct ast_db_entry *dbe)
+void opbx_db_freetree(struct opbx_db_entry *dbe)
 {
-	struct ast_db_entry *last;
+	struct opbx_db_entry *last;
 	while (dbe) {
 		last = dbe;
 		dbe = dbe->next;
@@ -492,22 +492,22 @@ static char database_deltree_usage[] =
 "       Deletes a family or specific keytree within a family\n"
 "in the OpenPBX database.\n";
 
-struct ast_cli_entry cli_database_show =
+struct opbx_cli_entry cli_database_show =
 { { "database", "show", NULL }, database_show, "Shows database contents", database_show_usage };
 
-struct ast_cli_entry cli_database_showkey =
+struct opbx_cli_entry cli_database_showkey =
 { { "database", "showkey", NULL }, database_showkey, "Shows database contents", database_showkey_usage };
 
-struct ast_cli_entry cli_database_get =
+struct opbx_cli_entry cli_database_get =
 { { "database", "get", NULL }, database_get, "Gets database value", database_get_usage };
 
-struct ast_cli_entry cli_database_put =
+struct opbx_cli_entry cli_database_put =
 { { "database", "put", NULL }, database_put, "Adds/updates database value", database_put_usage };
 
-struct ast_cli_entry cli_database_del =
+struct opbx_cli_entry cli_database_del =
 { { "database", "del", NULL }, database_del, "Removes database key/value", database_del_usage };
 
-struct ast_cli_entry cli_database_deltree =
+struct opbx_cli_entry cli_database_deltree =
 { { "database", "deltree", NULL }, database_deltree, "Removes database keytree/values", database_deltree_usage };
 
 static int manager_dbput(struct mansession *s, struct message *m)
@@ -530,7 +530,7 @@ static int manager_dbput(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	res = ast_db_put(family, key, val);
+	res = opbx_db_put(family, key, val);
 	if (res) {
 		astman_send_error(s, m, "Failed to update entry");
 	} else {
@@ -557,23 +557,23 @@ static int manager_dbget(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	if (id && !ast_strlen_zero(id))
+	if (id && !opbx_strlen_zero(id))
 		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
 
-	res = ast_db_get(family, key, tmp, sizeof(tmp));
+	res = opbx_db_get(family, key, tmp, sizeof(tmp));
 	if (res) {
 		astman_send_error(s, m, "Database entry not found");
 	} else {
 		astman_send_ack(s, m, "Result will follow");
-		ast_mutex_lock(&s->lock);
-		ast_cli(s->fd, "Event: DBGetResponse\r\n"
+		opbx_mutex_lock(&s->lock);
+		opbx_cli(s->fd, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"
 				"Key: %s\r\n"
 				"Val: %s\r\n"
 				"%s"
 				"\r\n",
 				family, key, tmp, idText);
-		ast_mutex_unlock(&s->lock);
+		opbx_mutex_unlock(&s->lock);
 	}
 	return 0;
 }
@@ -581,13 +581,13 @@ static int manager_dbget(struct mansession *s, struct message *m)
 int astdb_init(void)
 {
 	dbinit();
-	ast_cli_register(&cli_database_show);
-	ast_cli_register(&cli_database_showkey);
-	ast_cli_register(&cli_database_get);
-	ast_cli_register(&cli_database_put);
-	ast_cli_register(&cli_database_del);
-	ast_cli_register(&cli_database_deltree);
-	ast_manager_register("DBGet", EVENT_FLAG_SYSTEM, manager_dbget, "Get DB Entry");
-	ast_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
+	opbx_cli_register(&cli_database_show);
+	opbx_cli_register(&cli_database_showkey);
+	opbx_cli_register(&cli_database_get);
+	opbx_cli_register(&cli_database_put);
+	opbx_cli_register(&cli_database_del);
+	opbx_cli_register(&cli_database_deltree);
+	opbx_manager_register("DBGet", EVENT_FLAG_SYSTEM, manager_dbget, "Get DB Entry");
+	opbx_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
 	return 0;
 }

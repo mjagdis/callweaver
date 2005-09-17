@@ -128,7 +128,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 
         res = fork();
         if (res < 0)
-                ast_log(LOG_WARNING, "Fork failed\n");
+                opbx_log(LOG_WARNING, "Fork failed\n");
         if (res)
                 return res;
         for (x=0;x<256;x++) {
@@ -151,34 +151,34 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 }
 
 
-static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, int length, char *intkeys) {
+static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, int length, char *intkeys) {
 	int res=0;
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
 	int needed = 0;
 	int owriteformat;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	struct myframe {
-		struct ast_frame f;
-		char offset[AST_FRIENDLY_OFFSET];
+		struct opbx_frame f;
+		char offset[OPBX_FRIENDLY_OFFSET];
 		char frdata[2048];
 	} myf;
 	
         if (pipe(fds)) {
-                 ast_log(LOG_WARNING, "Unable to create pipe\n");
+                 opbx_log(LOG_WARNING, "Unable to create pipe\n");
         	return -1;
         }
 	                                                
 	/* Answer if it's not already going */
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
-	ast_stopstream(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_answer(chan);
+	opbx_stopstream(chan);
 
 	owriteformat = chan->writeformat;
-	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+	res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		opbx_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
 	}
 	
@@ -189,58 +189,58 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 		   user */
 		for (;;) {
 			ms = 1000;
-			res = ast_waitfor(chan, ms);
+			res = opbx_waitfor(chan, ms);
 			if (res < 1) {
 				res = -1;
 				break;
 			}
-			f = ast_read(chan);
+			f = opbx_read(chan);
 			if (!f) {
-				ast_log(LOG_WARNING, "Null frame == hangup() detected\n");
+				opbx_log(LOG_WARNING, "Null frame == hangup() detected\n");
 				res = -1;
 				break;
 			}
-			if (f->frametype == AST_FRAME_DTMF) {
-				ast_log(LOG_DEBUG, "User pressed a key\n");
+			if (f->frametype == OPBX_FRAME_DTMF) {
+				opbx_log(LOG_DEBUG, "User pressed a key\n");
 				if (intkeys && strchr(intkeys, f->subclass)) {
 					res = f->subclass;
-					ast_frfree(f);
+					opbx_frfree(f);
 					break;
 				}
 			}
-			if (f->frametype == AST_FRAME_VOICE) {
+			if (f->frametype == OPBX_FRAME_VOICE) {
 				/* Treat as a generator */
 				needed = f->samples * 2;
 				if (needed > sizeof(myf.frdata)) {
-					ast_log(LOG_WARNING, "Only able to deliver %d of %d requested samples\n",
+					opbx_log(LOG_WARNING, "Only able to deliver %d of %d requested samples\n",
 						(int)sizeof(myf.frdata) / 2, needed/2);
 					needed = sizeof(myf.frdata);
 				}
 				res = read(fds[0], myf.frdata, needed);
 				if (res > 0) {
-					myf.f.frametype = AST_FRAME_VOICE;
-					myf.f.subclass = AST_FORMAT_SLINEAR;
+					myf.f.frametype = OPBX_FRAME_VOICE;
+					myf.f.subclass = OPBX_FORMAT_SLINEAR;
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
 					myf.f.mallocd = 0;
-					myf.f.offset = AST_FRIENDLY_OFFSET;
+					myf.f.offset = OPBX_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
 					myf.f.data = myf.frdata;
-					if (ast_write(chan, &myf.f) < 0) {
+					if (opbx_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
 					}
 					if (res < needed) { /* last frame */
-						ast_log(LOG_DEBUG, "Last frame\n");
+						opbx_log(LOG_DEBUG, "Last frame\n");
 						res=0;
 						break;
 					}
 				} else {
-					ast_log(LOG_DEBUG, "No more waveform\n");
+					opbx_log(LOG_DEBUG, "No more waveform\n");
 					res = 0;
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 		}
 	}
 	close(fds[0]);
@@ -249,7 +249,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 /*	if (pid > -1) */
 /*		kill(pid, SIGKILL); */
 	if (!res && owriteformat)
-		ast_set_write_format(chan, owriteformat);
+		opbx_set_write_format(chan, owriteformat);
 	return res;
 }
 
@@ -259,14 +259,14 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 
 
 
-static int festival_exec(struct ast_channel *chan, void *vdata)
+static int festival_exec(struct opbx_channel *chan, void *vdata)
 {
 	int usecache;
 	int res=0;
 	struct localuser *u;
  	struct sockaddr_in serv_addr;
 	struct hostent *serverhost;
-	struct ast_hostent ahp;
+	struct opbx_hostent ahp;
 	int fd;
 	FILE *fs;
 	char *host;
@@ -295,34 +295,34 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	char data[256] = "";
 	char *intstr;
 	
-	struct ast_config *cfg;
-	cfg = ast_config_load(FESTIVAL_CONFIG);
+	struct opbx_config *cfg;
+	cfg = opbx_config_load(FESTIVAL_CONFIG);
 	if (!cfg) {
-		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
+		opbx_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
 		return -1;
 	}
-	if (!(host = ast_variable_retrieve(cfg, "general", "host"))) {
+	if (!(host = opbx_variable_retrieve(cfg, "general", "host"))) {
 		host = "localhost";
 	}
-	if (!(temp = ast_variable_retrieve(cfg, "general", "port"))) {
+	if (!(temp = opbx_variable_retrieve(cfg, "general", "port"))) {
 		port = 1314;
 	} else {
 		port = atoi(temp);
 	}
-	if (!(temp = ast_variable_retrieve(cfg, "general", "usecache"))) {
+	if (!(temp = opbx_variable_retrieve(cfg, "general", "usecache"))) {
 		usecache=0;
 	} else {
-		usecache = ast_true(temp);
+		usecache = opbx_true(temp);
 	}
-	if (!(cachedir = ast_variable_retrieve(cfg, "general", "cachedir"))) {
+	if (!(cachedir = opbx_variable_retrieve(cfg, "general", "cachedir"))) {
 		cachedir = "/tmp/";
 	}
-	if (!(festivalcommand = ast_variable_retrieve(cfg, "general", "festivalcommand"))) {
+	if (!(festivalcommand = opbx_variable_retrieve(cfg, "general", "festivalcommand"))) {
 		festivalcommand = "(tts_textopenpbx \"%s\" 'file)(quit)\n";
 	}
-	if (!vdata || ast_strlen_zero(vdata)) {
-		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
-		ast_config_destroy(cfg);
+	if (!vdata || opbx_strlen_zero(vdata)) {
+		opbx_log(LOG_WARNING, "festival requires an argument (text)\n");
+		opbx_config_destroy(cfg);
 		return -1;
 	}
 	strncpy(data, vdata, sizeof(data) - 1);
@@ -330,26 +330,26 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		*intstr = '\0';
 		intstr++;
 		if (!strcasecmp(intstr, "any"))
-			intstr = AST_DIGIT_ANY;
+			intstr = OPBX_DIGIT_ANY;
 	}
 	LOCAL_USER_ADD(u);
-	ast_log(LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
+	opbx_log(LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
 	/* Connect to local festival server */
 	
     	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     	if (fd < 0) {
-		ast_log(LOG_WARNING,"festival_client: can't get socket\n");
-		ast_config_destroy(cfg);
+		opbx_log(LOG_WARNING,"festival_client: can't get socket\n");
+		opbx_config_destroy(cfg);
         	return -1;
 	}
         memset(&serv_addr, 0, sizeof(serv_addr));
         if ((serv_addr.sin_addr.s_addr = inet_addr(host)) == -1) {
 	        /* its a name rather than an ipnum */
-	        serverhost = ast_gethostbyname(host, &ahp);
+	        serverhost = opbx_gethostbyname(host, &ahp);
 	        if (serverhost == (struct hostent *)0) {
-        	    	ast_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
-			ast_config_destroy(cfg);
+        	    	opbx_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
+			opbx_config_destroy(cfg);
 	            	return -1;
         	}
 	        memmove(&serv_addr.sin_addr,serverhost->h_addr, serverhost->h_length);
@@ -358,8 +358,8 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	serv_addr.sin_port = htons(port);
 
 	if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
-		ast_log(LOG_WARNING,"festival_client: connect to server failed\n");
-		ast_config_destroy(cfg);
+		opbx_log(LOG_WARNING,"festival_client: connect to server failed\n");
+		opbx_config_destroy(cfg);
         	return -1;
     	}
     	
@@ -385,26 +385,26 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     			if (fdesc!=-1) {
     				writecache=1;
     				strln=strlen((char *)data);
-    				ast_log(LOG_DEBUG,"line length : %d\n",strln);
+    				opbx_log(LOG_DEBUG,"line length : %d\n",strln);
     				write(fdesc,&strln,sizeof(int));
     				write(fdesc,data,strln);
 				seekpos=lseek(fdesc,0,SEEK_CUR);
-				ast_log(LOG_DEBUG,"Seek position : %d\n",seekpos);
+				opbx_log(LOG_DEBUG,"Seek position : %d\n",seekpos);
     			}
     		} else {
     			read(fdesc,&strln,sizeof(int));
-    			ast_log(LOG_DEBUG,"Cache file exists, strln=%d, strlen=%d\n",strln,(int)strlen((char *)data));
+    			opbx_log(LOG_DEBUG,"Cache file exists, strln=%d, strlen=%d\n",strln,(int)strlen((char *)data));
     			if (strlen((char *)data)==strln) {
-    				ast_log(LOG_DEBUG,"Size OK\n");
+    				opbx_log(LOG_DEBUG,"Size OK\n");
     				read(fdesc,&bigstring,strln);
 	    			bigstring[strln] = 0;
 				if (strcmp(bigstring,data)==0) { 
 	    				readcache=1;
 	    			} else {
-	    				ast_log(LOG_WARNING,"Strings do not match\n");
+	    				opbx_log(LOG_WARNING,"Strings do not match\n");
 	    			}
 	    		} else {
-	    			ast_log(LOG_WARNING,"Size mismatch\n");
+	    			opbx_log(LOG_WARNING,"Size mismatch\n");
 	    		}
 	    	}
 	}
@@ -412,9 +412,9 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (readcache==1) {
 		close(fd);
 		fd=fdesc;
-		ast_log(LOG_DEBUG,"Reading from cache...\n");
+		opbx_log(LOG_DEBUG,"Reading from cache...\n");
 	} else {
-		ast_log(LOG_DEBUG,"Passing text to festival...\n");
+		opbx_log(LOG_DEBUG,"Passing text to festival...\n");
     		fs=fdopen(dup(fd),"wb");
 		fprintf(fs,festivalcommand,(char *)data);
 		fflush(fs);
@@ -423,7 +423,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	
 	/* Write to cache and then pass it down */
 	if (writecache==1) {
-		ast_log(LOG_DEBUG,"Writing result to cache...\n");
+		opbx_log(LOG_DEBUG,"Writing result to cache...\n");
 		while ((strln=read(fd,buffer,16384))!=0) {
 			write(fdesc,buffer,strln);
 		}
@@ -433,7 +433,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		lseek(fd,seekpos,SEEK_SET);
 	}
 	
-	ast_log(LOG_DEBUG,"Passing data to channel...\n");
+	opbx_log(LOG_DEBUG,"Passing data to channel...\n");
 	
 	/* Read back info from server */
 	/* This assumes only one waveform will come back, also LP is unlikely */
@@ -443,26 +443,26 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 			n += read(fd,ack+n,3-n);
 		ack[3] = '\0';
 		if (strcmp(ack,"WV\n") == 0) {         /* receive a waveform */
-			ast_log(LOG_DEBUG,"Festival WV command\n");
+			opbx_log(LOG_DEBUG,"Festival WV command\n");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
 			res = send_waveform_to_channel(chan,waveform,filesize, intstr);
 			free(waveform);
 			break;
 		}
 		else if (strcmp(ack,"LP\n") == 0) {   /* receive an s-expr */
-			ast_log(LOG_DEBUG,"Festival LP command\n");
+			opbx_log(LOG_DEBUG,"Festival LP command\n");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
 			waveform[filesize]='\0';
-			ast_log(LOG_WARNING,"Festival returned LP : %s\n",waveform);
+			opbx_log(LOG_WARNING,"Festival returned LP : %s\n",waveform);
 			free(waveform);
 		} else if (strcmp(ack,"ER\n") == 0) {    /* server got an error */
-			ast_log(LOG_WARNING,"Festival returned ER\n");
+			opbx_log(LOG_WARNING,"Festival returned ER\n");
 			res=-1;
 			break;
     		}
 	} while (strcmp(ack,"OK\n") != 0);
 	close(fd);
-	ast_config_destroy(cfg);
+	opbx_config_destroy(cfg);
 	LOCAL_USER_REMOVE(u);                                                                                
 	return res;
 
@@ -471,13 +471,13 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
 	
-	return ast_register_application(app, festival_exec, synopsis, descrip);
+	return opbx_register_application(app, festival_exec, synopsis, descrip);
 }
 
 char *description(void)

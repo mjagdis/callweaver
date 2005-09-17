@@ -65,7 +65,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int transfer_exec(struct ast_channel *chan, void *data)
+static int transfer_exec(struct opbx_channel *chan, void *data)
 {
 	int res;
 	int len;
@@ -75,8 +75,8 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	char *dest = data;
 	char *status;
 
-	if (!dest || ast_strlen_zero(dest)) {
-		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
+	if (!dest || opbx_strlen_zero(dest)) {
+		opbx_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;
 	}
@@ -99,12 +99,12 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	res = ast_transfer(chan, dest);
+	res = opbx_transfer(chan, dest);
 
 	if (res < 0) {
 		status = "FAILURE";
 		if (option_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 	} else {
 		status = "SUCCESS";
@@ -122,12 +122,12 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, transfer_exec, synopsis, descrip);
+	return opbx_register_application(app, transfer_exec, synopsis, descrip);
 }
 
 char *description(void)

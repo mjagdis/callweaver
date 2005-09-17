@@ -57,28 +57,28 @@
 
 extern unsigned int __unsigned_int_flags_dummy;
 
-#define ast_test_flag(p,flag) 		({ \
+#define opbx_test_flag(p,flag) 		({ \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy) __x = 0; \
 					(void) (&__p == &__x); \
 					((p)->flags & (flag)); \
 					})
 
-#define ast_set_flag(p,flag) 		do { \
+#define opbx_set_flag(p,flag) 		do { \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy) __x = 0; \
 					(void) (&__p == &__x); \
 					((p)->flags |= (flag)); \
 					} while(0)
 
-#define ast_clear_flag(p,flag) 		do { \
+#define opbx_clear_flag(p,flag) 		do { \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy) __x = 0; \
 					(void) (&__p == &__x); \
 					((p)->flags &= ~(flag)); \
 					} while(0)
 
-#define ast_copy_flags(dest,src,flagz)	do { \
+#define opbx_copy_flags(dest,src,flagz)	do { \
 					typeof ((dest)->flags) __d = (dest)->flags; \
 					typeof ((src)->flags) __s = (src)->flags; \
 					typeof (__unsigned_int_flags_dummy) __x = 0; \
@@ -88,7 +88,7 @@ extern unsigned int __unsigned_int_flags_dummy;
 					(dest)->flags |= ((src)->flags & (flagz)); \
 					} while (0)
 
-#define ast_set2_flag(p,value,flag)	do { \
+#define opbx_set2_flag(p,value,flag)	do { \
 					typeof ((p)->flags) __p = (p)->flags; \
 					typeof (__unsigned_int_flags_dummy) __x = 0; \
 					(void) (&__p == &__x); \
@@ -101,51 +101,51 @@ extern unsigned int __unsigned_int_flags_dummy;
 /* Non-type checking variations for non-unsigned int flags.  You
    should only use non-unsigned int flags where required by 
    protocol etc and if you know what you're doing :)  */
-#define ast_test_flag_nonstd(p,flag) 		({ \
+#define opbx_test_flag_nonstd(p,flag) 		({ \
 					((p)->flags & (flag)); \
 					})
 
-#define ast_set_flag_nonstd(p,flag) 		do { \
+#define opbx_set_flag_nonstd(p,flag) 		do { \
 					((p)->flags |= (flag)); \
 					} while(0)
 
-#define ast_clear_flag_nonstd(p,flag) 		do { \
+#define opbx_clear_flag_nonstd(p,flag) 		do { \
 					((p)->flags &= ~(flag)); \
 					} while(0)
 
-#define ast_copy_flags_nonstd(dest,src,flagz)	do { \
+#define opbx_copy_flags_nonstd(dest,src,flagz)	do { \
 					(dest)->flags &= ~(flagz); \
 					(dest)->flags |= ((src)->flags & (flagz)); \
 					} while (0)
 
-#define ast_set2_flag_nonstd(p,value,flag)	do { \
+#define opbx_set2_flag_nonstd(p,value,flag)	do { \
 					if (value) \
 						(p)->flags |= (flag); \
 					else \
 						(p)->flags &= ~(flag); \
 					} while (0)
 
-#define AST_FLAGS_ALL UINT_MAX
+#define OPBX_FLAGS_ALL UINT_MAX
 
-struct ast_flags {
+struct opbx_flags {
 	unsigned int flags;
 };
 
-struct ast_hostent {
+struct opbx_hostent {
 	struct hostent hp;
 	char buf[1024];
 };
 
-extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
+extern struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp);
 
-/* ast_md5_hash 
+/* opbx_md5_hash 
 	\brief Produces MD5 hash based on input string */
-extern void ast_md5_hash(char *output, char *input);
+extern void opbx_md5_hash(char *output, char *input);
 
-extern int ast_base64encode(char *dst, unsigned char *src, int srclen, int max);
-extern int ast_base64decode(unsigned char *dst, char *src, int max);
+extern int opbx_base64encode(char *dst, unsigned char *src, int srclen, int max);
+extern int opbx_base64decode(unsigned char *dst, char *src, int max);
 
-/*! ast_uri_encode
+/*! opbx_uri_encode
 	\brief Turn text string to URI-encoded %XX version 
  	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
@@ -160,25 +160,25 @@ extern int ast_base64decode(unsigned char *dst, char *src, int max);
 	\param doreserved	Convert reserved characters
 */
 
-char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
+char *opbx_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
 
 /*!	\brief Decode URI, URN, URL (overwrite string)
 	\param s	String to be decoded 
  */
-void ast_uri_decode(char *s);
+void opbx_uri_decode(char *s);
 	
 
 extern int test_for_thread_safety(void);
 
-extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
+extern const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 
 #ifdef inet_ntoa
 #undef inet_ntoa
 #endif
-#define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
+#define inet_ntoa __dont__use__inet_ntoa__use__opbx_inet_ntoa__instead__
 
-extern int ast_utils_init(void);
-extern int ast_wait_for_input(int fd, int ms);
+extern int opbx_utils_init(void);
+extern int opbx_wait_for_input(int fd, int ms);
 
 /*! Compares the source address and port of two sockaddr_in */
 static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
@@ -187,8 +187,8 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
-#define AST_STACKSIZE 256 * 1024
-#define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
-extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
+#define OPBX_STACKSIZE 256 * 1024
+#define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(a,b,c,d,0)
+extern int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
 #endif /* _OPENPBX_UTILS_H */

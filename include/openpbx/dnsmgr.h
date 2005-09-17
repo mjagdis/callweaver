@@ -29,13 +29,13 @@ extern "C" {
 
 #include <netinet/in.h>
 
-struct ast_dnsmgr_entry;
+struct opbx_dnsmgr_entry;
 
-struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result);
+struct opbx_dnsmgr_entry *opbx_dnsmgr_get(const char *name, struct in_addr *result);
 
-void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
+void opbx_dnsmgr_release(struct opbx_dnsmgr_entry *entry);
 
-int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr);
+int opbx_dnsmgr_lookup(const char *name, struct in_addr *result, struct opbx_dnsmgr_entry **dnsmgr);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

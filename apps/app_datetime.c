@@ -52,17 +52,17 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int datetime_exec(struct ast_channel *chan, void *data)
+static int datetime_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	time_t t;
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
 	time(&t);
-	if (chan->_state != AST_STATE_UP)
-		res = ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		res = opbx_answer(chan);
 	if (!res)
-		res = ast_say_datetime(chan, t, "", chan->language);
+		res = opbx_say_datetime(chan, t, "", chan->language);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -70,12 +70,12 @@ static int datetime_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, datetime_exec, synopsis, descrip);
+	return opbx_register_application(app, datetime_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -67,9 +67,9 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-#define ast_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
+#define opbx_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
 
-static int read_exec(struct ast_channel *chan, void *data)
+static int read_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
@@ -90,10 +90,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 	char *args[8];
 
 	if (data)
-		argcopy = ast_strdupa((char *)data);
+		argcopy = opbx_strdupa((char *)data);
 
-	if (ast_separate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
-		ast_log(LOG_WARNING, "Cannot Parse Arguements.\n");
+	if (opbx_separate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
+		opbx_log(LOG_WARNING, "Cannot Parse Arguements.\n");
 		return -1;
 	}
 
@@ -131,21 +131,21 @@ static int read_exec(struct ast_channel *chan, void *data)
 			to *= 1000;
 	}
 
-	if (!(filename) || ast_strlen_zero(filename)) 
+	if (!(filename) || opbx_strlen_zero(filename)) 
 		filename = NULL;
 	if (maxdigitstr) {
 		maxdigits = atoi(maxdigitstr);
 		if ((maxdigits<1) || (maxdigits>255)) {
     			maxdigits = 255;
 		} else if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
+			opbx_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
 	}
-	if (!(varname) || ast_strlen_zero(varname)) {
-		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
+	if (!(varname) || opbx_strlen_zero(varname)) {
+		opbx_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != OPBX_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			pbx_builtin_setvar_helper(chan, varname, "\0");
@@ -153,32 +153,32 @@ static int read_exec(struct ast_channel *chan, void *data)
 			return 0;
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
-			res = ast_answer(chan);
+			res = opbx_answer(chan);
 		}
 	}
 	if (!res) {
 		while(tries && !res) {
-			ast_stopstream(chan);
-			res = ast_app_getdata(chan, filename, tmp, maxdigits, to);
+			opbx_stopstream(chan);
+			res = opbx_app_getdata(chan, filename, tmp, maxdigits, to);
 			if (res > -1) {
 				pbx_builtin_setvar_helper(chan, varname, tmp);
-				if (!ast_strlen_zero(tmp)) {
+				if (!opbx_strlen_zero(tmp)) {
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+						opbx_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
 					tries = 0;
 				} else {
 					tries--;
 					if (option_verbose > 2) {
 						if (tries)
-							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
+							opbx_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
 						else
-							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
+							opbx_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
 					}
 				}
 				res = 0;
 			} else {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
+					opbx_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
 			}
 		}
 	}
@@ -189,12 +189,12 @@ static int read_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, read_exec, synopsis, descrip);
+	return opbx_register_application(app, read_exec, synopsis, descrip);
 }
 
 char *description(void)

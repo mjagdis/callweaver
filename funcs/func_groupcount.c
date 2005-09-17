@@ -34,23 +34,23 @@
 #include "openpbx/utils.h"
 #include "openpbx/app.h"
 
-static char *group_count_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *group_count_function_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	int count;
 	char group[80] = "";
 	char category[80] = "";
 	char *grp;
 
-	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
+	opbx_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
 
-	if (ast_strlen_zero(group)) {
+	if (opbx_strlen_zero(group)) {
 		if ((grp = pbx_builtin_getvar_helper(chan, category)))
-			ast_copy_string(group, grp, sizeof(group));
+			opbx_copy_string(group, grp, sizeof(group));
 		else
-			ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
+			opbx_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
 	}
 
-	count = ast_app_group_get_count(group, category);
+	count = opbx_app_group_get_count(group, category);
 	snprintf(buf, len, "%d", count);
 
 	return buf;
@@ -59,7 +59,7 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function group_count_function = {
+struct opbx_custom_function group_count_function = {
 	.name = "GROUP_COUNT",
 	.syntax = "GROUP_COUNT([groupname][@category])",
 	.synopsis = "Counts the number of channels in the specified group",
@@ -68,16 +68,16 @@ struct ast_custom_function group_count_function = {
 	.read = group_count_function_read,
 };
 
-static char *group_match_count_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *group_match_count_function_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	int count;
 	char group[80] = "";
 	char category[80] = "";
 
-	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
+	opbx_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
 
-	if (!ast_strlen_zero(group)) {
-		count = ast_app_group_match_get_count(group, category);
+	if (!opbx_strlen_zero(group)) {
+		count = opbx_app_group_match_get_count(group, category);
 		snprintf(buf, len, "%d", count);
 	}
 
@@ -87,7 +87,7 @@ static char *group_match_count_function_read(struct ast_channel *chan, char *cmd
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function group_match_count_function = {
+struct opbx_custom_function group_match_count_function = {
 	.name = "GROUP_MATCH_COUNT",
 	.syntax = "GROUP_MATCH_COUNT(groupmatch[@category])",
 	.synopsis = "Counts the number of channels in the groups matching the specified pattern",
@@ -97,42 +97,42 @@ struct ast_custom_function group_match_count_function = {
 	.write = NULL,
 };
 
-static char *group_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *group_function_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char varname[256];
 	char *group;
 
-	if (data && !ast_strlen_zero(data)) {
+	if (data && !opbx_strlen_zero(data)) {
 		snprintf(varname, sizeof(varname), "%s_%s", GROUP_CATEGORY_PREFIX, data);
 	} else {
-		ast_copy_string(varname, GROUP_CATEGORY_PREFIX, sizeof(varname));
+		opbx_copy_string(varname, GROUP_CATEGORY_PREFIX, sizeof(varname));
 	}
 
 	group = pbx_builtin_getvar_helper(chan, varname);
 	if (group)
-		ast_copy_string(buf, group, len);
+		opbx_copy_string(buf, group, len);
 
 	return buf;
 }
 
-static void group_function_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+static void group_function_write(struct opbx_channel *chan, char *cmd, char *data, const char *value)
 {
 	char grpcat[256];
 
-	if (data && !ast_strlen_zero(data)) {
+	if (data && !opbx_strlen_zero(data)) {
 		snprintf(grpcat, sizeof(grpcat), "%s@%s", value, data);
 	} else {
-		ast_copy_string(grpcat, value, sizeof(grpcat));
+		opbx_copy_string(grpcat, value, sizeof(grpcat));
 	}
 
-        if (ast_app_group_set_channel(chan, grpcat))
-                ast_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
+        if (opbx_app_group_set_channel(chan, grpcat))
+                opbx_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
 }
 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function group_function = {
+struct opbx_custom_function group_function = {
 	.name = "GROUP",
 	.syntax = "GROUP([category])",
 	.synopsis = "Gets or sets the channel group.",
@@ -141,39 +141,39 @@ struct ast_custom_function group_function = {
 	.write = group_function_write,
 };
 
-static char *group_list_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *group_list_function_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_var_t *current;
+	struct opbx_var_t *current;
 	struct varshead *headp;
 	char tmp1[1024] = "";
 	char tmp2[1024] = "";
 
 	headp=&chan->varshead;
-	AST_LIST_TRAVERSE(headp,current,entries) {
-		if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
-			if (!ast_strlen_zero(tmp1)) {
-				ast_copy_string(tmp2, tmp1, sizeof(tmp2));
-				snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, ast_var_value(current), (ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+	OPBX_LIST_TRAVERSE(headp,current,entries) {
+		if (!strncmp(opbx_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
+			if (!opbx_strlen_zero(tmp1)) {
+				opbx_copy_string(tmp2, tmp1, sizeof(tmp2));
+				snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, opbx_var_value(current), (opbx_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
 			} else {
-				snprintf(tmp1, sizeof(tmp1), "%s@%s", ast_var_value(current), (ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+				snprintf(tmp1, sizeof(tmp1), "%s@%s", opbx_var_value(current), (opbx_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
 			}
-		} else if (!strcmp(ast_var_name(current), GROUP_CATEGORY_PREFIX)) {
-			if (!ast_strlen_zero(tmp1)) {
-				ast_copy_string(tmp2, tmp1, sizeof(tmp2));
-				snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, ast_var_value(current));
+		} else if (!strcmp(opbx_var_name(current), GROUP_CATEGORY_PREFIX)) {
+			if (!opbx_strlen_zero(tmp1)) {
+				opbx_copy_string(tmp2, tmp1, sizeof(tmp2));
+				snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, opbx_var_value(current));
 			} else {
-				snprintf(tmp1, sizeof(tmp1), "%s", ast_var_value(current));
+				snprintf(tmp1, sizeof(tmp1), "%s", opbx_var_value(current));
 			}
 		}
 	}
-	ast_copy_string(buf, tmp1, len);
+	opbx_copy_string(buf, tmp1, len);
 	return buf;
 }
 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function group_list_function = {
+struct opbx_custom_function group_list_function = {
 	.name = "GROUP_LIST",
 	.syntax = "GROUP_LIST()",
 	.synopsis = "Gets a list of the groups set on a channel.",

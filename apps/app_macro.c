@@ -86,7 +86,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int macro_exec(struct ast_channel *chan, void *data)
+static int macro_exec(struct opbx_channel *chan, void *data)
 {
 	char *tmp;
 	char *cur, *rest;
@@ -99,7 +99,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char oldexten[256]="";
 	int oldpriority;
 	char pc[80], depthc[12];
-	char oldcontext[AST_MAX_CONTEXT] = "";
+	char oldcontext[OPBX_MAX_CONTEXT] = "";
 	char *offsets;
 	int offset, depth;
 	int setmacrocontext=0;
@@ -111,8 +111,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char *save_macro_offset;
 	struct localuser *u;
   
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return 0;
 	}
 
@@ -125,36 +125,36 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (depth >= 7) {
-		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
+		opbx_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
 		return 0;
 	}
 	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
-	tmp = ast_strdupa((char *) data);
+	tmp = opbx_strdupa((char *) data);
 	rest = tmp;
 	macro = strsep(&rest, "|");
-	if (!macro || ast_strlen_zero(macro)) {
-		ast_log(LOG_WARNING, "Invalid macro name specified\n");
+	if (!macro || opbx_strlen_zero(macro)) {
+		opbx_log(LOG_WARNING, "Invalid macro name specified\n");
 		return 0;
 	}
 	snprintf(fullmacro, sizeof(fullmacro), "macro-%s", macro);
-	if (!ast_exists_extension(chan, fullmacro, "s", 1, chan->cid.cid_num)) {
-  		if (!ast_context_find(fullmacro)) 
-			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
+	if (!opbx_exists_extension(chan, fullmacro, "s", 1, chan->cid.cid_num)) {
+  		if (!opbx_context_find(fullmacro)) 
+			opbx_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 		else
-	  		ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
+	  		opbx_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
 		return 0;
 	}
 
 	LOCAL_USER_ADD(u);
 	/* Save old info */
 	oldpriority = chan->priority;
-	ast_copy_string(oldexten, chan->exten, sizeof(oldexten));
-	ast_copy_string(oldcontext, chan->context, sizeof(oldcontext));
-	if (ast_strlen_zero(chan->macrocontext)) {
-		ast_copy_string(chan->macrocontext, chan->context, sizeof(chan->macrocontext));
-		ast_copy_string(chan->macroexten, chan->exten, sizeof(chan->macroexten));
+	opbx_copy_string(oldexten, chan->exten, sizeof(oldexten));
+	opbx_copy_string(oldcontext, chan->context, sizeof(oldcontext));
+	if (opbx_strlen_zero(chan->macrocontext)) {
+		opbx_copy_string(chan->macrocontext, chan->context, sizeof(chan->macrocontext));
+		opbx_copy_string(chan->macroexten, chan->exten, sizeof(chan->macroexten));
 		chan->macropriority = chan->priority;
 		setmacrocontext=1;
 	}
@@ -184,7 +184,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	/* Setup environment for new run */
 	chan->exten[0] = 's';
 	chan->exten[1] = '\0';
-	ast_copy_string(chan->context, fullmacro, sizeof(chan->context));
+	opbx_copy_string(chan->context, fullmacro, sizeof(chan->context));
 	chan->priority = 1;
 
 	while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
@@ -197,46 +197,46 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
 	}
-	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
-	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
-	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+	autoloopflag = opbx_test_flag(chan, OPBX_FLAG_IN_AUTOLOOP);
+	opbx_set_flag(chan, OPBX_FLAG_IN_AUTOLOOP);
+	while(opbx_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
 		/* Reset the macro depth, if it was changed in the last iteration */
 		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
-		if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
+		if ((res = opbx_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 			/* Something bad happened, or a hangup has been requested. */
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 		    	(res == '*') || (res == '#')) {
 				/* Just return result as to the previous application as if it had been dialed */
-				ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+				opbx_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
 				break;
 			}
 			switch(res) {
 	        	case MACRO_EXIT_RESULT:
                         	res = 0;
 				goto out;
-			case AST_PBX_KEEPALIVE:
+			case OPBX_PBX_KEEPALIVE:
 				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
+					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
 				else if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in macro '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
+					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in macro '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
 				goto out;
 				break;
 			default:
 				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				else if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				goto out;
 			}
 		}
 		if (strcasecmp(chan->context, fullmacro)) {
 			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
+				opbx_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
 			break;
 		}
 		/* don't stop executing extensions when we're in "h" */
 		if (chan->_softhangup && strcasecmp(oldexten,"h")) {
-			ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
+			opbx_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 				chan->exten, chan->priority);
 			goto out;
 		}
@@ -247,7 +247,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	snprintf(depthc, sizeof(depthc), "%d", depth);
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
-	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
+	opbx_set2_flag(chan, autoloopflag, OPBX_FLAG_IN_AUTOLOOP);
   	for (x=1; x<argc; x++) {
   		/* Restore old arguments and delete ours */
 		snprintf(varname, sizeof(varname), "ARG%d", x);
@@ -278,15 +278,15 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	if (!strcasecmp(chan->context, fullmacro)) {
   		/* If we're leaving the macro normally, restore original information */
 		chan->priority = oldpriority;
-		ast_copy_string(chan->context, oldcontext, sizeof(chan->context));
-		if (!(chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO)) {
+		opbx_copy_string(chan->context, oldcontext, sizeof(chan->context));
+		if (!(chan->_softhangup & OPBX_SOFTHANGUP_ASYNCGOTO)) {
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
-			ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));
+			opbx_copy_string(chan->exten, oldexten, sizeof(chan->exten));
 			if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
 				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   	normally if there is any problem */
 				if (sscanf(offsets, "%d", &offset) == 1) {
-					if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->cid.cid_num)) {
+					if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->cid.cid_num)) {
 						chan->priority += offset;
 					}
 				}
@@ -301,12 +301,12 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int macroif_exec(struct ast_channel *chan, void *data) 
+static int macroif_exec(struct opbx_channel *chan, void *data) 
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
 
-	if((expr = ast_strdupa((char *) data))) {
+	if((expr = opbx_strdupa((char *) data))) {
 		if ((label_a = strchr(expr, '?'))) {
 			*label_a = '\0';
 			label_a++;
@@ -314,19 +314,19 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 				*label_b = '\0';
 				label_b++;
 			}
-			if (ast_true(expr))
+			if (opbx_true(expr))
 				macro_exec(chan, label_a);
 			else if (label_b) 
 				macro_exec(chan, label_b);
 			
 		} else
-			ast_log(LOG_WARNING, "Invalid Syntax.\n");
+			opbx_log(LOG_WARNING, "Invalid Syntax.\n");
 	} else 
-		ast_log(LOG_ERROR, "Out of Memory!\n");
+		opbx_log(LOG_ERROR, "Out of Memory!\n");
 	return res;
 }
 			
-static int macro_exit_exec(struct ast_channel *chan, void *data)
+static int macro_exit_exec(struct opbx_channel *chan, void *data)
 {
 	return MACRO_EXIT_RESULT;
 }
@@ -334,16 +334,16 @@ static int macro_exit_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(if_app);
-	ast_unregister_application(exit_app);
-	return ast_unregister_application(app);
+	opbx_unregister_application(if_app);
+	opbx_unregister_application(exit_app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	ast_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
-	ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
-	return ast_register_application(app, macro_exec, synopsis, descrip);
+	opbx_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
+	opbx_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
+	return opbx_register_application(app, macro_exec, synopsis, descrip);
 }
 
 char *description(void)

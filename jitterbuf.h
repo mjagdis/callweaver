@@ -75,10 +75,10 @@ typedef struct jb_info {
 	long target; 		/* the target jitterbuffer adjustment */
 	long losspct; 		/* recent lost frame percentage (* 1000) */
 	long next_voice_ts;	/* the ts of the next frame to be read from the jb - in receiver's time */
-	long last_voice_ms;	/* the duration of the last voice frame */
+	long lopbx_voice_ms;	/* the duration of the last voice frame */
 	long silence_begin_ts;	/* the time of the last CNG frame, when in silence */
-	long last_adjustment;   /* the time of the last adjustment */
- 	long last_delay;        /* the last now added to history */
+	long lopbx_adjustment;   /* the time of the last adjustment */
+ 	long lopbx_delay;        /* the last now added to history */
  	long cnt_delay_discont;	/* the count of discontinuous delays */
  	long resync_offset;     /* the amount to offset ts to support resyncs */
 	long cnt_contig_interp; /* the number of contiguous interp frames returned */

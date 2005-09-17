@@ -90,7 +90,7 @@ static int sort_subroutine(const void *arg1, const void *arg2)
 #define ERROR_NOMEM	(-2)
 #define ERROR_USAGE	(-3)
 
-static int sort_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
+static int sort_internal(struct opbx_channel *chan, char *data, char *buffer, size_t buflen)
 {
 	char *strings, *ptrkey, *ptrvalue;
 	int count=1, count2;
@@ -102,7 +102,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 		return ERROR_NOARG;
 	}
 
-	strings = ast_strdupa((char *)data);
+	strings = opbx_strdupa((char *)data);
 	if (!strings) {
 		return ERROR_NOMEM;
 	}
@@ -149,7 +149,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	return 0;
 }
 
-static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
+static int cut_internal(struct opbx_channel *chan, char *data, char *buffer, size_t buflen)
 {
 	char *s, *varname=NULL, *delimiter=NULL, *field=NULL;
 	int args_okay = 0;
@@ -158,7 +158,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 	/* Check and parse arguments */
 	if (data) {
-		s = ast_strdupa((char *)data);
+		s = opbx_strdupa((char *)data);
 		if (s) {
 			varname = strsep(&s, "|");
 			if (varname && (varname[0] != '\0')) {
@@ -229,7 +229,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 				/* Most frequent problem is the expectation of reordering fields */
 				if ((num1 > 0) && (curfieldnum > num1)) {
-					ast_log(LOG_WARNING, "We're already past the field you wanted?\n");
+					opbx_log(LOG_WARNING, "We're already past the field you wanted?\n");
 				}
 
 				/* Re-null tmp2 if we added 1 to NULL */
@@ -255,7 +255,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	return 0;
 }
 
-static int sort_exec(struct ast_channel *chan, void *data)
+static int sort_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -264,19 +264,19 @@ static int sort_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The application Sort is deprecated.  Please use the SORT() function instead.\n");
+		opbx_log(LOG_WARNING, "The application Sort is deprecated.  Please use the SORT() function instead.\n");
 		dep_warning=1;
 	}
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Sort() requires an argument\n");
+		opbx_log(LOG_ERROR, "Sort() requires an argument\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 
-	strings = ast_strdupa((char *)data);
+	strings = opbx_strdupa((char *)data);
 	if (!strings) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -284,11 +284,11 @@ static int sort_exec(struct ast_channel *chan, void *data)
 	varname = strsep(&strings, "=");
 	switch (sort_internal(chan, strings, result, sizeof(result))) {
 	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "Sort() requires an argument\n");
+		opbx_log(LOG_ERROR, "Sort() requires an argument\n");
 		res = 0;
 		break;
 	case ERROR_NOMEM:
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		res = -1;
 		break;
 	case 0:
@@ -296,14 +296,14 @@ static int sort_exec(struct ast_channel *chan, void *data)
 		res = 0;
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unknown internal error\n");
+		opbx_log(LOG_ERROR, "Unknown internal error\n");
 		res = -1;
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int cut_exec(struct ast_channel *chan, void *data)
+static int cut_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -313,17 +313,17 @@ static int cut_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The application Cut is deprecated.  Please use the CUT() function instead.\n");
+		opbx_log(LOG_WARNING, "The application Cut is deprecated.  Please use the CUT() function instead.\n");
 		dep_warning=1;
 	}
 
 	/* Check and parse arguments */
 	if (data) {
-		s = ast_strdupa((char *)data);
+		s = opbx_strdupa((char *)data);
 		if (s) {
 			newvar = strsep(&s, "=");
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
+			opbx_log(LOG_ERROR, "Out of memory\n");
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
@@ -331,15 +331,15 @@ static int cut_exec(struct ast_channel *chan, void *data)
 
 	switch (cut_internal(chan, s, result, sizeof(result))) {
 	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "Cut() requires an argument\n");
+		opbx_log(LOG_ERROR, "Cut() requires an argument\n");
 		res = 0;
 		break;
 	case ERROR_NOMEM:
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		res = -1;
 		break;
 	case ERROR_USAGE:
-		ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
+		opbx_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
 		res = 0;
 		break;
 	case 0:
@@ -347,14 +347,14 @@ static int cut_exec(struct ast_channel *chan, void *data)
 		res = 0;
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unknown internal error\n");
+		opbx_log(LOG_ERROR, "Unknown internal error\n");
 		res = -1;
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static char *acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *acf_sort_exec(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
 
@@ -362,21 +362,21 @@ static char *acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char
 
 	switch (sort_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "SORT() requires an argument\n");
+		opbx_log(LOG_ERROR, "SORT() requires an argument\n");
 		break;
 	case ERROR_NOMEM:
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		break;
 	case 0:
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unknown internal error\n");
+		opbx_log(LOG_ERROR, "Unknown internal error\n");
 	}
 	LOCAL_USER_REMOVE(u);
 	return buf;
 }
 
-static char *acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *acf_cut_exec(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
 
@@ -384,24 +384,24 @@ static char *acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char 
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "Cut() requires an argument\n");
+		opbx_log(LOG_ERROR, "Cut() requires an argument\n");
 		break;
 	case ERROR_NOMEM:
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		break;
 	case ERROR_USAGE:
-		ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
+		opbx_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
 		break;
 	case 0:
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unknown internal error\n");
+		opbx_log(LOG_ERROR, "Unknown internal error\n");
 	}
 	LOCAL_USER_REMOVE(u);
 	return buf;
 }
 
-struct ast_custom_function acf_sort = {
+struct opbx_custom_function acf_sort = {
 	.name = "SORT",
 	.synopsis = "Sorts a list of key/vals into a list of keys, based upon the vals",
 	.syntax = "SORT(key1:val1[...][,keyN:valN])",
@@ -412,7 +412,7 @@ struct ast_custom_function acf_sort = {
 	.read = acf_sort_exec,
 };
 
-struct ast_custom_function acf_cut = {
+struct opbx_custom_function acf_cut = {
 	.name = "CUT",
 	.synopsis = "Slices and dices strings, based upon a named delimiter.",
 	.syntax = "CUT(<varname>,<char-delim>,<range-spec>)",
@@ -428,18 +428,18 @@ struct ast_custom_function acf_cut = {
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_custom_function_unregister(&acf_cut);
-	ast_custom_function_unregister(&acf_sort);
-	ast_unregister_application(app_sort);
-	return ast_unregister_application(app_cut);
+	opbx_custom_function_unregister(&acf_cut);
+	opbx_custom_function_unregister(&acf_sort);
+	opbx_unregister_application(app_sort);
+	return opbx_unregister_application(app_cut);
 }
 
 int load_module(void)
 {
-	ast_custom_function_register(&acf_cut);
-	ast_custom_function_register(&acf_sort);
-	ast_register_application(app_sort, sort_exec, app_sort_synopsis, app_sort_descrip);
-	return ast_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
+	opbx_custom_function_register(&acf_cut);
+	opbx_custom_function_register(&acf_sort);
+	opbx_register_application(app_sort, sort_exec, app_sort_synopsis, app_sort_descrip);
+	return opbx_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
 }
 
 char *description(void)

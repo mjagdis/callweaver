@@ -58,9 +58,9 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int striplsd_exec(struct ast_channel *chan, void *data)
+static int striplsd_exec(struct opbx_channel *chan, void *data)
 {
-	char newexten[AST_MAX_EXTENSION] = "";
+	char newexten[OPBX_MAX_EXTENSION] = "";
 	int maxbytes = 0;
 	int stripcount = 0;
 	int extlen = strlen(chan->exten);
@@ -70,7 +70,7 @@ static int striplsd_exec(struct ast_channel *chan, void *data)
 		stripcount = atoi(data);
 	}
 	if (!stripcount) {
-		ast_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
+		opbx_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
 		return 0;
 	}
 	if (extlen > stripcount) {
@@ -86,12 +86,12 @@ static int striplsd_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, striplsd_exec, synopsis, descrip);
+	return opbx_register_application(app, striplsd_exec, synopsis, descrip);
 }
 
 char *description(void)

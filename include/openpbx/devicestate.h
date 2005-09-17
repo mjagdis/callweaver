@@ -28,21 +28,21 @@ extern "C" {
 #endif
 
 /*! Device is valid but channel didn't know state */
-#define AST_DEVICE_UNKNOWN	0
+#define OPBX_DEVICE_UNKNOWN	0
 /*! Device is not used */
-#define AST_DEVICE_NOT_INUSE	1
+#define OPBX_DEVICE_NOT_INUSE	1
 /*! Device is in use */
-#define AST_DEVICE_INUSE	2
+#define OPBX_DEVICE_INUSE	2
 /*! Device is busy */
-#define AST_DEVICE_BUSY		3
+#define OPBX_DEVICE_BUSY		3
 /*! Device is invalid */
-#define AST_DEVICE_INVALID	4
+#define OPBX_DEVICE_INVALID	4
 /*! Device is unavailable */
-#define AST_DEVICE_UNAVAILABLE	5
+#define OPBX_DEVICE_UNAVAILABLE	5
 /*! Device is ringing */
-#define AST_DEVICE_RINGING	6
+#define OPBX_DEVICE_RINGING	6
 
-typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
+typedef int (*opbx_devstate_cb_type)(const char *dev, int state, void *data);
 
 /*! Convert device state to text string for output */
 /*! \param devstate Current device state */
@@ -53,10 +53,10 @@ const char *devstate2str(int devstate);
  * \param device like a dialstring
  * Search the Device in active channels by compare the channelname against 
  * the devicename. Compared are only the first chars to the first '-' char.
- * Returns an AST_DEVICE_UNKNOWN if no channel found or
- * AST_DEVICE_INUSE if a channel is found
+ * Returns an OPBX_DEVICE_UNKNOWN if no channel found or
+ * OPBX_DEVICE_INUSE if a channel is found
  */
-int ast_parse_device_state(const char *device);
+int opbx_parse_device_state(const char *device);
 
 /*! Asks a channel for device state */
 /*!
@@ -65,9 +65,9 @@ int ast_parse_device_state(const char *device);
  * used by the low level module
  * Trys the channel devicestate callback if not supported search in the
  * active channels list for the device.
- * Returns an AST_DEVICE_??? state -1 on failure
+ * Returns an OPBX_DEVICE_??? state -1 on failure
  */
-int ast_device_state(const char *device);
+int opbx_device_state(const char *device);
 
 /*! Tells OpenPBX the State for Device is changed */
 /*!
@@ -76,7 +76,7 @@ int ast_device_state(const char *device);
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */
-int ast_device_state_changed(const char *fmt, ...)
+int opbx_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 /*! Registers a device state change callback */
@@ -85,10 +85,10 @@ int ast_device_state_changed(const char *fmt, ...)
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success
  */ 
-int ast_devstate_add(ast_devstate_cb_type callback, void *data);
-void ast_devstate_del(ast_devstate_cb_type callback, void *data);
+int opbx_devstate_add(opbx_devstate_cb_type callback, void *data);
+void opbx_devstate_del(opbx_devstate_cb_type callback, void *data);
 
-int ast_device_state_engine_init(void);
+int opbx_device_state_engine_init(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -57,7 +57,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/acl.h"
 #include "openpbx/utils.h"
 
-struct fast_originate_helper {
+struct fopbx_originate_helper {
 	char tech[256];
 	char data[256];
 	int timeout;
@@ -69,7 +69,7 @@ struct fast_originate_helper {
 	char exten[256];
 	char idtext[256];
 	int priority;
-	struct ast_variable *vars;
+	struct opbx_variable *vars;
 };
 
 static int enabled = 0;
@@ -78,7 +78,7 @@ static int asock = -1;
 static int displayconnects = 1;
 
 static pthread_t t;
-AST_MUTEX_DEFINE_STATIC(sessionlock);
+OPBX_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
 
 static struct permalias {
@@ -98,13 +98,13 @@ static struct permalias {
 
 static struct mansession *sessions = NULL;
 static struct manager_action *first_action = NULL;
-AST_MUTEX_DEFINE_STATIC(actionlock);
+OPBX_MUTEX_DEFINE_STATIC(actionlock);
 
 /* If you are calling carefulwrite, it is assumed that you are calling
    it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
    there is only one system call made to do a write, unless we actually
    have a need to wait.  This way, we get better performance. */
-int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
+int opbx_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {
 	/* Try to write string, but wait no more than ms milliseconds
 	   before timing out */
@@ -143,8 +143,8 @@ static char *authority_to_str(int authority, char *res, int reslen)
 			running_total += strlen(perms[i].label);
 		}
 	}
-	if (ast_strlen_zero(res)) {
-		ast_copy_string(res, "<none>", reslen);
+	if (opbx_strlen_zero(res)) {
+		opbx_copy_string(res, "<none>", reslen);
 	}
 	return res;
 }
@@ -154,18 +154,18 @@ static char *complete_show_mancmd(char *line, char *word, int pos, int state)
 	struct manager_action *cur = first_action;
 	int which = 0;
 
-	ast_mutex_lock(&actionlock);
+	opbx_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		if (!strncasecmp(word, cur->action, strlen(word))) {
 			if (++which > state) {
 				char *ret = strdup(cur->action);
-				ast_mutex_unlock(&actionlock);
+				opbx_mutex_unlock(&actionlock);
 				return ret;
 			}
 		}
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&actionlock);
+	opbx_mutex_unlock(&actionlock);
 	return NULL;
 }
 
@@ -177,17 +177,17 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&actionlock);
+	opbx_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
-				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
+				opbx_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
 			}
 		}
 		cur = cur->next;
 	}
 
-	ast_mutex_unlock(&actionlock);
+	opbx_mutex_unlock(&actionlock);
 	return RESULT_SUCCESS;
 }
 
@@ -199,15 +199,15 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	char authority[80];
 	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
 
-	ast_mutex_lock(&actionlock);
-	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
-	ast_cli(fd, format, "------", "---------", "--------");
+	opbx_mutex_lock(&actionlock);
+	opbx_cli(fd, format, "Action", "Privilege", "Synopsis");
+	opbx_cli(fd, format, "------", "---------", "--------");
 	while (cur) { /* Walk the list of actions */
-		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
+		opbx_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 		cur = cur->next;
 	}
 
-	ast_mutex_unlock(&actionlock);
+	opbx_mutex_unlock(&actionlock);
 	return RESULT_SUCCESS;
 }
 
@@ -218,15 +218,15 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	struct mansession *s;
 	char iabuf[INET_ADDRSTRLEN];
 	char *format = "  %-15.15s  %-15.15s\n";
-	ast_mutex_lock(&sessionlock);
+	opbx_mutex_lock(&sessionlock);
 	s = sessions;
-	ast_cli(fd, format, "Username", "IP Address");
+	opbx_cli(fd, format, "Username", "IP Address");
 	while (s) {
-		ast_cli(fd, format,s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		opbx_cli(fd, format,s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		s = s->next;
 	}
 
-	ast_mutex_unlock(&sessionlock);
+	opbx_mutex_unlock(&sessionlock);
 	return RESULT_SUCCESS;
 }
 
@@ -243,22 +243,22 @@ static char showmanconn_help[] =
 "	Prints a listing of the users that are currently connected to the\n"
 "OpenPBX manager interface.\n";
 
-static struct ast_cli_entry show_mancmd_cli =
+static struct opbx_cli_entry show_mancmd_cli =
 	{ { "show", "manager", "command", NULL },
 	handle_showmancmd, "Show a manager interface command", showmancmd_help, complete_show_mancmd };
 
-static struct ast_cli_entry show_mancmds_cli =
+static struct opbx_cli_entry show_mancmds_cli =
 	{ { "show", "manager", "commands", NULL },
 	handle_showmancmds, "List manager interface commands", showmancmds_help };
 
-static struct ast_cli_entry show_manconn_cli =
+static struct opbx_cli_entry show_manconn_cli =
 	{ { "show", "manager", "connected", NULL },
 	handle_showmanconn, "Show connected manager interface users", showmanconn_help };
 
 static void destroy_session(struct mansession *s)
 {
 	struct mansession *cur, *prev = NULL;
-	ast_mutex_lock(&sessionlock);
+	opbx_mutex_lock(&sessionlock);
 	cur = sessions;
 	while(cur) {
 		if (cur == s)
@@ -273,11 +273,11 @@ static void destroy_session(struct mansession *s)
 			sessions = cur->next;
 		if (s->fd > -1)
 			close(s->fd);
-		ast_mutex_destroy(&s->lock);
+		opbx_mutex_destroy(&s->lock);
 		free(s);
 	} else
-		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
-	ast_mutex_unlock(&sessionlock);
+		opbx_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
+	opbx_mutex_unlock(&sessionlock);
 	
 }
 
@@ -292,23 +292,23 @@ char *astman_get_header(struct message *m, char *var)
 	return "";
 }
 
-struct ast_variable *astman_get_variables(struct message *m)
+struct opbx_variable *astman_get_variables(struct message *m)
 {
 	int varlen, x;
-	struct ast_variable *head = NULL, *cur;
+	struct opbx_variable *head = NULL, *cur;
 	char *var, *val;
 	
 	varlen = strlen("Variable: ");	
 
 	for (x = 0; x < m->hdrcount; x++) {
 		if (!strncasecmp("Variable: ", m->headers[x], varlen)) {
-			var = val = ast_strdupa(m->headers[x] + varlen);
+			var = val = opbx_strdupa(m->headers[x] + varlen);
 			if (!var)
 				return head;				
 			strsep(&val, "=");
-			if (!val || ast_strlen_zero(var))
+			if (!val || opbx_strlen_zero(var))
 				continue;
-			cur = ast_variable_new(var, val);
+			cur = opbx_variable_new(var, val);
 			if (head) {
 				cur->next = head;
 				head = cur;
@@ -323,26 +323,26 @@ struct ast_variable *astman_get_variables(struct message *m)
 void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
 	char *id = astman_get_header(m,"ActionID");
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: Error\r\n");
-	if (id && !ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
-	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "Response: Error\r\n");
+	if (id && !opbx_strlen_zero(id))
+		opbx_cli(s->fd, "ActionID: %s\r\n",id);
+	opbx_cli(s->fd, "Message: %s\r\n\r\n", error);
+	opbx_mutex_unlock(&s->lock);
 }
 
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
 {
 	char *id = astman_get_header(m,"ActionID");
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: %s\r\n", resp);
-	if (id && !ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "Response: %s\r\n", resp);
+	if (id && !opbx_strlen_zero(id))
+		opbx_cli(s->fd, "ActionID: %s\r\n",id);
 	if (msg)
-		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
+		opbx_cli(s->fd, "Message: %s\r\n\r\n", msg);
 	else
-		ast_cli(s->fd, "\r\n");
-	ast_mutex_unlock(&s->lock);
+		opbx_cli(s->fd, "\r\n");
+	opbx_mutex_unlock(&s->lock);
 }
 
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
@@ -352,10 +352,10 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 
 /* Tells you if smallstr exists inside bigstr
    which is delim by delim and uses no buf or stringsep
-   ast_instring("this|that|more","this",',') == 1;
+   opbx_instring("this|that|more","this",',') == 1;
 
    feel free to move this to app.c -anthm */
-static int ast_instring(char *bigstr, char *smallstr, char delim) 
+static int opbx_instring(char *bigstr, char *smallstr, char delim) 
 {
 	char *val = bigstr, *next;
 
@@ -381,13 +381,13 @@ static int get_perm(char *instr)
 		return 0;
 
 	for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
-		if (ast_instring(instr, perms[x].label, ','))
+		if (opbx_instring(instr, perms[x].label, ','))
 			ret |= perms[x].num;
 	
 	return ret;
 }
 
-static int ast_is_number(char *string) 
+static int opbx_is_number(char *string) 
 {
 	int ret = 1, x = 0;
 
@@ -404,26 +404,26 @@ static int ast_is_number(char *string)
 	return ret ? atoi(string) : 0;
 }
 
-static int ast_strings_to_mask(char *string) 
+static int opbx_strings_to_mask(char *string) 
 {
 	int x, ret = -1;
 	
-	x = ast_is_number(string);
+	x = opbx_is_number(string);
 
 	if (x) {
 		ret = x;
-	} else if (!string || ast_strlen_zero(string)) {
+	} else if (!string || opbx_strlen_zero(string)) {
 		ret = -1;
-	} else if (ast_false(string)) {
+	} else if (opbx_false(string)) {
 		ret = 0;
-	} else if (ast_true(string)) {
+	} else if (opbx_true(string)) {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
 			ret |= perms[x].num;		
 	} else {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
-			if (ast_instring(string, perms[x].label, ',')) 
+			if (opbx_instring(string, perms[x].label, ',')) 
 				ret |= perms[x].num;		
 		}
 	}
@@ -438,19 +438,19 @@ static int ast_strings_to_mask(char *string)
 
 static int set_eventmask(struct mansession *s, char *eventmask)
 {
-	int maskint = ast_strings_to_mask(eventmask);
+	int maskint = opbx_strings_to_mask(eventmask);
 
-	ast_mutex_lock(&s->lock);
+	opbx_mutex_lock(&s->lock);
 	if (maskint >= 0)	
 		s->send_events = maskint;
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&s->lock);
 	
 	return maskint;
 }
 
 static int authenticate(struct mansession *s, struct message *m)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	char iabuf[INET_ADDRSTRLEN];
 	char *cat;
 	char *user = astman_get_header(m, "Username");
@@ -459,37 +459,37 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
 	
-	cfg = ast_config_load("manager.conf");
+	cfg = opbx_config_load("manager.conf");
 	if (!cfg)
 		return -1;
-	cat = ast_category_browse(cfg, NULL);
+	cat = opbx_category_browse(cfg, NULL);
 	while(cat) {
 		if (strcasecmp(cat, "general")) {
 			/* This is a user */
 			if (!strcasecmp(cat, user)) {
-				struct ast_variable *v;
-				struct ast_ha *ha = NULL;
+				struct opbx_variable *v;
+				struct opbx_ha *ha = NULL;
 				char *password = NULL;
-				v = ast_variable_browse(cfg, cat);
+				v = opbx_variable_browse(cfg, cat);
 				while (v) {
 					if (!strcasecmp(v->name, "secret")) {
 						password = v->value;
 					} else if (!strcasecmp(v->name, "permit") ||
 						   !strcasecmp(v->name, "deny")) {
-						ha = ast_append_ha(v->name, v->value, ha);
+						ha = opbx_append_ha(v->name, v->value, ha);
 					}	
 				    		
 					v = v->next;
 				}
-				if (ha && !ast_apply_ha(ha, &(s->sin))) {
-					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
-					ast_free_ha(ha);
-					ast_config_destroy(cfg);
+				if (ha && !opbx_apply_ha(ha, &(s->sin))) {
+					opbx_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					opbx_free_ha(ha);
+					opbx_config_destroy(cfg);
 					return -1;
 				} else if (ha)
-					ast_free_ha(ha);
+					opbx_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
-					if (key && !ast_strlen_zero(key) && s->challenge) {
+					if (key && !opbx_strlen_zero(key) && s->challenge) {
 						int x;
 						int len=0;
 						char md5key[256] = "";
@@ -504,32 +504,32 @@ static int authenticate(struct mansession *s, struct message *m)
 						if (!strcmp(md5key, key))
 							break;
 						else {
-							ast_config_destroy(cfg);
+							opbx_config_destroy(cfg);
 							return -1;
 						}
 					}
 				} else if (password && !strcasecmp(password, pass)) {
 					break;
 				} else {
-					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
-					ast_config_destroy(cfg);
+					opbx_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					opbx_config_destroy(cfg);
 					return -1;
 				}	
 			}
 		}
-		cat = ast_category_browse(cfg, cat);
+		cat = opbx_category_browse(cfg, cat);
 	}
 	if (cat) {
-		ast_copy_string(s->username, cat, sizeof(s->username));
-		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
-		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
-		ast_config_destroy(cfg);
+		opbx_copy_string(s->username, cat, sizeof(s->username));
+		s->readperm = get_perm(opbx_variable_retrieve(cfg, cat, "read"));
+		s->writeperm = get_perm(opbx_variable_retrieve(cfg, cat, "write"));
+		opbx_config_destroy(cfg);
 		if (events)
 			set_eventmask(s, events);
 		return 0;
 	}
-	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
-	ast_config_destroy(cfg);
+	opbx_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+	opbx_config_destroy(cfg);
 	return -1;
 }
 
@@ -556,19 +556,19 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	char temp[BUFSIZ];
 	char *id = astman_get_header(m,"ActionID");
 
-	if (id && !ast_strlen_zero(id))
+	if (id && !opbx_strlen_zero(id))
 		snprintf(idText,256,"ActionID: %s\r\n",id);
-	ast_cli(s->fd, "Response: Success\r\n%s", idText);
-	ast_mutex_lock(&s->lock);
-	ast_mutex_lock(&actionlock);
+	opbx_cli(s->fd, "Response: Success\r\n%s", idText);
+	opbx_mutex_lock(&s->lock);
+	opbx_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
-			ast_cli(s->fd, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)) );
+			opbx_cli(s->fd, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)) );
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&actionlock);
-	ast_cli(s->fd, "\r\n");
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&actionlock);
+	opbx_cli(s->fd, "\r\n");
+	opbx_mutex_unlock(&s->lock);
 
 	return 0;
 }
@@ -612,19 +612,19 @@ static char mandescr_hangup[] =
 
 static int action_hangup(struct mansession *s, struct message *m)
 {
-	struct ast_channel *c = NULL;
+	struct opbx_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
-	if (ast_strlen_zero(name)) {
+	if (opbx_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = ast_get_channel_by_name_locked(name);
+	c = opbx_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-	ast_mutex_unlock(&c->lock);
+	opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
+	opbx_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Channel Hungup");
 	return 0;
 }
@@ -638,7 +638,7 @@ static char mandescr_setvar[] =
 
 static int action_setvar(struct mansession *s, struct message *m)
 {
-        struct ast_channel *c = NULL;
+        struct opbx_channel *c = NULL;
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
         char *varval = astman_get_header(m, "Value");
@@ -652,7 +652,7 @@ static int action_setvar(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	c = ast_get_channel_by_name_locked(name);
+	c = opbx_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -660,7 +660,7 @@ static int action_setvar(struct mansession *s, struct message *m)
 	
 	pbx_builtin_setvar_helper(c,varname,varval);
 	  
-	ast_mutex_unlock(&c->lock);
+	opbx_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Variable Set");
 	return 0;
 }
@@ -674,7 +674,7 @@ static char mandescr_getvar[] =
 
 static int action_getvar(struct mansession *s, struct message *m)
 {
-        struct ast_channel *c = NULL;
+        struct opbx_channel *c = NULL;
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
 	char *id = astman_get_header(m,"ActionID");
@@ -690,7 +690,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	c = ast_get_channel_by_name_locked(name);
+	c = opbx_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -698,17 +698,17 @@ static int action_getvar(struct mansession *s, struct message *m)
 	
 	varval=pbx_builtin_getvar_helper(c,varname);
 	if (varval)
-		varval2 = ast_strdupa(varval);
+		varval2 = opbx_strdupa(varval);
 	if (!varval2)
 		varval2 = "";
-	ast_mutex_unlock(&c->lock);
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: Success\r\n"
+	opbx_mutex_unlock(&c->lock);
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "Response: Success\r\n"
 		"%s: %s\r\n" ,varname,varval2);
-	if (id && !ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
-	ast_cli(s->fd, "\r\n");
-	ast_mutex_unlock(&s->lock);
+	if (id && !opbx_strlen_zero(id))
+		opbx_cli(s->fd, "ActionID: %s\r\n",id);
+	opbx_cli(s->fd, "\r\n");
+	opbx_mutex_unlock(&s->lock);
 
 	return 0;
 }
@@ -721,19 +721,19 @@ static int action_status(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
     	char *name = astman_get_header(m,"Channel");
 	char idText[256] = "";
-	struct ast_channel *c;
+	struct opbx_channel *c;
 	char bridge[256];
-	struct timeval now = ast_tvnow();
+	struct timeval now = opbx_tvnow();
 	long elapsed_seconds=0;
-	int all = !name || ast_strlen_zero(name); /* set if we want all channels */
+	int all = !name || opbx_strlen_zero(name); /* set if we want all channels */
 
 	astman_send_ack(s, m, "Channel status will follow");
-        if (id && !ast_strlen_zero(id))
+        if (id && !opbx_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	if (all)
-		c = ast_channel_walk_locked(NULL);
+		c = opbx_channel_walk_locked(NULL);
 	else {
-		c = ast_get_channel_by_name_locked(name);
+		c = opbx_get_channel_by_name_locked(name);
 		if (!c) {
 			astman_send_error(s, m, "No such channel");
 			return 0;
@@ -745,12 +745,12 @@ static int action_status(struct mansession *s, struct message *m)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
 		else
 			bridge[0] = '\0';
-		ast_mutex_lock(&s->lock);
+		opbx_mutex_lock(&s->lock);
 		if (c->pbx) {
 			if (c->cdr) {
 				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
 			}
-			ast_cli(s->fd,
+			opbx_cli(s->fd,
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
@@ -770,10 +770,10 @@ static int action_status(struct mansession *s, struct message *m)
 			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
 			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
 			c->accountcode,
-			ast_state2str(c->_state), c->context,
+			opbx_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
 		} else {
-			ast_cli(s->fd,
+			opbx_cli(s->fd,
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
@@ -789,20 +789,20 @@ static int action_status(struct mansession *s, struct message *m)
 			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
 			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
 			c->accountcode,
-			ast_state2str(c->_state), bridge, c->uniqueid, idText);
+			opbx_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
-		ast_mutex_unlock(&s->lock);
-		ast_mutex_unlock(&c->lock);
+		opbx_mutex_unlock(&s->lock);
+		opbx_mutex_unlock(&c->lock);
 		if (!all)
 			break;
-		c = ast_channel_walk_locked(c);
+		c = opbx_channel_walk_locked(c);
 	}
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd,
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd,
 	"Event: StatusComplete\r\n"
 	"%s"
 	"\r\n",idText);
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -824,32 +824,32 @@ static int action_redirect(struct mansession *s, struct message *m)
 	char *exten = astman_get_header(m, "Exten");
 	char *context = astman_get_header(m, "Context");
 	char *priority = astman_get_header(m, "Priority");
-	struct ast_channel *chan, *chan2 = NULL;
+	struct opbx_channel *chan, *chan2 = NULL;
 	int pi = 0;
 	int res;
 
-	if (!name || ast_strlen_zero(name)) {
+	if (!name || opbx_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!opbx_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
-	chan = ast_get_channel_by_name_locked(name);
+	chan = opbx_get_channel_by_name_locked(name);
 	if (!chan) {
 		char buf[BUFSIZ];
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
 		astman_send_error(s, m, buf);
 		return 0;
 	}
-	if (!ast_strlen_zero(name2))
-		chan2 = ast_get_channel_by_name_locked(name2);
-	res = ast_async_goto(chan, context, exten, pi);
+	if (!opbx_strlen_zero(name2))
+		chan2 = opbx_get_channel_by_name_locked(name2);
+	res = opbx_async_goto(chan, context, exten, pi);
 	if (!res) {
-		if (!ast_strlen_zero(name2)) {
+		if (!opbx_strlen_zero(name2)) {
 			if (chan2)
-				res = ast_async_goto(chan2, context, exten, pi);
+				res = opbx_async_goto(chan2, context, exten, pi);
 			else
 				res = -1;
 			if (!res)
@@ -861,9 +861,9 @@ static int action_redirect(struct mansession *s, struct message *m)
 	} else
 		astman_send_error(s, m, "Redirect failed");
 	if (chan)
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 	if (chan2)
-		ast_mutex_unlock(&chan2->lock);
+		opbx_mutex_unlock(&chan2->lock);
 	return 0;
 }
 
@@ -878,37 +878,37 @@ static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
 	char *id = astman_get_header(m, "ActionID");
-	ast_mutex_lock(&s->lock);
+	opbx_mutex_lock(&s->lock);
 	s->blocking = 1;
-	ast_mutex_unlock(&s->lock);
-	ast_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
-	if (id && !ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n", id);
+	opbx_mutex_unlock(&s->lock);
+	opbx_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
+	if (id && !opbx_strlen_zero(id))
+		opbx_cli(s->fd, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
-	ast_cli_command(s->fd, cmd);
-	ast_cli(s->fd, "--END COMMAND--\r\n\r\n");
-	ast_mutex_lock(&s->lock);
+	opbx_cli_command(s->fd, cmd);
+	opbx_cli(s->fd, "--END COMMAND--\r\n\r\n");
+	opbx_mutex_lock(&s->lock);
 	s->blocking = 0;
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&s->lock);
 	return 0;
 }
 
-static void *fast_originate(void *data)
+static void *fopbx_originate(void *data)
 {
-	struct fast_originate_helper *in = data;
+	struct fopbx_originate_helper *in = data;
 	int res;
 	int reason = 0;
-	struct ast_channel *chan = NULL;
+	struct opbx_channel *chan = NULL;
 
-	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
-			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
-			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
+	if (!opbx_strlen_zero(in->app)) {
+		res = opbx_pbx_outgoing_app(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
+			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
+			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			in->vars, &chan);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
-			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
-			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
+		res = opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
+			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
+			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			in->vars, &chan);
 	}   
 	if (!res)
@@ -932,9 +932,9 @@ static void *fast_originate(void *data)
 			"Uniqueid: %s\r\n",
 			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
 
-	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
+	/* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
 	if (chan)
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 	free(in);
 	return NULL;
 }
@@ -968,7 +968,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *appdata = astman_get_header(m, "Data");
 	char *async = astman_get_header(m, "Async");
 	char *id = astman_get_header(m, "ActionID");
-	struct ast_variable *vars = astman_get_variables(m);
+	struct opbx_variable *vars = astman_get_variables(m);
 	char *tech, *data;
 	char *l=NULL, *n=NULL;
 	int pi = 0;
@@ -984,15 +984,15 @@ static int action_originate(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!opbx_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
-	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!opbx_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout\n");
 		return 0;
 	}
-	ast_copy_string(tmp, name, sizeof(tmp));
+	opbx_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
 	if (!data) {
@@ -1001,57 +1001,57 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	*data = '\0';
 	data++;
-	ast_copy_string(tmp2, callerid, sizeof(tmp2));
-	ast_callerid_parse(tmp2, &n, &l);
+	opbx_copy_string(tmp2, callerid, sizeof(tmp2));
+	opbx_callerid_parse(tmp2, &n, &l);
 	if (n) {
-		if (ast_strlen_zero(n))
+		if (opbx_strlen_zero(n))
 			n = NULL;
 	}
 	if (l) {
-		ast_shrink_phone_number(l);
-		if (ast_strlen_zero(l))
+		opbx_shrink_phone_number(l);
+		if (opbx_strlen_zero(l))
 			l = NULL;
 	}
 	if (account) {
-		struct ast_variable *newvar;
-		newvar = ast_variable_new("CDR(accountcode|r)", account);
+		struct opbx_variable *newvar;
+		newvar = opbx_variable_new("CDR(accountcode|r)", account);
 		newvar->next = vars;
 		vars = newvar;
 	}
-	if (ast_true(async)) {
-		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
+	if (opbx_true(async)) {
+		struct fopbx_originate_helper *fast = malloc(sizeof(struct fopbx_originate_helper));
 		if (!fast) {
 			res = -1;
 		} else {
-			memset(fast, 0, sizeof(struct fast_originate_helper));
-			if (id && !ast_strlen_zero(id))
+			memset(fast, 0, sizeof(struct fopbx_originate_helper));
+			if (id && !opbx_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
-			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
-   			ast_copy_string(fast->data, data, sizeof(fast->data));
-			ast_copy_string(fast->app, app, sizeof(fast->app));
-			ast_copy_string(fast->appdata, appdata, sizeof(fast->appdata));
+			opbx_copy_string(fast->tech, tech, sizeof(fast->tech));
+   			opbx_copy_string(fast->data, data, sizeof(fast->data));
+			opbx_copy_string(fast->app, app, sizeof(fast->app));
+			opbx_copy_string(fast->appdata, appdata, sizeof(fast->appdata));
 			if (l)
-				ast_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
+				opbx_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
 			if (n)
-				ast_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
+				opbx_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
 			fast->vars = vars;	
-			ast_copy_string(fast->context, context, sizeof(fast->context));
-			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
+			opbx_copy_string(fast->context, context, sizeof(fast->context));
+			opbx_copy_string(fast->exten, exten, sizeof(fast->exten));
 			fast->timeout = to;
 			fast->priority = pi;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (ast_pthread_create(&th, &attr, fast_originate, fast)) {
+			if (opbx_pthread_create(&th, &attr, fopbx_originate, fast)) {
 				res = -1;
 			} else {
 				res = 0;
 			}
 		}
-	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
+	} else if (!opbx_strlen_zero(app)) {
+        	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
+	        	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
@@ -1080,20 +1080,20 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int ret;
-	if (!mailbox || ast_strlen_zero(mailbox)) {
+	if (!mailbox || opbx_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-        if (id && !ast_strlen_zero(id))
+        if (id && !opbx_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
-	ret = ast_app_has_voicemail(mailbox, NULL);
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: Success\r\n"
+	ret = opbx_app_has_voicemail(mailbox, NULL);
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Status\r\n"
 				   "Mailbox: %s\r\n"
 		 		   "Waiting: %d\r\n\r\n", idText, mailbox, ret);
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -1114,16 +1114,16 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int newmsgs = 0, oldmsgs = 0;
-	if (!mailbox || ast_strlen_zero(mailbox)) {
+	if (!mailbox || opbx_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-        if (id && !ast_strlen_zero(id)) {
+	opbx_app_messagecount(mailbox, &newmsgs, &oldmsgs);
+        if (id && !opbx_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: Success\r\n"
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Message Count\r\n"
 				   "Mailbox: %s\r\n"
@@ -1131,7 +1131,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 				   "OldMessages: %d\r\n" 
 				   "\r\n",
 				    idText,mailbox, newmsgs, oldmsgs);
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -1154,19 +1154,19 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	char hint[256] = "";
 	int status;
-	if (!exten || ast_strlen_zero(exten)) {
+	if (!exten || opbx_strlen_zero(exten)) {
 		astman_send_error(s, m, "Extension not specified");
 		return 0;
 	}
-	if (!context || ast_strlen_zero(context))
+	if (!context || opbx_strlen_zero(context))
 		context = "default";
-	status = ast_extension_state(NULL, context, exten);
-	ast_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
-        if (id && !ast_strlen_zero(id)) {
+	status = opbx_extension_state(NULL, context, exten);
+	opbx_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
+        if (id && !opbx_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: Success\r\n"
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "Response: Success\r\n"
 			           "%s"
 				   "Message: Extension Status\r\n"
 				   "Exten: %s\r\n"
@@ -1174,7 +1174,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 				   "Hint: %s\r\n"
 		 		   "Status: %d\r\n\r\n",
 				   idText,exten, context, hint, status);
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -1187,10 +1187,10 @@ static char mandescr_timeout[] =
 
 static int action_timeout(struct mansession *s, struct message *m)
 {
-	struct ast_channel *c = NULL;
+	struct opbx_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	int timeout = atoi(astman_get_header(m, "Timeout"));
-	if (ast_strlen_zero(name)) {
+	if (opbx_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -1198,13 +1198,13 @@ static int action_timeout(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
-	c = ast_get_channel_by_name_locked(name);
+	c = opbx_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	ast_channel_setwhentohangup(c, timeout);
-	ast_mutex_unlock(&c->lock);
+	opbx_channel_setwhentohangup(c, timeout);
+	opbx_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Timeout Set");
 	return 0;
 }
@@ -1217,14 +1217,14 @@ static int process_message(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 
-	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
-	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
+	opbx_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
+	opbx_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
-	if (ast_strlen_zero(action)) {
+	if (opbx_strlen_zero(action)) {
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (id && !ast_strlen_zero(id)) {
+        if (id && !opbx_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	if (!s->authenticated) {
@@ -1232,17 +1232,17 @@ static int process_message(struct mansession *s, struct message *m)
 			char *authtype;
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
-				if (!s->challenge || ast_strlen_zero(s->challenge)) {
-					ast_mutex_lock(&s->lock);
+				if (!s->challenge || opbx_strlen_zero(s->challenge)) {
+					opbx_mutex_lock(&s->lock);
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
-					ast_mutex_unlock(&s->lock);
+					opbx_mutex_unlock(&s->lock);
 				}
-				ast_mutex_lock(&s->lock);
-				ast_cli(s->fd, "Response: Success\r\n"
+				opbx_mutex_lock(&s->lock);
+				opbx_cli(s->fd, "Response: Success\r\n"
 						"%s"
 						"Challenge: %s\r\n\r\n",
 						idText,s->challenge);
-				ast_mutex_unlock(&s->lock);
+				opbx_mutex_unlock(&s->lock);
 				return 0;
 			} else {
 				astman_send_error(s, m, "Must specify AuthType");
@@ -1257,10 +1257,10 @@ static int process_message(struct mansession *s, struct message *m)
 				s->authenticated = 1;
 				if (option_verbose > 1) {
 					if ( displayconnects ) {
-						ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+						opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 					}
 				}
-				ast_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				opbx_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
@@ -1306,19 +1306,19 @@ static int get_input(struct mansession *s, char *output)
 		}
 	} 
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
-		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
+		opbx_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
 	res = poll(fds, 1, -1);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+		opbx_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
  		return -1;
 	} else if (res > 0) {
-		ast_mutex_lock(&s->lock);
+		opbx_mutex_lock(&s->lock);
 		res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
-		ast_mutex_unlock(&s->lock);
+		opbx_mutex_unlock(&s->lock);
 		if (res < 1)
 			return -1;
 	}
@@ -1334,9 +1334,9 @@ static void *session_do(void *data)
 	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	
-	ast_mutex_lock(&s->lock);
-	ast_cli(s->fd, "OpenPBX Call Manager/1.0\r\n");
-	ast_mutex_unlock(&s->lock);
+	opbx_mutex_lock(&s->lock);
+	opbx_cli(s->fd, "OpenPBX Call Manager/1.0\r\n");
+	opbx_mutex_unlock(&s->lock);
 	memset(&m, 0, sizeof(&m));
 	for (;;) {
 		res = get_input(s, m.headers[m.hdrcount]);
@@ -1345,7 +1345,7 @@ static void *session_do(void *data)
 			if (strlen(m.headers[m.hdrcount]) < 2)
 				continue;
 			m.headers[m.hdrcount][strlen(m.headers[m.hdrcount]) - 2] = '\0';
-			if (ast_strlen_zero(m.headers[m.hdrcount])) {
+			if (opbx_strlen_zero(m.headers[m.hdrcount])) {
 				if (process_message(s, &m))
 					break;
 				memset(&m, 0, sizeof(&m));
@@ -1357,15 +1357,15 @@ static void *session_do(void *data)
 	if (s->authenticated) {
 		if (option_verbose > 1) {
 			if (displayconnects) 
-				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
+				opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
 		}
-		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		opbx_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	} else {
 		if (option_verbose > 1) {
 			if ( displayconnects )
-				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				opbx_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		opbx_log(LOG_EVENT, "Failed attempt from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	}
 	destroy_session(s);
 	return NULL;
@@ -1389,18 +1389,18 @@ static void *accept_thread(void *ignore)
 		sinlen = sizeof(sin);
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {
-			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
+			opbx_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
 		p = getprotobyname("tcp");
 		if (p) {
 			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
-				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
+				opbx_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 			}
 		}
 		s = malloc(sizeof(struct mansession));
 		if (!s) {
-			ast_log(LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
 			continue;
 		} 
 		memset(s, 0, sizeof(struct mansession));
@@ -1411,14 +1411,14 @@ static void *accept_thread(void *ignore)
 			flags = fcntl(as, F_GETFL);
 			fcntl(as, F_SETFL, flags | O_NONBLOCK);
 		}
-		ast_mutex_init(&s->lock);
+		opbx_mutex_init(&s->lock);
 		s->fd = as;
 		s->send_events = -1;
-		ast_mutex_lock(&sessionlock);
+		opbx_mutex_lock(&sessionlock);
 		s->next = sessions;
 		sessions = s;
-		ast_mutex_unlock(&sessionlock);
-		if (ast_pthread_create(&t, &attr, session_do, s))
+		opbx_mutex_unlock(&sessionlock);
+		if (opbx_pthread_create(&t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -1432,45 +1432,45 @@ int manager_event(int category, char *event, char *fmt, ...)
 	char tmp[4096];
 	va_list ap;
 
-	ast_mutex_lock(&sessionlock);
+	opbx_mutex_lock(&sessionlock);
 	s = sessions;
 	while(s) {
 		if (((s->readperm & category) == category) && ((s->send_events & category) == category) ) {
-			ast_mutex_lock(&s->lock);
+			opbx_mutex_lock(&s->lock);
 			if (!s->blocking) {
-				ast_cli(s->fd, "Event: %s\r\n", event);
-				ast_cli(s->fd, "Privilege: %s\r\n", authority_to_str(category, tmp, sizeof(tmp)));
+				opbx_cli(s->fd, "Event: %s\r\n", event);
+				opbx_cli(s->fd, "Privilege: %s\r\n", authority_to_str(category, tmp, sizeof(tmp)));
 				va_start(ap, fmt);
 				vsnprintf(tmp, sizeof(tmp), fmt, ap);
 				va_end(ap);
-				ast_carefulwrite(s->fd,tmp,strlen(tmp),100);
-				ast_cli(s->fd, "\r\n");
+				opbx_carefulwrite(s->fd,tmp,strlen(tmp),100);
+				opbx_cli(s->fd, "\r\n");
 			}
-			ast_mutex_unlock(&s->lock);
+			opbx_mutex_unlock(&s->lock);
 		}
 		s = s->next;
 	}
-	ast_mutex_unlock(&sessionlock);
+	opbx_mutex_unlock(&sessionlock);
 	return 0;
 }
 
-int ast_manager_unregister( char *action ) {
+int opbx_manager_unregister( char *action ) {
 	struct manager_action *cur = first_action, *prev = first_action;
 
-	ast_mutex_lock(&actionlock);
+	opbx_mutex_lock(&actionlock);
 	while( cur ) { 		
 		if (!strcasecmp(action, cur->action)) {
 			prev->next = cur->next;
 			free(cur);
 			if (option_verbose > 1) 
-				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
-			ast_mutex_unlock(&actionlock);
+				opbx_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
+			opbx_mutex_unlock(&actionlock);
 			return 0;
 		}
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&actionlock);
+	opbx_mutex_unlock(&actionlock);
 	return 0;
 }
 
@@ -1481,17 +1481,17 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 	return 0;
 }
 
-static int ast_manager_register_struct(struct manager_action *act)
+static int opbx_manager_register_struct(struct manager_action *act)
 {
 	struct manager_action *cur = first_action, *prev = NULL;
 	int ret;
 
-	ast_mutex_lock(&actionlock);
+	opbx_mutex_lock(&actionlock);
 	while(cur) { /* Walk the list of actions */
 		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
-			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
-			ast_mutex_unlock(&actionlock);
+			opbx_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
+			opbx_mutex_unlock(&actionlock);
 			return -1;
 		} else if (ret > 0) {
 			/* Insert these alphabetically */
@@ -1517,19 +1517,19 @@ static int ast_manager_register_struct(struct manager_action *act)
 	}
 
 	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
-	ast_mutex_unlock(&actionlock);
+		opbx_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
+	opbx_mutex_unlock(&actionlock);
 	return 0;
 }
 
-int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, struct message *m), const char *synopsis, const char *description)
+int opbx_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, struct message *m), const char *synopsis, const char *description)
 {
 	struct manager_action *cur;
 
 	cur = malloc(sizeof(struct manager_action));
 	if (!cur) {
-		ast_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
-		ast_mutex_unlock(&actionlock);
+		opbx_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
+		opbx_mutex_unlock(&actionlock);
 		return -1;
 	}
 	cur->action = action;
@@ -1539,7 +1539,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->description = description;
 	cur->next = NULL;
 
-	ast_manager_register_struct(cur);
+	opbx_manager_register_struct(cur);
 
 	return 0;
 }
@@ -1548,66 +1548,66 @@ static int registered = 0;
 
 int init_manager(void)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	char *val;
 	int oldportno = portno;
 	static struct sockaddr_in ba;
 	int x = 1;
 	if (!registered) {
 		/* Register default actions */
-		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
-		ast_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
-		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
-		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
-		ast_manager_register("Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
-		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
-		ast_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
-		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
-		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
-		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute OpenPBX CLI Command", mandescr_command );
-		ast_manager_register2("ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
-		ast_manager_register2("AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
-		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
-		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
-		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
+		opbx_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
+		opbx_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
+		opbx_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
+		opbx_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
+		opbx_manager_register("Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
+		opbx_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
+		opbx_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
+		opbx_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
+		opbx_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
+		opbx_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute OpenPBX CLI Command", mandescr_command );
+		opbx_manager_register2("ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
+		opbx_manager_register2("AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
+		opbx_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
+		opbx_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
+		opbx_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
 
-		ast_cli_register(&show_mancmd_cli);
-		ast_cli_register(&show_mancmds_cli);
-		ast_cli_register(&show_manconn_cli);
-		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
+		opbx_cli_register(&show_mancmd_cli);
+		opbx_cli_register(&show_mancmds_cli);
+		opbx_cli_register(&show_manconn_cli);
+		opbx_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 	}
 	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
-	cfg = ast_config_load("manager.conf");
+	cfg = opbx_config_load("manager.conf");
 	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
+		opbx_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
 	}
 	memset(&ba, 0, sizeof(ba));
-	val = ast_variable_retrieve(cfg, "general", "enabled");
+	val = opbx_variable_retrieve(cfg, "general", "enabled");
 	if (val)
-		enabled = ast_true(val);
+		enabled = opbx_true(val);
 
-	val = ast_variable_retrieve(cfg, "general", "block-sockets");
+	val = opbx_variable_retrieve(cfg, "general", "block-sockets");
 	if(val)
-		block_sockets = ast_true(val);
+		block_sockets = opbx_true(val);
 
-	if ((val = ast_variable_retrieve(cfg, "general", "port"))) {
+	if ((val = opbx_variable_retrieve(cfg, "general", "port"))) {
 		if (sscanf(val, "%d", &portno) != 1) {
-			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
+			opbx_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
-	} else if ((val = ast_variable_retrieve(cfg, "general", "portno"))) {
+	} else if ((val = opbx_variable_retrieve(cfg, "general", "portno"))) {
 		if (sscanf(val, "%d", &portno) != 1) {
-			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
+			opbx_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
-		ast_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
+		opbx_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
 	}
 	/* Parsing the displayconnects */
-	if ((val = ast_variable_retrieve(cfg, "general", "displayconnects"))) {
-			displayconnects = ast_true(val);;
+	if ((val = opbx_variable_retrieve(cfg, "general", "displayconnects"))) {
+			displayconnects = opbx_true(val);;
 	}
 				
 	
@@ -1615,9 +1615,9 @@ int init_manager(void)
 	ba.sin_port = htons(portno);
 	memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 	
-	if ((val = ast_variable_retrieve(cfg, "general", "bindaddr"))) {
+	if ((val = opbx_variable_retrieve(cfg, "general", "bindaddr"))) {
 		if (!inet_aton(val, &ba.sin_addr)) { 
-			ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
+			opbx_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
 			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 		}
 	}
@@ -1628,10 +1628,10 @@ int init_manager(void)
 		close(asock);
 		asock = -1;
 #else
-		ast_log(LOG_WARNING, "Unable to change management port / enabled\n");
+		opbx_log(LOG_WARNING, "Unable to change management port / enabled\n");
 #endif
 	}
-	ast_config_destroy(cfg);
+	opbx_config_destroy(cfg);
 	
 	/* If not enabled, do nothing */
 	if (!enabled) {
@@ -1640,25 +1640,25 @@ int init_manager(void)
 	if (asock < 0) {
 		asock = socket(AF_INET, SOCK_STREAM, 0);
 		if (asock < 0) {
-			ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 			return -1;
 		}
 		setsockopt(asock, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 		if (bind(asock, (struct sockaddr *)&ba, sizeof(ba))) {
-			ast_log(LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;
 			return -1;
 		}
 		if (listen(asock, 2)) {
-			ast_log(LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;
 			return -1;
 		}
 		if (option_verbose)
-			ast_verbose("OpenPBX Management interface listening on port %d\n", portno);
-		ast_pthread_create(&t, NULL, accept_thread, NULL);
+			opbx_verbose("OpenPBX Management interface listening on port %d\n", portno);
+		opbx_pthread_create(&t, NULL, accept_thread, NULL);
 	}
 	return 0;
 }

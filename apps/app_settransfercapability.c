@@ -46,12 +46,12 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 static struct {	int val; char *name; } transcaps[] = {
-	{ AST_TRANS_CAP_SPEECH,				"SPEECH" },
-	{ AST_TRANS_CAP_DIGITAL,			"DIGITAL" },
-	{ AST_TRANS_CAP_RESTRICTED_DIGITAL,	"RESTRICTED_DIGITAL" },
-	{ AST_TRANS_CAP_3_1K_AUDIO,			"3K1AUDIO" },
-	{ AST_TRANS_CAP_DIGITAL_W_TONES,	"DIGITAL_W_TONES" },
-	{ AST_TRANS_CAP_VIDEO,				"VIDEO" },
+	{ OPBX_TRANS_CAP_SPEECH,				"SPEECH" },
+	{ OPBX_TRANS_CAP_DIGITAL,			"DIGITAL" },
+	{ OPBX_TRANS_CAP_RESTRICTED_DIGITAL,	"RESTRICTED_DIGITAL" },
+	{ OPBX_TRANS_CAP_3_1K_AUDIO,			"3K1AUDIO" },
+	{ OPBX_TRANS_CAP_DIGITAL_W_TONES,	"DIGITAL_W_TONES" },
+	{ OPBX_TRANS_CAP_VIDEO,				"VIDEO" },
 };
 
 static char *descrip = 
@@ -68,7 +68,7 @@ static char *descrip =
 "\n"
 ;
 
-static int settransfercapability_exec(struct ast_channel *chan, void *data)
+static int settransfercapability_exec(struct opbx_channel *chan, void *data)
 {
 	char tmp[256] = "";
 	struct localuser *u;
@@ -77,7 +77,7 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 	int transfercapability = -1;
 	
 	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+		opbx_copy_string(tmp, (char *)data, sizeof(tmp));
 	opts = strchr(tmp, '|');
 	if (opts)
 		*opts = '\0';
@@ -88,14 +88,14 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	if (transfercapability < 0) {
-		ast_log(LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", tmp);
+		opbx_log(LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", tmp);
 		return 0;
 	} else {
 		LOCAL_USER_ADD(u);
 		chan->transfercapability = (unsigned short)transfercapability;
 		LOCAL_USER_REMOVE(u);
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, tmp);			
+			opbx_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, tmp);			
 		return 0;
 	}
 }
@@ -104,12 +104,12 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, settransfercapability_exec, synopsis, descrip);
+	return opbx_register_application(app, settransfercapability_exec, synopsis, descrip);
 }
 
 char *description(void)

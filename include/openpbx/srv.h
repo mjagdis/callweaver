@@ -23,7 +23,7 @@
 #ifndef _OPENPBX_SRV_H
 #define _OPENPBX_SRV_H
 
-struct ast_channel;
+struct opbx_channel;
 
 /*!
   \file srv.h
@@ -42,6 +42,6 @@ struct ast_channel;
 	\param	port Port number (return value)
 	\param service Service tag for SRV lookup (like "_sip._udp" or "_stun._udp"
 */
-extern int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service);
+extern int opbx_get_srv(struct opbx_channel *chan, char *host, int hostlen, int *port, const char *service);
 
 #endif /* _OPENPBX_SRV_H */

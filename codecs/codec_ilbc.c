@@ -52,17 +52,17 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #define ILBC_MS 			30
 /* #define ILBC_MS			20 */
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
+OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
 static char *tdesc = "iLBC/PCM16 (signed linear) Codec Translator";
 
-struct ast_translator_pvt {
+struct opbx_translator_pvt {
 	iLBC_Enc_Inst_t enc;
 	iLBC_Dec_Inst_t dec;
-	struct ast_frame f;
+	struct opbx_frame f;
 	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
+	char offset[OPBX_FRIENDLY_OFFSET];
 	/* Buffer for our outgoing frame */
 	short outbuf[8000];
 	/* Enough to store a full second */
@@ -70,9 +70,9 @@ struct ast_translator_pvt {
 	int tail;
 };
 
-#define ilbc_coder_pvt ast_translator_pvt
+#define ilbc_coder_pvt opbx_translator_pvt
 
-static struct ast_translator_pvt *lintoilbc_new(void)
+static struct opbx_translator_pvt *lintoilbc_new(void)
 {
 	struct ilbc_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct ilbc_coder_pvt));
@@ -86,7 +86,7 @@ static struct ast_translator_pvt *lintoilbc_new(void)
 	return tmp;
 }
 
-static struct ast_translator_pvt *ilbctolin_new(void)
+static struct opbx_translator_pvt *ilbctolin_new(void)
 {
 	struct ilbc_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct ilbc_coder_pvt));
@@ -100,11 +100,11 @@ static struct ast_translator_pvt *ilbctolin_new(void)
 	return tmp;
 }
 
-static struct ast_frame *lintoilbc_sample(void)
+static struct opbx_frame *lintoilbc_sample(void)
 {
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SLINEAR;
+	static struct opbx_frame f;
+	f.frametype = OPBX_FRAME_VOICE;
+	f.subclass = OPBX_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_ilbc_ex);
 	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_ilbc_ex)/2;
@@ -115,11 +115,11 @@ static struct ast_frame *lintoilbc_sample(void)
 	return &f;
 }
 
-static struct ast_frame *ilbctolin_sample(void)
+static struct opbx_frame *ilbctolin_sample(void)
 {
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_ILBC;
+	static struct opbx_frame f;
+	f.frametype = OPBX_FRAME_VOICE;
+	f.subclass = OPBX_FORMAT_ILBC;
 	f.datalen = sizeof(ilbc_slin_ex);
 	/* All frames are 30 ms long */
 	f.samples = 240;
@@ -130,19 +130,19 @@ static struct ast_frame *ilbctolin_sample(void)
 	return &f;
 }
 
-static struct ast_frame *ilbctolin_frameout(struct ast_translator_pvt *tmp)
+static struct opbx_frame *ilbctolin_frameout(struct opbx_translator_pvt *tmp)
 {
 	if (!tmp->tail)
 		return NULL;
 	/* Signed linear is no particular frame size, so just send whatever
 	   we have in the buffer in one lump sum */
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_SLINEAR;
+	tmp->f.frametype = OPBX_FRAME_VOICE;
+	tmp->f.subclass = OPBX_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
 	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
+	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->buf;
 	/* Reset tail pointer */
@@ -151,7 +151,7 @@ static struct ast_frame *ilbctolin_frameout(struct ast_translator_pvt *tmp)
 	return &tmp->f;	
 }
 
-static int ilbctolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
+static int ilbctolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
 {
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
@@ -165,13 +165,13 @@ static int ilbctolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f
 				tmp->buf[tmp->tail + i] = tmpf[i];
 			tmp->tail+=240;
 		} else {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
+			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}		
 	}
 
 	if (f->datalen % 50) {
-		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, f->datalen);
+		opbx_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;
 	}
 	
@@ -182,14 +182,14 @@ static int ilbctolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f
 				tmp->buf[tmp->tail + i] = tmpf[i];
 			tmp->tail+=240;
 		} else {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
+			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}		
 	}
 	return 0;
 }
 
-static int lintoilbc_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
+static int lintoilbc_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *f)
 {
 	/* Just add the frames to our stream */
 	/* XXX We should look at how old the rest of our stream is, and if it
@@ -199,28 +199,28 @@ static int lintoilbc_framein(struct ast_translator_pvt *tmp, struct ast_frame *f
 		memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
 		tmp->tail += f->datalen/2;
 	} else {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
+		opbx_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
 	return 0;
 }
 
-static struct ast_frame *lintoilbc_frameout(struct ast_translator_pvt *tmp)
+static struct opbx_frame *lintoilbc_frameout(struct opbx_translator_pvt *tmp)
 {
 	int x=0,i;
 	float tmpf[240];
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < 240)
 		return NULL;
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_ILBC;
+	tmp->f.frametype = OPBX_FRAME_VOICE;
+	tmp->f.subclass = OPBX_FORMAT_ILBC;
 	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
+	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
 	while(tmp->tail >= 240) {
 		if ((x+1) * 50 >= sizeof(tmp->outbuf)) {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
+			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			break;
 		}
 		for (i=0;i<240;i++)
@@ -249,15 +249,15 @@ static struct ast_frame *lintoilbc_frameout(struct ast_translator_pvt *tmp)
 	return &tmp->f;	
 }
 
-static void ilbc_destroy_stuff(struct ast_translator_pvt *pvt)
+static void ilbc_destroy_stuff(struct opbx_translator_pvt *pvt)
 {
 	free(pvt);
 	localusecnt--;
 }
 
-static struct ast_translator ilbctolin =
+static struct opbx_translator ilbctolin =
 	{ "ilbctolin", 
-	   AST_FORMAT_ILBC, AST_FORMAT_SLINEAR,
+	   OPBX_FORMAT_ILBC, OPBX_FORMAT_SLINEAR,
 	   ilbctolin_new,
 	   ilbctolin_framein,
 	   ilbctolin_frameout,
@@ -265,9 +265,9 @@ static struct ast_translator ilbctolin =
 	   ilbctolin_sample
 	   };
 
-static struct ast_translator lintoilbc =
+static struct opbx_translator lintoilbc =
 	{ "lintoilbc", 
-	   AST_FORMAT_SLINEAR, AST_FORMAT_ILBC,
+	   OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ILBC,
 	   lintoilbc_new,
 	   lintoilbc_framein,
 	   lintoilbc_frameout,
@@ -278,24 +278,24 @@ static struct ast_translator lintoilbc =
 int unload_module(void)
 {
 	int res;
-	ast_mutex_lock(&localuser_lock);
-	res = ast_unregister_translator(&lintoilbc);
+	opbx_mutex_lock(&localuser_lock);
+	res = opbx_unregister_translator(&lintoilbc);
 	if (!res)
-		res = ast_unregister_translator(&ilbctolin);
+		res = opbx_unregister_translator(&ilbctolin);
 	if (localusecnt)
 		res = -1;
-	ast_mutex_unlock(&localuser_lock);
+	opbx_mutex_unlock(&localuser_lock);
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	res=ast_register_translator(&ilbctolin);
+	res=opbx_register_translator(&ilbctolin);
 	if (!res) 
-		res=ast_register_translator(&lintoilbc);
+		res=opbx_register_translator(&lintoilbc);
 	else
-		ast_unregister_translator(&ilbctolin);
+		opbx_unregister_translator(&ilbctolin);
 	return res;
 }
 

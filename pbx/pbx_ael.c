@@ -50,12 +50,12 @@ struct stringlink {
 
 struct fillin {
 	struct fillin *next;
-	char exten[AST_MAX_EXTENSION];
+	char exten[OPBX_MAX_EXTENSION];
 	int priority;
 	int type;
 };
 
-#ifdef __AST_DEBUG_MALLOC
+#ifdef __OPBX_DEBUG_MALLOC
 static void FREE(void *ptr)
 {
 	free(ptr);
@@ -109,7 +109,7 @@ static char *process_quotes_and_slashes(char *start, char find, char replace_wit
  */
 int unload_module(void)
 {
-	ast_context_destroy(NULL, registrar);
+	opbx_context_destroy(NULL, registrar);
 	return 0;
 }
 
@@ -122,7 +122,7 @@ static char *__grab_token(char *src, const char *filename, int lineno, int link)
 	char *ret;
 #if 0
 	if (aeldebug || DEBUG_TOKENS) 
-		ast_verbose("Searching for token in '%s'!\n", src);
+		opbx_verbose("Searching for token in '%s'!\n", src);
 #endif
 	c = src;
 	while(*c) {
@@ -137,7 +137,7 @@ static char *__grab_token(char *src, const char *filename, int lineno, int link)
 				if (level)
 					level--;
 				else
-					ast_log(LOG_WARNING, "Syntax error at line %d of '%s', too many closing braces!\n", lineno, filename);
+					opbx_log(LOG_WARNING, "Syntax error at line %d of '%s', too many closing braces!\n", lineno, filename);
 			} else if ((*c == ';') && !level) {
 				/* Got a token! */
 				*c = '\0';
@@ -177,7 +177,7 @@ static struct stringlink *arg_parse(char *args, const char *filename, int lineno
 	struct stringlink *cur, *prev=NULL, *root=NULL;
 	if (args) {
 		if (aeldebug & DEBUG_TOKENS) 
-			ast_verbose("Parsing args '%s'!\n", args);
+			opbx_verbose("Parsing args '%s'!\n", args);
 		if (args[0] == '{') {
 			/* Strip mandatory '}' from end */
 			args[strlen(args) - 1] = '\0';
@@ -224,7 +224,7 @@ static char *grab_else(char *args, const char *filename, int lineno)
 							while(*c && (*c < 33)) c++;
 							ret = c;
 							if (aeldebug & DEBUG_TOKENS)
-								ast_verbose("Returning else clause '%s'\n", c);
+								opbx_verbose("Returning else clause '%s'\n", c);
 						}
 					}
 					break;
@@ -243,7 +243,7 @@ static struct stringlink *param_parse(char *parms, const char *macro, const char
 	if (!parms || !*parms)
 		return NULL;
 	if (*parms != '(') {
-		ast_log(LOG_NOTICE, "Syntax error in parameter list for macro '%s' at about line %d of %s: Expecting '(' but got '%c'\n", macro, lineno, filename, *parms);
+		opbx_log(LOG_NOTICE, "Syntax error in parameter list for macro '%s' at about line %d of %s: Expecting '(' but got '%c'\n", macro, lineno, filename, *parms);
 		return NULL;
 	}
 	s = parms + 1;
@@ -391,7 +391,7 @@ static const char *get_case(char *s, char **restout, int *pattern)
 	} else
 		*restout = s;
 	if (aeldebug & DEBUG_TOKENS)
-		ast_verbose("GETCASE: newcase is '%s', rest = '%s'\n", newcase, *restout);
+		opbx_verbose("GETCASE: newcase is '%s', rest = '%s'\n", newcase, *restout);
 	return newcase;
 }
 
@@ -406,11 +406,11 @@ static void fillin_free(struct fillin *fillin)
 	}
 }
 
-static void fillin_process(struct ast_context *con, struct fillin *fillin, const char *filename, int lineno, const char *breakexten, int breakprio, const char *contexten, int contprio)
+static void fillin_process(struct opbx_context *con, struct fillin *fillin, const char *filename, int lineno, const char *breakexten, int breakprio, const char *contexten, int contprio)
 {
 	struct fillin *cur;
 	char *app;
-	char mdata[AST_MAX_EXTENSION + 20];
+	char mdata[OPBX_MAX_EXTENSION + 20];
 	cur = fillin;
 	while(cur) {
 		if (cur->type == FILLIN_BREAK) {
@@ -420,10 +420,10 @@ static void fillin_process(struct ast_context *con, struct fillin *fillin, const
 			} else {
 				app = "NoOp";
 				snprintf(mdata, sizeof(mdata), "Invalid break");
-				ast_log(LOG_NOTICE, "Ignoring inappropriate break around line %d of %s\n", lineno, filename);
+				opbx_log(LOG_NOTICE, "Ignoring inappropriate break around line %d of %s\n", lineno, filename);
 			}
-			if (ast_add_extension2(con, 0, cur->exten, cur->priority, NULL, NULL, app, strdup(mdata), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of break '%s'\n", cur->priority, cur->exten);
+			if (opbx_add_extension2(con, 0, cur->exten, cur->priority, NULL, NULL, app, strdup(mdata), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of break '%s'\n", cur->priority, cur->exten);
 		} else if (cur->type == FILLIN_CONTINUE) {
 			if (contexten && contprio) {
 				app = "Goto";
@@ -431,12 +431,12 @@ static void fillin_process(struct ast_context *con, struct fillin *fillin, const
 			} else {
 				app = "NoOp";
 				snprintf(mdata, sizeof(mdata), "Invalid continue");
-				ast_log(LOG_NOTICE, "Ignoring inappropriate continue around line %d of %s\n", lineno, filename);
+				opbx_log(LOG_NOTICE, "Ignoring inappropriate continue around line %d of %s\n", lineno, filename);
 			}
-			if (ast_add_extension2(con, 0, cur->exten, cur->priority, NULL, NULL, app, strdup(mdata), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of continue '%s'\n", cur->priority, cur->exten);
+			if (opbx_add_extension2(con, 0, cur->exten, cur->priority, NULL, NULL, app, strdup(mdata), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of continue '%s'\n", cur->priority, cur->exten);
 		} else {
-			ast_log(LOG_WARNING, "Whoa, unknown fillin type '%d'\n", cur->type);
+			opbx_log(LOG_WARNING, "Whoa, unknown fillin type '%d'\n", cur->type);
 		}
 		cur = cur->next;
 	}
@@ -495,8 +495,8 @@ static int matches_label(char *data, char **rest)
 	return 0;
 }
 
-static int build_step(const char *what, const char *name, const char *filename, int lineno, struct ast_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label);
-static int __build_step(const char *what, const char *name, const char *filename, int lineno, struct ast_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label)
+static int build_step(const char *what, const char *name, const char *filename, int lineno, struct opbx_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label);
+static int __build_step(const char *what, const char *name, const char *filename, int lineno, struct opbx_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label)
 {
 	char *app;
 	char *args;
@@ -516,7 +516,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		data = c;
 		while (*data && (*data < 33)) data++;
 	}
-	if (!data || ast_strlen_zero(data))
+	if (!data || opbx_strlen_zero(data))
 		return 0;
 	if (matches_keyword(data, "switch")) {
 		fillin = NULL;
@@ -528,7 +528,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			*c = '\0';
 			c++;
 			if (aeldebug & DEBUG_TOKENS)
-				ast_verbose("--SWITCH on : %s\n", args);
+				opbx_verbose("--SWITCH on : %s\n", args);
 			mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
 			margs = alloca(mlen);
 			app = "Goto";
@@ -536,35 +536,35 @@ static int __build_step(const char *what, const char *name, const char *filename
 			process_quotes_and_slashes(margs, ',', '|');
 			oargs = args;
 			args = margs;
-			if (ast_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			else {
 				*label = NULL;
 				(*pos)++;
 			}
 			app = "NoOp";
 			sprintf(margs, "Finish switch-%s-%d", name, *pos - 1);
-			if (ast_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			else {
 				*label = NULL;
 				(*pos)++;
 			}
 			while(*c && (*c < 33)) c++;
 			if (aeldebug & DEBUG_TOKENS)
-				ast_verbose("ARG Parsing '%s'\n", c);
+				opbx_verbose("ARG Parsing '%s'\n", c);
 			swargs = arg_parse(c, filename, lineno);
 			cur = swargs;
 			curcase = NULL;
 			while(cur) {
 				if ((newcase = get_case(cur->data, &rest, &pattern))) {
 					if (aeldebug & DEBUG_TOKENS)
-						ast_verbose("--NEWCASE: '%s'!\n", newcase);
+						opbx_verbose("--NEWCASE: '%s'!\n", newcase);
 					if (curcase) {
 						/* Handle fall through */
 						char tmp[strlen(newcase) + strlen(name) + 40];
 						sprintf(tmp, "sw-%s-%d-%s|%d", name, *pos - 2, newcase, 1);
-						ast_add_extension2(con, 0, margs, cpos, NULL, NULL, "Goto", strdup(tmp), FREE, registrar);
+						opbx_add_extension2(con, 0, margs, cpos, NULL, NULL, "Goto", strdup(tmp), FREE, registrar);
 					}
 					curcase = newcase;
 					cpos = 1;
@@ -575,26 +575,26 @@ static int __build_step(const char *what, const char *name, const char *filename
 					if (!strcasecmp(rest, "break")) {
 						char tmp[strlen(exten) + 10];
 						sprintf(tmp, "%s|%d", exten, *pos - 1);
-						ast_add_extension2(con, 0, exten, cpos, *label, NULL, "Goto", strdup(tmp), FREE, registrar);
+						opbx_add_extension2(con, 0, exten, cpos, *label, NULL, "Goto", strdup(tmp), FREE, registrar);
 						curcase = NULL;
 						*label = NULL;
 					} else
 						build_step("switch", margs, filename, lineno, con, margs, &cpos, rest, &fillin, label);
 				} else if (curcase) {
 					if (aeldebug & DEBUG_TOKENS)
-						ast_verbose("Building statement from '%s'\n", rest);
+						opbx_verbose("Building statement from '%s'\n", rest);
 					if (!strcasecmp(rest, "break")) {
 						char tmp[strlen(exten) + 10];
 						sprintf(tmp, "%s|%d", exten, *pos - 1);
-						ast_add_extension2(con, 0, margs, cpos, *label, NULL, "Goto", strdup(tmp), FREE, registrar);
+						opbx_add_extension2(con, 0, margs, cpos, *label, NULL, "Goto", strdup(tmp), FREE, registrar);
 						curcase = NULL;
 						*label = NULL;
 					} else
 						build_step("switch", margs, filename, lineno, con, margs, &cpos, rest, &fillin, label);
 				} else 
-					ast_log(LOG_WARNING, "Unreachable code in switch at about line %d of %s\n", lineno, filename);
+					opbx_log(LOG_WARNING, "Unreachable code in switch at about line %d of %s\n", lineno, filename);
 				if (aeldebug & DEBUG_TOKENS)
-					ast_verbose("--SWARG: %s\n", cur->data);
+					opbx_verbose("--SWARG: %s\n", cur->data);
 				cur = cur->next;
 			}
 			/* Can't do anything with these */
@@ -602,7 +602,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			fillin_free(fillin);
 			arg_free(swargs);
 		} else
-			ast_log(LOG_WARNING, "Syntax error in switch declaration in %s around line %d!\n", filename, lineno); 
+			opbx_log(LOG_WARNING, "Syntax error in switch declaration in %s around line %d!\n", filename, lineno); 
 			
 	} else if (matches_keyword(data, "if")) {
 		/* If... */
@@ -621,7 +621,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			c++;
 			while(*c && (*c < 33)) c++;
 			if (aeldebug & DEBUG_TOKENS)
-				ast_verbose("--IF on : '%s' : '%s'\n", args, c);
+				opbx_verbose("--IF on : '%s' : '%s'\n", args, c);
 			mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
 			margs = alloca(mlen);
 			/* Remember where the ifblock starts, and skip over */
@@ -633,7 +633,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			snprintf(margs, mlen, "if-%s-%d", name, ifblock);
 			/* Now process the block of the if */
 			if (aeldebug & DEBUG_TOKENS)
-				ast_verbose("Searching for elses in '%s'\n", c);
+				opbx_verbose("Searching for elses in '%s'\n", c);
 			elses = grab_else(c, filename, lineno);
 			build_step("if", margs, filename, lineno, con, exten, pos, c, fillout, label);
 			if (elses) {
@@ -650,21 +650,21 @@ static int __build_step(const char *what, const char *name, const char *filename
 			(*pos)++;
 			app = "NoOp";
 			snprintf(margs, mlen, "Finish if-%s-%d", name, ifblock);
-			if (ast_add_extension2(con, 0, exten, ifend, *label, NULL, app, strdup(margs), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, ifend, *label, NULL, app, strdup(margs), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			*label = NULL;
 			app = "GotoIf";
 			snprintf(margs, mlen, "$[ %s ]?%d:%d", args, ifstart, elsestart);
-			if (ast_add_extension2(con, 0, exten, ifblock, iflabel, NULL, app, strdup(margs), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, ifblock, iflabel, NULL, app, strdup(margs), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			if (ifskip) {
 				/* Skip as appropriate around else clause */
 				snprintf(margs, mlen, "%d", ifend);
-				if (ast_add_extension2(con, 0, exten, ifskip, NULL, NULL, app, strdup(margs), FREE, registrar))
-					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+				if (opbx_add_extension2(con, 0, exten, ifskip, NULL, NULL, app, strdup(margs), FREE, registrar))
+					opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			}
 		} else
-			ast_log(LOG_WARNING, "Syntax error in if declaration in %s around line %d!\n", filename, lineno); 
+			opbx_log(LOG_WARNING, "Syntax error in if declaration in %s around line %d!\n", filename, lineno); 
 	} else if (matches_keyword(data, "while")) {
 		/* While... */
 		fillin = NULL;
@@ -680,7 +680,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			c++;
 			while(*c && (*c < 33)) c++;
 			if (aeldebug & DEBUG_TOKENS)
-				ast_verbose("--WHILE on : '%s' : '%s'\n", args, c);
+				opbx_verbose("--WHILE on : '%s' : '%s'\n", args, c);
 			mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
 			margs = alloca(mlen);
 			/* Remember where to put the conditional, and keep its position */
@@ -695,24 +695,24 @@ static int __build_step(const char *what, const char *name, const char *filename
 			/* Close the loop */
 			app = "Goto";
 			snprintf(margs, mlen, "%d", whilestart);
-			if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			*label = NULL;
 			whileend = (*pos);
 			/* Place trailer */
 			app = "NoOp";
 			snprintf(margs, mlen, "Finish while-%s-%d", name, whilestart);
-			if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			*label = NULL;
 			app = "GotoIf";
 			snprintf(margs, mlen, "$[ %s ]?%d:%d", args, whileblock, whileend);
-			if (ast_add_extension2(con, 0, exten, whilestart, whilelabel, NULL, app, strdup(margs), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			if (opbx_add_extension2(con, 0, exten, whilestart, whilelabel, NULL, app, strdup(margs), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			fillin_process(con, fillin, filename, lineno, exten, whileend, exten, whilestart);
 			fillin_free(fillin);
 		} else
-			ast_log(LOG_WARNING, "Syntax error in while declaration in %s around line %d!\n", filename, lineno); 
+			opbx_log(LOG_WARNING, "Syntax error in while declaration in %s around line %d!\n", filename, lineno); 
 	} else if (matches_keyword(data, "jump")) {
 		char *p;
 		/* Jump... */
@@ -720,7 +720,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		args = data + strlen("jump");
 		while(*args && (*args < 33)) args++;
 		if (aeldebug & DEBUG_TOKENS)
-			ast_verbose("--JUMP to : '%s'\n", args);
+			opbx_verbose("--JUMP to : '%s'\n", args);
 		p = strchr(args, ',');
 		if (p) {
 			*p = '\0';
@@ -739,8 +739,8 @@ static int __build_step(const char *what, const char *name, const char *filename
 		else
 			snprintf(margs, mlen, "%s|%s", args, p);
 		app = "Goto";
-		if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
-			ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+		if (opbx_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
+			opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 		*label = NULL;
 	} else if (matches_keyword(data, "goto")) {
 		/* Jump... */
@@ -748,10 +748,10 @@ static int __build_step(const char *what, const char *name, const char *filename
 		args = data + strlen("goto");
 		while(*args && (*args < 33)) args++;
 		if (aeldebug & DEBUG_TOKENS)
-			ast_verbose("--GOTO to : '%s'\n", args);
+			opbx_verbose("--GOTO to : '%s'\n", args);
 		app = "Goto";
-		if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(args), FREE, registrar))
-			ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+		if (opbx_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(args), FREE, registrar))
+			opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 		*label = NULL;
 	} else if (matches_keyword(data, "for")) {
 		/* While... */
@@ -779,7 +779,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 				fields = NULL;
 			if (fields && fields->next && fields->next->next) {
 				if (aeldebug & DEBUG_TOKENS)
-					ast_verbose("--FOR ('%s' ; '%s' ; '%s') : '%s'\n", fields->data, fields->next->data, fields->next->next->data, c);
+					opbx_verbose("--FOR ('%s' ; '%s' ; '%s') : '%s'\n", fields->data, fields->next->data, fields->next->next->data, c);
 				mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
 				margs = alloca(mlen);
 				forprep = *pos;
@@ -798,27 +798,27 @@ static int __build_step(const char *what, const char *name, const char *filename
 				/* Close the loop */
 				app = "Goto";
 				snprintf(margs, mlen, "%d", forstart);
-				if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
-					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+				if (opbx_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
+					opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 				*label = NULL;
 				forend = (*pos);
 				/* Place trailer */
 				app = "NoOp";
 				snprintf(margs, mlen, "Finish for-%s-%d", name, forprep);
-				if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
-					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+				if (opbx_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
+					opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 				*label = NULL;
 				app = "GotoIf";
 				snprintf(margs, mlen, "$[ %s ]?%d:%d", fields->next->data, forblock, forend);
-				if (ast_add_extension2(con, 0, exten, forstart, forlabel, NULL, app, strdup(margs), FREE, registrar))
-					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", forstart, what, name);
+				if (opbx_add_extension2(con, 0, exten, forstart, forlabel, NULL, app, strdup(margs), FREE, registrar))
+					opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", forstart, what, name);
 				fillin_process(con, fillin, filename, lineno, exten, forend, exten, forstart);
 				fillin_free(fillin);
 			} else
-				ast_log(LOG_NOTICE, "Improper for declaration in %s around line %d!\n", filename, lineno); 
+				opbx_log(LOG_NOTICE, "Improper for declaration in %s around line %d!\n", filename, lineno); 
 			arg_free(fields);
 		} else
-			ast_log(LOG_WARNING, "Syntax error in for declaration in %s around line %d!\n", filename, lineno); 
+			opbx_log(LOG_WARNING, "Syntax error in for declaration in %s around line %d!\n", filename, lineno); 
 			
 	} else if (!strcasecmp(data, "break") || !strcasecmp(data, "continue")) {
 		struct fillin *fi;
@@ -829,20 +829,20 @@ static int __build_step(const char *what, const char *name, const char *filename
 				fi->type = FILLIN_BREAK;
 			else
 				fi->type = FILLIN_CONTINUE;
-			ast_copy_string(fi->exten, exten, sizeof(fi->exten));
+			opbx_copy_string(fi->exten, exten, sizeof(fi->exten));
 			fi->priority = (*pos)++;
 			fi->next = *fillout;
 			*fillout = fi;
 		}
 	} else if (match_assignment(data, &rest)) {
 		if (aeldebug & DEBUG_TOKENS)
-			ast_verbose("ASSIGN  '%s' = '%s'\n", data, rest);
+			opbx_verbose("ASSIGN  '%s' = '%s'\n", data, rest);
 		mlen = strlen(rest) + strlen(data) + 20;
 		margs = alloca(mlen);
 		snprintf(margs, mlen, "%s=$[ %s ]", data, rest);
 		app = "Set";
-		if (ast_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(margs), FREE, registrar))
-			ast_log(LOG_WARNING, "Unable to add assignment at priority '%d' of %s '%s'\n", *pos, what, name);
+		if (opbx_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(margs), FREE, registrar))
+			opbx_log(LOG_WARNING, "Unable to add assignment at priority '%d' of %s '%s'\n", *pos, what, name);
 		else {
 			*label = NULL;
 			(*pos)++;
@@ -872,9 +872,9 @@ static int __build_step(const char *what, const char *name, const char *filename
 			app = "Macro";
 		}
 		if (aeldebug & DEBUG_TOKENS)
-			ast_verbose("-- APP: '%s', ARGS: '%s'\n", app, args);
-		if (ast_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
-			ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
+			opbx_verbose("-- APP: '%s', ARGS: '%s'\n", app, args);
+		if (opbx_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
+			opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 		else {
 			(*pos)++;
 			*label = NULL;
@@ -883,7 +883,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 	return 0;
 }
 
-static int build_step(const char *what, const char *name, const char *filename, int lineno, struct ast_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label)
+static int build_step(const char *what, const char *name, const char *filename, int lineno, struct opbx_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label)
 {
 	struct stringlink *args, *cur;
 	int res=0;
@@ -933,12 +933,12 @@ static int parse_catch(char *data, char **catch, char **rest)
 	return 1;
 }
 
-static void handle_macro(struct ast_context **local_contexts, struct stringlink *vars, const char *filename, int lineno)
+static void handle_macro(struct opbx_context **local_contexts, struct stringlink *vars, const char *filename, int lineno)
 {
 	struct stringlink *argv;
 	struct stringlink *paramv;
 	struct stringlink *cur;
-	struct ast_context *con;
+	struct opbx_context *con;
 	struct fillin *fillin;
 	char *catch, *rest;
 	char name[256];
@@ -946,22 +946,22 @@ static void handle_macro(struct ast_context **local_contexts, struct stringlink 
 	int cpos;
 
 	if (aeldebug & DEBUG_MACROS)
-		ast_verbose("Root macro def is '%s'\n", vars->data);
+		opbx_verbose("Root macro def is '%s'\n", vars->data);
 	argv = split_token(vars->data, filename, lineno);
 	paramv = split_params(vars->data, filename, lineno);
 	if (aeldebug & DEBUG_MACROS) 
-		ast_verbose("Found macro '%s'\n", vars->data);
+		opbx_verbose("Found macro '%s'\n", vars->data);
 	snprintf(name, sizeof(name), "macro-%s", vars->data);
-	con = ast_context_create(local_contexts, name, registrar);
+	con = opbx_context_create(local_contexts, name, registrar);
 	if (con) {
 		pos = 1;
 		cur = paramv;
 		while(cur) {
 			if (aeldebug & DEBUG_MACROS)
-				ast_verbose("  PARAM => '%s'\n", cur->data);
+				opbx_verbose("  PARAM => '%s'\n", cur->data);
 			snprintf(name, sizeof(name), "%s=${ARG%d}", cur->data, pos);
-			if (ast_add_extension2(con, 0, "s", pos, NULL, NULL, "Set", strdup(name), FREE, registrar))
-				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of macro '%s'\n", pos, vars->data);
+			if (opbx_add_extension2(con, 0, "s", pos, NULL, NULL, "Set", strdup(name), FREE, registrar))
+				opbx_log(LOG_WARNING, "Unable to add step at priority '%d' of macro '%s'\n", pos, vars->data);
 			else
 				pos++;
 			cur = cur->next;
@@ -969,15 +969,15 @@ static void handle_macro(struct ast_context **local_contexts, struct stringlink 
 		cur = argv;
 		while(cur) {
 			if (aeldebug & DEBUG_MACROS)
-				ast_verbose("  STEP => '%s'\n", cur->data);
+				opbx_verbose("  STEP => '%s'\n", cur->data);
 			if (matches_keyword(cur->data, "catch")) {
 				if (aeldebug & DEBUG_MACROS)
-					ast_verbose("--CATCH: '%s'\n", cur->data);
+					opbx_verbose("--CATCH: '%s'\n", cur->data);
 				if (parse_catch(cur->data, &catch, &rest)) {
 					cpos = 1;
 					build_step("catch", catch, filename, lineno, con, catch, &cpos, rest, NULL, NULL);
 				} else
-					ast_log(LOG_NOTICE, "Parse error for catch at about line %d of %s\n", lineno, filename);
+					opbx_log(LOG_NOTICE, "Parse error for catch at about line %d of %s\n", lineno, filename);
 			} else {
 				fillin = NULL;
 				build_step("macro", vars->data, filename, lineno, con, "s", &pos, cur->data, NULL, NULL);
@@ -985,10 +985,10 @@ static void handle_macro(struct ast_context **local_contexts, struct stringlink 
 			cur = cur->next;
 		}
 	} else
-		ast_log(LOG_WARNING, "Unable to create context '%s'\n", name);
+		opbx_log(LOG_WARNING, "Unable to create context '%s'\n", name);
 	arg_free(argv);
 	if (vars->next)
-		ast_log(LOG_NOTICE, "Ignoring excess tokens in macro definition around line %d of %s!\n", lineno, filename);
+		opbx_log(LOG_NOTICE, "Ignoring excess tokens in macro definition around line %d of %s!\n", lineno, filename);
 }
 
 static int matches_extension(char *exten, char **extout)
@@ -1030,59 +1030,59 @@ static void parse_keyword(char *s, char **o)
 		*o = NULL;
 }
 
-static void handle_context(struct ast_context **local_contexts, struct stringlink *vars, const char *filename, int lineno)
+static void handle_context(struct opbx_context **local_contexts, struct stringlink *vars, const char *filename, int lineno)
 {
 	struct stringlink *argv;
 	struct stringlink *paramv;
 	struct stringlink *cur2;
 	struct stringlink *argv2;
 	struct stringlink *cur;
-	struct ast_context *con;
+	struct opbx_context *con;
 	char *rest;
 	char *c;
 	char name[256];
 	int pos;
 
 	if (aeldebug & DEBUG_CONTEXTS)
-		ast_verbose("Root context def is '%s'\n", vars->data);
+		opbx_verbose("Root context def is '%s'\n", vars->data);
 	argv = split_token(vars->data, filename, lineno);
 	paramv = split_params(vars->data, filename, lineno);
 	if (aeldebug & DEBUG_CONTEXTS) 
-		ast_verbose("Found context '%s'\n", vars->data);
+		opbx_verbose("Found context '%s'\n", vars->data);
 	snprintf(name, sizeof(name), "%s", vars->data);
-	con = ast_context_create(local_contexts, name, registrar);
+	con = opbx_context_create(local_contexts, name, registrar);
 	if (con) {
 		cur = argv;
 		while(cur) {
 			if (matches_keyword(cur->data, "includes")) {
 				if (aeldebug & DEBUG_CONTEXTS)
-					ast_verbose("--INCLUDES: '%s'\n", cur->data);
+					opbx_verbose("--INCLUDES: '%s'\n", cur->data);
 				parse_keyword(cur->data, &rest);
 				if (rest) {
 					argv2 = arg_parse(rest, filename, lineno);
 					cur2 = argv2;
 					while(cur2) {
-						ast_context_add_include2(con, cur2->data, registrar);
+						opbx_context_add_include2(con, cur2->data, registrar);
 						cur2 = cur2->next;
 					}
 					arg_free(argv2);
 				}
 			} else if (matches_keyword(cur->data, "ignorepat")) {
 				if (aeldebug & DEBUG_CONTEXTS)
-					ast_verbose("--IGNOREPAT: '%s'\n", cur->data);
+					opbx_verbose("--IGNOREPAT: '%s'\n", cur->data);
 				parse_keyword(cur->data, &rest);
 				if (rest) {
 					argv2 = arg_parse(rest, filename, lineno);
 					cur2 = argv2;
 					while(cur2) {
-						ast_context_add_ignorepat2(con, cur2->data, registrar);
+						opbx_context_add_ignorepat2(con, cur2->data, registrar);
 						cur2 = cur2->next;
 					}
 					arg_free(argv2);
 				}
 			} else if (matches_keyword(cur->data, "switches") || matches_keyword(cur->data, "eswitches")) {
 				if (aeldebug & DEBUG_CONTEXTS)
-					ast_verbose("--[E]SWITCH: '%s'\n", cur->data);
+					opbx_verbose("--[E]SWITCH: '%s'\n", cur->data);
 				parse_keyword(cur->data, &rest);
 				if (rest) {
 					argv2 = arg_parse(rest, filename, lineno);
@@ -1094,35 +1094,35 @@ static void handle_context(struct ast_context **local_contexts, struct stringlin
 							c++;
 						} else
 							c = "";
-						ast_context_add_switch2(con, cur2->data, c, (cur->data[0] == 'e'), registrar);
+						opbx_context_add_switch2(con, cur2->data, c, (cur->data[0] == 'e'), registrar);
 						cur2 = cur2->next;
 					}
 					arg_free(argv2);
 				}
 			} else if (matches_extension(cur->data, &rest)) {
 				if (aeldebug & DEBUG_CONTEXTS)
-					ast_verbose("Extension: '%s' => '%s'\n", cur->data, rest);
+					opbx_verbose("Extension: '%s' => '%s'\n", cur->data, rest);
 				pos = 1;
 				build_step("extension", cur->data, filename, lineno, con, cur->data, &pos, rest, NULL, NULL);
 			}
 			cur = cur->next;
 		}
 	} else
-			ast_log(LOG_WARNING, "Unable to create context '%s'\n", name);
+			opbx_log(LOG_WARNING, "Unable to create context '%s'\n", name);
 	arg_free(argv);
 	if (vars->next)
-		ast_log(LOG_NOTICE, "Ignoring excess tokens in macro definition around line %d of %s!\n", lineno, filename);
+		opbx_log(LOG_NOTICE, "Ignoring excess tokens in macro definition around line %d of %s!\n", lineno, filename);
 }
 
-static int handle_root_token(struct ast_context **local_contexts, char *token, int level, const char *filename, int lineno)
+static int handle_root_token(struct opbx_context **local_contexts, char *token, int level, const char *filename, int lineno)
 {
 	struct stringlink *argv, *cur;
 	argv = split_token(token, filename, lineno);
 	if (aeldebug & DEBUG_TOKENS) {
-		ast_verbose("Found root token '%s' at level %d (%s:%d)!\n", token, level, filename, lineno);
+		opbx_verbose("Found root token '%s' at level %d (%s:%d)!\n", token, level, filename, lineno);
 		cur = argv;
 		while(cur) {
-			ast_verbose("   ARG => '%s'\n", cur->data);
+			opbx_verbose("   ARG => '%s'\n", cur->data);
 			cur = cur->next;
 		}
 	}
@@ -1133,14 +1133,14 @@ static int handle_root_token(struct ast_context **local_contexts, char *token, i
 	} else if (!strcasecmp(token, "context")) {
 		handle_context(local_contexts, argv, filename, lineno);
 	} else {
-		ast_log(LOG_NOTICE, "Unknown root token '%s'\n", token);
+		opbx_log(LOG_NOTICE, "Unknown root token '%s'\n", token);
 	}
 	arg_free(argv);
 	return 0;
 }
 
 
-static int ast_ael_compile(struct ast_context **local_contexts, const char *filename)
+static int opbx_ael_compile(struct opbx_context **local_contexts, const char *filename)
 {
 	char *rfilename;
 	char *buf, *tbuf;
@@ -1153,18 +1153,18 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 	if (filename[0] == '/')
 		rfilename = (char *)filename;
 	else {
-		rfilename = alloca(strlen(filename) + strlen(ast_config_AST_CONFIG_DIR) + 2);
-		sprintf(rfilename, "%s/%s", ast_config_AST_CONFIG_DIR, filename);
+		rfilename = alloca(strlen(filename) + strlen(opbx_config_OPBX_CONFIG_DIR) + 2);
+		sprintf(rfilename, "%s/%s", opbx_config_OPBX_CONFIG_DIR, filename);
 	}
 	
 	f = fopen(rfilename, "r");
 	if (!f) {
-		ast_log(LOG_WARNING, "Unable to open '%s': %s\n", rfilename, strerror(errno));
+		opbx_log(LOG_WARNING, "Unable to open '%s': %s\n", rfilename, strerror(errno));
 		return -1;
 	}
 	buf = malloc(4096);
 	if (!buf) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(LOG_WARNING, "Out of memory!\n");
 		fclose(f);
 		return -1;
 	}
@@ -1178,7 +1178,7 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 				buf = tbuf;
 			} else {
 				free(buf);
-				ast_log(LOG_WARNING, "Out of memory!\n");
+				opbx_log(LOG_WARNING, "Out of memory!\n");
 				fclose(f);
 			}
 		}
@@ -1191,7 +1191,7 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 				*c = '\0';
 			if (*buf) {
 				if (aeldebug & DEBUG_READ)
-					ast_verbose("Newly composed line '%s'\n", buf);
+					opbx_verbose("Newly composed line '%s'\n", buf);
 				while((token = grab_token(buf, filename, lineno))) {
 					handle_root_token(local_contexts, token, 0, filename, lineno);
 					free(token);
@@ -1206,29 +1206,29 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 
 static int pbx_load_module(void)
 {
-	struct ast_context *local_contexts=NULL, *con;
-	ast_ael_compile(&local_contexts, config);
-	ast_merge_contexts_and_delete(&local_contexts, registrar);
-	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
-		ast_context_verify_includes(con);
+	struct opbx_context *local_contexts=NULL, *con;
+	opbx_ael_compile(&local_contexts, config);
+	opbx_merge_contexts_and_delete(&local_contexts, registrar);
+	for (con = opbx_walk_contexts(NULL); con; con = opbx_walk_contexts(con))
+		opbx_context_verify_includes(con);
 
 #if 0
-		v = ast_variable_browse(cfg, "globals");
+		v = opbx_variable_browse(cfg, "globals");
 		while(v) {
 			memset(realvalue, 0, sizeof(realvalue));
 			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 			v = v->next;
 		}
-		cxt = ast_category_browse(cfg, NULL);
+		cxt = opbx_category_browse(cfg, NULL);
 		while(cxt) {
 			/* All categories but "general" or "globals" are considered contexts */
 			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
-				cxt = ast_category_browse(cfg, cxt);
+				cxt = opbx_category_browse(cfg, cxt);
 				continue;
 			}
-			if ((con=ast_context_create(&local_contexts,cxt, registrar))) {
-				v = ast_variable_browse(cfg, cxt);
+			if ((con=opbx_context_create(&local_contexts,cxt, registrar))) {
+				v = opbx_variable_browse(cfg, cxt);
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
 						char *stringp=NULL;
@@ -1245,7 +1245,7 @@ static int pbx_load_module(void)
 							if (cidmatch) {
 								*cidmatch = '\0';
 								cidmatch++;
-								ast_shrink_phone_number(cidmatch);
+								opbx_shrink_phone_number(cidmatch);
 							}
 							pri = strsep(&stringp, ",");
 							if (!pri)
@@ -1258,7 +1258,7 @@ static int pbx_load_module(void)
 								if (end)
 									*end = '\0';
 								else
-									ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+									opbx_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
 							}
 							plus = strchr(pri, '+');
 							if (plus) {
@@ -1271,16 +1271,16 @@ static int pbx_load_module(void)
 								if (lastpri > -2)
 									ipri = lastpri + 1;
 								else
-									ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+									opbx_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
 							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
 								if (lastpri > -2)
 									ipri = lastpri;
 								else
-									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+									opbx_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
 								if (sscanf(pri, "%i", &ipri) != 1) {
-									if ((ipri = ast_findlabel_extension2(NULL, con, ext, pri, cidmatch)) < 1) {
-										ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+									if ((ipri = opbx_findlabel_extension2(NULL, con, ext, pri, cidmatch)) < 1) {
+										opbx_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 										ipri = 0;
 									}
 								}
@@ -1318,9 +1318,9 @@ static int pbx_load_module(void)
 									ipri += atoi(plus);
 								lastpri = ipri;
 								if (!strcmp(realext, "_."))
-									ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
-									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+									opbx_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
+								if (opbx_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
+									opbx_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
 							}
 							free(tc);
@@ -1328,13 +1328,13 @@ static int pbx_load_module(void)
 					} else if(!strcasecmp(v->name, "include")) {
 						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						if (ast_context_add_include2(con, realvalue, registrar))
-							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
+						if (opbx_context_add_include2(con, realvalue, registrar))
+							opbx_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
 						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						if (ast_context_add_ignorepat2(con, realvalue, registrar))
-							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
+						if (opbx_context_add_ignorepat2(con, realvalue, registrar))
+							opbx_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp=NULL;
 						memset(realvalue, 0, sizeof(realvalue));
@@ -1348,20 +1348,20 @@ static int pbx_load_module(void)
 						data = strsep(&stringp, "");
 						if (!data)
 							data = "";
-						if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-							ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+						if (opbx_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
+							opbx_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}
 					v = v->next;
 				}
 			}
-			cxt = ast_category_browse(cfg, cxt);
+			cxt = opbx_category_browse(cfg, cxt);
 		}
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 	}
-	ast_merge_contexts_and_delete(&local_contexts,registrar);
+	opbx_merge_contexts_and_delete(&local_contexts,registrar);
 
-	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
-		ast_context_verify_includes(con);
+	for (con = opbx_walk_contexts(NULL); con; con = opbx_walk_contexts(con))
+		opbx_context_verify_includes(con);
 
 	pbx_set_autofallthrough(autofallthrough_config);
 #endif
@@ -1378,7 +1378,7 @@ int load_module(void)
 
 int reload(void)
 {
-	ast_context_destroy(NULL, registrar);
+	opbx_context_destroy(NULL, registrar);
 	/* For martin's global variables, don't clear them on reload */
 	pbx_load_module();
 	return 0;

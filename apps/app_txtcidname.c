@@ -63,7 +63,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int txtcidname_exec(struct ast_channel *chan, void *data)
+static int txtcidname_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	char tech[80];
@@ -72,25 +72,25 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 
 	struct localuser *u;
 	if (!data || !strlen(data)) {
-		ast_log(LOG_WARNING, "TXTCIDName requires an argument (extension)\n");
+		opbx_log(LOG_WARNING, "TXTCIDName requires an argument (extension)\n");
 		res = 1;
 	}
 	LOCAL_USER_ADD(u);
 	if (!res) {
-		res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+		res = opbx_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
 	}
 	LOCAL_USER_REMOVE(u);
 	/* Parse it out */
 	if (res > 0) {
-		if (!ast_strlen_zero(txt)) {
+		if (!opbx_strlen_zero(txt)) {
 			pbx_builtin_setvar_helper(chan, "TXTCIDNAME", txt);
 			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "TXTCIDNAME got '%s'\n", txt);
+				opbx_log(LOG_DEBUG, "TXTCIDNAME got '%s'\n", txt);
 		}
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	return res;
@@ -98,20 +98,20 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 
 static int load_config(void)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	char *s;
 
-	cfg = ast_config_load(ENUM_CONFIG);
+	cfg = opbx_config_load(ENUM_CONFIG);
 	if (cfg) {
-		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
-			ast_copy_string(h323driver, H323DRIVERDEFAULT, sizeof(h323driver));
+		if (!(s=opbx_variable_retrieve(cfg, "general", "h323driver"))) {
+			opbx_copy_string(h323driver, H323DRIVERDEFAULT, sizeof(h323driver));
 		} else {
-			ast_copy_string(h323driver, s, sizeof(h323driver));
+			opbx_copy_string(h323driver, s, sizeof(h323driver));
 		}
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 		return 0;
 	}
-	ast_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
+	opbx_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
 	return 0;
 }
 
@@ -119,13 +119,13 @@ static int load_config(void)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app, txtcidname_exec, synopsis, descrip);
+	res = opbx_register_application(app, txtcidname_exec, synopsis, descrip);
 	if (res)
 		return(res);
 	if ((res=load_config())) {

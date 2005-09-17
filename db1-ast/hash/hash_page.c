@@ -286,7 +286,7 @@ ugly_split(hashp, obucket, old_bufp, new_bufp, copyto, moved)
 	register u_int16_t *np;	/* New page */
 	register u_int16_t *op;	/* Page keys go on to if they aren't moving */
 
-	BUFHEAD *last_bfp;	/* Last buf header OVFL needing to be freed */
+	BUFHEAD *lopbx_bfp;	/* Last buf header OVFL needing to be freed */
 	DBT key, val;
 	SPLIT_RETURN ret;
 	u_int16_t n, off, ov_addr, scopyto;
@@ -296,7 +296,7 @@ ugly_split(hashp, obucket, old_bufp, new_bufp, copyto, moved)
 	ino = (u_int16_t *)old_bufp->page;
 	np = (u_int16_t *)new_bufp->page;
 	op = (u_int16_t *)old_bufp->page;
-	last_bfp = NULL;
+	lopbx_bfp = NULL;
 	scopyto = (u_int16_t)copyto;	/* ANSI */
 
 	n = ino[0] - 1;
@@ -318,7 +318,7 @@ ugly_split(hashp, obucket, old_bufp, new_bufp, copyto, moved)
 				return (0);
 			cino = (char *)bufp->page;
 			ino = (u_int16_t *)cino;
-			last_bfp = ret.nextp;
+			lopbx_bfp = ret.nextp;
 		} else if (ino[n + 1] == OVFLPAGE) {
 			ov_addr = ino[n];
 			/*
@@ -339,9 +339,9 @@ ugly_split(hashp, obucket, old_bufp, new_bufp, copyto, moved)
 			scopyto = hashp->BSIZE;
 			moved = 0;
 
-			if (last_bfp)
-				__free_ovflpage(hashp, last_bfp);
-			last_bfp = bufp;
+			if (lopbx_bfp)
+				__free_ovflpage(hashp, lopbx_bfp);
+			lopbx_bfp = bufp;
 		}
 		/* Move regular sized pairs of there are any */
 		off = hashp->BSIZE;
@@ -382,8 +382,8 @@ ugly_split(hashp, obucket, old_bufp, new_bufp, copyto, moved)
 			}
 		}
 	}
-	if (last_bfp)
-		__free_ovflpage(hashp, last_bfp);
+	if (lopbx_bfp)
+		__free_ovflpage(hashp, lopbx_bfp);
 	return (0);
 }
 
@@ -679,7 +679,7 @@ overflow_page(hashp)
 	free_bit = (max_free - 1) & ((hashp->BSIZE << BYTE_SHIFT) - 1);
 
 	/* Look through all the free maps to find the first free block */
-	first_page = hashp->LAST_FREED >>(hashp->BSHIFT + BYTE_SHIFT);
+	first_page = hashp->LOPBX_FREED >>(hashp->BSHIFT + BYTE_SHIFT);
 	for ( i = first_page; i <= free_page; i++ ) {
 		if (!(freep = (u_int32_t *)hashp->mapp[i]) &&
 		    !(freep = fetch_bitmap(hashp, i)))
@@ -690,7 +690,7 @@ overflow_page(hashp)
 			in_use_bits = (hashp->BSIZE << BYTE_SHIFT) - 1;
 		
 		if (i == first_page) {
-			bit = hashp->LAST_FREED &
+			bit = hashp->LOPBX_FREED &
 			    ((hashp->BSIZE << BYTE_SHIFT) - 1);
 			j = bit / BITS_PER_MAP;
 			bit = bit & ~(BITS_PER_MAP - 1);
@@ -704,7 +704,7 @@ overflow_page(hashp)
 	}
 
 	/* No Free Page Found */
-	hashp->LAST_FREED = hashp->SPARES[splitnum];
+	hashp->LOPBX_FREED = hashp->SPARES[splitnum];
 	hashp->SPARES[splitnum]++;
 	offset = hashp->SPARES[splitnum] -
 	    (splitnum ? hashp->SPARES[splitnum - 1] : 0);
@@ -788,8 +788,8 @@ found:
 	 * it to convert it to a page number.
 	 */
 	bit = 1 + bit + (i * (hashp->BSIZE << BYTE_SHIFT));
-	if (bit >= hashp->LAST_FREED)
-		hashp->LAST_FREED = bit - 1;
+	if (bit >= hashp->LOPBX_FREED)
+		hashp->LOPBX_FREED = bit - 1;
 
 	/* Calculate the split number for this page */
 	for (i = 0; (i < splitnum) && (bit > hashp->SPARES[i]); i++);
@@ -826,8 +826,8 @@ __free_ovflpage(hashp, obufp)
 	ndx = (((u_int16_t)addr) >> SPLITSHIFT);
 	bit_address =
 	    (ndx ? hashp->SPARES[ndx - 1] : 0) + (addr & SPLITMASK) - 1;
-	 if (bit_address < hashp->LAST_FREED)
-		hashp->LAST_FREED = bit_address;
+	 if (bit_address < hashp->LOPBX_FREED)
+		hashp->LOPBX_FREED = bit_address;
 	free_page = (bit_address >> (hashp->BSHIFT + BYTE_SHIFT));
 	free_bit = bit_address & ((hashp->BSIZE << BYTE_SHIFT) - 1);
 

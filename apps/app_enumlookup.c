@@ -75,7 +75,7 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 /*--- enumlookup_exec: Look up number in ENUM and return result */
-static int enumlookup_exec(struct ast_channel *chan, void *data)
+static int enumlookup_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	char tech[80];
@@ -85,7 +85,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	static int dep_warning=0;
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
+		opbx_log(LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
 		dep_warning=1;
 	}
 
@@ -93,19 +93,19 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 
 	struct localuser *u;
 
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
 		res = 0;
 	}
 	LOCAL_USER_ADD(u);
 	if (!res) {
-               res = ast_get_enum(chan, data, dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
+               res = opbx_get_enum(chan, data, dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
 		printf("ENUM got '%d'\n", res);
 	}
 	LOCAL_USER_REMOVE(u);
 	if (!res) {	/* Failed to do a lookup */
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "ERROR");
 		return 0;
 	}
@@ -146,7 +146,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				c += 4;
 
 			if (c[0] != '+') {
-				ast_log(LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
+				opbx_log(LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
 				res = 0;
 			} else {
 /* now copy over the number, skipping all non-digits and stop at ; or NULL */
@@ -158,12 +158,12 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				}
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-				ast_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
-				if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 51))
+				opbx_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
+				if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 51))
 					res = 0;
 			}
-		} else if (!ast_strlen_zero(tech)) {
-			ast_log(LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
+		} else if (!opbx_strlen_zero(tech)) {
+			opbx_log(LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
 			pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "BADURI");
 			res = 0;
 		}
@@ -174,20 +174,20 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 /*--- load_config: Load enum.conf and find out how to handle H.323 */
 static int load_config(void)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	char *s;
 
-	cfg = ast_config_load(ENUM_CONFIG);
+	cfg = opbx_config_load(ENUM_CONFIG);
 	if (cfg) {
-		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
+		if (!(s=opbx_variable_retrieve(cfg, "general", "h323driver"))) {
 			strncpy(h323driver, H323DRIVERDEFAULT, sizeof(h323driver) - 1);
 		} else {
 			strncpy(h323driver, s, sizeof(h323driver) - 1);
 		}
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 		return 0;
 	}
-	ast_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
+	opbx_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
 	return 0;
 }
 
@@ -196,14 +196,14 @@ static int load_config(void)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 /*--- load_module: Load this application into PBX */
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app, enumlookup_exec, synopsis, descrip);
+	res = opbx_register_application(app, enumlookup_exec, synopsis, descrip);
 	if (res)
 		return(res);
 	if ((res=load_config())) {

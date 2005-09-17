@@ -36,33 +36,33 @@
 	- when LOW_MEMORY is defined, inlining should be disabled
 	completely, even if the compiler is configured to support it
 
-  The AST_INLINE_API macro allows this to happen automatically, when
+  The OPBX_INLINE_API macro allows this to happen automatically, when
   used to define your function. Proper usage is as follows:
   - define your function one place, in a header file, using the macro
   to wrap the function (see strings.h or time.h for examples)
   - choose a module to 'host' the function body for non-inline
-  usages, and in that module _only_, define AST_API_MODULE before
+  usages, and in that module _only_, define OPBX_API_MODULE before
   including the header file
  */
 
 #if !defined(LOW_MEMORY)
 
-#if !defined(AST_API_MODULE)
-#define AST_INLINE_API(hdr, body) hdr; extern inline hdr body
+#if !defined(OPBX_API_MODULE)
+#define OPBX_INLINE_API(hdr, body) hdr; extern inline hdr body
 #else
-#define AST_INLINE_API(hdr, body) hdr; hdr body
+#define OPBX_INLINE_API(hdr, body) hdr; hdr body
 #endif
 
 #else /* defined(LOW_MEMORY) */
 
-#if !defined(AST_API_MODULE)
-#define AST_INLINE_API(hdr, body) hdr;
+#if !defined(OPBX_API_MODULE)
+#define OPBX_INLINE_API(hdr, body) hdr;
 #else
-#define AST_INLINE_API(hdr, body) hdr; hdr body
+#define OPBX_INLINE_API(hdr, body) hdr; hdr body
 #endif
 
 #endif
 
-#undef AST_API_MODULE
+#undef OPBX_API_MODULE
 
 #endif /* __OPENPBX_INLINEAPI_H */

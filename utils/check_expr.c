@@ -21,7 +21,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
-#include <../include/openpbx/ast_expr.h>
+#include <../include/openpbx/opbx_expr.h>
 
 int global_lineno = 1;
 int global_expr_count = 0;
@@ -39,11 +39,11 @@ struct varz
 
 struct varz *global_varlist;
 
-/* Our own version of ast_log, since the expr parser uses it. */
+/* Our own version of opbx_log, since the expr parser uses it. */
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
 	va_start(vars,fmt);
@@ -199,7 +199,7 @@ int check_eval(char *buffer, char *error_report)
 	*ep++ = 0;
 
 	/* now, run the test */
-	result = ast_expr(evalbuf, s, sizeof(s));
+	result = opbx_expr(evalbuf, s, sizeof(s));
 	if (result) {
 		sprintf(error_report,"line %d, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
 		return 1;
@@ -215,7 +215,7 @@ void parse_file(const char *fname)
 	FILE *f = fopen(fname,"r");
 	FILE *l = fopen("expr2_log","w");
 	int c1;
-	char last_char= 0;
+	char lopbx_char= 0;
 	char buffer[30000]; /* I sure hope no expr gets this big! */
 	
 	if (!f) {
@@ -233,7 +233,7 @@ void parse_file(const char *fname)
 		if (c1 == '\n')
 			global_lineno++;
 		else if (c1 == '[') {
-			if (last_char == '$') {
+			if (lopbx_char == '$') {
 				/* bingo, an expr */
 				int bracklev = 1;
 				int bufcount = 0;
@@ -287,7 +287,7 @@ void parse_file(const char *fname)
 				fprintf(l, "%s", error_report);
 			}
 		}
-		last_char = c1;
+		lopbx_char = c1;
 	}
 	printf("Summary:\n  Expressions detected: %d\n  Expressions OK:  %d\n  Total # Warnings:   %d\n  Longest Expr:   %d chars\n  Ave expr len:  %d chars\n",
 		   global_expr_count,

@@ -49,11 +49,11 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int pickup_exec(struct ast_channel *chan, void *data)
+static int pickup_exec(struct opbx_channel *chan, void *data)
 {
 	int res = -1;
 	struct localuser *u = NULL;
-	struct ast_channel *origin = NULL, *target = NULL;
+	struct opbx_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL;
 	char workspace[256] = "";
 
@@ -67,58 +67,58 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 
 	/* Make sure we atleast have an extension to work with */
 	if (!exten) {
-		ast_log(LOG_WARNING, "%s requires atleast one argument (extension)\n", app);
+		opbx_log(LOG_WARNING, "%s requires atleast one argument (extension)\n", app);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
 	/* Find a channel to pickup */
-	origin = ast_get_channel_by_exten_locked(exten, context);
+	origin = opbx_get_channel_by_exten_locked(exten, context);
 	if (origin) {
-		ast_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
+		opbx_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
 			       sizeof(workspace), 0);
 		if (tmp) {
 			/* We have a possible channel... now we need to find it! */
-			target = ast_get_channel_by_name_locked(tmp);
+			target = opbx_get_channel_by_name_locked(tmp);
 		} else {
-			ast_log(LOG_DEBUG, "No target channel found.\n");
+			opbx_log(LOG_DEBUG, "No target channel found.\n");
 			res = -1;
 		}
-		ast_mutex_unlock(&origin->lock);
+		opbx_mutex_unlock(&origin->lock);
 	} else {
-		ast_log(LOG_DEBUG, "No originating channel found.\n");
+		opbx_log(LOG_DEBUG, "No originating channel found.\n");
 	}
 	
 	if (res)
 		goto out;
 
-	if (target && (!target->pbx) && ((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING))) {
-		ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
+	if (target && (!target->pbx) && ((target->_state == OPBX_STATE_RINGING) || (target->_state == OPBX_STATE_RING))) {
+		opbx_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
 			chan->name);
-		res = ast_answer(chan);
+		res = opbx_answer(chan);
 		if (res) {
-			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+			opbx_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
 			res = -1;
 			goto out;
 		}
-		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
+		res = opbx_queue_control(chan, OPBX_CONTROL_ANSWER);
 		if (res) {
-			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n",
+			opbx_log(LOG_WARNING, "Unable to queue answer on '%s'\n",
 				chan->name);
 			res = -1;
 			goto out;
 		}
-		res = ast_channel_masquerade(target, chan);
+		res = opbx_channel_masquerade(target, chan);
 		if (res) {
-			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
+			opbx_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
 			res = -1;
 			goto out;
 		}
 		/* Done */
-		ast_mutex_unlock(&target->lock);
+		opbx_mutex_unlock(&target->lock);
 	} else {
-		ast_log(LOG_DEBUG, "No call pickup possible...\n");
+		opbx_log(LOG_DEBUG, "No call pickup possible...\n");
 		res = -1;
 	}
 	
@@ -132,12 +132,12 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, pickup_exec, synopsis, descrip);
+	return opbx_register_application(app, pickup_exec, synopsis, descrip);
 }
 
 char *description(void)

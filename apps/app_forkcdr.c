@@ -52,32 +52,32 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static void ast_cdr_fork(struct ast_channel *chan) 
+static void opbx_cdr_fork(struct opbx_channel *chan) 
 {
-	struct ast_cdr *cdr;
-	struct ast_cdr *newcdr;
+	struct opbx_cdr *cdr;
+	struct opbx_cdr *newcdr;
 	if (!chan || !(cdr = chan->cdr))
 		return;
 	while (cdr->next)
 		cdr = cdr->next;
-	if (!(newcdr = ast_cdr_dup(cdr)))
+	if (!(newcdr = opbx_cdr_dup(cdr)))
 		return;
-	ast_cdr_append(cdr, newcdr);
-	ast_cdr_reset(newcdr, AST_CDR_FLAG_KEEP_VARS);
-	if (!ast_test_flag(cdr, AST_CDR_FLAG_KEEP_VARS))
-		ast_cdr_free_vars(cdr, 0);
-	ast_set_flag(cdr, AST_CDR_FLAG_CHILD | AST_CDR_FLAG_LOCKED);
+	opbx_cdr_append(cdr, newcdr);
+	opbx_cdr_reset(newcdr, OPBX_CDR_FLAG_KEEP_VARS);
+	if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_KEEP_VARS))
+		opbx_cdr_free_vars(cdr, 0);
+	opbx_set_flag(cdr, OPBX_CDR_FLAG_CHILD | OPBX_CDR_FLAG_LOCKED);
 }
 
-static int forkcdr_exec(struct ast_channel *chan, void *data)
+static int forkcdr_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
-	if (data && !ast_strlen_zero(data))
-		ast_set2_flag(chan->cdr, strchr((char *)data, 'v'), AST_CDR_FLAG_KEEP_VARS);
+	if (data && !opbx_strlen_zero(data))
+		opbx_set2_flag(chan->cdr, strchr((char *)data, 'v'), OPBX_CDR_FLAG_KEEP_VARS);
 	
-	ast_cdr_fork(chan);
+	opbx_cdr_fork(chan);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -86,12 +86,12 @@ static int forkcdr_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, forkcdr_exec, synopsis, descrip);
+	return opbx_register_application(app, forkcdr_exec, synopsis, descrip);
 }
 
 char *description(void)

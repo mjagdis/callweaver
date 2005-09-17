@@ -70,7 +70,7 @@ static int nochecksums = 0;
 
 /* The value of each payload format mapping: */
 struct rtpPayloadType {
-	int isAstFormat; 	/* whether the following code is an AST_FORMAT */
+	int isAstFormat; 	/* whether the following code is an OPBX_FORMAT */
 	int code;
 };
 
@@ -81,11 +81,11 @@ struct rtpPayloadType {
 #define FLAG_NAT_INACTIVE		(0 << 1)
 #define FLAG_NAT_INACTIVE_NOWARN	(1 << 1)
 
-struct ast_rtp {
+struct opbx_rtp {
 	int s;
 	char resp;
-	struct ast_frame f;
-	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
+	struct opbx_frame f;
+	unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
 	unsigned int ssrc;
 	unsigned int lastts;
 	unsigned int lastdigitts;
@@ -107,29 +107,29 @@ struct ast_rtp {
 	struct timeval rxcore;
 	struct timeval txcore;
 	struct timeval dtmfmute;
-	struct ast_smoother *smoother;
+	struct opbx_smoother *smoother;
 	int *ioid;
 	unsigned short seqno;
 	unsigned short rxseqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
-	ast_rtp_callback callback;
+	opbx_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
 	int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
-	struct ast_rtcp *rtcp;
+	struct opbx_rtcp *rtcp;
 };
 
-struct ast_rtcp {
+struct opbx_rtcp {
 	int s;		/* Socket */
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 };
 
-static struct ast_rtp_protocol *protos = NULL;
+static struct opbx_rtp_protocol *protos = NULL;
 
 struct rtp_codec_table {
 	int format;
@@ -140,12 +140,12 @@ struct rtp_codec_table {
 };
 
 struct rtp_codec_table RTP_CODEC_TABLE[] = {
-	{AST_FORMAT_SLINEAR, 160, 20, 10, AST_SMOOTHER_FLAG_BE},
-	{AST_FORMAT_ULAW, 80, 20, 10},
-	{AST_FORMAT_G726, 40, 20, 10},
-	{AST_FORMAT_ILBC, 50, 30, 30},
-	{AST_FORMAT_G729A, 10, 20, 10, AST_SMOOTHER_FLAG_G729},
-	{AST_FORMAT_GSM, 33, 20, 20},
+	{OPBX_FORMAT_SLINEAR, 160, 20, 10, OPBX_SMOOTHER_FLAG_BE},
+	{OPBX_FORMAT_ULAW, 80, 20, 10},
+	{OPBX_FORMAT_G726, 40, 20, 10},
+	{OPBX_FORMAT_ILBC, 50, 30, 30},
+	{OPBX_FORMAT_G729A, 10, 20, 10, OPBX_SMOOTHER_FLAG_G729},
+	{OPBX_FORMAT_GSM, 33, 20, 20},
 	{0,0,0,0,0}
 };
 
@@ -175,38 +175,38 @@ static struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, in
 	return ent;
 }
 
-int ast_rtp_fd(struct ast_rtp *rtp)
+int opbx_rtp_fd(struct opbx_rtp *rtp)
 {
 	return rtp->s;
 }
 
-int ast_rtcp_fd(struct ast_rtp *rtp)
+int opbx_rtcp_fd(struct opbx_rtp *rtp)
 {
 	if (rtp->rtcp)
 		return rtp->rtcp->s;
 	return -1;
 }
 
-void ast_rtp_set_data(struct ast_rtp *rtp, void *data)
+void opbx_rtp_set_data(struct opbx_rtp *rtp, void *data)
 {
 	rtp->data = data;
 }
 
-void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback)
+void opbx_rtp_set_callback(struct opbx_rtp *rtp, opbx_rtp_callback callback)
 {
 	rtp->callback = callback;
 }
 
-void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
+void opbx_rtp_setnat(struct opbx_rtp *rtp, int nat)
 {
 	rtp->nat = nat;
 }
 
-int ast_rtp_set_framems(struct ast_rtp *rtp, int ms) 
+int opbx_rtp_set_framems(struct opbx_rtp *rtp, int ms) 
 {
 	if (ms) {
 		if (rtp->smoother) {
-            ast_smoother_free(rtp->smoother);
+            opbx_smoother_free(rtp->smoother);
 			rtp->smoother = NULL;
 		}
 
@@ -216,25 +216,25 @@ int ast_rtp_set_framems(struct ast_rtp *rtp, int ms)
 	return rtp->framems;
 }
 
-static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
+static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 {
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
+	if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+			opbx_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->resp = 0;
 		rtp->dtmfduration = 0;
 		return &null_frame;
 	}
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		opbx_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 	if (rtp->resp == 'X') {
-		rtp->f.frametype = AST_FRAME_CONTROL;
-		rtp->f.subclass = AST_CONTROL_FLASH;
+		rtp->f.frametype = OPBX_FRAME_CONTROL;
+		rtp->f.subclass = OPBX_CONTROL_FLASH;
 	} else {
-		rtp->f.frametype = AST_FRAME_DTMF;
+		rtp->f.frametype = OPBX_FRAME_DTMF;
 		rtp->f.subclass = rtp->resp;
 	}
 	rtp->f.datalen = 0;
@@ -260,11 +260,11 @@ static inline int rtp_debug_test_addr(struct sockaddr_in *addr)
 	return 1;
 }
 
-static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *data, int len)
+static struct opbx_frame *process_cisco_dtmf(struct opbx_rtp *rtp, unsigned char *data, int len)
 {
 	unsigned int event;
 	char resp = 0;
-	struct ast_frame *f = NULL;
+	struct opbx_frame *f = NULL;
 	event = ntohl(*((unsigned int *)(data)));
 	event &= 0x001F;
 #if 0
@@ -292,13 +292,13 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 /* process_rfc2833: Process RTP DTMF and events according to RFC 2833:
 	"RTP Payload for DTMF Digits, Telephony Tones and Telephony Signals"
 */
-static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno)
+static struct opbx_frame *process_rfc2833(struct opbx_rtp *rtp, unsigned char *data, int len, unsigned int seqno)
 {
 	unsigned int event;
 	unsigned int event_end;
 	unsigned int duration;
 	char resp = 0;
-	struct ast_frame *f = NULL;
+	struct opbx_frame *f = NULL;
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
 	event_end = ntohl(*((unsigned int *)(data)));
@@ -307,7 +307,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	duration = ntohl(*((unsigned int *)(data)));
 	duration &= 0xFFFF;
 	if (rtpdebug)
-		ast_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
+		opbx_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -344,37 +344,37 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 /*--- process_rfc3389: Process Comfort Noise RTP. 
 	This is incomplete at the moment.
 */
-static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *data, int len)
+static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *data, int len)
 {
-	struct ast_frame *f = NULL;
+	struct opbx_frame *f = NULL;
 	/* Convert comfort noise into audio with various codecs.  Unfortunately this doesn't
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
 	if (rtpdebug)
-		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
+		opbx_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 
-	if (!(ast_test_flag(rtp, FLAG_3389_WARNING))) {
+	if (!(opbx_test_flag(rtp, FLAG_3389_WARNING))) {
 		char iabuf[INET_ADDRSTRLEN];
 
-		ast_log(LOG_NOTICE, "Comfort noise support incomplete in OpenPBX (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
-		ast_set_flag(rtp, FLAG_3389_WARNING);
+		opbx_log(LOG_NOTICE, "Comfort noise support incomplete in OpenPBX (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		opbx_set_flag(rtp, FLAG_3389_WARNING);
 	}
 
 	/* Must have at least one byte */
 	if (!len)
 		return NULL;
 	if (len < 24) {
-		rtp->f.data = rtp->rawdata + AST_FRIENDLY_OFFSET;
+		rtp->f.data = rtp->rawdata + OPBX_FRIENDLY_OFFSET;
 		rtp->f.datalen = len - 1;
-		rtp->f.offset = AST_FRIENDLY_OFFSET;
+		rtp->f.offset = OPBX_FRIENDLY_OFFSET;
 		memcpy(rtp->f.data, data + 1, len - 1);
 	} else {
 		rtp->f.data = NULL;
 		rtp->f.offset = 0;
 		rtp->f.datalen = 0;
 	}
-	rtp->f.frametype = AST_FRAME_CNG;
+	rtp->f.frametype = OPBX_FRAME_CNG;
 	rtp->f.subclass = data[0] & 0x7f;
 	rtp->f.datalen = len - 1;
 	rtp->f.samples = 0;
@@ -385,9 +385,9 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 
 static int rtpread(int *id, int fd, short events, void *cbdata)
 {
-	struct ast_rtp *rtp = cbdata;
-	struct ast_frame *f;
-	f = ast_rtp_read(rtp);
+	struct opbx_rtp *rtp = cbdata;
+	struct opbx_frame *f;
+	f = opbx_rtp_read(rtp);
 	if (f) {
 		if (rtp->callback)
 			rtp->callback(rtp, f, rtp->data);
@@ -395,9 +395,9 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 	return 1;
 }
 
-struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
+struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 {
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
 	socklen_t len;
 	int hdrlen = 8;
 	int res;
@@ -415,14 +415,14 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	
 	if (res < 0) {
 		if (errno != EAGAIN)
-			ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
 		return &null_frame;
 	}
 
 	if (res < hdrlen) {
-		ast_log(LOG_WARNING, "RTP Read too short\n");
+		opbx_log(LOG_WARNING, "RTP Read too short\n");
 		return &null_frame;
 	}
 
@@ -432,26 +432,26 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
 			if (option_debug || rtpdebug)
-				ast_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+				opbx_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
+		opbx_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
 	return &null_frame;
 }
 
-static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp, int mark)
+static void calc_rxstamp(struct timeval *tv, struct opbx_rtp *rtp, unsigned int timestamp, int mark)
 {
-	struct timeval ts = ast_samp2tv( timestamp, 8000);
-	if (ast_tvzero(rtp->rxcore) || mark) {
-		rtp->rxcore = ast_tvsub(ast_tvnow(), ts);
+	struct timeval ts = opbx_samp2tv( timestamp, 8000);
+	if (opbx_tvzero(rtp->rxcore) || mark) {
+		rtp->rxcore = opbx_tvsub(opbx_tvnow(), ts);
 		/* Round to 20ms for nice, pretty timestamps */
 		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 20000;
 	}
-	*tv = ast_tvadd(rtp->rxcore, ts);
+	*tv = opbx_tvadd(rtp->rxcore, ts);
 }
 
-struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
+struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 {
 	int res;
 	struct sockaddr_in sin;
@@ -467,26 +467,26 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
-	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
+	static struct opbx_frame *f, null_frame = { OPBX_FRAME_NULL, };
 	struct rtpPayloadType rtpPT;
 	
 	len = sizeof(sin);
 	
 	/* Cache where the header will go */
-	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET,
+	res = recvfrom(rtp->s, rtp->rawdata + OPBX_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - OPBX_FRIENDLY_OFFSET,
 					0, (struct sockaddr *)&sin, &len);
 
 
-	rtpheader = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
+	rtpheader = (unsigned int *)(rtp->rawdata + OPBX_FRIENDLY_OFFSET);
 	if (res < 0) {
 		if (errno != EAGAIN)
-			ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
 		return &null_frame;
 	}
 	if (res < hdrlen) {
-		ast_log(LOG_WARNING, "RTP Read too short\n");
+		opbx_log(LOG_WARNING, "RTP Read too short\n");
 		return &null_frame;
 	}
 
@@ -501,9 +501,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		    (rtp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
 			rtp->rxseqno = 0;
-			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
+			opbx_set_flag(rtp, FLAG_NAT_ACTIVE);
 			if (option_debug || rtpdebug)
-				ast_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+				opbx_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
 
@@ -524,7 +524,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	
 	if (padding) {
 		/* Remove padding bytes */
-		res -= rtp->rawdata[AST_FRIENDLY_OFFSET + res - 1];
+		res -= rtp->rawdata[OPBX_FRIENDLY_OFFSET + res - 1];
 	}
 	
 	if (ext) {
@@ -534,25 +534,25 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 
 	if (res < hdrlen) {
-		ast_log(LOG_WARNING, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
+		opbx_log(LOG_WARNING, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
 		return &null_frame;
 	}
 
 	if(rtp_debug_test_addr(&sin))
-		ast_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
-			, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
+		opbx_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
+			, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
-        rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
+        rtpPT = opbx_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
 		/* This is special in-band data that's not one of our codecs */
-		if (rtpPT.code == AST_RTP_DTMF) {
+		if (rtpPT.code == OPBX_RTP_DTMF) {
 			/* It's special -- rfc2833 process it */
 			if(rtp_debug_test_addr(&sin)) {
 				unsigned char *data;
 				unsigned int event;
 				unsigned int event_end;
 				unsigned int duration;
-				data = rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen;
+				data = rtp->rawdata + OPBX_FRIENDLY_OFFSET + hdrlen;
 				event = ntohl(*((unsigned int *)(data)));
 				event >>= 24;
 				event_end = ntohl(*((unsigned int *)(data)));
@@ -560,10 +560,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				event_end >>= 24;
 				duration = ntohl(*((unsigned int *)(data)));
 				duration &= 0xFFFF;
-				ast_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
+				opbx_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
 	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
+	      			f = process_rfc2833(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
 	      			rtp->lasteventseqn = seqno;
 	    		} else 
 				f = NULL;
@@ -571,10 +571,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				return f; 
 			else 
 				return &null_frame;
-	  	} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
+	  	} else if (rtpPT.code == OPBX_RTP_CISCO_DTMF) {
 	    		/* It's really special -- process it the Cisco way */
 	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      			f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	      			f = process_cisco_dtmf(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	      			rtp->lasteventseqn = seqno;
 	    		} else 
 				f = NULL;
@@ -582,23 +582,23 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				return f; 
 			else 
 				return &null_frame;
-	  	} else if (rtpPT.code == AST_RTP_CN) {
+	  	} else if (rtpPT.code == OPBX_RTP_CN) {
 	    		/* Comfort Noise */
-	    		f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	    		f = process_rfc3389(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	    		if (f) 
 				return f; 
 			else 
 				return &null_frame;
 	  	} else {
-	    		ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
+	    		opbx_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
 	    		return &null_frame;
 	  	}
 	}
 	rtp->f.subclass = rtpPT.code;
-	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO)
-		rtp->f.frametype = AST_FRAME_VOICE;
+	if (rtp->f.subclass < OPBX_FORMAT_MAX_AUDIO)
+		rtp->f.frametype = OPBX_FRAME_VOICE;
 	else
-		rtp->f.frametype = AST_FRAME_VIDEO;
+		rtp->f.frametype = OPBX_FRAME_VIDEO;
 	rtp->lastrxformat = rtp->f.subclass;
 
 	if (!rtp->lastrxts)
@@ -634,17 +634,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	/* Send any pending DTMF */
 	if (rtp->resp && !rtp->dtmfcount) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Sending pending DTMF\n");
+			opbx_log(LOG_DEBUG, "Sending pending DTMF\n");
 		return send_dtmf(rtp);
 	}
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
-	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
-	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
-	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) {
-		rtp->f.samples = ast_codec_get_samples(&rtp->f);
-		if (rtp->f.subclass == AST_FORMAT_SLINEAR) 
-			ast_frame_byteswap_be(&rtp->f);
+	rtp->f.data = rtp->rawdata + hdrlen + OPBX_FRIENDLY_OFFSET;
+	rtp->f.offset = hdrlen + OPBX_FRIENDLY_OFFSET;
+	if (rtp->f.subclass < OPBX_FORMAT_MAX_AUDIO) {
+		rtp->f.samples = opbx_codec_get_samples(&rtp->f);
+		if (rtp->f.subclass == OPBX_FORMAT_SLINEAR) 
+			opbx_frame_byteswap_be(&rtp->f);
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
@@ -669,60 +669,60 @@ static struct {
   char* type;
   char* subtype;
 } mimeTypes[] = {
-  {{1, AST_FORMAT_G723_1}, "audio", "G723"},
-  {{1, AST_FORMAT_GSM}, "audio", "GSM"},
-  {{1, AST_FORMAT_ULAW}, "audio", "PCMU"},
-  {{1, AST_FORMAT_ALAW}, "audio", "PCMA"},
-  {{1, AST_FORMAT_G726}, "audio", "G726-32"},
-  {{1, AST_FORMAT_ADPCM}, "audio", "DVI4"},
-  {{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
-  {{1, AST_FORMAT_LPC10}, "audio", "LPC"},
-  {{1, AST_FORMAT_G729A}, "audio", "G729"},
-  {{1, AST_FORMAT_SPEEX}, "audio", "speex"},
-  {{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
-  {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
-  {{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
-  {{0, AST_RTP_CN}, "audio", "CN"},
-  {{1, AST_FORMAT_JPEG}, "video", "JPEG"},
-  {{1, AST_FORMAT_PNG}, "video", "PNG"},
-  {{1, AST_FORMAT_H261}, "video", "H261"},
-  {{1, AST_FORMAT_H263}, "video", "H263"},
-  {{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
+  {{1, OPBX_FORMAT_G723_1}, "audio", "G723"},
+  {{1, OPBX_FORMAT_GSM}, "audio", "GSM"},
+  {{1, OPBX_FORMAT_ULAW}, "audio", "PCMU"},
+  {{1, OPBX_FORMAT_ALAW}, "audio", "PCMA"},
+  {{1, OPBX_FORMAT_G726}, "audio", "G726-32"},
+  {{1, OPBX_FORMAT_ADPCM}, "audio", "DVI4"},
+  {{1, OPBX_FORMAT_SLINEAR}, "audio", "L16"},
+  {{1, OPBX_FORMAT_LPC10}, "audio", "LPC"},
+  {{1, OPBX_FORMAT_G729A}, "audio", "G729"},
+  {{1, OPBX_FORMAT_SPEEX}, "audio", "speex"},
+  {{1, OPBX_FORMAT_ILBC}, "audio", "iLBC"},
+  {{0, OPBX_RTP_DTMF}, "audio", "telephone-event"},
+  {{0, OPBX_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
+  {{0, OPBX_RTP_CN}, "audio", "CN"},
+  {{1, OPBX_FORMAT_JPEG}, "video", "JPEG"},
+  {{1, OPBX_FORMAT_PNG}, "video", "PNG"},
+  {{1, OPBX_FORMAT_H261}, "video", "H261"},
+  {{1, OPBX_FORMAT_H263}, "video", "H263"},
+  {{1, OPBX_FORMAT_H263_PLUS}, "video", "h263-1998"},
 };
 
-/* Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
+/* Static (i.e., well-known) RTP payload types for our "OPBX_FORMAT..."s:
    also, our own choices for dynamic payload types.  This is our master
    table for transmission */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
-  [0] = {1, AST_FORMAT_ULAW},
+  [0] = {1, OPBX_FORMAT_ULAW},
 #ifdef USE_DEPRECATED_G726
-  [2] = {1, AST_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
+  [2] = {1, OPBX_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
 #endif
-  [3] = {1, AST_FORMAT_GSM},
-  [4] = {1, AST_FORMAT_G723_1},
-  [5] = {1, AST_FORMAT_ADPCM}, /* 8 kHz */
-  [6] = {1, AST_FORMAT_ADPCM}, /* 16 kHz */
-  [7] = {1, AST_FORMAT_LPC10},
-  [8] = {1, AST_FORMAT_ALAW},
-  [10] = {1, AST_FORMAT_SLINEAR}, /* 2 channels */
-  [11] = {1, AST_FORMAT_SLINEAR}, /* 1 channel */
-  [13] = {0, AST_RTP_CN},
-  [16] = {1, AST_FORMAT_ADPCM}, /* 11.025 kHz */
-  [17] = {1, AST_FORMAT_ADPCM}, /* 22.050 kHz */
-  [18] = {1, AST_FORMAT_G729A},
-  [19] = {0, AST_RTP_CN},		/* Also used for CN */
-  [26] = {1, AST_FORMAT_JPEG},
-  [31] = {1, AST_FORMAT_H261},
-  [34] = {1, AST_FORMAT_H263},
-  [103] = {1, AST_FORMAT_H263_PLUS},
-  [97] = {1, AST_FORMAT_ILBC},
-  [101] = {0, AST_RTP_DTMF},
-  [110] = {1, AST_FORMAT_SPEEX},
-  [111] = {1, AST_FORMAT_G726},
-  [121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
+  [3] = {1, OPBX_FORMAT_GSM},
+  [4] = {1, OPBX_FORMAT_G723_1},
+  [5] = {1, OPBX_FORMAT_ADPCM}, /* 8 kHz */
+  [6] = {1, OPBX_FORMAT_ADPCM}, /* 16 kHz */
+  [7] = {1, OPBX_FORMAT_LPC10},
+  [8] = {1, OPBX_FORMAT_ALAW},
+  [10] = {1, OPBX_FORMAT_SLINEAR}, /* 2 channels */
+  [11] = {1, OPBX_FORMAT_SLINEAR}, /* 1 channel */
+  [13] = {0, OPBX_RTP_CN},
+  [16] = {1, OPBX_FORMAT_ADPCM}, /* 11.025 kHz */
+  [17] = {1, OPBX_FORMAT_ADPCM}, /* 22.050 kHz */
+  [18] = {1, OPBX_FORMAT_G729A},
+  [19] = {0, OPBX_RTP_CN},		/* Also used for CN */
+  [26] = {1, OPBX_FORMAT_JPEG},
+  [31] = {1, OPBX_FORMAT_H261},
+  [34] = {1, OPBX_FORMAT_H263},
+  [103] = {1, OPBX_FORMAT_H263_PLUS},
+  [97] = {1, OPBX_FORMAT_ILBC},
+  [101] = {0, OPBX_RTP_DTMF},
+  [110] = {1, OPBX_FORMAT_SPEEX},
+  [111] = {1, OPBX_FORMAT_G726},
+  [121] = {0, OPBX_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 
-void ast_rtp_pt_clear(struct ast_rtp* rtp) 
+void opbx_rtp_pt_clear(struct opbx_rtp* rtp) 
 {
 	int i;
 	if (!rtp)
@@ -738,7 +738,7 @@ void ast_rtp_pt_clear(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_result = 0;
 }
 
-void ast_rtp_pt_default(struct ast_rtp* rtp) 
+void opbx_rtp_pt_default(struct opbx_rtp* rtp) 
 {
 	int i;
 
@@ -756,7 +756,7 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
 /* Make a note of a RTP paymoad type that was seen in a SDP "m=" line. */
 /* By default, use the well-known value for this type (although it may */
 /* still be set to a different value by a subsequent "a=rtpmap:" line): */
-void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
+void opbx_rtp_set_m_type(struct opbx_rtp* rtp, int pt) {
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return; /* bogus payload type */
 
@@ -767,7 +767,7 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
 
 /* Make a note of a RTP payload type (with MIME type) that was seen in */
 /* a SDP "a=rtpmap:" line. */
-void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
+void opbx_rtp_set_rtpmap_type(struct opbx_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype) {
 	int i;
 
@@ -784,8 +784,8 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 } 
 
 /* Return the union of all of the codecs that were set by rtp_set...() calls */
-/* They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
-void ast_rtp_get_current_formats(struct ast_rtp* rtp,
+/* They're returned as two distinct sets: OPBX_FORMATs, and OPBX_RTPs */
+void opbx_rtp_get_current_formats(struct opbx_rtp* rtp,
 			     int* astFormats, int* nonAstFormats) {
 	int pt;
 
@@ -799,14 +799,14 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 	}
 }
 
-void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local) {
+void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local) {
 	if (rtp)
 		rtp->rtp_offered_from_local = local;
 	else
-		ast_log(LOG_WARNING, "rtp structure is null\n");
+		opbx_log(LOG_WARNING, "rtp structure is null\n");
 }
 
-struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
+struct rtpPayloadType opbx_rtp_lookup_pt(struct opbx_rtp* rtp, int pt) 
 {
 	struct rtpPayloadType result;
 
@@ -825,7 +825,7 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 }
 
 /* Looks up an RTP code out of our *static* outbound list */
-int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int code) {
+int opbx_rtp_lookup_code(struct opbx_rtp* rtp, const int isAstFormat, const int code) {
 
 	int pt;
 
@@ -858,7 +858,7 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 	return -1;
 }
 
-char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) {
+char* opbx_rtp_lookup_mime_subtype(const int isAstFormat, const int code) {
 
 	int i;
 
@@ -870,7 +870,7 @@ char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) {
 	return "";
 }
 
-char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat)
+char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat)
 {
 	int format;
 	unsigned len;
@@ -887,9 +887,9 @@ char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, co
 	size -= len;
 	start = end;
 
-	for (format = 1; format < AST_RTP_MAX; format <<= 1) {
+	for (format = 1; format < OPBX_RTP_MAX; format <<= 1) {
 		if (capability & format) {
-			const char *name = ast_rtp_lookup_mime_subtype(isAstFormat, format);
+			const char *name = opbx_rtp_lookup_mime_subtype(isAstFormat, format);
 			snprintf(end, size, "%s|", name);
 			len = strlen(end);
 			end += len;
@@ -921,33 +921,33 @@ static int rtp_socket(void)
 	return s;
 }
 
-static struct ast_rtcp *ast_rtcp_new(void)
+static struct opbx_rtcp *opbx_rtcp_new(void)
 {
-	struct ast_rtcp *rtcp;
-	rtcp = malloc(sizeof(struct ast_rtcp));
+	struct opbx_rtcp *rtcp;
+	rtcp = malloc(sizeof(struct opbx_rtcp));
 	if (!rtcp)
 		return NULL;
-	memset(rtcp, 0, sizeof(struct ast_rtcp));
+	memset(rtcp, 0, sizeof(struct opbx_rtcp));
 	rtcp->s = rtp_socket();
 	rtcp->us.sin_family = AF_INET;
 	if (rtcp->s < 0) {
 		free(rtcp);
-		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
+		opbx_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
 	return rtcp;
 }
 
-struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
+struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
 {
-	struct ast_rtp *rtp;
+	struct opbx_rtp *rtp;
 	int x;
 	int first;
 	int startplace;
-	rtp = malloc(sizeof(struct ast_rtp));
+	rtp = malloc(sizeof(struct opbx_rtp));
 	if (!rtp)
 		return NULL;
-	memset(rtp, 0, sizeof(struct ast_rtp));
+	memset(rtp, 0, sizeof(struct opbx_rtp));
 	rtp->them.sin_family = AF_INET;
 	rtp->us.sin_family = AF_INET;
 	rtp->s = rtp_socket();
@@ -955,12 +955,12 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	rtp->seqno = rand() & 0xffff;
 	if (rtp->s < 0) {
 		free(rtp);
-		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
+		opbx_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
 	if (sched && rtcpenable) {
 		rtp->sched = sched;
-		rtp->rtcp = ast_rtcp_new();
+		rtp->rtcp = opbx_rtcp_new();
 	}
 	/* Find us a place */
 	x = (rand() % (rtpend-rtpstart)) + rtpstart;
@@ -981,7 +981,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			rtp->s = rtp_socket();
 		}
 		if (errno != EADDRINUSE) {
-			ast_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
+			opbx_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
@@ -994,7 +994,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 		if (x > rtpend)
 			x = (rtpstart + 1) & ~1;
 		if (x == startplace) {
-			ast_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
+			opbx_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
@@ -1008,30 +1008,30 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 		/* Operate this one in a callback mode */
 		rtp->sched = sched;
 		rtp->io = io;
-		rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
+		rtp->ioid = opbx_io_add(rtp->io, rtp->s, rtpread, OPBX_IO_IN, rtp);
 	}
-	ast_rtp_pt_default(rtp);
+	opbx_rtp_pt_default(rtp);
 	return rtp;
 }
 
-struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
+struct opbx_rtp *opbx_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
 {
 	struct in_addr ia;
 
 	memset(&ia, 0, sizeof(ia));
-	return ast_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
+	return opbx_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
 
-int ast_rtp_settos(struct ast_rtp *rtp, int tos)
+int opbx_rtp_settos(struct opbx_rtp *rtp, int tos)
 {
 	int res;
 
 	if ((res = setsockopt(rtp->s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
-		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 	return res;
 }
 
-void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
+void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 {
 	rtp->them.sin_port = them->sin_port;
 	rtp->them.sin_addr = them->sin_addr;
@@ -1042,19 +1042,19 @@ void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 	rtp->rxseqno = 0;
 }
 
-void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
+void opbx_rtp_get_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 {
 	them->sin_family = AF_INET;
 	them->sin_port = rtp->them.sin_port;
 	them->sin_addr = rtp->them.sin_addr;
 }
 
-void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
+void opbx_rtp_get_us(struct opbx_rtp *rtp, struct sockaddr_in *us)
 {
 	memcpy(us, &rtp->us, sizeof(rtp->us));
 }
 
-void ast_rtp_stop(struct ast_rtp *rtp)
+void opbx_rtp_stop(struct opbx_rtp *rtp)
 {
 	memset(&rtp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
 	memset(&rtp->them.sin_port, 0, sizeof(rtp->them.sin_port));
@@ -1064,7 +1064,7 @@ void ast_rtp_stop(struct ast_rtp *rtp)
 	}
 }
 
-void ast_rtp_reset(struct ast_rtp *rtp)
+void opbx_rtp_reset(struct opbx_rtp *rtp)
 {
 	memset(&rtp->rxcore, 0, sizeof(rtp->rxcore));
 	memset(&rtp->txcore, 0, sizeof(rtp->txcore));
@@ -1084,12 +1084,12 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->rxseqno = 0;
 }
 
-void ast_rtp_destroy(struct ast_rtp *rtp)
+void opbx_rtp_destroy(struct opbx_rtp *rtp)
 {
 	if (rtp->smoother)
-		ast_smoother_free(rtp->smoother);
+		opbx_smoother_free(rtp->smoother);
 	if (rtp->ioid)
-		ast_io_remove(rtp->io, rtp->ioid);
+		opbx_io_remove(rtp->io, rtp->ioid);
 	if (rtp->s > -1)
 		close(rtp->s);
 	if (rtp->rtcp) {
@@ -1099,24 +1099,24 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 	free(rtp);
 }
 
-static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
+static unsigned int calc_txstamp(struct opbx_rtp *rtp, struct timeval *delivery)
 {
 	struct timeval t;
 	long ms;
-	if (ast_tvzero(rtp->txcore)) {
-		rtp->txcore = ast_tvnow();
+	if (opbx_tvzero(rtp->txcore)) {
+		rtp->txcore = opbx_tvnow();
 		/* Round to 20ms for nice, pretty timestamps */
 		rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
 	}
 	/* Use previous txcore if available */
-	t = (delivery && !ast_tvzero(*delivery)) ? *delivery : ast_tvnow();
-	ms = ast_tvdiff_ms(t, rtp->txcore);
+	t = (delivery && !opbx_tvzero(*delivery)) ? *delivery : opbx_tvnow();
+	ms = opbx_tvdiff_ms(t, rtp->txcore);
 	/* Use what we just got for next time */
 	rtp->txcore = t;
 	return (unsigned int) ms;
 }
 
-int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
+int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit)
 {
 	unsigned int *rtpheader;
 	int hdrlen = 12;
@@ -1137,16 +1137,16 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	else if ((digit >= 'a') && (digit <= 'd')) 
 		digit = digit - 'a' + 12;
 	else {
-		ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+		opbx_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
 		return -1;
 	}
-	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_DTMF);
+	payload = opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_DTMF);
 
 	/* If we have no peer, return immediately */	
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
 
-	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
+	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
@@ -1158,12 +1158,12 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 			if (res < 0) 
-				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-					ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
+				opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+					opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					ntohs(rtp->them.sin_port), strerror(errno));
 			if (rtp_debug_test_addr(&rtp->them))
-				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
-					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
+				opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
+					    opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
 		/* Sequence number of last two end packets does not get incremented */
@@ -1198,7 +1198,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	return 0;
 }
 
-int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
+int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
 {
 	unsigned int *rtpheader;
 	int hdrlen = 12;
@@ -1207,13 +1207,13 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
 	level = 127 - (level & 0x7f);
-	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_CN);
+	payload = opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_CN);
 
 	/* If we have no peer, return immediately */	
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
 
-	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
+	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
 
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
@@ -1224,16 +1224,16 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, hdrlen + 1, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 
-			ast_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+			opbx_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 		if(rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent Comfort Noise RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
-					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
+			opbx_verbose("Sent Comfort Noise RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
+					, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
 		   
 	}
 	return 0;
 }
 
-static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
+static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int codec)
 {
 	unsigned char *rtpheader;
 	char iabuf[INET_ADDRSTRLEN];
@@ -1245,19 +1245,19 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
-	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
-                pred = rtp->lastts + ast_codec_get_samples(f);
+	if (f->subclass < OPBX_FORMAT_MAX_AUDIO) {
+                pred = rtp->lastts + opbx_codec_get_samples(f);
 
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
-		if (ast_tvzero(f->delivery)) {
+		if (opbx_tvzero(f->delivery)) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction, 
 			   and if so, go with our prediction */
 			if (abs(rtp->lastts - pred) < MAX_TIMESTAMP_SKEW)
 				rtp->lastts = pred;
 			else {
 				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+					opbx_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 				mark = 1;
 			}
 		}
@@ -1267,13 +1267,13 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 90;
 		/* If it's close to our prediction, go for it */
-		if (ast_tvzero(f->delivery)) {
+		if (opbx_tvzero(f->delivery)) {
 			if (abs(rtp->lastts - pred) < 7200) {
 				rtp->lastts = pred;
 				rtp->lastovidtimestamp += f->samples;
 			} else {
 				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+					opbx_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
 				rtp->lastovidtimestamp = rtp->lastts;
 			}
 		}
@@ -1294,19 +1294,19 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) {
-			if (!rtp->nat || (rtp->nat && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				ast_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-			} else if ((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
+			if (!rtp->nat || (rtp->nat && (opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
+				opbx_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+			} else if ((opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
-					ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
-				ast_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
+					opbx_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+				opbx_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
 			}
 		}
 				
 		if(rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
-					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
+			opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
+					, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 
 	rtp->seqno++;
@@ -1314,9 +1314,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	return 0;
 }
 
-int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
+int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
 {
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	int codec;
 	int hdrlen = 12;
 	int subclass;
@@ -1331,28 +1331,28 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		return 0;
 	
 	/* Make sure we have enough space for RTP header */
-	if ((_f->frametype != AST_FRAME_VOICE) && (_f->frametype != AST_FRAME_VIDEO)) {
-		ast_log(LOG_WARNING, "RTP can only send voice\n");
+	if ((_f->frametype != OPBX_FRAME_VOICE) && (_f->frametype != OPBX_FRAME_VIDEO)) {
+		opbx_log(LOG_WARNING, "RTP can only send voice\n");
 		return -1;
 	}
 
 	subclass = _f->subclass;
-	if (_f->frametype == AST_FRAME_VIDEO)
+	if (_f->frametype == OPBX_FRAME_VIDEO)
 		subclass &= ~0x1;
 
-	codec = ast_rtp_lookup_code(rtp, 1, subclass);
+	codec = opbx_rtp_lookup_code(rtp, 1, subclass);
 	if (codec < 0) {
-		ast_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n", ast_getformatname(_f->subclass));
+		opbx_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n", opbx_getformatname(_f->subclass));
 		return -1;
 	}
 
 	if (rtp->lasttxformat != subclass) {
 		/* New format, reset the smoother */
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", ast_getformatname(rtp->lasttxformat), ast_getformatname(subclass));
+			opbx_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", opbx_getformatname(rtp->lasttxformat), opbx_getformatname(subclass));
 		rtp->lasttxformat = subclass;
 		if (rtp->smoother)
-			ast_smoother_free(rtp->smoother);
+			opbx_smoother_free(rtp->smoother);
 		rtp->smoother = NULL;
 	}
 
@@ -1365,49 +1365,49 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		if ((ent = lookup_rtp_smoother_codec(subclass, &rtp->framems, &len))) {
 			
 			if (rtp->framems != ms) {
-				ast_log(LOG_DEBUG, "Had to change frame MS from %d to %d\n", ms, rtp->framems);
+				opbx_log(LOG_DEBUG, "Had to change frame MS from %d to %d\n", ms, rtp->framems);
 			}
 
-			if (!(rtp->smoother = ast_smoother_new(len))) {
-				ast_log(LOG_WARNING, "Unable to create smoother ms: %d len: %d:(\n", rtp->framems, len);
+			if (!(rtp->smoother = opbx_smoother_new(len))) {
+				opbx_log(LOG_WARNING, "Unable to create smoother ms: %d len: %d:(\n", rtp->framems, len);
 				return -1;
 			}
 
 			if (ent->flags) {
-				ast_smoother_set_flags(rtp->smoother, ent->flags);			
+				opbx_smoother_set_flags(rtp->smoother, ent->flags);			
 			}
 
-			ast_log(LOG_DEBUG, "Able to create smoother :) ms: %d len %d\n", rtp->framems, len);
+			opbx_log(LOG_DEBUG, "Able to create smoother :) ms: %d len %d\n", rtp->framems, len);
 		}
 	}
 
 	if (rtp->smoother) {
-		if (ast_smoother_test_flag(rtp->smoother, AST_SMOOTHER_FLAG_BE)) {
-			ast_smoother_feed_be(rtp->smoother, _f);
+		if (opbx_smoother_test_flag(rtp->smoother, OPBX_SMOOTHER_FLAG_BE)) {
+			opbx_smoother_feed_be(rtp->smoother, _f);
 		} else {
-			ast_smoother_feed(rtp->smoother, _f);
+			opbx_smoother_feed(rtp->smoother, _f);
 		}
 
-		while((f = ast_smoother_read(rtp->smoother))) {
-			ast_rtp_raw_write(rtp, f, codec);
+		while((f = opbx_smoother_read(rtp->smoother))) {
+			opbx_rtp_raw_write(rtp, f, codec);
 		} 
 	} else {
 		/* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) {
-			f = ast_frdup(_f);
+			f = opbx_frdup(_f);
 		} else {
 			f = _f;
 		}
-		ast_rtp_raw_write(rtp, f, codec);
+		opbx_rtp_raw_write(rtp, f, codec);
 	}
 
 	return 0;
 }
 
-/*--- ast_rtp_proto_unregister: Unregister interface to channel driver */
-void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
+/*--- opbx_rtp_proto_unregister: Unregister interface to channel driver */
+void opbx_rtp_proto_unregister(struct opbx_rtp_protocol *proto)
 {
-	struct ast_rtp_protocol *cur, *prev;
+	struct opbx_rtp_protocol *cur, *prev;
 
 	cur = protos;
 	prev = NULL;
@@ -1424,14 +1424,14 @@ void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 	}
 }
 
-/*--- ast_rtp_proto_register: Register interface to channel driver */
-int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
+/*--- opbx_rtp_proto_register: Register interface to channel driver */
+int opbx_rtp_proto_register(struct opbx_rtp_protocol *proto)
 {
-	struct ast_rtp_protocol *cur;
+	struct opbx_rtp_protocol *cur;
 	cur = protos;
 	while(cur) {
 		if (cur->type == proto->type) {
-			ast_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+			opbx_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
 			return -1;
 		}
 		cur = cur->next;
@@ -1442,9 +1442,9 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 }
 
 /*--- get_proto: Get channel driver interface structure */
-static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
+static struct opbx_rtp_protocol *get_proto(struct opbx_channel *chan)
 {
-	struct ast_rtp_protocol *cur;
+	struct opbx_rtp_protocol *cur;
 
 	cur = protos;
 	while(cur) {
@@ -1456,16 +1456,16 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 	return NULL;
 }
 
-/* ast_rtp_bridge: Bridge calls. If possible and allowed, initiate
+/* opbx_rtp_bridge: Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
 	of OpenPBX. */
-enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
 {
-	struct ast_frame *f;
-	struct ast_channel *who, *cs[3];
-	struct ast_rtp *p0, *p1;		/* Audio RTP Channels */
-	struct ast_rtp *vp0, *vp1;		/* Video RTP channels */
-	struct ast_rtp_protocol *pr0, *pr1;
+	struct opbx_frame *f;
+	struct opbx_channel *who, *cs[3];
+	struct opbx_rtp *p0, *p1;		/* Audio RTP Channels */
+	struct opbx_rtp *vp0, *vp1;		/* Video RTP channels */
+	struct opbx_rtp_protocol *pr0, *pr1;
 	struct sockaddr_in ac0, ac1;
 	struct sockaddr_in vac0, vac1;
 	struct sockaddr_in t0, t1;
@@ -1482,31 +1482,31 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	memset(&vac1, 0, sizeof(vac1));
 
 	/* if need DTMF, cant native bridge */
-	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
-		return AST_BRIDGE_FAILED_NOWARN;
+	if (flags & (OPBX_BRIDGE_DTMF_CHANNEL_0 | OPBX_BRIDGE_DTMF_CHANNEL_1))
+		return OPBX_BRIDGE_FAILED_NOWARN;
 
 	/* Lock channels */
-	ast_mutex_lock(&c0->lock);
-	while(ast_mutex_trylock(&c1->lock)) {
-		ast_mutex_unlock(&c0->lock);
+	opbx_mutex_lock(&c0->lock);
+	while(opbx_mutex_trylock(&c1->lock)) {
+		opbx_mutex_unlock(&c0->lock);
 		usleep(1);
-		ast_mutex_lock(&c0->lock);
+		opbx_mutex_lock(&c0->lock);
 	}
 
 	/* Find channel driver interfaces */
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
-		return AST_BRIDGE_FAILED;
+		opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
+		opbx_mutex_unlock(&c0->lock);
+		opbx_mutex_unlock(&c1->lock);
+		return OPBX_BRIDGE_FAILED;
 	}
 	if (!pr1) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
-		return AST_BRIDGE_FAILED;
+		opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
+		opbx_mutex_unlock(&c0->lock);
+		opbx_mutex_unlock(&c1->lock);
+		return OPBX_BRIDGE_FAILED;
 	}
 
 	/* Get channel specific interface structures */
@@ -1528,9 +1528,9 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (!p0 || !p1) {
 		/* Somebody doesn't want to play... */
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
-		return AST_BRIDGE_FAILED_NOWARN;
+		opbx_mutex_unlock(&c0->lock);
+		opbx_mutex_unlock(&c1->lock);
+		return OPBX_BRIDGE_FAILED_NOWARN;
 	}
 	/* Get codecs from both sides */
 	if (pr0->get_codec)
@@ -1545,33 +1545,33 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		/* Hey, we can't do reinvite if both parties speak different codecs */
 		if (!(codec0 & codec1)) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
-			ast_mutex_unlock(&c0->lock);
-			ast_mutex_unlock(&c1->lock);
-			return AST_BRIDGE_FAILED_NOWARN;
+				opbx_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
+			opbx_mutex_unlock(&c0->lock);
+			opbx_mutex_unlock(&c1->lock);
+			return OPBX_BRIDGE_FAILED_NOWARN;
 		}
 	}
 
 	/* Ok, we should be able to redirect the media. Start with one channel */
-	if (pr0->set_rtp_peer(c0, p1, vp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE))) 
-		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+	if (pr0->set_rtp_peer(c0, p1, vp1, codec1, opbx_test_flag(p1, FLAG_NAT_ACTIVE))) 
+		opbx_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
 	else {
 		/* Store RTP peer */
-		ast_rtp_get_peer(p1, &ac1);
+		opbx_rtp_get_peer(p1, &ac1);
 		if (vp1)
-			ast_rtp_get_peer(vp1, &vac1);
+			opbx_rtp_get_peer(vp1, &vac1);
 	}
 	/* Then test the other channel */
-	if (pr1->set_rtp_peer(c1, p0, vp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
-		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+	if (pr1->set_rtp_peer(c1, p0, vp0, codec0, opbx_test_flag(p0, FLAG_NAT_ACTIVE)))
+		opbx_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
 	else {
 		/* Store RTP peer */
-		ast_rtp_get_peer(p0, &ac0);
+		opbx_rtp_get_peer(p0, &ac0);
 		if (vp0)
-			ast_rtp_get_peer(vp0, &vac0);
+			opbx_rtp_get_peer(vp0, &vac0);
 	}
-	ast_mutex_unlock(&c0->lock);
-	ast_mutex_unlock(&c1->lock);
+	opbx_mutex_unlock(&c0->lock);
+	opbx_mutex_unlock(&c1->lock);
 	/* External RTP Bridge up, now loop and see if something happes that force us to take the
 		media back to OpenPBX */
 	cs[0] = c0;
@@ -1584,108 +1584,108 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		if ((c0->tech_pvt != pvt0)  ||
 			(c1->tech_pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+				opbx_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 				if (c0->tech_pvt == pvt0) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
-						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+						opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 				}
 				if (c1->tech_pvt == pvt1) {
 					if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
-						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+						opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 				}
-				return AST_BRIDGE_RETRY;
+				return OPBX_BRIDGE_RETRY;
 		}
 		to = -1;
 		/* Now check if they have changed address */
-		ast_rtp_get_peer(p1, &t1);
-		ast_rtp_get_peer(p0, &t0);
+		opbx_rtp_get_peer(p1, &t1);
+		opbx_rtp_get_peer(p0, &t0);
 		if (pr0->get_codec)
 			codec0 = pr0->get_codec(c0);
 		if (pr1->get_codec)
 			codec1 = pr1->get_codec(c1);
 		if (vp1)
-			ast_rtp_get_peer(vp1, &vt1);
+			opbx_rtp_get_peer(vp1, &vt1);
 		if (vp0)
-			ast_rtp_get_peer(vp0, &vt0);
+			opbx_rtp_get_peer(vp0, &vt0);
 		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1)) || (codec1 != oldcodec1)) {
 			if (option_debug > 1) {
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
-					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
-					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+				opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+					c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
+				opbx_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
+					c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
+				opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+					c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
+				opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+					c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
 			}
-			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE))) 
-				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
+			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, opbx_test_flag(p1, FLAG_NAT_ACTIVE))) 
+				opbx_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
 			memcpy(&vac1, &vt1, sizeof(vac1));
 			oldcodec1 = codec1;
 		}
 		if (inaddrcmp(&t0, &ac0) || (vp0 && inaddrcmp(&vt0, &vac0))) {
 			if (option_debug) {
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
-					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+				opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+					c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
+				opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+					c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
 			}
-			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
-				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
+			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, opbx_test_flag(p0, FLAG_NAT_ACTIVE)))
+				opbx_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
 			memcpy(&vac0, &vt0, sizeof(vac0));
 			oldcodec0 = codec0;
 		}
-		who = ast_waitfor_n(cs, 2, &to);
+		who = opbx_waitfor_n(cs, 2, &to);
 		if (!who) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Ooh, empty read...\n");
+				opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
 			/* check for hangup / whentohangup */
-			if (ast_check_hangup(c0) || ast_check_hangup(c1))
+			if (opbx_check_hangup(c0) || opbx_check_hangup(c1))
 				break;
 			continue;
 		}
-		f = ast_read(who);
-		if (!f || ((f->frametype == AST_FRAME_DTMF) &&
-				   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
-			       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
+		f = opbx_read(who);
+		if (!f || ((f->frametype == OPBX_FRAME_DTMF) &&
+				   (((who == c0) && (flags & OPBX_BRIDGE_DTMF_CHANNEL_0)) || 
+			       ((who == c1) && (flags & OPBX_BRIDGE_DTMF_CHANNEL_1))))) {
 			*fo = f;
 			*rc = who;
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
+				opbx_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
-					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+					opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 			}
 			if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
 				if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
-					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+					opbx_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			}
-			return AST_BRIDGE_COMPLETE;
-		} else if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
-			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD) ||
-			    (f->subclass == AST_CONTROL_VIDUPDATE)) {
-				ast_indicate(who == c0 ? c1 : c0, f->subclass);
-				ast_frfree(f);
+			return OPBX_BRIDGE_COMPLETE;
+		} else if ((f->frametype == OPBX_FRAME_CONTROL) && !(flags & OPBX_BRIDGE_IGNORE_SIGS)) {
+			if ((f->subclass == OPBX_CONTROL_HOLD) || (f->subclass == OPBX_CONTROL_UNHOLD) ||
+			    (f->subclass == OPBX_CONTROL_VIDUPDATE)) {
+				opbx_indicate(who == c0 ? c1 : c0, f->subclass);
+				opbx_frfree(f);
 			} else {
 				*fo = f;
 				*rc = who;
-				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
-				return AST_BRIDGE_COMPLETE;
+				opbx_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
+				return OPBX_BRIDGE_COMPLETE;
 			}
 		} else {
-			if ((f->frametype == AST_FRAME_DTMF) || 
-				(f->frametype == AST_FRAME_VOICE) || 
-				(f->frametype == AST_FRAME_VIDEO)) {
+			if ((f->frametype == OPBX_FRAME_DTMF) || 
+				(f->frametype == OPBX_FRAME_VOICE) || 
+				(f->frametype == OPBX_FRAME_VIDEO)) {
 				/* Forward voice or DTMF frames if they happen upon us */
 				if (who == c0) {
-					ast_write(c1, f);
+					opbx_write(c1, f);
 				} else if (who == c1) {
-					ast_write(c0, f);
+					opbx_write(c0, f);
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 		}
 		/* Swap priority not that it's a big deal at this point */
 		cs[2] = cs[0];
@@ -1693,13 +1693,13 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		cs[1] = cs[2];
 		
 	}
-	return AST_BRIDGE_FAILED;
+	return OPBX_BRIDGE_FAILED;
 }
 
 static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 {
 	struct hostent *hp;
-	struct ast_hostent ahp;
+	struct opbx_hostent ahp;
 	char iabuf[INET_ADDRSTRLEN];
 	int port = 0;
 	char *p, *arg;
@@ -1713,16 +1713,16 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 		p++;
 		port = atoi(p);
 	}
-	hp = ast_gethostbyname(arg, &ahp);
+	hp = opbx_gethostbyname(arg, &ahp);
 	if (hp == NULL)
 		return RESULT_SHOWUSAGE;
 	rtpdebugaddr.sin_family = AF_INET;
 	memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
 	rtpdebugaddr.sin_port = htons(port);
 	if (port == 0)
-		ast_cli(fd, "RTP Debugging Enabled for IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr));
+		opbx_cli(fd, "RTP Debugging Enabled for IP: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr));
 	else
-		ast_cli(fd, "RTP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr), port);
+		opbx_cli(fd, "RTP Debugging Enabled for IP: %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr), port);
 	rtpdebug = 1;
 	return RESULT_SUCCESS;
 }
@@ -1736,7 +1736,7 @@ static int rtp_do_debug(int fd, int argc, char *argv[])
 	}
 	rtpdebug = 1;
 	memset(&rtpdebugaddr,0,sizeof(rtpdebugaddr));
-	ast_cli(fd, "RTP Debugging Enabled\n");
+	opbx_cli(fd, "RTP Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
    
@@ -1745,7 +1745,7 @@ static int rtp_no_debug(int fd, int argc, char *argv[])
 	if(argc !=3)
 		return RESULT_SHOWUSAGE;
 	rtpdebug = 0;
-	ast_cli(fd,"RTP Debugging Disabled\n");
+	opbx_cli(fd,"RTP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -1757,66 +1757,66 @@ static char no_debug_usage[] =
   "Usage: rtp no debug\n"
   "       Disable all RTP debugging\n";
 
-static struct ast_cli_entry  cli_debug_ip =
+static struct opbx_cli_entry  cli_debug_ip =
 {{ "rtp", "debug", "ip", NULL } , rtp_do_debug, "Enable RTP debugging on IP", debug_usage };
 
-static struct ast_cli_entry  cli_debug =
+static struct opbx_cli_entry  cli_debug =
 {{ "rtp", "debug", NULL } , rtp_do_debug, "Enable RTP debugging", debug_usage };
 
-static struct ast_cli_entry  cli_no_debug =
+static struct opbx_cli_entry  cli_no_debug =
 {{ "rtp", "no", "debug", NULL } , rtp_no_debug, "Disable RTP debugging", no_debug_usage };
 
-void ast_rtp_reload(void)
+void opbx_rtp_reload(void)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	char *s;
 
 	rtpstart = 5000;
 	rtpend = 31000;
-	cfg = ast_config_load("rtp.conf");
+	cfg = opbx_config_load("rtp.conf");
 	if (cfg) {
-		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "rtpstart"))) {
 			rtpstart = atoi(s);
 			if (rtpstart < 1024)
 				rtpstart = 1024;
 			if (rtpstart > 65535)
 				rtpstart = 65535;
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "rtpend"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "rtpend"))) {
 			rtpend = atoi(s);
 			if (rtpend < 1024)
 				rtpend = 1024;
 			if (rtpend > 65535)
 				rtpend = 65535;
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "rtpchecksums"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "rtpchecksums"))) {
 #ifdef SO_NO_CHECK
-			if (ast_false(s))
+			if (opbx_false(s))
 				nochecksums = 1;
 			else
 				nochecksums = 0;
 #else
-			if (ast_false(s))
-				ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
+			if (opbx_false(s))
+				opbx_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
 #endif
 		}
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 	}
 	if (rtpstart >= rtpend) {
-		ast_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
+		opbx_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
 		rtpstart = 5000;
 		rtpend = 31000;
 	}
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
+		opbx_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
 	
 }
 
-/*--- ast_rtp_init: Initialize the RTP system in OpenPBX */
-void ast_rtp_init(void)
+/*--- opbx_rtp_init: Initialize the RTP system in OpenPBX */
+void opbx_rtp_init(void)
 {
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_debug_ip);
-	ast_cli_register(&cli_no_debug);
-	ast_rtp_reload();
+	opbx_cli_register(&cli_debug);
+	opbx_cli_register(&cli_debug_ip);
+	opbx_cli_register(&cli_no_debug);
+	opbx_rtp_reload();
 }

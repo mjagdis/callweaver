@@ -46,7 +46,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
  * Kept for each file descriptor
  */
 struct io_rec {
-	ast_io_cb callback;		/* What is to be called */
+	opbx_io_cb callback;		/* What is to be called */
 	void *data; 				/* Data to be passed */
 	int *id; 					/* ID number */
 };
@@ -123,7 +123,7 @@ static int io_grow(struct io_context *ioc)
 	 * -1 on failure
 	 */
 	void *tmp;
-	DEBUG(ast_log(LOG_DEBUG, "io_grow()\n"));
+	DEBUG(opbx_log(LOG_DEBUG, "io_grow()\n"));
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
 	tmp = realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(struct io_rec));
 	if (tmp) {
@@ -151,7 +151,7 @@ static int io_grow(struct io_context *ioc)
 	return 0;
 }
 
-int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data)
+int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short events, void *data)
 {
 	/*
 	 * Add a new I/O entry for this file descriptor
@@ -159,7 +159,7 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	 * data as an argument.  Returns NULL on failure.
 	 */
 	int *ret;
-	DEBUG(ast_log(LOG_DEBUG, "ast_io_add()\n"));
+	DEBUG(opbx_log(LOG_DEBUG, "opbx_io_add()\n"));
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
 		 * We don't have enough space for this entry.  We need to
@@ -189,7 +189,7 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	return ret;
 }
 
-int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data)
+int *opbx_io_change(struct io_context *ioc, int *id, int fd, opbx_io_cb callback, short events, void *data)
 {
 	if (*id < ioc->fdcnt) {
 		if (fd > -1)
@@ -232,11 +232,11 @@ static int io_shrink(struct io_context *ioc)
 	return 0;
 }
 
-int ast_io_remove(struct io_context *ioc, int *_id)
+int opbx_io_remove(struct io_context *ioc, int *_id)
 {
 	int x;
 	if (!_id) {
-		ast_log(LOG_WARNING, "Asked to remove NULL?\n");
+		opbx_log(LOG_WARNING, "Asked to remove NULL?\n");
 		return -1;
 	}
 	for (x = 0; x < ioc->fdcnt; x++) {
@@ -253,11 +253,11 @@ int ast_io_remove(struct io_context *ioc, int *_id)
 		}
 	}
 	
-	ast_log(LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
+	opbx_log(LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
 	return -1;
 }
 
-int ast_io_wait(struct io_context *ioc, int howlong)
+int opbx_io_wait(struct io_context *ioc, int howlong)
 {
 	/*
 	 * Make the poll call, and call
@@ -267,7 +267,7 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 	int res;
 	int x;
 	int origcnt;
-	DEBUG(ast_log(LOG_DEBUG, "ast_io_wait()\n"));
+	DEBUG(opbx_log(LOG_DEBUG, "opbx_io_wait()\n"));
 	res = poll(ioc->fds, ioc->fdcnt, howlong);
 	if (res > 0) {
 		/*
@@ -283,7 +283,7 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 				if (ioc->ior[x].callback) {
 					if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
 						/* Time to delete them since they returned a 0 */
-						ast_io_remove(ioc, ioc->ior[x].id);
+						opbx_io_remove(ioc, ioc->ior[x].id);
 					}
 				}
 				ioc->current_ioc = -1;
@@ -295,31 +295,31 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 	return res;
 }
 
-void ast_io_dump(struct io_context *ioc)
+void opbx_io_dump(struct io_context *ioc)
 {
 	/*
 	 * Print some debugging information via
 	 * the logger interface
 	 */
 	int x;
-	ast_log(LOG_DEBUG, "OpenPBX IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
-	ast_log(LOG_DEBUG, "================================================\n");
-	ast_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
-	ast_log(LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
+	opbx_log(LOG_DEBUG, "OpenPBX IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
+	opbx_log(LOG_DEBUG, "================================================\n");
+	opbx_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
+	opbx_log(LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
 	for (x = 0; x < ioc->fdcnt; x++) {
-		ast_log(LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
+		opbx_log(LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
 				*ioc->ior[x].id,
 				ioc->fds[x].fd,
 				ioc->ior[x].callback,
 				ioc->ior[x].data,
 				ioc->fds[x].events);
 	}
-	ast_log(LOG_DEBUG, "================================================\n");
+	opbx_log(LOG_DEBUG, "================================================\n");
 }
 
 /* Unrelated I/O functions */
 
-int ast_hide_password(int fd)
+int opbx_hide_password(int fd)
 {
 	struct termios tios;
 	int res;
@@ -338,7 +338,7 @@ int ast_hide_password(int fd)
 	return old;
 }
 
-int ast_restore_tty(int fd, int oldstate)
+int opbx_restore_tty(int fd, int oldstate)
 {
 	int res;
 	struct termios tios;
@@ -355,7 +355,7 @@ int ast_restore_tty(int fd, int oldstate)
 	return 0;
 }
 
-int ast_get_termcols(int fd)
+int opbx_get_termcols(int fd)
 {
 	struct winsize win;
 	int cols = 0;

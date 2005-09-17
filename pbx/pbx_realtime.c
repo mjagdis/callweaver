@@ -81,8 +81,8 @@ static char *tdesc = "Realtime Switch";
 	const char *cxt; \
 	char *table; \
 	int res=-1; \
-	struct ast_variable *var=NULL; \
-	buf = ast_strdupa(data); \
+	struct opbx_variable *var=NULL; \
+	buf = opbx_strdupa(data); \
 	if (buf) { \
 		opts = strchr(buf, '/'); \
 		if (opts) { \
@@ -96,21 +96,21 @@ static char *tdesc = "Realtime Switch";
 			table++;\
 			cxt = buf; \
 		} else cxt = NULL; \
-		if (!cxt || ast_strlen_zero(cxt)) \
+		if (!cxt || opbx_strlen_zero(cxt)) \
 			cxt = context;\
-		if (!table || ast_strlen_zero(table)) \
+		if (!table || opbx_strlen_zero(table)) \
 			table = "extensions"; \
 		var = realtime_switch_common(table, cxt, exten, priority, mode); \
 	} else \
 		res = -1; 
 
-static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
+static struct opbx_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {
-	struct ast_variable *var;
-	struct ast_config *cfg;
+	struct opbx_variable *var;
+	struct opbx_config *cfg;
 	char pri[20];
 	char *ematch;
-	char rexten[AST_MAX_EXTENSION + 20]="";
+	char rexten[OPBX_MAX_EXTENSION + 20]="";
 	int match;
 	snprintf(pri, sizeof(pri), "%d", priority);
 	switch(mode) {
@@ -127,55 +127,55 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 		ematch = "exten";
 		strncpy(rexten, exten, sizeof(rexten) - 1);
 	}
-	var = ast_load_realtime(table, ematch, rexten, "context", context, "priority", pri, NULL);
+	var = opbx_load_realtime(table, ematch, rexten, "context", context, "priority", pri, NULL);
 	if (!var) {
-		cfg = ast_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, NULL);	
+		cfg = opbx_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, NULL);	
 		if (cfg) {
-			char *cat = ast_category_browse(cfg, NULL);
+			char *cat = opbx_category_browse(cfg, NULL);
 
 			while(cat) {
 				switch(mode) {
 				case MODE_MATCHMORE:
-					match = ast_extension_close(cat, exten, 1);
+					match = opbx_extension_close(cat, exten, 1);
 					break;
 				case MODE_CANMATCH:
-					match = ast_extension_close(cat, exten, 0);
+					match = opbx_extension_close(cat, exten, 0);
 					break;
 				case MODE_MATCH:
 				default:
-					match = ast_extension_match(cat, exten);
+					match = opbx_extension_match(cat, exten);
 				}
 				if (match) {
-					var = ast_category_detach_variables(ast_category_get(cfg, cat));
+					var = opbx_category_detach_variables(opbx_category_get(cfg, cat));
 					break;
 				}
-				cat = ast_category_browse(cfg, cat);
+				cat = opbx_category_browse(cfg, cat);
 			}
-			ast_config_destroy(cfg);
+			opbx_config_destroy(cfg);
 		}
 	}
 	return var;
 }
 
-static int realtime_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int realtime_exists(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_MATCH);
-	if (var) ast_variables_destroy(var);
+	if (var) opbx_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
 }
 
-static int realtime_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int realtime_canmatch(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_CANMATCH);
-	if (var) ast_variables_destroy(var);
+	if (var) opbx_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
 }
 
-static int realtime_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int realtime_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
 	char app[256];
 	char appdata[512]="";
@@ -183,8 +183,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
     char tmp1[80];
     char tmp2[80];
     char tmp3[EXT_DATA_SIZE];
-	struct ast_app *a;
-	struct ast_variable *v;
+	struct opbx_app *a;
+	struct opbx_variable *v;
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
 		v = var;
@@ -192,20 +192,20 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 			if (!strcasecmp(v->name, "app"))
 				strncpy(app, v->value, sizeof(app) -1 );
 			else if (!strcasecmp(v->name, "appdata"))
-				tmp = ast_strdupa(v->value);
+				tmp = opbx_strdupa(v->value);
 			v = v->next;
 		}
-		ast_variables_destroy(var);
-		if (!ast_strlen_zero(app)) {
+		opbx_variables_destroy(var);
+		if (!opbx_strlen_zero(app)) {
 			a = pbx_findapp(app);
 			if (a) {
-				if(!ast_strlen_zero(tmp))
+				if(!opbx_strlen_zero(tmp))
 				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
                 if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
+					opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
 								 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 								 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								 term_color(tmp3, (!ast_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
+								 term_color(tmp3, (!opbx_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
                 manager_event(EVENT_FLAG_CALL, "Newexten",
 							  "Channel: %s\r\n"
 							  "Context: %s\r\n"
@@ -218,22 +218,22 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				
 				res = pbx_exec(chan, a, appdata, newstack);
 			} else
-				ast_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
+				opbx_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
 		}
 	}
 	return res;
 }
 
-static int realtime_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
+static int realtime_matchmore(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_MATCHMORE);
-	if (var) ast_variables_destroy(var);
+	if (var) opbx_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
 }
 
-static struct ast_switch realtime_switch =
+static struct opbx_switch realtime_switch =
 {
         name:                   "Realtime",
         description:    		"Realtime Dialplan Switch",
@@ -260,13 +260,13 @@ char *key()
 
 int unload_module(void)
 {
-	ast_unregister_switch(&realtime_switch);
+	opbx_unregister_switch(&realtime_switch);
 	return 0;
 }
 
 int load_module(void)
 {
-	ast_register_switch(&realtime_switch);
+	opbx_register_switch(&realtime_switch);
 	return 0;
 }
 

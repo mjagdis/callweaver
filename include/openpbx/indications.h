@@ -35,7 +35,7 @@
 #include "openpbx/lock.h"
 
 /* forward reference */
-struct ast_channel;
+struct opbx_channel;
 
 struct tone_zone_sound {
 	struct tone_zone_sound *next;		/* next element */
@@ -59,29 +59,29 @@ struct tone_zone {
 };
 
 /* set the default tone country */
-extern int ast_set_indication_country(const char *country);
+extern int opbx_set_indication_country(const char *country);
 
 /* locate tone_zone, given the country. if country == NULL, use the default country */
-extern struct tone_zone *ast_get_indication_zone(const char *country);
+extern struct tone_zone *opbx_get_indication_zone(const char *country);
 /* locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
-extern struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, const char *indication);
+extern struct tone_zone_sound *opbx_get_indication_tone(const struct tone_zone *zone, const char *indication);
 
 /* add a new country, if country exists, it will be replaced. */
-extern int ast_register_indication_country(struct tone_zone *country);
+extern int opbx_register_indication_country(struct tone_zone *country);
 /* remove an existing country and all its indications, country must exist */
-extern int ast_unregister_indication_country(const char *country);
+extern int opbx_unregister_indication_country(const char *country);
 /* add a new indication to a tone_zone. tone_zone must exist. if the indication already
  * exists, it will be replaced. */
-extern int ast_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist);
+extern int opbx_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist);
 /* remove an existing tone_zone's indication. tone_zone must exist */
-extern int ast_unregister_indication(struct tone_zone *zone, const char *indication);
+extern int opbx_unregister_indication(struct tone_zone *zone, const char *indication);
 
 /* Start a tone-list going */
-int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist, int interruptible);
+int opbx_playtones_start(struct opbx_channel *chan, int vol, const char* tonelist, int interruptible);
 /*! Stop the tones from playing */
-void ast_playtones_stop(struct ast_channel *chan);
+void opbx_playtones_stop(struct opbx_channel *chan);
 
 extern struct tone_zone *tone_zones;
-extern ast_mutex_t tzlock;
+extern opbx_mutex_t tzlock;
 
 #endif /* _OPENPBX_INDICATIONS_H */

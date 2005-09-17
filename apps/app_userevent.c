@@ -59,7 +59,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int userevent_exec(struct ast_channel *chan, void *data)
+static int userevent_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
 	char info[512];
@@ -67,11 +67,11 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	char *eventbody;
 
 	if (!data || !strlen(data)) {
-		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
+		opbx_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
 		return -1;
 	}
 
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	strncpy(info, (char *)data, strlen((char *)data) + OPBX_MAX_EXTENSION-1);
 	snprintf(eventname, sizeof(eventname), "UserEvent%s", info);
 	eventbody = strchr(eventname, '|');
 	if (eventbody) {
@@ -81,12 +81,12 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	if(eventbody) {
-            ast_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, eventbody);
+            opbx_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, eventbody);
             manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n%s\r\n",
 			chan->name, chan->uniqueid, eventbody);
 	} else {
-            ast_log(LOG_DEBUG, "Sending user event: %s\n", eventname);
+            opbx_log(LOG_DEBUG, "Sending user event: %s\n", eventname);
             manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n", chan->name, chan->uniqueid);
 	}
@@ -98,12 +98,12 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, userevent_exec, synopsis, descrip);
+	return opbx_register_application(app, userevent_exec, synopsis, descrip);
 }
 
 char *description(void)

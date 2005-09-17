@@ -75,11 +75,11 @@ LOCAL_USER_DECL;
 
 #define CONF_SIZE 160
 
-static struct ast_channel *get_zap_channel_locked(int num) {
+static struct opbx_channel *get_zap_channel_locked(int num) {
 	char name[80];
 	
 	snprintf(name,sizeof(name),"Zap/%d-1",num);
-	return ast_get_channel_by_name_locked(name);
+	return opbx_get_channel_by_name_locked(name);
 }
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -89,7 +89,7 @@ static int careful_write(int fd, unsigned char *data, int len)
 		res = write(fd, data, len);
 		if (res < 1) {
 			if (errno != EAGAIN) {
-				ast_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
+				opbx_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
 				return -1;
 			} else
 				return 0;
@@ -100,13 +100,13 @@ static int careful_write(int fd, unsigned char *data, int len)
 	return 0;
 }
 
-static int conf_run(struct ast_channel *chan, int confno, int confflags)
+static int conf_run(struct opbx_channel *chan, int confno, int confflags)
 {
 	int fd;
 	struct zt_confinfo ztc;
-	struct ast_frame *f;
-	struct ast_channel *c;
-	struct ast_frame fr;
+	struct opbx_frame *f;
+	struct opbx_channel *c;
+	struct opbx_frame fr;
 	int outfd;
 	int ms;
 	int nfds;
@@ -119,39 +119,39 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	int ic=0;
 	
 	ZT_BUFFERINFO bi;
-	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
-	char *buf = __buf + AST_FRIENDLY_OFFSET;
+	char __buf[CONF_SIZE + OPBX_FRIENDLY_OFFSET];
+	char *buf = __buf + OPBX_FRIENDLY_OFFSET;
 	
 	/* Set it into U-law mode (write) */
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
+	if (opbx_set_write_format(chan, OPBX_FORMAT_ULAW) < 0) {
+		opbx_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
 		goto outrun;
 	}
 	
 	/* Set it into U-law mode (read) */
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
+	if (opbx_set_read_format(chan, OPBX_FORMAT_ULAW) < 0) {
+		opbx_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
 		goto outrun;
 	}
-	ast_indicate(chan, -1);
+	opbx_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
  zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
 		fd = open("/dev/zap/pseudo", O_RDWR);
 		if (fd < 0) {
-			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
 		}
 		/* Make non-blocking */
 		flags = fcntl(fd, F_GETFL);
 		if (flags < 0) {
-			ast_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
 			close(fd);
                         goto outrun;
 		}
 		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
-			ast_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
 		}
@@ -162,7 +162,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 		bi.numbufs = 4;
 		if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
-			ast_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
 		}
@@ -176,14 +176,14 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	/* Check to see if we're in a conference... */
         ztc.chan = 0;
         if (ioctl(fd, ZT_GETCONF, &ztc)) {
-			ast_log(LOG_WARNING, "Error getting conference\n");
+			opbx_log(LOG_WARNING, "Error getting conference\n");
 			close(fd);
 			goto outrun;
         }
         if (ztc.confmode) {
 			/* Whoa, already in a conference...  Retry... */
 			if (!retryzap) {
-				ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+				opbx_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
 				retryzap = 1;
 				goto zapretry;
 			}
@@ -195,30 +195,30 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
         ztc.confmode = ZT_CONF_MONITORBOTH;
 		
         if (ioctl(fd, ZT_SETCONF, &ztc)) {
-                ast_log(LOG_WARNING, "Error setting conference\n");
+                opbx_log(LOG_WARNING, "Error setting conference\n");
                 close(fd);
                 goto outrun;
         }
-        ast_log(LOG_DEBUG, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
+        opbx_log(LOG_DEBUG, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
 		
         for(;;) {
 			outfd = -1;
 			ms = -1;
-			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+			c = opbx_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 			if (c) {
 				if (c->fds[0] != origfd) {
 					if (retryzap) {
 						/* Kill old pseudo */
 						close(fd);
 					}
-					ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+					opbx_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
 					retryzap = 0;
                                 goto zapretry;
 				}
-				f = ast_read(c);
+				f = opbx_read(c);
 				if (!f)
 					break;
-				if(f->frametype == AST_FRAME_DTMF) {
+				if(f->frametype == OPBX_FRAME_DTMF) {
 					if(f->subclass == '#') {
 						ret = 0;
 						break;
@@ -235,37 +235,37 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 						input[ic++] = '\0';
 						ic=0;
 						ret = atoi(input);
-						ast_verbose(VERBOSE_PREFIX_3 "Zapscan: change channel to %d\n",ret);
+						opbx_verbose(VERBOSE_PREFIX_3 "Zapscan: change channel to %d\n",ret);
 						break;
 					}
 				}
 				
 				if (fd != chan->fds[0]) {
-					if (f->frametype == AST_FRAME_VOICE) {
-						if (f->subclass == AST_FORMAT_ULAW) {
+					if (f->frametype == OPBX_FRAME_VOICE) {
+						if (f->subclass == OPBX_FORMAT_ULAW) {
 							/* Carefully write */
                                                 careful_write(fd, f->data, f->datalen);
 						} else
-							ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
+							opbx_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
 					}
 				}
-				ast_frfree(f);
+				opbx_frfree(f);
 			} else if (outfd > -1) {
 				res = read(outfd, buf, CONF_SIZE);
 				if (res > 0) {
 					memset(&fr, 0, sizeof(fr));
-					fr.frametype = AST_FRAME_VOICE;
-					fr.subclass = AST_FORMAT_ULAW;
+					fr.frametype = OPBX_FRAME_VOICE;
+					fr.subclass = OPBX_FORMAT_ULAW;
 					fr.datalen = res;
 					fr.samples = res;
 					fr.data = buf;
-					fr.offset = AST_FRIENDLY_OFFSET;
-					if (ast_write(chan, &fr) < 0) {
-						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+					fr.offset = OPBX_FRIENDLY_OFFSET;
+					if (opbx_write(chan, &fr) < 0) {
+						opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
 						/* break; */
 					}
 				} else
-					ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+					opbx_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 			}
         }
         if (fd != chan->fds[0])
@@ -277,7 +277,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 			ztc.confno = 0;
 			ztc.confmode = 0;
 			if (ioctl(fd, ZT_SETCONF, &ztc)) {
-				ast_log(LOG_WARNING, "Error setting conference\n");
+				opbx_log(LOG_WARNING, "Error setting conference\n");
                 }
         }
 		
@@ -286,76 +286,76 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
         return ret;
 }
 
-static int conf_exec(struct ast_channel *chan, void *data)
+static int conf_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
 	int confflags = 0;
 	int confno = 0;
 	char confstr[80] = "", *tmp = NULL;
-	struct ast_channel *tempchan = NULL, *lastchan = NULL,*ichan = NULL;
-	struct ast_frame *f;
+	struct opbx_channel *tempchan = NULL, *lastchan = NULL,*ichan = NULL;
+	struct opbx_frame *f;
 	char *mygroup;
 	char *desired_group;
 	int input=0,search_group=0;
 	
 	LOCAL_USER_ADD(u);
 	
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_answer(chan);
 	
-	if((desired_group = ast_strdupa((char *) data)) && !ast_strlen_zero(desired_group)) {
-		ast_verbose(VERBOSE_PREFIX_3 "Scanning for group %s\n", desired_group);
+	if((desired_group = opbx_strdupa((char *) data)) && !opbx_strlen_zero(desired_group)) {
+		opbx_verbose(VERBOSE_PREFIX_3 "Scanning for group %s\n", desired_group);
 		search_group = 1;
 	}
 
 	for (;;) {
-		if (ast_waitfor(chan, 100) < 0)
+		if (opbx_waitfor(chan, 100) < 0)
 			break;
 		
-		f = ast_read(chan);
+		f = opbx_read(chan);
 		if (!f)
 			break;
-		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
-			ast_frfree(f);
+		if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '*')) {
+			opbx_frfree(f);
 			break;
 		}
-		ast_frfree(f);
+		opbx_frfree(f);
 		ichan = NULL;
 		if(input) {
 			ichan = get_zap_channel_locked(input);
 			input = 0;
 		}
 		
-		tempchan = ichan ? ichan : ast_channel_walk_locked(tempchan);
+		tempchan = ichan ? ichan : opbx_channel_walk_locked(tempchan);
 		
 		if ( !tempchan && !lastchan )
 			break;
 		
 		if (tempchan && search_group) {
 			if((mygroup = pbx_builtin_getvar_helper(tempchan, "GROUP")) && (!strcmp(mygroup, desired_group))) {
-				ast_verbose(VERBOSE_PREFIX_3 "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
+				opbx_verbose(VERBOSE_PREFIX_3 "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
 			} else {
-				ast_mutex_unlock(&tempchan->lock);
+				opbx_mutex_unlock(&tempchan->lock);
 				lastchan = tempchan;
 				continue;
 			}
 		}
 		if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
-			ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
-			ast_copy_string(confstr, tempchan->name, sizeof(confstr));
-			ast_mutex_unlock(&tempchan->lock);
+			opbx_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
+			opbx_copy_string(confstr, tempchan->name, sizeof(confstr));
+			opbx_mutex_unlock(&tempchan->lock);
 			if ((tmp = strchr(confstr,'-'))) {
 				*tmp = '\0';
 			}
 			confno = atoi(strchr(confstr,'/') + 1);
-			ast_stopstream(chan);
-			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			opbx_stopstream(chan);
+			opbx_say_number(chan, confno, OPBX_DIGIT_ANY, chan->language, (char *) NULL);
 			res = conf_run(chan, confno, confflags);
 			if (res<0) break;
 			input = res;
 		} else if (tempchan)
-			ast_mutex_unlock(&tempchan->lock);
+			opbx_mutex_unlock(&tempchan->lock);
 		lastchan = tempchan;
 	}
 	LOCAL_USER_REMOVE(u);
@@ -365,12 +365,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, conf_exec, synopsis, descrip);
+	return opbx_register_application(app, conf_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -44,10 +44,10 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int nocdr_exec(struct ast_channel *chan, void *data)
+static int nocdr_exec(struct opbx_channel *chan, void *data)
 {
 	if (chan->cdr) {
-		ast_cdr_free(chan->cdr);
+		opbx_cdr_free(chan->cdr);
 		chan->cdr = NULL;
 	}
 	return 0;
@@ -56,12 +56,12 @@ static int nocdr_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(nocdr_app);
+	return opbx_unregister_application(nocdr_app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
+	return opbx_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
 }
 
 char *description(void)

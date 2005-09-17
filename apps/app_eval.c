@@ -57,7 +57,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int eval_exec(struct ast_channel *chan, void *data)
+static int eval_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -65,7 +65,7 @@ static int eval_exec(struct ast_channel *chan, void *data)
 	static int dep_warning = 0;
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
+		opbx_log(LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
 		dep_warning = 1;
 	}
 
@@ -73,7 +73,7 @@ static int eval_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		s = ast_strdupa((char *)data);
+		s = opbx_strdupa((char *)data);
 		if (s) {
 			newvar = strsep(&s, "=");
 			if (newvar && (newvar[0] != '\0')) {
@@ -82,7 +82,7 @@ static int eval_exec(struct ast_channel *chan, void *data)
 				pbx_builtin_setvar_helper(chan, newvar, tmp);
 			}
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
+			opbx_log(LOG_ERROR, "Out of memory\n");
 			res = -1;
 		}
 	}
@@ -94,12 +94,12 @@ static int eval_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_eval);
+	return opbx_unregister_application(app_eval);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app_eval, eval_exec, eval_synopsis, eval_descrip);
+	return opbx_register_application(app_eval, eval_exec, eval_synopsis, eval_descrip);
 }
 
 char *description(void)

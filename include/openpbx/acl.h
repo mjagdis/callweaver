@@ -31,23 +31,23 @@ extern "C" {
 #include <netinet/in.h>
 #include "openpbx/io.h"
 
-#define AST_SENSE_DENY                  0
-#define AST_SENSE_ALLOW                 1
+#define OPBX_SENSE_DENY                  0
+#define OPBX_SENSE_ALLOW                 1
 
 /* Host based access control */
 
-struct ast_ha;
+struct opbx_ha;
 
-extern void ast_free_ha(struct ast_ha *ha);
-extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
-extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
-extern int ast_get_ip(struct sockaddr_in *sin, const char *value);
-extern int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
-extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
-extern int ast_lookup_iface(char *iface, struct in_addr *address);
-extern struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
-extern int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
-extern int ast_str2tos(const char *value, int *tos);
+extern void opbx_free_ha(struct opbx_ha *ha);
+extern struct opbx_ha *opbx_append_ha(char *sense, char *stuff, struct opbx_ha *path);
+extern int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin);
+extern int opbx_get_ip(struct sockaddr_in *sin, const char *value);
+extern int opbx_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+extern int opbx_ouraddrfor(struct in_addr *them, struct in_addr *us);
+extern int opbx_lookup_iface(char *iface, struct in_addr *address);
+extern struct opbx_ha *opbx_duplicate_ha_list(struct opbx_ha *original);
+extern int opbx_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+extern int opbx_str2tos(const char *value, int *tos);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

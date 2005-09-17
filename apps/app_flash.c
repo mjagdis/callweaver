@@ -72,7 +72,7 @@ static inline int zt_wait_event(int fd)
 	return j;
 }
 
-static int flash_exec(struct ast_channel *chan, void *data)
+static int flash_exec(struct opbx_channel *chan, void *data)
 {
 	int res = -1;
 	int x;
@@ -91,17 +91,17 @@ static int flash_exec(struct ast_channel *chan, void *data)
 						/* Wait for the event to finish */
 						zt_wait_event(chan->fds[0]);
 					}
-					res = ast_safe_sleep(chan, 1000);
+					res = opbx_safe_sleep(chan, 1000);
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
+						opbx_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
 				} else
-					ast_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
+					opbx_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
 			} else
-				ast_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
+				opbx_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
 		} else
-			ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
 	} else
-		ast_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
+		opbx_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -109,12 +109,12 @@ static int flash_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, flash_exec, synopsis, descrip);
+	return opbx_register_application(app, flash_exec, synopsis, descrip);
 }
 
 char *description(void)

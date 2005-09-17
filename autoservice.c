@@ -52,61 +52,61 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_AUTOMONS 256
 
-AST_MUTEX_DEFINE_STATIC(autolock);
+OPBX_MUTEX_DEFINE_STATIC(autolock);
 
 struct asent {
-	struct ast_channel *chan;
+	struct opbx_channel *chan;
 	struct asent *next;
 };
 
 static struct asent *aslist = NULL;
-static pthread_t asthread = AST_PTHREADT_NULL;
+static pthread_t asthread = OPBX_PTHREADT_NULL;
 
 static void *autoservice_run(void *ign)
 {
-	struct ast_channel *mons[MAX_AUTOMONS];
+	struct opbx_channel *mons[MAX_AUTOMONS];
 	int x;
 	int ms;
-	struct ast_channel *chan;
+	struct opbx_channel *chan;
 	struct asent *as;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	for(;;) {
 		x = 0;
-		ast_mutex_lock(&autolock);
+		opbx_mutex_lock(&autolock);
 		as = aslist;
 		while(as) {
 			if (!as->chan->_softhangup) {
 				if (x < MAX_AUTOMONS)
 					mons[x++] = as->chan;
 				else
-					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
+					opbx_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
 			}
 			as = as->next;
 		}
-		ast_mutex_unlock(&autolock);
+		opbx_mutex_unlock(&autolock);
 
 /* 		if (!aslist)
 			break; */
 		ms = 500;
-		chan = ast_waitfor_n(mons, x, &ms);
+		chan = opbx_waitfor_n(mons, x, &ms);
 		if (chan) {
 			/* Read and ignore anything that occurs */
-			f = ast_read(chan);
+			f = opbx_read(chan);
 			if (f)
-				ast_frfree(f);
+				opbx_frfree(f);
 		}
 	}
-	asthread = AST_PTHREADT_NULL;
+	asthread = OPBX_PTHREADT_NULL;
 	return NULL;
 }
 
-int ast_autoservice_start(struct ast_channel *chan)
+int opbx_autoservice_start(struct opbx_channel *chan)
 {
 	int res = -1;
 	struct asent *as;
 	int needstart;
-	ast_mutex_lock(&autolock);
-	needstart = (asthread == AST_PTHREADT_NULL) ? 1 : 0 /* aslist ? 0 : 1 */;
+	opbx_mutex_lock(&autolock);
+	needstart = (asthread == OPBX_PTHREADT_NULL) ? 1 : 0 /* aslist ? 0 : 1 */;
 	as = aslist;
 	while(as) {
 		if (as->chan == chan)
@@ -122,8 +122,8 @@ int ast_autoservice_start(struct ast_channel *chan)
 			aslist = as;
 			res = 0;
 			if (needstart) {
-				if (ast_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
-					ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
+				if (opbx_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
+					opbx_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 					free(aslist);
 					aslist = NULL;
 					res = -1;
@@ -132,15 +132,15 @@ int ast_autoservice_start(struct ast_channel *chan)
 			}
 		}
 	}
-	ast_mutex_unlock(&autolock);
+	opbx_mutex_unlock(&autolock);
 	return res;
 }
 
-int ast_autoservice_stop(struct ast_channel *chan)
+int opbx_autoservice_stop(struct opbx_channel *chan)
 {
 	int res = -1;
 	struct asent *as, *prev;
-	ast_mutex_lock(&autolock);
+	opbx_mutex_lock(&autolock);
 	as = aslist;
 	prev = NULL;
 	while(as) {
@@ -158,11 +158,11 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		if (!chan->_softhangup)
 			res = 0;
 	}
-	if (asthread != AST_PTHREADT_NULL) 
+	if (asthread != OPBX_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);
-	ast_mutex_unlock(&autolock);
+	opbx_mutex_unlock(&autolock);
 	/* Wait for it to un-block */
-	while(ast_test_flag(chan, AST_FLAG_BLOCKING))
+	while(opbx_test_flag(chan, OPBX_FLAG_BLOCKING))
 		usleep(1000);
 	return res;
 }

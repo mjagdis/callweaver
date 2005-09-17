@@ -59,7 +59,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int playback_exec(struct ast_channel *chan, void *data)
+static int playback_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
@@ -69,8 +69,8 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	int option_noanswer = 0;
 	char *stringp = NULL;
 	char *front = NULL, *back = NULL;
-	if (!data || ast_strlen_zero((char *)data) || !(tmp = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
+	if (!data || opbx_strlen_zero((char *)data) || !(tmp = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}
 	stringp = tmp;
@@ -81,30 +81,30 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	if (options && !strcasecmp(options, "noanswer"))
 		option_noanswer = 1;
 	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != OPBX_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		} else if (!option_noanswer)
 			/* Otherwise answer unless we're supposed to send this while on-hook */
-			res = ast_answer(chan);
+			res = opbx_answer(chan);
 	}
 	if (!res) {
-		ast_stopstream(chan);
+		opbx_stopstream(chan);
 		front = tmp;
 		while (!res && front) {
 			if ((back = strchr(front, '&'))) {
 				*back = '\0';
 				back++;
 			}
-			res = ast_streamfile(chan, front, chan->language);
+			res = opbx_streamfile(chan, front, chan->language);
 			if (!res) { 
-				res = ast_waitstream(chan, "");	
-				ast_stopstream(chan);
+				res = opbx_waitstream(chan, "");	
+				opbx_stopstream(chan);
 			} else {
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
-				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, (char *)data);
+				opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 				res = 0;
 			}
 			front = back;
@@ -117,12 +117,12 @@ static int playback_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, playback_exec, synopsis, descrip);
+	return opbx_register_application(app, playback_exec, synopsis, descrip);
 }
 
 char *description(void)

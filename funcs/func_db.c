@@ -41,7 +41,7 @@
 #include "openpbx/app.h"
 #include "openpbx/astdb.h"
 
-static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_db_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int argc;	
 	char *args;
@@ -49,24 +49,24 @@ static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, c
 	char *family;
 	char *key;
 
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
 		return buf;
 	}
 
-	args = ast_strdupa(data);
-	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	args = opbx_strdupa(data);
+	argc = opbx_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
 	
 	if (argc > 1) {
 		family = argv[0];
 		key = argv[1];
 	} else {
-		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
+		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
 		return buf;
 	}
 
-	if (ast_db_get(family, key, buf, len-1)) {
-		ast_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", family, key);
+	if (opbx_db_get(family, key, buf, len-1)) {
+		opbx_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", family, key);
 	} else
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 
@@ -74,7 +74,7 @@ static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, c
 	return buf;
 }
 
-static void function_db_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void function_db_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
 {
 	int argc;	
 	char *args;
@@ -82,31 +82,31 @@ static void function_db_write(struct ast_channel *chan, char *cmd, char *data, c
 	char *family;
 	char *key;
 
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=<value>\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=<value>\n");
 		return;
 	}
 
-	args = ast_strdupa(data);
-	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	args = opbx_strdupa(data);
+	argc = opbx_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
 	
 	if (argc > 1) {
 		family = argv[0];
 		key = argv[1];
 	} else {
-		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=value\n");
+		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=value\n");
 		return;
 	}
 
-	if (ast_db_put(family, key, (char*)value)) {
-		ast_log(LOG_WARNING, "DB: Error writing value to database.\n");
+	if (opbx_db_put(family, key, (char*)value)) {
+		opbx_log(LOG_WARNING, "DB: Error writing value to database.\n");
 	}
 }
 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function db_function = {
+struct opbx_custom_function db_function = {
 	.name = "DB",
 	.synopsis = "Read or Write from/to the OpenPBX database",
 	.syntax = "DB(<family>/<key>)",
@@ -120,7 +120,7 @@ struct ast_custom_function db_function = {
 	.write = function_db_write,
 };
 
-static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_db_exists(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int argc;	
 	char *args;
@@ -128,27 +128,27 @@ static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data,
 	char *family;
 	char *key;
 
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
 		return buf;
 	}
 
-	args = ast_strdupa(data);
-	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	args = opbx_strdupa(data);
+	argc = opbx_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
 	
 	if (argc > 1) {
 		family = argv[0];
 		key = argv[1];
 	} else {
-		ast_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
+		opbx_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
 		return buf;
 	}
 
-	if (ast_db_get(family, key, buf, len-1))
-		ast_copy_string(buf, "0", len);	
+	if (opbx_db_get(family, key, buf, len-1))
+		opbx_copy_string(buf, "0", len);	
 	else {
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
-		ast_copy_string(buf, "1", len);
+		opbx_copy_string(buf, "1", len);
 	}
 	
 	return buf;
@@ -157,7 +157,7 @@ static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data,
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function db_exists_function = {
+struct opbx_custom_function db_exists_function = {
 	.name = "DB_EXISTS",
 	.synopsis = "Check to see if a key exists in the OpenPBX database",
 	.syntax = "DB_EXISTS(<family>/<key>)",

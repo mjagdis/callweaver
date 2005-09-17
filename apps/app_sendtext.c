@@ -65,30 +65,30 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int sendtext_exec(struct ast_channel *chan, void *data)
+static int sendtext_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
 	char *status = "UNSUPPORTED";
 
 	if (!data || !strlen((char *)data)) {
-		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
+		opbx_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
-	ast_mutex_lock(&chan->lock);
+	opbx_mutex_lock(&chan->lock);
 	if (!chan->tech->send_text) {
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 		/* Does not support transport */
 		if (option_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	status = "FAILURE";
-	ast_mutex_unlock(&chan->lock);
-	res = ast_sendtext(chan, (char *)data);
+	opbx_mutex_unlock(&chan->lock);
+	res = opbx_sendtext(chan, (char *)data);
 	if (!res)
 		status = "SUCCESS";
 	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
@@ -100,12 +100,12 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, sendtext_exec, synopsis, descrip);
+	return opbx_register_application(app, sendtext_exec, synopsis, descrip);
 }
 
 char *description(void)

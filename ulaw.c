@@ -32,8 +32,8 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #define BIAS 0x84   /* define the add-in bias for 16 bit samples */
 #define CLIP 32635
 
-unsigned char __ast_lin2mu[16384];
-short __ast_mulaw[256];
+unsigned char __opbx_lin2mu[16384];
+short __opbx_mulaw[256];
 
 static unsigned char
 linear2ulaw(short sample)
@@ -74,7 +74,7 @@ linear2ulaw(short sample)
   return(ulawbyte);
 }
 
-void ast_ulaw_init(void)
+void opbx_ulaw_init(void)
 {
 	int i;
 	/* 
@@ -91,12 +91,12 @@ void ast_ulaw_init(void)
 		y = f * (1 << (e + 3));
 		y += etab[e];
 		if (mu & 0x80) y = -y;
-	        __ast_mulaw[i] = y;
+	        __opbx_mulaw[i] = y;
 	   }
 	  /* set up the reverse (mu-law) conversion table */
 	for(i = -32768; i < 32768; i++)
 	   {
-		__ast_lin2mu[((unsigned short)i) >> 2] = linear2ulaw(i);
+		__opbx_lin2mu[((unsigned short)i) >> 2] = linear2ulaw(i);
 	   }
 
 }

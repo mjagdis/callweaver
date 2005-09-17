@@ -50,7 +50,7 @@ static char sccsid[] = "@(#)hash_bigkey.c	8.3 (Berkeley) 5/31/94";
  *	__big_insert
  *	__big_return
  *	__big_delete
- *	__find_last_page
+ *	__find_lopbx_page
  * Internal
  *	collect_key
  *	collect_data
@@ -189,12 +189,12 @@ __big_delete(hashp, bufp)
 	HTAB *hashp;
 	BUFHEAD *bufp;
 {
-	register BUFHEAD *last_bfp, *rbufp;
+	register BUFHEAD *lopbx_bfp, *rbufp;
 	u_int16_t *bp, pageno;
 	int key_done, n;
 
 	rbufp = bufp;
-	last_bfp = NULL;
+	lopbx_bfp = NULL;
 	bp = (u_int16_t *)bufp->page;
 	pageno = 0;
 	key_done = 0;
@@ -213,9 +213,9 @@ __big_delete(hashp, bufp)
 		pageno = bp[bp[0] - 1];
 		rbufp->flags |= BUF_MOD;
 		rbufp = __get_buf(hashp, pageno, rbufp, 0);
-		if (last_bfp)
-			__free_ovflpage(hashp, last_bfp);
-		last_bfp = rbufp;
+		if (lopbx_bfp)
+			__free_ovflpage(hashp, lopbx_bfp);
+		lopbx_bfp = rbufp;
 		if (!rbufp)
 			return (-1);		/* Error. */
 		bp = (u_int16_t *)rbufp->page;
@@ -250,8 +250,8 @@ __big_delete(hashp, bufp)
 	bufp->flags |= BUF_MOD;
 	if (rbufp)
 		__free_ovflpage(hashp, rbufp);
-	if (last_bfp && last_bfp != rbufp)
-		__free_ovflpage(hashp, last_bfp);
+	if (lopbx_bfp && lopbx_bfp != rbufp)
+		__free_ovflpage(hashp, lopbx_bfp);
 
 	hashp->NKEYS--;
 	return (0);
@@ -316,7 +316,7 @@ __find_bigpair(hashp, bufp, ndx, key, size)
  * bucket)
  */
 extern u_int16_t
-__find_last_page(hashp, bpp)
+__find_lopbx_page(hashp, bpp)
 	HTAB *hashp;
 	BUFHEAD **bpp;
 {
@@ -591,7 +591,7 @@ __big_split(hashp, op, np, big_keyp, addr, obucket, ret)
 		return (-1);
 	change = (__call_hash(hashp, key.data, key.size) != obucket);
 
-	if ((ret->next_addr = __find_last_page(hashp, &big_keyp))) {
+	if ((ret->next_addr = __find_lopbx_page(hashp, &big_keyp))) {
 		if (!(ret->nextp =
 		    __get_buf(hashp, ret->next_addr, big_keyp, 0)))
 			return (-1);;

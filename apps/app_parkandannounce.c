@@ -65,7 +65,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int parkandannounce_exec(struct ast_channel *chan, void *data)
+static int parkandannounce_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	char *return_context;
@@ -76,19 +76,19 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	int looptemp=0,i=0;
 	char *s,*orig_s;
 
-	struct ast_channel *dchan;
+	struct opbx_channel *dchan;
 	int outstate;
 
 	struct localuser *u;
 	if(!data || (data && !strlen(data))) {
-		ast_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
+		opbx_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
 		return -1;
 	}
   
 	l=strlen(data)+2;
 	orig_s=malloc(l);
 	if(!orig_s) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	s=orig_s;
@@ -96,7 +96,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	template=strsep(&s,"|");
 	if(! template) {
-		ast_log(LOG_WARNING, "PARK: An announce template must be defined\n");
+		opbx_log(LOG_WARNING, "PARK: An announce template must be defined\n");
 		free(orig_s);
 		return -1;
 	}
@@ -107,13 +107,13 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	}
 	dial=strsep(&s, "|");
 	if(!dial) {
-		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
+		opbx_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
 		free(orig_s);
 		return -1;
 	} else {
 		dialtech=strsep(&dial, "/");
 		dialstr=dial;
-		ast_verbose( VERBOSE_PREFIX_3 "Dial Tech,String: (%s,%s)\n", dialtech,dialstr);
+		opbx_verbose( VERBOSE_PREFIX_3 "Dial Tech,String: (%s,%s)\n", dialtech,dialstr);
 	}
 
 	return_context = s;
@@ -139,7 +139,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	if(atoi(priority) < 0) {
-		ast_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", priority);
+		opbx_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", priority);
 		free(orig_s);
 		return -1;
 	}
@@ -155,9 +155,9 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 
 	if(option_verbose > 2) {
-		ast_verbose( VERBOSE_PREFIX_3 "Return Context: (%s,%s,%d) ID: %s\n", chan->context,chan->exten, chan->priority, chan->cid.cid_num);
-		if(!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
-			ast_verbose( VERBOSE_PREFIX_3 "Warning: Return Context Invalid, call will return to default|s\n");
+		opbx_verbose( VERBOSE_PREFIX_3 "Return Context: (%s,%s,%d) ID: %s\n", chan->context,chan->exten, chan->priority, chan->cid.cid_num);
+		if(!opbx_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+			opbx_verbose( VERBOSE_PREFIX_3 "Warning: Return Context Invalid, call will return to default|s\n");
 		}
 	}
   
@@ -166,41 +166,41 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout
 	before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
-	ast_masq_park_call(chan, NULL, timeout, &lot);
+	opbx_masq_park_call(chan, NULL, timeout, &lot);
 
 	res=-1; 
 
-	ast_verbose( VERBOSE_PREFIX_3 "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, return_context);
+	opbx_verbose( VERBOSE_PREFIX_3 "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, return_context);
 
 	/* Now place the call to the extention */
 
-	dchan = ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, dialstr,30000, &outstate, chan->cid.cid_num, chan->cid.cid_name);
+	dchan = opbx_request_and_dial(dialtech, OPBX_FORMAT_SLINEAR, dialstr,30000, &outstate, chan->cid.cid_num, chan->cid.cid_name);
 
 	if(dchan) {
-		if(dchan->_state == AST_STATE_UP) {
+		if(dchan->_state == OPBX_STATE_UP) {
 			if(option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", dchan->name);
+				opbx_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", dchan->name);
 		} else {
 			if(option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", dchan->name);
-        			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
-			ast_hangup(dchan);
+				opbx_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", dchan->name);
+        			opbx_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
+			opbx_hangup(dchan);
 			free(orig_s);
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 	} else {
-		ast_log(LOG_WARNING, "PARK: Unable to allocate announce channel.\n");
+		opbx_log(LOG_WARNING, "PARK: Unable to allocate announce channel.\n");
 		free(orig_s);
 		LOCAL_USER_REMOVE(u);
 		return -1; 
 	}
 
-	ast_stopstream(dchan);
+	opbx_stopstream(dchan);
 
 	/* now we have the call placed and are ready to play stuff to it */
 
-	ast_verbose(VERBOSE_PREFIX_4 "Announce Template:%s\n", template);
+	opbx_verbose(VERBOSE_PREFIX_4 "Announce Template:%s\n", template);
 
 	tpl_working = template;
 	tpl_current=strsep(&tpl_working, ":");
@@ -212,22 +212,22 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	}
 
 	for(i=0; i<looptemp; i++) {
-		ast_verbose(VERBOSE_PREFIX_4 "Announce:%s\n", tmp[i]);
+		opbx_verbose(VERBOSE_PREFIX_4 "Announce:%s\n", tmp[i]);
 		if(!strcmp(tmp[i], "PARKED")) {
-			ast_say_digits(dchan, lot, "", dchan->language);
+			opbx_say_digits(dchan, lot, "", dchan->language);
 		} else {
-			dres = ast_streamfile(dchan, tmp[i], dchan->language);
+			dres = opbx_streamfile(dchan, tmp[i], dchan->language);
 			if(!dres) {
-				dres = ast_waitstream(dchan, "");
+				dres = opbx_waitstream(dchan, "");
 			} else {
-				ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", tmp[i], dchan->name);
+				opbx_log(LOG_WARNING, "opbx_streamfile of %s failed on %s\n", tmp[i], dchan->name);
 				dres = 0;
 			}
 		}
 	}
 
-	ast_stopstream(dchan);  
-	ast_hangup(dchan);
+	opbx_stopstream(dchan);  
+	opbx_hangup(dchan);
 
 	LOCAL_USER_REMOVE(u);
 	free(orig_s);
@@ -239,13 +239,13 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	/* return ast_register_application(app, park_exec); */
-	return ast_register_application(app, parkandannounce_exec, synopsis, descrip);
+	/* return opbx_register_application(app, park_exec); */
+	return opbx_register_application(app, parkandannounce_exec, synopsis, descrip);
 }
 
 char *description(void)

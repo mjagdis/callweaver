@@ -56,22 +56,22 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int sendimage_exec(struct ast_channel *chan, void *data)
+static int sendimage_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
 	if (!data || !strlen((char *)data)) {
-		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
+		opbx_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	if (!ast_supports_images(chan)) {
+	if (!opbx_supports_images(chan)) {
 		/* Does not support transport */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+		if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority += 100;
 		return 0;
 	}
-	res = ast_send_image(chan, data);
+	res = opbx_send_image(chan, data);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -79,12 +79,12 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, sendimage_exec, synopsis, descrip);
+	return opbx_register_application(app, sendimage_exec, synopsis, descrip);
 }
 
 char *description(void)

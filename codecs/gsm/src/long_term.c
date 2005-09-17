@@ -639,7 +639,7 @@ static void Calculation_of_the_LTP_parameters P4((d,dp,bc_out,Nc_out),
 #ifdef	FAST
 #ifdef	LTP_CUT
 
-static void Cut_Fast_Calculation_of_the_LTP_parameters P5((st,
+static void Cut_Fopbx_Calculation_of_the_LTP_parameters P5((st,
 							d,dp,bc_out,Nc_out),
 	struct gsm_state * st,		/*              IN	*/
 	register word	* d,		/* [0..39]	IN	*/
@@ -714,7 +714,7 @@ static void Cut_Fast_Calculation_of_the_LTP_parameters P5((st,
 
 #endif /* LTP_CUT */
 
-static void Fast_Calculation_of_the_LTP_parameters P4((d,dp,bc_out,Nc_out),
+static void Fopbx_Calculation_of_the_LTP_parameters P4((d,dp,bc_out,Nc_out),
 	register word	* d,		/* [0..39]	IN	*/
 	register word	* dp,		/* [-120..-1]	IN	*/
 	word		* bc_out,	/* 		OUT	*/
@@ -888,11 +888,11 @@ void Gsm_Long_Term_Predictor P7((S,d,dp,e,dpp,Nc,bc), 	/* 4x for 160 samples */
 	if (S->fast) 
 #if   defined (LTP_CUT)
 		if (S->ltp_cut)
-			Cut_Fast_Calculation_of_the_LTP_parameters(S,
+			Cut_Fopbx_Calculation_of_the_LTP_parameters(S,
 				d, dp, bc, Nc);
 		else
 #endif /* LTP_CUT */
-			Fast_Calculation_of_the_LTP_parameters(d, dp, bc, Nc );
+			Fopbx_Calculation_of_the_LTP_parameters(d, dp, bc, Nc );
 	else 
 #endif /* FAST & USE_FLOAT_MUL */
 #ifdef LTP_CUT

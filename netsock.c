@@ -60,8 +60,8 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/lock.h"
 #include "openpbx/srv.h"
 
-struct ast_netsock {
-	ASTOBJ_COMPONENTS(struct ast_netsock);
+struct opbx_netsock {
+	ASTOBJ_COMPONENTS(struct opbx_netsock);
 	struct sockaddr_in bindaddr;
 	int sockfd;
 	int *ioref;
@@ -69,28 +69,28 @@ struct ast_netsock {
 	void *data;
 };
 
-struct ast_netsock_list {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_netsock);
+struct opbx_netsock_list {
+	ASTOBJ_CONTAINER_COMPONENTS(struct opbx_netsock);
 	struct io_context *ioc;
 };
 
-static void ast_netsock_destroy(struct ast_netsock *netsock)
+static void opbx_netsock_destroy(struct opbx_netsock *netsock)
 {
-	ast_io_remove(netsock->ioc, netsock->ioref);
+	opbx_io_remove(netsock->ioc, netsock->ioref);
 	close(netsock->sockfd);
 	free(netsock);
 }
 
-struct ast_netsock_list *ast_netsock_list_alloc(void)
+struct opbx_netsock_list *opbx_netsock_list_alloc(void)
 {
-	struct ast_netsock_list *res;
+	struct opbx_netsock_list *res;
 
 	res = calloc(1, sizeof(*res));
 
 	return res;
 }
 
-int ast_netsock_init(struct ast_netsock_list *list)
+int opbx_netsock_init(struct opbx_netsock_list *list)
 {
 	memset(list, 0, sizeof(*list));
 	ASTOBJ_CONTAINER_INIT(list);
@@ -98,18 +98,18 @@ int ast_netsock_init(struct ast_netsock_list *list)
 	return 0;
 }
 
-int ast_netsock_release(struct ast_netsock_list *list)
+int opbx_netsock_release(struct opbx_netsock_list *list)
 {
-	ASTOBJ_CONTAINER_DESTROYALL(list, ast_netsock_destroy);
+	ASTOBJ_CONTAINER_DESTROYALL(list, opbx_netsock_destroy);
 	ASTOBJ_CONTAINER_DESTROY(list);
 
 	return 0;
 }
 
-struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
+struct opbx_netsock *opbx_netsock_find(struct opbx_netsock_list *list,
 				     struct sockaddr_in *sa)
 {
-	struct ast_netsock *sock = NULL;
+	struct opbx_netsock *sock = NULL;
 
 	ASTOBJ_CONTAINER_TRAVERSE(list, !sock, {
 		ASTOBJ_RDLOCK(iterator);
@@ -121,38 +121,38 @@ struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
 	return sock;
 }
 
-struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, ast_io_cb callback, void *data)
+struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, opbx_io_cb callback, void *data)
 {
 	int netsocket = -1;
 	int *ioref;
 	char iabuf[INET_ADDRSTRLEN];
 	
-	struct ast_netsock *ns;
+	struct opbx_netsock *ns;
 	
 	/* Make a UDP socket */
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	
 	if (netsocket < 0) {
-		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
+		opbx_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		return NULL;
 	}
 	if (bind(netsocket,(struct sockaddr *)bindaddr, sizeof(struct sockaddr_in))) {
-		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
+		opbx_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
 		close(netsocket);
 		return NULL;
 	}
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
+		opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
-	ns = malloc(sizeof(struct ast_netsock));
+	ns = malloc(sizeof(struct opbx_netsock));
 	if (ns) {
 		/* Establish I/O callback for socket read */
-		ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns);
+		ioref = opbx_io_add(ioc, netsocket, callback, OPBX_IO_IN, ns);
 		if (!ioref) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
+			opbx_log(LOG_WARNING, "Out of memory!\n");
 			close(netsocket);
 			free(ns);
 			return NULL;
@@ -165,14 +165,14 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
 		ASTOBJ_CONTAINER_LINK(list, ns);
 	} else {
-		ast_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(LOG_WARNING, "Out of memory!\n");
 		close(netsocket);
 	}
 
 	return ns;
 }
 
-struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data)
+struct opbx_netsock *opbx_netsock_bind(struct opbx_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, opbx_io_cb callback, void *data)
 {
 	struct sockaddr_in sin;
 	char *tmp;
@@ -183,9 +183,9 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(defaultport);
-	tmp = ast_strdupa(bindinfo);
+	tmp = opbx_strdupa(bindinfo);
 	if (!tmp) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
+		opbx_log(LOG_WARNING, "Out of memory!\n");
 		return NULL;
 	}
 
@@ -197,20 +197,20 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 
 	inet_aton(host, &sin.sin_addr);
 
-	return ast_netsock_bindaddr(list, ioc, &sin, tos, callback, data);
+	return opbx_netsock_bindaddr(list, ioc, &sin, tos, callback, data);
 }
 
-int ast_netsock_sockfd(const struct ast_netsock *ns)
+int opbx_netsock_sockfd(const struct opbx_netsock *ns)
 {
 	return ns ? ns-> sockfd : -1;
 }
 
-const struct sockaddr_in *ast_netsock_boundaddr(const struct ast_netsock *ns)
+const struct sockaddr_in *opbx_netsock_boundaddr(const struct opbx_netsock *ns)
 {
 	return &(ns->bindaddr);
 }
 
-void *ast_netsock_data(const struct ast_netsock *ns)
+void *opbx_netsock_data(const struct opbx_netsock *ns)
 {
 	return ns->data;
 }

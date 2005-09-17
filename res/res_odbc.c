@@ -84,7 +84,7 @@ static int odbc_write(struct odbc_list *registry, char *name, odbc_obj *obj)
 	int x = 0;
 	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
 		if (!registry[x].used) {
-			ast_copy_string(registry[x].name, name, sizeof(registry[x].name));
+			opbx_copy_string(registry[x].name, name, sizeof(registry[x].name));
 			registry[x].obj = obj;
 			registry[x].used = 1;
 			return 1;
@@ -109,10 +109,10 @@ int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt)
 	int res = 0;
 	res = SQLExecute(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
-		ast_mutex_lock(&obj->lock);
+		opbx_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
+		opbx_mutex_lock(&obj->lock);
 		obj->up = 0;
-		ast_mutex_unlock(&obj->lock);
+		opbx_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
 		res = SQLExecute(stmt);
@@ -128,10 +128,10 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 
 	res = SQLExecDirect (stmt, sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
-		ast_mutex_lock(&obj->lock);
+		opbx_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
+		opbx_mutex_lock(&obj->lock);
 		obj->up = 0;
-		ast_mutex_unlock(&obj->lock);
+		opbx_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
 		res = SQLExecDirect (stmt, sql, SQL_NTS);
@@ -147,7 +147,7 @@ int odbc_sanity_check(odbc_obj *obj)
 	int res = 0;
 	SQLLEN rowcount = 0;
 
-	ast_mutex_lock(&obj->lock);
+	opbx_mutex_lock(&obj->lock);
 	if(obj->up) { /* so you say... let's make sure */
 		res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -170,10 +170,10 @@ int odbc_sanity_check(odbc_obj *obj)
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	}
-	ast_mutex_unlock(&obj->lock);
+	opbx_mutex_unlock(&obj->lock);
 
 	if(!obj->up) { /* Try to reconnect! */
-		ast_log(LOG_WARNING, "Connection is down attempting to reconnect...\n");
+		opbx_log(LOG_WARNING, "Connection is down attempting to reconnect...\n");
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
 	}
@@ -183,8 +183,8 @@ int odbc_sanity_check(odbc_obj *obj)
 static int load_odbc_config(void)
 {
 	static char *cfg = "res_odbc.conf";
-	struct ast_config *config;
-	struct ast_variable *v;
+	struct opbx_config *config;
+	struct opbx_variable *v;
 	char *cat, *dsn, *username, *password;
 	int enabled;
 	int connect = 0;
@@ -192,31 +192,31 @@ static int load_odbc_config(void)
 
 	odbc_obj *obj;
 
-	config = ast_config_load(cfg);
+	config = opbx_config_load(cfg);
 	if (config) {
-		for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
+		for (cat = opbx_category_browse(config, NULL); cat; cat=opbx_category_browse(config, cat)) {
 			if (!strcmp(cat, "ENV")) {
-				for (v = ast_variable_browse(config, cat); v; v = v->next) {
+				for (v = opbx_variable_browse(config, cat); v; v = v->next) {
 					env_var = malloc(strlen(v->name) + strlen(v->value) + 2);
 					if (env_var) {
 						sprintf(env_var, "%s=%s", v->name, v->value);
-						ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
+						opbx_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
 						putenv(env_var);
 						free(env_var);
 					}
 				}
 
-			cat = ast_category_browse(config, cat);
+			cat = opbx_category_browse(config, cat);
 			}
 
 			dsn = username = password = NULL;
 			enabled = 1;
 			connect = 0;
-			for (v = ast_variable_browse(config, cat); v; v = v->next) {
+			for (v = opbx_variable_browse(config, cat); v; v = v->next) {
 				if (!strcmp(v->name, "enabled"))
-					enabled = ast_true(v->value);
+					enabled = opbx_true(v->value);
 				if (!strcmp(v->name, "pre-connect"))
-					connect = ast_true(v->value);
+					connect = opbx_true(v->value);
 				if (!strcmp(v->name, "dsn"))
 					dsn = v->value;
 				if (!strcmp(v->name, "username"))
@@ -229,17 +229,17 @@ static int load_odbc_config(void)
 				obj = new_odbc_obj(cat, dsn, username, password);
 				if (obj) {
 					register_odbc_obj(cat, obj);
-					ast_log(LOG_NOTICE, "registered database handle '%s' dsn->[%s]\n", cat, obj->dsn);
+					opbx_log(LOG_NOTICE, "registered database handle '%s' dsn->[%s]\n", cat, obj->dsn);
 					if (connect) {
 						odbc_obj_connect(obj);
 					}
 				} else {
-					ast_log(LOG_WARNING, "Addition of obj %s failed.\n", cat);
+					opbx_log(LOG_WARNING, "Addition of obj %s failed.\n", cat);
 				}
 
 			}
 		}
-		ast_config_destroy(config);
+		opbx_config_destroy(config);
 	}
 	return 0;
 }
@@ -248,19 +248,19 @@ int odbc_dump_fd(int fd, odbc_obj *obj)
 {
 	/* make sure the connection is up before we lie to our master.*/
 	odbc_sanity_check(obj);
-	ast_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
+	opbx_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
 	return 0;
 }
 
 static int odbc_connect_usage(int fd)
 {
-	ast_cli(fd, "usage odbc connect <DSN>\n");
+	opbx_cli(fd, "usage odbc connect <DSN>\n");
 	return 0;
 }
 
 static int odbc_disconnect_usage(int fd)
 {
-	ast_cli(fd, "usage odbc disconnect <DSN>\n");
+	opbx_cli(fd, "usage odbc disconnect <DSN>\n");
 	return 0;
 }
 
@@ -333,14 +333,14 @@ static char show_usage[] =
 "       Show ODBC {DSN}\n"
 "       Specifying DSN will show that DSN else, all DSNs are shown\n";
 
-static struct ast_cli_entry odbc_connect_struct =
+static struct opbx_cli_entry odbc_connect_struct =
         { { "odbc", "connect", NULL }, odbc_connect_command, "Connect to ODBC DSN", connect_usage };
 
 
-static struct ast_cli_entry odbc_disconnect_struct =
+static struct opbx_cli_entry odbc_disconnect_struct =
         { { "odbc", "disconnect", NULL }, odbc_disconnect_command, "Disconnect from ODBC DSN", disconnect_usage };
 
-static struct ast_cli_entry odbc_show_struct =
+static struct opbx_cli_entry odbc_show_struct =
         { { "odbc", "show", NULL }, odbc_show_command, "Show ODBC DSN(s)", show_usage };
 
 /* api calls */
@@ -397,7 +397,7 @@ odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
 	strcpy(new->name, name);
 	strcpy(new->dsn, dsn);
 	new->up = 0;
-	ast_mutex_init(&new->lock);
+	opbx_mutex_init(&new->lock);
 	return new;
 }
 
@@ -405,7 +405,7 @@ void destroy_obdc_obj(odbc_obj **obj)
 {
 	odbc_obj_disconnect(*obj);
 
-	ast_mutex_lock(&(*obj)->lock);
+	opbx_mutex_lock(&(*obj)->lock);
 	SQLFreeHandle(SQL_HANDLE_STMT, (*obj)->stmt);
 	SQLFreeHandle(SQL_HANDLE_DBC, (*obj)->con);
 	SQLFreeHandle(SQL_HANDLE_ENV, (*obj)->env);
@@ -416,27 +416,27 @@ void destroy_obdc_obj(odbc_obj **obj)
 		free((*obj)->username);
 	if ((*obj)->password)
 		free((*obj)->password);
-	ast_mutex_unlock(&(*obj)->lock);
-	ast_mutex_destroy(&(*obj)->lock);
+	opbx_mutex_unlock(&(*obj)->lock);
+	opbx_mutex_destroy(&(*obj)->lock);
 	free(*obj);
 }
 
 odbc_status odbc_obj_disconnect(odbc_obj *obj)
 {
 	int res;
-	ast_mutex_lock(&obj->lock);
+	opbx_mutex_lock(&obj->lock);
 
 	res = SQLDisconnect(obj->con);
 
 
 	if (res == ODBC_SUCCESS) {
-		ast_log(LOG_WARNING, "res_odbc: disconnected %d from %s [%s]\n", res, obj->name, obj->dsn);
+		opbx_log(LOG_WARNING, "res_odbc: disconnected %d from %s [%s]\n", res, obj->name, obj->dsn);
 	} else {
-		ast_log(LOG_WARNING, "res_odbc: %s [%s] already disconnected\n",
+		opbx_log(LOG_WARNING, "res_odbc: %s [%s] already disconnected\n",
 		obj->name, obj->dsn);
 	}
 	obj->up = 0;
-	ast_mutex_unlock(&obj->lock);
+	opbx_mutex_unlock(&obj->lock);
 	return ODBC_SUCCESS;
 }
 
@@ -447,15 +447,15 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 	short int mlen;
 	char msg[200], stat[10];
 
-	ast_mutex_lock(&obj->lock);
+	opbx_mutex_lock(&obj->lock);
 
 	if (obj->env == SQL_NULL_HANDLE) {
 		res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &obj->env);
 
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			if (option_verbose > 3)
-				ast_log(LOG_WARNING, "res_odbc: Error AllocHandle\n");
-			ast_mutex_unlock(&obj->lock);
+				opbx_log(LOG_WARNING, "res_odbc: Error AllocHandle\n");
+			opbx_mutex_unlock(&obj->lock);
 			return ODBC_FAIL;
 		}
 
@@ -463,9 +463,9 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			if (option_verbose > 3)
-				ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
+				opbx_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
 			SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
-			ast_mutex_unlock(&obj->lock);
+			opbx_mutex_unlock(&obj->lock);
 			return ODBC_FAIL;
 		}
 
@@ -474,20 +474,20 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 
 			if (option_verbose > 3)
-				ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
+				opbx_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
 			SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
 
-			ast_mutex_unlock(&obj->lock);
+			opbx_mutex_unlock(&obj->lock);
 			return ODBC_FAIL;
 		}
 		SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) 10, 0);
 	}
 	if(obj->up) {
 		odbc_obj_disconnect(obj);
-		ast_log(LOG_NOTICE,"Re-connecting %s\n", obj->name);
+		opbx_log(LOG_NOTICE,"Re-connecting %s\n", obj->name);
 	}
 
-	ast_log(LOG_NOTICE, "Connecting %s\n", obj->name);
+	opbx_log(LOG_NOTICE, "Connecting %s\n", obj->name);
 
 	res = SQLConnect(obj->con,
 		   (SQLCHAR *) obj->dsn, SQL_NTS,
@@ -497,16 +497,16 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
-		ast_mutex_unlock(&obj->lock);
-		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
+		opbx_mutex_unlock(&obj->lock);
+		opbx_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
 		return ODBC_FAIL;
 	} else {
 
-		ast_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->name, obj->dsn);
+		opbx_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->name, obj->dsn);
 		obj->up = 1;
 	}
 
-	ast_mutex_unlock(&obj->lock);
+	opbx_mutex_unlock(&obj->lock);
 	return ODBC_SUCCESS;
 }
 
@@ -518,10 +518,10 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	odbc_destroy();
-	ast_cli_unregister(&odbc_disconnect_struct);
-	ast_cli_unregister(&odbc_connect_struct);
-	ast_cli_unregister(&odbc_show_struct);
-	ast_log(LOG_NOTICE, "res_odbc unloaded.\n");
+	opbx_cli_unregister(&odbc_disconnect_struct);
+	opbx_cli_unregister(&odbc_connect_struct);
+	opbx_cli_unregister(&odbc_show_struct);
+	opbx_log(LOG_NOTICE, "res_odbc unloaded.\n");
 	return 0;
 }
 
@@ -529,10 +529,10 @@ int load_module(void)
 {
 	odbc_init();
 	load_odbc_config();
-	ast_cli_register(&odbc_disconnect_struct);
-	ast_cli_register(&odbc_connect_struct);
-	ast_cli_register(&odbc_show_struct);
-	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
+	opbx_cli_register(&odbc_disconnect_struct);
+	opbx_cli_register(&odbc_connect_struct);
+	opbx_cli_register(&odbc_show_struct);
+	opbx_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;
 }
 

@@ -34,19 +34,19 @@ extern "C" {
 #endif
 
 /*! Input ready */
-#define AST_IO_IN 	POLLIN
+#define OPBX_IO_IN 	POLLIN
 /*! Output ready */
-#define AST_IO_OUT 	POLLOUT
+#define OPBX_IO_OUT 	POLLOUT
 /*! Priority input ready */
-#define AST_IO_PRI	POLLPRI
+#define OPBX_IO_PRI	POLLPRI
 
 /* Implicitly polled for */
 /*! Error condition (errno or getsockopt) */
-#define AST_IO_ERR	POLLERR
+#define OPBX_IO_ERR	POLLERR
 /*! Hangup */
-#define AST_IO_HUP	POLLHUP
+#define OPBX_IO_HUP	POLLHUP
 /*! Invalid fd */
-#define AST_IO_NVAL	POLLNVAL
+#define OPBX_IO_NVAL	POLLNVAL
 
 /*
  * An OpenPBX IO callback takes its id, a file descriptor, list of events, and
@@ -72,8 +72,8 @@ extern struct io_context *io_context_create(void);
  */
 extern void io_context_destroy(struct io_context *ioc);
 
-typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
-#define AST_IO_CB(a) ((ast_io_cb)(a))
+typedef int (*opbx_io_cb)(int *id, int fd, short events, void *cbdata);
+#define OPBX_IO_CB(a) ((opbx_io_cb)(a))
 
 /*! Adds an IO context */
 /*! 
@@ -85,7 +85,7 @@ typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
  * Watch for any of revents activites on fd, calling callback with data as 
  * callback data.  Returns a pointer to ID of the IO event, or NULL on failure.
  */
-extern int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data);
+extern int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short events, void *data);
 
 /*! Changes an IO handler */
 /*!
@@ -99,7 +99,7 @@ extern int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short
  * if >-1, and data if non-null.  Returns a pointero to the ID of the IO event,
  * or NULL on failure.
  */
-extern int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data);
+extern int *opbx_io_change(struct io_context *ioc, int *id, int fd, opbx_io_cb callback, short events, void *data);
 
 /*! Removes an IO context */
 /*! 
@@ -107,7 +107,7 @@ extern int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb cal
  * \param id which ID to remove
  * Remove an I/O id from consideration  Returns 0 on success or -1 on failure.
  */
-extern int ast_io_remove(struct io_context *ioc, int *id);
+extern int opbx_io_remove(struct io_context *ioc, int *id);
 
 /*! Waits for IO */
 /*!
@@ -118,25 +118,25 @@ extern int ast_io_remove(struct io_context *ioc, int *id);
  * any necessary I/O.  Returns the number of
  * I/O events which took place.
  */
-extern int ast_io_wait(struct io_context *ioc, int howlong);
+extern int opbx_io_wait(struct io_context *ioc, int howlong);
 
 /*! Dumps the IO array */
 /*
  * Debugging: Dump everything in the I/O array
  */
-extern void ast_io_dump(struct io_context *ioc);
+extern void opbx_io_dump(struct io_context *ioc);
 
 /*! Set fd into non-echoing mode (if fd is a tty) */
 
-extern int ast_hide_password(int fd);
+extern int opbx_hide_password(int fd);
 
 /*! Restores TTY mode */
 /*
- * Call with result from previous ast_hide_password
+ * Call with result from previous opbx_hide_password
  */
-extern int ast_restore_tty(int fd, int oldstatus);
+extern int opbx_restore_tty(int fd, int oldstatus);
 
-extern int ast_get_termcols(int fd);
+extern int opbx_get_termcols(int fd);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -70,14 +70,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int substring_exec(struct ast_channel *chan, void *data)
+static int substring_exec(struct opbx_channel *chan, void *data)
 {
-  char newexten[AST_MAX_EXTENSION] = "";
+  char newexten[OPBX_MAX_EXTENSION] = "";
   char *count1, *count2;
   char *first, *second, *stringp;
 
   stringp=alloca(strlen(data)+1);
-  ast_log(LOG_WARNING, "The use of Substring application is deprecated. Please use ${variable:a:b} instead\n");
+  opbx_log(LOG_WARNING, "The use of Substring application is deprecated. Please use ${variable:a:b} instead\n");
   strncpy(stringp,data,strlen(data));
   if (strchr(stringp,'|')&&strchr(stringp,'=')) {
     int icount1,icount2;
@@ -86,7 +86,7 @@ static int substring_exec(struct ast_channel *chan, void *data)
     count1=strsep(&stringp,"|");
     count2=strsep(&stringp,"\0");
     if (!first || !second || !count1 || !count2) {
-      ast_log(LOG_DEBUG, "Ignoring, since there is no argument: variable or string or count1 or count2\n");
+      opbx_log(LOG_DEBUG, "Ignoring, since there is no argument: variable or string or count1 or count2\n");
       return 0;
     }
     icount1=atoi(count1);
@@ -95,14 +95,14 @@ static int substring_exec(struct ast_channel *chan, void *data)
 	  icount2 = icount2 + strlen(second);
     }
     if (abs(icount1)>strlen(second)) {
-      ast_log(LOG_WARNING, "Limiting count1 parameter because it exceeds the length of the string\n");
+      opbx_log(LOG_WARNING, "Limiting count1 parameter because it exceeds the length of the string\n");
       if (icount1>=0)
         icount1=strlen(second);
       else
         icount1=0;
     }
     if ((icount1<0 && icount2>-icount1) || (icount1>=0 && icount1+icount2>strlen(second))) {
-      ast_log(LOG_WARNING, "Limiting count2 parameter because it exceeds the length of the string\n");
+      opbx_log(LOG_WARNING, "Limiting count2 parameter because it exceeds the length of the string\n");
       if (icount1>=0)
       	icount2=strlen(second)-icount1;
       else
@@ -116,7 +116,7 @@ static int substring_exec(struct ast_channel *chan, void *data)
       pbx_builtin_setvar_helper(chan,first,newexten);
     }
   } else {
-    ast_log(LOG_DEBUG, "Ignoring, no parameters\n");
+    opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
   }
   return 0;
 }
@@ -124,12 +124,12 @@ static int substring_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, substring_exec, synopsis, descrip);
+	return opbx_register_application(app, substring_exec, synopsis, descrip);
 }
 
 char *description(void)

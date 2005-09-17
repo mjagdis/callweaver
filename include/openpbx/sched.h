@@ -59,8 +59,8 @@ void sched_context_destroy(struct sched_context *c);
  * returns a 0 if it should not be run again, or non-zero if it should be
  * rescheduled to run again
  */
-typedef int (*ast_sched_cb)(void *data);
-#define AST_SCHED_CB(a) ((ast_sched_cb)(a))
+typedef int (*opbx_sched_cb)(void *data);
+#define OPBX_SCHED_CB(a) ((opbx_sched_cb)(a))
 
 /*!Adds a scheduled event */
 /*! 
@@ -74,7 +74,7 @@ typedef int (*ast_sched_cb)(void *data);
  * If callback returns 0, no further events will be re-scheduled
  * Returns a schedule item ID on success, -1 on failure
  */
-extern int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
+extern int opbx_sched_add(struct sched_context *con, int when, opbx_sched_cb callback, void *data);
 
 /*!Adds a scheduled event */
 /*! 
@@ -90,7 +90,7 @@ extern int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callb
  * If callback returns 0, no further events will be re-scheduled
  * Returns a schedule item ID on success, -1 on failure
  */
-extern int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
+extern int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb callback, void *data, int variable);
 
 /*! Deletes a scheduled event */
 /*!
@@ -100,7 +100,7 @@ extern int ast_sched_add_variable(struct sched_context *con, int when, ast_sched
  * own event, but return 0 instead.
  * Returns 0 on success, -1 on failure
  */
-extern int ast_sched_del(struct sched_context *con, int id);
+extern int opbx_sched_del(struct sched_context *con, int id);
 
 /*! Determines number of seconds until the next outstanding event to take place */
 /*!
@@ -111,7 +111,7 @@ extern int ast_sched_del(struct sched_context *con, int id);
  * call.  Returns "-1" if there is nothing there are no scheduled events
  * (and thus the poll should not timeout)
  */
-extern int ast_sched_wait(struct sched_context *con);
+extern int opbx_sched_wait(struct sched_context *con);
 
 /*! Runs the queue */
 /*!
@@ -119,35 +119,35 @@ extern int ast_sched_wait(struct sched_context *con);
  * Run the queue, executing all callbacks which need to be performed
  * at this time.  Returns the number of events processed.
  */
-extern int ast_sched_runq(struct sched_context *con);
+extern int opbx_sched_runq(struct sched_context *con);
 
 /*!Dumps the scheduler contents */
 /*!
  * \param con Context to dump
  * Debugging: Dump the contents of the scheduler to stderr
  */
-extern void ast_sched_dump(const struct sched_context *con);
+extern void opbx_sched_dump(const struct sched_context *con);
 
 /*!Returns the number of seconds before an event takes place */
 /*!
  * \param con Context to use
  * \param id Id to dump
  */
-extern long ast_sched_when(struct sched_context *con,int id);
+extern long opbx_sched_when(struct sched_context *con,int id);
 
 /*
  *! Convenience macro for objects and reference (add)
  *
  */
-#define ast_sched_add_object(obj,con,when,callback) ast_sched_add((con),(when),(callback), ASTOBJ_REF((obj)))
+#define opbx_sched_add_object(obj,con,when,callback) opbx_sched_add((con),(when),(callback), ASTOBJ_REF((obj)))
 
 /*
  *! Convenience macro for objects and reference (del)
  *
  */
-#define ast_sched_del_object(obj,destructor,con,id) do { \
+#define opbx_sched_del_object(obj,destructor,con,id) do { \
 	if ((id) > -1) { \
-		ast_sched_del((con),(id)); \
+		opbx_sched_del((con),(id)); \
 		(id) = -1; \
 		ASTOBJ_UNREF((obj),(destructor)); \
 	} \

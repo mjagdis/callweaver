@@ -108,11 +108,11 @@ struct tdd_state *tdd_new(void)
 		tdd->pos = 0;
 		tdd->mode = 2;
 	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(LOG_WARNING, "Out of memory\n");
 	return tdd;
 }
 
-int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len)
+int opbx_tdd_gen_ecdisa(unsigned char *outbuf, int len)
 {
 	int pos = 0;
 	int cnt;
@@ -137,26 +137,26 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 	short *buf = malloc(2 * len + tdd->oldlen);
 	short *obuf = buf;
 	if (!buf) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	memset(buf, 0, 2 * len + tdd->oldlen);
 	memcpy(buf, tdd->oldstuff, tdd->oldlen);
 	mylen += tdd->oldlen/2;
 	for (x=0;x<len;x++) 
-		buf[x+tdd->oldlen/2] = AST_MULAW(ubuf[x]);
+		buf[x+tdd->oldlen/2] = OPBX_MULAW(ubuf[x]);
 	c = res = 0;
 	while(mylen >= 1320) { /* has to have enough to work on */
 		olen = mylen;
 		res = fsk_serie(&tdd->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d) (olen was %d)\n", mylen,olen);
+			opbx_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d) (olen was %d)\n", mylen,olen);
 			free(obuf);
 			return -1;
 		}
 		buf += (olen - mylen);
 		if (res < 0) {
-			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			opbx_log(LOG_NOTICE, "fsk_serie failed\n");
 			free(obuf);
 			return -1;
 		}
@@ -209,7 +209,7 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 
 #define PUT_AUDIO_SAMPLE(y) do { \
 	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = AST_LIN2MU(index); \
+	*(buf++) = OPBX_LIN2MU(index); \
 	bytes++; \
 } while(0)
 	

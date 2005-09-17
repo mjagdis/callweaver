@@ -34,23 +34,23 @@
 #include "openpbx/utils.h"
 #include "openpbx/app.h"
 
-static char *builtin_function_language_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_language_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	ast_copy_string(buf, chan->language, len);
+	opbx_copy_string(buf, chan->language, len);
 
 	return buf;
 }
 
-static void builtin_function_language_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void builtin_function_language_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
 {
 	if (value)
-		ast_copy_string(chan->language, value, sizeof(chan->language));
+		opbx_copy_string(chan->language, value, sizeof(chan->language));
 }
 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function language_function = {
+struct opbx_custom_function language_function = {
 	.name = "LANGUAGE",
 	.synopsis = "Gets or sets the channel's language.",
 	.syntax = "LANGUAGE()",

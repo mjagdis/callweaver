@@ -54,7 +54,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)
+static int cpeid_setstatus(struct opbx_channel *chan, char *stuff[], int voice)
 {
 	int justify[5] = { ADSI_JUST_CENT, ADSI_JUST_LEFT, ADSI_JUST_LEFT, ADSI_JUST_LEFT };
 	char *tmp[5];
@@ -65,7 +65,7 @@ static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)
 	return adsi_print(chan, tmp, justify, voice);
 }
 
-static int cpeid_exec(struct ast_channel *chan, void *idata)
+static int cpeid_exec(struct opbx_channel *chan, void *idata)
 {
 	int res=0;
 	struct localuser *u;
@@ -92,7 +92,7 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 		if (res > 0) {
 			gotcpeid = 1;
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Got CPEID of '%02x:%02x:%02x:%02x' on '%s'\n", cpeid[0], cpeid[1], cpeid[2], cpeid[3], chan->name);
+				opbx_verbose(VERBOSE_PREFIX_3 "Got CPEID of '%02x:%02x:%02x:%02x' on '%s'\n", cpeid[0], cpeid[1], cpeid[2], cpeid[3], chan->name);
 		}
 		if (res > -1) {
 			strncpy(stuff[1], "Measuring CPE...", sizeof(data[1]) - 1);
@@ -101,7 +101,7 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 			res = adsi_get_cpeinfo(chan, &width, &height, &buttons, 0);
 			if (res > -1) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CPE has %d lines, %d columns, and %d buttons on '%s'\n", height, width, buttons, chan->name);
+					opbx_verbose(VERBOSE_PREFIX_3 "CPE has %d lines, %d columns, and %d buttons on '%s'\n", height, width, buttons, chan->name);
 				gotgeometry = 1;
 			}
 		}
@@ -117,7 +117,7 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 			strncpy(stuff[3], "Press # to exit", sizeof(data[3]) - 1);
 			cpeid_setstatus(chan, stuff, 1);
 			for(;;) {
-				res = ast_waitfordigit(chan, 1000);
+				res = opbx_waitfordigit(chan, 1000);
 				if (res < 0)
 					break;
 				if (res == '#') {
@@ -135,12 +135,12 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, cpeid_exec, synopsis, descrip);
+	return opbx_register_application(app, cpeid_exec, synopsis, descrip);
 }
 
 char *description(void)

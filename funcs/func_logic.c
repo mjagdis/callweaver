@@ -34,117 +34,117 @@
 #include "openpbx/logger.h"
 #include "openpbx/utils.h"
 #include "openpbx/app.h"
-#include "openpbx/config.h"		/* for ast_true */
+#include "openpbx/config.h"		/* for opbx_true */
 
-static char *builtin_function_isnull(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_isnull(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	return data && *data ? "0" : "1";
 }
 
-static char *builtin_function_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_exists(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	return data && *data ? "1" : "0";
 }
 
-static char *builtin_function_iftime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_iftime(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	struct ast_timing timing;
+	struct opbx_timing timing;
 	char *ret;
 	char *expr;
 	char *iftrue;
 	char *iffalse;
 
-	if (!(data = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
+	if (!(data = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		return NULL;
 	}
 
-	data = ast_strip_quoted(data, "\"", "\"");
+	data = opbx_strip_quoted(data, "\"", "\"");
 	expr = strsep(&data, "?");
 	iftrue = strsep(&data, ":");
 	iffalse = data;
 
-	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
-		ast_log(LOG_WARNING, "Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
+	if (!expr || opbx_strlen_zero(expr) || !(iftrue || iffalse)) {
+		opbx_log(LOG_WARNING, "Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
 		return NULL;
 	}
 
-	if (!ast_build_timing(&timing, expr)) {
-		ast_log(LOG_WARNING, "Invalid Time Spec.\n");
+	if (!opbx_build_timing(&timing, expr)) {
+		opbx_log(LOG_WARNING, "Invalid Time Spec.\n");
 		return NULL;
 	}
 
 	if (iftrue)
-		iftrue = ast_strip_quoted(iftrue, "\"", "\"");
+		iftrue = opbx_strip_quoted(iftrue, "\"", "\"");
 	if (iffalse)
-		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
+		iffalse = opbx_strip_quoted(iffalse, "\"", "\"");
 
-	if ((ret = ast_check_timing(&timing) ? iftrue : iffalse)) {
-		ast_copy_string(buf, ret, len);
+	if ((ret = opbx_check_timing(&timing) ? iftrue : iffalse)) {
+		opbx_copy_string(buf, ret, len);
 		ret = buf;
 	} 
 	
 	return ret;
 }
 
-static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_if(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret;
 	char *expr;
 	char *iftrue;
 	char *iffalse;
 
-	if (!(data = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
+	if (!(data = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		return NULL;
 	}
 
-	data = ast_strip_quoted(data, "\"", "\"");
+	data = opbx_strip_quoted(data, "\"", "\"");
 	expr = strsep(&data, "?");
 	iftrue = strsep(&data, ":");
 	iffalse = data;
 
-	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
-		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
+	if (!expr || opbx_strlen_zero(expr) || !(iftrue || iffalse)) {
+		opbx_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
 		return NULL;
 	}
 
-	expr = ast_strip(expr);
+	expr = opbx_strip(expr);
 	if (iftrue)
-		iftrue = ast_strip_quoted(iftrue, "\"", "\"");
+		iftrue = opbx_strip_quoted(iftrue, "\"", "\"");
 	if (iffalse)
-		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
+		iffalse = opbx_strip_quoted(iffalse, "\"", "\"");
 
-	if ((ret = ast_true(expr) ? iftrue : iffalse)) {
-		ast_copy_string(buf, ret, len);
+	if ((ret = opbx_true(expr) ? iftrue : iffalse)) {
+		opbx_copy_string(buf, ret, len);
 		ret = buf;
 	} 
 	
 	return ret;
 }
 
-static char *builtin_function_set(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_set(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *varname;
 	char *val;
 
-	if (!(data = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
+	if (!(data = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		return NULL;
 	}
 
 	varname = strsep(&data, "=");
 	val = data;
 
-	if (!varname || ast_strlen_zero(varname) || !val) {
-		ast_log(LOG_WARNING, "Syntax SET(<varname>=[<value>])\n");
+	if (!varname || opbx_strlen_zero(varname) || !val) {
+		opbx_log(LOG_WARNING, "Syntax SET(<varname>=[<value>])\n");
 		return NULL;
 	}
 
-	varname = ast_strip(varname);
-	val = ast_strip(val);
+	varname = opbx_strip(varname);
+	val = opbx_strip(val);
 	pbx_builtin_setvar_helper(chan, varname, val);
-	ast_copy_string(buf, val, len);
+	opbx_copy_string(buf, val, len);
 
 	return buf;
 }
@@ -152,7 +152,7 @@ static char *builtin_function_set(struct ast_channel *chan, char *cmd, char *dat
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function isnull_function = {
+struct opbx_custom_function isnull_function = {
 	.name = "ISNULL",
 	.synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise",
 	.syntax = "ISNULL(<data>)",
@@ -162,7 +162,7 @@ struct ast_custom_function isnull_function = {
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function set_function = {
+struct opbx_custom_function set_function = {
 	.name = "SET",
 	.synopsis = "SET assigns a value to a channel variable",
 	.syntax = "SET(<varname>=[<value>])",
@@ -172,7 +172,7 @@ struct ast_custom_function set_function = {
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function exists_function = {
+struct opbx_custom_function exists_function = {
 	.name = "EXISTS",
 	.synopsis = "Existence Test: Returns 1 if exists, 0 otherwise",
 	.syntax = "EXISTS(<data>)",
@@ -182,7 +182,7 @@ struct ast_custom_function exists_function = {
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function if_function = {
+struct opbx_custom_function if_function = {
 	.name = "IF",
 	.synopsis = "Conditional: Returns the data following '?' if true else the data following ':'",
 	.syntax = "IF(<expr>?[<true>][:<false>])",
@@ -193,7 +193,7 @@ struct ast_custom_function if_function = {
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function if_time_function = {
+struct opbx_custom_function if_time_function = {
 	.name = "IFTIME",
 	.synopsis = "Temporal Conditional: Returns the data following '?' if true else the data following ':'",
 	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",

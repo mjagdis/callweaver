@@ -65,24 +65,24 @@ LOCAL_USER_DECL;
 static int cli_load_realtime(int fd, int argc, char **argv) 
 {
 	char *header_format = "%30s  %-30s\n";
-	struct ast_variable *var=NULL;
+	struct opbx_variable *var=NULL;
 
 	if(argc<5) {
-		ast_cli(fd, "You must supply a family name, a column to match on, and a value to match to.\n");
+		opbx_cli(fd, "You must supply a family name, a column to match on, and a value to match to.\n");
 		return RESULT_FAILURE;
 	}
 
-	var = ast_load_realtime(argv[2], argv[3], argv[4], NULL);
+	var = opbx_load_realtime(argv[2], argv[3], argv[4], NULL);
 
 	if(var) {
-		ast_cli(fd, header_format, "Column Name", "Column Value");
-		ast_cli(fd, header_format, "--------------------", "--------------------");
+		opbx_cli(fd, header_format, "Column Name", "Column Value");
+		opbx_cli(fd, header_format, "--------------------", "--------------------");
 		while(var) {
-			ast_cli(fd, header_format, var->name, var->value);
+			opbx_cli(fd, header_format, var->name, var->value);
 			var = var->next;
 		}
 	} else {
-		ast_cli(fd, "No rows found matching search criteria.\n");
+		opbx_cli(fd, "No rows found matching search criteria.\n");
 	}
 	return RESULT_SUCCESS;
 }
@@ -91,19 +91,19 @@ static int cli_update_realtime(int fd, int argc, char **argv) {
 	int res = 0;
 
 	if(argc<7) {
-		ast_cli(fd, "You must supply a family name, a column to update on, a new value, column to match, and value to to match.\n");
-		ast_cli(fd, "Ex: realtime update sipfriends name bobsphone port 4343\n will execute SQL as UPDATE sipfriends SET port = 4343 WHERE name = bobsphone\n");
+		opbx_cli(fd, "You must supply a family name, a column to update on, a new value, column to match, and value to to match.\n");
+		opbx_cli(fd, "Ex: realtime update sipfriends name bobsphone port 4343\n will execute SQL as UPDATE sipfriends SET port = 4343 WHERE name = bobsphone\n");
 		return RESULT_FAILURE;
 	}
 
-	res = ast_update_realtime(argv[2], argv[3], argv[4], argv[5], argv[6], NULL);
+	res = opbx_update_realtime(argv[2], argv[3], argv[4], argv[5], argv[6], NULL);
 
 	if(res < 0) {
-		ast_cli(fd, "Failed to update. Check the debug log for possible SQL related entries.\n");
+		opbx_cli(fd, "Failed to update. Check the debug log for possible SQL related entries.\n");
 		return RESULT_SUCCESS;
 	}
 
-       ast_cli(fd, "Updated %d RealTime record%s.\n", res, (res != 1) ? "s" : "");
+       opbx_cli(fd, "Updated %d RealTime record%s.\n", res, (res != 1) ? "s" : "");
 
 	return RESULT_SUCCESS;
 }
@@ -112,7 +112,7 @@ static char cli_load_realtime_usage[] =
 "Usage: realtime load <family> <colmatch> <value>\n"
 "       Prints out a list of variables using the RealTime driver.\n";
 
-static struct ast_cli_entry cli_load_realtime_cmd = {
+static struct opbx_cli_entry cli_load_realtime_cmd = {
         { "realtime", "load", NULL, NULL }, cli_load_realtime,
         "Used to print out RealTime variables.", cli_load_realtime_usage, NULL };
 
@@ -120,21 +120,21 @@ static char cli_update_realtime_usage[] =
 "Usage: realtime update <family> <colmatch> <value>\n"
 "       Update a single variable using the RealTime driver.\n";
 
-static struct ast_cli_entry cli_update_realtime_cmd = {
+static struct opbx_cli_entry cli_update_realtime_cmd = {
         { "realtime", "update", NULL, NULL }, cli_update_realtime,
         "Used to update RealTime variables.", cli_update_realtime_usage, NULL };
 
-static int realtime_update_exec(struct ast_channel *chan, void *data) 
+static int realtime_update_exec(struct opbx_channel *chan, void *data) 
 {
 	char *family=NULL, *colmatch=NULL, *value=NULL, *newcol=NULL, *newval=NULL;
 	struct localuser *u;
 	int res = 0;
 	if (!data) {
-        ast_log(LOG_ERROR,"Invalid input %s\n",UUSAGE);
+        opbx_log(LOG_ERROR,"Invalid input %s\n",UUSAGE);
         return -1;
     }
 	LOCAL_USER_ADD(u);
-	if ((family = ast_strdupa(data))) {
+	if ((family = opbx_strdupa(data))) {
 		if ((colmatch = strchr(family,'|'))) {
 			crop_data(colmatch);
 			if ((value = strchr(colmatch,'|'))) {
@@ -148,10 +148,10 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	if (! (family && value && colmatch && newcol && newval) ) {
-		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
+		opbx_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
 		res = -1;
 	} else {
-		ast_update_realtime(family,colmatch,value,newcol,newval,NULL);
+		opbx_update_realtime(family,colmatch,value,newcol,newval,NULL);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -160,20 +160,20 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 }
 
 
-static int realtime_exec(struct ast_channel *chan, void *data)
+static int realtime_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	struct ast_variable *var, *itt;
+	struct opbx_variable *var, *itt;
 	char *family=NULL, *colmatch=NULL, *value=NULL, *prefix=NULL, *vname=NULL;
 	size_t len;
 
 	if (!data) {
-		ast_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
+		opbx_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	if ((family = ast_strdupa(data))) {
+	if ((family = opbx_strdupa(data))) {
 		if ((colmatch = strchr(family,'|'))) {
 			crop_data(colmatch);
 			if ((value = strchr(colmatch,'|'))) {
@@ -184,12 +184,12 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	if (! (family && value && colmatch) ) {
-		ast_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
+		opbx_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
 		res = -1;
 	} else {
 		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4"Realtime Lookup: family:'%s' colmatch:'%s' value:'%s'\n",family,colmatch,value);
-		if ((var = ast_load_realtime(family, colmatch, value, NULL))) {
+			opbx_verbose(VERBOSE_PREFIX_4"Realtime Lookup: family:'%s' colmatch:'%s' value:'%s'\n",family,colmatch,value);
+		if ((var = opbx_load_realtime(family, colmatch, value, NULL))) {
 			for (itt = var; itt; itt = itt->next) {
 				if(prefix) {
 					len = strlen(prefix) + strlen(itt->name) + 2;
@@ -201,9 +201,9 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 
 				pbx_builtin_setvar_helper(chan, vname, itt->value);
 			}
-			ast_variables_destroy(var);
+			opbx_variables_destroy(var);
 		} else if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4"No Realtime Matches Found.\n");
+			opbx_verbose(VERBOSE_PREFIX_4"No Realtime Matches Found.\n");
 	}
 	
 	LOCAL_USER_REMOVE(u);
@@ -213,18 +213,18 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_cli_unregister(&cli_load_realtime_cmd);
-	ast_cli_unregister(&cli_update_realtime_cmd);
-	ast_unregister_application(uapp);
-	return ast_unregister_application(app);
+	opbx_cli_unregister(&cli_load_realtime_cmd);
+	opbx_cli_unregister(&cli_update_realtime_cmd);
+	opbx_unregister_application(uapp);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	ast_cli_register(&cli_load_realtime_cmd);
-	ast_cli_register(&cli_update_realtime_cmd);
-	ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
-	return ast_register_application(app, realtime_exec, synopsis, desc);
+	opbx_cli_register(&cli_load_realtime_cmd);
+	opbx_cli_register(&cli_update_realtime_cmd);
+	opbx_register_application(uapp, realtime_update_exec, usynopsis, udesc);
+	return opbx_register_application(app, realtime_exec, synopsis, desc);
 }
 
 char *description(void)

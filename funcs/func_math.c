@@ -61,7 +61,7 @@ enum TypeOfResult
 };
 
 
-static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_math(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	int argc;
 	char *argv[2];
@@ -78,16 +78,16 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 
 	char *mvalue1, *mvalue2=NULL, *mtype_of_result;
 		
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return NULL;
 	}
 
-	args = ast_strdupa(data);	
-	argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	args = opbx_strdupa(data);	
+	argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (argc < 1) {
-		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
+		opbx_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return NULL;
 	}
 
@@ -149,23 +149,23 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 			type_of_result=CHAR_RESULT;
 		else
 		{
-			ast_log(LOG_WARNING, "Unknown type of result requested '%s'.\n", mtype_of_result);
+			opbx_log(LOG_WARNING, "Unknown type of result requested '%s'.\n", mtype_of_result);
 			return NULL;
 		}
 	}
 	
 	if (!mvalue1 || !mvalue2) {
-		ast_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
+		opbx_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
 		return NULL;
 	}
 
 	if (sscanf(mvalue1, "%f", &fnum1) != 1) {
-		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
+		opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 		return NULL;
 	}
 
 	if (sscanf(mvalue2, "%f", &fnum2) != 1) {
-		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
+		opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 		return NULL;
 	}
 
@@ -195,22 +195,22 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 		break;
 	}
 	case GTFUNCTION :
-		ast_copy_string (user_result, (fnum1 > fnum2)?"TRUE":"FALSE", sizeof (user_result));
+		opbx_copy_string (user_result, (fnum1 > fnum2)?"TRUE":"FALSE", sizeof (user_result));
 		break;
 	case LTFUNCTION :
-		ast_copy_string (user_result, (fnum1 < fnum2)?"TRUE":"FALSE", sizeof (user_result));
+		opbx_copy_string (user_result, (fnum1 < fnum2)?"TRUE":"FALSE", sizeof (user_result));
 		break;
 	case GTEFUNCTION :
-		ast_copy_string (user_result, (fnum1 >= fnum2)?"TRUE":"FALSE", sizeof (user_result));
+		opbx_copy_string (user_result, (fnum1 >= fnum2)?"TRUE":"FALSE", sizeof (user_result));
 		break;
 	case LTEFUNCTION :
-		ast_copy_string (user_result, (fnum1 <= fnum2)?"TRUE":"FALSE", sizeof (user_result));
+		opbx_copy_string (user_result, (fnum1 <= fnum2)?"TRUE":"FALSE", sizeof (user_result));
 		break;					
 	case EQFUNCTION :
-		ast_copy_string (user_result, (fnum1 == fnum2)?"TRUE":"FALSE", sizeof (user_result));
+		opbx_copy_string (user_result, (fnum1 == fnum2)?"TRUE":"FALSE", sizeof (user_result));
 		break;
 	default :
-		ast_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
+		opbx_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
 		return NULL;
 	}
 
@@ -225,7 +225,7 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 		snprintf(user_result, sizeof(user_result), "%c", (unsigned char) ftmp);
 	}
 		
-	ast_copy_string(buf, user_result, len);
+	opbx_copy_string(buf, user_result, len);
 	
 	return buf;
 }
@@ -233,7 +233,7 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 #ifndef BUILTIN_FUNC
 static
 #endif /* BUILTIN_FUNC */
-struct ast_custom_function math_function = {
+struct opbx_custom_function math_function = {
 	.name = "MATH",
 	.synopsis = "Performs Mathematical Functions",
 	.syntax = "MATH(<number1><op><number 2>[,<type_of_result>])",

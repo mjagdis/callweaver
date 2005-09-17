@@ -49,29 +49,29 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-AST_MUTEX_DEFINE_STATIC(list_lock);
-static struct ast_translator *list = NULL;
+OPBX_MUTEX_DEFINE_STATIC(list_lock);
+static struct opbx_translator *list = NULL;
 
-struct ast_translator_dir {
-	struct ast_translator *step;	/* Next step translator */
+struct opbx_translator_dir {
+	struct opbx_translator *step;	/* Next step translator */
 	int cost;			/* Complete cost to destination */
 };
 
-struct ast_frame_delivery {
-	struct ast_frame *f;
-	struct ast_channel *chan;
+struct opbx_frame_delivery {
+	struct opbx_frame *f;
+	struct opbx_channel *chan;
 	int fd;
 	struct translator_pvt *owner;
-	struct ast_frame_delivery *prev;
-	struct ast_frame_delivery *next;
+	struct opbx_frame_delivery *prev;
+	struct opbx_frame_delivery *next;
 };
 
-static struct ast_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
+static struct opbx_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
-struct ast_trans_pvt {
-	struct ast_translator *step;
-	struct ast_translator_pvt *state;
-	struct ast_trans_pvt *next;
+struct opbx_trans_pvt {
+	struct opbx_translator *step;
+	struct opbx_translator_pvt *state;
+	struct opbx_trans_pvt *next;
 	struct timeval nextin;
 	struct timeval nextout;
 };
@@ -83,13 +83,13 @@ static int powerof(int d)
 	for (x = 0; x < 32; x++)
 		if ((1 << x) & d)
 			return x;
-	ast_log(LOG_WARNING, "Powerof %d: No power??\n", d);
+	opbx_log(LOG_WARNING, "Powerof %d: No power??\n", d);
 	return -1;
 }
 
-void ast_translator_free_path(struct ast_trans_pvt *p)
+void opbx_translator_free_path(struct opbx_trans_pvt *p)
 {
-	struct ast_trans_pvt *pl, *pn;
+	struct opbx_trans_pvt *pl, *pn;
 	pn = p;
 	while(pn) {
 		pl = pn;
@@ -101,9 +101,9 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 }
 
 /* Build a set of translators based upon the given source and destination formats */
-struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
+struct opbx_trans_pvt *opbx_translator_build_path(int dest, int source)
 {
-	struct ast_trans_pvt *tmpr = NULL, *tmp = NULL;
+	struct opbx_trans_pvt *tmpr = NULL, *tmp = NULL;
 	
 	source = powerof(source);
 	dest = powerof(dest);
@@ -111,8 +111,8 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	while(source != dest) {
 		if (!tr_matrix[source][dest].step) {
 			/* We shouldn't have allocated any memory */
-			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
-				ast_getformatname(source), ast_getformatname(dest));
+			opbx_log(LOG_WARNING, "No translator path from %s to %s\n", 
+				opbx_getformatname(source), opbx_getformatname(dest));
 			return NULL;
 		}
 
@@ -123,9 +123,9 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 			tmp = malloc(sizeof(*tmp));
 			
 		if (!tmp) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+			opbx_log(LOG_WARNING, "Out of memory\n");
 			if (tmpr)
-				ast_translator_free_path(tmpr);	
+				opbx_translator_free_path(tmpr);	
 			return NULL;
 		}
 
@@ -134,13 +134,13 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 			tmpr = tmp;
 
 		tmp->next = NULL;
-		tmp->nextin = tmp->nextout = ast_tv(0, 0);
+		tmp->nextin = tmp->nextout = opbx_tv(0, 0);
 		tmp->step = tr_matrix[source][dest].step;
 		tmp->state = tmp->step->newpvt();
 		
 		if (!tmp->state) {
-			ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
-			ast_translator_free_path(tmpr);	
+			opbx_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
+			opbx_translator_free_path(tmpr);	
 			return NULL;
 		}
 		
@@ -150,24 +150,24 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	return tmpr;
 }
 
-struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
+struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame *f, int consume)
 {
-	struct ast_trans_pvt *p;
-	struct ast_frame *out;
+	struct opbx_trans_pvt *p;
+	struct opbx_frame *out;
 	struct timeval delivery;
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
-	if (!ast_tvzero(f->delivery)) {
-		if (!ast_tvzero(path->nextin)) {
+	if (!opbx_tvzero(f->delivery)) {
+		if (!opbx_tvzero(path->nextin)) {
 			/* Make sure this is in line with what we were expecting */
-			if (!ast_tveq(path->nextin, f->delivery)) {
+			if (!opbx_tveq(path->nextin, f->delivery)) {
 				/* The time has changed between what we expected and this
 				   most recent time on the new packet.  If we have a
 				   valid prediction adjust our output time appropriately */
-				if (!ast_tvzero(path->nextout)) {
-					path->nextout = ast_tvadd(path->nextout,
-								  ast_tvsub(f->delivery, path->nextin));
+				if (!opbx_tvzero(path->nextout)) {
+					path->nextout = opbx_tvadd(path->nextout,
+								  opbx_tvsub(f->delivery, path->nextin));
 				}
 				path->nextin = f->delivery;
 			}
@@ -177,11 +177,11 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			path->nextout = f->delivery;
 		}
 		/* Predict next incoming sample */
-		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, 8000));
+		path->nextin = opbx_tvadd(path->nextin, opbx_samp2tv(f->samples, 8000));
 	}
 	delivery = f->delivery;
 	if (consume)
-		ast_frfree(f);
+		opbx_frfree(f);
 	while(p) {
 		out = p->step->frameout(p->state);
 		/* If we get nothing out, return NULL */
@@ -192,37 +192,37 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		if (p->next) 
 			p->next->step->framein(p->next->state, out);
 		else {
-			if (!ast_tvzero(delivery)) {
+			if (!opbx_tvzero(delivery)) {
 				/* Regenerate prediction after a discontinuity */
-				if (ast_tvzero(path->nextout))
-					path->nextout = ast_tvnow();
+				if (opbx_tvzero(path->nextout))
+					path->nextout = opbx_tvnow();
 
 				/* Use next predicted outgoing timestamp */
 				out->delivery = path->nextout;
 				
 				/* Predict next outgoing timestamp from samples in this
 				   frame. */
-				path->nextout = ast_tvadd(path->nextout, ast_samp2tv( out->samples, 8000));
+				path->nextout = opbx_tvadd(path->nextout, opbx_samp2tv( out->samples, 8000));
 			} else {
-				out->delivery = ast_tv(0, 0);
+				out->delivery = opbx_tv(0, 0);
 			}
 			/* Invalidate prediction if we're entering a silence period */
-			if (out->frametype == AST_FRAME_CNG)
-				path->nextout = ast_tv(0, 0);
+			if (out->frametype == OPBX_FRAME_CNG)
+				path->nextout = opbx_tv(0, 0);
 			return out;
 		}
 		p = p->next;
 	}
-	ast_log(LOG_WARNING, "I should never get here...\n");
+	opbx_log(LOG_WARNING, "I should never get here...\n");
 	return NULL;
 }
 
 
-static void calc_cost(struct ast_translator *t,int samples)
+static void calc_cost(struct opbx_translator *t,int samples)
 {
 	int sofar=0;
-	struct ast_translator_pvt *pvt;
-	struct ast_frame *f, *out;
+	struct opbx_translator_pvt *pvt;
+	struct opbx_frame *f, *out;
 	struct timeval start;
 	int cost;
 	if(!samples)
@@ -230,34 +230,34 @@ static void calc_cost(struct ast_translator *t,int samples)
 	
 	/* If they don't make samples, give them a terrible score */
 	if (!t->sample) {
-		ast_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
+		opbx_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
 		t->cost = 99999;
 		return;
 	}
 	pvt = t->newpvt();
 	if (!pvt) {
-		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
+		opbx_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
 		t->cost = 99999;
 		return;
 	}
-	start = ast_tvnow();
+	start = opbx_tvnow();
 	/* Call the encoder until we've processed one second of time */
 	while(sofar < samples * 8000) {
 		f = t->sample();
 		if (!f) {
-			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+			opbx_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
 			t->destroy(pvt);
 			t->cost = 99999;
 			return;
 		}
 		t->framein(pvt, f);
-		ast_frfree(f);
+		opbx_frfree(f);
 		while((out = t->frameout(pvt))) {
 			sofar += out->samples;
-			ast_frfree(out);
+			opbx_frfree(out);
 		}
 	}
-	cost = ast_tvdiff_ms(ast_tvnow(), start);
+	cost = opbx_tvdiff_ms(opbx_tvnow(), start);
 	t->destroy(pvt);
 	t->cost = cost / samples;
 	if (!t->cost)
@@ -266,11 +266,11 @@ static void calc_cost(struct ast_translator *t,int samples)
 
 static void rebuild_matrix(int samples)
 {
-	struct ast_translator *t;
+	struct opbx_translator *t;
 	int changed;
 	int x,y,z;
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Reseting translation matrix\n");
+		opbx_log(LOG_DEBUG, "Reseting translation matrix\n");
 	/* Use the list of translators to build a translation matrix */
 	bzero(tr_matrix, sizeof(tr_matrix));
 	t = list;
@@ -308,7 +308,7 @@ static void rebuild_matrix(int samples)
 									tr_matrix[x][z].cost = tr_matrix[x][y].cost + 
 														   tr_matrix[y][z].cost;
 									if (option_debug)
-										ast_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
+										opbx_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, opbx_getformatname(x), opbx_getformatname(z), y);
 									changed++;
 								 }
 		
@@ -331,21 +331,21 @@ static int show_translation(int fd, int argc, char *argv[])
 		z = argv[3] ? atoi(argv[3]) : 1;
 
 		if (z <= 0) {
-			ast_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
+			opbx_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
 			z = 1;
 		}
 
 		if (z > MAX_RECALC) {
-			ast_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
+			opbx_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
 			z = MAX_RECALC;
 		}
-		ast_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
+		opbx_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
 		rebuild_matrix(z);
 	}
 
-	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
-	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
-	ast_mutex_lock(&list_lock);
+	opbx_cli(fd, "         Translation times between formats (in milliseconds)\n");
+	opbx_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
+	opbx_mutex_lock(&list_lock);
 	for (x=-1;x<SHOW_TRANS; x++) {
 		/* next 2 lines run faster than using strcpy() */
 		line[0] = ' ';
@@ -356,7 +356,7 @@ static int show_translation(int fd, int argc, char *argv[])
 			else
 				if (((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
 					snprintf(line + strlen(line), sizeof(line) - strlen(line), 
-						" %5s", ast_getformatname(1<<(x+y+1)) );
+						" %5s", opbx_getformatname(1<<(x+y+1)) );
 				} else if (x != -1 && y != -1) {
 					snprintf(line + strlen(line), sizeof(line) - strlen(line), "     -");
 				} else {
@@ -364,9 +364,9 @@ static int show_translation(int fd, int argc, char *argv[])
 				}
 		}
 		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
-		ast_cli(fd, line);			
+		opbx_cli(fd, line);			
 	}
-	ast_mutex_unlock(&list_lock);
+	opbx_mutex_unlock(&list_lock);
 	return RESULT_SUCCESS;
 }
 
@@ -379,42 +379,42 @@ static char show_trans_usage[] =
 "with optional number of seconds to test a new test will be performed\n"
 "as the chart is being displayed.\n";
 
-static struct ast_cli_entry show_trans =
+static struct opbx_cli_entry show_trans =
 { { "show", "translation", NULL }, show_translation, "Display translation matrix", show_trans_usage };
 
-int ast_register_translator(struct ast_translator *t)
+int opbx_register_translator(struct opbx_translator *t)
 {
 	char tmp[80];
 	t->srcfmt = powerof(t->srcfmt);
 	t->dstfmt = powerof(t->dstfmt);
 	if (t->srcfmt >= MAX_FORMAT) {
-		ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
+		opbx_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->srcfmt));
 		return -1;
 	}
 	if (t->dstfmt >= MAX_FORMAT) {
-		ast_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", ast_getformatname(t->dstfmt));
+		opbx_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->dstfmt));
 		return -1;
 	}
 	calc_cost(t,1);
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
-	ast_mutex_lock(&list_lock);
+		opbx_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->srcfmt), opbx_getformatname(1 << t->dstfmt), t->cost);
+	opbx_mutex_lock(&list_lock);
 	if (!added_cli) {
-		ast_cli_register(&show_trans);
+		opbx_cli_register(&show_trans);
 		added_cli++;
 	}
 	t->next = list;
 	list = t;
 	rebuild_matrix(0);
-	ast_mutex_unlock(&list_lock);
+	opbx_mutex_unlock(&list_lock);
 	return 0;
 }
 
-int ast_unregister_translator(struct ast_translator *t)
+int opbx_unregister_translator(struct opbx_translator *t)
 {
 	char tmp[80];
-	struct ast_translator *u, *ul = NULL;
-	ast_mutex_lock(&list_lock);
+	struct opbx_translator *u, *ul = NULL;
+	opbx_mutex_lock(&list_lock);
 	u = list;
 	while(u) {
 		if (u == t) {
@@ -423,18 +423,18 @@ int ast_unregister_translator(struct ast_translator *t)
 			else
 				list = u->next;
 			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
+				opbx_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->srcfmt), opbx_getformatname(1 << t->dstfmt));
 			break;
 		}
 		ul = u;
 		u = u->next;
 	}
 	rebuild_matrix(0);
-	ast_mutex_unlock(&list_lock);
+	opbx_mutex_unlock(&list_lock);
 	return (u ? 0 : -1);
 }
 
-int ast_translator_best_choice(int *dst, int *srcs)
+int opbx_translator_best_choice(int *dst, int *srcs)
 {
 	/* Calculate our best source format, given costs, and a desired destination */
 	int x,y;
@@ -457,7 +457,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		}
 	} else {
 		/* We will need to translate */
-		ast_mutex_lock(&list_lock);
+		opbx_mutex_lock(&list_lock);
 		for (y=0; y < MAX_FORMAT; y++) {
 			if (cur & *dst)
 				for (x=0; x < MAX_FORMAT; x++) {
@@ -471,7 +471,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 				}
 			cur = cur << 1;
 		}
-		ast_mutex_unlock(&list_lock);
+		opbx_mutex_unlock(&list_lock);
 	}
 	if (best > -1) {
 		*srcs = best;

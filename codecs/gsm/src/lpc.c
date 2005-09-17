@@ -176,7 +176,7 @@ static void Autocorrelation P2((s, L_ACF),
 
 #if defined(USE_FLOAT_MUL) && defined(FAST)
 
-static void Fast_Autocorrelation P2((s, L_ACF),
+static void Fopbx_Autocorrelation P2((s, L_ACF),
 	word * s,		/* [0..159]	IN/OUT  */
  	longword * L_ACF)	/* [0..8]	OUT     */
 {
@@ -359,7 +359,7 @@ void Gsm_LPC_Analysis P3((S, s,LARc),
 	longword	L_ACF[9];
 
 #if defined(USE_FLOAT_MUL) && defined(FAST)
-	if (S->fast) Fast_Autocorrelation (s,	  L_ACF );
+	if (S->fast) Fopbx_Autocorrelation (s,	  L_ACF );
 	else
 #endif
 	Autocorrelation			  (s,	  L_ACF	);

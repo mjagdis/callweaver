@@ -27,17 +27,17 @@
 extern "C" {
 #endif
 
-#define AST_PRIVACY_DENY	(1 << 0)		/* Don't bother ringing, send to voicemail */
-#define AST_PRIVACY_ALLOW   (1 << 1)		/* Pass directly to me */
-#define AST_PRIVACY_KILL	(1 << 2)		/* Play anti-telemarketer message and hangup */
-#define AST_PRIVACY_TORTURE	(1 << 3)		/* Send directly to tele-torture */
-#define AST_PRIVACY_UNKNOWN (1 << 16)
+#define OPBX_PRIVACY_DENY	(1 << 0)		/* Don't bother ringing, send to voicemail */
+#define OPBX_PRIVACY_ALLOW   (1 << 1)		/* Pass directly to me */
+#define OPBX_PRIVACY_KILL	(1 << 2)		/* Play anti-telemarketer message and hangup */
+#define OPBX_PRIVACY_TORTURE	(1 << 3)		/* Send directly to tele-torture */
+#define OPBX_PRIVACY_UNKNOWN (1 << 16)
 
-int ast_privacy_check(char *dest, char *cid);
+int opbx_privacy_check(char *dest, char *cid);
 
-int ast_privacy_set(char *dest, char *cid, int status);
+int opbx_privacy_set(char *dest, char *cid, int status);
 
-int ast_privacy_reset(char *dest);
+int opbx_privacy_reset(char *dest);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

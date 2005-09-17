@@ -64,7 +64,7 @@ static int is_on_phonepad(char key)
 	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
-static int controlplayback_exec(struct ast_channel *chan, void *data)
+static int controlplayback_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	int skipms = 0;
@@ -82,18 +82,18 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		arg_restart = 6,
 	};
 
-	if (!data || ast_strlen_zero((char *)data)) {
-		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
+	if (!data || opbx_strlen_zero((char *)data)) {
+		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
 
-	tmp = ast_strdupa(data);
+	tmp = opbx_strdupa(data);
 	memset(argv, 0, sizeof(argv));
 
-	argc = ast_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = opbx_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (argc < 1) {
-		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
+		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
 
@@ -114,7 +114,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
+	res = opbx_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
 
 	LOCAL_USER_REMOVE(u);
 	
@@ -123,7 +123,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		res = 0;
 
 	if (res < 0) {
-		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			res = 0;
 	}
 
@@ -134,12 +134,12 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, controlplayback_exec, synopsis, descrip);
+	return opbx_register_application(app, controlplayback_exec, synopsis, descrip);
 }
 
 char *description(void)

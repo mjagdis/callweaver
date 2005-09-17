@@ -54,19 +54,19 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #define AU_ENC_8BIT_ULAW	1
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
+struct opbx_filestream {
+	void *reserved[OPBX_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
 	int fd; 				/* Descriptor */
-	struct ast_channel *owner;
-	struct ast_frame fr;			/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
+	struct opbx_channel *owner;
+	struct opbx_frame fr;			/* Frame information */
+	char waste[OPBX_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;				/* Empty character */
 	short buf[BUF_SIZE];
 };
 
 
-AST_MUTEX_DEFINE_STATIC(au_lock);
+OPBX_MUTEX_DEFINE_STATIC(au_lock);
 static int localusecnt = 0;
 
 static char *name = "au";
@@ -109,12 +109,12 @@ static int check_header(int fd)
 	u_int32_t channels;
 
 	if (read(fd, header, AU_HEADER_SIZE) != AU_HEADER_SIZE) {
-		ast_log(LOG_WARNING, "Read failed (header)\n");
+		opbx_log(LOG_WARNING, "Read failed (header)\n");
 		return -1;
 	}
 	magic = ltohl(header[AU_HDR_MAGIC_OFF]);
 	if (magic != (u_int32_t) AU_MAGIC) {
-		ast_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
+		opbx_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
 	}
 /*	hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
 	if (hdr_size < AU_HEADER_SIZE)*/
@@ -122,23 +122,23 @@ static int check_header(int fd)
 /*	data_size = ltohl(header[AU_HDR_DATA_SIZE_OFF]); */
 	encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
 	if (encoding != AU_ENC_8BIT_ULAW) {
-		ast_log(LOG_WARNING, "Unexpected format: %d. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
+		opbx_log(LOG_WARNING, "Unexpected format: %d. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
 		return -1;
 	}
 	sample_rate = ltohl(header[AU_HDR_SAMPLE_RATE_OFF]);
 	if (sample_rate != 8000) {
-		ast_log(LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
+		opbx_log(LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
 		return -1;
 	}
 	channels = ltohl(header[AU_HDR_CHANNELS_OFF]);
 	if (channels != 1) {
-		ast_log(LOG_WARNING, "Not in mono: channels=%d\n", channels);
+		opbx_log(LOG_WARNING, "Not in mono: channels=%d\n", channels);
 		return -1;
 	}
 	/* Skip to data */
 	data_size = lseek(fd, 0, SEEK_END) - hdr_size;
 	if (lseek(fd, hdr_size, SEEK_SET) == -1 ) {
-		ast_log(LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
+		opbx_log(LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
 		return -1;
 	}
 	return data_size;
@@ -157,19 +157,19 @@ static int update_header(int fd)
 	datalen = htoll(bytes);
 
 	if (cur < 0) {
-		ast_log(LOG_WARNING, "Unable to find our position\n");
+		opbx_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
 	}
 	if (lseek(fd, AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t), SEEK_SET) != (AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t))) {
-		ast_log(LOG_WARNING, "Unable to set our position\n");
+		opbx_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
 	if (write(fd, &datalen, sizeof(datalen)) != sizeof(datalen)) {
-		ast_log(LOG_WARNING, "Unable to set write file size\n");
+		opbx_log(LOG_WARNING, "Unable to set write file size\n");
 		return -1;
 	}
 	if (lseek(fd, cur, SEEK_SET) != cur) {
-		ast_log(LOG_WARNING, "Unable to return to position\n");
+		opbx_log(LOG_WARNING, "Unable to return to position\n");
 		return -1;
 	}
 	return 0;
@@ -189,97 +189,97 @@ static int write_header(int fd)
 	/* Write an au header, ignoring sizes which will be filled in later */
 	lseek(fd, 0, SEEK_SET);
 	if (write(fd, header, AU_HEADER_SIZE) != AU_HEADER_SIZE) {
-		ast_log(LOG_WARNING, "Unable to write header\n");
+		opbx_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
 	return 0;
 }
 
-static struct ast_filestream *au_open(int fd)
+static struct opbx_filestream *au_open(int fd)
 {
-	struct ast_filestream *tmp;
+	struct opbx_filestream *tmp;
 
-	if (!(tmp = malloc(sizeof(struct ast_filestream)))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(tmp = malloc(sizeof(struct opbx_filestream)))) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 
-	memset(tmp, 0, sizeof(struct ast_filestream));
+	memset(tmp, 0, sizeof(struct opbx_filestream));
 	if (check_header(fd) < 0) {
 		free(tmp);
 		return NULL;
 	}
-	if (ast_mutex_lock(&au_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock au count\n");
+	if (opbx_mutex_lock(&au_lock)) {
+		opbx_log(LOG_WARNING, "Unable to lock au count\n");
 		free(tmp);
 		return NULL;
 	}
 	tmp->fd = fd;
 	tmp->fr.data = tmp->buf;
-	tmp->fr.frametype = AST_FRAME_VOICE;
-	tmp->fr.subclass = AST_FORMAT_ULAW;
+	tmp->fr.frametype = OPBX_FRAME_VOICE;
+	tmp->fr.subclass = OPBX_FORMAT_ULAW;
 	/* datalen will vary for each frame */
 	tmp->fr.src = name;
 	tmp->fr.mallocd = 0;
 	localusecnt++;
-	ast_mutex_unlock(&au_lock);
-	ast_update_use_count();
+	opbx_mutex_unlock(&au_lock);
+	opbx_update_use_count();
 	return tmp;
 }
 
-static struct ast_filestream *au_rewrite(int fd, const char *comment)
+static struct opbx_filestream *au_rewrite(int fd, const char *comment)
 {
-	struct ast_filestream *tmp;
+	struct opbx_filestream *tmp;
 
-	if ((tmp = malloc(sizeof(struct ast_filestream))) == NULL) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if ((tmp = malloc(sizeof(struct opbx_filestream))) == NULL) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 
-	memset(tmp, 0, sizeof(struct ast_filestream));
+	memset(tmp, 0, sizeof(struct opbx_filestream));
 	if (write_header(fd)) {
 		free(tmp);
 		return NULL;
 	}
-	if (ast_mutex_lock(&au_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock au count\n");
+	if (opbx_mutex_lock(&au_lock)) {
+		opbx_log(LOG_WARNING, "Unable to lock au count\n");
 		free(tmp);
 		return NULL;
 	}
 	tmp->fd = fd;
 	localusecnt++;
-	ast_mutex_unlock(&au_lock);
-	ast_update_use_count();
+	opbx_mutex_unlock(&au_lock);
+	opbx_update_use_count();
 	return tmp;
 }
 
-static void au_close(struct ast_filestream *s)
+static void au_close(struct opbx_filestream *s)
 {
-	if (ast_mutex_lock(&au_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock au count\n");
+	if (opbx_mutex_lock(&au_lock)) {
+		opbx_log(LOG_WARNING, "Unable to lock au count\n");
 		return;
 	}
 	localusecnt--;
-	ast_mutex_unlock(&au_lock);
-	ast_update_use_count();
+	opbx_mutex_unlock(&au_lock);
+	opbx_update_use_count();
 	close(s->fd);
 	free(s);
 }
 
-static struct ast_frame *au_read(struct ast_filestream *s, int *whennext)
+static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)
 {
 	int res;
 	int delay;
 	/* Send a frame from the file to the appropriate channel */
 
-	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_ULAW;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
+	s->fr.frametype = OPBX_FRAME_VOICE;
+	s->fr.subclass = OPBX_FORMAT_ULAW;
+	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
 	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
 		if (res)
-			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
 	s->fr.samples = res;
@@ -289,27 +289,27 @@ static struct ast_frame *au_read(struct ast_filestream *s, int *whennext)
 	return &s->fr;
 }
 
-static int au_write(struct ast_filestream *fs, struct ast_frame *f)
+static int au_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
 	int res;
 
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+	if (f->frametype != OPBX_FRAME_VOICE) {
+		opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != AST_FORMAT_ULAW) {
-		ast_log(LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
+	if (f->subclass != OPBX_FORMAT_ULAW) {
+		opbx_log(LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
 		return -1;
 	}
 	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+			opbx_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
 	update_header(fs->fd);
 	return 0;
 }
 
-static int au_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int au_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 {
 	off_t min, max, cur;
 	long offset = 0, samples;
@@ -332,14 +332,14 @@ static int au_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	return lseek(fs->fd, offset, SEEK_SET);
 }
 
-static int au_trunc(struct ast_filestream *fs)
+static int au_trunc(struct opbx_filestream *fs)
 {
 	if(ftruncate(fs->fd, lseek(fs->fd, 0, SEEK_CUR)))
 		return -1;
 	return update_header(fs->fd);
 }
 
-static long au_tell(struct ast_filestream *fs)
+static long au_tell(struct opbx_filestream *fs)
 {
 	off_t offset;
 
@@ -347,14 +347,14 @@ static long au_tell(struct ast_filestream *fs)
 	return offset - AU_HEADER_SIZE;
 }
 
-static char *au_getcomment(struct ast_filestream *s)
+static char *au_getcomment(struct opbx_filestream *s)
 {
 	return NULL;
 }
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_ULAW,
+	return opbx_format_register(name, exts, OPBX_FORMAT_ULAW,
 				   au_open,
 				   au_rewrite,
 				   au_write,
@@ -368,7 +368,7 @@ int load_module()
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return opbx_format_unregister(name);
 }
 
 int usecount()

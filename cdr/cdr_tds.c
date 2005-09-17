@@ -84,7 +84,7 @@ static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, 
 
 static int connected = 0;
 
-AST_MUTEX_DEFINE_STATIC(tds_lock);
+OPBX_MUTEX_DEFINE_STATIC(tds_lock);
 
 static TDSSOCKET *tds;
 static TDSLOGIN *login;
@@ -97,7 +97,7 @@ static void get_date(char *, struct timeval);
 static int mssql_connect(void);
 static int mssql_disconnect(void);
 
-static int tds_log(struct ast_cdr *cdr)
+static int tds_log(struct opbx_cdr *cdr)
 {
 	char sqlcmd[2048], start[80], answer[80], end[80];
 	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
@@ -107,7 +107,7 @@ static int tds_log(struct ast_cdr *cdr)
 	TDS_INT result_type;
 #endif
 
-	ast_mutex_lock(&tds_lock);
+	opbx_mutex_lock(&tds_lock);
 
 	memset(sqlcmd, 0, 2048);
 
@@ -182,17 +182,17 @@ static int tds_log(struct ast_cdr *cdr)
 		end,
 		cdr->duration,
 		cdr->billsec,
-		ast_cdr_disp2str(cdr->disposition),
-		ast_cdr_flags2str(cdr->amaflags),
+		opbx_cdr_disp2str(cdr->disposition),
+		opbx_cdr_flags2str(cdr->amaflags),
 		uniqueid
 	);
 
 	do {
 		if (!connected) {
 			if (mssql_connect())
-				ast_log(LOG_ERROR, "Failed to reconnect to SQL database.\n");
+				opbx_log(LOG_ERROR, "Failed to reconnect to SQL database.\n");
 			else
-				ast_log(LOG_WARNING, "Reconnected to SQL database.\n");
+				opbx_log(LOG_WARNING, "Reconnected to SQL database.\n");
 
 			retried = 1;	/* note that we have now tried */
 		}
@@ -203,7 +203,7 @@ static int tds_log(struct ast_cdr *cdr)
 		if (!connected || (tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
 #endif
 		{
-			ast_log(LOG_ERROR, "Failed to insert Call Data Record into SQL database.\n");
+			opbx_log(LOG_ERROR, "Failed to insert Call Data Record into SQL database.\n");
 
 			mssql_disconnect();	/* this is ok even if we are already disconnected */
 		}
@@ -220,7 +220,7 @@ static int tds_log(struct ast_cdr *cdr)
 	free(lastdata);
 	free(uniqueid);
 
-	ast_mutex_unlock(&tds_lock);
+	opbx_mutex_unlock(&tds_lock);
 
 	return res;
 }
@@ -349,7 +349,7 @@ static char *anti_injection(const char *str, int len)
 
 	if ((buf = malloc(len + 1)) == NULL)
 	{
-		ast_log(LOG_ERROR, "cdr_tds:  Out of memory error\n");
+		opbx_log(LOG_ERROR, "cdr_tds:  Out of memory error\n");
 		return NULL;
 	}
 	memset(buf, 0, len);
@@ -384,7 +384,7 @@ static void get_date(char *dateField, struct timeval tv)
 	char buf[80];
 
 	/* To make sure we have date variable if not insert null to SQL */
-	if (!ast_tvzero(tv))
+	if (!opbx_tvzero(tv))
 	{
 		t = tv.tv_sec;
 		localtime_r(&t, &tm);
@@ -432,7 +432,7 @@ static int mssql_connect(void)
 	/* Connect to M$SQL Server */
 	if (!(login = tds_alloc_login()))
 	{
-		ast_log(LOG_ERROR, "tds_alloc_login() failed.\n");
+		opbx_log(LOG_ERROR, "tds_alloc_login() failed.\n");
 		return -1;
 	}
 	
@@ -450,12 +450,12 @@ static int mssql_connect(void)
 
 	if (!(context = tds_alloc_context()))
 	{
-		ast_log(LOG_ERROR, "tds_alloc_context() failed.\n");
+		opbx_log(LOG_ERROR, "tds_alloc_context() failed.\n");
 		goto connect_fail;
 	}
 
 	if (!(tds = tds_alloc_socket(context, 512))) {
-		ast_log(LOG_ERROR, "tds_alloc_socket() failed.\n");
+		opbx_log(LOG_ERROR, "tds_alloc_socket() failed.\n");
 		goto connect_fail;
 	}
 
@@ -463,13 +463,13 @@ static int mssql_connect(void)
 	connection = tds_read_config_info(tds, login, context->locale);
 	if (!connection)
 	{
-		ast_log(LOG_ERROR, "tds_read_config() failed.\n");
+		opbx_log(LOG_ERROR, "tds_read_config() failed.\n");
 		goto connect_fail;
 	}
 
 	if (tds_connect(tds, connection) == TDS_FAIL)
 	{
-		ast_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
+		opbx_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
 		tds = NULL;	/* freed by tds_connect() on error */
 		tds_free_connect(connection);
 		connection = NULL;
@@ -485,7 +485,7 @@ static int mssql_connect(void)
 	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
 #endif
 	{
-		ast_log(LOG_ERROR, "Could not change database (%s)\n", dbname);
+		opbx_log(LOG_ERROR, "Could not change database (%s)\n", dbname);
 		goto connect_fail;
 	}
 
@@ -501,7 +501,7 @@ static int tds_unload_module(void)
 {
 	mssql_disconnect();
 
-	ast_cdr_unregister(name);
+	opbx_cdr_unregister(name);
 
 	if (hostname) free(hostname);
 	if (dbname) free(dbname);
@@ -516,68 +516,68 @@ static int tds_unload_module(void)
 static int tds_load_module(void)
 {
 	int res = 0;
-	struct ast_config *cfg;
-	struct ast_variable *var;
+	struct opbx_config *cfg;
+	struct opbx_variable *var;
 	char *ptr = NULL;
 #ifdef TDS_PRE_0_62
 	TDS_INT result_type;
 #endif
 
-	cfg = ast_config_load(config);
+	cfg = opbx_config_load(config);
 	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to load config for MSSQL CDR's: %s\n", config);
+		opbx_log(LOG_NOTICE, "Unable to load config for MSSQL CDR's: %s\n", config);
 		return 0;
 	}
 
-	var = ast_variable_browse(cfg, "global");
+	var = opbx_variable_browse(cfg, "global");
 	if (!var) /* nothing configured */
 		return 0;
 
-	ptr = ast_variable_retrieve(cfg, "global", "hostname");
+	ptr = opbx_variable_retrieve(cfg, "global", "hostname");
 	if (ptr)
 		hostname = strdup(ptr);
 	else
-		ast_log(LOG_ERROR,"Database server hostname not specified.\n");
+		opbx_log(LOG_ERROR,"Database server hostname not specified.\n");
 
-	ptr = ast_variable_retrieve(cfg, "global", "dbname");
+	ptr = opbx_variable_retrieve(cfg, "global", "dbname");
 	if (ptr)
 		dbname = strdup(ptr);
 	else
-		ast_log(LOG_ERROR,"Database dbname not specified.\n");
+		opbx_log(LOG_ERROR,"Database dbname not specified.\n");
 
-	ptr = ast_variable_retrieve(cfg, "global", "user");
+	ptr = opbx_variable_retrieve(cfg, "global", "user");
 	if (ptr)
 		dbuser = strdup(ptr);
 	else
-		ast_log(LOG_ERROR,"Database dbuser not specified.\n");
+		opbx_log(LOG_ERROR,"Database dbuser not specified.\n");
 
-	ptr = ast_variable_retrieve(cfg, "global", "password");
+	ptr = opbx_variable_retrieve(cfg, "global", "password");
 	if (ptr)
 		password = strdup(ptr);
 	else
-		ast_log(LOG_ERROR,"Database password not specified.\n");
+		opbx_log(LOG_ERROR,"Database password not specified.\n");
 
-	ptr = ast_variable_retrieve(cfg, "global", "charset");
+	ptr = opbx_variable_retrieve(cfg, "global", "charset");
 	if (ptr)
 		charset = strdup(ptr);
 	else
 		charset = strdup("iso_1");
 
-	ptr = ast_variable_retrieve(cfg, "global", "language");
+	ptr = opbx_variable_retrieve(cfg, "global", "language");
 	if (ptr)
 		language = strdup(ptr);
 	else
 		language = strdup("us_english");
 
-	ast_config_destroy(cfg);
+	opbx_config_destroy(cfg);
 
 	mssql_connect();
 
 	/* Register MSSQL CDR handler */
-	res = ast_cdr_register(name, desc, tds_log);
+	res = opbx_cdr_register(name, desc, tds_log);
 	if (res)
 	{
-		ast_log(LOG_ERROR, "Unable to register MSSQL CDR handling\n");
+		opbx_log(LOG_ERROR, "Unable to register MSSQL CDR handling\n");
 	}
 
 	return res;
@@ -602,10 +602,10 @@ int unload_module(void)
 int usecount(void)
 {
 	/* Simplistic use count */
-	if (ast_mutex_trylock(&tds_lock)) {
+	if (opbx_mutex_trylock(&tds_lock)) {
 		return 1;
 	} else {
-		ast_mutex_unlock(&tds_lock);
+		opbx_mutex_unlock(&tds_lock);
 		return 0;
 	}
 }

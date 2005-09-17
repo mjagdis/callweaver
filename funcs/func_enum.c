@@ -48,7 +48,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_enum(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
        int res=0;
        char tech[80];
@@ -62,14 +62,14 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
        int i = 0;
 
 
-       if (!data || ast_strlen_zero(data)) {
-               ast_log(LOG_WARNING, synopsis);
+       if (!data || opbx_strlen_zero(data)) {
+               opbx_log(LOG_WARNING, synopsis);
                return "";
        }
 
        do {
                if(i>3){
-                       ast_log(LOG_WARNING, synopsis);
+                       opbx_log(LOG_WARNING, synopsis);
                        return "";
                }
                params[i++] = p;
@@ -81,14 +81,14 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
        } while(p);
 
        if(i < 1){
-               ast_log(LOG_WARNING, synopsis);
+               opbx_log(LOG_WARNING, synopsis);
                return "";
        }
 
        if( (i > 1 && strlen(params[1]) == 0) || i < 2){
-               ast_copy_string(tech, "sip", sizeof(tech));
+               opbx_copy_string(tech, "sip", sizeof(tech));
        } else {
-               ast_copy_string(tech, params[1], sizeof(tech));
+               opbx_copy_string(tech, params[1], sizeof(tech));
        }
 
        if( (i > 3 && strlen(params[3]) == 0) || i<4){
@@ -123,15 +123,15 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
 
        LOCAL_USER_ACF_ADD(u);
 
-       res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), zone, options);
+       res = opbx_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), zone, options);
 
        LOCAL_USER_REMOVE(u);
 
        p = strchr(dest, ':');
        if(p && strncasecmp(tech, "ALL", sizeof(tech))) {
-               ast_copy_string(buf, p+1, sizeof(dest));
+               opbx_copy_string(buf, p+1, sizeof(dest));
        } else {
-               ast_copy_string(buf, dest, sizeof(dest));
+               opbx_copy_string(buf, dest, sizeof(dest));
        }
 
        return buf;
@@ -141,7 +141,7 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function enum_function = {
+struct opbx_custom_function enum_function = {
        .name = "ENUMLOOKUP",
        .synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
        " or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
@@ -159,12 +159,12 @@ static char *tdesc = "ENUMLOOKUP allows for general or specific querying of NAPT
 
 int unload_module(void)
 {
-       return ast_custom_function_unregister(&enum_function);
+       return opbx_custom_function_unregister(&enum_function);
 }
 
 int load_module(void)
 {
-       return ast_custom_function_register(&enum_function);
+       return opbx_custom_function_register(&enum_function);
 }
 
 char *description(void)

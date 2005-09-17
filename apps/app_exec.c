@@ -57,12 +57,12 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int exec_exec(struct ast_channel *chan, void *data)
+static int exec_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 	char *s, *appname, *endargs, args[MAXRESULT];
-	struct ast_app *app;
+	struct opbx_app *app;
 
 	LOCAL_USER_ADD(u);
 
@@ -70,7 +70,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		s = ast_strdupa((char *)data);
+		s = opbx_strdupa((char *)data);
 		if (s) {
 			appname = strsep(&s, "(");
 			if (s) {
@@ -84,12 +84,12 @@ static int exec_exec(struct ast_channel *chan, void *data)
 				if (app) {
 					res = pbx_exec(chan, app, args, 1);
 				} else {
-					ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+					opbx_log(LOG_WARNING, "Could not find application (%s)\n", appname);
 					res = -1;
 				}
 			}
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
+			opbx_log(LOG_ERROR, "Out of memory\n");
 			res = -1;
 		}
 	}
@@ -101,12 +101,12 @@ static int exec_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_exec);
+	return opbx_unregister_application(app_exec);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
+	return opbx_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
 }
 
 char *description(void)

@@ -27,17 +27,17 @@
 /*!
  * To init the ulaw to slinear conversion stuff, this needs to be run.
  */
-extern void ast_alaw_init(void);
+extern void opbx_alaw_init(void);
 
 /*! converts signed linear to mulaw */
 /*!
   */
-extern unsigned char __ast_lin2a[8192];
+extern unsigned char __opbx_lin2a[8192];
 
 /*! help */
-extern short __ast_alaw[256];
+extern short __opbx_alaw[256];
 
-#define AST_LIN2A(a) (__ast_lin2a[((unsigned short)(a)) >> 3])
-#define AST_ALAW(a) (__ast_alaw[(int)(a)])
+#define OPBX_LIN2A(a) (__opbx_lin2a[((unsigned short)(a)) >> 3])
+#define OPBX_ALAW(a) (__opbx_alaw[(int)(a)])
 
 #endif /* _OPENPBX_ALAW_H */

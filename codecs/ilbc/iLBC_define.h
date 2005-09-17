@@ -174,7 +174,7 @@ typedef struct iLBC_Dec_Inst_t_ {
     float lsfdeqold[LPC_FILTERORDER];
 
     /* pitch lag estimated in enhancer and used in PLC */
-    int last_lag;
+    int lopbx_lag;
 
     /* PLC state information */
     int prevLag, consPLICount, prevPLI, prev_enh_pl;

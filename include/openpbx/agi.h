@@ -35,10 +35,10 @@ typedef struct agi_state {
 
 typedef struct agi_command {
 	/* Null terminated list of the words of the command */
-	char *cmda[AST_MAX_CMD_LEN];
+	char *cmda[OPBX_MAX_CMD_LEN];
 	/* Handler for the command (channel, AGI state, # of arguments, argument list). 
 	    Returns RESULT_SHOWUSAGE for improper arguments */
-	int (*handler)(struct ast_channel *chan, AGI *agi, int argc, char *argv[]);
+	int (*handler)(struct opbx_channel *chan, AGI *agi, int argc, char *argv[]);
 	/* Summary of the command (< 60 characters) */
 	char *summary;
 	/* Detailed usage information */

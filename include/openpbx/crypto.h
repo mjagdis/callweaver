@@ -30,26 +30,26 @@
 extern "C" {
 #endif
 
-#define AST_KEY_PUBLIC	(1 << 0)
-#define AST_KEY_PRIVATE	(1 << 1)
+#define OPBX_KEY_PUBLIC	(1 << 0)
+#define OPBX_KEY_PRIVATE	(1 << 1)
 
-struct ast_key;
+struct opbx_key;
 
 /*! Retrieve a key */
 /*! 
  * \param name of the key we are retrieving
- * \param int type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
+ * \param int type of key (OPBX_KEY_PUBLIC or OPBX_KEY_PRIVATE)
  *
  * Returns the key on success or NULL on failure
  */
-extern struct ast_key *ast_key_get(char *key, int type);
+extern struct opbx_key *opbx_key_get(char *key, int type);
 
 /*! Initialize keys (that is, retrieve pass codes for all private keys) */
 /*!
  * \param fd a file descriptor for I/O for passwords
  *
  */
-extern int ast_key_init(int fd);
+extern int opbx_key_init(int fd);
 
 /*! Check the authenticity of a message signature using a given public key */
 /*!
@@ -60,7 +60,7 @@ extern int ast_key_init(int fd);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-extern int ast_check_signature(struct ast_key *key, char *msg, char *sig);
+extern int opbx_check_signature(struct opbx_key *key, char *msg, char *sig);
 
 /*! Check the authenticity of a message signature using a given public key */
 /*!
@@ -71,7 +71,7 @@ extern int ast_check_signature(struct ast_key *key, char *msg, char *sig);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-extern int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned char *sig);
+extern int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -82,7 +82,7 @@ extern int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, u
  * Returns 0 on success or -1 on failure.
  *
  */
-extern int ast_sign(struct ast_key *key, char *msg, char *sig);
+extern int opbx_sign(struct opbx_key *key, char *msg, char *sig);
 /*!
  * \param key a private key to use to create the signature
  * \param msg the message to sign
@@ -92,7 +92,7 @@ extern int ast_sign(struct ast_key *key, char *msg, char *sig);
  * Returns 0 on success or -1 on failure.
  *
  */
-extern int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *sig);
+extern int opbx_sign_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *sig);
 
 /*!
  * \param key a private key to use to encrypt
@@ -104,7 +104,7 @@ extern int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned cha
  * Returns length of encrypted data on success or -1 on failure.
  *
  */
-extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+extern int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key);
 
 /*!
  * \param key a private key to use to decrypt
@@ -116,7 +116,7 @@ extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int src
  * Returns length of decrypted data on success or -1 on failure.
  *
  */
-extern int ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+extern int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

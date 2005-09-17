@@ -69,7 +69,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int sayunixtime_exec(struct ast_channel *chan, void *data)
+static int sayunixtime_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -79,7 +79,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 
-	tv = ast_tvnow();
+	tv = opbx_tvnow();
 	unixtime = (time_t)tv.tv_sec;
 
 	if( !strcasecmp(chan->language, "da" ) ) {
@@ -92,7 +92,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 	if (data) {
 		s = data;
-		s = ast_strdupa(s);
+		s = opbx_strdupa(s);
 		if (s) {
 			timec = strsep(&s,"|");
 			if ((timec) && (*timec != '\0')) {
@@ -110,15 +110,15 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 				}
 			}
 		} else {
-			ast_log(LOG_ERROR, "Out of memory error\n");
+			opbx_log(LOG_ERROR, "Out of memory error\n");
 		}
 	}
 
-	if (chan->_state != AST_STATE_UP) {
-		res = ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP) {
+		res = opbx_answer(chan);
 	}
 	if (!res)
-		res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY, chan->language, format, zone);
+		res = opbx_say_date_with_format(chan, unixtime, OPBX_DIGIT_ANY, chan->language, format, zone);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -128,9 +128,9 @@ int unload_module(void)
 {
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = ast_unregister_application(app_sayunixtime);
+	res = opbx_unregister_application(app_sayunixtime);
 	if (! res)
-		return ast_unregister_application(app_datetime);
+		return opbx_unregister_application(app_datetime);
 	else
 		return res;
 }
@@ -138,9 +138,9 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
+	res = opbx_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
 	if (! res)
-		return ast_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
+		return opbx_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
 	else
 		return res;
 }

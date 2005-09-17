@@ -54,7 +54,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 	
 extern unsigned long global_fin, global_fout;
 	
-void ast_cli(int fd, char *fmt, ...)
+void opbx_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
 	int res = 0;
@@ -64,16 +64,16 @@ void ast_cli(int fd, char *fmt, ...)
 	res = vasprintf(&stuff, fmt, ap);
 	va_end(ap);
 	if (res == -1) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 	} else {
-		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
+		opbx_carefulwrite(fd, stuff, strlen(stuff), 100);
 		free(stuff);
 	}
 }
 
-AST_MUTEX_DEFINE_STATIC(clilock);
+OPBX_MUTEX_DEFINE_STATIC(clilock);
 
-struct ast_cli_entry *helpers = NULL;
+struct opbx_cli_entry *helpers = NULL;
 
 static char load_help[] = 
 "Usage: load <module name>\n"
@@ -126,8 +126,8 @@ static int handle_load(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	if (ast_load_resource(argv[1])) {
-		ast_cli(fd, "Unable to load module %s\n", argv[1]);
+	if (opbx_load_resource(argv[1])) {
+		opbx_cli(fd, "Unable to load module %s\n", argv[1]);
 		return RESULT_FAILURE;
 	}
 	return RESULT_SUCCESS;
@@ -141,18 +141,18 @@ static int handle_reload(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	if (argc > 1) { 
 		for (x=1;x<argc;x++) {
-			res = ast_module_reload(argv[x]);
+			res = opbx_module_reload(argv[x]);
 			switch(res) {
 			case 0:
-				ast_cli(fd, "No such module '%s'\n", argv[x]);
+				opbx_cli(fd, "No such module '%s'\n", argv[x]);
 				break;
 			case 1:
-				ast_cli(fd, "Module '%s' does not support reload\n", argv[x]);
+				opbx_cli(fd, "Module '%s' does not support reload\n", argv[x]);
 				break;
 			}
 		}
 	} else
-		ast_module_reload(NULL);
+		opbx_module_reload(NULL);
 	return RESULT_SUCCESS;
 }
 
@@ -175,11 +175,11 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 			option_verbose = val;
 	}
 	if (oldval != option_verbose && option_verbose > 0)
-		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
+		opbx_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
 	else if (oldval > 0 && option_verbose > 0)
-		ast_cli(fd, "Verbosity is at least %d\n", option_verbose);
+		opbx_cli(fd, "Verbosity is at least %d\n", option_verbose);
 	else if (oldval > 0 && option_verbose == 0)
-		ast_cli(fd, "Verbosity is now OFF\n");
+		opbx_cli(fd, "Verbosity is now OFF\n");
 	return RESULT_SUCCESS;
 }
 
@@ -201,36 +201,36 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 			option_debug = val;
 	}
 	if (oldval != option_debug && option_debug > 0)
-		ast_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
+		opbx_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
 	else if (oldval > 0 && option_debug > 0)
-		ast_cli(fd, "Core debug is at least %d\n", option_debug);
+		opbx_cli(fd, "Core debug is at least %d\n", option_debug);
 	else if (oldval > 0 && option_debug == 0)
-		ast_cli(fd, "Core debug is now OFF\n");
+		opbx_cli(fd, "Core debug is now OFF\n");
 	return RESULT_SUCCESS;
 }
 
 static int handle_unload(int fd, int argc, char *argv[])
 {
 	int x;
-	int force=AST_FORCE_SOFT;
+	int force=OPBX_FORCE_SOFT;
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 	for (x=1;x<argc;x++) {
 		if (argv[x][0] == '-') {
 			switch(argv[x][1]) {
 			case 'f':
-				force = AST_FORCE_FIRM;
+				force = OPBX_FORCE_FIRM;
 				break;
 			case 'h':
-				force = AST_FORCE_HARD;
+				force = OPBX_FORCE_HARD;
 				break;
 			default:
 				return RESULT_SHOWUSAGE;
 			}
 		} else if (x !=  argc - 1) 
 			return RESULT_SHOWUSAGE;
-		else if (ast_unload_resource(argv[x], force)) {
-			ast_cli(fd, "Unable to unload resource %s\n", argv[x]);
+		else if (opbx_unload_resource(argv[x], force)) {
+			opbx_cli(fd, "Unable to unload resource %s\n", argv[x]);
 			return RESULT_FAILURE;
 		}
 	}
@@ -240,14 +240,14 @@ static int handle_unload(int fd, int argc, char *argv[])
 #define MODLIST_FORMAT  "%-30s %-40.40s %-10d\n"
 #define MODLIST_FORMAT2 "%-30s %-40.40s %-10s\n"
 
-AST_MUTEX_DEFINE_STATIC(climodentrylock);
+OPBX_MUTEX_DEFINE_STATIC(climodentrylock);
 static int climodentryfd = -1;
 
 static int modlist_modentry(const char *module, const char *description, int usecnt, const char *like)
 {
 	/* Comparing the like with the module */
 	if (strcasestr(module, like) ) {
-		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
+		opbx_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
 		return 1;
 	} 
 	return 0;
@@ -354,26 +354,26 @@ static int handle_showuptime(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	time(&curtime);
-	if (ast_startuptime) {
-		tmptime = curtime - ast_startuptime;
+	if (opbx_startuptime) {
+		tmptime = curtime - opbx_startuptime;
 		if (printsec) {
-			ast_cli(fd, "System uptime: %lu\n",tmptime);
+			opbx_cli(fd, "System uptime: %lu\n",tmptime);
 		} else {
 			timestr = format_uptimestr(tmptime);
 			if (timestr) {
-				ast_cli(fd, "System uptime: %s\n", timestr);
+				opbx_cli(fd, "System uptime: %s\n", timestr);
 				free(timestr);
 			}
 		}
 	}		
-	if (ast_lastreloadtime) {
-		tmptime = curtime - ast_lastreloadtime;
+	if (opbx_lastreloadtime) {
+		tmptime = curtime - opbx_lastreloadtime;
 		if (printsec) {
-			ast_cli(fd, "Last reload: %lu\n", tmptime);
+			opbx_cli(fd, "Last reload: %lu\n", tmptime);
 		} else {
 			timestr = format_uptimestr(tmptime);
 			if ((timestr) && (!printsec)) {
-				ast_cli(fd, "Last reload: %s\n", timestr);
+				opbx_cli(fd, "Last reload: %s\n", timestr);
 				free(timestr);
 			} 
 		}
@@ -392,12 +392,12 @@ static int handle_modlist(int fd, int argc, char *argv[])
 		like = argv[3];
 	}
 		
-	ast_mutex_lock(&climodentrylock);
+	opbx_mutex_lock(&climodentrylock);
 	climodentryfd = fd;
-	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
-	ast_cli(fd,"%d modules loaded\n", ast_update_module_list(modlist_modentry, like));
+	opbx_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
+	opbx_cli(fd,"%d modules loaded\n", opbx_update_module_list(modlist_modentry, like));
 	climodentryfd = -1;
-	ast_mutex_unlock(&climodentrylock);
+	opbx_mutex_unlock(&climodentrylock);
 	return RESULT_SUCCESS;
 }
 #undef MODLIST_FORMAT
@@ -407,7 +407,7 @@ static int handle_version(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "%s\n", VERSION_INFO);
+	opbx_cli(fd, "%s\n", VERSION_INFO);
 	return RESULT_SUCCESS;
 }
 static int handle_chanlist(int fd, int argc, char *argv[])
@@ -418,7 +418,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 #define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
-	struct ast_channel *c = NULL, *bc = NULL;
+	struct opbx_channel *c = NULL, *bc = NULL;
 	char durbuf[10] = "-";
 	char locbuf[40];
 	char appdata[40];
@@ -433,14 +433,14 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	if (!concise && !verbose)
-		ast_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
+		opbx_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
 	else if (verbose)
-		ast_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
+		opbx_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
 		        "CallerID", "Duration", "Accountcode", "BridgedTo");
-	while ((c = ast_channel_walk_locked(c)) != NULL) {
-		bc = ast_bridged_channel(c);
-		if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
-			duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+	while ((c = opbx_channel_walk_locked(c)) != NULL) {
+		bc = opbx_bridged_channel(c);
+		if ((concise || verbose)  && c->cdr && !opbx_tvzero(c->cdr->start)) {
+			duration = (int)(opbx_tvdiff_ms(opbx_tvnow(), c->cdr->start) / 1000);
 			if (verbose) {
 				durh = duration / 3600;
 				durm = (duration % 3600) / 60;
@@ -453,18 +453,18 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 			durbuf[0] = '\0';
 		}
 		if (concise) {
-			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "" ): "",
-			        (c->cid.cid_num && !ast_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "",
-			        (c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "", c->amaflags, 
+			opbx_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, opbx_state2str(c->_state),
+			        c->appl ? c->appl : "(None)", c->data ? ( !opbx_strlen_zero(c->data) ? c->data : "" ): "",
+			        (c->cid.cid_num && !opbx_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "",
+			        (c->accountcode && !opbx_strlen_zero(c->accountcode)) ? c->accountcode : "", c->amaflags, 
 			        durbuf, bc ? bc->name : "(None)");
 		} else if (verbose) {
-			ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)",
-			        (c->cid.cid_num && !ast_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "", durbuf,
-			        (c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "", bc ? bc->name : "(None)");
+			opbx_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, opbx_state2str(c->_state),
+			        c->appl ? c->appl : "(None)", c->data ? ( !opbx_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)",
+			        (c->cid.cid_num && !opbx_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "", durbuf,
+			        (c->accountcode && !opbx_strlen_zero(c->accountcode)) ? c->accountcode : "", bc ? bc->name : "(None)");
 		} else {
-			if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
+			if (!opbx_strlen_zero(c->context) && !opbx_strlen_zero(c->exten)) 
 				snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
 			else
 				strcpy(locbuf, "(None)");
@@ -473,17 +473,17 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 			} else {
 				strcpy(appdata, "(None)");
 			}
-			ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
+			opbx_cli(fd, FORMAT_STRING, c->name, locbuf, opbx_state2str(c->_state), appdata);
 		}
 		numchans++;
-		ast_mutex_unlock(&c->lock);
+		opbx_mutex_unlock(&c->lock);
 	}
 	if (!concise) {
-		ast_cli(fd, "%d active channel%s\n", numchans, (numchans!=1) ? "s" : "");
+		opbx_cli(fd, "%d active channel%s\n", numchans, (numchans!=1) ? "s" : "");
 		if (option_maxcalls)
-			ast_cli(fd, "%d of %d max active call%s (%5.2f%% of capacity)\n", ast_active_calls(), option_maxcalls, (ast_active_calls()!=1) ? "s" : "", ((float)ast_active_calls() / (float)option_maxcalls) * 100.0);
+			opbx_cli(fd, "%d of %d max active call%s (%5.2f%% of capacity)\n", opbx_active_calls(), option_maxcalls, (opbx_active_calls()!=1) ? "s" : "", ((float)opbx_active_calls() / (float)option_maxcalls) * 100.0);
 		else
-			ast_cli(fd, "%d active call%s\n", ast_active_calls(), (ast_active_calls()!=1) ? "s" : "");
+			opbx_cli(fd, "%d active call%s\n", opbx_active_calls(), (opbx_active_calls()!=1) ? "s" : "");
 	}
 	return RESULT_SUCCESS;
 	
@@ -528,20 +528,20 @@ static char commandmatchesarray_help[] =
 
 static int handle_softhangup(int fd, int argc, char *argv[])
 {
-	struct ast_channel *c=NULL;
+	struct opbx_channel *c=NULL;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	c = ast_get_channel_by_name_locked(argv[2]);
+	c = opbx_get_channel_by_name_locked(argv[2]);
 	if (c) {
-		ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
-		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-		ast_mutex_unlock(&c->lock);
+		opbx_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
+		opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
+		opbx_mutex_unlock(&c->lock);
 	} else
-		ast_cli(fd, "%s is not a known channel\n", argv[2]);
+		opbx_cli(fd, "%s is not a known channel\n", argv[2]);
 	return RESULT_SUCCESS;
 }
 
-static char *__ast_cli_generator(char *text, char *word, int state, int lock);
+static char *__opbx_cli_generator(char *text, char *word, int state, int lock);
 
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
@@ -557,7 +557,7 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 	if (!buf)
 		return RESULT_FAILURE;
 	buf[len] = '\0';
-	matches = ast_cli_completion_matches(argv[2], argv[3]);
+	matches = opbx_cli_completion_matches(argv[2], argv[3]);
 	if (matches) {
 		for (x=0; matches[x]; x++) {
 #if 0
@@ -584,10 +584,10 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 #endif
 	
 	if (buf) {
-		ast_cli(fd, "%s%s",buf, AST_CLI_COMPLETE_EOF);
+		opbx_cli(fd, "%s%s",buf, OPBX_CLI_COMPLETE_EOF);
 		free(buf);
 	} else
-		ast_cli(fd, "NULL\n");
+		opbx_cli(fd, "NULL\n");
 
 	return RESULT_SUCCESS;
 }
@@ -601,12 +601,12 @@ static int handle_commandnummatches(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	matches = ast_cli_generatornummatches(argv[2], argv[3]);
+	matches = opbx_cli_generatornummatches(argv[2], argv[3]);
 
 #if 0
 	printf("Search for '%s' %s got '%d'\n", argv[2], argv[3], matches);
 #endif
-	ast_cli(fd, "%d", matches);
+	opbx_cli(fd, "%d", matches);
 
 	return RESULT_SUCCESS;
 }
@@ -619,15 +619,15 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 #endif	
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	buf = __ast_cli_generator(argv[2], argv[3], atoi(argv[4]), 0);
+	buf = __opbx_cli_generator(argv[2], argv[3], atoi(argv[4]), 0);
 #if 0
 	printf("Search for '%s' %s %d got '%s'\n", argv[2], argv[3], atoi(argv[4]), buf);
 #endif	
 	if (buf) {
-		ast_cli(fd, buf);
+		opbx_cli(fd, buf);
 		free(buf);
 	} else
-		ast_cli(fd, "NULL\n");
+		opbx_cli(fd, "NULL\n");
 	return RESULT_SUCCESS;
 }
 
@@ -642,11 +642,11 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 	option_debug = newlevel;
 	if (argc == 4) {
 		filename = argv[3];
-		ast_copy_string(debug_filename, filename, sizeof(debug_filename));
+		opbx_copy_string(debug_filename, filename, sizeof(debug_filename));
 	} else {
 		debug_filename[0] = '\0';
 	}
-	ast_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
+	opbx_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
 	return RESULT_SUCCESS;
 }
 
@@ -654,7 +654,7 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 /* XXX todo: merge next two functions!!! */
 static int handle_debugchan(int fd, int argc, char *argv[])
 {
-	struct ast_channel *c=NULL;
+	struct opbx_channel *c=NULL;
 	int is_all;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -663,30 +663,30 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 	if (is_all) {
 		global_fin |= DEBUGCHAN_FLAG;
 		global_fout |= DEBUGCHAN_FLAG;
-		c = ast_channel_walk_locked(NULL);
+		c = opbx_channel_walk_locked(NULL);
 	} else {
-		c = ast_get_channel_by_name_locked(argv[2]);
+		c = opbx_get_channel_by_name_locked(argv[2]);
 		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[2]);
+			opbx_cli(fd, "No such channel %s\n", argv[2]);
 	}
 	while(c) {
 		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
 			c->fin |= DEBUGCHAN_FLAG;
 			c->fout |= DEBUGCHAN_FLAG;
-			ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
+			opbx_cli(fd, "Debugging enabled on channel %s\n", c->name);
 		}
-		ast_mutex_unlock(&c->lock);
+		opbx_mutex_unlock(&c->lock);
 		if (!is_all)
 			break;
-		c = ast_channel_walk_locked(c);
+		c = opbx_channel_walk_locked(c);
 	}
-	ast_cli(fd, "Debugging on new channels is enabled\n");
+	opbx_cli(fd, "Debugging on new channels is enabled\n");
 	return RESULT_SUCCESS;
 }
 
 static int handle_nodebugchan(int fd, int argc, char *argv[])
 {
-	struct ast_channel *c=NULL;
+	struct opbx_channel *c=NULL;
 	int is_all;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -694,24 +694,24 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 	if (is_all) {
 		global_fin &= ~DEBUGCHAN_FLAG;
 		global_fout &= ~DEBUGCHAN_FLAG;
-		c = ast_channel_walk_locked(NULL);
+		c = opbx_channel_walk_locked(NULL);
 	} else {
-		c = ast_get_channel_by_name_locked(argv[3]);
+		c = opbx_get_channel_by_name_locked(argv[3]);
 		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[3]);
+			opbx_cli(fd, "No such channel %s\n", argv[3]);
     }
 	while(c) {
 		if ((c->fin & DEBUGCHAN_FLAG) || (c->fout & DEBUGCHAN_FLAG)) {
 			c->fin &= ~DEBUGCHAN_FLAG;
 			c->fout &= ~DEBUGCHAN_FLAG;
-			ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
+			opbx_cli(fd, "Debugging disabled on channel %s\n", c->name);
 		}
-		ast_mutex_unlock(&c->lock);
+		opbx_mutex_unlock(&c->lock);
 		if (!is_all)
 			break;
-		c = ast_channel_walk_locked(c);
+		c = opbx_channel_walk_locked(c);
 	}
-	ast_cli(fd, "Debugging on new channels is disabled\n");
+	opbx_cli(fd, "Debugging on new channels is disabled\n");
 	return RESULT_SUCCESS;
 }
 		
@@ -719,7 +719,7 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 
 static int handle_showchan(int fd, int argc, char *argv[])
 {
-	struct ast_channel *c=NULL;
+	struct opbx_channel *c=NULL;
 	struct timeval now;
 	char buf[2048];
 	char cdrtime[256];
@@ -728,10 +728,10 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	now = ast_tvnow();
-	c = ast_get_channel_by_name_locked(argv[2]);
+	now = opbx_tvnow();
+	c = opbx_get_channel_by_name_locked(argv[2]);
 	if (!c) {
-		ast_cli(fd, "%s is not a known channel\n", argv[2]);
+		opbx_cli(fd, "%s is not a known channel\n", argv[2]);
 		return RESULT_SUCCESS;
 	}
 	if(c->cdr) {
@@ -742,7 +742,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
 	} else
 		strcpy(cdrtime, "N/A");
-	ast_cli(fd, 
+	opbx_cli(fd, 
 		" -- General --\n"
 		"           Name: %s\n"
 		"           Type: %s\n"
@@ -774,20 +774,20 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->name, c->type, c->uniqueid,
 		(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 		(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
+		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), opbx_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 		c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 		c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-		cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
+		cdrtime, c->_bridge ? c->_bridge->name : "<none>", opbx_bridged_channel(c) ? opbx_bridged_channel(c)->name : "<none>", 
 		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-		( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
-		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+		( c-> data ? (!opbx_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
+		(opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
 	if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
-		ast_cli(fd,"      Variables:\n%s\n",buf);
-	if(c->cdr && ast_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
-		ast_cli(fd,"  CDR Variables:\n%s\n",buf);
+		opbx_cli(fd,"      Variables:\n%s\n",buf);
+	if(c->cdr && opbx_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
+		opbx_cli(fd,"  CDR Variables:\n%s\n",buf);
 	
-	ast_mutex_unlock(&c->lock);
+	opbx_mutex_unlock(&c->lock);
 	return RESULT_SUCCESS;
 }
 
@@ -809,21 +809,21 @@ static char *complete_show_channels(char *line, char *word, int pos, int state)
 
 static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
-	struct ast_channel *c = NULL;
+	struct opbx_channel *c = NULL;
 	int which=0;
 	char *ret = NULL;
 
 	if (pos != rpos)
 		return NULL;
-	while ( (c = ast_channel_walk_locked(c)) != NULL) {
+	while ( (c = opbx_channel_walk_locked(c)) != NULL) {
 		if (!strncasecmp(word, c->name, strlen(word))) {
 			if (++which > state) {
 				ret = strdup(c->name);
-				ast_mutex_unlock(&c->lock);
+				opbx_mutex_unlock(&c->lock);
 				break;
 			}
 		}
-		ast_mutex_unlock(&c->lock);
+		opbx_mutex_unlock(&c->lock);
 	}
 	return ret;
 }
@@ -840,12 +840,12 @@ static char *complete_ch_4(char *line, char *word, int pos, int state)
 
 static char *complete_mod_2(char *line, char *word, int pos, int state)
 {
-	return ast_module_helper(line, word, pos, state, 1, 1);
+	return opbx_module_helper(line, word, pos, state, 1, 1);
 }
 
 static char *complete_mod_4(char *line, char *word, int pos, int state)
 {
-	return ast_module_helper(line, word, pos, state, 3, 0);
+	return opbx_module_helper(line, word, pos, state, 3, 0);
 }
 
 static char *complete_fn(char *line, char *word, int pos, int state)
@@ -855,18 +855,18 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 	if (pos != 1)
 		return NULL;
 	if (word[0] == '/')
-		ast_copy_string(filename, word, sizeof(filename));
+		opbx_copy_string(filename, word, sizeof(filename));
 	else
-		snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_MODULE_DIR, word);
+		snprintf(filename, sizeof(filename), "%s/%s", (char *)opbx_config_OPBX_MODULE_DIR, word);
 	c = (char*)filename_completion_function(filename, state);
 	if (c && word[0] != '/')
-		c += (strlen((char*)ast_config_AST_MODULE_DIR) + 1);
+		c += (strlen((char*)opbx_config_OPBX_MODULE_DIR) + 1);
 	return c ? strdup(c) : c;
 }
 
 static int handle_help(int fd, int argc, char *argv[]);
 
-static struct ast_cli_entry builtins[] = {
+static struct opbx_cli_entry builtins[] = {
 	/* Keep alphabetized, with longer matches first (example: abcd before abc) */
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
 	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
@@ -890,12 +890,12 @@ static struct ast_cli_entry builtins[] = {
 	{ { NULL }, NULL, NULL, NULL }
 };
 
-static struct ast_cli_entry *find_cli(char *cmds[], int exact)
+static struct opbx_cli_entry *find_cli(char *cmds[], int exact)
 {
 	int x;
 	int y;
 	int match;
-	struct ast_cli_entry *e=NULL;
+	struct opbx_cli_entry *e=NULL;
 
 	for (e=helpers;e;e=e->next) {
 		match = 1;
@@ -969,8 +969,8 @@ static char *find_best(char *argv[])
 	static char cmdline[80];
 	int x;
 	/* See how close we get, then print the  */
-	char *myargv[AST_MAX_CMD_LEN];
-	for (x=0;x<AST_MAX_CMD_LEN;x++)
+	char *myargv[OPBX_MAX_CMD_LEN];
+	for (x=0;x<OPBX_MAX_CMD_LEN;x++)
 		myargv[x]=NULL;
 	for (x=0;argv[x];x++) {
 		myargv[x] = argv[x];
@@ -981,15 +981,15 @@ static char *find_best(char *argv[])
 	return cmdline;
 }
 
-int ast_cli_unregister(struct ast_cli_entry *e)
+int opbx_cli_unregister(struct opbx_cli_entry *e)
 {
-	struct ast_cli_entry *cur, *l=NULL;
-	ast_mutex_lock(&clilock);
+	struct opbx_cli_entry *cur, *l=NULL;
+	opbx_mutex_lock(&clilock);
 	cur = helpers;
 	while(cur) {
 		if (e == cur) {
 			if (e->inuse) {
-				ast_log(LOG_WARNING, "Can't remove command that is in use\n");
+				opbx_log(LOG_WARNING, "Can't remove command that is in use\n");
 			} else {
 				/* Rewrite */
 				if (l)
@@ -1003,20 +1003,20 @@ int ast_cli_unregister(struct ast_cli_entry *e)
 		l = cur;
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&clilock);
+	opbx_mutex_unlock(&clilock);
 	return 0;
 }
 
-int ast_cli_register(struct ast_cli_entry *e)
+int opbx_cli_register(struct opbx_cli_entry *e)
 {
-	struct ast_cli_entry *cur, *l=NULL;
+	struct opbx_cli_entry *cur, *l=NULL;
 	char fulle[80] ="", fulltst[80] ="";
 	static int len;
-	ast_mutex_lock(&clilock);
+	opbx_mutex_lock(&clilock);
 	join2(fulle, sizeof(fulle), e->cmda);
 	if (find_cli(e->cmda, -1)) {
-		ast_mutex_unlock(&clilock);
-		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
+		opbx_mutex_unlock(&clilock);
+		opbx_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		return -1;
 	}
 	cur = helpers;
@@ -1045,27 +1045,27 @@ int ast_cli_register(struct ast_cli_entry *e)
 			helpers = e;
 		e->next = NULL;
 	}
-	ast_mutex_unlock(&clilock);
+	opbx_mutex_unlock(&clilock);
 	return 0;
 }
 
 /*
  * register/unregister an array of entries.
  */
-void ast_cli_register_multiple(struct ast_cli_entry *e, int len)
+void opbx_cli_register_multiple(struct opbx_cli_entry *e, int len)
 {
 	int i;
 
 	for (i=0; i < len; i++)
-		ast_cli_register(e + i);
+		opbx_cli_register(e + i);
 }
 
-void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
+void opbx_cli_unregister_multiple(struct opbx_cli_entry *e, int len)
 {
 	int i;
 
 	for (i=0; i < len; i++)
-		ast_cli_unregister(e + i);
+		opbx_cli_unregister(e + i);
 }
 
 static int help_workhorse(int fd, char *match[])
@@ -1074,7 +1074,7 @@ static int help_workhorse(int fd, char *match[])
 	char fullcmd2[80] = "";
 	char matchstr[80];
 	char *fullcmd = NULL;
-	struct ast_cli_entry *e, *e1, *e2;
+	struct opbx_cli_entry *e, *e1, *e2;
 	e1 = builtins;
 	e2 = helpers;
 	if (match)
@@ -1105,13 +1105,13 @@ static int help_workhorse(int fd, char *match[])
 				continue;
 			}
 		}
-		ast_cli(fd, "%25.25s  %s\n", fullcmd, e->summary);
+		opbx_cli(fd, "%25.25s  %s\n", fullcmd, e->summary);
 	}
 	return 0;
 }
 
 static int handle_help(int fd, int argc, char *argv[]) {
-	struct ast_cli_entry *e;
+	struct opbx_cli_entry *e;
 	char fullcmd[80];
 	if ((argc < 1))
 		return RESULT_SHOWUSAGE;
@@ -1119,17 +1119,17 @@ static int handle_help(int fd, int argc, char *argv[]) {
 		e = find_cli(argv + 1, 1);
 		if (e) {
 			if (e->usage)
-				ast_cli(fd, "%s", e->usage);
+				opbx_cli(fd, "%s", e->usage);
 			else {
 				join(fullcmd, sizeof(fullcmd), argv+1);
-				ast_cli(fd, "No help text available for '%s'.\n", fullcmd);
+				opbx_cli(fd, "No help text available for '%s'.\n", fullcmd);
 			}
 		} else {
 			if (find_cli(argv + 1, -1)) {
 				return help_workhorse(fd, argv + 1);
 			} else {
 				join(fullcmd, sizeof(fullcmd), argv+1);
-				ast_cli(fd, "No such command '%s'.\n", fullcmd);
+				opbx_cli(fd, "No such command '%s'.\n", fullcmd);
 			}
 		}
 	} else {
@@ -1156,7 +1156,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max)
 			if (quoted & whitespace) {
 				/* If we're starting a quoted string, coming off white space, start a new argument */
 				if (x >= (max - 1)) {
-					ast_log(LOG_WARNING, "Too many arguments, truncating\n");
+					opbx_log(LOG_WARNING, "Too many arguments, truncating\n");
 					break;
 				}
 				argv[x++] = cur;
@@ -1178,7 +1178,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max)
 			if (whitespace) {
 				/* If we are coming out of whitespace, start a new argument */
 				if (x >= (max - 1)) {
-					ast_log(LOG_WARNING, "Too many arguments, truncating\n");
+					opbx_log(LOG_WARNING, "Too many arguments, truncating\n");
 					break;
 				}
 				argv[x++] = cur;
@@ -1198,12 +1198,12 @@ static char *parse_args(char *s, int *argc, char *argv[], int max)
 }
 
 /* This returns the number of unique matches for the generator */
-int ast_cli_generatornummatches(char *text, char *word)
+int opbx_cli_generatornummatches(char *text, char *word)
 {
 	int matches = 0, i = 0;
 	char *buf = NULL, *oldbuf = NULL;
 
-	while ( (buf = ast_cli_generator(text, word, i)) ) {
+	while ( (buf = opbx_cli_generator(text, word, i)) ) {
 		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
 				continue;
 		}
@@ -1214,14 +1214,14 @@ int ast_cli_generatornummatches(char *text, char *word)
 	return matches;
 }
 
-char **ast_cli_completion_matches(char *text, char *word)
+char **opbx_cli_completion_matches(char *text, char *word)
 {
 	char **match_list = NULL, *retstr, *prevstr;
 	size_t match_list_len, max_equal, which, i;
 	int matches = 0;
 
 	match_list_len = 1;
-	while ((retstr = ast_cli_generator(text, word, matches)) != NULL) {
+	while ((retstr = opbx_cli_generator(text, word, matches)) != NULL) {
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
 			match_list = realloc(match_list, match_list_len * sizeof(char *));
@@ -1253,10 +1253,10 @@ char **ast_cli_completion_matches(char *text, char *word)
 	return (match_list);
 }
 
-static char *__ast_cli_generator(char *text, char *word, int state, int lock)
+static char *__opbx_cli_generator(char *text, char *word, int state, int lock)
 {
-	char *argv[AST_MAX_ARGS];
-	struct ast_cli_entry *e, *e1, *e2;
+	char *argv[OPBX_MAX_ARGS];
+	struct opbx_cli_entry *e, *e1, *e2;
 	int x;
 	int matchnum=0;
 	char *dup, *res;
@@ -1268,7 +1268,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	if ((dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
 		join(matchstr, sizeof(matchstr), argv);
 		if (lock)
-			ast_mutex_lock(&clilock);
+			opbx_mutex_lock(&clilock);
 		e1 = builtins;
 		e2 = helpers;
 		while(e1->cmda[0] || e2) {
@@ -1292,7 +1292,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 			if ((fullcmd[0] != '_') && !strncasecmp(matchstr, fullcmd, strlen(matchstr))) {
 				/* We contain the first part of one or more commands */
 				/* Now, what we're supposed to return is the next word... */
-				if (!ast_strlen_zero(word) && x>0) {
+				if (!opbx_strlen_zero(word) && x>0) {
 					res = e->cmda[x-1];
 				} else {
 					res = e->cmda[x];
@@ -1301,7 +1301,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 					matchnum++;
 					if (matchnum > state) {
 						if (lock)
-							ast_mutex_unlock(&clilock);
+							opbx_mutex_unlock(&clilock);
 						free(dup);
 						return strdup(res);
 					}
@@ -1311,10 +1311,10 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				(matchstr[strlen(fullcmd)] < 33)) {
 				/* We have a command in its entirity within us -- theoretically only one
 				   command can have this occur */
-				fullcmd = e->generator(matchstr, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
+				fullcmd = e->generator(matchstr, word, (!opbx_strlen_zero(word) ? (x - 1) : (x)), state);
 				if (fullcmd) {
 					if (lock)
-						ast_mutex_unlock(&clilock);
+						opbx_mutex_unlock(&clilock);
 					free(dup);
 					return fullcmd;
 				}
@@ -1322,49 +1322,49 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 			
 		}
 		if (lock)
-			ast_mutex_unlock(&clilock);
+			opbx_mutex_unlock(&clilock);
 		free(dup);
 	}
 	return NULL;
 }
 
-char *ast_cli_generator(char *text, char *word, int state)
+char *opbx_cli_generator(char *text, char *word, int state)
 {
-	return __ast_cli_generator(text, word, state, 1);
+	return __opbx_cli_generator(text, word, state, 1);
 }
 
-int ast_cli_command(int fd, char *s)
+int opbx_cli_command(int fd, char *s)
 {
-	char *argv[AST_MAX_ARGS];
-	struct ast_cli_entry *e;
+	char *argv[OPBX_MAX_ARGS];
+	struct opbx_cli_entry *e;
 	int x;
 	char *dup;
 
 	if ((dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
 		/* We need at least one entry, or ignore */
 		if (x > 0) {
-			ast_mutex_lock(&clilock);
+			opbx_mutex_lock(&clilock);
 			e = find_cli(argv, 0);
 			if (e)
 				e->inuse++;
-			ast_mutex_unlock(&clilock);
+			opbx_mutex_unlock(&clilock);
 			if (e) {
 				switch(e->handler(fd, x, argv)) {
 				case RESULT_SHOWUSAGE:
-					ast_cli(fd, "%s", e->usage);
+					opbx_cli(fd, "%s", e->usage);
 					break;
 				}
 			} else 
-				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
+				opbx_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
 			if (e) {
-				ast_mutex_lock(&clilock);
+				opbx_mutex_lock(&clilock);
 				e->inuse--;
-				ast_mutex_unlock(&clilock);
+				opbx_mutex_unlock(&clilock);
 			}
 		}
 		free(dup);
 	} else {
-		ast_log(LOG_WARNING, "Out of memory\n");	
+		opbx_log(LOG_WARNING, "Out of memory\n");	
 		return -1;
 	}
 	return 0;

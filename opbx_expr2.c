@@ -47,14 +47,14 @@
 
 /* If NAME_PREFIX is specified substitute the variables and functions
    names.  */
-#define yyparse ast_yyparse
-#define yylex   ast_yylex
-#define yyerror ast_yyerror
-#define yylval  ast_yylval
-#define yychar  ast_yychar
-#define yydebug ast_yydebug
-#define yynerrs ast_yynerrs
-#define yylloc ast_yylloc
+#define yyparse opbx_yyparse
+#define yylex   opbx_yylex
+#define yyerror opbx_yyerror
+#define yylval  opbx_yylval
+#define yychar  opbx_yychar
+#define yydebug opbx_yydebug
+#define yynerrs opbx_yynerrs
+#define yylloc opbx_yylloc
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -162,11 +162,11 @@
 #define YYERROR_VERBOSE 1
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
 } ;
 
 #ifdef STANDALONE
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
 #endif
 
 struct val {
@@ -222,8 +222,8 @@ typedef struct yyltype
   int first_line;
   int first_column;
 
-  int last_line;
-  int last_column;
+  int lopbx_line;
+  int lopbx_column;
 } yyltype;
 
 # define YYLTYPE yyltype
@@ -232,12 +232,12 @@ typedef struct yyltype
 /* we will get warning about no prototype for yylex! But we can't
    define it here, we have no definition yet for YYSTYPE. */
 
-int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
+int		opbx_yyerror(const char *,YYLTYPE *, struct parse_io *);
  
 /* I wanted to add args to the yyerror routine, so I could print out
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
-#define ast_yyerror(x) ast_yyerror(x,&yyloc,parseio)
+#define opbx_yyerror(x) opbx_yyerror(x,&yyloc,parseio)
 
 
 
@@ -271,8 +271,8 @@ typedef struct YYLTYPE
 {
   int first_line;
   int first_column;
-  int last_line;
-  int last_column;
+  int lopbx_line;
+  int lopbx_column;
 } YYLTYPE;
 # define yyltype YYLTYPE /* obsolescent; will be withdrawn */
 # define YYLTYPE_IS_DECLARED 1
@@ -283,7 +283,7 @@ typedef struct YYLTYPE
 /* Copy the second part of user declarations.  */
 #line 141 "opbx_expr2.y"
 
-extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
+extern int		opbx_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
 /* Line 214 of yacc.c.  */
@@ -670,8 +670,8 @@ while (0)
 # define YYLLOC_DEFAULT(Current, Rhs, N)		\
    ((Current).first_line   = (Rhs)[1].first_line,	\
     (Current).first_column = (Rhs)[1].first_column,	\
-    (Current).last_line    = (Rhs)[N].last_line,	\
-    (Current).last_column  = (Rhs)[N].last_column)
+    (Current).lopbx_line    = (Rhs)[N].lopbx_line,	\
+    (Current).lopbx_column  = (Rhs)[N].lopbx_column)
 #endif
 
 /* YYLEX -- calling `yylex' with the right arguments.  */
@@ -1243,134 +1243,134 @@ yyreduce:
   case 4:
 #line 166 "opbx_expr2.y"
     { yyval.val = yyvsp[-1].val; 
-	                       yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						   yyloc.first_line=0; yyloc.last_line=0;;}
+	                       yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						   yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 5:
 #line 169 "opbx_expr2.y"
     { yyval.val = op_or (yyvsp[-2].val, yyvsp[0].val);
-                         yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						 yyloc.first_line=0; yyloc.last_line=0;;}
+                         yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						 yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 6:
 #line 172 "opbx_expr2.y"
     { yyval.val = op_and (yyvsp[-2].val, yyvsp[0].val); 
-	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-                          yyloc.first_line=0; yyloc.last_line=0;;}
+	                      yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+                          yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 7:
 #line 175 "opbx_expr2.y"
     { yyval.val = op_eq (yyvsp[-2].val, yyvsp[0].val);
-	                     yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column;
-						 yyloc.first_line=0; yyloc.last_line=0;;}
+	                     yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column;
+						 yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 8:
 #line 178 "opbx_expr2.y"
     { yyval.val = op_gt (yyvsp[-2].val, yyvsp[0].val);
-                         yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column;
-						 yyloc.first_line=0; yyloc.last_line=0;;}
+                         yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column;
+						 yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 9:
 #line 181 "opbx_expr2.y"
     { yyval.val = op_lt (yyvsp[-2].val, yyvsp[0].val); 
-	                     yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						 yyloc.first_line=0; yyloc.last_line=0;;}
+	                     yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						 yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 10:
 #line 184 "opbx_expr2.y"
     { yyval.val = op_ge (yyvsp[-2].val, yyvsp[0].val); 
-	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						  yyloc.first_line=0; yyloc.last_line=0;;}
+	                      yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						  yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 11:
 #line 187 "opbx_expr2.y"
     { yyval.val = op_le (yyvsp[-2].val, yyvsp[0].val); 
-	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						  yyloc.first_line=0; yyloc.last_line=0;;}
+	                      yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						  yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 12:
 #line 190 "opbx_expr2.y"
     { yyval.val = op_ne (yyvsp[-2].val, yyvsp[0].val); 
-	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						  yyloc.first_line=0; yyloc.last_line=0;;}
+	                      yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						  yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 13:
 #line 193 "opbx_expr2.y"
     { yyval.val = op_plus (yyvsp[-2].val, yyvsp[0].val); 
-	                       yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						   yyloc.first_line=0; yyloc.last_line=0;;}
+	                       yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						   yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 14:
 #line 196 "opbx_expr2.y"
     { yyval.val = op_minus (yyvsp[-2].val, yyvsp[0].val); 
-	                        yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-							yyloc.first_line=0; yyloc.last_line=0;;}
+	                        yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+							yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 15:
 #line 199 "opbx_expr2.y"
     { yyval.val = op_negate (yyvsp[0].val); 
-	                        yyloc.first_column = yylsp[-1].first_column; yyloc.last_column = yylsp[0].last_column; 
-							yyloc.first_line=0; yyloc.last_line=0;;}
+	                        yyloc.first_column = yylsp[-1].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+							yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 16:
 #line 202 "opbx_expr2.y"
     { yyval.val = op_compl (yyvsp[0].val); 
-	                        yyloc.first_column = yylsp[-1].first_column; yyloc.last_column = yylsp[0].last_column; 
-							yyloc.first_line=0; yyloc.last_line=0;;}
+	                        yyloc.first_column = yylsp[-1].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+							yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 17:
 #line 205 "opbx_expr2.y"
     { yyval.val = op_times (yyvsp[-2].val, yyvsp[0].val); 
-	                       yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						   yyloc.first_line=0; yyloc.last_line=0;;}
+	                       yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						   yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 18:
 #line 208 "opbx_expr2.y"
     { yyval.val = op_div (yyvsp[-2].val, yyvsp[0].val); 
-	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						  yyloc.first_line=0; yyloc.last_line=0;;}
+	                      yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						  yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 19:
 #line 211 "opbx_expr2.y"
     { yyval.val = op_rem (yyvsp[-2].val, yyvsp[0].val); 
-	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-						  yyloc.first_line=0; yyloc.last_line=0;;}
+	                      yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+						  yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 20:
 #line 214 "opbx_expr2.y"
     { yyval.val = op_colon (yyvsp[-2].val, yyvsp[0].val); 
-	                        yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-							yyloc.first_line=0; yyloc.last_line=0;;}
+	                        yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+							yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 21:
 #line 217 "opbx_expr2.y"
     { yyval.val = op_eqtilde (yyvsp[-2].val, yyvsp[0].val); 
-	                        yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
-							yyloc.first_line=0; yyloc.last_line=0;;}
+	                        yyloc.first_column = yylsp[-2].first_column; yyloc.lopbx_column = yylsp[0].lopbx_column; 
+							yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
   case 22:
 #line 220 "opbx_expr2.y"
     { yyval.val = op_cond (yyvsp[-4].val, yyvsp[-2].val, yyvsp[0].val); 
-	                        yyloc.first_column = yylsp[-4].first_column; yyloc.last_column = yylsp[-2].last_column; 
-							yyloc.first_line=0; yyloc.last_line=0;;}
+	                        yyloc.first_column = yylsp[-4].first_column; yyloc.lopbx_column = yylsp[-2].lopbx_column; 
+							yyloc.first_line=0; yyloc.lopbx_line=0;;}
     break;
 
 
@@ -1616,11 +1616,11 @@ make_integer (quad_t i)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		ast_log(LOG_WARNING, "malloc() failed\n");
+		opbx_log(LOG_WARNING, "malloc() failed\n");
 		return(NULL);
 	}
 
-	vp->type = AST_EXPR_integer;
+	vp->type = OPBX_EXPR_integer;
 	vp->u.i  = i;
 	return vp; 
 }
@@ -1634,7 +1634,7 @@ make_str (const char *s)
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		ast_log(LOG_WARNING,"malloc() failed\n");
+		opbx_log(LOG_WARNING,"malloc() failed\n");
 		return(NULL);
 	}
 
@@ -1647,9 +1647,9 @@ make_str (const char *s)
 	}
 
 	if (isint)
-		vp->type = AST_EXPR_numeric_string;
+		vp->type = OPBX_EXPR_numeric_string;
 	else	
-		vp->type = AST_EXPR_string;
+		vp->type = OPBX_EXPR_string;
 
 	return vp;
 }
@@ -1661,7 +1661,7 @@ free_value (struct val *vp)
 	if (vp==NULL) {
 		return;
 	}
-	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
+	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
 		free (vp->u.s);	
 }
 
@@ -1672,35 +1672,35 @@ to_integer (struct val *vp)
 	quad_t i;
 	
 	if (vp == NULL) {
-		ast_log(LOG_WARNING,"vp==NULL in to_integer()\n");
+		opbx_log(LOG_WARNING,"vp==NULL in to_integer()\n");
 		return(0);
 	}
 
-	if (vp->type == AST_EXPR_integer)
+	if (vp->type == OPBX_EXPR_integer)
 		return 1;
 
-	if (vp->type == AST_EXPR_string)
+	if (vp->type == OPBX_EXPR_string)
 		return 0;
 
-	/* vp->type == AST_EXPR_numeric_string, make it numeric */
+	/* vp->type == OPBX_EXPR_numeric_string, make it numeric */
 	errno = 0;
 	i  = strtoll(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
-		ast_log(LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
+		opbx_log(LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
 		free(vp->u.s);
 		vp->u.s = 0;
 		return(0);
 	}
 	free (vp->u.s);
 	vp->u.i = i;
-	vp->type = AST_EXPR_integer;
+	vp->type = OPBX_EXPR_integer;
 	return 1;
 }
 
 static void
 strip_quotes(struct val *vp)
 {
-	if (vp->type != AST_EXPR_string && vp->type != AST_EXPR_numeric_string)
+	if (vp->type != OPBX_EXPR_string && vp->type != OPBX_EXPR_numeric_string)
 		return;
 	
 	if( vp->u.s[0] == '"' && vp->u.s[strlen(vp->u.s)-1] == '"' )
@@ -1725,17 +1725,17 @@ to_string (struct val *vp)
 {
 	char *tmp;
 
-	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
+	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
 		return;
 
 	tmp = malloc ((size_t)25);
 	if (tmp == NULL) {
-		ast_log(LOG_WARNING,"malloc() failed\n");
+		opbx_log(LOG_WARNING,"malloc() failed\n");
 		return;
 	}
 
 	sprintf(tmp, "%ld", (long int) vp->u.i);
-	vp->type = AST_EXPR_string;
+	vp->type = OPBX_EXPR_string;
 	vp->u.s  = tmp;
 }
 
@@ -1744,14 +1744,14 @@ static int
 isstring (struct val *vp)
 {
 	/* only TRUE if this string is not a valid integer */
-	return (vp->type == AST_EXPR_string);
+	return (vp->type == OPBX_EXPR_string);
 }
 
 
 static int
 is_zero_or_null (struct val *vp)
 {
-	if (vp->type == AST_EXPR_integer) {
+	if (vp->type == OPBX_EXPR_integer) {
 		return (vp->u.i == 0);
 	} else {
 		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
@@ -1761,7 +1761,7 @@ is_zero_or_null (struct val *vp)
 
 #ifdef STANDALONE
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
 	va_start(vars,fmt);
@@ -1785,10 +1785,10 @@ int main(int argc,char **argv) {
 
 #endif
 
-#undef ast_yyerror
-#define ast_yyerror(x) ast_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
+#undef opbx_yyerror
+#define opbx_yyerror(x) opbx_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
 
-/* I put the ast_yyerror func in the flex input file,
+/* I put the opbx_yyerror func in the flex input file,
    because it refers to the buffer state. Best to
    let it access the BUFFER stuff there and not trying
    define all the structs, macros etc. in this file! */
@@ -1836,7 +1836,7 @@ op_eq (struct val *a, struct val *b)
 		(void)to_integer(a);
 		(void)to_integer(b);
 #ifdef DEBUG_FOR_CONVERSIONS
-		ast_log(LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
+		opbx_log(LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
 #endif
 		r = make_integer ((quad_t)(a->u.i == b->u.i));
 	}
@@ -2004,7 +2004,7 @@ op_plus (struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a)) {
-		ast_log(LOG_WARNING,"non-numeric argument\n");
+		opbx_log(LOG_WARNING,"non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -2020,7 +2020,7 @@ op_plus (struct val *a, struct val *b)
 
 	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		ast_log(LOG_WARNING,"overflow\n");
+		opbx_log(LOG_WARNING,"overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -2047,7 +2047,7 @@ op_minus (struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -2059,14 +2059,14 @@ op_minus (struct val *a, struct val *b)
 			return (r);
 		}
 	} else if (!to_integer(b)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(b);
 		return (a);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -2080,13 +2080,13 @@ op_negate (struct val *a)
 
 	if (!to_integer (a) ) {
 		free_value(a);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	}
 
 	r = make_integer (/*(quad_t)*/(- a->u.i));
 	if (chk_minus (0, a->u.i, r->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	return r;
@@ -2106,12 +2106,12 @@ op_compl (struct val *a)
 	{
 		switch( a->type )
 		{
-		case AST_EXPR_integer:
+		case OPBX_EXPR_integer:
 			if( a->u.i == 0 )
 				v1 = 0;
 			break;
 			
-		case AST_EXPR_string:
+		case OPBX_EXPR_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
@@ -2123,7 +2123,7 @@ op_compl (struct val *a)
 			}
 			break;
 			
-		case AST_EXPR_numeric_string:
+		case OPBX_EXPR_numeric_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
@@ -2162,13 +2162,13 @@ op_times (struct val *a, struct val *b)
 	if (!to_integer (a) || !to_integer (b)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return(make_integer(0));
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -2194,17 +2194,17 @@ op_div (struct val *a, struct val *b)
 	if (!to_integer (a)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	} else if (!to_integer (b)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(INT_MAX);
 	}
 
 	if (b->u.i == 0) {
-		ast_log(LOG_WARNING, "division by zero\n");		
+		opbx_log(LOG_WARNING, "division by zero\n");		
 		free_value(a);
 		free_value(b);
 		return make_integer(INT_MAX);
@@ -2212,7 +2212,7 @@ op_div (struct val *a, struct val *b)
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
 	if (chk_div (a->u.i, b->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -2225,14 +2225,14 @@ op_rem (struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
 		return make_integer(0);
 	}
 
 	if (b->u.i == 0) {
-		ast_log(LOG_WARNING, "div by zero\n");
+		opbx_log(LOG_WARNING, "div by zero\n");
 		free_value(a);
 		return(b);
 	}
@@ -2263,7 +2263,7 @@ op_colon (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		opbx_log(LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
@@ -2314,7 +2314,7 @@ op_eqtilde (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		opbx_log(LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		

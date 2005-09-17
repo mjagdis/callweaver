@@ -147,14 +147,14 @@ struct mohdata {
 
 static struct mohclass *mohclasses;
 
-AST_MUTEX_DEFINE_STATIC(moh_lock);
+OPBX_MUTEX_DEFINE_STATIC(moh_lock);
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
 #define MAX_MP3S 256
 
 
-static void ast_moh_free_class(struct mohclass **class) 
+static void opbx_moh_free_class(struct mohclass **class) 
 {
 	struct mohdata *members, *mtmp;
 	
@@ -169,23 +169,23 @@ static void ast_moh_free_class(struct mohclass **class)
 }
 
 
-static void moh_files_release(struct ast_channel *chan, void *data)
+static void moh_files_release(struct opbx_channel *chan, void *data)
 {
 	struct moh_files_state *state = chan->music_state;
 
 	if (chan && state) {
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
+			opbx_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 
-		if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
+		if (state->origwfmt && opbx_set_write_format(chan, state->origwfmt)) {
+			opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
 		}
 		state->save_pos = state->pos + 1;
 	}
 }
 
 
-static int ast_moh_files_next(struct ast_channel *chan) 
+static int opbx_moh_files_next(struct opbx_channel *chan) 
 {
 	struct moh_files_state *state = chan->music_state;
 	int tries;
@@ -198,16 +198,16 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		for (tries=0;tries < 20;tries++) {
 			state->samples = 0;
 			if (chan->stream) {
-				ast_closestream(chan->stream);
+				opbx_closestream(chan->stream);
 				chan->stream = NULL;
 				state->pos++;
 			}
 
-			if (ast_test_flag(state->class, MOH_RANDOMIZE))
+			if (opbx_test_flag(state->class, MOH_RANDOMIZE))
 				state->pos = rand();
 
 			/* check to see if this file's format can be opened */
-			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)
+			if (opbx_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)
 				break;
 
 		}
@@ -215,42 +215,42 @@ static int ast_moh_files_next(struct ast_channel *chan)
 
 	state->pos = state->pos % state->class->total_files;
 	
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
+	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
+		opbx_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
 		return -1;
 	}
-	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
-		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
+	if (!opbx_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
+		opbx_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
 		return -1;
 	}
 
 	if (option_debug)
-		ast_log(LOG_DEBUG, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
+		opbx_log(LOG_DEBUG, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
 
 	if (state->samples)
-		ast_seekstream(chan->stream, state->samples, SEEK_SET);
+		opbx_seekstream(chan->stream, state->samples, SEEK_SET);
 
 	return 0;
 }
 
 
-static struct ast_frame *moh_files_readframe(struct ast_channel *chan) 
+static struct opbx_frame *moh_files_readframe(struct opbx_channel *chan) 
 {
-	struct ast_frame *f = NULL;
+	struct opbx_frame *f = NULL;
 	
-	if (!(chan->stream && (f = ast_readframe(chan->stream)))) {
-		if (!ast_moh_files_next(chan))
-			f = ast_readframe(chan->stream);
+	if (!(chan->stream && (f = opbx_readframe(chan->stream)))) {
+		if (!opbx_moh_files_next(chan))
+			f = opbx_readframe(chan->stream);
 	}
 
 	return f;
 }
 
-static int moh_files_generator(struct ast_channel *chan, void *data, int len, int samples)
+static int moh_files_generator(struct opbx_channel *chan, void *data, int len, int samples)
 {
 	struct moh_files_state *state = chan->music_state;
-	struct ast_frame *f = NULL;
+	struct opbx_frame *f = NULL;
 	int res = 0;
 
 	state->sample_queue += samples;
@@ -258,11 +258,11 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 	while (state->sample_queue > 0) {
 		if ((f = moh_files_readframe(chan))) {
 			state->samples += f->samples;
-			res = ast_write(chan, f);
+			res = opbx_write(chan, f);
 			state->sample_queue -= f->samples;
-			ast_frfree(f);
+			opbx_frfree(f);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+				opbx_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 				return -1;
 			}
 		} else
@@ -272,7 +272,7 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 }
 
 
-static void *moh_files_alloc(struct ast_channel *chan, void *params)
+static void *moh_files_alloc(struct opbx_channel *chan, void *params)
 {
 	struct moh_files_state *state;
 	struct mohclass *class = params;
@@ -293,20 +293,20 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 		state->origwfmt = chan->writeformat;
 
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
+		if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
+			opbx_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
 			free(chan->music_state);
 			chan->music_state = NULL;
 		} else {
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
+				opbx_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
 		}
 	}
 	
 	return chan->music_state;
 }
 
-static struct ast_generator moh_file_stream = 
+static struct opbx_generator moh_file_stream = 
 {
 	alloc: moh_files_alloc,
 	release: moh_files_release,
@@ -331,12 +331,12 @@ static int spawn_mp3(struct mohclass *class)
 	} else {
 		dir = opendir(class->dir);
 		if (!dir && !strstr(class->dir,"http://") && !strstr(class->dir,"HTTP://")) {
-			ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
+			opbx_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 			return -1;
 		}
 	}
 
-	if (!ast_test_flag(class, MOH_CUSTOM)) {
+	if (!opbx_test_flag(class, MOH_CUSTOM)) {
 		argv[argc++] = "mpg123";
 		argv[argc++] = "-q";
 		argv[argc++] = "-s";
@@ -344,14 +344,14 @@ static int spawn_mp3(struct mohclass *class)
 		argv[argc++] = "-r";
 		argv[argc++] = "8000";
 		
-		if (!ast_test_flag(class, MOH_SINGLE)) {
+		if (!opbx_test_flag(class, MOH_SINGLE)) {
 			argv[argc++] = "-b";
 			argv[argc++] = "2048";
 		}
 		
 		argv[argc++] = "-f";
 		
-		if (ast_test_flag(class, MOH_QUIET))
+		if (opbx_test_flag(class, MOH_QUIET))
 			argv[argc++] = "4096";
 		else
 			argv[argc++] = "8192";
@@ -359,7 +359,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Look for extra arguments and add them to the list */
 		strncpy(xargs, class->args, sizeof(xargs) - 1);
 		argptr = xargs;
-		while (argptr && !ast_strlen_zero(argptr)) {
+		while (argptr && !opbx_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
 			argptr = strchr(argptr, ',');
 			if (argptr) {
@@ -371,7 +371,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Format arguments for argv vector */
 		strncpy(xargs, class->args, sizeof(xargs) - 1);
 		argptr = xargs;
-		while (argptr && !ast_strlen_zero(argptr)) {
+		while (argptr && !opbx_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
 			argptr = strchr(argptr, ' ');
 			if (argptr) {
@@ -389,7 +389,7 @@ static int spawn_mp3(struct mohclass *class)
 	} else if (dir) {
 		while ((de = readdir(dir)) && (files < MAX_MP3S)) {
 			if ((strlen(de->d_name) > 3) && 
-			    ((ast_test_flag(class, MOH_CUSTOM) && 
+			    ((opbx_test_flag(class, MOH_CUSTOM) && 
 			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
 			       !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln"))) ||
 			     !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
@@ -404,7 +404,7 @@ static int spawn_mp3(struct mohclass *class)
 		closedir(dir);
 	}
 	if (pipe(fds)) {	
-		ast_log(LOG_WARNING, "Pipe failed\n");
+		opbx_log(LOG_WARNING, "Pipe failed\n");
 		return -1;
 	}
 #if 0
@@ -416,7 +416,7 @@ static int spawn_mp3(struct mohclass *class)
 	}
 #endif	
 	if (!files) {
-		ast_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
+		opbx_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
 		close(fds[0]);
 		close(fds[1]);
 		return -1;
@@ -429,7 +429,7 @@ static int spawn_mp3(struct mohclass *class)
 	if (class->pid < 0) {
 		close(fds[0]);
 		close(fds[1]);
-		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
+		opbx_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
 		return -1;
 	}
 	if (!class->pid) {
@@ -445,7 +445,7 @@ static int spawn_mp3(struct mohclass *class)
 		}
 		/* Child */
 		chdir(class->dir);
-		if (ast_test_flag(class, MOH_CUSTOM)) {
+		if (opbx_test_flag(class, MOH_CUSTOM)) {
 			execv(argv[0], argv);
 		} else {
 			/* Default install is /usr/local/bin */
@@ -455,7 +455,7 @@ static int spawn_mp3(struct mohclass *class)
 			/* Check PATH as a last-ditch effort */
 			execvp("mpg123", argv);
 		}
-		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
+		opbx_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		close(fds[1]);
 		exit(1);
 	} else {
@@ -483,7 +483,7 @@ static void *monmp3thread(void *data)
 		/* Spawn mp3 player if it's not there */
 		if (class->srcfd < 0) {
 			if ((class->srcfd = spawn_mp3(class)) < 0) {
-				ast_log(LOG_WARNING, "Unable to spawn mp3player\n");
+				opbx_log(LOG_WARNING, "Unable to spawn mp3player\n");
 				/* Try again later */
 				sleep(500);
 			}
@@ -494,15 +494,15 @@ static void *monmp3thread(void *data)
 		} else {
 			long delta;
 			/* Reliable sleep */
-			tv_tmp = ast_tvnow();
-			if (ast_tvzero(tv))
+			tv_tmp = opbx_tvnow();
+			if (opbx_tvzero(tv))
 				tv = tv_tmp;
-			delta = ast_tvdiff_ms(tv_tmp, tv);
+			delta = opbx_tvdiff_ms(tv_tmp, tv);
 			if (delta < MOH_MS_INTERVAL) {	/* too early */
-				tv = ast_tvadd(tv, ast_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
+				tv = opbx_tvadd(tv, opbx_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
 				usleep(1000 * (MOH_MS_INTERVAL - delta));
 			} else {
-				ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
+				opbx_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
 				tv = tv_tmp;
 			}
 			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
@@ -510,7 +510,7 @@ static void *monmp3thread(void *data)
 		if (!class->members)
 			continue;
 		/* Read mp3 audio */
-		len = ast_codec_get_len(class->format, res);
+		len = opbx_codec_get_len(class->format, res);
 		
 		if ((res2 = read(class->srcfd, sbuf, len)) != len) {
 			if (!res2) {
@@ -521,74 +521,74 @@ static void *monmp3thread(void *data)
 					class->pid = 0;
 				}
 			} else
-				ast_log(LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, len);
+				opbx_log(LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, len);
 			continue;
 		}
-		ast_mutex_lock(&moh_lock);
+		opbx_mutex_lock(&moh_lock);
 		moh = class->members;
 		while (moh) {
 			/* Write data */
 			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) 
 				if (option_debug)
-					ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
+					opbx_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
 			moh = moh->next;
 		}
-		ast_mutex_unlock(&moh_lock);
+		opbx_mutex_unlock(&moh_lock);
 	}
 	return NULL;
 }
 
-static int moh0_exec(struct ast_channel *chan, void *data)
+static int moh0_exec(struct opbx_channel *chan, void *data)
 {
-	if (ast_moh_start(chan, data)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
+	if (opbx_moh_start(chan, data)) {
+		opbx_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
 		return -1;
 	}
-	while (!ast_safe_sleep(chan, 10000));
-	ast_moh_stop(chan);
+	while (!opbx_safe_sleep(chan, 10000));
+	opbx_moh_stop(chan);
 	return -1;
 }
 
-static int moh1_exec(struct ast_channel *chan, void *data)
+static int moh1_exec(struct opbx_channel *chan, void *data)
 {
 	int res;
 	if (!data || !atoi(data)) {
-		ast_log(LOG_WARNING, "WaitMusicOnHold requires an argument (number of seconds to wait)\n");
+		opbx_log(LOG_WARNING, "WaitMusicOnHold requires an argument (number of seconds to wait)\n");
 		return -1;
 	}
-	if (ast_moh_start(chan, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), chan->name);
+	if (opbx_moh_start(chan, NULL)) {
+		opbx_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), chan->name);
 		return -1;
 	}
-	res = ast_safe_sleep(chan, atoi(data) * 1000);
-	ast_moh_stop(chan);
+	res = opbx_safe_sleep(chan, atoi(data) * 1000);
+	opbx_moh_stop(chan);
 	return res;
 }
 
-static int moh2_exec(struct ast_channel *chan, void *data)
+static int moh2_exec(struct opbx_channel *chan, void *data)
 {
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
 	}
 	strncpy(chan->musicclass, data, sizeof(chan->musicclass) - 1);
 	return 0;
 }
 
-static int moh3_exec(struct ast_channel *chan, void *data)
+static int moh3_exec(struct opbx_channel *chan, void *data)
 {
 	char *class = NULL;
 	if (data && strlen(data))
 		class = data;
-	if (ast_moh_start(chan, class)) 
-		ast_log(LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class ? class : "default", chan->name);
+	if (opbx_moh_start(chan, class)) 
+		opbx_log(LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class ? class : "default", chan->name);
 
 	return 0;
 }
 
-static int moh4_exec(struct ast_channel *chan, void *data)
+static int moh4_exec(struct opbx_channel *chan, void *data)
 {
-	ast_moh_stop(chan);
+	opbx_moh_stop(chan);
 
 	return 0;
 }
@@ -614,7 +614,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 		return NULL;
 	memset(moh, 0, sizeof(struct mohdata));
 	if (pipe(moh->pipe)) {
-		ast_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
+		opbx_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
 		free(moh);
 		return NULL;
 	}
@@ -629,11 +629,11 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	return moh;
 }
 
-static void moh_release(struct ast_channel *chan, void *data)
+static void moh_release(struct opbx_channel *chan, void *data)
 {
 	struct mohdata *moh = data, *prev, *cur;
 	int oldwfmt;
-	ast_mutex_lock(&moh_lock);
+	opbx_mutex_lock(&moh_lock);
 	/* Unlink */
 	prev = NULL;
 	cur = moh->parent->members;
@@ -648,20 +648,20 @@ static void moh_release(struct ast_channel *chan, void *data)
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 	oldwfmt = moh->origwfmt;
 	free(moh);
 	if (chan) {
-		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) 
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(oldwfmt));
+		if (oldwfmt && opbx_set_write_format(chan, oldwfmt)) 
+			opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(oldwfmt));
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
+			opbx_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 	}
 }
 
-static void *moh_alloc(struct ast_channel *chan, void *params)
+static void *moh_alloc(struct opbx_channel *chan, void *params)
 {
 	struct mohdata *res;
 	struct mohclass *class = params;
@@ -669,37 +669,37 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	res = mohalloc(class);
 	if (res) {
 		res->origwfmt = chan->writeformat;
-		if (ast_set_write_format(chan, class->format)) {
-			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", chan->name, ast_codec2str(class->format));
+		if (opbx_set_write_format(chan, class->format)) {
+			opbx_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", chan->name, opbx_codec2str(class->format));
 			moh_release(NULL, res);
 			res = NULL;
 		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on channel '%s'\n", class->name, chan->name);
+			opbx_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on channel '%s'\n", class->name, chan->name);
 	}
 	return res;
 }
 
-static int moh_generate(struct ast_channel *chan, void *data, int len, int samples)
+static int moh_generate(struct opbx_channel *chan, void *data, int len, int samples)
 {
-	struct ast_frame f;
+	struct opbx_frame f;
 	struct mohdata *moh = data;
-	short buf[1280 + AST_FRIENDLY_OFFSET / 2];
+	short buf[1280 + OPBX_FRIENDLY_OFFSET / 2];
 	int res;
 
 	if (!moh->parent->pid)
 		return -1;
 
-	len = ast_codec_get_len(moh->parent->format, samples);
+	len = opbx_codec_get_len(moh->parent->format, samples);
 
-	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
-		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, chan->name);
-		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
+	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET) {
+		opbx_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, chan->name);
+		len = sizeof(buf) - OPBX_FRIENDLY_OFFSET;
 	}
-	res = read(moh->pipe[0], buf + AST_FRIENDLY_OFFSET/2, len);
+	res = read(moh->pipe[0], buf + OPBX_FRIENDLY_OFFSET/2, len);
 #if 0
 	if (res != len) {
-		ast_log(LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
+		opbx_log(LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
 	}
 #endif
 	if (res <= 0)
@@ -707,23 +707,23 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 
 	memset(&f, 0, sizeof(f));
 	
-	f.frametype = AST_FRAME_VOICE;
+	f.frametype = OPBX_FRAME_VOICE;
 	f.subclass = moh->parent->format;
 	f.mallocd = 0;
 	f.datalen = res;
-	f.data = buf + AST_FRIENDLY_OFFSET / 2;
-	f.offset = AST_FRIENDLY_OFFSET;
-	f.samples = ast_codec_get_samples(&f);
+	f.data = buf + OPBX_FRIENDLY_OFFSET / 2;
+	f.offset = OPBX_FRIENDLY_OFFSET;
+	f.samples = opbx_codec_get_samples(&f);
 
-	if (ast_write(chan, &f) < 0) {
-		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+	if (opbx_write(chan, &f) < 0) {
+		opbx_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 		return -1;
 	}
 
 	return 0;
 }
 
-static struct ast_generator mohgen = 
+static struct opbx_generator mohgen = 
 {
 	alloc: moh_alloc,
 	release: moh_release,
@@ -743,7 +743,7 @@ static int moh_scan_files(struct mohclass *class) {
 	
 	files_DIR = opendir(class->dir);
 	if (!files_DIR) {
-		ast_log(LOG_WARNING, "Cannot open dir %s or dir does not exist", class->dir);
+		opbx_log(LOG_WARNING, "Cannot open dir %s or dir does not exist", class->dir);
 		return -1;
 	}
 
@@ -788,35 +788,35 @@ static int moh_register(struct mohclass *moh)
 #ifdef ZAPATA_MOH
 	int x;
 #endif
-	ast_mutex_lock(&moh_lock);
+	opbx_mutex_lock(&moh_lock);
 	if (get_mohbyname(moh->name)) {
-		ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
+		opbx_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		free(moh);	
-		ast_mutex_unlock(&moh_lock);
+		opbx_mutex_unlock(&moh_lock);
 		return -1;
 	}
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 
 	time(&moh->start);
 	moh->start -= respawn_time;
 	
 	if (!strcasecmp(moh->mode, "files")) {
 		if (!moh_scan_files(moh)) {
-			ast_moh_free_class(&moh);
+			opbx_moh_free_class(&moh);
 			return -1;
 		}
 		if (strchr(moh->args, 'r'))
-			ast_set_flag(moh, MOH_RANDOMIZE);
+			opbx_set_flag(moh, MOH_RANDOMIZE);
 	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") || !strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") || !strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
 
 		if (!strcasecmp(moh->mode, "custom"))
-			ast_set_flag(moh, MOH_CUSTOM);
+			opbx_set_flag(moh, MOH_CUSTOM);
 		else if (!strcasecmp(moh->mode, "mp3nb"))
-			ast_set_flag(moh, MOH_SINGLE);
+			opbx_set_flag(moh, MOH_SINGLE);
 		else if (!strcasecmp(moh->mode, "quietmp3nb"))
-			ast_set_flag(moh, MOH_SINGLE | MOH_QUIET);
+			opbx_set_flag(moh, MOH_SINGLE | MOH_QUIET);
 		else if (!strcasecmp(moh->mode, "quietmp3"))
-			ast_set_flag(moh, MOH_QUIET);
+			opbx_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
 #ifdef ZAPATA_MOH
@@ -824,7 +824,7 @@ static int moh_register(struct mohclass *moh)
 		   there a better, yet reliable way to do this? */
 		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
 		if (moh->pseudofd < 0) {
-			ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
+			opbx_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 		} else {
 			x = 320;
 			ioctl(moh->pseudofd, ZT_SET_BLOCKSIZE, &x);
@@ -832,26 +832,26 @@ static int moh_register(struct mohclass *moh)
 #else
 		moh->pseudofd = -1;
 #endif
-		if (ast_pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
-			ast_log(LOG_WARNING, "Unable to create moh...\n");
+		if (opbx_pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
+			opbx_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);
-			ast_moh_free_class(&moh);
+			opbx_moh_free_class(&moh);
 			return -1;
 		}
 	} else {
-		ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", moh->mode);
-		ast_moh_free_class(&moh);
+		opbx_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", moh->mode);
+		opbx_moh_free_class(&moh);
 		return -1;
 	}
-	ast_mutex_lock(&moh_lock);
+	opbx_mutex_lock(&moh_lock);
 	moh->next = mohclasses;
 	mohclasses = moh;
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 	return 0;
 }
 
-static void local_ast_moh_cleanup(struct ast_channel *chan)
+static void local_opbx_moh_cleanup(struct opbx_channel *chan)
 {
 	if (chan->music_state) {
 		free(chan->music_state);
@@ -859,38 +859,38 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 	}
 }
 
-static int local_ast_moh_start(struct ast_channel *chan, char *class)
+static int local_opbx_moh_start(struct opbx_channel *chan, char *class)
 {
 	struct mohclass *mohclass;
 
-	if (!class || ast_strlen_zero(class))
+	if (!class || opbx_strlen_zero(class))
 		class = chan->musicclass;
-	if (!class || ast_strlen_zero(class))
+	if (!class || opbx_strlen_zero(class))
 		class = "default";
-	ast_mutex_lock(&moh_lock);
+	opbx_mutex_lock(&moh_lock);
 	mohclass = get_mohbyname(class);
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 
 	if (!mohclass) {
-		ast_log(LOG_WARNING, "No class: %s\n", (char *)class);
+		opbx_log(LOG_WARNING, "No class: %s\n", (char *)class);
 		return -1;
 	}
 
-	ast_set_flag(chan, AST_FLAG_MOH);
+	opbx_set_flag(chan, OPBX_FLAG_MOH);
 	if (mohclass->total_files) {
-		return ast_activate_generator(chan, &moh_file_stream, mohclass);
+		return opbx_activate_generator(chan, &moh_file_stream, mohclass);
 	} else
-		return ast_activate_generator(chan, &mohgen, mohclass);
+		return opbx_activate_generator(chan, &mohgen, mohclass);
 }
 
-static void local_ast_moh_stop(struct ast_channel *chan)
+static void local_opbx_moh_stop(struct opbx_channel *chan)
 {
-	ast_clear_flag(chan, AST_FLAG_MOH);
-	ast_deactivate_generator(chan);
+	opbx_clear_flag(chan, OPBX_FLAG_MOH);
+	opbx_deactivate_generator(chan);
 
 	if (chan->music_state) {
 		if (chan->stream) {
-			ast_closestream(chan->stream);
+			opbx_closestream(chan->stream);
 			chan->stream = NULL;
 		}
 	}
@@ -907,15 +907,15 @@ static struct mohclass *moh_class_malloc(void)
 
 	memset(class, 0, sizeof(struct mohclass));
 
-	class->format = AST_FORMAT_SLINEAR;
+	class->format = OPBX_FORMAT_SLINEAR;
 
 	return class;
 }
 
 static int load_moh_classes(void)
 {
-	struct ast_config *cfg;
-	struct ast_variable *var;
+	struct opbx_config *cfg;
+	struct opbx_variable *var;
 	struct mohclass *class;	
 	char *data;
 	char *args;
@@ -923,56 +923,56 @@ static int load_moh_classes(void)
 	int numclasses = 0;
 	static int dep_warning = 0;
 
-	cfg = ast_config_load("musiconhold.conf");
+	cfg = opbx_config_load("musiconhold.conf");
 
 	if (!cfg)
 		return 0;
 
-	cat = ast_category_browse(cfg, NULL);
-	for (; cat; cat = ast_category_browse(cfg, cat)) {
+	cat = opbx_category_browse(cfg, NULL);
+	for (; cat; cat = opbx_category_browse(cfg, cat)) {
 		if (strcasecmp(cat, "classes") && strcasecmp(cat, "moh_files")) {
 			class = moh_class_malloc();
 			if (!class) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
+				opbx_log(LOG_WARNING, "Out of memory!\n");
 				break;
 			}				
-			ast_copy_string(class->name, cat, sizeof(class->name));	
-			var = ast_variable_browse(cfg, cat);
+			opbx_copy_string(class->name, cat, sizeof(class->name));	
+			var = opbx_variable_browse(cfg, cat);
 			while (var) {
 				if (!strcasecmp(var->name, "mode"))
-					ast_copy_string(class->mode, var->value, sizeof(class->name)); 
+					opbx_copy_string(class->mode, var->value, sizeof(class->name)); 
 				else if (!strcasecmp(var->name, "directory"))
-					ast_copy_string(class->dir, var->value, sizeof(class->dir));
+					opbx_copy_string(class->dir, var->value, sizeof(class->dir));
 				else if (!strcasecmp(var->name, "application"))
-					ast_copy_string(class->args, var->value, sizeof(class->args));
+					opbx_copy_string(class->args, var->value, sizeof(class->args));
 				else if (!strcasecmp(var->name, "random"))
-					ast_set2_flag(class, ast_true(var->value), MOH_RANDOMIZE);
+					opbx_set2_flag(class, opbx_true(var->value), MOH_RANDOMIZE);
 				else if (!strcasecmp(var->name, "format")) {
-					class->format = ast_getformatbyname(var->value);
+					class->format = opbx_getformatbyname(var->value);
 					if (!class->format) {
-						ast_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", var->value);
-						class->format = AST_FORMAT_SLINEAR;
+						opbx_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", var->value);
+						class->format = OPBX_FORMAT_SLINEAR;
 					}
 				}
 					var = var->next;
 			}
 
-			if (ast_strlen_zero(class->dir)) {
+			if (opbx_strlen_zero(class->dir)) {
 				if (!strcasecmp(class->mode, "custom")) {
 					strcpy(class->dir, "nodir");
 				} else {
-					ast_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", class->name);
+					opbx_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", class->name);
 					free(class);
 					continue;
 				}
 			}
-			if (ast_strlen_zero(class->mode)) {
-				ast_log(LOG_WARNING, "A mode must be specified for class '%s'!\n", class->name);
+			if (opbx_strlen_zero(class->mode)) {
+				opbx_log(LOG_WARNING, "A mode must be specified for class '%s'!\n", class->name);
 				free(class);
 				continue;
 			}
-			if (ast_strlen_zero(class->args) && !strcasecmp(class->mode, "custom")) {
-				ast_log(LOG_WARNING, "An application must be specified for class '%s'!\n", class->name);
+			if (opbx_strlen_zero(class->args) && !strcasecmp(class->mode, "custom")) {
+				opbx_log(LOG_WARNING, "An application must be specified for class '%s'!\n", class->name);
 				free(class);
 				continue;
 			}
@@ -984,10 +984,10 @@ static int load_moh_classes(void)
 	
 
 	/* Deprecated Old-School Configuration */
-	var = ast_variable_browse(cfg, "classes");
+	var = opbx_variable_browse(cfg, "classes");
 	while (var) {
 		if (!dep_warning) {
-			ast_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
+			opbx_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
 			dep_warning = 1;
 		}
 		data = strchr(var->value, ':');
@@ -999,15 +999,15 @@ static int load_moh_classes(void)
 			if (!(get_mohbyname(var->name))) {
 				class = moh_class_malloc();
 				if (!class) {
-					ast_log(LOG_WARNING, "Out of memory!\n");
+					opbx_log(LOG_WARNING, "Out of memory!\n");
 					return numclasses;
 				}
 				
-				ast_copy_string(class->name, var->name, sizeof(class->name));
-				ast_copy_string(class->dir, data, sizeof(class->dir));
-				ast_copy_string(class->mode, var->value, sizeof(class->mode));
+				opbx_copy_string(class->name, var->name, sizeof(class->name));
+				opbx_copy_string(class->dir, data, sizeof(class->dir));
+				opbx_copy_string(class->mode, var->value, sizeof(class->mode));
 				if (args)
-					ast_copy_string(class->args, args, sizeof(class->args));
+					opbx_copy_string(class->args, args, sizeof(class->args));
 				
 				moh_register(class);
 				numclasses++;
@@ -1015,10 +1015,10 @@ static int load_moh_classes(void)
 		}
 		var = var->next;
 	}
-	var = ast_variable_browse(cfg, "moh_files");
+	var = opbx_variable_browse(cfg, "moh_files");
 	while (var) {
 		if (!dep_warning) {
-			ast_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
+			opbx_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
 			dep_warning = 1;
 		}
 		if (!(get_mohbyname(var->name))) {
@@ -1027,15 +1027,15 @@ static int load_moh_classes(void)
 				*args++ = '\0';
 			class = moh_class_malloc();
 			if (!class) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
+				opbx_log(LOG_WARNING, "Out of memory!\n");
 				return numclasses;
 			}
 			
-			ast_copy_string(class->name, var->name, sizeof(class->name));
-			ast_copy_string(class->dir, var->value, sizeof(class->dir));
+			opbx_copy_string(class->name, var->name, sizeof(class->name));
+			opbx_copy_string(class->dir, var->value, sizeof(class->dir));
 			strcpy(class->mode, "files");
 			if (args)	
-				ast_copy_string(class->args, args, sizeof(class->args));
+				opbx_copy_string(class->args, args, sizeof(class->args));
 			
 			moh_register(class);
 			numclasses++;
@@ -1043,55 +1043,55 @@ static int load_moh_classes(void)
 		var = var->next;
 	}
 
-	ast_config_destroy(cfg);
+	opbx_config_destroy(cfg);
 
 	return numclasses;
 }
 
-static void ast_moh_destroy(void)
+static void opbx_moh_destroy(void)
 {
 	struct mohclass *moh, *tmp;
 	char buff[8192];
 	int bytes, tbytes=0, stime = 0, pid = 0;
 
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
-	ast_mutex_lock(&moh_lock);
+		opbx_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
+	opbx_mutex_lock(&moh_lock);
 	moh = mohclasses;
 
 	while (moh) {
 		if (moh->pid) {
-			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
+			opbx_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
 			pid = moh->pid;
 			moh->pid = 0;
 			kill(pid, SIGKILL);
-			while ((ast_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
+			while ((opbx_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
-			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
+			opbx_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
 		}
 		tmp = moh;
 		moh = moh->next;
-		ast_moh_free_class(&tmp);
+		opbx_moh_free_class(&tmp);
 	}
 	mohclasses = NULL;
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 }
 
 static void moh_on_off(int on)
 {
-	struct ast_channel *chan = NULL;
+	struct opbx_channel *chan = NULL;
 
-	while ( (chan = ast_channel_walk_locked(chan)) != NULL) {
-		if (ast_test_flag(chan, AST_FLAG_MOH)) {
+	while ( (chan = opbx_channel_walk_locked(chan)) != NULL) {
+		if (opbx_test_flag(chan, OPBX_FLAG_MOH)) {
 			if (on)
-				local_ast_moh_start(chan, NULL);
+				local_opbx_moh_start(chan, NULL);
 			else
-				ast_deactivate_generator(chan);
+				opbx_deactivate_generator(chan);
 		}
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 	}
 }
 
@@ -1100,10 +1100,10 @@ static int moh_cli(int fd, int argc, char *argv[])
 	int x;
 
 	moh_on_off(0);
-	ast_moh_destroy();
+	opbx_moh_destroy();
 	x = load_moh_classes();
 	moh_on_off(1);
-	ast_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
+	opbx_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
 	return 0;
 }
 
@@ -1112,16 +1112,16 @@ static int cli_files_show(int fd, int argc, char *argv[])
 	int i;
 	struct mohclass *class;
 
-	ast_mutex_lock(&moh_lock);
+	opbx_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {
 		if (!class->total_files)
 			continue;
 
-		ast_cli(fd, "Class: %s\n", class->name);
+		opbx_cli(fd, "Class: %s\n", class->name);
 		for (i = 0; i < class->total_files; i++)
-			ast_cli(fd, "\tFile: %s\n", class->filearray[i]);
+			opbx_cli(fd, "\tFile: %s\n", class->filearray[i]);
 	}
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 
 	return 0;
 }
@@ -1130,25 +1130,25 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 {
 	struct mohclass *class;
 
-	ast_mutex_lock(&moh_lock);
+	opbx_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {
-		ast_cli(fd, "Class: %s\n", class->name);
-		ast_cli(fd, "\tMode: %s\n", ast_strlen_zero(class->mode) ? "<none>" : class->mode);
-		ast_cli(fd, "\tDirectory: %s\n", ast_strlen_zero(class->dir) ? "<none>" : class->dir);
-		if (ast_test_flag(class, MOH_CUSTOM))
-			ast_cli(fd, "\tApplication: %s\n", ast_strlen_zero(class->args) ? "<none>" : class->args);
-		ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
+		opbx_cli(fd, "Class: %s\n", class->name);
+		opbx_cli(fd, "\tMode: %s\n", opbx_strlen_zero(class->mode) ? "<none>" : class->mode);
+		opbx_cli(fd, "\tDirectory: %s\n", opbx_strlen_zero(class->dir) ? "<none>" : class->dir);
+		if (opbx_test_flag(class, MOH_CUSTOM))
+			opbx_cli(fd, "\tApplication: %s\n", opbx_strlen_zero(class->args) ? "<none>" : class->args);
+		opbx_cli(fd, "\tFormat: %s\n", opbx_getformatname(class->format));
 	}
-	ast_mutex_unlock(&moh_lock);
+	opbx_mutex_unlock(&moh_lock);
 
 	return 0;
 }
 
-static struct ast_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On Hold", "Music On Hold", NULL};
+static struct opbx_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On Hold", "Music On Hold", NULL};
 
-static struct ast_cli_entry  cli_moh_classes_show = { { "moh", "classes", "show"}, moh_classes_show, "List MOH classes", "Lists all MOH classes", NULL};
+static struct opbx_cli_entry  cli_moh_classes_show = { { "moh", "classes", "show"}, moh_classes_show, "List MOH classes", "Lists all MOH classes", NULL};
 
-static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
+static struct opbx_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
 static int init_classes(void) 
 {
@@ -1169,24 +1169,24 @@ int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
-	ast_register_atexit(ast_moh_destroy);
-	ast_cli_register(&cli_moh);
-	ast_cli_register(&cli_moh_files_show);
-	ast_cli_register(&cli_moh_classes_show);
+	res = opbx_register_application(app0, moh0_exec, synopsis0, descrip0);
+	opbx_register_atexit(opbx_moh_destroy);
+	opbx_cli_register(&cli_moh);
+	opbx_cli_register(&cli_moh_files_show);
+	opbx_cli_register(&cli_moh_classes_show);
 	if (!res)
-		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
+		res = opbx_register_application(app1, moh1_exec, synopsis1, descrip1);
 	if (!res)
-		res = ast_register_application(app2, moh2_exec, synopsis2, descrip2);
+		res = opbx_register_application(app2, moh2_exec, synopsis2, descrip2);
 	if (!res)
-		res = ast_register_application(app3, moh3_exec, synopsis3, descrip3);
+		res = opbx_register_application(app3, moh3_exec, synopsis3, descrip3);
 	if (!res)
-		res = ast_register_application(app4, moh4_exec, synopsis4, descrip4);
+		res = opbx_register_application(app4, moh4_exec, synopsis4, descrip4);
 
 	if (!init_classes()) { 	/* No music classes configured, so skip it */
-		ast_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
+		opbx_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
 	} else {
-		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
+		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
 	}
 
 	return 0;
@@ -1195,7 +1195,7 @@ int load_module(void)
 int reload(void)
 {
 	if (init_classes())
-		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
+		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
 
 	return 0;
 }

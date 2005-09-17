@@ -101,28 +101,28 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static void play_dialtone(struct ast_channel *chan, char *mailbox)
+static void play_dialtone(struct opbx_channel *chan, char *mailbox)
 {
 	const struct tone_zone_sound *ts = NULL;
-	if(ast_app_has_voicemail(mailbox, NULL))
-		ts = ast_get_indication_tone(chan->zone, "dialrecall");
+	if(opbx_app_has_voicemail(mailbox, NULL))
+		ts = opbx_get_indication_tone(chan->zone, "dialrecall");
 	else
-		ts = ast_get_indication_tone(chan->zone, "dial");
+		ts = opbx_get_indication_tone(chan->zone, "dial");
 	if (ts)
-		ast_playtones_start(chan, 0, ts->data, 0);
+		opbx_playtones_start(chan, 0, ts->data, 0);
 	else
-		ast_tonepair_start(chan, 350, 440, 0, 0);
+		opbx_tonepair_start(chan, 350, 440, 0, 0);
 }
 
-static int disa_exec(struct ast_channel *chan, void *data)
+static int disa_exec(struct opbx_channel *chan, void *data)
 {
 	int i,j,k,x,did_ignore;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct localuser *u;
-	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
+	char tmp[256],arg2[256]="",exten[OPBX_MAX_EXTENSION],acctcode[20]="";
 	char *ourcontext,*ourcallerid,ourcidname[256],ourcidnum[256],*mailbox;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	struct timeval lastdigittime;
 	int res;
 	time_t rstart;
@@ -134,22 +134,22 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		digittimeout = chan->pbx->dtimeout*1000;
 	}
 	
-	if (ast_set_write_format(chan,AST_FORMAT_ULAW))
+	if (opbx_set_write_format(chan,OPBX_FORMAT_ULAW))
 	{
-		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
+		opbx_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
-	if (ast_set_read_format(chan,AST_FORMAT_ULAW))
+	if (opbx_set_read_format(chan,OPBX_FORMAT_ULAW))
 	{
-		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
+		opbx_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
 	if (!data || !strlen((char *)data)) {
-		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
+		opbx_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
-	ast_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
-	ast_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
+	opbx_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
+	opbx_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	stringp=tmp;
 	strsep(&stringp, "|");
@@ -168,12 +168,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	mailbox = strsep(&stringp, "|");
 	if (!mailbox)
 		mailbox = "";
-	ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
+	opbx_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
 	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP)
+	if (chan->_state != OPBX_STATE_UP)
 	{
 		/* answer */
-		ast_answer(chan);
+		opbx_answer(chan);
 	}
 	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
 	did_ignore = 0;
@@ -181,66 +181,66 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
 
-	ast_log(LOG_DEBUG, "Context: %s\n",ourcontext);
+	opbx_log(LOG_DEBUG, "Context: %s\n",ourcontext);
 
 	if (!strcasecmp(tmp, "no-password"))
 	{;
 		k |= 1; /* We have the password */
-		ast_log(LOG_DEBUG, "DISA no-password login success\n");
+		opbx_log(LOG_DEBUG, "DISA no-password login success\n");
 	}
-	lastdigittime = ast_tvnow();
+	lastdigittime = opbx_tvnow();
 
 	play_dialtone(chan, mailbox);
 
 	for(;;)
 	{
 		  /* if outa time, give em reorder */
-		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > 
+		if (opbx_tvdiff_ms(opbx_tvnow(), lastdigittime) > 
 		    ((k&2) ? digittimeout : firstdigittimeout))
 		{
-			ast_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
+			opbx_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
 				((k&1) ? "extension" : "password"),chan->name);
 			break;
 		}
-		if ((res = ast_waitfor(chan, -1) < 0)) {
-			ast_log(LOG_DEBUG, "Waitfor returned %d\n", res);
+		if ((res = opbx_waitfor(chan, -1) < 0)) {
+			opbx_log(LOG_DEBUG, "Waitfor returned %d\n", res);
 			continue;
 		}
 			
-		f = ast_read(chan);
+		f = opbx_read(chan);
 		if (f == NULL) 
 		{
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
-		if ((f->frametype == AST_FRAME_CONTROL) &&
-		    (f->subclass == AST_CONTROL_HANGUP))
+		if ((f->frametype == OPBX_FRAME_CONTROL) &&
+		    (f->subclass == OPBX_CONTROL_HANGUP))
 		{
-			ast_frfree(f);
+			opbx_frfree(f);
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
-		if (f->frametype == AST_FRAME_VOICE) {
-			ast_frfree(f);
+		if (f->frametype == OPBX_FRAME_VOICE) {
+			opbx_frfree(f);
 			continue;
 		}
 		  /* if not DTMF, just do it again */
-		if (f->frametype != AST_FRAME_DTMF) 
+		if (f->frametype != OPBX_FRAME_DTMF) 
 		{
-			ast_frfree(f);
+			opbx_frfree(f);
 			continue;
 		}
 
 		j = f->subclass;  /* save digit */
-		ast_frfree(f);
+		opbx_frfree(f);
 		if (i == 0) 
 		{
 			k|=2; /* We have the first digit */ 
-			ast_playtones_stop(chan);
+			opbx_playtones_stop(chan);
 		}
-		lastdigittime = ast_tvnow();
+		lastdigittime = opbx_tvnow();
 		  /* got a DTMF tone */
-		if (i < AST_MAX_EXTENSION) /* if still valid number of digits */
+		if (i < OPBX_MAX_EXTENSION) /* if still valid number of digits */
 		{
 			if (!(k&1)) /* if in password state */
 			{
@@ -252,7 +252,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 						fp = fopen(tmp,"r");
 						if (!fp)
 						   {
-							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",tmp,chan->name);
+							opbx_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",tmp,chan->name);
 							LOCAL_USER_REMOVE(u);
 							return -1;
 						   }
@@ -278,7 +278,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							mailbox = strsep(&stringp, "|");
 							if (!mailbox)
 								mailbox = "";
-							ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
+							opbx_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
 
 							  /* password must be in valid format (numeric) */
 							if (sscanf(tmp,"%d",&j) < 1) continue;
@@ -290,12 +290,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					  /* compare the two */
 					if (strcmp(exten,tmp))
 					{
-						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
+						opbx_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
 
 					}
 					 /* password good, set to dial state */
-					ast_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
+					opbx_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
 					play_dialtone(chan, mailbox);
 
 					k|=1; /* In number mode */
@@ -303,7 +303,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					exten[sizeof(acctcode)] = 0;
 					strncpy(acctcode,exten, sizeof(acctcode) - 1);
 					exten[0] = 0;
-					ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
+					opbx_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
 					continue;
 				}
 			}
@@ -313,56 +313,56 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (!(k&1)) continue; /* if getting password, continue doing it */
 			  /* if this exists */
 
-			if (ast_ignore_pattern(ourcontext, exten)) {
+			if (opbx_ignore_pattern(ourcontext, exten)) {
 				play_dialtone(chan, "");
 				did_ignore = 1;
 			} else
 				if (did_ignore) {
-					ast_playtones_stop(chan);
+					opbx_playtones_stop(chan);
 					did_ignore = 0;
 				}
 
 			  /* if can do some more, do it */
-			if (!ast_matchmore_extension(chan,ourcontext,exten,1, chan->cid.cid_num)) {
+			if (!opbx_matchmore_extension(chan,ourcontext,exten,1, chan->cid.cid_num)) {
 				break;
 			}
 		}
 	}
 
-	if (k==3 && ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
+	if (k==3 && opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
 	{
-		ast_playtones_stop(chan);
+		opbx_playtones_stop(chan);
 		/* We're authenticated and have a valid extension */
 		if (ourcallerid && *ourcallerid)
 		{
-			ast_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
-			ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
+			opbx_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
+			opbx_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
 		}
 
-		if (!ast_strlen_zero(acctcode)) {
+		if (!opbx_strlen_zero(acctcode)) {
 			strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
 		}
-		ast_cdr_reset(chan->cdr, AST_CDR_FLAG_POSTED);
-		ast_goto_if_exists(chan, ourcontext, exten, 1);
+		opbx_cdr_reset(chan->cdr, OPBX_CDR_FLAG_POSTED);
+		opbx_goto_if_exists(chan, ourcontext, exten, 1);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 
 reorder:
 
-	ast_indicate(chan,AST_CONTROL_CONGESTION);
+	opbx_indicate(chan,OPBX_CONTROL_CONGESTION);
 	/* something is invalid, give em reorder for several seconds */
 	time(&rstart);
 	while(time(NULL) < rstart + 10)
 	{
-		if (ast_waitfor(chan, -1) < 0)
+		if (opbx_waitfor(chan, -1) < 0)
 			break;
-		f = ast_read(chan);
+		f = opbx_read(chan);
 		if (!f)
 			break;
-		ast_frfree(f);
+		opbx_frfree(f);
 	}
-	ast_playtones_stop(chan);
+	opbx_playtones_stop(chan);
 	LOCAL_USER_REMOVE(u);
 	return -1;
 }
@@ -370,12 +370,12 @@ reorder:
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, disa_exec, synopsis, descrip);
+	return opbx_register_application(app, disa_exec, synopsis, descrip);
 }
 
 char *description(void)

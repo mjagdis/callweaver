@@ -40,7 +40,7 @@ int unload_module(void)
 	int x;
 
 	for (x = 0; x < (sizeof(builtins) / sizeof(builtins[0])); x++) {
-		ast_custom_function_unregister(builtins[x]);
+		opbx_custom_function_unregister(builtins[x]);
 	}
 
 	return 0;
@@ -51,7 +51,7 @@ int load_module(void)
 	int x;
 
 	for (x = 0; x < (sizeof(builtins) / sizeof(builtins[0])); x++) {
-		ast_custom_function_register(builtins[x]);
+		opbx_custom_function_register(builtins[x]);
 	}
 
 	return 0;

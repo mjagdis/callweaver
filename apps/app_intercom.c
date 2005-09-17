@@ -74,26 +74,26 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-AST_MUTEX_DEFINE_STATIC(sound_lock);
+OPBX_MUTEX_DEFINE_STATIC(sound_lock);
 static int sound = -1;
 
 static int write_audio(short *data, int len)
 {
 	int res;
 	struct audio_buf_info info;
-	ast_mutex_lock(&sound_lock);
+	opbx_mutex_lock(&sound_lock);
 	if (sound < 0) {
-		ast_log(LOG_WARNING, "Sound device closed?\n");
-		ast_mutex_unlock(&sound_lock);
+		opbx_log(LOG_WARNING, "Sound device closed?\n");
+		opbx_mutex_unlock(&sound_lock);
 		return -1;
 	}
     if (ioctl(sound, SNDCTL_DSP_GETOSPACE, &info)) {
-		ast_log(LOG_WARNING, "Unable to read output space\n");
-		ast_mutex_unlock(&sound_lock);
+		opbx_log(LOG_WARNING, "Unable to read output space\n");
+		opbx_mutex_unlock(&sound_lock);
         return -1;
     }
 	res = write(sound, data, len);
-	ast_mutex_unlock(&sound_lock);
+	opbx_mutex_unlock(&sound_lock);
 	return res;
 }
 
@@ -102,21 +102,21 @@ static int create_audio(void)
 	int fmt, desired, res, fd;
 	fd = open(DEV_DSP, O_WRONLY);
 	if (fd < 0) {
-		ast_log(LOG_WARNING, "Unable to open %s: %s\n", DEV_DSP, strerror(errno));
+		opbx_log(LOG_WARNING, "Unable to open %s: %s\n", DEV_DSP, strerror(errno));
 		close(fd);
 		return -1;
 	}
 	fmt = AFMT_S16_LE;
 	res = ioctl(fd, SNDCTL_DSP_SETFMT, &fmt);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set format to 16-bit signed\n");
+		opbx_log(LOG_WARNING, "Unable to set format to 16-bit signed\n");
 		close(fd);
 		return -1;
 	}
 	fmt = 0;
 	res = ioctl(fd, SNDCTL_DSP_STEREO, &fmt);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Failed to set audio device to mono\n");
+		opbx_log(LOG_WARNING, "Failed to set audio device to mono\n");
 		close(fd);
 		return -1;
 	}
@@ -125,68 +125,68 @@ static int create_audio(void)
 	fmt = desired;
 	res = ioctl(fd, SNDCTL_DSP_SPEED, &fmt);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Failed to set audio device to mono\n");
+		opbx_log(LOG_WARNING, "Failed to set audio device to mono\n");
 		close(fd);
 		return -1;
 	}
 	if (fmt != desired) {
-		ast_log(LOG_WARNING, "Requested %d Hz, got %d Hz -- sound may be choppy\n", desired, fmt);
+		opbx_log(LOG_WARNING, "Requested %d Hz, got %d Hz -- sound may be choppy\n", desired, fmt);
 	}
 #if 1
 	/* 2 bytes * 15 units of 2^5 = 32 bytes per buffer */
 	fmt = ((BUFFER_SIZE) << 16) | (0x0005);
 	res = ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &fmt);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set fragment size -- sound may be choppy\n");
+		opbx_log(LOG_WARNING, "Unable to set fragment size -- sound may be choppy\n");
 	}
 #endif
 	sound = fd;
 	return 0;
 }
 
-static int intercom_exec(struct ast_channel *chan, void *data)
+static int intercom_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	int oreadformat;
 	LOCAL_USER_ADD(u);
 	/* Remember original read format */
 	oreadformat = chan->readformat;
 	/* Set mode to signed linear */
-	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+	res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set format to signed linear on channel %s\n", chan->name);
+		opbx_log(LOG_WARNING, "Unable to set format to signed linear on channel %s\n", chan->name);
 		return -1;
 	}
 	/* Read packets from the channel */
 	while(!res) {
-		res = ast_waitfor(chan, -1);
+		res = opbx_waitfor(chan, -1);
 		if (res > 0) {
 			res = 0;
-			f = ast_read(chan);
+			f = opbx_read(chan);
 			if (f) {
-				if (f->frametype == AST_FRAME_DTMF) {
-					ast_frfree(f);
+				if (f->frametype == OPBX_FRAME_DTMF) {
+					opbx_frfree(f);
 					break;
 				} else {
-					if (f->frametype == AST_FRAME_VOICE) {
-						if (f->subclass == AST_FORMAT_SLINEAR) {
+					if (f->frametype == OPBX_FRAME_VOICE) {
+						if (f->subclass == OPBX_FORMAT_SLINEAR) {
 							res = write_audio(f->data, f->datalen);
 							if (res > 0)
 								res = 0;
 						} else
-							ast_log(LOG_DEBUG, "Unable to handle non-signed linear frame (%d)\n", f->subclass);
+							opbx_log(LOG_DEBUG, "Unable to handle non-signed linear frame (%d)\n", f->subclass);
 					} 
 				}
-				ast_frfree(f);
+				opbx_frfree(f);
 			} else
 				res = -1;
 		}
 	}
 	LOCAL_USER_REMOVE(u);
 	if (!res)
-		ast_set_read_format(chan, oreadformat);
+		opbx_set_read_format(chan, oreadformat);
 	return res;
 }
 
@@ -195,14 +195,14 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	if (sound > -1)
 		close(sound);
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
 	if (create_audio())
 		return -1;
-	return ast_register_application(app, intercom_exec, synopsis, descrip);
+	return opbx_register_application(app, intercom_exec, synopsis, descrip);
 }
 
 char *description(void)

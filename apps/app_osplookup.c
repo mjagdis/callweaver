@@ -87,30 +87,30 @@ LOCAL_USER_DECL;
 static int str2cause(char *cause)
 {
 	if (!strcasecmp(cause, "BUSY"))
-		return AST_CAUSE_BUSY;
+		return OPBX_CAUSE_BUSY;
 	if (!strcasecmp(cause, "CONGESTION"))
-		return AST_CAUSE_CONGESTION;
+		return OPBX_CAUSE_CONGESTION;
 	if (!strcasecmp(cause, "ANSWER"))
-		return AST_CAUSE_NORMAL;
+		return OPBX_CAUSE_NORMAL;
 	if (!strcasecmp(cause, "CANCEL"))
-		return AST_CAUSE_NORMAL;
+		return OPBX_CAUSE_NORMAL;
 	if (!strcasecmp(cause, "NOANSWER"))
-		return AST_CAUSE_NOANSWER;
+		return OPBX_CAUSE_NOANSWER;
 	if (!strcasecmp(cause, "NOCHANAVAIL"))
-		return AST_CAUSE_CONGESTION;
-	ast_log(LOG_WARNING, "Unknown cause '%s', using NORMAL\n", cause);
-	return AST_CAUSE_NORMAL;
+		return OPBX_CAUSE_CONGESTION;
+	opbx_log(LOG_WARNING, "Unknown cause '%s', using NORMAL\n", cause);
+	return OPBX_CAUSE_NORMAL;
 }
 
-static int osplookup_exec(struct ast_channel *chan, void *data)
+static int osplookup_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 	char *temp;
 	char *provider, *opts=NULL;
-	struct ast_osp_result result;
-	if (!data || ast_strlen_zero(data) || !(temp = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "OSPLookup requires an argument (extension)\n");
+	struct opbx_osp_result result;
+	if (!data || opbx_strlen_zero(data) || !(temp = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "OSPLookup requires an argument (extension)\n");
 		return -1;
 	}
 	provider = strchr(temp, '|');
@@ -124,8 +124,8 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	LOCAL_USER_ADD(u);
-	ast_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", temp, provider ? provider : "<default>");
-	if ((res = ast_osp_lookup(chan, provider, temp, chan->cid.cid_num, &result)) > 0) {
+	opbx_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", temp, provider ? provider : "<default>");
+	if ((res = opbx_osp_lookup(chan, provider, temp, chan->cid.cid_num, &result)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", result.handle);
 		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
@@ -137,35 +137,35 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 
 	} else {
 		if (!res)
-			ast_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", temp, provider ? provider : "<default>");
+			opbx_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", temp, provider ? provider : "<default>");
 		else
-			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, temp, provider ? provider : "<default>" );
+			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, temp, provider ? provider : "<default>" );
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int ospnext_exec(struct ast_channel *chan, void *data)
+static int ospnext_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 	char *temp;
 	int cause;
-	struct ast_osp_result result;
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPNext should have an argument (cause)\n");
+	struct opbx_osp_result result;
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "OSPNext should have an argument (cause)\n");
 	}
 	LOCAL_USER_ADD(u);
 	cause = str2cause((char *)data);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (temp && strlen(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
-		if ((res = ast_osp_next(&result, cause)) > 0) {
+		if ((res = opbx_osp_next(&result, cause)) > 0) {
 			char tmp[80];
 			snprintf(tmp, sizeof(tmp), "%d", result.handle);
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
@@ -178,31 +178,31 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	} else {
 		if (!res) {
 			if (result.handle < 0)
-				ast_log(LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", result.handle);
+				opbx_log(LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", result.handle);
 			else
-				ast_log(LOG_DEBUG, "No OSP handle specified\n");
+				opbx_log(LOG_DEBUG, "No OSP handle specified\n");
 		} else
-			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
+			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int ospfinished_exec(struct ast_channel *chan, void *data)
+static int ospfinished_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 	char *temp;
 	int cause;
 	time_t start=0, duration=0;
-	struct ast_osp_result result;
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPFinish should have an argument (cause)\n");
+	struct opbx_osp_result result;
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "OSPFinish should have an argument (cause)\n");
 	}
 	if (chan->cdr) {
 		start = chan->cdr->answer.tv_sec;
@@ -211,28 +211,28 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 		else
 			duration = 0;
 	} else
-		ast_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
+		opbx_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	LOCAL_USER_ADD(u);
 	cause = str2cause((char *)data);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (temp && strlen(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
-		if (!ast_osp_terminate(result.handle, cause, start, duration)) {
+		if (!opbx_osp_terminate(result.handle, cause, start, duration)) {
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
 			res = 1;
 		}
 	} else {
 		if (!res) {
 			if (result.handle > -1)
-				ast_log(LOG_NOTICE, "OSP Finish failed for handle '%d'\n", result.handle);
+				opbx_log(LOG_NOTICE, "OSP Finish failed for handle '%d'\n", result.handle);
 			else
-				ast_log(LOG_DEBUG, "No OSP handle specified\n");
+				opbx_log(LOG_DEBUG, "No OSP handle specified\n");
 		} else
-			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
+			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
@@ -244,22 +244,22 @@ int unload_module(void)
 {
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = ast_unregister_application(app3);
-	res |= ast_unregister_application(app2);
-	res |= ast_unregister_application(app);
+	res = opbx_unregister_application(app3);
+	res |= opbx_unregister_application(app2);
+	res |= opbx_unregister_application(app);
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app, osplookup_exec, synopsis, descrip);
+	res = opbx_register_application(app, osplookup_exec, synopsis, descrip);
 	if (res)
 		return(res);
-	res = ast_register_application(app2, ospnext_exec, synopsis2, descrip2);
+	res = opbx_register_application(app2, ospnext_exec, synopsis2, descrip2);
 	if (res)
 		return(res);
-	res = ast_register_application(app3, ospfinished_exec, synopsis3, descrip3);
+	res = opbx_register_application(app3, ospfinished_exec, synopsis3, descrip3);
 	if (res)
 		return(res);
 	return(0);

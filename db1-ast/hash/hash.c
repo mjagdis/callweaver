@@ -223,7 +223,7 @@ __hash_open(file, flags, mode, info, dflags)
 	    "FILL FACTOR     ", hashp->FFACTOR,
 	    "MAX BUCKET      ", hashp->MAX_BUCKET,
 	    "OVFL POINT	     ", hashp->OVFL_POINT,
-	    "LAST FREED      ", hashp->LAST_FREED,
+	    "LAST FREED      ", hashp->LOPBX_FREED,
 	    "HIGH MASK       ", hashp->HIGH_MASK,
 	    "LOW  MASK       ", hashp->LOW_MASK,
 	    "NSEGS           ", hashp->nsegs,
@@ -370,7 +370,7 @@ init_htab(hashp, nelem)
 	hashp->SPARES[l2] = l2 + 1;
 	hashp->SPARES[l2 + 1] = l2 + 1;
 	hashp->OVFL_POINT = l2;
-	hashp->LAST_FREED = 2;
+	hashp->LOPBX_FREED = 2;
 
 	/* First bitmap page is at: splitpoint l2 page offset 1 */
 	if (__ibitmap(hashp, OADDR_OF(l2, 1), l2 + 1, 0))
@@ -651,7 +651,7 @@ hash_access(hashp, action, key, val)
 			if (ndx == -2) {
 				bufp = rbufp;
 				if (!(pageno =
-				    __find_last_page(hashp, &bufp))) {
+				    __find_lopbx_page(hashp, &bufp))) {
 					ndx = 0;
 					rbufp = bufp;
 					break;	/* FOR */
@@ -953,7 +953,7 @@ swap_header_copy(srcp, destp)
 	P_32_COPY(srcp->ssize, destp->ssize);
 	P_32_COPY(srcp->sshift, destp->sshift);
 	P_32_COPY(srcp->ovfl_point, destp->ovfl_point);
-	P_32_COPY(srcp->last_freed, destp->last_freed);
+	P_32_COPY(srcp->lopbx_freed, destp->lopbx_freed);
 	P_32_COPY(srcp->max_bucket, destp->max_bucket);
 	P_32_COPY(srcp->high_mask, destp->high_mask);
 	P_32_COPY(srcp->low_mask, destp->low_mask);
@@ -985,7 +985,7 @@ swap_header(hashp)
 	M_32_SWAP(hdrp->ssize);
 	M_32_SWAP(hdrp->sshift);
 	M_32_SWAP(hdrp->ovfl_point);
-	M_32_SWAP(hdrp->last_freed);
+	M_32_SWAP(hdrp->lopbx_freed);
 	M_32_SWAP(hdrp->max_bucket);
 	M_32_SWAP(hdrp->high_mask);
 	M_32_SWAP(hdrp->low_mask);

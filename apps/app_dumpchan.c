@@ -56,7 +56,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
+static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t size)
 {
 	struct timeval now;
 	long elapsed_seconds=0;
@@ -64,7 +64,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	char cgrp[256];
 	char pgrp[256];
 	
-	now = ast_tvnow();
+	now = opbx_tvnow();
 	memset(buf,0,size);
 	if (!c)
 		return 0;
@@ -107,7 +107,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 (c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 			 (c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
 			 (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ),
-			 ast_state2str(c->_state),
+			 opbx_state2str(c->_state),
 			 c->_state,
 			 c->rings,
 			 c->nativeformats,
@@ -121,16 +121,16 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 c->context,
 			 c->exten,
 			 c->priority,
-			 ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
-			 ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
+			 opbx_print_group(cgrp, sizeof(cgrp), c->callgroup),
+			 opbx_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
 			 ( c->appl ? c->appl : "(N/A)" ),
-			 ( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
-			 (ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+			 ( c-> data ? (!opbx_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
+			 (opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 
 	return 0;
 }
 
-static int dumpchan_exec(struct ast_channel *chan, void *data)
+static int dumpchan_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -145,9 +145,9 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 	}
 
 	pbx_builtin_serialize_variables(chan, vars, sizeof(vars));
-	ast_serialize_showchan(chan, info, sizeof(info));
+	opbx_serialize_showchan(chan, info, sizeof(info));
 	if (option_verbose >= level)
-		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n",chan->name, line, info, vars, line);
+		opbx_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n",chan->name, line, info, vars, line);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -156,12 +156,12 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, dumpchan_exec, synopsis, desc);
+	return opbx_register_application(app, dumpchan_exec, synopsis, desc);
 }
 
 char *description(void)

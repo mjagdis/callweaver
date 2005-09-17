@@ -55,59 +55,59 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int waitforring_exec(struct ast_channel *chan, void *data)
+static int waitforring_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	int res = 0;
 	int ms;
 	if (!data || (sscanf(data, "%d", &ms) != 1)) {
-                ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
+                opbx_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
 		return 0;
 	}
 	ms *= 1000;
 	LOCAL_USER_ADD(u);
 	while(ms > 0) {
-		ms = ast_waitfor(chan, ms);
+		ms = opbx_waitfor(chan, ms);
 		if (ms < 0) {
 			res = ms;
 			break;
 		}
 		if (ms > 0) {
-			f = ast_read(chan);
+			f = opbx_read(chan);
 			if (!f) {
 				res = -1;
 				break;
 			}
-			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
+			if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_RING)) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Got a ring but still waiting for timeout\n");
+					opbx_verbose(VERBOSE_PREFIX_3 "Got a ring but still waiting for timeout\n");
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 		}
 	}
 	/* Now we're really ready for the ring */
 	if (!res) {
 		ms = 99999999;
 		while(ms > 0) {
-			ms = ast_waitfor(chan, ms);
+			ms = opbx_waitfor(chan, ms);
 			if (ms < 0) {
 				res = ms;
 				break;
 			}
 			if (ms > 0) {
-				f = ast_read(chan);
+				f = opbx_read(chan);
 				if (!f) {
 					res = -1;
 					break;
 				}
-				if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
+				if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_RING)) {
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Got a ring after the timeout\n");
-					ast_frfree(f);
+						opbx_verbose(VERBOSE_PREFIX_3 "Got a ring after the timeout\n");
+					opbx_frfree(f);
 					break;
 				}
-				ast_frfree(f);
+				opbx_frfree(f);
 			}
 		}
 	}
@@ -119,12 +119,12 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, waitforring_exec, synopsis, desc);
+	return opbx_register_application(app, waitforring_exec, synopsis, desc);
 }
 
 char *description(void)

@@ -55,14 +55,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int senddtmf_exec(struct ast_channel *chan, void *data)
+static int senddtmf_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
-	if (data && !ast_strlen_zero(data) && (digits = ast_strdupa((char *)data))) {
+	if (data && !opbx_strlen_zero(data) && (digits = opbx_strdupa((char *)data))) {
 		if((to = strchr(digits,'|'))) {
 			*to = '\0';
 			to++;
@@ -72,10 +72,10 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		if(timeout <= 0)
 			timeout = 250;
 
-		res = ast_dtmf_stream(chan,NULL,digits,timeout);
+		res = opbx_dtmf_stream(chan,NULL,digits,timeout);
 		LOCAL_USER_REMOVE(u);
 	} else {
-		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
+		opbx_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 	}
 	return res;
 }
@@ -83,12 +83,12 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, senddtmf_exec, synopsis, descrip);
+	return opbx_register_application(app, senddtmf_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -52,59 +52,59 @@
 #define DSP_TONE_STATE_SPECIAL3 7
 #define DSP_TONE_STATE_HUNGUP 	8
 
-struct ast_dsp;
+struct opbx_dsp;
 
-struct ast_dsp *ast_dsp_new(void);
-void ast_dsp_free(struct ast_dsp *dsp);
+struct opbx_dsp *opbx_dsp_new(void);
+void opbx_dsp_free(struct opbx_dsp *dsp);
 /* Set threshold value for silence */
-void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold);
+void opbx_dsp_set_threshold(struct opbx_dsp *dsp, int threshold);
 
 /* Set number of required cadences for busy */
-void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences);
+void opbx_dsp_set_busy_count(struct opbx_dsp *dsp, int cadences);
 
 /* Set expected lengths of the busy tone */
-void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength);
+void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietlength);
 
 /* Scans for progress indication in audio */
-int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf);
+int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf);
 
 /* Set zone for doing progress detection */
-int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone);
+int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone);
 
-/* Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on 
+/* Return OPBX_FRAME_NULL frames when there is silence, OPBX_FRAME_BUSY on 
    busies, and call progress, all dependent upon which features are enabled */
-struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf);
+struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *dsp, struct opbx_frame *inf);
 
 /* Return non-zero if this is silence.  Updates "totalsilence" with the total
    number of seconds of silence  */
-int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence);
+int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilence);
 
 /* Return non-zero if historically this should be a busy, request that
-  ast_dsp_silence has already been called */
-int ast_dsp_busydetect(struct ast_dsp *dsp);
+  opbx_dsp_silence has already been called */
+int opbx_dsp_busydetect(struct opbx_dsp *dsp);
 
 /* Return non-zero if DTMF hit was found */
-int ast_dsp_digitdetect(struct ast_dsp *dsp, struct ast_frame *f);
+int opbx_dsp_digitdetect(struct opbx_dsp *dsp, struct opbx_frame *f);
 
 /* Reset total silence count */
-void ast_dsp_reset(struct ast_dsp *dsp);
+void opbx_dsp_reset(struct opbx_dsp *dsp);
 
 /* Reset DTMF detector */
-void ast_dsp_digitreset(struct ast_dsp *dsp);
+void opbx_dsp_digitreset(struct opbx_dsp *dsp);
 
 /* Select feature set */
-void ast_dsp_set_features(struct ast_dsp *dsp, int features);
+void opbx_dsp_set_features(struct opbx_dsp *dsp, int features);
 
 /* Get pending DTMF/MF digits */
-int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
+int opbx_dsp_getdigits(struct opbx_dsp *dsp, char *buf, int max);
 
 /* Set digit mode */
-int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode);
+int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode);
 
 /* Get tstate (Tone State) */
-int ast_dsp_get_tstate(struct ast_dsp *dsp);
+int opbx_dsp_get_tstate(struct opbx_dsp *dsp);
 
 /* Get tcount (Threshold counter) */
-int ast_dsp_get_tcount(struct ast_dsp *dsp);
+int opbx_dsp_get_tcount(struct opbx_dsp *dsp);
 
 #endif /* _OPENPBX_DSP_H */

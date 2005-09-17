@@ -16,29 +16,29 @@
 
 #define DEFAULT_LANGUAGE "en"
 
-#define AST_CONFIG_MAX_PATH 255
+#define OPBX_CONFIG_MAX_PATH 255
 
 /* provided in openpbx.c */
-extern char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CONFIG_FILE[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_DB[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL[AST_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_MODULE_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_LOG_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_AGI_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_DB[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_KEY_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_PID[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_SOCKET[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_RUN_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH];
 
 /* Provided by openpbx.c */
-extern int ast_set_priority(int);
+extern int opbx_set_priority(int);
 /* Provided by module.c */
 extern int load_modules(const int preload_only);
 /* Provided by pbx.c */
@@ -55,7 +55,7 @@ extern int term_init(void);
 /* Provided by db.c */
 extern int astdb_init(void);
 /* Provided by channel.c */
-extern void ast_channels_init(void);
+extern void opbx_channels_init(void);
 /* Provided by dnsmgr.c */
 extern int dnsmgr_init(void);
 extern void dnsmgr_reload(void);
@@ -69,7 +69,7 @@ extern void dnsmgr_reload(void);
  * This function should not be called directly, but instead the
  * OPENPBX_FILE_VERSION macro should be used to register a file with the core.
  */
-void ast_register_file_version(const char *file, const char *version);
+void opbx_register_file_version(const char *file, const char *version);
 
 /*!
  * \brief Unregister a source code file from the core.
@@ -80,7 +80,7 @@ void ast_register_file_version(const char *file, const char *version);
  * OPENPBX_FILE_VERSION macro should be used to automatically unregister
  * the file when the module is unloaded.
  */
-void ast_unregister_file_version(const char *file);
+void opbx_unregister_file_version(const char *file);
 
 /*!
  * \brief Register/unregister a source code file with the core.
@@ -107,11 +107,11 @@ void ast_unregister_file_version(const char *file);
 #define OPENPBX_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		ast_register_file_version(file, version); \
+		opbx_register_file_version(file, version); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		ast_unregister_file_version(file); \
+		opbx_unregister_file_version(file); \
 	}
 #elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
 #define OPENPBX_FILE_VERSION(file, x) static const char __file_version[] = x;

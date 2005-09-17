@@ -84,11 +84,11 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #define PF_LOCAL PF_UNIX
 #endif
 
-#define AST_MAX_CONNECTS 128
+#define OPBX_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
-#define WELCOME_MESSAGE ast_verbose( "OpenPBX " OPENPBX_VERSION "\n"); \
-		ast_verbose( "=========================================================================\n")
+#define WELCOME_MESSAGE opbx_verbose( "OpenPBX " OPENPBX_VERSION "\n"); \
+		opbx_verbose( "=========================================================================\n")
 
 int option_verbose=0;
 int option_debug=0;
@@ -111,79 +111,79 @@ int option_maxcalls = 0;
 int option_dontwarn = 0;
 int option_priority_jumping = 1;
 int fully_booted = 0;
-char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
-char debug_filename[AST_FILENAME_MAX] = "";
+char record_cache_dir[OPBX_CACHE_DIR_LEN] = OPBX_TMP_DIR;
+char debug_filename[OPBX_FILENAME_MAX] = "";
 
-static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
-static int ast_consock = -1;		/* UNIX Socket for controlling another openpbx */
-int ast_mainpid;
+static int opbx_socket = -1;		/* UNIX Socket for allowing remote control */
+static int opbx_consock = -1;		/* UNIX Socket for controlling another openpbx */
+int opbx_mainpid;
 struct console {
 	int fd;					/* File descriptor */
 	int p[2];				/* Pipe */
 	pthread_t t;			/* Thread of handler */
 };
 
-static struct ast_atexit {
+static struct opbx_atexit {
 	void (*func)(void);
-	struct ast_atexit *next;
+	struct opbx_atexit *next;
 } *atexits = NULL;
-AST_MUTEX_DEFINE_STATIC(atexitslock);
+OPBX_MUTEX_DEFINE_STATIC(atexitslock);
 
-time_t ast_startuptime;
-time_t ast_lastreloadtime;
+time_t opbx_startuptime;
+time_t opbx_lastreloadtime;
 
 static History *el_hist = NULL;
 static EditLine *el = NULL;
 static char *remotehostname;
 
-struct console consoles[AST_MAX_CONNECTS];
+struct console consoles[OPBX_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
-static int ast_el_add_history(char *);
-static int ast_el_read_history(char *);
-static int ast_el_write_history(char *);
+static int opbx_el_add_history(char *);
+static int opbx_el_read_history(char *);
+static int opbx_el_write_history(char *);
 
-char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_CONFIG_FILE[AST_CONFIG_MAX_PATH];
-char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_DB[AST_CONFIG_MAX_PATH];
-char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
-char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
-char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
-char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH] = "\0";
-char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH] = "\0";
-char ast_config_AST_CTL[AST_CONFIG_MAX_PATH] = "openpbx.ctl";
+char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_MODULE_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_LOG_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_AGI_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_DB[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_KEY_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_PID[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_SOCKET[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_RUN_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH] = "\0";
+char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
+char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "openpbx.ctl";
 
 static char *_argv[256];
 static int shuttingdown = 0;
 static int restartnow = 0;
-static pthread_t consolethread = AST_PTHREADT_NULL;
+static pthread_t consolethread = OPBX_PTHREADT_NULL;
 
 #if !defined(LOW_MEMORY)
 struct file_version {
-	AST_LIST_ENTRY(file_version) list;
+	OPBX_LIST_ENTRY(file_version) list;
 	const char *file;
 	char *version;
 };
 
-static AST_LIST_HEAD_STATIC(file_versions, file_version);
+static OPBX_LIST_HEAD_STATIC(file_versions, file_version);
 
-void ast_register_file_version(const char *file, const char *version)
+void opbx_register_file_version(const char *file, const char *version)
 {
 	struct file_version *new;
 	char *work;
 	size_t version_length;
 
-	work = ast_strdupa(version);
-	work = ast_strip(ast_strip_quoted(work, "$", "$"));
+	work = opbx_strdupa(version);
+	work = opbx_strip(opbx_strip_quoted(work, "$", "$"));
 	version_length = strlen(work) + 1;
 
 	new = calloc(1, sizeof(*new) + version_length);
@@ -193,24 +193,24 @@ void ast_register_file_version(const char *file, const char *version)
 	new->file = file;
 	new->version = (char *) new + sizeof(*new);
 	memcpy(new->version, work, version_length);
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_INSERT_HEAD(&file_versions, new, list);
-	AST_LIST_UNLOCK(&file_versions);
+	OPBX_LIST_LOCK(&file_versions);
+	OPBX_LIST_INSERT_HEAD(&file_versions, new, list);
+	OPBX_LIST_UNLOCK(&file_versions);
 }
 
-void ast_unregister_file_version(const char *file)
+void opbx_unregister_file_version(const char *file)
 {
 	struct file_version *find;
 
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
+	OPBX_LIST_LOCK(&file_versions);
+	OPBX_LIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
 		if (!strcasecmp(find->file, file)) {
-			AST_LIST_REMOVE_CURRENT(&file_versions, list);
+			OPBX_LIST_REMOVE_CURRENT(&file_versions, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&file_versions);
+	OPBX_LIST_TRAVERSE_SAFE_END;
+	OPBX_LIST_UNLOCK(&file_versions);
 	if (find)
 		free(find);
 }
@@ -247,24 +247,24 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	}
 
-	ast_cli(fd, FORMAT, "File", "Revision");
-	ast_cli(fd, FORMAT, "----", "--------");
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
+	opbx_cli(fd, FORMAT, "File", "Revision");
+	opbx_cli(fd, FORMAT, "----", "--------");
+	OPBX_LIST_LOCK(&file_versions);
+	OPBX_LIST_TRAVERSE(&file_versions, iterator, list) {
 		if (havename && strcasecmp(iterator->file, argv[3]))
 			continue;
 
 		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
 			continue;
 
-		ast_cli(fd, FORMAT, iterator->file, iterator->version);
+		opbx_cli(fd, FORMAT, iterator->file, iterator->version);
 		count_files++;
 		if (havename)
 			break;
 	}
-	AST_LIST_UNLOCK(&file_versions);
+	OPBX_LIST_UNLOCK(&file_versions);
 	if (!havename) {
-		ast_cli(fd, "%d files listed.\n", count_files);
+		opbx_cli(fd, "%d files listed.\n", count_files);
 	}
 
 	if (havepattern)
@@ -284,8 +284,8 @@ static char *complete_show_version_files(char *line, char *word, int pos, int st
 	if (pos != 3)
 		return NULL;
 
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_TRAVERSE(&file_versions, find, list) {
+	OPBX_LIST_LOCK(&file_versions);
+	OPBX_LIST_TRAVERSE(&file_versions, find, list) {
 		if (!strncasecmp(word, find->file, matchlen)) {
 			if (++which > state) {
 				ret = strdup(find->file);
@@ -293,34 +293,34 @@ static char *complete_show_version_files(char *line, char *word, int pos, int st
 			}
 		}
 	}
-	AST_LIST_UNLOCK(&file_versions);
+	OPBX_LIST_UNLOCK(&file_versions);
 
 	return ret;
 }
 #endif /* ! LOW_MEMORY */
 
-int ast_register_atexit(void (*func)(void))
+int opbx_register_atexit(void (*func)(void))
 {
 	int res = -1;
-	struct ast_atexit *ae;
-	ast_unregister_atexit(func);
-	ae = malloc(sizeof(struct ast_atexit));
-	ast_mutex_lock(&atexitslock);
+	struct opbx_atexit *ae;
+	opbx_unregister_atexit(func);
+	ae = malloc(sizeof(struct opbx_atexit));
+	opbx_mutex_lock(&atexitslock);
 	if (ae) {
-		memset(ae, 0, sizeof(struct ast_atexit));
+		memset(ae, 0, sizeof(struct opbx_atexit));
 		ae->next = atexits;
 		ae->func = func;
 		atexits = ae;
 		res = 0;
 	}
-	ast_mutex_unlock(&atexitslock);
+	opbx_mutex_unlock(&atexitslock);
 	return res;
 }
 
-void ast_unregister_atexit(void (*func)(void))
+void opbx_unregister_atexit(void (*func)(void))
 {
-	struct ast_atexit *ae, *prev = NULL;
-	ast_mutex_lock(&atexitslock);
+	struct opbx_atexit *ae, *prev = NULL;
+	opbx_mutex_lock(&atexitslock);
 	ae = atexits;
 	while(ae) {
 		if (ae->func == func) {
@@ -333,7 +333,7 @@ void ast_unregister_atexit(void (*func)(void))
 		prev = ae;
 		ae = ae->next;
 	}
-	ast_mutex_unlock(&atexitslock);
+	opbx_mutex_unlock(&atexitslock);
 }
 
 static int fdprint(int fd, const char *s)
@@ -347,11 +347,11 @@ static void null_sig_handler(int signal)
 
 }
 
-AST_MUTEX_DEFINE_STATIC(safe_system_lock);
+OPBX_MUTEX_DEFINE_STATIC(safe_system_lock);
 static unsigned int safe_system_level = 0;
 static void *safe_system_prev_handler;
 
-int ast_safe_system(const char *s)
+int opbx_safe_system(const char *s)
 {
 	pid_t pid;
 	int x;
@@ -360,17 +360,17 @@ int ast_safe_system(const char *s)
 	int status;
 	unsigned int level;
 
-	/* keep track of how many ast_safe_system() functions
+	/* keep track of how many opbx_safe_system() functions
 	   are running at this moment
 	*/
-	ast_mutex_lock(&safe_system_lock);
+	opbx_mutex_lock(&safe_system_lock);
 	level = safe_system_level++;
 
 	/* only replace the handler if it has not already been done */
 	if (level == 0)
 		safe_system_prev_handler = signal(SIGCHLD, null_sig_handler);
 
-	ast_mutex_unlock(&safe_system_lock);
+	opbx_mutex_unlock(&safe_system_lock);
 
 	pid = fork();
 
@@ -390,18 +390,18 @@ int ast_safe_system(const char *s)
 				break;
 		}
 	} else {
-		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
+		opbx_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
 		res = -1;
 	}
 
-	ast_mutex_lock(&safe_system_lock);
+	opbx_mutex_lock(&safe_system_lock);
 	level = --safe_system_level;
 
 	/* only restore the handler if we are the last one */
 	if (level == 0)
 		signal(SIGCHLD, safe_system_prev_handler);
 
-	ast_mutex_unlock(&safe_system_lock);
+	opbx_mutex_unlock(&safe_system_lock);
 
 	return res;
 }
@@ -409,10 +409,10 @@ int ast_safe_system(const char *s)
 /*
  * write the string to all attached console clients
  */
-static void ast_network_puts(const char *string)
+static void opbx_network_puts(const char *string)
 {
 	int x;
-	for (x=0;x<AST_MAX_CONNECTS; x++) {
+	for (x=0;x<OPBX_MAX_CONNECTS; x++) {
 		if (consoles[x].fd > -1) 
 			fdprint(consoles[x].p[1], string);
 	}
@@ -422,11 +422,11 @@ static void ast_network_puts(const char *string)
  * write the string to the console, and all attached
  * console clients
  */
-void ast_console_puts(const char *string)
+void opbx_console_puts(const char *string)
 {
 	fputs(string, stdout);
 	fflush(stdout);
-	ast_network_puts(string);
+	opbx_network_puts(string);
 }
 
 static void network_verboser(const char *s, int pos, int replace, int complete)
@@ -437,14 +437,14 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 		if (t) {
 			sprintf(t, "\r%s", s);
 			if (complete)
-				ast_network_puts(t);
+				opbx_network_puts(t);
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			ast_network_puts(s);
+			opbx_log(LOG_ERROR, "Out of memory\n");
+			opbx_network_puts(s);
 		}
 	} else {
 		if (complete)
-			ast_network_puts(s);
+			opbx_network_puts(s);
 	}
 }
 
@@ -459,8 +459,8 @@ static void *netconsole(void *vconsole)
 	struct pollfd fds[2];
 	
 	if (gethostname(hostname, sizeof(hostname)-1))
-		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
-	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, OPENPBX_VERSION);
+		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
+	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid, OPENPBX_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
 		fds[0].fd = con->fd;
@@ -473,7 +473,7 @@ static void *netconsole(void *vconsole)
 		res = poll(fds, 2, -1);
 		if (res < 0) {
 			if (errno != EINTR)
-				ast_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+				opbx_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
 			continue;
 		}
 		if (fds[0].revents) {
@@ -482,12 +482,12 @@ static void *netconsole(void *vconsole)
 				break;
 			}
 			tmp[res] = 0;
-			ast_cli_command(con->fd, tmp);
+			opbx_cli_command(con->fd, tmp);
 		}
 		if (fds[1].revents) {
 			res = read(con->p[0], tmp, sizeof(tmp));
 			if (res < 1) {
-				ast_log(LOG_ERROR, "read returned %d\n", res);
+				opbx_log(LOG_ERROR, "read returned %d\n", res);
 				break;
 			}
 			res = write(con->fd, tmp, res);
@@ -496,7 +496,7 @@ static void *netconsole(void *vconsole)
 		}
 	}
 	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
+		opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
 	close(con->fd);
 	close(con->p[0]);
 	close(con->p[1]);
@@ -517,26 +517,26 @@ static void *listener(void *unused)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	for(;;) {
-		if (ast_socket < 0)
+		if (opbx_socket < 0)
 			return NULL;
-		fds[0].fd = ast_socket;
+		fds[0].fd = opbx_socket;
 		fds[0].events= POLLIN;
 		s = poll(fds, 1, -1);
 		if (s < 0) {
 			if (errno != EINTR)
-				ast_log(LOG_WARNING, "poll returned error: %s\n", strerror(errno));
+				opbx_log(LOG_WARNING, "poll returned error: %s\n", strerror(errno));
 			continue;
 		}
 		len = sizeof(sunaddr);
-		s = accept(ast_socket, (struct sockaddr *)&sunaddr, &len);
+		s = accept(opbx_socket, (struct sockaddr *)&sunaddr, &len);
 		if (s < 0) {
 			if (errno != EINTR)
-				ast_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(errno));
+				opbx_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(errno));
 		} else {
-			for (x=0;x<AST_MAX_CONNECTS;x++) {
+			for (x=0;x<OPBX_MAX_CONNECTS;x++) {
 				if (consoles[x].fd < 0) {
 					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
-						ast_log(LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
+						opbx_log(LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to create pipe\n");
 						close(s);
@@ -545,8 +545,8 @@ static void *listener(void *unused)
 					flags = fcntl(consoles[x].p[1], F_GETFL);
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
-					if (ast_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
-						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
+					if (opbx_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
+						opbx_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");
 						close(s);
@@ -554,20 +554,20 @@ static void *listener(void *unused)
 					break;
 				}
 			}
-			if (x >= AST_MAX_CONNECTS) {
+			if (x >= OPBX_MAX_CONNECTS) {
 				fdprint(s, "No more connections allowed\n");
-				ast_log(LOG_WARNING, "No more connections allowed\n");
+				opbx_log(LOG_WARNING, "No more connections allowed\n");
 				close(s);
 			} else if (consoles[x].fd > -1) {
 				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
+					opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection\n");
 			}
 		}
 	}
 	return NULL;
 }
 
-static int ast_makesocket(void)
+static int opbx_makesocket(void)
 {
 	struct sockaddr_un sunaddr;
 	int res;
@@ -575,81 +575,81 @@ static int ast_makesocket(void)
 	uid_t uid = -1;
 	gid_t gid = -1;
 
-	for (x = 0; x < AST_MAX_CONNECTS; x++)	
+	for (x = 0; x < OPBX_MAX_CONNECTS; x++)	
 		consoles[x].fd = -1;
-	unlink(ast_config_AST_SOCKET);
-	ast_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
-	if (ast_socket < 0) {
-		ast_log(LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
+	unlink(opbx_config_OPBX_SOCKET);
+	opbx_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
+	if (opbx_socket < 0) {
+		opbx_log(LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
 		return -1;
 	}		
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_LOCAL;
-	ast_copy_string(sunaddr.sun_path, ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
-	res = bind(ast_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
+	opbx_copy_string(sunaddr.sun_path, opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
+	res = bind(opbx_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
-		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
-		close(ast_socket);
-		ast_socket = -1;
+		opbx_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		close(opbx_socket);
+		opbx_socket = -1;
 		return -1;
 	}
-	res = listen(ast_socket, 2);
+	res = listen(opbx_socket, 2);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
-		close(ast_socket);
-		ast_socket = -1;
+		opbx_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
+		close(opbx_socket);
+		opbx_socket = -1;
 		return -1;
 	}
-	ast_register_verbose(network_verboser);
-	ast_pthread_create(&lthread, NULL, listener, NULL);
+	opbx_register_verbose(network_verboser);
+	opbx_pthread_create(&lthread, NULL, listener, NULL);
 
-	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
+	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
 		struct passwd *pw;
-		if ((pw = getpwnam(ast_config_AST_CTL_OWNER)) == NULL) {
-			ast_log(LOG_WARNING, "Unable to find uid of user %s\n", ast_config_AST_CTL_OWNER);
+		if ((pw = getpwnam(opbx_config_OPBX_CTL_OWNER)) == NULL) {
+			opbx_log(LOG_WARNING, "Unable to find uid of user %s\n", opbx_config_OPBX_CTL_OWNER);
 		} else {
 			uid = pw->pw_uid;
 		}
 	}
 		
-	if (!ast_strlen_zero(ast_config_AST_CTL_GROUP)) {
+	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_GROUP)) {
 		struct group *grp;
-		if ((grp = getgrnam(ast_config_AST_CTL_GROUP)) == NULL) {
-			ast_log(LOG_WARNING, "Unable to find gid of group %s\n", ast_config_AST_CTL_GROUP);
+		if ((grp = getgrnam(opbx_config_OPBX_CTL_GROUP)) == NULL) {
+			opbx_log(LOG_WARNING, "Unable to find gid of group %s\n", opbx_config_OPBX_CTL_GROUP);
 		} else {
 			gid = grp->gr_gid;
 		}
 	}
 
-	if (chown(ast_config_AST_SOCKET, uid, gid) < 0)
-		ast_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
+	if (chown(opbx_config_OPBX_SOCKET, uid, gid) < 0)
+		opbx_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
 
-	if (!ast_strlen_zero(ast_config_AST_CTL_PERMISSIONS)) {
+	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_PERMISSIONS)) {
 		mode_t p;
-		sscanf(ast_config_AST_CTL_PERMISSIONS, "%o", (int *) &p);
-		if ((chmod(ast_config_AST_SOCKET, p)) < 0)
-			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
+		sscanf(opbx_config_OPBX_CTL_PERMISSIONS, "%o", (int *) &p);
+		if ((chmod(opbx_config_OPBX_SOCKET, p)) < 0)
+			opbx_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", opbx_config_OPBX_SOCKET, strerror(errno));
 	}
 
 	return 0;
 }
 
-static int ast_tryconnect(void)
+static int opbx_tryconnect(void)
 {
 	struct sockaddr_un sunaddr;
 	int res;
-	ast_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
-	if (ast_consock < 0) {
-		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+	opbx_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
+	if (opbx_consock < 0) {
+		opbx_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return 0;
 	}
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_LOCAL;
-	ast_copy_string(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
-	res = connect(ast_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
+	opbx_copy_string(sunaddr.sun_path, (char *)opbx_config_OPBX_SOCKET, sizeof(sunaddr.sun_path));
+	res = connect(opbx_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
-		close(ast_consock);
-		ast_consock = -1;
+		close(opbx_consock);
+		opbx_consock = -1;
 		return 0;
 	} else
 		return 1;
@@ -659,7 +659,7 @@ static void urg_handler(int num)
 {
 	/* Called by soft_hangup to interrupt the poll, read, or other
 	   system call.  We don't actually need to do anything though.  */
-	/* Cannot EVER ast_log from within a signal handler */
+	/* Cannot EVER opbx_log from within a signal handler */
 	/* SLD: seems to be some pthread activity relating to the printf anyway:
 	 * which is leading to a deadlock? */
 #if 0
@@ -677,13 +677,13 @@ static void hup_handler(int num)
 	if (restartnow)
 		execvp(_argv[0], _argv);
 	/* XXX This could deadlock XXX */
-	ast_module_reload(NULL);
+	opbx_module_reload(NULL);
 	signal(num, hup_handler);
 }
 
 static void child_handler(int sig)
 {
-	/* Must not ever ast_log or ast_verbose within signal handler */
+	/* Must not ever opbx_log or opbx_verbose within signal handler */
 	int n, status;
 
 	/*
@@ -709,7 +709,7 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
-int ast_set_priority(int pri)
+int opbx_set_priority(int pri)
 {
 	struct sched_param sched;
 	memset(&sched, 0, sizeof(sched));
@@ -719,29 +719,29 @@ int ast_set_priority(int pri)
 	if (pri) {  
 		sched.sched_priority = 10;
 		if (sched_setscheduler(0, SCHED_RR, &sched)) {
-			ast_log(LOG_WARNING, "Unable to set high priority\n");
+			opbx_log(LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
 			if (option_verbose)
-				ast_verbose("Set to realtime thread\n");
+				opbx_verbose("Set to realtime thread\n");
 	} else {
 		sched.sched_priority = 0;
 		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
-			ast_log(LOG_WARNING, "Unable to set normal priority\n");
+			opbx_log(LOG_WARNING, "Unable to set normal priority\n");
 			return -1;
 		}
 	}
 #else
 	if (pri) {
 		if (setpriority(PRIO_PROCESS, 0, -10) == -1) {
-			ast_log(LOG_WARNING, "Unable to set high priority\n");
+			opbx_log(LOG_WARNING, "Unable to set high priority\n");
 			return -1;
 		} else
 			if (option_verbose)
-				ast_verbose("Set to high priority\n");
+				opbx_verbose("Set to high priority\n");
 	} else {
 		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-			ast_log(LOG_WARNING, "Unable to set normal priority\n");
+			opbx_log(LOG_WARNING, "Unable to set normal priority\n");
 			return -1;
 		}
 	}
@@ -749,17 +749,17 @@ int ast_set_priority(int pri)
 	return 0;
 }
 
-static void ast_run_atexits(void)
+static void opbx_run_atexits(void)
 {
-	struct ast_atexit *ae;
-	ast_mutex_lock(&atexitslock);
+	struct opbx_atexit *ae;
+	opbx_mutex_lock(&atexitslock);
 	ae = atexits;
 	while(ae) {
 		if (ae->func) 
 			ae->func();
 		ae = ae->next;
 	}
-	ast_mutex_unlock(&atexitslock);
+	opbx_mutex_unlock(&atexitslock);
 }
 
 static void quit_handler(int num, int nice, int safeshutdown, int restart)
@@ -768,21 +768,21 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	time_t s,e;
 	int x;
 	/* Try to get as many CDRs as possible submitted to the backend engines (if in batch mode) */
-	ast_cdr_engine_term();
+	opbx_cdr_engine_term();
 	if (safeshutdown) {
 		shuttingdown = 1;
 		if (!nice) {
 			/* Begin shutdown routine, hanging up active channels */
-			ast_begin_shutdown(1);
+			opbx_begin_shutdown(1);
 			if (option_verbose && option_console)
-				ast_verbose("Beginning openpbx %s....\n", restart ? "restart" : "shutdown");
+				opbx_verbose("Beginning openpbx %s....\n", restart ? "restart" : "shutdown");
 			time(&s);
 			for(;;) {
 				time(&e);
 				/* Wait up to 15 seconds for all channels to go away */
 				if ((e - s) > 15)
 					break;
-				if (!ast_active_channels())
+				if (!opbx_active_channels())
 					break;
 				if (!shuttingdown)
 					break;
@@ -791,11 +791,11 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 			}
 		} else {
 			if (nice < 2)
-				ast_begin_shutdown(0);
+				opbx_begin_shutdown(0);
 			if (option_verbose && option_console)
-				ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
+				opbx_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
 			for(;;) {
-				if (!ast_active_channels())
+				if (!opbx_active_channels())
 					break;
 				if (!shuttingdown)
 					break;
@@ -805,48 +805,48 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 
 		if (!shuttingdown) {
 			if (option_verbose && option_console)
-				ast_verbose("OpenPBX %s cancelled.\n", restart ? "restart" : "shutdown");
+				opbx_verbose("OpenPBX %s cancelled.\n", restart ? "restart" : "shutdown");
 			return;
 		}
 	}
 	if (option_console || option_remote) {
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
-		if (!ast_strlen_zero(filename))
-			ast_el_write_history(filename);
+		if (!opbx_strlen_zero(filename))
+			opbx_el_write_history(filename);
 		if (el != NULL)
 			el_end(el);
 		if (el_hist != NULL)
 			history_end(el_hist);
 	}
 	if (option_verbose)
-		ast_verbose("Executing last minute cleanups\n");
-	ast_run_atexits();
+		opbx_verbose("Executing last minute cleanups\n");
+	opbx_run_atexits();
 	/* Called on exit */
 	if (option_verbose && option_console)
-		ast_verbose("OpenPBX %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
+		opbx_verbose("OpenPBX %s ending (%d).\n", opbx_active_channels() ? "uncleanly" : "cleanly", num);
 	else if (option_debug)
-		ast_log(LOG_DEBUG, "OpenPBX ending (%d).\n", num);
-	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", ast_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
-	if (ast_socket > -1) {
-		close(ast_socket);
-		ast_socket = -1;
+		opbx_log(LOG_DEBUG, "OpenPBX ending (%d).\n", num);
+	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", opbx_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
+	if (opbx_socket > -1) {
+		close(opbx_socket);
+		opbx_socket = -1;
 	}
-	if (ast_consock > -1)
-		close(ast_consock);
-	if (ast_socket > -1)
-		unlink((char *)ast_config_AST_SOCKET);
-	if (!option_remote) unlink((char *)ast_config_AST_PID);
+	if (opbx_consock > -1)
+		close(opbx_consock);
+	if (opbx_socket > -1)
+		unlink((char *)opbx_config_OPBX_SOCKET);
+	if (!option_remote) unlink((char *)opbx_config_OPBX_PID);
 	printf(term_quit());
 	if (restart) {
 		if (option_verbose || option_console)
-			ast_verbose("Preparing for OpenPBX restart...\n");
+			opbx_verbose("Preparing for OpenPBX restart...\n");
 		/* Mark all FD's for closing on exec */
 		for (x=3;x<32768;x++) {
 			fcntl(x, F_SETFD, FD_CLOEXEC);
 		}
 		if (option_verbose || option_console)
-			ast_verbose("Restarting OpenPBX NOW...\n");
+			opbx_verbose("Restarting OpenPBX NOW...\n");
 		restartnow = 1;
 
 		/* close logger */
@@ -854,7 +854,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 
 		/* If there is a consolethread running send it a SIGHUP 
 		   so it can execvp, otherwise we can do it ourselves */
-		if (consolethread != AST_PTHREADT_NULL) {
+		if (consolethread != OPBX_PTHREADT_NULL) {
 			pthread_kill(consolethread, SIGHUP);
 			/* Give the signal handler some time to complete */
 			sleep(2);
@@ -904,12 +904,12 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete) {
 		/* Wake up a poll()ing console */
-		if (option_console && consolethread != AST_PTHREADT_NULL)
+		if (option_console && consolethread != OPBX_PTHREADT_NULL)
 			pthread_kill(consolethread, SIGURG);
 	}
 }
 
-static int ast_all_zeros(char *s)
+static int opbx_all_zeros(char *s)
 {
 	while(*s) {
 		if (*s > 32)
@@ -924,18 +924,18 @@ static void consolehandler(char *s)
 	printf(term_end());
 	fflush(stdout);
 	/* Called when readline data is available */
-	if (s && !ast_all_zeros(s))
-		ast_el_add_history(s);
+	if (s && !opbx_all_zeros(s))
+		opbx_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
 		/* The real handler for bang */
 		if (s[0] == '!') {
 			if (s[1])
-				ast_safe_system(s+1);
+				opbx_safe_system(s+1);
 			else
-				ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+				opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		} else 
-		ast_cli_command(STDOUT_FILENO, s);
+		opbx_cli_command(STDOUT_FILENO, s);
 	} else
 		fprintf(stdout, "\nUse \"quit\" to exit\n");
 }
@@ -944,16 +944,16 @@ static int remoteconsolehandler(char *s)
 {
 	int ret = 0;
 	/* Called when readline data is available */
-	if (s && !ast_all_zeros(s))
-		ast_el_add_history(s);
+	if (s && !opbx_all_zeros(s))
+		opbx_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
 		/* The real handler for bang */
 		if (s[0] == '!') {
 			if (s[1])
-				ast_safe_system(s+1);
+				opbx_safe_system(s+1);
 			else
-				ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+				opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 			ret = 1;
 		}
 		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
@@ -1065,7 +1065,7 @@ static int handle_abort_halt(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_cancel_shutdown();
+	opbx_cancel_shutdown();
 	shuttingdown = 0;
 	return RESULT_SUCCESS;
 }
@@ -1079,7 +1079,7 @@ static int handle_bang(int fd, int argc, char *argv[])
 
 #define OPENPBX_PROMPT2 "%s*CLI> "
 
-static struct ast_cli_entry core_cli[] = {
+static struct opbx_cli_entry core_cli[] = {
 	{ { "abort", "halt", NULL }, handle_abort_halt,
 	  "Cancel a running halt", abort_halt_help },
 	{ { "stop", "now", NULL }, handle_shutdown_now,
@@ -1102,7 +1102,7 @@ static struct ast_cli_entry core_cli[] = {
 #endif /* ! LOW_MEMORY */
 };
 
-static int ast_el_read_char(EditLine *el, char *cp)
+static int opbx_el_read_char(EditLine *el, char *cp)
 {
 	int num_read=0;
 	int lastpos=0;
@@ -1113,7 +1113,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 	for (;;) {
 		max = 1;
-		fds[0].fd = ast_consock;
+		fds[0].fd = opbx_consock;
 		fds[0].events = POLLIN;
 		if (!option_exec) {
 			fds[1].fd = STDIN_FILENO;
@@ -1124,7 +1124,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 		if (res < 0) {
 			if (errno == EINTR)
 				continue;
-			ast_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
+			opbx_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
 			break;
 		}
 
@@ -1136,7 +1136,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 				return (num_read);
 		}
 		if (fds[0].revents) {
-			res = read(ast_consock, buf, sizeof(buf) - 1);
+			res = read(opbx_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
 				fprintf(stderr, "\nDisconnected from OpenPBX server\n");
@@ -1147,7 +1147,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 					int reconnects_per_second = 20;
 					fprintf(stderr, "Attempting to reconnect for 30 seconds\n");
 					for (tries=0;tries<30 * reconnects_per_second;tries++) {
-						if (ast_tryconnect()) {
+						if (opbx_tryconnect()) {
 							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 							printf(term_quit());
 							WELCOME_MESSAGE;
@@ -1223,7 +1223,7 @@ static char *cli_prompt(EditLine *el)
 						break;
 					case 'd': /* date */
 						memset(&tm, 0, sizeof(struct tm));
-						tv = ast_tvnow();
+						tv = opbx_tvnow();
 						if (localtime_r(&(tv.tv_sec), &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 						}
@@ -1280,7 +1280,7 @@ static char *cli_prompt(EditLine *el)
 #endif
 					case 't': /* time */
 						memset(&tm, 0, sizeof(struct tm));
-						tv = ast_tvnow();
+						tv = opbx_tvnow();
 						if (localtime_r(&(tv.tv_sec), &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
 						}
@@ -1326,7 +1326,7 @@ static char *cli_prompt(EditLine *el)
 	return(prompt);	
 }
 
-static char **ast_el_strtoarr(char *buf)
+static char **opbx_el_strtoarr(char *buf)
 {
 	char **match_list = NULL, *retstr;
 	size_t match_list_len;
@@ -1335,7 +1335,7 @@ static char **ast_el_strtoarr(char *buf)
 	match_list_len = 1;
 	while ( (retstr = strsep(&buf, " ")) != NULL) {
 
-		if (!strcmp(retstr, AST_CLI_COMPLETE_EOF))
+		if (!strcmp(retstr, OPBX_CLI_COMPLETE_EOF))
 			break;
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
@@ -1356,7 +1356,7 @@ static char **ast_el_strtoarr(char *buf)
 	return match_list;
 }
 
-static int ast_el_sort_compare(const void *i1, const void *i2)
+static int opbx_el_sort_compare(const void *i1, const void *i2)
 {
 	char *s1, *s2;
 
@@ -1366,13 +1366,13 @@ static int ast_el_sort_compare(const void *i1, const void *i2)
 	return strcasecmp(s1, s2);
 }
 
-static int ast_cli_display_match_list(char **matches, int len, int max)
+static int opbx_cli_display_match_list(char **matches, int len, int max)
 {
 	int i, idx, limit, count;
 	int screenwidth = 0;
 	int numoutput = 0, numoutputline = 0;
 
-	screenwidth = ast_get_termcols(STDOUT_FILENO);
+	screenwidth = opbx_get_termcols(STDOUT_FILENO);
 
 	/* find out how many entries can be put on one line, with two spaces between strings */
 	limit = screenwidth / (max + 2);
@@ -1386,7 +1386,7 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 
 	idx = 1;
 
-	qsort(&matches[0], (size_t)(len + 1), sizeof(char *), ast_el_sort_compare);
+	qsort(&matches[0], (size_t)(len + 1), sizeof(char *), opbx_el_sort_compare);
 
 	for (; count > 0; count--) {
 		numoutputline = 0;
@@ -1442,8 +1442,8 @@ static char *cli_complete(EditLine *el, int ch)
 
 	if (option_remote) {
 		snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
-		fdprint(ast_consock, buf);
-		res = read(ast_consock, buf, sizeof(buf));
+		fdprint(opbx_consock, buf);
+		res = read(opbx_consock, buf, sizeof(buf));
 		buf[res] = '\0';
 		nummatches = atoi(buf);
 
@@ -1455,10 +1455,10 @@ static char *cli_complete(EditLine *el, int ch)
 			if (!mbuf)
 				return (char *)(CC_ERROR);
 			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
-			fdprint(ast_consock, buf);
+			fdprint(opbx_consock, buf);
 			res = 0;
 			mbuf[0] = '\0';
-			while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
+			while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1) {
 				if (mlen + 1024 > maxmbuf) {
 					/* Every step increment buffer 1024 bytes */
 					maxmbuf += 1024;
@@ -1467,13 +1467,13 @@ static char *cli_complete(EditLine *el, int ch)
 						return (char *)(CC_ERROR);
 				}
 				/* Only read 1024 bytes at a time */
-				res = read(ast_consock, mbuf + mlen, 1024);
+				res = read(opbx_consock, mbuf + mlen, 1024);
 				if (res > 0)
 					mlen += res;
 			}
 			mbuf[mlen] = '\0';
 
-			matches = ast_el_strtoarr(mbuf);
+			matches = opbx_el_strtoarr(mbuf);
 			free(mbuf);
 		} else
 			matches = (char **) NULL;
@@ -1481,8 +1481,8 @@ static char *cli_complete(EditLine *el, int ch)
 
 	} else {
 
-		nummatches = ast_cli_generatornummatches((char *)lf->buffer,ptr);
-		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
+		nummatches = opbx_cli_generatornummatches((char *)lf->buffer,ptr);
+		matches = opbx_cli_completion_matches((char *)lf->buffer,ptr);
 	}
 
 	if (matches) {
@@ -1509,7 +1509,7 @@ static char *cli_complete(EditLine *el, int ch)
 			matches_num = i - 1;
 			if (matches_num >1) {
 				fprintf(stdout, "\n");
-				ast_cli_display_match_list(matches, nummatches, maxlen);
+				opbx_cli_display_match_list(matches, nummatches, maxlen);
 				retval = CC_REDISPLAY;
 			} else { 
 				el_insertstr(el," ");
@@ -1522,10 +1522,10 @@ static char *cli_complete(EditLine *el, int ch)
 	return (char *)(long)retval;
 }
 
-static int ast_el_initialize(void)
+static int opbx_el_initialize(void)
 {
 	HistEvent ev;
-	char *editor = getenv("AST_EDITOR");
+	char *editor = getenv("OPBX_EDITOR");
 
 	if (el != NULL)
 		el_end(el);
@@ -1557,35 +1557,35 @@ static int ast_el_initialize(void)
 	return 0;
 }
 
-static int ast_el_add_history(char *buf)
+static int opbx_el_add_history(char *buf)
 {
 	HistEvent ev;
 
 	if (el_hist == NULL || el == NULL)
-		ast_el_initialize();
+		opbx_el_initialize();
 	if (strlen(buf) > 256)
 		return 0;
 	return (history(el_hist, &ev, H_ENTER, buf));
 }
 
-static int ast_el_write_history(char *filename)
+static int opbx_el_write_history(char *filename)
 {
 	HistEvent ev;
 
 	if (el_hist == NULL || el == NULL)
-		ast_el_initialize();
+		opbx_el_initialize();
 
 	return (history(el_hist, &ev, H_SAVE, filename));
 }
 
-static int ast_el_read_history(char *filename)
+static int opbx_el_read_history(char *filename)
 {
 	char buf[256];
 	FILE *f;
 	int ret = -1;
 
 	if (el_hist == NULL || el == NULL)
-		ast_el_initialize();
+		opbx_el_initialize();
 
 	if ((f = fopen(filename, "r")) == NULL)
 		return ret;
@@ -1594,9 +1594,9 @@ static int ast_el_read_history(char *filename)
 		fgets(buf, sizeof(buf), f);
 		if (!strcmp(buf, "_HiStOrY_V2_\n"))
 			continue;
-		if (ast_all_zeros(buf))
+		if (opbx_all_zeros(buf))
 			continue;
-		if ((ret = ast_el_add_history(buf)) == -1)
+		if ((ret = opbx_el_add_history(buf)) == -1)
 			break;
 	}
 	fclose(f);
@@ -1604,7 +1604,7 @@ static int ast_el_read_history(char *filename)
 	return ret;
 }
 
-static void ast_remotecontrol(char * data)
+static void opbx_remotecontrol(char * data)
 {
 	char buf[80];
 	int res;
@@ -1619,9 +1619,9 @@ static void ast_remotecontrol(char * data)
 	char *ebuf;
 	int num = 0;
 
-	read(ast_consock, buf, sizeof(buf));
+	read(opbx_consock, buf, sizeof(buf));
 	if (data)
-		write(ast_consock, data, strlen(data) + 1);
+		write(opbx_consock, data, strlen(data) + 1);
 	stringp=buf;
 	hostname = strsep(&stringp, "/");
 	cpid = strsep(&stringp, "/");
@@ -1635,42 +1635,42 @@ static void ast_remotecontrol(char * data)
 	else
 		pid = -1;
 	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
-	fdprint(ast_consock, tmp);
+	fdprint(opbx_consock, tmp);
 	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
-	fdprint(ast_consock, tmp);
-	ast_verbose("Connected to OpenPBX %s currently running on %s (pid = %d)\n", version, hostname, pid);
+	fdprint(opbx_consock, tmp);
+	opbx_verbose("Connected to OpenPBX %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
 	if (el_hist == NULL || el == NULL)
-		ast_el_initialize();
+		opbx_el_initialize();
 
-	el_set(el, EL_GETCFN, ast_el_read_char);
+	el_set(el, EL_GETCFN, opbx_el_read_char);
 
-	if (!ast_strlen_zero(filename))
-		ast_el_read_history(filename);
+	if (!opbx_strlen_zero(filename))
+		opbx_el_read_history(filename);
 
 	if (option_exec && data) {  /* hack to print output then exit if openpbx -rx is used */
 		char tempchar;
 		struct pollfd fds[0];
-		fds[0].fd = ast_consock;
+		fds[0].fd = opbx_consock;
 		fds[0].events = POLLIN;
 		fds[0].revents = 0;
 		while(poll(fds, 1, 100) > 0) {
-			ast_el_read_char(el, &tempchar);
+			opbx_el_read_char(el, &tempchar);
 		}
 		return;
 	}
 	for(;;) {
 		ebuf = (char *)el_gets(el, &num);
 
-		if (ebuf && !ast_strlen_zero(ebuf)) {
+		if (ebuf && !opbx_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
-				res = write(ast_consock, ebuf, strlen(ebuf) + 1);
+				res = write(opbx_consock, ebuf, strlen(ebuf) + 1);
 				if (res < 1) {
-					ast_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
+					opbx_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					break;
 				}
 			}
@@ -1712,123 +1712,123 @@ static int show_cli_help(void) {
 	return 0;
 }
 
-static void ast_readconfig(void) {
-	struct ast_config *cfg;
-	struct ast_variable *v;
-	char *config = AST_CONFIG_FILE;
+static void opbx_readconfig(void) {
+	struct opbx_config *cfg;
+	struct opbx_variable *v;
+	char *config = OPBX_CONFIG_FILE;
 
 	if (option_overrideconfig == 1) {
-		cfg = ast_config_load(ast_config_AST_CONFIG_FILE);
+		cfg = opbx_config_load(opbx_config_OPBX_CONFIG_FILE);
 		if (!cfg)
-			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
+			opbx_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", opbx_config_OPBX_CONFIG_FILE);
 	} else {
-		cfg = ast_config_load(config);
+		cfg = opbx_config_load(config);
 	}
 
 	/* init with buildtime config */
-	ast_copy_string(ast_config_AST_CONFIG_DIR, AST_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
-	ast_copy_string(ast_config_AST_SPOOL_DIR, AST_SPOOL_DIR, sizeof(ast_config_AST_SPOOL_DIR));
-	ast_copy_string(ast_config_AST_MODULE_DIR, AST_MODULE_DIR, sizeof(ast_config_AST_VAR_DIR));
- 	snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
-	ast_copy_string(ast_config_AST_VAR_DIR, AST_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
-	ast_copy_string(ast_config_AST_LOG_DIR, AST_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
-	ast_copy_string(ast_config_AST_AGI_DIR, AST_AGI_DIR, sizeof(ast_config_AST_AGI_DIR));
-	ast_copy_string(ast_config_AST_DB, AST_DB, sizeof(ast_config_AST_DB));
-	ast_copy_string(ast_config_AST_KEY_DIR, AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR));
-	ast_copy_string(ast_config_AST_PID, AST_PID, sizeof(ast_config_AST_PID));
-	ast_copy_string(ast_config_AST_SOCKET, AST_SOCKET, sizeof(ast_config_AST_SOCKET));
-	ast_copy_string(ast_config_AST_RUN_DIR, AST_RUN_DIR, sizeof(ast_config_AST_RUN_DIR));
+	opbx_copy_string(opbx_config_OPBX_CONFIG_DIR, OPBX_CONFIG_DIR, sizeof(opbx_config_OPBX_CONFIG_DIR));
+	opbx_copy_string(opbx_config_OPBX_SPOOL_DIR, OPBX_SPOOL_DIR, sizeof(opbx_config_OPBX_SPOOL_DIR));
+	opbx_copy_string(opbx_config_OPBX_MODULE_DIR, OPBX_MODULE_DIR, sizeof(opbx_config_OPBX_VAR_DIR));
+ 	snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", opbx_config_OPBX_SPOOL_DIR);
+	opbx_copy_string(opbx_config_OPBX_VAR_DIR, OPBX_VAR_DIR, sizeof(opbx_config_OPBX_VAR_DIR));
+	opbx_copy_string(opbx_config_OPBX_LOG_DIR, OPBX_LOG_DIR, sizeof(opbx_config_OPBX_LOG_DIR));
+	opbx_copy_string(opbx_config_OPBX_AGI_DIR, OPBX_AGI_DIR, sizeof(opbx_config_OPBX_AGI_DIR));
+	opbx_copy_string(opbx_config_OPBX_DB, OPBX_DB, sizeof(opbx_config_OPBX_DB));
+	opbx_copy_string(opbx_config_OPBX_KEY_DIR, OPBX_KEY_DIR, sizeof(opbx_config_OPBX_KEY_DIR));
+	opbx_copy_string(opbx_config_OPBX_PID, OPBX_PID, sizeof(opbx_config_OPBX_PID));
+	opbx_copy_string(opbx_config_OPBX_SOCKET, OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET));
+	opbx_copy_string(opbx_config_OPBX_RUN_DIR, OPBX_RUN_DIR, sizeof(opbx_config_OPBX_RUN_DIR));
 
 	/* no openpbx.conf? no problem, use buildtime config! */
 	if (!cfg) {
 		return;
 	}
-	v = ast_variable_browse(cfg, "files");
+	v = opbx_variable_browse(cfg, "files");
 	while (v) {
 		if (!strcasecmp(v->name, "astctlpermissions")) {
-			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
+			opbx_copy_string(opbx_config_OPBX_CTL_PERMISSIONS, v->value, sizeof(opbx_config_OPBX_CTL_PERMISSIONS));
 		} else if (!strcasecmp(v->name, "astctlowner")) {
-			ast_copy_string(ast_config_AST_CTL_OWNER, v->value, sizeof(ast_config_AST_CTL_OWNER));
+			opbx_copy_string(opbx_config_OPBX_CTL_OWNER, v->value, sizeof(opbx_config_OPBX_CTL_OWNER));
 		} else if (!strcasecmp(v->name, "astctlgroup")) {
-			ast_copy_string(ast_config_AST_CTL_GROUP, v->value, sizeof(ast_config_AST_CTL_GROUP));
+			opbx_copy_string(opbx_config_OPBX_CTL_GROUP, v->value, sizeof(opbx_config_OPBX_CTL_GROUP));
 		} else if (!strcasecmp(v->name, "astctl")) {
-			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
+			opbx_copy_string(opbx_config_OPBX_CTL, v->value, sizeof(opbx_config_OPBX_CTL));
 		}
 		v = v->next;
 	}
-	v = ast_variable_browse(cfg, "directories");
+	v = opbx_variable_browse(cfg, "directories");
 	while(v) {
 		if (!strcasecmp(v->name, "astetcdir")) {
-			ast_copy_string(ast_config_AST_CONFIG_DIR, v->value, sizeof(ast_config_AST_CONFIG_DIR));
+			opbx_copy_string(opbx_config_OPBX_CONFIG_DIR, v->value, sizeof(opbx_config_OPBX_CONFIG_DIR));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
-			ast_copy_string(ast_config_AST_SPOOL_DIR, v->value, sizeof(ast_config_AST_SPOOL_DIR));
-			snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", v->value);
+			opbx_copy_string(opbx_config_OPBX_SPOOL_DIR, v->value, sizeof(opbx_config_OPBX_SPOOL_DIR));
+			snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-			ast_copy_string(ast_config_AST_VAR_DIR, v->value, sizeof(ast_config_AST_VAR_DIR));
-			snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/%s", v->value, "astdb");    
+			opbx_copy_string(opbx_config_OPBX_VAR_DIR, v->value, sizeof(opbx_config_OPBX_VAR_DIR));
+			snprintf(opbx_config_OPBX_DB, sizeof(opbx_config_OPBX_DB), "%s/%s", v->value, "astdb");    
 		} else if (!strcasecmp(v->name, "astlogdir")) {
-			ast_copy_string(ast_config_AST_LOG_DIR, v->value, sizeof(ast_config_AST_LOG_DIR));
+			opbx_copy_string(opbx_config_OPBX_LOG_DIR, v->value, sizeof(opbx_config_OPBX_LOG_DIR));
 		} else if (!strcasecmp(v->name, "astagidir")) {
-			ast_copy_string(ast_config_AST_AGI_DIR, v->value, sizeof(ast_config_AST_AGI_DIR));
+			opbx_copy_string(opbx_config_OPBX_AGI_DIR, v->value, sizeof(opbx_config_OPBX_AGI_DIR));
 		} else if (!strcasecmp(v->name, "astrundir")) {
-			snprintf(ast_config_AST_PID, sizeof(ast_config_AST_PID), "%s/%s", v->value, "openpbx.pid");
-			snprintf(ast_config_AST_SOCKET, sizeof(ast_config_AST_SOCKET), "%s/%s", v->value, ast_config_AST_CTL);
-			ast_copy_string(ast_config_AST_RUN_DIR, v->value, sizeof(ast_config_AST_RUN_DIR));
+			snprintf(opbx_config_OPBX_PID, sizeof(opbx_config_OPBX_PID), "%s/%s", v->value, "openpbx.pid");
+			snprintf(opbx_config_OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET), "%s/%s", v->value, opbx_config_OPBX_CTL);
+			opbx_copy_string(opbx_config_OPBX_RUN_DIR, v->value, sizeof(opbx_config_OPBX_RUN_DIR));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
-			ast_copy_string(ast_config_AST_MODULE_DIR, v->value, sizeof(ast_config_AST_MODULE_DIR));
+			opbx_copy_string(opbx_config_OPBX_MODULE_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR));
 		}
 		v = v->next;
 	}
-	v = ast_variable_browse(cfg, "options");
+	v = opbx_variable_browse(cfg, "options");
 	while(v) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose = atoi(v->value);
 		/* whether or not to force timestamping. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
-			option_timestamp = ast_true(v->value);
+			option_timestamp = opbx_true(v->value);
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
-			option_exec_includes = ast_true(v->value);
+			option_exec_includes = opbx_true(v->value);
 		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
 			if (sscanf(v->value, "%d", &option_debug) != 1) {
-				option_debug = ast_true(v->value);
+				option_debug = opbx_true(v->value);
 			}
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
-			option_nofork = ast_true(v->value);
+			option_nofork = opbx_true(v->value);
 		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
-			option_quiet = ast_true(v->value);
+			option_quiet = opbx_true(v->value);
 		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
-			option_console = ast_true(v->value);
+			option_console = opbx_true(v->value);
 		/* Run with highg priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
-			option_highpriority = ast_true(v->value);
+			option_highpriority = opbx_true(v->value);
 		/* Initialize RSA auth keys (IAX2) (-i at startup) */
 		} else if (!strcasecmp(v->name, "initcrypto")) {
-			option_initcrypto = ast_true(v->value);
+			option_initcrypto = opbx_true(v->value);
 		/* Disable ANSI colors for console (-c at startup) */
 		} else if (!strcasecmp(v->name, "nocolor")) {
-			option_nocolor = ast_true(v->value);
+			option_nocolor = opbx_true(v->value);
 		/* Disable some usage warnings for picky people :p */
 		} else if (!strcasecmp(v->name, "dontwarn")) {
-			option_dontwarn = ast_true(v->value);
+			option_dontwarn = opbx_true(v->value);
 		/* Dump core in case of crash (-g) */
 		} else if (!strcasecmp(v->name, "dumpcore")) {
-			option_dumpcore = ast_true(v->value);
+			option_dumpcore = opbx_true(v->value);
 		/* Cache recorded sound files to another directory during recording */
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
-			option_cache_record_files = ast_true(v->value);
+			option_cache_record_files = opbx_true(v->value);
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
-			ast_copy_string(record_cache_dir, v->value, AST_CACHE_DIR_LEN);
+			opbx_copy_string(record_cache_dir, v->value, OPBX_CACHE_DIR_LEN);
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
-			option_transcode_slin = ast_true(v->value);
+			option_transcode_slin = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
@@ -1836,7 +1836,7 @@ static void ast_readconfig(void) {
 		}
 		v = v->next;
 	}
-	ast_config_destroy(cfg);
+	opbx_config_destroy(cfg);
 }
 
 int main(int argc, char *argv[])
@@ -1869,12 +1869,12 @@ int main(int argc, char *argv[])
 		option_nofork++;
 	}
 	if (gethostname(hostname, sizeof(hostname)-1))
-		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
-	ast_mainpid = getpid();
-	ast_ulaw_init();
-	ast_alaw_init();
+		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
+	opbx_mainpid = getpid();
+	opbx_ulaw_init();
+	opbx_alaw_init();
 	callerid_init();
-	ast_utils_init();
+	opbx_utils_init();
 	tdd_init();
 	/* When OpenPBX restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
@@ -1886,7 +1886,7 @@ int main(int argc, char *argv[])
 	/* Check if we're root */
 	/*
 	if (geteuid()) {
-		ast_log(LOG_ERROR, "Must be run as root\n");
+		opbx_log(LOG_ERROR, "Must be run as root\n");
 		exit(1);
 	}
 	*/
@@ -1941,7 +1941,7 @@ int main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			ast_copy_string((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE));
+			opbx_copy_string((char *)opbx_config_OPBX_CONFIG_FILE,optarg,sizeof(opbx_config_OPBX_CONFIG_FILE));
 			option_overrideconfig++;
 			break;
 		case 'i':
@@ -1973,15 +1973,15 @@ int main(int argc, char *argv[])
 		l.rlim_cur = RLIM_INFINITY;
 		l.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &l)) {
-			ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
 
 	if (option_console && !option_verbose) 
-		ast_verbose("[ Reading Master Configuration ]");
-	ast_readconfig();
+		opbx_verbose("[ Reading Master Configuration ]");
+	opbx_readconfig();
 
-	if (!is_child_of_nonroot && ast_set_priority(option_highpriority)) {
+	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
 	}
 
@@ -1989,31 +1989,31 @@ int main(int argc, char *argv[])
 		struct group *gr;
 		gr = getgrnam(rungroup);
 		if (!gr) {
-			ast_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
+			opbx_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
 		if (setgid(gr->gr_gid)) {
-			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
+			opbx_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
 			exit(1);
 		}
 		if (option_verbose)
-			ast_verbose("Running as group '%s'\n", rungroup);
+			opbx_verbose("Running as group '%s'\n", rungroup);
 	}
 
 	if (!is_child_of_nonroot && runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
 		if (!pw) {
-			ast_log(LOG_WARNING, "No such user '%s'!\n", runuser);
+			opbx_log(LOG_WARNING, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
 		if (setuid(pw->pw_uid)) {
-			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
+			opbx_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
 			exit(1);
 		}
 		setenv("OPENPBX_ALREADY_NONROOT","yes",1);
 		if (option_verbose)
-			ast_verbose("Running as user '%s'\n", runuser);
+			opbx_verbose("Running as user '%s'\n", runuser);
 	}
 
 	term_init();
@@ -2021,7 +2021,7 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 
 	if (option_console && !option_verbose) 
-		ast_verbose("[ Initializing Custom Configuration Options ]");
+		opbx_verbose("[ Initializing Custom Configuration Options ]");
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
@@ -2029,62 +2029,62 @@ int main(int argc, char *argv[])
 
 	if (option_console) {
 		if (el_hist == NULL || el == NULL)
-			ast_el_initialize();
+			opbx_el_initialize();
 
-		if (!ast_strlen_zero(filename))
-			ast_el_read_history(filename);
+		if (!opbx_strlen_zero(filename))
+			opbx_el_read_history(filename);
 	}
 
-	if (ast_tryconnect()) {
+	if (opbx_tryconnect()) {
 		/* One is already running */
 		if (option_remote) {
 			if (option_exec) {
-				ast_remotecontrol(xarg);
+				opbx_remotecontrol(xarg);
 				quit_handler(0, 0, 0, 0);
 				exit(0);
 			}
 			printf(term_quit());
-			ast_register_verbose(console_verboser);
+			opbx_register_verbose(console_verboser);
 			WELCOME_MESSAGE;
-			ast_remotecontrol(NULL);
+			opbx_remotecontrol(NULL);
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
-			ast_log(LOG_ERROR, "OpenPBX already running on %s.  Use 'openpbx -r' to connect.\n", (char *)ast_config_AST_SOCKET);
+			opbx_log(LOG_ERROR, "OpenPBX already running on %s.  Use 'openpbx -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
 			printf(term_quit());
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
-		ast_log(LOG_ERROR, "Unable to connect to remote openpbx (does %s exist?)\n",ast_config_AST_SOCKET);
+		opbx_log(LOG_ERROR, "Unable to connect to remote openpbx (does %s exist?)\n",opbx_config_OPBX_SOCKET);
 		printf(term_quit());
 		exit(1);
 	}
 	/* Blindly write pid file since we couldn't connect */
-	unlink((char *)ast_config_AST_PID);
-	f = fopen((char *)ast_config_AST_PID, "w");
+	unlink((char *)opbx_config_OPBX_PID);
+	f = fopen((char *)opbx_config_OPBX_PID, "w");
 	if (f) {
 		fprintf(f, "%d\n", getpid());
 		fclose(f);
 	} else
-		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
+		opbx_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 
 	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
 		daemon(0,0);
 		/* Blindly re-write pid file since we are forking */
-		unlink((char *)ast_config_AST_PID);
-		f = fopen((char *)ast_config_AST_PID, "w");
+		unlink((char *)opbx_config_OPBX_PID);
+		f = fopen((char *)opbx_config_OPBX_PID, "w");
 		if (f) {
 			fprintf(f, "%d\n", getpid());
 			fclose(f);
 		} else
-			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 	}
 
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
-		ast_verbose("Warning! OpenPBX is not thread safe.\n");
+		opbx_verbose("Warning! OpenPBX is not thread safe.\n");
 
-	ast_makesocket();
+	opbx_makesocket();
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
 	sigaddset(&sigs, SIGTERM);
@@ -2093,13 +2093,13 @@ int main(int argc, char *argv[])
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
 	if (option_console || option_verbose || option_remote)
-		ast_register_verbose(console_verboser);
+		opbx_register_verbose(console_verboser);
 	/* Print a welcome message if desired */
 	if (option_verbose || option_console) {
 		WELCOME_MESSAGE;
 	}
 	if (option_console && !option_verbose) 
-		ast_verbose("[ Booting...");
+		opbx_verbose("[ Booting...");
 
 	signal(SIGURG, urg_handler);
 	signal(SIGINT, __quit_handler);
@@ -2127,25 +2127,25 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
-	ast_channels_init();
+	opbx_channels_init();
 	if (init_manager()) {
 		printf(term_quit());
 		exit(1);
 	}
-	if (ast_cdr_engine_init()) {
+	if (opbx_cdr_engine_init()) {
 		printf(term_quit());
 		exit(1);
 	}
-	if (ast_device_state_engine_init()) {
+	if (opbx_device_state_engine_init()) {
 		printf(term_quit());
 		exit(1);
 	}
-	ast_rtp_init();
-	if (ast_image_init()) {
+	opbx_rtp_init();
+	if (opbx_image_init()) {
 		printf(term_quit());
 		exit(1);
 	}
-	if (ast_file_init()) {
+	if (opbx_file_init()) {
 		printf(term_quit());
 		exit(1);
 	}
@@ -2165,42 +2165,42 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
-	if (ast_enum_init()) {
+	if (opbx_enum_init()) {
 		printf(term_quit());
 		exit(1);
 	}
 #if 0
 	/* This should no longer be necessary */
 	/* sync cust config and reload some internals in case a custom config handler binded to them */
-	read_ast_cust_config();
+	read_opbx_cust_config();
 	reload_logger(0);
 	reload_manager();
-	ast_enum_reload();
-	ast_rtp_reload();
+	opbx_enum_reload();
+	opbx_rtp_reload();
 #endif
 
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
 	if (option_console && !option_verbose)
-		ast_verbose(" ]\n");
+		opbx_verbose(" ]\n");
 	if (option_verbose || option_console)
-		ast_verbose(term_color(tmp, "OpenPBX Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+		opbx_verbose(term_color(tmp, "OpenPBX Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	if (option_nofork)
 		consolethread = pthread_self();
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
-#ifdef __AST_DEBUG_MALLOC
-	__ast_mm_init();
+#ifdef __OPBX_DEBUG_MALLOC
+	__opbx_mm_init();
 #endif	
-	time(&ast_startuptime);
-	ast_cli_register_multiple(core_cli, sizeof(core_cli) / sizeof(core_cli[0]));
+	time(&opbx_startuptime);
+	opbx_cli_register_multiple(core_cli, sizeof(core_cli) / sizeof(core_cli[0]));
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
 		set_icon("OpenPBX");
-		snprintf(title, sizeof(title), "OpenPBX Console on '%s' (pid %d)", hostname, ast_mainpid);
+		snprintf(title, sizeof(title), "OpenPBX Console on '%s' (pid %d)", hostname, opbx_mainpid);
 		set_title(title);
 
 		for (;;) {
@@ -2220,7 +2220,7 @@ int main(int argc, char *argv[])
 						dup2(fd, STDOUT_FILENO);
 						dup2(fd, STDIN_FILENO);
 					} else
-						ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
+						opbx_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
 					break;
 				}
 			}

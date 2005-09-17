@@ -69,7 +69,7 @@ static int icesencode(char *filename, int fd)
 	int x;
 	res = fork();
 	if (res < 0) 
-		ast_log(LOG_WARNING, "Fork failed\n");
+		opbx_log(LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
 	dup2(fd, STDIN_FILENO);
@@ -83,11 +83,11 @@ static int icesencode(char *filename, int fd)
 	execl(LOCAL_ICES, "ices", filename, (char *)NULL);
 	/* As a last-ditch effort, try to use PATH */
 	execlp("ices", "ices", filename, (char *)NULL);
-	ast_log(LOG_WARNING, "Execute of ices failed\n");
+	opbx_log(LOG_WARNING, "Execute of ices failed\n");
 	return -1;
 }
 
-static int ices_exec(struct ast_channel *chan, void *data)
+static int ices_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -97,47 +97,47 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	int flags;
 	int oreadformat;
 	struct timeval last;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	char filename[256]="";
 	char *c;
 	last.tv_usec = 0;
 	last.tv_sec = 0;
 	if (!data || !strlen(data)) {
-		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
+		opbx_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
 	}
 	if (pipe(fds)) {
-		ast_log(LOG_WARNING, "Unable to create pipe\n");
+		opbx_log(LOG_WARNING, "Unable to create pipe\n");
 		return -1;
 	}
 	flags = fcntl(fds[1], F_GETFL);
 	fcntl(fds[1], F_SETFL, flags | O_NONBLOCK);
 	
 	LOCAL_USER_ADD(u);
-	ast_stopstream(chan);
+	opbx_stopstream(chan);
 
-	if (chan->_state != AST_STATE_UP)
-		res = ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		res = opbx_answer(chan);
 		
 	if (res) {
 		close(fds[0]);
 		close(fds[1]);
-		ast_log(LOG_WARNING, "Answer failed!\n");
+		opbx_log(LOG_WARNING, "Answer failed!\n");
 		return -1;
 	}
 
 	oreadformat = chan->readformat;
-	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+	res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR);
 	if (res < 0) {
 		close(fds[0]);
 		close(fds[1]);
-		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		opbx_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
 	}
 	if (((char *)data)[0] == '/')
 		strncpy(filename, (char *)data, sizeof(filename) - 1);
 	else
-		snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, (char *)data);
+		snprintf(filename, sizeof(filename), "%s/%s", (char *)opbx_config_OPBX_CONFIG_DIR, (char *)data);
 	/* Placeholder for options */		
 	c = strchr(filename, '|');
 	if (c)
@@ -148,29 +148,29 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		pid = res;
 		for (;;) {
 			/* Wait for audio, and stream */
-			ms = ast_waitfor(chan, -1);
+			ms = opbx_waitfor(chan, -1);
 			if (ms < 0) {
-				ast_log(LOG_DEBUG, "Hangup detected\n");
+				opbx_log(LOG_DEBUG, "Hangup detected\n");
 				res = -1;
 				break;
 			}
-			f = ast_read(chan);
+			f = opbx_read(chan);
 			if (!f) {
-				ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+				opbx_log(LOG_DEBUG, "Null frame == hangup() detected\n");
 				res = -1;
 				break;
 			}
-			if (f->frametype == AST_FRAME_VOICE) {
+			if (f->frametype == OPBX_FRAME_VOICE) {
 				res = write(fds[1], f->data, f->datalen);
 				if (res < 0) {
 					if (errno != EAGAIN) {
-						ast_log(LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
+						opbx_log(LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
 						res = -1;
 						break;
 					}
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 		}
 	}
 	close(fds[1]);
@@ -178,19 +178,19 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && oreadformat)
-		ast_set_read_format(chan, oreadformat);
+		opbx_set_read_format(chan, oreadformat);
 	return res;
 }
 
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, ices_exec, synopsis, descrip);
+	return opbx_register_application(app, ices_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -73,7 +73,7 @@ typedef struct hashhdr {		/* Disk resident portion */
 	int		sshift;		/* Segment shift */
 	int		ovfl_point;	/* Where overflow pages are being
 					 * allocated */
-	int		last_freed;	/* Last overflow page freed */
+	int		lopbx_freed;	/* Last overflow page freed */
 	int		max_bucket;	/* ID of Maximum bucket in use */
 	int		high_mask;	/* Mask to modulo into entire table */
 	int		low_mask;	/* Mask to modulo into lower half of
@@ -278,7 +278,7 @@ typedef struct htab	 {		/* Memory resident data structure */
 #define SSHIFT		hdr.sshift
 #define LORDER		hdr.lorder
 #define OVFL_POINT	hdr.ovfl_point
-#define	LAST_FREED	hdr.last_freed
+#define	LOPBX_FREED	hdr.lopbx_freed
 #define MAX_BUCKET	hdr.max_bucket
 #define FFACTOR		hdr.ffactor
 #define HIGH_MASK	hdr.high_mask

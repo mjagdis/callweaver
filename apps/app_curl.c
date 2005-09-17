@@ -85,7 +85,7 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
-static int curl_exec(struct ast_channel *chan, void *data)
+static int curl_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
@@ -93,15 +93,15 @@ static int curl_exec(struct ast_channel *chan, void *data)
 	char *info, *post_data=NULL, *url;
 
 	if (!data || !strlen((char *)data)) {
-		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
+		opbx_log(LOG_WARNING, "Curl requires an argument (URL)\n");
 		return -1;
 	}
 
-	if ((info = ast_strdupa((char *)data))) {
+	if ((info = opbx_strdupa((char *)data))) {
 		url = strsep(&info, "|");
 		post_data = info;
 	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
@@ -139,7 +139,7 @@ static int curl_exec(struct ast_channel *chan, void *data)
 			free(chunk.memory);
 		}
 	} else {
-		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
+		opbx_log(LOG_ERROR, "Cannot allocate curl structure\n");
 		res = -1;
 	}
 
@@ -150,12 +150,12 @@ static int curl_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, curl_exec, synopsis, descrip);
+	return opbx_register_application(app, curl_exec, synopsis, descrip);
 }
 
 char *description(void)

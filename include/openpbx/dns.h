@@ -23,7 +23,7 @@
 #ifndef _OPENPBX_DNS_H
 #define _OPENPBX_DNS_H
 
-struct ast_channel;
+struct opbx_channel;
 
 /*!	\brief	Perform DNS lookup (used by enum and SRV lookups) 
 	\param	context
@@ -32,7 +32,7 @@ struct ast_channel;
 	\param	type	Record type (see "man res_search")
 	\param	callback Callback function for handling DNS result
 */
-extern int ast_search_dns(void *context, const char *dname, int class, int type,
+extern int opbx_search_dns(void *context, const char *dname, int class, int type,
 	 int (*callback)(void *context, char *answer, int len, char *fullanswer));
 
 #endif /* _OPENPBX_DNS_H */

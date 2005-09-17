@@ -57,7 +57,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int setrdnis_exec(struct ast_channel *chan, void *data)
+static int setrdnis_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
 	char *opt, *n, *l;
@@ -65,12 +65,12 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
+		opbx_log(LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 
 	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+		opbx_copy_string(tmp, (char *)data, sizeof(tmp));
 	else
 		tmp[0] = '\0';
 	opt = strchr(tmp, '|');
@@ -78,14 +78,14 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 		*opt = '\0';
 	LOCAL_USER_ADD(u);
 	n = l = NULL;
-	ast_callerid_parse(tmp, &n, &l);
+	opbx_callerid_parse(tmp, &n, &l);
 	if (l) {
-		ast_shrink_phone_number(l);
-		ast_mutex_lock(&chan->lock);
+		opbx_shrink_phone_number(l);
+		opbx_mutex_lock(&chan->lock);
 		if (chan->cid.cid_rdnis)
 			free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = (l[0]) ? strdup(l) : NULL;
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 	}
 	LOCAL_USER_REMOVE(u);
 	return 0;
@@ -94,12 +94,12 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, setrdnis_exec, synopsis, descrip);
+	return opbx_register_application(app, setrdnis_exec, synopsis, descrip);
 }
 
 char *description(void)

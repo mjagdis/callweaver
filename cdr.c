@@ -48,32 +48,32 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/module.h"
 
-int ast_default_amaflags = AST_CDR_DOCUMENTATION;
-char ast_default_accountcode[AST_MAX_ACCOUNT_CODE] = "";
+int opbx_default_amaflags = OPBX_CDR_DOCUMENTATION;
+char opbx_default_accountcode[OPBX_MAX_ACCOUNT_CODE] = "";
 
-struct ast_cdr_beitem {
+struct opbx_cdr_beitem {
 	char name[20];
 	char desc[80];
-	ast_cdrbe be;
-	AST_LIST_ENTRY(ast_cdr_beitem) list;
+	opbx_cdrbe be;
+	OPBX_LIST_ENTRY(opbx_cdr_beitem) list;
 };
 
-static AST_LIST_HEAD_STATIC(be_list, ast_cdr_beitem);
+static OPBX_LIST_HEAD_STATIC(be_list, opbx_cdr_beitem);
 
-struct ast_cdr_batch_item {
-	struct ast_cdr *cdr;
-	struct ast_cdr_batch_item *next;
+struct opbx_cdr_batch_item {
+	struct opbx_cdr *cdr;
+	struct opbx_cdr_batch_item *next;
 };
 
-static struct ast_cdr_batch {
+static struct opbx_cdr_batch {
 	int size;
-	struct ast_cdr_batch_item *head;
-	struct ast_cdr_batch_item *tail;
+	struct opbx_cdr_batch_item *head;
+	struct opbx_cdr_batch_item *tail;
 } *batch = NULL;
 
 static struct sched_context *sched;
 static int cdr_sched = -1;
-static pthread_t cdr_thread = AST_PTHREADT_NULL;
+static pthread_t cdr_thread = OPBX_PTHREADT_NULL;
 
 #define BATCH_SIZE_DEFAULT 100
 #define BATCH_TIME_DEFAULT 300
@@ -87,10 +87,10 @@ static int batchtime;
 static int batchscheduleronly;
 static int batchsafeshutdown;
 
-AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
+OPBX_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 
 /* these are used to wake up the CDR thread when there's work to do */
-AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
+OPBX_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static pthread_cond_t cdr_pending_cond;
 
 /*
@@ -100,26 +100,26 @@ static pthread_cond_t cdr_pending_cond;
  * isn't properly generated and posted.
  */
 
-int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
+int opbx_cdr_register(char *name, char *desc, opbx_cdrbe be)
 {
-	struct ast_cdr_beitem *i;
+	struct opbx_cdr_beitem *i;
 
 	if (!name)
 		return -1;
 	if (!be) {
-		ast_log(LOG_WARNING, "CDR engine '%s' lacks backend\n", name);
+		opbx_log(LOG_WARNING, "CDR engine '%s' lacks backend\n", name);
 		return -1;
 	}
 
-	AST_LIST_LOCK(&be_list);
-	AST_LIST_TRAVERSE(&be_list, i, list) {
+	OPBX_LIST_LOCK(&be_list);
+	OPBX_LIST_TRAVERSE(&be_list, i, list) {
 		if (!strcasecmp(name, i->name))
 			break;
 	}
-	AST_LIST_UNLOCK(&be_list);
+	OPBX_LIST_UNLOCK(&be_list);
 
 	if (i) {
-		ast_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
+		opbx_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
 		return -1;
 	}
 
@@ -129,64 +129,64 @@ int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
 
 	memset(i, 0, sizeof(*i));
 	i->be = be;
-	ast_copy_string(i->name, name, sizeof(i->name));
-	ast_copy_string(i->desc, desc, sizeof(i->desc));
+	opbx_copy_string(i->name, name, sizeof(i->name));
+	opbx_copy_string(i->desc, desc, sizeof(i->desc));
 
-	AST_LIST_LOCK(&be_list);
-	AST_LIST_INSERT_HEAD(&be_list, i, list);
-	AST_LIST_UNLOCK(&be_list);
+	OPBX_LIST_LOCK(&be_list);
+	OPBX_LIST_INSERT_HEAD(&be_list, i, list);
+	OPBX_LIST_UNLOCK(&be_list);
 
 	return 0;
 }
 
-void ast_cdr_unregister(char *name)
+void opbx_cdr_unregister(char *name)
 {
-	struct ast_cdr_beitem *i = NULL;
+	struct opbx_cdr_beitem *i = NULL;
 
-	AST_LIST_LOCK(&be_list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
+	OPBX_LIST_LOCK(&be_list);
+	OPBX_LIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
 		if (!strcasecmp(name, i->name)) {
-			AST_LIST_REMOVE_CURRENT(&be_list, list);
+			OPBX_LIST_REMOVE_CURRENT(&be_list, list);
 			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
+				opbx_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
 			free(i);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&be_list);
+	OPBX_LIST_TRAVERSE_SAFE_END;
+	OPBX_LIST_UNLOCK(&be_list);
 }
 
-struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr) 
+struct opbx_cdr *opbx_cdr_dup(struct opbx_cdr *cdr) 
 {
-	struct ast_cdr *newcdr;
+	struct opbx_cdr *newcdr;
 
-	if (!(newcdr = ast_cdr_alloc())) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
+	if (!(newcdr = opbx_cdr_alloc())) {
+		opbx_log(LOG_ERROR, "Memory Error!\n");
 		return NULL;
 	}
 
 	memcpy(newcdr, cdr, sizeof(*newcdr));
 	/* The varshead is unusable, volatile even, after the memcpy so we take care of that here */
 	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
-	ast_cdr_copy_vars(newcdr, cdr);
+	opbx_cdr_copy_vars(newcdr, cdr);
 
 	return newcdr;
 }
 
-static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name, int recur) 
+static const char *opbx_cdr_getvar_internal(struct opbx_cdr *cdr, const char *name, int recur) 
 {
-	struct ast_var_t *variables;
+	struct opbx_var_t *variables;
 	struct varshead *headp;
 
-	if (!name || ast_strlen_zero(name))
+	if (!name || opbx_strlen_zero(name))
 		return NULL;
 
 	while (cdr) {
 		headp = &cdr->varshead;
-		AST_LIST_TRAVERSE(headp, variables, entries) {
-			if (!strcasecmp(name, ast_var_name(variables)))
-				return ast_var_value(variables);
+		OPBX_LIST_TRAVERSE(headp, variables, entries) {
+			if (!strcasecmp(name, opbx_var_name(variables)))
+				return opbx_var_value(variables);
 		}
 		if (!recur)
 			break;
@@ -196,7 +196,7 @@ static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name
 	return NULL;
 }
 
-void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur) 
+void opbx_cdr_getvar(struct opbx_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur) 
 {
 	struct tm tm;
 	time_t t;
@@ -204,25 +204,25 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 	const char *varbuf;
 
 	*ret = NULL;
-	/* special vars (the ones from the struct ast_cdr when requested by name) 
+	/* special vars (the ones from the struct opbx_cdr when requested by name) 
 	   I'd almost say we should convert all the stringed vals to vars */
 
 	if (!strcasecmp(name, "clid"))
-		ast_copy_string(workspace, cdr->clid, workspacelen);
+		opbx_copy_string(workspace, cdr->clid, workspacelen);
 	else if (!strcasecmp(name, "src"))
-		ast_copy_string(workspace, cdr->src, workspacelen);
+		opbx_copy_string(workspace, cdr->src, workspacelen);
 	else if (!strcasecmp(name, "dst"))
-		ast_copy_string(workspace, cdr->dst, workspacelen);
+		opbx_copy_string(workspace, cdr->dst, workspacelen);
 	else if (!strcasecmp(name, "dcontext"))
-		ast_copy_string(workspace, cdr->dcontext, workspacelen);
+		opbx_copy_string(workspace, cdr->dcontext, workspacelen);
 	else if (!strcasecmp(name, "channel"))
-		ast_copy_string(workspace, cdr->channel, workspacelen);
+		opbx_copy_string(workspace, cdr->channel, workspacelen);
 	else if (!strcasecmp(name, "dstchannel"))
-		ast_copy_string(workspace, cdr->dstchannel, workspacelen);
+		opbx_copy_string(workspace, cdr->dstchannel, workspacelen);
 	else if (!strcasecmp(name, "lastapp"))
-		ast_copy_string(workspace, cdr->lastapp, workspacelen);
+		opbx_copy_string(workspace, cdr->lastapp, workspacelen);
 	else if (!strcasecmp(name, "lastdata"))
-		ast_copy_string(workspace, cdr->lastdata, workspacelen);
+		opbx_copy_string(workspace, cdr->lastdata, workspacelen);
 	else if (!strcasecmp(name, "start")) {
 		t = cdr->start.tv_sec;
 		if (t) {
@@ -246,25 +246,25 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 	else if (!strcasecmp(name, "billsec"))
 		snprintf(workspace, workspacelen, "%d", cdr->billsec);
 	else if (!strcasecmp(name, "disposition"))
-		ast_copy_string(workspace, ast_cdr_disp2str(cdr->disposition), workspacelen);
+		opbx_copy_string(workspace, opbx_cdr_disp2str(cdr->disposition), workspacelen);
 	else if (!strcasecmp(name, "amaflags"))
-		ast_copy_string(workspace, ast_cdr_flags2str(cdr->amaflags), workspacelen);
+		opbx_copy_string(workspace, opbx_cdr_flags2str(cdr->amaflags), workspacelen);
 	else if (!strcasecmp(name, "accountcode"))
-		ast_copy_string(workspace, cdr->accountcode, workspacelen);
+		opbx_copy_string(workspace, cdr->accountcode, workspacelen);
 	else if (!strcasecmp(name, "uniqueid"))
-		ast_copy_string(workspace, cdr->uniqueid, workspacelen);
+		opbx_copy_string(workspace, cdr->uniqueid, workspacelen);
 	else if (!strcasecmp(name, "userfield"))
-		ast_copy_string(workspace, cdr->userfield, workspacelen);
-	else if ((varbuf = ast_cdr_getvar_internal(cdr, name, recur)))
-		ast_copy_string(workspace, varbuf, workspacelen);
+		opbx_copy_string(workspace, cdr->userfield, workspacelen);
+	else if ((varbuf = opbx_cdr_getvar_internal(cdr, name, recur)))
+		opbx_copy_string(workspace, varbuf, workspacelen);
 
-	if (!ast_strlen_zero(workspace))
+	if (!opbx_strlen_zero(workspace))
 		*ret = workspace;
 }
 
-int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur) 
+int opbx_cdr_setvar(struct opbx_cdr *cdr, const char *name, const char *value, int recur) 
 {
-	struct ast_var_t *newvariable;
+	struct opbx_var_t *newvariable;
 	struct varshead *headp;
 	const char *read_only[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
 				    "lastapp", "lastdata", "start", "answer", "end", "duration",
@@ -274,31 +274,31 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	
 	for(x = 0; read_only[x]; x++) {
 		if (!strcasecmp(name, read_only[x])) {
-			ast_log(LOG_ERROR, "Attempt to set a read-only variable!.\n");
+			opbx_log(LOG_ERROR, "Attempt to set a read-only variable!.\n");
 			return -1;
 		}
 	}
 
 	if (!cdr) {
-		ast_log(LOG_ERROR, "Attempt to set a variable on a nonexistent CDR record.\n");
+		opbx_log(LOG_ERROR, "Attempt to set a variable on a nonexistent CDR record.\n");
 		return -1;
 	}
 
 	while (cdr) {
 		headp = &cdr->varshead;
-		AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
-			if (!strcasecmp(ast_var_name(newvariable), name)) {
+		OPBX_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
+			if (!strcasecmp(opbx_var_name(newvariable), name)) {
 				/* there is already such a variable, delete it */
-				AST_LIST_REMOVE_CURRENT(headp, entries);
-				ast_var_delete(newvariable);
+				OPBX_LIST_REMOVE_CURRENT(headp, entries);
+				opbx_var_delete(newvariable);
 				break;
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END;
+		OPBX_LIST_TRAVERSE_SAFE_END;
 
 		if (value) {
-			newvariable = ast_var_assign(name, value);
-			AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+			newvariable = opbx_var_assign(name, value);
+			OPBX_LIST_INSERT_HEAD(headp, newvariable, entries);
 		}
 
 		if (!recur) {
@@ -311,9 +311,9 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	return 0;
 }
 
-int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
+int opbx_cdr_copy_vars(struct opbx_cdr *to_cdr, struct opbx_cdr *from_cdr)
 {
-	struct ast_var_t *variables, *newvariable = NULL;
+	struct opbx_var_t *variables, *newvariable = NULL;
 	struct varshead *headpa, *headpb;
 	char *var, *val;
 	int x = 0;
@@ -321,12 +321,12 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 	headpa = &from_cdr->varshead;
 	headpb = &to_cdr->varshead;
 
-	AST_LIST_TRAVERSE(headpa,variables,entries) {
+	OPBX_LIST_TRAVERSE(headpa,variables,entries) {
 		if (variables &&
-		    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
-		    !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
-			newvariable = ast_var_assign(var, val);
-			AST_LIST_INSERT_HEAD(headpb, newvariable, entries);
+		    (var = opbx_var_name(variables)) && (val = opbx_var_value(variables)) &&
+		    !opbx_strlen_zero(var) && !opbx_strlen_zero(val)) {
+			newvariable = opbx_var_assign(var, val);
+			OPBX_LIST_INSERT_HEAD(headpb, newvariable, entries);
 			x++;
 		}
 	}
@@ -334,9 +334,9 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 	return x;
 }
 
-int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
+int opbx_cdr_serialize_variables(struct opbx_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
 {
-	struct ast_var_t *variables;
+	struct opbx_var_t *variables;
 	char *var, *val;
 	char *tmp;
 	char workspace[256];
@@ -366,14 +366,14 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 
 	for (; cdr; cdr = recur ? cdr->next : NULL) {
 		if (++x > 1)
-			ast_build_string(&buf, &size, "\n");
+			opbx_build_string(&buf, &size, "\n");
 
-		AST_LIST_TRAVERSE(&cdr->varshead, variables, entries) {
+		OPBX_LIST_TRAVERSE(&cdr->varshead, variables, entries) {
 			if (variables &&
-			    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
-			    !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
-				if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, var, delim, val, sep)) {
- 					ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
+			    (var = opbx_var_name(variables)) && (val = opbx_var_value(variables)) &&
+			    !opbx_strlen_zero(var) && !opbx_strlen_zero(val)) {
+				if (opbx_build_string(&buf, &size, "level %d: %s%c%s%c", x, var, delim, val, sep)) {
+ 					opbx_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
  					break;
 				} else
 					total++;
@@ -382,12 +382,12 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 		}
 
 		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
-			ast_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
+			opbx_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
 			if (!tmp)
 				continue;
 			
-			if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep)) {
-				ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
+			if (opbx_build_string(&buf, &size, "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep)) {
+				opbx_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;
 			} else
 				total++;
@@ -398,17 +398,17 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 }
 
 
-void ast_cdr_free_vars(struct ast_cdr *cdr, int recur)
+void opbx_cdr_free_vars(struct opbx_cdr *cdr, int recur)
 {
 	struct varshead *headp;
-	struct ast_var_t *vardata;
+	struct opbx_var_t *vardata;
 
 	/* clear variables */
 	while (cdr) {
 		headp = &cdr->varshead;
-		while (!AST_LIST_EMPTY(headp)) {
-			vardata = AST_LIST_REMOVE_HEAD(headp, entries);
-			ast_var_delete(vardata);
+		while (!OPBX_LIST_EMPTY(headp)) {
+			vardata = OPBX_LIST_REMOVE_HEAD(headp, entries);
+			opbx_var_delete(vardata);
 		}
 
 		if (!recur) {
@@ -419,30 +419,30 @@ void ast_cdr_free_vars(struct ast_cdr *cdr, int recur)
 	}
 }
 
-void ast_cdr_free(struct ast_cdr *cdr)
+void opbx_cdr_free(struct opbx_cdr *cdr)
 {
 	char *chan;
-	struct ast_cdr *next; 
+	struct opbx_cdr *next; 
 
 	while (cdr) {
 		next = cdr->next;
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED) && !ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
-		if (ast_tvzero(cdr->end))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (ast_tvzero(cdr->start))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED) && !opbx_test_flag(cdr, OPBX_CDR_FLAG_POST_DISABLED))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
+		if (opbx_tvzero(cdr->end))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
+		if (opbx_tvzero(cdr->start))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 
-		ast_cdr_free_vars(cdr, 0);
+		opbx_cdr_free_vars(cdr, 0);
 		free(cdr);
 		cdr = next;
 	}
 }
 
-struct ast_cdr *ast_cdr_alloc(void)
+struct opbx_cdr *opbx_cdr_alloc(void)
 {
-	struct ast_cdr *cdr;
+	struct opbx_cdr *cdr;
 
 	cdr = malloc(sizeof(*cdr));
 	if (cdr)
@@ -451,147 +451,147 @@ struct ast_cdr *ast_cdr_alloc(void)
 	return cdr;
 }
 
-void ast_cdr_start(struct ast_cdr *cdr)
+void opbx_cdr_start(struct opbx_cdr *cdr)
 {
 	char *chan; 
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-			if (!ast_tvzero(cdr->start))
-				ast_log(LOG_WARNING, "CDR on channel '%s' already started\n", chan);
-			cdr->start = ast_tvnow();
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
+			chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+				opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			if (!opbx_tvzero(cdr->start))
+				opbx_log(LOG_WARNING, "CDR on channel '%s' already started\n", chan);
+			cdr->start = opbx_tvnow();
 		}
 		cdr = cdr->next;
 	}
 }
 
-void ast_cdr_answer(struct ast_cdr *cdr)
+void opbx_cdr_answer(struct opbx_cdr *cdr)
 {
 	char *chan; 
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (cdr->disposition < AST_CDR_ANSWERED)
-			cdr->disposition = AST_CDR_ANSWERED;
-		if (ast_tvzero(cdr->answer))
-			cdr->answer = ast_tvnow();
+		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (cdr->disposition < OPBX_CDR_ANSWERED)
+			cdr->disposition = OPBX_CDR_ANSWERED;
+		if (opbx_tvzero(cdr->answer))
+			cdr->answer = opbx_tvnow();
 		cdr = cdr->next;
 	}
 }
 
-void ast_cdr_busy(struct ast_cdr *cdr)
+void opbx_cdr_busy(struct opbx_cdr *cdr)
 {
 	char *chan; 
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-			if (cdr->disposition < AST_CDR_BUSY)
-				cdr->disposition = AST_CDR_BUSY;
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
+			chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+				opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			if (cdr->disposition < OPBX_CDR_BUSY)
+				cdr->disposition = OPBX_CDR_BUSY;
 		}
 		cdr = cdr->next;
 	}
 }
 
-void ast_cdr_failed(struct ast_cdr *cdr)
+void opbx_cdr_failed(struct opbx_cdr *cdr)
 {
 	char *chan; 
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
-			cdr->disposition = AST_CDR_FAILED;
+		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED))
+			cdr->disposition = OPBX_CDR_FAILED;
 		cdr = cdr->next;
 	}
 }
 
-int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
+int opbx_cdr_disposition(struct opbx_cdr *cdr, int cause)
 {
 	int res = 0;
 
 	while (cdr) {
 		switch(cause) {
-		case AST_CAUSE_BUSY:
-			ast_cdr_busy(cdr);
+		case OPBX_CAUSE_BUSY:
+			opbx_cdr_busy(cdr);
 			break;
-		case AST_CAUSE_FAILURE:
-			ast_cdr_failed(cdr);
+		case OPBX_CAUSE_FAILURE:
+			opbx_cdr_failed(cdr);
 			break;
-		case AST_CAUSE_NORMAL:
+		case OPBX_CAUSE_NORMAL:
 			break;
-		case AST_CAUSE_NOTDEFINED:
+		case OPBX_CAUSE_NOTDEFINED:
 			res = -1;
 			break;
 		default:
 			res = -1;
-			ast_log(LOG_WARNING, "Cause not handled\n");
+			opbx_log(LOG_WARNING, "Cause not handled\n");
 		}
 		cdr = cdr->next;
 	}
 	return res;
 }
 
-void ast_cdr_setdestchan(struct ast_cdr *cdr, char *chann)
+void opbx_cdr_setdestchan(struct opbx_cdr *cdr, char *chann)
 {
 	char *chan; 
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
-			ast_copy_string(cdr->dstchannel, chann, sizeof(cdr->dstchannel));
+		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED))
+			opbx_copy_string(cdr->dstchannel, chann, sizeof(cdr->dstchannel));
 		cdr = cdr->next;
 	}
 }
 
-void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
+void opbx_cdr_setapp(struct opbx_cdr *cdr, char *app, char *data)
 {
 	char *chan; 
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
+			chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+				opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 			if (!app)
 				app = "";
-			ast_copy_string(cdr->lastapp, app, sizeof(cdr->lastapp));
+			opbx_copy_string(cdr->lastapp, app, sizeof(cdr->lastapp));
 			if (!data)
 				data = "";
-			ast_copy_string(cdr->lastdata, data, sizeof(cdr->lastdata));
+			opbx_copy_string(cdr->lastdata, data, sizeof(cdr->lastdata));
 		}
 		cdr = cdr->next;
 	}
 }
 
-int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
+int opbx_cdr_setcid(struct opbx_cdr *cdr, struct opbx_channel *c)
 {
-	char tmp[AST_MAX_EXTENSION] = "";
+	char tmp[OPBX_MAX_EXTENSION] = "";
 	char *num;
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
 			/* Grab source from ANI or normal Caller*ID */
 			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
 			
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
-				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
+				opbx_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
 			else if (num)
-				ast_copy_string(tmp, num, sizeof(tmp));
-			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
+				opbx_copy_string(tmp, num, sizeof(tmp));
+			opbx_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
+			opbx_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
 		}
 		cdr = cdr->next;
 	}
@@ -600,134 +600,134 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 }
 
 
-int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
+int opbx_cdr_init(struct opbx_cdr *cdr, struct opbx_channel *c)
 {
 	char *chan;
 	char *num;
-	char tmp[AST_MAX_EXTENSION] = "";
+	char tmp[OPBX_MAX_EXTENSION] = "";
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (!ast_strlen_zero(cdr->channel)) 
-				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
-			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
+			chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			if (!opbx_strlen_zero(cdr->channel)) 
+				opbx_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
+			opbx_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
 			/* Grab source from ANI or normal Caller*ID */
 			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
 			
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
-				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
+				opbx_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
 			else if (num)
-				ast_copy_string(tmp, num, sizeof(tmp));
-			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
+				opbx_copy_string(tmp, num, sizeof(tmp));
+			opbx_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
+			opbx_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
 
-			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
-			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
-			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
+			cdr->disposition = (c->_state == OPBX_STATE_UP) ?  OPBX_CDR_ANSWERED : OPBX_CDR_NOANSWER;
+			cdr->amaflags = c->amaflags ? c->amaflags :  opbx_default_amaflags;
+			opbx_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
-			ast_copy_string(cdr->dst, c->exten, sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, c->context, sizeof(cdr->dcontext));
+			opbx_copy_string(cdr->dst, c->exten, sizeof(cdr->dst));
+			opbx_copy_string(cdr->dcontext, c->context, sizeof(cdr->dcontext));
 			/* Unique call identifier */
-			ast_copy_string(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid));
+			opbx_copy_string(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid));
 		}
 		cdr = cdr->next;
 	}
 	return 0;
 }
 
-void ast_cdr_end(struct ast_cdr *cdr)
+void opbx_cdr_end(struct opbx_cdr *cdr)
 {
 	char *chan;
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (ast_tvzero(cdr->start))
-			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
-		if (ast_tvzero(cdr->end))
-			cdr->end = ast_tvnow();
+		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (opbx_tvzero(cdr->start))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
+		if (opbx_tvzero(cdr->end))
+			cdr->end = opbx_tvnow();
 		cdr = cdr->next;
 	}
 }
 
-char *ast_cdr_disp2str(int disposition)
+char *opbx_cdr_disp2str(int disposition)
 {
 	switch (disposition) {
-	case AST_CDR_NOANSWER:
+	case OPBX_CDR_NOANSWER:
 		return "NO ANSWER";
-	case AST_CDR_FAILED:
+	case OPBX_CDR_FAILED:
 		return "FAILED";		
-	case AST_CDR_BUSY:
+	case OPBX_CDR_BUSY:
 		return "BUSY";		
-	case AST_CDR_ANSWERED:
+	case OPBX_CDR_ANSWERED:
 		return "ANSWERED";
 	}
 	return "UNKNOWN";
 }
 
-char *ast_cdr_flags2str(int flag)
+char *opbx_cdr_flags2str(int flag)
 {
 	switch(flag) {
-	case AST_CDR_OMIT:
+	case OPBX_CDR_OMIT:
 		return "OMIT";
-	case AST_CDR_BILLING:
+	case OPBX_CDR_BILLING:
 		return "BILLING";
-	case AST_CDR_DOCUMENTATION:
+	case OPBX_CDR_DOCUMENTATION:
 		return "DOCUMENTATION";
 	}
 	return "Unknown";
 }
 
-int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
+int opbx_cdr_setaccount(struct opbx_channel *chan, const char *account)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct opbx_cdr *cdr = chan->cdr;
 
-	ast_copy_string(chan->accountcode, account, sizeof(chan->accountcode));
+	opbx_copy_string(chan->accountcode, account, sizeof(chan->accountcode));
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
-			ast_copy_string(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode));
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED))
+			opbx_copy_string(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode));
 		cdr = cdr->next;
 	}
 	return 0;
 }
 
-int ast_cdr_setamaflags(struct ast_channel *chan, const char *flag)
+int opbx_cdr_setamaflags(struct opbx_channel *chan, const char *flag)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct opbx_cdr *cdr = chan->cdr;
 	int newflag;
 
-	newflag = ast_cdr_amaflags2int(flag);
+	newflag = opbx_cdr_amaflags2int(flag);
 	if (newflag)
 		cdr->amaflags = newflag;
 
 	return 0;
 }
 
-int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield)
+int opbx_cdr_setuserfield(struct opbx_channel *chan, const char *userfield)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct opbx_cdr *cdr = chan->cdr;
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) 
-			ast_copy_string(cdr->userfield, userfield, sizeof(cdr->userfield));
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) 
+			opbx_copy_string(cdr->userfield, userfield, sizeof(cdr->userfield));
 		cdr = cdr->next;
 	}
 
 	return 0;
 }
 
-int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
+int opbx_cdr_appenduserfield(struct opbx_channel *chan, const char *userfield)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct opbx_cdr *cdr = chan->cdr;
 
 	while (cdr) {
 		int len = strlen(cdr->userfield);
 
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED))
 			strncpy(cdr->userfield+len, userfield, sizeof(cdr->userfield) - len - 1);
 
 		cdr = cdr->next;
@@ -736,30 +736,30 @@ int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 	return 0;
 }
 
-int ast_cdr_update(struct ast_channel *c)
+int opbx_cdr_update(struct opbx_channel *c)
 {
-	struct ast_cdr *cdr = c->cdr;
+	struct opbx_cdr *cdr = c->cdr;
 	char *num;
-	char tmp[AST_MAX_EXTENSION] = "";
+	char tmp[OPBX_MAX_EXTENSION] = "";
 
 	while (cdr) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+		if (!opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
 			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
 			
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
-				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
+				opbx_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
 			else if (num)
-				ast_copy_string(tmp, num, sizeof(tmp));
-			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
+				opbx_copy_string(tmp, num, sizeof(tmp));
+			opbx_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
+			opbx_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
 
 			/* Copy account code et-al */	
-			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
+			opbx_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
-			ast_copy_string(cdr->dst, (ast_strlen_zero(c->macroexten)) ? c->exten : c->macroexten, sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, (ast_strlen_zero(c->macrocontext)) ? c->context : c->macrocontext, sizeof(cdr->dcontext));
+			opbx_copy_string(cdr->dst, (opbx_strlen_zero(c->macroexten)) ? c->exten : c->macroexten, sizeof(cdr->dst));
+			opbx_copy_string(cdr->dcontext, (opbx_strlen_zero(c->macrocontext)) ? c->context : c->macrocontext, sizeof(cdr->dcontext));
 		}
 		cdr = cdr->next;
 	}
@@ -767,87 +767,87 @@ int ast_cdr_update(struct ast_channel *c)
 	return 0;
 }
 
-int ast_cdr_amaflags2int(const char *flag)
+int opbx_cdr_amaflags2int(const char *flag)
 {
 	if (!strcasecmp(flag, "default"))
 		return 0;
 	if (!strcasecmp(flag, "omit"))
-		return AST_CDR_OMIT;
+		return OPBX_CDR_OMIT;
 	if (!strcasecmp(flag, "billing"))
-		return AST_CDR_BILLING;
+		return OPBX_CDR_BILLING;
 	if (!strcasecmp(flag, "documentation"))
-		return AST_CDR_DOCUMENTATION;
+		return OPBX_CDR_DOCUMENTATION;
 	return -1;
 }
 
-static void post_cdr(struct ast_cdr *cdr)
+static void post_cdr(struct opbx_cdr *cdr)
 {
 	char *chan;
-	struct ast_cdr_beitem *i;
+	struct opbx_cdr_beitem *i;
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (ast_tvzero(cdr->end))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (ast_tvzero(cdr->start))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (opbx_test_flag(cdr, OPBX_CDR_FLAG_POSTED))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (opbx_tvzero(cdr->end))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
+		if (opbx_tvzero(cdr->start))
+			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
-		if (!ast_tvzero(cdr->answer))
+		if (!opbx_tvzero(cdr->answer))
 			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
 		else
 			cdr->billsec = 0;
-		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
-		AST_LIST_LOCK(&be_list);
-		AST_LIST_TRAVERSE(&be_list, i, list) {
+		opbx_set_flag(cdr, OPBX_CDR_FLAG_POSTED);
+		OPBX_LIST_LOCK(&be_list);
+		OPBX_LIST_TRAVERSE(&be_list, i, list) {
 			i->be(cdr);
 		}
-		AST_LIST_UNLOCK(&be_list);
+		OPBX_LIST_UNLOCK(&be_list);
 		cdr = cdr->next;
 	}
 }
 
-void ast_cdr_reset(struct ast_cdr *cdr, int flags)
+void opbx_cdr_reset(struct opbx_cdr *cdr, int flags)
 {
-	struct ast_flags tmp = {flags};
-	struct ast_cdr *dup;
+	struct opbx_flags tmp = {flags};
+	struct opbx_cdr *dup;
 
 
 	while (cdr) {
 		/* Detach if post is requested */
-		if (ast_test_flag(&tmp, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			if (ast_test_flag(&tmp, AST_CDR_FLAG_POSTED)) {
-				ast_cdr_end(cdr);
-				if ((dup = ast_cdr_dup(cdr))) {
-					ast_cdr_detach(dup);
+		if (opbx_test_flag(&tmp, OPBX_CDR_FLAG_LOCKED) || !opbx_test_flag(cdr, OPBX_CDR_FLAG_LOCKED)) {
+			if (opbx_test_flag(&tmp, OPBX_CDR_FLAG_POSTED)) {
+				opbx_cdr_end(cdr);
+				if ((dup = opbx_cdr_dup(cdr))) {
+					opbx_cdr_detach(dup);
 				}
-				ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
+				opbx_set_flag(cdr, OPBX_CDR_FLAG_POSTED);
 			}
 
 			/* clear variables */
-			if (!ast_test_flag(&tmp, AST_CDR_FLAG_KEEP_VARS)) {
-				ast_cdr_free_vars(cdr, 0);
+			if (!opbx_test_flag(&tmp, OPBX_CDR_FLAG_KEEP_VARS)) {
+				opbx_cdr_free_vars(cdr, 0);
 			}
 
 			/* Reset to initial state */
-			ast_clear_flag(cdr, AST_FLAGS_ALL);	
+			opbx_clear_flag(cdr, OPBX_FLAGS_ALL);	
 			memset(&cdr->start, 0, sizeof(cdr->start));
 			memset(&cdr->end, 0, sizeof(cdr->end));
 			memset(&cdr->answer, 0, sizeof(cdr->answer));
 			cdr->billsec = 0;
 			cdr->duration = 0;
-			ast_cdr_start(cdr);
-			cdr->disposition = AST_CDR_NOANSWER;
+			opbx_cdr_start(cdr);
+			cdr->disposition = OPBX_CDR_NOANSWER;
 		}
 			
 		cdr = cdr->next;
 	}
 }
 
-struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr) 
+struct opbx_cdr *opbx_cdr_append(struct opbx_cdr *cdr, struct opbx_cdr *newcdr) 
 {
-	struct ast_cdr *ret;
+	struct opbx_cdr *ret;
 
 	if (cdr) {
 		ret = cdr;
@@ -876,7 +876,7 @@ static int init_batch(void)
 	/* This is the single meta-batch used to keep track of all CDRs during the entire life of the program */
 	batch = malloc(sizeof(*batch));
 	if (!batch) {
-		ast_log(LOG_WARNING, "CDR: out of memory while trying to handle batched records, data will most likely be lost\n");
+		opbx_log(LOG_WARNING, "CDR: out of memory while trying to handle batched records, data will most likely be lost\n");
 		return -1;
 	}
 
@@ -887,13 +887,13 @@ static int init_batch(void)
 
 static void *do_batch_backend_process(void *data)
 {
-	struct ast_cdr_batch_item *processeditem;
-	struct ast_cdr_batch_item *batchitem = data;
+	struct opbx_cdr_batch_item *processeditem;
+	struct opbx_cdr_batch_item *batchitem = data;
 
 	/* Push each CDR into storage mechanism(s) and free all the memory */
 	while (batchitem) {
 		post_cdr(batchitem->cdr);
-		ast_cdr_free(batchitem->cdr);
+		opbx_cdr_free(batchitem->cdr);
 		processeditem = batchitem;
 		batchitem = batchitem->next;
 		free(processeditem);
@@ -902,46 +902,46 @@ static void *do_batch_backend_process(void *data)
 	return NULL;
 }
 
-void ast_cdr_submit_batch(int shutdown)
+void opbx_cdr_submit_batch(int shutdown)
 {
-	struct ast_cdr_batch_item *oldbatchitems = NULL;
+	struct opbx_cdr_batch_item *oldbatchitems = NULL;
 	pthread_attr_t attr;
-	pthread_t batch_post_thread = AST_PTHREADT_NULL;
+	pthread_t batch_post_thread = OPBX_PTHREADT_NULL;
 
 	/* if there's no batch, or no CDRs in the batch, then there's nothing to do */
 	if (!batch || !batch->head)
 		return;
 
 	/* move the old CDRs aside, and prepare a new CDR batch */
-	ast_mutex_lock(&cdr_batch_lock);
+	opbx_mutex_lock(&cdr_batch_lock);
 	oldbatchitems = batch->head;
 	reset_batch();
-	ast_mutex_unlock(&cdr_batch_lock);
+	opbx_mutex_unlock(&cdr_batch_lock);
 
 	/* if configured, spawn a new thread to post these CDRs,
 	   also try to save as much as possible if we are shutting down safely */
 	if (batchscheduleronly || shutdown) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
+			opbx_log(LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
 		do_batch_backend_process(oldbatchitems);
 	} else {
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
-			ast_log(LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
+		if (opbx_pthread_create(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
+			opbx_log(LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
 			do_batch_backend_process(oldbatchitems);
 		} else {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
+				opbx_log(LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
 		}
 	}
 }
 
 static int submit_scheduled_batch(void *data)
 {
-	ast_cdr_submit_batch(0);
+	opbx_cdr_submit_batch(0);
 	/* manually reschedule from this point in time */
-	cdr_sched = ast_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
+	cdr_sched = opbx_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
 	/* returning zero so the scheduler does not automatically reschedule */
 	return 0;
 }
@@ -950,52 +950,52 @@ static void submit_unscheduled_batch(void)
 {
 	/* this is okay since we are not being called from within the scheduler */
 	if (cdr_sched > -1)
-		ast_sched_del(sched, cdr_sched);
+		opbx_sched_del(sched, cdr_sched);
 	/* schedule the submission to occur ASAP (1 ms) */
-	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
+	cdr_sched = opbx_sched_add(sched, 1, submit_scheduled_batch, NULL);
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
-	ast_mutex_lock(&cdr_pending_lock);
+	opbx_mutex_lock(&cdr_pending_lock);
 	pthread_cond_signal(&cdr_pending_cond);
-	ast_mutex_unlock(&cdr_pending_lock);
+	opbx_mutex_unlock(&cdr_pending_lock);
 }
 
-void ast_cdr_detach(struct ast_cdr *cdr)
+void opbx_cdr_detach(struct opbx_cdr *cdr)
 {
-	struct ast_cdr_batch_item *newtail;
+	struct opbx_cdr_batch_item *newtail;
 	int curr;
 
 	/* maybe they disabled CDR stuff completely, so just drop it */
 	if (!enabled) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Dropping CDR !\n");
-		ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
-		ast_cdr_free(cdr);
+			opbx_log(LOG_DEBUG, "Dropping CDR !\n");
+		opbx_set_flag(cdr, OPBX_CDR_FLAG_POST_DISABLED);
+		opbx_cdr_free(cdr);
 		return;
 	}
 
 	/* post stuff immediately if we are not in batch mode, this is legacy behaviour */
 	if (!batchmode) {
 		post_cdr(cdr);
-		ast_cdr_free(cdr);
+		opbx_cdr_free(cdr);
 		return;
 	}
 
 	/* otherwise, each CDR gets put into a batch list (at the end) */
 	if (option_debug)
-		ast_log(LOG_DEBUG, "CDR detaching from this thread\n");
+		opbx_log(LOG_DEBUG, "CDR detaching from this thread\n");
 
 	/* we'll need a new tail for every CDR */
 	newtail = malloc(sizeof(*newtail));
 	if (!newtail) {
-		ast_log(LOG_WARNING, "CDR: out of memory while trying to detach, will try in this thread instead\n");
+		opbx_log(LOG_WARNING, "CDR: out of memory while trying to detach, will try in this thread instead\n");
 		post_cdr(cdr);
-		ast_cdr_free(cdr);
+		opbx_cdr_free(cdr);
 		return;
 	}
 	memset(newtail, 0, sizeof(*newtail));
 
 	/* don't traverse a whole list (just keep track of the tail) */
-	ast_mutex_lock(&cdr_batch_lock);
+	opbx_mutex_lock(&cdr_batch_lock);
 	if (!batch)
 		init_batch();
 	if (!batch->head) {
@@ -1008,7 +1008,7 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 	newtail->cdr = cdr;
 	batch->tail = newtail;
 	curr = batch->size++;
-	ast_mutex_unlock(&cdr_batch_lock);
+	opbx_mutex_unlock(&cdr_batch_lock);
 
 	/* if we have enough stuff to post, then do it */
 	if (curr >= (batchsize - 1))
@@ -1022,20 +1022,20 @@ static void *do_cdr(void *data)
 	int numevents = 0;
 
 	for(;;) {
-		struct timeval now = ast_tvnow();
-		schedms = ast_sched_wait(sched);
+		struct timeval now = opbx_tvnow();
+		schedms = opbx_sched_wait(sched);
 		/* this shouldn't happen, but provide a 1 second default just in case */
 		if (schedms <= 0)
 			schedms = 1000;
 		timeout.tv_sec = now.tv_sec + (schedms / 1000);
 		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
 		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
-		ast_mutex_lock(&cdr_pending_lock);
-		ast_pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
-		numevents = ast_sched_runq(sched);
-		ast_mutex_unlock(&cdr_pending_lock);
+		opbx_mutex_lock(&cdr_pending_lock);
+		opbx_pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
+		numevents = opbx_sched_runq(sched);
+		opbx_mutex_unlock(&cdr_pending_lock);
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "Processed %d scheduled CDR batches from the run queue\n", numevents);
+			opbx_log(LOG_DEBUG, "Processed %d scheduled CDR batches from the run queue\n", numevents);
 	}
 
 	return NULL;
@@ -1043,33 +1043,33 @@ static void *do_cdr(void *data)
 
 static int handle_cli_status(int fd, int argc, char *argv[])
 {
-	struct ast_cdr_beitem *beitem=NULL;
+	struct opbx_cdr_beitem *beitem=NULL;
 	int cnt=0;
 	long nextbatchtime=0;
 
 	if (argc > 2)
 		return RESULT_SHOWUSAGE;
 
-	ast_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
-	ast_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
+	opbx_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
+	opbx_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
 	if (enabled) {
 		if (batchmode) {
 			if (batch)
 				cnt = batch->size;
 			if (cdr_sched > -1)
-				nextbatchtime = ast_sched_when(sched, cdr_sched);
-			ast_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
-			ast_cli(fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
-			ast_cli(fd, "CDR current batch size: %d record%s\n", cnt, (cnt != 1) ? "s" : "");
-			ast_cli(fd, "CDR maximum batch size: %d record%s\n", batchsize, (batchsize != 1) ? "s" : "");
-			ast_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, (batchtime != 1) ? "s" : "");
-			ast_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, (nextbatchtime != 1) ? "s" : "");
+				nextbatchtime = opbx_sched_when(sched, cdr_sched);
+			opbx_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
+			opbx_cli(fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
+			opbx_cli(fd, "CDR current batch size: %d record%s\n", cnt, (cnt != 1) ? "s" : "");
+			opbx_cli(fd, "CDR maximum batch size: %d record%s\n", batchsize, (batchsize != 1) ? "s" : "");
+			opbx_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, (batchtime != 1) ? "s" : "");
+			opbx_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, (nextbatchtime != 1) ? "s" : "");
 		}
-		AST_LIST_LOCK(&be_list);
-		AST_LIST_TRAVERSE(&be_list, beitem, list) {
-			ast_cli(fd, "CDR registered backend: %s\n", beitem->name);
+		OPBX_LIST_LOCK(&be_list);
+		OPBX_LIST_TRAVERSE(&be_list, beitem, list) {
+			opbx_cli(fd, "CDR registered backend: %s\n", beitem->name);
 		}
-		AST_LIST_UNLOCK(&be_list);
+		OPBX_LIST_UNLOCK(&be_list);
 	}
 
 	return 0;
@@ -1081,12 +1081,12 @@ static int handle_cli_submit(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	submit_unscheduled_batch();
-	ast_cli(fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
+	opbx_cli(fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
 
 	return 0;
 }
 
-static struct ast_cli_entry cli_submit = {
+static struct opbx_cli_entry cli_submit = {
 	.cmda = { "cdr", "submit", NULL },
 	.handler = handle_cli_submit,
 	.summary = "Posts all pending batched CDR data",
@@ -1095,7 +1095,7 @@ static struct ast_cli_entry cli_submit = {
 	"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n"
 };
 
-static struct ast_cli_entry cli_status = {
+static struct opbx_cli_entry cli_status = {
 	.cmda = { "cdr", "status", NULL },
 	.handler = handle_cli_status,
 	.summary = "Display the CDR status",
@@ -1106,7 +1106,7 @@ static struct ast_cli_entry cli_status = {
 
 static int do_reload(void)
 {
-	struct ast_config *config;
+	struct opbx_config *config;
 	const char *enabled_value;
 	const char *batched_value;
 	const char *scheduleronly_value;
@@ -1120,7 +1120,7 @@ static int do_reload(void)
 	int res=0;
 	pthread_attr_t attr;
 
-	ast_mutex_lock(&cdr_batch_lock);
+	opbx_mutex_lock(&cdr_batch_lock);
 
 	batchsize = BATCH_SIZE_DEFAULT;
 	batchtime = BATCH_TIME_DEFAULT;
@@ -1133,106 +1133,106 @@ static int do_reload(void)
 
 	/* don't run the next scheduled CDR posting while reloading */
 	if (cdr_sched > -1)
-		ast_sched_del(sched, cdr_sched);
+		opbx_sched_del(sched, cdr_sched);
 
-	if ((config = ast_config_load("cdr.conf"))) {
-		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
-			enabled = ast_true(enabled_value);
+	if ((config = opbx_config_load("cdr.conf"))) {
+		if ((enabled_value = opbx_variable_retrieve(config, "general", "enable"))) {
+			enabled = opbx_true(enabled_value);
 		}
-		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {
-			batchmode = ast_true(batched_value);
+		if ((batched_value = opbx_variable_retrieve(config, "general", "batch"))) {
+			batchmode = opbx_true(batched_value);
 		}
-		if ((scheduleronly_value = ast_variable_retrieve(config, "general", "scheduleronly"))) {
-			batchscheduleronly = ast_true(scheduleronly_value);
+		if ((scheduleronly_value = opbx_variable_retrieve(config, "general", "scheduleronly"))) {
+			batchscheduleronly = opbx_true(scheduleronly_value);
 		}
-		if ((batchsafeshutdown_value = ast_variable_retrieve(config, "general", "safeshutdown"))) {
-			batchsafeshutdown = ast_true(batchsafeshutdown_value);
+		if ((batchsafeshutdown_value = opbx_variable_retrieve(config, "general", "safeshutdown"))) {
+			batchsafeshutdown = opbx_true(batchsafeshutdown_value);
 		}
-		if ((size_value = ast_variable_retrieve(config, "general", "size"))) {
+		if ((size_value = opbx_variable_retrieve(config, "general", "size"))) {
 			if (sscanf(size_value, "%d", &cfg_size) < 1)
-				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", size_value);
+				opbx_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", size_value);
 			else if (size_value < 0)
-				ast_log(LOG_WARNING, "Invalid maximum batch size '%d' specified, using default\n", cfg_size);
+				opbx_log(LOG_WARNING, "Invalid maximum batch size '%d' specified, using default\n", cfg_size);
 			else
 				batchsize = cfg_size;
 		}
-		if ((time_value = ast_variable_retrieve(config, "general", "time"))) {
+		if ((time_value = opbx_variable_retrieve(config, "general", "time"))) {
 			if (sscanf(time_value, "%d", &cfg_time) < 1)
-				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", time_value);
+				opbx_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", time_value);
 			else if (time_value < 0)
-				ast_log(LOG_WARNING, "Invalid maximum batch time '%d' specified, using default\n", cfg_time);
+				opbx_log(LOG_WARNING, "Invalid maximum batch time '%d' specified, using default\n", cfg_time);
 			else
 				batchtime = cfg_time;
 		}
 	}
 
 	if (enabled && !batchmode) {
-		ast_log(LOG_NOTICE, "CDR simple logging enabled.\n");
+		opbx_log(LOG_NOTICE, "CDR simple logging enabled.\n");
 	} else if (enabled && batchmode) {
-		cdr_sched = ast_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
-		ast_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %d or time %d seconds.\n", batchsize, batchtime);
+		cdr_sched = opbx_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
+		opbx_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %d or time %d seconds.\n", batchsize, batchtime);
 	} else {
-		ast_log(LOG_NOTICE, "CDR logging disabled, data will be lost.\n");
+		opbx_log(LOG_NOTICE, "CDR logging disabled, data will be lost.\n");
 	}
 
 	/* if this reload enabled the CDR batch mode, create the background thread
 	   if it does not exist */
-	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == AST_PTHREADT_NULL)) {
+	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == OPBX_PTHREADT_NULL)) {
 		pthread_cond_init(&cdr_pending_cond, NULL);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&cdr_thread, &attr, do_cdr, NULL) < 0) {
-			ast_log(LOG_ERROR, "Unable to start CDR thread.\n");
-			ast_sched_del(sched, cdr_sched);
+		if (opbx_pthread_create(&cdr_thread, &attr, do_cdr, NULL) < 0) {
+			opbx_log(LOG_ERROR, "Unable to start CDR thread.\n");
+			opbx_sched_del(sched, cdr_sched);
 		} else {
-			ast_cli_register(&cli_submit);
-			ast_register_atexit(ast_cdr_engine_term);
+			opbx_cli_register(&cli_submit);
+			opbx_register_atexit(opbx_cdr_engine_term);
 			res = 0;
 		}
 	/* if this reload disabled the CDR and/or batch mode and there is a background thread,
 	   kill it */
-	} else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && (cdr_thread != AST_PTHREADT_NULL)) {
+	} else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && (cdr_thread != OPBX_PTHREADT_NULL)) {
 		/* wake up the thread so it will exit */
 		pthread_cancel(cdr_thread);
 		pthread_kill(cdr_thread, SIGURG);
 		pthread_join(cdr_thread, NULL);
-		cdr_thread = AST_PTHREADT_NULL;
+		cdr_thread = OPBX_PTHREADT_NULL;
 		pthread_cond_destroy(&cdr_pending_cond);
-		ast_cli_unregister(&cli_submit);
-		ast_unregister_atexit(ast_cdr_engine_term);
+		opbx_cli_unregister(&cli_submit);
+		opbx_unregister_atexit(opbx_cdr_engine_term);
 		res = 0;
 		/* if leaving batch mode, then post the CDRs in the batch,
 		   and don't reschedule, since we are stopping CDR logging */
 		if (!batchmode && was_batchmode) {
-			ast_cdr_engine_term();
+			opbx_cdr_engine_term();
 		}
 	} else {
 		res = 0;
 	}
 
-	ast_mutex_unlock(&cdr_batch_lock);
-	ast_config_destroy(config);
+	opbx_mutex_unlock(&cdr_batch_lock);
+	opbx_config_destroy(config);
 
 	return res;
 }
 
-int ast_cdr_engine_init(void)
+int opbx_cdr_engine_init(void)
 {
 	int res;
 
 	sched = sched_context_create();
 	if (!sched) {
-		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
+		opbx_log(LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;
 	}
 
-	ast_cli_register(&cli_status);
+	opbx_cli_register(&cli_status);
 
 	res = do_reload();
 	if (res) {
-		ast_mutex_lock(&cdr_batch_lock);
+		opbx_mutex_lock(&cdr_batch_lock);
 		res = init_batch();
-		ast_mutex_unlock(&cdr_batch_lock);
+		opbx_mutex_unlock(&cdr_batch_lock);
 	}
 
 	return res;
@@ -1240,12 +1240,12 @@ int ast_cdr_engine_init(void)
 
 /* This actually gets called a couple of times at shutdown.  Once, before we start
    hanging up channels, and then again, after the channel hangup timeout expires */
-void ast_cdr_engine_term(void)
+void opbx_cdr_engine_term(void)
 {
-	ast_cdr_submit_batch(batchsafeshutdown);
+	opbx_cdr_submit_batch(batchsafeshutdown);
 }
 
-void ast_cdr_engine_reload(void)
+void opbx_cdr_engine_reload(void)
 {
 	do_reload();
 }

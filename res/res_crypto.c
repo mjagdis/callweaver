@@ -71,16 +71,16 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
  * XXXX
  */
 
-AST_MUTEX_DEFINE_STATIC(keylock);
+OPBX_MUTEX_DEFINE_STATIC(keylock);
 
 #define KEY_NEEDS_PASSCODE (1 << 16)
 
-struct ast_key {
+struct opbx_key {
 	/* Name of entity */
 	char name[80];
 	/* File name */
 	char fn[256];
-	/* Key type (AST_KEY_PUB or AST_KEY_PRIV, along with flags from above) */
+	/* Key type (OPBX_KEY_PUB or OPBX_KEY_PRIV, along with flags from above) */
 	int ktype;
 	/* RSA structure (if successfully loaded) */
 	RSA *rsa;
@@ -92,10 +92,10 @@ struct ast_key {
 	int outfd;
 	/* Last MD5 Digest */
 	unsigned char digest[16];
-	struct ast_key *next;
+	struct opbx_key *next;
 };
 
-static struct ast_key *keys = NULL;
+static struct opbx_key *keys = NULL;
 
 
 #if 0
@@ -106,19 +106,19 @@ static int fdprint(int fd, char *s)
 #endif
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
-	struct ast_key *key = (struct ast_key *)userdata;
+	struct opbx_key *key = (struct opbx_key *)userdata;
 	char prompt[256];
 	int res;
 	int tmp;
 	if (key->infd > -1) {
 		snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
-			 key->ktype == AST_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
+			 key->ktype == OPBX_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
 		write(key->outfd, prompt, strlen(prompt));
 		memset(buf, 0, sizeof(buf));
-		tmp = ast_hide_password(key->infd);
+		tmp = opbx_hide_password(key->infd);
 		memset(buf, 0, size);
 		res = read(key->infd, buf, size);
-		ast_restore_tty(key->infd, tmp);
+		opbx_restore_tty(key->infd, tmp);
 		if (buf[strlen(buf) -1] == '\n')
 			buf[strlen(buf) - 1] = '\0';
 		return strlen(buf);
@@ -129,10 +129,10 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 	return -1;
 }
 
-struct ast_key *ast_key_get(char *kname, int ktype)
+struct opbx_key *opbx_key_get(char *kname, int ktype)
 {
-	struct ast_key *key;
-	ast_mutex_lock(&keylock);
+	struct opbx_key *key;
+	opbx_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		if (!strcmp(kname, key->name) &&
@@ -140,11 +140,11 @@ struct ast_key *ast_key_get(char *kname, int ktype)
 			break;
 		key = key->next;
 	}
-	ast_mutex_unlock(&keylock);
+	opbx_mutex_unlock(&keylock);
 	return key;
 }
 
-static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
+static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
 {
 	int ktype = 0;
 	char *c = NULL;
@@ -152,23 +152,23 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	unsigned char digest[16];
 	FILE *f;
 	struct MD5Context md5;
-	struct ast_key *key;
+	struct opbx_key *key;
 	static int notice = 0;
 	int found = 0;
 
 	/* Make sure its name is a public or private key */
 
 	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
-		ktype = AST_KEY_PUBLIC;
+		ktype = OPBX_KEY_PUBLIC;
 	} else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key")) {
-		ktype = AST_KEY_PRIVATE;
+		ktype = OPBX_KEY_PRIVATE;
 	} else
 		return NULL;
 
 	/* Get actual filename */
 	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
 
-	ast_mutex_lock(&keylock);
+	opbx_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		/* Look for an existing version already */
@@ -176,12 +176,12 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 			break;
 		key = key->next;
 	}
-	ast_mutex_unlock(&keylock);
+	opbx_mutex_unlock(&keylock);
 
 	/* Open file */
 	f = fopen(ffname, "r");
 	if (!f) {
-		ast_log(LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
+		opbx_log(LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
 		return NULL;
 	}
 	MD5Init(&md5);
@@ -214,23 +214,23 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	/* Make fname just be the normal name now */
 	*c = '\0';
 	if (!key) {
-		key = (struct ast_key *)malloc(sizeof(struct ast_key));
+		key = (struct opbx_key *)malloc(sizeof(struct opbx_key));
 		if (!key) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+			opbx_log(LOG_WARNING, "Out of memory\n");
 			fclose(f);
 			return NULL;
 		}
-		memset(key, 0, sizeof(struct ast_key));
+		memset(key, 0, sizeof(struct opbx_key));
 	}
 	/* At this point we have a key structure (old or new).  Time to
 	   fill it with what we know */
 	/* Gotta lock if this one already exists */
 	if (found)
-		ast_mutex_lock(&keylock);
+		opbx_mutex_lock(&keylock);
 	/* First the filename */
-	ast_copy_string(key->fn, ffname, sizeof(key->fn));
+	opbx_copy_string(key->fn, ffname, sizeof(key->fn));
 	/* Then the name */
-	ast_copy_string(key->name, fname, sizeof(key->name));
+	opbx_copy_string(key->name, fname, sizeof(key->name));
 	key->ktype = ktype;
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
@@ -242,7 +242,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	/* Reset the file back to the beginning */
 	rewind(f);
 	/* Now load the key with the right method */
-	if (ktype == AST_KEY_PUBLIC)
+	if (ktype == OPBX_KEY_PUBLIC)
 		key->rsa = PEM_read_RSA_PUBKEY(f, NULL, pw_cb, key);
 	else
 		key->rsa = PEM_read_RSAPrivateKey(f, NULL, pw_cb, key);
@@ -252,24 +252,24 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 			/* Key loaded okay */
 			key->ktype &= ~KEY_NEEDS_PASSCODE;
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+				opbx_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Key '%s' loaded OK\n", key->name);
+				opbx_log(LOG_DEBUG, "Key '%s' loaded OK\n", key->name);
 			key->delme = 0;
 		} else
-			ast_log(LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
+			opbx_log(LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
 	} else if (key->infd != -2) {
-		ast_log(LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+		opbx_log(LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 		if (ofd > -1) {
 			ERR_print_errors_fp(stderr);
 		} else
 			ERR_print_errors_fp(stderr);
 	} else {
-		ast_log(LOG_NOTICE, "Key '%s' needs passcode.\n", key->name);
+		opbx_log(LOG_NOTICE, "Key '%s' needs passcode.\n", key->name);
 		key->ktype |= KEY_NEEDS_PASSCODE;
 		if (!notice) {
 			if (!option_initcrypto) 
-				ast_log(LOG_NOTICE, "Add the '-i' flag to the openpbx command line if you want to automatically initialize passcodes at launch.\n");
+				opbx_log(LOG_NOTICE, "Add the '-i' flag to the openpbx command line if you want to automatically initialize passcodes at launch.\n");
 			notice++;
 		}
 		/* Keep it anyway */
@@ -278,12 +278,12 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 		*not2 = 1;
 	}
 	if (found)
-		ast_mutex_unlock(&keylock);
+		opbx_mutex_unlock(&keylock);
 	if (!found) {
-		ast_mutex_lock(&keylock);
+		opbx_mutex_lock(&keylock);
 		key->next = keys;
 		keys = key;
-		ast_mutex_unlock(&keylock);
+		opbx_mutex_unlock(&keylock);
 	}
 	return key;
 }
@@ -314,14 +314,14 @@ static char *binary(int y, int len)
 
 #endif
 
-int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig)
+int opbx_sign_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
 	unsigned int siglen = 128;
 	int res;
 
-	if (key->ktype != AST_KEY_PRIVATE) {
-		ast_log(LOG_WARNING, "Cannot sign with a public key\n");
+	if (key->ktype != OPBX_KEY_PRIVATE) {
+		opbx_log(LOG_WARNING, "Cannot sign with a public key\n");
 		return -1;
 	}
 
@@ -332,12 +332,12 @@ int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig
 	res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa);
 	
 	if (!res) {
-		ast_log(LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
+		opbx_log(LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
 		return -1;
 	}
 
 	if (siglen != 128) {
-		ast_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)128);
+		opbx_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)128);
 		return -1;
 	}
 
@@ -345,17 +345,17 @@ int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig
 	
 }
 
-extern int ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
+extern int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
 {
 	int res;
 	int pos = 0;
-	if (key->ktype != AST_KEY_PRIVATE) {
-		ast_log(LOG_WARNING, "Cannot decrypt with a public key\n");
+	if (key->ktype != OPBX_KEY_PRIVATE) {
+		opbx_log(LOG_WARNING, "Cannot decrypt with a public key\n");
 		return -1;
 	}
 
 	if (srclen % 128) {
-		ast_log(LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
+		opbx_log(LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
 		return -1;
 	}
 	while(srclen) {
@@ -371,13 +371,13 @@ extern int ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int src
 	return pos;
 }
 
-extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
+extern int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
 {
 	int res;
 	int bytes;
 	int pos = 0;
-	if (key->ktype != AST_KEY_PUBLIC) {
-		ast_log(LOG_WARNING, "Cannot encrypt with a private key\n");
+	if (key->ktype != OPBX_KEY_PUBLIC) {
+		opbx_log(LOG_WARNING, "Cannot encrypt with a private key\n");
 		return -1;
 	}
 	
@@ -388,7 +388,7 @@ extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int src
 		/* Process chunks 128-41 bytes at a time */
 		res = RSA_public_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
 		if (res != 128) {
-			ast_log(LOG_NOTICE, "How odd, encrypted size is %d\n", res);
+			opbx_log(LOG_NOTICE, "How odd, encrypted size is %d\n", res);
 			return -1;
 		}
 		src += bytes;
@@ -399,28 +399,28 @@ extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int src
 	return pos;
 }
 
-int ast_sign(struct ast_key *key, char *msg, char *sig)
+int opbx_sign(struct opbx_key *key, char *msg, char *sig)
 {
 	unsigned char dsig[128];
 	int siglen = sizeof(dsig);
 	int res;
-	res = ast_sign_bin(key, msg, strlen(msg), dsig);
+	res = opbx_sign_bin(key, msg, strlen(msg), dsig);
 	if (!res)
 		/* Success -- encode (256 bytes max as documented) */
-		ast_base64encode(sig, dsig, siglen, 256);
+		opbx_base64encode(sig, dsig, siglen, 256);
 	return res;
 	
 }
 
-int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig)
+int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
 	int res;
 
-	if (key->ktype != AST_KEY_PUBLIC) {
+	if (key->ktype != OPBX_KEY_PUBLIC) {
 		/* Okay, so of course you really *can* but for our purposes
 		   we're going to say you can't */
-		ast_log(LOG_WARNING, "Cannot check message signature with a private key\n");
+		opbx_log(LOG_WARNING, "Cannot check message signature with a private key\n");
 		return -1;
 	}
 
@@ -431,61 +431,61 @@ int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned
 	res = RSA_verify(NID_sha1, digest, sizeof(digest), dsig, 128, key->rsa);
 	
 	if (!res) {
-		ast_log(LOG_DEBUG, "Key failed verification: %s\n", key->name);
+		opbx_log(LOG_DEBUG, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
 	/* Pass */
 	return 0;
 }
 
-int ast_check_signature(struct ast_key *key, char *msg, char *sig)
+int opbx_check_signature(struct opbx_key *key, char *msg, char *sig)
 {
 	unsigned char dsig[128];
 	int res;
 
 	/* Decode signature */
-	res = ast_base64decode(dsig, sig, sizeof(dsig));
+	res = opbx_base64decode(dsig, sig, sizeof(dsig));
 	if (res != sizeof(dsig)) {
-		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
+		opbx_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
-	res = ast_check_signature_bin(key, msg, strlen(msg), dsig);
+	res = opbx_check_signature_bin(key, msg, strlen(msg), dsig);
 	return res;
 }
 
 static void crypto_load(int ifd, int ofd)
 {
-	struct ast_key *key, *nkey, *last;
+	struct opbx_key *key, *nkey, *last;
 	DIR *dir = NULL;
 	struct dirent *ent;
 	int note = 0;
 	/* Mark all keys for deletion */
-	ast_mutex_lock(&keylock);
+	opbx_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		key->delme = 1;
 		key = key->next;
 	}
-	ast_mutex_unlock(&keylock);
+	opbx_mutex_unlock(&keylock);
 	/* Load new keys */
-	dir = opendir((char *)ast_config_AST_KEY_DIR);
+	dir = opendir((char *)opbx_config_OPBX_KEY_DIR);
 	if (dir) {
 		while((ent = readdir(dir))) {
-			try_load_key((char *)ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
+			try_load_key((char *)opbx_config_OPBX_KEY_DIR, ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
 	} else
-		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", (char *)ast_config_AST_KEY_DIR);
+		opbx_log(LOG_WARNING, "Unable to open key directory '%s'\n", (char *)opbx_config_OPBX_KEY_DIR);
 	if (note) {
-		ast_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
+		opbx_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
 	}
-	ast_mutex_lock(&keylock);
+	opbx_mutex_lock(&keylock);
 	key = keys;
 	last = NULL;
 	while(key) {
 		nkey = key->next;
 		if (key->delme) {
-			ast_log(LOG_DEBUG, "Deleting key %s type %d\n", key->name, key->ktype);
+			opbx_log(LOG_DEBUG, "Deleting key %s type %d\n", key->name, key->ktype);
 			/* Do the delete */
 			if (last)
 				last->next = nkey;
@@ -498,7 +498,7 @@ static void crypto_load(int ifd, int ofd)
 			last = key;
 		key = nkey;
 	}
-	ast_mutex_unlock(&keylock);
+	opbx_mutex_unlock(&keylock);
 }
 
 static void md52sum(char *sum, unsigned char *md5)
@@ -510,30 +510,30 @@ static void md52sum(char *sum, unsigned char *md5)
 
 static int show_keys(int fd, int argc, char *argv[])
 {
-	struct ast_key *key;
+	struct opbx_key *key;
 	char sum[16 * 2 + 1];
 	int count_keys = 0;
 
-	ast_mutex_lock(&keylock);
+	opbx_mutex_lock(&keylock);
 	key = keys;
-	ast_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
+	opbx_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
 	while(key) {
 		md52sum(sum, key->digest);
-		ast_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
-			(key->ktype & 0xf) == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
+		opbx_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
+			(key->ktype & 0xf) == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);
 				
 		key = key->next;
 		count_keys++;
 	}
-	ast_mutex_unlock(&keylock);
-	ast_cli(fd, "%d known RSA keys.\n", count_keys);
+	opbx_mutex_unlock(&keylock);
+	opbx_cli(fd, "%d known RSA keys.\n", count_keys);
 	return RESULT_SUCCESS;
 }
 
 static int init_keys(int fd, int argc, char *argv[])
 {
-	struct ast_key *key;
+	struct opbx_key *key;
 	int ign;
 	char *kn;
 	char tmp[256] = "";
@@ -542,9 +542,9 @@ static int init_keys(int fd, int argc, char *argv[])
 	while(key) {
 		/* Reload keys that need pass codes now */
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
-			kn = key->fn + strlen(ast_config_AST_KEY_DIR) + 1;
-			ast_copy_string(tmp, kn, sizeof(tmp));
-			try_load_key((char *)ast_config_AST_KEY_DIR, tmp, fd, fd, &ign);
+			kn = key->fn + strlen(opbx_config_OPBX_KEY_DIR) + 1;
+			opbx_copy_string(tmp, kn, sizeof(tmp));
+			try_load_key((char *)opbx_config_OPBX_KEY_DIR, tmp, fd, fd, &ign);
 		}
 		key = key->next;
 	}
@@ -559,18 +559,18 @@ static char init_keys_usage[] =
 "Usage: init keys\n"
 "       Initializes private keys (by reading in pass code from the user)\n";
 
-static struct ast_cli_entry cli_show_keys = 
+static struct opbx_cli_entry cli_show_keys = 
 { { "show", "keys", NULL }, show_keys, "Displays RSA key information", show_key_usage };
 
-static struct ast_cli_entry cli_init_keys = 
+static struct opbx_cli_entry cli_init_keys = 
 { { "init", "keys", NULL }, init_keys, "Initialize RSA key passcodes", init_keys_usage };
 
 static int crypto_init(void)
 {
 	SSL_library_init();
 	ERR_load_crypto_strings();
-	ast_cli_register(&cli_show_keys);
-	ast_cli_register(&cli_init_keys);
+	opbx_cli_register(&cli_show_keys);
+	opbx_cli_register(&cli_init_keys);
 	return 0;
 }
 

@@ -32,9 +32,9 @@
 extern "C" {
 #endif
 
-struct ast_slinfactory {
-	struct ast_frame *queue;
-	struct ast_trans_pvt *trans;
+struct opbx_slinfactory {
+	struct opbx_frame *queue;
+	struct opbx_trans_pvt *trans;
 	short hold[1280];
 	short *offset;
 	size_t holdlen;
@@ -42,10 +42,10 @@ struct ast_slinfactory {
 	int format;
 };
 
-void ast_slinfactory_init(struct ast_slinfactory *sf);
-void ast_slinfactory_destroy(struct ast_slinfactory *sf);
-int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
-int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes);
+void opbx_slinfactory_init(struct opbx_slinfactory *sf);
+void opbx_slinfactory_destroy(struct opbx_slinfactory *sf);
+int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f);
+int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes);
 		 
 
 

@@ -75,7 +75,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int deltree_exec(struct ast_channel *chan, void *data)
+static int deltree_exec(struct opbx_channel *chan, void *data)
 {
 	int arglen;
 	char *argv, *family, *keytree;
@@ -83,7 +83,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 	arglen = strlen(data);
 	argv = alloca(arglen + 1);
 	if (!argv) {	/* Why would this fail? */
-		ast_log(LOG_DEBUG, "Memory allocation failed\n");
+		opbx_log(LOG_DEBUG, "Memory allocation failed\n");
 		return 0;
 	}
 	memcpy(argv, data, arglen + 1);
@@ -92,7 +92,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 		family = strsep(&argv, "/");
 		keytree = strsep(&argv, "\0");
 			if (!family || !keytree) {
-				ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+				opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 				return 0;
 			}
 		if (!strlen(keytree))
@@ -104,20 +104,20 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 
 	if (option_verbose > 2)	{
 		if (keytree)
-			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n", family, keytree);
+			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n", family, keytree);
 		else
-			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
+			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
 	}
 
-	if (ast_db_deltree(family, keytree)) {
+	if (opbx_db_deltree(family, keytree)) {
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
+			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
 	}
 
 	return 0;
 }
 
-static int del_exec(struct ast_channel *chan, void *data)
+static int del_exec(struct opbx_channel *chan, void *data)
 {
 	int arglen;
 	char *argv, *family, *key;
@@ -125,7 +125,7 @@ static int del_exec(struct ast_channel *chan, void *data)
 	arglen = strlen(data);
 	argv = alloca(arglen + 1);
 	if (!argv) {	/* Why would this fail? */
-		ast_log (LOG_DEBUG, "Memory allocation failed\n");
+		opbx_log (LOG_DEBUG, "Memory allocation failed\n");
 		return 0;
 	}
 	memcpy(argv, data, arglen + 1);
@@ -134,36 +134,36 @@ static int del_exec(struct ast_channel *chan, void *data)
 		family = strsep(&argv, "/");
 		key = strsep(&argv, "\0");
 		if (!family || !key) {
-			ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			return 0;
 		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBdel: family=%s, key=%s\n", family, key);
-		if (ast_db_del(family, key)) {
+			opbx_verbose(VERBOSE_PREFIX_3 "DBdel: family=%s, key=%s\n", family, key);
+		if (opbx_db_del(family, key)) {
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
+				opbx_verbose(VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
 		}
 	} else {
-		ast_log(LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 	return 0;
 }
 
-static int put_exec(struct ast_channel *chan, void *data)
+static int put_exec(struct opbx_channel *chan, void *data)
 {
 	int arglen;
 	char *argv, *value, *family, *key;
 	static int dep_warning = 0;
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
 	arglen = strlen(data);
 	argv = alloca(arglen + 1);
 	if (!argv) {	/* Why would this fail? */
-		ast_log(LOG_DEBUG, "Memory allocation failed\n");
+		opbx_log(LOG_DEBUG, "Memory allocation failed\n");
 		return 0;
 	}
 	memcpy(argv, data, arglen + 1);
@@ -173,23 +173,23 @@ static int put_exec(struct ast_channel *chan, void *data)
 		key = strsep(&argv, "=");
 		value = strsep(&argv, "\0");
 		if (!value || !family || !key) {
-			ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			return 0;
 		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, value);
-		if (ast_db_put(family, key, value)) {
+			opbx_verbose(VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, value);
+		if (opbx_db_put(family, key, value)) {
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
+				opbx_verbose(VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
 		}
 
 	} else	{
-		ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log (LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 	return 0;
 }
 
-static int get_exec(struct ast_channel *chan, void *data)
+static int get_exec(struct opbx_channel *chan, void *data)
 {
 	int arglen;
 	char *argv, *varname, *family, *key;
@@ -197,14 +197,14 @@ static int get_exec(struct ast_channel *chan, void *data)
 	static int dep_warning = 0;
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
 	arglen = strlen(data);
 	argv = alloca(arglen + 1);
 	if (!argv) {	/* Why would this fail? */
-		ast_log(LOG_DEBUG, "Memory allocation failed\n");
+		opbx_log(LOG_DEBUG, "Memory allocation failed\n");
 		return 0;
 	}
 	memcpy(argv, data, arglen + 1);
@@ -214,25 +214,25 @@ static int get_exec(struct ast_channel *chan, void *data)
 		family = strsep(&argv, "/");
 		key = strsep(&argv, "\0");
 		if (!varname || !family || !key) {
-			ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			return 0;
 		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
-		if (!ast_db_get(family, key, dbresult, sizeof (dbresult) - 1)) {
+			opbx_verbose(VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
+		if (!opbx_db_get(family, key, dbresult, sizeof (dbresult) - 1)) {
 			pbx_builtin_setvar_helper(chan, varname, dbresult);
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
+				opbx_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
 		} else {
 			if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
+			opbx_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
 			/* Send the call to n+101 priority, where n is the current priority */
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+			if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 				chan->priority += 100;
 		}
 
 	} else {
-		ast_log(LOG_DEBUG, "Ignoring, no parameters\n");
+		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 	return 0;
 }
@@ -242,10 +242,10 @@ int unload_module(void)
 	int retval;
 
 	STANDARD_HANGUP_LOCALUSERS;
-	retval = ast_unregister_application(dt_app);
-	retval |= ast_unregister_application(d_app);
-	retval |= ast_unregister_application(p_app);
-	retval |= ast_unregister_application(g_app);
+	retval = opbx_unregister_application(dt_app);
+	retval |= opbx_unregister_application(d_app);
+	retval |= opbx_unregister_application(p_app);
+	retval |= opbx_unregister_application(g_app);
 
 	return retval;
 }
@@ -254,13 +254,13 @@ int load_module(void)
 {
 	int retval;
 
-	retval = ast_register_application(g_app, get_exec, g_synopsis, g_descrip);
+	retval = opbx_register_application(g_app, get_exec, g_synopsis, g_descrip);
 	if (!retval)
-		retval = ast_register_application(p_app, put_exec, p_synopsis, p_descrip);
+		retval = opbx_register_application(p_app, put_exec, p_synopsis, p_descrip);
 	if (!retval)
-		retval = ast_register_application(d_app, del_exec, d_synopsis, d_descrip);
+		retval = opbx_register_application(d_app, del_exec, d_synopsis, d_descrip);
 	if (!retval)
-		retval = ast_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
+		retval = opbx_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
 	return retval;
 }
 

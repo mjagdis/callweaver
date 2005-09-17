@@ -43,32 +43,32 @@
 #define MODEM_MAX_LEN 30
 #define MODEM_MAX_BUF MODEM_MAX_LEN * 16
 
-#define AST_MAX_INIT_STR	256
+#define OPBX_MAX_INIT_STR	256
 
-struct ast_modem_pvt;
+struct opbx_modem_pvt;
 
-struct ast_modem_driver {
+struct opbx_modem_driver {
 	char *name;
 	char **idents;
 	int formats;
 	int fullduplex;
 	void (*incusecnt)(void);
 	void (*decusecnt)(void);
-	char * (*identify)(struct ast_modem_pvt *);
-	int (*init)(struct ast_modem_pvt *);
-	int (*setdev)(struct ast_modem_pvt *, int dev);
-	struct ast_frame * (*read)(struct ast_modem_pvt *);
-	int (*write)(struct ast_modem_pvt *, struct ast_frame *fr);
-	int (*dial)(struct ast_modem_pvt *, char *);
-	int (*answer)(struct ast_modem_pvt *);
-	int (*hangup)(struct ast_modem_pvt *);
-	int (*startrec)(struct ast_modem_pvt *);
-	int (*stoprec)(struct ast_modem_pvt *);
-	int (*startpb)(struct ast_modem_pvt *);
-	int (*stoppb)(struct ast_modem_pvt *);
-	int (*setsilence)(struct ast_modem_pvt *, int onoff);
-	int (*dialdigit)(struct ast_modem_pvt *, char digit);
-	struct ast_modem_driver *next;
+	char * (*identify)(struct opbx_modem_pvt *);
+	int (*init)(struct opbx_modem_pvt *);
+	int (*setdev)(struct opbx_modem_pvt *, int dev);
+	struct opbx_frame * (*read)(struct opbx_modem_pvt *);
+	int (*write)(struct opbx_modem_pvt *, struct opbx_frame *fr);
+	int (*dial)(struct opbx_modem_pvt *, char *);
+	int (*answer)(struct opbx_modem_pvt *);
+	int (*hangup)(struct opbx_modem_pvt *);
+	int (*startrec)(struct opbx_modem_pvt *);
+	int (*stoprec)(struct opbx_modem_pvt *);
+	int (*startpb)(struct opbx_modem_pvt *);
+	int (*stoppb)(struct opbx_modem_pvt *);
+	int (*setsilence)(struct opbx_modem_pvt *, int onoff);
+	int (*dialdigit)(struct opbx_modem_pvt *, char digit);
+	struct opbx_modem_driver *next;
 };
 
 #define MODEM_MODE_IMMEDIATE 		0
@@ -76,19 +76,19 @@ struct ast_modem_driver {
 #define MODEM_MODE_WAIT_ANSWER		2
 
 /*! Private data that needs to be filled by modem driver */
-struct ast_modem_pvt {
+struct opbx_modem_pvt {
 	/*! Raw file descriptor for this device */
 	int fd;							
 	/*! FILE * representation of device */
 	FILE *f;						
 	/*! Channel we belong to, possibly NULL */
-	struct ast_channel *owner;		
+	struct opbx_channel *owner;		
 	/* Device name */
 	char dev[256];					
 	/*! Frame */
-	struct ast_frame fr;			
+	struct opbx_frame fr;			
 	
-	char offset[AST_FRIENDLY_OFFSET];
+	char offset[OPBX_FRIENDLY_OFFSET];
 	/*! Outgoing buffer */
 	char obuf[MODEM_MAX_BUF];		
 	
@@ -118,67 +118,67 @@ struct ast_modem_pvt {
 	/*! dtmf receive state/data */
 	char dtmfrx;				
 	
-	char context[AST_MAX_EXTENSION];
+	char context[OPBX_MAX_EXTENSION];
 	/*! Multiple Subscriber Number */
-	char msn[AST_MAX_EXTENSION];	
+	char msn[OPBX_MAX_EXTENSION];	
 	/*! Multiple Subscriber Number we listen to (; separated list) */
-	char incomingmsn[AST_MAX_EXTENSION];	
+	char incomingmsn[OPBX_MAX_EXTENSION];	
 	/*! Multiple Subscriber Number we accept for outgoing calls (; separated list) */
-	char outgoingmsn[AST_MAX_EXTENSION];	
+	char outgoingmsn[OPBX_MAX_EXTENSION];	
 	/*! Group(s) we belong to if available */
-	ast_group_t group;
+	opbx_group_t group;
 	/*! Caller ID if available */
-	char cid_name[AST_MAX_EXTENSION];	
+	char cid_name[OPBX_MAX_EXTENSION];	
 	/*! Caller ID if available */
-	char cid_num[AST_MAX_EXTENSION];	
+	char cid_num[OPBX_MAX_EXTENSION];	
 	/*! DTMF-detection mode (i4l/openpbx) */
 	int dtmfmode;
 	/*! DTMF-generation mode (i4l (outband) / openpbx (inband) */
 	int dtmfmodegen;
 	/*! DSP for DTMF detection */
-	struct ast_dsp *dsp;
+	struct opbx_dsp *dsp;
 	/*! Dialed Number if available */
-	char dnid[AST_MAX_EXTENSION];	
+	char dnid[OPBX_MAX_EXTENSION];	
 	/*! Modem initialization String */
-	char initstr[AST_MAX_INIT_STR];	
+	char initstr[OPBX_MAX_INIT_STR];	
 	/*! default language */
 	char language[MAX_LANGUAGE];	
 	/*! Static response buffer */
 	char response[256];				
 	/*! Modem Capability */
-	struct ast_modem_driver *mc;	
+	struct opbx_modem_driver *mc;	
 	/*! Next channel in list */
-	struct ast_modem_pvt *next;			
+	struct opbx_modem_pvt *next;			
 };
 
 
 /*! Register a modem driver */
 /*! Register a driver */
-extern int ast_register_modem_driver(struct ast_modem_driver *mc);
+extern int opbx_register_modem_driver(struct opbx_modem_driver *mc);
 
 /*! Unregisters a modem driver */
 /*! Unregister a driver */
-extern int ast_unregister_modem_driver(struct ast_modem_driver *mc);
+extern int opbx_unregister_modem_driver(struct opbx_modem_driver *mc);
 
 /*! Sends command */
 /*! Send the command cmd (length len, or 0 if pure ascii) on modem */
-extern int ast_modem_send(struct ast_modem_pvt *p, char *cmd, int len);
+extern int opbx_modem_send(struct opbx_modem_pvt *p, char *cmd, int len);
 
 /*! Waits for result */
 /*! Wait for result to occur.  Return non-zero if times out or error, last
    response is stored in p->response  */
-extern int ast_modem_expect(struct ast_modem_pvt *p,  char *result, int timeout);
+extern int opbx_modem_expect(struct opbx_modem_pvt *p,  char *result, int timeout);
 
 /*! Waits for result */
 /*! Wait for result to occur.    response is stored in p->response  */
-extern int ast_modem_read_response(struct ast_modem_pvt *p,  int timeout);
+extern int opbx_modem_read_response(struct opbx_modem_pvt *p,  int timeout);
 
 /*! Used to start up the PBX on a RING */
 /*! Used by modem drivers to start up the PBX on a RING */
-extern struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state);
+extern struct opbx_channel *opbx_modem_new(struct opbx_modem_pvt *i, int state);
 
 /*! Trim string of trailing stuff */
 /*! Trim off trailing mess */
-extern void ast_modem_trim(char *s);
+extern void opbx_modem_trim(char *s);
 
 #endif /* _OPENPBX_VMODEM_H */

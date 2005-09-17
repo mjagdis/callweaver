@@ -75,7 +75,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int auth_exec(struct ast_channel *chan, void *data)
+static int auth_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	int jump = 0;
@@ -85,13 +85,13 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	char passwd[256];
 	char *opts;
 	char *prompt;
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP) {
-		res = ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP) {
+		res = opbx_answer(chan);
 		if (res) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
@@ -109,7 +109,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	/* Start asking for password */
 	prompt = "agent-pass";
 	for (retries = 0; retries < 3; retries++) {
-		res = ast_app_getdata(chan, prompt, passwd, sizeof(passwd) - 2, 0);
+		res = opbx_app_getdata(chan, prompt, passwd, sizeof(passwd) - 2, 0);
 		if (res < 0)
 			break;
 		res = 0;
@@ -117,10 +117,10 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			if (strchr(opts, 'd')) {
 				char tmp[256];
 				/* Compare against a database key */
-				if (!ast_db_get(password + 1, passwd, tmp, sizeof(tmp))) {
+				if (!opbx_db_get(password + 1, passwd, tmp, sizeof(tmp))) {
 					/* It's a good password */
 					if (strchr(opts, 'r')) {
-						ast_db_del(password + 1, passwd);
+						opbx_db_del(password + 1, passwd);
 					}
 					break;
 				}
@@ -135,7 +135,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 
 					while (!feof(f)) {
 						fgets(buf, sizeof(buf), f);
-						if (!feof(f) && !ast_strlen_zero(buf)) {
+						if (!feof(f) && !opbx_strlen_zero(buf)) {
 							buf[strlen(buf) - 1] = '\0';
 							if (strchr(opts, 'm')) {
 								md5secret = strchr(buf, ':');
@@ -143,23 +143,23 @@ static int auth_exec(struct ast_channel *chan, void *data)
 									continue;
 								*md5secret = '\0';
 								md5secret++;
-								ast_md5_hash(md5passwd, passwd);
+								opbx_md5_hash(md5passwd, passwd);
 								if (!strcmp(md5passwd, md5secret)) {
 									if (strchr(opts, 'a'))
-										ast_cdr_setaccount(chan, buf);
+										opbx_cdr_setaccount(chan, buf);
 									break;
 								}
 							} else {
 								if (!strcmp(passwd, buf)) {
 									if (strchr(opts, 'a'))
-										ast_cdr_setaccount(chan, buf);
+										opbx_cdr_setaccount(chan, buf);
 									break;
 								}
 							}
 						}
 					}
 					fclose(f);
-					if (!ast_strlen_zero(buf)) {
+					if (!opbx_strlen_zero(buf)) {
 						if (strchr(opts, 'm')) {
 							if (md5secret && !strcmp(md5passwd, md5secret))
 								break;
@@ -169,7 +169,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 						}
 					}
 				} else 
-					ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));
+					opbx_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));
 			}
 		} else {
 			/* Compare against a fixed password */
@@ -180,16 +180,16 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	}
 	if ((retries < 3) && !res) {
 		if (strchr(opts, 'a') && !strchr(opts, 'm')) 
-			ast_cdr_setaccount(chan, passwd);
-		res = ast_streamfile(chan, "auth-thankyou", chan->language);
+			opbx_cdr_setaccount(chan, passwd);
+		res = opbx_streamfile(chan, "auth-thankyou", chan->language);
 		if (!res)
-			res = ast_waitstream(chan, "");
+			res = opbx_waitstream(chan, "");
 	} else {
-		if (jump && ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
+		if (jump && opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 			res = 0;
 		} else {
-			if (!ast_streamfile(chan, "vm-goodbye", chan->language))
-				res = ast_waitstream(chan, "");
+			if (!opbx_streamfile(chan, "vm-goodbye", chan->language))
+				res = opbx_waitstream(chan, "");
 			res = -1;
 		}
 	}
@@ -200,12 +200,12 @@ static int auth_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, auth_exec, synopsis, descrip);
+	return opbx_register_application(app, auth_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -25,16 +25,16 @@
 
 #include "openpbx/linkedlists.h"
 
-struct ast_var_t {
-	AST_LIST_ENTRY(ast_var_t) entries;
+struct opbx_var_t {
+	OPBX_LIST_ENTRY(opbx_var_t) entries;
 	char *value;
 	char name[0];
 };
 
-struct ast_var_t *ast_var_assign(const char *name, const char *value);
-void ast_var_delete(struct ast_var_t *var);
-char *ast_var_name(struct ast_var_t *var);
-char *ast_var_full_name(struct ast_var_t *var);
-char *ast_var_value(struct ast_var_t *var);
+struct opbx_var_t *opbx_var_assign(const char *name, const char *value);
+void opbx_var_delete(struct opbx_var_t *var);
+char *opbx_var_name(struct opbx_var_t *var);
+char *opbx_var_full_name(struct opbx_var_t *var);
+char *opbx_var_value(struct opbx_var_t *var);
 
 #endif /* _OPENPBX_CHANVARS_H */

@@ -162,7 +162,7 @@ char *dundi_hint2str(char *buf, int bufsiz, int flags)
 		strncat(buf, "UNAFFECTED|", bufsiz - strlen(buf) - 1);
 	}
 	/* Get rid of trailing | */
-	if (ast_strlen_zero(buf))
+	if (opbx_strlen_zero(buf))
 		strcpy(buf, "NONE|");
 	buf[strlen(buf)-1] = '\0';
 	return buf;
@@ -302,7 +302,7 @@ char *dundi_flags2str(char *buf, int bufsiz, int flags)
 		strncat(buf, "NOCOMUNSLTD|", bufsiz - strlen(buf) - 1);
 	}
 	/* Get rid of trailing | */
-	if (ast_strlen_zero(buf))
+	if (opbx_strlen_zero(buf))
 		strcpy(buf, "NONE|");
 	buf[strlen(buf)-1] = '\0';
 	return buf;
@@ -499,7 +499,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	snprintf(tmp, (int)sizeof(tmp), 
 		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
 		subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
-		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
+		opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
 		fhi->cmdresp & 0x80 ? " (Final)" : "");
 	outputf(tmp);
 	dump_ies(fhi->ies, rx > 1, datalen);

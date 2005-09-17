@@ -47,7 +47,7 @@ u_int32_t	 __call_hash __P((HTAB *, char *, int));
 int	 __delpair __P((HTAB *, BUFHEAD *, int));
 int	 __expand_table __P((HTAB *));
 int	 __find_bigpair __P((HTAB *, BUFHEAD *, int, char *, int));
-u_int16_t	 __find_last_page __P((HTAB *, BUFHEAD **));
+u_int16_t	 __find_lopbx_page __P((HTAB *, BUFHEAD **));
 void	 __free_ovflpage __P((HTAB *, BUFHEAD *));
 BUFHEAD	*__get_buf __P((HTAB *, u_int32_t, BUFHEAD *, int));
 int	 __get_page __P((HTAB *, char *, u_int32_t, int, int, int));

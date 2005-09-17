@@ -233,7 +233,7 @@ static void Short_term_analysis_filtering P4((u0,rp0,k_n,s),
 
 #if defined(USE_FLOAT_MUL) && defined(FAST)
 
-static void Fast_Short_term_analysis_filtering P4((u,rp,k_n,s),
+static void Fopbx_Short_term_analysis_filtering P4((u,rp,k_n,s),
 	register word * u;
 	register word	* rp,	/* [0..7]	IN	*/
 	register int 	k_n, 	/*   k_end - k_start	*/
@@ -324,7 +324,7 @@ static void Short_term_synthesis_filtering P5((S,rrp,k,wt,sr),
 
 #if defined(FAST) && defined(USE_FLOAT_MUL)
 
-static void Fast_Short_term_synthesis_filtering P5((S,rrp,k,wt,sr),
+static void Fopbx_Short_term_synthesis_filtering P5((S,rrp,k,wt,sr),
 	struct gsm_state * S,
 	register word	* rrp,	/* [0..7]	IN	*/
 	register int	k,	/* k_end - k_start	*/
@@ -377,7 +377,7 @@ int i;
 #undef	FILTER
 #if 	defined(FAST) && defined(USE_FLOAT_MUL)
 # 	define	FILTER 	(* (S->fast			\
-			   ? Fast_Short_term_analysis_filtering	\
+			   ? Fopbx_Short_term_analysis_filtering	\
 		    	   : Short_term_analysis_filtering	))
 
 #else
@@ -422,7 +422,7 @@ void Gsm_Short_Term_Synthesis_Filter P4((S, LARcr, wt, s),
 #if 	defined(FAST) && defined(USE_FLOAT_MUL)
 
 # 	define	FILTER 	(* (S->fast			\
-			   ? Fast_Short_term_synthesis_filtering	\
+			   ? Fopbx_Short_term_synthesis_filtering	\
 		    	   : Short_term_synthesis_filtering	))
 #else
 #	define	FILTER	Short_term_synthesis_filtering

@@ -39,8 +39,8 @@
 #define CID_START_POLARITY 2
 
 
-#define AST_LIN2X(a) ((codec == AST_FORMAT_ALAW) ? (AST_LIN2A(a)) : (AST_LIN2MU(a)))
-#define AST_XLAW(a) ((codec == AST_FORMAT_ALAW) ? (AST_ALAW(a)) : (AST_MULAW(a)))
+#define OPBX_LIN2X(a) ((codec == OPBX_FORMAT_ALAW) ? (OPBX_LIN2A(a)) : (OPBX_LIN2MU(a)))
+#define OPBX_XLAW(a) ((codec == OPBX_FORMAT_ALAW) ? (OPBX_ALAW(a)) : (OPBX_MULAW(a)))
 
 
 struct callerid_state;
@@ -58,7 +58,7 @@ extern void callerid_init(void);
  * \param number Use NULL for no number or "P" for "private"
  * \param name name to be used
  * \param callwaiting callwaiting flag
- * \param codec -- either AST_FORMAT_ULAW or AST_FORMAT_ALAW
+ * \param codec -- either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW
  * This function creates a stream of callerid (a callerid spill) data in ulaw format. It returns the size
  * (in bytes) of the data (if it returns a size of 0, there is probably an error)
 */
@@ -78,7 +78,7 @@ extern struct callerid_state *callerid_new(int cid_signalling);
  * \param cid Which state machine to act upon
  * \param buffer containing your samples
  * \param samples number of samples contained within the buffer.
- * \param codec which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
+ * \param codec which codec (OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
  *
  * Send received audio to the Caller*ID demodulator.
  * Returns -1 on error, 0 for "needs more samples", 
@@ -121,20 +121,20 @@ extern void callerid_free(struct callerid_state *cid);
 /*!
  * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
  * \param astcid OpenPBX format callerid string, taken from the callerid field of openpbx.
- * \param codec OpenPBX codec (either AST_FORMAT_ALAW or AST_FORMAT_ULAW)
+ * \param codec OpenPBX codec (either OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
  *
  * Acts like callerid_generate except uses an openpbx format callerid string.
  */
-extern int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec);
+extern int opbx_callerid_generate(unsigned char *buf, char *name, char *number, int codec);
 
 /*! Generate message waiting indicator  */
 extern int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
 
 /*! Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm) */
 /*!
- * See ast_callerid_generate for other details
+ * See opbx_callerid_generate for other details
  */
-extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
+extern int opbx_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
 
 /*! Destructively parse inbuf into name and location (or number) */
 /*!
@@ -144,35 +144,35 @@ extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, cha
  * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.
  * Returns 0 on success, -1 on failure.
  */
-extern int ast_callerid_parse(char *instr, char **name, char **location);
+extern int opbx_callerid_parse(char *instr, char **name, char **location);
 
 /*! Generate a CAS (CPE Alert Signal) tone for 'n' samples */
 /*!
  * \param outbuf Allocated buffer for data.  Must be at least 2400 bytes unless no SAS is desired
  * \param sas Non-zero if CAS should be preceeded by SAS
  * \param len How many samples to generate.
- * \param codec Which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
+ * \param codec Which codec (OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
  * Returns -1 on error (if len is less than 2400), 0 on success.
  */
-extern int ast_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
+extern int opbx_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
 
 /*! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s... */
 /*!
  * \param n The number to be stripped/shrunk
  * Returns nothing important
  */
-extern void ast_shrink_phone_number(char *n);
+extern void opbx_shrink_phone_number(char *n);
 
 /*! Check if a string consists only of digits.  Returns non-zero if so */
 /*!
  * \param n number to be checked.
  * Returns 0 if n is a number, 1 if it's not.
  */
-extern int ast_isphonenumber(char *n);
+extern int opbx_isphonenumber(char *n);
 
-extern int ast_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
+extern int opbx_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
 
-extern char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
+extern char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
 
 /*
  * Caller*ID and other GR-30 compatible generation
@@ -204,7 +204,7 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 
 #define PUT_AUDIO_SAMPLE(y) do { \
 	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = AST_LIN2X(index); \
+	*(buf++) = OPBX_LIN2X(index); \
 	bytes++; \
 } while(0)
 	
@@ -236,46 +236,46 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 
 /* Various defines and bits for handling PRI- and SS7-type restriction */
 
-#define AST_PRES_NUMBER_TYPE				0x03
-#define AST_PRES_USER_NUMBER_UNSCREENED			0x00
-#define AST_PRES_USER_NUMBER_PASSED_SCREEN		0x01
-#define AST_PRES_USER_NUMBER_FAILED_SCREEN		0x02
-#define AST_PRES_NETWORK_NUMBER				0x03
+#define OPBX_PRES_NUMBER_TYPE				0x03
+#define OPBX_PRES_USER_NUMBER_UNSCREENED			0x00
+#define OPBX_PRES_USER_NUMBER_PASSED_SCREEN		0x01
+#define OPBX_PRES_USER_NUMBER_FAILED_SCREEN		0x02
+#define OPBX_PRES_NETWORK_NUMBER				0x03
 
-#define AST_PRES_RESTRICTION				0x60
-#define AST_PRES_ALLOWED				0x00
-#define AST_PRES_RESTRICTED				0x20
-#define AST_PRES_UNAVAILABLE				0x40
-#define AST_PRES_RESERVED				0x60
+#define OPBX_PRES_RESTRICTION				0x60
+#define OPBX_PRES_ALLOWED				0x00
+#define OPBX_PRES_RESTRICTED				0x20
+#define OPBX_PRES_UNAVAILABLE				0x40
+#define OPBX_PRES_RESERVED				0x60
 
-#define AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED \
-	AST_PRES_USER_NUMBER_UNSCREENED + AST_PRES_ALLOWED
+#define OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED \
+	OPBX_PRES_USER_NUMBER_UNSCREENED + OPBX_PRES_ALLOWED
 
-#define AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN \
-	AST_PRES_USER_NUMBER_PASSED_SCREEN + AST_PRES_ALLOWED
+#define OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN \
+	OPBX_PRES_USER_NUMBER_PASSED_SCREEN + OPBX_PRES_ALLOWED
 
-#define AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN \
-	AST_PRES_USER_NUMBER_FAILED_SCREEN + AST_PRES_ALLOWED
+#define OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN \
+	OPBX_PRES_USER_NUMBER_FAILED_SCREEN + OPBX_PRES_ALLOWED
 
-#define AST_PRES_ALLOWED_NETWORK_NUMBER	\
-	AST_PRES_NETWORK_NUMBER + AST_PRES_ALLOWED
+#define OPBX_PRES_ALLOWED_NETWORK_NUMBER	\
+	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_ALLOWED
 
-#define AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED \
-	AST_PRES_USER_NUMBER_UNSCREENED + AST_PRES_RESTRICTED
+#define OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED \
+	OPBX_PRES_USER_NUMBER_UNSCREENED + OPBX_PRES_RESTRICTED
 
-#define AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN \
-	AST_PRES_USER_NUMBER_PASSED_SCREEN + AST_PRES_RESTRICTED
+#define OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN \
+	OPBX_PRES_USER_NUMBER_PASSED_SCREEN + OPBX_PRES_RESTRICTED
 
-#define AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN \
-	AST_PRES_USER_NUMBER_FAILED_SCREEN + AST_PRES_RESTRICTED
+#define OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN \
+	OPBX_PRES_USER_NUMBER_FAILED_SCREEN + OPBX_PRES_RESTRICTED
 
-#define AST_PRES_PROHIB_NETWORK_NUMBER \
-	AST_PRES_NETWORK_NUMBER + AST_PRES_RESTRICTED
+#define OPBX_PRES_PROHIB_NETWORK_NUMBER \
+	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_RESTRICTED
 
-#define AST_PRES_NUMBER_NOT_AVAILABLE \
-	AST_PRES_NETWORK_NUMBER + AST_PRES_UNAVAILABLE
+#define OPBX_PRES_NUMBER_NOT_AVAILABLE \
+	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_UNAVAILABLE
 
-int ast_parse_caller_presentation(const char *data);
-const char *ast_describe_caller_presentation(int data);
+int opbx_parse_caller_presentation(const char *data);
+const char *opbx_describe_caller_presentation(int data);
 
 #endif /* _OPENPBX_CALLERID_H */

@@ -82,7 +82,7 @@ static int careful_write(int fd, unsigned char *data, int len)
 		res = write(fd, data, len);
 		if (res < 1) {
 			if (errno != EAGAIN) {
-				ast_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
+				opbx_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
 				return -1;
 			} else
 				return 0;
@@ -93,13 +93,13 @@ static int careful_write(int fd, unsigned char *data, int len)
 	return 0;
 }
 
-static int conf_run(struct ast_channel *chan, int confno, int confflags)
+static int conf_run(struct opbx_channel *chan, int confno, int confflags)
 {
 	int fd;
 	struct zt_confinfo ztc;
-	struct ast_frame *f;
-	struct ast_channel *c;
-	struct ast_frame fr;
+	struct opbx_frame *f;
+	struct opbx_channel *c;
+	struct opbx_frame fr;
 	int outfd;
 	int ms;
 	int nfds;
@@ -110,39 +110,39 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	int ret = -1;
 
 	ZT_BUFFERINFO bi;
-	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
-	char *buf = __buf + AST_FRIENDLY_OFFSET;
+	char __buf[CONF_SIZE + OPBX_FRIENDLY_OFFSET];
+	char *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
 	/* Set it into U-law mode (write) */
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
+	if (opbx_set_write_format(chan, OPBX_FORMAT_ULAW) < 0) {
+		opbx_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
 		goto outrun;
 	}
 
 	/* Set it into U-law mode (read) */
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
+	if (opbx_set_read_format(chan, OPBX_FORMAT_ULAW) < 0) {
+		opbx_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
 		goto outrun;
 	}
-	ast_indicate(chan, -1);
+	opbx_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
 		fd = open("/dev/zap/pseudo", O_RDWR);
 		if (fd < 0) {
-			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
 		}
 		/* Make non-blocking */
 		flags = fcntl(fd, F_GETFL);
 		if (flags < 0) {
-			ast_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
 		}
 		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
-			ast_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
 		}
@@ -153,7 +153,7 @@ zapretry:
 		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 		bi.numbufs = 4;
 		if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
-			ast_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
 		}
@@ -167,14 +167,14 @@ zapretry:
 	/* Check to see if we're in a conference... */
 	ztc.chan = 0;	
 	if (ioctl(fd, ZT_GETCONF, &ztc)) {
-		ast_log(LOG_WARNING, "Error getting conference\n");
+		opbx_log(LOG_WARNING, "Error getting conference\n");
 		close(fd);
 		goto outrun;
 	}
 	if (ztc.confmode) {
 		/* Whoa, already in a conference...  Retry... */
 		if (!retryzap) {
-			ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+			opbx_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
 			retryzap = 1;
 			goto zapretry;
 		}
@@ -186,58 +186,58 @@ zapretry:
 	ztc.confmode = ZT_CONF_MONITORBOTH;
 
 	if (ioctl(fd, ZT_SETCONF, &ztc)) {
-		ast_log(LOG_WARNING, "Error setting conference\n");
+		opbx_log(LOG_WARNING, "Error setting conference\n");
 		close(fd);
 		goto outrun;
 	}
-	ast_log(LOG_DEBUG, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
+	opbx_log(LOG_DEBUG, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
 
 	for(;;) {
 		outfd = -1;
 		ms = -1;
-		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+		c = opbx_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 		if (c) {
 			if (c->fds[0] != origfd) {
 				if (retryzap) {
 					/* Kill old pseudo */
 					close(fd);
 				}
-				ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+				opbx_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
 				retryzap = 0;
 				goto zapretry;
 			}
-			f = ast_read(c);
+			f = opbx_read(c);
 			if (!f) 
 				break;
-			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
+			if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '#')) {
 				ret = 0;
 				break;
 			} else if (fd != chan->fds[0]) {
-				if (f->frametype == AST_FRAME_VOICE) {
-					if (f->subclass == AST_FORMAT_ULAW) {
+				if (f->frametype == OPBX_FRAME_VOICE) {
+					if (f->subclass == OPBX_FORMAT_ULAW) {
 						/* Carefully write */
 						careful_write(fd, f->data, f->datalen);
 					} else
-						ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
+						opbx_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
 				}
 			}
-			ast_frfree(f);
+			opbx_frfree(f);
 		} else if (outfd > -1) {
 			res = read(outfd, buf, CONF_SIZE);
 			if (res > 0) {
 				memset(&fr, 0, sizeof(fr));
-				fr.frametype = AST_FRAME_VOICE;
-				fr.subclass = AST_FORMAT_ULAW;
+				fr.frametype = OPBX_FRAME_VOICE;
+				fr.subclass = OPBX_FORMAT_ULAW;
 				fr.datalen = res;
 				fr.samples = res;
 				fr.data = buf;
-				fr.offset = AST_FRIENDLY_OFFSET;
-				if (ast_write(chan, &fr) < 0) {
-					ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+				fr.offset = OPBX_FRIENDLY_OFFSET;
+				if (opbx_write(chan, &fr) < 0) {
+					opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
 					/* break; */
 				}
 			} else 
-				ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+				opbx_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 		}
 	}
 	if (fd != chan->fds[0])
@@ -249,7 +249,7 @@ zapretry:
 		ztc.confno = 0;
 		ztc.confmode = 0;
 		if (ioctl(fd, ZT_SETCONF, &ztc)) {
-			ast_log(LOG_WARNING, "Error setting conference\n");
+			opbx_log(LOG_WARNING, "Error setting conference\n");
 		}
 	}
 
@@ -258,7 +258,7 @@ outrun:
 	return ret;
 }
 
-static int conf_exec(struct ast_channel *chan, void *data)
+static int conf_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
@@ -267,21 +267,21 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int confno = 0;
 	char confstr[80] = "";
 
-	if (data && !ast_strlen_zero(data)) {
+	if (data && !opbx_strlen_zero(data)) {
 		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
 		    (sscanf(data, "%d", &confno) != 1)) {
-			ast_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);
+			opbx_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);
 			return 0;
 		}
 	}
 	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_answer(chan);
 
 	while(!confno && (++retrycnt < 4)) {
 		/* Prompt user for conference number */
 		confstr[0] = '\0';
-		res = ast_app_getdata(chan, "conf-getchannel",confstr, sizeof(confstr) - 1, 0);
+		res = opbx_app_getdata(chan, "conf-getchannel",confstr, sizeof(confstr) - 1, 0);
 		if (res <0) goto out;
 		if (sscanf(confstr, "%d", &confno) != 1)
 			confno = 0;
@@ -300,12 +300,12 @@ out:
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, conf_exec, synopsis, descrip);
+	return opbx_register_application(app, conf_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -43,7 +43,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
+OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
 static char *tdesc = "A-law and Mulaw direct Coder/Decoder";
@@ -61,8 +61,8 @@ static unsigned char a2mu[256];
 
 struct alaw_encoder_pvt
 {
-  struct ast_frame f;
-  char offset[AST_FRIENDLY_OFFSET];   /* Space to build offset */
+  struct opbx_frame f;
+  char offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
   unsigned char outbuf[BUFFER_SIZE];  /* Encoded alaw, two nibbles to a word */
   int tail;
 };
@@ -73,13 +73,13 @@ struct alaw_encoder_pvt
 
 struct ulaw_encoder_pvt
 {
-  struct ast_frame f;
-  char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
+  struct opbx_frame f;
+  char offset[OPBX_FRIENDLY_OFFSET];	/* Space to build offset */
   unsigned char outbuf[BUFFER_SIZE];	/* Encoded ulaw values */
   int tail;
 };
 
-static struct ast_translator_pvt *
+static struct opbx_translator_pvt *
 alawtoulaw_new (void)
 {
   struct ulaw_encoder_pvt *tmp;
@@ -89,12 +89,12 @@ alawtoulaw_new (void)
 	  memset(tmp, 0, sizeof(*tmp));
       tmp->tail = 0;
       localusecnt++;
-      ast_update_use_count ();
+      opbx_update_use_count ();
     }
-  return (struct ast_translator_pvt *) tmp;
+  return (struct opbx_translator_pvt *) tmp;
 }
 
-static struct ast_translator_pvt *
+static struct opbx_translator_pvt *
 ulawtoalaw_new (void)
 {
   struct alaw_encoder_pvt *tmp;
@@ -103,21 +103,21 @@ ulawtoalaw_new (void)
     {
 	  memset(tmp, 0, sizeof(*tmp));
       localusecnt++;
-      ast_update_use_count ();
+      opbx_update_use_count ();
       tmp->tail = 0;
     }
-  return (struct ast_translator_pvt *) tmp;
+  return (struct opbx_translator_pvt *) tmp;
 }
 
 static int
-alawtoulaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
+alawtoulaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
   struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
   int x;
   unsigned char *b;
 
   if ((tmp->tail + f->datalen)> sizeof(tmp->outbuf)) {
-  	ast_log(LOG_WARNING, "Out of buffer space\n");
+  	opbx_log(LOG_WARNING, "Out of buffer space\n");
 	return -1;
   }
 
@@ -130,20 +130,20 @@ alawtoulaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
   return 0;
 }
 
-static struct ast_frame *
-alawtoulaw_frameout (struct ast_translator_pvt *pvt)
+static struct opbx_frame *
+alawtoulaw_frameout (struct opbx_translator_pvt *pvt)
 {
   struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
 
   if (!tmp->tail)
     return NULL;
 
-  tmp->f.frametype = AST_FRAME_VOICE;
-  tmp->f.subclass = AST_FORMAT_ULAW;
+  tmp->f.frametype = OPBX_FRAME_VOICE;
+  tmp->f.subclass = OPBX_FORMAT_ULAW;
   tmp->f.datalen = tmp->tail;
   tmp->f.samples = tmp->tail;
   tmp->f.mallocd = 0;
-  tmp->f.offset = AST_FRIENDLY_OFFSET;
+  tmp->f.offset = OPBX_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
   tmp->f.data = tmp->outbuf;
   tmp->tail = 0;
@@ -151,14 +151,14 @@ alawtoulaw_frameout (struct ast_translator_pvt *pvt)
 }
 
 static int
-ulawtoalaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
+ulawtoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
   struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   int x;
   unsigned char *s;
   if (tmp->tail + f->datalen >= sizeof(tmp->outbuf))
     {
-      ast_log (LOG_WARNING, "Out of buffer space\n");
+      opbx_log (LOG_WARNING, "Out of buffer space\n");
       return -1;
     }
   s = f->data;
@@ -180,17 +180,17 @@ ulawtoalaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct ast_frame *
-ulawtoalaw_frameout (struct ast_translator_pvt *pvt)
+static struct opbx_frame *
+ulawtoalaw_frameout (struct opbx_translator_pvt *pvt)
 {
   struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
   if (tmp->tail) {
-	  tmp->f.frametype = AST_FRAME_VOICE;
-	  tmp->f.subclass = AST_FORMAT_ALAW;
+	  tmp->f.frametype = OPBX_FRAME_VOICE;
+	  tmp->f.subclass = OPBX_FORMAT_ALAW;
 	  tmp->f.samples = tmp->tail;
 	  tmp->f.mallocd = 0;
-	  tmp->f.offset = AST_FRIENDLY_OFFSET;
+	  tmp->f.offset = OPBX_FRIENDLY_OFFSET;
 	  tmp->f.src = __PRETTY_FUNCTION__;
 	  tmp->f.data = tmp->outbuf;
 	  tmp->f.datalen = tmp->tail;
@@ -204,12 +204,12 @@ ulawtoalaw_frameout (struct ast_translator_pvt *pvt)
  * alawToLin_Sample
  */
 
-static struct ast_frame *
+static struct opbx_frame *
 alawtoulaw_sample (void)
 {
-  static struct ast_frame f;
-  f.frametype = AST_FRAME_VOICE;
-  f.subclass = AST_FORMAT_ALAW;
+  static struct opbx_frame f;
+  f.frametype = OPBX_FRAME_VOICE;
+  f.subclass = OPBX_FORMAT_ALAW;
   f.datalen = sizeof (ulaw_slin_ex);
   f.samples = sizeof(ulaw_slin_ex);
   f.mallocd = 0;
@@ -219,12 +219,12 @@ alawtoulaw_sample (void)
   return &f;
 }
 
-static struct ast_frame *
+static struct opbx_frame *
 ulawtoalaw_sample (void)
 {
-  static struct ast_frame f;
-  f.frametype = AST_FRAME_VOICE;
-  f.subclass = AST_FORMAT_ULAW;
+  static struct opbx_frame f;
+  f.frametype = OPBX_FRAME_VOICE;
+  f.subclass = OPBX_FORMAT_ULAW;
   f.datalen = sizeof (ulaw_slin_ex);
   f.samples = sizeof(ulaw_slin_ex);
   f.mallocd = 0;
@@ -247,21 +247,21 @@ ulawtoalaw_sample (void)
  */
 
 static void
-alaw_destroy (struct ast_translator_pvt *pvt)
+alaw_destroy (struct opbx_translator_pvt *pvt)
 {
   free (pvt);
   localusecnt--;
-  ast_update_use_count ();
+  opbx_update_use_count ();
 }
 
 /*
  * The complete translator for alawToLin.
  */
 
-static struct ast_translator alawtoulaw = {
+static struct opbx_translator alawtoulaw = {
   "alawtoulaw",
-  AST_FORMAT_ALAW,
-  AST_FORMAT_ULAW,
+  OPBX_FORMAT_ALAW,
+  OPBX_FORMAT_ULAW,
   alawtoulaw_new,
   alawtoulaw_framein,
   alawtoulaw_frameout,
@@ -274,10 +274,10 @@ static struct ast_translator alawtoulaw = {
  * The complete translator for LinToalaw.
  */
 
-static struct ast_translator ulawtoalaw = {
+static struct opbx_translator ulawtoalaw = {
   "ulawtoalaw",
-  AST_FORMAT_ULAW,
-  AST_FORMAT_ALAW,
+  OPBX_FORMAT_ULAW,
+  OPBX_FORMAT_ALAW,
   ulawtoalaw_new,
   ulawtoalaw_framein,
   ulawtoalaw_frameout,
@@ -290,13 +290,13 @@ int
 unload_module (void)
 {
   int res;
-  ast_mutex_lock (&localuser_lock);
-  res = ast_unregister_translator (&ulawtoalaw);
+  opbx_mutex_lock (&localuser_lock);
+  res = opbx_unregister_translator (&ulawtoalaw);
   if (!res)
-    res = ast_unregister_translator (&alawtoulaw);
+    res = opbx_unregister_translator (&alawtoulaw);
   if (localusecnt)
     res = -1;
-  ast_mutex_unlock (&localuser_lock);
+  opbx_mutex_unlock (&localuser_lock);
   return res;
 }
 
@@ -306,14 +306,14 @@ load_module (void)
   int res;
   int x;
   for (x=0;x<256;x++) {
-	mu2a[x] = AST_LIN2A(AST_MULAW(x));
-	a2mu[x] = AST_LIN2MU(AST_ALAW(x));
+	mu2a[x] = OPBX_LIN2A(OPBX_MULAW(x));
+	a2mu[x] = OPBX_LIN2MU(OPBX_ALAW(x));
   }
-  res = ast_register_translator (&alawtoulaw);
+  res = opbx_register_translator (&alawtoulaw);
   if (!res)
-    res = ast_register_translator (&ulawtoalaw);
+    res = opbx_register_translator (&ulawtoalaw);
   else
-    ast_unregister_translator (&alawtoulaw);
+    opbx_unregister_translator (&alawtoulaw);
   return res;
 }
 

@@ -37,12 +37,12 @@
 #include "openpbx/app.h"
 #include "openpbx/options.h"
 
-static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	time_t myt;
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Must specify type of timeout to get.");
+		opbx_log(LOG_ERROR, "Must specify type of timeout to get.");
                 return NULL;
 	}
 	
@@ -50,7 +50,7 @@ static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, 
 	case 'a':
 	case 'A':
 		if (chan->whentohangup == 0) {
-			ast_copy_string(buf, "0", len);
+			opbx_copy_string(buf, "0", len);
 		} else {
 			time(&myt);
 			snprintf(buf, len, "%d", (int) (chan->whentohangup - myt));
@@ -72,21 +72,21 @@ static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, 
 		break;
 
 	default:
-		ast_log(LOG_ERROR, "Unknown timeout type specified.");
+		opbx_log(LOG_ERROR, "Unknown timeout type specified.");
 		break;
 	}
 
 	return buf;
 }
 
-static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
 {
 	int x;
 	char timestr[64];
 	struct tm myt;
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Must specify type of timeout to set.");
+		opbx_log(LOG_ERROR, "Must specify type of timeout to set.");
 		return;
 	}
 	
@@ -98,13 +98,13 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 	switch(*data) {
 	case 'a':
 	case 'A':
-		ast_channel_setwhentohangup(chan, x);
+		opbx_channel_setwhentohangup(chan, x);
 		if (option_verbose > 2) {
 			if (chan->whentohangup) {
 				strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S UTC", gmtime_r(&chan->whentohangup, &myt));
-				ast_verbose( VERBOSE_PREFIX_3 "Channel will hangup at %s.\n", timestr);
+				opbx_verbose( VERBOSE_PREFIX_3 "Channel will hangup at %s.\n", timestr);
 			} else {
-				ast_verbose( VERBOSE_PREFIX_3 "Channel hangup cancelled.\n");
+				opbx_verbose( VERBOSE_PREFIX_3 "Channel hangup cancelled.\n");
 			} 
 		}
 		break;
@@ -114,7 +114,7 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 		if (chan->pbx) {
 			chan->pbx->rtimeout = x;
 			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Response timeout set to %d\n", chan->pbx->rtimeout);
+				opbx_verbose( VERBOSE_PREFIX_3 "Response timeout set to %d\n", chan->pbx->rtimeout);
 		}
 		break;
 
@@ -123,12 +123,12 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 		if (chan->pbx) {
 			chan->pbx->dtimeout = x;
 			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Digit timeout set to %d\n", chan->pbx->dtimeout);
+				opbx_verbose( VERBOSE_PREFIX_3 "Digit timeout set to %d\n", chan->pbx->dtimeout);
 		}
 		break;
 
 	default:
-		ast_log(LOG_ERROR, "Unknown timeout type specified.");
+		opbx_log(LOG_ERROR, "Unknown timeout type specified.");
 		break;
 	}
 }
@@ -136,7 +136,7 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function timeout_function = {
+struct opbx_custom_function timeout_function = {
 	.name = "TIMEOUT",
 	.synopsis = "Gets or sets timeouts on the channel.",
 	.syntax = "TIMEOUT(timeouttype)",

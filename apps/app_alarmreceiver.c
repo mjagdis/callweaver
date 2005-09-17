@@ -121,13 +121,13 @@ static void database_increment( char *key )
 	if(!strlen(db_family))
 		return; /* If not defined, don't do anything */
 	
-	res = ast_db_get(db_family, key, value, sizeof(value) - 1);
+	res = opbx_db_get(db_family, key, value, sizeof(value) - 1);
 	
 	if(res){
 		if(option_verbose >= 4)
-			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Creating database entry %s and setting to 1\n", key);
+			opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Creating database entry %s and setting to 1\n", key);
 		/* Guess we have to create it */
-		res = ast_db_put(db_family, key, "1");
+		res = opbx_db_put(db_family, key, "1");
 		return;
 	}
 	
@@ -135,14 +135,14 @@ static void database_increment( char *key )
 	v++;
 	
 	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: New value for %s: %u\n", key, v);
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: New value for %s: %u\n", key, v);
 		
 	snprintf(value, sizeof(value), "%u", v);
 	
-	res = ast_db_put(db_family, key, value);
+	res = opbx_db_put(db_family, key, value);
 	
 	if((res)&&(option_verbose >= 4))
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: database_increment write error");
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: database_increment write error");
 	
 	return;	
 }
@@ -159,7 +159,7 @@ static void make_tone_burst(unsigned char *data, float freq, float loudness, int
                                                                                                                                     
         for(i = 0; i < len; i++){
 		val = loudness * sin((freq * 2.0 * M_PI * (*x)++)/8000.0);
-		data[i] = AST_LIN2MU((int)val);
+		data[i] = OPBX_LIN2MU((int)val);
 	}
 
 	/* wrap back around from 8000 */
@@ -173,36 +173,36 @@ static void make_tone_burst(unsigned char *data, float freq, float loudness, int
 * Returns 0 if successful
 */
 
-static int send_tone_burst(struct ast_channel *chan, float freq, int duration, int tldn)
+static int send_tone_burst(struct opbx_channel *chan, float freq, int duration, int tldn)
 {
 	int res = 0;
 	int i = 0;
 	int x = 0;
-	struct ast_frame *f, wf;
+	struct opbx_frame *f, wf;
 	
 	struct {
-		unsigned char offset[AST_FRIENDLY_OFFSET];
+		unsigned char offset[OPBX_FRIENDLY_OFFSET];
 		unsigned char buf[640];
 	} tone_block;
 
 	for(;;)
 	{
 	
-		if (ast_waitfor(chan, -1) < 0){
+		if (opbx_waitfor(chan, -1) < 0){
 			res = -1;
 			break;
 		}
 		
-		f = ast_read(chan);
+		f = opbx_read(chan);
 		if (!f){
 			res = -1;
 			break;
 		}
 		
-		if (f->frametype == AST_FRAME_VOICE) {
-			wf.frametype = AST_FRAME_VOICE;
-			wf.subclass = AST_FORMAT_ULAW;
-			wf.offset = AST_FRIENDLY_OFFSET;
+		if (f->frametype == OPBX_FRAME_VOICE) {
+			wf.frametype = OPBX_FRAME_VOICE;
+			wf.subclass = OPBX_FORMAT_ULAW;
+			wf.offset = OPBX_FRIENDLY_OFFSET;
 			wf.mallocd = 0;
 			wf.data = tone_block.buf;
 			wf.datalen = f->datalen;
@@ -214,16 +214,16 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 			if (i > duration) {
 				break;
 			}
-			if (ast_write(chan, &wf)){
+			if (opbx_write(chan, &wf)){
 				if(option_verbose >= 4)
-					ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Failed to write frame on %s\n", chan->name);
-				ast_log(LOG_WARNING, "AlarmReceiver Failed to write frame on %s\n",chan->name);
+					opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Failed to write frame on %s\n", chan->name);
+				opbx_log(LOG_WARNING, "AlarmReceiver Failed to write frame on %s\n",chan->name);
 				res = -1;
 				break;
 			}
 		}
 		
-		ast_frfree(f);
+		opbx_frfree(f);
 	}
 	return res;
 }
@@ -239,34 +239,34 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 *
 */
 
-static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int length, int fdto, int sdto)
+static int receive_dtmf_digits(struct opbx_channel *chan, char *digit_string, int length, int fdto, int sdto)
 {
 	int res = 0;
 	int i = 0;
 	int r;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	struct timeval lastdigittime;
 	
-	lastdigittime = ast_tvnow();
+	lastdigittime = opbx_tvnow();
 	for(;;){
 		  /* if outa time, leave */
-		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) >
+		if (opbx_tvdiff_ms(opbx_tvnow(), lastdigittime) >
 		    ((i > 0) ? sdto : fdto)){
 			if(option_verbose >= 4)
-				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
+				opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
 				
-			ast_log(LOG_DEBUG,"AlarmReceiver: DTMF timeout on chan %s\n",chan->name);
+			opbx_log(LOG_DEBUG,"AlarmReceiver: DTMF timeout on chan %s\n",chan->name);
 				
 			res = 1;
 			break;
 		}
 		
-		if ((r = ast_waitfor(chan, -1) < 0)) {
-			ast_log(LOG_DEBUG, "Waitfor returned %d\n", r);
+		if ((r = opbx_waitfor(chan, -1) < 0)) {
+			opbx_log(LOG_DEBUG, "Waitfor returned %d\n", r);
 			continue;
 		}
 			
-		f = ast_read(chan);
+		f = opbx_read(chan);
 		
 		if (f == NULL){
 			res = -1;
@@ -274,28 +274,28 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 		}
 		
 		/* If they hung up, leave */
-		if ((f->frametype == AST_FRAME_CONTROL) &&
-		    (f->subclass == AST_CONTROL_HANGUP)){
-			ast_frfree(f);
+		if ((f->frametype == OPBX_FRAME_CONTROL) &&
+		    (f->subclass == OPBX_CONTROL_HANGUP)){
+			opbx_frfree(f);
 			res = -1;
 			break;
 		}
 		
 		/* if not DTMF, just do it again */
-		if (f->frametype != AST_FRAME_DTMF){
-			ast_frfree(f);
+		if (f->frametype != OPBX_FRAME_DTMF){
+			opbx_frfree(f);
 			continue;
 		}
 
 		digit_string[i++] = f->subclass;  /* save digit */
 		
-		ast_frfree(f);
+		opbx_frfree(f);
 		
 		/* If we have all the digits we expect, leave */
 		if(i >= length)
 			break;
 		
-		lastdigittime = ast_tvnow();
+		lastdigittime = opbx_tvnow();
 	}
 	
 	digit_string[i] = '\0'; /* Nul terminate the end of the digit string */
@@ -307,7 +307,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 * Write the metadata to the log file
 */
 
-static int write_metadata( FILE *logfile, char *signalling_type, struct ast_channel *chan)
+static int write_metadata( FILE *logfile, char *signalling_type, struct opbx_channel *chan)
 {
 	int res = 0;
 	time_t t;
@@ -318,18 +318,18 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	
 	/* Extract the caller ID location */
 	if (chan->cid.cid_num)
-		ast_copy_string(workstring, chan->cid.cid_num, sizeof(workstring));
+		opbx_copy_string(workstring, chan->cid.cid_num, sizeof(workstring));
 	workstring[sizeof(workstring) - 1] = '\0';
 	
-	ast_callerid_parse(workstring, &cn, &cl);
+	opbx_callerid_parse(workstring, &cn, &cl);
 	if (cl) 
-		ast_shrink_phone_number(cl);
+		opbx_shrink_phone_number(cl);
                 
 
 	/* Get the current time */
 		
 	time(&t);
-	ast_localtime(&t, &now, NULL);
+	opbx_localtime(&t, &now, NULL);
 	
 	/* Format the time */
 	
@@ -354,9 +354,9 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 		res = fprintf(logfile, "[events]\n\n");
 	
 	if(res < 0){
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't write metadata\n");	
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't write metadata\n");	
 		
-		ast_log(LOG_DEBUG,"AlarmReceiver: can't write metadata\n");
+		opbx_log(LOG_DEBUG,"AlarmReceiver: can't write metadata\n");
 	}
 	else
 		res = 0;
@@ -384,7 +384,7 @@ static int write_event( FILE *logfile,  event_node_t *event)
 *
 */
 
-static int log_events(struct ast_channel *chan,  char *signalling_type, event_node_t *event)
+static int log_events(struct opbx_channel *chan,  char *signalling_type, event_node_t *event)
 {
 
 	int res = 0;
@@ -397,7 +397,7 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 		
 		/* Make a template */
 		
-		ast_copy_string(workstring, event_spool_dir, sizeof(workstring));
+		opbx_copy_string(workstring, event_spool_dir, sizeof(workstring));
 		strncat(workstring, event_file, sizeof(workstring) - strlen(workstring) - 1);
 		
 		/* Make the temporary file */
@@ -405,8 +405,8 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 		fd = mkstemp(workstring);
 		
 		if(fd == -1){
-			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't make temporary file\n");	
-			ast_log(LOG_DEBUG,"AlarmReceiver: can't make temporary file\n");
+			opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't make temporary file\n");	
+			opbx_log(LOG_DEBUG,"AlarmReceiver: can't make temporary file\n");
 			res = -1;
 		}
 		
@@ -443,7 +443,7 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 * The function will return 0 when the caller hangs up, else a -1 if there was a problem.
 */
 
-static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int fdto, int sdto, int tldn, event_node_t **ehead)
+static int receive_ademco_contact_id( struct opbx_channel *chan, void *data, int fdto, int sdto, int tldn, event_node_t **ehead)
 {
 	int i,j;
 	int res = 0;
@@ -462,7 +462,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 	/* Wait for first event */
 
 	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Waiting for first event from panel\n");
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Waiting for first event from panel\n");
 
 	while(res >= 0){
 
@@ -472,17 +472,17 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
                         
 		                                                                                                                    
         		if(option_verbose >= 4)
-                		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Sending 1400Hz 100ms burst (ACK)\n");
+                		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Sending 1400Hz 100ms burst (ACK)\n");
                                                                                                                                             
                                                                                                                                             
         		res = send_tone_burst(chan, 1400.0, 100, tldn);
                                                                                                                                             
         		if(!res)
-                		res = ast_safe_sleep(chan, 100);
+                		res = opbx_safe_sleep(chan, 100);
                                                                                                                                             
         		if(!res){
                 		if(option_verbose >= 4)
-                        		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Sending 2300Hz 100ms burst (ACK)\n");
+                        		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Sending 2300Hz 100ms burst (ACK)\n");
                                                                                                                                             
                 		res = send_tone_burst(chan, 2300.0, 100, tldn);
         		}
@@ -500,13 +500,13 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 			else{
 				if(ack_retries){
 					if(option_verbose >= 4)
-						ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: ACK retries during this call: %d\n", ack_retries);
+						opbx_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: ACK retries during this call: %d\n", ack_retries);
 					
 					database_increment("ack-retries");
 				}
 			}
 			if(option_verbose >= 4)
-				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: App exiting...\n");
+				opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: App exiting...\n");
 			res = -1;
 			break;
 		}
@@ -514,7 +514,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		if(res != 0){
 			 /* Didn't get all of the digits */
 			if(option_verbose >= 2)
-				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Incomplete string: %s, trying again...\n", event);
+				opbx_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Incomplete string: %s, trying again...\n", event);
 
 			if(!got_some_digits){
 				got_some_digits = (strlen(event)) ? 1 : 0;
@@ -526,8 +526,8 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		got_some_digits = 1;
 
 		if(option_verbose >= 2)
-			ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Received Event %s\n", event);
-		ast_log(LOG_DEBUG, "AlarmReceiver: Received event: %s\n", event);
+			opbx_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Received Event %s\n", event);
+		opbx_log(LOG_DEBUG, "AlarmReceiver: Received event: %s\n", event);
 		
 		/* Calculate checksum */
 		
@@ -545,7 +545,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		
 		if(i == 16){
 			if(option_verbose >= 2)
-				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Bad DTMF character %c, trying again\n", event[j]);
+				opbx_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Bad DTMF character %c, trying again\n", event[j]);
 			continue; /* Bad character */
 		}
 
@@ -556,8 +556,8 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		if(checksum){
 			database_increment("checksum-errors");
 			if(option_verbose >= 2){
-				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Nonzero checksum\n");
-			ast_log(LOG_DEBUG, "AlarmReceiver: Nonzero checksum\n");
+				opbx_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Nonzero checksum\n");
+			opbx_log(LOG_DEBUG, "AlarmReceiver: Nonzero checksum\n");
 			continue;
 			}
 		}
@@ -568,8 +568,8 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 			if(strncmp(event + 4, "98", 2)){
 				database_increment("format-errors");
 				if(option_verbose >= 2)
-					ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Wrong message type\n");
-				ast_log(LOG_DEBUG, "AlarmReceiver: Wrong message type\n");
+					opbx_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Wrong message type\n");
+				opbx_log(LOG_DEBUG, "AlarmReceiver: Wrong message type\n");
 			continue;
 			}
 		}
@@ -580,8 +580,8 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 
 		if((enew = malloc(sizeof(event_node_t))) == NULL){
 			if(option_verbose >= 1)
-				ast_verbose(VERBOSE_PREFIX_1 "AlarmReceiver: Failed to allocate memory\n");
-			ast_log(LOG_WARNING, "AlarmReceiver Failed to allocate memory\n");
+				opbx_verbose(VERBOSE_PREFIX_1 "AlarmReceiver: Failed to allocate memory\n");
+			opbx_log(LOG_WARNING, "AlarmReceiver Failed to allocate memory\n");
 			res = -1;
                         break;
 		}
@@ -589,7 +589,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		memset(enew, 0, sizeof(event_node_t));
 		
 		enew->next = NULL;
-		ast_copy_string(enew->data, event, sizeof(enew->data));
+		opbx_copy_string(enew->data, event, sizeof(enew->data));
 
 		/*
 		* Insert event onto end of list
@@ -616,7 +616,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		/* Wait 200 msec before sending kissoff */	
 			
 		if(res == 0)	
-			res = ast_safe_sleep(chan, 200);
+			res = opbx_safe_sleep(chan, 200);
 
 		/* Send the kissoff tone */
 
@@ -634,7 +634,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 * This function will always return 0.
 */
 
-static int alarmreceiver_exec(struct ast_channel *chan, void *data)
+static int alarmreceiver_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
@@ -648,31 +648,31 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	/* Set write and read formats to ULAW */
 
 	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Setting read and write formats to ULAW\n");
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Setting read and write formats to ULAW\n");
 
-	if (ast_set_write_format(chan,AST_FORMAT_ULAW)){
-		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
+	if (opbx_set_write_format(chan,OPBX_FORMAT_ULAW)){
+		opbx_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
 	
-	if (ast_set_read_format(chan,AST_FORMAT_ULAW)){
-		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
+	if (opbx_set_read_format(chan,OPBX_FORMAT_ULAW)){
+		opbx_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
 
 	/* Set default values for this invokation of the application */
 	
-	ast_copy_string(signalling_type, ADEMCO_CONTACT_ID, sizeof(signalling_type));
+	opbx_copy_string(signalling_type, ADEMCO_CONTACT_ID, sizeof(signalling_type));
 
 
 	/* Answer the channel if it is not already */
 
 	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Answering channel\n");
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Answering channel\n");
 
-	if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != OPBX_STATE_UP) {
 	
-		res = ast_answer(chan);
+		res = opbx_answer(chan);
 		
 		if (res) {
 			LOCAL_USER_REMOVE(u);
@@ -683,9 +683,9 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	/* Wait for the connection to settle post-answer */
 
 	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Waiting for connection to stabilize\n");
+		opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Waiting for connection to stabilize\n");
 
-	res = ast_safe_sleep(chan, 1250);
+	res = opbx_safe_sleep(chan, 1250);
 
 	/* Attempt to receive the events */
 
@@ -715,8 +715,8 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	*/
 	
 	if((!res) && (strlen(event_app)) && (event_head)){
-		ast_log(LOG_DEBUG,"Alarmreceiver: executing: %s\n", event_app);
-		ast_safe_system(event_app);
+		opbx_log(LOG_DEBUG,"Alarmreceiver: executing: %s\n", event_app);
+		opbx_safe_system(event_app);
 	}
 
 	/*
@@ -741,29 +741,29 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 static int load_config(void)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	char *p;
 
 	/* Read in the config file */
 
-	cfg = ast_config_load(ALMRCV_CONFIG);
+	cfg = opbx_config_load(ALMRCV_CONFIG);
                                                                                                                                   
 	if(!cfg){
 	
 		if(option_verbose >= 4)
-			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: No config file\n");
+			opbx_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: No config file\n");
 	}
 	else{
 
 		
-		p = ast_variable_retrieve(cfg, "general", "eventcmd");
+		p = opbx_variable_retrieve(cfg, "general", "eventcmd");
 		
 		if(p){
-			ast_copy_string(event_app, p, sizeof(event_app));
+			opbx_copy_string(event_app, p, sizeof(event_app));
 			event_app[sizeof(event_app) - 1] = '\0';
 		}
 		
-		p = ast_variable_retrieve(cfg, "general", "loudness");
+		p = opbx_variable_retrieve(cfg, "general", "loudness");
 		if(p){
 			toneloudness = atoi(p);
 			if(toneloudness < 100)
@@ -771,7 +771,7 @@ static int load_config(void)
 			if(toneloudness > 8192)
 				toneloudness = 8192;
 		}
-		p = ast_variable_retrieve(cfg, "general", "fdtimeout");
+		p = opbx_variable_retrieve(cfg, "general", "fdtimeout");
 		if(p){
 			fdtimeout = atoi(p);
 			if(fdtimeout < 1000)
@@ -780,7 +780,7 @@ static int load_config(void)
 				fdtimeout = 10000;	
 		}
 		
-		p = ast_variable_retrieve(cfg, "general", "sdtimeout");
+		p = opbx_variable_retrieve(cfg, "general", "sdtimeout");
 		if(p){
 			sdtimeout = atoi(p);
 			if(sdtimeout < 110)
@@ -790,33 +790,33 @@ static int load_config(void)
 
 		}
 		
-		p = ast_variable_retrieve(cfg, "general", "logindividualevents");
+		p = opbx_variable_retrieve(cfg, "general", "logindividualevents");
 		if(p){
-			log_individual_events = ast_true(p);
+			log_individual_events = opbx_true(p);
 
 		}
 		
-		p = ast_variable_retrieve(cfg, "general", "eventspooldir");
+		p = opbx_variable_retrieve(cfg, "general", "eventspooldir");
 			
 		if(p){
-			ast_copy_string(event_spool_dir, p, sizeof(event_spool_dir));
+			opbx_copy_string(event_spool_dir, p, sizeof(event_spool_dir));
 			event_spool_dir[sizeof(event_spool_dir) - 1] = '\0';
 		}
 		
-		p = ast_variable_retrieve(cfg, "general", "timestampformat");
+		p = opbx_variable_retrieve(cfg, "general", "timestampformat");
 			
 		if(p){
-			ast_copy_string(time_stamp_format, p, sizeof(time_stamp_format));
+			opbx_copy_string(time_stamp_format, p, sizeof(time_stamp_format));
 			time_stamp_format[sizeof(time_stamp_format) - 1] = '\0';
 		}
 
-		p = ast_variable_retrieve(cfg, "general", "db-family");
+		p = opbx_variable_retrieve(cfg, "general", "db-family");
                                                                                                                                             
 		if(p){
-			ast_copy_string(db_family, p, sizeof(db_family));
+			opbx_copy_string(db_family, p, sizeof(db_family));
 			db_family[sizeof(db_family) - 1] = '\0';
 		}
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 	}
 	return 0;
 
@@ -830,13 +830,13 @@ static int load_config(void)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
 	load_config();
-	return ast_register_application(app, alarmreceiver_exec, synopsis, descrip);
+	return opbx_register_application(app, alarmreceiver_exec, synopsis, descrip);
 }
 
 char *description(void)

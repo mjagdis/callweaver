@@ -53,7 +53,7 @@ LOCAL_USER_DECL;
 
 static char random_state[256];
 
-static int random_exec(struct ast_channel *chan, void *data)
+static int random_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -63,20 +63,20 @@ static int random_exec(struct ast_channel *chan, void *data)
 	int probint;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
+		opbx_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	s = ast_strdupa((void *) data);
+	s = opbx_strdupa((void *) data);
 
 	prob = strsep(&s,":");
 	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
 		probint = 0;
 
 	if ((random() % 100) + probint > 100) {
-		res = ast_parseable_goto(chan, s);
+		res = opbx_parseable_goto(chan, s);
 		if (option_verbose > 2)
-			ast_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
+			opbx_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
 				chan->context,chan->exten, chan->priority+1);
 	}
 	LOCAL_USER_REMOVE(u);
@@ -86,13 +86,13 @@ static int random_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_random);
+	return opbx_unregister_application(app_random);
 }
 
 int load_module(void)
 {
 	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
-	return ast_register_application(app_random, random_exec, random_synopsis, random_descrip);
+	return opbx_register_application(app_random, random_exec, random_synopsis, random_descrip);
 }
 
 char *description(void)

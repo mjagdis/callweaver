@@ -177,7 +177,7 @@ static const char *const he_errlist[] = {
 #define	_HE_UNKNOWN		 1
 #define	_HE_MALLOC_FAILED        2
 #define	_HE_FIRST_NOTFOUND       3
-#define	_HE_LAST_NOTFOUND        4
+#define	_HE_LOPBX_NOTFOUND        4
 #define	_HE_EMPTY_LIST           5
 #define	_HE_END_REACHED          6
 #define	_HE_START_REACHED	 7
@@ -222,7 +222,7 @@ history_def_last(ptr_t p, HistEvent *ev)
 	if (h->cursor != &h->list)
 		*ev = h->cursor->ev;
 	else {
-		he_seterrev(ev, _HE_LAST_NOTFOUND);
+		he_seterrev(ev, _HE_LOPBX_NOTFOUND);
 		return (-1);
 	}
 

@@ -58,7 +58,7 @@ LOCAL_USER_DECL;
 
 /*--- md5_exec: Calculate MD5 checksum (hash) on given string and
 	return it in channel variable ---*/
-static int md5_exec(struct ast_channel *chan, void *data)
+static int md5_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -68,24 +68,24 @@ static int md5_exec(struct ast_channel *chan, void *data)
 	static int dep_warning = 0;
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "This application has been deprecated, please use the MD5 function instead.\n");
+		opbx_log(LOG_WARNING, "This application has been deprecated, please use the MD5 function instead.\n");
 		dep_warning = 1;
 	}	
 
 	if (!data) {
-		ast_log(LOG_WARNING, "Syntax: md5(<varname>=<string>) - missing argument!\n");
+		opbx_log(LOG_WARNING, "Syntax: md5(<varname>=<string>) - missing argument!\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
 	memset(retvar,0, sizeof(retvar));
-	string = ast_strdupa(data);
+	string = opbx_strdupa(data);
 	varname = strsep(&string,"=");
-	if (ast_strlen_zero(varname)) {
-		ast_log(LOG_WARNING, "Syntax: md5(<varname>=<string>) - missing argument!\n");
+	if (opbx_strlen_zero(varname)) {
+		opbx_log(LOG_WARNING, "Syntax: md5(<varname>=<string>) - missing argument!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	ast_md5_hash(retvar, string);
+	opbx_md5_hash(retvar, string);
 	pbx_builtin_setvar_helper(chan, varname, retvar);
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -93,7 +93,7 @@ static int md5_exec(struct ast_channel *chan, void *data)
 
 /*--- md5check_exec: Calculate MD5 checksum and compare it with
 	existing checksum. ---*/
-static int md5check_exec(struct ast_channel *chan, void *data)
+static int md5check_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -103,36 +103,36 @@ static int md5check_exec(struct ast_channel *chan, void *data)
 	static int dep_warning = 0;
 
 	if (!dep_warning) {
-		ast_log(LOG_WARNING, "This application has been deprecated, please use the CHECK_MD5 function instead.\n");
+		opbx_log(LOG_WARNING, "This application has been deprecated, please use the CHECK_MD5 function instead.\n");
 		dep_warning = 1;
 	}
 	
 	if (!data) {
-		ast_log(LOG_WARNING, "Syntax: MD5Check(<md5hash>,<string>) - missing argument!\n");
+		opbx_log(LOG_WARNING, "Syntax: MD5Check(<md5hash>,<string>) - missing argument!\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
 	memset(newhash,0, sizeof(newhash));
 
-	string = ast_strdupa(data);
+	string = opbx_strdupa(data);
 	hash = strsep(&string,"|");
-	if (ast_strlen_zero(hash)) {
-		ast_log(LOG_WARNING, "Syntax: MD5Check(<md5hash>,<string>) - missing argument!\n");
+	if (opbx_strlen_zero(hash)) {
+		opbx_log(LOG_WARNING, "Syntax: MD5Check(<md5hash>,<string>) - missing argument!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	ast_md5_hash(newhash, string);
+	opbx_md5_hash(newhash, string);
 	if (!strcmp(newhash, hash)) {	/* Verification ok */
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "MD5 verified ok: %s -- %s\n", hash, string);
+			opbx_log(LOG_DEBUG, "MD5 verified ok: %s -- %s\n", hash, string);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "ERROR: MD5 not verified: %s -- %s\n", hash, string);
-	if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		opbx_log(LOG_DEBUG, "ERROR: MD5 not verified: %s -- %s\n", hash, string);
+	if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "ERROR: Can't jump to exten+101 (e%s,p%d), sorry\n", chan->exten,chan->priority+101);
+			opbx_log(LOG_DEBUG, "ERROR: Can't jump to exten+101 (e%s,p%d), sorry\n", chan->exten,chan->priority+101);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -142,8 +142,8 @@ int unload_module(void)
 	int res;
 
 	STANDARD_HANGUP_LOCALUSERS;
-	res =ast_unregister_application(app_md5);
-	res |= ast_unregister_application(app_md5check);
+	res =opbx_unregister_application(app_md5);
+	res |= opbx_unregister_application(app_md5check);
 	return res;
 }
 
@@ -151,8 +151,8 @@ int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app_md5check, md5check_exec, desc_md5check, synopsis_md5check);
-	res |= ast_register_application(app_md5, md5_exec, desc_md5, synopsis_md5);
+	res = opbx_register_application(app_md5check, md5check_exec, desc_md5check, synopsis_md5check);
+	res |= opbx_register_application(app_md5, md5_exec, desc_md5, synopsis_md5);
 	return res;
 }
 

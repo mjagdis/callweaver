@@ -53,28 +53,28 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int softhangup_exec(struct ast_channel *chan, void *data)
+static int softhangup_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
-	struct ast_channel *c=NULL;
+	struct opbx_channel *c=NULL;
 	char *options, *cut, *cdata, *match;
-	char name[AST_CHANNEL_NAME] = "";
+	char name[OPBX_CHANNEL_NAME] = "";
 	int all = 0;
 
 	if (!data) {
-                ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
+                opbx_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
 	}
 	
-	cdata = ast_strdupa(data);
+	cdata = opbx_strdupa(data);
 	match = strsep(&cdata, "|");
 	options = strsep(&cdata, "|");
 	all = options && strchr(options,'a');
 	LOCAL_USER_ADD(u);
-	c = ast_channel_walk_locked(NULL);
+	c = opbx_channel_walk_locked(NULL);
 	while (c) {
 		strncpy(name, c->name, sizeof(name)-1);
-		ast_mutex_unlock(&c->lock);
+		opbx_mutex_unlock(&c->lock);
 		/* XXX watch out, i think it is wrong to access c-> after unlocking! */
 		if (all) {
 			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
@@ -88,12 +88,12 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 				*cut = 0;
 		}
 		if (!strcasecmp(name, match)) {
-			ast_log(LOG_WARNING, "Soft hanging %s up.\n",c->name);
-			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+			opbx_log(LOG_WARNING, "Soft hanging %s up.\n",c->name);
+			opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
 			if(!all)
 				break;
 		}
-		c = ast_channel_walk_locked(c);
+		c = opbx_channel_walk_locked(c);
 	}
 	LOCAL_USER_REMOVE(u);
 
@@ -103,12 +103,12 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, softhangup_exec, synopsis, desc);
+	return opbx_register_application(app, softhangup_exec, synopsis, desc);
 }
 
 char *description(void)

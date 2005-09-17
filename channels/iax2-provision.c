@@ -135,7 +135,7 @@ static unsigned int iax_str2flags(const char *buf)
 	}
 	return flags;
 }
-AST_MUTEX_DEFINE_STATIC(provlock);
+OPBX_MUTEX_DEFINE_STATIC(provlock);
 
 static struct iax_template *iax_template_find(const char *s, int allowdead)
 {
@@ -157,7 +157,7 @@ char *iax_prov_complete_template(char *line, char *word, int pos, int state)
 	struct iax_template *c;
 	int which=0;
 	char *ret;
-	ast_mutex_lock(&provlock);
+	opbx_mutex_lock(&provlock);
 	c = templates;
 	while(c) {
 		if (!strncasecmp(word, c->name, strlen(word))) {
@@ -170,7 +170,7 @@ char *iax_prov_complete_template(char *line, char *word, int pos, int state)
 		ret = strdup(c->name);
 	} else
 		ret = NULL;
-	ast_mutex_unlock(&provlock);
+	opbx_mutex_unlock(&provlock);
 	return ret;
 }
 
@@ -190,7 +190,7 @@ int iax_provision_build(struct iax_ie_data *provdata, unsigned int *signature, c
 	unsigned int sig;
 	char tmp[40];
 	memset(provdata, 0, sizeof(*provdata));
-	ast_mutex_lock(&provlock);
+	opbx_mutex_lock(&provlock);
 	cur = iax_template_find(template, 1);
 	/* If no match, try searching for '*' */
 	if (!cur)
@@ -226,10 +226,10 @@ int iax_provision_build(struct iax_ie_data *provdata, unsigned int *signature, c
 		iax_ie_append_int(provdata, PROV_IE_PROVVER, sig);
 		/* Cache signature for later verification so we need not recalculate all this */
 		snprintf(tmp, sizeof(tmp), "v0x%08x", sig);
-		ast_db_put("iax/provisioning/cache", template, tmp);
+		opbx_db_put("iax/provisioning/cache", template, tmp);
 	} else
-		ast_db_put("iax/provisioning/cache", template, "u");
-	ast_mutex_unlock(&provlock);
+		opbx_db_put("iax/provisioning/cache", template, "u");
+	opbx_mutex_unlock(&provlock);
 	return cur ? 0 : -1;
 }
 
@@ -240,50 +240,50 @@ int iax_provision_version(unsigned int *version, const char *template, int force
 	int ret=0;
 	memset(&ied, 0, sizeof(ied));
 
-	ast_mutex_lock(&provlock);
-	ast_db_get("iax/provisioning/cache", template, tmp, sizeof(tmp));
+	opbx_mutex_lock(&provlock);
+	opbx_db_get("iax/provisioning/cache", template, tmp, sizeof(tmp));
 	if (sscanf(tmp, "v%x", version) != 1) {
 		if (strcmp(tmp, "u")) {
 			ret = iax_provision_build(&ied, version, template, force);
 			if (ret)
-				ast_log(LOG_DEBUG, "Unable to create provisioning packet for '%s'\n", template);
+				opbx_log(LOG_DEBUG, "Unable to create provisioning packet for '%s'\n", template);
 		} else
 			ret = -1;
 	} else if (option_debug)
-		ast_log(LOG_DEBUG, "Retrieved cached version '%s' = '%08x'\n", tmp, *version);
-	ast_mutex_unlock(&provlock);
+		opbx_log(LOG_DEBUG, "Retrieved cached version '%s' = '%08x'\n", tmp, *version);
+	opbx_mutex_unlock(&provlock);
 	return ret;
 }
 
-static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, char *s, char *def)
+static int iax_template_parse(struct iax_template *cur, struct opbx_config *cfg, char *s, char *def)
 {
-	struct ast_variable *v;
+	struct opbx_variable *v;
 	int foundportno = 0;
 	int foundserverportno = 0;
 	int x;
 	struct in_addr ia;
 	struct hostent *hp;
-	struct ast_hostent h;
+	struct opbx_hostent h;
 	struct iax_template *src, tmp;
 	char *t;
 	if (def) {
-		t = ast_variable_retrieve(cfg, s ,"template");
+		t = opbx_variable_retrieve(cfg, s ,"template");
 		src = NULL;
 		if (t && strlen(t)) {
 			src = iax_template_find(t, 0);
 			if (!src)
-				ast_log(LOG_WARNING, "Unable to find base template '%s' for creating '%s'.  Trying '%s'\n", t, s, def);
+				opbx_log(LOG_WARNING, "Unable to find base template '%s' for creating '%s'.  Trying '%s'\n", t, s, def);
 			else
 				def = t;
 		} 
 		if (!src) {
 			src = iax_template_find(def, 0);
 			if (!src)
-				ast_log(LOG_WARNING, "Unable to locate default base template '%s' for creating '%s', omitting.", def, s);
+				opbx_log(LOG_WARNING, "Unable to locate default base template '%s' for creating '%s', omitting.", def, s);
 		}
 		if (!src)
 			return -1;
-		ast_mutex_lock(&provlock);	
+		opbx_mutex_lock(&provlock);	
 		/* Backup old data */
 		memcpy(&tmp, cur, sizeof(tmp));
 		/* Restore from src */
@@ -292,13 +292,13 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 		memcpy(cur->name, tmp.name, sizeof(cur->name));
 		cur->dead = tmp.dead;
 		cur->next = tmp.next;
-		ast_mutex_unlock(&provlock);	
+		opbx_mutex_unlock(&provlock);	
 	}
 	if (def)
 		strncpy(cur->src, def, sizeof(cur->src) - 1);
 	else
 		cur->src[0] = '\0';
-	v = ast_variable_browse(cfg, s);
+	v = opbx_variable_browse(cfg, s);
 	while(v) {
 		if (!strcasecmp(v->name, "port") || !strcasecmp(v->name, "serverport")) {
 			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < 65535)) {
@@ -310,9 +310,9 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 					foundserverportno = 1;
 				}
 			} else
-				ast_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
+				opbx_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "server") || !strcasecmp(v->name, "altserver")) {
-			hp = ast_gethostbyname(v->value, &h);
+			hp = opbx_gethostbyname(v->value, &h);
 			if (hp) {
 				memcpy(&ia, hp->h_addr, sizeof(ia));
 				if (!strcasecmp(v->name, "server"))
@@ -320,12 +320,12 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 				else
 					cur->altserver = ntohl(ia.s_addr);
 			} else 
-				ast_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
+				opbx_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "codec")) {
-			if ((x = ast_getformatbyname(v->value)) > 0) {
+			if ((x = opbx_getformatbyname(v->value)) > 0) {
 				cur->format = x;
 			} else
-				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
+				opbx_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%d", &x) == 1)
 				cur->tos = x & 0xff;
@@ -340,19 +340,19 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 			else if (!strcasecmp(v->value, "none"))
 				cur->tos = 0;
 			else
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+				opbx_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "user")) {
 			strncpy(cur->user, v->value, sizeof(cur->user) - 1);
 			if (strcmp(cur->user, v->value))
-				ast_log(LOG_WARNING, "Truncating username from '%s' to '%s' for '%s' at line %d\n", v->value, cur->user, s, v->lineno);
+				opbx_log(LOG_WARNING, "Truncating username from '%s' to '%s' for '%s' at line %d\n", v->value, cur->user, s, v->lineno);
 		} else if (!strcasecmp(v->name, "pass")) {
 			strncpy(cur->pass, v->value, sizeof(cur->pass) - 1);
 			if (strcmp(cur->pass, v->value))
-				ast_log(LOG_WARNING, "Truncating password from '%s' to '%s' for '%s' at line %d\n", v->value, cur->pass, s, v->lineno);
+				opbx_log(LOG_WARNING, "Truncating password from '%s' to '%s' for '%s' at line %d\n", v->value, cur->pass, s, v->lineno);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(cur->lang, v->value, sizeof(cur->lang) - 1);
 			if (strcmp(cur->lang, v->value))
-				ast_log(LOG_WARNING, "Truncating language from '%s' to '%s' for '%s' at line %d\n", v->value, cur->lang, s, v->lineno);
+				opbx_log(LOG_WARNING, "Truncating language from '%s' to '%s' for '%s' at line %d\n", v->value, cur->lang, s, v->lineno);
 		} else if (!strcasecmp(v->name, "flags")) {
 			cur->flags = iax_str2flags(v->value);
 		} else if (!strncasecmp(v->name, "flags", 5) && strchr(v->name, '+')) {
@@ -360,7 +360,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 		} else if (!strncasecmp(v->name, "flags", 5) && strchr(v->name, '-')) {
 			cur->flags &= ~iax_str2flags(v->value);
 		} else if (strcasecmp(v->name, "template")) {
-			ast_log(LOG_WARNING, "Unknown keyword '%s' in definition of '%s' at line %d\n", v->name, s, v->lineno);
+			opbx_log(LOG_WARNING, "Unknown keyword '%s' in definition of '%s' at line %d\n", v->name, s, v->lineno);
 		}
 		v = v->next;
 	}
@@ -371,7 +371,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 	return 0;
 }
 
-static int iax_process_template(struct ast_config *cfg, char *s, char *def)
+static int iax_process_template(struct opbx_config *cfg, char *s, char *def)
 {
 	/* Find an already existing one if there */
 	struct iax_template *cur;
@@ -386,7 +386,7 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 		mallocd = 1;
 		cur = malloc(sizeof(struct iax_template));
 		if (!cur) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
+			opbx_log(LOG_WARNING, "Out of memory!\n");
 			return -1;
 		}
 		/* Initialize entry */
@@ -399,10 +399,10 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 
 	/* Link if we're mallocd */
 	if (mallocd) {
-		ast_mutex_lock(&provlock);
+		opbx_mutex_lock(&provlock);
 		cur->next = templates;
 		templates = cur;
-		ast_mutex_unlock(&provlock);
+		opbx_mutex_unlock(&provlock);
 	}
 	return 0;
 }
@@ -426,7 +426,7 @@ static const char *iax_server(char *a, int alen, unsigned int addr)
 	if (!addr)
 		return "<unspecified>";
 	ia.s_addr = htonl(addr);
-	return ast_inet_ntoa(a, alen, ia);
+	return opbx_inet_ntoa(a, alen, ia);
 }
 
 
@@ -437,41 +437,41 @@ static int iax_show_provisioning(int fd, int argc, char *argv[])
 	int found = 0;
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&provlock);
+	opbx_mutex_lock(&provlock);
 	for (cur = templates;cur;cur = cur->next) {
 		if ((argc == 3) || (!strcasecmp(argv[3], cur->name)))  {
-			if (found) ast_cli(fd, "\n");
-			ast_cli(fd, "== %s ==\n", cur->name);
-			ast_cli(fd, "Base Templ:   %s\n", strlen(cur->src) ? cur->src : "<none>");
-			ast_cli(fd, "Username:     %s\n", ifthere(cur->user));
-			ast_cli(fd, "Secret:       %s\n", ifthere(cur->pass));
-			ast_cli(fd, "Language:     %s\n", ifthere(cur->lang));
-			ast_cli(fd, "Bind Port:    %d\n", cur->port);
-			ast_cli(fd, "Server:       %s\n", iax_server(iabuf, sizeof(iabuf), cur->server));
-			ast_cli(fd, "Server Port:  %d\n", cur->serverport);
-			ast_cli(fd, "Alternate:    %s\n", iax_server(iabuf, sizeof(iabuf), cur->altserver));
-			ast_cli(fd, "Flags:        %s\n", iax_provflags2str(iabuf, sizeof(iabuf), cur->flags));
-			ast_cli(fd, "Format:       %s\n", ast_getformatname(cur->format));
-			ast_cli(fd, "TOS:          %d\n", cur->tos);
+			if (found) opbx_cli(fd, "\n");
+			opbx_cli(fd, "== %s ==\n", cur->name);
+			opbx_cli(fd, "Base Templ:   %s\n", strlen(cur->src) ? cur->src : "<none>");
+			opbx_cli(fd, "Username:     %s\n", ifthere(cur->user));
+			opbx_cli(fd, "Secret:       %s\n", ifthere(cur->pass));
+			opbx_cli(fd, "Language:     %s\n", ifthere(cur->lang));
+			opbx_cli(fd, "Bind Port:    %d\n", cur->port);
+			opbx_cli(fd, "Server:       %s\n", iax_server(iabuf, sizeof(iabuf), cur->server));
+			opbx_cli(fd, "Server Port:  %d\n", cur->serverport);
+			opbx_cli(fd, "Alternate:    %s\n", iax_server(iabuf, sizeof(iabuf), cur->altserver));
+			opbx_cli(fd, "Flags:        %s\n", iax_provflags2str(iabuf, sizeof(iabuf), cur->flags));
+			opbx_cli(fd, "Format:       %s\n", opbx_getformatname(cur->format));
+			opbx_cli(fd, "TOS:          %d\n", cur->tos);
 			found++;
 		}
 	}
-	ast_mutex_unlock(&provlock);
+	opbx_mutex_unlock(&provlock);
 	if (!found) {
 		if (argc == 3)
-			ast_cli(fd, "No provisioning templates found\n");
+			opbx_cli(fd, "No provisioning templates found\n");
 		else
-			ast_cli(fd, "No provisioning template matching '%s' found\n", argv[3]);
+			opbx_cli(fd, "No provisioning template matching '%s' found\n", argv[3]);
 	}
 	return RESULT_SUCCESS;
 }
 
-static struct ast_cli_entry  cli_show_provisioning = 
+static struct opbx_cli_entry  cli_show_provisioning = 
 	{ { "iax2", "show", "provisioning", NULL }, iax_show_provisioning, "Show iax provisioning", show_provisioning_usage, iax_prov_complete_template };
 
 static int iax_provision_init(void)
 {
-	ast_cli_register(&cli_show_provisioning);
+	opbx_cli_register(&cli_show_provisioning);
 	provinit = 1;
 	return 0;
 }
@@ -479,13 +479,13 @@ static int iax_provision_init(void)
 int iax_provision_unload(void)
 {
 	provinit = 0;
-	ast_cli_unregister(&cli_show_provisioning);
+	opbx_cli_unregister(&cli_show_provisioning);
 	return 0;
 }
 
 int iax_provision_reload(void)
 {
-	struct ast_config *cfg;
+	struct opbx_config *cfg;
 	struct iax_template *cur, *prev, *next;
 	char *cat;
 	int found = 0;
@@ -497,22 +497,22 @@ int iax_provision_reload(void)
 		cur->dead = 1;
 		cur = cur->next;
 	}
-	cfg = ast_config_load("iaxprov.conf");
+	cfg = opbx_config_load("iaxprov.conf");
 	if (cfg) {
 		/* Load as appropriate */
-		cat = ast_category_browse(cfg, NULL);
+		cat = opbx_category_browse(cfg, NULL);
 		while(cat) {
 			if (strcasecmp(cat, "general")) {
 				iax_process_template(cfg, cat, found ? "default" : NULL);
 				found++;
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Loaded provisioning template '%s'\n", cat);
+					opbx_verbose(VERBOSE_PREFIX_3 "Loaded provisioning template '%s'\n", cat);
 			}
-			cat = ast_category_browse(cfg, cat);
+			cat = opbx_category_browse(cfg, cat);
 		}
 	} else
-		ast_log(LOG_NOTICE, "No IAX provisioning configuration found, IAX provisioning disabled.\n");
-	ast_mutex_lock(&provlock);
+		opbx_log(LOG_NOTICE, "No IAX provisioning configuration found, IAX provisioning disabled.\n");
+	opbx_mutex_lock(&provlock);
 	/* Drop dead entries while locked */
 	prev = NULL;
 	cur = templates;
@@ -528,9 +528,9 @@ int iax_provision_reload(void)
 			prev = cur;
 		cur = next;
 	}
-	ast_mutex_unlock(&provlock);
+	opbx_mutex_unlock(&provlock);
 	/* Purge cached signature DB entries */
-	ast_db_deltree("iax/provisioning/cache", NULL);
+	opbx_db_deltree("iax/provisioning/cache", NULL);
 	return 0;
 	
 }

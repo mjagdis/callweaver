@@ -43,13 +43,13 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/md5.h"
 #include "openpbx/options.h"
 
-#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "openpbx/strings.h"
 
-#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "openpbx/time.h"
 
-#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "openpbx/utils.h"
 
 static char base64[64];
@@ -61,7 +61,7 @@ static char b2a[256];
 #define ERANGE 34
 #undef gethostbyname
 
-AST_MUTEX_DEFINE_STATIC(__mutex);
+OPBX_MUTEX_DEFINE_STATIC(__mutex);
 
 /* Recursive replacement for gethostbyname for BSD-based systems.  This
 routine is derived from code originally written and placed in the public 
@@ -73,7 +73,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 {
 	int hsave;
 	struct hostent *ph;
-	ast_mutex_lock(&__mutex); /* begin critical area */
+	opbx_mutex_lock(&__mutex); /* begin critical area */
 	hsave = h_errno;
 
 	ph = gethostbyname(name);
@@ -107,7 +107,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 		/* as a terminator must be there, the minimum value is ph->h_length */
 		if(nbytes > buflen) {
 			*result = NULL;
-			ast_mutex_unlock(&__mutex); /* end critical area */
+			opbx_mutex_unlock(&__mutex); /* end critical area */
 			return ERANGE; /* not enough space in buf!! */
 		}
 
@@ -156,7 +156,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 	}
 	h_errno = hsave;  /* restore h_errno */
-	ast_mutex_unlock(&__mutex); /* end critical area */
+	opbx_mutex_unlock(&__mutex); /* end critical area */
 
 	return (*result == NULL); /* return 0 on success, non-zero on error */
 }
@@ -167,7 +167,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 /* Re-entrant (thread safe) version of gethostbyname that replaces the 
    standard gethostbyname (which is not thread safe)
 */
-struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
+struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
 {
 	int res;
 	int herrno;
@@ -205,30 +205,30 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
    test_for_thread_safety() will return 0 if recursive mutex locks are
    working properly, and non-zero if they are not working properly. */
 
-AST_MUTEX_DEFINE_STATIC(test_lock);
-AST_MUTEX_DEFINE_STATIC(test_lock2);
+OPBX_MUTEX_DEFINE_STATIC(test_lock);
+OPBX_MUTEX_DEFINE_STATIC(test_lock2);
 static pthread_t test_thread; 
 static int lock_count = 0;
 static int test_errors = 0;
 
 static void *test_thread_body(void *data) 
 { 
-	ast_mutex_lock(&test_lock);
+	opbx_mutex_lock(&test_lock);
 	lock_count += 10;
 	if (lock_count != 10) 
 		test_errors++;
-	ast_mutex_lock(&test_lock);
+	opbx_mutex_lock(&test_lock);
 	lock_count += 10;
 	if (lock_count != 20) 
 		test_errors++;
-	ast_mutex_lock(&test_lock2);
-	ast_mutex_unlock(&test_lock);
+	opbx_mutex_lock(&test_lock2);
+	opbx_mutex_unlock(&test_lock);
 	lock_count -= 10;
 	if (lock_count != 10) 
 		test_errors++;
-	ast_mutex_unlock(&test_lock);
+	opbx_mutex_unlock(&test_lock);
 	lock_count -= 10;
-	ast_mutex_unlock(&test_lock2);
+	opbx_mutex_unlock(&test_lock2);
 	if (lock_count != 0) 
 		test_errors++;
 	return NULL;
@@ -236,25 +236,25 @@ static void *test_thread_body(void *data)
 
 int test_for_thread_safety(void)
 { 
-	ast_mutex_lock(&test_lock2);
-	ast_mutex_lock(&test_lock);
+	opbx_mutex_lock(&test_lock2);
+	opbx_mutex_lock(&test_lock);
 	lock_count += 1;
-	ast_mutex_lock(&test_lock);
+	opbx_mutex_lock(&test_lock);
 	lock_count += 1;
-	ast_pthread_create(&test_thread, NULL, test_thread_body, NULL); 
+	opbx_pthread_create(&test_thread, NULL, test_thread_body, NULL); 
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
-	ast_mutex_unlock(&test_lock);
+	opbx_mutex_unlock(&test_lock);
 	lock_count -= 1;
 	usleep(100); 
 	if (lock_count != 1) 
 		test_errors++;
-	ast_mutex_unlock(&test_lock);
+	opbx_mutex_unlock(&test_lock);
 	lock_count -= 1;
 	if (lock_count != 0) 
 		test_errors++;
-	ast_mutex_unlock(&test_lock2);
+	opbx_mutex_unlock(&test_lock2);
 	usleep(100);
 	if (lock_count != 0) 
 		test_errors++;
@@ -262,8 +262,8 @@ int test_for_thread_safety(void)
 	return(test_errors);          /* return 0 on success. */
 }
 
-/*--- ast_md5_hash: Produce 16 char MD5 hash of value. ---*/
-void ast_md5_hash(char *output, char *input)
+/*--- opbx_md5_hash: Produce 16 char MD5 hash of value. ---*/
+void opbx_md5_hash(char *output, char *input)
 {
 	struct MD5Context md5;
 	unsigned char digest[16];
@@ -278,7 +278,7 @@ void ast_md5_hash(char *output, char *input)
 		ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
-int ast_base64decode(unsigned char *dst, char *src, int max)
+int opbx_base64decode(unsigned char *dst, char *src, int max)
 {
 	int cnt = 0;
 	unsigned int byte = 0;
@@ -316,7 +316,7 @@ int ast_base64decode(unsigned char *dst, char *src, int max)
 	return cnt;
 }
 
-int ast_base64encode(char *dst, unsigned char *src, int srclen, int max)
+int opbx_base64encode(char *dst, unsigned char *src, int srclen, int max)
 {
 	int cnt = 0;
 	unsigned int byte = 0;
@@ -393,7 +393,7 @@ static void base64_init(void)
 #endif
 }
 
-/*--- ast_uri_encode: Turn text string to URI-encoded %XX version ---*/
+/*--- opbx_uri_encode: Turn text string to URI-encoded %XX version ---*/
 /* 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
 	If doreserved == 1 we will convert reserved characters also.
@@ -405,7 +405,7 @@ static void base64_init(void)
 	Note: The doreserved option is needed for replaces header in
 	SIP transfers.
 */
-char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
+char *opbx_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
 {
 	char *reserved = ";/?:@&=+$, ";	/* Reserved chars */
 
@@ -435,8 +435,8 @@ char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved)
 	return outbuf;
 }
 
-/*--- ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
-void ast_uri_decode(char *s) 
+/*--- opbx_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
+void opbx_uri_decode(char *s) 
 {
 	char *o;
 	unsigned int tmp;
@@ -452,23 +452,23 @@ void ast_uri_decode(char *s)
 	*o = '\0';
 }
 
-/*--- ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
-const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
+/*--- opbx_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
+const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);
 }
 
-int ast_utils_init(void)
+int opbx_utils_init(void)
 {
 	base64_init();
 	return 0;
 }
 
 #ifndef __linux__
-#undef pthread_create /* For ast_pthread_create function only */
+#undef pthread_create /* For opbx_pthread_create function only */
 #endif /* ! LINUX */
 
-int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
+int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
 {
 	pthread_attr_t lattr;
 	if (!attr) {
@@ -476,14 +476,14 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 		attr = &lattr;
 	}
 	if (!stacksize)
-		stacksize = AST_STACKSIZE;
+		stacksize = OPBX_STACKSIZE;
 	errno = pthread_attr_setstacksize(attr, stacksize);
 	if (errno)
-		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
-	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
+		opbx_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
+	return pthread_create(thread, attr, start_routine, data); /* We're in opbx_pthread_create, so it's okay */
 }
 
-int ast_wait_for_input(int fd, int ms)
+int opbx_wait_for_input(int fd, int ms)
 {
 	struct pollfd pfd[1];
 	memset(pfd, 0, sizeof(pfd));
@@ -492,12 +492,12 @@ int ast_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
-char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
+char *opbx_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 {
 	char *e;
 	char *q;
 
-	s = ast_strip(s);
+	s = opbx_strip(s);
 	if ((q = strchr(beg_quotes, *s))) {
 		e = s + strlen(s) - 1;
 		if (*e == *(end_quotes + (q - beg_quotes))) {
@@ -509,7 +509,7 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 	return s;
 }
 
-int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
+int opbx_build_string(char **buffer, size_t *space, const char *fmt, ...)
 {
 	va_list ap;
 	int result;
@@ -531,9 +531,9 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
 	return 0;
 }
 
-int ast_true(const char *s)
+int opbx_true(const char *s)
 {
-	if (!s || ast_strlen_zero(s))
+	if (!s || opbx_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a true value */
@@ -548,9 +548,9 @@ int ast_true(const char *s)
 	return 0;
 }
 
-int ast_false(const char *s)
+int opbx_false(const char *s)
 {
-	if (!s || ast_strlen_zero(s))
+	if (!s || opbx_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a false value */
@@ -573,19 +573,19 @@ int ast_false(const char *s)
 static struct timeval tvfix(struct timeval a)
 {
 	if (a.tv_usec >= ONE_MILLION) {
-		ast_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
+		opbx_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
 			a.tv_sec, (long int) a.tv_usec);
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
 	} else if (a.tv_usec < 0) {
-		ast_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
+		opbx_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
 				a.tv_sec, (long int) a.tv_usec);
 		a.tv_usec = 0;
 	}
 	return a;
 }
 
-struct timeval ast_tvadd(struct timeval a, struct timeval b)
+struct timeval opbx_tvadd(struct timeval a, struct timeval b)
 {
 	/* consistency checks to guarantee usec in 0..999999 */
 	a = tvfix(a);
@@ -599,7 +599,7 @@ struct timeval ast_tvadd(struct timeval a, struct timeval b)
 	return a;
 }
 
-struct timeval ast_tvsub(struct timeval a, struct timeval b)
+struct timeval opbx_tvsub(struct timeval a, struct timeval b)
 {
 	/* consistency checks to guarantee usec in 0..999999 */
 	a = tvfix(a);
@@ -650,7 +650,7 @@ char *strcasestr(const char *haystack, const char *needle)
 			return NULL;
 		}
 	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 }
@@ -669,7 +669,7 @@ size_t strnlen(const char *s, size_t n)
 }
 #endif
 
-#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC)
 char *strndup(const char *s, size_t n)
 {
 	size_t len = strnlen(s, n);
@@ -683,7 +683,7 @@ char *strndup(const char *s, size_t n)
 }
 #endif
 
-#if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap)
 {
 	int size;

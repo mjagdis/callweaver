@@ -74,8 +74,8 @@ static int syslog_level_map[] = {
 
 static char dateformat[256] = "%b %e %T";		/* Original OpenPBX Format */
 
-AST_MUTEX_DEFINE_STATIC(msglist_lock);
-AST_MUTEX_DEFINE_STATIC(loglock);
+OPBX_MUTEX_DEFINE_STATIC(msglist_lock);
+OPBX_MUTEX_DEFINE_STATIC(loglock);
 static int filesize_reload_needed = 0;
 static int global_logmask = -1;
 
@@ -173,7 +173,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	CODE *cptr;
 #endif
 
-	if (ast_strlen_zero(channel))
+	if (opbx_strlen_zero(channel))
 		return NULL;
 	chan = malloc(sizeof(struct logchannel));
 
@@ -258,17 +258,17 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		openlog("openpbx", LOG_PID, chan->facility);
 	} else {
 		if (channel[0] == '/') {
-			if(!ast_strlen_zero(hostname)) { 
+			if(!opbx_strlen_zero(hostname)) { 
 				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
 			} else {
-				ast_copy_string(chan->filename, channel, sizeof(chan->filename));
+				opbx_copy_string(chan->filename, channel, sizeof(chan->filename));
 			}
 		}		  
 		
-		if(!ast_strlen_zero(hostname)) {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)ast_config_AST_LOG_DIR, channel, hostname);
+		if(!opbx_strlen_zero(hostname)) {
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)opbx_config_OPBX_LOG_DIR, channel, hostname);
 		} else {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, channel);
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, channel);
 		}
 		chan->fileptr = fopen(chan->filename, "a");
 		if (!chan->fileptr) {
@@ -284,12 +284,12 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 static void init_logger_chain(void)
 {
 	struct logchannel *chan, *cur;
-	struct ast_config *cfg;
-	struct ast_variable *var;
+	struct opbx_config *cfg;
+	struct opbx_variable *var;
 	char *s;
 
 	/* delete our list of log channels */
-	ast_mutex_lock(&loglock);
+	opbx_mutex_lock(&loglock);
 	chan = logchannels;
 	while (chan) {
 		cur = chan->next;
@@ -297,41 +297,41 @@ static void init_logger_chain(void)
 		chan = cur;
 	}
 	logchannels = NULL;
-	ast_mutex_unlock(&loglock);
+	opbx_mutex_unlock(&loglock);
 	
 	global_logmask = 0;
 	/* close syslog */
 	closelog();
 	
-	cfg = ast_config_load("logger.conf");
+	cfg = opbx_config_load("logger.conf");
 	
 	/* If no config file, we're fine */
 	if (!cfg)
 		return;
 	
-	ast_mutex_lock(&loglock);
-	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
-		if(ast_true(s)) {
+	opbx_mutex_lock(&loglock);
+	if ((s = opbx_variable_retrieve(cfg, "general", "appendhostname"))) {
+		if(opbx_true(s)) {
 			if(gethostname(hostname, sizeof(hostname)-1)) {
-				ast_copy_string(hostname, "unknown", sizeof(hostname));
-				ast_log(LOG_WARNING, "What box has no hostname???\n");
+				opbx_copy_string(hostname, "unknown", sizeof(hostname));
+				opbx_log(LOG_WARNING, "What box has no hostname???\n");
 			}
 		} else
 			hostname[0] = '\0';
 	} else
 		hostname[0] = '\0';
-	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
-		ast_copy_string(dateformat, s, sizeof(dateformat));
+	if ((s = opbx_variable_retrieve(cfg, "general", "dateformat"))) {
+		opbx_copy_string(dateformat, s, sizeof(dateformat));
 	} else
-		ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
-	if ((s = ast_variable_retrieve(cfg, "general", "queue_log"))) {
-		logfiles.queue_log = ast_true(s);
+		opbx_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
+	if ((s = opbx_variable_retrieve(cfg, "general", "queue_log"))) {
+		logfiles.queue_log = opbx_true(s);
 	}
-	if ((s = ast_variable_retrieve(cfg, "general", "event_log"))) {
-		logfiles.event_log = ast_true(s);
+	if ((s = opbx_variable_retrieve(cfg, "general", "event_log"))) {
+		logfiles.event_log = opbx_true(s);
 	}
 
-	var = ast_variable_browse(cfg, "logfiles");
+	var = opbx_variable_browse(cfg, "logfiles");
 	while(var) {
 		chan = make_logchannel(var->name, var->value, var->lineno);
 		if (chan) {
@@ -342,17 +342,17 @@ static void init_logger_chain(void)
 		var = var->next;
 	}
 
-	ast_config_destroy(cfg);
-	ast_mutex_unlock(&loglock);
+	opbx_config_destroy(cfg);
+	opbx_mutex_unlock(&loglock);
 }
 
 static FILE *qlog = NULL;
-AST_MUTEX_DEFINE_STATIC(qloglock);
+OPBX_MUTEX_DEFINE_STATIC(qloglock);
 
-void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
+void opbx_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {
 	va_list ap;
-	ast_mutex_lock(&qloglock);
+	opbx_mutex_lock(&qloglock);
 	if (qlog) {
 		va_start(ap, fmt);
 		fprintf(qlog, "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
@@ -361,7 +361,7 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 		va_end(ap);
 		fflush(qlog);
 	}
-	ast_mutex_unlock(&qloglock);
+	opbx_mutex_unlock(&qloglock);
 }
 
 static void queue_log_init(void)
@@ -369,45 +369,45 @@ static void queue_log_init(void)
 	char filename[256];
 	int reloaded = 0;
 
-	ast_mutex_lock(&qloglock);
+	opbx_mutex_lock(&qloglock);
 	if (qlog) {
 		reloaded = 1;
 		fclose(qlog);
 		qlog = NULL;
 	}
-	snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, "queue_log");
+	snprintf(filename, sizeof(filename), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, "queue_log");
 	if (logfiles.queue_log) {
 		qlog = fopen(filename, "a");
 	}
-	ast_mutex_unlock(&qloglock);
+	opbx_mutex_unlock(&qloglock);
 	if (reloaded) 
-		ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
+		opbx_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
 	else
-		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
+		opbx_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
 }
 
 int reload_logger(int rotate)
 {
-	char old[AST_CONFIG_MAX_PATH] = "";
-	char new[AST_CONFIG_MAX_PATH];
+	char old[OPBX_CONFIG_MAX_PATH] = "";
+	char new[OPBX_CONFIG_MAX_PATH];
 	struct logchannel *f;
 	FILE *myf;
 	int x;
 
-	ast_mutex_lock(&loglock);
+	opbx_mutex_lock(&loglock);
 	if (eventlog) 
 		fclose(eventlog);
 	else 
 		rotate = 0;
 	eventlog = NULL;
 
-	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
-	snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+	mkdir((char *)opbx_config_OPBX_LOG_DIR, 0755);
+	snprintf(old, sizeof(old), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG);
 
 	if (logfiles.event_log) {
 		if (rotate) {
 			for (x=0;;x++) {
-				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
+				snprintf(new, sizeof(new), "%s/%s.%d", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG,x);
 				myf = fopen((char *)new, "r");
 				if (myf) 	/* File exists */
 					fclose(myf);
@@ -433,7 +433,7 @@ int reload_logger(int rotate)
 			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
 			if(rotate) {
-				ast_copy_string(old, f->filename, sizeof(old));
+				opbx_copy_string(old, f->filename, sizeof(old));
 	
 				for(x=0;;x++) {
 					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
@@ -453,7 +453,7 @@ int reload_logger(int rotate)
 		f = f->next;
 	}
 
-	ast_mutex_unlock(&loglock);
+	opbx_mutex_unlock(&loglock);
 
 	filesize_reload_needed = 0;
 
@@ -462,12 +462,12 @@ int reload_logger(int rotate)
 
 	if (logfiles.event_log) {
 		if (eventlog) {
-			ast_log(LOG_EVENT, "Restarted OpenPBX Event Logger\n");
+			opbx_log(LOG_EVENT, "Restarted OpenPBX Event Logger\n");
 			if (option_verbose)
-				ast_verbose("OpenPBX Event Logger restarted\n");
+				opbx_verbose("OpenPBX Event Logger restarted\n");
 			return 0;
 		} else 
-			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+			opbx_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	} else 
 		return 0;
 	return -1;
@@ -476,7 +476,7 @@ int reload_logger(int rotate)
 static int handle_logger_reload(int fd, int argc, char *argv[])
 {
 	if(reload_logger(0)) {
-		ast_cli(fd, "Failed to reload the logger\n");
+		opbx_cli(fd, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
 	} else
 		return RESULT_SUCCESS;
@@ -485,7 +485,7 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
 	if(reload_logger(1)) {
-		ast_cli(fd, "Failed to reload the logger and rotate log files\n");
+		opbx_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
 	} else
 		return RESULT_SUCCESS;
@@ -498,37 +498,37 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 #define FORMATL	"%-35.35s %-8.8s %-9.9s "
 	struct logchannel *chan;
 
-	ast_mutex_lock(&loglock);
+	opbx_mutex_lock(&loglock);
 
 	chan = logchannels;
-	ast_cli(fd,FORMATL, "Channel", "Type", "Status");
-	ast_cli(fd, "Configuration\n");
-	ast_cli(fd,FORMATL, "-------", "----", "------");
-	ast_cli(fd, "-------------\n");
+	opbx_cli(fd,FORMATL, "Channel", "Type", "Status");
+	opbx_cli(fd, "Configuration\n");
+	opbx_cli(fd,FORMATL, "-------", "----", "------");
+	opbx_cli(fd, "-------------\n");
 	while (chan) {
-		ast_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
+		opbx_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
-		ast_cli(fd, " - ");
+		opbx_cli(fd, " - ");
 		if (chan->logmask & (1 << __LOG_DEBUG)) 
-			ast_cli(fd, "Debug ");
+			opbx_cli(fd, "Debug ");
 		if (chan->logmask & (1 << __LOG_DTMF)) 
-			ast_cli(fd, "DTMF ");
+			opbx_cli(fd, "DTMF ");
 		if (chan->logmask & (1 << __LOG_VERBOSE)) 
-			ast_cli(fd, "Verbose ");
+			opbx_cli(fd, "Verbose ");
 		if (chan->logmask & (1 << __LOG_WARNING)) 
-			ast_cli(fd, "Warning ");
+			opbx_cli(fd, "Warning ");
 		if (chan->logmask & (1 << __LOG_NOTICE)) 
-			ast_cli(fd, "Notice ");
+			opbx_cli(fd, "Notice ");
 		if (chan->logmask & (1 << __LOG_ERROR)) 
-			ast_cli(fd, "Error ");
+			opbx_cli(fd, "Error ");
 		if (chan->logmask & (1 << __LOG_EVENT)) 
-			ast_cli(fd, "Event ");
-		ast_cli(fd, "\n");
+			opbx_cli(fd, "Event ");
+		opbx_cli(fd, "\n");
 		chan = chan->next;
 	}
-	ast_cli(fd, "\n");
+	opbx_cli(fd, "\n");
 
-	ast_mutex_unlock(&loglock);
+	opbx_mutex_unlock(&loglock);
  		
 	return RESULT_SUCCESS;
 }
@@ -551,17 +551,17 @@ static char logger_show_channels_help[] =
 "Usage: logger show channels\n"
 "       Show configured logger channels.\n";
 
-static struct ast_cli_entry logger_show_channels_cli = 
+static struct opbx_cli_entry logger_show_channels_cli = 
 	{ { "logger", "show", "channels", NULL }, 
 	handle_logger_show_channels, "List configured log channels",
 	logger_show_channels_help };
 
-static struct ast_cli_entry reload_logger_cli = 
+static struct opbx_cli_entry reload_logger_cli = 
 	{ { "logger", "reload", NULL }, 
 	handle_logger_reload, "Reopens the log files",
 	logger_reload_help };
 
-static struct ast_cli_entry rotate_logger_cli = 
+static struct opbx_cli_entry rotate_logger_cli = 
 	{ { "logger", "rotate", NULL }, 
 	handle_logger_rotate, "Rotates and reopens the log files",
 	logger_rotate_help };
@@ -581,9 +581,9 @@ int init_logger(void)
 	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
 
 	/* register the relaod logger cli command */
-	ast_cli_register(&reload_logger_cli);
-	ast_cli_register(&rotate_logger_cli);
-	ast_cli_register(&logger_show_channels_cli);
+	opbx_cli_register(&reload_logger_cli);
+	opbx_cli_register(&rotate_logger_cli);
+	opbx_cli_register(&logger_show_channels_cli);
 
 	/* initialize queue logger */
 	queue_log_init();
@@ -593,16 +593,16 @@ int init_logger(void)
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
-		mkdir((char *)ast_config_AST_LOG_DIR, 0755);
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+		mkdir((char *)opbx_config_OPBX_LOG_DIR, 0755);
+		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG);
 		eventlog = fopen((char *)tmp, "a");
 		if (eventlog) {
-			ast_log(LOG_EVENT, "Started OpenPBX Event Logger\n");
+			opbx_log(LOG_EVENT, "Started OpenPBX Event Logger\n");
 			if (option_verbose)
-				ast_verbose("OpenPBX Event Logger Started %s\n",(char *)tmp);
+				opbx_verbose("OpenPBX Event Logger Started %s\n",(char *)tmp);
 			return 0;
 		} else 
-			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+			opbx_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	} else
 		return 0;
 
@@ -613,7 +613,7 @@ void close_logger(void)
 {
 	struct msglist *m, *tmp;
 
-	ast_mutex_lock(&msglist_lock);
+	opbx_mutex_lock(&msglist_lock);
 	m = list;
 	while(m) {
 		if (m->msg) {
@@ -625,7 +625,7 @@ void close_logger(void)
 	}
 	list = last = NULL;
 	msgcnt = 0;
-	ast_mutex_unlock(&msglist_lock);
+	opbx_mutex_unlock(&msglist_lock);
 	return;
 }
 
@@ -658,14 +658,14 @@ static void strip_coloring(char *str)
 	*dest = '\0';
 }
 
-static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
+static void opbx_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
 	char *s;
 
 	if (level >= SYSLOG_NLEVELS) {
-		/* we are locked here, so cannot ast_log() */
-		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
+		/* we are locked here, so cannot opbx_log() */
+		fprintf(stderr, "opbx_log_vsyslog called with bogus level: %d\n", level);
 		return;
 	}
 	if (level == __LOG_VERBOSE) {
@@ -687,7 +687,7 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 /*
  * send log messages to syslog and/or the console
  */
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	struct logchannel *chan;
 	char buf[BUFSIZ];
@@ -712,11 +712,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		return;
 	
 	/* Ignore anything other than the currently debugged file if there is one */
-	if ((level == __LOG_DEBUG) && !ast_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
+	if ((level == __LOG_DEBUG) && !opbx_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
 	/* begin critical section */
-	ast_mutex_lock(&loglock);
+	opbx_mutex_lock(&loglock);
 
 	time(&t);
 	localtime_r(&t, &tm);
@@ -730,7 +730,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		fflush(eventlog);
 
 		va_end(ap);
-		ast_mutex_unlock(&loglock);
+		opbx_mutex_unlock(&loglock);
 		return;
 	}
 
@@ -740,7 +740,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
 				va_start(ap, fmt);
-				ast_log_vsyslog(level, file, line, function, fmt, ap);
+				opbx_log_vsyslog(level, file, line, function, fmt, ap);
 				va_end(ap);
 			/* Console channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
@@ -757,11 +757,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
 					
-					ast_console_puts(buf);
+					opbx_console_puts(buf);
 					va_start(ap, fmt);
 					vsnprintf(buf, sizeof(buf), fmt, ap);
 					va_end(ap);
-					ast_console_puts(buf);
+					opbx_console_puts(buf);
 				}
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
@@ -802,17 +802,17 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		}
 	}
 
-	ast_mutex_unlock(&loglock);
+	opbx_mutex_unlock(&loglock);
 	/* end critical section */
 	if (filesize_reload_needed) {
 		reload_logger(1);
-		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+		opbx_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		if (option_verbose)
-			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+			opbx_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
 }
 
-void ast_verbose(const char *fmt, ...)
+void opbx_verbose(const char *fmt, ...)
 {
 	static char stuff[4096];
 	static int len = 0;
@@ -846,7 +846,7 @@ void ast_verbose(const char *fmt, ...)
 	   being in this function at the same time, so it must be
 	   held before any of the static variables are accessed
 	*/
-	ast_mutex_lock(&msglist_lock);
+	opbx_mutex_lock(&msglist_lock);
 
 	/* there is a potential security problem here: if formatting
 	   the current date using 'dateformat' results in a string
@@ -883,7 +883,7 @@ void ast_verbose(const char *fmt, ...)
 				last = m;
 			} else {
 				msgcnt--;
-				ast_log(LOG_ERROR, "Out of memory\n");
+				opbx_log(LOG_ERROR, "Out of memory\n");
 				free(m);
 			}
 		}
@@ -892,7 +892,7 @@ void ast_verbose(const char *fmt, ...)
 	for (v = verboser; v; v = v->next)
 		v->verboser(stuff, olen, replacelast, complete);
 
-	ast_log(LOG_VERBOSE, "%s", stuff);
+	opbx_log(LOG_VERBOSE, "%s", stuff);
 
 	if (len) {
 		if (!complete)
@@ -901,31 +901,31 @@ void ast_verbose(const char *fmt, ...)
 			replacelast = len = 0;
 	}
 
-	ast_mutex_unlock(&msglist_lock);
+	opbx_mutex_unlock(&msglist_lock);
 }
 
-int ast_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
+int opbx_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	struct msglist *m;
-	ast_mutex_lock(&msglist_lock);
+	opbx_mutex_lock(&msglist_lock);
 	m = list;
 	while(m) {
 		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
 		v(m->msg, 0, 0, 1);
 		m = m->next;
 	}
-	ast_mutex_unlock(&msglist_lock);
+	opbx_mutex_unlock(&msglist_lock);
 	return 0;
 }
 
-int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
+int opbx_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
 {
 	struct msglist *m;
 	struct verb *tmp;
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
 	if ((tmp = malloc(sizeof (struct verb)))) {
 		tmp->verboser = v;
-		ast_mutex_lock(&msglist_lock);
+		opbx_mutex_lock(&msglist_lock);
 		tmp->next = verboser;
 		verboser = tmp;
 		m = list;
@@ -934,17 +934,17 @@ int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast
 			v(m->msg, 0, 0, 1);
 			m = m->next;
 		}
-		ast_mutex_unlock(&msglist_lock);
+		opbx_mutex_unlock(&msglist_lock);
 		return 0;
 	}
 	return -1;
 }
 
-int ast_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
+int opbx_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	int res = -1;
 	struct verb *tmp, *tmpl=NULL;
-	ast_mutex_lock(&msglist_lock);
+	opbx_mutex_lock(&msglist_lock);
 	tmp = verboser;
 	while(tmp) {
 		if (tmp->verboser == v)	{
@@ -960,6 +960,6 @@ int ast_unregister_verbose(void (*v)(const char *string, int opos, int replacela
 	}
 	if (tmp)
 		res = 0;
-	ast_mutex_unlock(&msglist_lock);
+	opbx_mutex_unlock(&msglist_lock);
 	return res;
 }

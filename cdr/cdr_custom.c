@@ -50,7 +50,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <time.h>
 
-AST_MUTEX_DEFINE_STATIC(lock);
+OPBX_MUTEX_DEFINE_STATIC(lock);
 
 static char *desc = "Customizable Comma Separated Values CDR Backend";
 
@@ -58,41 +58,41 @@ static char *name = "cdr-custom";
 
 static FILE *mf = NULL;
 
-static char master[AST_CONFIG_MAX_PATH];
+static char master[OPBX_CONFIG_MAX_PATH];
 static char format[1024]="";
 
 static int load_config(int reload) 
 {
-	struct ast_config *cfg;
-	struct ast_variable *var;
+	struct opbx_config *cfg;
+	struct opbx_variable *var;
 	int res = -1;
 
 	strcpy(format, "");
 	strcpy(master, "");
-	if((cfg = ast_config_load("cdr_custom.conf"))) {
-		var = ast_variable_browse(cfg, "mappings");
+	if((cfg = opbx_config_load("cdr_custom.conf"))) {
+		var = opbx_variable_browse(cfg, "mappings");
 		while(var) {
-			ast_mutex_lock(&lock);
-			if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
+			opbx_mutex_lock(&lock);
+			if (!opbx_strlen_zero(var->name) && !opbx_strlen_zero(var->value)) {
 				if (strlen(var->value) > (sizeof(format) - 2))
-					ast_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
+					opbx_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
 				strncpy(format, var->value, sizeof(format) - 2);
 				strcat(format,"\n");
-				snprintf(master, sizeof(master),"%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
-				ast_mutex_unlock(&lock);
+				snprintf(master, sizeof(master),"%s/%s/%s", opbx_config_OPBX_LOG_DIR, name, var->name);
+				opbx_mutex_unlock(&lock);
 			} else
-				ast_log(LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
+				opbx_log(LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
 			if (var->next)
-				ast_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
+				opbx_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
 			var = var->next;
 		}
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 		res = 0;
 	} else {
 		if (reload)
-			ast_log(LOG_WARNING, "Failed to reload configuration file.\n");
+			opbx_log(LOG_WARNING, "Failed to reload configuration file.\n");
 		else
-			ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+			opbx_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 	}
 	
 	return res;
@@ -100,18 +100,18 @@ static int load_config(int reload)
 
 
 
-static int custom_log(struct ast_cdr *cdr)
+static int custom_log(struct opbx_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[2048];
-	struct ast_channel dummy;
+	struct opbx_channel dummy;
 
 	/* Abort if no master file is specified */
-	if (ast_strlen_zero(master))
+	if (opbx_strlen_zero(master))
 		return 0;
 
 	memset(buf, 0 , sizeof(buf));
-	/* Quite possibly the first use of a static struct ast_channel, we need it so the var funcs will work */
+	/* Quite possibly the first use of a static struct opbx_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
 	dummy.cdr = cdr;
 	pbx_substitute_variables_helper(&dummy, format, buf, sizeof(buf) - 1);
@@ -121,7 +121,7 @@ static int custom_log(struct ast_cdr *cdr)
 	   we open write and close the log file each time */
 	mf = fopen(master, "a");
 	if (!mf) {
-		ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+		opbx_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
 	}
 	if (mf) {
 		fputs(buf, mf);
@@ -141,7 +141,7 @@ int unload_module(void)
 {
 	if (mf)
 		fclose(mf);
-	ast_cdr_unregister(name);
+	opbx_cdr_unregister(name);
 	return 0;
 }
 
@@ -150,9 +150,9 @@ int load_module(void)
 	int res = 0;
 
 	if (!load_config(0)) {
-		res = ast_cdr_register(name, desc, custom_log);
+		res = opbx_cdr_register(name, desc, custom_log);
 		if (res)
-			ast_log(LOG_ERROR, "Unable to register custom CDR handling\n");
+			opbx_log(LOG_ERROR, "Unable to register custom CDR handling\n");
 		if (mf)
 			fclose(mf);
 	}

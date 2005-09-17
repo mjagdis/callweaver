@@ -307,8 +307,8 @@ static inline void goertzel_reset(goertzel_state_t *s)
 	s->v2 = s->v3 = 0.0;
 }
 
-struct ast_dsp {
-	struct ast_frame f;
+struct opbx_dsp {
+	struct opbx_frame f;
 	int threshold;
 	int totalsilence;
 	int totalnoise;
@@ -335,7 +335,7 @@ struct ast_dsp {
 	} td;
 };
 
-static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
+static void opbx_dtmf_detect_init (dtmf_detect_state_t *s)
 {
 	int i;
 
@@ -374,7 +374,7 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 	s->digits[0] = '\0';
 }
 
-static void ast_mf_detect_init (mf_detect_state_t *s)
+static void opbx_mf_detect_init (mf_detect_state_t *s)
 {
 	int i;
 #ifdef OLD_DSP_ROUTINES
@@ -953,7 +953,7 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 	return (hit);
 }
 
-static int __ast_dsp_digitdetect(struct ast_dsp *dsp, short *s, int len, int *writeback)
+static int __opbx_dsp_digitdetect(struct opbx_dsp *dsp, short *s, int len, int *writeback)
 {
 	int res;
 	
@@ -964,23 +964,23 @@ static int __ast_dsp_digitdetect(struct ast_dsp *dsp, short *s, int len, int *wr
 	return res;
 }
 
-int ast_dsp_digitdetect(struct ast_dsp *dsp, struct ast_frame *inf)
+int opbx_dsp_digitdetect(struct opbx_dsp *dsp, struct opbx_frame *inf)
 {
 	short *s;
 	int len;
 	int ign=0;
 
-	if (inf->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
+	if (inf->frametype != OPBX_FRAME_VOICE) {
+		opbx_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (inf->subclass != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
+	if (inf->subclass != OPBX_FORMAT_SLINEAR) {
+		opbx_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
 	s = inf->data;
 	len = inf->datalen / 2;
-	return __ast_dsp_digitdetect(dsp, s, len, &ign);
+	return __opbx_dsp_digitdetect(dsp, s, len, &ign);
 }
 
 static inline int pair_there(float p1, float p2, float i1, float i2, float e)
@@ -1003,7 +1003,7 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
 	return 1;
 }
 
-int ast_dsp_getdigits (struct ast_dsp *dsp, char *buf, int max)
+int opbx_dsp_getdigits (struct opbx_dsp *dsp, char *buf, int max)
 {
 	if (dsp->digitmode & DSP_DIGITMODE_MF) {
 		if (max > dsp->td.mf.current_digits)
@@ -1028,7 +1028,7 @@ int ast_dsp_getdigits (struct ast_dsp *dsp, char *buf, int max)
 	}
 }
 
-static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
+static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
 {
 	int x;
 	int y;
@@ -1093,29 +1093,29 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				}
 				break;
 			default:
-				ast_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+				opbx_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
 			}
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
 				if (dsp->tcount == thresh) {
 					if ((dsp->features & DSP_PROGRESS_BUSY) && 
 					    dsp->tstate == DSP_TONE_STATE_BUSY) {
-						res = AST_CONTROL_BUSY;
+						res = OPBX_CONTROL_BUSY;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					} else if ((dsp->features & DSP_PROGRESS_TALK) && 
 						   dsp->tstate == DSP_TONE_STATE_TALKING) {
-						res = AST_CONTROL_ANSWER;
+						res = OPBX_CONTROL_ANSWER;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					} else if ((dsp->features & DSP_PROGRESS_RINGING) && 
 						   dsp->tstate == DSP_TONE_STATE_RINGING)
-						res = AST_CONTROL_RINGING;
+						res = OPBX_CONTROL_RINGING;
 					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && 
 						 dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
-						res = AST_CONTROL_CONGESTION;
+						res = OPBX_CONTROL_CONGESTION;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					} else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
 						dsp->tstate == DSP_TONE_STATE_HUNGUP) {
-						res = AST_CONTROL_HANGUP;
+						res = OPBX_CONTROL_HANGUP;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					}
 				}
@@ -1141,20 +1141,20 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 	return res;
 }
 
-int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf)
+int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf)
 {
-	if (inf->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
+	if (inf->frametype != OPBX_FRAME_VOICE) {
+		opbx_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (inf->subclass != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
+	if (inf->subclass != OPBX_FORMAT_SLINEAR) {
+		opbx_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
-	return __ast_dsp_call_progress(dsp, inf->data, inf->datalen / 2);
+	return __opbx_dsp_call_progress(dsp, inf->data, inf->datalen / 2);
 }
 
-static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totalsilence)
+static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *totalsilence)
 {
 	int accum;
 	int x;
@@ -1210,7 +1210,7 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 }
 
 #ifdef BUSYDETECT_MARTIN
-int ast_dsp_busydetect(struct ast_dsp *dsp)
+int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 {
 	int res = 0, x;
 #ifndef BUSYDETECT_TONEONLY
@@ -1273,7 +1273,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	if (res && (dsp->busy_tonelength > 0)) {
 		if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100)) {
 #if 0
-			ast_log(LOG_NOTICE, "busy detector: avgtone of %d not close enough to desired %d\n",
+			opbx_log(LOG_NOTICE, "busy detector: avgtone of %d not close enough to desired %d\n",
 						avgtone, dsp->busy_tonelength);
 #endif
 			res = 0;
@@ -1283,7 +1283,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	if (res && (dsp->busy_quietlength > 0)) {
 		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100)) {
 #if 0
-			ast_log(LOG_NOTICE, "busy detector: avgsilence of %d not close enough to desired %d\n",
+			opbx_log(LOG_NOTICE, "busy detector: avgsilence of %d not close enough to desired %d\n",
 						avgsilence, dsp->busy_quietlength);
 #endif
 			res = 0;
@@ -1291,14 +1291,14 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	}
 #if 1
 	if (res)
-		ast_log(LOG_DEBUG, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+		opbx_log(LOG_DEBUG, "opbx_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
 #endif
 	return res;
 }
 #endif
 
 #ifdef BUSYDETECT
-int ast_dsp_busydetect(struct ast_dsp *dsp)
+int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 {
 	int x;
 	int res = 0;
@@ -1342,25 +1342,25 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 }
 #endif
 
-int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
+int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilence)
 {
 	short *s;
 	int len;
 	
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
+	if (f->frametype != OPBX_FRAME_VOICE) {
+		opbx_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
 		return 0;
 	}
-	if (f->subclass != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
+	if (f->subclass != OPBX_FORMAT_SLINEAR) {
+		opbx_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
 		return 0;
 	}
 	s = f->data;
 	len = f->datalen/2;
-	return __ast_dsp_silence(dsp, s, len, totalsilence);
+	return __opbx_dsp_silence(dsp, s, len, totalsilence);
 }
 
-struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *af)
+struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *dsp, struct opbx_frame *af)
 {
 	int silence;
 	int res;
@@ -1374,15 +1374,15 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 #define FIX_INF(inf) do { \
 		if (writeback) { \
 			switch(inf->subclass) { \
-			case AST_FORMAT_SLINEAR: \
+			case OPBX_FORMAT_SLINEAR: \
 				break; \
-			case AST_FORMAT_ULAW: \
+			case OPBX_FORMAT_ULAW: \
 				for (x=0;x<len;x++) \
-					odata[x] = AST_LIN2MU((unsigned short)shortdata[x]); \
+					odata[x] = OPBX_LIN2MU((unsigned short)shortdata[x]); \
 				break; \
-			case AST_FORMAT_ALAW: \
+			case OPBX_FORMAT_ALAW: \
 				for (x=0;x<len;x++) \
-					odata[x] = AST_LIN2A((unsigned short)shortdata[x]); \
+					odata[x] = OPBX_LIN2A((unsigned short)shortdata[x]); \
 				break; \
 			} \
 		} \
@@ -1390,54 +1390,54 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 
 	if (!af)
 		return NULL;
-	if (af->frametype != AST_FRAME_VOICE)
+	if (af->frametype != OPBX_FRAME_VOICE)
 		return af;
 	odata = af->data;
 	len = af->datalen;
 	/* Make sure we have short data */
 	switch(af->subclass) {
-	case AST_FORMAT_SLINEAR:
+	case OPBX_FORMAT_SLINEAR:
 		shortdata = af->data;
 		len = af->datalen / 2;
 		break;
-	case AST_FORMAT_ULAW:
+	case OPBX_FORMAT_ULAW:
 		shortdata = alloca(af->datalen * 2);
 		if (!shortdata) {
-			ast_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
 			return af;
 		}
 		for (x=0;x<len;x++) 
-			shortdata[x] = AST_MULAW(odata[x]);
+			shortdata[x] = OPBX_MULAW(odata[x]);
 		break;
-	case AST_FORMAT_ALAW:
+	case OPBX_FORMAT_ALAW:
 		shortdata = alloca(af->datalen * 2);
 		if (!shortdata) {
-			ast_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
 			return af;
 		}
 		for (x=0;x<len;x++) 
-			shortdata[x] = AST_ALAW(odata[x]);
+			shortdata[x] = OPBX_ALAW(odata[x]);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
+		opbx_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
 		return af;
 	}
-	silence = __ast_dsp_silence(dsp, shortdata, len, NULL);
+	silence = __opbx_dsp_silence(dsp, shortdata, len, NULL);
 	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence) {
 		memset(&dsp->f, 0, sizeof(dsp->f));
-		dsp->f.frametype = AST_FRAME_NULL;
+		dsp->f.frametype = OPBX_FRAME_NULL;
 		return &dsp->f;
 	}
-	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && ast_dsp_busydetect(dsp)) {
-		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && opbx_dsp_busydetect(dsp)) {
+		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
 		memset(&dsp->f, 0, sizeof(dsp->f));
-		dsp->f.frametype = AST_FRAME_CONTROL;
-		dsp->f.subclass = AST_CONTROL_BUSY;
-		ast_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
+		dsp->f.frametype = OPBX_FRAME_CONTROL;
+		dsp->f.subclass = OPBX_CONTROL_BUSY;
+		opbx_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
 	if ((dsp->features & DSP_FEATURE_DTMF_DETECT)) {
-		digit = __ast_dsp_digitdetect(dsp, shortdata, len, &writeback);
+		digit = __opbx_dsp_digitdetect(dsp, shortdata, len, &writeback);
 #if 0
 		if (digit)
 			printf("Performing digit detection returned %d, digitmode is %d\n", digit, dsp->digitmode);
@@ -1448,13 +1448,13 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					/* Looks like we might have something.  
 					 * Request a conference mute for the moment */
 					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = AST_FRAME_DTMF;
+					dsp->f.frametype = OPBX_FRAME_DTMF;
 					dsp->f.subclass = 'm';
 					dsp->thinkdigit = 'x';
 					FIX_INF(af);
 					if (chan)
-						ast_queue_frame(chan, af);
-					ast_frfree(af);
+						opbx_queue_frame(chan, af);
+					opbx_frfree(af);
 					return &dsp->f;
 				}
 			} else {
@@ -1466,12 +1466,12 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 							   ahead and send this one, but DON'T stop confmute because
 							   we're detecting something else, too... */
 							memset(&dsp->f, 0, sizeof(dsp->f));
-							dsp->f.frametype = AST_FRAME_DTMF;
+							dsp->f.frametype = OPBX_FRAME_DTMF;
 							dsp->f.subclass = dsp->thinkdigit;
 							FIX_INF(af);
 							if (chan)
-								ast_queue_frame(chan, af);
-							ast_frfree(af);
+								opbx_queue_frame(chan, af);
+							opbx_frfree(af);
 						}
 						dsp->thinkdigit = digit;
 						return &dsp->f;
@@ -1482,18 +1482,18 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 						memset(&dsp->f, 0, sizeof(dsp->f));
 						if (dsp->thinkdigit != 'x') {
 							/* If we found a digit, send it now */
-							dsp->f.frametype = AST_FRAME_DTMF;
+							dsp->f.frametype = OPBX_FRAME_DTMF;
 							dsp->f.subclass = dsp->thinkdigit;
 							dsp->thinkdigit = 0;
 						} else {
-							dsp->f.frametype = AST_FRAME_DTMF;
+							dsp->f.frametype = OPBX_FRAME_DTMF;
 							dsp->f.subclass = 'u';
 							dsp->thinkdigit = 0;
 						}
 						FIX_INF(af);
 						if (chan)
-							ast_queue_frame(chan, af);
-						ast_frfree(af);
+							opbx_queue_frame(chan, af);
+						opbx_frfree(af);
 						return &dsp->f;
 					}
 				}
@@ -1503,50 +1503,50 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			if (dsp->digitmode & DSP_DIGITMODE_MF) {
 				if (dsp->td.mf.current_digits) {
 					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = AST_FRAME_DTMF;
+					dsp->f.frametype = OPBX_FRAME_DTMF;
 					dsp->f.subclass = dsp->td.mf.digits[0];
 					memmove(dsp->td.mf.digits, dsp->td.mf.digits + 1, dsp->td.mf.current_digits);
 					dsp->td.mf.current_digits--;
 					FIX_INF(af);
 					if (chan)
-						ast_queue_frame(chan, af);
-					ast_frfree(af);
+						opbx_queue_frame(chan, af);
+					opbx_frfree(af);
 					return &dsp->f;
 				}
 			} else {
 				if (dsp->td.dtmf.current_digits) {
 					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = AST_FRAME_DTMF;
+					dsp->f.frametype = OPBX_FRAME_DTMF;
 					dsp->f.subclass = dsp->td.dtmf.digits[0];
 					memmove(dsp->td.dtmf.digits, dsp->td.dtmf.digits + 1, dsp->td.dtmf.current_digits);
 					dsp->td.dtmf.current_digits--;
 					FIX_INF(af);
 					if (chan)
-						ast_queue_frame(chan, af);
-					ast_frfree(af);
+						opbx_queue_frame(chan, af);
+					opbx_frfree(af);
 					return &dsp->f;
 				}
 			}
 		}
 	}
 	if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)) {
-		res = __ast_dsp_call_progress(dsp, shortdata, len);
+		res = __opbx_dsp_call_progress(dsp, shortdata, len);
 		if (res) {
 			switch(res) {
-			case AST_CONTROL_ANSWER:
-			case AST_CONTROL_BUSY:
-			case AST_CONTROL_RINGING:
-			case AST_CONTROL_CONGESTION:
-			case AST_CONTROL_HANGUP:
+			case OPBX_CONTROL_ANSWER:
+			case OPBX_CONTROL_BUSY:
+			case OPBX_CONTROL_RINGING:
+			case OPBX_CONTROL_CONGESTION:
+			case OPBX_CONTROL_HANGUP:
 				memset(&dsp->f, 0, sizeof(dsp->f));
-				dsp->f.frametype = AST_FRAME_CONTROL;
+				dsp->f.frametype = OPBX_FRAME_CONTROL;
 				dsp->f.subclass = res;
 				dsp->f.src = "dsp_progress";
 				if (chan) 
-					ast_queue_frame(chan, &dsp->f);
+					opbx_queue_frame(chan, &dsp->f);
 				break;
 			default:
-				ast_log(LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
+				opbx_log(LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
 			}
 		}
 	}
@@ -1554,7 +1554,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	return af;
 }
 
-static void ast_dsp_prog_reset(struct ast_dsp *dsp)
+static void opbx_dsp_prog_reset(struct opbx_dsp *dsp)
 {
 	int max = 0;
 	int x;
@@ -1570,40 +1570,40 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 	dsp->freqcount = max;
 }
 
-struct ast_dsp *ast_dsp_new(void)
+struct opbx_dsp *opbx_dsp_new(void)
 {
-	struct ast_dsp *dsp;
+	struct opbx_dsp *dsp;
 
-	dsp = malloc(sizeof(struct ast_dsp));
+	dsp = malloc(sizeof(struct opbx_dsp));
 	if (dsp) {
-		memset(dsp, 0, sizeof(struct ast_dsp));
+		memset(dsp, 0, sizeof(struct opbx_dsp));
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
 		/* Initialize DTMF detector */
-		ast_dtmf_detect_init(&dsp->td.dtmf);
+		opbx_dtmf_detect_init(&dsp->td.dtmf);
 		/* Initialize initial DSP progress detect parameters */
-		ast_dsp_prog_reset(dsp);
+		opbx_dsp_prog_reset(dsp);
 	}
 	return dsp;
 }
 
-void ast_dsp_set_features(struct ast_dsp *dsp, int features)
+void opbx_dsp_set_features(struct opbx_dsp *dsp, int features)
 {
 	dsp->features = features;
 }
 
-void ast_dsp_free(struct ast_dsp *dsp)
+void opbx_dsp_free(struct opbx_dsp *dsp)
 {
 	free(dsp);
 }
 
-void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold)
+void opbx_dsp_set_threshold(struct opbx_dsp *dsp, int threshold)
 {
 	dsp->threshold = threshold;
 }
 
-void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences)
+void opbx_dsp_set_busy_count(struct opbx_dsp *dsp, int cadences)
 {
 	if (cadences < 4)
 		cadences = 4;
@@ -1612,14 +1612,14 @@ void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences)
 	dsp->busycount = cadences;
 }
 
-void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength)
+void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietlength)
 {
 	dsp->busy_tonelength = tonelength;
 	dsp->busy_quietlength = quietlength;
-	ast_log(LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
+	opbx_log(LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
 }
 
-void ast_dsp_digitreset(struct ast_dsp *dsp)
+void opbx_dsp_digitreset(struct opbx_dsp *dsp)
 {
 	int i;
 	
@@ -1669,7 +1669,7 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 	}
 }
 
-void ast_dsp_reset(struct ast_dsp *dsp)
+void opbx_dsp_reset(struct opbx_dsp *dsp)
 {
 	int x;
 	
@@ -1681,7 +1681,7 @@ void ast_dsp_reset(struct ast_dsp *dsp)
 	memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));	
 }
 
-int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
+int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode)
 {
 	int new;
 	int old;
@@ -1691,34 +1691,34 @@ int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
 	if (old != new) {
 		/* Must initialize structures if switching from MF to DTMF or vice-versa */
 		if (new & DSP_DIGITMODE_MF)
-			ast_mf_detect_init(&dsp->td.mf);
+			opbx_mf_detect_init(&dsp->td.mf);
 		else
-			ast_dtmf_detect_init(&dsp->td.dtmf);
+			opbx_dtmf_detect_init(&dsp->td.dtmf);
 	}
 	dsp->digitmode = digitmode;
 	return 0;
 }
 
-int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone)
+int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
 {
 	int x;
 	
 	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]);x++) {
 		if (!strcasecmp(aliases[x].name, zone)) {
 			dsp->progmode = aliases[x].mode;
-			ast_dsp_prog_reset(dsp);
+			opbx_dsp_prog_reset(dsp);
 			return 0;
 		}
 	}
 	return -1;
 }
 
-int ast_dsp_get_tstate(struct ast_dsp *dsp) 
+int opbx_dsp_get_tstate(struct opbx_dsp *dsp) 
 {
 	return dsp->tstate;
 }
 
-int ast_dsp_get_tcount(struct ast_dsp *dsp) 
+int opbx_dsp_get_tcount(struct opbx_dsp *dsp) 
 {
 	return dsp->tcount;
 }

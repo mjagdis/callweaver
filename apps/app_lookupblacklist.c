@@ -62,7 +62,7 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 static int
-lookupblacklist_exec (struct ast_channel *chan, void *data)
+lookupblacklist_exec (struct opbx_channel *chan, void *data)
 {
 	char blacklist[1];
 	struct localuser *u;
@@ -71,24 +71,24 @@ lookupblacklist_exec (struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD (u);
 	if (chan->cid.cid_num)
 	{
-		if (!ast_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
+		if (!opbx_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
 		{
 			if (option_verbose > 2)
-				ast_log(LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
+				opbx_log(LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
 			bl = 1;
 		}
 	}
 	if (chan->cid.cid_name) {
-		if (!ast_db_get ("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist))) 
+		if (!opbx_db_get ("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist))) 
 		{
 			if (option_verbose > 2)
-				ast_log (LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
+				opbx_log (LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
 			bl = 1;
 		}
 	}
 	
 	if (bl)
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 
 	LOCAL_USER_REMOVE (u);
 	return 0;
@@ -97,12 +97,12 @@ lookupblacklist_exec (struct ast_channel *chan, void *data)
 int unload_module (void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application (app);
+	return opbx_unregister_application (app);
 }
 
 int load_module (void)
 {
-	return ast_register_application (app, lookupblacklist_exec, synopsis,descrip);
+	return opbx_register_application (app, lookupblacklist_exec, synopsis,descrip);
 }
 
 char *description (void)

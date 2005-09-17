@@ -65,7 +65,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int hasvoicemail_exec(struct ast_channel *chan, void *data)
+static int hasvoicemail_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -76,26 +76,26 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 	int vmcount = 0;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "HasVoicemail requires an argument (vm-box[@context][:folder]|varname)\n");
+		opbx_log(LOG_WARNING, "HasVoicemail requires an argument (vm-box[@context][:folder]|varname)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
 
-	input = ast_strdupa((char *)data);
+	input = opbx_strdupa((char *)data);
 	if (input) {
 		temps = input;
 		if ((temps = strsep(&input, "|"))) {
-			if (input && !ast_strlen_zero(input))
+			if (input && !opbx_strlen_zero(input))
 				varname = input;
 			input = temps;
 		}
 		if ((temps = strsep(&input, ":"))) {
-			if (input && !ast_strlen_zero(input))
+			if (input && !opbx_strlen_zero(input))
 				vmfolder = input;
 			input = temps;
 		}
 		if ((vmbox = strsep(&input, "@")))
-			if (input && !ast_strlen_zero(input))
+			if (input && !opbx_strlen_zero(input))
 				context = input;
 		if (!vmbox)
 			vmbox = input;
@@ -105,9 +105,9 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 			vmfolder++;
 		} else
 			vmfolder = "INBOX";
-		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, vmbox, vmfolder);
+		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)opbx_config_OPBX_SPOOL_DIR, context, vmbox, vmfolder);
 		if (!(vmdir = opendir(vmpath))) {
-			ast_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
+			opbx_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
 		} else {
 
 			/* No matter what the format of VM, there will always be a .txt file for each message. */
@@ -125,11 +125,11 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 
 		if (vmcount > 0) {
 			/* Branch to the next extension */
-			if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-				ast_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
+			if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+				opbx_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
 		}
 	} else {
-		ast_log(LOG_ERROR, "Out of memory error\n");
+		opbx_log(LOG_ERROR, "Out of memory error\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -140,16 +140,16 @@ int unload_module(void)
 {
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = ast_unregister_application(app_hasvoicemail);
-	res |= ast_unregister_application(app_hasnewvoicemail);
+	res = opbx_unregister_application(app_hasvoicemail);
+	res |= opbx_unregister_application(app_hasnewvoicemail);
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
-	res |= ast_register_application(app_hasnewvoicemail, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
+	res = opbx_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
+	res |= opbx_register_application(app_hasnewvoicemail, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
 	return res;
 }
 

@@ -51,36 +51,36 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int echo_exec(struct ast_channel *chan, void *data)
+static int echo_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	LOCAL_USER_ADD(u);
-	ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
-	ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
+	opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));
+	opbx_set_read_format(chan, opbx_best_codec(chan->nativeformats));
 	/* Do our thing here */
-	while(ast_waitfor(chan, -1) > -1) {
-		f = ast_read(chan);
+	while(opbx_waitfor(chan, -1) > -1) {
+		f = opbx_read(chan);
 		if (!f)
 			break;
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
-		if (f->frametype == AST_FRAME_VOICE) {
-			if (ast_write(chan, f)) 
+		if (f->frametype == OPBX_FRAME_VOICE) {
+			if (opbx_write(chan, f)) 
 				break;
-		} else if (f->frametype == AST_FRAME_VIDEO) {
-			if (ast_write(chan, f)) 
+		} else if (f->frametype == OPBX_FRAME_VIDEO) {
+			if (opbx_write(chan, f)) 
 				break;
-		} else if (f->frametype == AST_FRAME_DTMF) {
+		} else if (f->frametype == OPBX_FRAME_DTMF) {
 			if (f->subclass == '#') {
 				res = 0;
 				break;
 			} else
-				if (ast_write(chan, f))
+				if (opbx_write(chan, f))
 					break;
 		}
-		ast_frfree(f);
+		opbx_frfree(f);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -89,12 +89,12 @@ static int echo_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, echo_exec, synopsis, descrip);
+	return opbx_register_application(app, echo_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -86,7 +86,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int math_exec(struct ast_channel *chan, void *data) 
+static int math_exec(struct opbx_channel *chan, void *data) 
 {
 	float fnum1;
 	float fnum2;
@@ -104,18 +104,18 @@ static int math_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "Math() is deprecated, please use Set(var=${MATH(...)} instead.\n");
+		opbx_log(LOG_WARNING, "Math() is deprecated, please use Set(var=${MATH(...)} instead.\n");
 		deprecation_warning = 1;
 	}
 
 	if (!data) {
-		ast_log(LOG_WARNING, "No parameters passed. !\n");
+		opbx_log(LOG_WARNING, "No parameters passed. !\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 		
-	s = ast_strdupa((void *) data);
+	s = opbx_strdupa((void *) data);
 
 	mvar = strsep(&s, "|");
 	mvalue1 = strsep(&s, "|");
@@ -163,25 +163,25 @@ static int math_exec(struct ast_channel *chan, void *data)
 		mvalue2 = op + 1;
 		
 	if (!mvar || !mvalue1 || !mvalue2) {
-		ast_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
+		opbx_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	if (!strcmp(mvar,"")) {
-		ast_log(LOG_WARNING, "No return variable set.\n");
+		opbx_log(LOG_WARNING, "No return variable set.\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	if (sscanf(mvalue1, "%f", &fnum1) != 1) {
-		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
+		opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	if (sscanf(mvalue2, "%f", &fnum2) != 1) {
-		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
+		opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -241,7 +241,7 @@ static int math_exec(struct ast_channel *chan, void *data)
 			strcpy(user_result, "FALSE");
 		break;
 	default :
-		ast_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
+		opbx_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -260,14 +260,14 @@ int unload_module(void)
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
 
-	res  = ast_unregister_application(app_math);
+	res  = opbx_unregister_application(app_math);
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app_math, math_exec, math_synopsis, math_descrip);
+	res = opbx_register_application(app_math, math_exec, math_synopsis, math_descrip);
 	return res;
 }
 

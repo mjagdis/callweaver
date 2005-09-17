@@ -72,7 +72,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "slin_g723_ex.h"
 #include "g723_slin_ex.h"
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
+OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
 #ifdef ANNEX_B
@@ -90,9 +90,9 @@ enum Crate WrkRate = Rate63;
 
 struct g723_encoder_pvt {
 	struct cod_state cod;
-	struct ast_frame f;
+	struct opbx_frame f;
 	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
+	char offset[OPBX_FRIENDLY_OFFSET];
 	/* Buffer for our outgoing frame */
 	char outbuf[8000];
 	/* Enough to store a full second */
@@ -102,15 +102,15 @@ struct g723_encoder_pvt {
 
 struct g723_decoder_pvt {
 	struct dec_state dec;
-	struct ast_frame f;
+	struct opbx_frame f;
 	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
+	char offset[OPBX_FRIENDLY_OFFSET];
 	/* Enough to store a full second */
 	short buf[8000];
 	int tail;
 };
 
-static struct ast_translator_pvt *g723tolin_new(void)
+static struct opbx_translator_pvt *g723tolin_new(void)
 {
 	struct g723_decoder_pvt *tmp;
 	tmp = malloc(sizeof(struct g723_decoder_pvt));
@@ -119,16 +119,16 @@ static struct ast_translator_pvt *g723tolin_new(void)
 	    Init_Dec_Cng(&tmp->dec);
 		tmp->tail = 0;
 		localusecnt++;
-		ast_update_use_count();
+		opbx_update_use_count();
 	}
-	return (struct ast_translator_pvt *)tmp;
+	return (struct opbx_translator_pvt *)tmp;
 }
 
-static struct ast_frame *lintog723_sample(void)
+static struct opbx_frame *lintog723_sample(void)
 {
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SLINEAR;
+	static struct opbx_frame f;
+	f.frametype = OPBX_FRAME_VOICE;
+	f.subclass = OPBX_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_g723_ex);
 	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_g723_ex)/2;
@@ -139,11 +139,11 @@ static struct ast_frame *lintog723_sample(void)
 	return &f;
 }
 
-static struct ast_frame *g723tolin_sample(void)
+static struct opbx_frame *g723tolin_sample(void)
 {
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_G723_1;
+	static struct opbx_frame f;
+	f.frametype = OPBX_FRAME_VOICE;
+	f.subclass = OPBX_FORMAT_G723_1;
 	f.datalen = sizeof(g723_slin_ex);
 	/* All frames are 30 ms long */
 	f.samples = 240;
@@ -154,7 +154,7 @@ static struct ast_frame *g723tolin_sample(void)
 	return &f;
 }
 
-static struct ast_translator_pvt *lintog723_new(void)
+static struct opbx_translator_pvt *lintog723_new(void)
 {
 	struct g723_encoder_pvt *tmp;
 	tmp = malloc(sizeof(struct g723_encoder_pvt));
@@ -166,26 +166,26 @@ static struct ast_translator_pvt *lintog723_new(void)
         	Init_Cod_Cng(&tmp->cod);
     	 }
 		localusecnt++;
-		ast_update_use_count();
+		opbx_update_use_count();
 		tmp->tail = 0;
 	}
-	return (struct ast_translator_pvt *)tmp;
+	return (struct opbx_translator_pvt *)tmp;
 }
 
-static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
+static struct opbx_frame *g723tolin_frameout(struct opbx_translator_pvt *pvt)
 {
 	struct g723_decoder_pvt *tmp = (struct g723_decoder_pvt *)pvt;
 	if (!tmp->tail)
 		return NULL;
 	/* Signed linear is no particular frame size, so just send whatever
 	   we have in the buffer in one lump sum */
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_SLINEAR;
+	tmp->f.frametype = OPBX_FRAME_VOICE;
+	tmp->f.subclass = OPBX_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
 	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
+	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->buf;
 	/* Reset tail pointer */
@@ -220,12 +220,12 @@ static int g723_len(unsigned char buf)
 		return 20;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+		opbx_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
 	}
 	return -1;
 }
 
-static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int g723tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
 	struct g723_decoder_pvt *tmp = (struct g723_decoder_pvt *)pvt;
 	int len = 0;
@@ -239,11 +239,11 @@ static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 		   the tail location */
 		res = g723_len(((unsigned char *)f->data + len)[0]);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "Invalid data\n");
+			opbx_log(LOG_WARNING, "Invalid data\n");
 			return -1;
 		}
 		if (res + len > f->datalen) {
-			ast_log(LOG_WARNING, "Measured length exceeds frame length\n");
+			opbx_log(LOG_WARNING, "Measured length exceeds frame length\n");
 			return -1;
 		}
 		if (tmp->tail + Frame < sizeof(tmp->buf)/2) {	
@@ -256,7 +256,7 @@ static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 #endif
 			tmp->tail+=Frame;
 		} else {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
+			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
 		len += res;
@@ -264,7 +264,7 @@ static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 	return 0;
 }
 
-static int lintog723_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int lintog723_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
 	/* Just add the frames to our stream */
 	/* XXX We should look at how old the rest of our stream is, and if it
@@ -275,13 +275,13 @@ static int lintog723_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 		memcpy(&tmp->buf[tmp->tail], f->data, f->datalen);
 		tmp->tail += f->datalen/2;
 	} else {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
+		opbx_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
 	return 0;
 }
 
-static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
+static struct opbx_frame *lintog723_frameout(struct opbx_translator_pvt *pvt)
 {
 	struct g723_encoder_pvt *tmp = (struct g723_encoder_pvt *)pvt;
 #ifdef ANNEX_B
@@ -292,16 +292,16 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < Frame)
 		return NULL;
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_G723_1;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
+	tmp->f.frametype = OPBX_FRAME_VOICE;
+	tmp->f.subclass = OPBX_FORMAT_G723_1;
+	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.samples = 0;
 	tmp->f.mallocd = 0;
 	while(tmp->tail >= Frame) {
 		/* Encode a frame of data */
 		if (cnt + 24 >= sizeof(tmp->outbuf)) {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
+			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			return NULL;
 		}
 #ifdef ANNEX_B
@@ -330,7 +330,7 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 		if (fd < 0)
 			fd = open("trans.g723", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (fd < 0)
-			ast_log(LOG_WARNING, "Unable to create demo\n");
+			opbx_log(LOG_WARNING, "Unable to create demo\n");
 		write(fd, &delay, 4);
 		size = htons(tmp->f.datalen);
 		write(fd, &size, 2);
@@ -340,20 +340,20 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 	return &tmp->f;	
 }
 
-static void g723_destroy(struct ast_translator_pvt *pvt)
+static void g723_destroy(struct opbx_translator_pvt *pvt)
 {
 	free(pvt);
 	localusecnt--;
-	ast_update_use_count();
+	opbx_update_use_count();
 }
 
-static struct ast_translator g723tolin =
+static struct opbx_translator g723tolin =
 #ifdef ANNEX_B
 	{ "g723tolinb", 
 #else
 	{ "g723tolin", 
 #endif
-	   AST_FORMAT_G723_1, AST_FORMAT_SLINEAR,
+	   OPBX_FORMAT_G723_1, OPBX_FORMAT_SLINEAR,
 	   g723tolin_new,
 	   g723tolin_framein,
 	   g723tolin_frameout,
@@ -361,13 +361,13 @@ static struct ast_translator g723tolin =
 	   g723tolin_sample
 	   };
 
-static struct ast_translator lintog723 =
+static struct opbx_translator lintog723 =
 #ifdef ANNEX_B
 	{ "lintog723b", 
 #else
 	{ "lintog723", 
 #endif
-	   AST_FORMAT_SLINEAR, AST_FORMAT_G723_1,
+	   OPBX_FORMAT_SLINEAR, OPBX_FORMAT_G723_1,
 	   lintog723_new,
 	   lintog723_framein,
 	   lintog723_frameout,
@@ -378,24 +378,24 @@ static struct ast_translator lintog723 =
 int unload_module(void)
 {
 	int res;
-	ast_mutex_lock(&localuser_lock);
-	res = ast_unregister_translator(&lintog723);
+	opbx_mutex_lock(&localuser_lock);
+	res = opbx_unregister_translator(&lintog723);
 	if (!res)
-		res = ast_unregister_translator(&g723tolin);
+		res = opbx_unregister_translator(&g723tolin);
 	if (localusecnt)
 		res = -1;
-	ast_mutex_unlock(&localuser_lock);
+	opbx_mutex_unlock(&localuser_lock);
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	res=ast_register_translator(&g723tolin);
+	res=opbx_register_translator(&g723tolin);
 	if (!res) 
-		res=ast_register_translator(&lintog723);
+		res=opbx_register_translator(&lintog723);
 	else
-		ast_unregister_translator(&g723tolin);
+		opbx_unregister_translator(&g723tolin);
 	return res;
 }
 

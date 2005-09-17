@@ -48,7 +48,7 @@
 #define YYERROR_VERBOSE 1
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
 } ;
 
 #ifdef STANDALONE
@@ -235,7 +235,7 @@ make_integer (quad_t i)
 		return(NULL);
 	}
 
-	vp->type = AST_EXPR_integer;
+	vp->type = OPBX_EXPR_integer;
 	vp->u.i  = i;
 	return vp; 
 }
@@ -262,9 +262,9 @@ make_str (const char *s)
 	}
 
 	if (isint)
-		vp->type = AST_EXPR_numeric_string;
+		vp->type = OPBX_EXPR_numeric_string;
 	else	
-		vp->type = AST_EXPR_string;
+		vp->type = OPBX_EXPR_string;
 
 	return vp;
 }
@@ -276,7 +276,7 @@ free_value (struct val *vp)
 	if (vp==NULL) {
 		return;
 	}
-	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
+	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
 		free (vp->u.s);	
 }
 
@@ -291,13 +291,13 @@ to_integer (struct val *vp)
 		return(0);
 	}
 
-	if (vp->type == AST_EXPR_integer)
+	if (vp->type == OPBX_EXPR_integer)
 		return 1;
 
-	if (vp->type == AST_EXPR_string)
+	if (vp->type == OPBX_EXPR_string)
 		return 0;
 
-	/* vp->type == AST_EXPR_numeric_string, make it numeric */
+	/* vp->type == OPBX_EXPR_numeric_string, make it numeric */
 	errno = 0;
 	i  = strtoll(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
@@ -308,14 +308,14 @@ to_integer (struct val *vp)
 	}
 	free (vp->u.s);
 	vp->u.i = i;
-	vp->type = AST_EXPR_integer;
+	vp->type = OPBX_EXPR_integer;
 	return 1;
 }
 
 static void
 strip_quotes(struct val *vp)
 {
-	if (vp->type != AST_EXPR_string && vp->type != AST_EXPR_numeric_string)
+	if (vp->type != OPBX_EXPR_string && vp->type != OPBX_EXPR_numeric_string)
 		return;
 	
 	if( vp->u.s[0] == '"' && vp->u.s[strlen(vp->u.s)-1] == '"' )
@@ -340,7 +340,7 @@ to_string (struct val *vp)
 {
 	char *tmp;
 
-	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
+	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
 		return;
 
 	tmp = malloc ((size_t)25);
@@ -350,7 +350,7 @@ to_string (struct val *vp)
 	}
 
 	sprintf(tmp, "%ld", (long int) vp->u.i);
-	vp->type = AST_EXPR_string;
+	vp->type = OPBX_EXPR_string;
 	vp->u.s  = tmp;
 }
 
@@ -359,14 +359,14 @@ static int
 isstring (struct val *vp)
 {
 	/* only TRUE if this string is not a valid integer */
-	return (vp->type == AST_EXPR_string);
+	return (vp->type == OPBX_EXPR_string);
 }
 
 
 static int
 is_zero_or_null (struct val *vp)
 {
-	if (vp->type == AST_EXPR_integer) {
+	if (vp->type == OPBX_EXPR_integer) {
 		return (vp->u.i == 0);
 	} else {
 		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
@@ -721,12 +721,12 @@ op_compl (struct val *a)
 	{
 		switch( a->type )
 		{
-		case AST_EXPR_integer:
+		case OPBX_EXPR_integer:
 			if( a->u.i == 0 )
 				v1 = 0;
 			break;
 			
-		case AST_EXPR_string:
+		case OPBX_EXPR_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
@@ -738,7 +738,7 @@ op_compl (struct val *a)
 			}
 			break;
 			
-		case AST_EXPR_numeric_string:
+		case OPBX_EXPR_numeric_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else

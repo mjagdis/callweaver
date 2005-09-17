@@ -83,32 +83,32 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)
+static int system_exec_helper(struct opbx_channel *chan, void *data, int failmode)
 {
 	int res=0;
 	struct localuser *u;
 	if (!data) {
-		ast_log(LOG_WARNING, "System requires an argument(command)\n");
+		opbx_log(LOG_WARNING, "System requires an argument(command)\n");
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		return failmode;
 	}
 	LOCAL_USER_ADD(u);
 
 	/* Do our thing here */
-	res = ast_safe_system((char *)data);
+	res = opbx_safe_system((char *)data);
 	if ((res < 0) && (errno != ECHILD)) {
-		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
+		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		res = failmode;
 	} else if (res == 127) {
-		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
+		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		res = failmode;
 	} else {
 		if (res < 0) 
 			res = 0;
 		if (option_priority_jumping && res)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 
 		if (res != 0)
 			pbx_builtin_setvar_helper(chan, chanvar, "APPERROR");
@@ -121,12 +121,12 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	return res;
 }
 
-static int system_exec(struct ast_channel *chan, void *data)
+static int system_exec(struct opbx_channel *chan, void *data)
 {
 	return system_exec_helper(chan, data, -1);
 }
 
-static int trysystem_exec(struct ast_channel *chan, void *data)
+static int trysystem_exec(struct opbx_channel *chan, void *data)
 {
 	return system_exec_helper(chan, data, 0);
 }
@@ -134,14 +134,14 @@ static int trysystem_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(app2);
-	return ast_unregister_application(app);
+	opbx_unregister_application(app2);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	ast_register_application(app2, trysystem_exec, synopsis2, descrip2);
-	return ast_register_application(app, system_exec, synopsis, descrip);
+	opbx_register_application(app2, trysystem_exec, synopsis2, descrip2);
+	return opbx_register_application(app, system_exec, synopsis, descrip);
 }
 
 char *description(void)

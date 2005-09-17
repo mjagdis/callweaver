@@ -32,13 +32,13 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/chanvars.h"
 #include "openpbx/logger.h"
 
-struct ast_var_t *ast_var_assign(const char *name, const char *value)
+struct opbx_var_t *opbx_var_assign(const char *name, const char *value)
 {
 	int i;
-	struct ast_var_t *var;
+	struct opbx_var_t *var;
 	int len;
 	
-	len = sizeof(struct ast_var_t);
+	len = sizeof(struct opbx_var_t);
 	
 	len += strlen(name) + 1;
 	len += strlen(value) + 1;
@@ -47,7 +47,7 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 
 	if (var == NULL)
 	{
-		ast_log(LOG_WARNING, "Out of memory\n");
+		opbx_log(LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
 	
@@ -65,13 +65,13 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 	return var;
 }	
 	
-void ast_var_delete(struct ast_var_t *var)
+void opbx_var_delete(struct opbx_var_t *var)
 {
 	if (var == NULL) return;
 	free(var);
 }
 
-char *ast_var_name(struct ast_var_t *var)
+char *opbx_var_name(struct opbx_var_t *var)
 {
 	char *name;
 
@@ -90,12 +90,12 @@ char *ast_var_name(struct ast_var_t *var)
 	return name;
 }
 
-char *ast_var_full_name(struct ast_var_t *var)
+char *opbx_var_full_name(struct opbx_var_t *var)
 {
 	return (var != NULL ? var->name : NULL);
 }
 
-char *ast_var_value(struct ast_var_t *var)
+char *opbx_var_value(struct opbx_var_t *var)
 {
 	return (var != NULL ? var->value : NULL);
 }

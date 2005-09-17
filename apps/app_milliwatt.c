@@ -54,7 +54,7 @@ LOCAL_USER_DECL;
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
-static void *milliwatt_alloc(struct ast_channel *chan, void *params)
+static void *milliwatt_alloc(struct opbx_channel *chan, void *params)
 {
 int	*indexp;
 	indexp = malloc(sizeof(int));
@@ -63,28 +63,28 @@ int	*indexp;
 	return(indexp);
 }
 
-static void milliwatt_release(struct ast_channel *chan, void *data)
+static void milliwatt_release(struct opbx_channel *chan, void *data)
 {
 	free(data);
 	return;
 }
 
-static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int samples)
+static int milliwatt_generate(struct opbx_channel *chan, void *data, int len, int samples)
 {
-	struct ast_frame wf;
-	unsigned char waste[AST_FRIENDLY_OFFSET];
+	struct opbx_frame wf;
+	unsigned char waste[OPBX_FRIENDLY_OFFSET];
 	unsigned char buf[640];
 	int i,*indexp = (int *) data;
 
 	if (len > sizeof(buf))
 	{
-		ast_log(LOG_WARNING,"Only doing %d bytes (%d bytes requested)\n",(int)sizeof(buf),len);
+		opbx_log(LOG_WARNING,"Only doing %d bytes (%d bytes requested)\n",(int)sizeof(buf),len);
 		len = sizeof(buf);
 	}
 	waste[0] = 0; /* make compiler happy */
-	wf.frametype = AST_FRAME_VOICE;
-	wf.subclass = AST_FORMAT_ULAW;
-	wf.offset = AST_FRIENDLY_OFFSET;
+	wf.frametype = OPBX_FRAME_VOICE;
+	wf.subclass = OPBX_FORMAT_ULAW;
+	wf.offset = OPBX_FRIENDLY_OFFSET;
 	wf.mallocd = 0;
 	wf.data = buf;
 	wf.datalen = len;
@@ -98,39 +98,39 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 		buf[i] = digital_milliwatt[(*indexp)++];
 		*indexp &= 7;
 	}
-	if (ast_write(chan,&wf) < 0)
+	if (opbx_write(chan,&wf) < 0)
 	{
-		ast_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",chan->name,strerror(errno));
+		opbx_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",chan->name,strerror(errno));
 		return -1;
 	}
 	return 0;
 }
 
-static struct ast_generator milliwattgen = 
+static struct opbx_generator milliwattgen = 
 {
 	alloc: milliwatt_alloc,
 	release: milliwatt_release,
 	generate: milliwatt_generate,
 } ;
 
-static int milliwatt_exec(struct ast_channel *chan, void *data)
+static int milliwatt_exec(struct opbx_channel *chan, void *data)
 {
 
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
-	ast_set_write_format(chan, AST_FORMAT_ULAW);
-	ast_set_read_format(chan, AST_FORMAT_ULAW);
-	if (chan->_state != AST_STATE_UP)
+	opbx_set_write_format(chan, OPBX_FORMAT_ULAW);
+	opbx_set_read_format(chan, OPBX_FORMAT_ULAW);
+	if (chan->_state != OPBX_STATE_UP)
 	{
-		ast_answer(chan);
+		opbx_answer(chan);
 	}
-	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
+	if (opbx_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
 	{
-		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
+		opbx_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		return -1;
 	}
-	while(!ast_safe_sleep(chan, 10000));
-	ast_deactivate_generator(chan);
+	while(!opbx_safe_sleep(chan, 10000));
+	opbx_deactivate_generator(chan);
 	LOCAL_USER_REMOVE(u);
 	return -1;
 }
@@ -138,12 +138,12 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, milliwatt_exec, synopsis, descrip);
+	return opbx_register_application(app, milliwatt_exec, synopsis, descrip);
 }
 
 char *description(void)

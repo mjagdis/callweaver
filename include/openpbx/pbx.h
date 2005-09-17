@@ -30,35 +30,35 @@
 extern "C" {
 #endif
 
-#define AST_PBX_KEEP    0
-#define AST_PBX_REPLACE 1
+#define OPBX_PBX_KEEP    0
+#define OPBX_PBX_REPLACE 1
 
 /*! Max length of an application */
-#define AST_MAX_APP	32
+#define OPBX_MAX_APP	32
 
 /*! Special return values from applications to the PBX */
-#define AST_PBX_KEEPALIVE	10		/* Destroy the thread, but don't hang up the channel */
-#define AST_PBX_NO_HANGUP_PEER       11
+#define OPBX_PBX_KEEPALIVE	10		/* Destroy the thread, but don't hang up the channel */
+#define OPBX_PBX_NO_HANGUP_PEER       11
 
 /*! Special Priority for an hint */
 #define PRIORITY_HINT	-1
 
 /*! Extension states */
-enum ast_extension_states {
+enum opbx_extension_states {
 	/*! Extension removed */
-	AST_EXTENSION_REMOVED = -2,
+	OPBX_EXTENSION_REMOVED = -2,
 	/*! Extension hint removed */
-	AST_EXTENSION_DEACTIVATED = -1,
+	OPBX_EXTENSION_DEACTIVATED = -1,
 	/*! No device INUSE or BUSY  */
-	AST_EXTENSION_NOT_INUSE = 0,
+	OPBX_EXTENSION_NOT_INUSE = 0,
 	/*! One or more devices INUSE */
-	AST_EXTENSION_INUSE = 1 << 0,
+	OPBX_EXTENSION_INUSE = 1 << 0,
 	/*! All devices BUSY */
-	AST_EXTENSION_BUSY = 1 << 1,
+	OPBX_EXTENSION_BUSY = 1 << 1,
 	/*! All devices UNAVAILABLE/UNREGISTERED */
-	AST_EXTENSION_UNAVAILABLE = 1 << 2,
+	OPBX_EXTENSION_UNAVAILABLE = 1 << 2,
 	/*! All devices RINGING */
-	AST_EXTENSION_RINGING = 1 << 3,
+	OPBX_EXTENSION_RINGING = 1 << 3,
 };
 
 
@@ -66,52 +66,52 @@ static const struct cfextension_states {
 	int extension_state;
 	const char * const text;
 } extension_states[] = {
-	{ AST_EXTENSION_NOT_INUSE,                     "Idle" },
-	{ AST_EXTENSION_INUSE,                         "InUse" },
-	{ AST_EXTENSION_BUSY,                          "Busy" },
-	{ AST_EXTENSION_UNAVAILABLE,                   "Unavailable" },
-	{ AST_EXTENSION_RINGING,                       "Ringing" },
-	{ AST_EXTENSION_INUSE | AST_EXTENSION_RINGING, "InUse&Ringing" }
+	{ OPBX_EXTENSION_NOT_INUSE,                     "Idle" },
+	{ OPBX_EXTENSION_INUSE,                         "InUse" },
+	{ OPBX_EXTENSION_BUSY,                          "Busy" },
+	{ OPBX_EXTENSION_UNAVAILABLE,                   "Unavailable" },
+	{ OPBX_EXTENSION_RINGING,                       "Ringing" },
+	{ OPBX_EXTENSION_INUSE | OPBX_EXTENSION_RINGING, "InUse&Ringing" }
 };
 
-struct ast_context;
-struct ast_exten;     
-struct ast_include;
-struct ast_ignorepat;
-struct ast_sw;
+struct opbx_context;
+struct opbx_exten;     
+struct opbx_include;
+struct opbx_ignorepat;
+struct opbx_sw;
 
-typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
+typedef int (*opbx_state_cb_type)(char *context, char* id, enum opbx_extension_states state, void *data);
 
 /*! Data structure associated with a custom function */
-struct ast_custom_function {
+struct opbx_custom_function {
 	char *name;
 	char *synopsis;
 	char *desc;
 	char *syntax;
-	char *(*read)(struct ast_channel *, char *, char *, char *, size_t);
-	void (*write)(struct ast_channel *, char *, char *, const char *);
-	struct ast_custom_function *next;
+	char *(*read)(struct opbx_channel *, char *, char *, char *, size_t);
+	void (*write)(struct opbx_channel *, char *, char *, const char *);
+	struct opbx_custom_function *next;
 };
 
 /*! Data structure associated with an openpbx switch */
-struct ast_switch {
+struct opbx_switch {
 	/*! NULL */
-	struct ast_switch *next;	
+	struct opbx_switch *next;	
 	/*! Name of the switch */
 	const char *name;				
 	/*! Description of the switch */
 	const char *description;		
 	
-	int (*exists)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*exists)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 	
-	int (*canmatch)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*canmatch)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 	
-	int (*exec)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data);
+	int (*exec)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data);
 
-	int (*matchmore)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	int (*matchmore)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 };
 
-struct ast_timing {
+struct opbx_timing {
 	int hastime;				/* If time construct exists */
 	unsigned int monthmask;			/* Mask for month */
 	unsigned int daymask;			/* Mask for date */
@@ -119,10 +119,10 @@ struct ast_timing {
 	unsigned int minmask[24];		/* Mask for minute */
 };
 
-extern int ast_build_timing(struct ast_timing *i, char *info);
-extern int ast_check_timing(struct ast_timing *i);
+extern int opbx_build_timing(struct opbx_timing *i, char *info);
+extern int opbx_check_timing(struct opbx_timing *i);
 
-struct ast_pbx {
+struct opbx_pbx {
         int dtimeout;                                   /* Timeout between digits (seconds) */
         int rtimeout;                                   /* Timeout for response
 							   (seconds) */
@@ -132,11 +132,11 @@ struct ast_pbx {
 /*! Register an alternative switch */
 /*!
  * \param sw switch to register
- * This function registers a populated ast_switch structure with the
+ * This function registers a populated opbx_switch structure with the
  * openpbx switching architecture.
  * It returns 0 on success, and other than 0 on failure
  */
-extern int ast_register_switch(struct ast_switch *sw);
+extern int opbx_register_switch(struct opbx_switch *sw);
 
 /*! Unregister an alternative switch */
 /*!
@@ -144,17 +144,17 @@ extern int ast_register_switch(struct ast_switch *sw);
  * Unregisters a switch from openpbx.
  * Returns nothing
  */
-extern void ast_unregister_switch(struct ast_switch *sw);
+extern void opbx_unregister_switch(struct opbx_switch *sw);
 
 /*! Look up an application */
 /*!
  * \param app name of the app
- * This function searches for the ast_app structure within
+ * This function searches for the opbx_app structure within
  * the apps that are registered for the one with the name
  * you passed in.
- * Returns the ast_app structure that matches on success, or NULL on failure
+ * Returns the opbx_app structure that matches on success, or NULL on failure
  */
-extern struct ast_app *pbx_findapp(const char *app);
+extern struct opbx_app *pbx_findapp(const char *app);
 
 /*! executes an application */
 /*!
@@ -167,49 +167,49 @@ extern struct ast_app *pbx_findapp(const char *app);
  * the given data.
  * It returns 0 on success, and -1 on failure
  */
-int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstack);
+int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data, int newstack);
 
 /*! Register a new context */
 /*!
- * \param extcontexts pointer to the ast_context structure pointer
+ * \param extcontexts pointer to the opbx_context structure pointer
  * \param name name of the new context
  * \param registrar registrar of the context
  * This will first search for a context with your name.  If it exists already, it will not
  * create a new one.  If it does not exist, it will create a new one with the given name
  * and registrar.
- * It returns NULL on failure, and an ast_context structure on success
+ * It returns NULL on failure, and an opbx_context structure on success
  */
-struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
+struct opbx_context *opbx_context_create(struct opbx_context **extcontexts, const char *name, const char *registrar);
 
 /*! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added */
 /*!
- * \param extcontexts pointer to the ast_context structure pointer
+ * \param extcontexts pointer to the opbx_context structure pointer
  * \param registar of the context; if it's set the routine will delete all contexts that belong to that registrar; if NULL only the contexts that are specified in extcontexts
  */
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar);
+void opbx_merge_contexts_and_delete(struct opbx_context **extcontexts, const char *registrar);
 
 /*! Destroy a context (matches the specified context (or ANY context if NULL) */
 /*!
  * \param con context to destroy
  * \param registrar who registered it
  * You can optionally leave out either parameter.  It will find it
- * based on either the ast_context or the registrar name.
+ * based on either the opbx_context or the registrar name.
  * Returns nothing
  */
-void ast_context_destroy(struct ast_context *con, const char *registrar);
+void opbx_context_destroy(struct opbx_context *con, const char *registrar);
 
 /*! Find a context */
 /*!
  * \param name name of the context to find
  * Will search for the context with the given name.
- * Returns the ast_context on success, NULL on failure.
+ * Returns the opbx_context on success, NULL on failure.
  */
-struct ast_context *ast_context_find(const char *name);
+struct opbx_context *opbx_context_find(const char *name);
 
-enum ast_pbx_result {
-	AST_PBX_SUCCESS = 0,
-	AST_PBX_FAILED = -1,
-	AST_PBX_CALL_LIMIT = -2,
+enum opbx_pbx_result {
+	OPBX_PBX_SUCCESS = 0,
+	OPBX_PBX_FAILED = -1,
+	OPBX_PBX_CALL_LIMIT = -2,
 };
 
 /*! Create a new thread and start the PBX (or whatever) */
@@ -217,7 +217,7 @@ enum ast_pbx_result {
  * \param c channel to start the pbx on
  * \return Zero on success, non-zero on failure
  */
-enum ast_pbx_result ast_pbx_start(struct ast_channel *c);
+enum opbx_pbx_result opbx_pbx_start(struct opbx_channel *c);
 
 /*! Execute the PBX in the current thread */
 /*!
@@ -226,7 +226,7 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c);
  * This executes the PBX on a given channel. It allocates a new
  * PBX structure for the channel, and provides all PBX functionality.
  */
-enum ast_pbx_result ast_pbx_run(struct ast_channel *c);
+enum opbx_pbx_result opbx_pbx_run(struct opbx_channel *c);
 
 /*! 
  * \param context context to add the extension to
@@ -242,14 +242,14 @@ enum ast_pbx_result ast_pbx_run(struct ast_channel *c);
  * Callerid is a pattern to match CallerID, or NULL to match any callerid
  * Returns 0 on success, -1 on failure
  */
-int ast_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
+int opbx_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
-/*! Add an extension to an extension context, this time with an ast_context *.  CallerID is a pattern to match on callerid, or NULL to not care about callerid */
+/*! Add an extension to an extension context, this time with an opbx_context *.  CallerID is a pattern to match on callerid, or NULL to not care about callerid */
 /*! 
- * For details about the arguements, check ast_add_extension()
+ * For details about the arguements, check opbx_add_extension()
  */
-int ast_add_extension2(struct ast_context *con,
+int opbx_add_extension2(struct opbx_context *con,
 				      int replace, const char *extension, int priority, const char *label, const char *callerid, 
 					  const char *application, void *data, void (*datad)(void *),
 					  const char *registrar);
@@ -268,7 +268,7 @@ int ast_add_extension2(struct ast_context *con,
    CLI commands.
    It returns 0 on success, -1 on failure.
 */
-int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *),
+int opbx_register_application(const char *app, int (*execute)(struct opbx_channel *, void *),
 			     const char *synopsis, const char *description);
 
 /*! Remove an application */
@@ -277,23 +277,23 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
  * This unregisters an application from openpbx's internal registration mechanisms.
  * It returns 0 on success, and -1 on failure.
  */
-int ast_unregister_application(const char *app);
+int opbx_unregister_application(const char *app);
 
 /*! Uses hint and devicestate callback to get the state of an extension */
 /*!
  * \param c this is not important
  * \param context which context to look in
  * \param exten which extension to get state
- * Returns extension state !! = AST_EXTENSION_???
+ * Returns extension state !! = OPBX_EXTENSION_???
  */
-int ast_extension_state(struct ast_channel *c, char *context, char *exten);
+int opbx_extension_state(struct opbx_channel *c, char *context, char *exten);
 
 /*! Return string of the state of an extension */
 /*!
- * \param extension_state is the numerical state delivered by ast_extension_state
+ * \param extension_state is the numerical state delivered by opbx_extension_state
  * Returns the state of an extension as string
  */
-const char *ast_extension_state2str(int extension_state);
+const char *opbx_extension_state2str(int extension_state);
 
 /*! Registers a state change callback */
 /*!
@@ -304,8 +304,8 @@ const char *ast_extension_state2str(int extension_state);
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success
  */ 
-int ast_extension_state_add(const char *context, const char *exten, 
-			    ast_state_cb_type callback, void *data);
+int opbx_extension_state_add(const char *context, const char *exten, 
+			    opbx_state_cb_type callback, void *data);
 
 /*! Deletes a registered state change callback by ID */
 /*!
@@ -313,7 +313,7 @@ int ast_extension_state_add(const char *context, const char *exten,
  * Removes the callback from list of callbacks
  * Return 0 on success, -1 on failure
  */
-int ast_extension_state_del(int id, ast_state_cb_type callback);
+int opbx_extension_state_del(int id, opbx_state_cb_type callback);
 
 /*! If an extension exists, return non-zero */
 /*!
@@ -328,7 +328,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback);
  * is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-int ast_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct ast_channel *c, const char *context, const char *exten);
+int opbx_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct opbx_channel *c, const char *context, const char *exten);
 
 /*! If an extension exists, return non-zero */
 /*  work */
@@ -341,7 +341,7 @@ int ast_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct ast_
  * If an extension within the given context(or callerid) with the given priority is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-int ast_exists_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+int opbx_exists_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! If an extension exists, return non-zero */
 /*  work */
@@ -353,9 +353,9 @@ int ast_exists_extension(struct ast_channel *c, const char *context, const char 
  * \param callerid callerid to search for
  * If an priority which matches given label in extension or -1 if not found.
 \ */
-int ast_findlabel_extension(struct ast_channel *c, const char *context, const char *exten, const char *label, const char *callerid);
+int opbx_findlabel_extension(struct opbx_channel *c, const char *context, const char *exten, const char *label, const char *callerid);
 
-int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, const char *exten, const char *label, const char *callerid);
+int opbx_findlabel_extension2(struct opbx_channel *c, struct opbx_context *con, const char *exten, const char *label, const char *callerid);
 
 /*! Looks for a valid matching extension */
 /*!
@@ -368,7 +368,7 @@ int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, con
    some more digits, return non-zero.  Basically, when this returns 0, no matter
    what you add to exten, it's not going to be a valid extension anymore
 */
-int ast_canmatch_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+int opbx_canmatch_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Looks to see if adding anything to this extension might match something. (exists ^ canmatch) */
 /*!
@@ -382,7 +382,7 @@ int ast_canmatch_extension(struct ast_channel *c, const char *context, const cha
    an exact-match only.  Basically, when this returns 0, no matter
    what you add to exten, it's not going to be a valid extension anymore
 */
-int ast_matchmore_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+int opbx_matchmore_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Determine if a given extension matches a given pattern (in NXX format) */
 /*!
@@ -391,8 +391,8 @@ int ast_matchmore_extension(struct ast_channel *c, const char *context, const ch
  * Checks whether or not the given extension matches the given pattern.
  * Returns 1 on match, 0 on failure
  */
-int ast_extension_match(const char *pattern, const char *extension);
-int ast_extension_close(const char *pattern, const char *data, int needmore);
+int opbx_extension_match(const char *pattern, const char *extension);
+int opbx_extension_close(const char *pattern, const char *data, int needmore);
 /*! Launch a new extension (i.e. new stack) */
 /*!
  * \param c not important
@@ -403,7 +403,7 @@ int ast_extension_close(const char *pattern, const char *data, int needmore);
  * This adds a new extension to the openpbx extension list.
  * It returns 0 on success, -1 on failure.
  */
-int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+int opbx_spawn_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Execute an extension. */
 /*!
@@ -415,7 +415,7 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
    default extensions and halt the thread if necessary.  This function does not
    return, except on error.
 */
-int ast_exec_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
+int opbx_exec_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Add an include */
 /*!
@@ -425,35 +425,35 @@ int ast_exec_extension(struct ast_channel *c, const char *context, const char *e
    Adds an include taking a char * string as the context parameter
    Returns 0 on success, -1 on error
 */
-int ast_context_add_include(const char *context, const char *include, const char *registrar);
+int opbx_context_add_include(const char *context, const char *include, const char *registrar);
 
 /*! Add an include */
 /*!
   \param con context to add the include to
   \param include include to add
   \param registrar who registered the context
-   Adds an include taking a struct ast_context as the first parameter
+   Adds an include taking a struct opbx_context as the first parameter
    Returns 0 on success, -1 on failure
 */
-int ast_context_add_include2(struct ast_context *con, const char *include, const char *registrar);
+int opbx_context_add_include2(struct opbx_context *con, const char *include, const char *registrar);
 
 /*! Removes an include */
 /*!
  * See add_include
  */
-int ast_context_remove_include(const char *context, const char *include,const  char *registrar);
-/*! Removes an include by an ast_context structure */
+int opbx_context_remove_include(const char *context, const char *include,const  char *registrar);
+/*! Removes an include by an opbx_context structure */
 /*!
  * See add_include2
  */
-int ast_context_remove_include2(struct ast_context *con, const char *include, const char *registrar);
+int opbx_context_remove_include2(struct opbx_context *con, const char *include, const char *registrar);
 
-/*! Verifies includes in an ast_contect structure */
+/*! Verifies includes in an opbx_contect structure */
 /*!
  * \param con context in which to verify the includes
  * Returns 0 if no problems found, -1 if there were any missing context
  */
-int ast_context_verify_includes(struct ast_context *con);
+int opbx_context_verify_includes(struct opbx_context *con);
 	  
 /*! Add a switch */
 /*!
@@ -465,20 +465,20 @@ int ast_context_verify_includes(struct ast_context *con);
  * This function registers a switch with the openpbx switch architecture
  * It returns 0 on success, -1 on failure
  */
-int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);
-/*! Adds a switch (first param is a ast_context) */
+int opbx_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);
+/*! Adds a switch (first param is a opbx_context) */
 /*!
- * See ast_context_add_switch()
+ * See opbx_context_add_switch()
  */
-int ast_context_add_switch2(struct ast_context *con, const char *sw, const char *data, int eval, const char *registrar);
+int opbx_context_add_switch2(struct opbx_context *con, const char *sw, const char *data, int eval, const char *registrar);
 
 /*! Remove a switch */
 /*!
  * Removes a switch with the given parameters
  * Returns 0 on success, -1 on failure
  */
-int ast_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar);
-int ast_context_remove_switch2(struct ast_context *con, const char *sw, const char *data, const char *registrar);
+int opbx_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar);
+int opbx_context_remove_switch2(struct opbx_context *con, const char *sw, const char *data, const char *registrar);
 
 /*! Simply remove extension from context */
 /*!
@@ -489,9 +489,9 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
  * This function removes an extension from a given context.
  * Returns 0 on success, -1 on failure
  */
-int ast_context_remove_extension(const char *context, const char *extension, int priority,
+int opbx_context_remove_extension(const char *context, const char *extension, int priority,
 	const char *registrar);
-int ast_context_remove_extension2(struct ast_context *con, const char *extension,
+int opbx_context_remove_extension2(struct opbx_context *con, const char *extension,
 	int priority, const char *registrar);
 
 /*! Add an ignorepat */
@@ -502,8 +502,8 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
  * Adds an ignore pattern to a particular context.
  * Returns 0 on success, -1 on failure
  */
-int ast_context_add_ignorepat(const char *context, const char *ignorepat, const char *registrar);
-int ast_context_add_ignorepat2(struct ast_context *con, const char *ignorepat, const char *registrar);
+int opbx_context_add_ignorepat(const char *context, const char *ignorepat, const char *registrar);
+int opbx_context_add_ignorepat2(struct opbx_context *con, const char *ignorepat, const char *registrar);
 
 /* Remove an ignorepat */
 /*!
@@ -513,8 +513,8 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *ignorepat, c
  * This removes the given ignorepattern
  * Returns 0 on success, -1 on failure
  */
-int ast_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar);
-int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat, const char *registrar);
+int opbx_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar);
+int opbx_context_remove_ignorepat2(struct opbx_context *con, const char *ignorepat, const char *registrar);
 
 /*! Checks to see if a number should be ignored */
 /*!
@@ -523,20 +523,20 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
  * Check if a number should be ignored with respect to dialtone cancellation.  
  * Returns 0 if the pattern should not be ignored, or non-zero if the pattern should be ignored 
  */
-int ast_ignore_pattern(const char *context, const char *pattern);
+int opbx_ignore_pattern(const char *context, const char *pattern);
 
 /* Locking functions for outer modules, especially for completion functions */
 /*! Locks the contexts */
 /*! Locks the context list
  * Returns 0 on success, -1 on error
  */
-int ast_lock_contexts(void);
+int opbx_lock_contexts(void);
 
 /*! Unlocks contexts */
 /*!
  * Returns 0 on success, -1 on failure
  */
-int ast_unlock_contexts(void);
+int opbx_unlock_contexts(void);
 
 /*! Locks a given context */
 /*!
@@ -544,90 +544,90 @@ int ast_unlock_contexts(void);
  * Locks the context.
  * Returns 0 on success, -1 on failure
  */
-int ast_lock_context(struct ast_context *con);
+int opbx_lock_context(struct opbx_context *con);
 /*! Unlocks the given context */
 /*!
  * \param con context to unlock
  * Unlocks the given context
  * Returns 0 on success, -1 on failure
  */
-int ast_unlock_context(struct ast_context *con);
+int opbx_unlock_context(struct opbx_context *con);
 
 
-int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
+int opbx_async_goto(struct opbx_channel *chan, const char *context, const char *exten, int priority);
 
-int ast_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
+int opbx_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
-int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **locked_channel);
+int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct opbx_variable *vars, struct opbx_channel **locked_channel);
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **locked_channel);
+int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct opbx_variable *vars, struct opbx_channel **locked_channel);
 
 /* Functions for returning values from structures */
-const char *ast_get_context_name(struct ast_context *con);
-const char *ast_get_extension_name(struct ast_exten *exten);
-const char *ast_get_include_name(struct ast_include *include);
-const char *ast_get_ignorepat_name(struct ast_ignorepat *ip);
-const char *ast_get_switch_name(struct ast_sw *sw);
-const char *ast_get_switch_data(struct ast_sw *sw);
+const char *opbx_get_context_name(struct opbx_context *con);
+const char *opbx_get_extension_name(struct opbx_exten *exten);
+const char *opbx_get_include_name(struct opbx_include *include);
+const char *opbx_get_ignorepat_name(struct opbx_ignorepat *ip);
+const char *opbx_get_switch_name(struct opbx_sw *sw);
+const char *opbx_get_switch_data(struct opbx_sw *sw);
 
 /* Other extension stuff */
-int ast_get_extension_priority(struct ast_exten *exten);
-int ast_get_extension_matchcid(struct ast_exten *e);
-const char *ast_get_extension_cidmatch(struct ast_exten *e);
-const char *ast_get_extension_app(struct ast_exten *e);
-const char *ast_get_extension_label(struct ast_exten *e);
-void *ast_get_extension_app_data(struct ast_exten *e);
+int opbx_get_extension_priority(struct opbx_exten *exten);
+int opbx_get_extension_matchcid(struct opbx_exten *e);
+const char *opbx_get_extension_cidmatch(struct opbx_exten *e);
+const char *opbx_get_extension_app(struct opbx_exten *e);
+const char *opbx_get_extension_label(struct opbx_exten *e);
+void *opbx_get_extension_app_data(struct opbx_exten *e);
 
 /* Registrar info functions ... */
-const char *ast_get_context_registrar(struct ast_context *c);
-const char *ast_get_extension_registrar(struct ast_exten *e);
-const char *ast_get_include_registrar(struct ast_include *i);
-const char *ast_get_ignorepat_registrar(struct ast_ignorepat *ip);
-const char *ast_get_switch_registrar(struct ast_sw *sw);
+const char *opbx_get_context_registrar(struct opbx_context *c);
+const char *opbx_get_extension_registrar(struct opbx_exten *e);
+const char *opbx_get_include_registrar(struct opbx_include *i);
+const char *opbx_get_ignorepat_registrar(struct opbx_ignorepat *ip);
+const char *opbx_get_switch_registrar(struct opbx_sw *sw);
 
 /* Walking functions ... */
-struct ast_context *ast_walk_contexts(struct ast_context *con);
-struct ast_exten *ast_walk_context_extensions(struct ast_context *con,
-	struct ast_exten *priority);
-struct ast_exten *ast_walk_extension_priorities(struct ast_exten *exten,
-	struct ast_exten *priority);
-struct ast_include *ast_walk_context_includes(struct ast_context *con,
-	struct ast_include *inc);
-struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
-	struct ast_ignorepat *ip);
-struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
+struct opbx_context *opbx_walk_contexts(struct opbx_context *con);
+struct opbx_exten *opbx_walk_context_extensions(struct opbx_context *con,
+	struct opbx_exten *priority);
+struct opbx_exten *opbx_walk_extension_priorities(struct opbx_exten *exten,
+	struct opbx_exten *priority);
+struct opbx_include *opbx_walk_context_includes(struct opbx_context *con,
+	struct opbx_include *inc);
+struct opbx_ignorepat *opbx_walk_context_ignorepats(struct opbx_context *con,
+	struct opbx_ignorepat *ip);
+struct opbx_sw *opbx_walk_context_switches(struct opbx_context *con, struct opbx_sw *sw);
 
-int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t size);
-extern char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name);
-extern void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value);
-extern void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
+int pbx_builtin_serialize_variables(struct opbx_channel *chan, char *buf, size_t size);
+extern char *pbx_builtin_getvar_helper(struct opbx_channel *chan, const char *name);
+extern void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, const char *value);
+extern void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
 extern void pbx_builtin_clear_globals(void);
-extern int pbx_builtin_setvar(struct ast_channel *chan, void *data);
-extern void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
+extern int pbx_builtin_setvar(struct opbx_channel *chan, void *data);
+extern void pbx_substitute_variables_helper(struct opbx_channel *c,const char *cp1,char *cp2,int count);
 extern void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 
-int ast_extension_patmatch(const char *pattern, const char *data);
+int opbx_extension_patmatch(const char *pattern, const char *data);
 
 /* Set "autofallthrough" flag, if newval is <0, does not acutally set.  If
   set to 1, sets to auto fall through.  If newval set to 0, sets to no auto
   fall through (reads extension instead).  Returns previous value. */
 extern int pbx_set_autofallthrough(int newval);
-int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority);
+int opbx_goto_if_exists(struct opbx_channel *chan, char* context, char *exten, int priority);
 /* I can find neither parsable nor parseable at dictionary.com, but google gives me 169000 hits for parseable and only 49,800 for parsable */
-int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);
-int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
-int ast_async_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority);
+int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string);
+int opbx_explicit_goto(struct opbx_channel *chan, const char *context, const char *exten, int priority);
+int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *exten, int priority);
 
-struct ast_custom_function* ast_custom_function_find(char *name);
-int ast_custom_function_unregister(struct ast_custom_function *acf);
-int ast_custom_function_register(struct ast_custom_function *acf);
+struct opbx_custom_function* opbx_custom_function_find(char *name);
+int opbx_custom_function_unregister(struct opbx_custom_function *acf);
+int opbx_custom_function_register(struct opbx_custom_function *acf);
 
 /* Number of active calls */
-int ast_active_calls(void);
+int opbx_active_calls(void);
 	
 /*! executes a read operation on a function */
 /*!
@@ -640,7 +640,7 @@ int ast_active_calls(void);
  * or NULL if there was a problem.
  */
 	
-char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len);
+char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace, size_t len);
 
 /*! executes a write operation on a function */
 /*!
@@ -650,9 +650,9 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
  * This application executes an function in write mode on a given channel.
  * It has no return value.
  */
-void ast_func_write(struct ast_channel *chan, const char *in, const char *value);
+void opbx_func_write(struct opbx_channel *chan, const char *in, const char *value);
 
-void ast_hint_state_changed(const char *device);
+void opbx_hint_state_changed(const char *device);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

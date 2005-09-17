@@ -77,7 +77,7 @@ LOCAL_USER_DECL;
 #define PPP_MAX_ARGS	32
 #define PPP_EXEC	"/usr/sbin/pppd"
 
-static pid_t spawn_ras(struct ast_channel *chan, char *args)
+static pid_t spawn_ras(struct opbx_channel *chan, char *args)
 {
 	pid_t pid;
 	int x;	
@@ -135,7 +135,7 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 	exit(1);
 }
 
-static void run_ras(struct ast_channel *chan, char *args)
+static void run_ras(struct opbx_channel *chan, char *args)
 {
 	pid_t pid;
 	int status;
@@ -146,20 +146,20 @@ static void run_ras(struct ast_channel *chan, char *args)
 	
 	res = ioctl(chan->fds[0], ZT_GET_BUFINFO, &savebi);
 	if(res) {
-		ast_log(LOG_WARNING, "Unable to check buffer policy on channel %s\n", chan->name);
+		opbx_log(LOG_WARNING, "Unable to check buffer policy on channel %s\n", chan->name);
 		return;
 	}
 
 	pid = spawn_ras(chan, args);
 	if (pid < 0) {
-		ast_log(LOG_WARNING, "Failed to spawn RAS\n");
+		opbx_log(LOG_WARNING, "Failed to spawn RAS\n");
 	} else {
 		for (;;) {
 			res = wait4(pid, &status, WNOHANG, NULL);
 			if (!res) {
 				/* Check for hangup */
 				if (chan->_softhangup && !signalled) {
-					ast_log(LOG_DEBUG, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
+					opbx_log(LOG_DEBUG, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
 					kill(pid, SIGTERM);
 					signalled=1;
 				}
@@ -168,16 +168,16 @@ static void run_ras(struct ast_channel *chan, char *args)
 				continue;
 			}
 			if (res < 0) {
-				ast_log(LOG_WARNING, "wait4 returned %d: %s\n", res, strerror(errno));
+				opbx_log(LOG_WARNING, "wait4 returned %d: %s\n", res, strerror(errno));
 			}
 			if (option_verbose > 2) {
 				if (WIFEXITED(status)) {
-					ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated with status %d\n", chan->name, WEXITSTATUS(status));
+					opbx_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated with status %d\n", chan->name, WEXITSTATUS(status));
 				} else if (WIFSIGNALED(status)) {
-					ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated with signal %d\n", 
+					opbx_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated with signal %d\n", 
 						 chan->name, WTERMSIG(status));
 				} else {
-					ast_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated weirdly.\n", chan->name);
+					opbx_verbose(VERBOSE_PREFIX_3 "RAS on %s terminated weirdly.\n", chan->name);
 				}
 			}
 			/* Throw back into audio mode */
@@ -187,14 +187,14 @@ static void run_ras(struct ast_channel *chan, char *args)
 			/* Restore saved values */
 			res = ioctl(chan->fds[0], ZT_SET_BUFINFO, &savebi);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Unable to set buffer policy on channel %s\n", chan->name);
+				opbx_log(LOG_WARNING, "Unable to set buffer policy on channel %s\n", chan->name);
 			}
 			break;
 		}
 	}
 }
 
-static int zapras_exec(struct ast_channel *chan, void *data)
+static int zapras_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	char args[256];
@@ -204,27 +204,27 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	if (!data) 
 		data = "";
 	LOCAL_USER_ADD(u);
-	ast_copy_string(args, data, sizeof(args));
+	opbx_copy_string(args, data, sizeof(args));
 	/* Answer the channel if it's not up */
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_answer(chan);
 	if (strcasecmp(chan->type, "Zap")) {
 		/* If it's not a zap channel, we're done.  Wait a couple of
 		   seconds and then hangup... */
 		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Channel %s is not a Zap channel\n", chan->name);
+			opbx_verbose(VERBOSE_PREFIX_2 "Channel %s is not a Zap channel\n", chan->name);
 		sleep(2);
 	} else {
 		memset(&ztp, 0, sizeof(ztp));
 		if (ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp)) {
-			ast_log(LOG_WARNING, "Unable to get zaptel parameters\n");
+			opbx_log(LOG_WARNING, "Unable to get zaptel parameters\n");
 		} else if (ztp.sigtype != ZT_SIG_CLEAR) {
 			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Channel %s is not a clear channel\n", chan->name);
+				opbx_verbose(VERBOSE_PREFIX_2 "Channel %s is not a clear channel\n", chan->name);
 		} else {
 			/* Everything should be okay.  Run PPP. */
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Starting RAS on %s\n", chan->name);
+				opbx_verbose(VERBOSE_PREFIX_3 "Starting RAS on %s\n", chan->name);
 			/* Execute RAS */
 			run_ras(chan, args);
 		}
@@ -236,12 +236,12 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, zapras_exec, synopsis, descrip);
+	return opbx_register_application(app, zapras_exec, synopsis, descrip);
 }
 
 char *description(void)

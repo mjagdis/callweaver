@@ -34,7 +34,7 @@
 #include "openpbx/utils.h"
 #include "openpbx/app.h"
 
-static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_env_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret = "";
 
@@ -43,15 +43,15 @@ static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char
 		if (!ret)
 			ret = "";
 	}
-	ast_copy_string(buf, ret, len);
+	opbx_copy_string(buf, ret, len);
 
 	return buf;
 }
 
-static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void builtin_function_env_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
 {
-	if (data && !ast_strlen_zero(data)) {
-		if (value && !ast_strlen_zero(value)) {
+	if (data && !opbx_strlen_zero(data)) {
+		if (value && !opbx_strlen_zero(value)) {
 			setenv(data, value, 1);
 		} else {
 			unsetenv(data);
@@ -62,7 +62,7 @@ static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function env_function = {
+struct opbx_custom_function env_function = {
 	.name = "ENV",
 	.synopsis = "Gets or sets the environment variable specified",
 	.syntax = "ENV(<envname>)",

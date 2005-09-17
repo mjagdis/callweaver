@@ -81,7 +81,7 @@ short initDecode(                   /* (o) Number of decoded
     for (i=0; i<NSUB_MAX; i++)
         iLBCdec_inst->old_syntdenum[i*(LPC_FILTERORDER+1)]=1.0;
 
-    iLBCdec_inst->last_lag = 20;
+    iLBCdec_inst->lopbx_lag = 20;
 
     iLBCdec_inst->prevLag = 120;
     iLBCdec_inst->per = 0.0;
@@ -330,7 +330,7 @@ void iLBC_decode(
     int state_first;
 
 
-    int last_bit;
+    int lopbx_bit;
     unsigned char *pbytes;
     float weightdenum[(LPC_FILTERORDER + 1)*NSUB_MAX];
     int order_plus_one;
@@ -454,7 +454,7 @@ void iLBC_decode(
         }
         /* Extract last bit. If it is 1 this indicates an 
            empty/lost frame */
-        unpack( &pbytes, &last_bit, 1, &pos);
+        unpack( &pbytes, &lopbx_bit, 1, &pos);
 
         /* Check for bit errors or empty/lost frames */
         if (start<1)
@@ -463,7 +463,7 @@ void iLBC_decode(
             mode = 0;
         if (iLBCdec_inst->mode==30 && start>5)
             mode = 0;
-        if (last_bit==1)
+        if (lopbx_bit==1)
             mode = 0;
 
         if (mode==1) { /* No bit errors was detected, 
@@ -490,7 +490,7 @@ void iLBC_decode(
             doThePLC(PLCresidual, PLClpc, 0, decresidual, 
                 syntdenum + 
                 (LPC_FILTERORDER + 1)*(iLBCdec_inst->nsub - 1),
-                (*iLBCdec_inst).last_lag, iLBCdec_inst);
+                (*iLBCdec_inst).lopbx_lag, iLBCdec_inst);
 
         
             memcpy(decresidual, PLCresidual, 
@@ -516,7 +516,7 @@ void iLBC_decode(
         start=0;
         
         doThePLC(PLCresidual, PLClpc, 1, zeros, one,
-            (*iLBCdec_inst).last_lag, iLBCdec_inst);
+            (*iLBCdec_inst).lopbx_lag, iLBCdec_inst);
         memcpy(decresidual, PLCresidual, 
             iLBCdec_inst->blockl*sizeof(float));
         
@@ -531,7 +531,7 @@ void iLBC_decode(
 
         /* post filtering */
         
-        iLBCdec_inst->last_lag = 
+        iLBCdec_inst->lopbx_lag = 
             enhancerInterface(data, decresidual, iLBCdec_inst);
 
         /* synthesis filtering */
@@ -582,7 +582,7 @@ void iLBC_decode(
                 lag = ilag;
             }
         }
-        iLBCdec_inst->last_lag = lag;
+        iLBCdec_inst->lopbx_lag = lag;
 
         /* copy data and run synthesis filter */
 

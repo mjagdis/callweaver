@@ -70,7 +70,7 @@ struct mansession {
 	/*! Execution thread */
 	pthread_t t;
 	/*! Thread lock */
-	ast_mutex_t lock;
+	opbx_mutex_t lock;
 	/*! socket address */
 	struct sockaddr_in sin;
 	/*! TCP socket */
@@ -114,12 +114,12 @@ struct manager_action {
 	struct manager_action *next;
 };
 
-int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
+int opbx_carefulwrite(int fd, char *s, int len, int timeoutms);
 
 /* External routines may register/unregister manager callbacks this way */
-#define ast_manager_register(a, b, c, d) ast_manager_register2(a, b, c, d, NULL)
+#define opbx_manager_register(a, b, c, d) opbx_manager_register2(a, b, c, d, NULL)
 
-/* Use ast_manager_register2 to register with help text for new manager commands */
+/* Use opbx_manager_register2 to register with help text for new manager commands */
 
 /*! Register a manager command with the manager interface */
 /*! 	\param action Name of the requested Action:
@@ -128,7 +128,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 	\param synopsis Help text (one line, up to 30 chars) for CLI manager show commands
 	\param description Help text, several lines
 */
-int ast_manager_register2( 
+int opbx_manager_register2( 
 	const char *action, 
 	int authority, 
 	int (*func)(struct mansession *s, struct message *m), 
@@ -138,7 +138,7 @@ int ast_manager_register2(
 /*! Unregister a registred manager command */
 /*!	\param action Name of registred Action:
 */
-int ast_manager_unregister( char *action );
+int opbx_manager_unregister( char *action );
 
 /*! External routines may send openpbx manager events this way */
 /*! 	\param category	Event category, matches manager authorization
@@ -152,7 +152,7 @@ extern int manager_event(int category, char *event, char *contents, ...)
 extern char *astman_get_header(struct message *m, char *var);
 
 /*! Get a linked list of the Variable: headers */
-struct ast_variable *astman_get_variables(struct message *m);
+struct opbx_variable *astman_get_variables(struct message *m);
 
 /*! Send error in manager transaction */
 extern void astman_send_error(struct mansession *s, struct message *m, char *error);

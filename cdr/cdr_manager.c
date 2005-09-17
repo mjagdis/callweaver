@@ -48,23 +48,23 @@ static int enablecdr = 0;
 static void loadconfigurationfile(void)
 {
 	char *cat;
-	struct ast_config *cfg;
-	struct ast_variable *v;
+	struct opbx_config *cfg;
+	struct opbx_variable *v;
 	
-	cfg = ast_config_load(CONF_FILE);
+	cfg = opbx_config_load(CONF_FILE);
 	if (!cfg) {
 		/* Standard configuration */
 		enablecdr = 0;
 		return;
 	}
 	
-	cat = ast_category_browse(cfg, NULL);
+	cat = opbx_category_browse(cfg, NULL);
 	while (cat) {
 		if (!strcasecmp(cat, "general")) {
-			v = ast_variable_browse(cfg, cat);
+			v = opbx_variable_browse(cfg, cat);
 			while (v) {
 				if (!strcasecmp(v->name, "enabled")) {
-					enablecdr = ast_true(v->value);
+					enablecdr = opbx_true(v->value);
 				}
 				
 				v = v->next;
@@ -72,13 +72,13 @@ static void loadconfigurationfile(void)
 		}
 	
 		/* Next category */
-		cat = ast_category_browse(cfg, cat);
+		cat = opbx_category_browse(cfg, cat);
 	}
 	
-	ast_config_destroy(cfg);
+	opbx_config_destroy(cfg);
 }
 
-static int manager_log(struct ast_cdr *cdr)
+static int manager_log(struct opbx_cdr *cdr)
 {
 	time_t t;
 	struct tm timeresult;
@@ -124,8 +124,8 @@ static int manager_log(struct ast_cdr *cdr)
 	    "UserField: %s\r\n",
 	    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
 	    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
-	    cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), 
-	    ast_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
+	    cdr->duration, cdr->billsec, opbx_cdr_disp2str(cdr->disposition), 
+	    opbx_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
 	    	
 	return 0;
 }
@@ -137,7 +137,7 @@ char *description(void)
 
 int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	opbx_cdr_unregister(name);
 	return 0;
 }
 
@@ -148,9 +148,9 @@ int load_module(void)
 	/* Configuration file */
 	loadconfigurationfile();
 	
-	res = ast_cdr_register(name, desc, manager_log);
+	res = opbx_cdr_register(name, desc, manager_log);
 	if (res) {
-		ast_log(LOG_ERROR, "Unable to register OpenPBX Call Manager CDR handling\n");
+		opbx_log(LOG_ERROR, "Unable to register OpenPBX Call Manager CDR handling\n");
 	}
 	
 	return res;

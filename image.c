@@ -45,24 +45,24 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/lock.h"
 
-static struct ast_imager *list;
-AST_MUTEX_DEFINE_STATIC(listlock);
+static struct opbx_imager *list;
+OPBX_MUTEX_DEFINE_STATIC(listlock);
 
-int ast_image_register(struct ast_imager *img)
+int opbx_image_register(struct opbx_imager *img)
 {
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
-	ast_mutex_lock(&listlock);
+		opbx_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
+	opbx_mutex_lock(&listlock);
 	img->next = list;
 	list = img;
-	ast_mutex_unlock(&listlock);
+	opbx_mutex_unlock(&listlock);
 	return 0;
 }
 
-void ast_image_unregister(struct ast_imager *img)
+void opbx_image_unregister(struct opbx_imager *img)
 {
-	struct ast_imager *i, *prev = NULL;
-	ast_mutex_lock(&listlock);
+	struct opbx_imager *i, *prev = NULL;
+	opbx_mutex_lock(&listlock);
 	i = list;
 	while(i) {
 		if (i == img) {
@@ -75,12 +75,12 @@ void ast_image_unregister(struct ast_imager *img)
 		prev = i;
 		i = i->next;
 	}
-	ast_mutex_unlock(&listlock);
+	opbx_mutex_unlock(&listlock);
 	if (i && (option_verbose > 1))
-		ast_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
+		opbx_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
 
-int ast_supports_images(struct ast_channel *chan)
+int opbx_supports_images(struct opbx_channel *chan)
 {
 	if (!chan || !chan->tech)
 		return 0;
@@ -108,24 +108,24 @@ static void make_filename(char *buf, int len, char *filename, char *preflang, ch
 			snprintf(buf, len, "%s.%s", filename, ext);
 	} else {
 		if (preflang && strlen(preflang))
-			snprintf(buf, len, "%s/%s/%s-%s.%s", ast_config_AST_VAR_DIR, "images", filename, preflang, ext);
+			snprintf(buf, len, "%s/%s/%s-%s.%s", opbx_config_OPBX_VAR_DIR, "images", filename, preflang, ext);
 		else
-			snprintf(buf, len, "%s/%s/%s.%s", ast_config_AST_VAR_DIR, "images", filename, ext);
+			snprintf(buf, len, "%s/%s/%s.%s", opbx_config_OPBX_VAR_DIR, "images", filename, ext);
 	}
 }
 
-struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
+struct opbx_frame *opbx_read_image(char *filename, char *preflang, int format)
 {
-	struct ast_imager *i;
+	struct opbx_imager *i;
 	char buf[256];
 	char tmp[80];
 	char *e;
-	struct ast_imager *found = NULL;
+	struct opbx_imager *found = NULL;
 	int fd;
 	int len=0;
-	struct ast_frame *f = NULL;
+	struct opbx_frame *f = NULL;
 #if 0 /* We need to have some sort of read-only lock */
-	ast_mutex_lock(&listlock);
+	opbx_mutex_lock(&listlock);
 #endif	
 	i = list;
 	while(!found && i) {
@@ -158,28 +158,28 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 				lseek(fd, 0, SEEK_SET);
 				f = found->read_image(fd,len); 
 			} else
-				ast_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, i->name);
+				opbx_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, i->name);
 			close(fd);
 		} else
-			ast_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
+			opbx_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
 	} else
-		ast_log(LOG_WARNING, "Image file '%s' not found\n", filename);
+		opbx_log(LOG_WARNING, "Image file '%s' not found\n", filename);
 #if 0
-	ast_mutex_unlock(&listlock);
+	opbx_mutex_unlock(&listlock);
 #endif	
 	return f;
 }
 
 
-int ast_send_image(struct ast_channel *chan, char *filename)
+int opbx_send_image(struct opbx_channel *chan, char *filename)
 {
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	int res = -1;
 	if (chan->tech->send_image) {
-		f = ast_read_image(filename, chan->language, -1);
+		f = opbx_read_image(filename, chan->language, -1);
 		if (f) {
 			res = chan->tech->send_image(chan, f);
-			ast_frfree(f);
+			opbx_frfree(f);
 		}
 	}
 	return res;
@@ -189,19 +189,19 @@ static int show_image_formats(int fd, int argc, char *argv[])
 {
 #define FORMAT "%10s %10s %50s %10s\n"
 #define FORMAT2 "%10s %10s %50s %10s\n"
-	struct ast_imager *i;
+	struct opbx_imager *i;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
+	opbx_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
 	i = list;
 	while(i) {
-		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
+		opbx_cli(fd, FORMAT2, i->name, i->exts, i->desc, opbx_getformatname(i->format));
 		i = i->next;
 	};
 	return RESULT_SUCCESS;
 }
 
-struct ast_cli_entry show_images =
+struct opbx_cli_entry show_images =
 {
 	{ "show", "image", "formats" },
 	show_image_formats,
@@ -211,9 +211,9 @@ struct ast_cli_entry show_images =
 };
 
 
-int ast_image_init(void)
+int opbx_image_init(void)
 {
-	ast_cli_register(&show_images);
+	opbx_cli_register(&show_images);
 	return 0;
 }
 

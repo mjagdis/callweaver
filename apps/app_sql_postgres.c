@@ -122,32 +122,32 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-#define AST_PGSQL_ID_DUMMY 0
-#define AST_PGSQL_ID_CONNID 1
-#define AST_PGSQL_ID_RESID 2
-#define AST_PGSQL_ID_FETCHID 3
+#define OPBX_PGSQL_ID_DUMMY 0
+#define OPBX_PGSQL_ID_CONNID 1
+#define OPBX_PGSQL_ID_RESID 2
+#define OPBX_PGSQL_ID_FETCHID 3
 
-struct ast_PGSQL_id {
+struct opbx_PGSQL_id {
 	int identifier_type; /* 0=dummy, 1=connid, 2=resultid */
 	int identifier;
 	void *data;
-	AST_LIST_ENTRY(ast_PGSQL_id) entries;
-} *ast_PGSQL_id;
+	OPBX_LIST_ENTRY(opbx_PGSQL_id) entries;
+} *opbx_PGSQL_id;
 
-AST_LIST_HEAD(PGSQLidshead,ast_PGSQL_id) PGSQLidshead;
+OPBX_LIST_HEAD(PGSQLidshead,opbx_PGSQL_id) PGSQLidshead;
 
 static void *find_identifier(int identifier,int identifier_type) {
 	struct PGSQLidshead *headp;
-	struct ast_PGSQL_id *i;
+	struct opbx_PGSQL_id *i;
 	void *res=NULL;
 	int found=0;
 	
 	headp=&PGSQLidshead;
 	
-	if (AST_LIST_LOCK(headp)) {
-		ast_log(LOG_WARNING,"Unable to lock identifiers list\n");
+	if (OPBX_LIST_LOCK(headp)) {
+		opbx_log(LOG_WARNING,"Unable to lock identifiers list\n");
 	} else {
-		AST_LIST_TRAVERSE(headp,i,entries) {
+		OPBX_LIST_TRAVERSE(headp,i,entries) {
 			if ((i->identifier==identifier) && (i->identifier_type==identifier_type)) {
 				found=1;
 				res=i->data;
@@ -155,16 +155,16 @@ static void *find_identifier(int identifier,int identifier_type) {
 			}
 		}
 		if (!found) {
-			ast_log(LOG_WARNING,"Identifier %d, identifier_type %d not found in identifier list\n",identifier,identifier_type);
+			opbx_log(LOG_WARNING,"Identifier %d, identifier_type %d not found in identifier list\n",identifier,identifier_type);
 		}
-		AST_LIST_UNLOCK(headp);
+		OPBX_LIST_UNLOCK(headp);
 	}
 	
 	return(res);
 }
 
 static int add_identifier(int identifier_type,void *data) {
-	struct ast_PGSQL_id *i,*j;
+	struct opbx_PGSQL_id *i,*j;
 	struct PGSQLidshead *headp;
 	int maxidentifier=0;
 	
@@ -172,12 +172,12 @@ static int add_identifier(int identifier_type,void *data) {
 	i=NULL;
 	j=NULL;
 	
-	if (AST_LIST_LOCK(headp)) {
-		ast_log(LOG_WARNING,"Unable to lock identifiers list\n");
+	if (OPBX_LIST_LOCK(headp)) {
+		opbx_log(LOG_WARNING,"Unable to lock identifiers list\n");
 		return(-1);
 	} else {
- 		i=malloc(sizeof(struct ast_PGSQL_id));
-		AST_LIST_TRAVERSE(headp,j,entries) {
+ 		i=malloc(sizeof(struct opbx_PGSQL_id));
+		OPBX_LIST_TRAVERSE(headp,j,entries) {
 			if (j->identifier>maxidentifier) {
 				maxidentifier=j->identifier;
 			}
@@ -186,43 +186,43 @@ static int add_identifier(int identifier_type,void *data) {
 		i->identifier=maxidentifier+1;
 		i->identifier_type=identifier_type;
 		i->data=data;
-		AST_LIST_INSERT_HEAD(headp,i,entries);
-		AST_LIST_UNLOCK(headp);
+		OPBX_LIST_INSERT_HEAD(headp,i,entries);
+		OPBX_LIST_UNLOCK(headp);
 	}
 	return(i->identifier);
 }
 
 static int del_identifier(int identifier,int identifier_type) {
-	struct ast_PGSQL_id *i;
+	struct opbx_PGSQL_id *i;
 	struct PGSQLidshead *headp;
 	int found=0;
 	
         headp=&PGSQLidshead;
         
-        if (AST_LIST_LOCK(headp)) {
-		ast_log(LOG_WARNING,"Unable to lock identifiers list\n");
+        if (OPBX_LIST_LOCK(headp)) {
+		opbx_log(LOG_WARNING,"Unable to lock identifiers list\n");
 	} else {
-		AST_LIST_TRAVERSE(headp,i,entries) {
+		OPBX_LIST_TRAVERSE(headp,i,entries) {
 			if ((i->identifier==identifier) && 
 			    (i->identifier_type==identifier_type)) {
-				AST_LIST_REMOVE(headp,i,entries);
+				OPBX_LIST_REMOVE(headp,i,entries);
 				free(i);
 				found=1;
 				break;
 			}
 		}
-		AST_LIST_UNLOCK(headp);
+		OPBX_LIST_UNLOCK(headp);
 	}
 	                
 	if (found==0) {
-		ast_log(LOG_WARNING,"Could not find identifier %d, identifier_type %d in list to delete\n",identifier,identifier_type);
+		opbx_log(LOG_WARNING,"Could not find identifier %d, identifier_type %d in list to delete\n",identifier,identifier_type);
 		return(-1);
 	} else {
 		return(0);
 	}
 }
 
-static int aPGSQL_connect(struct ast_channel *chan, void *data) {
+static int aPGSQL_connect(struct opbx_channel *chan, void *data) {
 	
 	char *s1;
 	char s[100] = "";
@@ -246,12 +246,12 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 		
       	karoto = PQconnectdb(optionstring);
         if (PQstatus(karoto) == CONNECTION_BAD) {
-        	ast_log(LOG_WARNING,"Connection to database using '%s' failed. postgress reports : %s\n", optionstring,
+        	opbx_log(LOG_WARNING,"Connection to database using '%s' failed. postgress reports : %s\n", optionstring,
                                                  PQerrorMessage(karoto));
         	res=-1;
         } else {
-        	ast_log(LOG_WARNING,"adding identifier\n");
-		id=add_identifier(AST_PGSQL_ID_CONNID,karoto);
+        	opbx_log(LOG_WARNING,"adding identifier\n");
+		id=add_identifier(OPBX_PGSQL_ID_CONNID,karoto);
 		snprintf(s, sizeof(s), "%d", id);
 		pbx_builtin_setvar_helper(chan,var,s);
 	}
@@ -260,7 +260,7 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 	return res;
 }
 
-static int aPGSQL_query(struct ast_channel *chan, void *data) {
+static int aPGSQL_query(struct opbx_channel *chan, void *data) {
 	
 
 	char *s1,*s2,*s3,*s4;
@@ -288,26 +288,26 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 		s4=strsep(&stringp," ");
 		id=atoi(s4);
 		querystring=strsep(&stringp,"\n");
-		if ((karoto=find_identifier(id,AST_PGSQL_ID_CONNID))==NULL) {
-			ast_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_query\n",id);
+		if ((karoto=find_identifier(id,OPBX_PGSQL_ID_CONNID))==NULL) {
+			opbx_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_query\n",id);
 			res=-1;
 			break;
 		}
 		PGSQLres=PQexec(karoto,querystring);
 		if (PGSQLres==NULL) {
-			ast_log(LOG_WARNING,"aPGSQL_query: Connection Error (connection identifier = %d, error message : %s)\n",id,PQerrorMessage(karoto));
+			opbx_log(LOG_WARNING,"aPGSQL_query: Connection Error (connection identifier = %d, error message : %s)\n",id,PQerrorMessage(karoto));
 			res=-1;
 			break;
 		}
 		if (PQresultStatus(PGSQLres) == PGRES_BAD_RESPONSE ||
 		    PQresultStatus(PGSQLres) == PGRES_NONFATAL_ERROR ||
 		    PQresultStatus(PGSQLres) == PGRES_FATAL_ERROR) {
-		    	ast_log(LOG_WARNING,"aPGSQL_query: Query Error (connection identifier : %d, error message : %s)\n",id,PQcmdStatus(PGSQLres));
+		    	opbx_log(LOG_WARNING,"aPGSQL_query: Query Error (connection identifier : %d, error message : %s)\n",id,PQcmdStatus(PGSQLres));
 		    	res=-1;
 		    	break;
 		}
 		nres=PQnfields(PGSQLres); 
-		id1=add_identifier(AST_PGSQL_ID_RESID,PGSQLres);
+		id1=add_identifier(OPBX_PGSQL_ID_RESID,PGSQLres);
 		snprintf(s, sizeof(s), "%d", id1);
 		pbx_builtin_setvar_helper(chan,var,s);
 	 	break;
@@ -320,7 +320,7 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 }
 
 
-static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
+static int aPGSQL_fetch(struct opbx_channel *chan, void *data) {
 	
 	char *s1,*s2,*fetchid_var,*s4,*s5,*s6,*s7;
 	char s[100];
@@ -331,7 +331,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	int id,id1,i,j,fnd;
 	int *lalares=NULL;
 	int nres;
-        struct ast_var_t *variables;
+        struct opbx_var_t *variables;
         struct varshead *headp;
 	char *stringp=NULL;
         
@@ -350,9 +350,9 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	  var=fetchid_var; /* fetchid */
 		fnd=0;
 		
-		AST_LIST_TRAVERSE(headp,variables,entries) {
-	    if (strncasecmp(ast_var_name(variables),fetchid_var,strlen(fetchid_var))==0) {
-	                        s7=ast_var_value(variables);
+		OPBX_LIST_TRAVERSE(headp,variables,entries) {
+	    if (strncasecmp(opbx_var_name(variables),fetchid_var,strlen(fetchid_var))==0) {
+	                        s7=opbx_var_value(variables);
 	                        fnd=1;
                                 break;
 			}
@@ -365,46 +365,46 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 
 		s4=strsep(&stringp," ");
 		id=atoi(s4); /* resultid */
-		if ((PGSQLres=find_identifier(id,AST_PGSQL_ID_RESID))==NULL) {
-			ast_log(LOG_WARNING,"Invalid result identifier %d passed in aPGSQL_fetch\n",id);
+		if ((PGSQLres=find_identifier(id,OPBX_PGSQL_ID_RESID))==NULL) {
+			opbx_log(LOG_WARNING,"Invalid result identifier %d passed in aPGSQL_fetch\n",id);
 			res=-1;
 			break;
 		}
 		id=atoi(s7); /*fetchid */
-		if ((lalares=find_identifier(id,AST_PGSQL_ID_FETCHID))==NULL) {
+		if ((lalares=find_identifier(id,OPBX_PGSQL_ID_FETCHID))==NULL) {
 	    i=0;       /* fetching the very first row */
 		} else {
 			i=*lalares;
 			free(lalares);
-	    del_identifier(id,AST_PGSQL_ID_FETCHID); /* will re-add it a bit later */
+	    del_identifier(id,OPBX_PGSQL_ID_FETCHID); /* will re-add it a bit later */
 		}
 
 	  if (i<PQntuples(PGSQLres)) {
 		nres=PQnfields(PGSQLres); 
-		ast_log(LOG_WARNING,"ast_PGSQL_fetch : nres = %d i = %d ;\n",nres,i);
+		opbx_log(LOG_WARNING,"opbx_PGSQL_fetch : nres = %d i = %d ;\n",nres,i);
 		for (j=0;j<nres;j++) {
 			s5=strsep(&stringp," ");
 			if (s5==NULL) {
-				ast_log(LOG_WARNING,"ast_PGSQL_fetch : More tuples (%d) than variables (%d)\n",nres,j);
+				opbx_log(LOG_WARNING,"opbx_PGSQL_fetch : More tuples (%d) than variables (%d)\n",nres,j);
 				break;
 			}
 			s6=PQgetvalue(PGSQLres,i,j);
 			if (s6==NULL) { 
-				ast_log(LOG_WARNING,"PWgetvalue(res,%d,%d) returned NULL in ast_PGSQL_fetch\n",i,j);
+				opbx_log(LOG_WARNING,"PWgetvalue(res,%d,%d) returned NULL in opbx_PGSQL_fetch\n",i,j);
 				break;
 			}
-			ast_log(LOG_WARNING,"===setting variable '%s' to '%s'\n",s5,s6);
+			opbx_log(LOG_WARNING,"===setting variable '%s' to '%s'\n",s5,s6);
 			pbx_builtin_setvar_helper(chan,s5,s6);
 		}
 			lalares=malloc(sizeof(int));
 	    *lalares = ++i; /* advance to the next row */
-	    id1 = add_identifier(AST_PGSQL_ID_FETCHID,lalares);
+	    id1 = add_identifier(OPBX_PGSQL_ID_FETCHID,lalares);
 		} else {
-	    ast_log(LOG_WARNING,"ast_PGSQL_fetch : EOF\n");
+	    opbx_log(LOG_WARNING,"opbx_PGSQL_fetch : EOF\n");
 	    id1 = 0; /* no more rows */
 		}
 		snprintf(s, sizeof(s), "%d", id1);
-	  ast_log(LOG_WARNING,"Setting var '%s' to value '%s'\n",fetchid_var,s);
+	  opbx_log(LOG_WARNING,"Setting var '%s' to value '%s'\n",fetchid_var,s);
 	  pbx_builtin_setvar_helper(chan,fetchid_var,s);
 	 	break;
 	}
@@ -414,7 +414,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	return(res);
 }
 
-static int aPGSQL_reset(struct ast_channel *chan, void *data) {
+static int aPGSQL_reset(struct opbx_channel *chan, void *data) {
 	
 	char *s1,*s3;
 	int l;
@@ -430,8 +430,8 @@ static int aPGSQL_reset(struct ast_channel *chan, void *data) {
 	strsep(&stringp," "); /* eat the first token, we already know it :P  */
 	s3=strsep(&stringp," ");
 	id=atoi(s3);
-	if ((karoto=find_identifier(id,AST_PGSQL_ID_CONNID))==NULL) {
-		ast_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_reset\n",id);
+	if ((karoto=find_identifier(id,OPBX_PGSQL_ID_CONNID))==NULL) {
+		opbx_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_reset\n",id);
 	} else {
 		PQreset(karoto);
 	} 
@@ -440,7 +440,7 @@ static int aPGSQL_reset(struct ast_channel *chan, void *data) {
 	
 }
 
-static int aPGSQL_clear(struct ast_channel *chan, void *data) {
+static int aPGSQL_clear(struct opbx_channel *chan, void *data) {
 	
 	char *s1,*s3;
 	int l;
@@ -456,11 +456,11 @@ static int aPGSQL_clear(struct ast_channel *chan, void *data) {
 	strsep(&stringp," "); /* eat the first token, we already know it :P  */
 	s3=strsep(&stringp," ");
 	id=atoi(s3);
-	if ((karoto=find_identifier(id,AST_PGSQL_ID_RESID))==NULL) {
-		ast_log(LOG_WARNING,"Invalid result identifier %d passed in aPGSQL_clear\n",id);
+	if ((karoto=find_identifier(id,OPBX_PGSQL_ID_RESID))==NULL) {
+		opbx_log(LOG_WARNING,"Invalid result identifier %d passed in aPGSQL_clear\n",id);
 	} else {
 		PQclear(karoto);
-		del_identifier(id,AST_PGSQL_ID_RESID);
+		del_identifier(id,OPBX_PGSQL_ID_RESID);
 	}
 	free(s1);
 	return(0);
@@ -470,7 +470,7 @@ static int aPGSQL_clear(struct ast_channel *chan, void *data) {
 	   
 	   
 	
-static int aPGSQL_disconnect(struct ast_channel *chan, void *data) {
+static int aPGSQL_disconnect(struct opbx_channel *chan, void *data) {
 	
 	char *s1,*s3;
 	int l;
@@ -486,25 +486,25 @@ static int aPGSQL_disconnect(struct ast_channel *chan, void *data) {
 	strsep(&stringp," "); /* eat the first token, we already know it :P  */
 	s3=strsep(&stringp," ");
 	id=atoi(s3);
-	if ((karoto=find_identifier(id,AST_PGSQL_ID_CONNID))==NULL) {
-		ast_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_disconnect\n",id);
+	if ((karoto=find_identifier(id,OPBX_PGSQL_ID_CONNID))==NULL) {
+		opbx_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_disconnect\n",id);
 	} else {
 		PQfinish(karoto);
-		del_identifier(id,AST_PGSQL_ID_CONNID);
+		del_identifier(id,OPBX_PGSQL_ID_CONNID);
 	} 
 	free(s1);
 	return(0);
 	
 }
 
-static int aPGSQL_debug(struct ast_channel *chan, void *data) {
-	ast_log(LOG_WARNING,"Debug : %s\n",(char *)data);
+static int aPGSQL_debug(struct opbx_channel *chan, void *data) {
+	opbx_log(LOG_WARNING,"Debug : %s\n",(char *)data);
 	return(0);
 }
 		
 	
 
-static int PGSQL_exec(struct ast_channel *chan, void *data)
+static int PGSQL_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
 	int result;
@@ -514,7 +514,7 @@ static int PGSQL_exec(struct ast_channel *chan, void *data)
 #endif
 
 	if (!data) {
-		ast_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
+		opbx_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
@@ -535,7 +535,7 @@ static int PGSQL_exec(struct ast_channel *chan, void *data)
 	} else 	if (strncasecmp("disconnect",data,strlen("disconnect"))==0) {
 		result=(aPGSQL_disconnect(chan,data));
 	} else {
-		ast_log(LOG_WARNING, "Unknown APP_PGSQL argument : %s\n",(char *)data);
+		opbx_log(LOG_WARNING, "Unknown APP_PGSQL argument : %s\n",(char *)data);
 		result=-1;	
 	}
 		
@@ -547,7 +547,7 @@ static int PGSQL_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
@@ -556,8 +556,8 @@ int load_module(void)
 	
         headp=&PGSQLidshead;
         
-	AST_LIST_HEAD_INIT(headp);
-	return ast_register_application(app, PGSQL_exec, synopsis, descrip);
+	OPBX_LIST_HEAD_INIT(headp);
+	return opbx_register_application(app, PGSQL_exec, synopsis, descrip);
 }
 
 char *description(void)

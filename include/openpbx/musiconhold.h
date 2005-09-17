@@ -28,17 +28,17 @@ extern "C" {
 #endif
 
 /*! Turn on music on hold on a given channel */
-extern int ast_moh_start(struct ast_channel *chan, char *mclass);
+extern int opbx_moh_start(struct opbx_channel *chan, char *mclass);
 
 /*! Turn off music on hold on a given channel */
-extern void ast_moh_stop(struct ast_channel *chan);
+extern void opbx_moh_stop(struct opbx_channel *chan);
 
-extern void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, char *),
-										void (*stop_ptr)(struct ast_channel *),
-										void (*cleanup_ptr)(struct ast_channel *));
+extern void opbx_install_music_functions(int (*start_ptr)(struct opbx_channel *, char *),
+										void (*stop_ptr)(struct opbx_channel *),
+										void (*cleanup_ptr)(struct opbx_channel *));
 	
-extern void ast_uninstall_music_functions(void);
-void ast_moh_cleanup(struct ast_channel *chan);
+extern void opbx_uninstall_music_functions(void);
+void opbx_moh_cleanup(struct opbx_channel *chan);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

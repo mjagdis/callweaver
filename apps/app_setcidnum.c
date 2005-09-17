@@ -59,7 +59,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int setcallerid_exec(struct ast_channel *chan, void *data)
+static int setcallerid_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
@@ -69,12 +69,12 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "SetCIDNum is deprecated, please use Set(CALLERID(number)=value) instead.\n");
+		opbx_log(LOG_WARNING, "SetCIDNum is deprecated, please use Set(CALLERID(number)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 
 	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+		opbx_copy_string(tmp, (char *)data, sizeof(tmp));
 	opt = strchr(tmp, '|');
 	if (opt) {
 		*opt = '\0';
@@ -83,7 +83,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 			anitoo = 1;
 	}
 	LOCAL_USER_ADD(u);
-	ast_set_callerid(chan, tmp, NULL, anitoo ? tmp : NULL);
+	opbx_set_callerid(chan, tmp, NULL, anitoo ? tmp : NULL);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -91,12 +91,12 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, setcallerid_exec, synopsis, descrip);
+	return opbx_register_application(app, setcallerid_exec, synopsis, descrip);
 }
 
 char *description(void)

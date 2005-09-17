@@ -55,7 +55,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/utils.h"
 
-AST_MUTEX_DEFINE_STATIC(verb_lock);
+OPBX_MUTEX_DEFINE_STATIC(verb_lock);
 
 static pthread_t console_thread;
 
@@ -118,12 +118,12 @@ static void __verboser(const char *stuff, int opos, int replacelast, int complet
 	if (replacelast) 
 		gtk_clist_remove(GTK_CLIST(verb), GTK_CLIST(verb)->rows - 1);
 	gtk_clist_append(GTK_CLIST(verb), s2);
-	if (!ast_tvzero(last)) {
+	if (!opbx_tvzero(last)) {
 		gdk_threads_leave();
 		gettimeofday(&tv, NULL);
 		if (cleanupid > -1)
 			gtk_timeout_remove(cleanupid);
-		ms = ast_tvdiff_ms(tv, last);
+		ms = opbx_tvdiff_ms(tv, last);
 		if (ms < 100) {
 			/* We just got a message within 100ms, so just schedule an update
 			   in the near future */
@@ -139,10 +139,10 @@ static void __verboser(const char *stuff, int opos, int replacelast, int complet
 
 static void verboser(const char *stuff, int opos, int replacelast, int complete) 
 {
-	ast_mutex_lock(&verb_lock);
+	opbx_mutex_lock(&verb_lock);
 	/* Lock appropriately if we're really being called in verbose mode */
 	__verboser(stuff, opos, replacelast, complete);
-	ast_mutex_unlock(&verb_lock);
+	opbx_mutex_unlock(&verb_lock);
 }
 
 static void cliinput(void *data, int source, GdkInputCondition ic)
@@ -192,7 +192,7 @@ static void remove_module(void)
 	if (GTK_CLIST(modules)->selection) {
 		module= (char *)gtk_clist_get_row_data(GTK_CLIST(modules), (int) GTK_CLIST(modules)->selection->data);
 		gdk_threads_leave();
-		res = ast_unload_resource(module, 0);
+		res = opbx_unload_resource(module, 0);
 		gdk_threads_enter();
 		if (res) {
 			snprintf(buf, sizeof(buf), "Module '%s' is in use", module);
@@ -213,14 +213,14 @@ static void reload_module(void)
 		module = strdup(module);
 		if (module) {
 			gdk_threads_leave();
-			res = ast_unload_resource(module, 0);
+			res = opbx_unload_resource(module, 0);
 			gdk_threads_enter();
 			if (res) {
 				snprintf(buf, sizeof(buf), "Module '%s' is in use", module);
 				update_statusbar(buf);
 			} else {
 				gdk_threads_leave();
-				res = ast_load_resource(module);
+				res = opbx_load_resource(module);
 				gdk_threads_enter();
 				if (res) {
 					snprintf(buf, sizeof(buf), "Error reloading module '%s'", module);
@@ -243,14 +243,14 @@ static void reload_module(void)
 
 static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 {
-	char tmp[AST_CONFIG_MAX_PATH];
+	char tmp[OPBX_CONFIG_MAX_PATH];
 	char *module = gtk_file_selection_get_filename(fs);
 	char buf[256];
-	snprintf(tmp, sizeof(tmp), "%s/", ast_config_AST_MODULE_DIR);
+	snprintf(tmp, sizeof(tmp), "%s/", opbx_config_OPBX_MODULE_DIR);
 	if (!strncmp(module, (char *)tmp, strlen(tmp))) 
 		module += strlen(tmp);
 	gdk_threads_leave();
-	if (ast_load_resource(module)) {
+	if (opbx_load_resource(module)) {
 		snprintf(buf, sizeof(buf), "Error loading module '%s'.", module);
 		update_statusbar(buf);
 	} else {
@@ -263,9 +263,9 @@ static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 
 static void add_module(void)
 {
-	char tmp[AST_CONFIG_MAX_PATH];
+	char tmp[OPBX_CONFIG_MAX_PATH];
 	GtkWidget *filew;
-	snprintf(tmp, sizeof(tmp), "%s/*.so", ast_config_AST_MODULE_DIR);
+	snprintf(tmp, sizeof(tmp), "%s/*.so", opbx_config_OPBX_MODULE_DIR);
 	filew = gtk_file_selection_new("Load Module");
 	gtk_signal_connect(GTK_OBJECT (GTK_FILE_SELECTION(filew)->ok_button),
 					"clicked", GTK_SIGNAL_FUNC(file_ok_sel), filew);
@@ -299,7 +299,7 @@ static int mod_update(void)
 	}
 	gtk_clist_freeze(GTK_CLIST(modules));
 	gtk_clist_clear(GTK_CLIST(modules));
-	ast_update_module_list(add_mod, NULL);
+	opbx_update_module_list(add_mod, NULL);
 	if (module)
 		gtk_clist_select_row(GTK_CLIST(modules), gtk_clist_find_row_from_data(GTK_CLIST(modules), module), -1);
 	gtk_clist_thaw(GTK_CLIST(modules));
@@ -308,14 +308,14 @@ static int mod_update(void)
 
 static void exit_now(GtkWidget *widget, gpointer data)
 {
-	ast_loader_unregister(mod_update);
+	opbx_loader_unregister(mod_update);
 	gtk_main_quit();
 	inuse--;
-	ast_update_use_count();
-	ast_unregister_verbose(verboser);
-	ast_unload_resource("pbx_gtkconsole", 0);
+	opbx_update_use_count();
+	opbx_unregister_verbose(verboser);
+	opbx_unload_resource("pbx_gtkconsole", 0);
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "GTK Console Monitor Exiting\n");
+		opbx_verbose(VERBOSE_PREFIX_2 "GTK Console Monitor Exiting\n");
 	/* XXX Trying to quit after calling this makes openpbx segfault XXX */
 }
 
@@ -323,7 +323,7 @@ static void exit_completely(GtkWidget *widget, gpointer data)
 {
 #if 0
 	/* Clever... */
-	ast_cli_command(clipipe[1], "quit");
+	opbx_cli_command(clipipe[1], "quit");
 #else
 	kill(getpid(), SIGTERM);
 #endif
@@ -350,7 +350,7 @@ static int cli_activate(void)
 	strncpy(buf, gtk_entry_get_text(GTK_ENTRY(cli)), sizeof(buf) - 1);
 	gtk_entry_set_text(GTK_ENTRY(cli), "");
 	if (strlen(buf)) {
-		ast_cli_command(clipipe[1], buf);
+		opbx_cli_command(clipipe[1], buf);
 	}
 	return TRUE;
 }
@@ -464,12 +464,12 @@ static int show_console(void)
 	gtk_container_add(GTK_CONTAINER(window), hbox);
 	gtk_window_set_title(GTK_WINDOW(window), "OpenPBX Console");
 	gtk_widget_grab_focus(cli);
-	ast_pthread_create(&console_thread, NULL, consolethread, NULL);
+	opbx_pthread_create(&console_thread, NULL, consolethread, NULL);
 	/* XXX Okay, seriously fix me! XXX */
 	usleep(100000);
-	ast_register_verbose(verboser);
+	opbx_register_verbose(verboser);
 	gtk_clist_freeze(GTK_CLIST(verb));
-	ast_loader_register(mod_update);
+	opbx_loader_register(mod_update);
 	gtk_clist_thaw(GTK_CLIST(verb));
 	gdk_input_add(clipipe[0], GDK_INPUT_READ, cliinput, NULL);
 	mod_update();
@@ -481,23 +481,23 @@ static int show_console(void)
 int load_module(void)
 {
 	if (pipe(clipipe)) {
-		ast_log(LOG_WARNING, "Unable to create CLI pipe\n");
+		opbx_log(LOG_WARNING, "Unable to create CLI pipe\n");
 		return -1;
 	}
 	g_thread_init(NULL);
 	if (gtk_init_check(NULL, NULL))  {
 		if (!show_console()) {
 			inuse++;
-			ast_update_use_count();
+			opbx_update_use_count();
 			if (option_verbose > 1)
-				ast_verbose( VERBOSE_PREFIX_2 "Launched GTK Console monitor\n");		
+				opbx_verbose( VERBOSE_PREFIX_2 "Launched GTK Console monitor\n");		
 		} else
-			ast_log(LOG_WARNING, "Unable to start GTK console\n");
+			opbx_log(LOG_WARNING, "Unable to start GTK console\n");
 	} else {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Unable to start GTK console monitor -- ignoring\n");
+			opbx_log(LOG_DEBUG, "Unable to start GTK console monitor -- ignoring\n");
 		else if (option_verbose > 1)
-			ast_verbose( VERBOSE_PREFIX_2 "GTK is not available -- skipping monitor\n");
+			opbx_verbose( VERBOSE_PREFIX_2 "GTK is not available -- skipping monitor\n");
 	}
 	return 0;
 }

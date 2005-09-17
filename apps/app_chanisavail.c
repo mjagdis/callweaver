@@ -67,16 +67,16 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int chanavail_exec(struct ast_channel *chan, void *data)
+static int chanavail_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1, inuse=-1, option_state=0;
 	int status;
 	struct localuser *u;
 	char info[512], tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur, *options, *stringp;
-	struct ast_channel *tempchan;
+	struct opbx_channel *tempchan;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "ChanIsAvail requires an argument (Zap/1&Zap/2)\n");
+		opbx_log(LOG_WARNING, "ChanIsAvail requires an argument (Zap/1&Zap/2)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
@@ -100,7 +100,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			tech = cur;
 			number = strchr(tech, '/');
 			if (!number) {
-				ast_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
+				opbx_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
 				return -1;
 			}
 			*number = '\0';
@@ -112,16 +112,16 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	 			   channel can permit more calls (ie callwaiting, sip calls, etc).  */
                                
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
-				status = inuse = ast_device_state(trychan);
+				status = inuse = opbx_device_state(trychan);
 			}
-			if ((inuse < 1) && (tempchan = ast_request(tech, chan->nativeformats, number, &status))) {
+			if ((inuse < 1) && (tempchan = opbx_request(tech, chan->nativeformats, number, &status))) {
 					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
 					/* Store the originally used channel too */
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
 					pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", tmp);
 					snprintf(tmp, sizeof(tmp), "%d", status);
 					pbx_builtin_setvar_helper(chan, "AVAILSTATUS", tmp);
-					ast_hangup(tempchan);
+					opbx_hangup(tempchan);
 					tempchan = NULL;
 					res = 1;
 					break;
@@ -135,7 +135,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			return -1;
 	}
 
@@ -146,12 +146,12 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, chanavail_exec, synopsis, descrip);
+	return opbx_register_application(app, chanavail_exec, synopsis, descrip);
 }
 
 char *description(void)

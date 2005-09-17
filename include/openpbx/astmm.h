@@ -20,11 +20,11 @@
  * OpenPBX memory usage debugging
  */
 
-#ifndef NO_AST_MM
+#ifndef NO_OPBX_MM
 #ifndef _OPENPBX_ASTMM_H
 #define _OPENPBX_ASTMM_H
 
-#define __AST_DEBUG_MALLOC
+#define __OPBX_DEBUG_MALLOC
 
 /* Include these now to prevent them from being needed later */
 #include <sys/types.h>
@@ -40,38 +40,38 @@
 #undef strndup
 #undef vasprintf
 
-void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
-void *__ast_malloc(size_t size, const char *file, int lineno, const char *func);
-void __ast_free(void *ptr, const char *file, int lineno, const char *func);
-void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
-char *__ast_strdup(const char *s, const char *file, int lineno, const char *func);
-char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
-int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
+void *__opbx_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
+void *__opbx_malloc(size_t size, const char *file, int lineno, const char *func);
+void __opbx_free(void *ptr, const char *file, int lineno, const char *func);
+void *__opbx_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
+char *__opbx_strdup(const char *s, const char *file, int lineno, const char *func);
+char *__opbx_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
+int __opbx_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
 
-void __ast_mm_init(void);
+void __opbx_mm_init(void);
 
 
 /* Provide our own definitions */
 #define calloc(a,b) \
-	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define malloc(a) \
-	__ast_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define free(a) \
-	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define realloc(a,b) \
-	__ast_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define strdup(a) \
-	__ast_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define strndup(a,b) \
-	__ast_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define vasprintf(a,b,c) \
-	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__opbx_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
 #error "NEVER INCLUDE astmm.h DIRECTLY!!"

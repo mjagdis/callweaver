@@ -41,39 +41,39 @@
 #include "openpbx/module.h"
 
 /*--- builtin_function_uriencode: Encode URL according to RFC 2396 */
-static char *builtin_function_uriencode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_uriencode(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char uri[BUFSIZ];
 
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: URIENCODE(<data>) - missing argument!\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "Syntax: URIENCODE(<data>) - missing argument!\n");
 		return NULL;
 	}
 
-	ast_uri_encode(data, uri, sizeof(uri), 1);
-	ast_copy_string(buf, uri, len);
+	opbx_uri_encode(data, uri, sizeof(uri), 1);
+	opbx_copy_string(buf, uri, len);
 
 	return buf;
 }
 
 /*--- builtin_function_uridecode: Decode URI according to RFC 2396 */
-static char *builtin_function_uridecode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_uridecode(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: URIDECODE(<data>) - missing argument!\n");
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "Syntax: URIDECODE(<data>) - missing argument!\n");
 		return NULL;
 	}
 
 	
-	ast_copy_string(buf, data, len);
-	ast_uri_decode(buf);
+	opbx_copy_string(buf, data, len);
+	opbx_uri_decode(buf);
 	return buf;
 }
 
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function urldecode_function = {
+struct opbx_custom_function urldecode_function = {
 	.name = "URIDECODE",
 	.synopsis = "Decodes an URI-encoded string.",
 	.syntax = "URIDECODE(<data>)",
@@ -83,7 +83,7 @@ struct ast_custom_function urldecode_function = {
 #ifndef BUILTIN_FUNC
 static
 #endif
-struct ast_custom_function urlencode_function = {
+struct opbx_custom_function urlencode_function = {
 	.name = "URIENCODE",
 	.synopsis = "Encodes a string to URI-safe encoding.",
 	.syntax = "URIENCODE(<data>)",
@@ -95,12 +95,12 @@ static char *tdesc = "URI encode/decode functions";
 
 int unload_module(void)
 {
-        return ast_custom_function_unregister(&urldecode_function) || ast_custom_function_unregister(&urlencode_function);
+        return opbx_custom_function_unregister(&urldecode_function) || opbx_custom_function_unregister(&urlencode_function);
 }
 
 int load_module(void)
 {
-        return ast_custom_function_register(&urldecode_function) || ast_custom_function_register(&urlencode_function);
+        return opbx_custom_function_register(&urldecode_function) || opbx_custom_function_register(&urlencode_function);
 }
 
 char *description(void)

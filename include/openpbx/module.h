@@ -110,34 +110,34 @@ the GNU General Public License version 2 or later (at your option).   Linux \
 Support Services, Inc. reserves the right to allow other parties to license \
 this paragraph under other terms as well."
 
-#define AST_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
+#define OPBX_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
 
 /*! 
  * \brief Softly unload a module.
  *
- * This flag signals ast_unload_resource() to unload a module only if it is not
+ * This flag signals opbx_unload_resource() to unload a module only if it is not
  * in use, according to the module's usecount.
  */
-#define AST_FORCE_SOFT 0
+#define OPBX_FORCE_SOFT 0
 
 /*! 
  * \brief Firmly unload a module.
  *
- * This flag signals ast_unload_resource() to attempt to unload a module even
+ * This flag signals opbx_unload_resource() to attempt to unload a module even
  * if it is in use.  It will attempt to use the module's unload_module
  * function.
  */
-#define AST_FORCE_FIRM 1
+#define OPBX_FORCE_FIRM 1
 
 /*! 
  * \brief Unconditionally unload a module.
  *
- * This flag signals ast_unload_resource() to first attempt to unload a module
+ * This flag signals opbx_unload_resource() to first attempt to unload a module
  * using the module's unload_module function, then if that fails to unload the
  * module using dlclose.  The module will be unloaded even if it is still in
  * use.  Use of this flag is not recommended.
  */
-#define AST_FORCE_HARD 2
+#define OPBX_FORCE_HARD 2
 
 /*! 
  * \brief Load a module.
@@ -149,22 +149,22 @@ this paragraph under other terms as well."
  *
  * \return Zero on success, -1 on error.
  */
-int ast_load_resource(const char *resource_name);
+int opbx_load_resource(const char *resource_name);
 
 /*! 
  * \brief Unloads a module.
  * \param resource_name The name of the module to unload.
- * \param force The force flag.  This should be set using one of the AST_FORCE*
+ * \param force The force flag.  This should be set using one of the OPBX_FORCE*
  *        flags.
  *
  * This function unloads a module.  It will only unload modules that are not in
- * use (usecount not zero), unless #AST_FORCE_FIRM or #AST_FORCE_HARD is 
- * specified.  Setting #AST_FORCE_FIRM or #AST_FORCE_HARD will unload the
+ * use (usecount not zero), unless #OPBX_FORCE_FIRM or #OPBX_FORCE_HARD is 
+ * specified.  Setting #OPBX_FORCE_FIRM or #OPBX_FORCE_HARD will unload the
  * module regardless of consequences (NOT_RECOMMENDED).
  *
  * \return Zero on success, -1 on error.
  */
-int ast_unload_resource(const char *resource_name, int force);
+int opbx_unload_resource(const char *resource_name, int force);
 
 /*! 
  * \brief Notify when usecount has been changed.
@@ -174,7 +174,7 @@ int ast_unload_resource(const char *resource_name, int force);
  *
  * \note The LOCAL_USER macros take care of calling this function for you.
  */
-void ast_update_use_count(void);
+void opbx_update_use_count(void);
 
 /*! 
  * \brief Ask for a list of modules, descriptions, and use counts.
@@ -185,7 +185,7 @@ void ast_update_use_count(void);
  * 
  * \return the number of modules loaded
  */
-int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
+int opbx_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
 			   const char *like);
 
 /*! 
@@ -197,7 +197,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
  *
  * \return Zero on success and -1 on failure.
  */
-int ast_loader_register(int (*updater)(void));
+int opbx_loader_register(int (*updater)(void));
 
 /*! 
  * \brief Remove a procedure to be run when modules are updated.
@@ -207,7 +207,7 @@ int ast_loader_register(int (*updater)(void));
  * 
  * \return Zero on success, -1 on failure.
  */
-int ast_loader_unregister(int (*updater)(void));
+int opbx_loader_unregister(int (*updater)(void));
 
 /*! 
  * \brief Reload openpbx modules.
@@ -223,7 +223,7 @@ int ast_loader_unregister(int (*updater)(void));
  * found but cannot be reloaded, -1 if a reload operation is already in
  * progress, and 2 if the specfied module was found and reloaded.
  */
-int ast_module_reload(const char *name);
+int opbx_module_reload(const char *name);
 
 /*! 
  * \brief Match modules names for the OpenPBX cli.
@@ -241,7 +241,7 @@ int ast_module_reload(const char *name);
  * \return A possible completion of the partial match, or NULL if no matches
  * were found.
  */
-char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload);
+char *opbx_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload);
 
 /*! 
  * \brief Register a function to be executed before OpenPBX exits.
@@ -249,13 +249,13 @@ char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, in
  *
  * \return Zero on success, -1 on error.
  */
-int ast_register_atexit(void (*func)(void));
+int opbx_register_atexit(void (*func)(void));
 
 /*! 
- * \brief Unregister a function registered with ast_register_atexit().
+ * \brief Unregister a function registered with opbx_register_atexit().
  * \param func The callback function to unregister.
  */
-void ast_unregister_atexit(void (*func)(void));
+void opbx_unregister_atexit(void (*func)(void));
 
 /* Local user routines keep track of which channels are using a given module
    resource.  They can help make removing modules safer, particularly if
@@ -265,10 +265,10 @@ void ast_unregister_atexit(void (*func)(void));
  * \brief Standard localuser struct definition.
  *
  * This macro defines a localuser struct.  The channel.h file must be included
- * to use this macro because it refrences ast_channel.
+ * to use this macro because it refrences opbx_channel.
  */
 #define STANDARD_LOCAL_USER struct localuser { \
-						struct ast_channel *chan; \
+						struct opbx_channel *chan; \
 						struct localuser *next; \
 					     }
 
@@ -285,7 +285,7 @@ void ast_unregister_atexit(void (*func)(void));
  * LOCAL_USER_DECL;
  * \endcode
  */
-#define LOCAL_USER_DECL AST_MUTEX_DEFINE_STATIC(localuser_lock); \
+#define LOCAL_USER_DECL OPBX_MUTEX_DEFINE_STATIC(localuser_lock); \
 						static struct localuser *localusers = NULL; \
 						static int localusecnt = 0;
 
@@ -294,7 +294,7 @@ void ast_unregister_atexit(void (*func)(void));
  * \param u a pointer to a localuser struct
  *
  * This macro adds a localuser to the list of users and increments the
- * usecount.  It expects a variable named \p chan of type \p ast_channel in the
+ * usecount.  It expects a variable named \p chan of type \p opbx_channel in the
  * current scope.
  *
  * \note This function dynamically allocates memory.  If this operation fails
@@ -303,31 +303,31 @@ void ast_unregister_atexit(void (*func)(void));
 #define LOCAL_USER_ADD(u) { \
  \
 	if (!(u=calloc(1,sizeof(*u)))) { \
-		ast_log(LOG_WARNING, "Out of memory\n"); \
+		opbx_log(LOG_WARNING, "Out of memory\n"); \
 		return -1; \
 	} \
-	ast_mutex_lock(&localuser_lock); \
+	opbx_mutex_lock(&localuser_lock); \
 	u->chan = chan; \
 	u->next = localusers; \
 	localusers = u; \
 	localusecnt++; \
-	ast_mutex_unlock(&localuser_lock); \
-	ast_update_use_count(); \
+	opbx_mutex_unlock(&localuser_lock); \
+	opbx_update_use_count(); \
 }
 
 #define LOCAL_USER_ACF_ADD(u) { \
  \
 	if (!(u=calloc(1,sizeof(*u)))) { \
-		ast_log(LOG_WARNING, "Out of memory\n"); \
+		opbx_log(LOG_WARNING, "Out of memory\n"); \
 		return ""; \
 	} \
-	ast_mutex_lock(&localuser_lock); \
+	opbx_mutex_lock(&localuser_lock); \
 	u->chan = chan; \
 	u->next = localusers; \
 	localusers = u; \
 	localusecnt++; \
-	ast_mutex_unlock(&localuser_lock); \
-	ast_update_use_count(); \
+	opbx_mutex_unlock(&localuser_lock); \
+	opbx_update_use_count(); \
 }
 
 /*! 
@@ -339,7 +339,7 @@ void ast_unregister_atexit(void (*func)(void));
  */
 #define LOCAL_USER_REMOVE(u) { \
 	struct localuser *uc, *ul = NULL; \
-	ast_mutex_lock(&localuser_lock); \
+	opbx_mutex_lock(&localuser_lock); \
 	uc = localusers; \
 	while (uc) { \
 		if (uc == u) { \
@@ -354,8 +354,8 @@ void ast_unregister_atexit(void (*func)(void));
 	}\
 	free(u); \
 	localusecnt--; \
-	ast_mutex_unlock(&localuser_lock); \
-	ast_update_use_count(); \
+	opbx_mutex_unlock(&localuser_lock); \
+	opbx_update_use_count(); \
 }
 
 /*! 
@@ -366,15 +366,15 @@ void ast_unregister_atexit(void (*func)(void));
  */
 #define STANDARD_HANGUP_LOCALUSERS { \
 	struct localuser *u, *ul; \
-	ast_mutex_lock(&localuser_lock); \
+	opbx_mutex_lock(&localuser_lock); \
 	u = localusers; \
 	while(u) { \
-		ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD); \
+		opbx_softhangup(u->chan, OPBX_SOFTHANGUP_APPUNLOAD); \
 		ul = u; \
 		u = u->next; \
 		free(ul); \
 	} \
-	ast_mutex_unlock(&localuser_lock); \
+	opbx_mutex_unlock(&localuser_lock); \
 	localusecnt=0; \
 }
 

@@ -28,8 +28,8 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
-#define AST_INCLUDE_GLOB 1
-#ifdef AST_INCLUDE_GLOB
+#define OPBX_INCLUDE_GLOB 1
+#ifdef OPBX_INCLUDE_GLOB
 #ifdef __Darwin__
 #define GLOB_ABORTED GLOB_ABEND
 #endif
@@ -57,8 +57,8 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *extconfig_conf = "extconfig.conf";
 
-static struct ast_config_map {
-	struct ast_config_map *next;
+static struct opbx_config_map {
+	struct opbx_config_map *next;
 	char *name;
 	char *driver;
 	char *database;
@@ -66,38 +66,38 @@ static struct ast_config_map {
 	char stuff[0];
 } *config_maps = NULL;
 
-AST_MUTEX_DEFINE_STATIC(config_lock);
-static struct ast_config_engine *config_engine_list;
+OPBX_MUTEX_DEFINE_STATIC(config_lock);
+static struct opbx_config_engine *config_engine_list;
 
 #define MAX_INCLUDE_LEVEL 10
 
-struct ast_comment {
-	struct ast_comment *next;
+struct opbx_comment {
+	struct opbx_comment *next;
 	char cmt[0];
 };
 
-struct ast_category {
+struct opbx_category {
 	char name[80];
 	int ignored;			/* do not let user of the config see this category */
-	struct ast_variable *root;
-	struct ast_variable *last;
-	struct ast_category *next;
+	struct opbx_variable *root;
+	struct opbx_variable *last;
+	struct opbx_category *next;
 };
 
-struct ast_config {
-	struct ast_category *root;
-	struct ast_category *last;
-	struct ast_category *current;
-	struct ast_category *last_browse;		/* used to cache the last category supplied via category_browse */
+struct opbx_config {
+	struct opbx_category *root;
+	struct opbx_category *last;
+	struct opbx_category *current;
+	struct opbx_category *lopbx_browse;		/* used to cache the last category supplied via category_browse */
 	int include_level;
 	int max_include_level;
 };
 
-struct ast_variable *ast_variable_new(const char *name, const char *value) 
+struct opbx_variable *opbx_variable_new(const char *name, const char *value) 
 {
-	struct ast_variable *variable;
+	struct opbx_variable *variable;
 
-	int length = strlen(name) + strlen(value) + 2 + sizeof(struct ast_variable);
+	int length = strlen(name) + strlen(value) + 2 + sizeof(struct opbx_variable);
 	variable = malloc(length);
 	if (variable) {
 		memset(variable, 0, length);
@@ -110,7 +110,7 @@ struct ast_variable *ast_variable_new(const char *name, const char *value)
 	return variable;
 }
 
-void ast_variable_append(struct ast_category *category, struct ast_variable *variable)
+void opbx_variable_append(struct opbx_category *category, struct opbx_variable *variable)
 {
 	if (category->last)
 		category->last->next = variable;
@@ -119,9 +119,9 @@ void ast_variable_append(struct ast_category *category, struct ast_variable *var
 	category->last = variable;
 }
 
-void ast_variables_destroy(struct ast_variable *v)
+void opbx_variables_destroy(struct opbx_variable *v)
 {
-	struct ast_variable *vn;
+	struct opbx_variable *vn;
 
 	while(v) {
 		vn = v;
@@ -130,14 +130,14 @@ void ast_variables_destroy(struct ast_variable *v)
 	}
 }
 
-struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category)
+struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, const char *category)
 {
-	struct ast_category *cat = NULL;
+	struct opbx_category *cat = NULL;
 
-	if (category && config->last_browse && (config->last_browse->name == category))
-		cat = config->last_browse;
+	if (category && config->lopbx_browse && (config->lopbx_browse->name == category))
+		cat = config->lopbx_browse;
 	else
-		cat = ast_category_get(config, category);
+		cat = opbx_category_get(config, category);
 
 	if (cat)
 		return cat->root;
@@ -145,19 +145,19 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 		return NULL;
 }
 
-char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable)
+char *opbx_variable_retrieve(const struct opbx_config *config, const char *category, const char *variable)
 {
-	struct ast_variable *v;
+	struct opbx_variable *v;
 
 	if (category) {
-		for (v = ast_variable_browse(config, category); v; v = v->next)
+		for (v = opbx_variable_browse(config, category); v; v = v->next)
 			if (variable == v->name)
 				return v->value;
-		for (v = ast_variable_browse(config, category); v; v = v->next)
+		for (v = opbx_variable_browse(config, category); v; v = v->next)
 			if (!strcasecmp(variable, v->name))
 				return v->value;
 	} else {
-		struct ast_category *cat;
+		struct opbx_category *cat;
 
 		for (cat = config->root; cat; cat = cat->next)
 			for (v = cat->root; v; v = v->next)
@@ -168,9 +168,9 @@ char *ast_variable_retrieve(const struct ast_config *config, const char *categor
 	return NULL;
 }
 
-static struct ast_variable *variable_clone(const struct ast_variable *old)
+static struct opbx_variable *variable_clone(const struct opbx_variable *old)
 {
-	struct ast_variable *new = ast_variable_new(old->name, old->value);
+	struct opbx_variable *new = opbx_variable_new(old->name, old->value);
 
 	if (new) {
 		new->lineno = old->lineno;
@@ -182,36 +182,36 @@ static struct ast_variable *variable_clone(const struct ast_variable *old)
 	return new;
 }
  
-static void move_variables(struct ast_category *old, struct ast_category *new)
+static void move_variables(struct opbx_category *old, struct opbx_category *new)
 {
-	struct ast_variable *var;
-	struct ast_variable *next;
+	struct opbx_variable *var;
+	struct opbx_variable *next;
 
 	next = old->root;
 	old->root = NULL;
 	for (var = next; var; var = next) {
 		next = var->next;
 		var->next = NULL;
-		ast_variable_append(new, var);
+		opbx_variable_append(new, var);
 	}
 }
 
-struct ast_category *ast_category_new(const char *name) 
+struct opbx_category *opbx_category_new(const char *name) 
 {
-	struct ast_category *category;
+	struct opbx_category *category;
 
-	category = malloc(sizeof(struct ast_category));
+	category = malloc(sizeof(struct opbx_category));
 	if (category) {
-		memset(category, 0, sizeof(struct ast_category));
-		ast_copy_string(category->name, name, sizeof(category->name));
+		memset(category, 0, sizeof(struct opbx_category));
+		opbx_copy_string(category->name, name, sizeof(category->name));
 	}
 
 	return category;
 }
 
-static struct ast_category *category_get(const struct ast_config *config, const char *category_name, int ignored)
+static struct opbx_category *category_get(const struct opbx_config *config, const char *category_name, int ignored)
 {
-	struct ast_category *cat;
+	struct opbx_category *cat;
 
 	for (cat = config->root; cat; cat = cat->next) {
 		if (cat->name == category_name && (ignored || !cat->ignored))
@@ -226,17 +226,17 @@ static struct ast_category *category_get(const struct ast_config *config, const 
 	return NULL;
 }
 
-struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name)
+struct opbx_category *opbx_category_get(const struct opbx_config *config, const char *category_name)
 {
 	return category_get(config, category_name, 0);
 }
 
-int ast_category_exist(const struct ast_config *config, const char *category_name)
+int opbx_category_exist(const struct opbx_config *config, const char *category_name)
 {
-	return !!ast_category_get(config, category_name);
+	return !!opbx_category_get(config, category_name);
 }
 
-void ast_category_append(struct ast_config *config, struct ast_category *category)
+void opbx_category_append(struct opbx_config *config, struct opbx_category *category)
 {
 	if (config->last)
 		config->last->next = category;
@@ -246,25 +246,25 @@ void ast_category_append(struct ast_config *config, struct ast_category *categor
 	config->current = category;
 }
 
-void ast_category_destroy(struct ast_category *cat)
+void opbx_category_destroy(struct opbx_category *cat)
 {
-	ast_variables_destroy(cat->root);
+	opbx_variables_destroy(cat->root);
 	free(cat);
 }
 
-static struct ast_category *next_available_category(struct ast_category *cat)
+static struct opbx_category *next_available_category(struct opbx_category *cat)
 {
 	for (; cat && cat->ignored; cat = cat->next);
 
 	return cat;
 }
 
-char *ast_category_browse(struct ast_config *config, const char *prev)
+char *opbx_category_browse(struct opbx_config *config, const char *prev)
 {	
-	struct ast_category *cat = NULL;
+	struct opbx_category *cat = NULL;
 
-	if (prev && config->last_browse && (config->last_browse->name == prev))
-		cat = config->last_browse->next;
+	if (prev && config->lopbx_browse && (config->lopbx_browse->name == prev))
+		cat = config->lopbx_browse->next;
 	else if (!prev && config->root)
 			cat = config->root;
 	else if (prev) {
@@ -287,16 +287,16 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 	if (cat)
 		cat = next_available_category(cat);
 
-	config->last_browse = cat;
+	config->lopbx_browse = cat;
 	if (cat)
 		return cat->name;
 	else
 		return NULL;
 }
 
-struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
+struct opbx_variable *opbx_category_detach_variables(struct opbx_category *cat)
 {
-	struct ast_variable *v;
+	struct opbx_variable *v;
 
 	v = cat->root;
 	cat->root = NULL;
@@ -304,27 +304,27 @@ struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
 	return v;
 }
 
-void ast_category_rename(struct ast_category *cat, const char *name)
+void opbx_category_rename(struct opbx_category *cat, const char *name)
 {
-	ast_copy_string(cat->name, name, sizeof(cat->name));
+	opbx_copy_string(cat->name, name, sizeof(cat->name));
 }
 
-static void inherit_category(struct ast_category *new, const struct ast_category *base)
+static void inherit_category(struct opbx_category *new, const struct opbx_category *base)
 {
-	struct ast_variable *var;
+	struct opbx_variable *var;
 
 	for (var = base->root; var; var = var->next) {
-		struct ast_variable *v;
+		struct opbx_variable *v;
 		
 		v = variable_clone(var);
 		if (v)
-			ast_variable_append(new, v);
+			opbx_variable_append(new, v);
 	}
 }
 
-struct ast_config *ast_config_new(void) 
+struct opbx_config *opbx_config_new(void) 
 {
-	struct ast_config *config;
+	struct opbx_config *config;
 
 	config = malloc(sizeof(*config));
 	if (config) {
@@ -335,16 +335,16 @@ struct ast_config *ast_config_new(void)
 	return config;
 }
 
-void ast_config_destroy(struct ast_config *cfg)
+void opbx_config_destroy(struct opbx_config *cfg)
 {
-	struct ast_category *cat, *catn;
+	struct opbx_category *cat, *catn;
 
 	if (!cfg)
 		return;
 
 	cat = cfg->root;
 	while(cat) {
-		ast_variables_destroy(cat->root);
+		opbx_variables_destroy(cat->root);
 		catn = cat;
 		cat = cat->next;
 		free(catn);
@@ -352,34 +352,34 @@ void ast_config_destroy(struct ast_config *cfg)
 	free(cfg);
 }
 
-struct ast_category *ast_config_get_current_category(const struct ast_config *cfg)
+struct opbx_category *opbx_config_get_current_category(const struct opbx_config *cfg)
 {
 	return cfg->current;
 }
 
-void ast_config_set_current_category(struct ast_config *cfg, const struct ast_category *cat)
+void opbx_config_set_current_category(struct opbx_config *cfg, const struct opbx_category *cat)
 {
 	/* cast below is just to silence compiler warning about dropping "const" */
-	cfg->current = (struct ast_category *) cat;
+	cfg->current = (struct opbx_category *) cat;
 }
 
-static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile)
+static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat, char *buf, int lineno, const char *configfile)
 {
 	char *c;
 	char *cur = buf;
-	struct ast_variable *v;
+	struct opbx_variable *v;
 	char cmd[512], exec_file[512];
 	int object, do_exec, do_include;
 
 	/* Actually parse the entry */
 	if (cur[0] == '[') {
-		struct ast_category *newcat = NULL;
+		struct opbx_category *newcat = NULL;
 		char *catname;
 
 		/* A category header */
 		c = strchr(cur, ']');
 		if (!c) {
-			ast_log(LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
+			opbx_log(LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
 			return -1;
 		}
 		*c++ = '\0';
@@ -387,15 +387,15 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
  		if (*c++ != '(')
  			c = NULL;
 		catname = cur;
-		*cat = newcat = ast_category_new(catname);
+		*cat = newcat = opbx_category_new(catname);
 		if (!newcat) {
-			ast_log(LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
+			opbx_log(LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
 			return -1;
 		}
  		/* If there are options or categories to inherit from, process them now */
  		if (c) {
  			if (!(cur = strchr(c, ')'))) {
- 				ast_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
+ 				opbx_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
  				return -1;
  			}
  			*cur = '\0';
@@ -405,23 +405,23 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				} else if (!strcasecmp(cur, "+")) {
 					*cat = category_get(cfg, catname, 1);
 					if (!*cat) {
-						ast_config_destroy(cfg);
+						opbx_config_destroy(cfg);
 						if (newcat)
-							ast_category_destroy(newcat);
-						ast_log(LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
+							opbx_category_destroy(newcat);
+						opbx_log(LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
 						return -1;
 					}
 					if (newcat) {
 						move_variables(newcat, *cat);
-						ast_category_destroy(newcat);
+						opbx_category_destroy(newcat);
 						newcat = NULL;
 					}
 				} else {
-					struct ast_category *base;
+					struct opbx_category *base;
  				
 					base = category_get(cfg, cur, 1);
 					if (!base) {
-						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
+						opbx_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
 					inherit_category(*cat, base);
@@ -429,7 +429,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
  			}
  		}
 		if (newcat)
-			ast_category_append(cfg, *cat);
+			opbx_category_append(cfg, *cat);
 	} else if (cur[0] == '#') {
 		/* A directive */
 		cur++;
@@ -450,7 +450,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		else
 			do_exec = 0;
 		if (do_exec && !option_exec_includes) {
-			ast_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in openpbx.conf (options section)!\n");
+			opbx_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in openpbx.conf (options section)!\n");
 			do_exec = 0;
 		}
 		if (do_include || do_exec) {
@@ -459,7 +459,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
 				/* Get rid of leading mess */
 				cur = c;
-				while (!ast_strlen_zero(cur)) {
+				while (!opbx_strlen_zero(cur)) {
 					c = cur + strlen(cur) - 1;
 					if ((*c == '>') || (*c == '<') || (*c == '\"'))
 						*c = '\0';
@@ -471,19 +471,19 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				if (do_exec) { 
 					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%ld.%ld", time(NULL), (long)pthread_self());
 					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
-					ast_safe_system(cmd);
+					opbx_safe_system(cmd);
 					cur = exec_file;
 				} else
 					exec_file[0] = '\0';
 				/* A #include */
-				do_include = ast_config_internal_load(cur, cfg) ? 1 : 0;
-				if(!ast_strlen_zero(exec_file))
+				do_include = opbx_config_internal_load(cur, cfg) ? 1 : 0;
+				if(!opbx_strlen_zero(exec_file))
 					unlink(exec_file);
 				if(!do_include)
 					return 0;
 
 			} else {
-				ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
+				opbx_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
 						do_exec ? "exec" : "include",
 						do_exec ? "/path/to/executable" : "filename",
 						lineno,
@@ -491,11 +491,11 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 			}
 		}
 		else 
-			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+			opbx_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
 	} else {
 		/* Just a line (variable = value) */
 		if (!*cat) {
-			ast_log(LOG_WARNING,
+			opbx_log(LOG_WARNING,
 				"parse error: No category context for line %d of %s\n", lineno, configfile);
 			return -1;
 		}
@@ -509,26 +509,26 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				c++;
 			} else
 				object = 0;
-			v = ast_variable_new(ast_strip(cur), ast_strip(c));
+			v = opbx_variable_new(opbx_strip(cur), opbx_strip(c));
 			if (v) {
 				v->lineno = lineno;
 				v->object = object;
 				/* Put and reset comments */
 				v->blanklines = 0;
-				ast_variable_append(*cat, v);
+				opbx_variable_append(*cat, v);
 			} else {
-				ast_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
+				opbx_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
 				return -1;
 			}
 		} else {
-			ast_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
+			opbx_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
 		}
 
 	}
 	return 0;
 }
 
-static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg)
+static struct opbx_config *config_text_file_load(const char *database, const char *table, const char *filename, struct opbx_config *cfg)
 {
 	char fn[256];
 	char buf[8192];
@@ -536,18 +536,18 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	FILE *f;
 	int lineno=0;
 	int comment = 0, nest[MAX_NESTED_COMMENTS];
-	struct ast_category *cat = NULL;
+	struct opbx_category *cat = NULL;
 	int count = 0;
 	
-	cat = ast_config_get_current_category(cfg);
+	cat = opbx_config_get_current_category(cfg);
 
 	if (filename[0] == '/') {
-		ast_copy_string(fn, filename, sizeof(fn));
+		opbx_copy_string(fn, filename, sizeof(fn));
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, filename);
+		snprintf(fn, sizeof(fn), "%s/%s", (char *)opbx_config_OPBX_CONFIG_DIR, filename);
 	}
 
-#ifdef AST_INCLUDE_GLOB
+#ifdef OPBX_INCLUDE_GLOB
 	{
 		int glob_ret;
 		glob_t globbuf;
@@ -558,27 +558,27 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
 #endif
 		if (glob_ret == GLOB_NOSPACE)
-			ast_log(LOG_WARNING,
+			opbx_log(LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
 		else if (glob_ret  == GLOB_ABORTED)
-			ast_log(LOG_WARNING,
+			opbx_log(LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
 		else  {
 			/* loop over expanded files */
 			int i;
 			for (i=0; i<globbuf.gl_pathc; i++) {
-				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
+				opbx_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
 	if ((option_verbose > 1) && !option_debug) {
-		ast_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
+		opbx_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
 		fflush(stdout);
 	}
 	if ((f = fopen(fn, "r"))) {
 		count++;
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
+			opbx_log(LOG_DEBUG, "Parsing %s\n", fn);
 		else if (option_verbose > 1)
-			ast_verbose("Found\n");
+			opbx_verbose("Found\n");
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
@@ -600,7 +600,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							comment++;
 							nest[comment-1] = lineno;
 						} else {
-							ast_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
+							opbx_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
 						}
 					} else if ((comment_p >= new_buf + 2) &&
 						   (*(comment_p - 1) == COMMENT_TAG) &&
@@ -630,8 +630,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 					}
 				}
 				if (process_buf) {
-					char *buf = ast_strip(process_buf);
-					if (!ast_strlen_zero(buf))
+					char *buf = opbx_strip(process_buf);
+					if (!opbx_strlen_zero(buf))
 						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
 							cfg = NULL;
 							break;
@@ -642,14 +642,14 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		fclose(f);		
 	} else { /* can't open file */
 		if (option_debug)
-			ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
+			opbx_log(LOG_DEBUG, "No file to parse: %s\n", fn);
 		else if (option_verbose > 1)
-			ast_verbose( "Not found (%s)\n", strerror(errno));
+			opbx_verbose( "Not found (%s)\n", strerror(errno));
 	}
 	if (comment) {
-		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
+		opbx_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
-#ifdef AST_INCLUDE_GLOB
+#ifdef OPBX_INCLUDE_GLOB
 					if (!cfg)
 						break;
 				}
@@ -663,26 +663,26 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	return cfg;
 }
 
-int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
+int config_text_file_save(const char *configfile, const struct opbx_config *cfg, const char *generator)
 {
 	FILE *f;
 	char fn[256];
 	char date[256]="";
 	time_t t;
-	struct ast_variable *var;
-	struct ast_category *cat;
+	struct opbx_variable *var;
+	struct opbx_category *cat;
 	int blanklines = 0;
 
 	if (configfile[0] == '/') {
-		ast_copy_string(fn, configfile, sizeof(fn));
+		opbx_copy_string(fn, configfile, sizeof(fn));
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
+		snprintf(fn, sizeof(fn), "%s/%s", opbx_config_OPBX_CONFIG_DIR, configfile);
 	}
 	time(&t);
-	ast_copy_string(date, ctime(&t), sizeof(date));
+	opbx_copy_string(date, ctime(&t), sizeof(date));
 	if ((f = fopen(fn, "w"))) {
 		if ((option_verbose > 1) && !option_debug)
-			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
+			opbx_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
 		fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
@@ -726,9 +726,9 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 
 static void clear_config_maps(void) 
 {
-	struct ast_config_map *map;
+	struct opbx_config_map *map;
 
-	ast_mutex_lock(&config_lock);
+	opbx_mutex_lock(&config_lock);
 
 	while (config_maps) {
 		map = config_maps;
@@ -736,12 +736,12 @@ static void clear_config_maps(void)
 		free(map);
 	}
 		
-	ast_mutex_unlock(&config_lock);
+	opbx_mutex_unlock(&config_lock);
 }
 
 static int append_mapping(char *name, char *driver, char *database, char *table)
 {
-	struct ast_config_map *map;
+	struct opbx_config_map *map;
 	int length;
 
 	length = sizeof(*map);
@@ -769,7 +769,7 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 	map->next = config_maps;
 
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
+		opbx_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
 			    map->name, map->driver, map->database, map->table ? map->table : map->name);
 
 	config_maps = map;
@@ -778,63 +778,63 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 
 void read_config_maps(void) 
 {
-	struct ast_config *config, *configtmp;
-	struct ast_variable *v;
+	struct opbx_config *config, *configtmp;
+	struct opbx_variable *v;
 	char *driver, *table, *database, *stringp;
 
 	clear_config_maps();
 
-	configtmp = ast_config_new();
+	configtmp = opbx_config_new();
 	configtmp->max_include_level = 1;
-	config = ast_config_internal_load(extconfig_conf, configtmp);
+	config = opbx_config_internal_load(extconfig_conf, configtmp);
 	if (!config) {
-		ast_config_destroy(configtmp);
+		opbx_config_destroy(configtmp);
 		return;
 	}
 
-	for (v = ast_variable_browse(config, "settings"); v; v = v->next) {
+	for (v = opbx_variable_browse(config, "settings"); v; v = v->next) {
 		stringp = v->value;
 		driver = strsep(&stringp, ",");
 		database = strsep(&stringp, ",");
 		table = strsep(&stringp, ",");
 			
 		if (!strcmp(v->name, extconfig_conf)) {
-			ast_log(LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
+			opbx_log(LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
 			continue;
 		}
 
 		if (!strcmp(v->name, "openpbx.conf")) {
-			ast_log(LOG_WARNING, "Cannot bind 'openpbx.conf'!\n");
+			opbx_log(LOG_WARNING, "Cannot bind 'openpbx.conf'!\n");
 			continue;
 		}
 
 		if (!strcmp(v->name, "logger.conf")) {
-			ast_log(LOG_WARNING, "Cannot bind 'logger.conf'!\n");
+			opbx_log(LOG_WARNING, "Cannot bind 'logger.conf'!\n");
 			continue;
 		}
 
 		if (!driver || !database)
 			continue;
 		if (!strcasecmp(v->name, "sipfriends")) {
-			ast_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
+			opbx_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
 			append_mapping("sipusers", driver, database, table ? table : "sipfriends");
 			append_mapping("sippeers", driver, database, table ? table : "sipfriends");
 		} else if (!strcasecmp(v->name, "iaxfriends")) {
-			ast_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
+			opbx_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
 			append_mapping("iaxusers", driver, database, table ? table : "iaxfriends");
 			append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends");
 		} else 
 			append_mapping(v->name, driver, database, table);
 	}
 		
-	ast_config_destroy(config);
+	opbx_config_destroy(config);
 }
 
-int ast_config_engine_register(struct ast_config_engine *new) 
+int opbx_config_engine_register(struct opbx_config_engine *new) 
 {
-	struct ast_config_engine *ptr;
+	struct opbx_config_engine *ptr;
 
-	ast_mutex_lock(&config_lock);
+	opbx_mutex_lock(&config_lock);
 
 	if (!config_engine_list) {
 		config_engine_list = new;
@@ -843,17 +843,17 @@ int ast_config_engine_register(struct ast_config_engine *new)
 		ptr->next = new;
 	}
 
-	ast_mutex_unlock(&config_lock);
-	ast_log(LOG_NOTICE,"Registered Config Engine %s\n", new->name);
+	opbx_mutex_unlock(&config_lock);
+	opbx_log(LOG_NOTICE,"Registered Config Engine %s\n", new->name);
 
 	return 1;
 }
 
-int ast_config_engine_deregister(struct ast_config_engine *del) 
+int opbx_config_engine_deregister(struct opbx_config_engine *del) 
 {
-	struct ast_config_engine *ptr, *last=NULL;
+	struct opbx_config_engine *ptr, *last=NULL;
 
-	ast_mutex_lock(&config_lock);
+	opbx_mutex_lock(&config_lock);
 
 	for (ptr = config_engine_list; ptr; ptr=ptr->next) {
 		if (ptr == del) {
@@ -866,25 +866,25 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 		last = ptr;
 	}
 
-	ast_mutex_unlock(&config_lock);
+	opbx_mutex_unlock(&config_lock);
 
 	return 0;
 }
 
 /*--- find_engine: Find realtime engine for realtime family */
-static struct ast_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
+static struct opbx_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
 {
-	struct ast_config_engine *eng, *ret = NULL;
-	struct ast_config_map *map;
+	struct opbx_config_engine *eng, *ret = NULL;
+	struct opbx_config_map *map;
 
-	ast_mutex_lock(&config_lock);
+	opbx_mutex_lock(&config_lock);
 
 	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(family, map->name)) {
 			if (database)
-				ast_copy_string(database, map->database, dbsiz);
+				opbx_copy_string(database, map->database, dbsiz);
 			if (table)
-				ast_copy_string(table, map->table ? map->table : family, tabsiz);
+				opbx_copy_string(table, map->table ? map->table : family, tabsiz);
 			break;
 		}
 	}
@@ -897,36 +897,36 @@ static struct ast_config_engine *find_engine(const char *family, char *database,
 		}
 	}
 
-	ast_mutex_unlock(&config_lock);
+	opbx_mutex_unlock(&config_lock);
 	
 	/* if we found a mapping, but the engine is not available, then issue a warning */
 	if (map && !ret)
-		ast_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
+		opbx_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
 
 	return ret;
 }
 
-static struct ast_config_engine text_file_engine = {
+static struct opbx_config_engine text_file_engine = {
 	.name = "text",
 	.load_func = config_text_file_load,
 };
 
-struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg)
+struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_config *cfg)
 {
 	char db[256];
 	char table[256];
-	struct ast_config_engine *loader = &text_file_engine;
-	struct ast_config *result;
+	struct opbx_config_engine *loader = &text_file_engine;
+	struct opbx_config *result;
 
 	if (cfg->include_level == cfg->max_include_level) {
-		ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
+		opbx_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
 		return NULL;
 	}
 
 	cfg->include_level++;
 
 	if (strcmp(filename, extconfig_conf) && strcmp(filename, "openpbx.conf") && config_engine_list) {
-		struct ast_config_engine *eng;
+		struct opbx_config_engine *eng;
 
 		eng = find_engine(filename, db, sizeof(db), table, sizeof(table));
 
@@ -948,28 +948,28 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 	return result;
 }
 
-struct ast_config *ast_config_load(const char *filename)
+struct opbx_config *opbx_config_load(const char *filename)
 {
-	struct ast_config *cfg;
-	struct ast_config *result;
+	struct opbx_config *cfg;
+	struct opbx_config *result;
 
-	cfg = ast_config_new();
+	cfg = opbx_config_new();
 	if (!cfg)
 		return NULL;
 
-	result = ast_config_internal_load(filename, cfg);
+	result = opbx_config_internal_load(filename, cfg);
 	if (!result)
-		ast_config_destroy(cfg);
+		opbx_config_destroy(cfg);
 
 	return result;
 }
 
-struct ast_variable *ast_load_realtime(const char *family, ...)
+struct opbx_variable *opbx_load_realtime(const char *family, ...)
 {
-	struct ast_config_engine *eng;
+	struct opbx_config_engine *eng;
 	char db[256]="";
 	char table[256]="";
-	struct ast_variable *res=NULL;
+	struct opbx_variable *res=NULL;
 	va_list ap;
 
 	va_start(ap, family);
@@ -981,10 +981,10 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	return res;
 }
 
-/*--- ast_check_realtime: Check if realtime engine is configured for family */
-int ast_check_realtime(const char *family)
+/*--- opbx_check_realtime: Check if realtime engine is configured for family */
+int opbx_check_realtime(const char *family)
 {
-	struct ast_config_engine *eng;
+	struct opbx_config_engine *eng;
 
 	eng = find_engine(family, NULL, 0, NULL, 0);
 	if (eng)
@@ -993,12 +993,12 @@ int ast_check_realtime(const char *family)
 
 }
 
-struct ast_config *ast_load_realtime_multientry(const char *family, ...)
+struct opbx_config *opbx_load_realtime_multientry(const char *family, ...)
 {
-	struct ast_config_engine *eng;
+	struct opbx_config_engine *eng;
 	char db[256]="";
 	char table[256]="";
-	struct ast_config *res=NULL;
+	struct opbx_config *res=NULL;
 	va_list ap;
 
 	va_start(ap, family);
@@ -1010,9 +1010,9 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 	return res;
 }
 
-int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
+int opbx_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
 {
-	struct ast_config_engine *eng;
+	struct opbx_config_engine *eng;
 	int res = -1;
 	char db[256]="";
 	char table[256]="";
@@ -1029,23 +1029,23 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 
 static int config_command(int fd, int argc, char **argv) 
 {
-	struct ast_config_engine *eng;
-	struct ast_config_map *map;
+	struct opbx_config_engine *eng;
+	struct opbx_config_map *map;
 	
-	ast_mutex_lock(&config_lock);
+	opbx_mutex_lock(&config_lock);
 
-	ast_cli(fd, "\n\n");
+	opbx_cli(fd, "\n\n");
 	for (eng = config_engine_list; eng; eng = eng->next) {
-		ast_cli(fd, "\nConfig Engine: %s\n", eng->name);
+		opbx_cli(fd, "\nConfig Engine: %s\n", eng->name);
 		for (map = config_maps; map; map = map->next)
 			if (!strcasecmp(map->driver, eng->name)) {
-				ast_cli(fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+				opbx_cli(fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
 					map->table ? map->table : map->name);
 			}
 	}
-	ast_cli(fd,"\n\n");
+	opbx_cli(fd,"\n\n");
 	
-	ast_mutex_unlock(&config_lock);
+	opbx_mutex_unlock(&config_lock);
 
 	return 0;
 }
@@ -1054,11 +1054,11 @@ static char show_config_help[] =
 	"Usage: show config mappings\n"
 	"	Shows the filenames to config engines.\n";
 
-static struct ast_cli_entry config_command_struct = {
+static struct opbx_cli_entry config_command_struct = {
 	{ "show", "config", "mappings", NULL }, config_command, "Show Config mappings (file names to config engines)", show_config_help, NULL
 };
 
 int register_config_cli() 
 {
-	return ast_cli_register(&config_command_struct);
+	return opbx_cli_register(&config_command_struct);
 }

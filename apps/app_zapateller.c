@@ -56,7 +56,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int zapateller_exec(struct ast_channel *chan, void *data)
+static int zapateller_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
@@ -77,13 +77,13 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
                 c = strsep(&stringp, "|");
         }
 
-	ast_stopstream(chan);
-	if (chan->_state != AST_STATE_UP) {
+	opbx_stopstream(chan);
+	if (chan->_state != OPBX_STATE_UP) {
 
 		if (answer) 
-			res = ast_answer(chan);
+			res = opbx_answer(chan);
 		if (!res) {
-			res = ast_safe_sleep(chan, 500);
+			res = opbx_safe_sleep(chan, 500);
 		}
 	}
 	if (chan->cid.cid_num && nocallerid) {
@@ -91,13 +91,13 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 		return res;
 	} 
 	if (!res) 
-		res = ast_tonepair(chan, 950, 0, 330, 0);
+		res = opbx_tonepair(chan, 950, 0, 330, 0);
 	if (!res) 
-		res = ast_tonepair(chan, 1400, 0, 330, 0);
+		res = opbx_tonepair(chan, 1400, 0, 330, 0);
 	if (!res) 
-		res = ast_tonepair(chan, 1800, 0, 330, 0);
+		res = opbx_tonepair(chan, 1800, 0, 330, 0);
 	if (!res) 
-		res = ast_tonepair(chan, 0, 0, 1000, 0);
+		res = opbx_tonepair(chan, 0, 0, 1000, 0);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -105,12 +105,12 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, zapateller_exec, synopsis, descrip);
+	return opbx_register_application(app, zapateller_exec, synopsis, descrip);
 }
 
 char *description(void)

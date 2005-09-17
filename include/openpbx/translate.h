@@ -33,10 +33,10 @@ extern "C" {
 #include "openpbx/plc.h"
 
 /* Declared by individual translators */
-struct ast_translator_pvt;
+struct opbx_translator_pvt;
 
 /*! data structure associated with a translator */
-struct ast_translator {
+struct opbx_translator {
 	/*! Name of translator */
 	char name[80];
 	/*! Source format */
@@ -44,31 +44,31 @@ struct ast_translator {
 	/*! Destination format */
 	int dstfmt;
 	/*! Private data associated with the translator */
-	struct ast_translator_pvt *(*newpvt)(void);
+	struct opbx_translator_pvt *(*newpvt)(void);
 	/*! Input frame callback */
-	int (*framein)(struct ast_translator_pvt *pvt, struct ast_frame *in);
+	int (*framein)(struct opbx_translator_pvt *pvt, struct opbx_frame *in);
 	/*! Output frame callback */
-	struct ast_frame * (*frameout)(struct ast_translator_pvt *pvt);
+	struct opbx_frame * (*frameout)(struct opbx_translator_pvt *pvt);
 	/*! Destroy translator callback */
-	void (*destroy)(struct ast_translator_pvt *pvt);
+	void (*destroy)(struct opbx_translator_pvt *pvt);
 	/* For performance measurements */
 	/*! Generate an example frame */
-	struct ast_frame * (*sample)(void);
+	struct opbx_frame * (*sample)(void);
 	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
 	int cost;
 	/*! For linking, not to be modified by the translator */
-	struct ast_translator *next;
+	struct opbx_translator *next;
 };
 
-struct ast_trans_pvt;
+struct opbx_trans_pvt;
 
 /*! Register a translator */
 /*! 
- * \param t populated ast_translator structure
+ * \param t populated opbx_translator structure
  * This registers a codec translator with openpbx
  * Returns 0 on success, -1 on failure
  */
-extern int ast_register_translator(struct ast_translator *t);
+extern int opbx_register_translator(struct opbx_translator *t);
 
 /*! Unregister a translator */
 /*!
@@ -76,7 +76,7 @@ extern int ast_register_translator(struct ast_translator *t);
  * Unregisters the given tranlator
  * Returns 0 on success, -1 on failure
  */
-extern int ast_unregister_translator(struct ast_translator *t);
+extern int opbx_unregister_translator(struct opbx_translator *t);
 
 /*! Chooses the best translation path */
 /*! 
@@ -84,23 +84,23 @@ extern int ast_unregister_translator(struct ast_translator *t);
    I choose? Returns 0 on success, -1 if no path could be found.  Modifies
    dests and srcs in place 
    */
-extern int ast_translator_best_choice(int *dsts, int *srcs);
+extern int opbx_translator_best_choice(int *dsts, int *srcs);
 
 /*!Builds a translator path */
 /*! 
  * \param dest destination format
  * \param source source format
  * Build a path (possibly NULL) from source to dest 
- * Returns ast_trans_pvt on success, NULL on failure
+ * Returns opbx_trans_pvt on success, NULL on failure
  * */
-extern struct ast_trans_pvt *ast_translator_build_path(int dest, int source);
+extern struct opbx_trans_pvt *opbx_translator_build_path(int dest, int source);
 
 /*! Frees a translator path */
 /*!
  * \param tr translator path to get rid of
  * Frees the given translator path structure
  */
-extern void ast_translator_free_path(struct ast_trans_pvt *tr);
+extern void opbx_translator_free_path(struct opbx_trans_pvt *tr);
 
 /*! translates one or more frames */
 /*! 
@@ -109,9 +109,9 @@ extern void ast_translator_free_path(struct ast_trans_pvt *tr);
  * \param consume Whether or not to free the original frame
  * Apply an input frame into the translator and receive zero or one output frames.  Consume
  * determines whether the original frame should be freed
- * Returns an ast_frame of the new translation format on success, NULL on failure
+ * Returns an opbx_frame of the new translation format on success, NULL on failure
  */
-extern struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, int consume);
+extern struct opbx_frame *opbx_translate(struct opbx_trans_pvt *tr, struct opbx_frame *f, int consume);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

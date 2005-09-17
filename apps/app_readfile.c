@@ -56,7 +56,7 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 
-static int readfile_exec(struct ast_channel *chan, void *data)
+static int readfile_exec(struct opbx_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -64,9 +64,9 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	int len=0;
 
 
-	s = ast_strdupa(data);
+	s = opbx_strdupa(data);
 	if (!s) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		opbx_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
@@ -75,25 +75,25 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	length = s;
 
 	if (!varname || !file) {
-		ast_log(LOG_ERROR, "No file or variable specified!\n");
+		opbx_log(LOG_ERROR, "No file or variable specified!\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 	if (length) {
 		if ((sscanf(length, "%d", &len) != 1) || (len < 0)) {
-			ast_log(LOG_WARNING, "%s is not a positive number, defaulting length to max\n", length);
+			opbx_log(LOG_WARNING, "%s is not a positive number, defaulting length to max\n", length);
 			len = 0;
 		}
 	}
 	
 	
-	returnvar = ast_read_textfile(file);
+	returnvar = opbx_read_textfile(file);
 	if(len > 0){
 		if(len < strlen(returnvar))
 			returnvar[len]='\0';
 		else
-			ast_log(LOG_WARNING,"%s is longer than %d, and %d \n", file, len, (int)strlen(returnvar));
+			opbx_log(LOG_WARNING,"%s is longer than %d, and %d \n", file, len, (int)strlen(returnvar));
 	}
 	pbx_builtin_setvar_helper(chan, varname, returnvar);
 	free(returnvar);
@@ -105,12 +105,12 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_readfile);
+	return opbx_unregister_application(app_readfile);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app_readfile, readfile_exec, readfile_synopsis, readfile_descrip);
+	return opbx_register_application(app_readfile, readfile_exec, readfile_synopsis, readfile_descrip);
 }
 
 char *description(void)

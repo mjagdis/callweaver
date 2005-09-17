@@ -50,7 +50,7 @@ static char *desc = "SQLite CDR Backend";
 static char *name = "sqlite";
 static sqlite* db = NULL;
 
-AST_MUTEX_DEFINE_STATIC(sqlite_lock);
+OPBX_MUTEX_DEFINE_STATIC(sqlite_lock);
 
 static char sql_create_table[] = "CREATE TABLE cdr ("
 "	AcctId		INTEGER PRIMARY KEY,"
@@ -78,7 +78,7 @@ static char sql_create_table[] = "CREATE TABLE cdr ("
 #endif
 ");";
 
-static int sqlite_log(struct ast_cdr *cdr)
+static int sqlite_log(struct opbx_cdr *cdr)
 {
 	int res = 0;
 	char *zErr = 0;
@@ -87,7 +87,7 @@ static int sqlite_log(struct ast_cdr *cdr)
 	char startstr[80], answerstr[80], endstr[80];
 	int count;
 
-	ast_mutex_lock(&sqlite_lock);
+	opbx_mutex_lock(&sqlite_lock);
 
 	t = cdr->start.tv_sec;
 	localtime_r(&t, &tm);
@@ -146,11 +146,11 @@ static int sqlite_log(struct ast_cdr *cdr)
 	}
 	
 	if (zErr) {
-		ast_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+		opbx_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		free(zErr);
 	}
 
-	ast_mutex_unlock(&sqlite_lock);
+	opbx_mutex_unlock(&sqlite_lock);
 	return res;
 }
 
@@ -164,7 +164,7 @@ int unload_module(void)
 {
 	if (db)
 		sqlite_close(db);
-	ast_cdr_unregister(name);
+	opbx_cdr_unregister(name);
 	return 0;
 }
 
@@ -175,10 +175,10 @@ int load_module(void)
 	int res;
 
 	/* is the database there? */
-	snprintf(fn, sizeof(fn), "%s/cdr.db", ast_config_AST_LOG_DIR);
+	snprintf(fn, sizeof(fn), "%s/cdr.db", opbx_config_OPBX_LOG_DIR);
 	db = sqlite_open(fn, 0660, &zErr);
 	if (!db) {
-		ast_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+		opbx_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		free(zErr);
 		return -1;
 	}
@@ -188,7 +188,7 @@ int load_module(void)
 	if (res) {
 		res = sqlite_exec(db, sql_create_table, NULL, NULL, &zErr);
 		if (res) {
-			ast_log(LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
+			opbx_log(LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
 			free(zErr);
 			goto err;
 		}
@@ -196,9 +196,9 @@ int load_module(void)
 		/* TODO: here we should probably create an index */
 	}
 	
-	res = ast_cdr_register(name, desc, sqlite_log);
+	res = opbx_cdr_register(name, desc, sqlite_log);
 	if (res) {
-		ast_log(LOG_ERROR, "Unable to register SQLite CDR handling\n");
+		opbx_log(LOG_ERROR, "Unable to register SQLite CDR handling\n");
 		return -1;
 	}
 	return 0;

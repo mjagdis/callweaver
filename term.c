@@ -151,16 +151,16 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 	int attr=0;
 	char tmp[40];
 	if (!vt100compat) {
-		ast_copy_string(outbuf, inbuf, maxout);
+		opbx_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	if (!fgcolor && !bgcolor) {
-		ast_copy_string(outbuf, inbuf, maxout);
+		opbx_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	if ((fgcolor & 128) && (bgcolor & 128)) {
 		/* Can't both be highlighted */
-		ast_copy_string(outbuf, inbuf, maxout);
+		opbx_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	if (!bgcolor)
@@ -252,7 +252,7 @@ char *term_strip(char *outbuf, char *inbuf, int maxout)
 char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 {
 	if (!vt100compat) {
-		ast_copy_string(outbuf, inbuf, maxout);
+		opbx_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	snprintf(outbuf, maxout, "%c[%d;%d;%dm%c%c[%d;%d;%dm%s",
