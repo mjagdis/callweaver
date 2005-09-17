@@ -14,10 +14,6 @@ on the project itself, please visit the OpenPBX home page at:
 
            http://www.openpbx.org
 
-In addition you'll find lots of information compiled by the OpenPBX
-community on this Wiki:
-
-           http://www.voip-info.org/wiki-OpenPBX
 
 * LICENSING
   OpenPBX is distributed under GNU General Public License and is also
@@ -25,28 +21,6 @@ available under alternative licenses negotiated directly with Digium, Inc.
 If you obtained OpenPBX under the GPL, then the GPL applies to all
 loadable modules used on your system as well, except as defined below.
 
-  Digium, Inc. (formerly Linux Support Services) retains copyright and/or a
-sufficient license to all components of the core OpenPBX system, and therefore
-can grant, at its sole discretion, the ability for companies, individuals, or
-organizations to create proprietary or Open Source (but non-GPL'd) modules
-which may be dynamically linked at runtime with the portions of OpenPBX which
-fall under our copyright/license umbrella, or are distributed under more
-flexible licenses than GPL.  
-
-  If you wish to use our code in other GPL programs, don't worry -- there
-is no requirement that you provide the same exception in your GPL'd
-products (although if you've written a module for OpenPBX we would
-strongly encourage you to make the same exception that we do).
-
-  Specific permission is also granted to OpenSSL and OpenH323 to link with
-OpenPBX.
-
-  If you have any questions, whatsoever, regarding our licensing policy,
-please contact us.
-
-  Modules that are GPL-licensed and not available under Digium's 
-licensing scheme are added to the OpenPBX-addons CVS module.
-  
 * OPERATING SYSTEMS
 
 == Linux ==
@@ -210,8 +184,8 @@ follow the instructions for your system below:
 
 root            soft    nofile          4096
 root            hard    nofile          8196
-openpbx        soft    nofile          4096
-openpbx        hard    nofile          8196
+openpbx         soft    nofile          4096
+openpbx         hard    nofile          8196
 
 (adjust the numbers to taste).  You may need to reboot the system for
 these changes to take effect.
@@ -229,7 +203,7 @@ that starts OpenPBX.
   Finally, you may wish to visit the web site and join the mailing list if
 you're interested in getting more information.
 
-   http://www.openpbx.org/index.php?menu=support
+   http://www.openpbx.org
 
   Welcome to the growing worldwide community of OpenPBX users!
 
