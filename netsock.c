@@ -50,7 +50,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.2 $")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "openpbx/netsock.h"
 #include "openpbx/logger.h"

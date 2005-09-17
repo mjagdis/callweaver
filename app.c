@@ -36,7 +36,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.76 $")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"

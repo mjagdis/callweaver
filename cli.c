@@ -32,7 +32,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.98 $")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "openpbx/logger.h"
 #include "openpbx/options.h"

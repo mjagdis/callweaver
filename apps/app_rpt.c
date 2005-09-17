@@ -153,7 +153,7 @@ enum {HF_SCAN_OFF,HF_SCAN_DOWN_SLOW,HF_SCAN_DOWN_QUICK,HF_SCAN_DOWN_FAST,HF_SCAN
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.42 $")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <signal.h>
 #include <stdio.h>

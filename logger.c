@@ -39,7 +39,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.83 $")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 static int syslog_level_map[] = {
 	LOG_DEBUG,
