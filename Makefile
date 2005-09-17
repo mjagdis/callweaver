@@ -578,7 +578,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme
 	install -m 755 openpbx $(DESTDIR)$(ASTSBINDIR)/
-	install -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
+	install -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ]; then \
 		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(ASTSBINDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ;\
@@ -599,7 +599,7 @@ bininstall: all
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
