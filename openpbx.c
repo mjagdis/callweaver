@@ -1,9 +1,8 @@
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
- *
  * Based on Asterisk written by Mark Spencer <markster@digium.com>
+ *  Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * See http://www.openpbx.org for more information about
  * the OpenPBX project. Please do not directly contact
