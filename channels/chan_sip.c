@@ -12722,11 +12722,6 @@ int usecount()
 	return usecnt;
 }
 
-char *key()
-{
-	return OPENPBX_GPL_KEY;
-}
-
 char *description()
 {
 	return (char *) desc;

@@ -1850,7 +1850,4 @@ char *description(void)
 	return dtext;
 }
 
-char *key(void)
-{
-	return OPENPBX_GPL_KEY;
-}
+

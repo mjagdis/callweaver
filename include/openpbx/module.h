@@ -75,23 +75,6 @@ int usecount(void);			/* How many channels provided by this module are in use? *
 char *description(void);		/* Description of this module */
 
 /*! 
- * \brief Returns the OPENPBX_GPL_KEY
- *
- * This returns the OPENPBX_GPL_KEY, signifiying that you agree to the terms of
- * the GPL stated in the OPENPBX_GPL_KEY.  Your module will not load if it does
- * not return the EXACT message:
- *
- * \code
- * char *key(void) {
- *         return OPENPBX_GPL_KEY;
- * }
- * \endcode
- *
- * \return OPENPBX_GPL_KEY
- */
-char *key(void);		/* Return the below mentioned key, unmodified */
-
-/*! 
  * \brief Reload stuff.
  *
  * This function is where any reload routines take place.  Re-read config files,
@@ -100,15 +83,6 @@ char *key(void);		/* Return the below mentioned key, unmodified */
  * \return The return value is not used.
  */
 int reload(void);		/* reload configs */
-
-/*! \brief The text the key() function should return. */
-#define OPENPBX_GPL_KEY \
-	"This paragraph is Copyright (C) 2000, Linux Support Services, Inc.  \
-In order for your module to load, it must return this key via a function \
-called \"key\".  Any code which includes this paragraph must be licensed under \
-the GNU General Public License version 2 or later (at your option).   Linux \
-Support Services, Inc. reserves the right to allow other parties to license \
-this paragraph under other terms as well."
 
 #define OPBX_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
 

@@ -136,7 +136,4 @@ char *description()
 }
 
 
-char *key()
-{
-	return OPENPBX_GPL_KEY;
-}
+

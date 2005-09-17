@@ -187,11 +187,6 @@ int usecount(void)
 	return 1;
 }
 
-char *key()
-{
-	return OPENPBX_GPL_KEY;
-}
-
 int unload_module(void)
 {
 	opbx_unregister_switch(&loopback_switch);

@@ -1222,8 +1222,3 @@ int usecount(void)
 	return 1;
 #endif
 }
-
-char *key()
-{
-	return OPENPBX_GPL_KEY;
-}

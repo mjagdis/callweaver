@@ -116,8 +116,3 @@ int usecount (void)
 	STANDARD_USECOUNT (res);
 	return res;
 }
-
-char *key ()
-{
-	return OPENPBX_GPL_KEY;
-}

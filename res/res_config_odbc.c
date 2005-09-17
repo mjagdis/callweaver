@@ -547,8 +547,3 @@ int usecount (void)
 	/* never unload a config module */
 	return 1;
 }
-
-char *key ()
-{
-	return OPENPBX_GPL_KEY;
-}

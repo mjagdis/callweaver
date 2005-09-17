@@ -606,8 +606,3 @@ int usecount(void)
 	/* We should never be unloaded */
 	return 1;
 }
-
-char *key()
-{
-	return OPENPBX_GPL_KEY;
-}

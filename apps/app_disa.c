@@ -390,7 +390,4 @@ int usecount(void)
 	return res;
 }
 
-char *key(void)
-{
-	return OPENPBX_GPL_KEY;
-}
+
