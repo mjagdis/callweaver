@@ -73,7 +73,7 @@ TRACE_FRAMES = #-DTRACE_FRAMES
 #   *CLI> show memory allocations [filename]
 #   *CLI> show memory summary [filename]
 #
-MALLOC_DEBUG = #-include $(PWD)/include/openpbx/astmm.h
+MALLOC_DEBUG = #-include $(PWD)/include/openpbx/opbxmm.h
 
 # Where to install openpbx after compiling
 # Default -> leave empty
@@ -293,7 +293,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
 	cdr.o tdd.o acl.o rtp.o manager.o openpbx.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
-	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
+	opbxmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
 	netsock.o slinfactory.o opbx_expr2.o opbx_expr2f.o
 
