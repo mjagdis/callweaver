@@ -20,7 +20,7 @@ OpenPBX 1.0.1
  -- Add ability to purge callers from queue if no agents are logged in
  -- Fix inband PRI indication detection
  -- Fix for MGCP - always request digits if no RTP stream
- -- Fixed seg fault for ast_control_streamfile
+ -- Fixed seg fault for opbx_control_streamfile
  -- Make pick-up extension configurable via features.conf 
  -- Numerous other bug fixes
 OpenPBX 1.0.0
@@ -73,7 +73,7 @@ OpenPBX 0.7.0
  -- Major redesign of app_voicemail
  -- Syslog support
  -- Reload logfiles with CLI command 'logger reload' and rotate logs with "logger rotate'
- -- Configurable DEBUG, NOTICE, WARNING, ERROR and ast_verbose messages now appear on remote console 
+ -- Configurable DEBUG, NOTICE, WARNING, ERROR and opbx_verbose messages now appear on remote console 
  -- Properly reaping any zombie processes
  -- Added applications SayUnixTime, SetCDRUserField, HasNewVoicemail, ZapScan, Random, ResetCDR, NoCDR
  -- Make PRI Hangup Cause available to the dialplan
@@ -221,7 +221,7 @@ OpenPBX 0.1.12
  -- Add 'h' extension, executed on hangup
  -- Add duration timer to message info
  -- Add web based voicemail checking ("make webvmail")
- -- Add ast_queue_frame function and eliminate frame pipes in most drivers
+ -- Add opbx_queue_frame function and eliminate frame pipes in most drivers
  -- Centralize host access (and possibly future ACL's)
  -- Add Caller*ID on PhoneJack (Thanks Nathan)
  -- Add "safe_openpbx" wrapper script to auto-restart OpenPBX
@@ -250,7 +250,7 @@ OpenPBX 0.1.11
  -- Optimize IAX flow when transfer isn't possible
  -- Allow transmission of ANI over IAX
 OpenPBX 0.1.10
- -- Make ast_readstring parameter be the max # of digits, not the max size with \0
+ -- Make opbx_readstring parameter be the max # of digits, not the max size with \0
  -- Make up any missing messages on the fly
  -- Add support for specific DTMF interruption to saying numbers
  -- Add new "u" and "b" options to condense busy/unavail handling
@@ -268,7 +268,7 @@ OpenPBX 0.1.9
  -- Allow Caller*ID to be overridden and suggested
  -- Configure defaults to use IAXTEL
  -- Allow remote dialplan polling via IAX
- -- Eliminate ast_longest_extension
+ -- Eliminate opbx_longest_extension
  -- Implement dialplan request/reply
  -- Let peers have allow/disallow for codecs
  -- Change allow/deny to permit/deny in IAX

@@ -45,7 +45,7 @@ install:
 
 clean:
 	rm -f *.o opbxman smsq stereorize streamplayer check_expr .depend
-	rm -f ast_expr2.o ast_expr2f.o
+	rm -f opbx_expr2.o opbx_expr2f.o
 
 opbxman: opbxman.o ../md5.o
 	$(CC) $(CFLAGS) -o opbxman opbxman.o ../md5.o -lnewt
@@ -53,13 +53,13 @@ opbxman: opbxman.o ../md5.o
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
-ast_expr2.o: ../ast_expr2.c
+opbx_expr2.o: ../opbx_expr2.c
 	gcc -g -c -o $@ $<
 
-ast_expr2f.o: ../ast_expr2f.c
+opbx_expr2f.o: ../opbx_expr2f.c
 	gcc -g -c -DSTANDALONE -o $@ $<
 
-check_expr: check_expr.c ast_expr2.o ast_expr2f.o
+check_expr: check_expr.c opbx_expr2.o opbx_expr2f.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 smsq: smsq.o

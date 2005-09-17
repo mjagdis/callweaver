@@ -65,7 +65,7 @@ DEBUG=-g #-pg
 # Optional debugging parameters
 DEBUG_THREADS = #-DDUMP_SCHEDULER #-DDEBUG_SCHEDULER #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
 
-# Uncomment next one to enable ast_frame tracing (for debugging)
+# Uncomment next one to enable opbx_frame tracing (for debugging)
 TRACE_FRAMES = #-DTRACE_FRAMES
 
 # Uncomment next one to enable malloc debugging
@@ -388,7 +388,7 @@ ifneq ($(wildcard .tags-depend),)
 endif
 
 opbx_expr2.c:
-	bison -d --name-prefix=ast_yy opbx_expr2.y -o opbx_expr2.c
+	bison -d --name-prefix=opbx_yy opbx_expr2.y -o opbx_expr2.c
 
 opbx_expr2f.c:
 	flex --full opbx_expr2.fl

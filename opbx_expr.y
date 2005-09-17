@@ -44,7 +44,7 @@
 #define YYPARSE_PARAM kota
 #define YYLEX_PARAM kota
 
-/* #define ast_log fprintf
+/* #define opbx_log fprintf
 #define LOG_WARNING stderr */
 
 #ifdef SOLARIS
@@ -104,16 +104,16 @@ typedef struct yyltype
   int first_line;
   int first_column;
 
-  int last_line;
-  int last_column;
+  int lopbx_line;
+  int lopbx_column;
 } yyltype;
 
 # define YYLTYPE yyltype
 # define YYLTYPE_IS_TRIVIAL 1
 
-static int		ast_yyerror __P((const char *,YYLTYPE *, struct parser_control *));
+static int		opbx_yyerror __P((const char *,YYLTYPE *, struct parser_control *));
 
-#define ast_yyerror(x) ast_yyerror(x,&yyloc,kota)
+#define opbx_yyerror(x) opbx_yyerror(x,&yyloc,kota)
 
 %}
 
@@ -121,7 +121,7 @@ static int		ast_yyerror __P((const char *,YYLTYPE *, struct parser_control *));
 %locations
 /* %debug  for when you are having big problems */
 
-/* %name-prefix="ast_yy" */
+/* %name-prefix="opbx_yy" */
 
 %union
 {
@@ -129,7 +129,7 @@ static int		ast_yyerror __P((const char *,YYLTYPE *, struct parser_control *));
 }
 
 %{
-static int		ast_yylex __P((YYSTYPE *, YYLTYPE *, struct parser_control *));
+static int		opbx_yylex __P((YYSTYPE *, YYLTYPE *, struct parser_control *));
 %}
 
 
@@ -149,21 +149,21 @@ start: expr { ((struct parser_control *)kota)->result = $$; }
 	;
 
 expr:	TOKEN
-	| '(' expr ')' { $$ = $2; @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '|' expr { $$ = op_or ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '&' expr { $$ = op_and ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '=' expr { $$ = op_eq ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '>' expr { $$ = op_gt ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '<' expr { $$ = op_lt ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr GE expr  { $$ = op_ge ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr LE expr  { $$ = op_le ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr NE expr  { $$ = op_ne ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '+' expr { $$ = op_plus ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '-' expr { $$ = op_minus ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '*' expr { $$ = op_times ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '/' expr { $$ = op_div ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr '%' expr { $$ = op_rem ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
-	| expr ':' expr { $$ = op_colon ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| '(' expr ')' { $$ = $2; @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '|' expr { $$ = op_or ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '&' expr { $$ = op_and ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '=' expr { $$ = op_eq ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '>' expr { $$ = op_gt ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '<' expr { $$ = op_lt ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr GE expr  { $$ = op_ge ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr LE expr  { $$ = op_le ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr NE expr  { $$ = op_ne ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '+' expr { $$ = op_plus ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '-' expr { $$ = op_minus ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '*' expr { $$ = op_times ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '/' expr { $$ = op_div ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr '%' expr { $$ = op_rem ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
+	| expr ':' expr { $$ = op_colon ($1, $3); @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; @$.first_line=0; @$.lopbx_line=0;}
 	;
 
 
@@ -177,7 +177,7 @@ quad_t i;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		ast_log(LOG_WARNING, "malloc() failed\n");
+		opbx_log(LOG_WARNING, "malloc() failed\n");
 		return(NULL);
 	}
 
@@ -196,7 +196,7 @@ const char *s;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		ast_log(LOG_WARNING,"malloc() failed\n");
+		opbx_log(LOG_WARNING,"malloc() failed\n");
 		return(NULL);
 	}
 
@@ -237,7 +237,7 @@ struct val *vp;
 	quad_t i;
 
 	if (vp == NULL) {
-		ast_log(LOG_WARNING,"vp==NULL in to_integer()\n");
+		opbx_log(LOG_WARNING,"vp==NULL in to_integer()\n");
 		return(0);
 	}
 
@@ -252,7 +252,7 @@ struct val *vp;
 	i  = strtoq(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
 		free(vp->u.s);
-		ast_log(LOG_WARNING,"overflow\n");
+		opbx_log(LOG_WARNING,"overflow\n");
 		return(0);
 	}
 	free (vp->u.s);
@@ -272,7 +272,7 @@ struct val *vp;
 
 	tmp = malloc ((size_t)25);
 	if (tmp == NULL) {
-		ast_log(LOG_WARNING,"malloc() failed\n");
+		opbx_log(LOG_WARNING,"malloc() failed\n");
 		return;
 	}
 
@@ -291,7 +291,7 @@ struct val *vp;
 }
 
 static int
-ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
+opbx_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 {
 	char *p=0;
 	char *t1=0;
@@ -317,7 +317,7 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 		*t1 = 0;
 		p = karoto->ptrptr;
 		karoto->ptrptr = t1+1;
-		yylloc->last_column = t1 - karoto->argv;
+		yylloc->lopbx_column = t1 - karoto->argv;
 	}
 	else if (*t1 == '"' )
 	{
@@ -356,7 +356,7 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 			p = t1;
 			karoto->ptrptr = t2;
 		}
-		yylloc->last_column = t2 - karoto->argv;
+		yylloc->lopbx_column = t2 - karoto->argv;
 	}
 	else if( *t1 == 0 )
 	{
@@ -370,7 +370,7 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 		{
 			/* we are done. That was quick */
 			p = karoto->ptrptr;
-			yylloc->last_column = t1 - karoto->argv;
+			yylloc->lopbx_column = t1 - karoto->argv;
 		}
 	}
 	if( *p == 0 )
@@ -426,9 +426,9 @@ char *opbx_expr (char *arg)
 	karoto.firsttoken=1;
 	karoto.argv=kota;
 	karoto.arg_orig = arg;
-	/* ast_yydebug = 1; */
+	/* opbx_yydebug = 1; */
 	
-	ast_yyparse ((void *)&karoto);
+	opbx_yyparse ((void *)&karoto);
 
 	free(kota);
 
@@ -460,11 +460,11 @@ int main(int argc,char **argv) {
 
 #endif
 
-#undef ast_yyerror
-#define ast_yyerror(x) ast_yyerror(x, YYLTYPE *yylloc, struct parser_control *karoto)
+#undef opbx_yyerror
+#define opbx_yyerror(x) opbx_yyerror(x, YYLTYPE *yylloc, struct parser_control *karoto)
 
 static int
-ast_yyerror (const char *s)
+opbx_yyerror (const char *s)
 {	
 	char spacebuf[8000]; /* best safe than sorry */
 	char spacebuf2[8000]; /* best safe than sorry */
@@ -473,17 +473,17 @@ ast_yyerror (const char *s)
 	
 	if( yylloc->first_column > 7990 ) /* if things get out of whack, why crash? */
 		yylloc->first_column = 7990;
-	if( yylloc->last_column > 7990 )
-		yylloc->last_column = 7990;
+	if( yylloc->lopbx_column > 7990 )
+		yylloc->lopbx_column = 7990;
 	for(i=0;i<yylloc->first_column;i++) spacebuf[i] = ' ';
-	for(   ;i<yylloc->last_column;i++) spacebuf[i] = '^';
+	for(   ;i<yylloc->lopbx_column;i++) spacebuf[i] = '^';
 	spacebuf[i] = 0;
 
 	for(i=0;i<karoto->ptrptr-karoto->argv;i++) spacebuf2[i] = ' ';
 	spacebuf2[i++]='^';
 	spacebuf2[i]= 0;
 
-	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n%s\n",s, 
+	opbx_log(LOG_WARNING,"opbx_yyerror(): syntax error: %s; Input:\n%s\n%s\n%s\n",s, 
 			karoto->arg_orig,spacebuf,spacebuf2);
 	return(0);
 }
@@ -663,7 +663,7 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a)) {
-		ast_log(LOG_WARNING,"non-numeric argument\n");
+		opbx_log(LOG_WARNING,"non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -679,7 +679,7 @@ struct val *a, *b;
 
 	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		ast_log(LOG_WARNING,"overflow\n");
+		opbx_log(LOG_WARNING,"overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -708,7 +708,7 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -720,14 +720,14 @@ struct val *a, *b;
 			return (r);
 		}
 	} else if (!to_integer(b)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(b);
 		return (a);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -756,13 +756,13 @@ struct val *a, *b;
 	if (!to_integer (a) || !to_integer (b)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return(make_integer(0));
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -790,17 +790,17 @@ struct val *a, *b;
 	if (!to_integer (a)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	} else if (!to_integer (b)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(INT_MAX);
 	}
 
 	if (b->u.i == 0) {
-		ast_log(LOG_WARNING, "division by zero\n");		
+		opbx_log(LOG_WARNING, "division by zero\n");		
 		free_value(a);
 		free_value(b);
 		return make_integer(INT_MAX);
@@ -808,7 +808,7 @@ struct val *a, *b;
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
 	if (chk_div (a->u.i, b->u.i)) {
-		ast_log(LOG_WARNING, "overflow\n");
+		opbx_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -822,14 +822,14 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		opbx_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
 		return make_integer(0);
 	}
 
 	if (b->u.i == 0) {
-		ast_log(LOG_WARNING, "div by zero\n");
+		opbx_log(LOG_WARNING, "div by zero\n");
 		free_value(a);
 		return (b);
 	}
@@ -858,7 +858,7 @@ struct val *a, *b;
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		opbx_log(LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
