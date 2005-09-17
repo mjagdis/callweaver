@@ -29,7 +29,7 @@ STANDALONE_FUNCS=$(filter-out $(BUILTINS),$(patsubst %.c,%.o,$(wildcard func*.c)
 
 FUNCS+=$(STANDALONE_FUNCS:.o=.so)
 
-FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(BUILTINS:.o=.c) | awk '{print $$3};')
+FUNC_STRUCTS=$(shell grep 'struct opbx_custom_function' $(BUILTINS:.o=.c) | awk '{print $$3};')
 
 CFLAGS+=-fPIC
 
@@ -52,7 +52,7 @@ clean:
 pbx_functions.h: $(BUILTINS:.o=.c)
 	@echo "/* Automatically generated - do not edit */" > $@
 	@for f in $(FUNC_SOURCES); do echo "#include \"$$f\"" >> $@; done
-	@echo "static struct ast_custom_function *builtins[] = {" >> $@
+	@echo "static struct opbx_custom_function *builtins[] = {" >> $@
 	@for f in $(FUNC_STRUCTS); do echo "&$$f," >> $@; done
 	@echo "};" >> $@
 
