@@ -344,8 +344,8 @@ LIBS+=-lssl
 INSTALL=install
 
 _all: all
-	@echo " +--------- OpenPBX Build Complete ---------+"  
-	@echo " + OpenPBX has successfully been built, but +"  
+	@echo " +--------- OpenPBX Build Complete ----------+"  
+	@echo " + OpenPBX has successfully been built, but  +"  
 	@echo " + cannot be run before being installed by   +"  
 	@echo " + running:                                  +"  
 	@echo " +                                           +"
@@ -604,11 +604,11 @@ bininstall: all
 	install -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
-	@echo " +---- OpenPBX Installation Complete -------+"  
+	@echo " +---- OpenPBX Installation Complete --------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
 	@echo " +                                           +"
-	@echo " + OpenPBX has successfully been installed. +"  
+	@echo " + OpenPBX has successfully been installed.  +"  
 	@echo " + If you would like to install the sample   +"  
 	@echo " + configuration files (overwriting any      +"
 	@echo " + existing config files), run:              +"  
@@ -617,7 +617,7 @@ bininstall: all
 	@echo " +                                           +"
 	@echo " +-----------------  or ---------------------+"
 	@echo " +                                           +"
-	@echo " + You can go ahead and install the openpbx +"
+	@echo " + You can go ahead and install the openpbx  +"
 	@echo " + program documentation now or later run:   +"
 	@echo " +                                           +"
 	@echo " +              $(MAKE) progdocs                +"
@@ -728,9 +728,9 @@ webvmail:
 	for x in images/*.gif; do \
 		install -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_openpbx/; \
 	done
-	@echo " +--------- OpenPBX Web Voicemail ----------+"  
+	@echo " +--------- OpenPBX Web Voicemail -----------+"  
 	@echo " +                                           +"
-	@echo " + OpenPBX Web Voicemail is installed in    +"
+	@echo " + OpenPBX Web Voicemail is installed in     +"
 	@echo " + your cgi-bin directory:                   +"
 	@echo " + $(DESTDIR)$(HTTP_CGIDIR)"
 	@echo " + IT USES A SETUID ROOT PERL SCRIPT, SO     +"
