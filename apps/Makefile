@@ -23,11 +23,11 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_hasnewvoicemail.so app_sayunixtime.so app_cut.so app_read.so \
      app_setcdruserfield.so app_random.so app_ices.so app_eval.so \
      app_nbscat.so app_sendtext.so app_exec.so app_sms.so \
-     app_groupcount.so app_txtcidname.so app_controlplayback.so \
+     app_groupcount.so app_controlplayback.so \
      app_talkdetect.so app_alarmreceiver.so app_userevent.so app_verbose.so \
      app_test.so app_forkcdr.so app_math.so app_realtime.so \
      app_dumpchan.so app_waitforsilence.so app_while.so app_setrdnis.so \
-     app_md5.so app_readfile.so app_chanspy.so app_settransfercapability.so \
+     app_readfile.so app_chanspy.so app_settransfercapability.so \
      app_dictate.so app_externalivr.so app_directed_pickup.so
 
 #
