@@ -1,6 +1,6 @@
-The OpenPBX Open Source PBX
-by Mark Spencer <markster@digium.com>
-Copyright (C) 2001-2005 Digium, Inc.
+OpenPBX http://www.openpbx.org - The True Open Source PBX
+   Based on Asterisk Written by Mark Spencer
+   Copyright 1999-2005, Digium
 ================================================================
 * SECURITY
   It is imperative that you read and fully understand the contents of
@@ -16,10 +16,7 @@ on the project itself, please visit the OpenPBX home page at:
 
 
 * LICENSING
-  OpenPBX is distributed under GNU General Public License and is also
-available under alternative licenses negotiated directly with Digium, Inc.
-If you obtained OpenPBX under the GPL, then the GPL applies to all
-loadable modules used on your system as well, except as defined below.
+  OpenPBX is distributed under GNU General Public License
 
 * OPERATING SYSTEMS
 
