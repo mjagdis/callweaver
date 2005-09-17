@@ -595,8 +595,6 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
@@ -604,11 +602,6 @@ bininstall: all
 	install -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
-	if [ -d contrib/firmware/iax ]; then \
-		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
-	else \
-		echo "You need to do svn update -d not just svn update" ; \
-	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 	@echo " +---- OpenPBX Installation Complete -------+"  
