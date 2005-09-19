@@ -18,7 +18,7 @@
 
 /*
  *
- * The OpenPBX Management Interface - AMI
+ * The OpenPBX Management Interface
  *
  * Channel Management and more
  * 
