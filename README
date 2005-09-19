@@ -38,10 +38,14 @@ ANY special hardware, not even a soundcard) to install and run OpenPBX.
   Supported telephony hardware includes:
 
 	* All Wildcard (tm) products from Digium (www.digium.com)
-	* QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
-	* any full duplex sound card supported by ALSA or OSS
-	* ISDN4Linux compatible ISDN card
-        * VoiceTronix OpenLine products
+	* Sangoma A101,A102 and A104 E1/T1/PRI interfaces (www.sangoma.com)
+	* VoiceTronix OpenLine products (www.voicetronix.com)
+	* QuickNet Internet PhoneJack and LineJack (www.quicknet.net)
+	* Tormenta Dual T1 card (www.bsdtelephony.com.mx)
+	* Full Duplex Sound Cards supported by Linux
+	* Adtran Atlas 800 Plus
+	* ISDN4Linux compatible ISDN cards
+	* HFC chipset based ISDN-BRI PCI cards
 
 Hint: CAPI compatible ISDN cards can be run using the add-on channel chan_capi.
 
