@@ -427,14 +427,14 @@ void iax_showframe(struct iax_frame *f, struct opbx_iax2_full_hdr *fhi, int rx, 
 		"TXREJ  ",
 		"QUELCH ",
 		"UNQULCH",
-		"POKE",
-		"PAGE",
-		"MWI",
-		"UNSUPPORTED",
-		"TRANSFER",
-		"PROVISION",
-		"FWDOWNLD",
-		"FWDATA"
+		"POKE   ",
+		"PAGE   ",
+		"MWI    ",
+		"UNSPRTD",
+		"TRANSFR",
+		"PROVISN",
+		"FWDWNLD",
+		"FWDATA "
 	};
 	const char *cmds[] = {
 		"(0?)",
@@ -443,7 +443,7 @@ void iax_showframe(struct iax_frame *f, struct opbx_iax2_full_hdr *fhi, int rx, 
 		"RINGING",
 		"ANSWER ",
 		"BUSY   ",
-		"TKOFFHK ",
+		"TKOFFHK",
 		"OFFHOOK" };
 	struct opbx_iax2_full_hdr *fh;
 	char retries[20];
