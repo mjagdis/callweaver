@@ -397,7 +397,7 @@ testexpr2: opbx_expr2f.c opbx_expr2.c opbx_expr2.h
 	gcc -g -c -DSTANDALONE opbx_expr2f.c
 	gcc -g -c -DSTANDALONE opbx_expr2.c
 	gcc -g -o testexpr2 opbx_expr2f.o opbx_expr2.o
-	rm opbx_expr2.c opbx_expr2.o opbx_expr2f.o opbx_expr2f.c
+	rm opbx_expr2.o opbx_expr2f.o
 
 manpage: openpbx.8
 
