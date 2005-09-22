@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS=cdr_csv.so cdr_manager.so cdr_custom.so
+MODS=cdr_csv.so cdr_custom.so
 
 CFLAGS+=-fPIC
 
@@ -34,62 +34,6 @@ endif
 #
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   MODS+=cdr_odbc.so
-endif
-
-#
-# FreeTDS stuff...
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/tds.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/tds.h),)
-  MODS+=cdr_tds.so
-endif
-
-#
-# PGSQL stuff...  Autoconf anyone??
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
-  MODS+=cdr_pgsql.so
-endif
-
-MLFLAGS=
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/pgsql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/pgsql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/pgsql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET) /opt/pgsql/lib
-endif
-
-ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
-endif
-
-ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so),)
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib
-endif
-
-#
-# SQLite stuff...
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sqlite.h),)
-  MODS+=cdr_sqlite.so
 endif
 
 all: depend $(MODS)
