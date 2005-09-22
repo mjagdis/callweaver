@@ -1,0 +1,36 @@
+Week of september 18
+	remove not supported channels drivers
+	remove not supported applications
+	Merge trunk-moc sounds folder changes
+	opus automake
+	add pbxfreeware.org apps
+	add woomera
+	non-root setup
+	schedule weekly dev conference call
+	
+Week of september 24
+	Decide of the class within mantis
+	make a native app_dial
+	Moc wishlist
+		Spandsp
+		speex
+		mp3 native support
+		sangoma drivers
+
+30 September 2005
+	Website Design by Revolver3 should be shown
+
+Week of october 3
+	valgrind bashing
+	load testing
+	building website
+	making migration docs
+
+Week of october 10
+	Should be launching
+
+
+Additional items to be talked about:
+
+Core developer list.
+Commit permission list.
