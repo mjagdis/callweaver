@@ -11,8 +11,7 @@
 # the GNU General Public License
 #
 
-PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so pbx_loopback.so pbx_realtime.so \
-         pbx_ael.so
+PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so pbx_loopback.so pbx_realtime.so 
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
