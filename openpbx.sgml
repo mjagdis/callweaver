@@ -1,14 +1,14 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <refentry>
 <refentryinfo>
-	<date>2004-07-18</date>
+	<date>2005-09-22</date>
 </refentryinfo>
 <refmeta>
 	<refentrytitle>
 		<application>openpbx</application>
 	</refentrytitle>
-	<manvolnum>8</manvolnum>
-	<refmiscinfo>openpbx 1.0</refmiscinfo>
+	<manvolnum>1</manvolnum>
+	<refmiscinfo>openpbx 1.2</refmiscinfo>
 </refmeta>
 <refnamediv>
 	<refname>
@@ -37,7 +37,7 @@
 </refsynopsisdiv>
 <refsect1>
 	<refsect1info>
-		<date>2004-07-01</date>
+		<date>2005-09-22</date>
 	</refsect1info>
 	<title>DESCRIPTION</title>
 	<para>
@@ -281,7 +281,7 @@
 <refsect1>
 	<title>BUGS</title>
 	<para>
-	Bug reports and feature requests may be filed at http://bugs.digium.com
+	Bug reports and feature requests may be filed at http://bugs.openpbx.org
 	</para>
 </refsect1>
 <refsect1>
@@ -296,23 +296,14 @@
 	http://www.openpbx.org - The OpenPBX Home Page
 	</para>
 	<para>
-	http://www.openpbxdocs.org - The OpenPBX Documentation Project
-	</para>
-	<para>
-	http://www.voip-info.org/wiki-OpenPBX - The OpenPBX Wiki
-	</para>
-	<para>
-	http://www.digium.com/ - OpenPBX sponsor and hardware supplier
-	</para>
-	<para>
-	http://www.markocam.com/ - OpenPBX author's web cam
+	http://www.voip-info.org/wiki-OpenPBX.org - The OpenPBX.org Wiki
 	</para>
 </refsect1>
 <refsect1>
 	<title>AUTHOR</title>
 	<para>
 	<author>
-		<firstname>Mark Spencer &lt;markster@digium.com&gt;</firstname> 
+		<firstname>OpenPBX Community www.openpbx.org</firstname> 
 	</author>
 	</para>
 	<para>
