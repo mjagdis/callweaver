@@ -22,10 +22,6 @@ endif
 
 TARGET=stereorize streamplayer
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/popt.h)$(wildcard -f $(CROSS_COMPILE_TARGET)/usr/local/include/popt.h),)
-  TARGET+=smsq
-endif
-
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/newt.h)$(wildcard -f $(CROSS_COMPILE_TARGET)/usr/local/include/newt.h),)
   TARGET+=opbxman
 endif
@@ -44,7 +40,7 @@ install:
 	done 
 
 clean:
-	rm -f *.o opbxman smsq stereorize streamplayer check_expr .depend
+	rm -f *.o opbxman stereorize streamplayer check_expr .depend
 	rm -f opbx_expr2.o opbx_expr2f.o
 
 opbxman: opbxman.o ../md5.o
@@ -61,9 +57,6 @@ opbx_expr2f.o: ../opbx_expr2f.c
 
 check_expr: check_expr.c opbx_expr2.o opbx_expr2f.o
 	$(CC) $(CFLAGS) -o $@ $^
-
-smsq: smsq.o
-	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt
 
 streamplayer: streamplayer.o
 	$(CC) $(CFLAGS) -o streamplayer ${SOL} streamplayer.o
