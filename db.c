@@ -17,13 +17,7 @@
  */
 
 /*
- *
- * Channel Management
- * 
- *
- * DB3 is licensed under Sleepycat Public License and is thus incompatible
- * with GPL.  To avoid having to make another exception (and complicate 
- * licensing even further) we elect to use DB1 which is BSD licensed 
+ * To be replaced totally with SQLite
  */
 
 
