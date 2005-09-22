@@ -44,7 +44,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
 #APPS+=app_rpt.so
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
-  APPS+=app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so
+  APPS+=app_meetme.so app_flash.so
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
