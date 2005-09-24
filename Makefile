@@ -575,8 +575,6 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
-	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
