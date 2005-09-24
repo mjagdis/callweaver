@@ -10,7 +10,7 @@
 # License
 #
 
-OUTPUT=$HOME/digiuminfo
+OUTPUT=$HOME/openpbxsupportinfo
 
 if [ $UID -ne  0 ]; then
 
@@ -106,7 +106,8 @@ exit
 fi
 
 echo
-echo "Digium may require root level access to the system to help debug";
+echo "##### Never give root level access to untrusted user ######";
+echo "User debuging the system require root level access to the system to help debug";
 echo "the problem you are experiencing. Do you want to provide login";
 echo "information at this time?";
 echo "Press 'y' for yes and any other key to exit and save the previous info collected"
@@ -140,14 +141,12 @@ if [ "$login" = "y" ]; then
 
   echo 
   echo "All information has been stored in $OUTPUT,"
-  echo "Please attach this file to an email ticket you already"
-  echo "have open with Digium Tech Support."
+  echo "Please attach this file to an email ticket you already openned"
 
 else
   echo
   echo "All information except login info has been stored in $OUTPUT,"
-  echo "Please send this file to an email ticket you already"
-  echo "have open with Digium Tech Support."
+  echo "Please send this file to an email ticket you already have open"
 exit
 fi
 
