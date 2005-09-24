@@ -1203,14 +1203,15 @@ int opbx_cli_generatornummatches(char *text, char *word)
 	int matches = 0, i = 0;
 	char *buf = NULL, *oldbuf = NULL;
 
-	while ( (buf = opbx_cli_generator(text, word, i)) ) {
-		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
-				continue;
-		}
+	while ( (buf = opbx_cli_generator(text, word, i++)) ) {
+		if (!oldbuf || strcmp(buf,oldbuf))
+			matches++;
+		if (oldbuf)
+			free(oldbuf);
 		oldbuf = buf;
-		matches++;
 	}
-
+	if (oldbuf)
+		free(oldbuf);
 	return matches;
 }
 
