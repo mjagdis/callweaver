@@ -491,13 +491,13 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		if (endpart) {
 			*endpart = '\0';
 			endpart++;
-			snprintf(filename2, sizeof(filename2), "%s/%s/%s", filename3, preflang, endpart);
+			snprintf(filename2, sizeof(filename2), "%s/%s/%s", preflang, filename3, endpart);
 		} else
 			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = opbx_fileexists(filename2, NULL, NULL);
 	}
 	if (fmts < 1) {
-		opbx_copy_string(filename2, filename, sizeof(filename2));
+		snprintf(filename2, sizeof(filename2), "en/%s", filename);
 		fmts = opbx_fileexists(filename2, NULL, NULL);
 	}
 	if (fmts < 1) {

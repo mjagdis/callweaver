@@ -476,51 +476,56 @@ clean:
 
 datafiles: all
 	sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
-	for x in sounds/digits/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
+	for y in sounds/*; do \
+		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y ; \
+		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/digits ; \
+		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/priv-callerintros ; \
+		for x in $$y/digits/*.gsm; do \
+			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/digits ; \
+			else \
+				echo "No description for $$x"; \
+				exit 1; \
+			fi; \
+		done ; \
+		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/dictate ; \
+		for x in $$y/dictate/*.gsm; do \
+			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/dictate ; \
+			else \
+				echo "No description for $$x"; \
+				exit 1; \
+			fi; \
+		done ; \
+		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/letters ; \
+		for x in $$y/letters/*.gsm; do \
+			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/letters ; \
+			else \
+				echo "No description for $$x"; \
+				exit 1; \
+			fi; \
+		done ; \
+		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/phonetic ; \
+		for x in $$y/phonetic/*.gsm; do \
+			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/phonetic ; \
+			else \
+				echo "No description for $$x"; \
+				exit 1; \
+			fi; \
+		done ; \
+		for x in $$y/demo-* $$y/vm-* $$y/transfer* $$y/pbx-* $$y/ss-* $$y/beep* $$y/dir-* $$y/conf-* $$y/agent-* $$y/invalid* $$y/tt-* $$y/auth-* $$y/privacy-* $$y/queue-* $$y/spy-* $$y/priv-* $$y/screen-*; do \
+			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y ; \
+			else \
+				echo "No description for $$x"; \
+				exit 1; \
+			fi; \
+		done ; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate
-	for x in sounds/dictate/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters
-	for x in sounds/letters/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic
-	for x in sounds/phonetic/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	for x in sounds/demo-* sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-* sounds/spy-* sounds/priv-* sounds/screen-*; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
+	# make allison-en default
+	ln -s $(DESTDIR)$(ASTVARLIBDIR)/sounds/allison-en $(DESTDIR)$(ASTVARLIBDIR)/sounds/en
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
 	for x in images/*.jpg; do \
@@ -569,7 +574,7 @@ bininstall: all
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
-	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
+	rm -f $(DESTDIR)$(ASTVARLIBDIR)/$$y/voicemail
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
@@ -674,27 +679,16 @@ samples: adsi
 		echo "Skipping openpbx.conf creation"; \
 	fi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
-	for x in sounds/demo-*; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
-	#for x in sounds/*.mp3; do \
-	#	install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
-	#done
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/mohmp3/sample-hold.mp3
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
+		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/en/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
 	done
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
+		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/en/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
