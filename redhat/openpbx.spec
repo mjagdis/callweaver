@@ -1,4 +1,4 @@
-Summary: OpenPBX PBX
+Summary: OpenPBX
 Name: openpbx
 Distribution: RedHat
 Version: CVS

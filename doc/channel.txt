@@ -3,7 +3,7 @@ Implementing a Channel
 
 * What is a channel?
 
-A channel is a unit which brings in a call to the OpenPBX PBX.  A channel
+A channel is a unit which brings in a call to the OpenPBX.  A channel
 could be connected to a real telephone (like the Internet Phone Jack) or
 to a logical call (like an Internet phone call).  OpenPBX makes no
 distinction between "FXO" and "FXS" style channels (that is, it doesn't

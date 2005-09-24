@@ -1685,7 +1685,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
-			fprintf(p, "From: OpenPBX PBX <%s>\n", who);
+			fprintf(p, "From: OpenPBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
 		if (emailsubject) {
@@ -1837,7 +1837,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
-			fprintf(p, "From: OpenPBX PBX <%s>\n", who);
+			fprintf(p, "From: OpenPBX <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
                if (pagersubject) {
                        struct opbx_channel *ast = opbx_channel_alloc(0);

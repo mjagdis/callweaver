@@ -12,7 +12,7 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=openpbx
-DESC="OpenPBX PBX"
+DESC="OpenPBX"
 # Full path to openpbx binary
 DAEMON=/usr/sbin/openpbx
 

@@ -48,7 +48,7 @@ maxlogins=3
 ; Skip the "[PBX]:" string from the message title
 ;pbxskip=yes
 ; Change the From: string
-;fromstring=The OpenPBX PBX
+;fromstring=The OpenPBX
 ; Permit finding entries for forward/compose from the directory
 ;usedirectory=yes
 ;
@@ -64,7 +64,7 @@ maxlogins=3
 ;
 ; You can also change the Pager From: string, the pager body and/or subject.
 ; The above defined variables also can be used here
-;pagerfromstring=The OpenPBX PBX
+;pagerfromstring=The OpenPBX
 ;pagersubject=New VM
 ;pagerbody=New ${VM_DUR} long msg in box ${VM_MAILBOX}\nfrom ${VM_CALLERID}, on ${VM_DATE}
 ;

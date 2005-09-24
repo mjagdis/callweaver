@@ -1,4 +1,4 @@
-Inter-OpenPBX eXchange Protocol
+Inter-Asterisk eXchange Protocol
 ================================
 
 Usage:
@@ -16,7 +16,7 @@ the peer will select one.
 Protocol and rationale:
 =======================
 IAX is a simple, low overhead and low bandwidth VoIP protocol designed to 
-allow multiple OpenPBX PBX's to communicate with one another without
+allow multiple OpenPBX's to communicate with one another without
 the overhead of more complex protocols like H.323.  Payload is sent with
 a header overhead of only 4 octets.  Control functions (and one payload packet
 per minute or so) is sent with a more complex header of 12 octets.
@@ -42,13 +42,13 @@ sequence number.
 
 See iax.h for a description of the frame formats. 
 
-IAX internal frames use the AST_FRAME_IAX type.  The subclass of these
+IAX internal frames use the OPBX_FRAME_IAX type.  The subclass of these
 frames is the IAX control number, as seen in iax.h.  The first frame sent
-must be an AST_FRAME_IAX with the control AST_IAX_CONTROL_NEW.  
+must be an OPBX_FRAME_IAX with the control OPBX_IAX_CONTROL_NEW.  
 
-The AST_IAX_CONTROL_NEW establishes a new connection.  
+The OPBX_IAX_CONTROL_NEW establishes a new connection.  
 
-The first frame sent MUST be an AST_CONTROL_NEW to start a connection.
+The first frame sent MUST be an OPBX_CONTROL_NEW to start a connection.
 
 IAX connnections may require authentication using either simple plaintext
 passwords or an md5 challenge/response pair.

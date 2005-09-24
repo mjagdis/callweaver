@@ -1245,7 +1245,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	return res;
 }
 
-/*--- agent_request: Part of the OpenPBX PBX interface ---*/
+/*--- agent_request: Part of the OpenPBX interface ---*/
 static struct opbx_channel *agent_request(const char *type, int format, void *data, int *cause)
 {
 	struct agent_pvt *p;

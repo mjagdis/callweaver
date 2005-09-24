@@ -79,7 +79,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifndef DEFAULT_USERAGENT
-#define DEFAULT_USERAGENT "OpenPBX PBX"
+#define DEFAULT_USERAGENT "OpenPBX"
 #endif
  
 #define VIDEO_CODEC_MASK	0x1fc0000 /* Video codecs from H.261 thru OPBX_FORMAT_MAX_VIDEO */

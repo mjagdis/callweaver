@@ -6057,7 +6057,7 @@ int load_pbx(void)
 
 	/* Initialize the PBX */
 	if (option_verbose) {
-		opbx_verbose( "OpenPBX PBX Core Initializing\n");
+		opbx_verbose( "OpenPBX Core Initializing\n");
 		opbx_verbose( "Registering builtin applications:\n");
 	}
 	OPBX_LIST_HEAD_INIT(&globals);

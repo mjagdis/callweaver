@@ -4,7 +4,7 @@
 # openpbx    Starts, Stops and Reloads OpenPBX.
 #
 # chkconfig: 2345 40 60
-# description: OpenPBX PBX and telephony daemon.
+# description: OpenPBX and telephony daemon.
 # processname: openpbx
 # pidfile: /var/run/openpbx.pid
 #

@@ -293,7 +293,7 @@ static struct opbx_filestream *ogg_vorbis_rewrite(int fd, const char *comment)
 		}
 
 		vorbis_comment_init(&tmp->vc);
-		vorbis_comment_add_tag(&tmp->vc, "ENCODER", "OpenPBX PBX");
+		vorbis_comment_add_tag(&tmp->vc, "ENCODER", "OpenPBX");
 		if(comment)
 			vorbis_comment_add_tag(&tmp->vc, "COMMENT", (char *) comment);
 

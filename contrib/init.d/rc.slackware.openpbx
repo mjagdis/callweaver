@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Start/stop/restart OpenPBX PBX
+# Start/stop/restart OpenPBX
 #
 # Version: 1.0 - Paul Belanger <pabelanger@gmail.com>
 #

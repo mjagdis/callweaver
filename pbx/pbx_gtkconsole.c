@@ -63,7 +63,7 @@ static int inuse=0;
 static int clipipe[2];
 static int cleanupid = -1;
 
-static char *dtext = "OpenPBX PBX Console (GTK Version)";
+static char *dtext = "OpenPBX Console (GTK Version)";
 
 static GtkWidget *window;
 static GtkWidget *quit;
