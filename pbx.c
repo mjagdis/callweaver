@@ -3281,7 +3281,7 @@ struct dialplan_counters {
 	int extension_existence;
 };
 
-static int show_dialplan_helper(int fd, char *context, char *exten, struct dialplan_counters *dpc, struct opbx_include *rinclude)
+static int show_dialplan_helper(int fd, char *context, char *exten, struct dialplan_counters *dpc, struct opbx_include *rinclude, int includecount, char *includes[])
 {
 	struct opbx_context *c;
 	int res=0, old_total_exten = dpc->total_exten;
@@ -3406,7 +3406,24 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 						opbx_get_include_name(i));
 					if (exten) {
 						/* Check all includes for the requested extension */
-						show_dialplan_helper(fd, (char *)opbx_get_include_name(i), exten, dpc, i);
+						if (includecount >= OPBX_PBX_MAX_STACK) {
+							opbx_log(LOG_NOTICE, "Maximum include depth exceeded!\n");
+						} else {
+							int dupe=0;
+							int x;
+							for (x=0;x<includecount;x++) {
+								if (!strcasecmp(includes[x], opbx_get_include_name(i))) {
+									dupe++;
+									break;
+								}
+							}
+							if (!dupe) {
+								includes[includecount] = (char *)opbx_get_include_name(i);
+								show_dialplan_helper(fd, (char *)opbx_get_include_name(i), exten, dpc, i, includecount + 1, includes);
+							} else {
+								opbx_log(LOG_WARNING, "Avoiding circular include of %s within %s\n", opbx_get_include_name(i), context);
+							}
+						}
 					} else {
 						opbx_cli(fd, "  Include =>        %-45s [%s]\n",
 							buf, opbx_get_include_registrar(i));
@@ -3456,7 +3473,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	char *exten = NULL, *context = NULL;
 	/* Variables used for different counters */
 	struct dialplan_counters counters;
-
+	char *incstack[OPBX_PBX_MAX_STACK];
 	memset(&counters, 0, sizeof(counters));
 
 	if (argc != 2 && argc != 3) 
@@ -3476,17 +3493,17 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				exten = NULL;
 			if (opbx_strlen_zero(context))
 				context = NULL;
-			show_dialplan_helper(fd, context, exten, &counters, NULL);
+			show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
 		} else {
 			/* no '@' char, only context given */
 			context = argv[2];
 			if (opbx_strlen_zero(context))
 				context = NULL;
-			show_dialplan_helper(fd, context, exten, &counters, NULL);
+			show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
 		}
 	} else {
 		/* Show complete dial plan */
-		show_dialplan_helper(fd, NULL, NULL, &counters, NULL);
+		show_dialplan_helper(fd, NULL, NULL, &counters, NULL, 0, incstack);
 	}
 
 	/* check for input failure and throw some error messages */
@@ -3535,7 +3552,8 @@ static struct opbx_cli_entry pbx_cli[] = {
 	  "Show dialplan hints", show_hints_help },
 };
 
-int opbx_unregister_application(const char *app) {
+int opbx_unregister_application(const char *app) 
+{
 	struct opbx_app *tmp, *tmpl = NULL;
 	if (opbx_mutex_lock(&applock)) {
 		opbx_log(LOG_ERROR, "Unable to lock application list\n");
