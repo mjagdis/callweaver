@@ -704,7 +704,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 	opbx_mutex_unlock(&c->lock);
 	opbx_mutex_lock(&s->lock);
 	opbx_cli(s->fd, "Response: Success\r\n"
-		"%s: %s\r\n" ,varname,varval2);
+		"Variable: %s\r\nValue: %s\r\n" ,varname,varval2);
 	if (id && !opbx_strlen_zero(id))
 		opbx_cli(s->fd, "ActionID: %s\r\n",id);
 	opbx_cli(s->fd, "\r\n");
