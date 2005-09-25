@@ -3263,10 +3263,10 @@ static int vm_forwardoptions(struct opbx_channel *chan, struct opbx_vm_user *vmu
 			char file[200];
 			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
 			if (record_gain)
-				opbx_channel_setoption(chan, OPBX_OPTION_TXGAIN, &record_gain, sizeof(record_gain), 0);
+				opbx_channel_setoption(chan, OPBX_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
 			cmd = opbx_play_and_prepend(chan, NULL, file, 0, vmfmts, &duration, 1, silencethreshold, maxsilence);
 			if (record_gain)
-				opbx_channel_setoption(chan, OPBX_OPTION_TXGAIN, &zero_gain, sizeof(zero_gain), 0);
+				opbx_channel_setoption(chan, OPBX_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
 			break;
 		}
 		case '2': 
