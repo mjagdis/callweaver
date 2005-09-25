@@ -5196,6 +5196,8 @@ static void *ss_thread(void *data)
 			chan->hangupcause = OPBX_CAUSE_UNALLOCATED;
 			opbx_hangup(chan);
 			p->exten[0] = '\0';
+			/* Since we send release complete here, we won't get one */
+			p->call = NULL;
 		}
 		return NULL;
 		break;
