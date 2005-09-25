@@ -936,7 +936,7 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
 	}
 	opbx_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
-	user->zapchannel = !strcasecmp(chan->type, "Zap");
+	user->zapchannel = !retryzap;
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
@@ -1228,10 +1228,11 @@ zapretry:
 					if (using_pseudo) {
 						/* Kill old pseudo */
 						close(fd);
+						using_pseudo = 0;
 					}
 					opbx_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
-					retryzap = 0;
-					using_pseudo = 0;
+					retryzap = strcasecmp(c->type, "Zap");
+					user->zapchannel = !retryzap;
 					goto zapretry;
 				}
 				f = opbx_read(c);
