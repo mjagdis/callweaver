@@ -37,3 +37,15 @@ Zaptel compatible hardware
    * Wildcard TE410P - Quad T1/E1 switchable interface.  Supports PRI and 
      RBS signalling, as well as PPP, FR, and HDLC data modes.
 
+-- Sangoma
+       http://www.sangoma.com
+
+   * Wanpipe A101 - Single T1/E1 interface connects to a single T1/PRI or
+     E1/EuroPRI interface. Supports RBS and PRI Voice with PRI HDLC in hardware,
+     PPP, FR, and HDLC Data.
+
+   * Wanpipe A102 - Dual T1/E1 Version of the A101
+
+   * Wanpipe A104 - Quad T1/E1 Cersion of the A101
+
+                        
