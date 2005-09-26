@@ -5536,7 +5536,7 @@ static int vm_exec(struct opbx_channel *chan, void *data)
 	if (res == ERROR_LOCK_PATH) {
 		opbx_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
 		/*Send the call to n+101 priority, where n is the current priority*/
-		if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			opbx_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
 		res = 0;
 	}
@@ -5602,7 +5602,7 @@ static int vm_box_exists(struct opbx_channel *chan, void *data)
 	}
 
 	if (find_user(&svm, context, box)) {
-		if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
 			opbx_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
 	}
 	LOCAL_USER_REMOVE(u);
