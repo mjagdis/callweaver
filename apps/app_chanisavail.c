@@ -135,7 +135,7 @@ static int chanavail_exec(struct opbx_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			return -1;
 	}
 
