@@ -525,7 +525,9 @@ datafiles: all
 		done ; \
 	done
 	# make allison-en default
-	ln -s $(DESTDIR)$(ASTVARLIBDIR)/sounds/allison-en $(DESTDIR)$(ASTVARLIBDIR)/sounds/en
+	@if [ ! -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/en ] && [ ! -d $(DESTDIR)$(ASTVARLIBDIR)/sounds/en ] ; then \
+		ln -s $(DESTDIR)$(ASTVARLIBDIR)/sounds/allison-en $(DESTDIR)$(ASTVARLIBDIR)/sounds/en; \
+	fi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
 	for x in images/*.jpg; do \
@@ -574,7 +576,7 @@ bininstall: all
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
-	rm -f $(DESTDIR)$(ASTVARLIBDIR)/$$y/voicemail
+	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
