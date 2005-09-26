@@ -186,11 +186,13 @@ struct opbx_custom_function strftime_function = {
 
 static char *function_eval(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
+	memset(buf, 0, len);
+
 	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "EVAL requires an argument: EVAL(<variable>)\n");
+		opbx_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
 		return buf;
 	}
-	
+
 	pbx_substitute_variables_helper(chan, data, buf, len - 1);
 
 	return buf;
