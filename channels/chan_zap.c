@@ -4140,43 +4140,51 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			}
 			break;
 		case ZT_EVENT_POLARITY:
-			/*
-			 * If we get a Polarity Switch event, check to see
-			 * if we should change the polarity state and
-			 * mark the channel as UP or if this is an indication
-			 * of remote end disconnect. 
-			 */
-			if (p->polarity == POLARITY_IDLE) {
-				p->polarity = POLARITY_REV;
-				if (p->answeronpolarityswitch &&
-				    ((ast->_state == OPBX_STATE_DIALING) ||
-				     (ast->_state == OPBX_STATE_RINGING))) {
-					opbx_log(LOG_DEBUG, "Answering on polarity switch!\n");
-					opbx_setstate(p->owner, OPBX_STATE_UP);
-				} else 
-					opbx_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
-			} else if(p->hanguponpolarityswitch &&
+                        /*
+                         * If we get a Polarity Switch event, check to see
+                         * if we should change the polarity state and
+                         * mark the channel as UP or if this is an indication
+                         * of remote end disconnect.
+                         */
+                        if (p->polarity == POLARITY_IDLE) {
+                                p->polarity = POLARITY_REV;
+                                if (p->answeronpolarityswitch &&
+                                    ((ast->_state == OPBX_STATE_DIALING) ||
+                                     (ast->_state == OPBX_STATE_RINGING))) {
+                                        opbx_log(LOG_DEBUG, "Answering on polarity switch!\n");
+                                        opbx_setstate(p->owner, OPBX_STATE_UP);
+                                } else
+                                        opbx_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
+			} 
+			/* Removed else statement from here as it was preventing hangups from ever happening*/
+			/* Added OPBX_STATE_RING in if statement below to deal with calling party hangups that take place when ringing */
+			if(p->hanguponpolarityswitch &&
 				(p->polarityonanswerdelay > 0) &&
-			        (p->polarity == POLARITY_REV) &&
-				(ast->_state == OPBX_STATE_UP)) {
-
+			       (p->polarity == POLARITY_REV) &&
+				((ast->_state == OPBX_STATE_UP) || (ast->_state == OPBX_STATE_RING)) ) {
+                                /* Added log_debug information below to provide a better indication of what is going on */
+				opbx_log(LOG_DEBUG, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, ast->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) );
+			
 				if(opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) > p->polarityonanswerdelay) {
-					opbx_log(LOG_DEBUG, "Hangup due to Reverse Polarity on channel %d\n", p->channel);
+					opbx_log(LOG_DEBUG, "Polarity Reversal detected and now Hanging up on channel %d\n", p->channel);
 					opbx_softhangup(p->owner, OPBX_SOFTHANGUP_EXPLICIT);
 					p->polarity = POLARITY_IDLE;
 				} else {
-					opbx_log(LOG_DEBUG, "Ignore Reverse Polarity (too close to answer event) on channel %d, state %d\n", p->channel, ast->_state);
+					opbx_log(LOG_DEBUG, "Polarity Reversal detected but NOT hanging up (too close to answer event) on channel %d, state %d\n", p->channel, ast->_state);
 				}
 			} else {
 				p->polarity = POLARITY_IDLE;
-				opbx_log(LOG_DEBUG, "Ignore switch to IDLE Polarity on channel %d, state %d\n", p->channel, ast->_state);
+				opbx_log(LOG_DEBUG, "Ignoring Polarity switch to IDLE on channel %d, state %d\n", p->channel, ast->_state);
 			}
+                     	/* Added more log_debug information below to provide a better indication of what is going on */
+			opbx_log(LOG_DEBUG, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, ast->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) );
 			break;
 		default:
 			opbx_log(LOG_DEBUG, "Dunno what to do with event %d on channel %d\n", res, p->channel);
 	}
 	return &p->subs[index].f;
  }
+
 
 
 
