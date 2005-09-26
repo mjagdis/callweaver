@@ -10173,7 +10173,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "100 Trying", req);
 		}
 	} else {
-		if (p && !opbx_test_flag(p, SIP_NEEDDESTROY)) {
+		if (p && !opbx_test_flag(p, SIP_NEEDDESTROY) && !ignore) {
 			if (!p->jointcapability) {
 				if (ignore)
 					transmit_response(p, "488 Not Acceptable Here (codec error)", req);
