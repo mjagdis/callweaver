@@ -55,13 +55,6 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
 CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
-CURLLIBS=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
-ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
-  ifneq (${CURLLIBS},)
-    APPS+=app_curl.so
-  endif 
-endif
-
 CFLAGS+=-fPIC
 
 #
@@ -89,9 +82,6 @@ install: all
 	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so
-
-app_curl.so: app_curl.o
-	$(CC) $(SOLINK) -o $@ $< $(CURLLIBS)
 
 app_sql_postgres.o: app_sql_postgres.c
 	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
