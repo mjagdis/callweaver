@@ -43,7 +43,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/enum.h"
 #include "openpbx/rtp.h"
 #include "openpbx/lock.h"
-#ifdef __APPLE__
+#ifdef DLFCNCOMPAT
 #include "openpbx/dlfcn-compat.h"
 #else
 #include <dlfcn.h>
