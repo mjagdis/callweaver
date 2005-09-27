@@ -23,7 +23,7 @@
 #ifndef _OPENPBX_IO_H
 #define _OPENPBX_IO_H
 
-#ifdef __APPLE__
+#ifdef POLLCOMPAT
 #include "openpbx/poll-compat.h"
 #else
 #include <sys/poll.h>		/* For POLL* constants */
