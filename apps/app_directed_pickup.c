@@ -51,7 +51,7 @@ LOCAL_USER_DECL;
 
 static int pickup_exec(struct opbx_channel *chan, void *data)
 {
-	int res = -1;
+	int res = 0, locked = 0;
 	struct localuser *u = NULL;
 	struct opbx_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL;
@@ -81,6 +81,8 @@ static int pickup_exec(struct opbx_channel *chan, void *data)
 		if (tmp) {
 			/* We have a possible channel... now we need to find it! */
 			target = opbx_get_channel_by_name_locked(tmp);
+			if (target)
+			  locked = 1;
 		} else {
 			opbx_log(LOG_DEBUG, "No target channel found.\n");
 			res = -1;
@@ -115,14 +117,15 @@ static int pickup_exec(struct opbx_channel *chan, void *data)
 			res = -1;
 			goto out;
 		}
-		/* Done */
-		opbx_mutex_unlock(&target->lock);
 	} else {
 		opbx_log(LOG_DEBUG, "No call pickup possible...\n");
 		res = -1;
 	}
 	
  out:
+	if (locked)
+	  opbx_mutex_unlock(&target->lock);
+
 	LOCAL_USER_REMOVE(u);
 
 	return res;
