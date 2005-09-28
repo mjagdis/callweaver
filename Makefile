@@ -1,6 +1,3 @@
-
-
-
 #
 # OpenPBX -- A telephony toolkit for Linux.
 # 
