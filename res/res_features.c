@@ -65,10 +65,25 @@ static void FREE(void *ptr)
 #define FREE free
 #endif
 
+#define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT 500
 
 #define OPBX_MAX_WATCHERS 256
+
+static char *parkedcall = "ParkedCall";
+
+/* No more than 45 seconds parked before you do something with them */
+static int parkingtime = DEFAULT_PARK_TIME;
+
+/* Context for which parking is made accessible */
+static char parking_con[OPBX_MAX_EXTENSION] = "parkedcalls";
+
+/* Context for dialback for parking (KLUDGE) */
+static char parking_con_dial[OPBX_MAX_EXTENSION] = "park-dial";
+
+/* Extension you type to park the call */
+static char parking_ext[OPBX_MAX_EXTENSION] = "700";
 
 static char pickup_ext[OPBX_MAX_EXTENSION] = "*8";
 
@@ -77,17 +92,82 @@ static char courtesytone[256] = "";
 static char xfersound[256] = "beep";
 static char xferfailsound[256] = "pbx-invalid";
 
+/* First available extension for parking */
+static int parking_start = 701;
+
+/* Last available extension for parking */
+static int parking_stop = 750;
+
+static int parking_offset = 0;
+
+static int parkfindnext = 0;
+
+static int adsipark = 0;
+
 static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 static int featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 
 /* Default courtesy tone played when party joins conference */
 
+/* Registrar for operations */
+static char *registrar = "res_features";
+
+static char *synopsis = "Answer a parked call";
+
+static char *descrip = "ParkedCall(exten):"
+"Used to connect to a parked call.  This application is always\n"
+"registered internally and does not need to be explicitly added\n"
+"into the dialplan, although you should include the 'parkedcalls'\n"
+"context.\n";
+
+static char *parkcall = "Park";
+
+static char *synopsis2 = "Park yourself";
+
+static char *descrip2 = "Park(exten):"
+"Used to park yourself (typically in combination with a supervised\n"
+"transfer to know the parking space). This application is always\n"
+"registered internally and does not need to be explicitly added\n"
+"into the dialplan, although you should include the 'parkedcalls'\n"
+"context.\n";
+
 static struct opbx_app *monitor_app=NULL;
 static int monitor_ok=1;
+
+struct parkeduser {
+	struct opbx_channel *chan;
+	struct timeval start;
+	int parkingnum;
+	/* Where to go if our parking time expires */
+	char context[OPBX_MAX_CONTEXT];
+	char exten[OPBX_MAX_EXTENSION];
+	int priority;
+	int parkingtime;
+	int notquiteyet;
+	char peername[1024];
+	unsigned char moh_trys;
+	struct parkeduser *next;
+};
+
+static struct parkeduser *parkinglot;
+
+OPBX_MUTEX_DEFINE_STATIC(parking_lock);
+
+static pthread_t parking_thread;
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
+
+char *opbx_parking_ext(void)
+{
+	return parking_ext;
+}
+
+char *opbx_pickup_ext(void)
+{
+	return pickup_ext;
+}
 
 struct opbx_bridge_thread_obj 
 {
@@ -171,6 +251,184 @@ static void opbx_bridge_call_thread_launch(void *data)
 	result = opbx_pthread_create(&thread, &attr,opbx_bridge_call_thread, data);
 	result = pthread_attr_destroy(&attr);
 }
+
+
+
+static int adsi_announce_park(struct opbx_channel *chan, int parkingnum)
+{
+	int res;
+	int justify[5] = {ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT};
+	char tmp[256];
+	char *message[5] = {NULL, NULL, NULL, NULL, NULL};
+
+	snprintf(tmp, sizeof(tmp), "Parked on %d", parkingnum);
+	message[0] = tmp;
+	res = adsi_load_session(chan, NULL, 0, 1);
+	if (res == -1) {
+		return res;
+	}
+	return adsi_print(chan, message, justify, 1);
+}
+
+/*--- opbx_park_call: Park a call */
+/* We put the user in the parking list, then wake up the parking thread to be sure it looks
+	   after these channels too */
+int opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer, int timeout, int *extout)
+{
+	struct parkeduser *pu, *cur;
+	int i,x,parking_range;
+	char exten[OPBX_MAX_EXTENSION];
+	struct opbx_context *con;
+
+	pu = malloc(sizeof(struct parkeduser));
+	if (!pu) {
+		opbx_log(LOG_WARNING, "Out of memory\n");
+		return -1;
+	}
+	memset(pu, 0, sizeof(struct parkeduser));
+	opbx_mutex_lock(&parking_lock);
+	parking_range = parking_stop - parking_start+1;
+	for (i = 0; i < parking_range; i++) {
+		x = (i + parking_offset) % parking_range + parking_start;
+		cur = parkinglot;
+		while(cur) {
+			if (cur->parkingnum == x) 
+				break;
+			cur = cur->next;
+		}
+		if (!cur)
+			break;
+	}
+
+	if (!(i < parking_range)) {
+		opbx_log(LOG_WARNING, "No more parking spaces\n");
+		free(pu);
+		opbx_mutex_unlock(&parking_lock);
+		return -1;
+	}
+	if (parkfindnext) 
+		parking_offset = x - parking_start + 1;
+	chan->appl = "Parked Call";
+	chan->data = NULL; 
+
+	pu->chan = chan;
+	/* Start music on hold */
+	if (chan != peer) {
+		opbx_indicate(pu->chan, OPBX_CONTROL_HOLD);
+		opbx_moh_start(pu->chan, NULL);
+	}
+	pu->start = opbx_tvnow();
+	pu->parkingnum = x;
+	if (timeout > 0)
+		pu->parkingtime = timeout;
+	else
+		pu->parkingtime = parkingtime;
+	if (extout)
+		*extout = x;
+	if (peer) 
+		opbx_copy_string(pu->peername, peer->name, sizeof(pu->peername));
+
+	/* Remember what had been dialed, so that if the parking
+	   expires, we try to come back to the same place */
+	if (!opbx_strlen_zero(chan->macrocontext))
+		opbx_copy_string(pu->context, chan->macrocontext, sizeof(pu->context));
+	else
+		opbx_copy_string(pu->context, chan->context, sizeof(pu->context));
+	if (!opbx_strlen_zero(chan->macroexten))
+		opbx_copy_string(pu->exten, chan->macroexten, sizeof(pu->exten));
+	else
+		opbx_copy_string(pu->exten, chan->exten, sizeof(pu->exten));
+	if (chan->macropriority)
+		pu->priority = chan->macropriority;
+	else
+		pu->priority = chan->priority;
+	pu->next = parkinglot;
+	parkinglot = pu;
+	/* If parking a channel directly, don't quiet yet get parking running on it */
+	if (peer == chan) 
+		pu->notquiteyet = 1;
+	opbx_mutex_unlock(&parking_lock);
+	/* Wake up the (presumably select()ing) thread */
+	pthread_kill(parking_thread, SIGURG);
+	if (option_verbose > 1) 
+		opbx_verbose(VERBOSE_PREFIX_2 "Parked %s on %d. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
+
+	manager_event(EVENT_FLAG_CALL, "ParkedCall",
+		"Exten: %d\r\n"
+		"Channel: %s\r\n"
+		"From: %s\r\n"
+		"Timeout: %ld\r\n"
+		"CallerID: %s\r\n"
+		"CallerIDName: %s\r\n\r\n"
+		,pu->parkingnum, pu->chan->name, peer->name
+		,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
+		,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+		,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+		);
+
+	if (peer) {
+		if (adsipark && adsi_available(peer)) {
+			adsi_announce_park(peer, pu->parkingnum);
+		}
+		if (adsipark && adsi_available(peer)) {
+			adsi_unload_session(peer);
+		}
+	}
+	con = opbx_context_find(parking_con);
+	if (!con) {
+		con = opbx_context_create(NULL, parking_con, registrar);
+		if (!con) {
+			opbx_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+		}
+	}
+	if (con) {
+		snprintf(exten, sizeof(exten), "%d", x);
+		opbx_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), FREE, registrar);
+	}
+	if (peer) 
+		opbx_say_digits(peer, pu->parkingnum, "", peer->language);
+	if (pu->notquiteyet) {
+		/* Wake up parking thread if we're really done */
+		opbx_moh_start(pu->chan, NULL);
+		pu->notquiteyet = 0;
+		pthread_kill(parking_thread, SIGURG);
+	}
+	return 0;
+}
+
+int opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *peer, int timeout, int *extout)
+{
+	struct opbx_channel *chan;
+	struct opbx_frame *f;
+
+	/* Make a new, fake channel that we'll use to masquerade in the real one */
+	chan = opbx_channel_alloc(0);
+	if (chan) {
+		/* Let us keep track of the channel name */
+		snprintf(chan->name, sizeof (chan->name), "Parked/%s",rchan->name);
+
+		/* Make formats okay */
+		chan->readformat = rchan->readformat;
+		chan->writeformat = rchan->writeformat;
+		opbx_channel_masquerade(chan, rchan);
+
+		/* Setup the extensions and such */
+		opbx_copy_string(chan->context, rchan->context, sizeof(chan->context));
+		opbx_copy_string(chan->exten, rchan->exten, sizeof(chan->exten));
+		chan->priority = rchan->priority;
+
+		/* Make the masq execute */
+		f = opbx_read(chan);
+		if (f)
+			opbx_frfree(f);
+		opbx_park_call(chan, peer, timeout, extout);
+	} else {
+		opbx_log(LOG_WARNING, "Unable to create parked channel\n");
+		return -1;
+	}
+	return 0;
+}
+
 
 #define FEATURE_RETURN_HANGUP		-1
 #define FEATURE_RETURN_SUCCESSBREAK	 0
@@ -1209,6 +1467,324 @@ int opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *peer,struct 
 	return res;
 }
 
+static void *do_parking_thread(void *ignore)
+{
+	int ms, tms, max;
+	struct parkeduser *pu, *pl, *pt = NULL;
+	struct timeval tv;
+	struct opbx_frame *f;
+	char exten[OPBX_MAX_EXTENSION];
+	char *peername,*cp;
+	char returnexten[OPBX_MAX_EXTENSION];
+	struct opbx_context *con;
+	int x;
+	fd_set rfds, efds;
+	fd_set nrfds, nefds;
+	FD_ZERO(&rfds);
+	FD_ZERO(&efds);
+
+	for (;;) {
+		ms = -1;
+		max = -1;
+		opbx_mutex_lock(&parking_lock);
+		pl = NULL;
+		pu = parkinglot;
+		FD_ZERO(&nrfds);
+		FD_ZERO(&nefds);
+		while(pu) {
+			if (pu->notquiteyet) {
+				/* Pretend this one isn't here yet */
+				pl = pu;
+				pu = pu->next;
+				continue;
+			}
+			tms = opbx_tvdiff_ms(opbx_tvnow(), pu->start);
+			if (tms > pu->parkingtime) {
+				/* Stop music on hold */
+				opbx_moh_stop(pu->chan);
+				opbx_indicate(pu->chan, OPBX_CONTROL_UNHOLD);
+				/* Get chan, exten from derived kludge */
+				if (pu->peername[0]) {
+					peername = opbx_strdupa(pu->peername);
+					cp = strrchr(peername, '-');
+					if (cp) 
+						*cp = 0;
+					con = opbx_context_find(parking_con_dial);
+					if (!con) {
+						con = opbx_context_create(NULL, parking_con_dial, registrar);
+						if (!con) {
+							opbx_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
+						}
+					}
+					if (con) {
+						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
+						opbx_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), FREE, registrar);
+					}
+					opbx_copy_string(pu->chan->exten, peername, sizeof(pu->chan->exten));
+					opbx_copy_string(pu->chan->context, parking_con_dial, sizeof(pu->chan->context));
+					pu->chan->priority = 1;
+
+				} else {
+					/* They've been waiting too long, send them back to where they came.  Theoretically they
+					   should have their original extensions and such, but we copy to be on the safe side */
+					opbx_copy_string(pu->chan->exten, pu->exten, sizeof(pu->chan->exten));
+					opbx_copy_string(pu->chan->context, pu->context, sizeof(pu->chan->context));
+					pu->chan->priority = pu->priority;
+				}
+
+				manager_event(EVENT_FLAG_CALL, "ParkedCallTimeOut",
+					"Exten: %d\r\n"
+					"Channel: %s\r\n"
+					"CallerID: %s\r\n"
+					"CallerIDName: %s\r\n\r\n"
+					,pu->parkingnum, pu->chan->name
+					,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+					,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+					);
+
+				if (option_verbose > 1) 
+					opbx_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
+				/* Start up the PBX, or hang them up */
+				if (opbx_pbx_start(pu->chan))  {
+					opbx_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
+					opbx_hangup(pu->chan);
+				}
+				/* And take them out of the parking lot */
+				if (pl) 
+					pl->next = pu->next;
+				else
+					parkinglot = pu->next;
+				pt = pu;
+				pu = pu->next;
+				con = opbx_context_find(parking_con);
+				if (con) {
+					snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
+					if (opbx_context_remove_extension2(con, exten, 1, NULL))
+						opbx_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+				} else
+					opbx_log(LOG_WARNING, "Whoa, no parking context?\n");
+				free(pt);
+			} else {
+				for (x = 0; x < OPBX_MAX_FDS; x++) {
+					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
+						if (FD_ISSET(pu->chan->fds[x], &efds))
+							opbx_set_flag(pu->chan, OPBX_FLAG_EXCEPTION);
+						else
+							opbx_clear_flag(pu->chan, OPBX_FLAG_EXCEPTION);
+						pu->chan->fdno = x;
+						/* See if they need servicing */
+						f = opbx_read(pu->chan);
+						if (!f || ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass ==  OPBX_CONTROL_HANGUP))) {
+
+							manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
+								"Exten: %d\r\n"
+								"Channel: %s\r\n"
+								"CallerID: %s\r\n"
+								"CallerIDName: %s\r\n\r\n"
+								,pu->parkingnum, pu->chan->name
+								,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+								,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+								);
+
+							/* There's a problem, hang them up*/
+							if (option_verbose > 1) 
+								opbx_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
+							opbx_hangup(pu->chan);
+							/* And take them out of the parking lot */
+							if (pl) 
+								pl->next = pu->next;
+							else
+								parkinglot = pu->next;
+							pt = pu;
+							pu = pu->next;
+							con = opbx_context_find(parking_con);
+							if (con) {
+								snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
+								if (opbx_context_remove_extension2(con, exten, 1, NULL))
+									opbx_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+							} else
+								opbx_log(LOG_WARNING, "Whoa, no parking context?\n");
+							free(pt);
+							break;
+						} else {
+							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
+							opbx_frfree(f);
+							if (pu->moh_trys < 3 && !pu->chan->generatordata) {
+								opbx_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+								opbx_moh_start(pu->chan, NULL);
+								pu->moh_trys++;
+							}
+							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
+						}
+					}
+				}
+				if (x >= OPBX_MAX_FDS) {
+std:					for (x=0; x<OPBX_MAX_FDS; x++) {
+						/* Keep this one for next one */
+						if (pu->chan->fds[x] > -1) {
+							FD_SET(pu->chan->fds[x], &nrfds);
+							FD_SET(pu->chan->fds[x], &nefds);
+							if (pu->chan->fds[x] > max)
+								max = pu->chan->fds[x];
+						}
+					}
+					/* Keep track of our longest wait */
+					if ((tms < ms) || (ms < 0))
+						ms = tms;
+					pl = pu;
+					pu = pu->next;
+				}
+			}
+		}
+		opbx_mutex_unlock(&parking_lock);
+		rfds = nrfds;
+		efds = nefds;
+		tv = opbx_samp2tv(ms, 1000);
+		/* Wait for something to happen */
+		opbx_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+		pthread_testcancel();
+	}
+	return NULL;	/* Never reached */
+}
+
+static int park_call_exec(struct opbx_channel *chan, void *data)
+{
+	/* Data is unused at the moment but could contain a parking
+	   lot context eventually */
+	int res=0;
+	struct localuser *u;
+	LOCAL_USER_ADD(u);
+	/* Setup the exten/priority to be s/1 since we don't know
+	   where this call should return */
+	strcpy(chan->exten, "s");
+	chan->priority = 1;
+	if (chan->_state != OPBX_STATE_UP)
+		res = opbx_answer(chan);
+	if (!res)
+		res = opbx_safe_sleep(chan, 1000);
+	if (!res)
+		res = opbx_park_call(chan, chan, 0, NULL);
+	LOCAL_USER_REMOVE(u);
+	if (!res)
+		res = OPBX_PBX_KEEPALIVE;
+	return res;
+}
+
+static int park_exec(struct opbx_channel *chan, void *data)
+{
+	int res=0;
+	struct localuser *u;
+	struct opbx_channel *peer=NULL;
+	struct parkeduser *pu, *pl=NULL;
+	char exten[OPBX_MAX_EXTENSION];
+	struct opbx_context *con;
+	int park;
+	int dres;
+	struct opbx_bridge_config config;
+
+	if (!data) {
+		opbx_log(LOG_WARNING, "Park requires an argument (extension number)\n");
+		return -1;
+	}
+	LOCAL_USER_ADD(u);
+	park = atoi((char *)data);
+	opbx_mutex_lock(&parking_lock);
+	pu = parkinglot;
+	while(pu) {
+		if (pu->parkingnum == park) {
+			if (pl)
+				pl->next = pu->next;
+			else
+				parkinglot = pu->next;
+			break;
+		}
+		pl = pu;
+		pu = pu->next;
+	}
+	opbx_mutex_unlock(&parking_lock);
+	if (pu) {
+		peer = pu->chan;
+		con = opbx_context_find(parking_con);
+		if (con) {
+			snprintf(exten, sizeof(exten), "%d", pu->parkingnum);
+			if (opbx_context_remove_extension2(con, exten, 1, NULL))
+				opbx_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+		} else
+			opbx_log(LOG_WARNING, "Whoa, no parking context?\n");
+
+		manager_event(EVENT_FLAG_CALL, "UnParkedCall",
+			"Exten: %d\r\n"
+			"Channel: %s\r\n"
+			"From: %s\r\n"
+			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n\r\n"
+			,pu->parkingnum, pu->chan->name, chan->name
+			,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+			,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+			);
+
+		free(pu);
+	}
+	/* JK02: it helps to answer the channel if not already up */
+	if (chan->_state != OPBX_STATE_UP) {
+		opbx_answer(chan);
+	}
+
+	if (peer) {
+		/* Play a courtesy beep in the calling channel to prefix the bridge connecting */	
+		if (!opbx_strlen_zero(courtesytone)) {
+			if (!opbx_streamfile(chan, courtesytone, chan->language)) {
+				if (opbx_waitstream(chan, "") < 0) {
+					opbx_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+					opbx_hangup(peer);
+					return -1;
+				}
+			}
+		}
+ 
+		opbx_moh_stop(peer);
+		opbx_indicate(peer, OPBX_CONTROL_UNHOLD);
+		res = opbx_channel_make_compatible(chan, peer);
+		if (res < 0) {
+			opbx_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
+			opbx_hangup(peer);
+			return -1;
+		}
+		/* This runs sorta backwards, since we give the incoming channel control, as if it
+		   were the person called. */
+		if (option_verbose > 2) 
+			opbx_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
+
+		memset(&config, 0, sizeof(struct opbx_bridge_config));
+		opbx_set_flag(&(config.features_callee), OPBX_FEATURE_REDIRECT);
+		opbx_set_flag(&(config.features_caller), OPBX_FEATURE_REDIRECT);
+		config.timelimit = 0;
+		config.play_warning = 0;
+		config.warning_freq = 0;
+		config.warning_sound=NULL;
+		res = opbx_bridge_call(chan, peer, &config);
+
+		/* Simulate the PBX hanging up */
+		if (res != OPBX_PBX_NO_HANGUP_PEER)
+			opbx_hangup(peer);
+		return res;
+	} else {
+		/* XXX Play a message XXX */
+		dres = opbx_streamfile(chan, "pbx-invalidpark", chan->language);
+		if (!dres)
+	    		dres = opbx_waitstream(chan, "");
+		else {
+			opbx_log(LOG_WARNING, "opbx_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
+			dres = 0;
+		}
+		if (option_verbose > 2) 
+			opbx_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
+		res = -1;
+	}
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
 static int handle_showfeatures(int fd, int argc, char *argv[])
 {
 	int i;
@@ -1251,6 +1827,85 @@ static char showfeatures_help[] =
 static struct opbx_cli_entry showfeatures =
 { { "show", "features", NULL }, handle_showfeatures, "Lists configured features", showfeatures_help };
 
+static int handle_parkedcalls(int fd, int argc, char *argv[])
+{
+	struct parkeduser *cur;
+	int numparked = 0;
+
+	opbx_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
+		, "Context", "Extension", "Pri", "Timeout");
+
+	opbx_mutex_lock(&parking_lock);
+
+	cur = parkinglot;
+	while(cur) {
+		opbx_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6lds\n"
+			,cur->parkingnum, cur->chan->name, cur->context, cur->exten
+			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
+
+		cur = cur->next;
+		numparked++;
+	}
+	opbx_cli(fd, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
+
+	opbx_mutex_unlock(&parking_lock);
+
+	return RESULT_SUCCESS;
+}
+
+static char showparked_help[] =
+"Usage: show parkedcalls\n"
+"       Lists currently parked calls.\n";
+
+static struct opbx_cli_entry showparked =
+{ { "show", "parkedcalls", NULL }, handle_parkedcalls, "Lists parked calls", showparked_help };
+
+/* Dump lot status */
+static int manager_parking_status( struct mansession *s, struct message *m )
+{
+	struct parkeduser *cur;
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
+
+	if (id && !opbx_strlen_zero(id))
+		snprintf(idText,256,"ActionID: %s\r\n",id);
+
+	astman_send_ack(s, m, "Parked calls will follow");
+
+        opbx_mutex_lock(&parking_lock);
+
+        cur=parkinglot;
+        while(cur) {
+			opbx_mutex_lock(&s->lock);
+                opbx_cli(s->fd, "Event: ParkedCall\r\n"
+			"Exten: %d\r\n"
+			"Channel: %s\r\n"
+			"Timeout: %ld\r\n"
+			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n"
+			"%s"
+			"\r\n"
+                        ,cur->parkingnum, cur->chan->name
+                        ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
+			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
+			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
+			,idText);
+			opbx_mutex_unlock(&s->lock);
+
+            cur = cur->next;
+        }
+
+	opbx_cli(s->fd,
+	"Event: ParkedCallsComplete\r\n"
+	"%s"
+	"\r\n",idText);
+
+        opbx_mutex_unlock(&parking_lock);
+
+        return RESULT_SUCCESS;
+}
+
+
 int opbx_pickup_call(struct opbx_channel *chan)
 {
 	struct opbx_channel *cur = NULL;
@@ -1288,6 +1943,8 @@ int opbx_pickup_call(struct opbx_channel *chan)
 
 static int load_config(void) 
 {
+	int start = 0, end = 0;
+	struct opbx_context *con = NULL;
 	struct opbx_config *cfg = NULL;
 	struct opbx_variable *var = NULL;
 	
@@ -1295,10 +1952,36 @@ static int load_config(void)
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 
 	cfg = opbx_config_load("features.conf");
+	if (!cfg) {
+		cfg = opbx_config_load("parking.conf");
+		if (cfg)
+			opbx_log(LOG_NOTICE, "parking.conf is deprecated in favor of 'features.conf'.  Please rename it.\n");
+	}
 	if (cfg) {
 		var = opbx_variable_browse(cfg, "general");
 		while(var) {
-			if (!strcasecmp(var->name, "transferdigittimeout")) {
+			if (!strcasecmp(var->name, "parkext")) {
+				opbx_copy_string(parking_ext, var->value, sizeof(parking_ext));
+			} else if (!strcasecmp(var->name, "context")) {
+				opbx_copy_string(parking_con, var->value, sizeof(parking_con));
+			} else if (!strcasecmp(var->name, "parkingtime")) {
+				if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
+					opbx_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
+					parkingtime = DEFAULT_PARK_TIME;
+				} else
+					parkingtime = parkingtime * 1000;
+			} else if (!strcasecmp(var->name, "parkpos")) {
+				if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
+					opbx_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
+				} else {
+					parking_start = start;
+					parking_stop = end;
+				}
+			} else if (!strcasecmp(var->name, "findslot")) {
+				parkfindnext = (!strcasecmp(var->value, "next"));
+			} else if (!strcasecmp(var->name, "adsipark")) {
+				adsipark = opbx_true(var->value);
+			} else if (!strcasecmp(var->name, "transferdigittimeout")) {
 				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
 					opbx_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
 					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
@@ -1401,7 +2084,18 @@ static int load_config(void)
 		}	 
 	}
 	opbx_config_destroy(cfg);
-	return 0;
+
+	
+	if (con)
+		opbx_context_remove_extension2(con, opbx_parking_ext(), 1, registrar);
+	
+	if (!(con = opbx_context_find(parking_con))) {
+		if (!(con = opbx_context_create(NULL, parking_con, registrar))) {
+			opbx_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+			return -1;
+		}
+	}
+	return opbx_add_extension2(con, 1, opbx_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
 }
 
 int reload(void) {
@@ -1416,7 +2110,15 @@ int load_module(void)
 
 	if ((res = load_config()))
 		return res;
+	opbx_cli_register(&showparked);
 	opbx_cli_register(&showfeatures);
+	opbx_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	res = opbx_register_application(parkedcall, park_exec, synopsis, descrip);
+	if (!res)
+		res = opbx_register_application(parkcall, park_call_exec, synopsis2, descrip2);
+	if (!res) {
+		opbx_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
+	}
 	return res;
 }
 
@@ -1424,7 +2126,12 @@ int load_module(void)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return 0;
+
+	opbx_manager_unregister("ParkedCalls");
+	opbx_cli_unregister(&showfeatures);
+	opbx_cli_unregister(&showparked);
+	opbx_unregister_application(parkcall);
+	return opbx_unregister_application(parkedcall);
 }
 
 char *description(void)
