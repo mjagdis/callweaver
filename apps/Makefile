@@ -13,19 +13,15 @@
 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so \
      app_system.so app_echo.so app_record.so app_disa.so \
-     app_adsiprog.so app_getcpeid.so app_milliwatt.so \
-     app_zapateller.so \
-     app_queue.so app_senddtmf.so \
-     app_lookupcidname.so app_macro.so \
+     app_adsiprog.so app_getcpeid.so app_milliwatt.so app_zapateller.so \
+     app_queue.so app_senddtmf.so app_lookupcidname.so app_macro.so \
      app_authenticate.so app_softhangup.so app_lookupblacklist.so \
      app_waitforring.so app_privacy.so app_db.so app_chanisavail.so \
      app_enumlookup.so app_transfer.so app_cdr.so \
      app_hasnewvoicemail.so app_sayunixtime.so app_read.so \
      app_setcdruserfield.so app_random.so app_eval.so \
-     app_sendtext.so app_exec.so \
-     app_groupcount.so app_controlplayback.so \
-     app_talkdetect.so app_userevent.so app_verbose.so \
-     app_forkcdr.so \
+     app_sendtext.so app_exec.so app_groupcount.so app_controlplayback.so \
+     app_talkdetect.so app_userevent.so app_verbose.so app_forkcdr.so \
      app_dumpchan.so app_waitforsilence.so app_while.so app_setrdnis.so \
      app_chanspy.so app_settransfercapability.so \
      app_dictate.so app_directed_pickup.so
