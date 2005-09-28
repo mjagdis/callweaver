@@ -1,3 +1,4 @@
+
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
@@ -57,7 +58,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/adsi.h"
 
 #ifdef __OPBX_DEBUG_MALLOC
-static void FREE(void *ptr)
+	 static void FREE(void *ptr)
 {
 	free(ptr);
 }
@@ -551,7 +552,7 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 		transferee = peer;
 	}
 	if (!(transferer_real_context = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-	   !(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+		!(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
 		/* Use the non-macro context to transfer the call */
 		if (!opbx_strlen_zero(transferer->macrocontext))
 			transferer_real_context = transferer->macrocontext;
@@ -622,7 +623,7 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 			/* Doh!  Use our handy async_goto functions */
 			if (option_verbose > 2) 
 				opbx_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
-								,transferee->name, newext, transferer_real_context);
+							 ,transferee->name, newext, transferer_real_context);
 			if (opbx_async_goto(transferee, transferer_real_context, newext, 1))
 				opbx_log(LOG_WARNING, "Async goto failed :-(\n");
 			res = -1;
@@ -685,7 +686,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 		transferee = peer;
 	}
 	if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-	   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+		!(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
 		/* Use the non-macro context to transfer the call */
 		if (!opbx_strlen_zero(transferer->macrocontext))
 			transferer_real_context = transferer->macrocontext;
@@ -761,10 +762,10 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 				opbx_moh_stop(transferee);
 				
 				if ((opbx_autoservice_stop(transferee) < 0)
-				   || (opbx_waitfordigit(transferee, 100) < 0)
-				   || (opbx_waitfordigit(newchan, 100) < 0) 
-				   || opbx_check_hangup(transferee) 
-				   || opbx_check_hangup(newchan)) {
+					|| (opbx_waitfordigit(transferee, 100) < 0)
+					|| (opbx_waitfordigit(newchan, 100) < 0) 
+					|| opbx_check_hangup(transferee) 
+					|| opbx_check_hangup(newchan)) {
 					opbx_hangup(newchan);
 					res = -1;
 					return -1;
@@ -856,12 +857,12 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 /* add atxfer and automon as undefined so you can only use em if you configure them */
 #define FEATURES_COUNT (sizeof(builtin_features) / sizeof(builtin_features[0]))
 struct opbx_call_feature builtin_features[] = 
- {
-	{ OPBX_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, OPBX_FEATURE_FLAG_NEEDSDTMF },
-	{ OPBX_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, OPBX_FEATURE_FLAG_NEEDSDTMF },
-	{ OPBX_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, OPBX_FEATURE_FLAG_NEEDSDTMF },
-	{ OPBX_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, OPBX_FEATURE_FLAG_NEEDSDTMF },
-};
+	{
+		{ OPBX_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, OPBX_FEATURE_FLAG_NEEDSDTMF },
+		{ OPBX_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, OPBX_FEATURE_FLAG_NEEDSDTMF },
+		{ OPBX_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, OPBX_FEATURE_FLAG_NEEDSDTMF },
+		{ OPBX_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, OPBX_FEATURE_FLAG_NEEDSDTMF },
+	};
 
 
 static OPBX_LIST_HEAD(feature_list,opbx_call_feature) feature_list;
@@ -871,7 +872,7 @@ void opbx_register_feature(struct opbx_call_feature *feature)
 {
 	if (!feature) {
 		opbx_log(LOG_NOTICE,"You didn't pass a feature!\n");
-    		return;
+		return;
 	}
   
 	OPBX_LIST_LOCK(&feature_list);
@@ -1372,9 +1373,9 @@ int opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *peer,struct 
 		}
 		
 		if (!f || ((f->frametype == OPBX_FRAME_CONTROL) && ((f->subclass == OPBX_CONTROL_HANGUP) || (f->subclass == OPBX_CONTROL_BUSY) || 
-			(f->subclass == OPBX_CONTROL_CONGESTION)))) {
-				res = -1;
-				break;
+															(f->subclass == OPBX_CONTROL_CONGESTION)))) {
+			res = -1;
+			break;
 		}
 		if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_RINGING)) {
 			if (who == chan)
@@ -1800,9 +1801,9 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	fcount = sizeof(builtin_features) / sizeof(builtin_features[0]);
 
 	for (i = 0; i < fcount; i++)
-	{
-		opbx_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
-	}
+		{
+			opbx_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
+		}
 	opbx_cli(fd, "\n");
 	opbx_cli(fd, format, "Dynamic Feature", "Default", "Current");
 	opbx_cli(fd, format, "---------------", "-------", "-------");
@@ -1825,7 +1826,7 @@ static char showfeatures_help[] =
 "       Lists currently configured features.\n";
 
 static struct opbx_cli_entry showfeatures =
-{ { "show", "features", NULL }, handle_showfeatures, "Lists configured features", showfeatures_help };
+	{ { "show", "features", NULL }, handle_showfeatures, "Lists configured features", showfeatures_help };
 
 static int handle_parkedcalls(int fd, int argc, char *argv[])
 {
@@ -1917,7 +1918,7 @@ int opbx_pickup_call(struct opbx_channel *chan)
 			(chan->pickupgroup & cur->callgroup) &&
 			((cur->_state == OPBX_STATE_RINGING) ||
 			 (cur->_state == OPBX_STATE_RING))) {
-			 	break;
+			break;
 		}
 		opbx_mutex_unlock(&cur->lock);
 	}
