@@ -12,7 +12,7 @@
 #
 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so \
-     app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
+     app_system.so app_echo.so app_record.so app_disa.so \
      app_adsiprog.so app_getcpeid.so app_milliwatt.so \
      app_zapateller.so \
      app_queue.so app_senddtmf.so \
