@@ -34,3 +34,4 @@ Additional items to be talked about:
 
 Core developer list.
 Commit permission list.
+RIP out DB1 and replace it with sqlite.

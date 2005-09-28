@@ -20,7 +20,7 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
-TARGET=stereorize streamplayer
+TARGET=streamplayer
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/newt.h)$(wildcard -f $(CROSS_COMPILE_TARGET)/usr/local/include/newt.h),)
   TARGET+=opbxman
@@ -45,9 +45,6 @@ clean:
 
 opbxman: opbxman.o ../md5.o
 	$(CC) $(CFLAGS) -o opbxman opbxman.o ../md5.o -lnewt
-
-stereorize: stereorize.o frame.o
-	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
 opbx_expr2.o: ../opbx_expr2.c
 	gcc -g -c -o $@ $<
