@@ -26,8 +26,6 @@ Wasim - Hangup detect
 PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 
 === MISCELLANEOUS PATCHES ===
-Russell Bryant - OpenPBX 1.0 maintainer and misc. enhancements
-       russelb@clemson.edu
 Anthony Minessale - Countless big and small fixes, and relentless forward push
        anthmct@yahoo.com              http://www.asterlink.com
 James Golovich - Innumerable contributions
@@ -71,9 +69,6 @@ Olle Johansson - SIP RFC compliance and testing, testing, testing
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
-
-=== HOLD MUSIC ===
-Music provided by www.freeplaymusic.com
 
 === OTHER SOURCE CODE IN OPENPBX ===
 
