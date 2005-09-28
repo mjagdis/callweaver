@@ -25,7 +25,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so \
      app_sendtext.so app_exec.so \
      app_groupcount.so app_controlplayback.so \
      app_talkdetect.so app_userevent.so app_verbose.so \
-     app_test.so app_forkcdr.so app_realtime.so \
+     app_forkcdr.so \
      app_dumpchan.so app_waitforsilence.so app_while.so app_setrdnis.so \
      app_chanspy.so app_settransfercapability.so \
      app_dictate.so app_directed_pickup.so
