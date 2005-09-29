@@ -874,6 +874,11 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	queue_vars = opbx_load_realtime("queues", "name", queuename, NULL);
 	if(queue_vars)
 		member_config = opbx_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
+	
+	if (!member_config) {
+		opbx_log(LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
+		return res;
+	}
 
 	opbx_mutex_lock(&qlock);
 	q = reload_queue_rt(queuename, queue_vars, member_config);
