@@ -147,10 +147,10 @@ static const char type[] = "Zap";
 static const char config[] = "zapata.conf";
 
 #define SIG_EM		ZT_SIG_EM
-#define SIG_EMWINK 	(0x100000 | ZT_SIG_EM)
-#define SIG_FEATD	(0x200000 | ZT_SIG_EM)
-#define	SIG_FEATDMF	(0x400000 | ZT_SIG_EM)
-#define	SIG_FEATB	(0x800000 | ZT_SIG_EM)
+#define SIG_EMWINK 	(0x0100000 | ZT_SIG_EM)
+#define SIG_FEATD	(0x0200000 | ZT_SIG_EM)
+#define	SIG_FEATDMF	(0x0400000 | ZT_SIG_EM)
+#define	SIG_FEATB	(0x0800000 | ZT_SIG_EM)
 #define	SIG_E911	(0x1000000 | ZT_SIG_EM)
 #define	SIG_FEATDMF_TA	(0x2000000 | ZT_SIG_EM)
 #define SIG_FXSLS	ZT_SIG_FXSLS
@@ -162,13 +162,13 @@ static const char config[] = "zapata.conf";
 #define SIG_PRI		ZT_SIG_CLEAR
 #define SIG_R2		ZT_SIG_CAS
 #define	SIG_SF		ZT_SIG_SF
-#define SIG_SFWINK 	(0x100000 | ZT_SIG_SF)
-#define SIG_SF_FEATD	(0x200000 | ZT_SIG_SF)
-#define	SIG_SF_FEATDMF	(0x400000 | ZT_SIG_SF)
-#define	SIG_SF_FEATB	(0x800000 | ZT_SIG_SF)
+#define SIG_SFWINK 	(0x0100000 | ZT_SIG_SF)
+#define SIG_SF_FEATD	(0x0200000 | ZT_SIG_SF)
+#define	SIG_SF_FEATDMF	(0x0400000 | ZT_SIG_SF)
+#define	SIG_SF_FEATB	(0x0800000 | ZT_SIG_SF)
 #define SIG_EM_E1	ZT_SIG_EM_E1
-#define SIG_GR303FXOKS   (0x100000 | ZT_SIG_FXOKS)
-#define SIG_GR303FXSKS   (0x200000 | ZT_SIG_FXSKS)
+#define SIG_GR303FXOKS	(0x0100000 | ZT_SIG_FXOKS)
+#define SIG_GR303FXSKS	(0x0100000 | ZT_SIG_FXSKS)
 
 #define NUM_SPANS 		32
 #define NUM_DCHANS		4		/* No more than 4 d-channels */
@@ -1901,22 +1901,28 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 #endif
 		opbx_log(LOG_DEBUG, "Dialing '%s'\n", c);
 		p->dop.op = ZT_DIAL_OP_REPLACE;
-		if (p->sig == SIG_FEATD) {
+
+		c += p->stripmsd;
+
+		switch (p->sig) {
+		case SIG_FEATD:
 			l = ast->cid.cid_num;
 			if (l) 
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c + p->stripmsd);
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			else
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c + p->stripmsd);
-		} else 
-		if (p->sig == SIG_FEATDMF) {
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c);
+			break;
+		case SIG_FEATDMF:
 			l = ast->cid.cid_num;
 			if (l) 
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c + p->stripmsd);
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			else
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c + p->stripmsd);
-		} else 
-		if (p->sig == SIG_FEATDMF_TA) {
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c);
+			break;
+		case SIG_FEATDMF_TA:
+		{
 			char *cic = NULL, *ozz = NULL;
+
 			/* If you have to go through a Tandem Access point you need to use this */
 			ozz = pbx_builtin_getvar_helper(p->owner, "FEATDMF_OZZ");
 			if (!ozz)
@@ -1930,19 +1936,24 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 				return -1;
 			}
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s%s#", ozz, cic);
-			snprintf(p->finaldial, sizeof(p->finaldial), "M*%s#", c + p->stripmsd);
+			snprintf(p->finaldial, sizeof(p->finaldial), "M*%s#", c);
 			p->whichwink = 0;
-		} else
-		if (p->sig == SIG_E911) {
+		}
+			break;
+		case SIG_E911:
 			opbx_copy_string(p->dop.dialstr, "M*911#", sizeof(p->dop.dialstr));
-		} else
-		if (p->sig == SIG_FEATB) {
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
-		} else 
- 		if(p->pulse)
- 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%sw", c + p->stripmsd);
- 		else
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
+			break;
+		case SIG_FEATB:
+			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c);
+			break;
+		default:
+			if (p->pulse)
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%sw", c);
+			else
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c);
+			break;
+		}
+
 		if (p->echotraining && (strlen(p->dop.dialstr) > 4)) {
 			memset(p->echorest, 'w', sizeof(p->echorest) - 1);
 			strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
@@ -1962,7 +1973,8 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		} else
 			opbx_log(LOG_DEBUG, "Deferring dialing...\n");
 		p->dialing = 1;
-		if (strlen(c + p->stripmsd) < 1) p->dialednone = 1;
+		if (opbx_strlen_zero(c))
+			p->dialednone = 1;
 		opbx_setstate(ast, OPBX_STATE_DIALING);
 		break;
 	case 0:
@@ -3860,7 +3872,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 					opbx_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast->_state, p->channel);
 				break;
 			default:
-				opbx_log(LOG_WARNING, "Don't know how to handle ring/off hoook for signalling %d\n", p->sig);
+				opbx_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
 			}
 			break;
 #ifdef ZT_EVENT_RINGBEGIN
@@ -4183,10 +4195,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			opbx_log(LOG_DEBUG, "Dunno what to do with event %d on channel %d\n", res, p->channel);
 	}
 	return &p->subs[index].f;
- }
-
-
-
+}
 
 static struct opbx_frame *__zt_exception(struct opbx_channel *ast)
 {
@@ -5062,7 +5071,7 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
 #endif
-		/* clear the fake event in case we posted one before we had opbx_chanenl */
+		/* clear the fake event in case we posted one before we had opbx_channel */
 		i->fake_event = 0;
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
@@ -5084,20 +5093,22 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 }
 
 
-static int my_getsigstr(struct opbx_channel *chan, char *str, char term, int ms)
+static int my_getsigstr(struct opbx_channel *chan, char *str, const char *term, int ms)
 {
-char c;
+	char c;
 
 	*str = 0; /* start with empty output buffer */
-	for(;;)
+	for (;;)
 	{
 		/* Wait for the first digit (up to specified ms). */
-		c = opbx_waitfordigit(chan,ms);
+		c = opbx_waitfordigit(chan, ms);
 		/* if timeout, hangup or error, return as such */
-		if (c < 1) return(c);
+		if (c < 1)
+			return c;
 		*str++ = c;
 		*str = 0;
-		if (c == term) return(1);
+		if (strchr(term, c))
+			return 1;
 	}
 }
 
@@ -5239,39 +5250,37 @@ static void *ss_thread(void *data)
 		/* Wait for the first digit only if immediate=no */
 		if (!p->immediate)
 			/* Wait for the first digit (up to 5 seconds). */
-			res = opbx_waitfordigit(chan,5000);
+			res = opbx_waitfordigit(chan, 5000);
 		else res = 0;
 		if (res > 0) {
 			/* save first char */
 			dtmfbuf[0] = res;
-			switch(p->sig)
-			{
-			    case SIG_FEATD:
-			    case SIG_SF_FEATD:
-				res = my_getsigstr(chan,dtmfbuf + 1,'*',3000);
+			switch(p->sig) {
+			case SIG_FEATD:
+			case SIG_SF_FEATD:
+				res = my_getsigstr(chan, dtmfbuf + 1, "*", 3000);
 				if (res > 0)
-					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'*',3000);
+					res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "*", 3000);
 				if ((res < 1) && (p->dsp)) opbx_dsp_digitreset(p->dsp);
 				break;
-			    case SIG_FEATDMF:
-			    case SIG_E911:
-			    case SIG_SF_FEATDMF:
-				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
+			case SIG_FEATDMF:
+			case SIG_E911:
+			case SIG_SF_FEATDMF:
+				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if (res > 0) {
 					/* if E911, take off hook */
-					if (p->sig == SIG_E911) {
+					if (p->sig == SIG_E911)
 						zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
-					}
-					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'#',3000);
+					res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "#", 3000);
 				}
 				if ((res < 1) && (p->dsp)) opbx_dsp_digitreset(p->dsp);
 				break;
-			    case SIG_FEATB:
-			    case SIG_SF_FEATB:
-				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
+			case SIG_FEATB:
+			case SIG_SF_FEATB:
+				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if ((res < 1) && (p->dsp)) opbx_dsp_digitreset(p->dsp);
 				break;
-			    default:
+			default:
 				/* If we got the first digit, get the rest */
 				len = 1;
 				while((len < OPBX_MAX_EXTENSION-1) && opbx_matchmore_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
@@ -7194,11 +7203,11 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	if ((channelmatch > 0) && (p->channel != channelmatch))
 		return 0;
 	/* We're at least busy at this point */
-	if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS)) {
-		if (busy)
+	if (busy) {
+		if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS))
 			*busy = 1;
 	}
-	/* If do not distrub, definitely not */
+	/* If do not disturb, definitely not */
 	if (p->dnd)
 		return 0;
 	/* If guard time, definitely not */
@@ -7207,8 +7216,8 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 		
 	/* If no owner definitely available */
 	if (!p->owner) {
-		/* Trust PRI */
 #ifdef ZAPATA_PRI
+		/* Trust PRI */
 		if (p->pri) {
 			if (p->resetting || p->call)
 				return 0;
@@ -7472,7 +7481,7 @@ static struct opbx_channel *zt_request(const char *type, int format, void *data,
 	while(p && !tmp) {
 		if (roundrobin)
 			round_robin[x] = p;
-#if 0 
+#if 0
 		opbx_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
 		if (p && available(p, channelmatch, groupmatch, &busy)) {
