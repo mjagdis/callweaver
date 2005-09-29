@@ -3105,22 +3105,8 @@ int opbx_say_date_with_format_en(struct opbx_channel *chan, time_t time, const c
 						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_min);
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
-				} else if ((tm.tm_min < 21) || (tm.tm_min % 10 == 0)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_min);
-					res = wait_file(chan,ints,nextmsg,lang);
 				} else {
-					int ten, one;
-					ten = (tm.tm_min / 10) * 10;
-					one = (tm.tm_min % 10);
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-					res = wait_file(chan,ints,nextmsg,lang);
-					if (!res) {
-						/* Fifty, not fifty-zero */
-						if (one != 0) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-							res = wait_file(chan,ints,nextmsg,lang);
-						}
-					}
+					res = opbx_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
 				}
 				break;
 			case 'P':
@@ -3194,22 +3180,8 @@ int opbx_say_date_with_format_en(struct opbx_channel *chan, time_t time, const c
 						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
-				} else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
 				} else {
-					int ten, one;
-					ten = (tm.tm_sec / 10) * 10;
-					one = (tm.tm_sec % 10);
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-					res = wait_file(chan,ints,nextmsg,lang);
-					if (!res) {
-						/* Fifty, not fifty-zero */
-						if (one != 0) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-							res = wait_file(chan,ints,nextmsg,lang);
-						}
-					}
+					res = opbx_say_number(chan, tm.tm_sec, ints, lang, (char *) NULL);
 				}
 				break;
 			case 'T':
