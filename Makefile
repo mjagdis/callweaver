@@ -146,6 +146,12 @@ HTTP_DOCSDIR=/var/www/html
 # Determine by a grep 'ScriptAlias' of your httpd.conf file
 HTTP_CGIDIR=/var/www/cgi-bin
 
+#User to run as
+OPBXRUNUSER=openpbx
+
+#Group to run as
+OPBXRUNGROUP=openpbx
+
 # If the file .openpbx.makeopts is present in your home directory, you can
 # include all of your favorite Makefile options so that every time you download
 # a new version of OpenPBX, you don't have to edit the makefile to set them. 
@@ -566,6 +572,10 @@ NEWHEADERS=$(notdir $(wildcard include/openpbx/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
 
 bininstall: all
+	groupadd -f $(OPBXRUNGROUP)
+	if [ "`cat /etc/passwd | grep -e '^$(OPBXRUNUSER):'`" = "" ]; then \
+		useradd -d $(DESTDIR)$(ASTVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
+	fi
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
@@ -576,11 +586,15 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme
+	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(MODULES_DIR) $(DESTDIR)$(ASTSBINDIR) \
+		$(DESTDIR)$(ASTETCDIR) $(DESTDIR)$(ASTBINDIR) $(DESTDIR)$(ASTVARRUNDIR) \
+		$(DESTDIR)$(ASTSPOOLDIR)
 	install -m 755 openpbx $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ]; then \
-		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(ASTSBINDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ;\
+		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(ASTSBINDIR)|;' \
+			> $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ;\
 		chmod 755 $(DESTDIR)$(ASTSBINDIR)/safe_openpbx;\
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
@@ -595,6 +609,8 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
+	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(ASTVARLIBDIR) $(DESTDIR)$(ASTLOGDIR) \
+	$(DESTDIR)$(ASTVARLIBDIR)/keys 
 	install -m 644 openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
@@ -675,7 +691,13 @@ samples: adsi
 		install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
 	done
 	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTETCDIR)/openpbx.conf ]; then \
-		echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo "[general]" > $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo ";user to run openpbx (this can not be root/UID 0)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo "opbxrunuser => $(OPBXRUNUSER)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo ";group to run openpbx (this can not be root wheel or GID 0)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo "opbxrungroup => $(OPBXRUNGROP)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo "" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo "[directories]" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \

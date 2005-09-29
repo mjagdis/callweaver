@@ -157,6 +157,8 @@ char opbx_config_OPBX_KEY_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_PID[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_SOCKET[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_RUN_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_RUN_USER[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_RUN_GROUP[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
@@ -1743,6 +1745,15 @@ static void opbx_readconfig(void) {
 	if (!cfg) {
 		return;
 	}
+	v = opbx_variable_browse(cfg, "general");
+	while (v) {
+		if (!strcasecmp(v->name, "opbxrunuser")) {
+			opbx_copy_string(opbx_config_OPBX_RUN_USER, v->value, sizeof(opbx_config_OPBX_RUN_USER));
+		} else if (!strcasecmp(v->name, "opbxrungroup")) {
+			opbx_copy_string(opbx_config_OPBX_RUN_GROUP, v->value, sizeof(opbx_config_OPBX_RUN_GROUP));
+		}
+		v = v->next;
+	}
 	v = opbx_variable_browse(cfg, "files");
 	while (v) {
 		if (!strcasecmp(v->name, "astctlpermissions")) {
@@ -1883,13 +1894,6 @@ int main(int argc, char *argv[])
 		is_child_of_nonroot=1;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
-	/* Check if we're root */
-	/*
-	if (geteuid()) {
-		opbx_log(LOG_ERROR, "Must be run as root\n");
-		exit(1);
-	}
-	*/
 	/* Check for options */
 	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:M:")) != -1) {
 		switch(c) {
@@ -1984,7 +1988,8 @@ int main(int argc, char *argv[])
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
 	}
-
+	if (opbx_config_OPBX_RUN_GROUP)
+		rungroup = opbx_config_OPBX_RUN_GROUP;
 	if (!is_child_of_nonroot && rungroup) {
 		struct group *gr;
 		gr = getgrnam(rungroup);
@@ -1992,14 +1997,15 @@ int main(int argc, char *argv[])
 			opbx_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
-		if (setgid(gr->gr_gid)) {
+		if (setregid(gr->gr_gid, gr->gr_gid)) {
 			opbx_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
 			exit(1);
 		}
 		if (option_verbose)
 			opbx_verbose("Running as group '%s'\n", rungroup);
 	}
-
+	if (opbx_config_OPBX_RUN_USER)
+		runuser = opbx_config_OPBX_RUN_USER;
 	if (!is_child_of_nonroot && runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
@@ -2007,13 +2013,19 @@ int main(int argc, char *argv[])
 			opbx_log(LOG_WARNING, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
-		if (setuid(pw->pw_uid)) {
+		if (setreuid(pw->pw_uid, pw->pw_uid)) {
 			opbx_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
 			exit(1);
 		}
 		setenv("OPENPBX_ALREADY_NONROOT","yes",1);
 		if (option_verbose)
 			opbx_verbose("Running as user '%s'\n", runuser);
+	}
+
+	/* Check if we're root */
+	if (!geteuid()) {
+		opbx_log(LOG_ERROR, "Running as root has been disabled\n");
+		exit(1);
 	}
 
 	term_init();
