@@ -1877,8 +1877,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 
         cur=parkinglot;
         while(cur) {
-			opbx_mutex_lock(&s->lock);
-                opbx_cli(s->fd, "Event: ParkedCall\r\n"
+			opbx_cli(s->fd, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
 			"Timeout: %ld\r\n"
@@ -1891,7 +1890,6 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
 			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
 			,idText);
-			opbx_mutex_unlock(&s->lock);
 
             cur = cur->next;
         }

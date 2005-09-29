@@ -559,7 +559,6 @@ static int manager_dbget(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Database entry not found");
 	} else {
 		astman_send_ack(s, m, "Result will follow");
-		opbx_mutex_lock(&s->lock);
 		opbx_cli(s->fd, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"
 				"Key: %s\r\n"
@@ -567,7 +566,6 @@ static int manager_dbget(struct mansession *s, struct message *m)
 				"%s"
 				"\r\n",
 				family, key, tmp, idText);
-		opbx_mutex_unlock(&s->lock);
 	}
 	return 0;
 }

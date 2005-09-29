@@ -335,8 +335,6 @@ static char default_notifymime[OPBX_MAX_EXTENSION] = DEFAULT_NOTIFYMIME;
 
 static int global_notifyringing = 1;	/* Send notifications on ringing */
 
-static int global_framems = 0;
-
 static int default_qualify = 0;		/* Default Qualify= setting */
 
 static struct opbx_flags global_flags = {0};		/* global SIP_ flags */
@@ -549,7 +547,7 @@ struct sip_auth {
 #define SIP_CALL_ONHOLD		(1 << 28)	 
 #define SIP_CALL_LIMIT		(1 << 29)
 /* Remote Party-ID Support */
-#define SIP_GENRPID		(1 << 30)
+#define SIP_SENDRPID		(1 << 30)
 
 /* a new page of flags for peer */
 #define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
@@ -583,7 +581,7 @@ static struct sip_pvt {
 	int authtries;				/* Times we've tried to authenticate */
 	int expiry;				/* How long we take to expire */
 	int branch;				/* One random number */
-	int tag;				/* Another random number */
+	char tag[11];				/* Another random number */
 	int sessionid;				/* SDP Session ID */
 	int sessionversion;			/* SDP Session Version */
 	struct sockaddr_in sa;			/* Our peer */
@@ -641,7 +639,7 @@ static struct sip_pvt {
 	time_t ospstart;			/* OSP Start time */
 #endif
 	struct sip_request initreq;		/* Initial request */
-
+	
 	int maxtime;				/* Max time for first response */
 	int maxforwards;			/* keep the max-forwards info */
 	int initid;				/* Auto-congest ID if appropriate */
@@ -667,7 +665,6 @@ static struct sip_pvt {
 	struct opbx_variable *chanvars;		/* Channel variables to set for call */
 	struct sip_pvt *next;			/* Next call in chain */
 	struct sip_invite_param *options;	/* Options for INVITE */
-	int framems;                /* Packetization */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -715,7 +712,6 @@ struct sip_user {
 	int call_limit;			/* Limit of concurrent calls */
 	struct opbx_ha *ha;		/* ACL setting */
 	struct opbx_variable *chanvars;	/* Variables to set for channel created by user */
-	int framems;                /* Packetization */
 };
 
 /* Structure for SIP peer data, we place calls to peers if registred  or fixed IP address (host) */
@@ -773,7 +769,6 @@ struct sip_peer {
 	struct opbx_ha *ha;		/* Access control list */
 	struct opbx_variable *chanvars;	/* Variables to set for channel created by user */
 	int lastmsg;
-	int framems;                /* Packetization */
 };
 
 OPBX_MUTEX_DEFINE_STATIC(sip_reload_lock);
@@ -903,7 +898,6 @@ static int determine_firstline_parts(struct sip_request *req);
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
-static void build_rpid(struct sip_pvt *p);
 
 /* Definition of this channel for channel registration */
 static const struct opbx_channel_tech sip_tech = {
@@ -1586,14 +1580,6 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 static void sip_destroy_peer(struct sip_peer *peer)
 {
 	/* Delete it, it needs to disappear */
-	if (peer->call->rpid) {
-		free(peer->call->rpid);
-		peer->call->rpid = NULL;
-	}
-	if (peer->call->rpid_from) {
-		free(peer->call->rpid_from);
-		peer->call->rpid_from = NULL;
-	}
 	if (peer->call)
 		sip_destroy(peer->call);
 	if (peer->chanvars) {
@@ -1825,6 +1811,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
 		       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 	r->capability = peer->capability;
+	r->prefs = peer->prefs;
 	if (r->rtp) {
 		opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 		opbx_rtp_setnat(r->rtp, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
@@ -1833,14 +1820,6 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 		opbx_rtp_setnat(r->vrtp, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 	}
-
-
-	r->framems = peer->framems;
-	/* Set Frame packetization, use default if it doesn't exist. */
-	if (r->rtp && r->framems) {
-		opbx_rtp_set_framems(r->rtp, r->framems);
-	}
-
 	opbx_copy_string(r->peername, peer->username, sizeof(r->peername));
 	opbx_copy_string(r->authname, peer->username, sizeof(r->authname));
 	opbx_copy_string(r->username, peer->username, sizeof(r->username));
@@ -1982,6 +1961,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
 	struct opbx_var_t *current;
 	
 
+	
 	p = ast->tech_pvt;
 	if ((ast->_state != OPBX_STATE_DOWN) && (ast->_state != OPBX_STATE_RESERVED)) {
 		opbx_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
@@ -2099,6 +2079,13 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 			p->registry->call = NULL;
 		ASTOBJ_UNREF(p->registry,sip_registry_destroy);
 	}
+
+	if (p->rpid)
+		free(p->rpid);
+
+	if (p->rpid_from)
+		free(p->rpid_from);
+
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
 		if (lockowner)
@@ -2746,7 +2733,6 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	i->owner = tmp;
 	opbx_mutex_lock(&usecnt_lock);
 	usecnt++;
-
 	opbx_mutex_unlock(&usecnt_lock);
 	opbx_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	opbx_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
@@ -2964,16 +2950,19 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 		snprintf(callid, len, "@%s", opbx_inet_ntoa(iabuf, sizeof(iabuf), ourip));
 }
 
+static void make_our_tag(char *tagbuf, size_t len)
+{
+	snprintf(tagbuf, len, "as%08x", rand());
+}
+
 /*--- sip_alloc: Allocate SIP_PVT structure and set defaults ---*/
 static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method)
 {
 	struct sip_pvt *p;
 
-	p = malloc(sizeof(struct sip_pvt));
-	if (!p)
+	if (!(p = calloc(1, sizeof(*p))))
 		return NULL;
-	/* Keep track of stuff */
-	memset(p, 0, sizeof(struct sip_pvt));
+
 	opbx_mutex_init(&p->lock);
 
 	p->method = intended_method;
@@ -2996,7 +2985,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	}
 
 	p->branch = rand();	
-	p->tag = rand();
+	make_our_tag(p->tag, sizeof(p->tag));
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
 
@@ -3014,7 +3003,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 			free(p);
 			return NULL;
 		}
-
 		opbx_rtp_settos(p->rtp, tos);
 		if (p->vrtp)
 			opbx_rtp_settos(p->vrtp, tos);
@@ -3040,7 +3028,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	else
 		opbx_copy_string(p->callid, callid, sizeof(p->callid));
-	opbx_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
+	opbx_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
 	/* Assign default music on hold class */
 	strcpy(p->musicclass, global_musicclass);
 	p->capability = global_capability;
@@ -3909,7 +3897,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		if (!opbx_strlen_zero(p->theirtag) && opbx_test_flag(p, SIP_OUTGOING))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (p->tag && !opbx_test_flag(p, SIP_OUTGOING))
-			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
+			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->tag);
 		else {
 			opbx_copy_string(newto, ot, sizeof(newto));
 			newto[sizeof(newto) - 1] = '\0';
@@ -4019,19 +4007,14 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		if (opbx_test_flag(p, SIP_OUTGOING) && !opbx_strlen_zero(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (!opbx_test_flag(p, SIP_OUTGOING))
-			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
+			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->tag);
 		else
 			snprintf(newto, sizeof(newto), "%s", ot);
 		ot = newto;
 	}
 
 	if (opbx_test_flag(p, SIP_OUTGOING)) {
-		if (!opbx_test_flag(p, SIP_GENRPID)) {
-			build_rpid(p);
-			add_header(req, "From", p->rpid_from);
-		} else {
-			add_header(req, "From", of);
-		}
+		add_header(req, "From", of);
 		add_header(req, "To", ot);
 	} else {
 		add_header(req, "From", ot);
@@ -4042,8 +4025,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "CSeq", tmp);
 
 	add_header(req, "User-Agent", default_useragent);
-	if (!opbx_test_flag(p, SIP_GENRPID)) 
-		add_header(req, "Remote-Party-ID", p->rpid);
 	return 0;
 }
 
@@ -4189,14 +4170,49 @@ static int add_vidupdate(struct sip_request *req)
 	return 0;
 }
 
+static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     int debug)
+{
+	int rtp_code;
+
+	if (debug)
+		opbx_verbose("Adding codec 0x%x (%s) to SDP\n", codec, opbx_getformatname(codec));
+	if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 1, codec)) == -1)
+		return;
+
+	opbx_build_string(m_buf, m_size, " %d", rtp_code);
+	opbx_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+			 opbx_rtp_lookup_mime_subtype(1, codec),
+			 sample_rate);
+}
+
+static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
+				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+				int debug)
+{
+	int rtp_code;
+
+	if (debug)
+		opbx_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, opbx_rtp_lookup_mime_subtype(0, format));
+	if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 0, format)) == -1)
+		return;
+
+	opbx_build_string(m_buf, m_size, " %d", rtp_code);
+	opbx_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+			 opbx_rtp_lookup_mime_subtype(0, format),
+			 sample_rate);
+	if (format == OPBX_RTP_DTMF)
+		/* Indicate we support DTMF and FLASH... */
+		opbx_build_string(a_buf, a_size, "a=fmtp:%d 0-16\r\n", rtp_code);
+}
+
 /*--- add_sdp: Add Session Description Protocol message ---*/
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
 	int len = 0;
-	int codec = 0;
-	int pref_codec = 0;
+	int pref_codec;
 	int alreadysent = 0;
-	char costr[80];
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
 	char v[256];
@@ -4204,21 +4220,27 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char o[256];
 	char c[256];
 	char t[256];
-	char m[256];
-	char m2[256];
-	char a[1024] = "";
-	char a2[1024] = "";
+	char m_audio[256];
+	char m_video[256];
+	char a_audio[1024];
+	char a_video[1024];
+	char *m_audio_next = m_audio;
+	char *m_video_next = m_video;
+	size_t m_audio_left = sizeof(m_audio);
+	size_t m_video_left = sizeof(m_video);
+	char *a_audio_next = a_audio;
+	char *a_video_next = a_video;
+	size_t a_audio_left = sizeof(a_audio);
+	size_t a_video_left = sizeof(a_video);
 	char iabuf[INET_ADDRSTRLEN];
-	int x = 0;
-	int capability = 0 ;
+	int x;
+	int capability;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
-	int debug=0;
+	int debug;
 	
 	debug = sip_debug_test_pvt(p);
 
-	/* XXX We break with the "recommendation" and send our IP, in order that our
-	       peer doesn't have to opbx_gethostbyname() us XXX */
 	len = 0;
 	if (!p->rtp) {
 		opbx_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -4260,105 +4282,100 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (p->vrtp)
 			opbx_verbose("Video is at %s port %d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));	
 	}
+
+	/* We break with the "recommendation" and send our IP, in order that our
+	   peer doesn't have to opbx_gethostbyname() us */
+
 	snprintf(v, sizeof(v), "v=0\r\n");
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, opbx_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
-	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+
+	opbx_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+	opbx_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
-		if (debug)
-			opbx_verbose("Answering/Requesting with root capability 0x%x (%s)\n", p->prefcodec, opbx_getformatname(p->prefcodec));
-		codec = opbx_rtp_lookup_code(p->rtp, 1, p->prefcodec);
-		if (codec > -1) {
-			snprintf(costr, sizeof(costr), " %d", codec);
-			if (p->prefcodec <= OPBX_FORMAT_MAX_AUDIO) {
-				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, opbx_rtp_lookup_mime_subtype(1, p->prefcodec));
-				opbx_copy_string(a, costr, sizeof(a));
-			} else {
-				strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, opbx_rtp_lookup_mime_subtype(1, p->prefcodec));
-				opbx_copy_string(a2, costr, sizeof(a2));
-			}
-		}
+		if (p->prefcodec <= OPBX_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, p->prefcodec, 8000,
+					 &m_audio_next, &m_audio_left,
+					 &a_audio_next, &a_audio_left,
+					 debug);
+		else
+			add_codec_to_sdp(p, p->prefcodec, 90000,
+					 &m_video_next, &m_video_left,
+					 &a_video_next, &a_video_left,
+					 debug);
 		alreadysent |= p->prefcodec;
 	}
+
 	/* Start by sending our preferred codecs */
-	for (x = 0 ; x < 32 ; x++) {
-		if (!(pref_codec = opbx_codec_pref_index(&p->prefs,x)))
+	for (x = 0; x < 32; x++) {
+		if (!(pref_codec = opbx_codec_pref_index(&p->prefs, x)))
 			break; 
-		if ((capability & pref_codec) && !(alreadysent & pref_codec)) {
-			if (debug)
-				opbx_verbose("Answering with preferred capability 0x%x (%s)\n", pref_codec, opbx_getformatname(pref_codec));
-			codec = opbx_rtp_lookup_code(p->rtp, 1, pref_codec);
-			if (codec > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
-				if (pref_codec <= OPBX_FORMAT_MAX_AUDIO) {
-					strncat(m, costr, sizeof(m) - strlen(m) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, opbx_rtp_lookup_mime_subtype(1, pref_codec));
-					strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				} else {
-					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, opbx_rtp_lookup_mime_subtype(1, pref_codec));
-					strncat(a2, costr, sizeof(a2) - strlen(a) - 1);
-				}
-			}
-		}
+
+		if (!(capability & pref_codec))
+			continue;
+
+		if (alreadysent & pref_codec)
+			continue;
+
+		if (pref_codec <= OPBX_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, pref_codec, 8000,
+					 &m_audio_next, &m_audio_left,
+					 &a_audio_next, &a_audio_left,
+					 debug);
+		else
+			add_codec_to_sdp(p, pref_codec, 90000,
+					 &m_video_next, &m_video_left,
+					 &a_video_next, &a_video_left,
+					 debug);
 		alreadysent |= pref_codec;
 	}
 
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= ((videosupport && p->vrtp) ? OPBX_FORMAT_MAX_VIDEO : OPBX_FORMAT_MAX_AUDIO); x <<= 1) {
-		if ((capability & x) && !(alreadysent & x)) {
-			if (debug)
-				opbx_verbose("Answering with capability 0x%x (%s)\n", x, opbx_getformatname(x));
-			codec = opbx_rtp_lookup_code(p->rtp, 1, x);
-			if (codec > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
-				if (x <= OPBX_FORMAT_MAX_AUDIO) {
-					strncat(m, costr, sizeof(m) - strlen(m) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, opbx_rtp_lookup_mime_subtype(1, x));
-					strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				} else {
-					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, opbx_rtp_lookup_mime_subtype(1, x));
-					strncat(a2, costr, sizeof(a2) - strlen(a2) - 1);
-				}
-			}
-		}
+		if (!(capability & x))
+			continue;
+
+		if (alreadysent & x)
+			continue;
+
+		if (x <= OPBX_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, x, 8000,
+					 &m_audio_next, &m_audio_left,
+					 &a_audio_next, &a_audio_left,
+					 debug);
+		else
+			add_codec_to_sdp(p, x, 90000,
+					 &m_video_next, &m_video_left,
+					 &a_video_next, &a_video_left,
+					 debug);
 	}
+
 	for (x = 1; x <= OPBX_RTP_MAX; x <<= 1) {
-		if (p->noncodeccapability & x) {
-			if (debug)
-				opbx_verbose("Answering with non-codec capability 0x%x (%s)\n", x, opbx_rtp_lookup_mime_subtype(0, x));
-			codec = opbx_rtp_lookup_code(p->rtp, 0, x);
-			if (codec > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
-				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, opbx_rtp_lookup_mime_subtype(0, x));
-				strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				if (x == OPBX_RTP_DTMF) {
-				  /* Indicate we support DTMF and FLASH... */
-				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
-					   codec);
-				  strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				}
-			}
-		}
+		if (!(p->noncodeccapability & x))
+			continue;
+
+		add_noncodec_to_sdp(p, x, 8000,
+				    &m_audio_next, &m_audio_left,
+				    &a_audio_next, &a_audio_left,
+				    debug);
 	}
-	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a) - 1);
-	if (strlen(m) < sizeof(m) - 2)
-		strncat(m, "\r\n", sizeof(m) - strlen(m) - 1);
-	if (strlen(m2) < sizeof(m2) - 2)
-		strncat(m2, "\r\n", sizeof(m2) - strlen(m2) - 1);
-	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
+
+	opbx_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
+
+	if ((m_audio_left < 2) || (m_video_left < 2) || (a_audio_left == 0) || (a_video_left == 0))
 		opbx_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
-	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
+
+	opbx_build_string(&m_audio_next, &m_audio_left, "\r\n");
+	opbx_build_string(&m_video_next, &m_video_left, "\r\n");
+
+	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_audio) + strlen(a_audio);
 	if ((p->vrtp) && (!opbx_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
-		len += strlen(m2) + strlen(a2);
+		len += strlen(m_video) + strlen(a_video);
+
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
 	add_line(resp, v);
@@ -4366,15 +4383,17 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	add_line(resp, s);
 	add_line(resp, c);
 	add_line(resp, t);
-	add_line(resp, m);
-	add_line(resp, a);
+	add_line(resp, m_audio);
+	add_line(resp, a_audio);
 	if ((p->vrtp) && (!opbx_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
-		add_line(resp, m2);
-		add_line(resp, a2);
+		add_line(resp, m_video);
+		add_line(resp, a_video);
 	}
+
 	/* Update lastrtprx when we send our SDP */
 	time(&p->lastrtprx);
 	time(&p->lastrtptx);
+
 	return 0;
 }
 
@@ -4519,82 +4538,85 @@ static void build_contact(struct sip_pvt *p)
 /*--- build_rpid: Build the Remote Party-ID & From using callingpres options ---*/
 static void build_rpid(struct sip_pvt *p)
 {
-	int allowtags = 1;
-	char privacy[5];
-	char screen[5];
-	char rpid[256];
-	char rpid_from[256];
-	char *clid = default_callerid;
-	char *clin = NULL;
+	int send_pres_tags = 1;
+	const char *privacy=NULL;
+	const char *screen=NULL;
+	char buf[256];
+	const char *clid = default_callerid;
+	const char *clin = NULL;
 	char iabuf[INET_ADDRSTRLEN];
+	const char *fromdomain;
 
-	if(!p->rpid && !p->rpid_from) {		
-		if (p->owner && p->owner->cid.cid_num) {
-			clid = strdup(p->owner->cid.cid_num);
-		} 
-		
-		if (p->owner && p->owner->cid.cid_name) {
-			clin = strdup(p->owner->cid.cid_name);
-		}
-		if (!clin || opbx_strlen_zero(clin))
-			clin = clid;
-		
-		switch (p->callingpres)
-			{
-			case OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
-				strcpy(privacy, "off");
-				strcpy(screen, "no");
-				break;
-			case OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
-				strcpy(privacy, "off");
-				strcpy(screen, "pass");
-				break;
-			case OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
-				strcpy(privacy, "off");
-				strcpy(screen, "fail");
-				break;
-			case OPBX_PRES_ALLOWED_NETWORK_NUMBER:
-				strcpy(privacy, "off");
-				strcpy(screen, "yes");
-				break;
-			case OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
-				strcpy(privacy, "full");
-				strcpy(screen, "no");
-				break;
-			case OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
-				strcpy(privacy, "full");
-				strcpy(screen, "pass");
-				break;
-			case OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
-				strcpy(privacy, "full");
-				strcpy(screen, "fail");
-				break;
-			case OPBX_PRES_PROHIB_NETWORK_NUMBER:
-				strcpy(privacy, "full");
-				strcpy(screen, "fail");
-				break;
-			case OPBX_PRES_NUMBER_NOT_AVAILABLE:
-				allowtags = 0;
-				break;
-			default:
-				opbx_log(LOG_WARNING, "Badly encoded callingpres (%d)\n", p->callingpres);
-				if ((p->callingpres & OPBX_PRES_RESTRICTION) != OPBX_PRES_ALLOWED) {
-					strcpy(privacy, "full");
-				} else {
-					strcpy(privacy, "off");
-					strcpy(screen, "no");
-				}
-			}
-		
-		if (allowtags) {
-			snprintf(rpid, sizeof(rpid), "\"%s\" <sip:%s@%s>;privacy=%s;screen=%s", clin, clid, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, privacy, screen);
-		} else {
-			snprintf(rpid, sizeof(rpid), "\"%s\" <sip:%s@%s>", clin, clid, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain);
-		}
-		snprintf(rpid_from, sizeof(rpid_from), "\"%s\" <sip:%s@%s>;tag=as%08x", clin, opbx_strlen_zero(p->fromuser) ? clid : p->fromuser, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
-		p->rpid = strdup(rpid);
-		p->rpid_from = strdup(rpid_from);
+	if (p->rpid || p->rpid_from)
+		return;
+
+	if (p->owner && p->owner->cid.cid_num) {
+		clid = strdup(p->owner->cid.cid_num);
+	} 
+
+	if (p->owner && p->owner->cid.cid_name) {
+		clin = strdup(p->owner->cid.cid_name);
 	}
+	if (!clin || opbx_strlen_zero(clin))
+		clin = clid;
+
+	switch (p->callingpres) {
+	case OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
+		privacy = "off";
+		screen = "no";
+		break;
+	case OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
+		privacy = "off";
+		screen = "pass";
+		break;
+	case OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
+		privacy = "off";
+		screen = "fail";
+		break;
+	case OPBX_PRES_ALLOWED_NETWORK_NUMBER:
+		privacy = "off";
+		screen = "yes";
+		break;
+	case OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
+		privacy = "full";
+		screen = "no";
+		break;
+	case OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
+		privacy = "full";
+		screen = "pass";
+		break;
+	case OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
+		privacy = "full";
+		screen = "fail";
+		break;
+	case OPBX_PRES_PROHIB_NETWORK_NUMBER:
+		privacy = "full";
+		screen = "fail";
+		break;
+	case OPBX_PRES_NUMBER_NOT_AVAILABLE:
+		send_pres_tags = 0;
+		break;
+	default:
+		opbx_log(LOG_WARNING, "Unsupported callingpres (%d)\n", p->callingpres);
+		if ((p->callingpres & OPBX_PRES_RESTRICTION) != OPBX_PRES_ALLOWED)
+			privacy = "full";
+		else
+			privacy = "off";
+		screen = "no";
+		break;
+	}
+	
+	fromdomain = opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain;
+
+	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>", clin, clid, fromdomain);
+	if (send_pres_tags)
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), ";privacy=%s;screen=%s", privacy, screen);
+	p->rpid = strdup(buf);
+
+	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>;tag=%s", clin,
+		 opbx_strlen_zero(p->fromuser) ? clid : p->fromuser,
+		 fromdomain, p->tag);
+	p->rpid_from = strdup(buf);
 }
 
 /*--- initreqprep: Initiate new SIP request to peer/user ---*/
@@ -4645,8 +4667,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 	if (!l || (!opbx_isphonenumber(l) && default_callerid[0]))
 			l = default_callerid;
-	/* if user want's his callerid restricted */
-	if ((p->callingpres & OPBX_PRES_RESTRICTION) != OPBX_PRES_ALLOWED) {
+	/* if we are not sending RPID and user wants his callerid restricted */
+	if (!opbx_test_flag(p, SIP_SENDRPID) && ((p->callingpres & OPBX_PRES_RESTRICTION) != OPBX_PRES_ALLOWED)) {
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
@@ -4672,9 +4694,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if ((ourport != 5060) && opbx_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!opbx_strlen_zero(p->fullcontact)) {
@@ -4717,7 +4739,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	/* Build Remote Party-ID and From */
-	if (!opbx_test_flag(p, SIP_GENRPID)) {
+	if (opbx_test_flag(p, SIP_SENDRPID)) {
 		build_rpid(p);
 		add_header(req, "From", p->rpid_from);
 	} else
@@ -4729,7 +4751,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", default_useragent);
-	if (!opbx_test_flag(p, SIP_GENRPID)) 
+	if (opbx_test_flag(p, SIP_SENDRPID))
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
 
@@ -5209,7 +5231,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			return 0;
 		} else {
 			p = r->call;
-			p->tag = rand();	/* create a new local tag for every register attempt */
+			make_our_tag(p->tag, sizeof(p->tag));	/* create a new local tag for every register attempt */
 			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
@@ -5294,13 +5316,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	}
 
 	if (strchr(r->username, '@')) {
-		snprintf(from, sizeof(from), "<sip:%s>;tag=as%08x", r->username, p->tag);
+		snprintf(from, sizeof(from), "<sip:%s>;tag=%s", r->username, p->tag);
 		if (!opbx_strlen_zero(p->theirtag))
 			snprintf(to, sizeof(to), "<sip:%s>;tag=%s", r->username, p->theirtag);
 		else
 			snprintf(to, sizeof(to), "<sip:%s>", r->username);
 	} else {
-		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, p->tohost, p->tag);
+		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->tag);
 		if (!opbx_strlen_zero(p->theirtag))
 			snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->theirtag);
 		else
@@ -6263,12 +6285,6 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 	}
 	if (peer) {
-		p->framems = peer->framems;
-		/* Set Frame packetization, use default if it doesn't exist. */
-		if (p->rtp && p->framems) {
-			opbx_rtp_set_framems(p->rtp, p->framems);
-		}
-
 		if (!opbx_test_flag(peer, SIP_DYNAMIC)) {
 			opbx_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 		} else {
@@ -6879,12 +6895,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			}
 		}
 		p->prefs = user->prefs;
-		p->framems = user->framems;
-		/* Set Frame packetization, use default if it doesn't exist. */
-		if (p->rtp && p->framems) {
-			opbx_rtp_set_framems(p->rtp, p->framems);
-		}
-
 		/* replace callerid if rpid found, and not restricted */
 		if (!opbx_strlen_zero(rpid_num) && opbx_test_flag(p, SIP_TRUSTRPID)) {
 			if (*calleridname)
@@ -6958,16 +6968,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
  		*/
 		peer = find_peer(NULL, &p->recv, 1);
 		if (peer) {
-			p->framems = peer->framems;
-			/* Set Frame packetization, use default if it doesn't exist. */
-			if (p->rtp && p->framems) {
-				opbx_rtp_set_framems(p->rtp, p->framems);
-			}
-
 			if (debug)
 				opbx_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
-			opbx_copy_flags(p, peer, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+			opbx_copy_flags(p, peer, SIP_TRUSTRPID | SIP_SENDRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
 
 			/* Copy SIP extensions profile to peer */
 			if (p->sipoptions)
@@ -7039,6 +7043,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
+				p->prefs = peer->prefs;
 				p->jointcapability = peer->capability;
 				if (p->peercapability)
 					p->jointcapability &= p->peercapability;
@@ -7300,13 +7305,11 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 	/* List the peers in separate manager events */
 	_sip_show_peers(s->fd, &total, s, m, 3, a);
 	/* Send final confirmation */
-	opbx_mutex_lock(&s->lock);
 	opbx_cli(s->fd,
 	"Event: PeerlistComplete\r\n"
 	"ListItems: %d\r\n"
 	"%s"
 	"\r\n", total, idtext);
-	opbx_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -7409,7 +7412,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ntohs(iterator->addr.sin_port), status);
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
-			opbx_mutex_lock(&s->lock);
 			opbx_cli(fd, 
 			"Event: PeerEntry\r\n%s"
 			"Channeltype: SIP\r\n"
@@ -7429,8 +7431,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			(opbx_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
 			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status);
-		
-			opbx_mutex_unlock(&s->lock);
 		}
 
 		ASTOBJ_UNLOCK(iterator);
@@ -7724,7 +7724,6 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 		astman_send_error(s, m, "Peer: <name> missing.\n");
 		return 0;
 	}
-	opbx_mutex_lock(&s->lock);
 	a[0] = "sip";
 	a[1] = "show";
 	a[2] = "peer";
@@ -7734,7 +7733,6 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 		opbx_cli(s->fd, "ActionID: %s\r\n",id);
 	ret = _sip_show_peer(1, s->fd, s, m, 4, a );
 	opbx_cli( s->fd, "\r\n\r\n" );
-	opbx_mutex_unlock(&s->lock);
 	return ret;
 }
 
@@ -7842,7 +7840,6 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		opbx_cli(fd, "%s\n",status);
  		opbx_cli(fd, "  Useragent    : %s\n", peer->useragent);
  		opbx_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
- 		opbx_cli(fd, "  Packetization: %d\n", peer->framems);
 		if (peer->chanvars) {
  			opbx_cli(fd, "  Variables    :\n");
 			for (v = peer->chanvars ; v ; v = v->next)
@@ -8360,7 +8357,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			opbx_cli(fd, "  Received Address:       %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			opbx_cli(fd, "  NAT Support:            %s\n", nat2str(opbx_test_flag(cur, SIP_NAT)));
 			opbx_cli(fd, "  Audio IP:               %s %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
-			opbx_cli(fd, "  Our Tag:                as%08x\n", cur->tag);
+			opbx_cli(fd, "  Our Tag:                %s\n", cur->tag);
 			opbx_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			opbx_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
 			if (!opbx_strlen_zero(cur->username))
@@ -8917,7 +8914,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 static char show_domains_usage[] = 
 "Usage: sip show domains\n"
 "       Lists all configured SIP local domains.\n"
-"       Asterisk only responds to SIP messages to local domains.\n";
+"       OpenPBX only responds to SIP messages to local domains.\n";
 
 static char notify_usage[] =
 "Usage: sip notify <type> <peer> [<peer>...]\n"
@@ -9077,7 +9074,7 @@ static struct opbx_custom_function checksipdomain_function = {
 	.syntax = "CHECKSIPDOMAIN(<domain|IP>)",
 	.read = func_check_sipdomain,
 	.desc = "This function checks if the domain in the argument is configured\n"
-		"as a local SIP domain that this Asterisk server is configured to handle.\n"
+		"as a local SIP domain that this OpenPBX server is configured to handle.\n"
 		"Returns the domain name if it is locally handled, otherwise an empty string.\n"
 		"Check the domain= configuration in sip.conf\n",
 };
@@ -9772,6 +9769,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 302: /* Moved temporarily */
 				case 305: /* Use Proxy */
 					parse_moved_contact(p, req);
+					/* Fall through */
+				case 486: /* Busy here */
+				case 600: /* Busy everywhere */
+				case 603: /* Decline */
 					if (p->owner)
 						opbx_queue_control(p->owner, OPBX_CONTROL_BUSY);
 					break;
@@ -9787,10 +9788,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (p->owner)
 						snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "Local/%s@%s", p->username, p->context);
 					/* Fall through */
-				case 486: /* Busy here */
 				case 488: /* Not acceptable here - codec error */
-				case 600: /* Busy everywhere */
-				case 603: /* Decline */
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
@@ -10220,7 +10218,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (opbx_strlen_zero(p->exten))
 				opbx_copy_string(p->exten, "s", sizeof(p->exten));
 			/* Initialize tag */	
-			p->tag = rand();
+			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation */
 			c = sip_new(p, OPBX_STATE_DOWN, opbx_strlen_zero(p->username) ? NULL : p->username );
 			*recount = 1;
@@ -10539,8 +10537,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			char *accept = get_header(req, "Accept");
 
 			/* Initialize tag for new subscriptions */	
-			if (!p->tag)
-				p->tag = rand();
+			if (opbx_strlen_zero(p->tag))
+				make_our_tag(p->tag, sizeof(p->tag));
 
 			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
@@ -11291,9 +11289,6 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
 		}
 	}
 
-	/* Assign a default capability */
-	p->capability = global_capability;
-
 	if (create_addr(p, host)) {
 		*cause = OPBX_CAUSE_UNREGISTERED;
 		sip_destroy(p);
@@ -11337,6 +11332,10 @@ static int handle_common_options(struct opbx_flags *flags, struct opbx_flags *ma
 	if (!strcasecmp(v->name, "trustrpid")) {
 		opbx_set_flag(mask, SIP_TRUSTRPID);
 		opbx_set2_flag(flags, opbx_true(v->value), SIP_TRUSTRPID);
+		res = 1;
+	} else if (!strcasecmp(v->name, "sendrpid")) {
+		opbx_set_flag(mask, SIP_SENDRPID);
+		opbx_set2_flag(flags, opbx_true(v->value), SIP_SENDRPID);
 		res = 1;
 	} else if (!strcasecmp(v->name, "useclientcode")) {
 		opbx_set_flag(mask, SIP_USECLIENTCODE);
@@ -11615,7 +11614,6 @@ static struct sip_user *build_user(const char *name, struct opbx_variable *v, in
 		return NULL;
 	}
 	memset(user, 0, sizeof(struct sip_user));
-	user->framems = global_framems;
 	suserobjs++;
 	ASTOBJ_INIT(user);
 	opbx_copy_string(user->name, name, sizeof(user->name));
@@ -11684,8 +11682,6 @@ static struct sip_user *build_user(const char *name, struct opbx_variable *v, in
 			opbx_parse_allow_disallow(&user->prefs, &user->capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			opbx_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
-		} else if (!strcasecmp(v->name, "packetization")) {
-			user->framems = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callingpres")) {
 			user->callingpres = opbx_parse_caller_presentation(v->value);
 			if (user->callingpres == -1)
@@ -11711,7 +11707,6 @@ static struct sip_peer *temp_peer(const char *name)
 		return NULL;
 
 	memset(peer, 0, sizeof(*peer));
-	peer->framems = global_framems;
 	apeerobjs++;
 	ASTOBJ_INIT(peer);
 
@@ -11721,7 +11716,7 @@ static struct sip_peer *temp_peer(const char *name)
 	opbx_copy_flags(peer, &global_flags,
 		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE |
 		       SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
-		       SIP_PROG_INBAND | SIP_OSPAUTH);
+		       SIP_PROG_INBAND | SIP_OSPAUTH | SIP_SENDRPID);
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
@@ -11767,7 +11762,6 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 		peer = malloc(sizeof(*peer));
 		if (peer) {
 			memset(peer, 0, sizeof(*peer));
-			peer->framems = global_framems;
 			if (realtime)
 				rpeerobjs++;
 			else
@@ -11821,7 +11815,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 	opbx_copy_flags(peer, &global_flags,
 		       SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE |
 		       SIP_DTMF | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
-		       SIP_PROG_INBAND | SIP_OSPAUTH);
+		       SIP_PROG_INBAND | SIP_OSPAUTH | SIP_SENDRPID);
 	peer->capability = global_capability;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
@@ -11856,8 +11850,6 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 			opbx_set2_flag(peer, opbx_true(v->value), SIP_USEREQPHONE);
 		else if (!strcasecmp(v->name, "fromuser"))
 			opbx_copy_string(peer->fromuser, v->value, sizeof(peer->fromuser));
-		else if (!strcasecmp(v->name, "packetization"))
-			peer->framems = atoi(v->value);
 		else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
 			if (!strcasecmp(v->value, "dynamic")) {
 				if (!strcasecmp(v->name, "outboundproxy") || obproxyfound) {
@@ -12107,8 +12099,6 @@ static int reload_config(void)
 			opbx_copy_string(default_useragent, v->value, sizeof(default_useragent));
 			opbx_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
 				default_useragent);
-		} else if (!strcasecmp(v->name, "packetization")) {
-			global_framems = atoi(v->value);
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
 			opbx_set2_flag((&global_flags_page2), opbx_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
 		} else if (!strcasecmp(v->name, "rtupdate")) {
@@ -12278,8 +12268,6 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
 			callevents = opbx_true(v->value);
-		} else if (!strcasecmp(v->name, "generaterpid")) {
-			opbx_set2_flag((&global_flags), opbx_true(v->value), SIP_GENRPID);
 		}
 		/* else if (strcasecmp(v->name,"type"))
 		 *	opbx_log(LOG_WARNING, "Ignoring %s\n", v->name);

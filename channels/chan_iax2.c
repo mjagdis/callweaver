@@ -4239,10 +4239,8 @@ static int manager_iax2_show_peers( struct mansession *s, struct message *m )
 {
 	char *a[] = { "iax2", "show", "users" };
 	int ret;
-	opbx_mutex_lock(&s->lock);
 	ret = iax2_show_peers( s->fd, 3, a );
 	opbx_cli( s->fd, "\r\n\r\n" );
-	opbx_mutex_unlock(&s->lock);
 	return ret;
 } /* /JDG */
 
