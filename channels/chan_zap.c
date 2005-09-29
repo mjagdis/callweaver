@@ -2938,6 +2938,7 @@ static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_ch
 	int ofd0, ofd1;
 	int oi0, oi1, i0 = -1, i1 = -1, t0, t1;
 	int os0 = -1, os1 = -1;
+	int priority = 0;
 	struct opbx_channel *oc0, *oc1;
 	enum opbx_bridge_result res;
 
@@ -3110,7 +3111,6 @@ static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_ch
 	for (;;) {
 		struct opbx_channel *c0_priority[2] = {c0, c1};
 		struct opbx_channel *c1_priority[2] = {c1, c0};
-		int priority = 0;
 
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
@@ -8461,7 +8461,7 @@ static void *pri_dchannel(void *vpri)
 									pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
 								}
 								if (e->ring.redirectingreason >= 0)
-									pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirectingreason2str(e->ring.redirectingreason));
+									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
