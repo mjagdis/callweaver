@@ -590,6 +590,7 @@ bininstall: all
 		$(DESTDIR)$(ASTETCDIR) $(DESTDIR)$(ASTBINDIR) $(DESTDIR)$(ASTVARRUNDIR) \
 		$(DESTDIR)$(ASTSPOOLDIR)
 	install -m 755 openpbx $(DESTDIR)$(ASTSBINDIR)/
+	ln -sf openpbx $(DESTDIR)$(ASTSBINDIR)/ropenpbx
 	install -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ]; then \
