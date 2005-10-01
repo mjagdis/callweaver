@@ -696,7 +696,7 @@ samples: adsi
 		echo ";user to run openpbx (this can not be root/UID 0)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "opbxrunuser => $(OPBXRUNUSER)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo ";group to run openpbx (this can not be root wheel or GID 0)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "opbxrungroup => $(OPBXRUNGROP)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+		echo "opbxrungroup => $(OPBXRUNGROUP)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "[directories]" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
 		echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
