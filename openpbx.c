@@ -1998,7 +1998,7 @@ int main(int argc, char *argv[])
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
 	}
-	if (opbx_config_OPBX_RUN_GROUP)
+	if (!rungroup)
 		rungroup = opbx_config_OPBX_RUN_GROUP;
 	if (!is_child_of_nonroot && rungroup) {
 		struct group *gr;
@@ -2014,7 +2014,7 @@ int main(int argc, char *argv[])
 		if (option_verbose)
 			opbx_verbose("Running as group '%s'\n", rungroup);
 	}
-	if (opbx_config_OPBX_RUN_USER)
+	if (!runuser)
 		runuser = opbx_config_OPBX_RUN_USER;
 	if (!is_child_of_nonroot && runuser) {
 		struct passwd *pw;
