@@ -75,9 +75,19 @@ TRACE_FRAMES = #-DTRACE_FRAMES
 #
 MALLOC_DEBUG = #-include $(PWD)/include/openpbx/opbxmm.h
 
+#User to run as
+OPBXRUNUSER=openpbx
+
+#Group to run as
+OPBXRUNGROUP=openpbx
+
 # Where to install openpbx after compiling
 # Default -> leave empty
-INSTALL_PREFIX?=
+ifneq (${OSARCH},SunOS)
+  INSTALL_PREFIX=/usr/local
+else
+  INSTALL_PREFIX=/opt
+endif 
 
 # Staging directory
 # Files are copied here temporarily during the install process
@@ -97,35 +107,19 @@ BUSYDETECT+= #-DBUSYDETECT_TONEONLY
 # Don't use together with -DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
-ifneq (${OSARCH},SunOS)
-  ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/openpbx
-  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/openpbx
-  ASTETCDIR=$(INSTALL_PREFIX)/etc/openpbx
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/openpbx
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/openpbx
-  ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/openpbx
-  ASTCONFPATH=$(ASTETCDIR)/openpbx.conf
-  ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run/openpbx
-  ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
-  MODULES_DIR=$(ASTLIBDIR)/modules
-  AGI_DIR=$(ASTVARLIBDIR)/agi-bin
-else
-  ASTLIBDIR=$(INSTALL_PREFIX)/opt/openpbx/lib
-  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/opt/openpbx/lib
-  ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/openpbx
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/opt/openpbx/spool
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/opt/openpbx/log
-  ASTHEADERDIR=$(INSTALL_PREFIX)/opt/openpbx/usr/include/openpbx
-  ASTCONFPATH=$(ASTETCDIR)/openpbx.conf
-  ASTBINDIR=$(INSTALL_PREFIX)/opt/openpbx/usr/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)/opt/openpbx/usr/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/opt/openpbx/run
-  ASTMANDIR=$(INSTALL_PREFIX)/opt/openpbx/usr/share/man
-  MODULES_DIR=$(ASTLIBDIR)/modules
-  AGI_DIR=$(ASTVARLIBDIR)/agi-bin
-endif
+OPBXLIBDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/lib
+OPBXVARLIBDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/var
+OPBXETCDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/conf
+OPBXSPOOLDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/spool
+OPBXLOGDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/log
+OPBXHEADERDIR=/usr/include/openpbx
+OPBXCONFPATH=$(OPBXETCDIR)/openpbx.conf
+OPBXBINDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/bin
+OPBXSBINDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/sbin
+OPBXVARRUNDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)
+OPBXMANDIR=/usr/share/man
+MODULES_DIR=$(OPBXLIBDIR)/modules
+AGI_DIR=$(OPBXVARLIBDIR)/agi-bin
 
 ASTCFLAGS=
 
@@ -145,12 +139,6 @@ ASTCFLAGS=
 HTTP_DOCSDIR=/var/www/html
 # Determine by a grep 'ScriptAlias' of your httpd.conf file
 HTTP_CGIDIR=/var/www/cgi-bin
-
-#User to run as
-OPBXRUNUSER=openpbx
-
-#Group to run as
-OPBXRUNGROUP=openpbx
 
 # If the file .openpbx.makeopts is present in your home directory, you can
 # include all of your favorite Makefile options so that every time you download
@@ -496,39 +484,39 @@ clean:
 datafiles: all
 	if test $$(id -u) = 0; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 	for y in sounds/*; do \
-		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y ; \
-		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/digits ; \
-		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/priv-callerintros ; \
+		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y ; \
+		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/digits ; \
+		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/priv-callerintros ; \
 		for x in $$y/digits/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/digits ; \
+				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/digits ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
 			fi; \
 		done ; \
-		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/dictate ; \
+		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/dictate ; \
 		for x in $$y/dictate/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/dictate ; \
+				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/dictate ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
 			fi; \
 		done ; \
-		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/letters ; \
+		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/letters ; \
 		for x in $$y/letters/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/letters ; \
+				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/letters ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
 			fi; \
 		done ; \
-		mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/$$y/phonetic ; \
+		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/phonetic ; \
 		for x in $$y/phonetic/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y/phonetic ; \
+				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/phonetic ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -536,7 +524,7 @@ datafiles: all
 		done ; \
 		for x in $$y/demo-* $$y/vm-* $$y/transfer* $$y/pbx-* $$y/ss-* $$y/beep* $$y/dir-* $$y/conf-* $$y/agent-* $$y/invalid* $$y/tt-* $$y/auth-* $$y/privacy-* $$y/queue-* $$y/spy-* $$y/priv-* $$y/screen-*; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/$$y ; \
+				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -544,13 +532,13 @@ datafiles: all
 		done ; \
 	done
 	# make allison-en default
-	@if [ ! -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/en ] && [ ! -d $(DESTDIR)$(ASTVARLIBDIR)/sounds/en ] ; then \
-		ln -s $(DESTDIR)$(ASTVARLIBDIR)/sounds/allison-en $(DESTDIR)$(ASTVARLIBDIR)/sounds/en; \
+	@if [ ! -f $(DESTDIR)$(OPBXVARLIBDIR)/sounds/en ] && [ ! -d $(DESTDIR)$(OPBXVARLIBDIR)/sounds/en ] ; then \
+		ln -s $(DESTDIR)$(OPBXVARLIBDIR)/sounds/allison-en $(DESTDIR)$(OPBXVARLIBDIR)/sounds/en; \
 	fi
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
+	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/mohmp3
+	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/images
 	for x in images/*.jpg; do \
-		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
+		install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/images ; \
 	done
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 
@@ -569,54 +557,54 @@ update:
 	fi
 
 NEWHEADERS=$(notdir $(wildcard include/openpbx/*.h))
-OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
+OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADERDIR)/*.h)))
 
 bininstall: all
 	groupadd -f $(OPBXRUNGROUP)
 	if [ "`cat /etc/passwd | grep -e '^$(OPBXRUNUSER):'`" = "" ]; then \
-		useradd -d $(DESTDIR)$(ASTVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
+		useradd -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
 	fi
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
-	mkdir -p $(DESTDIR)$(ASTSBINDIR)
-	mkdir -p $(DESTDIR)$(ASTETCDIR)
-	mkdir -p $(DESTDIR)$(ASTBINDIR)
-	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
-	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
-	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/dictate
-	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
-	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
-	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme
+	mkdir -p $(DESTDIR)$(OPBXSBINDIR)
+	mkdir -p $(DESTDIR)$(OPBXETCDIR)
+	mkdir -p $(DESTDIR)$(OPBXBINDIR)
+	mkdir -p $(DESTDIR)$(OPBXVARRUNDIR)
+	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/voicemail
+	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/dictate
+	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/system
+	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/tmp
+	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/meetme
 	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(MODULES_DIR) \
-		$(DESTDIR)$(ASTETCDIR) $(DESTDIR)$(ASTVARRUNDIR) \
-		$(DESTDIR)$(ASTSPOOLDIR)
-	install -m 755 openpbx $(DESTDIR)$(ASTSBINDIR)/
-	ln -sf openpbx $(DESTDIR)$(ASTSBINDIR)/ropenpbx
-	install -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(ASTSBINDIR)/
-	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
-	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ]; then \
-		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(ASTSBINDIR)|;' \
-			> $(DESTDIR)$(ASTSBINDIR)/safe_openpbx ;\
-		chmod 755 $(DESTDIR)$(ASTSBINDIR)/safe_openpbx;\
+		$(DESTDIR)$(OPBXETCDIR) $(DESTDIR)$(OPBXVARRUNDIR) \
+		$(DESTDIR)$(OPBXSPOOLDIR)
+	install -m 755 openpbx $(DESTDIR)$(OPBXSBINDIR)/
+	ln -sf openpbx $(DESTDIR)$(OPBXSBINDIR)/ropenpbx
+	install -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(OPBXSBINDIR)/
+	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(OPBXSBINDIR)/	
+	if [ ! -f $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx ]; then \
+		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(OPBXSBINDIR)|;' \
+			> $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx ;\
+		chmod 755 $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx;\
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
-	install -d $(DESTDIR)$(ASTHEADERDIR)
-	install -m 644 include/openpbx/*.h $(DESTDIR)$(ASTHEADERDIR)
+	install -d $(DESTDIR)$(OPBXHEADERDIR)
+	install -m 644 include/openpbx/*.h $(DESTDIR)$(OPBXHEADERDIR)
 	if [ -n "$(OLDHEADERS)" ]; then \
-		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
+		rm -f $(addprefix $(DESTDIR)$(OPBXHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
-	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
-	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
-	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
-	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
-	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(ASTVARLIBDIR) $(DESTDIR)$(ASTLOGDIR) \
-	$(DESTDIR)$(ASTVARLIBDIR)/keys 
-	install -m 644 openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(ASTMANDIR)/man8
-	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
+	rm -f $(DESTDIR)$(OPBXVARLIBDIR)/sounds/voicemail
+	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/sounds
+	mkdir -p $(DESTDIR)$(OPBXLOGDIR)/cdr-csv
+	mkdir -p $(DESTDIR)$(OPBXLOGDIR)/cdr-custom
+	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/keys
+	mkdir -p $(DESTDIR)$(OPBXMANDIR)/man8
+	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(OPBXVARLIBDIR) $(DESTDIR)$(OPBXLOGDIR) \
+	$(DESTDIR)$(OPBXVARLIBDIR)/keys 
+	install -m 644 openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	install -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	install -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	( cd $(DESTDIR)$(OPBXVARLIBDIR)/sounds  ; ln -s $(OPBXSPOOLDIR)/voicemail . )
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 	@echo " +---- OpenPBX Installation Complete --------+"  
 	@echo " +                                           +"
@@ -667,66 +655,66 @@ install: all datafiles bininstall
 upgrade: all bininstall
 
 adsi:
-	mkdir -p $(DESTDIR)$(ASTETCDIR)
+	mkdir -p $(DESTDIR)$(OPBXETCDIR)
 	for x in configs/*.adsi; do \
-		if [ ! -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
-			install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x` ; \
+		if [ ! -f $(DESTDIR)$(OPBXETCDIRX)/$$x ]; then \
+			install -m 644 $$x $(DESTDIR)$(OPBXETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
 
 samples: adsi
-	mkdir -p $(DESTDIR)$(ASTETCDIR)
+	mkdir -p $(DESTDIR)$(OPBXETCDIR)
 	for x in configs/*.sample; do \
-		if [ -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ]; then \
+		if [ -f $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample` ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
-				if cmp -s $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $$x ; then \
+				if cmp -s $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample` $$x ; then \
 					echo "Config file $$x is unchanged"; \
 					continue; \
 				fi ; \
-				mv -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample`.old ; \
+				mv -f $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample` $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample`.old ; \
 			else \
 				echo "Skipping config file $$x"; \
 				continue; \
 			fi ;\
 		fi ; \
-		install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
+		install -m 644 $$x $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample` ;\
 	done
-	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTETCDIR)/openpbx.conf ]; then \
-		echo "[general]" > $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";user to run openpbx (this can not be root/UID 0)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "opbxrunuser => $(OPBXRUNUSER)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";group to run openpbx (this can not be root wheel or GID 0)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "opbxrungroup => $(OPBXRUNGROUP)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "[directories]" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astagidir => $(AGI_DIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astspooldir => $(ASTSPOOLDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astrundir => $(ASTVARRUNDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo "; Changing the following lines may compromise your security." >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";[files]" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";astctlpermissions = 0660" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";astctlowner = root" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";astctlgroup = apache" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
-		echo ";astctl = openpbx.ctl" >> $(DESTDIR)$(ASTETCDIR)/openpbx.conf ; \
+	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ]; then \
+		echo "[general]" > $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";user to run openpbx (this can not be root/UID 0)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "opbxrunuser => $(OPBXRUNUSER)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";group to run openpbx (this can not be root wheel or GID 0)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "opbxrungroup => $(OPBXRUNGROUP)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "[directories]" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astetcdir => $(OPBXETCDIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astvarlibdir => $(OPBXVARLIBDIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astagidir => $(AGI_DIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astspooldir => $(OPBXSPOOLDIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astrundir => $(OPBXVARRUNDIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "astlogdir => $(OPBXLOGDIR)" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo "; Changing the following lines may compromise your security." >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";[files]" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";astctlpermissions = 0660" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";astctlowner = root" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";astctlgroup = apache" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
+		echo ";astctl = openpbx.ctl" >> $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
 	else \
 		echo "Skipping openpbx.conf creation"; \
 	fi
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
-	rm -f $(DESTDIR)$(ASTVARLIBDIR)/mohmp3/sample-hold.mp3
-	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
-	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
+	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/sounds ; \
+	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/mohmp3 ; \
+	rm -f $(DESTDIR)$(OPBXVARLIBDIR)/mohmp3/sample-hold.mp3
+	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/voicemail/default/1234/INBOX
+	:> $(DESTDIR)$(OPBXSPOOLDIR)/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/en/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
+		cat $(DESTDIR)$(OPBXVARLIBDIR)/sounds/en/$$x.gsm >> $(DESTDIR)$(OPBXSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
 	done
-	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm
+	:> $(DESTDIR)$(OPBXSPOOLDIR)/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/en/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
+		cat $(DESTDIR)$(OPBXVARLIBDIR)/sounds/en/$$x.gsm >> $(DESTDIR)$(OPBXSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
