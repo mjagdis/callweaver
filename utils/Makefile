@@ -35,7 +35,7 @@ all: depend $(TARGET)
 install:
 	for x in $(TARGET); do \
 		if [ "$$x" != "none" ]; then \
-			$(INSTALL) -m 755 $$x $(DESTDIR)$(ASTSBINDIR)/$$x; \
+			$(INSTALL) -m 755 $$x $(DESTDIR)$(OPBXSBINDIR)/$$x; \
 		fi; \
 	done 
 
