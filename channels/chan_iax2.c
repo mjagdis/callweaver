@@ -1355,8 +1355,7 @@ static void reload_firmware(void)
 			}
 		}
 		closedir(fwd);
-	} else 
-		opbx_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
+	} 
 
 	/* Clean up leftovers */
 	cur = waresl.wares;
