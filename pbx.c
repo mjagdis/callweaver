@@ -4954,12 +4954,16 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
 						opbx_mutex_unlock(&chan->lock);
 					if (opbx_pbx_run(chan)) {
 						opbx_log(LOG_ERROR, "Unable to run PBX on %s\n", chan->name);
+						if (channel)
+							*channel = NULL;
 						opbx_hangup(chan);
 						res = -1;
 					}
 				} else {
 					if (opbx_pbx_start(chan)) {
 						opbx_log(LOG_ERROR, "Unable to start PBX on %s\n", chan->name);
+						if (channel)
+							*channel = NULL;
 						opbx_hangup(chan);
 						res = -1;
 					} 
@@ -4975,6 +4979,8 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
 						opbx_cdr_failed(chan->cdr);
 				}
 			
+				if (channel)
+					*channel = NULL;
 				opbx_hangup(chan);
 			}
 		}
@@ -5034,6 +5040,8 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
 		if (opbx_pthread_create(&as->p, &attr, async_wait, as)) {
 			opbx_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
+			if (channel)
+				*channel = NULL;
 			opbx_hangup(chan);
 			res = -1;
 			goto outgoing_exten_cleanup;
