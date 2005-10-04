@@ -411,11 +411,10 @@ static int directory_exec(struct opbx_channel *chan, void *data)
 	char *context, *dialcontext, *dirintro, *options;
 
 	if (!data) {
-		opbx_log(LOG_WARNING, "directory requires an argument (context[,dialcontext])\n");
+		opbx_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
 
-top:
 	context = opbx_strdupa(data);
 	dialcontext = strchr(context, '|');
 	if (dialcontext) {
@@ -446,24 +445,26 @@ top:
 		else
 			dirintro = "dir-intro-fn";
 	}
-	if (chan->_state != OPBX_STATE_UP) 
-		res = opbx_answer(chan);
-	if (!res)
-		res = opbx_streamfile(chan, dirintro, chan->language);
-	if (!res)
-		res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
-	opbx_stopstream(chan);
-	if (!res)
-		res = opbx_waitfordigit(chan, 5000);
-	if (res > 0) {
-		res = do_directory(chan, cfg, context, dialcontext, res, last);
-		if (res > 0) {
+	
+	for (;;) {
+		if (!res)
+			res = opbx_streamfile(chan, dirintro, chan->language);
+		if (!res)
 			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
-			opbx_stopstream(chan);
-			if (res >= 0) {
-				goto top;
+		opbx_stopstream(chan);
+		if (!res)
+			res = opbx_waitfordigit(chan, 5000);
+		if (res >0) {
+			res = do_directory(chan, cfg, context, dialcontext, res, last);
+			if (res > 0){
+				res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+				opbx_stopstream(chan);
+				if (res >= 0) {
+					continue;
+				}
 			}
 		}
+		break;
 	}
 	opbx_config_destroy(cfg);
 	LOCAL_USER_REMOVE(u);
