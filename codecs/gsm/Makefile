@@ -45,11 +45,13 @@ ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
 ifneq ($(shell uname -m),armv4l)
+ifneq (${PROC},sparc)
 ifneq (${PROC},sparc64)
 ifneq (${PROC},arm)
 ifneq (${PROC},ppc)
 ifneq (${PROC},ppc64)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
@@ -71,6 +73,11 @@ endif
 ifeq (${PROC},ultrasparc)
 OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
 endif
+
+ifeq (${PROC},sparc)
+OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
+endif
+
 
 PG =
 #PG = -g -pg
@@ -231,8 +238,10 @@ ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
 ifneq ($(shell uname -m),armv4l)
 ifneq ($(shell uname -m),sparc64)
+ifneq ($(shell uname -m),sparc)
 ifneq (${PROC},arm)
 GSM_SOURCES+= $(SRC)/k6opt.s
+endif
 endif
 endif
 endif
@@ -292,8 +301,10 @@ ifneq ($(shell uname -m), ppc)
 ifneq ($(shell uname -m), ppc64)
 ifneq ($(shell uname -m), alpha)
 ifneq ($(shell uname -m), sparc64)
+ifneq ($(shell uname -m), sparc)
 ifneq ($(shell uname -m), armv4l)
 GSM_OBJECTS+= $(SRC)/k6opt.o
+endif
 endif
 endif
 endif
