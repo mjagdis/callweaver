@@ -1326,8 +1326,11 @@ static int get_input(struct mansession *s, char *output)
 	do {
 		res = poll(fds, 1, -1);
 		if (res < 0) {
-			if (errno == EINTR)
+			if (errno == EINTR) {
+				if (s->dead)
+					return -1;
 				continue;
+			}
 			opbx_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 	 		return -1;
 		} else if (res > 0) {
@@ -1435,7 +1438,7 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		opbx_mutex_unlock(&sessionlock);
-		if (opbx_pthread_create(&t, &attr, session_do, s))
+		if (opbx_pthread_create(&s->t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -1468,13 +1471,11 @@ int manager_event(int category, char *event, char *fmt, ...)
 	struct mansession *s;
 	char tmp[4096];
 	va_list ap;
-	struct mansession *next, *prev = NULL;
 
 	opbx_mutex_lock(&sessionlock);
 	s = sessions;
 	while(s) {
-		next = s->next;
-		if (((s->readperm & category) == category) && ((s->send_events & category) == category) ) {
+		if (((s->readperm & category) == category) && ((s->send_events & category) == category)) {
 			opbx_mutex_lock(&s->__lock);
 			opbx_cli(s->fd, "Event: %s\r\n", event);
 			opbx_cli(s->fd, "Privilege: %s\r\n", authority_to_str(category, tmp, sizeof(tmp)));
@@ -1486,20 +1487,12 @@ int manager_event(int category, char *event, char *fmt, ...)
 				append_event(s, tmp);
 			} else if (opbx_carefulwrite(s->fd,tmp,strlen(tmp),100) < 0) {
 				opbx_log(LOG_WARNING, "Disconnecting slow manager session!\n");
-				/* Unlink from list */
-				if (prev)
-					prev->next = next;
-				else
-					sessions = next;
-				opbx_mutex_unlock(&s->__lock);
-				free_session(s);
-				s = next;
-				continue;
+				s->dead = 1;
+				pthread_kill(s->t, SIGURG);
 			}
 			opbx_mutex_unlock(&s->__lock);
 		}
-		prev = s;
-		s = next;
+		s = s->next;
 	}
 	opbx_mutex_unlock(&sessionlock);
 	return 0;
