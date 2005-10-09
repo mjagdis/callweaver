@@ -1863,7 +1863,7 @@ int main(int argc, char *argv[])
 	int num;
 	int is_child_of_nonroot=0;
 	char *buf;
-        static char *runuser="nobody", *rungroup="nobody";
+	static char *runuser=NULL, *rungroup=NULL;  
 
 
 	/* Remember original args for restart */
