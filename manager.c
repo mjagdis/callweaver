@@ -495,7 +495,14 @@ static int authenticate(struct mansession *s, struct message *m)
 					} else if (!strcasecmp(v->name, "permit") ||
 						   !strcasecmp(v->name, "deny")) {
 						ha = opbx_append_ha(v->name, v->value, ha);
-					}	
+					} else if (!strcasecmp(v->name, "writetimeout")) {
+						int val = atoi(v->value);
+
+						if (val < 100)
+							opbx_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
+						else
+							s->writetimeout = val;
+					}
 				    		
 					v = v->next;
 				}
@@ -955,7 +962,7 @@ static char mandescr_originate[] =
 "	Data: Data to use (requires 'Application')\n"
 "	Timeout: How long to wait for call to be answered (in ms)\n"
 "	CallerID: Caller ID to be set on the outgoing channel\n"
-"	Variable: Channel variable to set (VAR1=value1|VAR2=value2)\n"
+"	Variable: Channel variable to set, multiple Variable: headers are allowed\n"
 "	Account: Account code\n"
 "	Async: Set to 'true' for fast origination\n";
 
@@ -1283,12 +1290,10 @@ static int process_message(struct mansession *s, struct message *m)
 		}
 		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
-		else
-			ret = 0;
 		opbx_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while(s->eventq) {
-			if (opbx_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), 100)) {
+			if (opbx_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout)) {
 				ret = -1;
 				break;
 			}
@@ -1429,6 +1434,7 @@ static void *accept_thread(void *ignore)
 		} 
 		memset(s, 0, sizeof(struct mansession));
 		memcpy(&s->sin, &sin, sizeof(sin));
+		s->writetimeout = 100;
 
 		if(! block_sockets) {
 			/* For safety, make sure socket is non-blocking */
@@ -1501,7 +1507,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 		opbx_mutex_lock(&s->__lock);
 		if (s->busy) {
 			append_event(s, tmp);
-		} else if (opbx_carefulwrite(s->fd, tmp, tmp_next - tmp, 100) < 0) {
+		} else if (opbx_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
 			opbx_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 			s->dead = 1;
 			pthread_kill(s->t, SIGURG);
