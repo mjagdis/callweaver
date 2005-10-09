@@ -39,7 +39,19 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Disabling DNS SRV lookups disables the 
 				; ability to place SIP calls based on domain 
 				; names to some other SIP users on the Internet
-				
+;domain=mydomain.tld		; Set default domain for this host
+				; If configured, Asterisk will only allow
+				; INVITE and REFER to non-local domains
+				; Use "sip show domains" to list local domains
+;domain=mydomain.tld,mydomain-incoming
+				; Add domain and configure incoming context
+				; for external calls to this domain
+;domain=1.2.3.4			; Add IP address as local domain
+				; You can have several "domain" settings
+;allowexternalinvites=no	; Disable INVITE and REFER to non-local domains
+				; Default is yes
+;autodomain=yes			; Turn this on to have Asterisk add local host
+				; name 
 ;pedantic=yes			; Enable slow, pedantic checking for Pingtel
 				; and multiline formatted headers for strict
 				; SIP compatibility (defaults to "no")
@@ -88,6 +100,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;compactheaders = yes		; send compact sip headers.
 ;sipdebug = yes			; Turn on SIP debugging by default, from
 				; the moment the channel loads this configuration
+;subscribecontext = default	; Set a specific context for SUBSCRIBE requests
+				; Useful to limit subscriptions to local extensions
+				; Settable per peer/user also
+;notifyringing = yes		; Notify subscriptions on RINGING state
+
 ;packetization = 20		; The global size in ms of the rtp packets
 
 ;
@@ -255,6 +272,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; amaflags		      amaflags
 ; call-limit		      call-limit
 ; restrictcid		      restrictcid
+; subscribecontext	      subscribecontext
 ;                             mailbox
 ;                             username
 ;                             template

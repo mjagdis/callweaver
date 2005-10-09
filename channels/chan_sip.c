@@ -126,7 +126,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
 						/* 2 * 500 ms in RFC 3261 */
-#define MAX_RETRANS		7		/* Try only 7 times for retransmissions */
+#define MAX_RETRANS		6		/* Try only 6 times for retransmissions, a total of 7 transmissions */
 #define MAX_AUTHTRIES		3		/* Try authentication three times, then fail */
 
 
@@ -549,11 +549,16 @@ struct sip_auth {
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
 
+#define SIP_FLAGS_TO_COPY \
+	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
+	 SIP_PROG_INBAND | SIP_OSPAUTH | SIP_USECLIENTCODE | SIP_NAT | \
+	 SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
+
 /* a new page of flags for peer */
-#define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
-#define SIP_PAGE2_RTUPDATE 		(1 << 1)
-#define SIP_PAGE2_RTAUTOCLEAR 		(1 << 2)
-#define SIP_PAGE2_RTIGNOREREGEXPIRE       (1 << 3)
+#define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
+#define SIP_PAGE2_RTUPDATE		(1 << 1)
+#define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
+#define SIP_PAGE2_RTIGNOREREGEXPIRE	(1 << 3)
 
 static int global_rtautoclear = 120;
 
@@ -637,6 +642,7 @@ static struct sip_pvt {
 #ifdef OSP_SUPPORT
 	int osphandle;				/* OSP Handle for call */
 	time_t ospstart;			/* OSP Start time */
+	unsigned int osptimelimit;		/* OSP call duration limit */
 #endif
 	struct sip_request initreq;		/* Initial request */
 	
@@ -714,7 +720,7 @@ struct sip_user {
 	struct opbx_variable *chanvars;	/* Variables to set for channel created by user */
 };
 
-/* Structure for SIP peer data, we place calls to peers if registred  or fixed IP address (host) */
+/* Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
 struct sip_peer {
 	ASTOBJ_COMPONENTS(struct sip_peer);	/* name, refcount, objflags,  object pointers */
 					/* peer->name is the unique name of this object */
@@ -730,7 +736,7 @@ struct sip_peer {
 	char regexten[OPBX_MAX_EXTENSION]; /* Extension to register (if regcontext is used) */
 	char fromuser[80];		/* From: user when calling this peer */
 	char fromdomain[MAXHOSTNAMELEN];	/* From: domain when calling this peer */
-	char fullcontact[256];		/* Contact registred with us (not in sip.conf) */
+	char fullcontact[256];		/* Contact registered with us (not in sip.conf) */
 	char cid_num[80];		/* Caller ID num */
 	char cid_name[80];		/* Caller ID name */
 	int callingpres;		/* Calling id presentation */
@@ -756,7 +762,6 @@ struct sip_peer {
 	opbx_group_t pickupgroup;	/* Pickup group */
 	struct opbx_dnsmgr_entry *dnsmgr;/* DNS refresh manager for peer */
 	struct sockaddr_in addr;	/* IP address of peer */
-	struct in_addr mask;
 
 	/* Qualification */
 	struct sip_pvt *call;		/* Call pointer */
@@ -1137,9 +1142,9 @@ static int retrans_pkt(void *data)
  				pkt->timer_a = 2 * pkt->timer_a;
  
  			/* For non-invites, a maximum of 4 secs */
- 			if (pkt->method != SIP_INVITE && pkt->timer_a > 4000)
- 				pkt->timer_a = 4000;
  			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
+ 			if (pkt->method != SIP_INVITE && siptimer_a > 4000)
+ 				siptimer_a = 4000;
  		
  			/* Reschedule re-transmit */
 			reschedule = siptimer_a;
@@ -1807,9 +1812,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		return -1;
 	}
 
-	opbx_copy_flags(r, peer,
-		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
-		       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+	opbx_copy_flags(r, peer, SIP_FLAGS_TO_COPY);
 	r->capability = peer->capability;
 	r->prefs = peer->prefs;
 	if (r->rtp) {
@@ -2666,6 +2669,10 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	struct opbx_channel *tmp;
 	struct opbx_variable *v = NULL;
 	int fmt;
+#ifdef OSP_SUPPORT
+	char iabuf[INET_ADDRSTRLEN];
+	char peer[MAXHOSTNAMELEN];
+#endif	
 	
 	opbx_mutex_unlock(&i->lock);
 	/* Don't hold a sip pvt lock while we allocate a channel */
@@ -2757,6 +2764,10 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	if (!opbx_strlen_zero(i->callid)) {
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 	}
+#ifdef OSP_SUPPORT
+	snprintf(peer, sizeof(peer), "[%s]:%d", opbx_inet_ntoa(iabuf, sizeof(iabuf), i->sa.sin_addr), ntohs(i->sa.sin_port));
+	pbx_builtin_setvar_helper(tmp, "OSPPEER", peer);
+#endif
 	opbx_setstate(tmp, state);
 	if (state != OPBX_STATE_DOWN) {
 		if (opbx_pbx_start(tmp)) {
@@ -2975,6 +2986,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
 #ifdef OSP_SUPPORT
 	p->osphandle = -1;
+	p->osptimelimit = 0;
 #endif	
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
@@ -3028,7 +3040,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	else
 		opbx_copy_string(p->callid, callid, sizeof(p->callid));
-	opbx_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
+	opbx_copy_flags(p, &global_flags, SIP_FLAGS_TO_COPY);
 	/* Assign default music on hold class */
 	strcpy(p->musicclass, global_musicclass);
 	p->capability = global_capability;
@@ -4025,6 +4037,10 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "CSeq", tmp);
 
 	add_header(req, "User-Agent", default_useragent);
+
+	if (p->rpid)
+		add_header(req, "Remote-Party-ID", p->rpid);
+
 	return 0;
 }
 
@@ -4739,19 +4755,20 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	/* Build Remote Party-ID and From */
-	if (opbx_test_flag(p, SIP_SENDRPID)) {
+	if (opbx_test_flag(p, SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
 		build_rpid(p);
 		add_header(req, "From", p->rpid_from);
-	} else
+	} else {
 		add_header(req, "From", from);
+	}
+	add_header(req, "To", to);
 	opbx_copy_string(p->exten, l, sizeof(p->exten));
 	build_contact(p);
-	add_header(req, "To", to);
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", default_useragent);
-	if (opbx_test_flag(p, SIP_SENDRPID))
+	if (p->rpid)
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
 
@@ -4870,6 +4887,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 	char *pidfstate = "--";
 	char *pidfnote= "Ready";
 
+	memset(from, 0, sizeof(from));
+	memset(to, 0, sizeof(to));
+	memset(tmp, 0, sizeof(tmp));
+
 	switch (state) {
 	case (OPBX_EXTENSION_RINGING | OPBX_EXTENSION_INUSE):
 		if (global_notifyringing)
@@ -4922,7 +4943,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		}
 	}
 
-	memset(from, 0, sizeof(from));
 	opbx_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
 	c = get_in_brackets(from);
 	if (strncmp(c, "sip:", 4)) {
@@ -4933,7 +4953,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		*a = '\0';
 	mfrom = c;
 
-	memset(to, 0, sizeof(to));
 	opbx_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 	c = get_in_brackets(to);
 	if (strncmp(c, "sip:", 4)) {
@@ -4983,10 +5002,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		break;
 	case PIDF_XML: /* Eyebeam supports this format */
 		opbx_build_string(&t, &maxbytes, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-		opbx_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nentity=\"%s\">\n", mfrom);
+		opbx_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
 		opbx_build_string(&t, &maxbytes, "<pp:person><status>\n");
 		if (pidfstate[0] != '-')
-			opbx_build_string(&t, &maxbytes, "<es:activities><es:activity>%s</es:activity></es:activities>\n", pidfstate);
+			opbx_build_string(&t, &maxbytes, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
 		opbx_build_string(&t, &maxbytes, "</status></pp:person>\n");
 		opbx_build_string(&t, &maxbytes, "<note>%s</note>\n", pidfnote); /* Note */
 		opbx_build_string(&t, &maxbytes, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
@@ -5022,7 +5041,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 }
 
 /*--- transmit_notify_with_mwi: Notify user of messages waiting in voicemail ---*/
-/*      Notification only works for registred peers with mailbox= definitions
+/*      Notification only works for registered peers with mailbox= definitions
  *      in sip.conf
  *      We use the SIP Event package message-summary
  *      MIME type defaults to  "application/simple-message-summary";
@@ -5235,7 +5254,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
-		/* Build callid for registration if we haven't registred before */
+		/* Build callid for registration if we haven't registered before */
 		if (!r->callid_valid) {
 			build_callid(r->callid, sizeof(r->callid), __ourip, default_fromdomain);
 			r->callid_valid = 1;
@@ -5957,6 +5976,22 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		list_route(p->route);
 }
 
+#ifdef OSP_SUPPORT
+/*--- check_osptoken: Validate OSP token for user authrroization ---*/
+static int check_osptoken (struct sip_pvt *p, char *token)
+{
+	char tmp[80];
+
+	if (opbx_osp_validate (NULL, token, &p->osphandle, &p->osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
+		return (-1);
+	} else {
+		snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
+		pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
+		return (0);
+	}
+}
+#endif
+
 /*--- check_auth: Check user authorization from peer definition ---*/
 /*      Some actions, like REGISTER and INVITEs from peers require
         authentication (if peer have secret set) */
@@ -5968,9 +6003,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	char *respheader = "Proxy-Authenticate";
 	char *authtoken;
 #ifdef OSP_SUPPORT
-	char tmp[80];
 	char *osptoken;
-	unsigned int osptimelimit;
 #endif
 	/* Always OK if no secret */
 	if (opbx_strlen_zero(secret) && opbx_strlen_zero(md5secret)
@@ -6002,14 +6035,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 					}
 				}
 				else {
-					if (opbx_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-						return (-1);
-					} 
-					else {
-						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-						return (0);
-					}
+					return (check_osptoken (p, osptoken));
 				}
 				break;
 			case SIP_OSPAUTH_PROXY:
@@ -6017,14 +6043,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 					return (0);
 				} 
 				else {
-					if (opbx_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-						return (-1);
-					} 
-					else {
-						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-						return (0);
-					}
+					return (check_osptoken (p, osptoken));
 				}
 				break;
 			case SIP_OSPAUTH_EXCLUSIVE:
@@ -6032,14 +6051,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 					return (-1);
 				}
 				else {
-					if (opbx_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-						return (-1);
-					} 
-					else {
-						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-						return (0);
-					}
+					return (check_osptoken (p, osptoken));
 				}
 				break;
 			default:
@@ -6215,6 +6227,8 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	switch(state) {
 	case OPBX_EXTENSION_DEACTIVATED:	/* Retry after a while */
 	case OPBX_EXTENSION_REMOVED:	/* Extension is gone */
+		if (p->autokillid > -1)
+			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		sip_scheddestroy(p, 15000);	/* Delete subscription in 15 secs */
 		opbx_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == OPBX_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
@@ -6823,10 +6837,12 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 }
 
 
-/*--- check_user: Check if matching user or peer is defined ---*/
+/*--- check_user_full: Check if matching user or peer is defined ---*/
+/* 	Match user on From: user name and peer on IP/port */
+/*	This is used on first invite (not re-invites) and subscribe requests */
 static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
 {
-	struct sip_user *user;
+	struct sip_user *user = NULL;
 	struct sip_peer *peer;
 	char *of, from[256], *c;
 	char *rpid,rpid_num[50];
@@ -6850,6 +6866,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
+	if (calleridname[0])
+		opbx_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num,0,sizeof(rpid_num));
@@ -6882,14 +6900,15 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		opbx_copy_string(p->cid_num, of, sizeof(p->cid_num));
 		opbx_shrink_phone_number(p->cid_num);
 	}
-	if (*calleridname)
-		opbx_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 	if (opbx_strlen_zero(of))
 		return 0;
-	user = find_user(of, 1);
+
+	if (!mailbox)	/* If it's a mailbox SUBSCRIBE, don't check users */
+		user = find_user(of, 1);
+
 	/* Find user based on user name in the from header */
-	if (!mailbox && user && opbx_apply_ha(user->ha, sin)) {
-		opbx_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+	if (user && opbx_apply_ha(user->ha, sin)) {
+		opbx_copy_flags(p, user, SIP_FLAGS_TO_COPY);
 		/* copy channel vars */
 		for (v = user->chanvars ; v ; v = v->next) {
 			if ((tmpvar = opbx_variable_new(v->name, v->value))) {
@@ -6916,7 +6935,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		}
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
-			opbx_copy_flags(p, user, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
+			opbx_copy_flags(p, user, SIP_FLAGS_TO_COPY);
 			/* Copy SIP extensions profile from INVITE */
 			if (p->sipoptions)
 				user->sipoptions = p->sipoptions;
@@ -6965,16 +6984,21 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
 	if (!user) {
 		/* If we didn't find a user match, check for peers */
-		/* Look for peer based on the IP address we received data from */
-		/* If peer is registred from this IP address or have this as a default
-		   IP address, this call is from the peer 
- 		*/
-		peer = find_peer(NULL, &p->recv, 1);
+		if (sipmethod == SIP_SUBSCRIBE)
+			/* For subscribes, match on peer name only */
+			peer = find_peer(of, NULL, 1);
+		else
+			/* Look for peer based on the IP address we received data from */
+			/* If peer is registered from this IP address or have this as a default
+			   IP address, this call is from the peer 
+			*/
+			peer = find_peer(NULL, &p->recv, 1);
+
 		if (peer) {
 			if (debug)
 				opbx_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
-			opbx_copy_flags(p, peer, SIP_TRUSTRPID | SIP_SENDRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+			opbx_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 
 			/* Copy SIP extensions profile to peer */
 			if (p->sipoptions)
@@ -7009,7 +7033,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->peermd5secret[0] = '\0';
 			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri, reliable, ignore))) {
-				opbx_copy_flags(p, peer, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
+				opbx_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 				/* If we have a call limit, set flag */
 				if (peer->call_limit)
 					opbx_set_flag(p, SIP_CALL_LIMIT);
@@ -7328,8 +7352,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	regex_t regexbuf;
 	int havepattern = 0;
 
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8s %-10s\n"
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8d %-10s\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
 
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
@@ -7360,11 +7384,10 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	}
 
 	if (!s) { /* Normal list */
-		opbx_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
+		opbx_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status");
 	} 
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-		char nm[20] = "";
 		char status[20] = "";
 		char srch[2000];
 		char pstatus;
@@ -7376,7 +7399,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			continue;
 		}
 
-		opbx_inet_ntoa(nm, sizeof(nm), iterator->mask);
 		if (!opbx_strlen_zero(iterator->username) && !s)
 			snprintf(name, sizeof(name), "%s/%s", iterator->name, iterator->username);
 		else
@@ -7403,7 +7425,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			opbx_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
 			(opbx_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
-			nm, ntohs(iterator->addr.sin_port), status);
+			ntohs(iterator->addr.sin_port), status);
 
 		if (!s)  {/* Normal CLI list */
 			opbx_cli(fd, FORMAT, name, 
@@ -7411,7 +7433,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			opbx_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
 			(opbx_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ",       /* permit/deny */
-			nm,
+			
 			ntohs(iterator->addr.sin_port), status);
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
@@ -7812,6 +7834,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		opbx_cli(fd, "  CanReinvite  : %s\n", (opbx_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
 		opbx_cli(fd, "  PromiscRedir : %s\n", (opbx_test_flag(peer, SIP_PROMISCREDIR)?"Yes":"No"));
 		opbx_cli(fd, "  User=Phone   : %s\n", (opbx_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
+		opbx_cli(fd, "  Trust RPID   : %s\n", (opbx_test_flag(peer, SIP_TRUSTRPID) ? "Yes" : "No"));
+		opbx_cli(fd, "  Send RPID    : %s\n", (opbx_test_flag(peer, SIP_SENDRPID) ? "Yes" : "No"));
 
 		/* - is enumerated */
 		opbx_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(opbx_test_flag(peer, SIP_DTMF)));
@@ -10106,7 +10130,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (required_profile) { 	/* They require something */
 			/* At this point we support no extensions, so fail */
 			transmit_response_with_unsupported(p, "420 Bad extension", req, required);
-			opbx_set_flag(p, SIP_NEEDDESTROY);	
+			if (!p->lastinvite)
+				opbx_set_flag(p, SIP_NEEDDESTROY);	
 			return -1;
 			
 		}
@@ -10139,7 +10164,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 				if (process_sdp(p, req)) {
 					transmit_response(p, "488 Not acceptable here", req);
-					opbx_set_flag(p, SIP_NEEDDESTROY);	
+					if (!p->lastinvite)
+						opbx_set_flag(p, SIP_NEEDDESTROY);
 					return -1;
 				}
 			} else {
@@ -10241,6 +10267,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!ignore && p)
 		p->lastinvite = seqno;
 	if (c) {
+#ifdef OSP_SUPPORT
+		opbx_channel_setwhentohangup (c, p->osptimelimit);
+#endif
 		switch(c->_state) {
 		case OPBX_STATE_DOWN:
 			transmit_response(p, "100 Trying", req);
@@ -10509,11 +10538,20 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		opbx_verbose("Ignoring this SUBSCRIBE request\n");
 
 	if (!p->lastinvite) {
-		char mailbox[256]="";
+		char mailboxbuf[256]="";
 		int found = 0;
+		char *mailbox = NULL;
+		int mailboxsize = 0;
 
+		char *event = get_header(req, "Event");	/* Get Event package name */
+		char *accept = get_header(req, "Accept");
+
+ 		if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
+			mailbox = mailboxbuf;
+			mailboxsize = sizeof(mailboxbuf);
+		}
 		/* Handle authentication if this is our first subscribe */
-		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, sizeof(mailbox));
+		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, mailboxsize);
 		if (res) {
 			if (res < 0) {
 				opbx_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
@@ -10536,8 +10574,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				transmit_response(p, "484 Address Incomplete", req);	/* Overlap dialing on SUBSCRIBE?? */
 			opbx_set_flag(p, SIP_NEEDDESTROY);	
 		} else {
-			char *event = get_header(req, "Event");	/* Get Event package name */
-			char *accept = get_header(req, "Accept");
 
 			/* Initialize tag for new subscriptions */	
 			if (opbx_strlen_zero(p->tag))
@@ -11197,6 +11233,20 @@ static int sip_poke_peer(struct sip_peer *peer)
 }
 
 /*--- sip_devicestate: Part of PBX channel interface ---*/
+
+/* Return values:---
+	If we have qualify on and the device is not reachable, regardless of registration
+	state we return OPBX_DEVICE_UNAVAILABLE
+
+	For peers with call limit:
+		not registered			OPBX_DEVICE_UNAVAILABLE
+		registered, no call		OPBX_DEVICE_NOT_INUSE
+		registered, calls possible	OPBX_DEVICE_INUSE
+		registered, call limit reached	OPBX_DEVICE_BUSY
+	For peers without call limit:
+		not registered			OPBX_DEVICE_UNAVAILABLE
+		registered			OPBX_DEVICE_UNKNOWN
+*/
 static int sip_devicestate(void *data)
 {
 	char *host;
@@ -11213,7 +11263,7 @@ static int sip_devicestate(void *data)
 		host = tmp + 1;
 
 	if (option_debug > 2) 
-		opbx_log(LOG_DEBUG, "Checking device state for DNS host %s\n", host);
+		opbx_log(LOG_DEBUG, "Checking device state for peer %s\n", host);
 
 	if ((p = find_peer(host, NULL, 1))) {
 		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
@@ -11224,8 +11274,10 @@ static int sip_devicestate(void *data)
 			} else {
 				/* qualify is not on, or the peer is responding properly */
 				/* check call limit */
-				if (p->call_limit && (p->inUse >= p->call_limit))
+				if (p->call_limit && (p->inUse == p->call_limit))
 					res = OPBX_DEVICE_BUSY;
+				else if (p->call_limit && p->inUse)
+					res = OPBX_DEVICE_INUSE;
 				else if (p->call_limit)
 					res = OPBX_DEVICE_NOT_INUSE;
 				else
@@ -11306,7 +11358,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	
 	/* We have an extension to call, don't use the full contact here */
-	/* This to enable dialling registred peers with extension dialling,
+	/* This to enable dialling registered peers with extension dialling,
 	   like SIP/peername/extension 	
 	   SIP/peername will still use the full contact */
 	if (ext) {
@@ -11622,9 +11674,7 @@ static struct sip_user *build_user(const char *name, struct opbx_variable *v, in
 	opbx_copy_string(user->name, name, sizeof(user->name));
 	oldha = user->ha;
 	user->ha = NULL;
-	opbx_copy_flags(user, &global_flags,
-		SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT |
-		SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
+	opbx_copy_flags(user, &global_flags, SIP_FLAGS_TO_COPY);
 	user->capability = global_capability;
 	user->prefs = prefs;
 	/* set default context */
@@ -11716,10 +11766,7 @@ static struct sip_peer *temp_peer(const char *name)
 	peer->expire = -1;
 	peer->pokeexpire = -1;
 	opbx_copy_string(peer->name, name, sizeof(peer->name));
-	opbx_copy_flags(peer, &global_flags,
-		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE |
-		       SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
-		       SIP_PROG_INBAND | SIP_OSPAUTH | SIP_SENDRPID);
+	opbx_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
@@ -11743,7 +11790,6 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 {
 	struct sip_peer *peer = NULL;
 	struct opbx_ha *oldha = NULL;
-	int maskfound=0;
 	int obproxyfound=0;
 	int found=0;
 	int format=0;		/* Ama flags */
@@ -11815,10 +11861,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 	oldha = peer->ha;
 	peer->ha = NULL;
 	peer->addr.sin_family = AF_INET;
-	opbx_copy_flags(peer, &global_flags,
-		       SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE |
-		       SIP_DTMF | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
-		       SIP_PROG_INBAND | SIP_OSPAUTH | SIP_SENDRPID);
+	opbx_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 	peer->capability = global_capability;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
@@ -11888,8 +11931,6 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 				else
 					opbx_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
 			}
-			if (!maskfound)
-				inet_aton("255.255.255.255", &peer->mask);
 		} else if (!strcasecmp(v->name, "defaultip")) {
 			if (opbx_get_ip(&peer->defaddr, v->value)) {
 				ASTOBJ_UNREF(peer, sip_destroy_peer);
@@ -11897,9 +11938,6 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 			}
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 			peer->ha = opbx_append_ha(v->name, v->value, peer->ha);
-		} else if (!strcasecmp(v->name, "mask")) {
-			maskfound++;
-			inet_aton(v->value, &peer->mask);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (!realtime && opbx_test_flag(peer, SIP_DYNAMIC))
 				peer->defaddr.sin_port = htons(atoi(v->value));
