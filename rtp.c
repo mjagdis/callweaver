@@ -1246,7 +1246,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
 	if (f->subclass < OPBX_FORMAT_MAX_AUDIO) {
-                pred = rtp->lastts + opbx_codec_get_samples(f);
+		pred = rtp->lastts + f->samples;
 
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
