@@ -1281,7 +1281,7 @@ static int process_message(struct mansession *s, struct message *m)
 			}
 			tmp = tmp->next;
 		}
-		if (!ret)
+		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
 		else
 			ret = 0;
@@ -1473,15 +1473,11 @@ static int append_event(struct mansession *s, const char *str)
 int manager_event(int category, char *event, char *fmt, ...)
 {
 	struct mansession *s;
-	char tmp[4096];
-	char auth[256];
+	char auth[80];
+	char tmp[4096] = "";
+	char *tmp_next = tmp;
+	size_t tmp_left = sizeof(tmp) - 2;
 	va_list ap;
-
-	authority_to_str(category, auth, sizeof(auth));
-	va_start(ap, fmt);
-	vsnprintf(tmp, sizeof(tmp) - 3, fmt, ap);
-	va_end(ap);
-	strcat(tmp, "\r\n");
 
 	opbx_mutex_lock(&sessionlock);
 	for (s = sessions; s; s = s->next) {
@@ -1491,12 +1487,21 @@ int manager_event(int category, char *event, char *fmt, ...)
 		if ((s->send_events & category) != category)
 			continue;
 
+		if (opbx_strlen_zero(tmp)) {
+			opbx_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
+					 event, authority_to_str(category, auth, sizeof(auth)));
+			va_start(ap, fmt);
+			opbx_build_string_va(&tmp_next, &tmp_left, fmt, ap);
+			va_end(ap);
+			*tmp_next++ = '\r';
+			*tmp_next++ = '\n';
+			*tmp_next = '\0';
+		}
+
 		opbx_mutex_lock(&s->__lock);
-		opbx_cli(s->fd, "Event: %s\r\n", event);
-		opbx_cli(s->fd, "Privilege: %s\r\n", auth);
 		if (s->busy) {
 			append_event(s, tmp);
-		} else if (opbx_carefulwrite(s->fd, tmp, strlen(tmp), 100) < 0) {
+		} else if (opbx_carefulwrite(s->fd, tmp, tmp_next - tmp, 100) < 0) {
 			opbx_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 			s->dead = 1;
 			pthread_kill(s->t, SIGURG);
