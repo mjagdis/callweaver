@@ -1863,7 +1863,8 @@ int main(int argc, char *argv[])
 	int num;
 	int is_child_of_nonroot=0;
 	char *buf;
-	char *runuser=NULL, *rungroup=NULL;
+        static char *runuser="nobody", *rungroup="nobody";
+
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {

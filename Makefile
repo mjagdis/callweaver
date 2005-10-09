@@ -118,6 +118,8 @@ OPBXBINDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/bin
 OPBXSBINDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)/sbin
 OPBXVARRUNDIR=$(INSTALL_PREFIX)/$(OPBXRUNUSER)
 OPBXMANDIR=/usr/share/man
+GROUPADDBIN=/usr/sbin/groupadd
+USERADDBIN=/usr/sbin/useradd
 MODULES_DIR=$(OPBXLIBDIR)/modules
 AGI_DIR=$(OPBXVARLIBDIR)/agi-bin
 
@@ -560,11 +562,9 @@ NEWHEADERS=$(notdir $(wildcard include/openpbx/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADERDIR)/*.h)))
 
 bininstall: all
-	
-	/usr/sbin/groupadd $(OPBXRUNGROUP)
-
+	$(GROUPADDBIN) -f $(OPBXRUNGROUP)
 	if [ "`cat /etc/passwd | grep -e '^$(OPBXRUNUSER):'`" = "" ]; then \
-		useradd -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
+		$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
 	fi
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(OPBXSBINDIR)
