@@ -31,44 +31,32 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "openpbx/chanvars.h"
 #include "openpbx/logger.h"
+#include "openpbx/strings.h"
 
 struct opbx_var_t *opbx_var_assign(const char *name, const char *value)
 {
 	int i;
 	struct opbx_var_t *var;
-	int len;
 	
-	len = sizeof(struct opbx_var_t);
-	
-	len += strlen(name) + 1;
-	len += strlen(value) + 1;
-	
-	var = malloc(len);
+	var = calloc(sizeof(struct opbx_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
 
-	if (var == NULL)
-	{
+	if (var == NULL) {
 		opbx_log(LOG_WARNING, "Out of memory\n");
 		return NULL;
 	}
-	
-	memset(var, 0, len);
-	i = strlen(name);
-	strncpy(var->name, name, i); 
-	var->name[i] = '\0';
 
-	var->value = var->name + i + 1;
-
-	i = strlen(value);
-	strncpy(var->value, value, i);
-	var->value[i] = '\0';
+	i = strlen(name) + 1;
+	opbx_copy_string(var->name, name, i);
+	var->value = var->name + i;
+	opbx_copy_string(var->value, value, strlen(value) + 1);
 	
 	return var;
 }	
 	
 void opbx_var_delete(struct opbx_var_t *var)
 {
-	if (var == NULL) return;
-	free(var);
+	if (var)
+		free(var);
 }
 
 char *opbx_var_name(struct opbx_var_t *var)
@@ -80,8 +68,8 @@ char *opbx_var_name(struct opbx_var_t *var)
 	if (var->name == NULL)
 		return NULL;
 	/* Return the name without the initial underscores */
-	if ((strlen(var->name) > 0) && (var->name[0] == '_')) {
-		if ((strlen(var->name) > 1) && (var->name[1] == '_'))
+	if (var->name[0] == '_') {
+		if (var->name[1] == '_')
 			name = (char*)&(var->name[2]);
 		else
 			name = (char*)&(var->name[1]);
@@ -92,12 +80,12 @@ char *opbx_var_name(struct opbx_var_t *var)
 
 char *opbx_var_full_name(struct opbx_var_t *var)
 {
-	return (var != NULL ? var->name : NULL);
+	return (var ? var->name : NULL);
 }
 
 char *opbx_var_value(struct opbx_var_t *var)
 {
-	return (var != NULL ? var->value : NULL);
+	return (var ? var->value : NULL);
 }
 
-	
+

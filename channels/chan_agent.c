@@ -753,7 +753,7 @@ static int agent_hangup(struct opbx_channel *ast)
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!opbx_strlen_zero(p->loginchan)) {
 			/* Store last disconnect time */
-			if (p->wrapuptime && p->acknowledged)
+			if (p->wrapuptime)
 				p->lastdisc = opbx_tvadd(opbx_tvnow(), opbx_samp2tv(p->wrapuptime, 1000));
 			else
 				p->lastdisc = opbx_tv(0,0);

@@ -272,6 +272,30 @@ void opbx_channel_setwhentohangup(struct opbx_channel *chan, time_t offset)
 		chan->whentohangup = 0;
 	return;
 }
+/*--- opbx_channel_cmpwhentohangup: Compare a offset with when to hangup channel */
+int opbx_channel_cmpwhentohangup(struct opbx_channel *chan, time_t offset)
+{
+	time_t whentohangup;
+
+	if (chan->whentohangup == 0) {
+		if (offset == 0)
+			return (0);
+		else
+			return (-1);
+	} else { 
+		if (offset == 0)
+			return (1);
+		else {
+			whentohangup = offset + time (NULL);
+			if (chan->whentohangup < whentohangup)
+				return (1);
+			else if (chan->whentohangup == whentohangup)
+				return (0);
+			else
+				return (-1);
+		}
+	}
+}
 
 /*--- opbx_channel_register: Register a new telephony channel in OpenPBX */
 int opbx_channel_register(const struct opbx_channel_tech *tech)

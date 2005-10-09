@@ -962,7 +962,11 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
 			switch(f->frametype) {
 			case OPBX_FRAME_DTMF:
 				if (strchr(argv[4], f->subclass)) {
-					/* This is an interrupting chracter */
+					/* This is an interrupting chracter, so rewind to chop off any small
+					   amount of DTMF that may have been recorded
+					*/
+					opbx_stream_rewind(fs, 200);
+					opbx_truncstream(fs);
 					sample_offset = opbx_tellstream(fs);
 					fdprintf(agi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					opbx_closestream(fs);

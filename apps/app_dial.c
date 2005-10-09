@@ -1109,6 +1109,8 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			opbx_log(LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, opbx_cause2str(cause));
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
+			if (!cur)
+				chan->hangupcause = cause;
 			continue;
 		}
 		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
