@@ -243,6 +243,10 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
 			for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++) {
 				/* Convert to a real between -1.0 and 1.0 */
 				sd[x] = 32768.0 * tmpbuf[x];
+                                if (sd[x] < -32767.0)
+                                  sd[x] = -32767.0;
+                                else if (sd[x] > 32767.0)
+                                  sd[x] = 32767.0;
 			}
 
 			if(useplc) plc_rx(&tmp->plc, tmp->buf + tmp->tail, LPC10_SAMPLES_PER_FRAME);
