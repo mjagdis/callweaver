@@ -576,6 +576,8 @@ static struct zt_pvt {
 	unsigned int alerting:1;
 	unsigned int alreadyhungup:1;
 	unsigned int isidlecall:1;
+	unsigned int proceeding:1;
+	unsigned int progress:1;
 	unsigned int resetting:1;
 	unsigned int setup_ack:1;
 #endif
@@ -664,7 +666,6 @@ static struct zt_pvt {
 	q931_call *call;
 	int prioffset;
 	int logicalspan;
-	int proceeding;
 	int dsp_features;
 #endif	
 #ifdef ZAPATA_R2
@@ -1006,7 +1007,7 @@ static int zt_digit(struct opbx_channel *ast, char digit)
 	index = zt_get_index(ast, p, 0);
 	if ((index == SUB_REAL) && p->owner) {
 #ifdef ZAPATA_PRI
-		if (p->sig == SIG_PRI && ast->_state == OPBX_STATE_DIALING && (p->proceeding < 2)) {
+		if ((p->sig == SIG_PRI) && (ast->_state == OPBX_STATE_DIALING) && !p->proceeding) {
 			if (p->setup_ack) {
 				if (!pri_grab(p, p->pri)) {
 					pri_information(p->pri->pri,p->call,digit);
@@ -2428,6 +2429,7 @@ static int zt_hangup(struct opbx_channel *ast)
 		p->onhooktime = time(NULL);
 #ifdef ZAPATA_PRI
 		p->proceeding = 0;
+		p->progress = 0;
 		p->alerting = 0;
 		p->setup_ack = 0;
 #endif		
@@ -2657,7 +2659,7 @@ static int zt_answer(struct opbx_channel *ast)
 	case SIG_PRI:
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
-			p->proceeding = 2;
+			p->proceeding = 1;
 			res = pri_answer(p->pri->pri, p->call, 0, !p->digital);
 			pri_rel(p->pri);
 		} else {
@@ -3491,7 +3493,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			p->pulsedial = 0;
 		opbx_log(LOG_DEBUG, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef ZAPATA_PRI
-		if ((p->proceeding < 2) && p->sig == SIG_PRI && p->pri && p->pri->overlapdial) {
+		if (!p->proceeding && p->sig == SIG_PRI && p->pri && p->pri->overlapdial) {
 			p->subs[index].f.frametype = OPBX_FRAME_NULL;
 			p->subs[index].f.subclass = 0;
 		} else {
@@ -4554,7 +4556,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 				}
 			} else if (f->frametype == OPBX_FRAME_DTMF) {
 #ifdef ZAPATA_PRI
-				if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+				if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					f->frametype = OPBX_FRAME_NULL;
 					f->subclass = 0;
@@ -4765,7 +4767,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 				chan->hangupcause = OPBX_CAUSE_USER_BUSY;
 				chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
 				res = 0;
-			} else if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			} else if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -4774,7 +4776,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 					else
 						opbx_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->proceeding=1;
+				p->progress = 1;
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			} else
 #endif
@@ -4791,7 +4793,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 					else
 						opbx_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->alerting=1;
+				p->alerting = 1;
 			}
 #endif
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
@@ -4802,11 +4804,11 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 					 (p->sig != SIG_FXSGS)))
 					opbx_setstate(chan, OPBX_STATE_RINGING);
 			}
-            break;
+			break;
 		case OPBX_CONTROL_PROCEEDING:
 			opbx_log(LOG_DEBUG,"Received OPBX_CONTROL_PROCEEDING on %s\n",chan->name);
 #ifdef ZAPATA_PRI
-			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
@@ -4815,7 +4817,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 					else
 						opbx_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->proceeding=2;
+				p->proceeding = 1;
 			}
 #endif
 			/* don't continue in opbx_indicate */
@@ -4825,7 +4827,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 			opbx_log(LOG_DEBUG,"Received OPBX_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
 			p->digital = 0;	/* Digital-only calls isn't allows any inband progress messages */
-			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -4834,7 +4836,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 					else
 						opbx_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->proceeding=1;
+				p->progress = 1;
 			}
 #endif
 			/* don't continue in opbx_indicate */
@@ -4847,7 +4849,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 				chan->hangupcause = OPBX_CAUSE_SWITCH_CONGESTION;
 				chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
 				res = 0;
-			} else if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			} else if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -4855,7 +4857,7 @@ static int zt_indicate(struct opbx_channel *chan, int condition)
 					} else
 						opbx_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->proceeding=1;
+				p->progress = 1;
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			} else
 #endif
@@ -8530,8 +8532,8 @@ static void *pri_dchannel(void *vpri)
 						opbx_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (opbx_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
 							zt_enable_ec(pri->pvts[chanpos]);
-							pri->pvts[chanpos]->subs[SUB_REAL].needringing =1;
-							pri->pvts[chanpos]->proceeding=2;
+							pri->pvts[chanpos]->subs[SUB_REAL].needringing = 1;
+							pri->pvts[chanpos]->alerting = 1;
 						} else
 							opbx_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 #ifdef PRI_PROGRESS_MASK
@@ -8555,9 +8557,9 @@ static void *pri_dchannel(void *vpri)
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
 #ifdef PRI_PROGRESS_MASK
-					if ((!pri->pvts[chanpos]->proceeding) || (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)) {
+					if ((!pri->pvts[chanpos]->progress) || (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)) {
 #else
-					if ((!pri->pvts[chanpos]->proceeding) || (e->proceeding.progress == 8)) {
+					if ((!pri->pvts[chanpos]->progress) || (e->proceeding.progress == 8)) {
 #endif
 						struct opbx_frame f = { OPBX_FRAME_CONTROL, OPBX_CONTROL_PROGRESS, };
 
@@ -8592,6 +8594,7 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->dsp_features = 0;
 							}
 						}
+						pri->pvts[chanpos]->progress = 1;
 						opbx_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -8620,6 +8623,7 @@ static void *pri_dchannel(void *vpri)
 							f.subclass = OPBX_CONTROL_PROGRESS;
 							zap_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
+						pri->pvts[chanpos]->proceeding = 1;
 						opbx_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
