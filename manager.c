@@ -331,21 +331,29 @@ struct opbx_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
+/* NOTE:
+   Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
+   hold the session lock _or_ be running in an action callback (in which case s->busy will
+   be non-zero). In either of these cases, there is no need to lock-protect the session's
+   fd, since no other output will be sent (events will be queued), and no input will
+   be read until either the current action finishes or get_input() obtains the session
+   lock.
+ */
+
 void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
 	char *id = astman_get_header(m,"ActionID");
-	opbx_mutex_lock(&s->__lock);
+
 	opbx_cli(s->fd, "Response: Error\r\n");
 	if (id && !opbx_strlen_zero(id))
 		opbx_cli(s->fd, "ActionID: %s\r\n",id);
 	opbx_cli(s->fd, "Message: %s\r\n\r\n", error);
-	opbx_mutex_unlock(&s->__lock);
 }
 
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
 {
 	char *id = astman_get_header(m,"ActionID");
-	opbx_mutex_lock(&s->__lock);
+
 	opbx_cli(s->fd, "Response: %s\r\n", resp);
 	if (id && !opbx_strlen_zero(id))
 		opbx_cli(s->fd, "ActionID: %s\r\n",id);
@@ -353,7 +361,6 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 		opbx_cli(s->fd, "Message: %s\r\n\r\n", msg);
 	else
 		opbx_cli(s->fd, "\r\n");
-	opbx_mutex_unlock(&s->__lock);
 }
 
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
@@ -1223,11 +1230,8 @@ static int process_message(struct mansession *s, struct message *m)
 			char *authtype;
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
-				if (!s->challenge || opbx_strlen_zero(s->challenge)) {
-					opbx_mutex_lock(&s->__lock);
+				if (!s->challenge || opbx_strlen_zero(s->challenge))
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
-					opbx_mutex_unlock(&s->__lock);
-				}
 				opbx_mutex_lock(&s->__lock);
 				opbx_cli(s->fd, "Response: Success\r\n"
 						"%s"
@@ -1277,6 +1281,10 @@ static int process_message(struct mansession *s, struct message *m)
 			}
 			tmp = tmp->next;
 		}
+		if (!ret)
+			astman_send_error(s, m, "Invalid/unknown command");
+		else
+			ret = 0;
 		opbx_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while(s->eventq) {
@@ -1289,10 +1297,6 @@ static int process_message(struct mansession *s, struct message *m)
 			free(eqe);
 		}
 		opbx_mutex_unlock(&s->__lock);
-		if (!ret)
-			astman_send_error(s, m, "Invalid/unknown command");
-		else
-			ret = 0;
 		return ret;
 	}
 	return 0;
@@ -1470,31 +1474,37 @@ int manager_event(int category, char *event, char *fmt, ...)
 {
 	struct mansession *s;
 	char tmp[4096];
+	char auth[256];
 	va_list ap;
 
+	authority_to_str(category, auth, sizeof(auth));
+	va_start(ap, fmt);
+	vsnprintf(tmp, sizeof(tmp) - 3, fmt, ap);
+	va_end(ap);
+	strcat(tmp, "\r\n");
+
 	opbx_mutex_lock(&sessionlock);
-	s = sessions;
-	while(s) {
-		if (((s->readperm & category) == category) && ((s->send_events & category) == category)) {
-			opbx_mutex_lock(&s->__lock);
-			opbx_cli(s->fd, "Event: %s\r\n", event);
-			opbx_cli(s->fd, "Privilege: %s\r\n", authority_to_str(category, tmp, sizeof(tmp)));
-			va_start(ap, fmt);
-			vsnprintf(tmp, sizeof(tmp) - 3, fmt, ap);
-			va_end(ap);
-			strcat(tmp, "\r\n");
-			if (s->busy) {
-				append_event(s, tmp);
-			} else if (opbx_carefulwrite(s->fd,tmp,strlen(tmp),100) < 0) {
-				opbx_log(LOG_WARNING, "Disconnecting slow manager session!\n");
-				s->dead = 1;
-				pthread_kill(s->t, SIGURG);
-			}
-			opbx_mutex_unlock(&s->__lock);
+	for (s = sessions; s; s = s->next) {
+		if ((s->readperm & category) != category)
+			continue;
+
+		if ((s->send_events & category) != category)
+			continue;
+
+		opbx_mutex_lock(&s->__lock);
+		opbx_cli(s->fd, "Event: %s\r\n", event);
+		opbx_cli(s->fd, "Privilege: %s\r\n", auth);
+		if (s->busy) {
+			append_event(s, tmp);
+		} else if (opbx_carefulwrite(s->fd, tmp, strlen(tmp), 100) < 0) {
+			opbx_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+			s->dead = 1;
+			pthread_kill(s->t, SIGURG);
 		}
-		s = s->next;
+		opbx_mutex_unlock(&s->__lock);
 	}
 	opbx_mutex_unlock(&sessionlock);
+
 	return 0;
 }
 
