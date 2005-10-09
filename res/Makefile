@@ -12,7 +12,7 @@
 #
 
 MODS=res_adsi.so res_features.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so \
-     res_agi.so
+     res_agi.so res_noise.so
 
 
 SOLINK=-shared -Xlinker -x
