@@ -560,7 +560,9 @@ NEWHEADERS=$(notdir $(wildcard include/openpbx/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADERDIR)/*.h)))
 
 bininstall: all
-	groupadd -f $(OPBXRUNGROUP)
+	
+	/usr/sbin/groupadd $(OPBXRUNGROUP)
+
 	if [ "`cat /etc/passwd | grep -e '^$(OPBXRUNUSER):'`" = "" ]; then \
 		useradd -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
 	fi
