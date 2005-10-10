@@ -15,23 +15,23 @@ fi
 
 ## Clean out CFLAGS for the spec file.
 
-LOCAL_CFLAGS=`echo $CFLAGS | sed -e 's/\s*-pipe\s*//g' | sed -e 's/-[Wmp]\S*\s*//g' | \
-  sed -r -e 's/-I(include|\.\.\/include) //g' | \
-  sed -e 's/-DINSTALL_PREFIX=\S* //g' | \
-  sed -r -e 's/-DOPENPBX_VERSION=\S* //g' | \
-  sed -r -e 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
+LOCAL_CFLAGS=`echo $CFLAGS | $(SED) -e 's/\s*-pipe\s*//g' | $(SED) -e 's/-[Wmp]\S*\s*//g' | \
+  $(SED) -r -e 's/-I(include|\.\.\/include) //g' | \
+  $(SED) -e 's/-DINSTALL_PREFIX=\S* //g' | \
+  $(SED) -r -e 's/-DOPENPBX_VERSION=\S* //g' | \
+  $(SED) -r -e 's/-DOPBXT(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
 
 
 cat <<EOF > $PPATH/openpbx.pc
 install_prefix=$INSTALL_PREFIX
 version_number=$OPENPBXVERSIONNUM
-etcdir=$ASTETCDIR
-libdir=$ASTLIBDIR
-varlibdir=$ASTVARLIBDIR
-varrundir=$ASTVARRUNDIR
-spooldir=$ASTSPOOLDIR
-logdir=$ASTLOGDIR
-confpath=$ASTCONFPATH
+etcdir=$OPBXETCDIR
+libdir=$OPBXLIBDIR
+varlibdir=$OPBXVARLIBDIR
+varrundir=$OPBXVARRUNDIR
+spooldir=$OPBXSPOOLDIR
+logdir=$OPBXLOGDIR
+confpath=$OPBXCONFPATH
 moddir=$MODULES_DIR
 agidir=$AGI_DIR
 
