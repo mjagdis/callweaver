@@ -13,7 +13,8 @@
 
 .EXPORT_ALL_VARIABLES:
 
-
+SH=@SH@
+SHELL=@SHELL@
 # Create OPTIONS variable
 OPTIONS=
 # If cross compiling, define these to suit
@@ -49,6 +50,7 @@ OVERWRITE=@OVERWRITE@
 #Tell gcc to optimize the code
 OPTIMIZE+=@CPU_OPTIONS@
 VALGRIND=@VALGRIND@
+SVN=@SVN@
 
 #Include debug symbols in the executables (-g) and profiling info (-pg)
 DEBUG=@DEBUG@
@@ -562,7 +564,7 @@ datafiles: all
 update: 
 	@if [ -d .svn ]; then \
 		echo "Updating from SVN..." ; \
-		svn update | tee update.out; \
+		$(SVN) update | tee update.out; \
 		rm -f .version; \
 		if [ `$(GREP) -c ^C update.out` -gt 0 ]; then \
 			echo ; echo "The following files have conflicts:" ; \

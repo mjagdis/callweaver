@@ -310,7 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN RANLIB AR CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY OPBXRUNGROUP OPBXRUNUSER PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN RANLIB AR SH CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY OPBXRUNGROUP OPBXRUNUSER PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -1858,8 +1858,10 @@ fi
 done
 test -n "$GREP" || GREP="echo Missing grep so skipping but I doubt we will get anywhere"
 
-# Extract the first word of "svn", so it can be a program name with args.
-set dummy svn; ac_word=$2
+for ac_prog in svn
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
 if test "${ac_cv_path_SVN+set}" = set; then
@@ -1885,7 +1887,6 @@ do
 done
 done
 
-  test -z "$ac_cv_path_SVN" && ac_cv_path_SVN="echo Missing subversion so some stuff will be borked"
   ;;
 esac
 fi
@@ -1898,6 +1899,10 @@ else
   echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
 fi
+
+  test -n "$SVN" && break
+done
+test -n "$SVN" || SVN="echo Missing subversion so some stuff will be borked"
 
 for ac_prog in ranlib granlib
 do
@@ -1989,6 +1994,95 @@ fi
 done
 test -n "$AR" || AR="echo Missing ar so skipping it but that will not work ..."
 
+for ac_prog in bash sh
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_path_SHELL+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $SHELL in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_SHELL="$SHELL" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_SHELL="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+  ;;
+esac
+fi
+SHELL=$ac_cv_path_SHELL
+
+if test -n "$SHELL"; then
+  echo "$as_me:$LINENO: result: $SHELL" >&5
+echo "${ECHO_T}$SHELL" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+  test -n "$SHELL" && break
+done
+test -n "$SHELL" || SHELL="echo No compatible shell found"
+
+for ac_prog in bash sh
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_path_SH+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $SH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_SH="$SH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_SH="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+  ;;
+esac
+fi
+SH=$ac_cv_path_SH
+
+if test -n "$SH"; then
+  echo "$as_me:$LINENO: result: $SH" >&5
+echo "${ECHO_T}$SH" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+  test -n "$SH" && break
+done
+test -n "$SH" || SH="echo No compatible shell found"
 
 OPBXRUNGROUP=openpbx
 OPBXRUNUSER=openpbx
@@ -7345,7 +7439,7 @@ fi
 
 #SVN Revision number For version number
 if test -n $SVN ; then
-	SUBVERSION=`svn info | grep Revision | awk '{ print $2 }'`
+	SUBVERSION=`${SVN} info | grep Revision | awk '{ print $2 }'`
 fi
 
 
@@ -13922,6 +14016,7 @@ s,@GREP@,$GREP,;t t
 s,@SVN@,$SVN,;t t
 s,@RANLIB@,$RANLIB,;t t
 s,@AR@,$AR,;t t
+s,@SH@,$SH,;t t
 s,@CC@,$CC,;t t
 s,@CFLAGS@,$CFLAGS,;t t
 s,@LDFLAGS@,$LDFLAGS,;t t
