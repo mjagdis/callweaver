@@ -263,7 +263,7 @@ endif
 ifneq ($(wildcard .svn),)
   OPENPBXVERSIONNUM=999999
   ifneq ($(wildcard .svn/entries),)
-    OPENPBXVERSION=$(shell grep revision .svn/entries | head -n 1 | sed 's:^.*"\([0-9]\+\)".*:\1:')
+    OPENPBXVERSION=$(shell $(GREP) revision .svn/entries | head -n 1 | sed 's:^.*"\([0-9]\+\)".*:\1:')
   else
     OPENPBXVERSION=SVN TRUNK
   endif
@@ -560,9 +560,9 @@ update:
 		echo "Updating from SVN..." ; \
 		svn update | tee update.out; \
 		rm -f .version; \
-		if [ `grep -c ^C update.out` -gt 0 ]; then \
+		if [ `$(GREP) -c ^C update.out` -gt 0 ]; then \
 			echo ; echo "The following files have conflicts:" ; \
-			grep ^C update.out | cut -d' ' -f2- ; \
+			$(GREP) ^C update.out | cut -d' ' -f2- ; \
 		fi ; \
 		rm -f update.out; \
 	else \
@@ -574,7 +574,7 @@ OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADER
 
 bininstall: all
 	$(GROUPADDBIN) -f $(OPBXRUNGROUP)
-	if [ "`cat /etc/passwd | grep -e '^$(OPBXRUNUSER):'`" = "" ]; then \
+	if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
 		$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
 	fi
 	mkdir -p $(DESTDIR)$(MODULES_DIR)

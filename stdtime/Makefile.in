@@ -1,10 +1,16 @@
 OBJS=localtime.o
 
+ifeq ($(OSARCH),SunOS)
+CFLAGS+=-DSOLARIS -I../include/solaris-compat
+AR=/usr/sfw/bin/gar
+RANLIB=/usr/sfw/bin/granlib
+endif 
+
 all: libtime.a
 
 libtime.a: $(OBJS)
-	ar rv $@ $(OBJS)
-	ranlib $@
+	$(AR) rv $@ $(OBJS)
+	$(RANLIB) $@
 
 install:
 
