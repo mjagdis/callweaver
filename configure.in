@@ -3,6 +3,8 @@
 
 
 AC_PREREQ(2.59)
+AC_INIT(OpenPBX, 1,openpbx-dev@openpbx.org)
+AM_INIT_AUTOMAKE(OpenPBX,1)
 
 AC_PATH_PROG([GROUPADD], [groupadd])
 AC_PATH_PROG([GREP], [grep])
