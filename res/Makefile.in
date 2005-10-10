@@ -29,6 +29,8 @@ endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/postgresql/libpq-fe.h),)
    MODS+=res_config_pgsql.so
+   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql -I$(CROSS_COMPILE_TARGET)/usr/local/include/postgresql
+   MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql -L$(CROSS_COMPILE_TARGET)/usr/local/lib/postgresql
 endif
 
 
