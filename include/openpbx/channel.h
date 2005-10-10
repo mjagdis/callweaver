@@ -1002,6 +1002,12 @@ void opbx_set_variables(struct opbx_channel *chan, struct opbx_variable *vars);
 
 /* Misc. functions below */
 
+/* If you are calling carefulwrite, it is assumed that you are calling
+   it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
+   there is only one system call made to do a write, unless we actually
+   have a need to wait.  This way, we get better performance. */
+int opbx_carefulwrite(int fd, char *s, int len, int timeoutms);
+
 /* Helper function for migrating select to poll */
 static inline int opbx_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 {

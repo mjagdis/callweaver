@@ -126,8 +126,6 @@ struct manager_action {
 	struct manager_action *next;
 };
 
-int opbx_carefulwrite(int fd, char *s, int len, int timeoutms);
-
 /* External routines may register/unregister manager callbacks this way */
 #define opbx_manager_register(a, b, c, d) opbx_manager_register2(a, b, c, d, NULL)
 
