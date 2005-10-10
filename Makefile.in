@@ -13,6 +13,7 @@
 
 .EXPORT_ALL_VARIABLES:
 
+
 # Create OPTIONS variable
 OPTIONS=
 # If cross compiling, define these to suit
@@ -79,8 +80,9 @@ OPBXRUNGROUP=openpbx
 
 # Where to install openpbx after compiling
 # Default -> leave empty
+# This needs to be changed... double negative! Somebody with a Sun box please advise. 
 ifneq (${OSARCH},SunOS)
-  INSTALL_PREFIX=/usr/local
+  INSTALL_PREFIX=@prefix@
 else
   INSTALL_PREFIX=/opt
 endif 

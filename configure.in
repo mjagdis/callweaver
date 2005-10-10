@@ -16,9 +16,6 @@ ASTLINK="-Wl,-E"
 SOLINK="-shared -Xlinker -x"
 VALGRIND="" #-DMAKE_VALGRIND_HAPPY
 OPTIMIZECPU="no"
-prefix=/opt/openpbx
-
-
 
 ### Optimize for host cpu version
 AC_ARG_ENABLE(overwrite,     
@@ -259,6 +256,7 @@ AC_SUBST(OVERWRITE)
 AC_SUBST(LOW_MEMORY)
 AC_SUBST(OPBXRUNGROUP)
 AC_SUBST(OPBXRUNUSER)
+AC_SUBST(prefix)
 
 
 AC_CONFIG_FILES([Makefile
