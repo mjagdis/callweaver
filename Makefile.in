@@ -83,8 +83,10 @@ OPBXRUNGROUP=openpbx
 # This needs to be changed... double negative! Somebody with a Sun box please advise. 
 ifneq (${OSARCH},SunOS)
   INSTALL_PREFIX=@prefix@
+  INSTALL=install
 else
   INSTALL_PREFIX=/opt
+  INSTALL=/opt/sfw/bin/ginstall
 endif 
 
 # Staging directory
@@ -190,8 +192,8 @@ PWD=$(shell pwd)
 GREP=grep
 
 ifeq (${OSARCH},SunOS)
-  GREP=/usr/xpg4/bin/grep
-  M4=/usr/local/bin/m4
+  GREP=/usr/sfw/bin/ggrep
+  M4=/usr/sfw/bin/m4
 endif
 
 INCLUDE+=-Iinclude -I../include
@@ -351,7 +353,6 @@ endif
 
 LIBS+=-lssl
 
-INSTALL=install
 
 _all: all
 	@echo " +--------- OpenPBX Build Complete ----------+"  
@@ -501,7 +502,7 @@ datafiles: all
 		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/priv-callerintros ; \
 		for x in $$y/digits/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/digits ; \
+				$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/digits ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -510,7 +511,7 @@ datafiles: all
 		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/dictate ; \
 		for x in $$y/dictate/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/dictate ; \
+				$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/dictate ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -519,7 +520,7 @@ datafiles: all
 		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/letters ; \
 		for x in $$y/letters/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/letters ; \
+				$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/letters ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -528,7 +529,7 @@ datafiles: all
 		mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/$$y/phonetic ; \
 		for x in $$y/phonetic/*.gsm; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/phonetic ; \
+				$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y/phonetic ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -536,7 +537,7 @@ datafiles: all
 		done ; \
 		for x in $$y/demo-* $$y/vm-* $$y/transfer* $$y/pbx-* $$y/ss-* $$y/beep* $$y/dir-* $$y/conf-* $$y/agent-* $$y/invalid* $$y/tt-* $$y/auth-* $$y/privacy-* $$y/queue-* $$y/spy-* $$y/priv-* $$y/screen-*; do \
 			if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-				install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y ; \
+				$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/$$y ; \
 			else \
 				echo "No description for $$x"; \
 				exit 1; \
@@ -550,7 +551,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/mohmp3
 	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/images
 	for x in images/*.jpg; do \
-		install -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/images ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXVARLIBDIR)/images ; \
 	done
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 
@@ -589,18 +590,18 @@ bininstall: all
 	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(MODULES_DIR) \
 		$(DESTDIR)$(OPBXETCDIR) $(DESTDIR)$(OPBXVARRUNDIR) \
 		$(DESTDIR)$(OPBXSPOOLDIR)
-	install -m 755 openpbx $(DESTDIR)$(OPBXSBINDIR)/
+	$(INSTALL) -m 755 openpbx $(DESTDIR)$(OPBXSBINDIR)/
 	ln -sf openpbx $(DESTDIR)$(OPBXSBINDIR)/ropenpbx
-	install -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(OPBXSBINDIR)/
-	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(OPBXSBINDIR)/	
+	$(INSTALL) -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(OPBXSBINDIR)/
+	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(OPBXSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx ]; then \
 		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(OPBXSBINDIR)|;' \
 			> $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx ;\
 		chmod 755 $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx;\
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
-	install -d $(DESTDIR)$(OPBXHEADERDIR)
-	install -m 644 include/openpbx/*.h $(DESTDIR)$(OPBXHEADERDIR)
+	$(INSTALL) -d $(DESTDIR)$(OPBXHEADERDIR)
+	$(INSTALL) -m 644 include/openpbx/*.h $(DESTDIR)$(OPBXHEADERDIR)
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(OPBXHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
@@ -612,10 +613,10 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(OPBXMANDIR)/man8
 	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(OPBXVARLIBDIR) $(DESTDIR)$(OPBXLOGDIR) \
 	$(DESTDIR)$(OPBXVARLIBDIR)/keys 
-	install -m 644 openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
-	install -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(OPBXMANDIR)/man8
-	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(OPBXMANDIR)/man8
-	install -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	$(INSTALL) -m 644 openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(OPBXMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
 	( cd $(DESTDIR)$(OPBXVARLIBDIR)/sounds  ; ln -s $(OPBXSPOOLDIR)/voicemail . )
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 	@echo " +---- OpenPBX Installation Complete --------+"  
@@ -670,7 +671,7 @@ adsi:
 	mkdir -p $(DESTDIR)$(OPBXETCDIR)
 	for x in configs/*.adsi; do \
 		if [ ! -f $(DESTDIR)$(OPBXETCDIRX)/$$x ]; then \
-			install -m 644 $$x $(DESTDIR)$(OPBXETCDIR)/`basename $$x` ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
 
@@ -689,7 +690,7 @@ samples: adsi
 				continue; \
 			fi ;\
 		fi ; \
-		install -m 644 $$x $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample` ;\
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(OPBXETCDIR)/`basename $$x .sample` ;\
 	done
 	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ]; then \
 		echo "[general]" > $(DESTDIR)$(OPBXETCDIR)/openpbx.conf ; \
@@ -732,10 +733,10 @@ samples: adsi
 webvmail:
 	@[ -d $(DESTDIR)$(HTTP_DOCSDIR)/ ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
 	@[ -d $(DESTDIR)$(HTTP_CGIDIR) ] || ( printf "cgi-bin directory not found.\nUpdate assignment of variable HTTP_CGIDIR in Makefile!\n" && exit 1 )
-	install -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
+	$(INSTALL) -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
 	mkdir -p $(DESTDIR)$(HTTP_DOCSDIR)/_openpbx
 	for x in images/*.gif; do \
-		install -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_openpbx/; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_openpbx/; \
 	done
 	@echo " +--------- OpenPBX Web Voicemail -----------+"  
 	@echo " +                                           +"
@@ -780,10 +781,10 @@ mpg123:
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \
-		install -m 755 contrib/init.d/rc.redhat.openpbx /etc/rc.d/init.d/openpbx; \
+		$(INSTALL) -m 755 contrib/init.d/rc.redhat.openpbx /etc/rc.d/init.d/openpbx; \
 		/sbin/chkconfig --add openpbx; \
 	elif [ -d /etc/init.d ]; then \
-		install -m 755 init.openpbx /etc/init.d/openpbx; \
+		$(INSTALL) -m 755 init.openpbx /etc/init.d/openpbx; \
 	fi 
 
 dont-optimize:
