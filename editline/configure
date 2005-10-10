@@ -1931,12 +1931,12 @@ fi
 
 ACSRCS="common.c emacs.c vi.c"
 BCSRCS="chared.c el.c hist.c key.c map.c parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c"
-CCSRCS="$CCSRCS history.c tokenizer.c"
+CCSRCS="$CCSRCS history.c filecomplete.c tokenizer.c"
 
 AGCSRCS="fcns.c help.c"
 BGCSRCS="editline.c"
 
-HDRS="chared.h el.h hist.h key.h map.h parse.h prompt.h refresh.h search.h sig.h sys.h term.h tokenizer.h tty.h"
+HDRS="chared.h el.h hist.h key.h map.h filecomplete.h parse.h prompt.h refresh.h search.h sig.h sys.h term.h tokenizer.h tty.h"
 
 IHDRS="histedit.h"
 

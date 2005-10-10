@@ -162,14 +162,14 @@ dnl
 dnl .c files.
 ACSRCS="common.c emacs.c vi.c"
 BCSRCS="chared.c el.c hist.c key.c map.c parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c"
-CCSRCS="$CCSRCS history.c tokenizer.c"
+CCSRCS="$CCSRCS history.c tokenizer.c filecomplete.c"
 
 dnl Generated .c files.
 AGCSRCS="fcns.c help.c"
 BGCSRCS="editline.c"
 
 dnl .h files.
-HDRS="chared.h el.h hist.h key.h map.h parse.h prompt.h refresh.h search.h sig.h sys.h term.h tokenizer.h tty.h"
+HDRS="chared.h el.h filecomplete.c hist.h key.h map.h parse.h prompt.h refresh.h search.h sig.h sys.h term.h tokenizer.h tty.h"
 
 dnl Installed .h files.
 IHDRS="histedit.h"
