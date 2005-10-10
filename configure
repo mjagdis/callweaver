@@ -5083,9 +5083,11 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
+#AC_PROG_AR
 #AC_PROG_LN_S
 #AC_PROG_MAKE_SET
 #AC_PROG_RANLIB
+#AC_PROG_GREP
 
 # Checks for libraries.
 
@@ -7263,7 +7265,7 @@ fi;
 
 if test "${MYSQL}" = "yes"; then
         # Autodetect
-        for w in /usr/include /usr/local/include /usr/mysql /usr/local/mysql /usr/local/mysql/include /opt /opt/mysql; do
+        for w in /usr/include /usr/local/include /usr/mysql /usr/local/mysql /usr/local/mysql/include /opt /opt/mysql /usr/sfw/include; do
                 # check for plain setups
                 if test -f $w/mysql.h; then
                         MYSQL_INCDIR=$w
@@ -7281,7 +7283,7 @@ if test "${MYSQL}" = "yes"; then
                 fi
         done
 
-        for w in /usr/lib /usr/local/lib /usr/mysql /usr/local/mysql /usr/local/mysql/lib /opt /opt/mysql; do
+        for w in /usr/lib /usr/local/lib /usr/mysql /usr/local/mysql /usr/local/mysql/lib /opt /opt/mysql /usr/sfw/lib; do
                 # check for plain setups
                 if test -f $w/libmysqlclient.a -o -f $w/libmysqlclient.so; then
                         MYSQL_LIBDIR=$w

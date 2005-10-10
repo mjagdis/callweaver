@@ -28,9 +28,11 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_LEX
 AC_PROG_INSTALL
+#AC_PROG_AR
 #AC_PROG_LN_S
 #AC_PROG_MAKE_SET
 #AC_PROG_RANLIB
+#AC_PROG_GREP
 
 # Checks for libraries.
 AC_CHECK_LIB([asound], [main])
@@ -51,7 +53,8 @@ AC_CHECK_LIB([odbc], [main])
 AC_CHECK_LIB([ossaudio], [main])
 AC_CHECK_LIB([pq], [main])
 AC_CHECK_LIB([pri], [main])
-AC_CHECK_LIB([pthread], [main])                                                                                                                                                          AC_CHECK_LIB([qt], [main])
+AC_CHECK_LIB([pthread], [main])
+AC_CHECK_LIB([qt], [main])
 AC_CHECK_LIB([resolv], [main])
 AC_CHECK_LIB([rt], [main])
 AC_CHECK_LIB([socket], [main])
