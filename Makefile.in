@@ -274,17 +274,6 @@ else
 endif
 
 
-ifneq ($(wildcard CVS),)
-  OPENPBXVERSIONNUM=999999
-  ifneq ($(wildcard CVS/Tag),)
-    OPENPBXVERSION=$(shell echo "CVS-`$(SED) 's/^T//g' CVS/Tag`-`date +"%D-%T"`")
-  else
-    OPENPBXVERSION=CVS HEAD
-  endif
-else
-  OPENPBXVERSIONNUM=000000
-endif
-
 ASTCFLAGS+= $(DEBUG_THREADS)
 ASTCFLAGS+= $(TRACE_FRAMES)
 ASTCFLAGS+= $(MALLOC_DEBUG)
