@@ -53,6 +53,144 @@ if test -n $SVN ; then
 	SUBVERSION=`svn info | grep Revision | awk '{ print $2 }'`
 fi
 
+
+MYSQL="yes"
+
+AC_MSG_CHECKING(for MySQL)
+AC_ARG_WITH(mysql,
+[  --with-mysql[=DIR]        Normally, configure will scan all possible default
+                          installation paths for mysql. When its fail, use
+                          this command to tell configure where mysql
+                          installation root directory is.
+                          ],
+MYSQL="$withval"
+dnl if not given argument, assume standard
+)
+
+if test "${MYSQL}" = "yes"; then
+        # Autodetect
+        for w in /usr/include /usr/local/include /usr/mysql /usr/local/mysql /usr/local/mysql/include /opt /opt/mysql; do
+                # check for plain setups
+                if test -f $w/mysql.h; then
+                        MYSQL_INCDIR=$w
+                        break
+                fi
+                # check for "/usr/include/<packagename>" type setups
+                if test -f $w/mysql/mysql.h; then
+                        MYSQL_INCDIR=$w/mysql
+                        break
+                fi
+                # check for "/usr/<packagename>/include" type setups
+                if test -f $w/mysql/include/mysql.h; then
+                        MYSQL_INCDIR=$w/mysql/include
+                        break
+                fi
+        done
+
+        for w in /usr/lib /usr/local/lib /usr/mysql /usr/local/mysql /usr/local/mysql/lib /opt /opt/mysql; do
+                # check for plain setups
+                if test -f $w/libmysqlclient.a -o -f $w/libmysqlclient.so; then
+                        MYSQL_LIBDIR=$w
+                        break
+                fi
+                # check for "/usr/lib/<packagename>" type setups
+                if test -f $w/mysql/libmysqlclient.a -o -f $w/mysql/libmysqlclient.so; then
+                        MYSQL_LIBDIR=$w/mysql
+                        break
+                fi
+                # check for "/usr/<packagename>/lib" type setups
+                if test -f $w/mysql/lib/libmysqlclient.a -o -f $w/mysql/lib/libmysqlclient.so; then
+                        MYSQL_LIBDIR=$w/mysql/lib
+                        break
+                fi
+        done
+else
+        # Manual detection for <withval>/include/<packagename>
+        # and <withval>/include.
+        if test -f $withval/include/mysql/mysql.h; then
+                MYSQL_INCDIR=$withval/include/mysql
+        elif test -f $withval/include/mysql.h; then
+                MYSQL_INCDIR=$withval/include
+        fi
+
+        # Manual detection for <withval>/lib/<packagename>
+        # and <withval>/lib.
+
+        if test -f $withval/lib/mysql/libmysqlclient.a -o -f $withval/lib/mysql/libmysqlclient.so; then
+                MYSQL_LIBDIR=$withval/lib/mysql
+        elif test -f $withval/lib/libmysqlclient.a -o -f $withval/lib/libmysqlclient.so; then
+                MYSQL_LIBDIR=$withval/lib
+        fi
+fi
+
+## Did we find anything?
+if test "${MYSQL}" = "no"; then
+        AC_MSG_RESULT(skipped)
+else
+        if test -z "$MYSQL_LIBDIR" ; then
+                AC_MSG_RESULT(no)
+                echo Invalid MySQL directory - unable to find libmysqlclient.a or libmysqlclient.so.
+        elif test -z "$MYSQL_INCDIR" ; then
+                AC_MSG_RESULT(no)
+                echo Invalid MySQL directory - unable to find mysql.h.
+        else
+                TEMP_LIBS="$TEMP_LIBS -L$MYSQL_LIBDIR -lmysqlclient"
+                #Add -lz for some mysql installs....
+                TEMP_LIBS="$TEMP_LIBS -lz"
+                TEMP_CFLAGS="$TEMP_CFLAGS -DHAVE_MYSQL -I $MYSQL_INCDIR"
+                AC_MSG_RESULT(yes)
+                MYSQL_SUPPORT="yes"
+        fi
+fi
+
+dnl Start Check for Postgresql
+AC_DEFUN(PGSQL_INC_CHK,[if test -r $i$1/libpq-fe.h; then PGSQL_DIR=$i; PGSQL_INCDIR=$i$1])
+PGSQL="yes"
+
+AC_MSG_CHECKING(for PostgreSQL)
+AC_ARG_WITH(pgsql,
+[  --with-pgsql[=DIR]        Include PostgreSQL support.  DIR is the PostgreSQL
+                          base install directory. If not specified configure will
+                          search in /usr, /usr/local and /usr/local/pgsql.
+                          ],
+PGSQL="$withval"
+dnl if not given argument, assume standard
+)
+if test "${PGSQL}" = "no"; then
+        AC_MSG_RESULT(skipped)
+fi
+
+if test "${PGSQL}" = "yes"; then
+        for i in /usr /usr/local /usr/local/pgsql $PHP_PGSQL; do
+                PGSQL_INC_CHK(/include)
+                el[]PGSQL_INC_CHK(/include/pgsql)
+                el[]PGSQL_INC_CHK(/include/postgresql)
+                fi
+        done
+
+        if test -z "$PGSQL_DIR"; then
+                AC_MSG_RESULT(Cannot find libpq-fe.h. Please specify the installation path of PostgreSQL)
+        else
+                PGSQL_INCLUDE="-I$PGSQL_INCDIR"
+                PGSQL_LIBDIR=$PGSQL_DIR/lib
+                AC_MSG_RESULT(yes)
+                test -d $PGSQL_DIR/lib/pgsql && PGSQL_LIBDIR=$PGSQL_DIR/lib/pgsql
+                LDFLAGS="$TEMP_LDFLAGS -L$PGSQL_LIBDIR"
+                AC_CHECK_LIB(pq, PQcmdTuples,AC_DEFINE(HAVE_PQCMDTUPLES,1,[ ]))
+                AC_CHECK_LIB(pq, PQoidValue,AC_DEFINE(HAVE_PQOIDVALUE,1,[ ]))
+                AC_CHECK_LIB(pq, PQclientEncoding,AC_DEFINE(HAVE_PQCLIENTENCODING,1,[ ]))
+                AC_CHECK_LIB(pq, pg_encoding_to_char,AC_DEFINE(HAVE_PGSQL_WITH_MULTIBYTE_SUPPORT,1,[ ]))
+                LDFLAGS=""     
+                AC_DEFINE(HAVE_PGSQL,1,[ ])
+                TEMP_LIBS="$TEMP_LIBS -L$PGSQL_LIBDIR -lpq"
+                TEMP_CFLAGS="$TEMP_CFLAGS -DHAVE_PGSQL $PGSQL_INCLUDE"
+                PostgreSQL_SUPPORT="yes"
+        fi
+fi
+dnl End Postgresql
+
+
+
              
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -278,3 +416,33 @@ AC_CONFIG_FILES([Makefile
                  stdtime/Makefile
                  utils/Makefile])
 AC_OUTPUT
+
+
+
+echo ""
+echo "   ************************"
+echo "   *   Configure status   *"
+echo "   ************************"
+echo ""
+
+if test "${MYSQL_SUPPORT}" = "yes"; then
+        echo "MYSQL Support:       Yes"
+else
+        echo "MYSQL Support:       No"
+fi
+
+if test "${PostgreSQL_SUPPORT}" = "yes"; then
+        echo "PostgreSQL Support:  Yes"
+else
+        echo "PostgreSQL Support:  No"
+fi
+echo ""
+
+echo "CFLAGS: $CFLAGS"
+echo "LIBS: $LIBS"
+echo "LDFLAGS: $LDFLAGS"
+
+echo
+echo  "Install prefix:       $prefix"
+echo
+

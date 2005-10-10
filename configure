@@ -863,6 +863,19 @@ Optional Features:
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
 
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-mysql=DIR        Normally, configure will scan all possible default
+                          installation paths for mysql. When its fail, use
+                          this command to tell configure where mysql
+                          installation root directory is.
+
+  --with-pgsql=DIR        Include PostgreSQL support.  DIR is the PostgreSQL
+                          base install directory. If not specified configure will
+                          search in /usr, /usr/local and /usr/local/pgsql.
+
+
 Some influential environment variables:
   CC          C compiler command
   CFLAGS      C compiler flags
@@ -1937,7 +1950,134 @@ if test -n $SVN ; then
 fi
 
 
-DEPDIR="${am__leading_dot}deps"
+MYSQL="yes"
+
+echo "$as_me:$LINENO: checking for MySQL" >&5
+echo $ECHO_N "checking for MySQL... $ECHO_C" >&6
+
+# Check whether --with-mysql or --without-mysql was given.
+if test "${with_mysql+set}" = set; then
+  withval="$with_mysql"
+  MYSQL="$withval"
+
+fi;
+
+if test "${MYSQL}" = "yes"; then
+        # Autodetect
+        for w in /usr/include /usr/local/include /usr/mysql /usr/local/mysql /usr/local/mysql/include /opt /opt/mysql; do
+                # check for plain setups
+                if test -f $w/mysql.h; then
+                        MYSQL_INCDIR=$w
+                        break
+                fi
+                # check for "/usr/include/<packagename>" type setups
+                if test -f $w/mysql/mysql.h; then
+                        MYSQL_INCDIR=$w/mysql
+                        break
+                fi
+                # check for "/usr/<packagename>/include" type setups
+                if test -f $w/mysql/include/mysql.h; then
+                        MYSQL_INCDIR=$w/mysql/include
+                        break
+                fi
+        done
+
+        for w in /usr/lib /usr/local/lib /usr/mysql /usr/local/mysql /usr/local/mysql/lib /opt /opt/mysql; do
+                # check for plain setups
+                if test -f $w/libmysqlclient.a -o -f $w/libmysqlclient.so; then
+                        MYSQL_LIBDIR=$w
+                        break
+                fi
+                # check for "/usr/lib/<packagename>" type setups
+                if test -f $w/mysql/libmysqlclient.a -o -f $w/mysql/libmysqlclient.so; then
+                        MYSQL_LIBDIR=$w/mysql
+                        break
+                fi
+                # check for "/usr/<packagename>/lib" type setups
+                if test -f $w/mysql/lib/libmysqlclient.a -o -f $w/mysql/lib/libmysqlclient.so; then
+                        MYSQL_LIBDIR=$w/mysql/lib
+                        break
+                fi
+        done
+else
+        # Manual detection for <withval>/include/<packagename>
+        # and <withval>/include.
+        if test -f $withval/include/mysql/mysql.h; then
+                MYSQL_INCDIR=$withval/include/mysql
+        elif test -f $withval/include/mysql.h; then
+                MYSQL_INCDIR=$withval/include
+        fi
+
+        # Manual detection for <withval>/lib/<packagename>
+        # and <withval>/lib.
+
+        if test -f $withval/lib/mysql/libmysqlclient.a -o -f $withval/lib/mysql/libmysqlclient.so; then
+                MYSQL_LIBDIR=$withval/lib/mysql
+        elif test -f $withval/lib/libmysqlclient.a -o -f $withval/lib/libmysqlclient.so; then
+                MYSQL_LIBDIR=$withval/lib
+        fi
+fi
+
+## Did we find anything?
+if test "${MYSQL}" = "no"; then
+        echo "$as_me:$LINENO: result: skipped" >&5
+echo "${ECHO_T}skipped" >&6
+else
+        if test -z "$MYSQL_LIBDIR" ; then
+                echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+                echo Invalid MySQL directory - unable to find libmysqlclient.a or libmysqlclient.so.
+        elif test -z "$MYSQL_INCDIR" ; then
+                echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+                echo Invalid MySQL directory - unable to find mysql.h.
+        else
+                TEMP_LIBS="$TEMP_LIBS -L$MYSQL_LIBDIR -lmysqlclient"
+                #Add -lz for some mysql installs....
+                TEMP_LIBS="$TEMP_LIBS -lz"
+                TEMP_CFLAGS="$TEMP_CFLAGS -DHAVE_MYSQL -I $MYSQL_INCDIR"
+                echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+                MYSQL_SUPPORT="yes"
+        fi
+fi
+
+
+PGSQL="yes"
+
+echo "$as_me:$LINENO: checking for PostgreSQL" >&5
+echo $ECHO_N "checking for PostgreSQL... $ECHO_C" >&6
+
+# Check whether --with-pgsql or --without-pgsql was given.
+if test "${with_pgsql+set}" = set; then
+  withval="$with_pgsql"
+  PGSQL="$withval"
+
+fi;
+if test "${PGSQL}" = "no"; then
+        echo "$as_me:$LINENO: result: skipped" >&5
+echo "${ECHO_T}skipped" >&6
+fi
+
+if test "${PGSQL}" = "yes"; then
+        for i in /usr /usr/local /usr/local/pgsql $PHP_PGSQL; do
+                if test -r $i/include/libpq-fe.h; then PGSQL_DIR=$i; PGSQL_INCDIR=$i/include
+                elif test -r $i/include/pgsql/libpq-fe.h; then PGSQL_DIR=$i; PGSQL_INCDIR=$i/include/pgsql
+                elif test -r $i/include/postgresql/libpq-fe.h; then PGSQL_DIR=$i; PGSQL_INCDIR=$i/include/postgresql
+                fi
+        done
+
+        if test -z "$PGSQL_DIR"; then
+                echo "$as_me:$LINENO: result: Cannot find libpq-fe.h. Please specify the installation path of PostgreSQL" >&5
+echo "${ECHO_T}Cannot find libpq-fe.h. Please specify the installation path of PostgreSQL" >&6
+        else
+                PGSQL_INCLUDE="-I$PGSQL_INCDIR"
+                PGSQL_LIBDIR=$PGSQL_DIR/lib
+                echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+                test -d $PGSQL_DIR/lib/pgsql && PGSQL_LIBDIR=$PGSQL_DIR/lib/pgsql
+                LDFLAGS="$TEMP_LDFLAGS -L$PGSQL_LIBDIR"
+                DEPDIR="${am__leading_dot}deps"
 
           ac_config_commands="$ac_config_commands depfiles"
 
@@ -3039,6 +3179,309 @@ else
   am__fastdepCC_TRUE='#'
   am__fastdepCC_FALSE=
 fi
+
+
+
+echo "$as_me:$LINENO: checking for PQcmdTuples in -lpq" >&5
+echo $ECHO_N "checking for PQcmdTuples in -lpq... $ECHO_C" >&6
+if test "${ac_cv_lib_pq_PQcmdTuples+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpq  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char PQcmdTuples ();
+int
+main ()
+{
+PQcmdTuples ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_pq_PQcmdTuples=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_pq_PQcmdTuples=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_pq_PQcmdTuples" >&5
+echo "${ECHO_T}$ac_cv_lib_pq_PQcmdTuples" >&6
+if test $ac_cv_lib_pq_PQcmdTuples = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PQCMDTUPLES 1
+_ACEOF
+
+fi
+
+                echo "$as_me:$LINENO: checking for PQoidValue in -lpq" >&5
+echo $ECHO_N "checking for PQoidValue in -lpq... $ECHO_C" >&6
+if test "${ac_cv_lib_pq_PQoidValue+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpq  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char PQoidValue ();
+int
+main ()
+{
+PQoidValue ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_pq_PQoidValue=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_pq_PQoidValue=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_pq_PQoidValue" >&5
+echo "${ECHO_T}$ac_cv_lib_pq_PQoidValue" >&6
+if test $ac_cv_lib_pq_PQoidValue = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PQOIDVALUE 1
+_ACEOF
+
+fi
+
+                echo "$as_me:$LINENO: checking for PQclientEncoding in -lpq" >&5
+echo $ECHO_N "checking for PQclientEncoding in -lpq... $ECHO_C" >&6
+if test "${ac_cv_lib_pq_PQclientEncoding+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpq  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char PQclientEncoding ();
+int
+main ()
+{
+PQclientEncoding ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_pq_PQclientEncoding=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_pq_PQclientEncoding=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_pq_PQclientEncoding" >&5
+echo "${ECHO_T}$ac_cv_lib_pq_PQclientEncoding" >&6
+if test $ac_cv_lib_pq_PQclientEncoding = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PQCLIENTENCODING 1
+_ACEOF
+
+fi
+
+                echo "$as_me:$LINENO: checking for pg_encoding_to_char in -lpq" >&5
+echo $ECHO_N "checking for pg_encoding_to_char in -lpq... $ECHO_C" >&6
+if test "${ac_cv_lib_pq_pg_encoding_to_char+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpq  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char pg_encoding_to_char ();
+int
+main ()
+{
+pg_encoding_to_char ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_pq_pg_encoding_to_char=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_pq_pg_encoding_to_char=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_pq_pg_encoding_to_char" >&5
+echo "${ECHO_T}$ac_cv_lib_pq_pg_encoding_to_char" >&6
+if test $ac_cv_lib_pq_pg_encoding_to_char = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PGSQL_WITH_MULTIBYTE_SUPPORT 1
+_ACEOF
+
+fi
+
+                LDFLAGS=""
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PGSQL 1
+_ACEOF
+
+                TEMP_LIBS="$TEMP_LIBS -L$PGSQL_LIBDIR -lpq"
+                TEMP_CFLAGS="$TEMP_CFLAGS -DHAVE_PGSQL $PGSQL_INCLUDE"
+                PostgreSQL_SUPPORT="yes"
+        fi
+fi
+
 
 
 
@@ -13244,4 +13687,34 @@ if test "$no_create" != yes; then
   # would make configure fail if this is the last instruction.
   $ac_cs_success || { (exit 1); exit 1; }
 fi
+
+
+
+
+echo ""
+echo "   ************************"
+echo "   *   Configure status   *"
+echo "   ************************"
+echo ""
+
+if test "${MYSQL_SUPPORT}" = "yes"; then
+        echo "MYSQL Support:       Yes"
+else
+        echo "MYSQL Support:       No"
+fi
+
+if test "${PostgreSQL_SUPPORT}" = "yes"; then
+        echo "PostgreSQL Support:  Yes"
+else
+        echo "PostgreSQL Support:  No"
+fi
+echo ""
+
+echo "CFLAGS: $CFLAGS"
+echo "LIBS: $LIBS"
+echo "LDFLAGS: $LDFLAGS"
+
+echo
+echo  "Install prefix:       $prefix"
+echo
 
