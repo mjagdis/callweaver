@@ -42,7 +42,7 @@ __RCSID("$NetBSD: vis.c,v 1.22 2002/03/23 17:38:27 christos Exp $");
 #include <sys/types.h>
 
 #include <assert.h>
-#include "np/vis.h"
+#include "vis.h"
 #include <stdlib.h>
 
 #ifdef __weak_alias

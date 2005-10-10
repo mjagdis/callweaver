@@ -68,7 +68,7 @@ extern char *alloca ();
 #include <limits.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <vis.h>
+#include "np/vis.h"
 
 #include "el.h"
 #include "fcns.h"		/* for EL_NUM_FCNS */

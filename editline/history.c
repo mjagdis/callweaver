@@ -40,7 +40,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <vis.h>
+#include <np/vis.h>
 #include <sys/stat.h>
 
 static const char hist_cookie[] = "_HiStOrY_V2_\n";
