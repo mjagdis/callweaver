@@ -27,6 +27,11 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CR
   MODS+=res_odbc.so
 endif
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/postgresql/libpq-fe.h),)
+   MODS+=res_config_pgsql.so
+endif
+
+
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h),)
   MODS+=res_osp.so
   OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a
@@ -70,6 +75,9 @@ clean:
 
 res_odbc.so: res_odbc.o
 	$(CC) $(SOLINK) -o $@ $< -lodbc
+
+res_config_pgsql.so: res_config_pgsql.o
+	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)
 
 res_osp.so: res_osp.o $(OSPLIB)
 	$(CC) $(SOLINK) -o $@ $^
