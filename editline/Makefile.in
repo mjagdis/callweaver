@@ -1,3 +1,4 @@
+# Generated automatically from Makefile.in by configure.
 #
 # Generic Makefile for libedit.
 #
@@ -12,62 +13,62 @@ endef
 
 SHELL = /bin/sh
 
-CC = @CC@
-AR = @AR@
-RANLIB = @RANLIB@
-CPPFLAGS = @CPPFLAGS@ -I.
-CFLAGS = @CFLAGS@
-A_CFLAGS = @A_CFLAGS@
-S_CFLAGS = @S_CFLAGS@
-LDFLAGS = @LDFLAGS@
-S_LDFLAGS = @S_LDFLAGS@
-LIBS = @LIBS@
+CC = gcc
+AR = /usr/bin/ar
+RANLIB = ranlib
+CPPFLAGS =  '-D__RCSID(x)=' '-D__COPYRIGHT(x)=' '-D__RENAME(x)=' '-D_DIAGASSERT(x)=' -I.
+CFLAGS = -Wall -pipe -g3 -O
+A_CFLAGS = 
+S_CFLAGS = -fPIC -DPIC
+LDFLAGS = 
+S_LDFLAGS = -shared
+LIBS = -ltermcap 
 
-INSTALL = @INSTALL@
-PREFIX = @prefix@
+INSTALL = install
+PREFIX = /usr/local
 
 ifeq ($(OSTYPE),SunOS)
 CFLAGS+=-DSOLARIS -I../include/solaris-compat
 endif
 
 # .c files.
-ACSRCS = @ACSRCS@
-BCSRCS = @BCSRCS@
-CCSRCS = @CCSRCS@
+ACSRCS = common.c emacs.c vi.c
+BCSRCS = chared.c el.c hist.c key.c map.c parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c
+CCSRCS =  np/strlcat.c np/strlcpy.c np/fgetln.c np/vis.c np/unvis.c history.c tokenizer.c readline.c
 
 # Generated .c files.
-AGCSRCS = @AGCSRCS@
-BGCSRCS = @BGCSRCS@
+AGCSRCS = fcns.c help.c
+BGCSRCS = editline.c
 
 # .h files.
-HDRS = @HDRS@
+HDRS = chared.h el.h hist.h key.h map.h parse.h prompt.h refresh.h search.h sig.h sys.h term.h tokenizer.h tty.h
 
 # Generated .h files.
-AGHDRS = @AGHDRS@
-BGHDRS = @BGHDRS@
+AGHDRS = common.h emacs.h vi.h
+BGHDRS = fcns.h help.h
 
 # Installed .h files.
-IHDRS = @IHDRS@
-IHDR_LINKS = @IHDR_LINKS@
-HDR_DIRS = @HDR_DIRS@
+IHDRS = histedit.h readline/readline.h
+IHDR_LINKS = readline.h readline/history.h
+HDR_DIRS = include include/readline
 
 # Man pages.
-MAN3 = @MAN3@
-MAN5 = @MAN5@
-MAN3_LINKS = @MAN3_LINKS@
-MAN_DIRS = @MAN_DIRS@
+MAN3 = editline.3
+MAN5 = editrc.5
+MAN3_LINKS =  editline.3 el_init.3 editline.3 el_end.3 editline.3 el_reset.3 editline.3 el_gets.3 editline.3 el_getc.3 editline.3 el_push.3 editline.3 el_parse.3 editline.3 el_set.3 editline.3 el_get.3 editline.3 el_source.3 editline.3 el_resize.3 editline.3 el_line.3 editline.3 el_insertstr.3 editline.3 el_deletestr.3 editline.3 history_init.3 editline.3 history_end.3 editline.3 history.3
+MAN_DIRS = man/man3 man/man5
 
 # Library.
-LIB_DIRS = @LIB_DIRS@
-LIB_VER = @LIB_VER@
-LIB_A = @LIB_A@
-LIB_A_LINKS = @LIB_A_LINKS@
-LIB_S = @LIB_S@
-LIB_S_LINKS = @LIB_S_LINKS@
+LIB_DIRS = lib
+LIB_VER = 
+LIB_A = libedit.a
+LIB_A_LINKS =  libedit.a libreadline.a
+LIB_S = libedit.so.2
+LIB_S_LINKS = libedit.so.2 libedit.so libedit.so libreadline.so
 
 # Test program.
-TEST = @TEST@
-TCSRCS = @TCSRCS@
+TEST = TEST/test
+TCSRCS = TEST/test.c
 
 # Clear out all paths, then set just one (default path) for the main build
 # directory.

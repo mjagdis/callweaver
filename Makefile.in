@@ -43,30 +43,26 @@ MAKETOPLEVEL?=$(MAKELEVEL)
 #K6OPT  = -DK6OPT
 
 #Overwite config files on "make samples"
-OVERWRITE=y
+OVERWRITE=@OVERWRITE@
 
 #Tell gcc to optimize the code
-OPTIMIZE+=-O6
+OPTIMIZE+=@CPU_OPTIONS@
+VALGRIND=@VALGRIND@
 
 #Include debug symbols in the executables (-g) and profiling info (-pg)
-DEBUG=-g #-pg
+DEBUG=@DEBUG@
 
-# If you are running a radio application, define RADIO_RELAX so that the DTMF
-# will be received more reliably
-#OPTIONS += -DRADIO_RELAX
-
-# If you don't have a lot of memory (e.g. embedded OpenPBX), define LOW_MEMORY
-# to reduce the size of certain static buffers
+OPTIONS += @LOW_MEMORY@
 
 #ifneq ($(CROSS_COMPILE),)
 #OPTIONS += -DLOW_MEMORY
 #endif
 
 # Optional debugging parameters
-DEBUG_THREADS = #-DDUMP_SCHEDULER #-DDEBUG_SCHEDULER #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
+DEBUG_THREADS = @DEBUG_THREADS@
 
 # Uncomment next one to enable opbx_frame tracing (for debugging)
-TRACE_FRAMES = #-DTRACE_FRAMES
+TRACE_FRAMES = @TRACE_FRAMES@
 
 # Uncomment next one to enable malloc debugging
 # You can view malloc debugging with:
@@ -124,15 +120,6 @@ MODULES_DIR=$(OPBXLIBDIR)/modules
 AGI_DIR=$(OPBXVARLIBDIR)/agi-bin
 
 ASTCFLAGS=
-
-# Pentium Pro Optimize
-#PROC=i686
-
-# Pentium & VIA processors optimize
-#PROC=i586
-
-#PROC=k6
-#PROC=ppc
 
 #Uncomment this to use the older DSP routines
 #ASTCFLAGS+=-DOLD_DSP_ROUTINES
@@ -206,7 +193,7 @@ ifeq (${OSARCH},SunOS)
 endif
 
 INCLUDE+=-Iinclude -I../include
-ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
+ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE $(VALGRIND)
 ASTCFLAGS+=$(OPTIMIZE)
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
@@ -268,6 +255,18 @@ ifneq ($(wildcard .version),)
 else
   RPMVERSION=unknown
 endif
+
+ifneq ($(wildcard .svn),)
+  OPENPBXVERSIONNUM=999999
+  ifneq ($(wildcard .svn/entries),)
+    OPENPBXVERSION=$(shell grep revision .svn/entries | head -n 1 | sed 's:^.*"\([0-9]\+\)".*:\1:')
+  else
+    OPENPBXVERSION=SVN TRUNK
+  endif
+else
+  OPENPBXVERSIONNUM=000000
+endif
+
 
 ifneq ($(wildcard CVS),)
   OPENPBXVERSIONNUM=999999
@@ -482,6 +481,15 @@ clean:
 	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
+
+distclean: clean
+	rm -f `find ./ -name 'Makefile'` 
+	rm -f config.log
+	rm -f config.status
+	rm -f autom4*
+	rm -f stamp-h1
+	rm -f openpbx.h
+	rm -f install
 
 datafiles: all
 	if test $$(id -u) = 0; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi

@@ -33,7 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "openpbx.h"
+#include "include/openpbx.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 

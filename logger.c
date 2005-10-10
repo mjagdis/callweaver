@@ -37,7 +37,7 @@
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
 
-#include "openpbx.h"
+#include "include/openpbx.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
