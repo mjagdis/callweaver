@@ -7,10 +7,10 @@ AC_INIT(OpenPBX, 1,openpbx-dev@openpbx.org)
 AM_INIT_AUTOMAKE(OpenPBX,1)
 
 AC_PATH_PROG([GROUPADD], [groupadd])
-AC_PATH_PROG([GREP], [grep])
-AC_PATH_PROG([SVN], [svn])
+AC_PATH_PROGS(GREP, ggrep grep,[echo Missing grep so skipping but I doubt we will get anywhere])
+AC_PATH_PROG([SVN], [svn], [echo Missing subversion so some stuff will be borked],${PATH}:/opt/csw/bin)
 AC_PATH_PROGS(RANLIB,ranlib granlib,[echo Skipping ranlib])
-AC_PATH_PROGS(AR,ar gar,[echo Missing ar so skipping it bu that will not work ...])
+AC_PATH_PROGS(AR,ar gar,[echo Missing ar so skipping it but that will not work ...])
 
 OPBXRUNGROUP=openpbx
 OPBXRUNUSER=openpbx

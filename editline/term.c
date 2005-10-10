@@ -1,4 +1,4 @@
-/*	$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $	*/
+/*	$NetBSD: term.c,v 1.41 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,14 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
-#else
-__RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * term.c: Editor/termcap-curses interface
@@ -55,19 +44,18 @@ __RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#ifdef HAVE_TERMCAP_H
-#include <termcap.h>
-#endif
+
 #ifdef HAVE_CURSES_H
-#include <curses.h>
+# include <curses.h>
+#elif HAVE_NCURSES_H
+# include <ncurses.h>
 #endif
-#ifdef HAVE_NCURSES_H
-#include <ncurses.h>
-#endif
+
 /* Solaris's term.h does horrid things. */
-#if (defined(HAVE_TERM_H) && !defined(SUNOS))
-#include <term.h>
+#if (defined(HAVE_TERM_H) && !defined(_SUNOS))
+# include <term.h>
 #endif
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -356,6 +344,7 @@ term_init(EditLine *el)
 	term_init_arrow(el);
 	return (0);
 }
+
 /* term_end():
  *	Clean up the terminal stuff
  */
@@ -367,13 +356,13 @@ term_end(EditLine *el)
 	el->el_term.t_buf = NULL;
 	el_free((ptr_t) el->el_term.t_cap);
 	el->el_term.t_cap = NULL;
-	el_free((ptr_t) el->el_term.t_fkey);
-	el->el_term.t_fkey = NULL;
 	el->el_term.t_loc = 0;
 	el_free((ptr_t) el->el_term.t_str);
 	el->el_term.t_str = NULL;
 	el_free((ptr_t) el->el_term.t_val);
 	el->el_term.t_val = NULL;
+	el_free((ptr_t) el->el_term.t_fkey);
+	el->el_term.t_fkey = NULL;
 	term_free_display(el);
 }
 
@@ -650,7 +639,8 @@ mc_again:
 				 * from col 0
 				 */
 				if (EL_CAN_TAB ?
-				    (-del > (((unsigned int) where >> 3) +
+				    ((unsigned int)-del >
+				    (((unsigned int) where >> 3) +
 				     (where & 07)))
 				    : (-del > where)) {
 					term__putc('\r');	/* do a CR */
@@ -878,6 +868,12 @@ term_clear_to_bottom(EditLine *el)
 }
 #endif
 
+protected void
+term_get(EditLine *el, const char **term)
+{
+	*term = el->el_term.t_name;
+}
+
 
 /* term_set():
  *	Read in the terminal capabilities from the requested terminal
@@ -939,8 +935,11 @@ term_set(EditLine *el, const char *term)
 		/* Get the size */
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
-		for (t = tstr; t->name != NULL; t++)
-			term_alloc(el, t, tgetstr((char *)t->name, &area));
+		for (t = tstr; t->name != NULL; t++) {
+			/* XXX: some systems' tgetstr needs non const */
+			term_alloc(el, t, tgetstr(strchr(t->name, *t->name),
+			    &area));
+		}
 	}
 
 	if (Val(T_co) < 2)
@@ -959,6 +958,7 @@ term_set(EditLine *el, const char *term)
 		return (-1);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	term_bind_arrow(el);
+	el->el_term.t_name = term;
 	return (i <= 0 ? -1 : 0);
 }
 
@@ -1248,7 +1248,8 @@ term__flush(void)
  */
 protected int
 /*ARGSUSED*/
-term_telltc(EditLine *el, int argc, const char **argv)
+term_telltc(EditLine *el, int argc __attribute__((__unused__)), 
+    const char **argv __attribute__((__unused__)))
 {
 	const struct termcapstr *t;
 	char **ts;
@@ -1283,7 +1284,8 @@ term_telltc(EditLine *el, int argc, const char **argv)
  */
 protected int
 /*ARGSUSED*/
-term_settc(EditLine *el, int argc, const char **argv)
+term_settc(EditLine *el, int argc __attribute__((__unused__)),
+    const char **argv)
 {
 	const struct termcapstr *ts;
 	const struct termcapval *tv;
@@ -1359,7 +1361,8 @@ term_settc(EditLine *el, int argc, const char **argv)
  */
 protected int
 /*ARGSUSED*/
-term_echotc(EditLine *el, int argc, const char **argv)
+term_echotc(EditLine *el, int argc __attribute__((__unused__)),
+    const char **argv)
 {
 	char *cap, *scap, *ep;
 	int arg_need, arg_cols, arg_rows;
@@ -1418,7 +1421,7 @@ term_echotc(EditLine *el, int argc, const char **argv)
 			}
 		(void) fprintf(el->el_outfile, fmtd, 0);
 #else
-		(void) fprintf(el->el_outfile, fmtd, el->el_tty.t_speed);
+		(void) fprintf(el->el_outfile, fmtd, (int)el->el_tty.t_speed);
 #endif
 		return (0);
 	} else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
@@ -1437,8 +1440,10 @@ term_echotc(EditLine *el, int argc, const char **argv)
 			scap = el->el_term.t_str[t - tstr];
 			break;
 		}
-	if (t->name == NULL)
-		scap = tgetstr((char *)argv, &area);
+	if (t->name == NULL) {
+		/* XXX: some systems' tgetstr needs non const */
+		scap = tgetstr(strchr(*argv, **argv), &area);
+	}
 	if (!scap || scap[0] == '\0') {
 		if (!silent)
 			(void) fprintf(el->el_errfile,

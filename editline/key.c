@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.17 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,21 +32,14 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: key.c,v 1.13 2002/03/18 16:00:55 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
+#include <config.h>
 
 /*
  * key.c: This module contains the procedures for maintaining
  *	  the extended-key map.
  *
  *      An extended-key (key) is a sequence of keystrokes introduced
- *	with an sequence introducer and consisting of an arbitrary
+ *	with a sequence introducer and consisting of an arbitrary
  *	number of characters.  This module maintains a map (the el->el_key.map)
  *	to convert these extended-key sequences into input strs
  *	(XK_STR), editor functions (XK_CMD), or unix commands (XK_EXE).
@@ -89,6 +78,7 @@ private int		 node_trav(EditLine *, key_node_t *, char *,
 private int		 node__try(EditLine *, key_node_t *, const char *,
     key_value_t *, int);
 private key_node_t	*node__get(int);
+private void		 node__free(key_node_t *);
 private void		 node__put(EditLine *, key_node_t *);
 private int		 node__delete(EditLine *, key_node_t **, const char *);
 private int		 node_lookup(EditLine *, const char *, key_node_t *,
@@ -114,7 +104,6 @@ key_init(EditLine *el)
 	return (0);
 }
 
-
 /* key_end():
  *	Free the key maps
  */
@@ -124,8 +113,7 @@ key_end(EditLine *el)
 
 	el_free((ptr_t) el->el_key.buf);
 	el->el_key.buf = NULL;
-	node__put(el, el->el_key.map);
-	el->el_key.map = NULL;
+	node__free(el->el_key.map);
 }
 
 
@@ -356,7 +344,8 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
 			break;
 		case XK_STR:
 		case XK_EXE:
-			ptr->val.str = strdup(val->str);
+			if ((ptr->val.str = el_strdup(val->str)) == NULL)
+				return -1;
 			break;
 		default:
 			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
@@ -453,7 +442,7 @@ node__put(EditLine *el, key_node_t *ptr)
 
 
 /* node__get():
- *	Returns pointer to an key_node_t for ch.
+ *	Returns pointer to a key_node_t for ch.
  */
 private key_node_t *
 node__get(int ch)
@@ -471,7 +460,15 @@ node__get(int ch)
 	return (ptr);
 }
 
-
+private void
+node__free(key_node_t *k)
+{
+	if (k == NULL)
+		return;
+	node__free(k->sibling);
+	node__free(k->next);
+	el_free((ptr_t) k);
+}
 
 /* node_lookup():
  *	look for the str starting at node ptr.

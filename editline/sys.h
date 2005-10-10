@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.5 2002/03/18 16:00:59 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +40,34 @@
 #ifndef _h_sys
 #define	_h_sys
 
+#include <config.h>
+
+#ifdef HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+# define __attribute__(A)
+#endif
+
+#ifndef __P
+# define __P(x) x
+#endif
+
+#ifndef _DIAGASSERT
+# define _DIAGASSERT(x)
+#endif
+
+#ifndef __BEGIN_DECLS
+# ifdef  __cplusplus
+#  define __BEGIN_DECLS  extern "C" {
+#  define __END_DECLS    }
+# else
+#  define __BEGIN_DECLS
+#  define __END_DECLS
+# endif
+#endif
+ 
 #ifndef public
 # define public		/* Externally visible functions/variables */
 #endif
@@ -55,6 +79,10 @@
 #ifndef protected
 # define protected	/* Redefined from elsewhere to "static" */
 			/* When we want to hide everything	*/
+#endif
+
+#ifndef HAVE_U_INT32_T
+typedef unsigned int  u_int32_t;
 #endif
 
 #ifndef _PTR_T
@@ -87,21 +115,18 @@ char	*fgetln(FILE *fp, size_t *len);
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
 
-#ifdef SUNOS
+#ifdef notdef
 # undef REGEX
 # undef REGEXP
 # include <malloc.h>
-typedef void (*sig_t)(int);
 # ifdef __GNUC__
 /*
  * Broken hdrs.
  */
-#ifndef SOLARIS
 extern int	tgetent(const char *bp, char *name);
 extern int	tgetflag(const char *id);
 extern int	tgetnum(const char *id);
 extern char    *tgetstr(const char *id, char **area);
-#endif
 extern char    *tgoto(const char *cap, int col, int row);
 extern int	tputs(const char *str, int affcnt, int (*putc)(int));
 extern char    *getenv(const char *);
@@ -124,10 +149,6 @@ extern ptr_t    memcpy(ptr_t, const ptr_t, size_t);
 extern ptr_t    memset(ptr_t, int, size_t);
 # endif
 extern char    *fgetline(FILE *, int *);
-#endif
-
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
 #endif
 
 #endif /* _h_sys */

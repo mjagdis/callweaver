@@ -74,8 +74,8 @@ typedef void (*sig_t)(int);
 esac
 
 AC_PROG_INSTALL
-AC_PATH_PROGS(RANLIB,ranlib granlib,echo Skiping ranlib,$PATH)
-AC_PATH_PROGS(AR, ar gar, , $PATH)
+AC_PROG_RANLIB
+AC_PATH_PROG(AR, ar, , $PATH)
 
 dnl Search for termcap access routines in termcap, tinfo, curses, and ncurses.
 AC_CHECK_LIB(termcap, tgetent, , \
