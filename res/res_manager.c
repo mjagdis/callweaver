@@ -38,12 +38,13 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "include/openpbx.h"
+#include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision: 309 $")
 
 #include "openpbx/channel.h"
 #include "openpbx/file.h"
+#include "openpbx/module.h"
 #include "openpbx/manager.h"
 #include "openpbx/config.h"
 #include "openpbx/callerid.h"
@@ -1729,8 +1730,36 @@ int init_manager(void)
 	return 0;
 }
 
+int load_module(void)
+{
+	return init_manager();
+}                                                                                                                          
+
 int reload_manager(void)
 {
 	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Message: Reload Requested\r\n");
 	return init_manager();
+}
+
+int unload_module(void)
+{
+	return -1;
+}
+
+char *description(void)
+{
+	return "Manager Resource";
+}
+
+int usecount(void)
+{
+	/* Never allow Manager to be unloaded
+	   unresolve needed symbols in the dialer */
+#if 0
+	int res;
+	STANDARD_USECOUNT(res);
+	return res;
+#else
+	return 1;
+#endif
 }

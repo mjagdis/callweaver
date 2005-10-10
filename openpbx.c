@@ -2151,10 +2151,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	opbx_channels_init();
-	if (init_manager()) {
-		printf(term_quit());
-		exit(1);
-	}
 	if (opbx_cdr_engine_init()) {
 		printf(term_quit());
 		exit(1);
@@ -2197,7 +2193,6 @@ int main(int argc, char *argv[])
 	/* sync cust config and reload some internals in case a custom config handler binded to them */
 	read_opbx_cust_config();
 	reload_logger(0);
-	reload_manager();
 	opbx_enum_reload();
 	opbx_rtp_reload();
 #endif
