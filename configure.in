@@ -13,6 +13,9 @@ AC_PATH_PROGS(RANLIB,ranlib granlib,[echo Skipping ranlib])
 AC_PATH_PROGS(AR,ar gar,[echo Missing ar so skipping it but that will not work ...])
 AC_PATH_PROGS(SHELL,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(SH,bash sh,[echo No compatible shell found])
+AC_PATH_PROGS(M4,gm4 m4,[echo No m4 found, who will process my macros now ?])
+AC_PATH_PROGS(SED,gsed sed,[echo sed not found, doh!])
+
 OPBXRUNGROUP=openpbx
 OPBXRUNUSER=openpbx
 ASTLINK="-Wl,-E"
@@ -25,16 +28,11 @@ AC_C_CONST
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_AWK
 AC_PROG_YACC
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_LEX
 AC_PROG_INSTALL
-#AC_PROG_AR
-#AC_PROG_LN_S
-#AC_PROG_MAKE_SET
-#AC_PROG_GREP
 
 # Checks for libraries.
 AC_CHECK_LIB([asound], [main])
@@ -104,7 +102,7 @@ fi
 
 #SVN Revision number For version number
 if test -n $SVN ; then
-	SUBVERSION=`${SVN} info | grep Revision | awk '{ print $2 }'`
+	SUBVERSION=`${SVN} info | ${GREP} Revision | awk '{ print $2 }'`
 fi
 
 
@@ -340,11 +338,11 @@ if test "x${OPTIMIZECPU}" = "xyes"; then
 			amd[[68]]="-march=athlon"
 			amd[[155]]="-march=athlon64"
 			CPU_TYPE="known"
-			CPU_FAMILY=`cat /proc/cpuinfo | grep "cpu family" | head -n1`
-			CPU_MODEL=`cat /proc/cpuinfo | grep model[[^\ ]] | head -n1`
-			CPU_NAME=`cat /proc/cpuinfo | grep "model name" | head -n1`
-			CPU_FLAGS=`cat /proc/cpuinfo | grep "flags" | head -n1`
-			CPU_VENDOR=`cat /proc/cpuinfo | grep "vendor_id" | head -n1`
+			CPU_FAMILY=`cat /proc/cpuinfo | ${GREP} "cpu family" | head -n1`
+			CPU_MODEL=`cat /proc/cpuinfo | ${GREP} model[[^\ ]] | head -n1`
+			CPU_NAME=`cat /proc/cpuinfo | ${GREP} "model name" | head -n1`
+			CPU_FLAGS=`cat /proc/cpuinfo | ${GREP} "flags" | head -n1`
+			CPU_VENDOR=`cat /proc/cpuinfo | ${GREP} "vendor_id" | head -n1`
 			CPU_FAMILY=${CPU_FAMILY#*: }
 			CPU_MODEL=${CPU_MODEL#*: }
 			CPU_NAME=${CPU_NAME#*: }

@@ -13,8 +13,17 @@
 
 .EXPORT_ALL_VARIABLES:
 
+# get the shell nailed doen to bash if possible as well as some tools tight at the beginning
 SH=@SH@
 SHELL=@SHELL@
+AWK=@AWK@
+AR=@AR@
+GREP=@GREP@
+SED=@SED@
+M4=@M4@
+RANLIB=@RANLIB@
+INSTALL=@INSTALL@
+
 # Create OPTIONS variable
 OPTIONS=
 # If cross compiling, define these to suit
@@ -79,9 +88,6 @@ OPBXRUNUSER=openpbx
 
 #Group to run as
 OPBXRUNGROUP=openpbx
-RANLIB=@RANLIB@
-INSTALL=@INSTALL@
-AR=@AR@
 # Where to install openpbx after compiling
 # Default -> leave empty
 # This needs to be changed... double negative! Somebody with a Sun box please advise. 
@@ -191,12 +197,6 @@ ifeq (${OSARCH},Linux)
 endif
 
 PWD=$(shell pwd)
-GREP=grep
-
-ifeq (${OSARCH},SunOS)
-  GREP=/usr/sfw/bin/ggrep
-  M4=/usr/sfw/bin/m4
-endif
 
 INCLUDE+=-Iinclude -I../include
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE $(VALGRIND)
@@ -256,8 +256,8 @@ LIBEDIT=editline/libedit.a
 
 ifneq ($(wildcard .version),)
   OPENPBXVERSION=$(shell cat .version)
-  OPENPBXVERSIONNUM=$(shell awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version)
-  RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
+  OPENPBXVERSIONNUM=$(shell $(AWK) -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version)
+  RPMVERSION=$(shell $(SED) 's/[-\/:]/_/g' .version)
 else
   RPMVERSION=unknown
 endif
@@ -265,7 +265,7 @@ endif
 ifneq ($(wildcard .svn),)
   OPENPBXVERSIONNUM=999999
   ifneq ($(wildcard .svn/entries),)
-    OPENPBXVERSION=$(shell $(GREP) revision .svn/entries | head -n 1 | sed 's:^.*"\([0-9]*\)".*:\1:')
+    OPENPBXVERSION=$(shell $(GREP) revision .svn/entries | head -n 1 | $(SED) 's:^.*"\([0-9]*\)".*:\1:')
   else
     OPENPBXVERSION=SVN TRUNK
   endif
@@ -277,7 +277,7 @@ endif
 ifneq ($(wildcard CVS),)
   OPENPBXVERSIONNUM=999999
   ifneq ($(wildcard CVS/Tag),)
-    OPENPBXVERSION=$(shell echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`")
+    OPENPBXVERSION=$(shell echo "CVS-`$(SED) 's/^T//g' CVS/Tag`-`date +"%D-%T"`")
   else
     OPENPBXVERSION=CVS HEAD
   endif
@@ -601,7 +601,7 @@ bininstall: all
 	$(INSTALL) -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(OPBXSBINDIR)/
 	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(OPBXSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx ]; then \
-		cat contrib/scripts/safe_openpbx | sed 's|__OPENPBX_SBIN_DIR__|$(OPBXSBINDIR)|;' \
+		cat contrib/scripts/safe_openpbx | $(SED) 's|__OPENPBX_SBIN_DIR__|$(OPBXSBINDIR)|;' \
 			> $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx ;\
 		chmod 755 $(DESTDIR)$(OPBXSBINDIR)/safe_openpbx;\
 	fi
@@ -763,7 +763,7 @@ webvmail:
 	@echo " +-------------------------------------------+"  
 
 spec: 
-	sed "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/openpbx.spec > openpbx.spec ; \
+	$(SED) "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/openpbx.spec > openpbx.spec ; \
 
 rpm: __rpm
 
@@ -834,7 +834,7 @@ etags: TAGS
 FORCE:
 
 %_env:
-	$(MAKE) -C $(shell echo $@ | sed "s/_env//g") env
+	$(MAKE) -C $(shell echo $@ | $(SED) "s/_env//g") env
 
 env:
 	env
