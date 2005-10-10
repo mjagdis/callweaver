@@ -9,6 +9,8 @@ AM_INIT_AUTOMAKE(OpenPBX,1)
 AC_PATH_PROG([GROUPADD], [groupadd])
 AC_PATH_PROG([GREP], [grep])
 AC_PATH_PROG([SVN], [svn])
+AC_PATH_PROGS(RANLIB,ranlib granlib,[echo Skipping ranlib])
+AC_PATH_PROGS(AR,ar gar,[echo Missing ar so skipping it bu that will not work ...])
 
 OPBXRUNGROUP=openpbx
 OPBXRUNUSER=openpbx
@@ -31,7 +33,6 @@ AC_PROG_INSTALL
 #AC_PROG_AR
 #AC_PROG_LN_S
 #AC_PROG_MAKE_SET
-#AC_PROG_RANLIB
 #AC_PROG_GREP
 
 # Checks for libraries.

@@ -14,8 +14,8 @@ endef
 SHELL = /bin/sh
 
 CC = gcc
-AR = /usr/bin/ar
-RANLIB = ranlib
+AR = @AR@
+RANLIB = @RANLIB@
 CPPFLAGS =  '-D__RCSID(x)=' '-D__COPYRIGHT(x)=' '-D__RENAME(x)=' '-D_DIAGASSERT(x)=' -I.
 CFLAGS = -Wall -pipe -g3 -O
 A_CFLAGS = 

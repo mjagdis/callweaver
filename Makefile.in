@@ -77,16 +77,16 @@ OPBXRUNUSER=openpbx
 
 #Group to run as
 OPBXRUNGROUP=openpbx
-
+RANLIB=@RANLIB@
+INSTALL=@INSTALL@
+AR=@AR@
 # Where to install openpbx after compiling
 # Default -> leave empty
 # This needs to be changed... double negative! Somebody with a Sun box please advise. 
 ifneq (${OSARCH},SunOS)
   INSTALL_PREFIX=@prefix@
-  INSTALL=install
 else
   INSTALL_PREFIX=/opt
-  INSTALL=/opt/sfw/bin/ginstall
 endif 
 
 # Staging directory

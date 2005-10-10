@@ -7,8 +7,6 @@ CC?= gcc
 
 ifeq ($(OSARCH),SunOS)
 CFLAGS+=-DSOLARIS -I../include/solaris-compat
-AR=/usr/sfw/bin/gar
-RANLIB=/usr/sfw/bin/granlib
 endif   
 
 # 
@@ -72,7 +70,7 @@ OBJ=	f2clib.o analys.o bsynz.o chanwr.o dcbias.o decode.o \
 
 $(LIB): $(OBJ)
 	$(AR) cr $@ $(OBJ)
-	ranlib $@
+	$(RANLIB) $@
 
 clean:
 	-rm -f *.o $(LIB)

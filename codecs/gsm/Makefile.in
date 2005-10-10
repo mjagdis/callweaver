@@ -151,18 +151,14 @@ TOAST_INSTALL_MAN = $(TOAST_INSTALL_ROOT)/man/man1
 SHELL		= /bin/sh
 LN		= ln
 BASENAME 	= basename
-AR		= ar
 ARFLAGS		= cr
 RMFLAGS		= -f
 FIND		= find
 COMPRESS 	= compress
 COMPRESSFLAGS 	= 
-# RANLIB 	= true
-RANLIB	 	= ranlib
+
 ifeq ($(OSARCH),SunOS)
 CFLAGS+=-DSOLARIS -I../include/solaris-compat
-AR=/usr/sfw/bin/gar
-RANLIB=/usr/sfw/bin/granlib
 endif   
 
 #

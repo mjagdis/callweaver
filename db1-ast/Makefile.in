@@ -33,7 +33,7 @@ all: $(LIBDB) #$(LIBDBSO) $(PROG)
 $(LIBDB): $(OBJS)
 	rm -f $@
 	$(AR) cq $@ $(OBJS)
-	ranlib $@
+	$(RANLIB) $@
 
 $(LIBDBSO): $(SHOBJS)
 	$(CC) -Wl,-O1 -Wl,--version-script=libdb.map -Wl,-soname=$(LIBDBSO) -shared -o $@ $^
@@ -49,11 +49,12 @@ OORG=	-O2
 CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
 
 OSTYPE=$(shell uname -s)
-ifeq ($(OSTYPE),SunOS)
+ifeq ($(OSARCH),SunOS)
 CL+=-I../include -I../include/solaris-compat -DSOLARIS
-AR=/usr/sfw/bin/gar
-RANLIB=/usr/sfw/bin/granlib
 endif
+
+AR=@AR@
+RANLIB=@RANLIB@
 
 db_dump185.o: db_dump185.c
 	$(CL) -o $@ $<
