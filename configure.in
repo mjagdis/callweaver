@@ -220,6 +220,7 @@ if test "${PGSQL}" = "yes"; then
         if test -z "$PGSQL_DIR"; then
                 AC_MSG_RESULT(Cannot find libpq-fe.h. Please specify the installation path of PostgreSQL)
         else
+		HAVE_PGSQL="1"
                 PGSQL_INCLUDE="-I$PGSQL_INCDIR"
                 PGSQL_LIBDIR=$PGSQL_DIR/lib
                 AC_MSG_RESULT(yes)
@@ -409,6 +410,9 @@ AC_SUBST(LOW_MEMORY)
 AC_SUBST(OPBXRUNGROUP)
 AC_SUBST(OPBXRUNUSER)
 AC_SUBST(prefix)
+AC_SUBST(PGSQL_INCLUDE)
+AC_SUBST(PGSQL_LIBDIR)
+AC_SUBST(HAVE_PGSQL)
 
 
 AC_CONFIG_FILES([Makefile

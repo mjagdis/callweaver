@@ -310,7 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY OPBXRUNGROUP OPBXRUNUSER LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY OPBXRUNGROUP OPBXRUNUSER PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -7370,6 +7370,7 @@ if test "${PGSQL}" = "yes"; then
                 echo "$as_me:$LINENO: result: Cannot find libpq-fe.h. Please specify the installation path of PostgreSQL" >&5
 echo "${ECHO_T}Cannot find libpq-fe.h. Please specify the installation path of PostgreSQL" >&6
         else
+		HAVE_PGSQL="1"
                 PGSQL_INCLUDE="-I$PGSQL_INCDIR"
                 PGSQL_LIBDIR=$PGSQL_DIR/lib
                 echo "$as_me:$LINENO: result: yes" >&5
@@ -13097,6 +13098,9 @@ fi
 
 
 
+
+
+
                                                                                                                                                                                     ac_config_files="$ac_config_files Makefile agi/Makefile apps/Makefile cdr/Makefile channels/Makefile codecs/Makefile codecs/gsm/Makefile codecs/ilbc/Makefile codecs/lpc10/Makefile db1-ast/Makefile editline/Makefile formats/Makefile funcs/Makefile pbx/Makefile res/Makefile sqlite/Makefile stdtime/Makefile utils/Makefile"
 
 cat >confcache <<\_ACEOF
@@ -13866,6 +13870,9 @@ s,@OVERWRITE@,$OVERWRITE,;t t
 s,@LOW_MEMORY@,$LOW_MEMORY,;t t
 s,@OPBXRUNGROUP@,$OPBXRUNGROUP,;t t
 s,@OPBXRUNUSER@,$OPBXRUNUSER,;t t
+s,@PGSQL_INCLUDE@,$PGSQL_INCLUDE,;t t
+s,@PGSQL_LIBDIR@,$PGSQL_LIBDIR,;t t
+s,@HAVE_PGSQL@,$HAVE_PGSQL,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF
 
