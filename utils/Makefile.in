@@ -27,7 +27,7 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/newt.h)$(wildcard -f $(CRO
 endif
 
 ifeq (${OSARCH},SunOS)
-  SOL=../strcompat.o
+  SOL=../strcompat.o -lnsl -lsocket -lresolv
 endif
 
 all: depend $(TARGET)

@@ -263,7 +263,7 @@ endif
 ifneq ($(wildcard .svn),)
   OPENPBXVERSIONNUM=999999
   ifneq ($(wildcard .svn/entries),)
-    OPENPBXVERSION=$(shell $(GREP) revision .svn/entries | head -n 1 | sed 's:^.*"\([0-9]\+\)".*:\1:')
+    OPENPBXVERSION=$(shell $(GREP) revision .svn/entries | head -n 1 | sed 's:^.*"\([0-9]*\)".*:\1:')
   else
     OPENPBXVERSION=SVN TRUNK
   endif
@@ -313,7 +313,11 @@ endif
 ifeq (${OSARCH},Linux)
   LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
 else
+ ifeq (${OSARCH},SunOS)
+   LIBS+=-lcurses -lm
+ else
   LIBS+=-lncurses -lm
+ endif
 endif
 
 ifeq (${OSARCH},Darwin)

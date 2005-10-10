@@ -159,6 +159,11 @@ COMPRESS 	= compress
 COMPRESSFLAGS 	= 
 # RANLIB 	= true
 RANLIB	 	= ranlib
+ifeq ($(OSARCH),SunOS)
+CFLAGS+=-DSOLARIS -I../include/solaris-compat
+AR=/usr/sfw/bin/gar
+RANLIB=/usr/sfw/bin/granlib
+endif   
 
 #
 #    You shouldn't have to configure below this line if you're porting.

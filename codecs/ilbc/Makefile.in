@@ -1,6 +1,11 @@
 ARCH=$(PROC)
 CFLAGS+=-Wall -fPIC -O3 -funroll-loops
 LIB=libilbc.a
+ifeq ($(OSARCH),SunOS)
+CFLAGS+=-DSOLARIS -I../include/solaris-compat
+AR=/usr/sfw/bin/gar
+RANLIB=/usr/sfw/bin/granlib
+endif   
 
 OBJS= anaFilter.o iCBSearch.o packing.o \
         constants.o gainquant.o iLBC_decode.o StateConstructW.o \
@@ -12,8 +17,8 @@ all: $(LIB)
 
 
 $(LIB): $(OBJS)
-	ar cr $(LIB) $(OBJS)
-	ranlib $(LIB)
+	$(AR) cr $(LIB) $(OBJS)
+	$(RANLIB) $(LIB)
 
 clean:
 	rm -f $(LIB) *.o

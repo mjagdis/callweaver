@@ -5,6 +5,12 @@
 # default C compiler
 CC?= gcc
 
+ifeq ($(OSARCH),SunOS)
+CFLAGS+=-DSOLARIS -I../include/solaris-compat
+AR=/usr/sfw/bin/gar
+RANLIB=/usr/sfw/bin/granlib
+endif   
+
 # 
 # These definitions for CFLAGS and LIB_TARGET_DIR are used when one
 # runs make in the lpc10 directory, without environment variables that
