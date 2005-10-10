@@ -1885,9 +1885,6 @@ ASTLINK="-Wl,-E"
 SOLINK="-shared -Xlinker -x"
 VALGRIND="" #-DMAKE_VALGRIND_HAPPY
 OPTIMIZECPU="no"
-prefix=/opt/openpbx
-
-
 
 ### Optimize for host cpu version
 # Check whether --enable-overwrite or --disable-overwrite was given.
@@ -11976,6 +11973,7 @@ if test "x${OPTIMIZECPU}" = "xyes"; then
 else
 	CPU_OPTIONS=""
 fi
+
 
 
 
