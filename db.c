@@ -504,72 +504,6 @@ struct opbx_cli_entry cli_database_del =
 struct opbx_cli_entry cli_database_deltree =
 { { "database", "deltree", NULL }, database_deltree, "Removes database keytree/values", database_deltree_usage };
 
-static int manager_dbput(struct mansession *s, struct message *m)
-{
-	char *family = astman_get_header(m, "Family");
-	char *key = astman_get_header(m, "Key");
-	char *val = astman_get_header(m, "Val");
-	int res;
-
-	if (!strlen(family)) {
-		astman_send_error(s, m, "No family specified");
-		return 0;
-	}
-	if (!strlen(key)) {
-		astman_send_error(s, m, "No key specified");
-		return 0;
-	}
-	if (!strlen(val)) {
-		astman_send_error(s, m, "No val specified");
-		return 0;
-	}
-
-	res = opbx_db_put(family, key, val);
-	if (res) {
-		astman_send_error(s, m, "Failed to update entry");
-	} else {
-		astman_send_ack(s, m, "Updated database successfully");
-	}
-	return 0;
-}
-
-static int manager_dbget(struct mansession *s, struct message *m)
-{
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
-	char *family = astman_get_header(m, "Family");
-	char *key = astman_get_header(m, "Key");
-	char tmp[256];
-	int res;
-
-	if (!strlen(family)) {
-		astman_send_error(s, m, "No family specified.");
-		return 0;
-	}
-	if (!strlen(key)) {
-		astman_send_error(s, m, "No key specified.");
-		return 0;
-	}
-
-	if (id && !opbx_strlen_zero(id))
-		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
-
-	res = opbx_db_get(family, key, tmp, sizeof(tmp));
-	if (res) {
-		astman_send_error(s, m, "Database entry not found");
-	} else {
-		astman_send_ack(s, m, "Result will follow");
-		opbx_cli(s->fd, "Event: DBGetResponse\r\n"
-				"Family: %s\r\n"
-				"Key: %s\r\n"
-				"Val: %s\r\n"
-				"%s"
-				"\r\n",
-				family, key, tmp, idText);
-	}
-	return 0;
-}
-
 int astdb_init(void)
 {
 	dbinit();
@@ -579,7 +513,5 @@ int astdb_init(void)
 	opbx_cli_register(&cli_database_put);
 	opbx_cli_register(&cli_database_del);
 	opbx_cli_register(&cli_database_deltree);
-	opbx_manager_register("DBGet", EVENT_FLAG_SYSTEM, manager_dbget, "Get DB Entry");
-	opbx_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
 	return 0;
 }

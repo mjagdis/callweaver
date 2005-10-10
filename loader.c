@@ -176,10 +176,6 @@ int opbx_module_reload(const char *name)
 		read_config_maps();
 		reloaded = 2;
 	}
-	if (!name || !strcasecmp(name, "manager")) {
-		reload_manager();
-		reloaded = 2;
-	}
 	if (!name || !strcasecmp(name, "cdr")) {
 		opbx_cdr_engine_reload();
 		reloaded = 2;
