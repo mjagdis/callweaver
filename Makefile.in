@@ -569,7 +569,7 @@ OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADER
 
 bininstall: all
 	if [ "$(OSARCH)" == "Darwin" ]; then \
-		build_tools/mk_osx_user.sh; \
+		build_tools/mk_osx_user_group; \
 	else \
 		$(GROUPADDBIN) -f $(OPBXRUNGROUP); \
 		if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
