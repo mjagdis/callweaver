@@ -20,6 +20,8 @@ ASTLINK="-Wl,-E"
 SOLINK="-shared -Xlinker -x"
 VALGRIND="" #-DMAKE_VALGRIND_HAPPY
 OPTIMIZECPU="no"
+TOPDIR=`pwd`
+AC_SUBST(TOPDIR)
 
 dnl Shamelessly stolen from editline configure.in to create the relevant cygwin stuff
 dnl Platform-specific settings.  The ABI can probably be determined
@@ -384,7 +386,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol unsetenv utime])
+AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime])
 
 
 if test "x${OPTIMIZECPU}" = "xyes"; then
