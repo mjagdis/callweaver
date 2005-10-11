@@ -1,11 +1,12 @@
 #
 # Generic Makefile for libedit.
 #
-
+GREP=@GREP@
+SED=@SED@
 OSTYPE=$(shell uname -s)
 define cyg_subst_sys
-	if uname -s | grep -qi cygwin; then \
-	cat $@ | sed -e s/"sys\.h"/"config.h"/g > $@.copy; \
+	if uname -s | $(GREP) -qi cygwin; then \
+	cat $@ | $(SED) -e s/"sys\.h"/"config.h"/g > $@.copy; \
 	mv --force $@.copy $@; \
 	fi
 endef
@@ -15,6 +16,8 @@ SHELL = /bin/sh
 CC = @CC@
 AR = @AR@
 RANLIB = @RANLIB@
+GREP = @GREP@
+SED = @SED@
 CPPFLAGS = @CPPFLAGS@ -I.
 CFLAGS = @CFLAGS@
 A_CFLAGS = @A_CFLAGS@
@@ -75,9 +78,9 @@ TCSRCS = @TCSRCS@
 .PATH : .
 
 .SUFFIXES :
-.SUFFIXES : .c .o .o_a .o_s
+.SUFFIXES : .c .o .o_a # .o_s
 
-all :  lib_a lib_s
+all :  lib_a # lib_s
 
 lib_a : $(LIB_A)
 lib_s : $(LIB_S)
@@ -189,8 +192,8 @@ $(LIB_A) : $(BGCSRCS:.c=.o_a) $(CCSRCS:.c=.o_a)
 	$(AR) cru $@ $?
 	$(RANLIB) $@
 
-$(LIB_S) : $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
-	$(CC) $(S_LDFLAGS) -o $@ $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s) $(LIBS)
+# $(LIB_S) : $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
+#	$(CC) $(S_LDFLAGS) -o $@ $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s) $(LIBS)
 
 $(TEST) : $(TCSRCS:.c=.o) $(LIB_A)
 	$(CC) -o $@ $(TCSRCS:.c=.o) $(LIB_A) $(LIBS)
