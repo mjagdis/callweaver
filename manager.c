@@ -1030,6 +1030,8 @@ static int action_originate(struct mansession *s, struct message *m)
 			} else {
 				res = 0;
 			}
+			free(fast);
+			
 		}
 	} else if (!opbx_strlen_zero(app)) {
         	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
@@ -1423,6 +1425,10 @@ static void *accept_thread(void *ignore)
 		opbx_mutex_unlock(&sessionlock);
 		if (opbx_pthread_create(&s->t, &attr, session_do, s))
 			destroy_session(s);
+
+		free(s);
+		
+
 	}
 	pthread_attr_destroy(&attr);
 	return NULL;
@@ -1445,6 +1451,7 @@ static int append_event(struct mansession *s, const char *str)
 		}
 		return 0;
 	}
+	free(tmp);
 	return -1;
 }
 
@@ -1580,6 +1587,7 @@ int opbx_manager_register2(const char *action, int auth, int (*func)(struct mans
 
 	opbx_manager_register_struct(cur);
 
+	free(cur);
 	return 0;
 }
 
