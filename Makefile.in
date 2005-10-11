@@ -96,7 +96,7 @@ OPBXRUNGROUP=@OPBXRUNGROUP@
 ifeq (${OSARCH},SunOS)
   INSTALL_PREFIX=/opt
 else
-  INSTALL_PREFIX=@PREFIX@
+  INSTALL_PREFIX=@prefix@
 endif 
 
 # Staging directory
@@ -575,7 +575,9 @@ bininstall: all
 	if [ "$(OSARCH)" == "Darwin" ]; then \
 		build_tools/mk_osx_user_group; \
 	else \
-		$(GROUPADDBIN) -f $(OPBXRUNGROUP); \
+		if [ "`cat /etc/group | $(GREP) -e '^$(OPBXRUNGROUP):'`" = "" ]; then \
+			$(GROUPADDBIN) -f $(OPBXRUNGROUP); \
+		fi; \
 		if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
 			$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
 		fi; \
@@ -649,22 +651,23 @@ NEWMODS=$(notdir $(wildcard */*.so))
 OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
 
 oldmodcheck:
-	@if [ -n "$(OLDMODS)" ]; then \
-		echo " WARNING WARNING WARNING" ;\
-		echo "" ;\
-		echo " Your OpenPBX modules directory, located at" ;\
-		echo " $(DESTDIR)$(MODULES_DIR)" ;\
-		echo " contains modules that were not installed by this " ;\
-		echo " version of OpenPBX. Please ensure that these" ;\
-		echo " modules are compatible with this version before" ;\
-		echo " attempting to run OpenPBX." ;\
-		echo "" ;\
-		for f in $(OLDMODS); do \
-			echo "    $$f" ;\
-		done ;\
-		echo "" ;\
-		echo " WARNING WARNING WARNING" ;\
-	fi
+ifneq ($(OLDMODS),)
+	echo " WARNING WARNING WARNING" ;\
+	echo "" ;\
+	echo " Your OpenPBX modules directory, located at" ;\
+	echo " $(DESTDIR)$(MODULES_DIR)" ;\
+	echo " contains modules that were not installed by this " ;\
+	echo " version of OpenPBX. Please ensure that these" ;\
+	echo " modules are compatible with this version before" ;\
+	echo " attempting to run OpenPBX." ;\
+	echo "" ;\
+	for f in $(OLDMODS); do \
+		echo "    $$f" ;\
+	done ;\
+	echo "" ;\
+	echo " WARNING WARNING WARNING" ;\
+	echo ""
+endif
 
 install: all datafiles bininstall
 
