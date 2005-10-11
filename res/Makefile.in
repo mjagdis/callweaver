@@ -95,7 +95,6 @@ endif
 depend: .depend
 
 .depend:
-	fi
 	../build_tools/mkdep $(CFLAGS) `ls *.c`	
 
 env:
