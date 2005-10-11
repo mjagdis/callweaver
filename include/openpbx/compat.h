@@ -61,8 +61,6 @@ int unsetenv(const char *name);
 
 #ifdef __CYGWIN__
 #define _WIN32_WINNT 0x0500
-#include <windows.h>
-#include <w32api/ws2tcpip.h>
 #endif /* __CYGWIN__ */
 
 #define HAVE_VASPRINTF
