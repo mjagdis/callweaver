@@ -568,10 +568,14 @@ NEWHEADERS=$(notdir $(wildcard include/openpbx/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADERDIR)/*.h)))
 
 bininstall: all
-	$(GROUPADDBIN) -f $(OPBXRUNGROUP)
-	if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
-		$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
-	fi
+	if [ "$(OSARCH)" == "Darwin" ]; then \
+		build_tools/mk_osx_user.sh; \
+	else \
+		$(GROUPADDBIN) -f $(OPBXRUNGROUP); \
+		if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
+			$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
+		fi; \
+	fi 
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(OPBXSBINDIR)
 	mkdir -p $(DESTDIR)$(OPBXETCDIR)
