@@ -11,7 +11,10 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/select.h>
+
+#ifdef FIX_ME
 #include <openpbx/compat.h>
+#endif
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 

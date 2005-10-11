@@ -17,7 +17,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
+#ifdef FIX_ME
 #include <openpbx/compat.h>
+#endif
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 
