@@ -1999,6 +1999,8 @@ int main(int argc, char *argv[])
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
 	}
+	if (!runuser)
+		runuser = opbx_config_OPBX_RUN_USER;
 	if (!rungroup)
 		rungroup = opbx_config_OPBX_RUN_GROUP;
 	if (!is_child_of_nonroot && rungroup) {
@@ -2008,15 +2010,17 @@ int main(int argc, char *argv[])
 			opbx_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
+#ifdef __Darwin__
+		if (setgid(gr->gr_gid)) {
+#else
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
+#endif
 			opbx_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
 			exit(1);
 		}
 		if (option_verbose)
 			opbx_verbose("Running as group '%s'\n", rungroup);
 	}
-	if (!runuser)
-		runuser = opbx_config_OPBX_RUN_USER;
 	if (!is_child_of_nonroot && runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
@@ -2024,7 +2028,11 @@ int main(int argc, char *argv[])
 			opbx_log(LOG_WARNING, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
+#ifdef __Darwin__
+		if (setuid(pw->pw_uid)) {
+#else
 		if (setreuid(pw->pw_uid, pw->pw_uid)) {
+#endif
 			opbx_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
 			exit(1);
 		}
