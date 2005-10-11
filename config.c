@@ -30,8 +30,8 @@
 #include <time.h>
 #define OPBX_INCLUDE_GLOB 1
 #ifdef OPBX_INCLUDE_GLOB
-# include <glob.h>
-#if defined(__Darwin__) || defined(__CYGWIN__)
+#include <glob.h>
+#if defined(__CYGWIN__)
 #define GLOB_ABORTED GLOB_ABEND
 #endif
 #endif

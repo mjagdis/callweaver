@@ -1,7 +1,6 @@
-/*	$NetBSD: vis.c,v 1.22 2002/03/23 17:38:27 christos Exp $	*/
+/*	$NetBSD: vis.c,v 1.33 2005/05/28 13:11:14 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,11 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,15 +29,63 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.22 2002/03/23 17:38:27 christos Exp $");
-#endif /* LIBC_SCCS and not lint */
+/*-
+ * Copyright (c) 1999, 2005 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/* AIX requires this to be the first thing in the file.  */
+#if defined (_AIX) && !defined (__GNUC__)
+ #pragma alloca
+#endif
+
+#include "../config.h"
+
+#ifdef __GNUC__
+# undef alloca
+# define alloca(n) __builtin_alloca (n)
+#else
+# ifdef HAVE_ALLOCA_H
+#  include <alloca.h>
+# else
+#  ifndef _AIX
+extern char *alloca ();
+#  endif
+# endif
+#endif
 
 #include <sys/types.h>
 
 #include <assert.h>
-#include "vis.h"
+#include <vis.h>
 #include <stdlib.h>
 
 #ifdef __weak_alias
@@ -54,45 +97,38 @@ __weak_alias(svis,_svis)
 __weak_alias(vis,_vis)
 #endif
 
-#if !HAVE_VIS_H
+#if !HAVE_VIS || !HAVE_SVIS
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
 #undef BELL
-#if defined(__STDC__)
 #define BELL '\a'
-#else
-#define BELL '\007'
-#endif
-
-#ifdef SOLARIS
-typedef unsigned int	u_int32_t;
-#endif
 
 #define isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
 #define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
 #define issafe(c)	(c == '\b' || c == BELL || c == '\r')
 #define xtoa(c)		"0123456789abcdef"[c]
 
-#define MAXEXTRAS       5
+#define MAXEXTRAS	5
 
 
 #define MAKEEXTRALIST(flag, extra, orig)				      \
 do {									      \
 	const char *o = orig;						      \
-	char *e;						      	      \
+	char *e;							      \
 	while (*o++)							      \
 		continue;						      \
-	extra = alloca((size_t)((o - orig) + MAXEXTRAS));	      	      \
+	extra = malloc((size_t)((o - orig) + MAXEXTRAS));		      \
+	if (!extra) break;						      \
 	for (o = orig, e = extra; (*e++ = *o++) != '\0';)		      \
 		continue;						      \
 	e--;								      \
-	if (flag & VIS_SP) *e++ = ' ';				      	      \
+	if (flag & VIS_SP) *e++ = ' ';					      \
 	if (flag & VIS_TAB) *e++ = '\t';				      \
-	if (flag & VIS_NL) *e++ = '\n';				      	      \
-	if ((flag & VIS_NOSLASH) == 0) *e++ = '\\';		      	      \
+	if (flag & VIS_NL) *e++ = '\n';					      \
+	if ((flag & VIS_NOSLASH) == 0) *e++ = '\\';			      \
 	*e = '\0';							      \
 } while (/*CONSTCOND*/0)
 
@@ -101,7 +137,7 @@ do {									      \
  * This is HVIS, the macro of vis used to HTTP style (RFC 1808)
  */
 #define HVIS(dst, c, flag, nextc, extra)				      \
-do 									      \
+do									      \
 	if (!isascii(c) || !isalnum(c) || strchr("$-_.+!*'(),", c) != NULL) { \
 		*dst++ = '%';						      \
 		*dst++ = xtoa(((unsigned int)c >> 4) & 0xf);		      \
@@ -110,7 +146,7 @@ do 									      \
 		SVIS(dst, c, flag, nextc, extra);			      \
 	}								      \
 while (/*CONSTCOND*/0)
-	
+
 /*
  * This is SVIS, the central macro of vis.
  * dst:	      Pointer to the destination buffer
@@ -122,49 +158,53 @@ while (/*CONSTCOND*/0)
  */
 #define SVIS(dst, c, flag, nextc, extra)				      \
 do {									      \
-	int isextra, isc;						      \
+	int isextra;							      \
 	isextra = strchr(extra, c) != NULL;				      \
 	if (!isextra && isascii(c) && (isgraph(c) || iswhite(c) ||	      \
 	    ((flag & VIS_SAFE) && issafe(c)))) {			      \
 		*dst++ = c;						      \
 		break;							      \
 	}								      \
-	isc = 0;							      \
 	if (flag & VIS_CSTYLE) {					      \
 		switch (c) {						      \
 		case '\n':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 'n';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 'n';			      \
+			continue;					      \
 		case '\r':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 'r';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 'r';			      \
+			continue;					      \
 		case '\b':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 'b';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 'b';			      \
+			continue;					      \
 		case BELL:						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 'a';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 'a';			      \
+			continue;					      \
 		case '\v':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 'v';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 'v';			      \
+			continue;					      \
 		case '\t':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 't';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 't';			      \
+			continue;					      \
 		case '\f':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 'f';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 'f';			      \
+			continue;					      \
 		case ' ':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = 's';		      \
-			break;						      \
+			*dst++ = '\\'; *dst++ = 's';			      \
+			continue;					      \
 		case '\0':						      \
-			isc = 1; *dst++ = '\\'; *dst++ = '0';		      \
+			*dst++ = '\\'; *dst++ = '0';			      \
 			if (isoctal(nextc)) {				      \
 				*dst++ = '0';				      \
 				*dst++ = '0';				      \
 			}						      \
+			continue;					      \
+		default:						      \
+			if (isgraph(c)) {				      \
+				*dst++ = '\\'; *dst++ = c;		      \
+				continue;				      \
+			}						      \
 		}							      \
 	}								      \
-	if (isc) break;							      \
 	if (isextra || ((c & 0177) == ' ') || (flag & VIS_OCTAL)) {	      \
 		*dst++ = '\\';						      \
 		*dst++ = (u_char)(((u_int32_t)(u_char)c >> 6) & 03) + '0';    \
@@ -190,24 +230,27 @@ do {									      \
 
 /*
  * svis - visually encode characters, also encoding the characters
- * 	  pointed to by `extra'
+ *	  pointed to by `extra'
  */
 char *
-svis(dst, c, flag, nextc, extra)
-	char *dst;
-	int c, flag, nextc;
-	const char *extra;
+svis(char *dst, int c, int flag, int nextc, const char *extra)
 {
-	char *nextra;
+	char *nextra = NULL;
+
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(extra != NULL);
 	MAKEEXTRALIST(flag, nextra, extra);
+	if (!nextra) {
+		*dst = '\0';		/* can't create nextra, return "" */
+		return dst;
+	}
 	if (flag & VIS_HTTPSTYLE)
 		HVIS(dst, c, flag, nextc, nextra);
 	else
 		SVIS(dst, c, flag, nextc, nextra);
+	free(nextra);
 	*dst = '\0';
-	return(dst);
+	return dst;
 }
 
 
@@ -218,29 +261,30 @@ svis(dst, c, flag, nextc, extra)
  *	be encoded, too. These functions are useful e. g. to
  *	encode strings in such a way so that they are not interpreted
  *	by a shell.
- *	
+ *
  *	Dst must be 4 times the size of src to account for possible
  *	expansion.  The length of dst, not including the trailing NULL,
- *	is returned. 
+ *	is returned.
  *
  *	Strsvisx encodes exactly len bytes from src into dst.
  *	This is useful for encoding a block of data.
  */
 int
-strsvis(dst, src, flag, extra)
-	char *dst;
-	const char *src;
-	int flag;
-	const char *extra;
+strsvis(char *dst, const char *csrc, int flag, const char *extra)
 {
-	char c;
+	int c;
 	char *start;
-	char *nextra;
+	char *nextra = NULL;
+	const unsigned char *src = (const unsigned char *)csrc;
 
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(src != NULL);
 	_DIAGASSERT(extra != NULL);
 	MAKEEXTRALIST(flag, nextra, extra);
+	if (!nextra) {
+		*dst = '\0';		/* can't create nextra, return "" */
+		return 0;
+	}
 	if (flag & VIS_HTTPSTYLE) {
 		for (start = dst; (c = *src++) != '\0'; /* empty */)
 			HVIS(dst, c, flag, *src, nextra);
@@ -248,27 +292,28 @@ strsvis(dst, src, flag, extra)
 		for (start = dst; (c = *src++) != '\0'; /* empty */)
 			SVIS(dst, c, flag, *src, nextra);
 	}
+	free(nextra);
 	*dst = '\0';
 	return (dst - start);
 }
 
 
 int
-strsvisx(dst, src, len, flag, extra)
-	char *dst;
-	const char *src;
-	size_t len;
-	int flag;
-	const char *extra;
+strsvisx(char *dst, const char *csrc, size_t len, int flag, const char *extra)
 {
-	char c;
+	unsigned char c;
 	char *start;
-	char *nextra;
+	char *nextra = NULL;
+	const unsigned char *src = (const unsigned char *)csrc;
 
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(src != NULL);
 	_DIAGASSERT(extra != NULL);
 	MAKEEXTRALIST(flag, nextra, extra);
+	if (! nextra) {
+		*dst = '\0';		/* can't create nextra, return "" */
+		return 0;
+	}
 
 	if (flag & VIS_HTTPSTYLE) {
 		for (start = dst; len > 0; len--) {
@@ -281,67 +326,79 @@ strsvisx(dst, src, len, flag, extra)
 			SVIS(dst, c, flag, len ? *src : '\0', nextra);
 		}
 	}
+	free(nextra);
 	*dst = '\0';
 	return (dst - start);
 }
+#endif
 
-
+#if !HAVE_VIS
 /*
  * vis - visually encode characters
  */
 char *
-vis(dst, c, flag, nextc)
-	char *dst;
-	int c, flag, nextc;
-	
+vis(char *dst, int c, int flag, int nextc)
 {
-	char *extra;
+	char *extra = NULL;
+	unsigned char uc = (unsigned char)c;
 
 	_DIAGASSERT(dst != NULL);
 
 	MAKEEXTRALIST(flag, extra, "");
+	if (! extra) {
+		*dst = '\0';		/* can't create extra, return "" */
+		return dst;
+	}
 	if (flag & VIS_HTTPSTYLE)
-	    HVIS(dst, c, flag, nextc, extra);
+		HVIS(dst, uc, flag, nextc, extra);
 	else
-	    SVIS(dst, c, flag, nextc, extra);
+		SVIS(dst, uc, flag, nextc, extra);
+	free(extra);
 	*dst = '\0';
-	return (dst);
+	return dst;
 }
 
 
 /*
  * strvis, strvisx - visually encode characters from src into dst
- *	
+ *
  *	Dst must be 4 times the size of src to account for possible
  *	expansion.  The length of dst, not including the trailing NULL,
- *	is returned. 
+ *	is returned.
  *
  *	Strvisx encodes exactly len bytes from src into dst.
  *	This is useful for encoding a block of data.
  */
 int
-strvis(dst, src, flag)
-	char *dst;
-	const char *src;
-	int flag;
+strvis(char *dst, const char *src, int flag)
 {
-	char *extra;
+	char *extra = NULL;
+	int rv;
 
 	MAKEEXTRALIST(flag, extra, "");
-	return (strsvis(dst, src, flag, extra));
+	if (!extra) {
+		*dst = '\0';		/* can't create extra, return "" */
+		return 0;
+	}
+	rv = strsvis(dst, src, flag, extra);
+	free(extra);
+	return rv;
 }
 
 
 int
-strvisx(dst, src, len, flag)
-	char *dst;
-	const char *src;
-	size_t len;
-	int flag;
+strvisx(char *dst, const char *src, size_t len, int flag)
 {
-	char *extra;
+	char *extra = NULL;
+	int rv;
 
 	MAKEEXTRALIST(flag, extra, "");
-	return (strsvisx(dst, src, len, flag, extra));
+	if (!extra) {
+		*dst = '\0';		/* can't create extra, return "" */
+		return 0;
+	}
+	rv = strsvisx(dst, src, len, flag, extra);
+	free(extra);
+	return rv;
 }
 #endif

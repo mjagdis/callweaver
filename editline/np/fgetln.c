@@ -1,4 +1,4 @@
-/*	$NetBSD: fgetln.c,v 1.1.1.1 1999/04/12 07:43:21 crooksa Exp $	*/
+/*	$NetBSD: fgetln.c,v 1.2 2003/12/10 01:30:27 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -36,17 +36,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#include "../config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 
+
 char *
-fgetln(fp, len)
-	FILE *fp;
-	size_t *len;
+fgetln(FILE *fp, size_t *len)
 {
 	static char *buf = NULL;
 	static size_t bufsiz = 0;
@@ -86,3 +85,4 @@ fgetln(fp, len)
 	*len = (ptr - buf) + 1;
 	return buf;
 }
+
