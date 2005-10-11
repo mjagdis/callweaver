@@ -90,7 +90,7 @@ typedef void (*sig_t)(int);
 	;;
   *-*-solaris2*)
 	ABI="elf"
-	AC_DEFINE(SUNOS)
+	AC_DEFINE(SunOS)
 	;;
   *)
 	AC_MSG_RESULT(Unsupported operating system: ${host})

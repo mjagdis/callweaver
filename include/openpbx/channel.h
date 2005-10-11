@@ -23,7 +23,7 @@
 #ifndef _OPENPBX_CHANNEL_H
 #define _OPENPBX_CHANNEL_H
 
-#include "openpbx/compat.h"
+#include "openpbx/confdefs.h"
 #include "openpbx/frame.h"
 #include "openpbx/sched.h"
 #include "openpbx/chanvars.h"

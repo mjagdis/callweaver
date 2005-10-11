@@ -38,8 +38,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/channel.h"
 #include "openpbx/dns.h"
-#include "openpbx/endian.h"
-
+#include "openpbx/confdefs.h"
 #define MAX_SIZE 4096
 
 typedef struct {

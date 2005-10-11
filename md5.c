@@ -23,7 +23,7 @@
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "openpbx/endian.h"
+#include "openpbx/confdefs.h"
 #include "openpbx/md5.h"
 
 # if __BYTE_ORDER == __BIG_ENDIAN

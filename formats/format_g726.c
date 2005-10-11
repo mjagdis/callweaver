@@ -42,7 +42,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
-#include "openpbx/endian.h"
+#include "openpbx/confdefs.h"
 
 #define	RATE_32		1
 

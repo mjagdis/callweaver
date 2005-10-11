@@ -28,7 +28,7 @@
 
 #include "openpbx/inline_api.h"
 #include "openpbx/compiler.h"
-#include "openpbx/compat.h"
+#include "openpbx/confdefs.h"
 
 static inline int opbx_strlen_zero(const char *s)
 {
@@ -242,6 +242,18 @@ int vasprintf(char **strp, const char *fmt, va_list ap);
 
 #ifndef HAVE_STRTOQ
 uint64_t strtoq(const char *nptr, char **endptr, int base);
+#endif
+
+#ifndef HAVE_STRSEP
+char* strsep(char** str, const char* delims);
+#endif
+
+#ifndef HAVE_SETENV
+int setenv(const char *name, const char *value, int overwrite);
+#endif
+
+#ifndef HAVE_UNSETENV
+int unsetenv(const char *name);   
 #endif
 
 #endif /* _OPENPBX_STRINGS_H */

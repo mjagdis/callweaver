@@ -18,16 +18,21 @@
 #include <string.h>
 #include <locale.h>
 #include <ctype.h>
-#ifndef SOLARIS
-#include <err.h>
+#ifdef SOLARIS
+#define __P(p) p
+#define quad_t int64_t  
 #else
+#ifdef __CYGWIN__
 #define quad_t int64_t
+#endif
+#include <err.h>
 #endif
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
-#include <openpbx/opbx_expr.h>
-#include <openpbx/logger.h>
+#include "openpbx/opbx_expr.h"
+#include "openpbx/logger.h"
+#include "openpbx/confdefs.h"
 
 #ifdef LONG_LONG_MIN
 #define QUAD_MIN LONG_LONG_MIN

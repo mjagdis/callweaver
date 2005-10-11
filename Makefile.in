@@ -23,6 +23,9 @@ SED=@SED@
 M4=@M4@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
+SVN=@SVN@
+CFLAGS=@CFLAGS@
+LIBS=@LIBS@
 
 # Create OPTIONS variable
 OPTIONS=
@@ -90,11 +93,10 @@ OPBXRUNUSER=@OPBXRUNUSER@
 OPBXRUNGROUP=@OPBXRUNGROUP@
 # Where to install openpbx after compiling
 # Default -> leave empty
-# This needs to be changed... double negative! Somebody with a Sun box please advise. 
-ifneq (${OSARCH},SunOS)
-  INSTALL_PREFIX=@prefix@
-else
+ifeq (${OSARCH},SunOS)
   INSTALL_PREFIX=/opt
+else
+  INSTALL_PREFIX=@PREFIX@
 endif 
 
 # Staging directory
@@ -226,7 +228,7 @@ endif
 ifeq (${OSARCH},FreeBSD)
   BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
   ASTCFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-  LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
+  #LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
   ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
     ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
   endif
@@ -302,17 +304,17 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
 endif
 
 ifeq (${OSARCH},Linux)
-  LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
+  #LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
 else
  ifeq (${OSARCH},SunOS)
-   LIBS+=-lcurses -lm
+   #LIBS+=-lcurses -lm
  else
-  LIBS+=-lncurses -lm
+  #LIBS+=-lncurses -lm
  endif
 endif
 
 ifeq (${OSARCH},Darwin)
-  LIBS+=-lresolv
+  #LIBS+=-lresolv
   ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
   ASTLINK=-Wl,-dynamic
@@ -324,19 +326,19 @@ else
 endif
 
 ifeq (${OSARCH},FreeBSD)
-  LIBS+=-lcrypto
+  #LIBS+=-lcrypto
 endif
 
 ifeq (${OSARCH},NetBSD)
-  LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
+  #LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
 endif
 
 ifeq (${OSARCH},OpenBSD)
-  LIBS+=-lcrypto -lpthread -lm -lncurses
+  #LIBS+=-lcrypto -lpthread -lm -lncurses
 endif
 
 ifeq (${OSARCH},SunOS)
-  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  #LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
   ASTLINK=
   SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
@@ -346,7 +348,7 @@ ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
   CFLAGS+=$(ASTCFLAGS)
 endif
 
-LIBS+=-lssl
+#LIBS+=-lssl
 
 
 _all: all
@@ -488,6 +490,8 @@ distclean: clean
 	rm -f stamp-h1
 	rm -f openpbx.h
 	rm -f install
+	rm -f include/openpbx/confdefs.h
+	rm -f include/openpbx/cygdef.h
 
 datafiles: all
 	if test $$(id -u) = 0; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi

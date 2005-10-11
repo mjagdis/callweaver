@@ -68,6 +68,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/utils.h"
 #include "openpbx/lock.h"
 #include "openpbx/srv.h"
+#include "openpbx/confdefs.h"
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 OPBX_MUTEX_DEFINE_STATIC(routeseq_lock);

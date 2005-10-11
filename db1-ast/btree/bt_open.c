@@ -155,7 +155,7 @@ __bt_open(fname, flags, mode, openinfo, dflags)
 	}
 
 	/* Check for the ubiquitous PDP-11. */
-	if (b.lorder != BIG_ENDIAN && b.lorder != LITTLE_ENDIAN)
+	if (b.lorder != __BIG_ENDIAN && b.lorder != __LITTLE_ENDIAN)
 		goto einval;
 
 	/* Allocate and initialize DB and BTREE structures. */
@@ -427,9 +427,9 @@ byteorder()
 	p = (u_char *)&x;
 	switch (*p) {
 	case 1:
-		return (BIG_ENDIAN);
+		return (__BIG_ENDIAN);
 	case 4:
-		return (LITTLE_ENDIAN);
+		return (__LITTLE_ENDIAN);
 	default:
 		return (0);
 	}

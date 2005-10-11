@@ -43,7 +43,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/image.h"
 #include "openpbx/lock.h"
-#include "openpbx/endian.h"
+#include "openpbx/confdefs.h"
 
 static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
 

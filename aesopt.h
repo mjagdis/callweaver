@@ -136,7 +136,7 @@
 #define _AESOPT_H
 
 #include "openpbx/aes.h"
-#include "openpbx/endian.h"
+#include "openpbx/confdefs.h"
 
 /*  CONFIGURATION - USE OF DEFINES
 
@@ -158,78 +158,17 @@
     some of these defines (from cryptlib).
 */
 
+/* got rid of that via autoconf -- Michal.Bielicki@halo2.pl 11/10/2005 */
+
 #define BRG_LITTLE_ENDIAN   1234 /* byte 0 is least significant (i386) */
 #define BRG_BIG_ENDIAN      4321 /* byte 0 is most significant (mc68k) */
 
-#if defined( __alpha__ ) || defined( __alpha ) || defined( i386 )       ||   \
-    defined( __i386__ )  || defined( _M_I86 )  || defined( _M_IX86 )    ||   \
-    defined( __OS2__ )   || defined( sun386 )  || defined( __TURBOC__ ) ||   \
-    defined( vax )       || defined( vms )     || defined( VMS )        ||   \
-    defined( __VMS ) 
-
+#if defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)
 #define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
+#endif 
 
-#endif
-
-#if defined( AMIGA )    || defined( applec )  || defined( __AS400__ )  ||   \
-    defined( _CRAY )    || defined( __hppa )  || defined( __hp9000 )   ||   \
-    defined( ibm370 )   || defined( mc68000 ) || defined( m68k )       ||   \
-    defined( __MRC__ )  || defined( __MVS__ ) || defined( __MWERKS__ ) ||   \
-    defined( sparc )    || defined( __sparc)  || defined( SYMANTEC_C ) ||   \
-    defined( __TANDEM ) || defined( THINK_C ) || defined( __VMCMS__ )
-    
+#if defined (__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN)
 #define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-
-#endif
-
-/*  if the platform is still not known, try to find its byte order  */
-/*  from commonly used definitions in the headers included earlier  */
-
-#if !defined(PLATFORM_BYTE_ORDER)
-
-#if defined(LITTLE_ENDIAN) || defined(BIG_ENDIAN)
-#  if    defined(LITTLE_ENDIAN) && !defined(BIG_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-#  elif !defined(LITTLE_ENDIAN) &&  defined(BIG_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-#  elif defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-#  elif defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-#  endif
-
-#elif defined(_LITTLE_ENDIAN) || defined(_BIG_ENDIAN)
-#  if    defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-#  elif !defined(_LITTLE_ENDIAN) &&  defined(_BIG_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-#  elif defined(_BYTE_ORDER) && (_BYTE_ORDER == _LITTLE_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-#  elif defined(_BYTE_ORDER) && (_BYTE_ORDER == _BIG_ENDIAN)
-#    define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-#  endif
-
-#elif defined(__LITTLE_ENDIAN__) || defined(__BIG_ENDIAN__)
-#  if    defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
-#    define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-#  elif !defined(__LITTLE_ENDIAN__) &&  defined(__BIG_ENDIAN__)
-#    define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-#  elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __LITTLE_ENDIAN__)
-#    define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-#  elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __BIG_ENDIAN__)
-#    define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-#  endif
-
-#elif 0     /* **** EDIT HERE IF NECESSARY **** */
-#define PLATFORM_BYTE_ORDER BRG_LITTLE_ENDIAN
-
-#elif 0     /* **** EDIT HERE IF NECESSARY **** */
-#define PLATFORM_BYTE_ORDER BRG_BIG_ENDIAN
-
-#else
-#error Please edit aesopt.h (line 235 or 238) to set the platform byte order
-#endif
-
 #endif
 
 /*  SOME LOCAL DEFINITIONS  */

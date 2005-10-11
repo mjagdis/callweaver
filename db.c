@@ -31,6 +31,9 @@
 #include <dirent.h>
 
 #include "include/openpbx.h"
+#ifdef __CYGWIN__
+#define dbopen __dbopen
+#endif
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 

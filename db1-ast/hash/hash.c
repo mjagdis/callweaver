@@ -51,8 +51,6 @@ static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
 #include <assert.h>
 #endif
 
-#include "../include/openpbx/compat.h"
-
 #include <db.h>
 #include "hash.h"
 #include "page.h"
@@ -72,7 +70,7 @@ static int   hash_sync __P((const DB *, u_int32_t));
 static int   hdestroy __P((HTAB *));
 static HTAB *init_hash __P((HTAB *, const char *, HASHINFO *));
 static int   init_htab __P((HTAB *, int));
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 static void  swap_header __P((HTAB *));
 static void  swap_header_copy __P((HASHHDR *, HASHHDR *));
 #endif
@@ -145,7 +143,7 @@ __hash_open(file, flags, mode, info, dflags)
 			hashp->hash = __default_hash;
 
 		hdrsize = read(hashp->fp, &hashp->hdr, sizeof(HASHHDR));
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 		swap_header(hashp);
 #endif
 		if (hdrsize == -1)
@@ -291,7 +289,7 @@ init_hash(hashp, file, info)
 
 	nelem = 1;
 	hashp->NKEYS = 0;
-	hashp->LORDER = BYTE_ORDER;
+	hashp->LORDER = __BYTE_ORDER;
 	hashp->BSIZE = DEF_BUCKET_SIZE;
 	hashp->BSHIFT = DEF_BUCKET_SHIFT;
 	hashp->SGSIZE = DEF_SEGSIZE;
@@ -329,8 +327,8 @@ init_hash(hashp, file, info)
 		if (info->nelem)
 			nelem = info->nelem;
 		if (info->lorder) {
-			if (info->lorder != BIG_ENDIAN &&
-			    info->lorder != LITTLE_ENDIAN) {
+			if (info->lorder != __BIG_ENDIAN &&
+			    info->lorder != __LITTLE_ENDIAN) {
 				errno = EINVAL;
 				return (NULL);
 			}
@@ -489,7 +487,7 @@ flush_meta(hashp)
 	HTAB *hashp;
 {
 	HASHHDR *whdrp;
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	HASHHDR whdr;
 #endif
 	int fp, i, wsize;
@@ -502,7 +500,7 @@ flush_meta(hashp)
 
 	fp = hashp->fp;
 	whdrp = &hashp->hdr;
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	whdrp = &whdr;
 	swap_header_copy(&hashp->hdr, whdrp);
 #endif
@@ -934,7 +932,7 @@ alloc_segs(hashp, nsegs)
 	return (0);
 }
 
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 /*
  * Hashp->hdr needs to be byteswapped.
  */

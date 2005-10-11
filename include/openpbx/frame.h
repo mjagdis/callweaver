@@ -29,7 +29,7 @@ extern "C" {
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include "openpbx/endian.h"
+#include "openpbx/confdefs.h"
 
 struct opbx_codec_pref {
 	char order[32];

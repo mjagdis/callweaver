@@ -42,6 +42,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/md5.h"
 #include "openpbx/options.h"
+#include "openpbx/config.h"
 
 #define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "openpbx/strings.h"
@@ -55,7 +56,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
 /* duh? ERANGE value copied from web... */
 #define ERANGE 34
@@ -726,10 +727,14 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 #endif
 
 #ifndef HAVE_STRTOQ
+#ifndef LONG_MIN
 #define LONG_MIN        (-9223372036854775807L-1L)
 	                                 /* min value of a "long int" */
+#endif
+#ifndef LONG_MAX
 #define LONG_MAX        9223372036854775807L
 	                                 /* max value of a "long int" */
+#endif
 
 /*
  * Convert a string to a quad integer.

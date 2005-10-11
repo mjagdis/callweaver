@@ -133,9 +133,13 @@
 #include <locale.h>
 #include <ctype.h>
 #ifndef SOLARIS
+#ifdef __CYGWIN__
+#define quad_t int64_t
+#endif
 #include <err.h>
 #else
 #define quad_t int64_t
+#define __P(p) p
 #endif
 #include <errno.h>
 #include <regex.h>

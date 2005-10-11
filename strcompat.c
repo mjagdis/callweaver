@@ -3,8 +3,9 @@
 #include <sys/types.h>
 #include <stdio.h>
 
-#include "openpbx/compat.h"
+#include "openpbx/confdefs.h"
 
+#ifndef HAVE_STRSEP
 char* strsep(char** str, const char* delims)
 {
     char* token;
@@ -27,9 +28,10 @@ char* strsep(char** str, const char* delims)
     *str=NULL;
     return token;
 }
+#endif
 
 
-
+#ifndef HAVE_SETENV
 int setenv(const char *name, const char *value, int overwrite)
 {
 	unsigned char *buf;
@@ -49,9 +51,12 @@ int setenv(const char *name, const char *value, int overwrite)
 
 	return ret;
 }
+#endif
 
+#ifndef HAVE_UNSETENV
 int unsetenv(const char *name)
 {
   setenv(name,"",0);
 }
+#endif
 

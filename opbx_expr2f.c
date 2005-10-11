@@ -957,6 +957,9 @@ static yyconst yy_state_type yy_NUL_trans[33] =
 #include <locale.h>
 #include <ctype.h>
 #ifndef SOLARIS
+#ifdef __CYGWIN__
+#define quad_t int64_t
+#endif
 #include <err.h>
 #else
 #define quad_t int64_t
