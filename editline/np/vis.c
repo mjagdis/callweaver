@@ -85,7 +85,7 @@ extern char *alloca ();
 #include <sys/types.h>
 
 #include <assert.h>
-#include <vis.h>
+#include "vis.h"
 #include <stdlib.h>
 
 #ifdef __weak_alias

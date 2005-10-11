@@ -38,7 +38,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
-#include <vis.h>
+#include "vis.h"
 
 #ifdef __weak_alias
 __weak_alias(strunvis,_strunvis)
