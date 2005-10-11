@@ -79,7 +79,7 @@ const char *devstate2str(int devstate)
 int opbx_parse_device_state(const char *device)
 {
 	struct opbx_channel *chan;
-	char match[OPBX_CHANNEL_NAME];
+	char match[OPBX_CHANNEL_NAME] = "";
 	int res;
 
 	opbx_copy_string(match, device, sizeof(match)-1);

@@ -295,7 +295,7 @@ static int copy(const char *infile, const char *outfile)
 
 static char *build_filename(const char *filename, const char *ext)
 {
-	char *fn, type[16];
+	char *fn = NULL, type[16] = "";
 	int fnsize = 0;
 
 	if (!strcmp(ext, "wav49")) {
