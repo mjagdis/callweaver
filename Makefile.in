@@ -84,10 +84,10 @@ TRACE_FRAMES = @TRACE_FRAMES@
 MALLOC_DEBUG = #-include $(PWD)/include/openpbx/opbxmm.h
 
 #User to run as
-OPBXRUNUSER=openpbx
+OPBXRUNUSER=@OPBXRUNUSER@
 
 #Group to run as
-OPBXRUNGROUP=openpbx
+OPBXRUNGROUP=@OPBXRUNGROUP@
 # Where to install openpbx after compiling
 # Default -> leave empty
 # This needs to be changed... double negative! Somebody with a Sun box please advise. 

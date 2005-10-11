@@ -16,8 +16,6 @@ AC_PATH_PROGS(SH,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(M4,gm4 m4,[echo No m4 found, who will process my macros now ?])
 AC_PATH_PROGS(SED,gsed sed,[echo sed not found, doh!])
 
-OPBXRUNGROUP=openpbx
-OPBXRUNUSER=openpbx
 ASTLINK="-Wl,-E"
 SOLINK="-shared -Xlinker -x"
 VALGRIND="" #-DMAKE_VALGRIND_HAPPY
@@ -99,6 +97,30 @@ AC_ARG_ENABLE(low_memory,
 if test $low_memory = "yes" ; then
 	LOW_MEMORY="-DLOW_MEMORY"
 fi
+
+#
+# Select user and group
+#
+OPBXRUNUSER="openpbx"
+OPBXRUNGROUP="openpbx"
+
+AC_ARG_WITH(openpbx-user,
+	[  --with-openpbx-user=USER             use USER instead of default (openpbx)],[opbx_user="$withval"],[opbx_user="no"])
+
+if test "x$opbx_user" != "xno" && test "x$opbx_user" != "xyes"; then
+	OPBXRUNUSER="$opbx_user"
+fi
+
+AC_ARG_WITH(openpbx-group,
+	[  --with-openpbx-group=GROUP           use GROUP instead of default (openpbx)],[opbx_group="$withval"],[opbx_group="no"])
+
+if test "x$opbx_group" != "xno" && test "x$opbx_group" != "xyes"; then
+	OPBXRUNGROUP="$opbx_group"
+fi
+
+# set vars
+AC_SUBST(OPBXRUNUSER)
+AC_SUBST(OPBXRUNGROUP)
 
 #SVN Revision number For version number
 if test -n $SVN ; then
@@ -410,8 +432,6 @@ AC_SUBST(TRACE_FRAMES)
 AC_SUBST(MALLOC_DEBUG)
 AC_SUBST(OVERWRITE)
 AC_SUBST(LOW_MEMORY)
-AC_SUBST(OPBXRUNGROUP)
-AC_SUBST(OPBXRUNUSER)
 AC_SUBST(prefix)
 AC_SUBST(PGSQL_INCLUDE)
 AC_SUBST(PGSQL_LIBDIR)
