@@ -1423,12 +1423,8 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		opbx_mutex_unlock(&sessionlock);
-		if (opbx_pthread_create(&s->t, &attr, session_do, s)) {
+		if (opbx_pthread_create(&s->t, &attr, session_do, s))
 			destroy_session(s);
-			free(s);
-		}
-		
-
 	}
 	pthread_attr_destroy(&attr);
 	return NULL;
