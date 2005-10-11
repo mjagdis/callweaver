@@ -384,9 +384,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_SETENV
-AC_CHECK_UNSETENV
-AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol utime])
+AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol unsetenv utime])
 
 
 if test "x${OPTIMIZECPU}" = "xyes"; then
