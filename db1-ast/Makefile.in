@@ -7,10 +7,12 @@ SOVER=2.1
 else
 SOVER=2
 endif
+TOPDIR=@TOPDIR@
+CLFLAGS+=-I$(TOPDIR)/include
 #Added support for UltraSparc - Belgarath
 ifeq ($(ARCH),sparc64)
 PROC=ultrasparc
-CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8 -I../include
 endif
 
 LIBDBSO=libdb.so.$(SOVER)
@@ -46,7 +48,7 @@ clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 
 OORG=	-O2
-CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
+CL=	$(CC) $(CLFLAGS) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSARCH),SunOS)
