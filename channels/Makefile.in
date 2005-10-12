@@ -50,7 +50,7 @@ ifneq ($(wildcard /usr/include/linux/zaptel.h)$(wildcard /usr/local/include/zapt
   CHANNEL_LIBS+=chan_zap.so
 endif
 
-ifneq ($(EXOSIP),)
+ifneq ($(EXOLIBS),)
 	CHANNEL_LIBS+=chan_exosip2.so
 endif
 
