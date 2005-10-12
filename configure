@@ -2277,24 +2277,14 @@ _ACEOF
 
     tru64_types=yes
     ;;
-  *-*-linux* | *cygwin*)
-        if echo ${host} | grep -q cygwin ; then \
-                echo "cygwin detected"; \
-                echo "/* cygdef.h. Generated automatically by configure. */
-#ifndef _CYGDEF_H_
-#define _CYGDEF_H_ 1
-#include <sys/ioctl.h>
-#define __linux__ 1
+  *-*-linux* )
+	;;
+  *cygwin*)
 
+cat >>confdefs.h <<\_ACEOF
+#define _WIN32_WINNT 0x0500
+_ACEOF
 
-typedef void (*sig_t)(int);
-
-
-#endif /* _CYGDEF_H_ */" > include/openpbx/cygdef.h; \
-        echo "
- #define CYGWIN 1
-" > include/openpbx/confdefs.h; \
-        fi
         ;;
   *-*-netbsd*)
         ;;

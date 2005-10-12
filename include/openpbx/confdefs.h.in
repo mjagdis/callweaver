@@ -434,6 +434,9 @@
    `char[]'. */
 #undef YYTEXT_POINTER
 
+/* Heya, it's windows */
+#undef _WIN32_WINNT
+
 /* for the palces where it is not defined */
 #undef __BIG_ENDIAN
 
