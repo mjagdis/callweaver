@@ -24,23 +24,7 @@ CFLAGS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then echo 
 LDFLAGS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then $(APR_CONFIG) --link-ld --libs ; fi )
 OBJS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then echo icd_apr.o ; fi )
 # where is the asterisk source tree
-ASTSRC = /usr/src/asterisk
-
-#####################################################################################
-# copy these from the asterisk top level Makefile
-INSTALL_PREFIX=
-ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
-ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
-ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
-ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
-ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
-ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
-ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
-ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
-ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
-ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
-MODULES_DIR=$(ASTLIBDIR)/modules
-AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+ASTSRC = @TOPDIR@
 
 INCLUDES =  -I$(ASTSRC) -I$(ASTSRC)/include -I.
 CFLAGS +=  $(INCLUDES)

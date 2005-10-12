@@ -111,25 +111,25 @@ extern "C" {
         icd_fieldset * outstanding_members);
 
 /* Adds a customer to the ICD system */
-    int app_icd__customer_exec(struct opbx_channel *chan, void *data);
+    int app_icd__customer_exec(struct ast_channel *chan, void *data);
 
 /* Starts up an agent in the ICD system */
-    int app_icd__agent_exec(struct opbx_channel *chan, void *data);
+    int app_icd__agent_exec(struct ast_channel *chan, void *data);
 
 /* Logs out an agent in the ICD system */
-    int app_icd__logout_exec(struct opbx_channel *chan, void *data);
+    int app_icd__logout_exec(struct ast_channel *chan, void *data);
 
 /* Add an agent as a member to a queue */
-    int app_icd__add_member_exec(struct opbx_channel *chan, void *data);
+    int app_icd__add_member_exec(struct ast_channel *chan, void *data);
 
 /* Remove an agent as a member of a queue */
-    int app_icd__remove_member_exec(struct opbx_channel *chan, void *data);
+    int app_icd__remove_member_exec(struct ast_channel *chan, void *data);
 
 /* Agent callback login */
-    int app_icd__agent_callback_login(struct opbx_channel *chan, void *data);
+    int app_icd__agent_callback_login(struct ast_channel *chan, void *data);
 
 /* Customer callback login */
-    int app_icd__customer_callback_login(struct opbx_channel *chan, void *data);
+    int app_icd__customer_callback_login(struct ast_channel *chan, void *data);
 
 /* dunno where this belongs but useful every where : */
     int icd_instr(char *bigstr, char *smallstr, char delimit);
