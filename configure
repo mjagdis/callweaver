@@ -310,7 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN RANLIB AR SH M4 SED TOPDIR build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT OPBXRUNUSER OPBXRUNGROUP ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN RANLIB AR SH M4 SED TOPDIR build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT OPBXRUNUSER OPBXRUNGROUP ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL BUSYDETECT LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -863,6 +863,11 @@ Optional Features:
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
   --enable-overwrite  overwrite your config with conf file samples
+  --enable-busydetect =busydetect type	select which busydetect version to use:
+						none (default)
+						toneonly
+						martin
+						compare_tone_and_silence
   --disable-optimization    no detection or tuning flags for cpu version
   --enable-profiling			enable compiling with profiling support
   --enable-low_memory			enable low_memory support
@@ -7877,6 +7882,33 @@ if test "$OVERWRITE" = "yes" ; then
 	OVERWRITE="yes"
 fi
 
+### Select which BUSYDETECT to use
+# Check whether --enable-busydetect or --disable-busydetect was given.
+if test "${enable_busydetect+set}" = set; then
+  enableval="$enable_busydetect"
+  if test "x$enableval" = "xnone" ; then
+	echo
+   elif test "x$enableval" = "xtoneonly" ; then
+      BUSYDETECT=BUSYDETECT_TONEONLY
+   elif test "x$enableval" = "xmartin" ; then
+      BUSYDETECT=BUSYDETECT_MARTIN
+   elif test "x$enableval" = "xtone_and_silence" ; then
+      BUSYDETECT=BUSYDETECT_TONE_AND_SILENCE
+   else
+      echo
+      echo "Error!"
+      echo "Unknown busydetect type"
+      exit -1
+   fi
+
+fi;
+
+
+cat >>confdefs.h <<\_ACEOF
+#define BUSYDTECT $(BUSYDETECT)
+_ACEOF
+
+
 
 ### Optimize for host cpu version
 # Check whether --enable-optimization or --disable-optimization was given.
@@ -14406,6 +14438,7 @@ fi
 
 
 
+
           ac_config_headers="$ac_config_headers include/openpbx/confdefs.h"
 
                                                                                                                                                                                     ac_config_files="$ac_config_files Makefile agi/Makefile apps/Makefile cdr/Makefile channels/Makefile codecs/Makefile codecs/gsm/Makefile codecs/ilbc/Makefile codecs/lpc10/Makefile db1-ast/Makefile editline/Makefile formats/Makefile funcs/Makefile pbx/Makefile res/Makefile sqlite/Makefile stdtime/Makefile utils/Makefile"
@@ -15170,6 +15203,7 @@ s,@LOW_MEMORY@,$LOW_MEMORY,;t t
 s,@PGSQL_INCLUDE@,$PGSQL_INCLUDE,;t t
 s,@PGSQL_LIBDIR@,$PGSQL_LIBDIR,;t t
 s,@HAVE_PGSQL@,$HAVE_PGSQL,;t t
+s,@BUSYDETECT@,$BUSYDETECT,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF
 
@@ -15911,6 +15945,7 @@ echo ""
 echo "CFLAGS: $CFLAGS"
 echo "LIBS: $LIBS"
 echo "LDFLAGS: $LDFLAGS"
+echo "BUSYDETECT: $BUSYDETECT"
 
 echo
 echo  "Install prefix:       $prefix"

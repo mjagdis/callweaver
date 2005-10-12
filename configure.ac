@@ -120,6 +120,31 @@ if test "$OVERWRITE" = "yes" ; then
 	OVERWRITE="yes"
 fi
 
+### Select which BUSYDETECT to use
+AC_ARG_ENABLE(busydetect,
+ [  --enable-busydetect [=busydetect type]	select which busydetect version to use:
+						none (default)
+						toneonly
+						martin
+						compare_tone_and_silence],
+[if test "x$enableval" = "xnone" ; then
+	echo
+   elif test "x$enableval" = "xtoneonly" ; then
+      BUSYDETECT=BUSYDETECT_TONEONLY
+   elif test "x$enableval" = "xmartin" ; then
+      BUSYDETECT=BUSYDETECT_MARTIN
+   elif test "x$enableval" = "xtone_and_silence" ; then
+      BUSYDETECT=BUSYDETECT_TONE_AND_SILENCE
+   else
+      echo
+      echo "Error!"
+      echo "Unknown busydetect type"
+      exit -1
+   fi
+])
+
+AC_DEFINE([BUSYDTECT],$(BUSYDETECT),[defined way of finding out how to detect busy])
+
 
 ### Optimize for host cpu version
 AC_ARG_ENABLE(optimization,     
@@ -498,6 +523,7 @@ AC_SUBST(prefix)
 AC_SUBST(PGSQL_INCLUDE)
 AC_SUBST(PGSQL_LIBDIR)
 AC_SUBST(HAVE_PGSQL)
+AC_SUBST(BUSYDETECT)
 AC_CONFIG_HEADER(include/openpbx/confdefs.h)  
 AC_CONFIG_FILES([Makefile
                  agi/Makefile
@@ -543,6 +569,7 @@ echo ""
 echo "CFLAGS: $CFLAGS"
 echo "LIBS: $LIBS"
 echo "LDFLAGS: $LDFLAGS"
+echo "BUSYDETECT: $BUSYDETECT"
 
 echo
 echo  "Install prefix:       $prefix"
