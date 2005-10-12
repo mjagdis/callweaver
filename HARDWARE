@@ -37,8 +37,17 @@ Zaptel compatible hardware
    * Wildcard TE410P - Quad T1/E1 switchable interface.  Supports PRI and 
      RBS signalling, as well as PPP, FR, and HDLC data modes.
 
+-- OpenVOX
+	http://www.openvox.com.cn
+
+   * A-100PCI - Single FXO interface connects to Loopstart phone
+     line (X101P Clone)
+  
+   * A-400PCI - Quad Modular FXS/FXS interface connects to standard
+     analog telephones or loopstart phonelines.  (TDM400P Clone)
+
 -- Sangoma
-       http://www.sangoma.com
+	http://www.sangoma.com
 
    * Wanpipe A101 - Single T1/E1 interface connects to a single T1/PRI or
      E1/EuroPRI interface. Supports RBS and PRI Voice with PRI HDLC in hardware,
