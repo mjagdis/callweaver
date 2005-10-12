@@ -51,7 +51,7 @@ ifneq ($(wildcard /usr/include/linux/zaptel.h)$(wildcard /usr/local/include/zapt
 endif
 
 ifneq ($(EXOSIP),)
-	CHANNEL_LIBS+=chan_exoszip2.so
+	CHANNEL_LIBS+=chan_exosip2.so
 endif
 
 CFLAGS+=-DCRYPTO
