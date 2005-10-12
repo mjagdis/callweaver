@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <asterisk/logger.h>
+#include <openpbx/logger.h>
 #include <icd_types.h>
 #include <icd_fieldset.h>
 #include <icd_common.h>
@@ -84,7 +84,7 @@ icd_fieldset *create_icd_fieldset(char *name)
     /* make a new fieldset from scratch */
     ICD_MALLOC(fieldset, sizeof(icd_fieldset));
     if (fieldset == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create a new ICD fieldset\n");
+        opbx_log(LOG_ERROR, "No memory available to create a new ICD fieldset\n");
         return NULL;
     }
     fieldset->allocated = 1;
@@ -371,7 +371,7 @@ icd_fieldset_iterator *icd_fieldset__get_key_iterator(icd_fieldset * that)
 
     ICD_MALLOC(iter, sizeof(icd_fieldset_iterator));
     if (iter == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create an iterator on ICD Fieldset\n");
+        opbx_log(LOG_ERROR, "No memory available to create an iterator on ICD Fieldset\n");
         return NULL;
     }
 

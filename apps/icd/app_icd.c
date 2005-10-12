@@ -52,7 +52,7 @@
 #include <icd_config.h>
 #include <icd_member.h>
 #include <icd_event.h>
-#include <asterisk/app.h>
+#include <openpbx/app.h>
 #include <loudmouth/loudmouth.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -95,13 +95,13 @@ static int core_count = 0;
 /* icd verbosity using ast verbose in caller fsm, icd flag can be set to ast option or run independent*/
 int icd_verbose = 0;
 
-/* icd debug flag enables debugging using ast_log-debug in caller fsm  */
+/* icd debug flag enables debugging using opbx_log-debug in caller fsm  */
 int icd_debug = 0;
 
 /* delimiter for lists of options in icd conf files */
 char icd_delimiter = '|';
 
-/* delimiter for args in interface to asterisk _exec functions */
+/* delimiter for args in interface to openpbx _exec functions */
 char ast_delimiter = '|';
 
 /* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
@@ -126,7 +126,7 @@ icd_fieldset *customers;
 /*** For Asterisk functions ***/
 
 /* Required for interacting with the Asterisk CLI */
-static struct ast_cli_entry icd_command_cli_struct = {
+static struct opbx_cli_entry icd_command_cli_struct = {
     {"icd", NULL, NULL, NULL},
     icd_command_cli, "Execute ICD Command",
     "icd cmd <command>", NULL
@@ -243,7 +243,7 @@ int load_module(void)
     ast_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading Module[%s].\n", icd_module__to_string(APP_ICD));
     reload_app_icd(APP_ICD);
 
-    ast_cli_register(&icd_command_cli_struct);
+    opbx_cli_register(&icd_command_cli_struct);
     ast_register_application(icd_queue_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
                              app_icd_customer_desc);
     ast_register_application(icd_customer_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
@@ -262,7 +262,7 @@ int load_module(void)
 
     /* If this is the best place to come back to then there is nothing we can do but die.
        if(setjmp(env) == SIGSEGV) {
-       ast_log(LOG_ERROR,"I GOTS TA GO!\n");
+       opbx_log(LOG_ERROR,"I GOTS TA GO!\n");
        (void) signal(SIGSEGV,SIG_DFL);
        abort();
        }
@@ -280,7 +280,7 @@ int unload_module(void)
     icd_agent *agent;
 
     ICD_UNINIT;
-    ast_log(LOG_WARNING, "ICD unloading from Asterisk, all callers will be lost!\n");
+    opbx_log(LOG_WARNING, "ICD unloading from Asterisk, all callers will be lost!\n");
     icd_jabber_clear ();
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
@@ -291,7 +291,7 @@ int unload_module(void)
     while (icd_fieldset_iterator__has_more(iter)) {
         curr_key = icd_fieldset_iterator__next(iter);
         agent = icd_fieldset__get_value(agents, curr_key);
-        ast_log(LOG_DEBUG, "ICD Caller[%d] %s has been cleared\n", icd_caller__get_id((icd_caller *) agent),
+        opbx_log(LOG_DEBUG, "ICD Caller[%d] %s has been cleared\n", icd_caller__get_id((icd_caller *) agent),
                 icd_caller__get_name((icd_caller *) agent));
         destroy_icd_agent(&agent);
     }
@@ -326,7 +326,7 @@ int unload_module(void)
     ast_unregister_application(icd_customer_app_name);
     ast_unregister_application(icd_customer_callback_app_name);
 
-    ast_cli_unregister(&icd_command_cli_struct);
+    opbx_cli_unregister(&icd_command_cli_struct);
     destroy_command_hash();
 
     return 0;
@@ -360,7 +360,7 @@ int reload(void)
 {
     icd_status result;
 
-    ast_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from asterisk cli \n");
+    ast_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from openpbx cli \n");
     /* the ICD way */
     reload_app_icd(APP_ICD);
 
@@ -482,7 +482,7 @@ icd_status autologin(void)
         fld_chanstring = icd_caller__get_channel_string((icd_caller *) agent);
         fld_noauth = icd_caller__get_param((icd_caller *) agent, "noauth");
         /*
-          ast_log(LOG_DEBUG, "ICD Caller[%d] %s has autologin[%s] queues[%s, %d],chanstring[%s] ,noauth[%s], onhook[%d]\n",
+          opbx_log(LOG_DEBUG, "ICD Caller[%d] %s has autologin[%s] queues[%s, %d],chanstring[%s] ,noauth[%s], onhook[%d]\n",
           icd_caller__get_id((icd_caller *)agent), 
           icd_caller__get_name((icd_caller *) agent),
           fld_autologin, 
@@ -499,10 +499,10 @@ icd_status autologin(void)
 
                 icd_caller__loop((icd_caller *) agent, 1);
                 if (icd_debug)
-                    ast_log(LOG_DEBUG, "Caller id[%d] [%s] has autologin set\n",
+                    opbx_log(LOG_DEBUG, "Caller id[%d] [%s] has autologin set\n",
                             icd_caller__get_id((icd_caller *) agent), icd_caller__get_name((icd_caller *) agent));
             } else {
-                ast_log(LOG_WARNING,
+                opbx_log(LOG_WARNING,
                         "Caller id[%d] [%s] has autologin set but missing channel, noauth, onhook, or queues \n",
                         icd_caller__get_id((icd_caller *) agent), icd_caller__get_name((icd_caller *) agent));
 
@@ -556,7 +556,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
         res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
     }
     if(res) {
-        ast_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
+        opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
         if(oldrformat)
             ast_set_read_format(chan, oldrformat);
         if(oldwformat)
@@ -571,7 +571,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
     if (queuename != NULL) {
         queue = (icd_queue *) icd_fieldset__get_value(queues, queuename);
         if (queue == NULL) {
-            ast_log(LOG_WARNING, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
+            opbx_log(LOG_WARNING, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
             if(oldrformat)
                 ast_set_read_format(chan, oldrformat);
             if(oldwformat)
@@ -590,7 +590,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
     agents_only = ast_true(vh_read(arghash, "agents_only"));
 
     if (queuename == NULL && !conference_name) {
-        ast_log(LOG_WARNING,
+        opbx_log(LOG_WARNING,
                 "CUSTOMER FAILURE! Could not find queue for incoming customer.\n"
                 "Please provide a 'queue' argument in the extensions.conf file\n");
         if(oldrformat)
@@ -685,7 +685,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
             if (conf) {
                 conf_owner = icd_conference__get_owner(conf);
                 if (conf_owner != NULL && icd_caller__get_state(conf_owner) != ICD_CALLER_STATE_CONFERENCED) {
-                    ast_log(LOG_ERROR, "Agent Conference Not In Session......%s\n", conference_name);
+                    opbx_log(LOG_ERROR, "Agent Conference Not In Session......%s\n", conference_name);
                     destroy_icd_customer(&customer);
                     icd_bridge__play_sound_file(chan, "conf-invalid");
                     if(oldrformat)
@@ -724,7 +724,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                 return -1;
 
             } else {
-                ast_log(LOG_ERROR, "No Such Conference......%s\n", conference_name);
+                opbx_log(LOG_ERROR, "No Such Conference......%s\n", conference_name);
                 icd_bridge__play_sound_file(chan, "conf-invalid");
                 if(oldrformat)
                     ast_set_read_format(chan, oldrformat);
@@ -800,7 +800,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
     if (queuename != NULL) {
         queue = (icd_queue *) icd_fieldset__get_value(queues, queuename);
         if (queue == NULL) {
-            ast_log(LOG_WARNING, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
+            opbx_log(LOG_WARNING, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
             vh_destroy(&arghash);
             LOCAL_USER_REMOVE(u);
             return -1;
@@ -834,7 +834,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
         context = chan->context;
     }
 
-    ast_log(LOG_WARNING, "SET Context for EXTEN to current context %s\n", context);
+    opbx_log(LOG_WARNING, "SET Context for EXTEN to current context %s\n", context);
     /* Three tries at logging in and authenticating */
     tries = 0;
     authenticated = 0;
@@ -858,7 +858,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
             res = 0;
         } else {
             res = ast_app_getdata(chan, "agent-newlocation", buf + pos, sizeof(buf) - (1 + pos), 0);
-            ast_log(LOG_DEBUG, "customer callback extension dialed in is [%s]\n", buf);
+            opbx_log(LOG_DEBUG, "customer callback extension dialed in is [%s]\n", buf);
         }
         if (strlen(buf) == 0 || ast_exists_extension(chan, context
                                                      && strlen(context) ? context : "default", buf, priority, NULL)) {
@@ -866,7 +866,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
             break;
         }
         if (extension != NULL) {
-            ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of customer '%s'\n", extension,
+            opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of customer '%s'\n", extension,
                     icd_caller__get_name((icd_caller *) customer));
             extension = NULL;
             pos = 0;
@@ -911,7 +911,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
             res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
         }
         if(res) {
-            ast_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
+            opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
             if(oldrformat)
                 ast_set_read_format(chan, oldrformat);
             if(oldwformat)
@@ -936,7 +936,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
         }
 
         /* Tell caller to start thread */
-        ast_log(LOG_NOTICE, "Exec CustomerCallBack: Customer %s starting independent caller thread\n",
+        opbx_log(LOG_NOTICE, "Exec CustomerCallBack: Customer %s starting independent caller thread\n",
                 customername);
 
         icd_caller__add_to_queue((icd_caller *) customer, queue);
@@ -946,7 +946,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
         if (icd_caller__get_dynamic((icd_caller *) customer) && (!icd_caller__get_onhook((icd_caller *) customer)))
             destroy_icd_customer(&customer);
 
-        ast_log(LOG_NOTICE, "Exec CustomerCallBack: PBX thread for customer %s ending\n", customername);
+        opbx_log(LOG_NOTICE, "Exec CustomerCallBack: PBX thread for customer %s ending\n", customername);
 
     }
     /* res */
@@ -997,7 +997,7 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
         res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
     }
     if(res) {
-        ast_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
+        opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
         if(oldrformat)
             ast_set_read_format(chan, oldrformat);
         if(oldwformat)
@@ -1036,10 +1036,10 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
                 agent = app_icd__dtmf_login(chan, agentname, NULL, 3);
         }
         if (agent != NULL) {
-            ast_log(LOG_NOTICE, "Agent [%s] found in registry and marked in use.\n",
+            opbx_log(LOG_NOTICE, "Agent [%s] found in registry and marked in use.\n",
                     icd_caller__get_name((icd_caller *) agent));
             if (dynamicstring != NULL && ast_true(dynamicstring)) {
-                ast_log(LOG_NOTICE, "The 'dynamic' setting will be ignored.\n");
+                opbx_log(LOG_NOTICE, "The 'dynamic' setting will be ignored.\n");
             }
         }
     }
@@ -1064,7 +1064,7 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
                 sprintf(agentbuf, "agent_%d_for_queue_%s", icd_caller__get_id((icd_caller *) agent), queuename);
             }
             agentname = agentbuf;
-            ast_log(LOG_WARNING, "\n\nagent_name1: [%s]\n\n", agentname);
+            opbx_log(LOG_WARNING, "\n\nagent_name1: [%s]\n\n", agentname);
             icd_caller__set_name((icd_caller *) agent, agentname);
         }
         icd_caller__set_dynamic((icd_caller *) agent, 1);
@@ -1072,7 +1072,7 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
         if (agent != NULL) {
             icd_fieldset__set_value(agents, agentname, agent);
             icd_agent__add_listener(agent, agents, clear_agent_from_registry, agentname);
-            ast_log(LOG_NOTICE, "Agent [%s] dynamically generated and added to registry.\n", agentname);
+            opbx_log(LOG_NOTICE, "Agent [%s] dynamically generated and added to registry.\n", agentname);
         }
     }
     /* 3. Allow login with DTMF if agent not specifically identified. */
@@ -1085,8 +1085,8 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
         }
         if (agent != NULL) {
             agentname = icd_caller__get_param((icd_caller *) agent, "name");
-            ast_log(LOG_WARNING, "\n\nagent_name: [%s]\n\n", agentname);
-            ast_log(LOG_NOTICE, "User identified self as Agent [%s].\n", agentname);
+            opbx_log(LOG_WARNING, "\n\nagent_name: [%s]\n\n", agentname);
+            opbx_log(LOG_NOTICE, "User identified self as Agent [%s].\n", agentname);
             if(icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_READY)
                 icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_CALL_END);
         }
@@ -1094,10 +1094,10 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
     /* 4. Otherwise, error */
     if (agent == NULL) {
         if (agentname == NULL) {
-            ast_log(LOG_WARNING,
+            opbx_log(LOG_WARNING,
                     "AGENT FAILURE!  No 'agent' argument specified.\n" "Please correct the extensions.conf file\n");
         } else {
-            ast_log(LOG_WARNING,
+            opbx_log(LOG_WARNING,
                     "AGENT FAILURE!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agentname);
             res = icd_bridge__play_sound_file(chan, "pbx-invalid");
@@ -1115,7 +1115,7 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
 
     if (agentname == NULL) {
         agentname = icd_caller__get_name((icd_caller *) agent);
-        ast_log(LOG_WARNING, "\n\nagent_name: [%s]\n\n", agentname);
+        opbx_log(LOG_WARNING, "\n\nagent_name: [%s]\n\n", agentname);
     }
     if (icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_SUSPEND) {
         icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_READY);
@@ -1128,13 +1128,13 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
                 queuesleft = queuelist;
                 while (queuesleft != NULL) {
                     currqueue = strsep(&queuesleft, ",;| ");
-                    ast_log(LOG_WARNING, "Exec Agent: Agent %s processsing Queue %s!\n", agentname, currqueue);
+                    opbx_log(LOG_WARNING, "Exec Agent: Agent %s processsing Queue %s!\n", agentname, currqueue);
                     if (currqueue != NULL && strlen(currqueue) > 0) {
                         queue = icd_fieldset__get_value(queues, currqueue);
                         if (queue != NULL) {
                             icd_caller__add_to_queue((icd_caller *) agent, queue);
                         } else {
-                            ast_log(LOG_WARNING, "Exec Agent: Agent %s requires nonexistent Queue %s!\n", agentname,
+                            opbx_log(LOG_WARNING, "Exec Agent: Agent %s requires nonexistent Queue %s!\n", agentname,
                                     currqueue);
                         }
                     }
@@ -1161,12 +1161,12 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
 
     if (icd_caller__get_onhook((icd_caller *) agent)) {
         /* On hook - Tell caller to start thread */
-        ast_log(LOG_NOTICE, "Exec Agent: Agent %s starting independent caller thread\n", agentname);
+        opbx_log(LOG_NOTICE, "Exec Agent: Agent %s starting independent caller thread\n", agentname);
         icd_caller__loop((icd_caller *) agent, 1);
 //        res = icd_bridge__play_sound_file(chan, "agent-loginok");
     } else {
         /* Off hook - Use the PBX thread */
-        ast_log(LOG_NOTICE, "Exec Agent: Agent %s using PBX thread to manage caller state\n", agentname);
+        opbx_log(LOG_NOTICE, "Exec Agent: Agent %s using PBX thread to manage caller state\n", agentname);
         icd_caller__assign_channel((icd_caller *) agent, chan);
         icd_caller__add_role((icd_caller *) agent, ICD_LOOPER_ROLE);
 
@@ -1177,7 +1177,7 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
     if (icd_caller__get_dynamic((icd_caller *) agent)) {
         destroy_icd_agent(&agent);
     }
-    ast_log(LOG_NOTICE, "Exec Agent: PBX thread for Agent %s ending\n", agentname);
+    opbx_log(LOG_NOTICE, "Exec Agent: PBX thread for Agent %s ending\n", agentname);
 
     LOCAL_USER_REMOVE(u);
     if (arghash)
@@ -1212,11 +1212,11 @@ int app_icd__add_member_exec(struct ast_channel *chan, void *data)
     }
     if (queue == NULL) {
         if (queuename == NULL) {
-            ast_log(LOG_WARNING,
+            opbx_log(LOG_WARNING,
                     "ADD MEMBER FAILURE!  No 'queue' argument specified.\n"
                     "Please correct the extensions.conf file\n");
         } else {
-            ast_log(LOG_WARNING,
+            opbx_log(LOG_WARNING,
                     "ADD MEMBER FAILURE!  Queue '%s' could not be found.\n"
                     "Please correct the 'queue' argument in the extensions.conf file\n", queuename);
         }
@@ -1288,7 +1288,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
 
     LOCAL_USER_ADD(u);
 
-    /* Deal with incomplete state change in channel received from asterisk */
+    /* Deal with incomplete state change in channel received from openpbx */
     if (chan->_state != AST_STATE_UP) {
         res = ast_answer(chan);
     }
@@ -1308,7 +1308,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         if (agent != NULL) {
             icd_caller__add_flag((icd_caller *) agent, ICD_ORPHAN_FLAG);
             if (icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_SUSPEND) {
-                ast_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged in.\n", agentname);
+                opbx_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged in.\n", agentname);
                 icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_READY);
                 res = icd_bridge__play_sound_file(chan, "agent-loginok");
                 return 0;
@@ -1324,7 +1324,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         */
     }
 
-    ast_log(LOG_WARNING, "SET Context for EXTEN to current context %s\n", context);
+    opbx_log(LOG_WARNING, "SET Context for EXTEN to current context %s\n", context);
     /* Three tries at logging in and authenticating */
     tries = 0;
     authenticated = 0;
@@ -1344,15 +1344,15 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         if (agent == NULL) {
             buf[0] = '\0';
             res = ast_app_getdata(chan, agentinputfile, buf, sizeof(buf) - 1, 0);
-            ast_log(LOG_DEBUG, "Agent callback user id dialed in is [%s], res=%d, len=%d\n", buf, res, strlen(buf));
+            opbx_log(LOG_DEBUG, "Agent callback user id dialed in is [%s], res=%d, len=%d\n", buf, res, strlen(buf));
             if (strlen(buf) > 0) {
                 agent = (icd_agent *) icd_fieldset__get_value(agents, buf);
                 if (agent != NULL) {
                     icd_caller__add_flag((icd_caller *) agent, ICD_ORPHAN_FLAG);
-                    ast_log(LOG_DEBUG, "Agent callback user id dialed has been found\n");
+                    opbx_log(LOG_DEBUG, "Agent callback user id dialed has been found\n");
                     dialed_agent = 1;
                 } else {
-                    ast_log(LOG_DEBUG, "Agent callback user id dialed is incorrect, no such user\n");
+                    opbx_log(LOG_DEBUG, "Agent callback user id dialed is incorrect, no such user\n");
                 }
             }
         }
@@ -1369,12 +1369,12 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         if ((noauth == NULL || !ast_true(noauth)) && password != NULL && strlen(password) > 0) {
             buf[0] = '\0';
             res = ast_app_getdata(chan, "agent-pass", buf, sizeof(buf) - 1, 0);
-            ast_log(LOG_DEBUG, "Agent callback password dialed in is [%s], res=%d\n", buf, res);
+            opbx_log(LOG_DEBUG, "Agent callback password dialed in is [%s], res=%d\n", buf, res);
             if (strlen(buf) > 0 && strcmp(buf, password) == 0) {
-                ast_log(LOG_DEBUG, "Agent callback password authenticated\n");
+                opbx_log(LOG_DEBUG, "Agent callback password authenticated\n");
                 authenticated = 1;
             } else {
-                ast_log(LOG_DEBUG, "Agent callback password FAILED authenticated\n");
+                opbx_log(LOG_DEBUG, "Agent callback password FAILED authenticated\n");
                 authenticated = 0;
                 /* Reset the agent if we dialed it but got the password wrong */
                 if (dialed_agent > 0) {
@@ -1397,12 +1397,12 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
 
     }
     if (agent == NULL) {
-        ast_log(LOG_WARNING, "AGENT CALLBACK LOGIN FAILURE! Agent could not be identified\n");
+        opbx_log(LOG_WARNING, "AGENT CALLBACK LOGIN FAILURE! Agent could not be identified\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
     if (authenticated == 0) {
-        ast_log(LOG_WARNING, "AGENT CALLBACK LOGIN FAILURE! Agent could not enter correct password\n");
+        opbx_log(LOG_WARNING, "AGENT CALLBACK LOGIN FAILURE! Agent could not enter correct password\n");
         LOCAL_USER_REMOVE(u);
         return -1;
     }
@@ -1444,7 +1444,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
             res = 0;
         } else {
             res = ast_app_getdata(chan, "agent-newlocation", buf + pos, sizeof(buf) - (1 + pos), 0);
-            ast_log(LOG_DEBUG, "Agent callback extension dialed in is [%s]\n", buf);
+            opbx_log(LOG_DEBUG, "Agent callback extension dialed in is [%s]\n", buf);
         }
         if (strlen(buf) == 0 || ast_exists_extension(chan, context
                                                      && strlen(context) ? context : "default", buf, priority, NULL)) {
@@ -1452,7 +1452,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
             break;
         }
         if (extension != NULL) {
-            ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", extension,
+            opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", extension,
                     icd_caller__get_name((icd_caller *) agent));
             extension = NULL;
             pos = 0;
@@ -1505,7 +1505,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
             res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
         }
         if(res) {
-            ast_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
+            opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
             if(oldrformat)
                 ast_set_read_format(chan, oldrformat);
             if(oldwformat)
@@ -1565,7 +1565,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
                         if (queue != NULL) {
                             icd_caller__add_to_queue((icd_caller *) agent, queue);
                         } else {
-                            ast_log(LOG_WARNING, "Exec Agent: Agent %s requires nonexistent Queue %s!\n", agentname,
+                            opbx_log(LOG_WARNING, "Exec Agent: Agent %s requires nonexistent Queue %s!\n", agentname,
                                     currqueue);
                         }
                     }
@@ -1577,7 +1577,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         icd_caller__set_onhook((icd_caller *) agent, 1);
         /* Tell caller to start thread */
         if (icd_debug)
-            ast_log(LOG_DEBUG, "Exec Agent: AgentCallBack %s starting independent caller thread\n", agentname);
+            opbx_log(LOG_DEBUG, "Exec Agent: AgentCallBack %s starting independent caller thread\n", agentname);
 
         icd_caller__loop((icd_caller *) agent, 1);
         /* dynamic & OffHook destroy on exit, dynamic & OnHook destroy on logout, static destroy on module unload */
@@ -1585,7 +1585,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
             destroy_icd_agent(&agent);
 
         if (icd_debug)
-            ast_log(LOG_DEBUG, "Exec AgentCallBack: PBX thread for Agent %s ending\n", agentname);
+            opbx_log(LOG_DEBUG, "Exec AgentCallBack: PBX thread for Agent %s ending\n", agentname);
 
     }
 
@@ -1618,7 +1618,7 @@ int app_icd__logout_exec(struct ast_channel *chan, void *data)
     if (agentname != NULL) {
         agent = (icd_agent *) icd_fieldset__get_value(agents, agentname);
         if (agent != NULL) {
-            ast_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged out.\n", agentname);
+            opbx_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged out.\n", agentname);
         }
     }
 
@@ -1630,16 +1630,16 @@ int app_icd__logout_exec(struct ast_channel *chan, void *data)
         if (agent != NULL) {
             agentname = icd_caller__get_param((icd_caller *) agent, "name");
             if (icd_debug)
-                ast_log(LOG_DEBUG, "Agent [%s] (self-identified) will be logged out.\n", agentname);
+                opbx_log(LOG_DEBUG, "Agent [%s] (self-identified) will be logged out.\n", agentname);
         }
     }
 
     if (agent == NULL) {
         if (agentname == NULL) {
-            ast_log(LOG_WARNING,
+            opbx_log(LOG_WARNING,
                     "LOGOUT FAILURE!  No 'agent' argument specified.\n" "Please correct the extensions.conf file\n");
         } else {
-            ast_log(LOG_WARNING,
+            opbx_log(LOG_WARNING,
                     "LOGOUT FAILURE!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agentname);
         }
@@ -1667,7 +1667,7 @@ icd_status app_icd__read_conference_config(char *conference_config_name)
 
     astcfg = ast_config_load(conference_config_name);
     if (!astcfg) {
-        ast_log(LOG_WARNING, "Conference configuration file %s not found\n", conference_config_name);
+        opbx_log(LOG_WARNING, "Conference configuration file %s not found\n", conference_config_name);
         return ICD_ENOTFOUND;
     }
 
@@ -1729,7 +1729,7 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
 
     astcfg = ast_config_load(icd_config_name);
     if (!astcfg) {
-        ast_log(LOG_WARNING, "ICD configuration file %s not found -- ICD option support disabled\n",
+        opbx_log(LOG_WARNING, "ICD configuration file %s not found -- ICD option support disabled\n",
                 icd_config_name);
         return ICD_ENOTFOUND;
     }
@@ -1744,22 +1744,22 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
         /* For each key/value pair in the [category] */
         while (varlist) {
             if (icd_debug)
-                ast_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
+                opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
             if (strcasecmp(entry, "general") == 0) {
                 if (strcasecmp(varlist->name, "icd_delimiter") == 0) {
                     icd_delimiter = varlist->value[0];
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, &icd_delimiter);
+                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, &icd_delimiter);
                 }
                 if (strcasecmp(varlist->name, "icd_debug") == 0) {
                     icd_debug = ast_true(varlist->value);
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%d\n", varlist->name, icd_debug);
+                        opbx_log(LOG_DEBUG, "Set %s=%d\n", varlist->name, icd_debug);
                 }
                 if (strcasecmp(varlist->name, "icd_verbose") == 0) {
                     icd_verbose = atoi(varlist->value);
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%d\n", varlist->name, icd_verbose);
+                        opbx_log(LOG_DEBUG, "Set %s=%d\n", varlist->name, icd_verbose);
                 } else
                     icd_verbose = option_verbose;       /*default to ast option_verbose */
 
@@ -1769,22 +1769,22 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                 if (strcasecmp(varlist->name, "jabber_server") == 0) {
                     strncpy(jabber_server, varlist->value, sizeof(jabber_server)-1);
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_server);
+                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_server);
                 }
                 if (strcasecmp(varlist->name, "jabber_login") == 0) {
                     strncpy(jabber_login, varlist->value, sizeof(jabber_login)-1);
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_login);
+                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_login);
                 }
                 if (strcasecmp(varlist->name, "jabber_password") == 0) {
                     strncpy(jabber_password, varlist->value, sizeof(jabber_password)-1);
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_password);
+                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_password);
                 }
                 if (strcasecmp(varlist->name, "jabber_send_address") == 0) {
                     strncpy(jabber_send_address, varlist->value, sizeof(jabber_send_address)-1);
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_send_address);
+                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_send_address);
                 }
             }                   /*jabber section end */
             if (strcasecmp(entry, "events") == 0) {
@@ -1797,7 +1797,7 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                         else
                             module_mask[mod] = 0;
                         if (icd_debug)
-                            ast_log(LOG_DEBUG, "MOD %s[%d]\n", icd_module_strings[mod], module_mask[mod]);
+                            opbx_log(LOG_DEBUG, "MOD %s[%d]\n", icd_module_strings[mod], module_mask[mod]);
                     };          /*mod iterator */
                 }               /*module_mask */
                 if (strcasecmp(varlist->name, "event_mask") == 0) {
@@ -1810,7 +1810,7 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                             event_mask[event] = 0;
 
                         if (icd_debug)
-                            ast_log(LOG_DEBUG, "EVT %s[%d]\n", icd_event_strings[event], event_mask[event]);
+                            opbx_log(LOG_DEBUG, "EVT %s[%d]\n", icd_event_strings[event], event_mask[event]);
                     };          /*event iterator */
 
                 }               /*event_mask */
@@ -1871,7 +1871,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
 
     astcfg = ast_config_load(queue_config_name);
     if (!astcfg) {
-        ast_log(LOG_WARNING, "Queue configuration file %s not found -- ICD support disabled\n", queue_config_name);
+        opbx_log(LOG_WARNING, "Queue configuration file %s not found -- ICD support disabled\n", queue_config_name);
         return ICD_ENOTFOUND;
     }
 
@@ -1882,7 +1882,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
     varlist = ast_variable_browse(astcfg, "general");
     while (varlist) {
         if (icd_debug)
-            ast_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
+            opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
         icd_config__set_value(general_config, varlist->name, varlist->value);
         varlist = varlist->next;
     }
@@ -1914,7 +1914,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
             /* For each key/value pair in the [category] */
             while (varlist) {
                 if (icd_debug)
-                    ast_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
+                    opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
                 icd_config__set_value(config, varlist->name, varlist->value);
                 vh_cp_string(params, varlist->name, varlist->value);
                 varlist = varlist->next;
@@ -1927,7 +1927,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
                 destroy_icd_config(&config);
                 vh_destroy(&params);
                 params = NULL;
-                ast_log(LOG_WARNING, "Create Queue [%s] has been manually disabled!\n", entry);
+                opbx_log(LOG_WARNING, "Create Queue [%s] has been manually disabled!\n", entry);
                 entry = ast_category_browse(astcfg, entry);
                 continue;
             }
@@ -2004,7 +2004,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
 
     astcfg = ast_config_load(agent_config_name);
     if (!astcfg) {
-        ast_log(LOG_WARNING, "Agent configuration file %s not found -- ICD support disabled\n", agent_config_name);
+        opbx_log(LOG_WARNING, "Agent configuration file %s not found -- ICD support disabled\n", agent_config_name);
         return ICD_ENOTFOUND;
     }
     ast_verbose(VERBOSE_PREFIX_3 "Creating General Agent Configurations\n");
@@ -2014,7 +2014,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
     varlist = ast_variable_browse(astcfg, "general");
     while (varlist) {
         if (icd_debug)
-            ast_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
+            opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
         icd_config__set_value(general_config, varlist->name, varlist->value);
         varlist = varlist->next;
     }
@@ -2043,7 +2043,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
             /* For each key/value pair in the [category] */
             while (varlist) {
                 if (icd_debug)
-                    ast_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
+                    opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
                 icd_config__set_value(config, varlist->name, varlist->value);
                 vh_cp_string(params, varlist->name, varlist->value);
                 varlist = varlist->next;
@@ -2056,7 +2056,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                 destroy_icd_config(&config);
                 vh_destroy(&params);
                 params = NULL;
-                ast_log(LOG_WARNING, "Create Agent [%s] has been manually disabled!\n", entry);
+                opbx_log(LOG_WARNING, "Create Agent [%s] has been manually disabled!\n", entry);
                 entry = ast_category_browse(astcfg, entry);
                 continue;
             }
@@ -2088,7 +2088,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                         icd_caller__set_bridge_technology((icd_caller *) agent, ICD_BRIDGE_STANDARD);
                     }
                     if (icd_debug)
-                        ast_log(LOG_DEBUG, "Caller id[%d] [%s] bridge_tech set to [%s]",
+                        opbx_log(LOG_DEBUG, "Caller id[%d] [%s] bridge_tech set to [%s]",
                                 icd_caller__get_id((icd_caller *) agent), icd_caller__get_name((icd_caller *) agent),
                                 fieldval);
                 }
@@ -2117,7 +2117,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                             if (queue != NULL) {
                                 icd_caller__add_to_queue((icd_caller *) agent, queue);
                             } else {
-                                ast_log(LOG_WARNING, "Create Agent: Agent %s requires nonexistent Queue %s!\n",
+                                opbx_log(LOG_WARNING, "Create Agent: Agent %s requires nonexistent Queue %s!\n",
                                         entry, currqueue);
                             }
                         }
@@ -2127,7 +2127,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
 
                 /*add  memberships from outstanding_members. */
             } else {
-                ast_log(LOG_NOTICE, "TBD Merge Agent '%s' %s\n", entry, agent ? "success" : "failure");
+                opbx_log(LOG_NOTICE, "TBD Merge Agent '%s' %s\n", entry, agent ? "success" : "failure");
             }
             destroy_icd_config(&config);
         }                       /* not a general category ie we got an agent definition */
@@ -2221,7 +2221,7 @@ static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_f
             strcat(currqueuelist, queuename);
             icd_fieldset__set_value(map, curragent, currqueuelist);
         } else {
-            ast_log(LOG_WARNING, "Create Queue: Queue List for Agent %s too long, Queue %s not linked!\n",
+            opbx_log(LOG_WARNING, "Create Queue: Queue List for Agent %s too long, Queue %s not linked!\n",
                     curragent, queuename);
         }
     }
@@ -2274,7 +2274,7 @@ static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_f
             strcat(currqueuelist, currqueue);
             altered = 1;
         } else {
-            ast_log(LOG_WARNING, "Create Queue: Queue List for Agent %s too long, Queue %s not linked!\n",
+            opbx_log(LOG_WARNING, "Create Queue: Queue List for Agent %s too long, Queue %s not linked!\n",
                     agentname, currqueue);
         }
     }

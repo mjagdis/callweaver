@@ -7,9 +7,6 @@ OBJS = app_icd.o icd_agent.o icd_bridge.o icd_caller.o icd_caller_list.o icd_com
 
 FORDIST = icd_caller.o icd_distributor.o
 
-# this is the path to apr-config a MUST HAVE for APR 
-APR_CONFIG=/usr/local/apr/bin/apr-config
-
 # Uncomment YES or NO for apr support or just touch .apr file in the icd src dir.
 #USE_APR=YES
 #USE_APR=NO

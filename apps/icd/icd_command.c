@@ -105,8 +105,8 @@ static int cli_line(int fd, char *c, int y)
     int x = 0;
 
     for (x = 0; x < y; x++)
-        ast_cli(fd, "%s", c);
-    ast_cli(fd, "\n");
+        opbx_cli(fd, "%s", c);
+    opbx_cli(fd, "\n");
     /* BCA - What should this return? */
     return ICD_SUCCESS;
 }
@@ -188,28 +188,28 @@ int icd_command_cli(int fd, int argc, char **argv)
         }
         free(newargv);
     } else
-        ast_cli(fd, "Mega Error %d\n", argc);
+        opbx_cli(fd, "Mega Error %d\n", argc);
 
     return ICD_SUCCESS;
 }
 
 static int icd_command_short_help(int fd, icd_command_node * node)
 {
-    ast_cli(fd, "'%s'", node->short_help);
+    opbx_cli(fd, "'%s'", node->short_help);
 
     return ICD_SUCCESS;
 }
 
 static int icd_command_syntax_help(int fd, icd_command_node * node)
 {
-    ast_cli(fd, "Usage: %s %s", node->name, node->syntax_help);
+    opbx_cli(fd, "Usage: %s %s", node->name, node->syntax_help);
 
     return ICD_SUCCESS;
 }
 
 static int icd_command_long_help(int fd, icd_command_node * node)
 {
-    ast_cli(fd, "%s", node->long_help);
+    opbx_cli(fd, "%s", node->long_help);
 
     return ICD_SUCCESS;
 }
@@ -221,24 +221,24 @@ int icd_command_list(int fd, int argc, char **argv)
     vh_keylist *keys;
 
     if (argc < 2) {
-        ast_cli(fd, "\n\n");
-        ast_cli(fd, "Available Commands\n");
+        opbx_cli(fd, "\n\n");
+        opbx_cli(fd, "Available Commands\n");
         cli_line(fd, "=", 80);
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
 
         for (keys = vh_keys((COMMAND_HASH)); keys; keys = keys->next) {
 
             fetch = (icd_command_node *) vh_read(COMMAND_HASH, keys->name);
             if (fetch && strcmp(fetch->short_help, "")) {
-                ast_cli(fd, "%s: ", fetch->name);
+                opbx_cli(fd, "%s: ", fetch->name);
                 icd_command_short_help(fd, fetch);
-                ast_cli(fd, "\n");
+                opbx_cli(fd, "\n");
             }
         }
 
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
         cli_line(fd, "=", 80);
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
 
         return ICD_SUCCESS;
     }
@@ -247,22 +247,22 @@ int icd_command_list(int fd, int argc, char **argv)
     fetch = (icd_command_node *) vh_read(COMMAND_HASH, argv[1]);
     if (fetch) {
 
-        ast_cli(fd, "\n\n");
-        ast_cli(fd, "Help with '%s'\n", fetch->name);
+        opbx_cli(fd, "\n\n");
+        opbx_cli(fd, "Help with '%s'\n", fetch->name);
         cli_line(fd, "=", 80);
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
 
-        ast_cli(fd, "%s: ", fetch->name);
+        opbx_cli(fd, "%s: ", fetch->name);
         icd_command_short_help(fd, fetch);
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
         icd_command_syntax_help(fd, fetch);
-        ast_cli(fd, "\n");
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
+        opbx_cli(fd, "\n");
         icd_command_long_help(fd, fetch);
-        ast_cli(fd, "\n");
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
+        opbx_cli(fd, "\n");
         cli_line(fd, "=", 80);
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
 
     }
 
@@ -272,7 +272,7 @@ int icd_command_list(int fd, int argc, char **argv)
 int icd_command_help(int fd, int argc, char **argv)
 {
     icd_command_list(fd, argc, argv);
-    ast_cli(fd, "\nUsage 'icd <command> <arg1> .. <argn>\n");
+    opbx_cli(fd, "\nUsage 'icd <command> <arg1> .. <argn>\n");
 
     /* BCA - What should this return? */
     return ICD_SUCCESS;
@@ -283,9 +283,9 @@ int icd_command_bad(int fd, int argc, char **argv)
     int x;
 
     for (x = 0; x < argc; x++)
-        ast_cli(fd, "%d=%s\n", x, argv[x]);
+        opbx_cli(fd, "%d=%s\n", x, argv[x]);
 
-    ast_cli(fd, "\n\nInvalid Command\n");
+    opbx_cli(fd, "\n\nInvalid Command\n");
     icd_command_help(fd, argc, argv);
 
     /* BCA - What should this return? */
@@ -302,11 +302,11 @@ int icd_command_verbose(int fd, int argc, char **argv)
         }
         icd_verbose = atoi(argv[1]);
         if (icd_verbose > 0 && icd_verbose < 10)
-            ast_cli(fd, "ICD Verbosity[%d] set \n", icd_verbose);
+            opbx_cli(fd, "ICD Verbosity[%d] set \n", icd_verbose);
         else
-            ast_cli(fd, "ICD Verbosity[%d] range is 1-9 not [%s] \n", icd_verbose, argv[1]);
+            opbx_cli(fd, "ICD Verbosity[%d] range is 1-9 not [%s] \n", icd_verbose, argv[1]);
     } else
-        ast_cli(fd, "ICD Verbosity[%d] range is 1-9 not [%s] \n", icd_verbose, argv[1]);
+        opbx_cli(fd, "ICD Verbosity[%d] range is 1-9 not [%s] \n", icd_verbose, argv[1]);
 
     return ICD_SUCCESS;
 }
@@ -320,9 +320,9 @@ int icd_command_debug(int fd, int argc, char **argv)
         else if (!strcmp(argv[1], "off"))
             icd_debug = 0;
         else
-            ast_cli(fd, "ICD debug[%d] must be either [on] or [off] not[%s]\n", icd_debug, argv[1]);
+            opbx_cli(fd, "ICD debug[%d] must be either [on] or [off] not[%s]\n", icd_debug, argv[1]);
     } else
-        ast_cli(fd, "ICD debug[%d] must be either [on] or [off] not [%s]\n", icd_debug, argv[1]);
+        opbx_cli(fd, "ICD debug[%d] must be either [on] or [off] not [%s]\n", icd_debug, argv[1]);
 
     return ICD_SUCCESS;
 }
@@ -354,9 +354,9 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
     char *curr_key;
     icd_queue *queue;
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, FMT_QUEUE_HEADING, "QUEUE", "UNATTENDED", "CALLS", "ASSIGNED", "THIS QUEUE", "OTHER QUEUES");
+    opbx_cli(fd, FMT_QUEUE_HEADING, "QUEUE", "UNATTENDED", "CALLS", "ASSIGNED", "THIS QUEUE", "OTHER QUEUES");
 
     iter = icd_fieldset__get_key_iterator(queues);
     while (icd_fieldset_iterator__has_more(iter)) {
@@ -370,9 +370,9 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
     }
     destroy_icd_fieldset_iterator(&iter);
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
@@ -393,10 +393,10 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
     icd_list_iterator *list_iter;
     char buf[256];
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, FMT_AGENT_HEADING, "GROUP", "ID", "NAME", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, FMT_AGENT_HEADING, "GROUP", "ID", "NAME", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
 
     iter = icd_fieldset__get_key_iterator(agents);
     while (icd_fieldset_iterator__has_more(iter)) {
@@ -426,18 +426,18 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
 
         }
 
-        ast_cli(fd, "%10s  %-3d %-15s %-20s %-20s", (char *) icd_caller__get_param(caller, "group"),
+        opbx_cli(fd, "%10s  %-3d %-15s %-20s %-20s", (char *) icd_caller__get_param(caller, "group"),
             icd_caller__get_id(caller), icd_caller__get_name(caller),
             icd_caller__get_channel(caller) ? icd_caller__get_channel(caller)->name : "(None)", buf);
 
-        ast_cli(fd, "\n");
+        opbx_cli(fd, "\n");
     }
 
     destroy_icd_fieldset_iterator(&iter);
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 
@@ -478,15 +478,15 @@ static icd_status icd_command_dump_queue(int fd, int argc, char **argv)
     icd_queue *queue;
     icd_distributor *dist;
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "Queue Dump \n");
+    opbx_cli(fd, "Queue Dump \n");
 
     iter = icd_fieldset__get_key_iterator(queues);
     while (icd_fieldset_iterator__has_more(iter)) {
         curr_key = icd_fieldset_iterator__next(iter);
         if (argc == 2 || (!strcmp(curr_key, argv[2]))) {
-            ast_cli(fd, "\nFound %s\n", curr_key);
+            opbx_cli(fd, "\nFound %s\n", curr_key);
             queue = (icd_queue *) icd_fieldset__get_value(queues, curr_key);
             icd_queue__dump(queue, verbosity, fd);
             dist = (icd_distributor *) icd_queue__get_distributor(queue);
@@ -500,9 +500,9 @@ static icd_status icd_command_dump_queue(int fd, int argc, char **argv)
     }
     destroy_icd_fieldset_iterator(&iter);
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
@@ -512,14 +512,14 @@ static icd_status icd_command_dump_distributor(int fd, int argc, char **argv)
 /*
     icd_distributor *dist;
 
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
      cli_line(fd,"=",80);
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
 
  
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
      cli_line(fd,"=",80);
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
 */
     return ICD_SUCCESS;
 }
@@ -535,10 +535,10 @@ static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
     icd_member *member;
     icd_caller *caller;
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, "Customer Dump \n");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, "Customer Dump \n");
 
     fs_iter = icd_fieldset__get_key_iterator(queues);
     if (fs_iter == NULL) {
@@ -546,7 +546,7 @@ static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
     }
     while (icd_fieldset_iterator__has_more(fs_iter)) {
         curr_key = icd_fieldset_iterator__next(fs_iter);
-        ast_cli(fd, "\nCustomers in Queue %s\n", curr_key);
+        opbx_cli(fd, "\nCustomers in Queue %s\n", curr_key);
         queue = icd_fieldset__get_value(queues, curr_key);
         customers = (icd_member_list *) icd_queue__get_customers(queue);
 
@@ -570,9 +570,9 @@ static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
     }
     destroy_icd_fieldset_iterator(&fs_iter);
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
@@ -584,24 +584,24 @@ static icd_status icd_command_dump_agent(int fd, int argc, char **argv)
     icd_queue *queue;
     icd_member_list *agents;
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, "Agent Dump \n");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, "Agent Dump \n");
 
     iter = icd_fieldset__get_key_iterator(queues);
     while (icd_fieldset_iterator__has_more(iter)) {
         curr_key = icd_fieldset_iterator__next(iter);
-        ast_cli(fd, "\nAgents in Queue %s\n", curr_key);
+        opbx_cli(fd, "\nAgents in Queue %s\n", curr_key);
         queue = icd_fieldset__get_value(queues, curr_key);
         agents = (icd_member_list *) icd_queue__get_agents(queue);
         icd_member_list__dump(agents, verbosity, fd);
     }
     destroy_icd_fieldset_iterator(&iter);
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
@@ -612,22 +612,22 @@ static icd_status icd_command_dump__agent(int fd, int argc, char **argv) {
     icd_queue *queue;
     icd_caller *caller;
 
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
      cli_line(fd,"=",80);
-     ast_cli(fd,"\n");
-     ast_cli(fd,"Agent Dump \n",);
+     opbx_cli(fd,"\n");
+     opbx_cli(fd,"Agent Dump \n",);
 
      iter = icd_fieldset__get_key_iterator(agents);
      while (icd_fieldset_iterator__has_more(iter)) {
        curr_key = icd_fieldset_iterator__next(iter);
-       ast_cli(fd,"\nFound %s\n",curr_key);
+       opbx_cli(fd,"\nFound %s\n",curr_key);
        agent = icd_fieldset__get_value(agents, curr_key) ;
      }
      destroy_icd_fieldset_iterator(&iter);
 
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
      cli_line(fd,"=",80);
-     ast_cli(fd,"\n");
+     opbx_cli(fd,"\n");
 
     return ICD_SUCCESS;
 }
@@ -657,48 +657,48 @@ int icd_command_load(int fd, int argc, char **argv)
 
 icd_status icd_command_load_app_icd(int fd, int argc, char **argv)
 {
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, "APP_ICD Reload \n");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, "APP_ICD Reload \n");
 
     reload_app_icd(APP_ICD);    /*implemenation in app_icd.c */
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
 
 icd_status icd_command_load_conferences(int fd, int argc, char **argv)
 {
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, "Conferences Reload \n");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, "Conferences Reload \n");
 
     reload_app_icd(ICD_CONFERENCE);     /*implemenation in app_icd.c */
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
 
 icd_status icd_command_load_agents(int fd, int argc, char **argv)
 {
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, "Agents Reload \n");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, "Agents Reload \n");
 
     reload_app_icd(ICD_AGENT);  /*implemenation in app_icd.c */
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }
@@ -706,16 +706,16 @@ icd_status icd_command_load_agents(int fd, int argc, char **argv)
 icd_status icd_command_load_queues(int fd, int argc, char **argv)
 {
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
-    ast_cli(fd, "Queue Reload \n");
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, "Queue Reload \n");
 
     reload_app_icd(ICD_QUEUE);  /*implemenation in app_icd.c */
 
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    ast_cli(fd, "\n");
+    opbx_cli(fd, "\n");
 
     return ICD_SUCCESS;
 }

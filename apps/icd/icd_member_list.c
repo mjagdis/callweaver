@@ -64,7 +64,7 @@ icd_member_list *create_icd_member_list(char *name, icd_config * data)
     ICD_MALLOC(list, sizeof(icd_member_list));
 
     if (list == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create a new ICD Member List\n");
+        opbx_log(LOG_ERROR, "No memory available to create a new ICD Member List\n");
         return NULL;
     }
     list->allocated = 1;
@@ -100,7 +100,7 @@ icd_status destroy_icd_member_list(icd_member_list ** listp)
     that = (icd_list *) (*listp);
     vetoed = icd_event__notify(ICD_EVENT_DESTROY, NULL, that->dstry_fn, that->dstry_fn_extra);
     if (vetoed == ICD_EVETO) {
-        ast_log(LOG_NOTICE, "Destruction of ICD Member List %s has been vetoed\n",
+        opbx_log(LOG_NOTICE, "Destruction of ICD Member List %s has been vetoed\n",
             icd_member_list__get_name(*listp));
         return ICD_EVETO;
     }
@@ -192,7 +192,7 @@ icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_me
         icd_event_factory__notify(event_factory, that, icd_member_list__get_name(that), module_id,
         ICD_EVENT_PUSHBACK, NULL, list->listeners, new_member, list->add_fn, list->add_fn_extra);
     if (vetoed == ICD_EVETO) {
-        ast_log(LOG_NOTICE, "Pushing Back to ICD Member List %s has been vetoed\n",
+        opbx_log(LOG_NOTICE, "Pushing Back to ICD Member List %s has been vetoed\n",
             icd_member_list__get_name(that));
         return ICD_EVETO;
     }
@@ -200,7 +200,7 @@ icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_me
     if (icd_member_list__lock(that) == ICD_SUCCESS) {
         new_node = icd_list__get_node(list);
         if (new_node == NULL) {
-            ast_log(LOG_WARNING, "No room in ICD Member List %s to push back an element\n",
+            opbx_log(LOG_WARNING, "No room in ICD Member List %s to push back an element\n",
                 icd_member_list__get_name(that));
             icd_member_list__unlock(that);
             return ICD_ERESOURCE;
@@ -217,7 +217,7 @@ icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_me
         icd_member_list__unlock(that);
         return ICD_SUCCESS;
     }
-    ast_log(LOG_WARNING, "Unable to get a lock on ICD Member List %s in order to push onto it\n",
+    opbx_log(LOG_WARNING, "Unable to get a lock on ICD Member List %s in order to push onto it\n",
         icd_member_list__get_name(that));
     return ICD_ELOCK;
 }
@@ -395,11 +395,11 @@ icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, int fd
 
     // here is what belongs here.... but not doing anything useful to debug yet, see above
     /*
-       ast_cli(fd,"\nDumping icd_member list {\n");
+       opbx_cli(fd,"\nDumping icd_member list {\n");
        icd_list__standard_dump(list, verbosity, fd, ((void *)&skipconst));
 
        if (verbosity > 1) {
-       ast_cli(fd,"    member {\n");
+       opbx_cli(fd,"    member {\n");
        iter = icd_list__get_iterator(list);
        if (iter == NULL) {
        return ICD_ERESOURCE;
@@ -409,9 +409,9 @@ icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, int fd
        icd_member__dump(member, verbosity - 1, fd);
        }
        destroy_icd_list_iterator(&iter);
-       ast_cli(fd,"    }\n");
+       opbx_cli(fd,"    }\n");
        }
-       ast_cli(fd,"}\n");
+       opbx_cli(fd,"}\n");
      */
 
     return ICD_SUCCESS;

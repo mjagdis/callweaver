@@ -44,7 +44,7 @@
 #include <icd_customer.h>
 #include <icd_plugable_fn.h>
 
-#include <asterisk/app.h>
+#include <openpbx/app.h>
 
 #include <icd_bridge.h>
 #include <loudmouth/loudmouth.h>
@@ -89,7 +89,7 @@ icd_distributor *create_icd_distributor(char *name, icd_config *data) {
     ICD_MALLOC(distributor,sizeof(icd_distributor));
 
     if (distributor == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create a new ICD Distributor\n");
+        opbx_log(LOG_ERROR, "No memory available to create a new ICD Distributor\n");
         return NULL;
     }
     distributor->allocated = 1;
@@ -123,7 +123,7 @@ icd_status destroy_icd_distributor(icd_distributor **distp) {
     vetoed = icd_event_factory__generate(event_factory, *distp, (*distp)->name, 
             module_id, ICD_EVENT_DESTROY, NULL, (*distp)->listeners, NULL);
     if (vetoed == ICD_EVETO) {
-        ast_log(LOG_NOTICE, "Destruction of ICD Distributor %s has been vetoed\n",
+        opbx_log(LOG_NOTICE, "Destruction of ICD Distributor %s has been vetoed\n",
                 icd_distributor__get_name(*distp));
         return ICD_EVETO;
     }
@@ -214,7 +214,7 @@ icd_status icd_distributor__clear(icd_distributor *that) {
     /* Notify event hooks and listeners */
     vetoed = icd_event__generate(ICD_EVENT_CLEAR, NULL);
     if (vetoed == ICD_EVETO) {
-        ast_log(LOG_WARNING, "Clearing of ICD Distributor %s has been vetoed\n",
+        opbx_log(LOG_WARNING, "Clearing of ICD Distributor %s has been vetoed\n",
                 icd_distributor__get_name(that));
         return ICD_EVETO;
     }
@@ -660,7 +660,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     agent_caller = icd_member__get_caller(agent_member);
 
     if (agent_member == NULL || agent_caller == NULL) {
-        ast_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
+        opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
 
@@ -677,7 +677,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
 */
     customer_member = icd_member_list__pop(dist->customers);
     if (customer_member == NULL) {
-        ast_log(LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n", icd_distributor__get_name(dist));
+        opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n", icd_distributor__get_name(dist));
         icd_caller__start_waiting(agent_caller);
 	icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         return ICD_ENOTFOUND;
@@ -717,7 +717,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     } else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
         result = icd_caller__bridge(agent_caller);
     } else {
-        ast_log(LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n", icd_distributor__get_name(dist));
+        opbx_log(LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n", icd_distributor__get_name(dist));
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
         return ICD_EGENERAL;
@@ -750,7 +750,7 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     agent_member = icd_member_list__pop(dist->agents);
     agent_caller = icd_member__get_caller(agent_member);
     if (agent_member == NULL || agent_caller == NULL) {
-        ast_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
+        opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
     result = icd_member__distribute(agent_member);
@@ -762,7 +762,7 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     customer_member = icd_member_list__pop(dist->customers);
     customer_caller = icd_member__get_caller(customer_member);
     if (customer_member == NULL || customer_caller == NULL) {
-        ast_log(LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n", icd_distributor__get_name(dist));
+        opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n", icd_distributor__get_name(dist));
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         return ICD_ERESOURCE;
     }
@@ -788,7 +788,7 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     } else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
         result = icd_caller__bridge(agent_caller);
     } else {
-        ast_log(LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n", icd_distributor__get_name(dist));
+        opbx_log(LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n", icd_distributor__get_name(dist));
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
         return ICD_EGENERAL;
@@ -821,20 +821,20 @@ icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, 
     assert(dist != NULL);
 
     
-    ast_cli(fd,"\nDumping icd_distributor {\n");
-    ast_cli(fd,"%sname=%s (%s)\n", indent,icd_distributor__get_name(dist), 
+    opbx_cli(fd,"\nDumping icd_distributor {\n");
+    opbx_cli(fd,"%sname=%s (%s)\n", indent,icd_distributor__get_name(dist), 
             dist->allocated ? "alloced" : "on heap");
 
-    ast_cli(fd,"%sparams {\n",indent);
+    opbx_cli(fd,"%sparams {\n",indent);
     for(keys = vh_keys(dist->params); keys; keys=keys->next)
-        ast_cli(fd,"%s%s%s=%s\n", indent, indent, keys->name,
+        opbx_cli(fd,"%s%s%s=%s\n", indent, indent, keys->name,
                 (char *)vh_read(dist->params,keys->name));
 
-    ast_cli(fd,"%s}\n\n",indent);
+    opbx_cli(fd,"%s}\n\n",indent);
 
-    ast_cli(fd,"%slink_fn=%p\n", indent,dist->link_fn);
-    ast_cli(fd,"%sdump_fn=%p\n", indent,dist->dump_fn);
-    ast_cli(fd,"\n%scustomers=%p (%s) {\n", indent,dist->customers, 
+    opbx_cli(fd,"%slink_fn=%p\n", indent,dist->link_fn);
+    opbx_cli(fd,"%sdump_fn=%p\n", indent,dist->dump_fn);
+    opbx_cli(fd,"\n%scustomers=%p (%s) {\n", indent,dist->customers, 
             dist->customer_list_allocated ? "alloced" : "on heap");
     if (verbosity > 1) {
         icd_member_list__dump(dist->customers, verbosity - 1, fd);
@@ -842,14 +842,14 @@ icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, 
     else 
         icd_member_list__dump(dist->customers,0, fd);
 
-    ast_cli(fd,"%s}\n\n%sagents=%p (%s) {\n", indent,indent,dist->agents,
+    opbx_cli(fd,"%s}\n\n%sagents=%p (%s) {\n", indent,indent,dist->agents,
             dist->agent_list_allocated ? "alloced" : "on heap");
     if (verbosity > 1) {
         icd_member_list__dump(dist->agents, verbosity - 1, fd);
     }
     else 
         icd_member_list__dump(dist->agents,0, fd);
-    ast_cli(fd,"%s}\n",indent);
+    opbx_cli(fd,"%s}\n",indent);
 
     return ICD_SUCCESS;
 }
@@ -1115,7 +1115,7 @@ icd_status icd_distributor__remove_caller(icd_distributor *that, icd_caller *tha
     } else if(icd_caller__has_role(that_caller, ICD_CUSTOMER_ROLE)) {
         target = that->customers;
     } else {
-        ast_log(LOG_ERROR,"HUGE ERROR! INVALID CALLER ENCOUNTERED.\n");
+        opbx_log(LOG_ERROR,"HUGE ERROR! INVALID CALLER ENCOUNTERED.\n");
         return ICD_EGENERAL;
     }
     member = icd_caller__get_member_for_distributor(that_caller, that);
@@ -1137,7 +1137,7 @@ icd_status icd_distributor__add_caller(icd_distributor *that, icd_member *new_me
     } else if(icd_caller__has_role(caller, ICD_CUSTOMER_ROLE)) {
         result = icd_member_list__push(that->customers, new_member);
     } else {
-        ast_log(LOG_WARNING,"Danger Will Robinson!  No suitable role to join distributor!");
+        opbx_log(LOG_WARNING,"Danger Will Robinson!  No suitable role to join distributor!");
     }
 
     result = icd_distributor__lock(that);
@@ -1162,7 +1162,7 @@ icd_status icd_distributor__pushback_caller(icd_distributor *that, icd_member *n
     } else if(icd_caller__has_role(caller, ICD_CUSTOMER_ROLE)) {
         result = icd_member_list__pushback(that->customers, new_member);
     } else {
-        ast_log(LOG_WARNING,"Danger Will Robinson!  No suitable role to join distributor!");
+        opbx_log(LOG_WARNING,"Danger Will Robinson!  No suitable role to join distributor!");
     }
 
     result = icd_distributor__lock(that);

@@ -10,6 +10,7 @@ AC_CONFIG_HEADER([config.h])
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
+AC_PATH_PROGS([apr-config])
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-ldl':

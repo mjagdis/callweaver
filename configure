@@ -310,7 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN RANLIB AR SH M4 SED TOPDIR build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT OPBXRUNUSER OPBXRUNGROUP ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL BUSYDETECT LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CYGPATH_W PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM mkdir_p AWK SET_MAKE am__leading_dot AMTAR am__tar am__untar GROUPADD GREP SVN RANLIB AR SH M4 SED TOPDIR build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE am__fastdepCC_TRUE am__fastdepCC_FALSE CXX CXXFLAGS ac_ct_CXX CXXDEPMODE am__fastdepCXX_TRUE am__fastdepCXX_FALSE YACC CPP LEX LEXLIB LEX_OUTPUT_ROOT OPBXRUNUSER OPBXRUNGROUP EXOLIBS ALLOCA EGREP LIBOBJS POW_LIB CPU_TYPE CPU_FAMILY CPU_MODEL CPU_NAME CPU_FLAGS CPU_VENDOR VALGRIND SOLINK ASTLINK CPU_OPTIONS all_debug DEBUG DEBUG_THREADS TRACE_FRAMES MALLOC_DEBUG OVERWRITE LOW_MEMORY PGSQL_INCLUDE PGSQL_LIBDIR HAVE_PGSQL BUSYDETECT LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -877,6 +877,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-openpbx-user=USER             use USER instead of default (openpbx)
   --with-openpbx-group=GROUP           use GROUP instead of default (openpbx)
+  --with-chan_exosip2=no		use chan_exosip2, an alternative SIP channel driver based on exosip (default=no)
   --with-mysql=DIR        Normally, configure will scan all possible default
                           installation paths for mysql. When its fail, use
                           this command to tell configure where mysql
@@ -7984,10 +7985,226 @@ fi;
 if test "x$opbx_group" != "xno" && test "x$opbx_group" != "xyes"; then
 	OPBXRUNGROUP="$opbx_group"
 fi
-
 # set vars
 
 
+
+
+#### now for the channels. you can select some channels by using with, same will be for apps and ressources
+
+### EXOSIP2 based SIP channel
+chan_exosip2="no"
+
+# Check whether --with-chan_exosip2 or --without-chan_exosip2 was given.
+if test "${with_chan_exosip2+set}" = set; then
+  withval="$with_chan_exosip2"
+  chan_exosip="$withval"
+else
+  chan_exosip2="no"
+fi;
+
+echo "$as_me:$LINENO: checking for main in -lortp" >&5
+echo $ECHO_N "checking for main in -lortp... $ECHO_C" >&6
+if test "${ac_cv_lib_ortp_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lortp  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_ortp_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_ortp_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_ortp_main" >&5
+echo "${ECHO_T}$ac_cv_lib_ortp_main" >&6
+if test $ac_cv_lib_ortp_main = yes; then
+  HAVE_ORTP="yes"
+fi
+
+echo "$as_me:$LINENO: checking for main in -losip2" >&5
+echo $ECHO_N "checking for main in -losip2... $ECHO_C" >&6
+if test "${ac_cv_lib_osip2_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-losip2  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_osip2_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_osip2_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_osip2_main" >&5
+echo "${ECHO_T}$ac_cv_lib_osip2_main" >&6
+if test $ac_cv_lib_osip2_main = yes; then
+  HAVE_OSIP2="yes"
+fi
+
+echo "$as_me:$LINENO: checking for main in -leXosip2" >&5
+echo $ECHO_N "checking for main in -leXosip2... $ECHO_C" >&6
+if test "${ac_cv_lib_eXosip2_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-leXosip2  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_eXosip2_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_eXosip2_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_eXosip2_main" >&5
+echo "${ECHO_T}$ac_cv_lib_eXosip2_main" >&6
+if test $ac_cv_lib_eXosip2_main = yes; then
+  HAVE_EXOSIP2="yes"
+fi
+
+
+if test "x$chan_exosip2" != "no" && test "x$chan_exosip2" != "x" && test "x$HAVE_ORTP" == "xyes" && test "x$HAVE_OSIP2" == "xyes" && test "x$HAVE_EXOSIP2" == "xyes"; then
+	EXOLIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
+fi
+
+
+####### apps
+
+######  icd
+#app_icd = "no"
+#AC_ARG_WITH(app_icd,
+#	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],[app_icd="$withval"],[app_icd="no"])
+#
+#
+
+##### ressources
 
 #SVN Revision number For version number
 if test -n $SVN ; then
@@ -15928,6 +16145,7 @@ s,@LEXLIB@,$LEXLIB,;t t
 s,@LEX_OUTPUT_ROOT@,$LEX_OUTPUT_ROOT,;t t
 s,@OPBXRUNUSER@,$OPBXRUNUSER,;t t
 s,@OPBXRUNGROUP@,$OPBXRUNGROUP,;t t
+s,@EXOLIBS@,$EXOLIBS,;t t
 s,@ALLOCA@,$ALLOCA,;t t
 s,@EGREP@,$EGREP,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t

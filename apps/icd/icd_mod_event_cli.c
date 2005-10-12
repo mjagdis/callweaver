@@ -29,7 +29,7 @@ int icd_module_load(icd_config_registry * registry)
 
     module_id = icd_event_factory__add_module(module_name);
     if (module_id == 0)
-        ast_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
+        opbx_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
     else {
         icd_event_factory__add_listener(event_factory, queues, icd_module__event_cli, NULL);
         ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n",module_name);

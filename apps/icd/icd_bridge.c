@@ -21,7 +21,7 @@
 #define AST_FLAG_NONATIVE (1 << 7)
 #endif
 
-/* shamelessly borrowed from real asterisk and slowly moprhed to our needs*/
+/* shamelessly borrowed from real openpbx and slowly moprhed to our needs*/
 int ok_exit_noagent(icd_caller * caller);
 int ok_exit(icd_caller * caller, char digit);
 static int say_position(icd_caller *that, int override, int waiting);
@@ -32,12 +32,12 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
     struct ast_bridge_config bridge_config;
     int res = 0;
 
-    ast_log(LOG_WARNING, "icd_bridge_call in progress...\n");
+    opbx_log(LOG_WARNING, "icd_bridge_call in progress...\n");
     chan = (ast_channel *) icd_caller__get_channel(bridger);
     peer = (ast_channel *) icd_caller__get_channel(bridgee);
 
     if (chan == NULL || peer == NULL) {
-        ast_log(LOG_WARNING, "Bridge failed not enough channels\n");
+        opbx_log(LOG_WARNING, "Bridge failed not enough channels\n");
         icd_caller__set_state(bridger, ICD_CALLER_STATE_CHANNEL_FAILED);
         icd_caller__set_state(bridgee, ICD_CALLER_STATE_CHANNEL_FAILED);
         return -1;
@@ -85,7 +85,7 @@ int icd_bridge__wait_call_agent(icd_caller * that)
     int result = 0;
 
     if (icd_debug)
-        ast_log(LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
+        opbx_log(LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
 
     icd_caller__start_waiting(that);
     for (;;) {
@@ -96,7 +96,7 @@ int icd_bridge__wait_call_agent(icd_caller * that)
             if (!(icd_caller__get_state(that) == ICD_CALLER_STATE_READY)) {
                 /*state change occured, we are just a bridgee waiting to get bridged continue waiting */
             if (icd_debug)
-              ast_log(LOG_DEBUG, "ICD Agent waiting ID[%d] changed state to [%s] \n", icd_caller__get_id(that), icd_caller__get_state_string(that));
+              opbx_log(LOG_DEBUG, "ICD Agent waiting ID[%d] changed state to [%s] \n", icd_caller__get_id(that), icd_caller__get_state_string(that));
                 if (!(icd_caller__has_role(that, ICD_BRIDGEE_ROLE)
                         && icd_caller__get_state(that) == ICD_CALLER_STATE_DISTRIBUTING)) {
                     result = -1;
@@ -160,7 +160,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
        noagent_wait_timeout= atoi(noagent_time);
     }   
     if (icd_debug)
-        ast_log(LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
+        opbx_log(LOG_DEBUG, "ICD Caller waiting is ID[%d] \n", icd_caller__get_id(that));
     icd_caller__start_waiting(that);
     start = icd_caller__get_start(that);
     for (;;) {
@@ -252,7 +252,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
         if (res < 0) {
             /* Record this abandoned call */
             if (icd_verbose > 2)
-                ast_log(LOG_WARNING, "Caller %s [%d] disconnected while waiting their turn\n",
+                opbx_log(LOG_WARNING, "Caller %s [%d] disconnected while waiting their turn\n",
                     icd_caller__get_name(that), icd_caller__get_id(that));
                 icd_jabber_send_message("[ICD_BRIDGE] HANGUP OF customer id[%d] [%s] chan_name[%s]", 
                   icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan");
@@ -276,7 +276,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
             break;
         }
         if (res == 1){ 
-          ast_log(LOG_WARNING, "Caller exit while waiting turn in line no agents available customer id[%d] [%s] \n", icd_caller__get_id(that), icd_caller__get_name(that));
+          opbx_log(LOG_WARNING, "Caller exit while waiting turn in line no agents available customer id[%d] [%s] \n", icd_caller__get_id(that), icd_caller__get_name(that));
 	  if(ok_exit_noagent(that)){
             icd_jabber_send_message("[ICD_BRIDGE] NOAGENT TIMEOUT customer id[%d] [%s] chan_name[%s] go to priority [%d]", 
                  icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan->priority);
@@ -295,7 +295,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
 
         if (ok_exit(that, res)) {
             icd_jabber_send_message("[ICD_BRIDGE] EXIT customer id[%d] [%s] chan_name[%s] go to extension [%d]", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", res);
-            ast_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
+            opbx_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
             icd_caller__stop_waiting(that);
             icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);     /* todo new exit code */
             break;
@@ -305,7 +305,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
     if(res == 116){ /*Timeout  */
         if (ok_exit(that, res)) {
             icd_jabber_send_message("[ICD_BRIDGE] TIMEOUT customer id[%d] [%s] chan_name[%s] go to extension [t]", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan");
-            ast_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
+            opbx_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
 	}  
 	else {
             icd_jabber_send_message("[ICD_BRIDGE] TIMEOUT customer id[%d] [%s] chan_name[%s] no extension", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan");
@@ -327,7 +327,7 @@ int icd_bridge_wait_ack(icd_caller * that)
 
     assert(chan != NULL);
     if (icd_debug)
-        ast_log(LOG_DEBUG, "ICD Agent waiting for acknowledgment is ID  %d\n", icd_caller__get_id(that));
+        opbx_log(LOG_DEBUG, "ICD Agent waiting for acknowledgment is ID  %d\n", icd_caller__get_id(that));
     
     time(&start_time);	
     max_wait_ack = icd_caller__get_timeout(that)/1000; /*converting from milisec to seconds */	
@@ -382,7 +382,7 @@ int icd_bridge_wait_ack(icd_caller * that)
     return 0;	 
 }
 
-//! An asterisk-specific method to translate text strings into a channel
+//! An openpbx-specific method to translate text strings into a channel
 /*!
  * There are two ways to get a channel. The first uses the channel string,
  * which divvies up into a protocol (type) and data that is specific for the
@@ -393,10 +393,10 @@ int icd_bridge_wait_ack(icd_caller * that)
  * /param context a context as defined by the dialplan
  * /param priority the priority that identifies lines in the dialplan
  * /param extension the extension in the dialplan to look at
- * /return an asterisk channel or NULL on failure
+ * /return an openpbx channel or NULL on failure
  * /todo implement the local channel method for getting a channel
  */
-struct ast_channel *icd_bridge_get_asterisk_channel(char *chanstring, char *context, char *priority,
+struct ast_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *context, char *priority,
     char *extension)
 {
     struct ast_channel *chan = NULL;
@@ -422,26 +422,26 @@ struct ast_channel *icd_bridge_get_asterisk_channel(char *chanstring, char *cont
     }
     /* Nope. Figure out why and report. */
     if (type != NULL && data != NULL) {
-        ast_log(LOG_NOTICE, "ICD REQUEST: Unable to request channel %s/%s\n", type, (char *) data);
+        opbx_log(LOG_NOTICE, "ICD REQUEST: Unable to request channel %s/%s\n", type, (char *) data);
     } else if (chanstring != NULL) {
-        ast_log(LOG_NOTICE, "ICD REQUEST: Channel '%s' not specified in type/data format\n", chanstring);
+        opbx_log(LOG_NOTICE, "ICD REQUEST: Channel '%s' not specified in type/data format\n", chanstring);
     } else {
-        ast_log(LOG_NOTICE, "ICD REQUEST: Local Channel creation not yet supported\n");
+        opbx_log(LOG_NOTICE, "ICD REQUEST: Local Channel creation not yet supported\n");
     }
     return NULL;
 }
 
-//! Bring up an asterisk channel
+//! Bring up an openpbx channel
 /*!
- * Ask the low levels of asterisk to ring a channel
+ * Ask the low levels of openpbx to ring a channel
  * until it comes up or we don't care any more.
  *
  * \param caller the caller object
  * \param chanstring the address to ring
  * \param timeout how long in milliseconds to wait before timing out
- * \return asterisk channel state
+ * \return openpbx channel state
  */
-int icd_bridge_dial_asterisk_channel(icd_caller * that, char *chanstring, int timeout)
+int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int timeout)
 {
     //struct ast_channel *newchan;
     struct ast_channel *chan;
@@ -476,7 +476,7 @@ int icd_bridge_dial_asterisk_channel(icd_caller * that, char *chanstring, int ti
         }
     }
     if (addr == NULL) {
-        ast_log(LOG_WARNING, "ICD REQUEST: Could not identify address in channel [%s]\n", chanstring);
+        opbx_log(LOG_WARNING, "ICD REQUEST: Could not identify address in channel [%s]\n", chanstring);
         return state;
     }
 
@@ -485,9 +485,9 @@ int icd_bridge_dial_asterisk_channel(icd_caller * that, char *chanstring, int ti
     result = ast_call(chan, addr, 0);
     if (result < 0) {
         if (chanstring != NULL) {
-            ast_log(LOG_WARNING, "ICD REQUEST: Unable to ring channel %s\n", chanstring);
+            opbx_log(LOG_WARNING, "ICD REQUEST: Unable to ring channel %s\n", chanstring);
         } else {
-            ast_log(LOG_WARNING, "ICD REQUEST: Unable to ring local channel\n");
+            opbx_log(LOG_WARNING, "ICD REQUEST: Unable to ring local channel\n");
         }
         return state;
     }
@@ -516,7 +516,7 @@ int icd_bridge_dial_asterisk_channel(icd_caller * that, char *chanstring, int ti
         /* make sure the guy this is for still is there to take it */
         /* BCA - this has never worked and the algorithm can't. How can we make this check?
            if(peer && req_state >= 0 && (icd_caller__get_state(peer) != req_state)) {
-           ast_log(LOG_WARNING,"lost my peer while dialing, nevermind!");
+           opbx_log(LOG_WARNING,"lost my peer while dialing, nevermind!");
            state = AST_CONTROL_HANGUP;
            result = 0;
            if (f != NULL) {
@@ -578,7 +578,7 @@ int icd_bridge_dial_asterisk_channel(icd_caller * that, char *chanstring, int ti
        ast_cdr_failed(chan->cdr);
        }
        } else {
-       ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+       opbx_log(LOG_WARNING, "Unable to create Call Detail Record\n");
        }
        icd_bridge__safe_hangup(that);
        }
@@ -711,7 +711,7 @@ void icd_bridge__safe_hangup(icd_caller * caller)
         return;
 
     if (icd_debug)
-        ast_log(LOG_DEBUG, "Caller id[%d] [%s]Hangup called on chan[%s]\n", icd_caller__get_id(caller),
+        opbx_log(LOG_DEBUG, "Caller id[%d] [%s]Hangup called on chan[%s]\n", icd_caller__get_id(caller),
             icd_caller__get_name(caller), oldchan->name);
 
     /* 
@@ -762,7 +762,7 @@ int ok_exit_noagent(icd_caller * that)
         && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
         chan->priority += 100;
         if (icd_verbose > 2)
-            ast_log(LOG_WARNING, "Caller %s [%d] has no agents to service call exit to busy priority\n",
+            opbx_log(LOG_WARNING, "Caller %s [%d] has no agents to service call exit to busy priority\n",
                 icd_caller__get_name(that), icd_caller__get_id(that));
         return 1;
     }
@@ -785,7 +785,7 @@ int ok_exit(icd_caller * that, char digit)
     tmp[1] = '\0';
 
     if (chan != NULL && ast_exists_extension(chan, context, tmp, 1, chan->cid.cid_num)) {
-        ast_log(LOG_WARNING, "Found digit exit context[%s] exten[%s]\n", context, tmp);
+        opbx_log(LOG_WARNING, "Found digit exit context[%s] exten[%s]\n", context, tmp);
         /* possible race here caller might hangup while we figure things out */
         if (!ast_mutex_trylock(&chan->lock)) {
             strncpy(chan->context, context, sizeof(chan->context) - 1);
@@ -825,7 +825,7 @@ static int say_position(icd_caller * that, int override, int waiting)
 
         /*
            if (queue == NULL) {
-           ast_log(LOG_NOTICE, "Caller %d [%s] asked to say Position but does not have an active Queue \n",
+           opbx_log(LOG_NOTICE, "Caller %d [%s] asked to say Position but does not have an active Queue \n",
            icd_caller__get_id(that), icd_caller__get_name(that));
            return -1
            }

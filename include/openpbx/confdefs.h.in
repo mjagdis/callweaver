@@ -477,7 +477,7 @@
 /* for stupid ast-db1 */
 #undef __BEGIN_DECLS
 
-/* for the palces where it is not defined */
+/* for the places where it is not defined */
 #undef __BIG_ENDIAN
 
 /* Little Endian */

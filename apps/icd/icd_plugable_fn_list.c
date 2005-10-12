@@ -50,7 +50,7 @@ icd_plugable_fn_list *create_icd_plugable_fn_list(char *name, icd_config * data)
     ICD_MALLOC(list, sizeof(icd_plugable_fn_list));
 
     if (list == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create a new ICD plugable_fn_list \n");
+        opbx_log(LOG_ERROR, "No memory available to create a new ICD plugable_fn_list \n");
         return NULL;
     }
 
@@ -236,7 +236,7 @@ static int icd_plugable_fn_list__identify_name(void *key, void *payload)
     plugable_fns = (icd_plugable_fn *) payload;
     name = icd_plugable__get_name(plugable_fns);
     /*
-       ast_log(LOG_NOTICE, "Find Funcs By Name/Key[%s, %s], readyfunc=%p\n",
+       opbx_log(LOG_NOTICE, "Find Funcs By Name/Key[%s, %s], readyfunc=%p\n",
        name,(char *)key,  plugable_fns->state_ready_fn );
      */
     return (strcmp(name, key) == 0);

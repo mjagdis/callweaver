@@ -111,7 +111,7 @@ AC_CHECK_LIB([z], [main])
 
 AC_C_BIGENDIAN(AC_DEFINE([__BYTE_ORDER],__BIG_ENDIAN,[Big Endian]),AC_DEFINE([__BYTE_ORDER],__LITTLE_ENDIAN,[Little Endian]))
 AC_DEFINE([__LITTLE_ENDIAN],1234,[for the places where it is not defined])
-AC_DEFINE([__BIG_ENDIAN],4321,[for the palces where it is not defined])
+AC_DEFINE([__BIG_ENDIAN],4321,[for the places where it is not defined])
 
 
 ### Overwrite your config files with the samples provided
@@ -189,10 +189,37 @@ AC_ARG_WITH(openpbx-group,
 if test "x$opbx_group" != "xno" && test "x$opbx_group" != "xyes"; then
 	OPBXRUNGROUP="$opbx_group"
 fi
-
 # set vars
 AC_SUBST(OPBXRUNUSER)
-AC_SUBST(OPBXRUNGROUP)
+AC_SUBST(OPBXRUNGROUP)  
+
+
+#### now for the channels. you can select some channels by using with, same will be for apps and ressources
+
+### EXOSIP2 based SIP channel
+chan_exosip2="no"
+AC_ARG_WITH(chan_exosip2,
+	[  --with-chan_exosip2=no		use chan_exosip2, an alternative SIP channel driver based on exosip (default=no)],[chan_exosip="$withval"],[chan_exosip2="no"])
+
+AC_CHECK_LIB(ortp, [main],[HAVE_ORTP="yes"])
+AC_CHECK_LIB(osip2,[main],[HAVE_OSIP2="yes"])
+AC_CHECK_LIB(eXosip2,[main],[HAVE_EXOSIP2="yes"])
+
+if test "x$chan_exosip2" != "no" && test "x$chan_exosip2" != "x" && test "x$HAVE_ORTP" == "xyes" && test "x$HAVE_OSIP2" == "xyes" && test "x$HAVE_EXOSIP2" == "xyes"; then
+	EXOLIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
+fi
+
+AC_SUBST([EXOLIBS])
+####### apps
+
+######  icd
+#app_icd = "no"
+#AC_ARG_WITH(app_icd,
+#	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],[app_icd="$withval"],[app_icd="no"])
+#
+#
+
+##### ressources
 
 #SVN Revision number For version number
 if test -n $SVN ; then

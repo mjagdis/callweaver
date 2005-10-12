@@ -81,7 +81,7 @@ icd_customer *create_icd_customer(icd_config * data)
     ICD_MALLOC(customer, sizeof(icd_customer));
 
     if (customer == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create a new ICD Customer\n");
+        opbx_log(LOG_ERROR, "No memory available to create a new ICD Customer\n");
         return NULL;
     }
     customer->allocated = 1;
@@ -102,7 +102,7 @@ icd_status destroy_icd_customer(icd_customer ** customerp)
     assert((*customerp) != NULL);
 
     if ((*customerp)->caller.params && (*customerp)->caller.params->allocated) {
-        /*      ast_log(LOG_WARNING,"caller destroyer freeing hash memory\n"); */
+        /*      opbx_log(LOG_WARNING,"caller destroyer freeing hash memory\n"); */
         vh_destroy(&(*customerp)->caller.params);
     }
 
@@ -257,11 +257,11 @@ icd_plugable_fn *icd_customer_get_plugable_fns(icd_caller * that)
 
     if (plugable_fns == NULL) {
         if (icd_verbose > 4)
-            ast_log(LOG_NOTICE, "Customer Caller %d [%s] has no plugable fn aborting ala crash\n",
+            opbx_log(LOG_NOTICE, "Customer Caller %d [%s] has no plugable fn aborting ala crash\n",
                 icd_caller__get_id(that), icd_caller__get_name(that));
     } else {
         if (icd_verbose > 4)
-            ast_log(LOG_NOTICE,
+            opbx_log(LOG_NOTICE,
                 "\nCustomer Caller %d [%s] using icd_customer_get_plugable_fns[%s] ready_fn[%p] for Dist[%s]\n",
                 icd_caller__get_id(that), icd_caller__get_name(that), icd_plugable__get_name(plugable_fns),
                 plugable_fns->state_ready_fn, dist_name);
@@ -336,7 +336,7 @@ icd_status icd_customer__standard_cleanup_caller(icd_caller * that)
 {
     assert(that != NULL);
     if (icd_debug)
-        ast_log(LOG_DEBUG,
+        opbx_log(LOG_DEBUG,
             "Caller %d [%s] has a customer role with no pushback needed, exit icd thread finished \n",
             icd_caller__get_id(that), icd_caller__get_name(that));
 
@@ -356,7 +356,7 @@ icd_customer *icd_customer__generate_queued_call(char *id, char *queuename, char
     char key[30];
 
     if (!queuename) {
-        ast_log(LOG_ERROR, "Invalid Parameters\n");
+        opbx_log(LOG_ERROR, "Invalid Parameters\n");
         return NULL;
     }
     if (dialstr)
@@ -372,7 +372,7 @@ icd_customer *icd_customer__generate_queued_call(char *id, char *queuename, char
     queue = (icd_queue *) icd_fieldset__get_value(queues, queuename);
 
     if (queue == NULL) {
-        ast_log(LOG_ERROR, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
+        opbx_log(LOG_ERROR, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
         return NULL;
     }
 

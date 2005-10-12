@@ -88,7 +88,7 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
             customer_caller = icd_member__get_caller(customer);
 	}    
         if (customer == NULL || customer_caller == NULL) {
-            ast_log(LOG_ERROR, "MatchAgent Distributor %s could not retrieve customer from list\n",
+            opbx_log(LOG_ERROR, "MatchAgent Distributor %s could not retrieve customer from list\n",
                     icd_distributor__get_name(dist));
                 continue;
         }
@@ -96,13 +96,13 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
         tmp_str = icd_caller__get_param(customer_caller, "identifier");
 	
         if (tmp_str == NULL) {
-            ast_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that customer [%s] has no identifier\n",
+            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that customer [%s] has no identifier\n",
                 icd_distributor__get_name(dist), icd_caller__get_name(customer_caller));
                 continue;
             }
         agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);   
         if (agent_caller == NULL) {
-            ast_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in ICD\n",
+            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in ICD\n",
                 icd_distributor__get_name(dist), tmp_str);
                 continue;
             }
@@ -111,14 +111,14 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 	}       
         agent = icd_caller__get_member_for_distributor(agent_caller, dist);
 	if ((agent==NULL) || (icd_distributor__agent_position(dist, (icd_agent *) agent_caller) < 0)) {
-/*            ast_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
+/*            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
                 icd_distributor__get_name(dist), tmp_str);
 */                
 		continue;
             }
         result = icd_member__distribute(agent);
         if (result != ICD_SUCCESS) {
-            ast_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
+            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
                 icd_distributor__get_name(dist), tmp_str);
                 continue;
         }
@@ -160,7 +160,7 @@ icd_status distribute_customer_match_agent(icd_distributor * dist,
     } else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
         result = icd_caller__bridge(agent_caller);
     } else {
-        ast_log(LOG_ERROR, "MatchAgent Distributor %s found no bridger responsible to bridge call\n",
+        opbx_log(LOG_ERROR, "MatchAgent Distributor %s found no bridger responsible to bridge call\n",
             icd_distributor__get_name(dist));
         return ICD_EGENERAL;
     }

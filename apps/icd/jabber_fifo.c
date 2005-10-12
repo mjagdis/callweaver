@@ -44,9 +44,9 @@ int
 test (int argc, char *argv[])
 {
   int i;
-    ast_log(LOG_WARNING, "parameters count: %i, function name: %s\n", argc, argv[0]);
+    opbx_log(LOG_WARNING, "parameters count: %i, function name: %s\n", argc, argv[0]);
   for (i = 1; i < argc; i++)
-      ast_log(LOG_WARNING, "parametr %i = '%s'\n", i, argv[i]);
+      opbx_log(LOG_WARNING, "parametr %i = '%s'\n", i, argv[i]);
   return 0;
 }
 
@@ -54,9 +54,9 @@ int
 test2 (int argc, char *argv[])
 {
   int i;
-    ast_log(LOG_WARNING, "wlasnie wywolales funkcje test2\n");
+    opbx_log(LOG_WARNING, "wlasnie wywolales funkcje test2\n");
   for (i = 1; i < argc; i++)
-    ast_log(LOG_WARNING, "prametr %i = '%s'\n", i, argv[i]);
+    opbx_log(LOG_WARNING, "prametr %i = '%s'\n", i, argv[i]);
   return 1;
 }
 // --stop--
@@ -135,7 +135,7 @@ run_func (char *func)
 
   while (tmp3->next != NULL)
     {
-	ast_log(LOG_WARNING, "funkcja: %s - szukana %s\n", tmp3->nazwa_funkcji, s);
+	opbx_log(LOG_WARNING, "funkcja: %s - szukana %s\n", tmp3->nazwa_funkcji, s);
       if (strcmp (tmp3->nazwa_funkcji, s) == 0)
         {
           tmp3->funkcja (p->argc, p->argv);
@@ -143,7 +143,7 @@ run_func (char *func)
         }
       tmp3 = tmp3->next;
     }
-  ast_log(LOG_WARNING, "unknown funcion name\n");
+  opbx_log(LOG_WARNING, "unknown funcion name\n");
 }
 // --stop--
 
@@ -200,7 +200,7 @@ handle_messages (LmMessageHandler *handler,
 	node = lm_message_node_get_child(m->node, "body");
 	body = node->value;
       sprintf(s, "\nIncoming message from: %s - message: '%s'\n",lm_message_node_get_attribute (m->node, "from"), body);
-        ast_log(LOG_WARNING, s);
+        opbx_log(LOG_WARNING, s);
         run_func(body);
 
 return LM_HANDLER_RESULT_REMOVE_MESSAGE;

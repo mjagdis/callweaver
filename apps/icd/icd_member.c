@@ -84,7 +84,7 @@ icd_member *create_icd_member(icd_queue * queue, icd_caller * caller, icd_config
     /* make a new member object from scratch */
     ICD_MALLOC(member, sizeof(icd_member));
     if (member == NULL) {
-        ast_log(LOG_ERROR, "No memory available to create a new ICD Member\n");
+        opbx_log(LOG_ERROR, "No memory available to create a new ICD Member\n");
         return NULL;
     }
     member->allocated = 1;
@@ -123,7 +123,7 @@ icd_status destroy_icd_member(icd_member ** memberp)
         icd_event_factory__generate(event_factory, *memberp, (*memberp)->name, module_id, ICD_EVENT_DESTROY, NULL,
         (*memberp)->listeners, NULL);
     if (vetoed == ICD_EVETO) {
-        ast_log(LOG_NOTICE, "Destruction of ICD Member %s has been vetoed\n", icd_member__get_name(*memberp));
+        opbx_log(LOG_NOTICE, "Destruction of ICD Member %s has been vetoed\n", icd_member__get_name(*memberp));
         return ICD_EVETO;
     }
 
@@ -217,7 +217,7 @@ icd_status icd_member__clear(icd_member * that)
         that->state = ICD_MEMBER_STATE_CLEARED;
         return ICD_SUCCESS;
     }
-    ast_log(LOG_WARNING, "Unable to get a lock on ICD Member %s in order to clear it\n",
+    opbx_log(LOG_WARNING, "Unable to get a lock on ICD Member %s in order to clear it\n",
         icd_member__get_name(that));
     return ICD_ELOCK;
 }
