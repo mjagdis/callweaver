@@ -343,7 +343,12 @@ AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([netinet/in.h])
-AC_CHECK_HEADERS([w32api/winsock2.h])
+AC_CHECK_HEADERS([w32api/windows.h])
+AC_CHECK_HEADERS([w32api/winsock2.h],[],[],
+[#if HAVE_W32API_WINDOWS_H
+# include <w32api/windows.h>
+# endif
+])
 AC_CHECK_HEADERS([w32api/ws2tcpip.h],[],[],
 [#if HAVE_W32API_WINSOCK2_H
 # include <w32api/winsock2.h>
@@ -368,14 +373,14 @@ AC_CHECK_DECLS(INET_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 # endif
 #if HAVE_W32API_WS32TCPIP_H
-# include w32api\ws2tcpip.h
+# include w32api/ws2tcpip.h
 #endif
 ])
 AC_CHECK_DECLS(INET6_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 # endif
 #if HAVE_W32API_WS32TCPIP_H
-# include w32api\ws2tcpip.h
+# include w32api/ws2tcpip.h
 #endif
 ])   
 AC_CHECK_DECLS(__BEGIN_DECLS,[],AC_DEFINE(__BEGIN_DECLS,,[for stupid ast-db1]))

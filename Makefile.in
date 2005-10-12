@@ -248,7 +248,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	opbxmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
-	netsock.o slinfactory.o opbx_expr2.o opbx_expr2f.o
+	netsock.o resonator.o slinfactory.o opbx_expr2.o opbx_expr2f.o
 
 ifeq ($(wildcard /usr/include/sys/poll.h),)
   OBJS+= poll.o
