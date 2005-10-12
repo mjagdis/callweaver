@@ -37,7 +37,7 @@
 #define	_DB_H 1
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
+/* #include <sys/cdefs.h> */
 
 #include <limits.h>
 
@@ -46,6 +46,10 @@
 #endif
 
 #include "openpbx/confdefs.h"
+#ifdef SOLARIS
+#define quad_t int64_t
+#define __P(p) p      
+#endif 
 
 #define	RET_ERROR	-1		/* Return values. */
 #define	RET_SUCCESS	 0

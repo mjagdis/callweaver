@@ -41,6 +41,14 @@
    you don't. */
 #undef HAVE_DECL_INET_ADDRSTRLEN
 
+/* Define to 1 if you have the declaration of `__BEGIN_DECLS', and to 0 if you
+   don't. */
+#undef HAVE_DECL___BEGIN_DECLS
+
+/* Define to 1 if you have the declaration of `__END_DECLS', and to 0 if you
+   don't. */
+#undef HAVE_DECL___END_DECLS
+
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
@@ -378,7 +386,10 @@
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
-/* Define to 1 if you have the <w32api\ws2tcpip.h> header file. */
+/* Define to 1 if you have the <w32api/winsock2.h> header file. */
+#undef HAVE_W32API_WINSOCK2_H
+
+/* Define to 1 if you have the <w32api/ws2tcpip.h> header file. */
 #undef HAVE_W32API_WS2TCPIP_H
 
 /* Define to 1 if `fork' works. */
@@ -454,11 +465,17 @@
 /* Heya, it's windows */
 #undef _WIN32_WINNT
 
+/* for stupid ast-db1 */
+#undef __BEGIN_DECLS
+
 /* for the palces where it is not defined */
 #undef __BIG_ENDIAN
 
 /* Little Endian */
 #undef __BYTE_ORDER
+
+/* for stupid ast-db1 */
+#undef __END_DECLS
 
 /* for the places where it is not defined */
 #undef __LITTLE_ENDIAN

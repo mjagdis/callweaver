@@ -342,7 +342,13 @@ AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([netinet/in.h  w32api\ws2tcpip.h])
+AC_CHECK_HEADERS([netinet/in.h])
+AC_CHECK_HEADERS([w32api/winsock2.h])
+AC_CHECK_HEADERS([w32api/ws2tcpip.h],[],[],
+[#if HAVE_W32API_WINSOCK2_H
+# include <w32api/winsock2.h>
+# endif
+])
 #AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -372,6 +378,8 @@ AC_CHECK_DECLS(INET6_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
 # include w32api\ws2tcpip.h
 #endif
 ])   
+AC_CHECK_DECLS(__BEGIN_DECLS,[],AC_DEFINE(__BEGIN_DECLS,,[for stupid ast-db1]))
+AC_CHECK_DECLS(__END_DECLS,[],AC_DEFINE(__END_DECLS,,[for stupid ast-db1])) 
 # Now comes the types check, horrible shit
 if test "$tru64_types" = "yes"; then
         AC_CHECK_TYPE(u_int8_t, unsigned char)
