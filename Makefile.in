@@ -205,7 +205,6 @@ endif
 
 ifeq (${OSARCH},SunOS)
   ASTCFLAGS+=-Wcast-align -DSOLARIS
-  INCLUDE+=-Iinclude/solaris-compat 
 endif
 
 ifneq ($(wildcard /usr/include/linux/zaptel.h)$(wildcard /usr/local/include/zaptel.h)$(wildcard /usr/pkg/include/zaptel.h),)
