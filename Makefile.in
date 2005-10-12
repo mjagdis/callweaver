@@ -29,23 +29,11 @@ LIBS=@LIBS@
 
 # Create OPTIONS variable
 OPTIONS=
-# If cross compiling, define these to suit
-# CROSS_COMPILE=/opt/montavista/pro/devkit/arm/xscale_be/bin/xscale_be-
-# CROSS_COMPILE_BIN=/opt/montavista/pro/devkit/arm/xscale_be/bin/
-# CROSS_COMPILE_TARGET=/opt/montavista/pro/devkit/arm/xscale_be/target
-CC=$(CROSS_COMPILE)gcc
+CC=gcc
 HOST_CC=gcc
-# CROSS_ARCH=Linux
-# CROSS_PROC=arm
-# SUB_PROC=xscale # or maverick
 
-ifeq ($(CROSS_COMPILE),)
-  OSARCH=$(shell uname -s)
-  OSREV=$(shell uname -r)
-else
-  OSARCH=$(CROSS_ARCH)
-  OSREV=$(CROSS_REV)
-endif
+OSARCH=$(shell uname -s)
+OSREV=$(shell uname -r)
 
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
@@ -68,10 +56,6 @@ SVN=@SVN@
 DEBUG=@DEBUG@
 
 OPTIONS += @LOW_MEMORY@
-
-#ifneq ($(CROSS_COMPILE),)
-#OPTIONS += -DLOW_MEMORY
-#endif
 
 # Optional debugging parameters
 DEBUG_THREADS = @DEBUG_THREADS@
@@ -158,11 +142,7 @@ ifneq ($(wildcard ~/.openpbx.makeopts),)
 endif
 
 ifeq (${OSARCH},Linux)
-  ifeq ($(CROSS_COMPILE),)
-    PROC?=$(shell uname -m)
-  else
-    PROC=$(CROSS_PROC)
-  endif
+   PROC?=$(shell uname -m)
 
   ifeq ($(PROC),x86_64)
     # You must have GCC 3.4 to use k8, otherwise use athlon
@@ -206,7 +186,7 @@ ASTCFLAGS+=$(OPTIMIZE)
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   PROC=$(shell uname -m)
-  ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  ASTCFLAGS+=-I/usr/local/include -L/usr/local/lib
 endif
 
 ifneq ($(PROC),ultrasparc)
@@ -217,27 +197,27 @@ ifeq ($(PROC),ppc)
   ASTCFLAGS+=-fsigned-char
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h),)
-  ASTCFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/local/include/osp
+ifneq ($(wildcard /usr/local/include/osp/osp.h),)
+  ASTCFLAGS+=-DOSP_SUPPORT -I/usr/local/include/osp
 else
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
-    ASTCFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp
+  ifneq ($(wildcard /usr/include/osp/osp.h),)
+    ASTCFLAGS+=-DOSP_SUPPORT -I/usr/include/osp
   endif
 endif
 
 ifeq (${OSARCH},FreeBSD)
-  BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
+  BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
   ASTCFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-  #LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
-    ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
+  LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
+  ifneq ($(wildcard /usr/local/include/spandsp),)
+    ASTCFLAGS+=-I/usr/local/include/spandsp
   endif
   MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
   ASTCFLAGS+=-pthread
-  INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/pkg/include
+  INCLUDE+=-I/usr/pkg/include
   MPG123TARG=netbsd
 endif
 
@@ -247,10 +227,10 @@ endif
 
 ifeq (${OSARCH},SunOS)
   ASTCFLAGS+=-Wcast-align -DSOLARIS
-  INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+  INCLUDE+=-Iinclude/solaris-compat 
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
+ifneq ($(wildcard /usr/include/linux/zaptel.h)$(wildcard /usr/local/include/zaptel.h)$(wildcard /usr/pkg/include/zaptel.h),)
   ASTCFLAGS+=-DZAPTEL_OPTIMIZATIONS
 endif
 
@@ -293,28 +273,17 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
 	netsock.o slinfactory.o opbx_expr2.o opbx_expr2f.o
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
+ifeq ($(wildcard /usr/include/sys/poll.h),)
   OBJS+= poll.o
   ASTCFLAGS+=-DPOLLCOMPAT
 endif
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
+ifeq ($(wildcard /usr/include/dlfcn.h),)
   OBJS+= dlfcn.o
   ASTCFLAGS+=-DDLFCNCOMPAT
 endif
 
-ifeq (${OSARCH},Linux)
-  #LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
-else
- ifeq (${OSARCH},SunOS)
-   #LIBS+=-lcurses -lm
- else
-  #LIBS+=-lncurses -lm
- endif
-endif
-
 ifeq (${OSARCH},Darwin)
-  #LIBS+=-lresolv
   ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
   ASTLINK=-Wl,-dynamic
@@ -325,30 +294,16 @@ else
   SOLINK=-shared -Xlinker -x
 endif
 
-ifeq (${OSARCH},FreeBSD)
-  #LIBS+=-lcrypto
-endif
-
-ifeq (${OSARCH},NetBSD)
-  #LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
-endif
-
-ifeq (${OSARCH},OpenBSD)
-  #LIBS+=-lcrypto -lpthread -lm -lncurses
-endif
-
 ifeq (${OSARCH},SunOS)
-  #LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
   ASTLINK=
-  SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  SOLINK=-shared -fpic -L/usr/local/ssl/lib
 endif
 
 ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
   CFLAGS+=$(ASTCFLAGS)
 endif
 
-#LIBS+=-lssl
 
 
 _all: all
