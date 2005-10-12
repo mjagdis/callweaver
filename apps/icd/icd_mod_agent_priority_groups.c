@@ -82,7 +82,7 @@ int icd_module_load(icd_config_registry * registry)
     if (module_id == 0)
         opbx_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
 
-    ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n", icd_module_strings[module_id]);
+    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n", icd_module_strings[module_id]);
 
     return 0;
 }
@@ -96,7 +96,7 @@ int icd_module_unload(void)
     icd_plugable__clear_fns(&icd_module_plugable_fns);
     icd_plugable__clear_fns(&icd_module_agent_plugable_fns);
     icd_plugable__clear_fns(&icd_module_customer_plugable_fns);
-    ast_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[[agentprioritygroups]!\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[[agentprioritygroups]!\n");
 
     return 0;
 
@@ -153,7 +153,7 @@ static icd_status init_icd_distributor_agent_priority_groups(icd_distributor * t
     result = icd_plugable__set_state_bridge_failed_fn(plugable_fns, icd_module__state_bridge_failed, NULL);
 
     icd_distributor__create_thread(that);
-    ast_verbose(VERBOSE_PREFIX_3 "ICD Distributor[%s] Initialized !\n", name);
+    opbx_verbose(VERBOSE_PREFIX_3 "ICD Distributor[%s] Initialized !\n", name);
 
     return ICD_SUCCESS;
 }
@@ -371,7 +371,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
         /* Figure out who the bridger is, and who the bridgee is */
         result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
-        ast_verbose(VERBOSE_PREFIX_3 "Distributor[%s] Link CustomerID[%d] to AgentID[%d]\n",
+        opbx_verbose(VERBOSE_PREFIX_3 "Distributor[%s] Link CustomerID[%d] to AgentID[%d]\n",
             icd_distributor__get_name(dist), cust_id, agent_id);
         if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
             result = icd_caller__bridge(customer_caller);
@@ -411,8 +411,8 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
     icd_caller *that;
     icd_caller *associate;
     icd_list_iterator *iter;
-    struct ast_channel *chan;
-    struct ast_channel *chan_associate;
+    struct opbx_channel *chan;
+    struct opbx_channel *chan_associate;
     icd_status result;
     icd_status final_result;
 
@@ -437,7 +437,7 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
             switch (icd_caller__get_bridge_technology(that)) {
             case ICD_BRIDGE_STANDARD:
                 chan_associate = icd_caller__get_channel(associate);
-                if (chan && chan_associate && chan->name != ast_bridged_channel(chan_associate)->name) {
+                if (chan && chan_associate && chan->name != opbx_bridged_channel(chan_associate)->name) {
                     result = icd_caller__unlink_from_caller(that, associate);
                     if (result != ICD_SUCCESS)
                         final_result = result;
@@ -474,8 +474,8 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
     icd_caller *associate;
     icd_list_iterator *iter;
 
-    struct ast_channel *chan;
-    struct ast_channel *chan_associate;
+    struct opbx_channel *chan;
+    struct opbx_channel *chan_associate;
     int link_count = 0;
     icd_status result;
     icd_status final_result;
@@ -506,7 +506,7 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
             switch (icd_caller__get_bridge_technology(that)) {
             case ICD_BRIDGE_STANDARD:
                 chan_associate = icd_caller__get_channel(associate);
-                if (chan && chan_associate && chan->name != ast_bridged_channel(chan_associate)->name) {
+                if (chan && chan_associate && chan->name != opbx_bridged_channel(chan_associate)->name) {
                     result = icd_caller__unlink_from_caller(that, associate);
                     if (result != ICD_SUCCESS)
                         final_result = result;

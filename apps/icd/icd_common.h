@@ -47,18 +47,18 @@
 #include <icd_jabber.h>
 
 /* 
-   Support for pre/post 1.0 rendition of ast_set_(read/write)_format.
+   Support for pre/post 1.0 rendition of opbx_set_(read/write)_format.
    Add the CFLAG -DAST_POST_10 in make.conf to get the 3 arg version *default*
    or comment it to get the 2 arg version.
    This is obsolete as of 06/01/2004 do we nuke this macros 
 */
 
 #ifdef AST_POST_10
-#define icd_set_read_format(chan,fmt) ast_set_read_format(chan,fmt,0);
-#define icd_set_write_format(chan,fmt) ast_set_write_format(chan,fmt,0);
+#define icd_set_read_format(chan,fmt) opbx_set_read_format(chan,fmt,0);
+#define icd_set_write_format(chan,fmt) opbx_set_write_format(chan,fmt,0);
 #else
-#define icd_set_read_format(chan,fmt) ast_set_read_format(chan,fmt);
-#define icd_set_write_format(chan,fmt) ast_set_write_format(chan,fmt);
+#define icd_set_read_format(chan,fmt) opbx_set_read_format(chan,fmt);
+#define icd_set_write_format(chan,fmt) opbx_set_write_format(chan,fmt);
 #endif
 #endif
 

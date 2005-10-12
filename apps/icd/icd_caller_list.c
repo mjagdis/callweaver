@@ -421,7 +421,7 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
     /* TBD Print these as well (though don't descend on dist)
        icd_distributor *dist;
        int (*state_fn)(icd_caller *caller, int oldstate, int newstate);
-       int (*chan_fn)(icd_caller *caller, ast_channel *chan);
+       int (*chan_fn)(icd_caller *caller, opbx_channel *chan);
        int (*link_fn)(icd_caller *caller, icd_caller *associate);
        int (*bridge_fn)(icd_caller *caller, icd_caller *bridged_to);
        int (*authn_fn)(icd_caller *caller, int id);

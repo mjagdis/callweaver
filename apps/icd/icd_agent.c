@@ -181,7 +181,7 @@ icd_status init_icd_agent(icd_agent * that, icd_config * data)
     init = (icd_status(*)(icd_agent * that, icd_config * data))
         icd_config__get_value(data, "agents.init");
     if (init != NULL) {
-        ast_verbose(VERBOSE_PREFIX_1 "Agent plugable init for [%s] \n", icd_caller__get_name(caller));
+        opbx_verbose(VERBOSE_PREFIX_1 "Agent plugable init for [%s] \n", icd_caller__get_name(caller));
         return init(that, data);
     }
 
@@ -429,7 +429,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
     char res;
     char *pos = NULL;
     int cleanup_required = 0;
-    ast_channel * chan;
+    opbx_channel * chan;
     
     assert(event != NULL);
     that = icd_event__get_source(event);
@@ -443,18 +443,18 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
 //    icd_bridge__safe_hangup(that);
     chan = icd_caller__get_channel(that);
     if (/*icd_caller__get_onhook(that) == 0 && */ chan){
-//        ast_stopstream(chan);
-//        ast_deactivate_generator(chan);
-//        ast_clear_flag(chan , AST_FLAG_BLOCKING);
-//        ast_softhangup(chan , AST_SOFTHANGUP_EXPLICIT);
-//        ast_hangup(chan );
+//        opbx_stopstream(chan);
+//        opbx_deactivate_generator(chan);
+//        opbx_clear_flag(chan ,  OPBX_FLAG_BLOCKING);
+//        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
+//        opbx_hangup(chan );
 //        icd_caller__set_channel(that, NULL);
      };	 
 /*    
     if (that->chan != NULL) {
-        ast_clear_flag(that->chan , AST_FLAG_BLOCKING);
-        ast_softhangup(that->chan , AST_SOFTHANGUP_EXPLICIT);
-        ast_hangup(that->chan );
+        opbx_clear_flag(that->chan ,  OPBX_FLAG_BLOCKING);
+        opbx_softhangup(that->chan ,  OPBX_SOFTHANGUP_EXPLICIT);
+        opbx_hangup(that->chan );
         icd_caller__set_channel(that, NULL);
     }
 */
@@ -477,7 +477,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
         }
     }
 
-    if (entertain != NULL && ast_true(entertain)) {
+    if (entertain != NULL && opbx_true(entertain)) {
         icd_caller__start_waiting(that);
         cleanup_required = 1;
     }
@@ -502,7 +502,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
         icd_run->cleanup_caller_fn(that);   /* default is icd_agent__standard_cleanup_caller(that)  READY or CLEAR */
     } else if ((strcmp(action, "listen") == 0) && (icd_caller__get_onhook(that) == 0)) {
         while (pos == NULL) {
-            res = ast_waitfordigit(that->chan, waittime);
+            res = opbx_waitfordigit(that->chan, waittime);
             if (res < 1) {
                 if (wakeup == NULL || strlen(wakeup) == 0) {
                     break;

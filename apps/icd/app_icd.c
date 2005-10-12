@@ -102,7 +102,7 @@ int icd_debug = 0;
 char icd_delimiter = '|';
 
 /* delimiter for args in interface to openpbx _exec functions */
-char ast_delimiter = '|';
+char opbx_delimiter = '|';
 
 /* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
 static int module_mask[ICD_MAX_MODULES];
@@ -144,8 +144,8 @@ static char *default_queue_config = "icd_config/icd_queues.conf";
 static char *default_agent_config = "icd_config/icd_agents.conf";
 static char *default_conference_config = "icd_config/icd_conference.conf";
 
-AST_MUTEX_DEFINE_STATIC(icdlock);
-static int run_conference(ast_channel * chan, icd_customer * customer, icd_conference * conf, char *spymode);
+ OPBX_MUTEX_DEFINE_STATIC(icdlock);
+static int run_conference(opbx_channel * chan, icd_customer * customer, icd_conference * conf, char *spymode);
 
 /* Maximum string length for a list of queues */
 static const int queue_entry_len = 512;
@@ -155,7 +155,7 @@ static const int queue_entry_len = 512;
 /* Coming Soon - static icd_fieldset *channels; */
 
 /* login and password dialog */
-icd_agent *app_icd__dtmf_login(struct ast_channel *chan, char *login, char *pass, int tries);
+icd_agent *app_icd__dtmf_login(struct opbx_channel *chan, char *login, char *pass, int tries);
 
 
 /* Listener on all agents maintained by the agent registry */
@@ -185,7 +185,7 @@ static int handle_core(int sig)
     int f;
 
     core_count++;
-    ast_verbose("\n\n***************** WOAH NELLY  I CAUGHT CORE #%d ! *****************\n\n\n", core_count);
+    opbx_verbose("\n\n***************** WOAH NELLY  I CAUGHT CORE #%d ! *****************\n\n\n", core_count);
     scanf("%d", &f);
     (void) signal(SIGSEGV, SIG_DFL);
     return 0;
@@ -218,7 +218,7 @@ int load_module(void)
      */
     reload_icd();
     /* Create variables from ICD modules */
-    ast_pthread_create(&icd_jabber_threads[0], NULL, icd_jabber_initialize, NULL);
+    opbx_pthread_create(&icd_jabber_threads[0], NULL, icd_jabber_initialize, NULL);
     app_icd_config_registry = create_icd_config_registry("ICD Config Registry");
 
     queues = create_icd_fieldset("ICD Queues");
@@ -232,7 +232,7 @@ int load_module(void)
     /* Now do all the registration with Asterisk. done b4 loadable mods so they can add icd cmds */
     create_command_hash();
 
-    ast_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading external modules.\n");
+    opbx_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading external modules.\n");
     icd_module_load_dynamic_module(app_icd_config_registry);
 
     
@@ -240,24 +240,24 @@ int load_module(void)
     result = icd_caller_load_module();
 
     /* lock and load the queue and agents configurations (is locking necessary?) */
-    ast_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading Module[%s].\n", icd_module__to_string(APP_ICD));
+    opbx_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading Module[%s].\n", icd_module__to_string(APP_ICD));
     reload_app_icd(APP_ICD);
 
     opbx_cli_register(&icd_command_cli_struct);
-    ast_register_application(icd_queue_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
+    opbx_register_application(icd_queue_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
                              app_icd_customer_desc);
-    ast_register_application(icd_customer_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
+    opbx_register_application(icd_customer_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
                              app_icd_customer_desc);
-    ast_register_application(icd_customer_callback_app_name, app_icd__customer_callback_login,
+    opbx_register_application(icd_customer_callback_app_name, app_icd__customer_callback_login,
                              app_icd_customer_callback_synopsis, app_icd_customer_callback_desc);
-    ast_register_application(icd_agent_app_name, app_icd__agent_exec, app_icd_agent_synopsis, app_icd_agent_desc);
-    ast_register_application(icd_agent_callback_app_name, app_icd__agent_callback_login,
+    opbx_register_application(icd_agent_app_name, app_icd__agent_exec, app_icd_agent_synopsis, app_icd_agent_desc);
+    opbx_register_application(icd_agent_callback_app_name, app_icd__agent_callback_login,
                              app_icd_agent_callback_synopsis, app_icd_agent_callback_desc);
-    ast_register_application(icd_logout_app_name, app_icd__logout_exec, app_icd_logout_synopsis,
+    opbx_register_application(icd_logout_app_name, app_icd__logout_exec, app_icd_logout_synopsis,
                              app_icd_logout_desc);
-    ast_register_application(icd_add_member_app_name, app_icd__add_member_exec, app_icd_add_member_synopsis,
+    opbx_register_application(icd_add_member_app_name, app_icd__add_member_exec, app_icd_add_member_synopsis,
                              app_icd_add_member_desc);
-    ast_register_application(icd_remove_member_app_name, app_icd__remove_member_exec,
+    opbx_register_application(icd_remove_member_app_name, app_icd__remove_member_exec,
                              app_icd_remove_member_synopsis, app_icd_remove_member_desc);
 
     /* If this is the best place to come back to then there is nothing we can do but die.
@@ -317,14 +317,14 @@ int unload_module(void)
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
 
-    ast_unregister_application(icd_queue_app_name);
-    ast_unregister_application(icd_logout_app_name);
-    ast_unregister_application(icd_add_member_app_name);
-    ast_unregister_application(icd_remove_member_app_name);
-    ast_unregister_application(icd_agent_app_name);
-    ast_unregister_application(icd_agent_callback_app_name);
-    ast_unregister_application(icd_customer_app_name);
-    ast_unregister_application(icd_customer_callback_app_name);
+    opbx_unregister_application(icd_queue_app_name);
+    opbx_unregister_application(icd_logout_app_name);
+    opbx_unregister_application(icd_add_member_app_name);
+    opbx_unregister_application(icd_remove_member_app_name);
+    opbx_unregister_application(icd_agent_app_name);
+    opbx_unregister_application(icd_agent_callback_app_name);
+    opbx_unregister_application(icd_customer_app_name);
+    opbx_unregister_application(icd_customer_callback_app_name);
 
     opbx_cli_unregister(&icd_command_cli_struct);
     destroy_command_hash();
@@ -347,20 +347,12 @@ char *description(void)
     return qdesc;
 }
 
-/* Verifies that we understand and acknowledge that the code for this module
- * is licensed under the GPL
- */
-char *key()
-{
-    return ASTERISK_GPL_KEY;
-}
-
 /* Asterisk calls this when we are reloaded. All reinitialization is here. */
 int reload(void)
 {
     icd_status result;
 
-    ast_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from openpbx cli \n");
+    opbx_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from openpbx cli \n");
     /* the ICD way */
     reload_app_icd(APP_ICD);
 
@@ -388,7 +380,7 @@ icd_status reload_app_icd(icd_module module)
     outstanding_members = create_icd_fieldset("Outstanding memberships");
     /* this assume all the conference, queue, and caller regsitries have been initalized */
     /* lock and load the queue and agents configurations (is locking necessary?) */
-    ast_mutex_lock(&icdlock);
+    opbx_mutex_lock(&icdlock);
     switch (module) {
     case APP_ICD:              /* ok cheating here but app_icd enum means reload all */
         result = reload_icd();
@@ -408,7 +400,7 @@ icd_status reload_app_icd(icd_module module)
     default:
         break;                  /* No Op */
     }
-    ast_mutex_unlock(&icdlock);
+    opbx_mutex_unlock(&icdlock);
 
     /* push all agent with the autologin flag on to theri distributors */
     result = autologin();
@@ -492,8 +484,8 @@ icd_status autologin(void)
           icd_caller__get_onhook((icd_caller *)agent)
           );
         */
-        if (fld_autologin != NULL && ast_true(fld_autologin)) {
-            if (fld_noauth != NULL && ast_true(fld_noauth) && (strlen(fld_chanstring) > 0)
+        if (fld_autologin != NULL && opbx_true(fld_autologin)) {
+            if (fld_noauth != NULL && opbx_true(fld_noauth) && (strlen(fld_chanstring) > 0)
                 && icd_caller__get_member_count((icd_caller *) agent) > 0
                 && icd_caller__get_onhook((icd_caller *) agent)) {
 
@@ -519,7 +511,7 @@ icd_status autologin(void)
 /* this is where the customer enters the queue. Assumes channel already available. */
 /* TBD - All these _exec() functions have the same building blocks. These need to be
    refactored out. */
-int app_icd__customer_exec(struct ast_channel *chan, void *data)
+int app_icd__customer_exec(struct opbx_channel *chan, void *data)
 {
     icd_customer *customer;
     char custname[256];
@@ -539,28 +531,28 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
 
     /* Make sure channel is properly set up */
-    if (chan->_state != AST_STATE_UP) {
-        res = ast_answer(chan);
+    if (chan->_state != OPBX_STATE_UP) {
+        res = opbx_answer(chan);
     }
     
     oldrformat = chan->readformat;
     oldwformat = chan->writeformat;
     
-    if(!(res=ast_set_read_format(chan, AST_FORMAT_SLINEAR))) {
-        res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+    if(!(res=opbx_set_read_format(chan,  OPBX_FORMAT_SLINEAR))) {
+        res = opbx_set_write_format(chan,  OPBX_FORMAT_SLINEAR);
     }
     if(res) {
         opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
         if(oldrformat)
-            ast_set_read_format(chan, oldrformat);
+            opbx_set_read_format(chan, oldrformat);
         if(oldwformat)
-            ast_set_write_format(chan, oldwformat);
+            opbx_set_write_format(chan, oldwformat);
         vh_destroy(&arghash);
         LOCAL_USER_REMOVE(u);
         return -1;
@@ -573,9 +565,9 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
         if (queue == NULL) {
             opbx_log(LOG_WARNING, "CUSTOMER FAILURE! Customer assigned to undefined Queue [%s]\n", queuename);
             if(oldrformat)
-                ast_set_read_format(chan, oldrformat);
+                opbx_set_read_format(chan, oldrformat);
             if(oldwformat)
-                ast_set_write_format(chan, oldwformat);
+                opbx_set_write_format(chan, oldwformat);
             vh_destroy(&arghash);
             LOCAL_USER_REMOVE(u);
             return -1;
@@ -587,16 +579,16 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
     nohangup = vh_read(arghash, "nohangup");
     pin = vh_read(arghash, "pin");
     spymode = vh_read(arghash, "spy");
-    agents_only = ast_true(vh_read(arghash, "agents_only"));
+    agents_only = opbx_true(vh_read(arghash, "agents_only"));
 
     if (queuename == NULL && !conference_name) {
         opbx_log(LOG_WARNING,
                 "CUSTOMER FAILURE! Could not find queue for incoming customer.\n"
                 "Please provide a 'queue' argument in the extensions.conf file\n");
         if(oldrformat)
-            ast_set_read_format(chan, oldrformat);
+            opbx_set_read_format(chan, oldrformat);
         if(oldwformat)
-            ast_set_write_format(chan, oldwformat);
+            opbx_set_write_format(chan, oldwformat);
         vh_destroy(&arghash);
         LOCAL_USER_REMOVE(u);
         return -1;
@@ -622,7 +614,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
     icd_caller__set_dynamic((icd_caller *) customer, 1);
     destroy_icd_config(&config);
 
-    if (nohangup && ast_true(nohangup))
+    if (nohangup && opbx_true(nohangup))
         icd_caller__add_flag((icd_caller *) customer, ICD_NOHANGUP_FLAG);
 
     icd_caller__assign_channel((icd_caller *) customer, chan);
@@ -637,7 +629,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
             conf = NULL;
             for (;;) {
                 conference_name = NULL;
-                res = ast_app_getdata(chan, "conf-getconfno", input, sizeof(input) - 1, 0);
+                res = opbx_app_getdata(chan, "conf-getconfno", input, sizeof(input) - 1, 0);
                 if (!res)
                     conference_name = input;
                 else if (res < 0)
@@ -647,7 +639,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                 }
 
                 if (!strcmp(conference_name, "*")) {
-                    for (looping = 0; looping > -1; looping = ast_waitfordigit(chan, 100)) {
+                    for (looping = 0; looping > -1; looping = opbx_waitfordigit(chan, 100)) {
                         for (keys = icd_conference__list(); keys; keys = keys->next) {
                             conf = icd_conference__locate(keys->name);
                             if (conf) {
@@ -656,7 +648,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                                     res = run_conference(chan, customer, conf, spymode);
                                 }
                             }
-                            looping = ast_waitfordigit(chan, 100);
+                            looping = opbx_waitfordigit(chan, 100);
                             if (looping < 0)
                                 break;
                         }
@@ -674,9 +666,9 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                 icd_bridge__play_sound_file(chan, "vm-goodbye");
             destroy_icd_customer(&customer);
             if(oldrformat)
-                ast_set_read_format(chan, oldrformat);
+                opbx_set_read_format(chan, oldrformat);
             if(oldwformat)
-                ast_set_write_format(chan, oldwformat);
+                opbx_set_write_format(chan, oldwformat);
             LOCAL_USER_REMOVE(u);
             return -1;
 
@@ -689,9 +681,9 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                     destroy_icd_customer(&customer);
                     icd_bridge__play_sound_file(chan, "conf-invalid");
                     if(oldrformat)
-                        ast_set_read_format(chan, oldrformat);
+                        opbx_set_read_format(chan, oldrformat);
                     if(oldwformat)
-                        ast_set_write_format(chan, oldwformat);
+                        opbx_set_write_format(chan, oldwformat);
                     LOCAL_USER_REMOVE(u);
                     return -1;
                 }
@@ -706,9 +698,9 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                     if (strcmp(key, pin)) {
                         icd_bridge__play_sound_file(chan, "conf-invalidpin");
                         if(oldrformat)
-                            ast_set_read_format(chan, oldrformat);
+                            opbx_set_read_format(chan, oldrformat);
                         if(oldwformat)
-                            ast_set_write_format(chan, oldwformat);
+                            opbx_set_write_format(chan, oldwformat);
                         LOCAL_USER_REMOVE(u);
                         return -1;
                     }
@@ -718,18 +710,18 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
                 destroy_icd_customer(&customer);
                 LOCAL_USER_REMOVE(u);
                 if(oldrformat)
-                    ast_set_read_format(chan, oldrformat);
+                    opbx_set_read_format(chan, oldrformat);
                 if(oldwformat)
-                    ast_set_write_format(chan, oldwformat);
+                    opbx_set_write_format(chan, oldwformat);
                 return -1;
 
             } else {
                 opbx_log(LOG_ERROR, "No Such Conference......%s\n", conference_name);
                 icd_bridge__play_sound_file(chan, "conf-invalid");
                 if(oldrformat)
-                    ast_set_read_format(chan, oldrformat);
+                    opbx_set_read_format(chan, oldrformat);
                 if(oldwformat)
-                    ast_set_write_format(chan, oldwformat);
+                    opbx_set_write_format(chan, oldwformat);
                 destroy_icd_customer(&customer);
                 LOCAL_USER_REMOVE(u);
                 return -1;
@@ -757,9 +749,9 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
 
     /* Once we hit here, the call is finished */
     if(oldrformat)
-        ast_set_read_format(chan, oldrformat);
+        opbx_set_read_format(chan, oldrformat);
     if(oldwformat)
-        ast_set_write_format(chan, oldwformat);
+        opbx_set_write_format(chan, oldwformat);
     LOCAL_USER_REMOVE(u);
     return 0;
 }
@@ -768,7 +760,7 @@ int app_icd__customer_exec(struct ast_channel *chan, void *data)
  * Its also is intended to be used by external api that just want to schedule customer for callbacks
  *
  * */
-int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
+int app_icd__customer_callback_login(struct opbx_channel *chan, void *data)
 {
     struct localuser *u;
     icd_customer *customer;
@@ -791,7 +783,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
@@ -857,10 +849,10 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
             strncpy(buf, extension, sizeof(buf) - 1);
             res = 0;
         } else {
-            res = ast_app_getdata(chan, "agent-newlocation", buf + pos, sizeof(buf) - (1 + pos), 0);
+            res = opbx_app_getdata(chan, "agent-newlocation", buf + pos, sizeof(buf) - (1 + pos), 0);
             opbx_log(LOG_DEBUG, "customer callback extension dialed in is [%s]\n", buf);
         }
-        if (strlen(buf) == 0 || ast_exists_extension(chan, context
+        if (strlen(buf) == 0 || opbx_exists_extension(chan, context
                                                      && strlen(context) ? context : "default", buf, priority, NULL)) {
             /* This is the exit point of the loop, if either the extension exists or the user entered nothing */
             break;
@@ -874,7 +866,7 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
         } else {
             res = icd_bridge__play_sound_file(chan, "invalid");
             if (!res) {
-                res = ast_waitstream(chan, AST_DIGIT_ANY);
+                res = opbx_waitstream(chan,  OPBX_DIGIT_ANY);
             }
             if (res > 0) {
                 buf[0] = res;
@@ -901,21 +893,21 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
         }
 
         if (res == 0) {
-            ast_waitstream(chan, "");
+            opbx_waitstream(chan, "");
         }
 
         oldrformat = chan->readformat;
         oldwformat = chan->writeformat;
     
-        if(!(res=ast_set_read_format(chan, AST_FORMAT_SLINEAR))) {
-            res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+        if(!(res=opbx_set_read_format(chan,  OPBX_FORMAT_SLINEAR))) {
+            res = opbx_set_write_format(chan,  OPBX_FORMAT_SLINEAR);
         }
         if(res) {
             opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
             if(oldrformat)
-                ast_set_read_format(chan, oldrformat);
+                opbx_set_read_format(chan, oldrformat);
             if(oldwformat)
-                ast_set_write_format(chan, oldwformat);
+                opbx_set_write_format(chan, oldwformat);
             vh_destroy(&arghash);
             LOCAL_USER_REMOVE(u);
             return -1;
@@ -924,15 +916,15 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
     }
     if (res == 0) {
         /* Just say goodbye and be done with it */
-        res = ast_safe_sleep(chan, 500);
+        res = opbx_safe_sleep(chan, 500);
         if (res == 0) {
             res = icd_bridge__play_sound_file(chan, "vm-goodbye");
         }
         if (res == 0) {
-            res = ast_waitstream(chan, "");
+            res = opbx_waitstream(chan, "");
         }
         if (res == 0) {
-            res = ast_safe_sleep(chan, 1000);
+            res = opbx_safe_sleep(chan, 1000);
         }
 
         /* Tell caller to start thread */
@@ -951,16 +943,16 @@ int app_icd__customer_callback_login(struct ast_channel *chan, void *data)
     }
     /* res */
     if(oldrformat)
-        ast_set_read_format(chan, oldrformat);
+        opbx_set_read_format(chan, oldrformat);
     if(oldwformat)
-        ast_set_write_format(chan, oldwformat);
+        opbx_set_write_format(chan, oldwformat);
     LOCAL_USER_REMOVE(u);
 
     return -1;
 }
 
 /* this is where the agent logs in */
-int app_icd__agent_exec(struct ast_channel *chan, void *data)
+int app_icd__agent_exec(struct opbx_channel *chan, void *data)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -982,26 +974,26 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
     /* Make sure channel is properly set up */
-    if (chan->_state != AST_STATE_UP) {
-        res = ast_answer(chan);
+    if (chan->_state != OPBX_STATE_UP) {
+        res = opbx_answer(chan);
     }
     oldrformat = chan->readformat;
     oldwformat = chan->writeformat;
     
-    if(!(res=ast_set_read_format(chan, AST_FORMAT_SLINEAR))) {
-        res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+    if(!(res=opbx_set_read_format(chan,  OPBX_FORMAT_SLINEAR))) {
+        res = opbx_set_write_format(chan,  OPBX_FORMAT_SLINEAR);
     }
     if(res) {
         opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
         if(oldrformat)
-            ast_set_read_format(chan, oldrformat);
+            opbx_set_read_format(chan, oldrformat);
         if(oldwformat)
-            ast_set_write_format(chan, oldwformat);
+            opbx_set_write_format(chan, oldwformat);
         vh_destroy(&arghash);
         LOCAL_USER_REMOVE(u);
         return -1;
@@ -1038,13 +1030,13 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
         if (agent != NULL) {
             opbx_log(LOG_NOTICE, "Agent [%s] found in registry and marked in use.\n",
                     icd_caller__get_name((icd_caller *) agent));
-            if (dynamicstring != NULL && ast_true(dynamicstring)) {
+            if (dynamicstring != NULL && opbx_true(dynamicstring)) {
                 opbx_log(LOG_NOTICE, "The 'dynamic' setting will be ignored.\n");
             }
         }
     }
     /* 2. If "dynamic" is true. Should we print a warning if agentname is in registry here? */
-    if (agent == NULL && dynamicstring != NULL && ast_true(dynamicstring)) {
+    if (agent == NULL && dynamicstring != NULL && opbx_true(dynamicstring)) {
         dynamic = 1;
         config = create_icd_config(app_icd_config_registry, "dynamic_agent_config");
         /* Install arghash into caller who destroys it in destroy_icd_caller.
@@ -1080,7 +1072,7 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
     if (agent == NULL && agentname == NULL) {
         loginstring = vh_read(arghash, "identify");
         /* icd_agent() == icd_agent(identify=1) */
-        if ((loginstring != NULL && ast_true(loginstring)) || (data == NULL || !strlen(data))) {
+        if ((loginstring != NULL && opbx_true(loginstring)) || (data == NULL || !strlen(data))) {
             agent = app_icd__dtmf_login(chan, NULL, NULL, 3);
         }
         if (agent != NULL) {
@@ -1106,9 +1098,9 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
         if (arghash)
             vh_destroy(&arghash);
         if(oldrformat)
-            ast_set_read_format(chan, oldrformat);
+            opbx_set_read_format(chan, oldrformat);
         if(oldwformat)
-            ast_set_write_format(chan, oldwformat);
+            opbx_set_write_format(chan, oldwformat);
         LOCAL_USER_REMOVE(u);
         return -1;
     }
@@ -1184,15 +1176,15 @@ int app_icd__agent_exec(struct ast_channel *chan, void *data)
         vh_destroy(&arghash);
 /* There is probably no more channel   */
 /*    if(oldrformat)
-        ast_set_read_format(chan, oldrformat);
+        opbx_set_read_format(chan, oldrformat);
     if(oldwformat)
-        ast_set_write_format(chan, oldwformat);
+        opbx_set_write_format(chan, oldwformat);
 */	
     return -1;
 }
 
 /* this is where the agent becomes a member of a queue */
-int app_icd__add_member_exec(struct ast_channel *chan, void *data)
+int app_icd__add_member_exec(struct opbx_channel *chan, void *data)
 {
     struct localuser *u;
     icd_queue *queue = NULL;
@@ -1200,7 +1192,7 @@ int app_icd__add_member_exec(struct ast_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
@@ -1235,13 +1227,13 @@ int app_icd__add_member_exec(struct ast_channel *chan, void *data)
 }
 
 /* this is where the agent drops membership in a queue */
-int app_icd__remove_member_exec(struct ast_channel *chan, void *data)
+int app_icd__remove_member_exec(struct opbx_channel *chan, void *data)
 {
     struct localuser *u;
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
@@ -1254,7 +1246,7 @@ int app_icd__remove_member_exec(struct ast_channel *chan, void *data)
 }
 
 /* This is intended to duplicate the AgentCallbackLogin function from chan_agent */
-int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
+int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
 {
     struct localuser *u;
     icd_agent *agent;
@@ -1284,13 +1276,13 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
     /* Deal with incomplete state change in channel received from openpbx */
-    if (chan->_state != AST_STATE_UP) {
-        res = ast_answer(chan);
+    if (chan->_state != OPBX_STATE_UP) {
+        res = opbx_answer(chan);
     }
     queuename = vh_read(arghash, "queue");
     agentname = vh_read(arghash, "agent");
@@ -1337,13 +1329,13 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         if (agent == NULL && agentname != NULL) {
             agent = (icd_agent *) icd_fieldset__get_value(agents, agentname);
         }
-        if (agent == NULL && dynamic != NULL && ast_true(dynamic)) {
+        if (agent == NULL && dynamic != NULL && opbx_true(dynamic)) {
             /* TBD - Create agent dynamically (and onhook) at this point */
         }
         dialed_agent = 0;
         if (agent == NULL) {
             buf[0] = '\0';
-            res = ast_app_getdata(chan, agentinputfile, buf, sizeof(buf) - 1, 0);
+            res = opbx_app_getdata(chan, agentinputfile, buf, sizeof(buf) - 1, 0);
             opbx_log(LOG_DEBUG, "Agent callback user id dialed in is [%s], res=%d, len=%d\n", buf, res, strlen(buf));
             if (strlen(buf) > 0) {
                 agent = (icd_agent *) icd_fieldset__get_value(agents, buf);
@@ -1368,7 +1360,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         /* Whether you got the agent or not, prompt for password. */
         if ((noauth == NULL || !ast_true(noauth)) && password != NULL && strlen(password) > 0) {
             buf[0] = '\0';
-            res = ast_app_getdata(chan, "agent-pass", buf, sizeof(buf) - 1, 0);
+            res = opbx_app_getdata(chan, "agent-pass", buf, sizeof(buf) - 1, 0);
             opbx_log(LOG_DEBUG, "Agent callback password dialed in is [%s], res=%d\n", buf, res);
             if (strlen(buf) > 0 && strcmp(buf, password) == 0) {
                 opbx_log(LOG_DEBUG, "Agent callback password authenticated\n");
@@ -1443,10 +1435,10 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
             strncpy(buf, extension, sizeof(buf) - 1);
             res = 0;
         } else {
-            res = ast_app_getdata(chan, "agent-newlocation", buf + pos, sizeof(buf) - (1 + pos), 0);
+            res = opbx_app_getdata(chan, "agent-newlocation", buf + pos, sizeof(buf) - (1 + pos), 0);
             opbx_log(LOG_DEBUG, "Agent callback extension dialed in is [%s]\n", buf);
         }
-        if (strlen(buf) == 0 || ast_exists_extension(chan, context
+        if (strlen(buf) == 0 || opbx_exists_extension(chan, context
                                                      && strlen(context) ? context : "default", buf, priority, NULL)) {
             /* This is the exit point of the loop, if either the extension exists or the user entered nothing */
             break;
@@ -1460,7 +1452,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         } else {
             res = icd_bridge__play_sound_file(chan, "invalid");
             if (!res) {
-                res = ast_waitstream(chan, AST_DIGIT_ANY);
+                res = opbx_waitstream(chan,  OPBX_DIGIT_ANY);
             }
             if (res > 0) {
                 buf[0] = res;
@@ -1495,21 +1487,21 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         }
 
         if (res == 0) {
-            ast_waitstream(chan, "");
+            opbx_waitstream(chan, "");
         }
 
         oldrformat = chan->readformat;
         oldwformat = chan->writeformat;
     
-        if(!(res=ast_set_read_format(chan, AST_FORMAT_SLINEAR))) {
-            res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+        if(!(res=opbx_set_read_format(chan,  OPBX_FORMAT_SLINEAR))) {
+            res = opbx_set_write_format(chan,  OPBX_FORMAT_SLINEAR);
         }
         if(res) {
             opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
             if(oldrformat)
-                ast_set_read_format(chan, oldrformat);
+                opbx_set_read_format(chan, oldrformat);
             if(oldwformat)
-                ast_set_write_format(chan, oldwformat);
+                opbx_set_write_format(chan, oldwformat);
             vh_destroy(&arghash);
             LOCAL_USER_REMOVE(u);
             return -1;
@@ -1527,7 +1519,7 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
         //        p->acknowledged = 0;
         //        /* store/clear the global variable that stores agentid based on the callerid */
         //        if (chan->callerid) {
-        //            char agentvar[AST_MAX_BUF];
+        //            char agentvar[ OPBX_MAX_BUF];
         //            snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
         //            if (!strlen(p->loginchan))
         //                pbx_builtin_setvar_helper(NULL, agentvar, NULL);
@@ -1541,15 +1533,15 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
 
     if (res == 0) {
         /* Just say goodbye and be done with it */
-        res = ast_safe_sleep(chan, 500);
+        res = opbx_safe_sleep(chan, 500);
         if (res == 0) {
             res = icd_bridge__play_sound_file(chan, "vm-goodbye");
         }
         if (res == 0) {
-            res = ast_waitstream(chan, "");
+            res = opbx_waitstream(chan, "");
         }
         if (res == 0) {
-            res = ast_safe_sleep(chan, 1000);
+            res = opbx_safe_sleep(chan, 1000);
         }
 
         /* Now build the queues and all the rest like a regular agent would */
@@ -1592,14 +1584,14 @@ int app_icd__agent_callback_login(struct ast_channel *chan, void *data)
     /* res */
     LOCAL_USER_REMOVE(u);
     if(oldrformat)
-        ast_set_read_format(chan, oldrformat);
+        opbx_set_read_format(chan, oldrformat);
     if(oldwformat)
-        ast_set_write_format(chan, oldwformat);
+        opbx_set_write_format(chan, oldwformat);
     return -1;
 }
 
 /* this is where the agent logs out */
-int app_icd__logout_exec(struct ast_channel *chan, void *data)
+int app_icd__logout_exec(struct opbx_channel *chan, void *data)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -1608,7 +1600,7 @@ int app_icd__logout_exec(struct ast_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, ast_delimiter);
+    vh_carve_data(arghash, data, opbx_delimiter);
 
     LOCAL_USER_ADD(u);
 
@@ -1624,7 +1616,7 @@ int app_icd__logout_exec(struct ast_channel *chan, void *data)
 
     if (agent == NULL && agentname == NULL) {
         loginstring = vh_read(arghash, "identify");
-        if (loginstring != NULL && ast_true(loginstring)) {
+        if (loginstring != NULL && opbx_true(loginstring)) {
             agent = app_icd__dtmf_login(chan, NULL, NULL, 3);
         }
         if (agent != NULL) {
@@ -1660,29 +1652,29 @@ int app_icd__logout_exec(struct ast_channel *chan, void *data)
 
 icd_status app_icd__read_conference_config(char *conference_config_name)
 {
-    struct ast_config *astcfg;
-    struct ast_variable *varlist;
+    struct opbx_config *astcfg;
+    struct opbx_variable *varlist;
     char *entry;
     icd_conference *conf;
 
-    astcfg = ast_config_load(conference_config_name);
+    astcfg = opbx_config_load(conference_config_name);
     if (!astcfg) {
         opbx_log(LOG_WARNING, "Conference configuration file %s not found\n", conference_config_name);
         return ICD_ENOTFOUND;
     }
 
-    for (entry = ast_category_browse(astcfg, NULL); entry != NULL; entry = ast_category_browse(astcfg, entry)) {
+    for (entry = opbx_category_browse(astcfg, NULL); entry != NULL; entry = opbx_category_browse(astcfg, entry)) {
         if (!strcasecmp(entry, "general")) {
-            for (varlist = ast_variable_browse(astcfg, entry); varlist; varlist = varlist->next) {
+            for (varlist = opbx_variable_browse(astcfg, entry); varlist; varlist = varlist->next) {
                 if (!strcasecmp(varlist->name, "conference_bridge_global")) {
                     icd_conference__set_global_usage(ast_true(varlist->value));
                 }
             }
             continue;
         }
-        varlist = ast_variable_browse(astcfg, entry);
+        varlist = opbx_variable_browse(astcfg, entry);
         conf = icd_conference__new(entry);
-        for (varlist = ast_variable_browse(astcfg, entry); varlist; varlist = varlist->next) {
+        for (varlist = opbx_variable_browse(astcfg, entry); varlist; varlist = varlist->next) {
             if (!strcasecmp(varlist->name, "pin")) {
                 icd_conference__lock(conf, varlist->value);
             }
@@ -1690,11 +1682,11 @@ icd_status app_icd__read_conference_config(char *conference_config_name)
 
         if (conf) {
             icd_conference__register(entry, conf);
-            ast_verbose(VERBOSE_PREFIX_3 "Creating conference object %s:\n", entry);
+            opbx_verbose(VERBOSE_PREFIX_3 "Creating conference object %s:\n", entry);
 
         }
     }
-    ast_config_destroy(astcfg);
+    opbx_config_destroy(astcfg);
 
     return ICD_SUCCESS;
 }
@@ -1709,8 +1701,8 @@ icd_status app_icd__read_conference_config(char *conference_config_name)
  */
 icd_status app_icd__read_icd_config(char *icd_config_name)
 {
-    struct ast_config *astcfg;
-    struct ast_variable *varlist;
+    struct opbx_config *astcfg;
+    struct opbx_variable *varlist;
     char *entry;
     int mod = 0;
     int event = 0;
@@ -1727,19 +1719,19 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
 
     assert(icd_config_name != NULL);
 
-    astcfg = ast_config_load(icd_config_name);
+    astcfg = opbx_config_load(icd_config_name);
     if (!astcfg) {
         opbx_log(LOG_WARNING, "ICD configuration file %s not found -- ICD option support disabled\n",
                 icd_config_name);
         return ICD_ENOTFOUND;
     }
     jabber_server[0]=jabber_login[0]=jabber_password[0]=jabber_send_address[0]='\0';
-    entry = ast_category_browse(astcfg, NULL);
+    entry = opbx_category_browse(astcfg, NULL);
     /* For each category (demarcated by "[]") in the file */
 
     while (entry) {
-        ast_verbose(VERBOSE_PREFIX_3 "Reading Secton [%s]\n", entry);
-        varlist = ast_variable_browse(astcfg, entry);
+        opbx_verbose(VERBOSE_PREFIX_3 "Reading Secton [%s]\n", entry);
+        varlist = opbx_variable_browse(astcfg, entry);
 
         /* For each key/value pair in the [category] */
         while (varlist) {
@@ -1752,7 +1744,7 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                         opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, &icd_delimiter);
                 }
                 if (strcasecmp(varlist->name, "icd_debug") == 0) {
-                    icd_debug = ast_true(varlist->value);
+                    icd_debug = opbx_true(varlist->value);
                     if (icd_debug)
                         opbx_log(LOG_DEBUG, "Set %s=%d\n", varlist->name, icd_debug);
                 }
@@ -1818,11 +1810,11 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
             varlist = varlist->next;
         }
         /* Move on to the next section */
-        entry = ast_category_browse(astcfg, entry);
+        entry = opbx_category_browse(astcfg, entry);
 
     }
 
-    ast_config_destroy(astcfg);
+    opbx_config_destroy(astcfg);
     return result;
 }
 
@@ -1852,8 +1844,8 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
 icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_name,
                                       icd_fieldset * outstanding_members)
 {
-    struct ast_config *astcfg;
-    struct ast_variable *varlist;
+    struct opbx_config *astcfg;
+    struct opbx_variable *varlist;
     char *entry;
     icd_queue *queue;
     icd_config *config;
@@ -1869,17 +1861,17 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
     assert(queue_config_name != NULL);
     assert(outstanding_members != NULL);
 
-    astcfg = ast_config_load(queue_config_name);
+    astcfg = opbx_config_load(queue_config_name);
     if (!astcfg) {
         opbx_log(LOG_WARNING, "Queue configuration file %s not found -- ICD support disabled\n", queue_config_name);
         return ICD_ENOTFOUND;
     }
 
-    ast_verbose(VERBOSE_PREFIX_3 "Creating General Queue Configurations\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Creating General Queue Configurations\n");
     general_config = create_icd_config(app_icd_config_registry, "queue.general");
     icd_config__set_raw(general_config, "name", "queue.general");
     /* For each key/value pair in the [general] */
-    varlist = ast_variable_browse(astcfg, "general");
+    varlist = opbx_variable_browse(astcfg, "general");
     while (varlist) {
         if (icd_debug)
             opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
@@ -1887,13 +1879,13 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
         varlist = varlist->next;
     }
 
-    entry = ast_category_browse(astcfg, NULL);
+    entry = opbx_category_browse(astcfg, NULL);
     /* For each category (demarcated by "[]") in the file, create a queue */
 
     while (entry) {
 
         if (strcasecmp(entry, "general") != 0) {
-            varlist = ast_variable_browse(astcfg, entry);
+            varlist = opbx_variable_browse(astcfg, entry);
             config = create_icd_config(app_icd_config_registry, entry);
             /* TBD Get rid of need for params here */
             params = vh_init("config");
@@ -1923,12 +1915,12 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
             /* Post-processing of key/value pairs and queue creation */
             /* Check for "disabled=true" to tell whether to ignore entry */
             fieldval = icd_config__get_value(config, "disabled");
-            if (fieldval != NULL && ast_true(fieldval)) {
+            if (fieldval != NULL && opbx_true(fieldval)) {
                 destroy_icd_config(&config);
                 vh_destroy(&params);
                 params = NULL;
                 opbx_log(LOG_WARNING, "Create Queue [%s] has been manually disabled!\n", entry);
-                entry = ast_category_browse(astcfg, entry);
+                entry = opbx_category_browse(astcfg, entry);
                 continue;
             }
 
@@ -1947,20 +1939,20 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
                     icd_queue__add_listener(queue, queues, clear_queue_from_registry, entry);
                     icd_queue__start_distributing(queue);       /* start the queue's distributor thread */
                 }
-                ast_verbose(VERBOSE_PREFIX_2 "Create Queue [%s] %s\n", entry, queue ? "success" : "failure");
+                opbx_verbose(VERBOSE_PREFIX_2 "Create Queue [%s] %s\n", entry, queue ? "success" : "failure");
             } else {
-                ast_verbose(VERBOSE_PREFIX_2 "Merge Queue [%s] %s\n", entry, queue ? "success" : "failure");
+                opbx_verbose(VERBOSE_PREFIX_2 "Merge Queue [%s] %s\n", entry, queue ? "success" : "failure");
             }
             destroy_icd_config(&config);
 
         }
         /* not general categories */
         /* Move on to the next queue */
-        entry = ast_category_browse(astcfg, entry);
+        entry = opbx_category_browse(astcfg, entry);
     }                           /* while entry */
     destroy_icd_config(&general_config);
 
-    ast_config_destroy(astcfg);
+    opbx_config_destroy(astcfg);
     return ICD_SUCCESS;
 }
 
@@ -1981,8 +1973,8 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
 icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config_name, icd_fieldset * queues,
                                        icd_fieldset * outstanding_members)
 {
-    struct ast_config *astcfg;
-    struct ast_variable *varlist;
+    struct opbx_config *astcfg;
+    struct opbx_variable *varlist;
     char *entry;
     icd_agent *agent;
     icd_config *config;
@@ -2002,16 +1994,16 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
     assert(queues != NULL);
     assert(outstanding_members != NULL);
 
-    astcfg = ast_config_load(agent_config_name);
+    astcfg = opbx_config_load(agent_config_name);
     if (!astcfg) {
         opbx_log(LOG_WARNING, "Agent configuration file %s not found -- ICD support disabled\n", agent_config_name);
         return ICD_ENOTFOUND;
     }
-    ast_verbose(VERBOSE_PREFIX_3 "Creating General Agent Configurations\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Creating General Agent Configurations\n");
     general_config = create_icd_config(app_icd_config_registry, "agent.general");
     icd_config__set_raw(general_config, "name", "agent.general");
     /* For each key/value pair in the [general] */
-    varlist = ast_variable_browse(astcfg, "general");
+    varlist = opbx_variable_browse(astcfg, "general");
     while (varlist) {
         if (icd_debug)
             opbx_log(LOG_DEBUG, "%s=%s\n", varlist->name, varlist->value);
@@ -2020,9 +2012,9 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
     }
 
     /* For each category (demarcated by "[]") in the file, create an agent */
-    for (entry = ast_category_browse(astcfg, NULL); entry != NULL; entry = ast_category_browse(astcfg, entry)) {
+    for (entry = opbx_category_browse(astcfg, NULL); entry != NULL; entry = opbx_category_browse(astcfg, entry)) {
         if (strcasecmp(entry, "general") != 0) {
-            varlist = ast_variable_browse(astcfg, entry);
+            varlist = opbx_variable_browse(astcfg, entry);
             config = create_icd_config(app_icd_config_registry, entry);
             /* TBD Get rid of need for params here */
             params = vh_init("config");
@@ -2052,12 +2044,12 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
             /* Post-processing of key/value pairs and queue creation */
             /* Check for "disabled=true" to tell whether to ignore entry */
             fieldval = icd_config__get_value(config, "disabled");
-            if (fieldval != NULL && ast_true(fieldval)) {
+            if (fieldval != NULL && opbx_true(fieldval)) {
                 destroy_icd_config(&config);
                 vh_destroy(&params);
                 params = NULL;
                 opbx_log(LOG_WARNING, "Create Agent [%s] has been manually disabled!\n", entry);
-                entry = ast_category_browse(astcfg, entry);
+                entry = opbx_category_browse(astcfg, entry);
                 continue;
             }
 
@@ -2102,7 +2094,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                     icd_agent__add_listener(agent, agents, clear_agent_from_registry, entry);
                 }
 
-                ast_verbose(VERBOSE_PREFIX_3 "Create Agent [%s] %s\n", entry, agent ? "success" : "failure");
+                opbx_verbose(VERBOSE_PREFIX_3 "Create Agent [%s] %s\n", entry, agent ? "success" : "failure");
 
                 /* Now add memberships from outstanding_members. */
                 fieldval = icd_fieldset__get_value(outstanding_members, entry);
@@ -2134,7 +2126,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
     }                           /* while more entries */
     destroy_icd_config(&general_config);        /* TC make this a a global so that we can default agents ? */
 
-    ast_config_destroy(astcfg);
+    opbx_config_destroy(astcfg);
     return ICD_SUCCESS;
 }
 
@@ -2152,7 +2144,7 @@ static int clear_agent_from_registry(void *listener, icd_event * event, void *ex
 
     if (icd_event__get_event_id(event) == ICD_EVENT_CLEAR) {
         icd_fieldset__remove_key(agents, agentname);
-        ast_verbose(VERBOSE_PREFIX_2 "Listener on agent registry detected agent [%s] being cleared\n", agentname);
+        opbx_verbose(VERBOSE_PREFIX_2 "Listener on agent registry detected agent [%s] being cleared\n", agentname);
     }
     return 0;
 }
@@ -2167,7 +2159,7 @@ static int clear_queue_from_registry(void *listener, icd_event * event, void *ex
 
     if (icd_event__get_event_id(event) == ICD_EVENT_CLEAR) {
         icd_fieldset__remove_key(queues, queuename);
-        ast_verbose(VERBOSE_PREFIX_2 "Listener on queue registry detected queue [%s] being cleared\n", queuename);
+        opbx_verbose(VERBOSE_PREFIX_2 "Listener on queue registry detected queue [%s] being cleared\n", queuename);
     }
     return 0;
 }
@@ -2285,13 +2277,13 @@ static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_f
     return ICD_SUCCESS;
 }
 
-static int run_conference(ast_channel * chan, icd_customer * customer, icd_conference * conf, char *spymode)
+static int run_conference(opbx_channel * chan, icd_customer * customer, icd_conference * conf, char *spymode)
 {
     int num;
 
     icd_conference__associate((icd_caller *) customer, conf, 0);
     icd_caller__add_flag((icd_caller *) customer, ICD_CONF_MEMBER_FLAG);
-    if (spymode && ast_true(spymode)) {
+    if (spymode && opbx_true(spymode)) {
         icd_caller__add_flag((icd_caller *) customer, ICD_MONITOR_FLAG);
     } else
         icd_caller__clear_flag((icd_caller *) customer, ICD_MONITOR_FLAG);
@@ -2299,14 +2291,14 @@ static int run_conference(ast_channel * chan, icd_customer * customer, icd_confe
     icd_caller__set_state((icd_caller *) customer, ICD_CALLER_STATE_CONFERENCED);
     num = atoi(conf->name);
     if (num)
-        ast_say_digits(chan, num, AST_DIGIT_ANY, NULL);
+        opbx_say_digits(chan, num,  OPBX_DIGIT_ANY, NULL);
     num = icd_bridge__play_sound_file(chan, "auth-thankyou");
     if (!num)
         icd_caller__loop((icd_caller *) customer, 0);
     return num;
 }
 
-icd_agent *app_icd__dtmf_login(struct ast_channel *chan, char *login, char *pass, int tries)
+icd_agent *app_icd__dtmf_login(struct opbx_channel *chan, char *login, char *pass, int tries)
 {
     /* Give $tries chances to log in */
     int try = 0, res = 0;
@@ -2321,7 +2313,7 @@ icd_agent *app_icd__dtmf_login(struct ast_channel *chan, char *login, char *pass
         if (!agentname) {
             memset(agentbuf, 0, sizeof(agentbuf) - 1);
             res =
-                ast_app_getdata(chan, try == 0 ? "agent-user" : "agent-incorrect", agentbuf, sizeof(agentbuf) - 1,
+                opbx_app_getdata(chan, try == 0 ? "agent-user" : "agent-incorrect", agentbuf, sizeof(agentbuf) - 1,
                                 0);
             agentname = agentbuf;
         }
@@ -2334,7 +2326,7 @@ icd_agent *app_icd__dtmf_login(struct ast_channel *chan, char *login, char *pass
             if (agent != NULL) {
                 if (!agentpass) {
                     memset(passbuf, 0, sizeof(passbuf) - 1);
-                    res = ast_app_getdata(chan, "agent-pass", passbuf, sizeof(passbuf) - 1, 0);
+                    res = opbx_app_getdata(chan, "agent-pass", passbuf, sizeof(passbuf) - 1, 0);
                     agentpass = passbuf;
                 }
                 if (!res) {

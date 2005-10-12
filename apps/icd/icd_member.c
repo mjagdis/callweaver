@@ -42,7 +42,7 @@ static icd_module module_id = ICD_MEMBER;
 typedef enum {
     ICD_MEMBER_STATE_CREATED, ICD_MEMBER_STATE_INITIALIZED,
     ICD_MEMBER_STATE_CLEARED, ICD_MEMBER_STATE_DESTROYED,
-    ICD_MEMBER_STATE_LAST_STANDARD
+    ICD_MEMBER_STATE_L OPBX_STANDARD
 } icd_member_state;
 
 struct icd_member {
@@ -63,7 +63,7 @@ struct icd_member {
     icd_listeners *listeners;
     icd_memory *memory;
     int allocated;
-    ast_mutex_t lock;
+    opbx_mutex_t lock;
 };
 
 /*===== Private APIs =====*/
@@ -152,7 +152,7 @@ icd_status init_icd_member(icd_member * that, icd_queue * queue, icd_caller * ca
 
     if (that->allocated != 1)
         ICD_MEMSET_ZERO(that, sizeof(icd_member));
-    ast_mutex_init(&that->lock);
+    opbx_mutex_init(&that->lock);
     that->queue = queue;
     that->caller = caller;
     that->distributor = icd_queue__get_distributor(queue);
@@ -212,7 +212,7 @@ icd_status icd_member__clear(icd_member * that)
         destroy_icd_listeners(&(that->listeners));
         that->params = NULL;
         icd_member__unlock(that);
-        ast_mutex_destroy(&(that->lock));
+        opbx_mutex_destroy(&(that->lock));
         /* the clear call was above the unlock call causing it to fail -Tony */
         that->state = ICD_MEMBER_STATE_CLEARED;
         return ICD_SUCCESS;
@@ -669,7 +669,7 @@ icd_status icd_member__lock(icd_member * that)
     if (that->state == ICD_MEMBER_STATE_CLEARED || that->state == ICD_MEMBER_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    result = ast_mutex_lock(&that->lock);
+    result = opbx_mutex_lock(&that->lock);
     if (result == 0) {
         return ICD_SUCCESS;
     }
@@ -686,7 +686,7 @@ icd_status icd_member__unlock(icd_member * that)
     if (that->state == ICD_MEMBER_STATE_CLEARED || that->state == ICD_MEMBER_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    result = ast_mutex_unlock(&that->lock);
+    result = opbx_mutex_unlock(&that->lock);
     if (result == 0) {
         return ICD_SUCCESS;
     }

@@ -20,7 +20,7 @@
 
 static void_hash_table *loaded_modules;
 
-AST_MUTEX_DEFINE_STATIC(modlock);
+ OPBX_MUTEX_DEFINE_STATIC(modlock);
 
 static int icd_module_load_from_file(char *filename, icd_config_registry * registry)
 {
@@ -30,14 +30,14 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
 
     assert(filename != NULL);
 
-    ast_mutex_lock(&modlock);
+    opbx_mutex_lock(&modlock);
 
     if (!loaded_modules)
         loaded_modules = vh_init("LOADED_MODULES");
     module = vh_read(loaded_modules, filename);
     if (module) {
         opbx_log(LOG_WARNING, "Already Loaded\n");
-        ast_mutex_unlock(&modlock);
+        opbx_mutex_unlock(&modlock);
         return -1;
     } else
         module = NULL;
@@ -48,7 +48,7 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
     if (!module->lib) {
         opbx_log(LOG_WARNING, "Error loading module %s, aborted %s\n", filename, dlerror());
         ICD_FREE(module);
-        ast_mutex_unlock(&modlock);
+        opbx_mutex_unlock(&modlock);
         return -1;
     }
 
@@ -67,20 +67,20 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
     if (errcnt) {
         dlclose(module->lib);
         ICD_FREE(module);
-        ast_mutex_unlock(&modlock);
+        opbx_mutex_unlock(&modlock);
         return -1;
     }
 
     vh_write(loaded_modules, filename, module);
-    ast_mutex_unlock(&modlock);
+    opbx_mutex_unlock(&modlock);
 
     if ((res = module->load_fn(registry))) {
         opbx_log(LOG_WARNING, "Error loading module %s\n", filename);
-        ast_mutex_lock(&modlock);
+        opbx_mutex_lock(&modlock);
         vh_delete(loaded_modules, filename);
         dlclose(module->lib);
         ICD_FREE(module);
-        ast_mutex_unlock(&modlock);
+        opbx_mutex_unlock(&modlock);
         return -1;
     }
 
@@ -126,7 +126,7 @@ icd_status icd_module_unload_dynamic_modules()
     vh_keylist *keys = vh_keys(loaded_modules), *key;
     icd_status result;
 
-    ast_mutex_lock(&modlock);
+    opbx_mutex_lock(&modlock);
 
     for (key = keys; key; key = key->next) {
         module = vh_read(loaded_modules, key->name);
@@ -152,7 +152,7 @@ icd_status icd_module_unload_dynamic_modules()
     }
 
     vh_destroy(&loaded_modules);
-    ast_mutex_unlock(&modlock);
+    opbx_mutex_unlock(&modlock);
 
     return ICD_SUCCESS;
 }

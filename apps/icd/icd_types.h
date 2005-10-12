@@ -197,7 +197,7 @@ typedef enum {
 
 extern char *icd_thread_state_strings[];        /* Kept in icd_caller.c */
 
-extern char *ast_state_strings[];       /* Kept in icd_caller.c */
+extern char *opbx_state_strings[];       /* Kept in icd_caller.c */
 
 /* Generic list of void pointers to stuff several things into 1 obj */
 

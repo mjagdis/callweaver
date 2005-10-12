@@ -42,7 +42,7 @@ struct icd_distributor {
     icd_distributor_state state;
     icd_thread_state thread_state;
     icd_listeners *listeners;
-    ast_mutex_t lock;
+    opbx_mutex_t lock;
     pthread_t thread;
     pthread_cond_t wakeup;
     icd_memory *memory;

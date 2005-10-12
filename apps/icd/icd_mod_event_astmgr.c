@@ -34,14 +34,14 @@ int icd_module_load(icd_config_registry * registry)
         opbx_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
     else {
         icd_event_factory__add_listener(event_factory, queues, icd_module__event_astmgr, NULL);
-        ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n",module_name);
+        opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n",module_name);
     }
     return 0;
 }
 
 int icd_module_unload(void)
 {
-    ast_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[%s]!\n", module_name);
+    opbx_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[%s]!\n", module_name);
     return 0;
 
 }
@@ -51,7 +51,7 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
 {
     char *smsg;
     icd_caller *caller = NULL;
-    struct ast_channel *chan = NULL;
+    struct opbx_channel *chan = NULL;
 
     icd_event *event = icd_event__get_extra(factory_event);
     int module_id = icd_event__get_module_id(event);
@@ -59,13 +59,13 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
 
     assert(factory_event != NULL);
     /* 
-    ast_verbose(VERBOSE_PREFIX_2 "YoYoAPP_ICD:Mod[%d] Event[%d]  \n",
+    opbx_verbose(VERBOSE_PREFIX_2 "YoYoAPP_ICD:Mod[%d] Event[%d]  \n",
               icd_event__get_module_id(event),
                icd_event__get_event_id(event)
               );
               */
     /*
-      ast_verbose(VERBOSE_PREFIX_2 "APP_ICD:Mod[%d][%d] Event[%d][%d]  \n",
+      opbx_verbose(VERBOSE_PREFIX_2 "APP_ICD:Mod[%d][%d] Event[%d][%d]  \n",
       icd_event__get_module_id(event),
       module_mask[icd_event__get_module_id(event)],
       icd_event__get_event_id(event),

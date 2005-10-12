@@ -428,12 +428,12 @@ icd_status icd_event__clear(icd_event * that)
 
 /***** Actions *****/
 /*
-for (mod = APP_ICD; mod < ICD_MODULE_LAST_STANDARD; ++mod) {
+for (mod = APP_ICD; mod < ICD_MODULE_L OPBX_STANDARD; ++mod) {
         snprintf(tmp, sizeof(tmp), "%d",mod);
         icd_fieldset__strncpy(modules,tmp,icd_module_strings[mod], 10);
     };
 
-    for (event = ICD_EVENT_TEST; event < ICD_EVENT_LAST_STANDARD; ++event) {
+    for (event = ICD_EVENT_TEST; event < ICD_EVENT_L OPBX_STANDARD; ++event) {
         snprintf(tmp, sizeof(tmp), "%d",event);
         icd_fieldset__strncpy(events,tmp,icd_event_strings[event], 10);
     };

@@ -31,7 +31,7 @@ int icd_module_load(icd_config_registry * registry)
     if (module_id == 0)
         opbx_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
 
-    ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[External]!\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[External]!\n");
 
     return 0;
 }
@@ -39,7 +39,7 @@ int icd_module_load(icd_config_registry * registry)
 int icd_module_unload(void)
 {
     /*TODO didnt get this far */
-    ast_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[External]!\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[External]!\n");
     return 0;
 
 }
@@ -62,7 +62,7 @@ static icd_status init_icd_distributor_external(icd_distributor * that, char *na
     /* Register a global event handler that listens on icd. */
     icd_event_factory__add_listener(event_factory, queues, icd_module__factory_event_listener, NULL);
 
-    ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
+    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
 
     return ICD_SUCCESS;
 }
@@ -74,7 +74,7 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
     icd_queue *queue = NULL;
     icd_distributor *distributor = NULL;
     icd_caller *caller = NULL;
-    struct ast_channel *chan = NULL;
+    struct opbx_channel *chan = NULL;
     icd_event *event = icd_event__get_extra(factory_event);
     int module_id = icd_event__get_module_id(event);
     int event_id = icd_event__get_event_id(event);
@@ -120,12 +120,12 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
         break;
     case ICD_EVENT_CHANNEL_UP:
         caller = (icd_caller *) icd_event__get_source(event);
-        chan = (ast_channel *) icd_caller__get_channel(caller);
+        chan = (opbx_channel *) icd_caller__get_channel(caller);
         manager_event(EVENT_FLAG_USER, "icd_channelup",
             "Id: %d\r\n" "Channel: %s\r\n" "Uniqueid: %s\r\n" "Callerid: %s\r\n", icd_caller__get_id(caller),
             chan->name, chan->uniqueid, (chan->cid.cid_num ? chan->cid.cid_num : "unknown"));
 
-        ast_verbose(VERBOSE_PREFIX_2 "FAT_AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
+        opbx_verbose(VERBOSE_PREFIX_2 "FAT_AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
             icd_caller__get_id(caller), icd_caller__get_name(caller), icd_event__get_message(event)
             );
         break;
@@ -144,14 +144,14 @@ static int icd_module__event_listener(void *listener, icd_event * event, void *e
 {
     icd_queue *queue = NULL;
     icd_caller *caller = NULL;
-    struct ast_channel *chan = NULL;
+    struct opbx_channel *chan = NULL;
     int call_cnt = 0;
     int call_pos = 0;
 
     assert(event != NULL);
 
 /*
-ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
+opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
  return 0;
 */
     switch (icd_event__get_event_id(event)) {
@@ -161,7 +161,7 @@ ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
         case ICD_QUEUE:
             caller = (icd_caller *) icd_event__get_source(event);
             queue = (icd_queue *) extra;
-            ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER QUEUE ADD:ID[%d] \n", icd_caller__get_id(caller));
+            opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER QUEUE ADD:ID[%d] \n", icd_caller__get_id(caller));
             if (queue != NULL) {
                 chan = icd_caller__get_channel(caller);
 
@@ -181,7 +181,7 @@ ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
                 (queue ? icd_queue__get_name(queue) : "unknown"), call_pos, call_cnt);
             break;
         case ICD_DISTRIBUTOR_LIST:
-            ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER DIST LIST ADD:ID[%s] \n", icd_event__get_message(event));
+            opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER DIST LIST ADD:ID[%s] \n", icd_event__get_message(event));
             /*
                queue = (icd_queue *)icd_event__get_source(event);
                manager_event(EVENT_FLAG_USER, "icd_addtodistributor", 
@@ -201,12 +201,12 @@ ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
         break;
     case ICD_EVENT_CHANNEL_UP:
         caller = (icd_caller *) icd_event__get_source(event);
-        chan = (ast_channel *) icd_caller__get_channel(caller);
+        chan = (opbx_channel *) icd_caller__get_channel(caller);
         manager_event(EVENT_FLAG_USER, "icd_channelup",
             "Id: %d\r\n" "Channel: %s\r\n" "Uniqueid: %s\r\n" "Callerid: %s\r\n", icd_caller__get_id(caller),
             chan->name, chan->uniqueid, (chan->cid.cid_num ? chan->cid.cid_num : "unknown"));
 
-        ast_verbose(VERBOSE_PREFIX_2 "AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
+        opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
             icd_caller__get_id(caller), icd_caller__get_name(caller), icd_event__get_message(event)
             );
         break;

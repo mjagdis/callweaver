@@ -12,7 +12,7 @@
 #include <icd_caller_private.h>
 
 static icd_module module_id = ICD_QUEUE;
-static struct ast_app *monitor_app = NULL;
+static struct opbx_app *monitor_app = NULL;
 
 icd_queue_holdannounce *create_icd_queue_holdannounce(icd_config * config);
 icd_status init_icd_queue_holdannounce(icd_queue_holdannounce * that, icd_config * config);
@@ -36,7 +36,7 @@ struct icd_queue {
       icd_status(*dump_fn) (icd_queue *, int verbosity, int fd, void *extra);
     void *dump_fn_extra;
     icd_memory *memory;
-    ast_mutex_t lock;
+    opbx_mutex_t lock;
     int allocated;
 };
 
@@ -149,7 +149,7 @@ icd_status init_icd_queue(icd_queue * that, char *name, icd_config * config)
         that->name = strdup(name);
     }
 
-    ast_mutex_init(&that->lock);
+    opbx_mutex_init(&that->lock);
     that->distributor = create_icd_distributor(name, config);
     if (config != NULL) {
         customers_config = icd_config__get_subset(config, "customers.");
@@ -266,7 +266,7 @@ icd_status icd_queue__clear(icd_queue * that)
         that->dump_fn_extra = NULL;
 
         icd_queue__unlock(that);
-        ast_mutex_destroy(&(that->lock));
+        opbx_mutex_destroy(&(that->lock));
         return ICD_SUCCESS;
     }
     opbx_log(LOG_WARNING, "Unable to get a lock on ICD Queue %s in order to clear it\n", icd_queue__get_name(that));
@@ -325,7 +325,7 @@ icd_status icd_queue__calc_holdtime(icd_queue * that)
     }
     new = (total < 1 || count < 1) ? 0 : (int) (total / count);
     if (new != old) {
-        ast_verbose("== APP_ICD: Setting hold time to %d minutes for queue %s == \n", new,
+        opbx_verbose("== APP_ICD: Setting hold time to %d minutes for queue %s == \n", new,
             icd_queue__get_name(that));
         icd_queue__set_holdannounce_holdtime(that, new);
     }
@@ -686,7 +686,7 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
 {
     char *monitor_args = NULL;
     char buf[512], buf2[768];
-    struct ast_channel *chan;
+    struct opbx_channel *chan;
     struct tm *ptr;
     time_t tm;
  
@@ -925,7 +925,7 @@ icd_status icd_queue__lock(icd_queue * that)
     if (that->state == ICD_QUEUE_STATE_CLEARED || that->state == ICD_QUEUE_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = ast_mutex_lock(&that->lock);
+    retval = opbx_mutex_lock(&that->lock);
 
     if (retval == 0) {
         return ICD_SUCCESS;
@@ -943,7 +943,7 @@ icd_status icd_queue__unlock(icd_queue * that)
     if (that->state == ICD_QUEUE_STATE_CLEARED || that->state == ICD_QUEUE_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = ast_mutex_unlock(&that->lock);
+    retval = opbx_mutex_unlock(&that->lock);
     if (retval == 0) {
         return ICD_SUCCESS;
     }

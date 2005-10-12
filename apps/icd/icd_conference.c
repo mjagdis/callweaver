@@ -40,21 +40,21 @@
 #define CONF_MODE_REGULAR 772
 #define CONF_MODE_MUTE 260
 
-AST_MUTEX_DEFINE_STATIC(conflock);
+ OPBX_MUTEX_DEFINE_STATIC(conflock);
 static void_hash_table *CONF_REGISTRY;
 static int GLOBAL_USAGE = 0;
 
-static void ast_queue_spy_frame(struct ast_channel_spy *spy, struct ast_frame *f, int pos) 
+static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame *f, int pos) 
 {
-	struct ast_frame *tmpf = NULL;
+	struct opbx_frame *tmpf = NULL;
 	int count = 0;
 
-	ast_mutex_lock(&spy->lock);
+	opbx_mutex_lock(&spy->lock);
 	for (tmpf=spy->queue[pos]; tmpf && tmpf->next; tmpf=tmpf->next) {
 		count++;
 	}
 	if (count > 1000) {
-		struct ast_frame *freef, *headf;
+		struct opbx_frame *freef, *headf;
 
 		opbx_log(LOG_ERROR, "Too Many frames queued at once, flushing cache.\n");
 		headf = spy->queue[pos];
@@ -67,17 +67,17 @@ static void ast_queue_spy_frame(struct ast_channel_spy *spy, struct ast_frame *f
 			tmpf = tmpf->next;
 			ast_frfree(freef);
 		}
-		ast_mutex_unlock(&spy->lock);
+		opbx_mutex_unlock(&spy->lock);
 		return;
 	}
 
 	if (tmpf) {
-		tmpf->next = ast_frdup(f);
+		tmpf->next = opbx_frdup(f);
 	} else {
-		spy->queue[pos] = ast_frdup(f);
+		spy->queue[pos] = opbx_frdup(f);
 	}
 
-	ast_mutex_unlock(&spy->lock);
+	opbx_mutex_unlock(&spy->lock);
 }
 
 
@@ -139,7 +139,7 @@ static void conf_play(icd_conference * conf, int sound)
     unsigned char *data;
     int len;
 
-    ast_mutex_lock(&conflock);
+    opbx_mutex_lock(&conflock);
     switch (sound) {
     case ENTER:
         data = enter;
@@ -155,7 +155,7 @@ static void conf_play(icd_conference * conf, int sound)
     }
     if (data)
         careful_write(conf->fd, data, len);
-    ast_mutex_unlock(&conflock);
+    opbx_mutex_unlock(&conflock);
 }
 
 static int open_pseudo_zap()
@@ -333,19 +333,19 @@ icd_status icd_conference__join(icd_caller * that)
 {
 
     int fd = 0, nfds = 0, outfd = 0, ms = 0, origfd, ret = 0, flags = 0, confno = 0, res = 0;
-    struct ast_frame *read_frame;
-    struct ast_channel *active_channel;
-    struct ast_channel *chan = NULL;
+    struct opbx_frame *read_frame;
+    struct opbx_channel *active_channel;
+    struct opbx_channel *chan = NULL;
     icd_conference *conf;
 
-    /* AST_FORMAT_ULAW AST_FORMAT_SLINEAR this requires ioctl on the conference fd  */
-    int icd_conf_format = AST_FORMAT_SLINEAR;
+    /*  OPBX_FORMAT_ULAW  OPBX_FORMAT_SLINEAR this requires ioctl on the conference fd  */
+    int icd_conf_format = OPBX_FORMAT_SLINEAR;
 
     int x;
     ZT_BUFFERINFO bi;
-    char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
-    char *buf = __buf + AST_FRIENDLY_OFFSET;
-    struct ast_frame write_frame;
+    char __buf[CONF_SIZE +  OPBX_FRIENDLY_OFFSET];
+    char *buf = __buf +  OPBX_FRIENDLY_OFFSET;
+    struct opbx_frame write_frame;
 
     conf = that->conference;
     chan = that->chan;
@@ -356,17 +356,17 @@ icd_status icd_conference__join(icd_caller * that)
         return ICD_STDERR;
     }
     
-    ast_indicate(chan, -1);
+    opbx_indicate(chan, -1);
 
     /* Set it into linear mode (write) */
-    if (ast_set_write_format(chan, icd_conf_format) < 0) {
+    if (opbx_set_write_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         return ICD_STDERR;
     }
 
     /* Set it into linear mode (read) */
-    if (ast_set_read_format(chan, icd_conf_format) < 0) {
+    if (opbx_set_read_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         return ICD_STDERR;
@@ -443,14 +443,14 @@ icd_status icd_conference__join(icd_caller * that)
         conf_play(that->conference, ENTER);
 //PF Once more linear format
     /* Set it into linear mode (write) */
-    if (ast_set_write_format(chan, icd_conf_format) < 0) {
+    if (opbx_set_write_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         return ICD_STDERR;
     }
 
     /* Set it into linear mode (read) */
-    if (ast_set_read_format(chan, icd_conf_format) < 0) {
+    if (opbx_set_read_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         return ICD_STDERR;
@@ -460,7 +460,7 @@ icd_status icd_conference__join(icd_caller * that)
         outfd = -1;
         ms = -1;
 
-        active_channel = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+        active_channel = opbx_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 
 //        if (icd_caller__has_flag(that, ICD_CONF_MEMBER_FLAG)) {
 //            if (!that || (that->state != ICD_CALLER_STATE_CONFERENCED) || !that->conference)
@@ -474,30 +474,30 @@ icd_status icd_conference__join(icd_caller * that)
             break;
 	}    
         if (active_channel) {
-            read_frame = ast_read(active_channel);
+            read_frame = opbx_read(active_channel);
             if (!read_frame)
                 break;
 
 /* This part of code (if) is for ZAP channels to make possible for muxmon to record 2 channels */
          if(!strcasecmp(chan->type, "Zap")){
-	    if (chan->spiers && (read_frame->frametype == AST_FRAME_VOICE) && 
+	    if (chan->spiers && (read_frame->frametype == OPBX_FRAME_VOICE) && 
 	                        (read_frame->subclass == icd_conf_format)) {
-			struct ast_channel_spy *spying;
+			struct opbx_channel_spy *spying;
 			for (spying = chan->spiers; spying; spying=spying->next) {
 			ast_queue_spy_frame(spying, read_frame, 1);
 			}
 	    }	
           }  
-	    if ((read_frame->frametype == AST_FRAME_DTMF) && (read_frame->subclass == '*')) {   /* '*'=end conference */
+	    if ((read_frame->frametype == OPBX_FRAME_DTMF) && (read_frame->subclass == '*')) {   /* '*'=end conference */
                 ret = 0;
                 break;
-            } else if ((read_frame->frametype == AST_FRAME_DTMF) && (read_frame->subclass == '#')) {    /* '#'=toggle mute */
+            } else if ((read_frame->frametype == OPBX_FRAME_DTMF) && (read_frame->subclass == '#')) {    /* '#'=toggle mute */
                 flags = (flags == CONF_MODE_MUTE) ? CONF_MODE_REGULAR : CONF_MODE_MUTE;
                 activate_conference(fd, confno, flags);
-            } else if ((read_frame->frametype == AST_FRAME_DTMF)) {     /* infomative echo */
+            } else if ((read_frame->frametype == OPBX_FRAME_DTMF)) {     /* infomative echo */
                 opbx_log(LOG_NOTICE, "%d->[%c]\n", read_frame->frametype, read_frame->subclass);
             } else if (fd != chan->fds[0]) {
-                if (read_frame->frametype == AST_FRAME_VOICE) {
+                if (read_frame->frametype == OPBX_FRAME_VOICE) {
                     if (read_frame->subclass == icd_conf_format) {
                         /* Carefully write */
                    if (icd_debug)
@@ -509,18 +509,18 @@ icd_status icd_conference__join(icd_caller * that)
                             read_frame->subclass);
                 }
             }
-            ast_frfree(read_frame);
+            opbx_frfree(read_frame);
             read_frame = NULL;
         } else if (outfd > -1) {
             res = read(outfd, buf, CONF_SIZE);
             if (res > 0) {
                 memset(&write_frame, 0, sizeof(write_frame));
-                write_frame.frametype = AST_FRAME_VOICE;
+                write_frame.frametype = OPBX_FRAME_VOICE;
                 write_frame.subclass = icd_conf_format;
                 write_frame.datalen = res;
                 write_frame.samples = res;
                 write_frame.data = buf;
-                write_frame.offset = AST_FRIENDLY_OFFSET;
+                write_frame.offset = OPBX_FRIENDLY_OFFSET;
                 if (ast_write(chan, &write_frame) < 0) {
                     opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                     /* break; */
@@ -531,7 +531,7 @@ icd_status icd_conference__join(icd_caller * that)
 
     }
     if (read_frame) {
-        ast_frfree(read_frame);
+        opbx_frfree(read_frame);
         read_frame = NULL;
     }
 
