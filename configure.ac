@@ -342,10 +342,8 @@ AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS([netinet/in.h  w32api\ws2tcpip.h])
 #AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h])
-
-
-
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_HEADER_STDBOOL
@@ -360,7 +358,20 @@ AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
-
+AC_CHECK_DECLS(INET_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+# endif
+#if HAVE_W32API_WS32TCPIP_H
+# include w32api\ws2tcpip.h
+#endif
+])
+AC_CHECK_DECLS(INET6_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
+# include <netinet/in.h>
+# endif
+#if HAVE_W32API_WS32TCPIP_H
+# include w32api\ws2tcpip.h
+#endif
+])   
 # Now comes the types check, horrible shit
 if test "$tru64_types" = "yes"; then
         AC_CHECK_TYPE(u_int8_t, unsigned char)
@@ -400,7 +411,7 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime])
 
 
-if test "x${OPTIMIZECPU}" = "xyes"; then
+if test "x${OPTIMIZECPU}" = "xno"; then
 		dnl Try to autodetect cpu type
 		CPU_NAME="unknown"
 		CPU_TYPE="unknown"
@@ -570,6 +581,7 @@ echo "CFLAGS: $CFLAGS"
 echo "LIBS: $LIBS"
 echo "LDFLAGS: $LDFLAGS"
 echo "BUSYDETECT: $BUSYDETECT"
+echo "CPU_OPTIONS: $CPU_OPTIONS"
 
 echo
 echo  "Install prefix:       $prefix"

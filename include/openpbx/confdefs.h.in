@@ -1,7 +1,10 @@
-/* include/openpbx/confdefs.h.in.  Generated from configure.in by autoheader.  */
+/* include/openpbx/confdefs.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define if AIX */
 #undef AIX
+
+/* defined way of finding out how to detect busy */
+#undef BUSYDTECT
 
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
 #undef CLOSEDIR_VOID
@@ -29,6 +32,14 @@
 
 /* Define to 1 if your system has a working `chown' function. */
 #undef HAVE_CHOWN
+
+/* Define to 1 if you have the declaration of `INET6_ADDRSTRLEN', and to 0 if
+   you don't. */
+#undef HAVE_DECL_INET6_ADDRSTRLEN
+
+/* Define to 1 if you have the declaration of `INET_ADDRSTRLEN', and to 0 if
+   you don't. */
+#undef HAVE_DECL_INET_ADDRSTRLEN
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -203,6 +214,9 @@
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
+/* Define to 1 if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
 /* */
 #undef HAVE_PGSQL
 
@@ -363,6 +377,9 @@
 
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
+
+/* Define to 1 if you have the <w32api\ws2tcpip.h> header file. */
+#undef HAVE_W32API_WS2TCPIP_H
 
 /* Define to 1 if `fork' works. */
 #undef HAVE_WORKING_FORK
