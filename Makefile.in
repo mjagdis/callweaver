@@ -127,20 +127,6 @@ HTTP_DOCSDIR=/var/www/html
 # Determine by a grep 'ScriptAlias' of your httpd.conf file
 HTTP_CGIDIR=/var/www/cgi-bin
 
-# If the file .openpbx.makeopts is present in your home directory, you can
-# include all of your favorite Makefile options so that every time you download
-# a new version of OpenPBX, you don't have to edit the makefile to set them. 
-# The file, /etc/openpbx.makeopts will also be included, but can be overridden
-# by the file in your home directory.
-
-ifneq ($(wildcard /etc/openpbx.makeopts),)
-  include /etc/openpbx.makeopts
-endif
-
-ifneq ($(wildcard ~/.openpbx.makeopts),)
-  include ~/.openpbx.makeopts
-endif
-
 ifeq (${OSARCH},Linux)
    PROC?=$(shell uname -m)
 
