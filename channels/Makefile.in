@@ -128,9 +128,7 @@ chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
 chan_exosip2.so: chan_exosip2.o
-	$(CC) $(SOLINK) -o $@ chan_exosip2.o -leXosip2 -losip2 
-	-losipparser2 -lortp -lpthread      
-
+	$(CC) $(SOLINK) -o $@ chan_exosip2.o -leXosip2 -losip2 -losipparser2 -lortp -lpthread      
 
 install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
