@@ -351,6 +351,7 @@ AC_CHECK_HEADERS([w32api/winsock2.h],[],[],
 ])
 AC_CHECK_HEADERS([w32api/ws2tcpip.h],[],[],
 [#if HAVE_W32API_WINSOCK2_H
+# include <w32api/windows.h>
 # include <w32api/winsock2.h>
 # endif
 ])
@@ -373,6 +374,8 @@ AC_CHECK_DECLS(INET_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 # endif
 #if HAVE_W32API_WS32TCPIP_H
+# include w32api/windows.h
+# include w32api/winsock2.h  
 # include w32api/ws2tcpip.h
 #endif
 ])
@@ -380,6 +383,8 @@ AC_CHECK_DECLS(INET6_ADDRSTRLEN,[],[],[#if HAVE_NETINET_IN_H
 # include <netinet/in.h>
 # endif
 #if HAVE_W32API_WS32TCPIP_H
+# include w32api/windows.h
+# include w32api/winsock2.h
 # include w32api/ws2tcpip.h
 #endif
 ])   
