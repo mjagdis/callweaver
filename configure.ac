@@ -53,6 +53,8 @@ case "${host}" in
 	;;
   *cygwin*)
 	AC_DEFINE([_WIN32_WINNT],[0x0500],[Heya, it's windows])
+	AC_DEFINE([INET_ADDRSTRLEN],[16],[cygwin detection does not work for that, anybody has an idea ?])
+	AC_DEFINE([INET6_ADDRSTRLEN],[46],[cygwin detection does not work for that, anybody has an idea ?])
         ;;
   *-*-netbsd*)
         ;;

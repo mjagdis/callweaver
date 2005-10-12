@@ -2290,6 +2290,16 @@ cat >>confdefs.h <<\_ACEOF
 #define _WIN32_WINNT 0x0500
 _ACEOF
 
+
+cat >>confdefs.h <<\_ACEOF
+#define INET_ADDRSTRLEN 16
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define INET6_ADDRSTRLEN 46
+_ACEOF
+
         ;;
   *-*-netbsd*)
         ;;
