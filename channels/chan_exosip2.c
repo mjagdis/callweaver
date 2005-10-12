@@ -81,6 +81,8 @@ OPBX_MUTEX_DEFINE_STATIC(subscriptionlock);
 OPBX_MUTEX_DEFINE_STATIC(recvlock);
 
 #define UA_STRING "OpenPBX/eXosip2_OpenSIP"
+#define DEFAULT_CID_NAME "Unknown Name"
+#define DEFAULT_CID_NUM "unknown"
 
 /* Various threads for events, registrations, subscriptions */
 pthread_t event_thread;
@@ -1078,7 +1080,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
   int i = 0;
   call_t *call = ast->tech_pvt;
   char *exten = NULL, *address = NULL;
-  char sip_uri[512] = "", localip[128] = "";
+  char sip_uri[512] = "", localip[128] = "", from_uri[512] = "";
   osip_message_t *invite;
 
   if (strncasecmp(dest,"sip:",4) == 0)
@@ -1101,10 +1103,16 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
   strncpy(call->local_sdp_audio_ip, localip, sizeof(call->local_sdp_audio_ip));
   call->local_sdp_audio_port = rtp_local_port++;
 
-  /* Use the callerid on the channel to build the From header */
+  /* Use the callerid on the channel to build the From header - if none is present... use the default */
+  if (ast->cid.cid_name == NULL)
+    ast->cid.cid_name = strdup(DEFAULT_CID_NAME);
+  if (ast->cid.cid_num == NULL)
+    ast->cid.cid_num = strdup(DEFAULT_CID_NUM);
+  /* Right now we only support setting it in the From URI - future is RPID */
+  snprintf(from_uri, sizeof(from_uri), "\"%s\" <sip:%s@%s>", ast->cid.cid_name, ast->cid.cid_num, localip);
   
   /* Fire up the initial invite */
-  eXosip_call_build_initial_invite(&invite, sip_uri, sip_uri, NULL, NULL);
+  eXosip_call_build_initial_invite(&invite, sip_uri, from_uri, NULL, NULL);
   /* Say we support 100rel */
   osip_message_set_supported(invite, "100rel");
   /* Add in all the SDP */
@@ -1169,7 +1177,7 @@ static struct opbx_channel *sip_request(const char *type, int format, void *data
   call->recv_timestamp = 0; /* Ditto */
 
   chan = sip_new(call, OPBX_STATE_DOWN);
-  
+
   return chan;
 }
 
