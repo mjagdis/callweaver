@@ -1891,7 +1891,7 @@ int icd_caller__authenticate_by_keypad(icd_caller * caller, void *authenticate_t
     password = (char *) authenticate_token;
     memset(entry_buf, 0, sizeof(entry_buf));
     opbx_result = opbx_app_getdata(caller->chan, "agent-pass", entry_buf, sizeof(entry_buf) - 1, 0);
-    if (ast_result == 0) {
+    if (opbx_result == 0) {
         if (strcmp(password, entry_buf) == 0) {
         }
     }
@@ -1922,7 +1922,7 @@ int icd_caller__play_logged_in_message(icd_event * event, void *extra)
         return 0;
     }
     opbx_result = opbx_streamfile(that->chan, "agent-loginok", that->chan->language);
-    if (ast_result == 0) {
+    if (opbx_result == 0) {
         opbx_result = opbx_waitstream(that->chan,  OPBX_DIGIT_ANY);
     }
     return 0;

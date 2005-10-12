@@ -65,7 +65,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 		while (tmpf) {
 			freef = tmpf;
 			tmpf = tmpf->next;
-			ast_frfree(freef);
+			opbx_frfree(freef);
 		}
 		opbx_mutex_unlock(&spy->lock);
 		return;
@@ -484,7 +484,7 @@ icd_status icd_conference__join(icd_caller * that)
 	                        (read_frame->subclass == icd_conf_format)) {
 			struct opbx_channel_spy *spying;
 			for (spying = chan->spiers; spying; spying=spying->next) {
-			ast_queue_spy_frame(spying, read_frame, 1);
+			opbx_queue_spy_frame(spying, read_frame, 1);
 			}
 	    }	
           }  
@@ -521,7 +521,7 @@ icd_status icd_conference__join(icd_caller * that)
                 write_frame.samples = res;
                 write_frame.data = buf;
                 write_frame.offset = OPBX_FRIENDLY_OFFSET;
-                if (ast_write(chan, &write_frame) < 0) {
+                if (opbx_write(chan, &write_frame) < 0) {
                     opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                     /* break; */
                 }

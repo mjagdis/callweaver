@@ -622,7 +622,7 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
     if (conference_name) {
         if (!strcasecmp(conference_name, "query")) {
             conference_name = NULL;
-            if (!ast_app_getdata(chan, "conf-getconfno", input, sizeof(input) - 1, 0))
+            if (!opbx_app_getdata(chan, "conf-getconfno", input, sizeof(input) - 1, 0))
                 conference_name = input;
         }
         if (!strcasecmp(conference_name, "autoscan")) {
@@ -691,7 +691,7 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
                 key = icd_conference__key(conf);
                 if (key) {
                     if (!pin) {
-                        if (!ast_app_getdata(chan, "conf-getpin", input, sizeof(input) - 1, 0))
+                        if (!opbx_app_getdata(chan, "conf-getpin", input, sizeof(input) - 1, 0))
                             pin = input;
                     }
 
@@ -1138,7 +1138,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
     /* Things are different if the agent is on-hook or off-hook. Extensions can override agents.conf */
     hookinfo = vh_read(arghash, "onhook");
     if (hookinfo != NULL) {
-        if (ast_true(hookinfo)) {
+        if (opbx_true(hookinfo)) {
             icd_caller__set_onhook((icd_caller *) agent, 1);
         } else {
             icd_caller__set_onhook((icd_caller *) agent, 0);
@@ -1358,7 +1358,7 @@ int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
             noauth = icd_caller__get_param((icd_caller *) agent, "noath");
         }
         /* Whether you got the agent or not, prompt for password. */
-        if ((noauth == NULL || !ast_true(noauth)) && password != NULL && strlen(password) > 0) {
+        if ((noauth == NULL || !opbx_true(noauth)) && password != NULL && strlen(password) > 0) {
             buf[0] = '\0';
             res = opbx_app_getdata(chan, "agent-pass", buf, sizeof(buf) - 1, 0);
             opbx_log(LOG_DEBUG, "Agent callback password dialed in is [%s], res=%d\n", buf, res);
@@ -1667,7 +1667,7 @@ icd_status app_icd__read_conference_config(char *conference_config_name)
         if (!strcasecmp(entry, "general")) {
             for (varlist = opbx_variable_browse(astcfg, entry); varlist; varlist = varlist->next) {
                 if (!strcasecmp(varlist->name, "conference_bridge_global")) {
-                    icd_conference__set_global_usage(ast_true(varlist->value));
+                    icd_conference__set_global_usage(opbx_true(varlist->value));
                 }
             }
             continue;

@@ -574,7 +574,7 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
        opbx_cdr_start(chan->cdr);
        opbx_cdr_end(chan->cdr);
        //If the cause wasn't handled properly
-       if (ast_cdr_disposition(chan->cdr, chan->hangupcause)) {
+       if (opbx_cdr_disposition(chan->cdr, chan->hangupcause)) {
        opbx_cdr_failed(chan->cdr);
        }
        } else {
@@ -946,7 +946,7 @@ int icd_bridge__check_hangup(icd_caller * that)
     chan = (opbx_channel *) icd_caller__get_channel(that);
 
     if (chan != NULL && chan->name != NULL) {
-        return (ast_check_hangup(chan) == 0) ? 0 : 1;
+        return (opbx_check_hangup(chan) == 0) ? 0 : 1;
     }
     return 1;
 }
