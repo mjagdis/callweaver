@@ -43,6 +43,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/lock.h"
 #include "openpbx/utils.h"
+#include "openpbx/resonator.h"
 
 static int midi_tohz[128] = {
 			8,8,9,9,10,10,11,12,12,13,14,
@@ -65,6 +66,7 @@ struct playtones_item {
 	int freq2;
 	int duration;
 	int modulate;
+	int modulation_depth;	/* percent, min 0, max 100 */
 };
 
 struct playtones_def {
@@ -82,6 +84,9 @@ struct playtones_state {
 	struct playtones_item *items;
 	int npos;
 	int pos;
+	struct digital_resonator dr1; /* For digital resonator 1 */
+	struct digital_resonator dr2; /* For digital resonator 2 */
+	struct digital_resonator dr3; /* For digital resonator 3 */
 	int origwfmt;
 	struct opbx_frame f;
 	unsigned char offset[OPBX_FRIENDLY_OFFSET];
@@ -98,6 +103,49 @@ static void playtones_release(struct opbx_channel *chan, void *params)
 	free(ps);
 }
 
+/* Used to setup three digital resonators to implement amplitude modulation */
+static void modulation_setup(struct playtones_state *ps, struct playtones_item *pi)
+{
+	float moddepth = 0.01f * pi->modulation_depth;
+	float moddepthsquared = moddepth * moddepth;
+	float carrier_freq, carrier_ampl;
+	float modulat_freq, modulat_ampl;
+
+	/* Make sure carrier frequency higher then modulating frequency */
+	if (pi->freq1 > pi->freq2) {
+		carrier_freq = pi->freq1;
+		modulat_freq = pi->freq2;
+	} else {
+		carrier_freq = pi->freq2;
+		modulat_freq = pi->freq1;
+	}
+
+	/*
+	 * Setup three digital resonators with:
+	 * 1) Carrier frequency and 10% total power
+	 * 2) Lower sideband signal with 45% power and f = carrier - modulat
+	 * 2) Higher sideband signal with 45% power and f = carrier + modulat
+	 */
+
+	/* Ensure modulation depth lives within 0 and 100% */
+	if (moddepth > 1.0f)
+		moddepth = 1.0f;
+	else if (moddepth < 0.0f)
+		moddepth = 1.0f;
+
+	/* Init carrier resonator */
+	carrier_ampl = ps->vol / sqrtf(1.0f + moddepthsquared + moddepthsquared);
+	digital_resonator_init(&ps->dr1, carrier_freq, carrier_ampl, 8000);
+
+	/* Init lower sideband resonator */
+	modulat_ampl = carrier_ampl * moddepth;
+	digital_resonator_init(&ps->dr2, carrier_freq - modulat_freq, modulat_ampl, 8000);
+
+	/* Init higher sideband resonator */
+	digital_resonator_init(&ps->dr3, carrier_freq + modulat_freq, modulat_ampl, 8000);
+
+}
+
 static void * playtones_alloc(struct opbx_channel *chan, void *params)
 {
 	struct playtones_def *pd = params;
@@ -111,10 +159,23 @@ static void * playtones_alloc(struct opbx_channel *chan, void *params)
 		playtones_release(NULL, ps);
 		ps = NULL;
 	} else {
+		struct playtones_item *pi;
+
 		ps->vol = pd->vol;
 		ps->reppos = pd->reppos;
 		ps->nitems = pd->nitems;
 		ps->items = pd->items;
+
+		/* Initialize digital resonators */
+		pi = &pd->items[0];
+		if(pi->modulate) {
+			/* We need all three generators */
+			modulation_setup(ps, pi);
+		} else {
+			/* Two generators is all we need */
+			digital_resonator_init(&ps->dr1, pi->freq1, ps->vol, 8000);
+			digital_resonator_init(&ps->dr2, pi->freq2, ps->vol, 8000);
+		}
 	}
 	/* Let interrupts interrupt :) */
 	if (pd->interruptible)
@@ -128,32 +189,43 @@ static int playtones_generator(struct opbx_channel *chan, void *data, int len, i
 {
 	struct playtones_state *ps = data;
 	struct playtones_item *pi;
+	float s;
 	int x;
-	/* we need to prepare a frame with 16 * timelen samples as we're 
+
+	/*
+	 * We need to prepare a frame with 16 * timelen samples as we're 
 	 * generating SLIN audio
 	 */
-	len = samples * 2;
+	len = samples + samples;
 	if (len > sizeof(ps->data) / 2 - 1) {
 		opbx_log(LOG_WARNING, "Can't generate that much data!\n");
 		return -1;
 	}
-	memset(&ps->f, 0, sizeof(ps->f));
 
 	pi = &ps->items[ps->npos];
-	for (x=0;x<len/2;x++) {
+	for (x=0;x<samples;x++) {
+		s = digital_resonator_get_sample(&ps->dr1) + digital_resonator_get_sample(&ps->dr2);
+		if(pi->modulate)
+			s += digital_resonator_get_sample(&ps->dr3);
+
+		ps->data[x] = s;
+/* OLD STUFF To be removed....
 		if (pi->modulate)
-		/* Modulate 1st tone with 2nd, to 90% modulation depth */
 		ps->data[x] = ps->vol * 2 * (
 			sin((pi->freq1 * 2.0 * M_PI / 8000.0) * (ps->pos + x)) *
 			(0.9 * fabs(sin((pi->freq2 * 2.0 * M_PI / 8000.0) * (ps->pos + x))) + 0.1)
 			);
-		else
-			/* Add 2 tones together */
+		else {
 			ps->data[x] = ps->vol * (
 				sin((pi->freq1 * 2.0 * M_PI / 8000.0) * (ps->pos + x)) +
 				sin((pi->freq2 * 2.0 * M_PI / 8000.0) * (ps->pos + x))
 			);
+ 		}
+OLD STUFF */
 	}
+
+	/* Assemble frame */
+	memset(&ps->f, 0, sizeof(ps->f));
 	ps->f.frametype = OPBX_FRAME_VOICE;
 	ps->f.subclass = OPBX_FORMAT_SLINEAR;
 	ps->f.datalen = len;
@@ -172,6 +244,17 @@ static int playtones_generator(struct opbx_channel *chan, void *data, int len, i
 			if (ps->reppos == -1)			/* repeat set? */
 				return -1;
 			ps->npos = ps->reppos;			/* redo from top */
+		}
+
+		/* Prepare digital resonators for more */
+		pi = &ps->items[ps->npos];
+		if (pi->modulate) {
+			/* Need to do amplitude modulation */
+			modulation_setup(ps, pi);
+		} else {
+			/* Just adding two sinewaves */
+			digital_resonator_reinit(&ps->dr1, pi->freq1, ps->vol);
+			digital_resonator_reinit(&ps->dr2, pi->freq2, ps->vol);
 		}
 	}
 	return 0;
@@ -205,7 +288,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 		separator = ",";
 	s = strsep(&stringp,separator);
 	while (s && *s) {
-		int freq1, freq2, time, modulate=0, midinote=0;
+		int freq1, freq2, time, modulate=0, moddepth=90, midinote=0;
 
 		if (s[0]=='!')
 			s++;
@@ -219,8 +302,15 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 		} else if (sscanf(s, "%d*%d/%d", &freq1, &freq2, &time) == 3) {
 			/* f1*f2/time format */
 			modulate = 1;
+		} else if (sscanf(s, "%d*%d@%d/%d", &freq1, &freq2, &moddepth, &time) == 4) {
+			/* f1*f2@md/time format */
+			modulate = 1;
 		} else if (sscanf(s, "%d*%d", &freq1, &freq2) == 2) {
 			/* f1*f2 format */
+			time = 0;
+			modulate = 1;
+		} else if (sscanf(s, "%d*%d@%d", &freq1, &freq2, &moddepth) == 3) {
+			/* f1*f2@md format */
 			time = 0;
 			modulate = 1;
 		} else if (sscanf(s, "%d/%d", &freq1, &time) == 2) {
@@ -282,6 +372,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 		d.items[d.nitems].freq2    = freq2;
 		d.items[d.nitems].duration = time;
 		d.items[d.nitems].modulate = modulate;
+		d.items[d.nitems].modulation_depth = moddepth;
 		d.nitems++;
 
 		s = strsep(&stringp,separator);
