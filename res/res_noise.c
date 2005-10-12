@@ -86,14 +86,15 @@ LOCAL_USER_DECL;
 static void box_muller_rng(float stddev, float *rn1, float *rn2)
 {
 	const float twicerandmaxinv = 2.0 / RAND_MAX;
-	float x1, x2, w;
+	float x1, x2, w, temp;
 	 
 	do {
-		x1 = random() * twicerandmaxinv - 1.0;
-		x2 = random() * twicerandmaxinv - 1.0;
+		x1 = random() * twicerandmaxinv - 1.0f;
+		x2 = random() * twicerandmaxinv - 1.0f;
 		w = x1 * x1 + x2 * x2;
-	} while (w >= 1.0);
-	w = stddev * sqrt( (-2.0 * logf( w ) ) / w );
+	} while (w >= 1.0f);
+	temp = logf(w) / w;
+	w = stddev * sqrtf(-(temp + temp));
 	*rn1 = x1 * w;
 	*rn2 = x2 * w;
 }
@@ -116,7 +117,7 @@ static void *noise_alloc(struct opbx_channel *chan, void *data)
 	 */
 	pnoisestddev = malloc(sizeof (float));
 	if(pnoisestddev)
-		*pnoisestddev = maxsigma * exp10(level / 20.0);
+		*pnoisestddev = maxsigma * exp10f(level * 0.05f);
 	return pnoisestddev;
 }
 
@@ -170,10 +171,10 @@ static int noise_generate(struct opbx_channel *chan, void *data, int len, int sa
 		box_muller_rng(noisestddev, &randomnumber[0], &randomnumber[1]);
 		for (j = 0; j < 2; j++) {
 			sampleamplitude = randomnumber[j];
-			if (sampleamplitude > 32767.0)
-				sampleamplitude = 32767.0;
-			else if (sampleamplitude < -32767.0)
-				sampleamplitude = -32767.0;
+			if (sampleamplitude > 32767.0f)
+				sampleamplitude = 32767.0f;
+			else if (sampleamplitude < -32767.0f)
+				sampleamplitude = -32767.0f;
 			*(pbuf++) = (int16_t)sampleamplitude;
 		}
 	}
@@ -184,7 +185,7 @@ static int noise_generate(struct opbx_channel *chan, void *data, int len, int sa
 	 * to create a little bit more randomness
 	 *
 	 */
-	start = (uint16_t) (65536.0 * random() / RAND_MAX);
+	start = (uint16_t) (random() * (65536.0 / RAND_MAX));
 	for (i = 0; i < samples; i++) {
 		*(pbuf++) = (int16_t)(noisestddev * pregeneratedsamples[start++]);
 	}
@@ -277,7 +278,7 @@ static int noise_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	/* Just do the noise... */
+	/* Just let the noise happen... */
 	res = -1;
 	if (timeout > 0)
 		res = opbx_safe_sleep(chan, timeout);
