@@ -383,6 +383,9 @@
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
+/* Define to 1 if you have the <visdn/visdn.h> header file. */
+#undef HAVE_VISDN_VISDN_H
+
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
@@ -466,6 +469,12 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* libq931 required for visdn...found! */
+#undef VISDN_LIBS
+
+/* visdn seems to be installed */
+#undef WITH_VISDN
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
