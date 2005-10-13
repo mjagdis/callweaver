@@ -1036,13 +1036,16 @@ static void *handle_call_transfer(eXosip_event_t *event)
     }
     if (consult_call) {
       /* This is a supervised call to one that's on this box... */
+      opbx_log(LOG_NOTICE, "Okay we want to bridge %s to %s\n", bridged->name, consult_call->owner->name);
     } else {
       /* Okay here's the situation - we have to transfer this call... elsewhere */
     }
   } else {
-    /* Do a blind transfer */
-    opbx_async_goto(bridged, call->context, exten, 1);
-    accept = 1; /* Call transfer is doing just fine... */
+    /* Do a blind transfer if the extension exists */
+    if (opbx_exists_extension(NULL, call->context, exten, 1, NULL)) {
+      opbx_async_goto(bridged, call->context, exten, 1);
+      accept = 1; /* Call transfer is doing just fine... */
+    }
   }
 
   /* Clean Up */
