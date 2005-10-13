@@ -144,6 +144,7 @@ struct call {
   char callid[128];
   /* State of the call */
 #define NOT_USED 0
+#define INUSE 1
   int state;
   /* Direction of the call */
 #define DIRECTION_IN 0
@@ -699,7 +700,7 @@ static call_t *find_new_callslot(void)
     if (calls[i].state == NOT_USED) {
       call_slot = &(calls[i]);
       memset(call_slot, 0, sizeof(call_t));
-      call_slot->state = 1;
+      call_slot->state = INUSE;
       break;
     }
   }
@@ -715,7 +716,7 @@ static call_t *find_new_callslot(void)
     if (calls[i].state == NOT_USED) {
       call_slot = &(calls[i]);
       memset(call_slot, 0, sizeof(call_t));
-      call_slot->state = 1;
+      call_slot->state = INUSE;
       current_calls++;
       break;
     }
@@ -959,16 +960,116 @@ static void *handle_ringing(eXosip_event_t *event)
 
 static void *handle_call_transfer(eXosip_event_t *event)
 {
-  call_t *call = NULL;
+  struct opbx_channel *bridged = NULL;
+  call_t *call = NULL, *consult_call = NULL;
+  osip_header_t *header = NULL;
+  osip_from_t *refer_to = NULL, *referred_by = NULL;
+  osip_uri_header_t *uri_header = NULL;
+  osip_message_t *answer = NULL, *notify = NULL;
+  int pos = 0, i = 0, accept = 0;
+  char *bleh = NULL, replace_callid[128] = "";
+  char exten[OPBX_MAX_EXTENSION], host[256] = "";
 
   call = find_call(event->cid, event->did);
   if (call == NULL || call->owner == NULL)
     return NULL;
 
-  /* We need to see whether this is consultive... blind... whatever */
-  if (event->request != NULL) {
-
+  bridged = opbx_bridged_channel(call->owner);
+  if (bridged == NULL) {
+    /* Can't transfer this! */
+    eXosip_lock();
+    eXosip_call_build_answer(call->tid, 400, &answer);
+    eXosip_call_send_answer(call->tid, 400, answer);
+    eXosip_unlock();
+    call->tid++;
+    opbx_queue_hangup(call->owner);
+    return NULL;
   }
+
+  /* Parse out required information */
+  if (event->request != NULL) {
+    osip_message_header_get_byname(event->request, "Refer-To", 0, &header);
+    if (header) {
+      /* We've got a Refer-To... */
+      osip_from_init(&refer_to);
+      osip_from_parse(refer_to, header->hvalue);
+      header = NULL;
+      /* Okay now parse it out to see the extension they want to transfer to, or the call to transfer to (for supervised transfers) */
+      strncpy(exten, refer_to->url->username, sizeof(exten));
+      strncpy(host, refer_to->url->host, sizeof(host));
+      /* See if there's any extra arguments (like a Replaces) */
+      if (refer_to->url->url_headers != NULL) {
+	while (!osip_list_eol(refer_to->url->url_headers, pos)) {
+	  uri_header = (osip_uri_header_t *)osip_list_get(refer_to->url->url_headers, pos);
+	  if (uri_header != NULL && uri_header->gname != NULL && uri_header->gvalue != NULL) {
+	    if (!strcasecmp(uri_header->gname, "Replaces")) {
+	      /* Hey look it's a Replaces header! */
+	      bleh = strchr(uri_header->gvalue, ';');
+	      if (bleh) {
+		*bleh = '\0';
+		bleh++;
+	      }
+	      strncpy(replace_callid, uri_header->gvalue, sizeof(replace_callid));
+	    }
+	  }
+	  pos++;
+	}
+      }
+    }
+    osip_message_header_get_byname(event->request, "Referred-By", 0, &header);
+    if (header) {
+      /* We've got a Referred-By... */
+      osip_from_init(&referred_by);
+      osip_from_parse(referred_by, header->hvalue);
+      header = NULL;
+      opbx_log(LOG_NOTICE, "Got a Referred-By header!!!\n");
+    }
+  }
+
+  /* OKAY - if we have a Replaces callid... find it's channel - if it's not found and we still have it... initiate a new INVITE with the right info */
+  if (strlen(replace_callid) > 0) {
+    for (i=0; i<MAX_NUMBER_OF_CALLS; i++) {
+      if (calls[i].state != NOT_USED && strcasecmp(calls[i].callid, replace_callid) == 0) {
+	consult_call = &(calls[i]);
+	break;
+      }
+    }
+    if (consult_call) {
+      /* This is a supervised call to one that's on this box... */
+    } else {
+      /* Okay here's the situation - we have to transfer this call... elsewhere */
+    }
+  } else {
+    /* Do a blind transfer */
+    opbx_async_goto(bridged, call->context, exten, 1);
+    accept = 1; /* Call transfer is doing just fine... */
+  }
+
+  /* Clean Up */
+  if (refer_to)
+    osip_free(refer_to);
+  if (referred_by)
+    osip_free(referred_by);
+
+  /* Return the status of the transfer - accepted or not. */
+  eXosip_lock();
+  if (accept == 1) {
+    /* Send 202 Accepted */
+    eXosip_call_build_answer(call->tid, 202, &answer);
+    eXosip_call_send_answer(call->tid, 202, answer);
+    /* Send a fragment as well */
+    eXosip_call_build_notify(call->did, EXOSIP_SUBCRSTATE_ACTIVE, &notify);
+    osip_message_set_header(notify, "Event", "refer");
+    osip_message_set_content_type(notify, "message/sipfrag");
+    osip_message_set_body(notify, "SIP/2.0 100 Trying", strlen("SIP/2.0 100 Trying"));
+    eXosip_call_send_request(call->did, notify);
+  } else {
+    /* Transfer failed for whatever reason */
+    eXosip_call_build_answer(call->tid, 400, &answer);
+    eXosip_call_send_answer(call->tid, 400, answer);
+  }
+  eXosip_unlock();
+  call->tid++;
 
   return NULL;
 }
@@ -1026,7 +1127,7 @@ static void *handle_reinvite(eXosip_event_t *event)
     opbx_moh_stop(call->owner);
     call->rtp_state = SENDRECV;
   } else {
-    /* Adjust the RTP session on this call to the new IP/port */
+    /* Suspend the RTP session, change the remote address, and then switch it back to active */
   }
 
   eXosip_lock();
@@ -1316,7 +1417,8 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *f)
     rtp_setup_stream(call);
     eXosip_lock();
     eXosip_call_build_answer(call->tid, 183, &answer);
-    osip_message_set_require(answer, "100rel");
+    osip_message_set_supported(answer, "100rel");
+    osip_message_set_supported(answer, "replaces");
     osip_message_set_header(answer, "RSeq", "1");
     message_add_sdp(call, answer, -1);
     eXosip_call_send_answer (call->tid, 183, answer);
@@ -1392,7 +1494,8 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
     rtp_setup_stream(call);
     eXosip_lock();
     eXosip_call_build_answer(call->tid, 183, &answer);
-    osip_message_set_require(answer, "100rel");
+    osip_message_set_supported(answer, "100rel");
+    osip_message_set_supported(answer, "replaces");
     osip_message_set_header(answer, "RSeq", "1");
     message_add_sdp(call, answer, -1);
     eXosip_call_send_answer (call->tid, 183, answer);
