@@ -4008,8 +4008,3 @@ char *description()
 {
 	return VISDN_DESCRIPTION;
 }
-
-char *key()
-{
-	return ASTERISK_GPL_KEY;
-}
