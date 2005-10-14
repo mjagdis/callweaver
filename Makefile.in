@@ -504,6 +504,16 @@ NEWHEADERS=$(notdir $(wildcard include/openpbx/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(OPBXHEADERDIR)/*.h)))
 
 bininstall: all
+	if [ "$(OSARCH)" == "Darwin" ]; then \
+		build_tools/mk_osx_user_group; \
+	else \
+		if [ "`cat /etc/group | $(GREP) -e '^$(OPBXRUNGROUP):'`" = "" ]; then \
+			$(GROUPADDBIN) -f $(OPBXRUNGROUP); \
+		fi; \
+		if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
+			$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
+		fi; \
+	fi 
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(OPBXSBINDIR)
 	mkdir -p $(DESTDIR)$(OPBXETCDIR)
@@ -514,6 +524,9 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/system
 	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/tmp
 	mkdir -p $(DESTDIR)$(OPBXSPOOLDIR)/meetme
+	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(MODULES_DIR) \
+		$(DESTDIR)$(OPBXETCDIR) $(DESTDIR)$(OPBXVARRUNDIR) \
+		$(DESTDIR)$(OPBXSPOOLDIR)
 	$(INSTALL) -m 755 openpbx $(DESTDIR)$(OPBXSBINDIR)/
 	ln -sf openpbx $(DESTDIR)$(OPBXSBINDIR)/ropenpbx
 	$(INSTALL) -m 755 contrib/scripts/opbxgenkey $(DESTDIR)$(OPBXSBINDIR)/
@@ -535,28 +548,13 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(OPBXLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(OPBXVARLIBDIR)/keys
 	mkdir -p $(DESTDIR)$(OPBXMANDIR)/man8
+	chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(OPBXVARLIBDIR) $(DESTDIR)$(OPBXLOGDIR) \
+	$(DESTDIR)$(OPBXVARLIBDIR)/keys 
 	$(INSTALL) -m 644 openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/opbxgenkey.8 $(DESTDIR)$(OPBXMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(OPBXMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/safe_openpbx.8 $(DESTDIR)$(OPBXMANDIR)/man8
 	( cd $(DESTDIR)$(OPBXVARLIBDIR)/sounds  ; ln -s $(OPBXSPOOLDIR)/voicemail . )
-	if [ "x$(DESTDIR)" == "x" ]; then \
-		if [ "$(OSARCH)" == "Darwin" ]; then \
-			build_tools/mk_osx_user_group; \
-		else \
-			if [ "`cat /etc/group | $(GREP) -e '^$(OPBXRUNGROUP):'`" = "" ]; then \
-				$(GROUPADDBIN) -f $(OPBXRUNGROUP); \
-			fi; \
-			if [ "`cat /etc/passwd | $(GREP) -e '^$(OPBXRUNUSER):'`" = "" ]; then \
-				$(USERADDBIN) -d $(DESTDIR)$(OPBXVARRUNDIR) -s /bin/false  -g $(OPBXRUNGROUP) -G $(OPBXRUNGROUP) $(OPBXRUNUSER) ; \
-			fi; \
-		fi; \
-		chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(MODULES_DIR) \
-			$(DESTDIR)$(OPBXETCDIR) $(DESTDIR)$(OPBXVARRUNDIR) \
-			$(DESTDIR)$(OPBXSPOOLDIR); \
-		chown -R $(OPBXRUNGROUP):$(OPBXRUNUSER) $(DESTDIR)$(OPBXVARLIBDIR) $(DESTDIR)$(OPBXLOGDIR) \
-		$(DESTDIR)$(OPBXVARLIBDIR)/keys; \
-	fi
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 	@echo " +---- OpenPBX Installation Complete --------+"  
 	@echo " +                                           +"
