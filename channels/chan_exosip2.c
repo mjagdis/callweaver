@@ -34,9 +34,12 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 #include <pthread.h>
+#include <malloc.h>
+#include <errno.h>
 #include <eXosip2/eXosip.h>
 #include <ortp/ortp.h>
 #include <ortp/telephonyevents.h>
+#define OSIP_MT
 #include <osip2/osip_mt.h>
 
 /* ortp.h defines stuff... undef 'em */
@@ -76,9 +79,6 @@ static int usecnt =0;
 OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
 OPBX_MUTEX_DEFINE_STATIC(calllock);
 OPBX_MUTEX_DEFINE_STATIC(portlock);
-OPBX_MUTEX_DEFINE_STATIC(registerlock);
-OPBX_MUTEX_DEFINE_STATIC(subscriptionlock);
-OPBX_MUTEX_DEFINE_STATIC(recvlock);
 
 #define UA_STRING "OpenPBX/eXosip2_OpenSIP"
 #define DEFAULT_CID_NAME "Unknown Name"
@@ -87,6 +87,7 @@ OPBX_MUTEX_DEFINE_STATIC(recvlock);
 /* Various tweaks */
 //#define CALL_SETUP_TRICK
 //#define EVENT_DEBUG
+//#define RTP_NO_RECYCLE
 
 #ifdef CALL_SETUP_TRICK
 static int current_calls = 0;
@@ -99,11 +100,11 @@ pthread_t subscriptions_tread;
 
 /* Default settings */
 static int global_capability = OPBX_FORMAT_ULAW | OPBX_FORMAT_ALAW | OPBX_FORMAT_GSM;
-static int noncodeccapability = OPBX_RTP_DTMF;
-static struct opbx_codec_pref prefs;
 
 /* RTP stuff (like local port) */
-static int rtp_local_port = 10000;
+#define MAX_RTP_PORTS 1000
+static int rtp_start_port = 10000;
+static int rtp_allocations[MAX_RTP_PORTS];
 
 static struct opbx_channel *sip_request(const char *type, int format, void *data, int *cause);
 static int sip_digit(struct opbx_channel *ast, char digit);
@@ -146,6 +147,9 @@ struct call {
 #define NOT_USED 0
 #define INUSE 1
   int state;
+  /* Type of call */
+#define B2BUA 0
+  int type;
   /* Direction of the call */
 #define DIRECTION_IN 0
 #define DIRECTION_OUT 1
@@ -421,7 +425,7 @@ static void *rtp_setup_stream(call_t *call)
   if (call->dtmf == DTMF_RFC2833 && rtp_session_telephone_events_supported(call->rtp_session) > 0) {
     opbx_log(LOG_NOTICE, "RFC2833 is enabled on this call.\n");
   }
-  opbx_log(LOG_NOTICE,"End result on call: %i\n", call->payload);
+  opbx_log(LOG_NOTICE,"End result on call: %i Port: %d\n", call->payload, call->local_sdp_audio_port);
   return NULL;
 }
 
@@ -679,18 +683,37 @@ static int rtp_payload2int(int payload, char *payload_name)
   return payload_internal;
 }
 
-/* Allocate a port number... */
-static int rtp_allocate_port(int remote_port)
+int rtp_allocate_port(void)
 {
-  int port = remote_port;
+  int port = 0, end_port = -1;
 
-  return port;
+#ifdef RTP_NO_RECYCLE
+  end_port = rtp_start_port;
+  rtp_start_port++;
+#else
+  /* I'm crazy - let's allocate backwards! */
+
+  opbx_mutex_lock(&portlock);
+  for (port=MAX_RTP_PORTS; 0<=port; port--) {
+    if (rtp_allocations[port] == NOT_USED) {
+      end_port = rtp_start_port + port;
+      rtp_allocations[port] = INUSE;
+      break;
+    }
+  }
+  opbx_mutex_unlock(&portlock);
+#endif
+
+  return end_port;
 }
 
 /* Find an available callslot and return a pointer to it */
 static call_t *find_new_callslot(void)
 {
-  int i = 0, direction = 1;
+#ifdef CALL_SETUP_TRICK
+  int direction = 1;
+#endif
+  int i = 0;
   call_t *call_slot = NULL;
 
   opbx_mutex_lock(&calllock);
@@ -742,6 +765,12 @@ static void destroy_call(call_t *call)
     osip_thread_join(call->recv_thread); /* Wait for it to die - just in case */
     osip_free(call->recv_thread); /* And finally free it */
     call->recv_thread = NULL;
+  }
+  /* Free the rtp port allocation */
+  if (call->local_sdp_audio_port != -1) {
+    opbx_mutex_lock(&portlock);
+    rtp_allocations[(call->local_sdp_audio_port)-(rtp_start_port)] = NOT_USED;
+    opbx_mutex_unlock(&portlock);
   }
   /* Destroy the RTP session stuff if present */
   if (call->rtp_session) {
@@ -924,7 +953,7 @@ static int new_call_by_event(eXosip_event_t *event)
       /* If NAT helping is enabled - see if they match the originating IP address... if not - use the originating */
       eXosip_guess_localip (AF_INET, localip, 128);
       strncpy(call->local_sdp_audio_ip, localip, sizeof(call->local_sdp_audio_ip));
-      call->local_sdp_audio_port = rtp_allocate_port(call->remote_sdp_audio_port);
+      call->local_sdp_audio_port = rtp_allocate_port();
       opbx_log(LOG_NOTICE, "Local media is at %s:%i\n", call->local_sdp_audio_ip, call->local_sdp_audio_port);
       sdp_message_free(remote_sdp);
     } else {
@@ -1037,6 +1066,10 @@ static void *handle_call_transfer(eXosip_event_t *event)
     if (consult_call) {
       /* This is a supervised call to one that's on this box... */
       opbx_log(LOG_NOTICE, "Okay we want to bridge %s to %s\n", bridged->name, consult_call->owner->name);
+      /* First let's get rid of the musiconhold on this channel */
+      opbx_moh_stop(call->owner);
+      opbx_moh_stop(consult_call->owner);
+      accept = 1;
     } else {
       /* Okay here's the situation - we have to transfer this call... elsewhere */
     }
@@ -1219,7 +1252,6 @@ static void *handle_answer(eXosip_event_t *event)
 /* Event Thread */
 static void *event_proc(void *arg)
 {
-  call_t *call = NULL;
   eXosip_event_t *event = NULL;
 
   for (;;) {
@@ -1290,7 +1322,7 @@ static void *event_proc(void *arg)
       opbx_log(LOG_NOTICE, "Received registration attempt\n");
       break;
     default:
-      opbx_log(LOG_NOTICE, "recieved unknown eXosip event (type, did, cid) = (%d, %d, %d)\n", event->type, event->did, event->cid);
+      /* Unknown event... casually absorb it for now */
       break;
     }
     eXosip_event_free (event);
@@ -1300,11 +1332,10 @@ static void *event_proc(void *arg)
 
 void rcv_telephone_event (RtpSession * rtp_session, call_t * ca)
 {
-  struct opbx_channel *chan = NULL;
   struct opbx_frame f;
   telephone_event_t *tev = NULL;
   call_t *call = NULL;
-  char digit;
+  char digit = ' ';
   int i = 0;
 
   /* Find the real call... */
@@ -1440,7 +1471,7 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *f)
 
 static int sip_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan)
 {
-  call_t *call = newchan->tech_pvt;
+  //  call_t *call = newchan->tech_pvt;
 
   return 0;
 }
@@ -1532,7 +1563,7 @@ static int sip_digit(struct opbx_channel *ast, char digit)
 
 static int sip_sendhtml(struct opbx_channel *ast, int subclass, const char *data, int datalen)
 {
-  call_t *call = ast->tech_pvt;
+  //call_t *call = ast->tech_pvt;
   int res = -1;
   
   return res;
@@ -1566,7 +1597,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
   /* Setup the local RTP IP and port */
   eXosip_guess_localip (AF_INET, localip, 128);
   strncpy(call->local_sdp_audio_ip, localip, sizeof(call->local_sdp_audio_ip));
-  call->local_sdp_audio_port = rtp_local_port++;
+  call->local_sdp_audio_port = rtp_allocate_port();
 
   /* Use the callerid on the channel to build the From header - if none is present... use the default */
   if (ast->cid.cid_name == NULL)
@@ -1616,7 +1647,6 @@ static int sip_hangup(struct opbx_channel *ast)
 /*--- sip_request: Part of PBX interface */
 static struct opbx_channel *sip_request(const char *type, int format, void *data, int *cause)
 {
-  int i = 0;
   call_t *call = NULL;
   struct opbx_channel *chan = NULL;
 
@@ -1641,9 +1671,13 @@ static struct opbx_channel *sip_request(const char *type, int format, void *data
 int load_module()
 {
   int port = 5060;
+  int i = 0;
   /* Setup the RTP stream stuff */
   ortp_init();
   ortp_scheduler_init();
+  /* Reset RTP port allocations */
+  for (i=0; i<MAX_RTP_PORTS; i++)
+    rtp_allocations[i] = NOT_USED;
   /* Adjust the av_profile with extra codecs */
   rtp_profile_set_payload(&av_profile,0,&pcmu8000);
   rtp_profile_set_payload(&av_profile,3,&gsm);
