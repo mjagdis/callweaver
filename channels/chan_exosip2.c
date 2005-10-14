@@ -683,7 +683,7 @@ static int rtp_payload2int(int payload, char *payload_name)
   return payload_internal;
 }
 
-int rtp_allocate_port(void)
+static int rtp_allocate_port(void)
 {
   int port = 0, end_port = -1;
 
