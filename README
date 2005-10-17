@@ -205,7 +205,7 @@ these changes to take effect.
 
   If there are no instructions specifically adapted to your system
 above you can try adding the command "ulimit -n 8192" to the script
-that starts OpenPBX.
+that starts OpenPBX.org.
 
 * MORE INFORMATION
 
