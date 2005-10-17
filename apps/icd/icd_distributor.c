@@ -52,7 +52,7 @@
 #include <semaphore.h>
 
 // ----------
-struct ast_channel *agent_channel0 = NULL;
+struct opbx_channel *agent_channel0 = NULL;
 // ----------
 
 
@@ -180,12 +180,12 @@ icd_status init_icd_distributor(icd_distributor *that, char *name, icd_config *d
     init = (icd_status (*)(icd_distributor *that, char *name, icd_config *data))
         icd_config__get_value(data, "dist");
     if (init != NULL) {
-        ast_verbose(VERBOSE_PREFIX_1 "Using Registered dist for [%s] \n", 
+        opbx_verbose(VERBOSE_PREFIX_1 "Using Registered dist for [%s] \n", 
                 icd_distributor__get_name(that));
         return init(that, name, data);
     }
     /* Nope, use this one as the default. */
-    ast_verbose(VERBOSE_PREFIX_1 "Using default dist for [%s] \n", icd_distributor__get_name(that));
+    opbx_verbose(VERBOSE_PREFIX_1 "Using default dist for [%s] \n", icd_distributor__get_name(that));
     icd_distributor__set_config_params(that, data);
     icd_distributor__create_lists(that, data);
     icd_distributor__create_thread(that);
@@ -244,7 +244,7 @@ icd_status icd_distributor__clear(icd_distributor *that) {
     that->agent_list_allocated = 0;
     pthread_cancel(that->thread);
     pthread_cond_destroy(&(that->wakeup));
-    ast_mutex_destroy(&(that->lock));
+    opbx_mutex_destroy(&(that->lock));
     
     return ICD_SUCCESS;
 }
@@ -418,7 +418,7 @@ icd_status icd_distributor__start_distributing(icd_distributor *that) {
     assert(that != NULL);
 
     that->thread_state = ICD_THREAD_STATE_RUNNING;
-    ast_verbose(VERBOSE_PREFIX_1 "Started [%s] State[%d] \n", 
+    opbx_verbose(VERBOSE_PREFIX_1 "Started [%s] State[%d] \n", 
             icd_distributor__get_name(that), that->thread_state);
     return ICD_SUCCESS;
 }
@@ -578,7 +578,7 @@ icd_status icd_distributor__lock(icd_distributor *that) {
     if (that->state == ICD_DISTRIBUTOR_STATE_CLEARED || that->state == ICD_DISTRIBUTOR_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = ast_mutex_lock(&that->lock);
+    retval = opbx_mutex_lock(&that->lock);
     if (retval == 0) {
         return ICD_SUCCESS;
     }
@@ -594,7 +594,7 @@ icd_status icd_distributor__unlock(icd_distributor *that) {
     if (that->state == ICD_DISTRIBUTOR_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = ast_mutex_unlock(&that->lock);
+    retval = opbx_mutex_unlock(&that->lock);
     if (retval == 0) {
         return ICD_SUCCESS;
     }
@@ -710,7 +710,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     /* Figure out who the bridger is, and who the bridgee is */
     result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
-    ast_verbose(VERBOSE_PREFIX_3 "Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n", 
+    opbx_verbose(VERBOSE_PREFIX_3 "Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n", 
             icd_distributor__get_name(dist), c_id, a_id );
     if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
         result = icd_caller__bridge(customer_caller);
@@ -781,7 +781,7 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     /* Figure out who the bridger is, and who the bridgee is */
     result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
-    ast_verbose(VERBOSE_PREFIX_3 "Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n", 
+    opbx_verbose(VERBOSE_PREFIX_3 "Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n", 
             icd_distributor__get_name(dist), c_id, a_id );
     if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
         result = icd_caller__bridge(customer_caller);
@@ -861,8 +861,8 @@ icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, 
    available to subclasses of icd_distributor if there ever are any. */
 icd_status icd_distributor__select_bridger(icd_caller *primary, 
         icd_caller *secondary) {
-    ast_channel *primary_channel;
-    ast_channel *secondary_channel;
+    opbx_channel *primary_channel;
+    opbx_channel *secondary_channel;
 
     assert(primary != NULL);
     assert(secondary != NULL);
@@ -901,16 +901,16 @@ icd_status icd_distributor__select_bridger(icd_caller *primary,
         return ICD_SUCCESS;
     }
 
-    if (primary_channel->_state == AST_STATE_UP || 
-        primary_channel->_state == AST_STATE_OFFHOOK) {
+    if (primary_channel->_state == OPBX_STATE_UP || 
+        primary_channel->_state == OPBX_STATE_OFFHOOK) {
         icd_caller__add_role(primary, ICD_BRIDGER_ROLE);
         icd_caller__add_role(secondary, ICD_BRIDGEE_ROLE);
         icd_caller__clear_role(secondary, ICD_BRIDGER_ROLE);
         icd_caller__clear_role(primary, ICD_BRIDGEE_ROLE);
         return ICD_SUCCESS;
     }
-    if (secondary_channel->_state == AST_STATE_UP ||
-        secondary_channel->_state == AST_STATE_OFFHOOK) {
+    if (secondary_channel->_state == OPBX_STATE_UP ||
+        secondary_channel->_state == OPBX_STATE_OFFHOOK) {
         icd_caller__add_role(secondary, ICD_BRIDGER_ROLE);
         icd_caller__add_role(primary, ICD_BRIDGEE_ROLE);
         icd_caller__clear_role(primary, ICD_BRIDGER_ROLE);
@@ -999,7 +999,7 @@ when the dist has no work to do we invoke pthread_cond_wait see icd_distributor_
     assert(that != NULL);
 
     /* Create the mutex */
-    ast_mutex_init(&(that->lock));
+    opbx_mutex_init(&(that->lock));
 
     /* Create the condition that wakes up the dist thread */
     result = pthread_condattr_init(&condattr);
@@ -1014,8 +1014,8 @@ when the dist has no work to do we invoke pthread_cond_wait see icd_distributor_
     /* Adjust distributor state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = ast_pthread_create(&(that->thread), &attr, icd_distributor__run, that);
-    ast_verbose(VERBOSE_PREFIX_2 "Spawn Distributor [%s] run thread \n", 
+    result = opbx_pthread_create(&(that->thread), &attr, icd_distributor__run, that);
+    opbx_verbose(VERBOSE_PREFIX_2 "Spawn Distributor [%s] run thread \n", 
                         icd_distributor__get_name(that));
     /* Clean up */
     result = pthread_attr_destroy(&attr);
@@ -1074,14 +1074,14 @@ void *icd_distributor__standard_run(void *that) {
                  * function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn
                 */
                 if (icd_verbose > 4)
-                    ast_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n", 
+                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n", 
                         icd_distributor__get_name(dist), dist->link_fn);
                 result = dist->link_fn(dist, dist->link_fn_extra);  
             } else {
                 pthread_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */
                 result = icd_distributor__unlock(dist);
                 if (icd_verbose > 4)
-                    ast_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n", 
+                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n", 
                         icd_distributor__get_name(dist));
             }
         } else {

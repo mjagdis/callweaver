@@ -63,7 +63,7 @@ char jabber_password[100];
 char jabber_send_address[100];
 int JabberOK = 0;
  
-extern struct ast_channel *agent_channel0;
+extern struct opbx_channel *agent_channel0;
 void *jabber_messages ();
 
 sem_t icd_jabber_fifo_semaphore;
@@ -107,11 +107,11 @@ extern struct icd_queue {
 /*      icd_status(*dump_fn) (icd_queue *, int verbosity, int fd, void *extra);
     void *dump_fn_extra;
     icd_memory *memory;
-    ast_mutex_t lock;
+    opbx_mutex_t lock;
     int allocated;
 };
 */
-extern icd_agent *app_icd__dtmf_login (struct ast_channel *chan, char *login,
+extern icd_agent *app_icd__dtmf_login (struct opbx_channel *chan, char *login,
 				       char *pass, int tries);
 
 int icd_jabber_ack_req (int argc, char *argv[])
@@ -173,7 +173,7 @@ int
 icd_jabber_login_req (int argc, char *argv[])
 {
 /* The code is copied frop app_icd_agent_exec and slightly modified. In the future there should be one function */
-    struct ast_channel *chan;
+    struct opbx_channel *chan;
     icd_agent *agent = NULL;
     char *agentname;
     int res = 0;
@@ -220,25 +220,25 @@ icd_jabber_login_req (int argc, char *argv[])
     }
     /* Make sure channel is properly set up */
     
-   if (chan->_state != AST_STATE_UP) {
-        res = ast_answer(chan);
+   if (chan->_state != OPBX_STATE_UP) {
+        res = opbx_answer(chan);
     }
     oldrformat = chan->readformat;
     oldwformat = chan->writeformat;
     
-    if(!(res=ast_set_read_format(chan, AST_FORMAT_SLINEAR))) {
-        res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+    if(!(res=opbx_set_read_format(chan,  OPBX_FORMAT_SLINEAR))) {
+        res = opbx_set_write_format(chan,  OPBX_FORMAT_SLINEAR);
     }
     
     if(res) {
         opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
         icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - Unable to prepare channel [%s].", agentname, channelstring);
         if(oldrformat)
-            ast_set_read_format(chan, oldrformat);
+            opbx_set_read_format(chan, oldrformat);
         if(oldwformat)
-            ast_set_write_format(chan, oldwformat);
+            opbx_set_write_format(chan, oldwformat);
 //        LOCAL_USER_REMOVE(u);
-        ast_hangup(chan);
+        opbx_hangup(chan);
         return 1;
     }
 
@@ -254,23 +254,23 @@ icd_jabber_login_req (int argc, char *argv[])
      icd_caller__set_channel_string((icd_caller *) agent, channelstring);
      icd_caller__set_param_string((icd_caller *) agent, "channel", channelstring);
      res = icd_bridge_dial_openpbx_channel((icd_caller *) agent, channelstring, 20000);
-     if (res != AST_CONTROL_ANSWER){
+     if (res != OPBX_CONTROL_ANSWER){
          opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agentname, channelstring);
         icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - unable to get answer from channel [%s].", agentname, channelstring);
 	 
 /* More detailed check why there is no answer probably needed in the future. */	 
-         ast_hangup(chan);
+         opbx_hangup(chan);
 	 return 1;
      }	 
      agent = app_icd__dtmf_login(chan, agentname, passwd, 3);
      if (!agent){
             opbx_log(LOG_WARNING, "Agent [%s] wrong password.\n",agentname);
             icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - wrong password.", agentname);
-            ast_hangup(chan);
+            opbx_hangup(chan);
             return 1;
       }    
        	  
- //       if(res!=AST_CONTROL_ANSWER){
+ //       if(res!= OPBX_CONTROL_ANSWER){
 //        opbx_log(LOG_WARNING,
 //                    "AGENT FAILURE!  Agent '%s' timeout\n", agentname);        
 //          return 1;
@@ -294,13 +294,13 @@ icd_jabber_login_req (int argc, char *argv[])
         /* On hook - Tell caller to start thread */
         opbx_log(LOG_NOTICE, "Agent login: Agent onhook %s starting independent caller thread\n", agentname);
 //        icd_bridge__safe_hangup((icd_caller *) agent);
-//        ast_hangup(chan);
+//        opbx_hangup(chan);
 //	icd_caller__set_channel((icd_caller *) agent, NULL);
-        ast_stopstream(chan);
-        ast_deactivate_generator(chan);
-        ast_clear_flag(chan , AST_FLAG_BLOCKING);
-        ast_softhangup(chan , AST_SOFTHANGUP_EXPLICIT);
-        ast_hangup(chan);
+        opbx_stopstream(chan);
+        opbx_deactivate_generator(chan);
+        opbx_clear_flag(chan ,  OPBX_FLAG_BLOCKING);
+        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
+        opbx_hangup(chan);
 	icd_caller__set_channel((icd_caller *) agent, NULL);
 
         icd_caller__add_role((icd_caller *) agent, ICD_LOOPER_ROLE);
@@ -315,8 +315,8 @@ icd_jabber_login_req (int argc, char *argv[])
         icd_caller__loop((icd_caller *) agent, 0);
         /* Once we hit here, the call is finished */
         icd_caller__stop_waiting((icd_caller *) agent);
-        ast_softhangup(chan , AST_SOFTHANGUP_EXPLICIT);
-        ast_hangup(chan );
+        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
+        opbx_hangup(chan );
         icd_caller__set_channel((icd_caller *) agent, NULL);
     }
     opbx_log(LOG_NOTICE, "Agent login: Jabber thread for Agent %s ending\n", agentname);
@@ -387,17 +387,17 @@ icd_jabber_logout_req (int argc, char *argv[])
 }
 // --stop--
 
-static struct ast_channel *
-my_ast_get_channel_by_name_locked (char *channame)
+static struct opbx_channel *
+my_opbx_get_channel_by_name_locked (char *channame)
 {
-  struct ast_channel *chan;
-  chan = ast_channel_walk_locked (NULL);
+  struct opbx_channel *chan;
+  chan = opbx_channel_walk_locked (NULL);
   while (chan)
     {
       if (!strncasecmp (chan->name, channame, strlen (channame)))
 	return chan;
-      ast_mutex_unlock (&chan->lock);
-      chan = ast_channel_walk_locked (chan);
+      opbx_mutex_unlock (&chan->lock);
+      chan = opbx_channel_walk_locked (chan);
     }
   return NULL;
 }
@@ -405,20 +405,20 @@ my_ast_get_channel_by_name_locked (char *channame)
 int icd_jabber_hangup_channel (int argc, char *argv[])
 {
    char *chan_name;
-   struct ast_channel *chan;
+   struct opbx_channel *chan;
 
    if (argc != 2) {
        opbx_log(LOG_WARNING,"Function Hang up channel failed - bad number of parameters [%d]\n", argc);
        return 1;
     }
    chan_name = argv[1];
-   chan = my_ast_get_channel_by_name_locked(chan_name);
+   chan = my_opbx_get_channel_by_name_locked(chan_name);
    if (chan == NULL) {
        opbx_log(LOG_WARNING,"Function Hang up channel failed - channel not found [%s]\n", chan_name);
        return 1;
    }
-   ast_mutex_unlock (&chan->lock);
-   ast_softhangup(chan , AST_SOFTHANGUP_EXPLICIT);
+   opbx_mutex_unlock (&chan->lock);
+   opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
    return 0;
 }
 
@@ -441,7 +441,7 @@ icd_jabber_record(int argc, char *argv[])
   char rec_format_buf[50]="";
   char *rec_format;
   char buf[300];
-  ast_channel * chan;
+  opbx_channel * chan;
   char * customer_source;
   int fd;
   struct tm *ptr;
@@ -632,39 +632,39 @@ const char *control_frame_state(int control_frame)
 {
    switch (control_frame){
 	case 0: return "TIMEOUT";
-      	case AST_CONTROL_HANGUP: return "HANGUP";
+      	case  OPBX_CONTROL_HANGUP: return "HANGUP";
 /*! Local ring */
-	case AST_CONTROL_RING	: return "RING";
+	case  OPBX_CONTROL_RING	: return "RING";
 /*! Remote end is ringing */
-	case  AST_CONTROL_RINGING : return "RINGING";
+	case   OPBX_CONTROL_RINGING : return "RINGING";
 /*! Remote end has answered */
-	case AST_CONTROL_ANSWER	: return "ANSWER";
+	case  OPBX_CONTROL_ANSWER	: return "ANSWER";
 /*! Remote end is busy */
-	case AST_CONTROL_BUSY	: return "BUSY";
+	case  OPBX_CONTROL_BUSY	: return "BUSY";
 /*! Make it go off hook */
-	case AST_CONTROL_TAKEOFFHOOK: return "TAKEOFFHOOK";
+	case  OPBX_CONTROL_TAKEOFFHOOK: return "TAKEOFFHOOK";
 /*! Line is off hook */
-	case AST_CONTROL_OFFHOOK: return "OFFHOOK";
+	case  OPBX_CONTROL_OFFHOOK: return "OFFHOOK";
 /*! Congestion (circuits busy) */
-	case AST_CONTROL_CONGESTION: return "CONGESTION";
+	case  OPBX_CONTROL_CONGESTION: return "CONGESTION";
 /*! Flash hook */
-	case AST_CONTROL_FLASH	: return "FLASH";
+	case  OPBX_CONTROL_FLASH	: return "FLASH";
 /*! Wink */
-	case AST_CONTROL_WINK: return "WINK";
+	case  OPBX_CONTROL_WINK: return "WINK";
 /*! Set a low-level option */
-	case AST_CONTROL_OPTION	: return "OPTION";
+	case  OPBX_CONTROL_OPTION	: return "OPTION";
 /*! Key Radio */
-	case	AST_CONTROL_RADIO_KEY	: return "RADIO_KEY";
+	case	 OPBX_CONTROL_RADIO_KEY	: return "RADIO_KEY";
 /*! Un-Key Radio */
-	case	AST_CONTROL_RADIO_UNKEY	: return "RADIO_UNKEY";
+	case	 OPBX_CONTROL_RADIO_UNKEY	: return "RADIO_UNKEY";
 /*! Indicate PROGRESS */
-	case AST_CONTROL_PROGRESS : return "PROGRESS";
+	case  OPBX_CONTROL_PROGRESS : return "PROGRESS";
 /*! Indicate CALL PROCEEDING */
-	case AST_CONTROL_PROCEEDING: return "PROCEEDING";
+	case  OPBX_CONTROL_PROCEEDING: return "PROCEEDING";
 /*! Indicate call is placed on hold */
-	case AST_CONTROL_HOLD	: return "HOLD";
+	case  OPBX_CONTROL_HOLD	: return "HOLD";
 /*! Indicate call is left from hold */
-	case AST_CONTROL_UNHOLD	: return "UNHOLD";
+	case  OPBX_CONTROL_UNHOLD	: return "UNHOLD";
 	default: return "UNKNOWN";
   }
   return "";
@@ -675,13 +675,13 @@ originate (void *arg)
 {
   struct fast_originate_helper *in = arg;
   int reason = 0;
-  struct ast_channel *chan = NULL;
+  struct opbx_channel *chan = NULL;
   int res;
 
-  res = ast_pbx_outgoing_exten (in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout,
+  res = opbx_pbx_outgoing_exten (in->tech,  OPBX_FORMAT_SLINEAR, in->data, in->timeout,
 			  in->context, in->exten, in->priority, &reason, 1, 0,
-			  !ast_strlen_zero (in->cid_num) ? in->cid_num : NULL,
-			  !ast_strlen_zero (in->callerid) ? in->callerid
+			  !opbx_strlen_zero (in->cid_num) ? in->cid_num : NULL,
+			  !opbx_strlen_zero (in->callerid) ? in->callerid
 			   : NULL, in->variable, in->account, &chan, NULL);
 			  
   if(res){
@@ -691,10 +691,10 @@ originate (void *arg)
      icd_jabber_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] OK, state [%s]", in->tech, in->data, in->exten, in->context, control_frame_state(reason));
    }
 			  
-  /* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
+  /* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
   if (chan)
     {
-      ast_mutex_unlock (&chan->lock);
+      opbx_mutex_unlock (&chan->lock);
     }
   free (in);
   return NULL;
@@ -724,22 +724,22 @@ icd_jabber_originate (int argc, char *argv[])
       opbx_log (LOG_WARNING, "bad parameters\n");
       icd_jabber_send_message("ORIGINATE FAILURE! - wrong parameters number");
   }    
-  chan_name = ast_strdupa (argv[1]);
+  chan_name = opbx_strdupa (argv[1]);
   if (argc == 4){
-    context = ast_strdupa(argv[2]);
-    exten = ast_strdupa (argv[3]);
+    context = opbx_strdupa(argv[2]);
+    exten = opbx_strdupa (argv[3]);
   }
   else{
-    exten = ast_strdupa (argv[2]);
+    exten = opbx_strdupa (argv[2]);
     if (context = strchr (exten, '@')){
        *context = 0;
   	context++;
     }
     else{
-    	context = ast_strdupa("to_queue");
+    	context = opbx_strdupa("to_queue");
     }
   }
-  tech = ast_strdupa (chan_name);
+  tech = opbx_strdupa (chan_name);
   if (data = strchr (tech, '/'))
   {
       *data = '\0';
@@ -773,7 +773,7 @@ icd_jabber_originate (int argc, char *argv[])
     result = pthread_attr_init (&attr);
     pthread_attr_setschedpolicy (&attr, SCHED_RR);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    ast_pthread_create (&thread, &attr, originate, in);
+    opbx_pthread_create (&thread, &attr, originate, in);
     pthread_attr_destroy (&attr);
 
 
@@ -988,7 +988,7 @@ icd_jabber_messages ()
   return NULL;
 }
 
-void ast_channel_listen_events(struct ast_channel *chan, const char *address)
+void opbx_channel_listen_events(struct opbx_channel *chan, const char *address)
 {
     char buf[20];
     char *pos;
@@ -1006,7 +1006,7 @@ void ast_channel_listen_events(struct ast_channel *chan, const char *address)
        }   
     }   
     else {
-       icd_jabber_send_message("CHANNEL[%s] STATE[%s]", chan->name, ast_state2str(chan->_state));      
+       icd_jabber_send_message("CHANNEL[%s] STATE[%s]", chan->name, opbx_state2str(chan->_state));      
     }
 }; 
 
@@ -1031,9 +1031,9 @@ icd_jabber_initialize ()
   JabberOK = 1;
   icd_jabber_fifo_start ();
   
-  ast_pthread_create (&icd_jabber_threads[1], NULL, icd_jabber_messages,
+  opbx_pthread_create (&icd_jabber_threads[1], NULL, icd_jabber_messages,
 		      NULL);
-  ast_channel_register_listen_events(ast_channel_listen_events);
+  opbx_channel_register_listen_events(opbx_channel_listen_events);
   for (;;)
     {
       sem_wait (&icd_jabber_fifo_semaphore);
@@ -1068,7 +1068,7 @@ void
 icd_jabber_clear ()
 {
    JabberOK =0;
-   ast_channel_register_listen_events(NULL);
+   opbx_channel_register_listen_events(NULL);
    g_main_loop_quit (icd_jabber_main_loop);
    lm_connection_close (icd_jabber_connection, NULL);
    lm_connection_unref(icd_jabber_connection);

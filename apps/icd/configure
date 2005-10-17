@@ -273,7 +273,7 @@ PACKAGE_VERSION='VERSION'
 PACKAGE_STRING='FULL-PACKAGE-NAME VERSION'
 PACKAGE_BUGREPORT='BUG-REPORT-ADDRESS'
 
-ac_unique_file="app_changrab.c"
+ac_unique_file="app_icd.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -311,7 +311,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE apr-config PKG_CONFIG LOUDMOUTH_CFLAGS LOUDMOUTH_LIBS CPP EGREP LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -2367,6 +2367,152 @@ echo "${ECHO_T}no" >&6
   SET_MAKE="MAKE=${MAKE-make}"
 fi
 
+for ac_prog in
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_path_apr-config+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $apr-config in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_apr-config="$apr-config" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_apr-config="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+  ;;
+esac
+fi
+apr-config=$ac_cv_path_apr-config
+
+if test -n "$apr-config"; then
+  echo "$as_me:$LINENO: result: $apr-config" >&5
+echo "${ECHO_T}$apr-config" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+  test -n "$apr-config" && break
+done
+
+
+
+  succeeded=no
+
+  if test -z "$PKG_CONFIG"; then
+    # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_path_PKG_CONFIG+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+  test -z "$ac_cv_path_PKG_CONFIG" && ac_cv_path_PKG_CONFIG="no"
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+
+if test -n "$PKG_CONFIG"; then
+  echo "$as_me:$LINENO: result: $PKG_CONFIG" >&5
+echo "${ECHO_T}$PKG_CONFIG" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+  fi
+
+  if test "$PKG_CONFIG" = "no" ; then
+     echo "*** The pkg-config script could not be found. Make sure it is"
+     echo "*** in your path, or set the PKG_CONFIG environment variable"
+     echo "*** to the full path to pkg-config."
+     echo "*** Or see http://www.freedesktop.org/software/pkgconfig to get
+pkg-config."
+  else
+     PKG_CONFIG_MIN_VERSION=0.9.0
+     if $PKG_CONFIG --atleast-pkgconfig-version $PKG_CONFIG_MIN_VERSION; then
+        echo "$as_me:$LINENO: checking for loudmouth-1.0 >= 1.0.0" >&5
+echo $ECHO_N "checking for loudmouth-1.0 >= 1.0.0... $ECHO_C" >&6
+
+        if $PKG_CONFIG --exists "loudmouth-1.0 >= 1.0.0" ; then
+            echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+            succeeded=yes
+
+            echo "$as_me:$LINENO: checking LOUDMOUTH_CFLAGS" >&5
+echo $ECHO_N "checking LOUDMOUTH_CFLAGS... $ECHO_C" >&6
+            LOUDMOUTH_CFLAGS=`$PKG_CONFIG --cflags "loudmouth-1.0 >= 1.0.0"`
+            echo "$as_me:$LINENO: result: $LOUDMOUTH_CFLAGS" >&5
+echo "${ECHO_T}$LOUDMOUTH_CFLAGS" >&6
+
+            echo "$as_me:$LINENO: checking LOUDMOUTH_LIBS" >&5
+echo $ECHO_N "checking LOUDMOUTH_LIBS... $ECHO_C" >&6
+            LOUDMOUTH_LIBS=`$PKG_CONFIG --libs "loudmouth-1.0 >= 1.0.0"`
+            echo "$as_me:$LINENO: result: $LOUDMOUTH_LIBS" >&5
+echo "${ECHO_T}$LOUDMOUTH_LIBS" >&6
+        else
+            LOUDMOUTH_CFLAGS=""
+            LOUDMOUTH_LIBS=""
+            echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+        fi
+
+
+
+     else
+        echo "*** Your version of pkg-config is too old. You need version
+$PKG_CONFIG_MIN_VERSION or newer."
+        echo "*** See http://www.freedesktop.org/software/pkgconfig";
+     fi
+  fi
+
+  if test $succeeded = yes; then
+     :
+  else
+     { { echo "$as_me:$LINENO: error: Library requirements (loudmouth-1.0 >= 1.0.0) not met; consider
+adjusting the PKG_CONFIG_PATH environment variable if your libraries are in a
+nonstandard prefix so pkg-config can find them." >&5
+echo "$as_me: error: Library requirements (loudmouth-1.0 >= 1.0.0) not met; consider
+adjusting the PKG_CONFIG_PATH environment variable if your libraries are in a
+nonstandard prefix so pkg-config can find them." >&2;}
+   { (exit 1); exit 1; }; }
+  fi
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-ldl':
@@ -4791,6 +4937,10 @@ s,@INSTALL_PROGRAM@,$INSTALL_PROGRAM,;t t
 s,@INSTALL_SCRIPT@,$INSTALL_SCRIPT,;t t
 s,@INSTALL_DATA@,$INSTALL_DATA,;t t
 s,@SET_MAKE@,$SET_MAKE,;t t
+s,@apr-config@,$apr-config,;t t
+s,@PKG_CONFIG@,$PKG_CONFIG,;t t
+s,@LOUDMOUTH_CFLAGS@,$LOUDMOUTH_CFLAGS,;t t
+s,@LOUDMOUTH_LIBS@,$LOUDMOUTH_LIBS,;t t
 s,@CPP@,$CPP,;t t
 s,@EGREP@,$EGREP,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t

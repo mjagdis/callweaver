@@ -62,6 +62,27 @@
 #define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
 #define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
 
+/* Manager Helper Function */
+typedef int (*manager_hook_t)(int, char *, char *); 
+
+struct manager_custom_hook {
+	/*! Identifier */
+	char *file;
+	/*! helper function */
+	manager_hook_t helper;
+	struct manager_custom_hook *next;
+};
+
+/*! Add a custom hook to be called when an event is fired */
+/*! \param hook struct manager_custom_hook object to add
+*/
+extern void add_manager_hook(struct manager_custom_hook *hook);
+
+/*! Delete a custom hook to be called when an event is fired */
+/*! \param hook struct manager_custom_hook object to delete
+*/
+extern void del_manager_hook(struct manager_custom_hook *hook);
+
 /* Export manager structures */
 #define MAX_HEADERS 80
 #define MAX_LEN 256

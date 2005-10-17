@@ -50,12 +50,12 @@
 typedef enum {
     ICD_CONFIG_STATE_CREATED, ICD_CONFIG_STATE_INITIALIZED,
     ICD_CONFIG_STATE_CLEARED, ICD_CONFIG_STATE_DESTROYED,
-    ICD_CONFIG_STATE_LAST_STANDARD,
+    ICD_CONFIG_STATE_L OPBX_STANDARD,
 } icd_config_state;
 
 typedef enum {
     ICD_CONFIG_REGNODE_EXACT, ICD_CONFIG_REGNODE_PARENT,
-    ICD_CONFIG_REGNODE_XLATE, ICD_CONFIG_REGNODE_LAST_STANDARD
+    ICD_CONFIG_REGNODE_XLATE, ICD_CONFIG_REGNODE_L OPBX_STANDARD
 } icd_config_regnode_type;
 
 struct icd_config {
@@ -795,7 +795,7 @@ void *icd_config__get_param(icd_config * that, char *name)
     void_hash_table *hash = icd_config__get_value(that, "params");
 
     if (!hash)
-        ast_verbose("WTF\n");
+        opbx_verbose("WTF\n");
     return vh_read(hash, name);
 }
 

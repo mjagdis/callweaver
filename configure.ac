@@ -86,6 +86,7 @@ AC_CHECK_LIB([expat], [main])
 AC_CHECK_LIB([ib], [main])
 AC_CHECK_LIB([kdecore], [main])
 AC_CHECK_LIB([kdeui], [main])
+AC_CHECK_LIB([q931], [main],[AC_DEFINE([VISDN_LIBS],[-lq931],[libq931 required for visdn...found!])])
 AC_CHECK_LIB([m], [main])
 AC_CHECK_LIB([nbs], [main])
 AC_CHECK_LIB([ncurses], [main],,[AC_CHECK_LIB([curses],[main])])
@@ -371,6 +372,7 @@ AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS([visdn/visdn.h],[AC_DEFINE([WITH_VISDN],["yes"],[visdn seems to be installed])])
 AC_CHECK_HEADERS([netinet/in.h])
 AC_CHECK_HEADERS([w32api/windows.h])
 AC_CHECK_HEADERS([w32api/winsock2.h],[],[],

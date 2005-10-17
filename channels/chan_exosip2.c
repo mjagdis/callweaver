@@ -34,9 +34,12 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 #include <pthread.h>
+#include <malloc.h>
+#include <errno.h>
 #include <eXosip2/eXosip.h>
 #include <ortp/ortp.h>
 #include <ortp/telephonyevents.h>
+#define OSIP_MT
 #include <osip2/osip_mt.h>
 
 /* ortp.h defines stuff... undef 'em */
@@ -76,11 +79,19 @@ static int usecnt =0;
 OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
 OPBX_MUTEX_DEFINE_STATIC(calllock);
 OPBX_MUTEX_DEFINE_STATIC(portlock);
-OPBX_MUTEX_DEFINE_STATIC(registerlock);
-OPBX_MUTEX_DEFINE_STATIC(subscriptionlock);
-OPBX_MUTEX_DEFINE_STATIC(recvlock);
 
 #define UA_STRING "OpenPBX/eXosip2_OpenSIP"
+#define DEFAULT_CID_NAME "Unknown Name"
+#define DEFAULT_CID_NUM "unknown"
+
+/* Various tweaks */
+//#define CALL_SETUP_TRICK
+//#define EVENT_DEBUG
+//#define RTP_NO_RECYCLE
+
+#ifdef CALL_SETUP_TRICK
+static int current_calls = 0;
+#endif
 
 /* Various threads for events, registrations, subscriptions */
 pthread_t event_thread;
@@ -89,11 +100,11 @@ pthread_t subscriptions_tread;
 
 /* Default settings */
 static int global_capability = OPBX_FORMAT_ULAW | OPBX_FORMAT_ALAW | OPBX_FORMAT_GSM;
-static int noncodeccapability = OPBX_RTP_DTMF;
-static struct opbx_codec_pref prefs;
 
 /* RTP stuff (like local port) */
-static int rtp_local_port = 10000;
+#define MAX_RTP_PORTS 1000
+static int rtp_start_port = 10000;
+static int rtp_allocations[MAX_RTP_PORTS];
 
 static struct opbx_channel *sip_request(const char *type, int format, void *data, int *cause);
 static int sip_digit(struct opbx_channel *ast, char digit);
@@ -131,9 +142,14 @@ struct call {
   int cid;
   int did;
   int tid;
+  char callid[128];
   /* State of the call */
 #define NOT_USED 0
+#define INUSE 1
   int state;
+  /* Type of call */
+#define B2BUA 0
+  int type;
   /* Direction of the call */
 #define DIRECTION_IN 0
 #define DIRECTION_OUT 1
@@ -144,8 +160,6 @@ struct call {
   int remote_sdp_audio_port;
   char local_sdp_audio_ip[50];
   int local_sdp_audio_port;
-  int local_sendrecv;           /* _SENDRECV, _SENDONLY, _RECVONLY */
-  int remote_sendrecv;          /* _SENDRECV, _SENDONLY, _RECVONLY */
   /* OpenPBX related stuff... like master channel */
   struct opbx_channel *owner;
   /* Extension and context */
@@ -175,6 +189,11 @@ struct call {
   /* Caller ID */
   char cid_num[256];
   char cid_name[256];
+  /* State of RTP stream */
+#define SENDRECV 1
+#define SENDONLY 2
+#define RECVONLY 3
+  int rtp_state;
 };
 
 struct payload {
@@ -193,6 +212,140 @@ static call_t calls[MAX_NUMBER_OF_CALLS];
 static void *rtp_int2payload(int payload_internal, payload_t *payload);
 void rcv_telephone_event (RtpSession * rtp_session, call_t * ca);
 static int rtp_payload2int(int payload, char *payload_name);
+
+#ifdef EVENT_DEBUG
+static void log_event(eXosip_event_t *je)
+{
+  char buf[100];
+
+  buf[0] = '\0';
+  if (je->type == EXOSIP_CALL_NOANSWER) {
+    snprintf (buf, 99, "<- (%i %i) No answer", je->cid, je->did);
+  } else if (je->type == EXOSIP_CALL_CLOSED) {
+    snprintf (buf, 99, "<- (%i %i) Call Closed", je->cid, je->did);
+  } else if (je->type == EXOSIP_CALL_RELEASED) {
+    snprintf (buf, 99, "<- (%i %i) Call released", je->cid, je->did);
+  } else if (je->type == EXOSIP_MESSAGE_NEW
+	     && je->request!=NULL && MSG_IS_MESSAGE(je->request)) {
+    char *tmp = NULL;
+    
+    if (je->request != NULL) {
+      osip_body_t *body;
+      osip_from_to_str (je->request->from, &tmp);
+      
+      osip_message_get_body (je->request, 0, &body);
+      if (body != NULL && body->body != NULL) {
+	snprintf (buf, 99, "<- (%i) from: %s TEXT: %s",
+		  je->tid, tmp, body->body);
+      }
+      osip_free (tmp);
+    } else {
+      snprintf (buf, 99, "<- (%i) New event for unknown request?", je->tid);
+    }
+  } else if (je->type == EXOSIP_MESSAGE_NEW) {
+    char *tmp = NULL;
+    
+    osip_from_to_str (je->request->from, &tmp);
+    snprintf (buf, 99, "<- (%i) %s from: %s",
+	      je->tid, je->request->sip_method, tmp);
+    osip_free (tmp);
+  } else if (je->type == EXOSIP_MESSAGE_PROCEEDING
+             || je->type == EXOSIP_MESSAGE_ANSWERED
+             || je->type == EXOSIP_MESSAGE_REDIRECTED
+             || je->type == EXOSIP_MESSAGE_REQUESTFAILURE
+             || je->type == EXOSIP_MESSAGE_SERVERFAILURE
+	     || je->type == EXOSIP_MESSAGE_GLOBALFAILURE) {
+    if (je->response != NULL && je->request != NULL) {
+      char *tmp = NULL;
+      
+      osip_to_to_str (je->request->to, &tmp);
+      snprintf (buf, 99, "<- (%i) [%i %s for %s] to: %s",
+		je->tid, je->response->status_code,
+		je->response->reason_phrase, je->request->sip_method, tmp);
+      osip_free (tmp);
+    } else if (je->request != NULL) {
+      snprintf (buf, 99, "<- (%i) Error for %s request",
+		je->tid, je->request->sip_method);
+    } else {
+      snprintf (buf, 99, "<- (%i) Error for unknown request", je->tid);
+    }
+  } else if (je->response == NULL && je->request != NULL && je->cid > 0) {
+    char *tmp = NULL;
+    
+    osip_from_to_str (je->request->from, &tmp);
+    snprintf (buf, 99, "<- (%i %i) %s from: %s",
+	      je->cid, je->did, je->request->cseq->method, tmp);
+    osip_free (tmp);
+  } else if (je->response != NULL && je->cid > 0) {
+    char *tmp = NULL;
+    
+    osip_to_to_str (je->request->to, &tmp);
+    snprintf (buf, 99, "<- (%i %i) [%i %s] for %s to: %s",
+	      je->cid, je->did, je->response->status_code,
+	      je->response->reason_phrase, je->request->sip_method, tmp);
+    osip_free (tmp);
+  } else if (je->response == NULL && je->request != NULL && je->rid > 0) {
+    char *tmp = NULL;
+    
+    osip_from_to_str (je->request->from, &tmp);
+    snprintf (buf, 99, "<- (%i) %s from: %s",
+	      je->rid, je->request->cseq->method, tmp);
+    osip_free (tmp);
+  } else if (je->response != NULL && je->rid > 0) {
+    char *tmp = NULL;
+    
+    osip_from_to_str (je->request->from, &tmp);
+    snprintf (buf, 99, "<- (%i) [%i %s] from: %s",
+	      je->rid, je->response->status_code,
+	      je->response->reason_phrase, tmp);
+    osip_free (tmp);
+  } else if (je->response == NULL && je->request != NULL && je->sid > 0) {
+    char *tmp = NULL;
+    char *stat = NULL;
+    osip_header_t *sub_state;
+    
+    osip_message_header_get_byname (je->request, "subscription-state",
+				    0, &sub_state);
+    if (sub_state != NULL && sub_state->hvalue != NULL)
+      stat = sub_state->hvalue;
+    
+    osip_uri_to_str (je->request->from->url, &tmp);
+    snprintf (buf, 99, "<- (%i) [%s] %s from: %s",
+	      je->sid, stat, je->request->cseq->method, tmp);
+    osip_free (tmp);
+  } else if (je->response != NULL && je->sid > 0) {
+    char *tmp = NULL;
+    
+    osip_uri_to_str (je->request->to->url, &tmp);
+    snprintf (buf, 99, "<- (%i) [%i %s] from: %s",
+	      je->sid, je->response->status_code,
+	      je->response->reason_phrase, tmp);
+    osip_free (tmp);
+  } else if (je->response == NULL && je->request != NULL) {
+    char *tmp = NULL;
+    
+    osip_from_to_str (je->request->from, &tmp);
+    snprintf (buf, 99, "<- (c=%i|d=%i|s=%i|n=%i) %s from: %s",
+	      je->cid, je->did, je->sid, je->nid,
+	      je->request->sip_method, tmp);
+    osip_free (tmp);
+  } else if (je->response != NULL) {
+    char *tmp = NULL;
+    
+    osip_from_to_str (je->request->from, &tmp);
+    snprintf (buf, 99, "<- (c=%i|d=%i|s=%i|n=%i) [%i %s] for %s from: %s",
+	      je->cid, je->did, je->sid, je->nid,
+	      je->response->status_code, je->response->reason_phrase,
+	      je->request->sip_method, tmp);
+    osip_free (tmp);
+  } else {
+    snprintf (buf, 99, "<- (c=%i|d=%i|s=%i|n=%i|t=%i) %s",
+	      je->cid, je->did, je->sid, je->nid, je->tid, je->textinfo);
+  }
+  opbx_log(LOG_NOTICE,"%s\n", buf);
+  /* Print it out */
+}
+#endif
 
 /* RTP audio receive stream thread */
 static void *rtp_stream_thread(void *_ca)
@@ -232,7 +385,8 @@ static void *rtp_stream_thread(void *_ca)
       f.offset = 0;
       f.src = "RTP";
       /* Theoretically the owner could disappear right here too... */
-      opbx_queue_frame(call->owner, &f);
+      if (call->rtp_state != SENDONLY)
+	opbx_queue_frame(call->owner, &f);
       call->recv_timestamp += 160;
     } while (have_more);
     reference = opbx_tvadd(reference, opbx_tv(0, call->duration * 1000));
@@ -271,7 +425,7 @@ static void *rtp_setup_stream(call_t *call)
   if (call->dtmf == DTMF_RFC2833 && rtp_session_telephone_events_supported(call->rtp_session) > 0) {
     opbx_log(LOG_NOTICE, "RFC2833 is enabled on this call.\n");
   }
-  opbx_log(LOG_NOTICE,"End result on call: %i\n", call->payload);
+  opbx_log(LOG_NOTICE,"End result on call: %i Port: %d\n", call->payload, call->local_sdp_audio_port);
   return NULL;
 }
 
@@ -529,12 +683,73 @@ static int rtp_payload2int(int payload, char *payload_name)
   return payload_internal;
 }
 
-/* Allocate a port number... */
-static int rtp_allocate_port(int remote_port)
+static int rtp_allocate_port(void)
 {
-  int port = remote_port;
+  int port = 0, end_port = -1;
 
-  return port;
+#ifdef RTP_NO_RECYCLE
+  end_port = rtp_start_port;
+  rtp_start_port++;
+#else
+  /* I'm crazy - let's allocate backwards! */
+
+  opbx_mutex_lock(&portlock);
+  for (port=MAX_RTP_PORTS; 0<=port; port--) {
+    if (rtp_allocations[port] == NOT_USED) {
+      end_port = rtp_start_port + port;
+      rtp_allocations[port] = INUSE;
+      break;
+    }
+  }
+  opbx_mutex_unlock(&portlock);
+#endif
+
+  return end_port;
+}
+
+/* Find an available callslot and return a pointer to it */
+static call_t *find_new_callslot(void)
+{
+#ifdef CALL_SETUP_TRICK
+  int direction = 1;
+#endif
+  int i = 0;
+  call_t *call_slot = NULL;
+
+  opbx_mutex_lock(&calllock);
+
+#ifndef CALL_SETUP_TRICK
+  for (i=0; i<MAX_NUMBER_OF_CALLS; i++) {
+    if (calls[i].state == NOT_USED) {
+      call_slot = &(calls[i]);
+      memset(call_slot, 0, sizeof(call_t));
+      call_slot->state = INUSE;
+      break;
+    }
+  }
+#else
+  if (current_calls >= (MAX_NUMBER_OF_CALLS/2)) {
+    i = MAX_NUMBER_OF_CALLS-1;
+    direction = -1;
+  } else {
+    i = 0;
+    direction = 1;
+  }
+  while (i >= 0 && MAX_NUMBER_OF_CALLS > i) {
+    if (calls[i].state == NOT_USED) {
+      call_slot = &(calls[i]);
+      memset(call_slot, 0, sizeof(call_t));
+      call_slot->state = INUSE;
+      current_calls++;
+      break;
+    }
+    i += direction;
+  }
+#endif
+
+  opbx_mutex_unlock(&calllock);
+
+  return call_slot;
 }
 
 /* Destroy everything in a call */
@@ -545,10 +760,17 @@ static void destroy_call(call_t *call)
   /* Queue a hangup baby */
   if (call->owner)
     opbx_queue_hangup(call->owner);
+
   if (call->recv_thread) {
     osip_thread_join(call->recv_thread); /* Wait for it to die - just in case */
     osip_free(call->recv_thread); /* And finally free it */
     call->recv_thread = NULL;
+  }
+  /* Free the rtp port allocation */
+  if (call->local_sdp_audio_port != -1) {
+    opbx_mutex_lock(&portlock);
+    rtp_allocations[(call->local_sdp_audio_port)-(rtp_start_port)] = NOT_USED;
+    opbx_mutex_unlock(&portlock);
   }
   /* Destroy the RTP session stuff if present */
   if (call->rtp_session) {
@@ -562,6 +784,9 @@ static void destroy_call(call_t *call)
   opbx_log(LOG_NOTICE,"Destroyed call [cid=%d did=%d]\n", call->cid, call->did);
   /* Finally set state to not used */
   call->state = NOT_USED;
+#ifdef CALL_SETUP_TRICK
+  current_calls++;
+#endif
 }
 
 /* Finds a call based on the cid and did */
@@ -627,6 +852,9 @@ static struct opbx_channel *sip_new(call_t *call, int state)
   /* Set initial state to ringing */
   opbx_setstate(chan, state);
   chan->tech_pvt = call;
+  /* Copy over callerid from the call */
+  chan->cid.cid_num = strdup(call->cid_num);
+  chan->cid.cid_name = strdup(call->cid_name);
   call->owner = chan;
   opbx_mutex_lock(&usecnt_lock);
   usecnt++;
@@ -642,7 +870,7 @@ static struct opbx_channel *sip_new(call_t *call, int state)
 /* Setup a new call */
 static int new_call_by_event(eXosip_event_t *event)
 {
-  char *tmp = NULL, localip[128] = "";
+  char localip[128] = "";
   int i = 0;
   call_t *call = NULL;
   sdp_message_t *remote_sdp = NULL;
@@ -657,43 +885,31 @@ static int new_call_by_event(eXosip_event_t *event)
     return -1;
   }
 
-  opbx_mutex_lock(&calllock);
-  for (i=0; i<MAX_NUMBER_OF_CALLS;i++) {
-    if (calls[i].state == NOT_USED) {
-      call = &(calls[i]);
-      /* Before we break out and unlock... claim this as our own so everything else will skip over it */
-      memset(call, 0, sizeof(call_t));
-      call->state = 1;
-      break;
-    }
-  }
-  opbx_mutex_unlock(&calllock);
+  call = find_new_callslot();
 
   if (call) {
     /* We have a call structure of our very own!!! */
     call->cid = event->cid;
     call->did = event->did;
     call->tid = event->tid;
+    if (event->request != NULL && event->request->call_id != NULL && event->request->call_id->number != NULL && event->request->call_id->host != NULL)
+      snprintf(call->callid, sizeof(call->callid), "%s@%s", event->request->call_id->number, event->request->call_id->host);
     call->direction = DIRECTION_IN;
     call->send_timestamp = 0; /* Start sending timestamp at 0! */
     call->recv_timestamp = 0; /* Ditto */
     call->dtmf = DTMF_RFC2833;
+    call->rtp_state = SENDRECV;
     strncpy(call->context, "default", sizeof(call->context));
     /* Setup the capabilities */
     call->capability = global_capability;
     /* Get the number dialed */
     if (event->request != NULL) {
-      osip_from_to_str(event->request->from, &tmp);
-      if (tmp != NULL) {
-	/* Parse out the callerid information and put it into the structure */
-	/* Got it! */
-	opbx_log(LOG_NOTICE, "Got From: %s\n", tmp);
-	osip_free(tmp);
-      }
-      osip_from_to_str(event->request->to, &tmp);
-      if (tmp != NULL) {
-	opbx_log(LOG_NOTICE, "Got to: %s\n", tmp);
-	osip_free(tmp);
+      /* Parse out callerid elements */
+      if (event->request->from) {
+	if (event->request->from->displayname) /* Get the display name */
+	  strncpy(call->cid_name, event->request->from->displayname, sizeof(call->cid_name));
+	if (event->request->from->url && event->request->from->url->username) /* Get the number */
+	  strncpy(call->cid_num, event->request->from->url->username, sizeof(call->cid_num));
       }
       /* Get the Request URI... it'll contain the extension */
       if (event->request->req_uri->username) {
@@ -737,7 +953,7 @@ static int new_call_by_event(eXosip_event_t *event)
       /* If NAT helping is enabled - see if they match the originating IP address... if not - use the originating */
       eXosip_guess_localip (AF_INET, localip, 128);
       strncpy(call->local_sdp_audio_ip, localip, sizeof(call->local_sdp_audio_ip));
-      call->local_sdp_audio_port = rtp_allocate_port(call->remote_sdp_audio_port);
+      call->local_sdp_audio_port = rtp_allocate_port();
       opbx_log(LOG_NOTICE, "Local media is at %s:%i\n", call->local_sdp_audio_ip, call->local_sdp_audio_port);
       sdp_message_free(remote_sdp);
     } else {
@@ -767,6 +983,201 @@ static void *handle_ringing(eXosip_event_t *event)
   opbx_queue_control(call->owner, OPBX_CONTROL_RINGING);
   if (call->owner->_state != OPBX_STATE_UP)
     opbx_setstate(call->owner, OPBX_STATE_RINGING);
+
+  return NULL;
+}
+
+static void *handle_call_transfer(eXosip_event_t *event)
+{
+  struct opbx_channel *bridged = NULL;
+  call_t *call = NULL, *consult_call = NULL;
+  osip_header_t *header = NULL;
+  osip_from_t *refer_to = NULL, *referred_by = NULL;
+  osip_uri_header_t *uri_header = NULL;
+  osip_message_t *answer = NULL, *notify = NULL;
+  int pos = 0, i = 0, accept = 0;
+  char *bleh = NULL, replace_callid[128] = "";
+  char exten[OPBX_MAX_EXTENSION], host[256] = "";
+
+  call = find_call(event->cid, event->did);
+  if (call == NULL || call->owner == NULL)
+    return NULL;
+
+  bridged = opbx_bridged_channel(call->owner);
+  if (bridged == NULL) {
+    /* Can't transfer this! */
+    eXosip_lock();
+    eXosip_call_build_answer(call->tid, 400, &answer);
+    eXosip_call_send_answer(call->tid, 400, answer);
+    eXosip_unlock();
+    call->tid++;
+    opbx_queue_hangup(call->owner);
+    return NULL;
+  }
+
+  /* Parse out required information */
+  if (event->request != NULL) {
+    osip_message_header_get_byname(event->request, "Refer-To", 0, &header);
+    if (header) {
+      /* We've got a Refer-To... */
+      osip_from_init(&refer_to);
+      osip_from_parse(refer_to, header->hvalue);
+      header = NULL;
+      /* Okay now parse it out to see the extension they want to transfer to, or the call to transfer to (for supervised transfers) */
+      strncpy(exten, refer_to->url->username, sizeof(exten));
+      strncpy(host, refer_to->url->host, sizeof(host));
+      /* See if there's any extra arguments (like a Replaces) */
+      if (refer_to->url->url_headers != NULL) {
+	while (!osip_list_eol(refer_to->url->url_headers, pos)) {
+	  uri_header = (osip_uri_header_t *)osip_list_get(refer_to->url->url_headers, pos);
+	  if (uri_header != NULL && uri_header->gname != NULL && uri_header->gvalue != NULL) {
+	    if (!strcasecmp(uri_header->gname, "Replaces")) {
+	      /* Hey look it's a Replaces header! */
+	      bleh = strchr(uri_header->gvalue, ';');
+	      if (bleh) {
+		*bleh = '\0';
+		bleh++;
+	      }
+	      strncpy(replace_callid, uri_header->gvalue, sizeof(replace_callid));
+	    }
+	  }
+	  pos++;
+	}
+      }
+    }
+    osip_message_header_get_byname(event->request, "Referred-By", 0, &header);
+    if (header) {
+      /* We've got a Referred-By... */
+      osip_from_init(&referred_by);
+      osip_from_parse(referred_by, header->hvalue);
+      header = NULL;
+      opbx_log(LOG_NOTICE, "Got a Referred-By header!!!\n");
+    }
+  }
+
+  /* OKAY - if we have a Replaces callid... find it's channel - if it's not found and we still have it... initiate a new INVITE with the right info */
+  if (strlen(replace_callid) > 0) {
+    for (i=0; i<MAX_NUMBER_OF_CALLS; i++) {
+      if (calls[i].state != NOT_USED && strcasecmp(calls[i].callid, replace_callid) == 0) {
+	consult_call = &(calls[i]);
+	break;
+      }
+    }
+    if (consult_call) {
+      /* This is a supervised call to one that's on this box... */
+      opbx_log(LOG_NOTICE, "Okay we want to bridge %s to %s\n", bridged->name, consult_call->owner->name);
+      /* First let's get rid of the musiconhold on this channel */
+      opbx_moh_stop(call->owner);
+      opbx_moh_stop(consult_call->owner);
+      accept = 1;
+    } else {
+      /* Okay here's the situation - we have to transfer this call... elsewhere */
+    }
+  } else {
+    /* Do a blind transfer if the extension exists */
+    if (opbx_exists_extension(NULL, call->context, exten, 1, NULL)) {
+      opbx_async_goto(bridged, call->context, exten, 1);
+      accept = 1; /* Call transfer is doing just fine... */
+    }
+  }
+
+  /* Clean Up */
+  if (refer_to)
+    osip_free(refer_to);
+  if (referred_by)
+    osip_free(referred_by);
+
+  /* Return the status of the transfer - accepted or not. */
+  eXosip_lock();
+  if (accept == 1) {
+    /* Send 202 Accepted */
+    eXosip_call_build_answer(call->tid, 202, &answer);
+    eXosip_call_send_answer(call->tid, 202, answer);
+    /* Send a fragment as well */
+    eXosip_call_build_notify(call->did, EXOSIP_SUBCRSTATE_ACTIVE, &notify);
+    osip_message_set_header(notify, "Event", "refer");
+    osip_message_set_content_type(notify, "message/sipfrag");
+    osip_message_set_body(notify, "SIP/2.0 100 Trying", strlen("SIP/2.0 100 Trying"));
+    eXosip_call_send_request(call->did, notify);
+  } else {
+    /* Transfer failed for whatever reason */
+    eXosip_call_build_answer(call->tid, 400, &answer);
+    eXosip_call_send_answer(call->tid, 400, answer);
+  }
+  eXosip_unlock();
+  call->tid++;
+
+  return NULL;
+}
+
+static void *handle_reinvite(eXosip_event_t *event)
+{
+  osip_message_t *answer = NULL;
+  call_t *call = NULL;
+  sdp_message_t *remote_sdp = NULL;
+  sdp_connection_t *conn = NULL;
+  sdp_media_t *remote_med = NULL;
+  sdp_attribute_t *at = NULL;
+  int i = 0, remote_port = 0, state = -1, pos = 0;
+  char remote_ip[50] = "";
+
+  call = find_call(event->cid, event->did);
+  if (call == NULL || call->owner == NULL)
+    return NULL;
+
+  /* Handle the reinvite - see if it's for putting someone on hold, if not - modify the RTP session */
+  remote_sdp = eXosip_get_sdp_info(event->request);
+  if (remote_sdp == NULL) {
+    /* Casually send back an error */
+    return NULL;
+  }
+  /* Connection and remote media information */
+  conn = eXosip_get_audio_connection(remote_sdp);
+  remote_med = eXosip_get_audio_media(remote_sdp);
+
+  if (conn != NULL && conn->c_addr != NULL) {
+    snprintf (remote_ip, 50, conn->c_addr);
+  }
+  remote_port = atoi(remote_med->m_port);
+
+  /* Grab the attributes of the SDP if applicable */
+  while (!osip_list_eol (remote_med->a_attributes, pos)) {
+    at = (sdp_attribute_t *) osip_list_get (remote_med->a_attributes, pos);
+    if (at->a_att_field != NULL) {
+      if (strcasecmp(at->a_att_field, "sendonly") == 0)
+	state = SENDONLY;
+      else if (strcasecmp(at->a_att_field, "recvonly") == 0)
+	state = RECVONLY;
+      else if (strcasecmp(at->a_att_field, "sendrecv") == 0)
+	state = SENDRECV;
+    }
+    pos++;
+  }
+
+  /* Check to see if this is an on-hold notification... or off-hold notification */
+  if (strcasecmp(remote_ip,"0.0.0.0") == 0 || state == SENDONLY) {
+    /* Call is on hold! */
+    opbx_moh_start(call->owner, NULL);
+    call->rtp_state = SENDONLY;
+  } else if (strcasecmp(remote_ip,call->remote_sdp_audio_ip) == 0 && call->rtp_state == SENDONLY) {
+    opbx_moh_stop(call->owner);
+    call->rtp_state = SENDRECV;
+  } else {
+    /* Suspend the RTP session, change the remote address, and then switch it back to active */
+  }
+
+  eXosip_lock();
+  i = eXosip_call_build_answer(call->tid, 200, &answer);
+  if (answer) {
+    /* Add SDP data */
+    message_add_sdp(call, answer, -1);
+    /* Finally send it out */
+    eXosip_call_send_answer(call->tid, 200, answer);
+  }
+  eXosip_unlock();
+
+  /* Increment the transaction ID */
+  call->tid++;
 
   return NULL;
 }
@@ -841,7 +1252,6 @@ static void *handle_answer(eXosip_event_t *event)
 /* Event Thread */
 static void *event_proc(void *arg)
 {
-  call_t *call = NULL;
   eXosip_event_t *event = NULL;
 
   for (;;) {
@@ -852,11 +1262,24 @@ static void *event_proc(void *arg)
     eXosip_lock();
     eXosip_automatic_action ();
     eXosip_unlock();
+#ifdef EVENT_DEBUG
+    log_event(event);
+#endif
     switch(event->type) {
       /* Call related stuff */
     case EXOSIP_CALL_INVITE:
       if (new_call_by_event(event))
 	opbx_log(LOG_ERROR, "Unable to set us up the call ;(\n");
+      break;
+    case EXOSIP_CALL_REINVITE:
+      /* See what the reinvite is about - on hold or whatever */
+      handle_reinvite(event);
+      opbx_log(LOG_NOTICE, "Got a reinvite.\n");
+      break;
+    case EXOSIP_CALL_MESSAGE_NEW:
+      if (event->request != NULL && MSG_IS_REFER(event->request)) {
+	handle_call_transfer(event);
+      }
       break;
     case EXOSIP_CALL_ACK:
       /* If audio is not flowing and this has SDP - fire it up! */
@@ -899,7 +1322,7 @@ static void *event_proc(void *arg)
       opbx_log(LOG_NOTICE, "Received registration attempt\n");
       break;
     default:
-      opbx_log(LOG_NOTICE, "recieved unknown eXosip event (type, did, cid) = (%d, %d, %d)\n", event->type, event->did, event->cid);
+      /* Unknown event... casually absorb it for now */
       break;
     }
     eXosip_event_free (event);
@@ -909,10 +1332,73 @@ static void *event_proc(void *arg)
 
 void rcv_telephone_event (RtpSession * rtp_session, call_t * ca)
 {
-  struct opbx_channel *chan = ca->owner;
+  struct opbx_frame f;
+  telephone_event_t *tev = NULL;
+  call_t *call = NULL;
+  char digit = ' ';
+  int i = 0;
+
+  /* Find the real call... */
+  for (i=0; i<MAX_NUMBER_OF_CALLS; i++) {
+    if (calls[i].state != NOT_USED && calls[i].rtp_session == rtp_session)
+      call = &(calls[i]);
+    break;
+  }
 
   /* Queue up the digit on the channel */
-
+  if (call != NULL && call->owner != NULL && rtp_session->current_tev != NULL) {
+    /* There are telephone events waiting */
+    rtp_session_read_telephone_event(rtp_session, rtp_session->current_tev, &tev);
+    if (tev != NULL) {
+      switch (tev->event) {
+      case 0:
+	digit = '0';
+	break;
+      case 1:
+	digit = '1';
+	break;
+      case 2:
+	digit = '2';
+        break;
+      case 3:
+	digit = '3';
+        break;
+      case 4:
+	digit = '4';
+        break;
+      case 5:
+	digit = '5';
+	break;
+      case 6:
+	digit = '6';
+	break;
+      case 7:
+	digit = '7';
+	break;
+      case 8:
+	digit = '8';
+	break;
+      case 9:
+	digit = '9';
+	break;
+      case 10:
+	digit = '*';
+	break;
+      case 11:
+	digit = '#';
+	break;
+      }
+      memset(&f, 0, sizeof(f));
+      /* Create the frame and then queue it up */
+      f.frametype = OPBX_FRAME_DTMF;
+      f.subclass = digit; /* Actual digit */
+      f.src = "RTP";
+      f.mallocd = 0;
+      /* Now send it to the owner */
+      opbx_queue_frame(call->owner, &f);
+      opbx_log(LOG_NOTICE, "Received digit %d and queued on %s\n", tev->event, call->owner->name);
+    }
+  }
 }
 
 static int sip_answer(struct opbx_channel *ast)
@@ -933,6 +1419,7 @@ static int sip_answer(struct opbx_channel *ast)
       eXosip_call_send_answer (call->tid, 200, answer);
       opbx_log(LOG_NOTICE, "Answered the call!\n");
       eXosip_unlock();
+      call->tid++;
       /* No RTP stream is setup - we need to establish it - otherwise do nothing */
       rtp_setup_stream(call);
     } else if (call->rtp_session == NULL && call->direction == DIRECTION_OUT) {
@@ -964,11 +1451,13 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *f)
     rtp_setup_stream(call);
     eXosip_lock();
     eXosip_call_build_answer(call->tid, 183, &answer);
-    osip_message_set_require(answer, "100rel");
+    osip_message_set_supported(answer, "100rel");
+    osip_message_set_supported(answer, "replaces");
     osip_message_set_header(answer, "RSeq", "1");
     message_add_sdp(call, answer, -1);
     eXosip_call_send_answer (call->tid, 183, answer);
     eXosip_unlock();
+    call->tid++;
   } else if (call->rtp_session == NULL && call->direction == DIRECTION_OUT) {
     /* Yeah... - trying to write a frame ahead of time? */
     return res;
@@ -982,7 +1471,7 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *f)
 
 static int sip_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan)
 {
-  call_t *call = newchan->tech_pvt;
+  //  call_t *call = newchan->tech_pvt;
 
   return 0;
 }
@@ -1039,11 +1528,15 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
     rtp_setup_stream(call);
     eXosip_lock();
     eXosip_call_build_answer(call->tid, 183, &answer);
-    osip_message_set_require(answer, "100rel");
+    osip_message_set_supported(answer, "100rel");
+    osip_message_set_supported(answer, "replaces");
     osip_message_set_header(answer, "RSeq", "1");
     message_add_sdp(call, answer, -1);
     eXosip_call_send_answer (call->tid, 183, answer);
     eXosip_unlock();
+  } else if (res == 0) {
+    /* Increment the transaction ID */
+    call->tid++;
   }
 
   return res;
@@ -1055,9 +1548,14 @@ static int sip_digit(struct opbx_channel *ast, char digit)
   int res = -1;
   
   /* Check DTMF type for methods of sending */
-  if (call->dtmf == DTMF_RFC2833) {
+  if (call->dtmf == DTMF_RFC2833 && call->rtp_session != NULL) {
+    /* If the RTP session is setup, send it out */
+    rtp_session_send_dtmf(call->rtp_session, digit, call->send_timestamp);
+    call->send_timestamp += 160;
   } else if (call->dtmf == DTMF_INFO) {
+    /* Create an INFO message and send it out */
   } else if (call->dtmf == DTMF_INBAND) {
+    /* Send the digit as audio on the owner channel */
   }
 
   return res;
@@ -1065,7 +1563,7 @@ static int sip_digit(struct opbx_channel *ast, char digit)
 
 static int sip_sendhtml(struct opbx_channel *ast, int subclass, const char *data, int datalen)
 {
-  call_t *call = ast->tech_pvt;
+  //call_t *call = ast->tech_pvt;
   int res = -1;
   
   return res;
@@ -1078,7 +1576,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
   int i = 0;
   call_t *call = ast->tech_pvt;
   char *exten = NULL, *address = NULL;
-  char sip_uri[512] = "", localip[128] = "";
+  char sip_uri[512] = "", localip[128] = "", from_uri[512] = "";
   osip_message_t *invite;
 
   if (strncasecmp(dest,"sip:",4) == 0)
@@ -1099,12 +1597,18 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
   /* Setup the local RTP IP and port */
   eXosip_guess_localip (AF_INET, localip, 128);
   strncpy(call->local_sdp_audio_ip, localip, sizeof(call->local_sdp_audio_ip));
-  call->local_sdp_audio_port = rtp_local_port++;
+  call->local_sdp_audio_port = rtp_allocate_port();
 
-  /* Use the callerid on the channel to build the From header */
+  /* Use the callerid on the channel to build the From header - if none is present... use the default */
+  if (ast->cid.cid_name == NULL)
+    ast->cid.cid_name = strdup(DEFAULT_CID_NAME);
+  if (ast->cid.cid_num == NULL)
+    ast->cid.cid_num = strdup(DEFAULT_CID_NUM);
+  /* Right now we only support setting it in the From URI - future is RPID */
+  snprintf(from_uri, sizeof(from_uri), "\"%s\" <sip:%s@%s>", ast->cid.cid_name, ast->cid.cid_num, localip);
   
   /* Fire up the initial invite */
-  eXosip_call_build_initial_invite(&invite, sip_uri, sip_uri, NULL, NULL);
+  eXosip_call_build_initial_invite(&invite, sip_uri, from_uri, NULL, NULL);
   /* Say we support 100rel */
   osip_message_set_supported(invite, "100rel");
   /* Add in all the SDP */
@@ -1116,6 +1620,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
     call->cid = i; /* Call dialog identity */
   call->did = -1;
   call->dtmf = DTMF_RFC2833;
+  call->rtp_state = SENDRECV;
   eXosip_unlock();
 
   return 0;
@@ -1142,22 +1647,11 @@ static int sip_hangup(struct opbx_channel *ast)
 /*--- sip_request: Part of PBX interface */
 static struct opbx_channel *sip_request(const char *type, int format, void *data, int *cause)
 {
-  int i = 0;
   call_t *call = NULL;
   struct opbx_channel *chan = NULL;
 
   /* Find a free callslot... and do our thang */
-  opbx_mutex_lock(&calllock);
-  for (i=0; i<MAX_NUMBER_OF_CALLS;i++) {
-    if (calls[i].state == NOT_USED) {
-      call = &(calls[i]);
-      /* Before we break out and unlock... claim this as our own so everything else will skip over it */
-      memset(call, 0, sizeof(call_t));
-      call->state = 1;
-      break;
-    }
-  }
-  opbx_mutex_unlock(&calllock);
+  call = find_new_callslot();
 
   if (call == NULL)
     return NULL;
@@ -1169,7 +1663,7 @@ static struct opbx_channel *sip_request(const char *type, int format, void *data
   call->recv_timestamp = 0; /* Ditto */
 
   chan = sip_new(call, OPBX_STATE_DOWN);
-  
+
   return chan;
 }
 
@@ -1177,9 +1671,13 @@ static struct opbx_channel *sip_request(const char *type, int format, void *data
 int load_module()
 {
   int port = 5060;
+  int i = 0;
   /* Setup the RTP stream stuff */
   ortp_init();
   ortp_scheduler_init();
+  /* Reset RTP port allocations */
+  for (i=0; i<MAX_RTP_PORTS; i++)
+    rtp_allocations[i] = NOT_USED;
   /* Adjust the av_profile with extra codecs */
   rtp_profile_set_payload(&av_profile,0,&pcmu8000);
   rtp_profile_set_payload(&av_profile,3,&gsm);

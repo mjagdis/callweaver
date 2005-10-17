@@ -58,7 +58,7 @@
  * too are stored in the list structure.
  *
  * Because it can be locked for insertions and removals, the list structure
- * holds an ast_lock structure.
+ * holds an opbx_lock structure.
  *
  * In addition, it holds an icd_listeners structure to provide listener
  * behaviour to events on the list. A list also has an optional name, a
@@ -92,7 +92,7 @@
 char *icd_list_state_strings[] = {
     "ICD_LIST_STATE_CREATED", "ICD_LIST_STATE_INITIALIZED",
     "ICD_LIST_STATE_CLEARED", "ICD_LIST_STATE_DESTROYED",
-    "ICD_LIST_STATE_LAST_STANDARD"
+    "ICD_LIST_STATE_L OPBX_STANDARD"
 };
 
 /* Note that none of these functions locks the list. */
@@ -199,7 +199,7 @@ icd_status init_icd_list(icd_list * that, icd_config * data)
 
     assert(that != NULL);
 
-    ast_mutex_init(&(that->lock));
+    opbx_mutex_init(&(that->lock));
     that->category = ICD_LIST_CAT_UNKNOWN;
     that->ins_fn = icd_list__insert_fifo;
     /* TBD - create_icd_listeners() should take an icd_memory * argument */
@@ -335,7 +335,7 @@ icd_status icd_list__clear(icd_list * that)
             that->name = NULL;
         }
         icd_list__unlock(that);
-        ast_mutex_destroy(&(that->lock));
+        opbx_mutex_destroy(&(that->lock));
         return ICD_SUCCESS;
     }
     opbx_log(LOG_WARNING, "Unable to get a lock on ICD List %s in order to clear it\n", icd_list__get_name(that));
@@ -717,7 +717,7 @@ icd_status icd_list__lock(icd_list * that)
     if (that->state == ICD_LIST_STATE_CLEARED || that->state == ICD_LIST_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = ast_mutex_lock(&that->lock);
+    retval = opbx_mutex_lock(&that->lock);
     if (retval == 0) {
         return ICD_SUCCESS;
     }
@@ -734,7 +734,7 @@ icd_status icd_list__unlock(icd_list * that)
     if (that->state == ICD_LIST_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
-    retval = ast_mutex_unlock(&that->lock);
+    retval = opbx_mutex_unlock(&that->lock);
     if (retval == 0) {
         return ICD_SUCCESS;
     }
@@ -813,12 +813,12 @@ int icd_list_iterator__has_more(icd_list_iterator * that)
     if (!that->next || !that->parent) {
         return 0;
     }
-    ast_mutex_lock(&that->parent->lock);
+    opbx_mutex_lock(&that->parent->lock);
     if (that && that->next && that->next->state && that->next->state != ICD_NODE_STATE_USED && that->curr
         && that->curr->state && that->curr->state == ICD_NODE_STATE_USED) {
         that->next = that->curr->next;
     }
-    ast_mutex_unlock(&that->parent->lock);
+    opbx_mutex_unlock(&that->parent->lock);
     return (that->next != NULL);
 }
 

@@ -30,11 +30,11 @@ apr_pool_t *icd_apr__new_subpool(void)
 
     sanity_check();
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "CREATE SUBPOOL\n");
+    opbx_verbose(ICD_APR_PREFIX "CREATE SUBPOOL\n");
 #endif
 
     if ((apr_pool_create(&newpool, ICD_MEMORY_POOL)) != APR_SUCCESS) {
-        ast_verbose("Could not create memory sub-pool\n");
+        opbx_verbose("Could not create memory sub-pool\n");
         return NULL;
     }
     return newpool;
@@ -44,7 +44,7 @@ apr_pool_t *icd_apr__new_subpool(void)
 void icd_apr__destroy_subpool(apr_pool_t * pool)
 {
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "DESTROY SUBPOOL\n");
+    opbx_verbose(ICD_APR_PREFIX "DESTROY SUBPOOL\n");
 #endif
 
     apr_pool_destroy(pool);
@@ -53,7 +53,7 @@ void icd_apr__destroy_subpool(apr_pool_t * pool)
 void icd_apr__clear_subpool(apr_pool_t * pool)
 {
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "CLEAR SUBPOOL\n");
+    opbx_verbose(ICD_APR_PREFIX "CLEAR SUBPOOL\n");
 #endif
 
     apr_pool_clear(pool);
@@ -62,7 +62,7 @@ void icd_apr__clear_subpool(apr_pool_t * pool)
 void *icd_apr__submalloc(apr_pool_t * pool, size_t size)
 {
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "ALLOCATE %d BYTES FROM SUBPOOL\n", size);
+    opbx_verbose(ICD_APR_PREFIX "ALLOCATE %d BYTES FROM SUBPOOL\n", size);
 #endif
 
     return pool != NULL ? apr_palloc(pool, size) : NULL;
@@ -71,7 +71,7 @@ void *icd_apr__submalloc(apr_pool_t * pool, size_t size)
 void *icd_apr__subcalloc(apr_pool_t * pool, size_t size)
 {
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "ALLOCATE %d BLANK BYTES FROM SUBPOOL\n", size);
+    opbx_verbose(ICD_APR_PREFIX "ALLOCATE %d BLANK BYTES FROM SUBPOOL\n", size);
 #endif
 
     return pool != NULL ? apr_pcalloc(pool, size) : NULL;
@@ -81,7 +81,7 @@ void *icd_apr__malloc(size_t size)
 {
     sanity_check();
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "ALLOCATE %d BYTES FROM MAIN POOL\n", size);
+    opbx_verbose(ICD_APR_PREFIX "ALLOCATE %d BYTES FROM MAIN POOL\n", size);
 #endif
     return apr_palloc(ICD_MEMORY_POOL, size);
 }
@@ -90,14 +90,14 @@ void *icd_apr__calloc(size_t size)
 {
     sanity_check();
 #ifdef ICD_APR_DEBUG
-    ast_verbose(ICD_APR_PREFIX "ALLOCATE %d BLANK BYTES FROM MAIN POOL\n", size);
+    opbx_verbose(ICD_APR_PREFIX "ALLOCATE %d BLANK BYTES FROM MAIN POOL\n", size);
 #endif
     return apr_pcalloc(ICD_MEMORY_POOL, size);
 }
 
 void *icd_apr__free(void *obj)
 {
-    ast_verbose(ICD_APR_PREFIX "I CANT FREE\n");
+    opbx_verbose(ICD_APR_PREFIX "I CANT FREE\n");
     return NULL;
 }
 
@@ -114,7 +114,7 @@ char *icd_apr__substrdup(apr_pool_t * pool, char *str)
 void icd_apr__destroy(void)
 {
 
-    ast_verbose("DESTROYING THE APR\n");
+    opbx_verbose("DESTROYING THE APR\n");
 
     if (apr_is_init == 1) {
         apr_pool_destroy(ICD_MEMORY_POOL);
@@ -126,16 +126,16 @@ void icd_apr__destroy(void)
 icd_status icd_apr__init()
 {
     /* initilize */
-    ast_verbose("Initializing the APR\n");
+    opbx_verbose("Initializing the APR\n");
     if (apr_initialize() != APR_SUCCESS) {
-        ast_verbose("Could not initnialize\n");
+        opbx_verbose("Could not initnialize\n");
         icd_apr__destroy();
         return ICD_ERESOURCE;
     }
 
     /* Create the pool context */
     if (apr_pool_create(&ICD_MEMORY_POOL, NULL) != APR_SUCCESS) {
-        ast_verbose("Could not allocate ICD_MEMORY_POOL\n");
+        opbx_verbose("Could not allocate ICD_MEMORY_POOL\n");
         icd_apr__destroy();
         return ICD_ERESOURCE;
     }

@@ -20,6 +20,28 @@
  *
  * Digital Resonator - a fast and efficient way to produce low cost sinewaves
  *
+ * How to use:
+ *
+ * Start by initializing an opaque digital_resonator struct by submitting to
+ * the function digital_resonator_init, along with the requested frequency,
+ * amplitude and sampling frequency one is working with. After this is done,
+ * just call digital_resonator_get_sample repeatedly with a pointer to the
+ * digital_resonator struct variable. Every time you call, you get the next
+ * sample.
+ *
+ * Example:
+ *
+ * struct digital_resonator dr;
+ * digital_resonator_init(&dr, 1000, 67, 8000);
+ * sample_1 = digital_resonator_get_sample(&dr);
+ * sample_2 = digital_resonator_get_sample(&dr);
+ *   .
+ *   .
+ *   .
+ * sample_n = digital_resonator_get_sample(&dr);
+ *
+ * The function digital_resonator_reinit may be used to reinitialize the
+ * digital resonator if sampling frequency hasn't changed.
  */
 
 /*

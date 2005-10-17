@@ -100,6 +100,39 @@ static struct permalias {
 static struct mansession *sessions = NULL;
 static struct manager_action *first_action = NULL;
 OPBX_MUTEX_DEFINE_STATIC(actionlock);
+OPBX_MUTEX_DEFINE_STATIC(hooklock);
+
+static struct manager_custom_hook *manager_hooks = NULL;
+
+
+void add_manager_hook(struct manager_custom_hook *hook)
+{
+	opbx_mutex_lock(&hooklock);
+	if (hook) {
+		hook->next = manager_hooks;
+		manager_hooks = hook;
+	}
+	opbx_mutex_unlock(&hooklock);
+}
+
+void del_manager_hook(struct manager_custom_hook *hook)
+{
+	struct manager_custom_hook *hookp, *lopbxhook = NULL;
+
+	opbx_mutex_lock(&hooklock);
+	for (hookp = manager_hooks; hookp ; hookp = hookp->next) {
+		if (hookp == hook) {
+			if (lopbxhook) {
+				lopbxhook->next = hookp->next;
+			} else {
+				manager_hooks = hookp->next;
+			}
+		}
+		lopbxhook = hookp;
+	}
+	opbx_mutex_unlock(&hooklock);
+
+}
 
 /*--- authority_to_str: Convert authority code to string with serveral options */
 static char *authority_to_str(int authority, char *res, int reslen)
@@ -1490,6 +1523,24 @@ int manager_event(int category, char *event, char *fmt, ...)
 		opbx_mutex_unlock(&s->__lock);
 	}
 	opbx_mutex_unlock(&sessionlock);
+
+	if (manager_hooks) {
+		struct manager_custom_hook *hookp;
+		opbx_mutex_lock(&hooklock);
+		char *p;
+		int len;
+		snprintf(tmp, sizeof(tmp), "Event: %s\r\nPrivilege: %s\r\n", event, authority_to_str(category, tmp, sizeof(tmp)));
+		len = strlen(tmp);
+		p = tmp + len;
+		va_start(ap, fmt);
+		vsnprintf(p, sizeof(tmp) - len, fmt, ap);
+		va_end(ap);
+		for (hookp = manager_hooks ; hookp; hookp = hookp->next) {
+			hookp->helper(category, event, tmp);
+		}
+		opbx_mutex_unlock(&hooklock);
+	}
+
 
 	return 0;
 }

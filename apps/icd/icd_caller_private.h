@@ -108,7 +108,7 @@ extern "C" {
         void *dump_fn_extra;
 
         /* Threading and locking */
-        ast_mutex_t lock;
+        opbx_mutex_t lock;
         pthread_t thread;
         pthread_cond_t wakeup;
         icd_thread_state thread_state;

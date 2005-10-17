@@ -6,20 +6,12 @@ OBJS = app_icd.o icd_agent.o icd_bridge.o icd_caller.o icd_caller_list.o icd_com
     icd_module_api.o icd_plugable_fn.o icd_plugable_fn_list.o icd_jabber.o
 
 FORDIST = icd_caller.o icd_distributor.o
-
-# Uncomment YES or NO for apr support or just touch .apr file in the icd src dir.
-#USE_APR=YES
-#USE_APR=NO
-USE_APR=$(shell if [ -f .apr ] ; then echo YES ; else echo NO ; fi )
+LOUDMOUTH_CFLAGS=@LOUDMOUTH_CFLAGS@
+LOUDMOUTH_LIBS=@LOUDMOUTH_LIBS@
+USE_APR=NO
 # Uncomment to print every malloc/dealloc when apr mode is active
 #CFLAGS += -DICD_APR_DEBUG
 
-
-
-CFLAGS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then $(APR_CONFIG) --cflags --includes ; fi )
-CFLAGS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then echo -DUSE_APR ; fi )
-LDFLAGS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then $(APR_CONFIG) --link-ld --libs ; fi )
-OBJS += $(shell if [ -f $(APR_CONFIG) ] && [ $(USE_APR) = "YES" ] ; then echo icd_apr.o ; fi )
 # where is the asterisk source tree
 ASTSRC = @TOPDIR@
 
@@ -31,6 +23,8 @@ CFLAGS +=  -DASTCONFPATH=\"$(ASTCONFPATH)\" -DASTMODDIR=\"$(MODULES_DIR)\" -DAST
 CFLAGS += -O0 -ggdb
 CFLAGS += -Wall
 #CFLAGS += -DNDEBUG
+CFLAGS+=$(LOUDMOUTH_CFLAGS)
+LIBS+=$(LOUDMOUTH_LIBS)
 
 DYNA=$(shell echo icd_mod_*.c | sed "s/\.c/\.so/g" )
 
@@ -39,12 +33,12 @@ all:  app_icd.so
 
 %.o:  %.c
 	@echo -n " ===> Compile:" `pwd` ; echo "/$< ($@)"
-	@$(CC) -fPIC $(CFLAGS) `pkg-config --cflags loudmouth-1.0` -c -o $@ $< 
+	@$(CC) -fPIC $(CFLAGS) -c -o $@ $< 
 
 
 app_icd.so: $(OBJS)
 	@echo    " ===> Linking: >> $(OBJS) <<  ($@)"
-	@$(CC) -fPIC -Xlinker -x -o $@ $(OBJS) `pkg-config --cflags --libs loudmouth-1.0` -lpthread $(LDFLAGS)
+	@$(CC) -fPIC -Xlinker -x -o $@ $(OBJS) $(LIBS) $(LDFLAGS)
 
 
 config_if_none:

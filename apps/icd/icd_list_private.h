@@ -98,7 +98,7 @@ extern "C" {
         void *dstry_fn_extra;
         void *dump_fn_extra;
         icd_listeners *listeners;
-        ast_mutex_t lock;
+        opbx_mutex_t lock;
     };
 
 /* Methods available for use of subtypes */

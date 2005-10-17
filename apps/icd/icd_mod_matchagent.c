@@ -28,7 +28,7 @@ static icd_status init_icd_distributor_match_agent(icd_distributor * that, char 
     icd_distributor__set_link_callers_fn(that, link_callers_via_pop_customer_match_agent, NULL);
     icd_distributor__create_thread(that);
 
-    ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
+    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
     return ICD_SUCCESS;
 }
 
@@ -41,7 +41,7 @@ int icd_module_load(icd_config_registry * registry)
     icd_config_registry__register_ptr(registry, "dist.link", "popcustmatchagent",
       link_callers_via_pop_customer_match_agent  );
 
-    ast_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[MatchAgent]!\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[MatchAgent]!\n");
 
     return 0;
 }
@@ -49,7 +49,7 @@ int icd_module_load(icd_config_registry * registry)
 int icd_module_unload(void)
 {
     /*TODO didnt get this far */
-    ast_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[MatchAgent]!\n");
+    opbx_verbose(VERBOSE_PREFIX_3 "Unloaded ICD Module[MatchAgent]!\n");
     return 0;
 
 }
@@ -153,7 +153,7 @@ icd_status distribute_customer_match_agent(icd_distributor * dist,
     /* Figure out who the bridger is, and who the bridgee is */
     result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
-    ast_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
+    opbx_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
         icd_distributor__get_name(dist), cust_id, agent_id);
     if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
         result = icd_caller__bridge(customer_caller);

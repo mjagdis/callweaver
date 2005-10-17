@@ -17,8 +17,8 @@
 #include <icd_caller_list.h>
 #include <icd_list.h>
 #include <icd_distributor.h>
-#ifndef AST_FLAG_NONATIVE
-#define AST_FLAG_NONATIVE (1 << 7)
+#ifndef  OPBX_FLAG_NONATIVE
+#define  OPBX_FLAG_NONATIVE (1 << 7)
 #endif
 
 /* shamelessly borrowed from real openpbx and slowly moprhed to our needs*/
@@ -28,13 +28,13 @@ static int say_position(icd_caller *that, int override, int waiting);
 
 int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
 {
-    struct ast_channel *chan,*peer;
-    struct ast_bridge_config bridge_config;
+    struct opbx_channel *chan,*peer;
+    struct opbx_bridge_config bridge_config;
     int res = 0;
 
     opbx_log(LOG_WARNING, "icd_bridge_call in progress...\n");
-    chan = (ast_channel *) icd_caller__get_channel(bridger);
-    peer = (ast_channel *) icd_caller__get_channel(bridgee);
+    chan = (opbx_channel *) icd_caller__get_channel(bridger);
+    peer = (opbx_channel *) icd_caller__get_channel(bridgee);
 
     if (chan == NULL || peer == NULL) {
         opbx_log(LOG_WARNING, "Bridge failed not enough channels\n");
@@ -46,8 +46,8 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
     icd_caller__set_state(bridger, ICD_CALLER_STATE_BRIDGED);
     icd_caller__set_state(bridgee, ICD_CALLER_STATE_BRIDGED);
 
-    memset(&bridge_config, 0, sizeof(struct ast_bridge_config));
-    ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT | AST_FEATURE_REDIRECT);
+    memset(&bridge_config, 0, sizeof(struct opbx_bridge_config));
+    opbx_set_flag(&(bridge_config.features_caller),  OPBX_FEATURE_DISCONNECT |  OPBX_FEATURE_REDIRECT);
  
     /* shutdown any generators such as moh on the various channels */
     icd_caller__stop_waiting(bridger);
@@ -55,9 +55,9 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
     icd_caller__add_flag(bridger, ICD_ENTLOCK_FLAG);
     icd_caller__add_flag(bridgee, ICD_ENTLOCK_FLAG);
 
-    ast_set_flag(chan, AST_FLAG_NONATIVE);
-    res = ast_bridge_call(chan, peer, &bridge_config);
-    ast_clear_flag(chan, AST_FLAG_NONATIVE);
+    opbx_set_flag(chan,  OPBX_FLAG_NONATIVE);
+    res = opbx_bridge_call(chan, peer, &bridge_config);
+    opbx_clear_flag(chan,  OPBX_FLAG_NONATIVE);
 
     /* 
        Exit bridge loop chan==bridger, peer==bridgee. 1) hungup 2) DTMF * 3)error has occured.  
@@ -81,7 +81,7 @@ int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
 int icd_bridge__wait_call_agent(icd_caller * that)
 {
     int res = 0;
-    struct ast_channel *chan = (ast_channel *) icd_caller__get_channel(that);
+    struct opbx_channel *chan = (opbx_channel *) icd_caller__get_channel(that);
     int result = 0;
 
     if (icd_debug)
@@ -105,7 +105,7 @@ int icd_bridge__wait_call_agent(icd_caller * that)
                 }
             }
             /* Wait some milliseconds before checking again */
-            res = ast_waitfordigit(chan, 200);
+            res = opbx_waitfordigit(chan, 200);
             if (res) {
                 break;
             }
@@ -121,8 +121,8 @@ int icd_bridge__wait_call_agent(icd_caller * that)
               icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
 	    }
 	    else{
-//              ast_softhangup(chan , AST_SOFTHANGUP_EXPLICIT);
-//              ast_hangup(chan);
+//              opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
+//              opbx_hangup(chan);
 //              icd_caller__set_channel(that, NULL);
               icd_caller__set_state(that, ICD_CALLER_STATE_SUSPEND);
 	    }  
@@ -144,7 +144,7 @@ int icd_bridge__wait_call_agent(icd_caller * that)
 int icd_bridge__wait_call_customer(icd_caller * that)
 {
     int res = 0;
-    struct ast_channel *chan = (ast_channel *) icd_caller__get_channel(that);
+    struct opbx_channel *chan = (opbx_channel *) icd_caller__get_channel(that);
     icd_queue *queue;
     char *chimefile;
     int result = 0;
@@ -181,7 +181,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
                 }
             }
             /* Wait some milliseconds before checking again */
-            res = ast_waitfordigit(chan, waitms);
+            res = opbx_waitfordigit(chan, waitms);
             /* -1 hangup detected, or DTMF digits #-35,*-42 0-48,1-49, ..9-57 or t-116 timeout */
             if (res != 0)
                 break;
@@ -318,7 +318,7 @@ int icd_bridge__wait_call_customer(icd_caller * that)
 
 int icd_bridge_wait_ack(icd_caller * that)
 {
-    struct ast_channel *chan = (ast_channel *) icd_caller__get_channel(that);
+    struct opbx_channel *chan = (opbx_channel *) icd_caller__get_channel(that);
     int max_wait_ack = 60;      /* TBD stick this in the agent config */
     int result = 0;
     int res = 0;
@@ -333,7 +333,7 @@ int icd_bridge_wait_ack(icd_caller * that)
     max_wait_ack = icd_caller__get_timeout(that)/1000; /*converting from milisec to seconds */	
 /*Prepare to extern ackowledgement */    
     icd_caller__clear_flag(that, ICD_ACK_EXTERN_FLAG);
-    ast_streamfile(chan, "queue-callswaiting", chan->language); 
+    opbx_streamfile(chan, "queue-callswaiting", chan->language); 
 	/* This is the wait loop for agents that requirement an acknowledgement  b4 we bridge the call */
     for (;;) {
             if (!(icd_caller__get_state(that) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)) {
@@ -352,7 +352,7 @@ int icd_bridge_wait_ack(icd_caller * that)
             }
 	    
 	    /* Wait a second before checking again */
-            res = ast_waitfordigit(chan, 200);
+            res = opbx_waitfordigit(chan, 200);
 
             if (res) {
                 break;
@@ -396,10 +396,10 @@ int icd_bridge_wait_ack(icd_caller * that)
  * /return an openpbx channel or NULL on failure
  * /todo implement the local channel method for getting a channel
  */
-struct ast_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *context, char *priority,
+struct opbx_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *context, char *priority,
     char *extension)
 {
-    struct ast_channel *chan = NULL;
+    struct opbx_channel *chan = NULL;
     int cause;
     char *type;
     char *data;
@@ -412,7 +412,7 @@ struct ast_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *conte
             *data = '\0';
             data++;
             /* BCA - Is ULAW the only format we support? */
-            chan = ast_request(type, AST_FORMAT_ALAW, data, &cause, NULL);
+            chan = opbx_request(type,  OPBX_FORMAT_ALAW, data, &cause, NULL);
         }
         ICD_STD_FREE(type);
     }
@@ -443,13 +443,13 @@ struct ast_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *conte
  */
 int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int timeout)
 {
-    //struct ast_channel *newchan;
-    struct ast_channel *chan;
-    struct ast_frame *f = NULL;
+    //struct opbx_channel *newchan;
+    struct opbx_channel *chan;
+    struct opbx_frame *f = NULL;
     char *caller_id;
     char *addr;
     int result;
-    int state = AST_CONTROL_HANGUP;
+    int state = OPBX_CONTROL_HANGUP;
 //    int assoc;
     icd_caller_state caller_state;
 
@@ -464,8 +464,8 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
 
     caller_id = icd_caller__get_caller_id(that);
     if (caller_id != NULL && strlen(caller_id) > 0) {
-        /* ast_set_callerid(chan, caller_id, 1); v1.0 */
-        ast_set_callerid(chan, caller_id, NULL, caller_id);
+        /* opbx_set_callerid(chan, caller_id, 1); v1.0 */
+        opbx_set_callerid(chan, caller_id, NULL, caller_id);
     }
 
     addr = NULL;
@@ -480,9 +480,9 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
         return state;
     }
 
-    /* ast_call() starts ringing and returns immediately with timeout (0) or error. */
+    /* opbx_call() starts ringing and returns immediately with timeout (0) or error. */
 
-    result = ast_call(chan, addr, 0);
+    result = opbx_call(chan, addr, 0);
     if (result < 0) {
         if (chanstring != NULL) {
             opbx_log(LOG_WARNING, "ICD REQUEST: Unable to ring channel %s\n", chanstring);
@@ -495,8 +495,8 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
 //    assoc = icd_caller_list__has_callers(icd_caller__get_associations(that));
     caller_state = icd_caller__get_state(that);
     /* While we haven't timed out and we still have no channel up */
-    while (timeout && (chan->_state != AST_STATE_UP)) {
-        result = ast_waitfor(chan, timeout);
+    while (timeout && (chan->_state != OPBX_STATE_UP)) {
+        result = opbx_waitfor(chan, timeout);
         /* Something is not cool */
         if (result < 0) {
             break;
@@ -517,10 +517,10 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
         /* BCA - this has never worked and the algorithm can't. How can we make this check?
            if(peer && req_state >= 0 && (icd_caller__get_state(peer) != req_state)) {
            opbx_log(LOG_WARNING,"lost my peer while dialing, nevermind!");
-           state = AST_CONTROL_HANGUP;
+           state = OPBX_CONTROL_HANGUP;
            result = 0;
            if (f != NULL) {
-           ast_frfree(f);
+           opbx_frfree(f);
            }
            break;
            }             */
@@ -535,29 +535,29 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
 	   }
 	  
         /* Read a frame from the channel and process it */
-        f = ast_read(chan);
+        f = opbx_read(chan);
         if (f == NULL) {
-            state = AST_CONTROL_HANGUP;
+            state = OPBX_CONTROL_HANGUP;
             result = 0;
             break;
         }
-        if (f->frametype == AST_FRAME_CONTROL) {
-            if (f->subclass == AST_CONTROL_RINGING) {
+        if (f->frametype == OPBX_FRAME_CONTROL) {
+            if (f->subclass == OPBX_CONTROL_RINGING) {
                 state = f->subclass;
-            } else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
+            } else if ((f->subclass == OPBX_CONTROL_BUSY) || (f->subclass == OPBX_CONTROL_CONGESTION)) {
                 state = f->subclass;
-                ast_frfree(f);
+                opbx_frfree(f);
                 break;
-            } else if (f->subclass == AST_CONTROL_ANSWER) {
+            } else if (f->subclass == OPBX_CONTROL_ANSWER) {
                 /* This is what we are hoping for */
                 state = f->subclass;
-                ast_frfree(f);
+                opbx_frfree(f);
                 break;
             }
             /* else who cares */
 
         }
-        ast_frfree(f);
+        opbx_frfree(f);
     }
 
     /* write the call detail records, if the caller hangs up while were dialing them */
@@ -565,17 +565,17 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
     /* this doesnt work anyway lets make it independant responsibility to activate CDR -Tony
        if (result <= 0) {
        if (!chan->cdr) {
-       chan->cdr = ast_cdr_alloc();
+       chan->cdr = opbx_cdr_alloc();
        }
        if (chan->cdr) {
-       ast_cdr_init(chan->cdr, chan);
-       ast_cdr_setapp(chan->cdr, "Dial", chanstring);
-       ast_cdr_update(chan);
-       ast_cdr_start(chan->cdr);
-       ast_cdr_end(chan->cdr);
+       opbx_cdr_init(chan->cdr, chan);
+       opbx_cdr_setapp(chan->cdr, "Dial", chanstring);
+       opbx_cdr_update(chan);
+       opbx_cdr_start(chan->cdr);
+       opbx_cdr_end(chan->cdr);
        //If the cause wasn't handled properly
-       if (ast_cdr_disposition(chan->cdr, chan->hangupcause)) {
-       ast_cdr_failed(chan->cdr);
+       if (opbx_cdr_disposition(chan->cdr, chan->hangupcause)) {
+       opbx_cdr_failed(chan->cdr);
        }
        } else {
        opbx_log(LOG_WARNING, "Unable to create Call Detail Record\n");
@@ -583,14 +583,14 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
        icd_bridge__safe_hangup(that);
        }
      */
-    if (chan->_state == AST_STATE_UP) {
+    if (chan->_state == OPBX_STATE_UP) {
 
 /*  TC experiment to masq b4 bridge        
-newchan = ast_channel_alloc(0);
+newchan = opbx_channel_alloc(0);
 snprintf(newchan->name, sizeof (newchan->name), "ChanGrab/%s",chan->name);
 newchan->readformat = chan->readformat;
 newchan->writeformat = chan->writeformat;
-ast_channel_masquerade(newchan, chan);               
+opbx_channel_masquerade(newchan, chan);               
 icd_bridge__safe_hangup(that);
 icd_caller__set_channel(that, newchan);
 */
@@ -599,38 +599,38 @@ icd_caller__set_channel(that, newchan);
             icd_event_factory__generate(event_factory, that, icd_caller__get_name(that), module_id,
             ICD_EVENT_CHANNEL_UP, NULL, icd_caller__get_listeners(that), NULL);
 
-        return AST_CONTROL_ANSWER;
+        return  OPBX_CONTROL_ANSWER;
     }
     return state;
 }
 
 void icd_bridge__remasq(icd_caller * caller)
 {
-    struct ast_channel *oldchan = NULL;
-    struct ast_channel *newchan = NULL;
-    struct ast_frame *f;
+    struct opbx_channel *oldchan = NULL;
+    struct opbx_channel *newchan = NULL;
+    struct opbx_frame *f;
 
     assert(caller != NULL);
-    oldchan = (ast_channel *) icd_caller__get_channel(caller);
+    oldchan = (opbx_channel *) icd_caller__get_channel(caller);
     if (!oldchan)               /* nothing to do */
         return;
     icd_caller__add_flag(caller, ICD_NOHANGUP_FLAG);
-    newchan = ast_channel_alloc(0);
+    newchan = opbx_channel_alloc(0);
     strncpy(newchan->name, oldchan->name, sizeof(newchan->name));
     newchan->readformat = oldchan->readformat;
     newchan->writeformat = oldchan->writeformat;
-    ast_channel_masquerade(newchan, oldchan);
-    f = ast_read(newchan);
+    opbx_channel_masquerade(newchan, oldchan);
+    f = opbx_read(newchan);
     if (f)
-        ast_frfree(f);
+        opbx_frfree(f);
 
     if (oldchan) {
-        ast_stopstream(oldchan);
-        ast_deactivate_generator(oldchan);
-        ast_clear_flag(oldchan, AST_FLAG_BLOCKING);
-        ast_softhangup(oldchan, AST_SOFTHANGUP_EXPLICIT);
+        opbx_stopstream(oldchan);
+        opbx_deactivate_generator(oldchan);
+        opbx_clear_flag(oldchan,  OPBX_FLAG_BLOCKING);
+        opbx_softhangup(oldchan,  OPBX_SOFTHANGUP_EXPLICIT);
         if (icd_caller__owns_channel(caller)) {
-            ast_hangup(oldchan);
+            opbx_hangup(oldchan);
         }
         oldchan = NULL;
     }
@@ -667,7 +667,7 @@ void icd_bridge__parse_ubf(icd_caller * caller, icd_unbridge_flag ubf)
 
 void icd_bridge__unbridge_caller(icd_caller * caller, icd_unbridge_flag ubf)
 {
-    struct ast_channel *chan;
+    struct opbx_channel *chan;
     icd_caller *associate;
     icd_caller_list *associations;
     icd_list_iterator *iter;
@@ -697,17 +697,17 @@ void icd_bridge__unbridge_caller(icd_caller * caller, icd_unbridge_flag ubf)
 
 void icd_bridge__safe_hangup(icd_caller * caller)
 {
-    struct ast_channel *oldchan = NULL;
-    struct ast_channel *newchan = NULL;
-    struct ast_frame *f;
+    struct opbx_channel *oldchan = NULL;
+    struct opbx_channel *newchan = NULL;
+    struct opbx_frame *f;
 
     assert(caller != NULL);
     if (icd_caller__has_flag(caller, ICD_NOHANGUP_FLAG)) {
         return;
     }
 
-    oldchan = (ast_channel *) icd_caller__get_channel(caller);
-    if (!oldchan || ast_test_flag(oldchan, AST_FLAG_ZOMBIE))    /* nothing to do */
+    oldchan = (opbx_channel *) icd_caller__get_channel(caller);
+    if (!oldchan || opbx_test_flag(oldchan,  OPBX_FLAG_ZOMBIE))    /* nothing to do */
         return;
 
     if (icd_debug)
@@ -720,33 +720,33 @@ void icd_bridge__safe_hangup(icd_caller * caller)
        %TC Danger race condition here oldchan may have gone aways
        we should lock the oldchan while be do the masquerade
        Why do we masq if we already icd_caller__owns_channel(caller) ???
-       if (!ast_mutex_trylock(&oldchan->lock)) {
+       if (!opbx_mutex_trylock(&oldchan->lock)) {
      */
 
-    newchan = ast_channel_alloc(0);
-    ast_mutex_lock(&oldchan->lock);
+    newchan = opbx_channel_alloc(0);
+    opbx_mutex_lock(&oldchan->lock);
     strncpy(newchan->name, oldchan->name, sizeof(newchan->name));
     newchan->readformat = oldchan->readformat;
     newchan->writeformat = oldchan->writeformat;
-    ast_mutex_unlock(&oldchan->lock);
+    opbx_mutex_unlock(&oldchan->lock);
     /*note masq will blindly lock both channels, does not check if the channels are still there ? */
-    if (!ast_channel_masquerade(newchan, oldchan)) {
-        f = ast_read(newchan);
+    if (!opbx_channel_masquerade(newchan, oldchan)) {
+        f = opbx_read(newchan);
         if (f)
-            ast_frfree(f);
+            opbx_frfree(f);
     }
 
     if (newchan) {
-        ast_softhangup(newchan, AST_SOFTHANGUP_EXPLICIT);
-        ast_hangup(newchan);
+        opbx_softhangup(newchan,  OPBX_SOFTHANGUP_EXPLICIT);
+        opbx_hangup(newchan);
         newchan = NULL;
     }
 
     if (oldchan) {
-        ast_clear_flag(oldchan, AST_FLAG_BLOCKING);
-        ast_softhangup(oldchan, AST_SOFTHANGUP_EXPLICIT);
+        opbx_clear_flag(oldchan,  OPBX_FLAG_BLOCKING);
+        opbx_softhangup(oldchan,  OPBX_SOFTHANGUP_EXPLICIT);
         if (icd_caller__owns_channel(caller)) {
-            ast_hangup(oldchan);
+            opbx_hangup(oldchan);
         }
         oldchan = NULL;
     }
@@ -755,11 +755,11 @@ void icd_bridge__safe_hangup(icd_caller * caller)
 
 int ok_exit_noagent(icd_caller * that)
 {
-    struct ast_channel *chan = (ast_channel *) icd_caller__get_channel(that);
+    struct opbx_channel *chan = (opbx_channel *) icd_caller__get_channel(that);
 
     /* See if there is a special busy priority in this context for this queue */
     if (chan != NULL
-        && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
+        && opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
         chan->priority += 100;
         if (icd_verbose > 2)
             opbx_log(LOG_WARNING, "Caller %s [%d] has no agents to service call exit to busy priority\n",
@@ -773,7 +773,7 @@ int ok_exit_noagent(icd_caller * that)
 
 int ok_exit(icd_caller * that, char digit)
 {
-    struct ast_channel *chan = (ast_channel *) icd_caller__get_channel(that);
+    struct opbx_channel *chan = (opbx_channel *) icd_caller__get_channel(that);
     char *context;
     char tmp[2];
 
@@ -784,14 +784,14 @@ int ok_exit(icd_caller * that, char digit)
     tmp[0] = digit;
     tmp[1] = '\0';
 
-    if (chan != NULL && ast_exists_extension(chan, context, tmp, 1, chan->cid.cid_num)) {
+    if (chan != NULL && opbx_exists_extension(chan, context, tmp, 1, chan->cid.cid_num)) {
         opbx_log(LOG_WARNING, "Found digit exit context[%s] exten[%s]\n", context, tmp);
         /* possible race here caller might hangup while we figure things out */
-        if (!ast_mutex_trylock(&chan->lock)) {
+        if (!opbx_mutex_trylock(&chan->lock)) {
             strncpy(chan->context, context, sizeof(chan->context) - 1);
             strncpy(chan->exten, tmp, sizeof(chan->exten) - 1);
             chan->priority = 0;
-            ast_mutex_unlock(&chan->lock);
+            opbx_mutex_unlock(&chan->lock);
             return 1;
         } else
             return 0;
@@ -801,7 +801,7 @@ int ok_exit(icd_caller * that, char digit)
 
 static int say_position(icd_caller * that, int override, int waiting)
 {
-    struct ast_channel *chan = (ast_channel *) icd_caller__get_channel(that);
+    struct opbx_channel *chan = (opbx_channel *) icd_caller__get_channel(that);
     icd_member *member;
     icd_queue *queue;
     int res = 0, avgholdmins = 0;
@@ -863,7 +863,7 @@ static int say_position(icd_caller * that, int override, int waiting)
                 res = 0;
                 break;
             }
-            res = ast_say_number(chan, pos, AST_DIGIT_ANY, chan->language, (char *) NULL);      /* Needs gender */
+            res = opbx_say_number(chan, pos,  OPBX_DIGIT_ANY, chan->language, (char *) NULL);      /* Needs gender */
             if (res < 0) {
                 res = 0;
                 break;
@@ -887,7 +887,7 @@ static int say_position(icd_caller * that, int override, int waiting)
                 res = 0;
                 break;
             }
-            res = ast_say_number(chan, avgholdmins, AST_DIGIT_ANY, chan->language, (char *) NULL);
+            res = opbx_say_number(chan, avgholdmins,  OPBX_DIGIT_ANY, chan->language, (char *) NULL);
             if (res < 0) {
                 res = 0;
                 break;
@@ -909,7 +909,7 @@ static int say_position(icd_caller * that, int override, int waiting)
         pos = icd_caller__get_position(that, member);
         if (pos > 0)
             res = icd_caller__play_sound_file(that, icd_queue__get_holdannounce_sound_thanks(queue));
-        ast_verbose(VERBOSE_PREFIX_3 "Hold time for %s in queue %s is %d minutes\n",
+        opbx_verbose(VERBOSE_PREFIX_3 "Hold time for %s in queue %s is %d minutes\n",
                     chan->name ? chan->name : "caller", icd_queue__get_name(queue), avgholdmins);
     }
 
@@ -918,19 +918,19 @@ static int say_position(icd_caller * that, int override, int waiting)
     return 0;
 }
 
-int icd_safe_sleep(struct ast_channel *chan, int ms)
+int icd_safe_sleep(struct opbx_channel *chan, int ms)
 {
-    struct ast_frame *f;
+    struct opbx_frame *f;
 
     while (ms > 0) {
-        ms = ast_waitfor(chan, ms);
+        ms = opbx_waitfor(chan, ms);
         if (ms < 0)
             return -1;
         if (ms > 0) {
-            f = ast_read(chan);
+            f = opbx_read(chan);
             if (!f)
                 return -1;
-            ast_frfree(f);
+            opbx_frfree(f);
         }
     }
     return 0;
@@ -939,28 +939,28 @@ int icd_safe_sleep(struct ast_channel *chan, int ms)
 /* check the hangup status of the caller's chan (frontended for future cross compatibility) */
 int icd_bridge__check_hangup(icd_caller * that)
 {
-    struct ast_channel *chan = NULL;
+    struct opbx_channel *chan = NULL;
 
     assert(that != NULL);
 
-    chan = (ast_channel *) icd_caller__get_channel(that);
+    chan = (opbx_channel *) icd_caller__get_channel(that);
 
     if (chan != NULL && chan->name != NULL) {
-        return (ast_check_hangup(chan) == 0) ? 0 : 1;
+        return (opbx_check_hangup(chan) == 0) ? 0 : 1;
     }
     return 1;
 }
 
-int icd_bridge__play_sound_file(struct ast_channel *chan, char *file)
+int icd_bridge__play_sound_file(struct opbx_channel *chan, char *file)
 {
     int res = 0;
 
     if (chan == NULL || !file || !strlen(file))
         res = -1;
     else {
-        res = ast_streamfile(chan, file, chan->language);
+        res = opbx_streamfile(chan, file, chan->language);
         if (!res) {
-            res = ast_waitstream(chan, AST_DIGIT_ANY);
+            res = opbx_waitstream(chan,  OPBX_DIGIT_ANY);
         }
     }
 

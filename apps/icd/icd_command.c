@@ -385,7 +385,7 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
 #define FMT_AGENT_DATA2   "%s:%d:%s:%s:%s:%s:%s:\n"
 
     char *curr_key;
-    struct ast_channel *chan = NULL;
+    struct opbx_channel *chan = NULL;
     icd_agent *agent = NULL;
     icd_caller *caller = NULL;
     icd_caller *associate = NULL;

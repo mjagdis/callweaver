@@ -173,7 +173,7 @@ icd_status init_icd_customer(icd_customer * that, icd_config * data)
     init = (icd_status(*)(icd_customer * that, icd_config * data))
         icd_config__get_value(data, "customers.init");
     if (init != NULL) {
-        ast_verbose(VERBOSE_PREFIX_1 "Customer plugable init for [%s] \n", icd_caller__get_name(caller));
+        opbx_verbose(VERBOSE_PREFIX_1 "Customer plugable init for [%s] \n", icd_caller__get_name(caller));
         return init(that, data);
     }
 
