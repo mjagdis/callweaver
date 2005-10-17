@@ -184,7 +184,7 @@ everything from configuration information to voicemail storage.
   Most systems limit the number of file descriptors that OpenPBX can
 have open at one time.  This can limit the number of simultaneous
 calls that your system can handle.  For example, if the limit is set
-at 1024 (a common default value) OpenPBX can handle approxiately 150
+at 1024 (a common default value) OpenPBX.org can handle approxiately 150
 SIP calls simultaneously.  To change the number of file descriptors
 follow the instructions for your system below:
 
