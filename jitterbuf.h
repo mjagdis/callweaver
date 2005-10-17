@@ -10,7 +10,6 @@
  * This program is free software, distributed under the terms of
  * the GNU Lesser (Library) General Public License
  *
- * Copyright on this file is disclaimed to Digium for inclusion in OpenPBX
  */
 
 #ifndef _JITTERBUF_H_
