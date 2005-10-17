@@ -6,7 +6,6 @@
  * Contributors:
  * Steve Kann <stevek@stevek.com>
  *
- * Copyright on this file is disclaimed to Digium for inclusion in OpenPBX
  *
  * See http://www.openpbx.org for more information about
  * the OpenPBX project. Please do not directly contact
