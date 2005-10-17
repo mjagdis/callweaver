@@ -51,9 +51,6 @@
 #error "You need newer libpri"
 #endif
 #endif
-#ifdef ZAPATA_R2
-#include <libmfcr2.h>
-#endif
 
 #include "openpbx.h"
 
@@ -129,17 +126,11 @@ static const char desc[] = "Zapata Telephony"
 #ifdef ZAPATA_PRI
                " w/PRI"
 #endif
-#ifdef ZAPATA_R2
-               " w/R2"
-#endif
 ;
 
 static const char tdesc[] = "Zapata Telephony Driver"
 #ifdef ZAPATA_PRI
                " w/PRI"
-#endif
-#ifdef ZAPATA_R2
-               " w/R2"
 #endif
 ;
 
@@ -160,7 +151,6 @@ static const char config[] = "zapata.conf";
 #define SIG_FXOGS	ZT_SIG_FXOGS
 #define SIG_FXOKS	ZT_SIG_FXOKS
 #define SIG_PRI		ZT_SIG_CLEAR
-#define SIG_R2		ZT_SIG_CAS
 #define	SIG_SF		ZT_SIG_SF
 #define SIG_SFWINK 	(0x0100000 | ZT_SIG_SF)
 #define SIG_SF_FEATD	(0x0200000 | ZT_SIG_SF)
@@ -377,10 +367,6 @@ static inline int zt_wait_event(int fd)
 struct zt_pvt;
 
 
-#ifdef ZAPATA_R2
-static int r2prot = -1;
-#endif
-
 static int ringt_base = DEFAULT_RINGT;
 
 #ifdef ZAPATA_PRI
@@ -581,11 +567,6 @@ static struct zt_pvt {
 	unsigned int resetting:1;
 	unsigned int setup_ack:1;
 #endif
-#if defined(ZAPATA_R2)
-	unsigned int hasr2call:1;
-	unsigned int r2blocked:1;
-	unsigned int sigchecked:1;
-#endif
 
 	struct zt_distRings drings;
 
@@ -667,10 +648,6 @@ static struct zt_pvt {
 	int prioffset;
 	int logicalspan;
 	int dsp_features;
-#endif	
-#ifdef ZAPATA_R2
-	int r2prot;
-	mfcr2_t *r2;
 #endif	
 	int polarity;
 
@@ -1102,22 +1079,6 @@ static char *dialplan2str(int dialplan)
 }
 #endif
 
-#ifdef ZAPATA_R2
-static int str2r2prot(char *swtype)
-{
-    if (!strcasecmp(swtype, "ar"))
-        return MFCR2_PROT_ARGENTINA;
-    /*endif*/
-    if (!strcasecmp(swtype, "cn"))
-        return MFCR2_PROT_CHINA;
-    /*endif*/
-    if (!strcasecmp(swtype, "kr"))
-        return MFCR2_PROT_KOREA;
-    /*endif*/
-    return -1;
-}
-#endif
-
 static char *zap_sig2str(int sig)
 {
 	static char buf[256];
@@ -1152,8 +1113,6 @@ static char *zap_sig2str(int sig)
 		return "FXO Kewlstart";
 	case SIG_PRI:
 		return "PRI Signalling";
-	case SIG_R2:
-		return "R2 Signalling";
 	case SIG_SF:
 		return "SF (Tone) Signalling Immediate";
 	case SIG_SFWINK:
@@ -2482,18 +2441,7 @@ static int zt_hangup(struct opbx_channel *ast)
 			}
 		}
 #endif
-#ifdef ZAPATA_R2
-		if (p->sig == SIG_R2) {
-			if (p->hasr2call) {
-				mfcr2_DropCall(p->r2, NULL, UC_NORMAL_CLEARING);
-				p->hasr2call = 0;
-				res = 0;
-			} else
-				res = 0;
-
-		}
-#endif
-		if (p->sig && (p->sig != SIG_PRI) && (p->sig != SIG_R2))
+		if (p->sig && (p->sig != SIG_PRI))
 			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
 			opbx_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
@@ -2668,13 +2616,6 @@ static int zt_answer(struct opbx_channel *ast)
 		}
 		break;
 #endif
-#ifdef ZAPATA_R2
-	case SIG_R2:
-		res = mfcr2_AnswerCall(p->r2, NULL);
-		if (res)
-			opbx_log(LOG_WARNING, "R2 Answer call failed :( on %s\n", ast->name);
-		break;
-#endif			
 	case 0:
 		opbx_mutex_unlock(&p->lock);
 		return 0;
@@ -3347,78 +3288,6 @@ static int attempt_transfer(struct zt_pvt *p)
 	return 0;
 }
 
-#ifdef ZAPATA_R2
-static struct opbx_frame *handle_r2_event(struct zt_pvt *p, mfcr2_event_t *e, int index)
-{
-	struct opbx_frame *f;
-	f = &p->subs[index].f;
-	if (!p->r2) {
-		opbx_log(LOG_WARNING, "Huh?  No R2 structure :(\n");
-		return NULL;
-	}
-	switch(e->e) {
-	case MFCR2_EVENT_BLOCKED:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Channel %d blocked\n", p->channel);
-		break;
-	case MFCR2_EVENT_UNBLOCKED:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Channel %d unblocked\n", p->channel);
-		break;
-	case MFCR2_EVENT_CONFIG_ERR:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Config error on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_RING:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Ring on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_HANGUP:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Hangup on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_RINGING:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Ringing on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_ANSWER:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Answer on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_HANGUP_ACK:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Hangup ACK on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_IDLE:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Idle on channel %d\n", p->channel);
-		break;
-	default:
-		opbx_log(LOG_WARNING, "Unknown MFC/R2 event %d\n", e->e);
-		break;
-	}
-	return f;
-}
-
-static mfcr2_event_t *r2_get_event_bits(struct zt_pvt *p)
-{
-	int x;
-	int res;
-	mfcr2_event_t *e;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_GETRXBITS, &x);
-	if (res) {
-		opbx_log(LOG_WARNING, "Unable to check received bits\n");
-		return NULL;
-	}
-	if (!p->r2) {
-		opbx_log(LOG_WARNING, "Odd, no R2 structure on channel %d\n", p->channel);
-		return NULL;
-	}
-	e = mfcr2_cas_signaling_event(p->r2, x);
-	return e;
-}
-#endif
-
 static int check_for_conference(struct zt_pvt *p)
 {
 	ZT_CONFINFO ci;
@@ -3519,24 +3388,13 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 
 	switch(res) {
 		case ZT_EVENT_BITSCHANGED:
-			if (p->sig == SIG_R2) {
-#ifdef ZAPATA_R2
-				struct opbx_frame  *f = &p->subs[index].f;
-				mfcr2_event_t *e;
-				e = r2_get_event_bits(p);
-				if (e)
-					f = handle_r2_event(p, e, index);
-				return f;
-#else				
-				break;
-#endif
-			}
 			opbx_log(LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
+			break;
 		case ZT_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
 			if (!ast->pbx)
 				tone_zone_play_tone(p->subs[index].zfd, -1);
-			break;	
+			break;
 		case ZT_EVENT_DIALCOMPLETE:
 			if (p->inalarm) break;
 			if (p->radio) break;
@@ -6118,50 +5976,6 @@ static void *ss_thread(void *data)
 	return NULL;
 }
 
-#ifdef ZAPATA_R2
-static int handle_init_r2_event(struct zt_pvt *i, mfcr2_event_t *e)
-{
-	struct opbx_channel *chan;
-	
-	switch(e->e) {
-	case MFCR2_EVENT_UNBLOCKED:
-		i->r2blocked = 0;
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "R2 Channel %d unblocked\n", i->channel);
-		break;
-	case MFCR2_EVENT_BLOCKED:
-		i->r2blocked = 1;
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "R2 Channel %d unblocked\n", i->channel);
-		break;
-	case MFCR2_EVENT_IDLE:
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "R2 Channel %d idle\n", i->channel);
-		break;
-	case MFCR2_EVENT_RINGING:
-			/* This is what OpenPBX refers to as a "RING" event. For some reason they're reversed in
-			   Steve's code */
-			/* Check for callerid, digits, etc */
-			i->hasr2call = 1;
-			chan = zt_new(i, OPBX_STATE_RING, 0, SUB_REAL, 0, 0);
-			if (!chan) {
-				opbx_log(LOG_WARNING, "Unable to create channel for channel %d\n", i->channel);
-				mfcr2_DropCall(i->r2, NULL, UC_NETWORK_CONGESTION);
-				i->hasr2call = 0;
-			}
-			if (opbx_pbx_start(chan)) {
-				opbx_log(LOG_WARNING, "Unable to start PBX on channel %s\n", chan->name);
-				opbx_hangup(chan);
-			}
-			break;
-	default:
-		opbx_log(LOG_WARNING, "Don't know how to handle initial R2 event %s on channel %d\n", mfcr2_event2str(e->e), i->channel);	
-		return -1;
-	}
-	return 0;
-}
-#endif
-
 static int handle_init_event(struct zt_pvt *i, int event)
 {
 	int res;
@@ -6175,15 +5989,6 @@ static int handle_init_event(struct zt_pvt *i, int event)
 	case ZT_EVENT_NONE:
 	case ZT_EVENT_BITSCHANGED:
 		if (i->radio) break;
-#ifdef ZAPATA_R2
-		if (i->r2) {
-			mfcr2_event_t *e;
-			e = r2_get_event_bits(i);
-			i->sigchecked = 1;
-			if (e)
-				handle_init_r2_event(i, e);
-		}
-#endif		
 		break;
 	case ZT_EVENT_WINKFLASH:
 	case ZT_EVENT_RINGOFFHOOK:
@@ -6406,12 +6211,8 @@ static void *do_monitor(void *data)
 					pfds[count].fd = i->subs[SUB_REAL].zfd;
 					pfds[count].events = POLLPRI;
 					pfds[count].revents = 0;
-					/* Message waiting or r2 channels also get watched for reading */
-#ifdef ZAPATA_R2
-					if (i->cidspill || i->r2)
-#else					
+					/* Message waiting also get watched for reading */
 					if (i->cidspill)
-#endif					
 						pfds[count].events |= POLLIN;
 					count++;
 				}
@@ -6509,22 +6310,6 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-#ifdef ZAPATA_R2
-					if (i->r2) {
-						/* If it's R2 signalled, we always have to check for events */
-						mfcr2_event_t *e;
-						e = mfcr2_check_event(i->r2);
-						if (e)
-							handle_init_r2_event(i, e);
-						else {
-							e = mfcr2_schedule_run(i->r2);
-							if (e)
-								handle_init_r2_event(i, e);
-						}
-						i = i->next;
-						continue;
-					}
-#endif
 					if (!i->cidspill) {
 						opbx_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
@@ -6558,11 +6343,7 @@ static void *do_monitor(void *data)
 					handle_init_event(i, res);
 					opbx_mutex_lock(&iflock);	
 				}
-#ifdef ZAPATA_R2
-				if ((pollres & POLLPRI) || (i->r2 && !i->sigchecked)) 
-#else				
 				if (pollres & POLLPRI) 
-#endif				
 				{
 					if (i->owner || i->subs[SUB_REAL].owner) {
 #ifdef ZAPATA_PRI
@@ -6961,26 +6742,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				tmp->prioffset = 0;
 			}
 #endif
-#ifdef ZAPATA_R2
-			if (signalling == SIG_R2) {
-				if (r2prot < 0) {
-					opbx_log(LOG_WARNING, "R2 Country not specified for channel %d -- Assuming China\n", tmp->channel);
-					tmp->r2prot = MFCR2_PROT_CHINA;
-				} else
-					tmp->r2prot = r2prot;
-				tmp->r2 = mfcr2_new(tmp->subs[SUB_REAL].zfd, tmp->r2prot, 1);
-				if (!tmp->r2) {
-					opbx_log(LOG_WARNING, "Unable to create r2 call :(\n");
-					zt_close(tmp->subs[SUB_REAL].zfd);
-					destroy_zt_pvt(&tmp);
-					return NULL;
-				}
-			} else {
-				if (tmp->r2) 
-					mfcr2_free(tmp->r2);
-				tmp->r2 = NULL;
-			}
-#endif
 		} else {
 			signalling = tmp->sig;
 			radio = tmp->radio;
@@ -7132,7 +6893,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				opbx_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((signalling != SIG_PRI) && (signalling != SIG_R2))
+				if (signalling != SIG_PRI)
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
@@ -7234,15 +6995,6 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 		/* Trust PRI */
 		if (p->pri) {
 			if (p->resetting || p->call)
-				return 0;
-			else
-				return 1;
-		}
-#endif
-#ifdef ZAPATA_R2
-		/* Trust R2 as well */
-		if (p->r2) {
-			if (p->hasr2call || p->r2blocked)
 				return 0;
 			else
 				return 1;
@@ -9304,85 +9056,6 @@ static struct opbx_cli_entry zap_pri_cli[] = {
 
 #endif /* ZAPATA_PRI */
 
-
-#ifdef ZAPATA_R2
-static int handle_r2_no_debug(int fd, int argc, char *argv[])
-{
-	int chan;
-	struct zt_pvt *tmp = NULL;;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	chan = atoi(argv[4]);
-	if ((chan < 1) || (chan > NUM_SPANS)) {
-		opbx_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n", argv[4]);
-		return RESULT_SUCCESS;
-	}
-	tmp = iflist;
-	while(tmp) {
-		if (tmp->channel == chan) {
-			if (tmp->r2) {
-				mfcr2_set_debug(tmp->r2, 0);
-				opbx_cli(fd, "Disabled R2 debugging on channel %d\n", chan);
-				return RESULT_SUCCESS;
-			}
-			break;
-		}
-		tmp = tmp->next;
-	}
-	if (tmp) 
-		opbx_cli(fd, "No R2 running on channel %d\n", chan);
-	else
-		opbx_cli(fd, "No such zap channel %d\n", chan);
-	return RESULT_SUCCESS;
-}
-
-static int handle_r2_debug(int fd, int argc, char *argv[])
-{
-	int chan;
-	struct zt_pvt *tmp = NULL;;
-	if (argc < 4) {
-		return RESULT_SHOWUSAGE;
-	}
-	chan = atoi(argv[3]);
-	if ((chan < 1) || (chan > NUM_SPANS)) {
-		opbx_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n", argv[3]);
-		return RESULT_SUCCESS;
-	}
-	tmp = iflist;
-	while(tmp) {
-		if (tmp->channel == chan) {
-			if (tmp->r2) {
-				mfcr2_set_debug(tmp->r2, 0xFFFFFFFF);
-				opbx_cli(fd, "Enabled R2 debugging on channel %d\n", chan);
-				return RESULT_SUCCESS;
-			}
-			break;
-		}
-		tmp = tmp->next;
-	}
-	if (tmp) 
-		opbx_cli(fd, "No R2 running on channel %d\n", chan);
-	else
-		opbx_cli(fd, "No such zap channel %d\n", chan);
-	return RESULT_SUCCESS;
-}
-static char r2_debug_help[] = 
-	"Usage: r2 debug channel <channel>\n"
-	"       Enables R2 protocol level debugging on a given channel\n";
-	
-static char r2_no_debug_help[] = 
-	"Usage: r2 no debug channel <channel>\n"
-	"       Enables R2 protocol level debugging on a given channel\n";
-
-static struct opbx_cli_entry zap_r2_cli[] = {
-	{ { "r2", "debug", "channel", NULL }, handle_r2_debug,
-	  "Enables R2 debugging on a channel", r2_debug_help },
-	{ { "r2", "no", "debug", "channel", NULL }, handle_r2_no_debug,
-	  "Disables R2 debugging on a channel", r2_no_debug_help },
-};
-
-#endif
-
 static int zap_destroy_channel(int fd, int argc, char **argv)
 {
 	int channel = 0;
@@ -9568,16 +9241,6 @@ static int zap_show_channel(int fd, int argc, char **argv)
 					opbx_cli(fd, "PRI Logical Span: Implicit\n");
 			}
 				
-#endif
-#ifdef ZAPATA_R2
-			if (tmp->r2) {
-				opbx_cli(fd, "R2 Flags: ");
-				if (tmp->r2blocked)
-					opbx_cli(fd, "Blocked ");
-				if (tmp->hasr2call)
-					opbx_cli(fd, "Call ");
-				opbx_cli(fd, "\n");
-			}
 #endif
 			memset(&ci, 0, sizeof(ci));
 			ps.channo = tmp->channel;
@@ -9916,9 +9579,6 @@ static int __unload_module(void)
 			pthread_cancel(pris[i].master);
 	}
 	opbx_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
-#endif
-#ifdef ZAPATA_R2
-	opbx_cli_unregister_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
 #endif
 	opbx_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	opbx_manager_unregister( "ZapDialOffhook" );
@@ -10473,21 +10133,9 @@ static int setup_zap(int reload)
 					cur_radio = 0;
 					pritype = PRI_CPE;
 #endif
-#ifdef ZAPATA_R2
-				} else if (!strcasecmp(v->value, "r2")) {
-					cur_signalling = SIG_R2;
-					cur_radio = 0;
-#endif			
 				} else {
 					opbx_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
-#ifdef ZAPATA_R2
-			} else if (!strcasecmp(v->name, "r2country")) {
-				r2prot = str2r2prot(v->value);
-				if (r2prot < 0) {
-					opbx_log(LOG_WARNING, "Unknown R2 Country '%s' at line %d.\n", v->value, v->lineno);
-				}
-#endif
 #ifdef ZAPATA_PRI
 			} else if (!strcasecmp(v->name, "pridialplan")) {
 				if (!strcasecmp(v->value, "national")) {
@@ -10818,9 +10466,6 @@ int load_module(void)
 	}
 #ifdef ZAPATA_PRI
 	opbx_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
-#endif	
-#ifdef ZAPATA_R2
-	opbx_cli_register_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
 #endif	
 	opbx_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	
