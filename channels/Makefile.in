@@ -39,6 +39,10 @@ ifneq ($(wildcard /usr/lib/libpri.so.1)$(wildcard /usr/local/lib/libpri.so.1),)
   ZAPPRI=-lpri
 endif
 
+ifneq ($(wildcard /usr/lib/libunicall.so.0)$(wildcard /usr/local/lib/libunicall.so.0),)
+  CHANNEL_LIBS+=chan_unicall.so
+endif
+
 ifneq ($(wildcard /usr/include/linux/zaptel.h)$(wildcard /usr/local/include/zaptel.h)$(wildcard /usr/pkg/include/zaptel.h),)
   ifeq (${OSARCH},NetBSD)
     SOLINK+=-L/usr/pkg/lib
