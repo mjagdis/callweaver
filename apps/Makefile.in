@@ -13,6 +13,8 @@
 
 APPS=app_dial.so app_playback.so
 
+APPS+=app_rxfax.so app_txfax.so
+
 #
 # Obsolete things...
 #
