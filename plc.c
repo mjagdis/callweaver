@@ -19,7 +19,6 @@
  *
  * This version may be optionally licenced under the GNU LGPL licence.
  *
- * This version is disclaimed to DIGIUM for inclusion in the OpenPBX project.
  */
 
 /*
