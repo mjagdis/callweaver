@@ -64,6 +64,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 #include "openpbx/pbx.h"
 #include "openpbx/enum.h"
 #include "openpbx/rtp.h"
+#include "openpbx/udptl.h"
 #include "openpbx/app.h"
 #include "openpbx/lock.h"
 #include "openpbx/utils.h"
@@ -2168,6 +2169,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	opbx_rtp_init();
+	opbx_udptl_init();
 	if (opbx_image_init()) {
 		printf(term_quit());
 		exit(1);

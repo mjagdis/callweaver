@@ -98,7 +98,13 @@ struct opbx_frame {
     body may include zero or more 8-bit quantization coefficients */
 #define OPBX_FRAME_CNG		10
 /*! T.38 Fax-over-IP data stream */
-#define OPBX_FRAME_T38		11
+#define OPBX_FRAME_MODEM	11
+
+/* MODEM subclasses */
+/*! T.38 Fax-over-IP */
+#define OPBX_MODEM_T38		1
+/*! V.150 Modem-over-IP */
+#define OPBX_MODEM_V150		2
 
 /* HTML subclasses */
 /*! Sending a URL */

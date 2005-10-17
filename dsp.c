@@ -1712,13 +1712,3 @@ int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
 	}
 	return -1;
 }
-
-int opbx_dsp_get_tstate(struct opbx_dsp *dsp) 
-{
-	return dsp->tstate;
-}
-
-int opbx_dsp_get_tcount(struct opbx_dsp *dsp) 
-{
-	return dsp->tcount;
-}

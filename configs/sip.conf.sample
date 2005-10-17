@@ -66,6 +66,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 						; Message-Account in the MWI notify message 
 						; defaults to "openpbx"
 ;videosupport=yes		; Turn on support for SIP video
+;t38udptlsupport=yes		; Turn on support for T.38 UDPTL
+;t38rtpsupport=yes		; Turn on support for T.38 RTP
+;t38tcpsupport=yes		; Turn on support for T.38 TCP
 ;recordhistory=yes		; Record SIP history by default 
 				; (see sip history / sip no history)
 

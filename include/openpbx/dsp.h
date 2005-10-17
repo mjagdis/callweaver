@@ -101,10 +101,4 @@ int opbx_dsp_getdigits(struct opbx_dsp *dsp, char *buf, int max);
 /* Set digit mode */
 int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode);
 
-/* Get tstate (Tone State) */
-int opbx_dsp_get_tstate(struct opbx_dsp *dsp);
-
-/* Get tcount (Threshold counter) */
-int opbx_dsp_get_tcount(struct opbx_dsp *dsp);
-
 #endif /* _OPENPBX_DSP_H */
