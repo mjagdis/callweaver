@@ -59,13 +59,23 @@ On many distributions, these files are installed by packages with names like
 
   So let's proceed:
 
-1) Run "make"
+1) Run "./configure"
 
-  Assuming the build completes successfully:
+  The autoconf script "configure" is used to evaluate your local system
+and check for dependancies.  It will create a Makefile tailored for
+your system which can be used to build OpenPBX.  If your system lacks
+any necessary software required for OpenPBX to compile and run, 
+the configure script will notify you.
 
-2) Run "make install"
+2) Run "make"  (or "gmake" on non-GNU systems)
 
-  Each time you update or checkout from CVS, you are strongly encouraged 
+  On systems which do not use GNU make as the default make, you will need
+to specifically run "gmake" instead of the system "make" command for this
+and the following install steps.  Assuming the build completes successfully:
+
+3) Run "make install"
+
+  Each time you update or checkout from SVN, you are strongly encouraged 
 to ensure all previous object files are removed to avoid internal 
 inconsistency in OpenPBX. Normally, this is automatically done with 
 the presence of the file .cleancount, which increments each time a 'make clean'
@@ -74,7 +84,7 @@ is required, and the file .lastclean, which contains the last .cleancount used.
   If this is your first time working with OpenPBX, you may wish to install
 the sample PBX, with demonstration extensions, etc.  If so, run:
 
-3) "make samples"
+4) "make samples"
 
   Doing so will overwrite any existing config files you have. If you are lacking a
 soundcard you won't be able to use the DIAL command on the console, though.
