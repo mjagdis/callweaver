@@ -3039,6 +3039,7 @@ static enum opbx_bridge_result opbx_generic_bridge(int *playitagain, int *playit
 		    (f->frametype == OPBX_FRAME_VIDEO) || 
 		    (f->frametype == OPBX_FRAME_IMAGE) ||
 		    (f->frametype == OPBX_FRAME_HTML) ||
+		    (f->frametype == OPBX_FRAME_MODEM) ||
 		    (f->frametype == OPBX_FRAME_TEXT)) {
 			if (f->frametype == OPBX_FRAME_DTMF) {
 				if (((who == c0) && watch_c0_dtmf) ||
