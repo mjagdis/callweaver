@@ -26,7 +26,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 0.40 $")
+OPENPBX_FILE_VERSION(__FILE__, "$Revision: 0.42 $")
 
 #include "openpbx/file.h"
 #include "openpbx/logger.h"
@@ -44,8 +44,8 @@ static char *tdesc = "PostgreSQL Configuration";
 
 OPBX_MUTEX_DEFINE_STATIC(pgsql_lock);
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
-char conninfo[512];
-PGconn *conn = NULL;
+static char conninfo[512];
+static PGconn *conn = NULL;
 
 static int parse_config(void);
 static int pgsql_reconnect(const char *database);
@@ -54,7 +54,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-int parse_config(void)
+static int parse_config(void)
 {
 	struct opbx_config *config;
 	char *s;
@@ -73,7 +73,7 @@ int parse_config(void)
 		}
 
 	} else {
-		opbx_log(LOG_WARNING, "PgSQL RealTime config file not found\n");
+		opbx_log(LOG_WARNING, "PgSQL RealTime config file (%s) not found.\n", RES_CONFIG_PGSQL_CONF);
 	}
 	opbx_config_destroy(config);
 
