@@ -13,7 +13,9 @@
 
 APPS=app_dial.so app_playback.so
 
-APPS+=app_rxfax.so app_txfax.so
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/spandsp.h),)
+	APPS+=app_rxfax.so app_txfax.so
+endif
 
 #
 # Obsolete things...
