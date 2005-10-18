@@ -20,3 +20,18 @@ Note you may want to specify a prefix to configure.
 
 Now that the dependencies are installed you just need to do a ./configure --with-chan_exosip2=yes in OpenPBX.
 If it fails to pick up the dependencies you'll have to go back and figure out why, they may not be in an available path for example.
+
+
+Or just run this
+
+
+#!/bin/sh
+mkdir deps
+cd deps
+
+(wget http://ftp.gnu.org/gnu/osip/libosip2-2.2.1.tar.gz && tar xvfz libosip2-2.2.1.tar.gz && cd libosip* && ./configure && make &&  make install)
+(wget http://www.linphone.org/ortp/sources/ortp-0.7.1.tar.gz && tar xvfz ortp-0.7.1.tar.gz && cd ortp-* && ./configure && make && make install )
+(wget http://www.antisip.com/download/libeXosip2-1.9.1-pre16.tar.gz  && tar xvfz libeXosip2-1.9.1-pre16.tar.gz && cd libeXosip2-* && ./configure && make && make install )
+
+cd ..
+
