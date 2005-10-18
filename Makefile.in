@@ -58,6 +58,9 @@ DEBUG=@DEBUG@
 
 OPTIONS += @LOW_MEMORY@
 
+# SRTP
+OPTIONS += @ENABLE_SRTP@
+
 # Optional debugging parameters
 DEBUG_THREADS = @DEBUG_THREADS@
 

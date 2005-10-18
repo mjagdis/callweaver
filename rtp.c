@@ -36,6 +36,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#ifdef ENABLE_SRTP
+#include <srtp/srtp.h>
+#endif	/* ENABLE_SRTP */
 
 #include "include/openpbx.h"
 
@@ -81,6 +84,12 @@ struct rtpPayloadType {
 #define FLAG_NAT_INACTIVE		(0 << 1)
 #define FLAG_NAT_INACTIVE_NOWARN	(1 << 1)
 
+#ifdef ENABLE_SRTP
+struct opbx_policy {
+	srtp_policy_t sp;
+};
+#endif
+
 struct opbx_rtp {
 	int s;
 	char resp;
@@ -121,6 +130,10 @@ struct opbx_rtp {
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
 	struct opbx_rtcp *rtcp;
+#ifdef ENABLE_SRTP
+	srtp_t srtp;
+	rtp_generate_key_cb key_cb;
+#endif
 };
 
 struct opbx_rtcp {
@@ -383,6 +396,351 @@ static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *d
 	return f;
 }
 
+#ifdef ENABLE_SRTP
+static const char *srtp_errstr(int err)
+{
+	switch(err) {
+	case err_status_ok:
+		return "nothing to report";
+	case err_status_fail:
+		return "unspecified failure";
+	case err_status_bad_param:
+		return "unsupported parameter";
+	case err_status_alloc_fail:
+		return "couldn't allocate memory";
+	case err_status_dealloc_fail:
+		return "couldn't deallocate properly";
+	case err_status_init_fail:
+		return "couldn't initialize";
+	case err_status_terminus:
+		return "can't process as much data as requested";
+	case err_status_auth_fail:
+		return "authentication failure";
+	case err_status_cipher_fail:
+		return "cipher failure";
+	case err_status_replay_fail:
+		return "replay check failed (bad index)";
+	case err_status_replay_old:
+		return "replay check failed (index too old)";
+	case err_status_algo_fail:
+		return "algorithm failed test routine";
+	case err_status_no_such_op:
+		return "unsupported operation";
+	case err_status_no_ctx:
+		return "no appropriate context found";
+	case err_status_cant_check:
+		return "unable to perform desired validation";
+	case err_status_key_expired:
+		return "can't use key any more";
+	default:
+		return "unknown";
+	}
+}
+
+/*
+  opbx_policy_t
+*/
+static void srtp_event_cb(srtp_event_data_t *data)
+{
+	switch (data->event) {
+	case event_ssrc_collision: {
+		if (option_debug || rtpdebug) {
+			opbx_log(LOG_DEBUG, "SSRC collision ssrc:%u dir:%d\n",
+				ntohl(data->stream->ssrc),
+				data->stream->direction);
+		}
+		break;
+	}
+	case event_key_soft_limit: {
+		if (option_debug || rtpdebug) {
+			opbx_log(LOG_DEBUG, "event_key_soft_limit\n");
+		}
+		break;
+	}
+	case event_key_hard_limit: {
+		if (option_debug || rtpdebug) {
+			opbx_log(LOG_DEBUG, "event_key_hard_limit\n");
+		}
+		break;
+	}
+	case event_packet_index_limit: {
+		if (option_debug || rtpdebug) {
+			opbx_log(LOG_DEBUG, "event_packet_index_limit\n");
+		}
+		break;
+	}
+	}
+}
+
+unsigned int opbx_rtp_get_ssrc(struct opbx_rtp *rtp)
+{
+	return rtp->ssrc;
+}
+
+void opbx_rtp_set_generate_key_cb(struct opbx_rtp *rtp,
+				  rtp_generate_key_cb cb)
+{
+	rtp->key_cb = cb;
+}
+
+void opbx_policy_set_ssrc(opbx_policy_t *policy, struct opbx_rtp *rtp, 
+			  unsigned long ssrc, int inbound)
+{
+	if (!ssrc && !inbound && rtp)
+		ssrc = rtp->ssrc;
+
+	if (ssrc) {
+		policy->sp.ssrc.type = ssrc_specific;
+		policy->sp.ssrc.value = ssrc;
+	} else {
+		policy->sp.ssrc.type =
+			inbound ? ssrc_any_inbound : ssrc_any_outbound;
+	}
+}
+
+int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy)
+{
+	int res = 0;
+
+	printf("Adding SRTP policy: %d %d %d %d %d %d\n",
+	       policy->sp.rtp.cipher_type,
+	       policy->sp.rtp.cipher_key_len,
+	       policy->sp.rtp.auth_type,
+	       policy->sp.rtp.auth_key_len,
+	       policy->sp.rtp.auth_tag_len,
+	       policy->sp.rtp.sec_serv);
+
+	if (!rtp->srtp) {
+		res = srtp_create(&rtp->srtp, &policy->sp);
+	} else {
+		res = srtp_add_stream(rtp->srtp, &policy->sp);
+	}
+
+	if (res != err_status_ok) {
+		opbx_log(LOG_WARNING, "SRTP policy: %s\n", srtp_errstr(res));
+		return -1;
+	}
+
+	return 0;
+}
+
+opbx_policy_t *opbx_policy_alloc()
+{
+	opbx_policy_t *tmp = malloc(sizeof(opbx_policy_t));
+
+	memset(tmp, 0, sizeof(opbx_policy_t));
+	return tmp;
+}
+
+void opbx_policy_destroy(opbx_policy_t *policy)
+{
+	free(policy);
+}
+
+static int policy_set_suite(crypto_policy_t *p, int suite)
+{
+	switch (suite) {
+	case OPBX_AES_CM_128_HMAC_SHA1_80:
+		p->cipher_type = AES_128_ICM;
+		p->cipher_key_len = 30;
+		p->auth_type = HMAC_SHA1;
+		p->auth_key_len = 20;
+		p->auth_tag_len = 10;
+		p->sec_serv = sec_serv_conf_and_auth;
+		return 0;
+
+	case OPBX_AES_CM_128_HMAC_SHA1_32:
+		p->cipher_type = AES_128_ICM;
+		p->cipher_key_len = 30;
+		p->auth_type = HMAC_SHA1;
+		p->auth_key_len = 20;
+		p->auth_tag_len = 4;
+		p->sec_serv = sec_serv_conf_and_auth;
+		return 0;
+
+	default:
+		opbx_log(LOG_ERROR, "Invalid crypto suite: %d\n", suite);
+		return -1;
+	}
+}
+
+int opbx_policy_set_suite(opbx_policy_t *policy, int suite)
+{
+	int res = policy_set_suite(&policy->sp.rtp, suite) |
+		policy_set_suite(&policy->sp.rtcp, suite);
+
+	return res;
+}
+
+int opbx_policy_set_key(opbx_policy_t *policy, unsigned char *key,
+		       size_t key_len)
+{
+	if (key_len != 30) {
+		opbx_log(LOG_ERROR, "Invalid key length %d (!= 30)\n", key_len);
+		return -1;
+	}
+
+	policy->sp.key = key;
+	return 0;
+}
+
+int opbx_policy_set_encr_alg(opbx_policy_t *policy, int ealg)
+{
+	int type = -1;
+
+	switch (ealg) {
+	case MIKEY_SRTP_EALG_NULL:
+		type = NULL_CIPHER;
+		break;
+	case MIKEY_SRTP_EALG_AESCM:
+		type = AES_128_ICM;
+		break;
+	default:
+		return -1;
+	}
+
+	policy->sp.rtp.cipher_type = type;
+	policy->sp.rtcp.cipher_type = type;
+	return 0;
+}
+
+int opbx_policy_set_auth_alg(opbx_policy_t *policy, int aalg)
+{
+	int type = -1;
+
+	switch (aalg) {
+	case MIKEY_SRTP_AALG_NULL:
+		type = NULL_AUTH;
+		break;
+	case MIKEY_SRTP_AALG_SHA1HMAC:
+		type = HMAC_SHA1;
+		break;
+	default:
+		return -1;
+	}
+
+	policy->sp.rtp.auth_type = type;
+	policy->sp.rtcp.auth_type = type;
+	return 0;
+}
+
+void opbx_policy_set_encr_keylen(opbx_policy_t *policy, int ekeyl)
+{
+	policy->sp.rtp.cipher_key_len = ekeyl;
+	policy->sp.rtcp.cipher_key_len = ekeyl;
+}
+
+void opbx_policy_set_auth_keylen(opbx_policy_t *policy, int akeyl)
+{
+	policy->sp.rtp.auth_key_len = akeyl;
+	policy->sp.rtcp.auth_key_len = akeyl;
+}
+
+void opbx_policy_set_srtp_auth_taglen(opbx_policy_t *policy, int autht)
+{
+	policy->sp.rtp.auth_tag_len = autht;
+	policy->sp.rtcp.auth_tag_len = autht;
+	
+}
+
+void opbx_policy_set_srtp_encr_enable(opbx_policy_t *policy, int enable)
+{
+	int serv = enable ? sec_serv_conf : sec_serv_none;
+	policy->sp.rtp.sec_serv = 
+		(policy->sp.rtp.sec_serv & ~sec_serv_conf) | serv;
+}
+
+void opbx_policy_set_srtcp_encr_enable(opbx_policy_t *policy, int enable)
+{
+	int serv = enable ? sec_serv_conf : sec_serv_none;
+	policy->sp.rtcp.sec_serv = 
+		(policy->sp.rtcp.sec_serv & ~sec_serv_conf) | serv;
+}
+
+void opbx_policy_set_srtp_auth_enable(opbx_policy_t *policy, int enable)
+{
+	int serv = enable ? sec_serv_auth : sec_serv_none;
+	policy->sp.rtp.sec_serv = 
+		(policy->sp.rtp.sec_serv & ~sec_serv_auth) | serv;
+}
+
+
+int opbx_get_random(unsigned char *key, size_t len)
+{
+	int res = crypto_get_random(key, len);
+
+	return res != err_status_ok ? -1: 0;
+}
+#endif	/* ENABLE_SRTP */
+
+static int rtp_recvfrom(struct opbx_rtp *rtp, void *buf, size_t size,
+			int flags, struct sockaddr *sa, socklen_t *salen)
+{
+	int len;
+
+	len = recvfrom(rtp->s, buf, size, flags, sa, salen);
+
+	if (len < 0)
+		return len;
+
+#ifdef ENABLE_SRTP
+	if (rtp->srtp) {
+		int res = 0;
+		int i;
+
+		for (i = 0; i < 5; i++) {
+			srtp_hdr_t *header = buf;
+
+			res = srtp_unprotect(rtp->srtp, buf, &len);
+			if (res != err_status_no_ctx)
+				break;
+
+			if (rtp->key_cb) {
+				if (rtp->key_cb(rtp, ntohl(header->ssrc),
+						rtp->data) < 0) {
+					break;
+				}
+				
+			} else {
+				break;
+			}
+		}
+
+		if (res != err_status_ok) {
+			if (option_debug || rtpdebug) {
+				opbx_log(LOG_DEBUG, "SRTP unprotect: %s\n",
+					srtp_errstr(res));
+			}
+			return -1;
+		}
+	}
+#endif	/* ENABLE_SRTP */
+
+	return len;
+}
+
+static int rtp_sendto(struct opbx_rtp *rtp, void *buf, size_t size,
+		      int flags, struct sockaddr *sa, socklen_t salen)
+{
+	int len = size;
+
+#ifdef ENABLE_SRTP
+	if (rtp->srtp) {
+		int res = srtp_protect(rtp->srtp, buf, &len);
+
+		if (res != err_status_ok) {
+			if (option_debug || rtpdebug) {
+				opbx_log(LOG_DEBUG, "SRTP protect: %s\n",
+					srtp_errstr(res));
+			}
+			return -1;
+		}
+	}
+#endif	/* ENABLE_SRTP */
+
+	return sendto(rtp->s, buf, len, flags, sa, salen);
+}
+
 static int rtpread(int *id, int fd, short events, void *cbdata)
 {
 	struct opbx_rtp *rtp = cbdata;
@@ -473,7 +831,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	len = sizeof(sin);
 	
 	/* Cache where the header will go */
-	res = recvfrom(rtp->s, rtp->rawdata + OPBX_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - OPBX_FRIENDLY_OFFSET,
+	res = rtp_recvfrom(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - OPBX_FRIENDLY_OFFSET,
 					0, (struct sockaddr *)&sin, &len);
 
 
@@ -1096,6 +1454,12 @@ void opbx_rtp_destroy(struct opbx_rtp *rtp)
 		close(rtp->rtcp->s);
 		free(rtp->rtcp);
 	}
+#ifdef ENABLE_SRTP
+	if (rtp->srtp) {
+		srtp_dealloc(rtp->srtp);
+		rtp->srtp = NULL;
+	}
+#endif
 	free(rtp);
 }
 
@@ -1156,7 +1520,7 @@ int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit)
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 	for (x = 0; x < 6; x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+			res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 			if (res < 0) 
 				opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
 					opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
@@ -1222,7 +1586,7 @@ int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
 	rtpheader[2] = htonl(rtp->ssrc); 
 	data[12] = level;
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-		res = sendto(rtp->s, (void *)rtpheader, hdrlen + 1, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
+		res = rtp_sendto(rtp, (void *)rtpheader, hdrlen + 1, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 
 			opbx_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 		if(rtp_debug_test_addr(&rtp->them))
@@ -1292,7 +1656,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 	put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
 
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
+		res = rtp_sendto(rtp, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) {
 			if (!rtp->nat || (rtp->nat && (opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
 				opbx_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
@@ -1532,6 +1896,15 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 		opbx_mutex_unlock(&c1->lock);
 		return OPBX_BRIDGE_FAILED_NOWARN;
 	}
+
+#ifdef ENABLE_SRTP
+	if (p0->srtp || p1->srtp) {
+		opbx_log(LOG_NOTICE, "Cannot native bridge in SRTP.\n");
+		opbx_mutex_unlock(&c0->lock);
+		opbx_mutex_unlock(&c1->lock);
+		return OPBX_BRIDGE_FAILED_NOWARN;
+	}
+#endif
 	/* Get codecs from both sides */
 	if (pr0->get_codec)
 		codec0 = pr0->get_codec(c0);
@@ -1819,4 +2192,9 @@ void opbx_rtp_init(void)
 	opbx_cli_register(&cli_debug_ip);
 	opbx_cli_register(&cli_no_debug);
 	opbx_rtp_reload();
+#ifdef ENABLE_SRTP
+	opbx_log(LOG_NOTICE, "srtp_init\n");
+	srtp_init();
+	srtp_install_event_handler(srtp_event_cb);
+#endif
 }

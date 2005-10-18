@@ -111,6 +111,8 @@ AC_CHECK_LIB([tonezone], [main])
 AC_CHECK_LIB([unicall], [main])
 AC_CHECK_LIB([vpb], [main])
 AC_CHECK_LIB([z], [main])
+AC_CHECK_LIB([srtp], [main])
+
 
 AC_C_BIGENDIAN(AC_DEFINE([__BYTE_ORDER],__BIG_ENDIAN,[Big Endian]),AC_DEFINE([__BYTE_ORDER],__LITTLE_ENDIAN,[Little Endian]))
 AC_DEFINE([__LITTLE_ENDIAN],1234,[for the places where it is not defined])
@@ -172,6 +174,16 @@ AC_ARG_ENABLE(low_memory,
 if test $low_memory = "yes" ; then
 	LOW_MEMORY="-DLOW_MEMORY"
 fi
+
+
+srtp=no
+AC_ARG_ENABLE(srtp,
+        [  --enable-srtp                  enable Secure RTP based on libsrtp support],srtp=yes,)
+if test $srtp = "yes" ; then
+        ENABLE_SRTP="-DENABLE_SRTP"
+fi
+
+AC_SUBST(ENABLE_SRTP)
 
 #
 # Select user and group
