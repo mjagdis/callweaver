@@ -21,9 +21,8 @@ on the project itself, please visit the OpenPBX home page at:
 * OPERATING SYSTEMS
 
 == Linux ==
-  The OpenPBX Open Source PBX is developed and tested primarily on the
-GNU/Linux operating system, and is supported on every major GNU/Linux
-distribution.
+  OpenPBX.org is developed and tested primarily on the GNU/Linux operating 
+system, and is supported on every major GNU/Linux distribution.
 
 == Others ==
   OpenPBX has also been 'ported' and reportedly runs properly on other
