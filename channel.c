@@ -1706,18 +1706,13 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		opbx_cdr_answer(chan->cdr);
 	} 
 
-	/* Run any generator sitting on the line */
-	if (f && (f->frametype == OPBX_FRAME_VOICE) && chan->generatordata) {
-		/* Mask generator data temporarily and apply.  If there is a timing function, it
-		   will be calling the generator instead */
+	/* Run generator sitting on the line if timing device not available
+	 * and synchronous generation of outgoing frames is necessary       */
+	if (f && (f->frametype == OPBX_FRAME_VOICE) && chan->generatordata && !(chan->timingfunc && chan->timingfd > -1)) {
 		void *tmp;
 		int res;
 		int (*generate)(struct opbx_channel *chan, void *tmp, int datalen, int samples);
 
-		if (chan->timingfunc) {
-			opbx_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
-			opbx_settimeout(chan, 0, NULL, NULL);
-		}
 		tmp = chan->generatordata;
 		chan->generatordata = NULL;
 		generate = chan->generator->generate;
@@ -1726,11 +1721,6 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		if (res) {
 			opbx_log(LOG_DEBUG, "Auto-deactivating generator\n");
 			opbx_deactivate_generator(chan);
-		}
-	} else if (f && (f->frametype == OPBX_FRAME_CNG)) {
-		if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
-			opbx_log(LOG_DEBUG, "Generator got CNG, switching to zap timed mode\n");
-			opbx_settimeout(chan, 160, generator_force, chan);
 		}
 	}
 	/* High bit prints debugging */
