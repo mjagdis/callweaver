@@ -552,7 +552,7 @@ static void *rtp_setup_stream(call_t *call)
   if (call->rtp_session != NULL)
     return NULL;
   call->rtp_session = rtp_session_new(RTP_SESSION_SENDRECV);
-  rtp_session_set_scheduling_mode(call->rtp_session, 1); /* yes */
+  rtp_session_set_scheduling_mode(call->rtp_session, 0);
   rtp_session_set_blocking_mode(call->rtp_session, 0);
   rtp_session_set_profile(call->rtp_session, &av_profile);
   rtp_session_set_jitter_compensation(call->rtp_session, 60);
@@ -988,7 +988,7 @@ static void add_media_to_call(call_t *call, sdp_media_t *media)
 static int new_call_by_event(eXosip_event_t *event)
 {
   char localip[128] = "", local_sdp_str[8192] = "", port[128] = "";
-  int i = 0, mline = 0, pos = 0;
+  int i = 0, mline = 0, pos = 0, negot = 1;
   call_t *call = NULL;
   sdp_message_t *remote_sdp = NULL;
   sdp_connection_t *conn = NULL;
@@ -1080,6 +1080,7 @@ static int new_call_by_event(eXosip_event_t *event)
     while (0==osip_rfc3264_match(call->sdp_config, remote_sdp, audio_tab, video_tab, t38_tab, app_tab, mline)) {
       if (audio_tab[0]==NULL && video_tab[0]==NULL && t38_tab[0]==NULL && app_tab[0]==NULL) {
 	opbx_log(LOG_NOTICE, "No compatible payloads.\n");
+	negot = 0; /* Negotiation failed */
 	break;
       }
       for (pos=0;audio_tab[pos]!=NULL;pos++) {
@@ -1098,6 +1099,18 @@ static int new_call_by_event(eXosip_event_t *event)
       }
       mline++;
     }
+
+    /* Make sure negotiation went fine */
+    if (negot == 0) {
+      /* Send back an error and fail horribly. Plus deallocate everything */
+      eXosip_lock();
+      if (eXosip_call_build_answer(call->tid, 488, &rejection) == 0)
+	eXosip_call_send_answer(call->tid, 488, rejection);
+      eXosip_unlock();
+      call->state = NOT_USED;
+      return -1;
+    }
+
     /* We have our own local SDP string - done against the remote, now update it's info */
     sdp_message_o_origin_set(call->local_sdp, "OpenPBX", "0", "0", "IN", "IP4", call->local_sdp_audio_ip);
     sdp_message_s_name_set(call->local_sdp, "SIP Call");
@@ -2039,7 +2052,6 @@ int load_module()
   int i = 0;
   /* Setup the RTP stream stuff */
   ortp_init();
-  ortp_scheduler_init();
   /* Clear out users */
   for (i=0; i<MAX_NUMBER_OF_USERS; i++)
     memset(&users[i], 0, sizeof(user_t));
