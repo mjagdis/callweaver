@@ -506,7 +506,6 @@ static void *rtp_stream_thread(void *_ca)
 
   /* Death of this thread can be triggered by outside, or inside */
   while (call->death != 1) {
-    sched_yield();
     do {
       memset(data_in, 0, sizeof(data_in));
       read = rtp_session_recv_with_ts(call->rtp_session, data_in, call->size, call->recv_timestamp, &have_more);
