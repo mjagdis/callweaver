@@ -1,3 +1,0 @@
-%_tmppath       /tmp/openpbx
-%_topdir        %{_tmppath}/redhat
-%_rpmfilename   %%{ARCH}/%%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
