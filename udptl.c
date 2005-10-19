@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * OpenPBX -- An open source telephony toolkit.
  *
  * UDPTL support for T.38
  * 

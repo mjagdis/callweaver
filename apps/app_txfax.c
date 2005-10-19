@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * OpenPBX -- An open source telephony toolkit.
  *
  * Trivial application to send a TIFF file as a FAX
  * 
@@ -86,9 +86,9 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t *buf, int len)
 {
     struct opbx_frame outf;
+    struct ast_channel *chan;
 
-    //if (s->opbx_chan == NULL)
-    //    return 0;
+    chan = (struct ast_channel *) user_data;
     memset(&outf, 0, sizeof(outf));
     outf.frametype = OPBX_FRAME_MODEM;
     outf.subclass = OPBX_MODEM_T38;
@@ -98,8 +98,8 @@ static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t 
     outf.data = (char *) buf;
     outf.offset = 0;
     outf.src = "TxFAX";
-    //if (opbx_write(s->opbx_chan, &outf) < 0)
-    //    opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+    if (opbx_write(chan, &outf) < 0)
+        opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
@@ -233,7 +233,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         //t30_set_phase_d_handler(&fax.t30_state, phase_d_handler, chan);
         t30_set_phase_e_handler(&fax.t30_state, phase_e_handler, chan);
 
-        t38_terminal_init(&t38, calling_party, t38_tx_packet_handler, NULL);
+        t38_terminal_init(&t38, calling_party, t38_tx_packet_handler, chan);
         if (verbose)
             t38.t30_state.logging.level = SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW;
         x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
@@ -287,7 +287,6 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             {
                 //printf("T.38 frame received\n");
                 call_is_t38_mode = TRUE;
-                //t38.opbx_chan = chan;
                 t38_rx_ifp_packet(&t38, 0, inf->data, inf->datalen);
             }
             opbx_frfree(inf);

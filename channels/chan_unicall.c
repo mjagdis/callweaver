@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * OpenPBX -- An open source telephony toolkit.
  *
  * UniCall support
  * 
@@ -113,6 +113,7 @@ static int transfer = 0;
 static int cancallforward = 0;
 static float rxgain = 0.0;
 static float txgain = 0.0;
+static int t38_support = 0;
 static int echocancel = 0;
 static int echotraining = 0;
 static int echocanbridged = 0;
@@ -252,7 +253,7 @@ struct unicall_subchannel
 static struct unicall_pvt
 {
     pthread_mutex_t lock;
-    struct opbx_channel *owner;                  /* Our current active owner (if applicable) */
+    struct opbx_channel *owner;                 /* Our current active owner (if applicable) */
                                                 /* Up to three channels can be associated with this call */
         
     struct unicall_subchannel sub_unused;       /* Just a safety precaution */
@@ -322,6 +323,8 @@ static struct unicall_pvt
     int onhooktime;
     int msgstate;
     struct opbx_dsp *dsp;
+    int t38_support;
+    int t38_active;
     
     int confirmanswer;                  /* Wait for '#' to confirm answer */
     int distinctivering;                /* Which distinctivering to use */
@@ -2015,29 +2018,37 @@ void handle_uc_read(uc_t *uc, int ch, void *user_data, uint8_t *buf, int len)
 {
     void *readbuf;
     struct unicall_pvt *p;
-    int16_t amp[160];
+    int gen_len;
+    int16_t amp[len];
     
     p = (struct unicall_pvt *) user_data;
 
-    readbuf = ((uint8_t *) p->subs[SUB_REAL].buffer) + OPBX_FRIENDLY_OFFSET;
-    memcpy(readbuf, buf, len);
-    p->subs[SUB_REAL].buffer_contents = len;
+    if (p->t38_active)
+    {
+        /* TODO */
+    }
+    else
+    {
+        readbuf = ((uint8_t *) p->subs[SUB_REAL].buffer) + OPBX_FRIENDLY_OFFSET;
+        memcpy(readbuf, buf, len);
+        p->subs[SUB_REAL].buffer_contents = len;
+    }
     if (p->subs[SUB_REAL].super_tone != ST_TYPE_NONE)
     {
-        len = super_tone_tx(&p->subs[SUB_REAL].tx_state, amp, 160);
+        gen_len = super_tone_tx(&p->subs[SUB_REAL].tx_state, amp, len);
         select_codec(p, SUB_REAL, OPBX_FORMAT_SLINEAR);
-        if (uc_channel_write(uc, ch, (uint8_t *) amp, len*sizeof(int16_t)) < 0)
+        if (uc_channel_write(uc, ch, (uint8_t *) amp, gen_len*sizeof(int16_t)) < 0)
             opbx_log(LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
         /*endif*/
     }
     else if (p->dialing)
     {
-        len = dtmf_tx(&p->subs[SUB_REAL].dtmf_tx_state, amp, 160);
+        gen_len = dtmf_tx(&p->subs[SUB_REAL].dtmf_tx_state, amp, len);
         select_codec(p, SUB_REAL, OPBX_FORMAT_SLINEAR);
-        if (uc_channel_write(uc, ch, (uint8_t *) amp, len*sizeof(int16_t)) < 0)
+        if (uc_channel_write(uc, ch, (uint8_t *) amp, gen_len*sizeof(int16_t)) < 0)
             opbx_log(LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
         /*endif*/
-        if (len < 160)
+        if (gen_len < len)
             p->dialing = FALSE;
         /*endif*/
     }
@@ -2218,18 +2229,30 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
 
     if (p->subs[index].buffer_contents == 0)
     {
-        p->subs[index].f.frametype = OPBX_FRAME_NULL;
-        p->subs[index].f.subclass = 0;
-        p->subs[index].f.samples = 0;
-        p->subs[index].f.mallocd = 0;
-        p->subs[index].f.offset = 0;
-        p->subs[index].f.data = NULL;
-        p->subs[index].f.datalen = 0;
+        /* Return a NULL frame */
         pthread_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
 
+    p->subs[index].buffer_contents = 0;
+    if (p->dialing
+        ||
+        (index  &&  ast->_state != OPBX_STATE_UP)
+        ||
+        (index == SUB_CALLWAIT  &&  !p->subs[SUB_CALLWAIT].inthreeway))
+    {
+        /* Whoops, we're still dialing, or in a state where we shouldn't transmit....
+           don't send anything */
+        /* Return a NULL frame */
+        pthread_mutex_unlock(&p->lock);
+        return &p->subs[index].f;
+    }
+    /*endif*/
+
+#if 0
+    opbx_log(LOG_WARNING, "Read %d of voice on %s\n", p->subs[index].f.datalen, ast->name);
+#endif
     if (ast->rawreadformat == OPBX_FORMAT_SLINEAR)
         p->subs[index].f.datalen = READ_SIZE*2;
     else 
@@ -2241,27 +2264,6 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
     p->subs[index].f.mallocd = 0;
     p->subs[index].f.offset = OPBX_FRIENDLY_OFFSET;
     p->subs[index].f.data = p->subs[index].buffer + OPBX_FRIENDLY_OFFSET/2;
-#if 0
-    opbx_log(LOG_WARNING, "Read %d of voice on %s\n", p->subs[index].f.datalen, ast->name);
-#endif
-    p->subs[index].buffer_contents = 0;
-    if (p->dialing
-        ||
-        (index  &&  ast->_state != OPBX_STATE_UP)
-        ||
-        (index == SUB_CALLWAIT  &&  !p->subs[SUB_CALLWAIT].inthreeway))
-    {
-        /* Whoops, we're still dialing, or in a state where we shouldn't transmit....
-           don't send anything */
-        p->subs[index].f.frametype = OPBX_FRAME_NULL;
-        p->subs[index].f.subclass = 0;
-        p->subs[index].f.samples = 0;
-        p->subs[index].f.mallocd = 0;
-        p->subs[index].f.offset = 0;
-        p->subs[index].f.data = NULL;
-        p->subs[index].f.datalen = 0;
-    }
-    /*endif*/
     if (p->dsp  &&  !p->ignoredtmf  &&  index == SUB_REAL)
     {
         if ((f = opbx_dsp_process(ast, p->dsp, &p->subs[index].f)))
@@ -3396,6 +3398,7 @@ static struct unicall_pvt *mkintf(int channel, char *protocol_class, char *proto
         /*endif*/
         tmp->immediate = immediate;
         tmp->protocol_class = protocol_class;
+        tmp->t38_support = t38_support;
         tmp->radio = radio;
         tmp->firstradio = FALSE;
         /* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
@@ -3999,7 +4002,7 @@ static int setup_unicall(int reload)
     int finish;
     int x;
     int y;
-    int cur_radio = FALSE;
+    int cur_radio;
 
     /* We *must* have a config file, otherwise stop immediately */
     if ((cfg = opbx_config_load((char *) config)) == NULL)
@@ -4019,6 +4022,8 @@ static int setup_unicall(int reload)
     cur_protocol_class = NULL;
     cur_protocol_variant = NULL;
     cur_protocol_end = NULL;
+    t38_support = FALSE;
+    cur_radio = FALSE;
 
     /* Set some defaults for things that might not be specified in the config file. */
     use_callerid = TRUE;
@@ -4108,6 +4113,10 @@ static int setup_unicall(int reload)
         {
             cur_protocol_end = strdup(v->value);
             cur_radio = FALSE;
+        }
+        else if (strcasecmp(v->name, "t38support") == 0)
+        {
+            t38_support = opbx_true(v->value);
         }
         else if (strcasecmp(v->name, "threewaycalling") == 0)
         {
