@@ -15,7 +15,7 @@
 #
 EXOLIBS=@EXOLIBS@
 CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so \
-	     chan_local.so chan_features.so chan_fax.so
+	     chan_local.so chan_features.so
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
  CFLAGS+=-I/usr/local/include -L/usr/local/lib
@@ -56,6 +56,10 @@ endif
 
 ifneq ($(EXOLIBS),)
 	CHANNEL_LIBS+=chan_exosip2.so
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/spandsp.h),)
+        CHANNEL_LIBS+=chan_fax.so
 endif
 
 CFLAGS+=-DCRYPTO
