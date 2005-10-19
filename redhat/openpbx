@@ -12,7 +12,6 @@ RETVAL=0
 case "$1" in
   start)
 	echo -n "Starting OpenPBX: "
-	/sbin/modprobe ixj	
 	daemon /usr/sbin/openpbx
 	RETVAL=$?
 	echo
@@ -21,7 +20,6 @@ case "$1" in
   stop)
 	echo -n "Shutting OpenPBX: "
 	killproc openpbx
-	/sbin/rmmod -r ixj	
 	RETVAL=$?
 
 	echo
