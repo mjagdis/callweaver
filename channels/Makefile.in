@@ -119,7 +119,7 @@ chan_zap.so: chan_zap.o
 	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) -ltonezone
 
 chan_fax.so: chan_fax.o faxmodem.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ $+
 
 chan_sip.so: chan_sip.o
 	$(CC) $(SOLINK) -o $@ chan_sip.o
