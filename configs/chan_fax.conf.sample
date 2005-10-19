@@ -1,0 +1,15 @@
+;
+; chan_fax T.31 (class 1) modem driver
+;
+; Sample configuration file
+;
+; $Id$
+;
+[settings]
+
+modems => 10
+context => chan_fax
+vblevel => 2
+
+;timeout-ms => 30
+;trap-seg => true
