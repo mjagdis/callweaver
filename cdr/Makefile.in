@@ -36,6 +36,16 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CR
   MODS+=cdr_odbc.so
 endif
 
+#
+# cdr_pgsql
+#
+
+ifeq (@HAVE_PGSQL@,1)
+   MODS+=cdr_pgsql.so
+   CFLAGS+=@PGSQL_INCLUDE@
+   MLFLAGS+=-L @PGSQL_LIBDIR@
+endif
+
 all: depend $(MODS)
 
 install: all
