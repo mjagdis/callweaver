@@ -164,8 +164,29 @@ MYSQL:
 
 PGSQL:
 
+CREATE TABLE cdr (
+    cdr_id bigserial NOT NULL PRIMARY KEY,
+    calldate timestamp with time zone DEFAULT now() NOT NULL,
+    clid character varying(80) DEFAULT ''::character varying NOT NULL,
+    src character varying(80) DEFAULT ''::character varying NOT NULL,
+    dst character varying(80) DEFAULT ''::character varying NOT NULL,
+    dcontext character varying(80) DEFAULT ''::character varying NOT NULL,
+    channel character varying(80) DEFAULT ''::character varying NOT NULL,
+    dstchannel character varying(80) DEFAULT ''::character varying NOT NULL,
+    lastapp character varying(80) DEFAULT ''::character varying NOT NULL,
+    lastdata character varying(80) DEFAULT ''::character varying NOT NULL,
+    duration integer DEFAULT 0 NOT NULL,
+    billsec integer DEFAULT 0 NOT NULL,
+    disposition character varying(45) DEFAULT ''::character varying NOT NULL,
+    amaflags integer DEFAULT 0 NOT NULL,
+    accountcode character varying(20) DEFAULT ''::character varying NOT NULL,
+    uniqueid character varying(32) DEFAULT ''::character varying NOT NULL,
+    userfield character varying(255) DEFAULT ''::character varying NOT NULL
+);
+
 SQLLITE:
 
 -------------------------------------------------------------------------------
 
 08/02/2004 : Duane Cox <dcox@illicom.net> - added mssql information
+10/18/2005 : Jeffrey C. Ollie <jeff@ocjtech.us> - added PostgreSQL schema
