@@ -122,9 +122,9 @@ static void modulation_setup(struct playtones_state *ps, struct playtones_item *
 
 	/*
 	 * Setup three digital resonators with:
-	 * 1) Carrier frequency and 10% total power
-	 * 2) Lower sideband signal with 45% power and f = carrier - modulat
-	 * 2) Higher sideband signal with 45% power and f = carrier + modulat
+	 * 1) Carrier frequency
+	 * 2) Lower sideband signal with freq = carrier - modulat
+	 * 2) Higher sideband signal with freq = carrier + modulat
 	 */
 
 	/* Ensure modulation depth lives within 0 and 100% */
