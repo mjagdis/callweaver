@@ -57,6 +57,10 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard 
   CFLAGS+=-DZAPATA_MOH
 endif
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/loudmouth-1.0/loudmouth/loudmouth.h),)
+  MODS+=res_jabber.so
+endif
+
 #
 # Work around buggy RedHat 9.0
 #
@@ -84,6 +88,12 @@ res_config_pgsql.so: res_config_pgsql.o
 
 res_osp.so: res_osp.o $(OSPLIB)
 	$(CC) $(SOLINK) -o $@ $^
+
+res_jabber.o: res_jabber.c
+	$(CC) $(CFLAGS) `pkg-config --cflags loudmouth-1.0` -c -o $@ $+ 
+
+res_jabber.so: res_jabber.o
+	$(CC) $(SOLINK) -o $@ $+ `pkg-config --libs loudmouth-1.0`
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<

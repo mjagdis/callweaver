@@ -29,8 +29,8 @@
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
 
 #define JABBER_MSG_SIZE 512
-#define AST_FLAG_APP (1 << 30)
-#define AST_FLAG_EXTEN (1 << 31)
+#define OPBX_FLAG_APP (1 << 30)
+#define OPBX_FLAG_EXTEN (1 << 31)
 #define JABBER_STRLEN 512
 #define JABBER_ARRAY_LEN 50
 #define JABBER_BODYLEN 2048
@@ -43,9 +43,9 @@
 #define JABBER_RECORD_SEPERATOR "\n\n"
 #define JABBER_DYNAMIC 
 
-AST_MUTEX_DEFINE_STATIC(global_lock);
-AST_MUTEX_DEFINE_STATIC(port_lock);
-AST_MUTEX_DEFINE_STATIC(callid_lock);
+OPBX_MUTEX_DEFINE_STATIC(global_lock);
+OPBX_MUTEX_DEFINE_STATIC(port_lock);
+OPBX_MUTEX_DEFINE_STATIC(callid_lock);
 
 static char *tdesc = "res_jabber";
 static char *app_name = "NextGen";
@@ -473,7 +473,7 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 	char *from;
 	char *body;
 	struct jabber_profile *profile;
-	struct opbx_frame fr = {AST_FRAME_NULL};
+	struct opbx_frame fr = {OPBX_FRAME_NULL};
 
 	profile = (struct jabber_profile *) user_data;
 	lmnode = lm_message_node_get_child (m->node, "body");
@@ -762,7 +762,7 @@ static void *media_receive_thread(void *obj)
 	g_main_context_ref(profile->context);
 
 	struct opbx_channel *chan = profile->chan;
-	struct opbx_frame write_frame = {AST_FRAME_VOICE, AST_FORMAT_SLINEAR};
+	struct opbx_frame write_frame = {OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR};
 	char buf[1024];
 	int err = 0;
 	int fromlen;
@@ -788,11 +788,11 @@ static void *media_receive_thread(void *obj)
 		if((res = recvfrom(socket, buf, sizeof(buf), 0, (struct sockaddr *) &profile->media_recv_addr, &fromlen)) > -1) {
 			//opbx_verbose("PACKET\n");
 			if (res == 6 && !strncmp(buf, "HANGUP", 6)) {
-				opbx_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
+				opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
 				break;
 			}
 
-			write_frame.subclass = chan->readformat || AST_FORMAT_SLINEAR;
+			write_frame.subclass = chan->readformat || OPBX_FORMAT_SLINEAR;
 			write_frame.data = buf;
 			write_frame.datalen = res;
 			write_frame.samples = res / 2;
@@ -894,7 +894,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		}
 		
 	} else if (!strcasecmp(jmsg->command, "hangup")) {
-		opbx_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
+		opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
 	} else if (!strcasecmp(jmsg->command, "answer")) {
 		profile_answer(profile);
 	} else if (!strcasecmp(jmsg->command, "stream") && arg) {
@@ -1288,11 +1288,11 @@ static void *jabber_pbx_session(void *obj)
 	jabber_context_open(profile);
 	
 
-	if (opbx_set_read_format(chan, AST_FORMAT_SLINEAR)) {
+	if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) {
 		opbx_log(LOG_ERROR, "Error Setting Read Format.\n");
 		return NULL;
 	}
-	if (opbx_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
 		opbx_log(LOG_ERROR, "Error Setting Write Format.\n");
 		return NULL;
 	}
@@ -1319,7 +1319,7 @@ static void *jabber_pbx_session(void *obj)
 	}
 	check_outbound_message_queue(profile);
 
-	if (chan->_state == AST_STATE_UP) {
+	if (chan->_state == OPBX_STATE_UP) {
 		profile->timeout = -1;
 	}
 
@@ -1390,21 +1390,21 @@ static void *jabber_pbx_session(void *obj)
 
 		switch (f->frametype) {
 
-		case AST_FRAME_CONTROL:
+		case OPBX_FRAME_CONTROL:
 			switch (f->subclass) {
-			case AST_CONTROL_BUSY:
-			case AST_CONTROL_CONGESTION:
+			case OPBX_CONTROL_BUSY:
+			case OPBX_CONTROL_CONGESTION:
 				profile->chanstate = CHANSTATE_BUSY;
 				opbx_clear_flag(profile, JFLAG_RUNNING);
 				continue;
 				break;
-			case AST_CONTROL_ANSWER:
+			case OPBX_CONTROL_ANSWER:
 				profile_answer(profile);
 				continue;
 				break;
 			}
 			break;
-		case AST_FRAME_DTMF:
+		case OPBX_FRAME_DTMF:
 			if ((node = jabber_message_node_printf(profile->master, 
 												   "Event",
 												   "EVENT DTMF\n"
@@ -1421,7 +1421,7 @@ static void *jabber_pbx_session(void *obj)
 				jabber_message_node_push(profile, node, Q_OUTBOUND);
 			}
 			break;
-		case AST_FRAME_VOICE:
+		case OPBX_FRAME_VOICE:
 			if (readformat != chan->readformat) {
 				if ((node = jabber_message_node_printf(profile->master, 
 													   "Event",
