@@ -95,13 +95,31 @@ void opbx_unregister_file_version(const char *file);
  * Example:
  *
  * \code
- * OPENPBX_FILE_VERSION(__FILE__, "\$Revision\$")
+ * OPENPBX_FILE_VERSION("\$HeadURL\$", "\$Revision\$")
  * \endcode
  *
  * \note The dollar signs above have been protected with backslashes to keep
  * CVS from modifying them in this file; under normal circumstances they would
  * not be present and CVS would expand the Revision keyword into the file's
  * revision number.
+ *
+ * You should also set the "svn:keywords" property to "HeadURL Revision" on
+ * any file that uses the OPENPBX_FILE_VERSION macro.  The propery can be set
+ * with the following command:
+ *
+ * \code
+ * svn propset svn:keywords "HeadURL Revision" filename
+ * \endcode
+ *
+ * You can examine the value of the "svn:keyword" propery with the following
+ * command:
+ *
+ * \code
+ * svn propget svn:keywords filename
+ * \endcode
+ *
+ * For more information on SVN properies see the SVN book:
+ * <http://svnbook.red-bean.com/en/1.1/ch07s02.html>
  */
 #if defined(__GNUC__) && !defined(LOW_MEMORY)
 #define OPENPBX_FILE_VERSION(file, version) \

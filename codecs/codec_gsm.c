@@ -34,7 +34,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/lock.h"
 #include "openpbx/translate.h"

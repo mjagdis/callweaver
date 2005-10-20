@@ -35,7 +35,7 @@
 #define dbopen __dbopen
 #endif
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/channel.h"
 #include "openpbx/file.h"

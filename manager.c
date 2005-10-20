@@ -40,7 +40,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 309 $")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/channel.h"
 #include "openpbx/file.h"

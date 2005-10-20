@@ -54,7 +54,7 @@
 #include "include/openpbx.h"
 #include "openpbx/resonator.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1 $")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 /* Initial paramaters for the digital resonator */
 void digital_resonator_init(struct digital_resonator *dr, float requested_frequency, float requested_amplitude, float sampling_frequency)
