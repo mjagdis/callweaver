@@ -1,5 +1,3 @@
-#define LOW_MEMORY
-
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
