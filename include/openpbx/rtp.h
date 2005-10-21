@@ -154,8 +154,9 @@ void opbx_rtp_set_generate_key_cb(struct opbx_rtp *rtp,
 int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy);
 opbx_policy_t *opbx_policy_alloc(void);
 int opbx_policy_set_suite(opbx_policy_t *policy, int suite);
-int opbx_policy_set_key(opbx_policy_t *policy, unsigned char *key,
-		       size_t key_len);
+int opbx_policy_set_master_key(opbx_policy_t *policy,
+			      const unsigned char *key, size_t key_len,
+			      const unsigned char *salt, size_t salt_len);
 int opbx_policy_set_encr_alg(opbx_policy_t *policy, int ealg);
 int opbx_policy_set_auth_alg(opbx_policy_t *policy, int aalg);
 void opbx_policy_set_encr_keylen(opbx_policy_t *policy, int ekeyl);

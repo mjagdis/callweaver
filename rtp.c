@@ -534,6 +534,10 @@ opbx_policy_t *opbx_policy_alloc()
 
 void opbx_policy_destroy(opbx_policy_t *policy)
 {
+	if (policy->sp.key) {
+		free(policy->sp.key);
+		policy->sp.key = NULL;
+	}
 	free(policy);
 }
 
@@ -572,15 +576,24 @@ int opbx_policy_set_suite(opbx_policy_t *policy, int suite)
 	return res;
 }
 
-int opbx_policy_set_key(opbx_policy_t *policy, unsigned char *key,
-		       size_t key_len)
+int opbx_policy_set_master_key(opbx_policy_t *policy,
+			      const unsigned char *key, size_t key_len,
+			      const unsigned char *salt, size_t salt_len)
 {
-	if (key_len != 30) {
-		opbx_log(LOG_ERROR, "Invalid key length %d (!= 30)\n", key_len);
-		return -1;
+	size_t size = key_len + salt_len;
+	unsigned char *master_key = NULL;
+
+	if (policy->sp.key) {
+		free(policy->sp.key);
+		policy->sp.key = NULL;
 	}
 
-	policy->sp.key = key;
+	master_key = malloc(size);
+
+	memcpy(master_key, key, key_len);
+	memcpy(master_key + key_len, salt, salt_len);
+
+	policy->sp.key = master_key;
 	return 0;
 }
 
