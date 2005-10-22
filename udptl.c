@@ -615,6 +615,30 @@ void opbx_udptl_set_data(struct opbx_udptl *udptl, void *data)
 	udptl->data = data;
 }
 
+void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
+{
+	if (udptl)
+		udptl->far_max_datagram_size = max_datagram;
+	else
+		opbx_log(LOG_WARNING, "udptl structure is null\n");
+}
+
+int opbx_udptl_get_error_correction_scheme(struct opbx_udptl *udptl)
+{
+	if (udptl)
+		return udptl->error_correction_scheme;
+	opbx_log(LOG_WARNING, "udptl structure is null\n");
+	return -1;
+}
+
+int opbx_udptl_get_local_max_datagram(struct opbx_udptl *udptl)
+{
+	if (udptl)
+		return udptl->local_max_datagram_size;
+	opbx_log(LOG_WARNING, "udptl structure is null\n");
+	return -1;
+}
+
 void opbx_udptl_set_callback(struct opbx_udptl *udptl, opbx_udptl_callback callback)
 {
 	udptl->callback = callback;
@@ -679,11 +703,11 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 	}
 
 	if (udptl_debug_test_addr(&sin)) {
-		opbx_verbose("Got UDPTL packet from %s:%d (type %d, seq %d, len %d)\n",
-			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), 0, seqno, res);
+		opbx_verbose("Got UDPTL packet from %s:%d (len %d)\n",
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 	}
 #if 0
-	printf("Got UDPTL packet from %s:%d (seq %d, len = %d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), seqno, res);
+	printf("Got UDPTL packet from %s:%d (len %d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 #endif
 	udptl_rx_packet(udptl, udptl->rawdata + OPBX_FRIENDLY_OFFSET, res);
 
@@ -710,9 +734,9 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		return NULL;
 	memset(udptl, 0, sizeof(struct opbx_udptl));
 
-	udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
-	udptl->error_correction_span = 3;
-	udptl->error_correction_entries = 2;
+	udptl->error_correction_scheme = udptlfectype ? UDPTL_ERROR_CORRECTION_FEC : UDPTL_ERROR_CORRECTION_REDUNDANCY;
+	udptl->error_correction_span = udptlfecspan;
+	udptl->error_correction_entries = udptlfecentries;
 	
 	udptl->far_max_datagram_size = udptlmaxdatagram;
 	udptl->local_max_datagram_size = udptlmaxdatagram;
