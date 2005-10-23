@@ -44,11 +44,8 @@
  * digital resonator if sampling frequency hasn't changed.
  */
 
-/*
-#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
-*/
 #include <math.h>
 
 #include "include/openpbx.h"
@@ -57,26 +54,38 @@
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 /* Initial paramaters for the digital resonator */
-void digital_resonator_init(struct digital_resonator *dr, float requested_frequency, float requested_amplitude, float sampling_frequency)
+void digital_resonator_init(struct digital_resonator *dr, uint16_t requested_frequency, int16_t requested_amplitude, uint16_t sampling_frequency)
 {
-	/*
-	 * User must do sanity check. Not verifying here if
-	 * requested frequency < 1/2 * sampling_frequency.
-	 * Resonator breaks at or after 1/2 * sampling_frequency.
-	 */
-	float halfk;
+	double halfk;
+	int32_t k;
 
-	halfk = cosf((M_PI + M_PI) * requested_frequency / sampling_frequency);
-	dr->k = halfk + halfk;
-	dr->xnm1 = 0.0f;
-	dr->xnm2 = -requested_amplitude * sqrtf(1.0f - halfk * halfk);
+	halfk = cos(2.0 * M_PI * requested_frequency / sampling_frequency);
+	k = floor(16384.0 * 2.0 * halfk + 0.5);
+	dr->k = k;
+	if (k == 32768L)
+	{
+		/* Special case: requested_frequency is zero */
+		dr->xnm1 = 0;
+		dr->xnm2 = 0;
+	}
+	else if (k == -32768L)
+	{
+		/* Special case: requested_frequency is half sampling freq */
+		dr->xnm1 = requested_amplitude;
+		dr->xnm2 = -requested_amplitude;
+	}
+	else
+	{
+		dr->xnm1 = 0;
+		dr->xnm2 = -requested_amplitude * sqrt(1.0 - halfk * halfk);
+	}
 
 	/*
 	 * These are the sample limits to avoid a runaway resonator.
 	 * Note that negative amplitudes are allowed; that's why we
 	 * use fabsf(requested_amplitude) for upper limit
 	 */
-	dr->upper_limit = fabsf(requested_amplitude);
+	dr->upper_limit = abs(requested_amplitude);
 	dr->lower_limit = -dr->upper_limit;
 
 	/* Let's keep this for reinit if necessary */
@@ -89,35 +98,35 @@ void digital_resonator_init(struct digital_resonator *dr, float requested_freque
  * Reinitialize paramaters for the digital resonator. If sampling
  * frequency has changed, use digital_resonator_init instead
  */
-void digital_resonator_reinit(struct digital_resonator *dr, float new_frequency, float new_amplitude)
+void digital_resonator_reinit(struct digital_resonator *dr, uint16_t new_frequency, int16_t new_amplitude)
 {
 	/*
 	 * If new frequency equals current frequency, we can do
 	 * a soft reinit if current amplitude is not zero.
 	 */
-	if (new_frequency == dr->cur_freq && dr->cur_ampl != 0.0f) {
+	if (new_frequency == dr->cur_freq && dr->cur_ampl != 0) {
 		/* We can reinit. Just scale last two samples
 		 * to adjust for new amplitude, if necessary */
 		if (new_amplitude != dr->cur_ampl) {
-			float scalefactor;
+			double scalefactor;
 
-			scalefactor = new_amplitude / dr->cur_ampl;
-			dr->xnm1 *= scalefactor;
-			dr->xnm2 *= scalefactor;
+			scalefactor = new_amplitude / (double)dr->cur_ampl;
+			dr->xnm1 = floor(0.5 + dr->xnm1 * scalefactor);
+			dr->xnm2 = floor(0.5 + dr->xnm2 * scalefactor);
 			dr->cur_ampl = new_amplitude;
-			dr->upper_limit = fabsf(new_amplitude);
+			dr->upper_limit = abs(new_amplitude);
 			dr->lower_limit = -dr->upper_limit;
 		}
 	} else
 		   digital_resonator_init(dr, new_frequency, new_amplitude, dr->cur_samp);
 }
 
-/* this is where we generate the "next" sample and update state */
-float digital_resonator_get_sample(struct digital_resonator *dr)
+/* This is where we generate the "next" sample and update state */
+int16_t digital_resonator_get_sample(struct digital_resonator *dr)
 {
-	float sample;
+	int32_t sample;
 
-	sample = dr->k * dr->xnm1 - dr->xnm2;
+	sample = ((dr->k * (int32_t)dr->xnm1) >> 14) - dr->xnm2;
 	if (sample > dr->upper_limit)
 		sample = dr->upper_limit;
 	else if (sample < dr->lower_limit)

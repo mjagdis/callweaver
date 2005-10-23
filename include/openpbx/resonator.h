@@ -27,23 +27,23 @@
 
 /* A digital resonator is a fast, efficient way of producing sinewaves */
 struct digital_resonator {
-	float k;		/* x(n) = k * x(n-1) - x(n-2) */
-	float xnm1;		/* xnm1 = x(n-1) */
-	float xnm2;		/* xnm2 = x(n-2) */
-	float cur_freq;		/* frequency currently being generated */
-	float cur_ampl;		/* current signal amplitude */
-	float cur_samp;		/* current sampling frequency */
-	float upper_limit;	/* samples upper limit */
-	float lower_limit;	/* samples lower limit */
+	int16_t k;		/* x(n) = k * x(n-1) - x(n-2) */
+	int16_t xnm1;		/* xnm1 = x(n-1) */
+	int16_t xnm2;		/* xnm2 = x(n-2) */
+	uint16_t cur_freq;	/* frequency currently being generated */
+	int16_t cur_ampl;	/* current signal amplitude */
+	uint16_t cur_samp;	/* current sampling frequency */
+	int16_t upper_limit;	/* samples upper limit */
+	int16_t lower_limit;	/* samples lower limit */
 };
 
 /* Initial paramaters for the digital resonator */
-void digital_resonator_init(struct digital_resonator *dr, float requested_frequency, float requested_amplitude, float sampling_frequency);
+void digital_resonator_init(struct digital_resonator *dr, uint16_t requested_frequency, int16_t requested_amplitude, uint16_t sampling_frequency);
 
 /* Reinitialization paramaters for the digital resonator */
-void digital_resonator_reinit(struct digital_resonator *dr, float new_frequency, float new_amplitude);
+void digital_resonator_reinit(struct digital_resonator *dr, uint16_t new_frequency, int16_t new_amplitude);
 
 /* How we get samples after resonator is initialized */
-inline float digital_resonator_get_sample(struct digital_resonator *dr);
+inline int16_t digital_resonator_get_sample(struct digital_resonator *dr);
 
 #endif /* OPENPBX_RESONATOR_H */

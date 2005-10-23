@@ -106,10 +106,10 @@ static void playtones_release(struct opbx_channel *chan, void *params)
 /* Used to setup three digital resonators to implement amplitude modulation */
 static void modulation_setup(struct playtones_state *ps, struct playtones_item *pi)
 {
-	float moddepth = 0.01f * pi->modulation_depth;
-	float moddepthsquared = moddepth * moddepth;
-	float carrier_freq, carrier_ampl;
-	float modulat_freq, modulat_ampl;
+	double moddepth = 0.01 * pi->modulation_depth;
+	double moddepthsquared = moddepth * moddepth;
+	uint16_t carrier_freq, modulat_freq;
+	int16_t carrier_ampl, modulat_ampl;
 
 	/* Make sure carrier frequency higher then modulating frequency */
 	if (pi->freq1 > pi->freq2) {
@@ -128,13 +128,13 @@ static void modulation_setup(struct playtones_state *ps, struct playtones_item *
 	 */
 
 	/* Ensure modulation depth lives within 0 and 100% */
-	if (moddepth > 1.0f)
-		moddepth = 1.0f;
-	else if (moddepth < 0.0f)
-		moddepth = 1.0f;
+	if (moddepth > 1.0)
+		moddepth = 1.0;
+	else if (moddepth < 0.0)
+		moddepth = 0.0;
 
 	/* Init carrier resonator */
-	carrier_ampl = ps->vol / sqrtf(1.0f + moddepthsquared + moddepthsquared);
+	carrier_ampl = ps->vol / sqrt(1.0 + moddepthsquared + moddepthsquared);
 	digital_resonator_init(&ps->dr1, carrier_freq, carrier_ampl, 8000);
 
 	/* Init lower sideband resonator */
@@ -189,7 +189,7 @@ static int playtones_generator(struct opbx_channel *chan, void *data, int len, i
 {
 	struct playtones_state *ps = data;
 	struct playtones_item *pi;
-	float s;
+	int32_t s;
 	int x;
 
 	/*
@@ -209,19 +209,6 @@ static int playtones_generator(struct opbx_channel *chan, void *data, int len, i
 			s += digital_resonator_get_sample(&ps->dr3);
 
 		ps->data[x] = s;
-/* OLD STUFF To be removed....
-		if (pi->modulate)
-		ps->data[x] = ps->vol * 2 * (
-			sin((pi->freq1 * 2.0 * M_PI / 8000.0) * (ps->pos + x)) *
-			(0.9 * fabs(sin((pi->freq2 * 2.0 * M_PI / 8000.0) * (ps->pos + x))) + 0.1)
-			);
-		else {
-			ps->data[x] = ps->vol * (
-				sin((pi->freq1 * 2.0 * M_PI / 8000.0) * (ps->pos + x)) +
-				sin((pi->freq2 * 2.0 * M_PI / 8000.0) * (ps->pos + x))
-			);
- 		}
-OLD STUFF */
 	}
 
 	/* Assemble frame */
