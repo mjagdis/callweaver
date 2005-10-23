@@ -112,6 +112,7 @@ AC_CHECK_LIB([unicall], [main])
 AC_CHECK_LIB([vpb], [main])
 AC_CHECK_LIB([z], [main])
 AC_CHECK_LIB([srtp], [main])
+AC_CHECK_LIB([js], [main])
 
 
 AC_C_BIGENDIAN(AC_DEFINE([__BYTE_ORDER],__BIG_ENDIAN,[Big Endian]),AC_DEFINE([__BYTE_ORDER],__LITTLE_ENDIAN,[Little Endian]))
@@ -167,6 +168,82 @@ if test $profile = "yes" ; then
 	DEBUG="-g -pg"
 fi
 
+
+javascript=no
+AC_ARG_ENABLE(javascript,
+	[  --enable-javascript			Enable res_js javascript extension logic],javascript=yes,)
+if test $javascript = "yes" ; then
+	USE_RESJS="1"
+	for w in /usr/lib /usr/local/lib /usr/sfw/lib /usr/lib64; do
+	                # check for plain setups 
+	                if test -f $w/libjs.a ; then
+	                        LIBJS=$w/libjs.a
+	                        break
+	                fi
+	done
+fi
+
+AC_ARG_WITH(libjs, [ --with-libjs=PREFIX    Location of libjs so and .a files.],
+	LIBJS="$withval")
+
+AC_SUBST(libjs_location)
+
+AC_SUBST(USE_RESJS)
+AC_SUBST(LIBJS)
+
+AC_ARG_WITH(nspr-includes, [  --with-nspr-includes=PREFIX     Location of Mozilla nspr4 includes.],
+	with_nspr_includes="$withval", with_nspr_includes="/usr/include/mozilla")
+have_nspr_includes="no"
+if test "x${with_nspr_includes}" != "xno"; then
+	CPPFLAGS_save="$CPPFLAGS"
+	
+	AC_MSG_CHECKING(for Mozilla nspr4 includes in $with_nspr_includes)
+	AC_MSG_RESULT("")
+	
+	CPPFLAGS="$CPPFLAGS -I$with_nspr_includes"
+	AC_CHECK_HEADERS(nspr.h prio.h, [ moz_nspr_includes="yes" ])
+	CPPFLAGS="$CPPFLAGS_save"
+	
+	if test "x{$moz_nspr_includes}" != "xno" -a "x{$moz_nspr_includes}" != "x" ; then
+		have_nspr_includes="yes"
+		NSPR_CFLAGS="-I$with_nspr_includes"
+	fi
+else
+	AC_MSG_CHECKING(for Mozilla nspr4 includes)
+	AC_MSG_RESULT(no)
+fi
+
+AC_SUBST(NSPR_CFLAGS)
+
+
+AC_ARG_WITH(nspr-libs, [  --with-nspr-libs=PREFIX     Location of Mozilla nspr4 libs.],
+	with_nspr_libs="$withval")
+have_nspr_libs="no"
+if test "x${with_nspr_libs}" != "xno" -a "x${have_nspr_includes}" != "xno"; then
+	
+	nsprlibs="-lnspr4"
+	AC_CACHE_CHECK([for Mozilla nspr libraries], moz_nspr_libs,
+	[
+		
+		if test "x${with_nspr_libs}" != "x"; then
+			NSPR_LDFLAGS="-L$with_nspr_libs $nsprlibs"
+		else
+			NSPR_LDFLAGS="$nsprlibs"
+		fi
+		
+		AC_TRY_LINK_FUNC(PR_Init, moz_nspr_libs="yes", moz_nspr_libs="no")
+	])
+	if test "x$moz_nspr_libs" != "xno"; then
+		have_nspr_libs="yes"
+		NSPR_LDFLAGS="-L$with_nspr_libs $nsprlibs"
+	else
+		NSPR_CLFAGS=""
+	fi
+else
+	AC_MSG_CHECKING(for Mozilla nspr4 libraries)
+	AC_MSG_RESULT(no)
+fi
+AC_SUBST(NSPR_LDFLAGS)
 
 low_memory=no
 AC_ARG_ENABLE(low_memory,

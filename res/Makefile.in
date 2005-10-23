@@ -25,6 +25,25 @@ ifeq (@HAVE_PGSQL@,1)
    MLFLAGS+=-L @PGSQL_LIBDIR@
 endif
 
+ifeq (@USE_RESJS@,1)
+   MODS+=res_js.so
+   JSCFLAGS=-g -DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE
+   JSLDFLAGS=@LIBJS@
+   MOZILLA_NSPR=@NSPR_CFLAGS@ @NSPR_LDFLAGS@
+   JSEXTOBJ=$(MOZILLA_NSPR) -I.
+
+   #Detect and define CURL functions in res_js
+   CURLLIBS=$(shell curl-config --libs)
+   ifneq (${CURLLIBS},)
+      JSCFLAGS += -DHAVE_CURL $(shell curl-config --cflags)
+      JSEXTOBJ += $(CURLLIBS)
+   endif
+endif
+
+
+
+
+
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   ifneq (${OSARCH},FreeBSD)
@@ -94,6 +113,9 @@ res_jabber.o: res_jabber.c
 
 res_jabber.so: res_jabber.o
 	$(CC) $(SOLINK) -o $@ $+ `pkg-config --libs loudmouth-1.0`
+
+res_js.so: res_js.c
+	$(CC) $(SOLINK) -o $@ $+ $(JSCFLAGS) $(JSLDFLAGS) $(JSEXTOBJ) -fPIC $(INCLUDE) 
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<
