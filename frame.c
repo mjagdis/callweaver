@@ -1008,7 +1008,7 @@ int opbx_codec_choose(struct opbx_codec_pref *pref, int formats, int find_best)
    	return find_best ? opbx_best_codec(formats) : 0;
 }
 
-void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, char *list, int allowing) 
+void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const char *list, int allowing) 
 {
 	int format_i = 0;
 	char *next_format = NULL, *lopbx_format = NULL;
