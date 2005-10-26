@@ -1720,7 +1720,9 @@ static void opbx_readconfig(void) {
 	struct opbx_variable *v;
 	char *config = OPBX_CONFIG_FILE;
 
-	if (option_overrideconfig == 1) {
+	if (open_overrideconfig > 1) {
+		opbx_log(LOG_WARNING, "Multiple -C options given, and ignored");
+	} else if (option_overrideconfig == 1) {
 		cfg = opbx_config_load(opbx_config_OPBX_CONFIG_FILE);
 		if (!cfg)
 			opbx_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", opbx_config_OPBX_CONFIG_FILE);

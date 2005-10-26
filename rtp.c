@@ -62,7 +62,11 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define RTP_MTU		1200
 
-static int dtmftimeout = 3000;	/* 3000 samples */
+#define DEFAULT_RTPSTART 5000
+#define DEFAULT_RTPEND 31000
+#define DEFAULT_DTMFTIMEOUT 3000	/* 3000 samples */
+
+static int dtmftimeout = DEFAULT_DTMFTIMEOUT;
 static int rtpstart = 0;
 static int rtpend = 0;
 static int rtpdebug = 0;		/* Are we debugging? */
@@ -2157,8 +2161,11 @@ void opbx_rtp_reload(void)
 	struct opbx_config *cfg;
 	char *s;
 
-	rtpstart = 5000;
-	rtpend = 31000;
+	/* Set defaults */
+	rtpstart = DEFAULT_RTPSTART;
+	rtpend = DEFAULT_RTPEND;
+	dtmftimeout = DEFAULT_DTMFTIMEOUT;
+
 	cfg = opbx_config_load("rtp.conf");
 	if (cfg) {
 		if ((s = opbx_variable_retrieve(cfg, "general", "rtpstart"))) {
@@ -2174,6 +2181,13 @@ void opbx_rtp_reload(void)
 				rtpend = 1024;
 			if (rtpend > 65535)
 				rtpend = 65535;
+		}
+		if ((s = opbx_variable_retrieve(cfg, "general", "dtmftimeout"))) {
+			dtmftimeout = atoi(s);
+			if (dtmftimeout <= 1) {
+				opbx_log(LOG_WARNING, "Invalid dtmftimeout given: %d, using default value %d", dtmftimeout, DEFAULT_DTMFTIMEOUT);
+				dtmftimeout = DEFAULT_DTMFTIMEOUT;
+			}
 		}
 		if ((s = opbx_variable_retrieve(cfg, "general", "rtpchecksums"))) {
 #ifdef SO_NO_CHECK
