@@ -190,10 +190,10 @@ struct unicall_pvt;
 typedef struct unicall_uc_s
 {
     pthread_t master;                           /* Thread of master */
-    pthread_mutex_t lock;                       /* Mutex */
-    char idleext[OPBX_MAX_EXTENSION];            /* Where to idle extra calls */
-    char idlecontext[OPBX_MAX_EXTENSION];        /* What context to use for idle */
-    char idledial[OPBX_MAX_EXTENSION];           /* What to dial before dumping */
+    opbx_mutex_t lock;                          /* Mutex */
+    char idleext[OPBX_MAX_EXTENSION];           /* Where to idle extra calls */
+    char idlecontext[OPBX_MAX_EXTENSION];       /* What context to use for idle */
+    char idledial[OPBX_MAX_EXTENSION];          /* What to dial before dumping */
     int minunused;                              /* Min # of channels to keep empty */
     int minidle;                                /* Min # of "idling" calls to keep active */
     int nodetype;                               /* Node type */
@@ -252,7 +252,7 @@ struct unicall_subchannel
 
 static struct unicall_pvt
 {
-    pthread_mutex_t lock;
+    opbx_mutex_t lock;
     struct opbx_channel *owner;                 /* Our current active owner (if applicable) */
                                                 /* Up to three channels can be associated with this call */
         
@@ -1647,7 +1647,7 @@ static int unicall_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int 
         return -1;
     /*endif*/
     opbx_mutex_lock(&p0->lock);
-    if (pthread_mutex_trylock(&p1->lock))
+    if (opbx_mutex_trylock(&p1->lock))
     {
         /* Don't block, due to potential for deadlock */
         opbx_mutex_unlock(&p0->lock);
@@ -2072,7 +2072,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
     if (index < 0)
     {
         opbx_log(LOG_WARNING, "We don't exist?\n");
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return NULL;
     }
     /*endif*/
@@ -2102,7 +2102,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
         else
             p->subs[index].f.subclass = OPBX_CONTROL_RADIO_UNKEY;
         /*endif*/
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2119,7 +2119,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
         p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
         p->subs[index].f.subclass = OPBX_CONTROL_RINGING;
         opbx_setstate(ast, OPBX_STATE_RINGING);
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2151,7 +2151,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
         p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
         p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
         opbx_setstate(ast, OPBX_STATE_UP);
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2222,7 +2222,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
             opbx_setstate(ast, OPBX_STATE_UP);
         }
         /*endif*/
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2230,7 +2230,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
     if (p->subs[index].buffer_contents == 0)
     {
         /* Return a NULL frame */
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2245,7 +2245,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
         /* Whoops, we're still dialing, or in a state where we shouldn't transmit....
            don't send anything */
         /* Return a NULL frame */
-        pthread_mutex_unlock(&p->lock);
+        opbx_mutex_unlock(&p->lock);
         return &p->subs[index].f;
     }
     /*endif*/
@@ -2363,7 +2363,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
     }
     /*endif*/
 
-    pthread_mutex_unlock(&p->lock);
+    opbx_mutex_unlock(&p->lock);
     return f;
 }
 
@@ -4261,7 +4261,7 @@ static int setup_unicall(int reload)
     if ((set = get_supervisory_tone_set(super_tones)) == NULL)
     {
         opbx_log(LOG_ERROR, "Unable to read supervisory tone set %s\n", super_tones);
-        opbx_configu_destroy(cfg);
+        opbx_config_destroy(cfg);
         unload_module();
         return -1;
     }
