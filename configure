@@ -9109,7 +9109,7 @@ if test $ac_cv_lib_eXosip2_main = yes; then
 fi
 
 
-if test "x$chan_exosip2" != "no" && test "x$chan_exosip2" != "x" && test "x$HAVE_ORTP" == "xyes" && test "x$HAVE_OSIP2" == "xyes" && test "x$HAVE_EXOSIP2" == "xyes"; then
+if test "x$chan_exosip2" != "no" -a "x$chan_exosip2" != "x" -a "x$HAVE_ORTP" = "xyes" -a "x$HAVE_OSIP2" = "xyes" -a "x$HAVE_EXOSIP2" = "xyes" ; then
 	EXOLIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
 fi
 
@@ -9126,7 +9126,7 @@ fi
 ##### ressources
 
 #SVN Revision number For version number
-if test -n $SVN ; then
+if test -n "$SVN" ; then
 	SUBVERSION=`${SVN} info | ${GREP} Revision | awk '{ print $2 }'`
 fi
 

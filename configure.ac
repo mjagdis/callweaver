@@ -297,7 +297,7 @@ AC_CHECK_LIB(ortp, [main],[HAVE_ORTP="yes"])
 AC_CHECK_LIB(osip2,[main],[HAVE_OSIP2="yes"])
 AC_CHECK_LIB(eXosip2,[main],[HAVE_EXOSIP2="yes"])
 
-if test "x$chan_exosip2" != "no" && test "x$chan_exosip2" != "x" && test "x$HAVE_ORTP" == "xyes" && test "x$HAVE_OSIP2" == "xyes" && test "x$HAVE_EXOSIP2" == "xyes"; then
+if test "x$chan_exosip2" != "no" -a "x$chan_exosip2" != "x" -a "x$HAVE_ORTP" = "xyes" -a "x$HAVE_OSIP2" = "xyes" -a "x$HAVE_EXOSIP2" = "xyes" ; then
 	EXOLIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
 fi
 
@@ -314,7 +314,7 @@ AC_SUBST([EXOLIBS])
 ##### ressources
 
 #SVN Revision number For version number
-if test -n $SVN ; then
+if test -n "$SVN" ; then
 	SUBVERSION=`${SVN} info | ${GREP} Revision | awk '{ print $2 }'`
 fi
 
