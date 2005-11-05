@@ -21,6 +21,9 @@
  * ChanSpy Listen in on any channel.
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <unistd.h>

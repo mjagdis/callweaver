@@ -28,7 +28,7 @@
 
 #include "openpbx/inline_api.h"
 #include "openpbx/compiler.h"
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 static inline int opbx_strlen_zero(const char *s)
 {

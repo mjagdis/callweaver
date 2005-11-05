@@ -21,6 +21,9 @@
  * res_monitor.c 
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,8 +91,15 @@ static char *changemonitor_descrip = "ChangeMonitor(filename_base)\n"
 	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored\n"
 	"The argument is the new filename base to use for monitoring this channel.\n";
 
+
+/* Predeclare statics to keep GCC 4.x happy */
+static int __opbx_monitor_start( struct opbx_channel *, const char *, const char *, int);
+static int __opbx_monitor_stop(struct opbx_channel *, int);
+static int __opbx_monitor_change_fname(struct opbx_channel *, const char *, int);
+static void __opbx_monitor_setjoinfiles(struct opbx_channel *, int);
+
 /* Start monitoring a channel */
-int opbx_monitor_start(	struct opbx_channel *chan, const char *format_spec,
+static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_spec,
 		const char *fname_base, int need_lock)
 {
 	int res = 0;
@@ -159,7 +169,7 @@ int opbx_monitor_start(	struct opbx_channel *chan, const char *format_spec,
 			}
 		}
 
-		monitor->stop = opbx_monitor_stop;
+		monitor->stop = __opbx_monitor_stop;
 
 		/* Determine file format */
 		if (format_spec && !opbx_strlen_zero(format_spec)) {
@@ -210,7 +220,7 @@ int opbx_monitor_start(	struct opbx_channel *chan, const char *format_spec,
 }
 
 /* Stop monitoring a channel */
-int opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
+static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 {
 	char *execute, *execute_args;
 	int delfiles = 0;
@@ -294,7 +304,7 @@ int opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 }
 
 /* Change monitoring filename of a channel */
-int opbx_monitor_change_fname(struct opbx_channel *chan, const char *fname_base, int need_lock)
+static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fname_base, int need_lock)
 {
 	char tmp[256];
 	if ((!fname_base) || (opbx_strlen_zero(fname_base))) {
@@ -392,22 +402,22 @@ static int start_monitor_exec(struct opbx_channel *chan, void *data)
 		return 0;
 	}
 
-	res = opbx_monitor_start(chan, format, fname_base, 1);
+	res = __opbx_monitor_start(chan, format, fname_base, 1);
 	if (res < 0)
-		res = opbx_monitor_change_fname(chan, fname_base, 1);
-	opbx_monitor_setjoinfiles(chan, joinfiles);
+		res = __opbx_monitor_change_fname(chan, fname_base, 1);
+	__opbx_monitor_setjoinfiles(chan, joinfiles);
 
 	return res;
 }
 
 static int stop_monitor_exec(struct opbx_channel *chan, void *data)
 {
-	return opbx_monitor_stop(chan, 1);
+	return __opbx_monitor_stop(chan, 1);
 }
 
 static int change_monitor_exec(struct opbx_channel *chan, void *data)
 {
-	return opbx_monitor_change_fname(chan, (const char*)data, 1);
+	return __opbx_monitor_change_fname(chan, (const char*)data, 1);
 }
 
 static char start_monitor_action_help[] =
@@ -457,8 +467,8 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		if ((d=strchr(fname, '/'))) *d='-';
 	}
 	
-	if (opbx_monitor_start(c, format, fname, 1)) {
-		if (opbx_monitor_change_fname(c, fname, 1)) {
+	if (__opbx_monitor_start(c, format, fname, 1)) {
+		if (__opbx_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
 			opbx_mutex_unlock(&c->lock);
 			return 0;
@@ -466,7 +476,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	}
 
 	if (opbx_true(mix)) {
-		opbx_monitor_setjoinfiles(c, 1);
+		__opbx_monitor_setjoinfiles(c, 1);
 	}
 
 	opbx_mutex_unlock(&c->lock);
@@ -493,7 +503,7 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	res = opbx_monitor_stop(c, 1);
+	res = __opbx_monitor_stop(c, 1);
 	opbx_mutex_unlock(&c->lock);
 	if (res) {
 		astman_send_error(s, m, "Could not stop monitoring channel");
@@ -529,7 +539,7 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	if (opbx_monitor_change_fname(c, fname, 1)) {
+	if (__opbx_monitor_change_fname(c, fname, 1)) {
 		astman_send_error(s, m, "Could not change monitored filename of channel");
 		opbx_mutex_unlock(&c->lock);
 		return 0;
@@ -539,7 +549,7 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 	return 0;
 }
 
-void opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
+static void __opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
 {
 	if (chan->monitor)
 		chan->monitor->joinfiles = turnon;
@@ -553,6 +563,11 @@ int load_module(void)
 	opbx_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
 	opbx_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
 	opbx_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
+
+	opbx_monitor_start = __opbx_monitor_start;
+	opbx_monitor_stop = __opbx_monitor_stop;
+	opbx_monitor_change_fname = __opbx_monitor_change_fname;
+	opbx_monitor_setjoinfiles = __opbx_monitor_setjoinfiles;
 
 	return 0;
 }

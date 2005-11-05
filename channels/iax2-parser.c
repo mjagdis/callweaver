@@ -21,6 +21,9 @@
  * Implementation of Inter-OpenPBX eXchange
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/socket.h>

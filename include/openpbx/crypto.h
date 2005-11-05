@@ -42,14 +42,8 @@ struct opbx_key;
  *
  * Returns the key on success or NULL on failure
  */
-extern struct opbx_key *opbx_key_get(char *key, int type);
+extern struct opbx_key *(*opbx_key_get)(const char *key, int type);
 
-/*! Initialize keys (that is, retrieve pass codes for all private keys) */
-/*!
- * \param fd a file descriptor for I/O for passwords
- *
- */
-extern int opbx_key_init(int fd);
 
 /*! Check the authenticity of a message signature using a given public key */
 /*!
@@ -60,7 +54,7 @@ extern int opbx_key_init(int fd);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-extern int opbx_check_signature(struct opbx_key *key, char *msg, char *sig);
+extern int (*opbx_check_signature)(struct opbx_key *key, const char *msg, const char *sig);
 
 /*! Check the authenticity of a message signature using a given public key */
 /*!
@@ -71,7 +65,7 @@ extern int opbx_check_signature(struct opbx_key *key, char *msg, char *sig);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-extern int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *sig);
+extern int (*opbx_check_signature_bin)(struct opbx_key *key, const char *msg, int msglen, const unsigned char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -82,7 +76,7 @@ extern int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen,
  * Returns 0 on success or -1 on failure.
  *
  */
-extern int opbx_sign(struct opbx_key *key, char *msg, char *sig);
+extern int (*opbx_sign)(struct opbx_key *key, char *msg, char *sig);
 /*!
  * \param key a private key to use to create the signature
  * \param msg the message to sign
@@ -92,7 +86,7 @@ extern int opbx_sign(struct opbx_key *key, char *msg, char *sig);
  * Returns 0 on success or -1 on failure.
  *
  */
-extern int opbx_sign_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *sig);
+extern int (*opbx_sign_bin)(struct opbx_key *key, const char *msg, int msglen, unsigned char *sig);
 
 /*!
  * \param key a private key to use to encrypt
@@ -104,7 +98,7 @@ extern int opbx_sign_bin(struct opbx_key *key, char *msg, int msglen, unsigned c
  * Returns length of encrypted data on success or -1 on failure.
  *
  */
-extern int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key);
+extern int (*opbx_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key);
 
 /*!
  * \param key a private key to use to decrypt
@@ -116,7 +110,7 @@ extern int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int sr
  * Returns length of decrypted data on success or -1 on failure.
  *
  */
-extern int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key);
+extern int (*opbx_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

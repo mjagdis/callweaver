@@ -21,6 +21,9 @@
  * Applictions connected with CDR engine
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 #include <stdlib.h>

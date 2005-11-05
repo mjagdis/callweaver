@@ -21,6 +21,9 @@
  * Zaptel Pseudo TDM interface 
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -76,7 +79,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/tdd.h"
 #include "openpbx/app.h"
 #include "openpbx/dsp.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/manager.h"
 #include "openpbx/causes.h"
 #include "openpbx/term.h"
@@ -9281,16 +9284,16 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 		char output[1024];
 		char tmp[16], tmp2[64];
 		snprintf(tmp, sizeof(tmp), "r%d: ", i + 1);
-		term_color(output, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(output));
+		opbx_term_color(output, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(output));
 
 		for (j=0;j<16;j++) {
 			if (cadences[i].ringcadence[j] == 0)
 				break;
 			snprintf(tmp, sizeof(tmp), "%d", cadences[i].ringcadence[j]);
 			if (cidrings[i] * 2 - 1 == j)
-				term_color(tmp2, tmp, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp2) - 1);
+				opbx_term_color(tmp2, tmp, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp2) - 1);
 			else
-				term_color(tmp2, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(tmp2) - 1);
+				opbx_term_color(tmp2, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(tmp2) - 1);
 			if (j != 0)
 				strncat(output, ",", sizeof(output) - strlen(output) - 1);
 			strncat(output, tmp2, sizeof(output) - strlen(output) - 1);

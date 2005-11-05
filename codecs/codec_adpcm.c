@@ -25,6 +25,9 @@
  * codec_adpcm.c - translate between signed linear and Dialogic ADPCM
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <fcntl.h>
 #include <netinet/in.h>

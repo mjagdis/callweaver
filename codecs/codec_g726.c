@@ -25,6 +25,9 @@
  * codec_g726.c - translate between signed linear and ITU G.726-32kbps
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <fcntl.h>
 #include <netinet/in.h>

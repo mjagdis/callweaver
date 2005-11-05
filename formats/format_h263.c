@@ -21,6 +21,9 @@
  * Save to raw, headerless h263 data.
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <unistd.h>
 #include <netinet/in.h>
@@ -41,7 +44,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 /* Some Ideas for this code came from makeh263e.c by Jeffrey Chilton */
 

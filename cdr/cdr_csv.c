@@ -23,6 +23,9 @@
  * Comma Separated Value CDR records.
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 

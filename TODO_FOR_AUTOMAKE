@@ -1,0 +1,17 @@
+Installation structure
+
+Fix libilbc so it compiles correctly and has no unresolved symbols
+
+Do we want res_noise ?
+
+Get rid of the rest of penguinista stuff
+
+Clean up the libltdl stuff and add full error handler to module handling
+
+Add confgure.ac/Makefile.am stuff for:
+
+1. ENABLE_SRTP
+2. app_rxfax
+3. app_txfax
+4. chan_unicall
+5. chan_fax

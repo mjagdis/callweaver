@@ -23,7 +23,7 @@
 
 #ifndef _OPENPBX_LOCALTIME_H
 #define _OPENPBX_LOCALTIME_H
-
+#include "confdefs.h"
 extern int opbx_tzsetwall(void);
 extern void opbx_tzset(const char *name);
 extern struct tm *opbx_localtime(const time_t *timep, struct tm *p_tm, const char *zone);

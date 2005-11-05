@@ -21,6 +21,9 @@
  * Provide a directory of extensions
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <string.h>
 #include <ctype.h>

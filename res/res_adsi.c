@@ -23,6 +23,9 @@
  * ADSI support 
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <time.h>
 #include <string.h>
@@ -65,6 +68,13 @@ static int aligns[ADSI_MAX_INTRO];
 static char speeddial[ADSI_MAX_SPEED_DIAL][3][20];
 
 static int alignment = 0;
+
+/* Predeclare all statics to make GCC 4.x happy */
+static int __adsi_transmit_message_full(struct opbx_channel *, unsigned char *, int, int, int);
+static int __adsi_download_connect(unsigned char *, char *,  unsigned char *, unsigned char *, int);
+static int __adsi_data_mode(unsigned char *);
+static int __adsi_voice_mode(unsigned char *, int);
+static int __adsi_download_disconnect(unsigned char *);
 
 static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, int codec)
 {
@@ -316,7 +326,7 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	
 }
 
-int adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
+static int __adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -324,8 +334,8 @@ int adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char 
 	bytes = 0;
 	/* Setup the resident soft key stuff, a piece at a time */
 	/* Upload what scripts we can for voicemail ahead of time */
-	bytes += adsi_download_connect(buf + bytes, service, fdn, sec, version);
-	if (adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
+	bytes += __adsi_download_connect(buf + bytes, service, fdn, sec, version);
+	if (__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
 		return -1;
 	if (opbx_readstring(chan, ack, 1, 10000, 10000, ""))
 		return -1;
@@ -335,20 +345,20 @@ int adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char 
 	return -1;
 }
 
-int adsi_end_download(struct opbx_channel *chan)
+static int __adsi_end_download(struct opbx_channel *chan)
 {
 	int bytes;
 	unsigned char buf[256];
         bytes = 0;
         /* Setup the resident soft key stuff, a piece at a time */
         /* Upload what scripts we can for voicemail ahead of time */
-        bytes += adsi_download_disconnect(buf + bytes);
-	if (adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
+        bytes += __adsi_download_disconnect(buf + bytes);
+	if (__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
 		return -1;
 	return 0;
 }
 
-int adsi_transmit_message_full(struct opbx_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
+static int __adsi_transmit_message_full(struct opbx_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
 {
 	unsigned char *msgs[5] = { NULL, NULL, NULL, NULL, NULL };
 	int msglens[5];
@@ -422,9 +432,9 @@ int adsi_transmit_message_full(struct opbx_channel *chan, unsigned char *msg, in
 	return res;
 }
 
-int adsi_transmit_message(struct opbx_channel *chan, unsigned char *msg, int msglen, int msgtype)
+static int __adsi_transmit_message(struct opbx_channel *chan, unsigned char *msg, int msglen, int msgtype)
 {
-	return adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
+	return __adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
 }
 
 static inline int ccopy(unsigned char *dst, unsigned char *src, int max)
@@ -438,7 +448,7 @@ static inline int ccopy(unsigned char *dst, unsigned char *src, int max)
 	return x;
 }
 
-int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data)
+static int __adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data)
 {
 	int bytes=0;
 
@@ -477,7 +487,7 @@ int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, 
 	
 }
 
-int adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
+static int __adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
 {
 	int bytes=0;
 	int x;
@@ -500,7 +510,7 @@ int adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
 
 }
 
-int adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn, unsigned char *sec, int ver)
+static int __adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn, unsigned char *sec, int ver)
 {
 	int bytes=0;
 	int x;
@@ -530,7 +540,7 @@ int adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn
 
 }
 
-int adsi_disconnect_session(unsigned char *buf)
+static int __adsi_disconnect_session(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -545,7 +555,7 @@ int adsi_disconnect_session(unsigned char *buf)
 
 }
 
-int adsi_query_cpeid(unsigned char *buf)
+static int __adsi_query_cpeid(unsigned char *buf)
 {
 	int bytes = 0;
 	buf[bytes++] = ADSI_QUERY_CPEID;
@@ -555,7 +565,7 @@ int adsi_query_cpeid(unsigned char *buf)
 	return bytes;
 }
 
-int adsi_query_cpeinfo(unsigned char *buf)
+static int __adsi_query_cpeinfo(unsigned char *buf)
 {
 	int bytes = 0;
 	buf[bytes++] = ADSI_QUERY_CONFIG;
@@ -565,7 +575,7 @@ int adsi_query_cpeinfo(unsigned char *buf)
 	return bytes;
 }
 
-int adsi_read_encoded_dtmf(struct opbx_channel *chan, unsigned char *buf, int maxlen)
+static int __adsi_read_encoded_dtmf(struct opbx_channel *chan, unsigned char *buf, int maxlen)
 {
 	int bytes = 0;
 	int res;
@@ -600,21 +610,21 @@ int adsi_read_encoded_dtmf(struct opbx_channel *chan, unsigned char *buf, int ma
 	return bytes;
 }
 
-int adsi_get_cpeid(struct opbx_channel *chan, unsigned char *cpeid, int voice)
+static int __adsi_get_cpeid(struct opbx_channel *chan, unsigned char *cpeid, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
 	int res;
-	bytes += adsi_data_mode(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += __adsi_data_mode(buf);
+	__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	bytes = 0;
-	bytes += adsi_query_cpeid(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += __adsi_query_cpeid(buf);
+	__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	/* Get response */
 	memset(buf, 0, sizeof(buf));
-	res = adsi_read_encoded_dtmf(chan, cpeid, 4);
+	res = __adsi_read_encoded_dtmf(chan, cpeid, 4);
 	if (res != 4) {
 		opbx_log(LOG_WARNING, "Got %d bytes back of encoded DTMF, expecting 4\n", res);
 		res = 0;
@@ -624,25 +634,25 @@ int adsi_get_cpeid(struct opbx_channel *chan, unsigned char *cpeid, int voice)
 
 	if (voice) {
 		bytes = 0;
-		bytes += adsi_voice_mode(buf, 0);
-		adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+		bytes += __adsi_voice_mode(buf, 0);
+		__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
 		opbx_waitfordigit(chan, 1000);
 	}
 	return res;
 }
 
-int adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height, int *buttons, int voice)
+static int __adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height, int *buttons, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
 	int res;
-	bytes += adsi_data_mode(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += __adsi_data_mode(buf);
+	__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	bytes = 0;
-	bytes += adsi_query_cpeinfo(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += __adsi_query_cpeinfo(buf);
+	__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	/* Get width */
 	memset(buf, 0, sizeof(buf));
@@ -689,15 +699,15 @@ int adsi_get_cpeinfo(struct opbx_channel *chan, int *width, int *height, int *bu
 	}
 	if (voice) {
 		bytes = 0;
-		bytes += adsi_voice_mode(buf, 0);
-		adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+		bytes += __adsi_voice_mode(buf, 0);
+		__adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
 		opbx_waitfordigit(chan, 1000);
 	}
 	return res;
 }
 
-int adsi_data_mode(unsigned char *buf)
+static int __adsi_data_mode(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -712,7 +722,7 @@ int adsi_data_mode(unsigned char *buf)
 
 }
 
-int adsi_clear_soft_keys(unsigned char *buf)
+static int __adsi_clear_soft_keys(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -727,7 +737,7 @@ int adsi_clear_soft_keys(unsigned char *buf)
 
 }
 
-int adsi_clear_screen(unsigned char *buf)
+static int __adsi_clear_screen(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -742,7 +752,7 @@ int adsi_clear_screen(unsigned char *buf)
 
 }
 
-int adsi_voice_mode(unsigned char *buf, int when)
+static int __adsi_voice_mode(unsigned char *buf, int when)
 {
 	int bytes=0;
 
@@ -759,7 +769,7 @@ int adsi_voice_mode(unsigned char *buf, int when)
 
 }
 
-int adsi_available(struct opbx_channel *chan)
+static int __adsi_available(struct opbx_channel *chan)
 {
 	int cpe = chan->adsicpe & 0xff;
 	if ((cpe == OPBX_ADSI_AVAILABLE) ||
@@ -768,7 +778,7 @@ int adsi_available(struct opbx_channel *chan)
 	return 0;
 }
 
-int adsi_download_disconnect(unsigned char *buf)
+static int __adsi_download_disconnect(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -783,7 +793,7 @@ int adsi_download_disconnect(unsigned char *buf)
 
 }
 
-int adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
+static int __adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
 		 char *col1, char *col2)
 {
 	int bytes=0;
@@ -829,7 +839,7 @@ int adsi_display(unsigned char *buf, int page, int line, int just, int wrap,
 
 }
 
-int adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just)
+static int __adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just)
 {
 	int bytes=0;
 
@@ -852,7 +862,7 @@ int adsi_input_control(unsigned char *buf, int page, int line, int display, int 
 
 }
 
-int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
+static int __adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
 {
 	int bytes = 0;
 
@@ -871,7 +881,7 @@ int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *form
 	return bytes;
 }
 
-int adsi_set_keys(unsigned char *buf, unsigned char *keys)
+static int __adsi_set_keys(unsigned char *buf, unsigned char *keys)
 {
 	int bytes=0;
 	int x;
@@ -886,7 +896,7 @@ int adsi_set_keys(unsigned char *buf, unsigned char *keys)
 	return bytes;
 }
 
-int adsi_set_line(unsigned char *buf, int page, int line)
+static int __adsi_set_line(unsigned char *buf, int page, int line)
 {
 	int bytes=0;
 
@@ -917,7 +927,7 @@ int adsi_set_line(unsigned char *buf, int page, int line)
 static int total = 0;
 static int speeds = 0;
 
-int adsi_channel_restore(struct opbx_channel *chan)
+static int __adsi_channel_restore(struct opbx_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -928,7 +938,7 @@ int adsi_channel_restore(struct opbx_channel *chan)
 
 	/* Start with initial display setup */
 	bytes = 0;
-	bytes += adsi_set_line(dsp + bytes, ADSI_INFO_PAGE, 1);
+	bytes += __adsi_set_line(dsp + bytes, ADSI_INFO_PAGE, 1);
 
 	/* Prepare key setup messages */
 
@@ -937,26 +947,26 @@ int adsi_channel_restore(struct opbx_channel *chan)
 		for (x=0;x<speeds;x++) {
 			keyd[x] = ADSI_SPEED_DIAL + x;
 		}
-		bytes += adsi_set_keys(dsp + bytes, keyd);
+		bytes += __adsi_set_keys(dsp + bytes, keyd);
 	}
-	adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0);
+	__adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0);
 	return 0;
 
 }
 
-int adsi_print(struct opbx_channel *chan, char **lines, int *aligns, int voice)
+static int __adsi_print(struct opbx_channel *chan, char **lines, int *aligns, int voice)
 {
 	unsigned char buf[4096];
 	int bytes=0;
 	int res;
 	int x;
 	for(x=0;lines[x];x++) 
-		bytes += adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x], 0, lines[x], "");
-	bytes += adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
+		bytes += __adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x], 0, lines[x], "");
+	bytes += __adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
 	if (voice) {
-		bytes += adsi_voice_mode(buf + bytes, 0);
+		bytes += __adsi_voice_mode(buf + bytes, 0);
 	}
-	res = adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	res = __adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 	if (voice) {
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
 		opbx_waitfordigit(chan, 1000);
@@ -964,7 +974,7 @@ int adsi_print(struct opbx_channel *chan, char **lines, int *aligns, int voice)
 	return res;
 }
 
-int adsi_load_session(struct opbx_channel *chan, unsigned char *app, int ver, int data)
+static int __adsi_load_session(struct opbx_channel *chan, unsigned char *app, int ver, int data)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -975,13 +985,13 @@ int adsi_load_session(struct opbx_channel *chan, unsigned char *app, int ver, in
 
 	/* Connect to session */
 	bytes = 0;
-	bytes += adsi_connect_session(dsp + bytes, app, ver);
+	bytes += __adsi_connect_session(dsp + bytes, app, ver);
 
 	if (data)
-		bytes += adsi_data_mode(dsp + bytes);
+		bytes += __adsi_data_mode(dsp + bytes);
 
 	/* Prepare key setup messages */
-	if (adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
+	if (__adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
 		return -1;
 	if (app) {
 		res = opbx_readstring(chan, resp, 1, 1200, 1200, "");
@@ -1005,7 +1015,7 @@ int adsi_load_session(struct opbx_channel *chan, unsigned char *app, int ver, in
 
 }
 
-int adsi_unload_session(struct opbx_channel *chan)
+static int __adsi_unload_session(struct opbx_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -1014,11 +1024,11 @@ int adsi_unload_session(struct opbx_channel *chan)
 
 	/* Connect to session */
 	bytes = 0;
-	bytes += adsi_disconnect_session(dsp + bytes);
-	bytes += adsi_voice_mode(dsp + bytes, 0);
+	bytes += __adsi_disconnect_session(dsp + bytes);
+	bytes += __adsi_voice_mode(dsp + bytes, 0);
 
 	/* Prepare key setup messages */
-	if (adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
+	if (__adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
 		return -1;
 	return 0;
 }
@@ -1115,6 +1125,35 @@ int reload(void)
 int load_module(void)
 {
 	adsi_load();
+	adsi_begin_download = __adsi_begin_download;
+	adsi_end_download = __adsi_end_download;
+	adsi_channel_restore = __adsi_channel_restore;
+	adsi_print = __adsi_print;
+	adsi_load_session = __adsi_load_session;
+	adsi_unload_session = __adsi_unload_session;
+	adsi_transmit_messages = __adsi_transmit_messages;
+	adsi_transmit_message = __adsi_transmit_message;
+	adsi_transmit_message_full = __adsi_transmit_message_full;
+	adsi_read_encoded_dtmf = __adsi_read_encoded_dtmf;
+	adsi_connect_session = __adsi_connect_session;
+	adsi_query_cpeid = __adsi_query_cpeid;
+	adsi_query_cpeinfo = __adsi_query_cpeinfo;
+	adsi_get_cpeid = __adsi_get_cpeid;
+	adsi_get_cpeinfo = __adsi_get_cpeinfo;
+	adsi_download_connect = __adsi_download_connect;
+	adsi_disconnect_session = __adsi_disconnect_session;
+	adsi_download_disconnect = __adsi_download_disconnect;
+	adsi_data_mode = __adsi_data_mode;
+	adsi_clear_soft_keys = __adsi_clear_soft_keys;
+	adsi_clear_screen = __adsi_clear_screen;
+	adsi_voice_mode = __adsi_voice_mode;
+	adsi_available = __adsi_available;
+	adsi_display = __adsi_display;
+	adsi_set_line = __adsi_set_line;
+	adsi_load_soft_key = __adsi_load_soft_key;
+	adsi_set_keys = __adsi_set_keys;
+	adsi_input_control = __adsi_input_control;
+	adsi_input_format = __adsi_input_format;
 	return 0;
 }
 

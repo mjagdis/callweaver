@@ -1,5 +1,8 @@
 /* Generate a header file for a particular 
    single or double frequency */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <math.h>

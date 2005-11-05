@@ -68,7 +68,6 @@ int gExitCode = 0;
 JSBool gQuitting = JS_FALSE;
 FILE *gErrFile = NULL;
 FILE *gOutFile = NULL;
-extern JSClass global_class;
 
 static
 JSClass global_class = {

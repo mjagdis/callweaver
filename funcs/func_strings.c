@@ -38,6 +38,14 @@
 #include "openpbx/app.h"
 #include "openpbx/localtime.h"
 
+/* Maximum length of any variable */
+#define MAXRESULT	1024
+
+struct sortable_keys {
+	char *key;
+	float value;
+};
+
 static char *function_fieldqty(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *varname, *varval, workspace[256];
@@ -217,3 +225,213 @@ struct opbx_custom_function eval_function = {
 	.read = function_eval,
 };
 
+static char *function_cut(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *s, *varname=NULL, *delimiter=NULL, *field=NULL;
+	int args_okay = 0;
+
+	memset(buf, 0, len);
+
+	/* Check and parse arguments */
+	if (data) {
+		s = opbx_strdupa((char *)data);
+		if (s) {
+			varname = strsep(&s, "|");
+			if (varname && (varname[0] != '\0')) {
+				delimiter = strsep(&s, "|");
+				if (delimiter) {
+					field = strsep(&s, "|");
+					if (field) {
+						args_okay = 1;
+					}
+				}
+			}
+		} else {
+			opbx_log(LOG_ERROR, "Out of memory\n");
+			return buf;
+		}
+	}
+
+	if (args_okay) {
+		char d, ds[2];
+		char *tmp = alloca(strlen(varname) + 4);
+		char varvalue[MAXRESULT], *tmp2=varvalue;
+
+		if (tmp) {
+			snprintf(tmp, strlen(varname) + 4, "${%s}", varname);
+			memset(varvalue, 0, sizeof(varvalue));
+		} else {
+			opbx_log(LOG_ERROR, "Out of memory\n");
+			return buf;
+		}
+
+		if (delimiter[0])
+			d = delimiter[0];
+		else
+			d = '-';
+
+		/* String form of the delimiter, for use with strsep(3) */
+		snprintf(ds, sizeof(ds), "%c", d);
+
+		pbx_substitute_variables_helper(chan, tmp, tmp2, MAXRESULT - 1);
+
+		if (tmp2) {
+			int curfieldnum = 1;
+			while ((tmp2 != NULL) && (field != NULL)) {
+				char *nextgroup = strsep(&field, "&");
+				int num1 = 0, num2 = MAXRESULT;
+				char trashchar;
+
+				if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
+					/* range with both start and end */
+				} else if (sscanf(nextgroup, "-%d", &num2) == 1) {
+					/* range with end */
+					num1 = 0;
+				} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
+					/* range with start */
+					num2 = MAXRESULT;
+				} else if (sscanf(nextgroup, "%d", &num1) == 1) {
+					/* single number */
+					num2 = num1;
+				} else {
+					opbx_log(LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
+					return buf;
+				}
+
+				/* Get to start, if any */
+				if (num1 > 0) {
+					while ((tmp2 != (char *)NULL + 1) && (curfieldnum < num1)) {
+						tmp2 = index(tmp2, d) + 1;
+						curfieldnum++;
+					}
+				}
+
+				/* Most frequent problem is the expectation of reordering fields */
+				if ((num1 > 0) && (curfieldnum > num1)) {
+					opbx_log(LOG_WARNING, "We're already past the field you wanted?\n");
+				}
+
+				/* Re-null tmp2 if we added 1 to NULL */
+				if (tmp2 == (char *)NULL + 1)
+					tmp2 = NULL;
+
+				/* Output fields until we either run out of fields or num2 is reached */
+				while ((tmp2 != NULL) && (curfieldnum <= num2)) {
+					char *tmp3 = strsep(&tmp2, ds);
+					int curlen = strlen(buf);
+
+					if (curlen) {
+						snprintf(buf + curlen, len - curlen, "%c%s", d, tmp3);
+					} else {
+						snprintf(buf, len, "%s", tmp3);
+					}
+
+					curfieldnum++;
+				}
+			}
+		}
+	}
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct opbx_custom_function cut_function = {
+	.name = "CUT",
+	.synopsis = "Slices and dices strings, based upon a named delimiter.",
+	.syntax = "CUT(<varname>,<char-delim>,<range-spec>)",
+	.desc = "  varname    - variable you want cut\n"
+		"  char-delim - defaults to '-'\n"
+		"  range-spec - number of the field you want (1-based offset)\n"
+		"             may also be specified as a range (with -)\n"
+		"             or group of ranges and fields (with &)\n",
+	.read = function_cut,
+};
+
+static int sort_subroutine(const void *arg1, const void *arg2)
+{
+	const struct sortable_keys *one=arg1, *two=arg2;
+	if (one->value < two->value) {
+		return -1;
+	} else if (one->value == two->value) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+static char *function_sort(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *strings, *ptrkey, *ptrvalue;
+	int count=1, count2, element_count=0;
+	struct sortable_keys *sortable_keys;
+
+	memset(buf, 0, len);
+
+	if (!data) {
+		opbx_log(LOG_ERROR, "SORT() requires an argument\n");
+		return buf;
+	}
+
+	strings = opbx_strdupa((char *)data);
+	if (!strings) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		return buf;
+	}
+
+	for (ptrkey = strings; *ptrkey; ptrkey++) {
+		if (*ptrkey == '|') {
+			count++;
+		}
+	}
+
+	sortable_keys = alloca(count * sizeof(struct sortable_keys));
+	if (!sortable_keys) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		return buf;
+	}
+
+	memset(sortable_keys, 0, count * sizeof(struct sortable_keys));
+
+	/* Parse each into a struct */
+	count2 = 0;
+	while ((ptrkey = strsep(&strings, "|"))) {
+		ptrvalue = index(ptrkey, ':');
+		if (!ptrvalue) {
+			count--;
+			continue;
+		}
+		*ptrvalue = '\0';
+		ptrvalue++;
+		sortable_keys[count2].key = ptrkey;
+		sscanf(ptrvalue, "%f", &sortable_keys[count2].value);
+		count2++;
+	}
+
+	/* Sort the structs */
+	qsort(sortable_keys, count, sizeof(struct sortable_keys), sort_subroutine);
+
+	for (count2 = 0; count2 < count; count2++) {
+		int blen = strlen(buf);
+		if (element_count++) {
+			strncat(buf + blen, ",", len - blen - 1);
+		}
+		strncat(buf + blen + 1, sortable_keys[count2].key, len - blen - 2);
+	}
+
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct opbx_custom_function sort_function = {
+	.name= "SORT",
+	.synopsis = "Sorts a list of key/vals into a list of keys, based upon the vals",
+	.syntax = "SORT(key1:val1[...][,keyN:valN])",
+	.desc = "Takes a comma-separated list of keys and values, each separated by a colon, and returns a\n"
+		"comma-separated list of the keys, sorted by their values.  Values will be evaluated as\n"
+		"floating-point numbers.\n",
+	.read = function_sort,
+};

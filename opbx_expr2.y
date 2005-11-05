@@ -11,7 +11,7 @@
  *
  * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
-
+#include "confdefs.h"
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,7 +32,7 @@
 #include <limits.h>
 #include "openpbx/opbx_expr.h"
 #include "openpbx/logger.h"
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 #ifdef LONG_LONG_MIN
 #define QUAD_MIN LONG_LONG_MIN

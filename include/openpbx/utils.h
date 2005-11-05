@@ -23,7 +23,7 @@
 #ifndef _OPENPBX_UTILS_H
 #define _OPENPBX_UTILS_H
 
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */

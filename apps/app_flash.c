@@ -21,6 +21,9 @@
  * App to flash a zap trunk
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <string.h>
 #include <errno.h>

@@ -21,6 +21,9 @@
  * IAX Provisioning Protocol 
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include "openpbx.h"
 
@@ -33,7 +36,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/frame.h"
 #include "openpbx/options.h"
 #include "openpbx/md5.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>

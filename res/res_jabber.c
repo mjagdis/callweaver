@@ -10,21 +10,25 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/manager.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <loudmouth/loudmouth.h>
 #include <assert.h>
 //#define PATCHED_MANAGER
+
+#include "openpbx/file.h"
+#include "openpbx/logger.h"
+#include "openpbx/channel.h"
+#include "openpbx/pbx.h"
+#include "openpbx/module.h"
+#include "openpbx/manager.h"
+#include "openpbx/musiconhold.h"
+#include "openpbx/lock.h"
 
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
 

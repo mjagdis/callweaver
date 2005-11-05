@@ -25,6 +25,9 @@
  * Translate between signed linear and G.723.1
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #define TYPE_HIGH	 0x0
 #define TYPE_LOW	 0x1

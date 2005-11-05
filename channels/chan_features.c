@@ -23,6 +23,9 @@
  * *** Experimental code ****
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>

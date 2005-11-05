@@ -12,10 +12,7 @@
 #include <string.h>
 #include <sys/select.h>
 
-#ifdef FIX_ME
-#include <openpbx/compat.h>
-#endif
-
+#include <openpbx.h>
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 
 static int read_environment(void)

@@ -21,6 +21,9 @@
  * JPEG File format support.
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -43,7 +46,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/image.h"
 #include "openpbx/lock.h"
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
 

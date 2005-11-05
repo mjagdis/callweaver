@@ -53,19 +53,21 @@ extern "C" {
 #define COLOR_WHITE     37
 #define COLOR_BRWHITE   37 | 128
 
-extern char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout);
+extern int opbx_term_init(void);
 
-extern char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout);
+extern char *opbx_term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout);
 
-extern char *term_strip(char *outbuf, char *inbuf, int maxout);
+extern char *opbx_term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout);
 
-extern char *term_prompt(char *outbuf, const char *inbuf, int maxout);
+extern char *opbx_term_strip(char *outbuf, char *inbuf, int maxout);
 
-extern char *term_prep(void);
+extern char *opbx_term_prompt(char *outbuf, const char *inbuf, int maxout);
 
-extern char *term_end(void);
+extern char *opbx_term_prep(void);
 
-extern char *term_quit(void);
+extern char *opbx_term_end(void);
+
+extern char *opbx_term_quit(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

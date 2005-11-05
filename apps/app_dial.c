@@ -21,6 +21,9 @@
  * Trivial application to dial a channel and send an URL on answer
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <errno.h>

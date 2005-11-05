@@ -23,6 +23,9 @@
  * Translate between signed linear and Internet Low Bitrate Codec
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -41,8 +44,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/channel.h"
 
-#include "ilbc/iLBC_encode.h"
-#include "ilbc/iLBC_decode.h"
+#include "iLBC_encode.h"
+#include "iLBC_decode.h"
 
 /* Sample frame data */
 #include "slin_ilbc_ex.h"

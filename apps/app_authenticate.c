@@ -21,6 +21,9 @@
  * Execute arbitrary authenticate commands
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -39,7 +42,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/pbx.h"
 #include "openpbx/module.h"
 #include "openpbx/app.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/utils.h"
 
 static char *tdesc = "Authentication Application";

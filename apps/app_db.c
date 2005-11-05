@@ -23,6 +23,9 @@
  * Database access functions
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -39,7 +42,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/module.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/lock.h"
 
 static char *tdesc = "Database access functions for OpenPBX extension logic";

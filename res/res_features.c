@@ -22,9 +22,12 @@
  * Routines implementing call parking
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
-#include <pthread.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -156,16 +159,28 @@ OPBX_MUTEX_DEFINE_STATIC(parking_lock);
 
 static pthread_t parking_thread;
 
+/* Predeclare all statics to keep GCC 4.x happy */
+static char *__opbx_parking_ext(void);
+static void *__opbx_bridge_call_thread(void *);
+static void __opbx_bridge_call_thread_launch(void *);
+static int __opbx_park_call(struct opbx_channel *, struct opbx_channel *, int, int *);
+static int __opbx_masq_park_call(struct opbx_channel *, struct opbx_channel *, int, int *);
+static void __opbx_register_feature(struct opbx_call_feature *);
+static void __opbx_unregister_feature(struct opbx_call_feature *);
+static void __opbx_unregister_features(void);
+static int __opbx_bridge_call(struct opbx_channel *,struct opbx_channel *,struct opbx_bridge_config *);
+
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-char *opbx_parking_ext(void)
+static char *__opbx_parking_ext(void)
 {
 	return parking_ext;
 }
 
-char *opbx_pickup_ext(void)
+char *__opbx_pickup_ext(void)
 {
 	return pickup_ext;
 }
@@ -214,7 +229,7 @@ static void check_goto_on_transfer(struct opbx_channel *chan)
 static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name);
 
 
-static void *opbx_bridge_call_thread(void *data) 
+static void *__opbx_bridge_call_thread(void *data) 
 {
 	struct opbx_bridge_thread_obj *tobj = data;
 	tobj->chan->appl = "Transferred Call";
@@ -231,7 +246,7 @@ static void *opbx_bridge_call_thread(void *data)
 	}
 
 
-	opbx_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
+	__opbx_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 	opbx_hangup(tobj->chan);
 	opbx_hangup(tobj->peer);
 	tobj->chan = tobj->peer = NULL;
@@ -240,7 +255,7 @@ static void *opbx_bridge_call_thread(void *data)
 	return NULL;
 }
 
-static void opbx_bridge_call_thread_launch(void *data) 
+static void __opbx_bridge_call_thread_launch(void *data) 
 {
 	pthread_t thread;
 	pthread_attr_t attr;
@@ -249,7 +264,7 @@ static void opbx_bridge_call_thread_launch(void *data)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr,opbx_bridge_call_thread, data);
+	result = opbx_pthread_create(&thread, &attr,__opbx_bridge_call_thread, data);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -274,7 +289,7 @@ static int adsi_announce_park(struct opbx_channel *chan, int parkingnum)
 /*--- opbx_park_call: Park a call */
 /* We put the user in the parking list, then wake up the parking thread to be sure it looks
 	   after these channels too */
-int opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer, int timeout, int *extout)
+static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer, int timeout, int *extout)
 {
 	struct parkeduser *pu, *cur;
 	int i,x,parking_range;
@@ -397,7 +412,7 @@ int opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer, int tim
 	return 0;
 }
 
-int opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *peer, int timeout, int *extout)
+static int __opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *peer, int timeout, int *extout)
 {
 	struct opbx_channel *chan;
 	struct opbx_frame *f;
@@ -422,7 +437,7 @@ int opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *peer, i
 		f = opbx_read(chan);
 		if (f)
 			opbx_frfree(f);
-		opbx_park_call(chan, peer, timeout, extout);
+		__opbx_park_call(chan, peer, timeout, extout);
 	} else {
 		opbx_log(LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
@@ -592,14 +607,14 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 		opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
 		return res;
 	}
-	if (!strcmp(newext, opbx_parking_ext())) {
+	if (!strcmp(newext, __opbx_parking_ext())) {
 		opbx_moh_stop(transferee);
 
 		res = opbx_autoservice_stop(transferee);
 		opbx_indicate(transferee, OPBX_CONTROL_UNHOLD);
 		if (res)
 			res = -1;
-		else if (!opbx_park_call(transferee, transferer, 0, NULL)) {
+		else if (!__opbx_park_call(transferee, transferer, 0, NULL)) {
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
@@ -732,7 +747,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 				memset(&bconfig,0,sizeof(struct opbx_bridge_config));
 				opbx_set_flag(&(bconfig.features_caller), OPBX_FEATURE_DISCONNECT);
 				opbx_set_flag(&(bconfig.features_callee), OPBX_FEATURE_DISCONNECT);
-				res = opbx_bridge_call(transferer,newchan,&bconfig);
+				res = __opbx_bridge_call(transferer,newchan,&bconfig);
 				if (newchan->_softhangup || newchan->_state != OPBX_STATE_UP || !transferer->_softhangup) {
 					opbx_hangup(newchan);
 					if (f) {
@@ -808,7 +823,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 							opbx_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
-					opbx_bridge_call_thread_launch(tobj);
+					__opbx_bridge_call_thread_launch(tobj);
 				} else {
 					opbx_log(LOG_WARNING, "Out of memory!\n");
 					opbx_hangup(xferchan);
@@ -868,7 +883,7 @@ struct opbx_call_feature builtin_features[] =
 static OPBX_LIST_HEAD(feature_list,opbx_call_feature) feature_list;
 
 /* register new feature into feature_list*/
-void opbx_register_feature(struct opbx_call_feature *feature)
+static void __opbx_register_feature(struct opbx_call_feature *feature)
 {
 	if (!feature) {
 		opbx_log(LOG_NOTICE,"You didn't pass a feature!\n");
@@ -884,7 +899,7 @@ void opbx_register_feature(struct opbx_call_feature *feature)
 }
 
 /* unregister feature from feature_list */
-void opbx_unregister_feature(struct opbx_call_feature *feature)
+static void __opbx_unregister_feature(struct opbx_call_feature *feature)
 {
 	if (!feature) return;
 
@@ -894,7 +909,7 @@ void opbx_unregister_feature(struct opbx_call_feature *feature)
 	free(feature);
 }
 
-static void opbx_unregister_features(void)
+static void __opbx_unregister_features(void)
 {
 	struct opbx_call_feature *feature;
 
@@ -1245,7 +1260,7 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 	return chan;
 }
 
-int opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *peer,struct opbx_bridge_config *config)
+static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *peer,struct opbx_bridge_config *config)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
@@ -1664,7 +1679,7 @@ static int park_call_exec(struct opbx_channel *chan, void *data)
 	if (!res)
 		res = opbx_safe_sleep(chan, 1000);
 	if (!res)
-		res = opbx_park_call(chan, chan, 0, NULL);
+		res = __opbx_park_call(chan, chan, 0, NULL);
 	LOCAL_USER_REMOVE(u);
 	if (!res)
 		res = OPBX_PBX_KEEPALIVE;
@@ -1763,7 +1778,7 @@ static int park_exec(struct opbx_channel *chan, void *data)
 		config.play_warning = 0;
 		config.warning_freq = 0;
 		config.warning_sound=NULL;
-		res = opbx_bridge_call(chan, peer, &config);
+		res = __opbx_bridge_call(chan, peer, &config);
 
 		/* Simulate the PBX hanging up */
 		if (res != OPBX_PBX_NO_HANGUP_PEER)
@@ -1796,7 +1811,7 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	opbx_cli(fd, format, "Builtin Feature", "Default", "Current");
 	opbx_cli(fd, format, "---------------", "-------", "-------");
 
-	opbx_cli(fd, format, "Pickup", "*8", opbx_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
+	opbx_cli(fd, format, "Pickup", "*8", __opbx_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
 
 	fcount = sizeof(builtin_features) / sizeof(builtin_features[0]);
 
@@ -1905,7 +1920,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 }
 
 
-int opbx_pickup_call(struct opbx_channel *chan)
+int __opbx_pickup_call(struct opbx_channel *chan)
 {
 	struct opbx_channel *cur = NULL;
 	int res = -1;
@@ -2012,7 +2027,7 @@ static int load_config(void)
 		}
 
 		/* Map a key combination to an application*/
-		opbx_unregister_features();
+		__opbx_unregister_features();
 		var = opbx_variable_browse(cfg, "applicationmap");
 		while(var) {
 			char *tmp_val=strdup(var->value);
@@ -2075,7 +2090,7 @@ static int load_config(void)
 					continue;
 				}
 
-				opbx_register_feature(feature);
+				__opbx_register_feature(feature);
 				
 				if (option_verbose >=1) opbx_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
 			}
@@ -2086,7 +2101,7 @@ static int load_config(void)
 
 	
 	if (con)
-		opbx_context_remove_extension2(con, opbx_parking_ext(), 1, registrar);
+		opbx_context_remove_extension2(con, __opbx_parking_ext(), 1, registrar);
 	
 	if (!(con = opbx_context_find(parking_con))) {
 		if (!(con = opbx_context_create(NULL, parking_con, registrar))) {
@@ -2094,7 +2109,7 @@ static int load_config(void)
 			return -1;
 		}
 	}
-	return opbx_add_extension2(con, 1, opbx_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
+	return opbx_add_extension2(con, 1, __opbx_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
 }
 
 int reload(void) {
@@ -2118,6 +2133,16 @@ int load_module(void)
 	if (!res) {
 		opbx_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
 	}
+	/* Install our functions into stubs */
+	opbx_park_call = __opbx_park_call;
+	opbx_masq_park_call = __opbx_masq_park_call;
+	opbx_parking_ext = __opbx_parking_ext;
+	opbx_pickup_ext = __opbx_pickup_ext;
+	opbx_bridge_call = __opbx_bridge_call;
+	opbx_pickup_call = __opbx_pickup_call;
+	opbx_register_feature = __opbx_register_feature;
+	opbx_unregister_feature = __opbx_unregister_feature;
+
 	return res;
 }
 

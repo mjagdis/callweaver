@@ -24,6 +24,9 @@
  * Translate between signed linear and Global System for Mobile Communications (GSM)
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -44,7 +47,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/channel.h"
 
-#include "gsm/inc/gsm.h"
+#include "gsm.h"
 #include "../formats/msgsm.h"
 
 /* Sample frame data */

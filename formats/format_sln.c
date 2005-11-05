@@ -20,6 +20,9 @@
  * RAW SLINEAR Format
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <unistd.h>
 #include <netinet/in.h>
@@ -40,7 +43,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 #define BUF_SIZE 320		/* 320 samples */
 

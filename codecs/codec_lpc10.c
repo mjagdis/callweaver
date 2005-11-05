@@ -25,6 +25,9 @@
  * Translate between signed linear and LPC10 (Linear Predictor Code)
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -45,7 +48,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/channel.h"
 
-#include "lpc10/lpc10.h"
+#include "lpc10.h"
 
 /* Sample frame data */
 #include "slin_lpc10_ex.h"

@@ -3,7 +3,7 @@
 ; Global settings for call queues
 ;
 ; Persistent Members
-;    Store each dynamic agent in each queue in the astdb so that
+;    Store each dynamic agent in each queue in the opbxdb so that
 ;    when openpbx is restarted, each agent will be automatically
 ;    readded into their recorded queues. Default is 'yes'.
 ;

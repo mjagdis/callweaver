@@ -21,6 +21,9 @@
  * Program OpenPBX ADSI Scripts into phone
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 #include <netinet/in.h>

@@ -24,6 +24,9 @@
  * @brief This file is the implementation of Agents modules.
  * It is a dynamic module that is loaded by OpenPBX. At load time, load_module is run.
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -62,7 +65,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/features.h"
 #include "openpbx/utils.h"
 #include "openpbx/causes.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/devicestate.h"
 
 static const char desc[] = "Agent Proxy Channel";
@@ -138,7 +141,7 @@ static char moh[80] = "default";
 #define OPBX_MAX_BUF	256
 #define OPBX_MAX_FILENAME_LEN	256
 
-/** Persistent Agents astdb family */
+/** Persistent Agents opbxdb family */
 static const char pa_family[] = "/Agents";
 /** The maximum lengh of each persistent member agent database entry */
 #define PA_MAX_LEN 2048
@@ -2308,7 +2311,7 @@ static void dump_agents(void)
 }
 
 /**
- * Reload the persistent agents from astdb.
+ * Reload the persistent agents from opbxdb.
  */
 static void reload_agents(void)
 {

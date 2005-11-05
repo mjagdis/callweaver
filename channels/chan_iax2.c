@@ -21,7 +21,11 @@
  * Implementation of Inter-Asterisk eXchange Version 2
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
+#include <stdlib.h>
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -45,7 +49,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/manager.h"
 #include "openpbx/callerid.h"
 #include "openpbx/app.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/musiconhold.h"
 #include "openpbx/features.h"
 #include "openpbx/utils.h"
@@ -66,7 +70,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <signal.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -93,7 +96,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define NEWJB
 
 #ifdef NEWJB
-#include "../jitterbuf.h"
+#include "jitterbuf.h"
 #endif
 
 #ifndef IPTOS_MINCOST

@@ -21,6 +21,9 @@
  * OpenPBX Gateway Interface
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 #include <netdb.h>
@@ -48,7 +51,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/module.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/callerid.h"
 #include "openpbx/cli.h"
 #include "openpbx/logger.h"

@@ -30,6 +30,9 @@
 #define FEATURE_SNAME_LEN	32
 #define FEATURE_EXTEN_LEN	32
 
+#include "openpbx/channel.h"
+#include "openpbx/config.h"
+
 /* main call feature structure */
 struct opbx_call_feature {
 	int feature_mask;
@@ -56,7 +59,7 @@ struct opbx_call_feature {
 	\param timeout is a timeout in milliseconds
 	\param extout is a parameter to an int that will hold the parked location, or NULL if you want
 */
-extern int opbx_park_call(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout);
+extern int (*opbx_park_call)(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout);
 /*! Park a call via a masqueraded channel */
 /*! \param rchan the real channel to be parked
     \param host the channel to have the parking read to
@@ -65,28 +68,28 @@ extern int opbx_park_call(struct opbx_channel *chan, struct opbx_channel *host, 
 	\param timeout is a timeout in milliseconds
 	\param extout is a parameter to an int that will hold the parked location, or NULL if you want
 */
-extern int opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel *host, int timeout, int *extout);
+extern int (*opbx_masq_park_call)(struct opbx_channel *rchan, struct opbx_channel *host, int timeout, int *extout);
 
 /*! Determine system parking extension */
 /*! Returns the call parking extension for drivers that provide special
     call parking help */
-extern char *opbx_parking_ext(void);
-extern char *opbx_pickup_ext(void);
+extern char *(*opbx_parking_ext)(void);
+extern char *(*opbx_pickup_ext)(void);
 
 /*! Bridge a call, optionally allowing redirection */
 
-extern int opbx_bridge_call(struct opbx_channel *chan, struct opbx_channel *peer,struct opbx_bridge_config *config);
+extern int (*opbx_bridge_call)(struct opbx_channel *chan, struct opbx_channel *peer,struct opbx_bridge_config *config);
 
-extern int opbx_pickup_call(struct opbx_channel *chan);
+extern int (*opbx_pickup_call)(struct opbx_channel *chan);
 
 /*! register new feature into feature_set 
    \param feature an opbx_call_feature object which contains a keysequence
    and a callback function which is called when this keysequence is pressed
    during a call. */
-extern void opbx_register_feature(struct opbx_call_feature *feature);
+extern void (*opbx_register_feature)(struct opbx_call_feature *feature);
 
 /*! unregister feature from feature_set
     \param feature the opbx_call_feature object which was registered before*/
-extern void opbx_unregister_feature(struct opbx_call_feature *feature);
+extern void (*opbx_unregister_feature)(struct opbx_call_feature *feature);
 
 #endif /* _OPBX_FEATURES_H */

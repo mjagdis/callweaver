@@ -24,6 +24,9 @@
  * Translate between signed linear and Speex (Open Codec)
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <fcntl.h>
 #include <stdlib.h>

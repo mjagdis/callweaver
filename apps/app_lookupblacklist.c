@@ -21,6 +21,9 @@
  * App to lookup the callerid number, and see if it is blacklisted
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -39,7 +42,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/translate.h"
 #include "openpbx/image.h"
 #include "openpbx/callerid.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 
 static char *tdesc = "Look up Caller*ID name/number from blacklist database";
 

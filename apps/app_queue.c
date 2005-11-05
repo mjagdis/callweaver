@@ -25,7 +25,7 @@
  *             NetNation Communications (www.netnation.com)
  *             Kevin Lindsay <kevinl@netnation.com>
  * 
- *             Each dynamic agent in each queue is now stored in the astdb.
+ *             Each dynamic agent in each queue is now stored in the opbxdb.
  *             When openpbx is restarted, each agent will be automatically
  *             readded into their recorded queues. This feature can be
  *             configured with the 'persistent_members=<1|0>' setting in the
@@ -52,6 +52,9 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <errno.h>
@@ -84,7 +87,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/monitor.h"
 #include "openpbx/utils.h"
 #include "openpbx/causes.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/devicestate.h"
 
 #define QUEUE_STRATEGY_RINGALL		0
@@ -192,7 +195,7 @@ static char *app_upqm_descrip =
 "same way, except it unpauses instead of pausing the given interface.\n"
 "Example: UnpauseQueueMember(|SIP/3000)\n";
 
-/* Persistent Members astdb family */
+/* Persistent Members opbxdb family */
 static const char *pm_family = "/Queue/PersistentMembers";
 /* The maximum lengh of each persistent member queue database entry */
 #define PM_MAX_LEN 2048
@@ -2446,7 +2449,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 		return RESULT_FAILURE;
 }
 
-/* Reload dynamic queue members persisted into the astdb */
+/* Reload dynamic queue members persisted into the opbxdb */
 static void reload_queue_members(void)
 {
 	char *cur_ptr;	

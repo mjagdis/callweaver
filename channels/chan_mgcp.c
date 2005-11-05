@@ -63,6 +63,9 @@
 /* FS: Changes
    -- fixed reload_config() / do_monitor to stay responsive during reloads
 */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -81,6 +84,8 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <ctype.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include "openpbx.h"
 
@@ -102,7 +107,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/say.h"
 #include "openpbx/cdr.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/features.h"
 #include "openpbx/app.h"
 #include "openpbx/musiconhold.h"

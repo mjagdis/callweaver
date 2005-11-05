@@ -10,6 +10,9 @@
  * under the terms and conditions of the GNU General Public License.
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -60,7 +63,7 @@
 #include "chan_visdn.h"
 //#include "echo.h"
 
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 #define FRAME_SIZE 160
 

@@ -25,7 +25,7 @@
 #ifndef _OPENPBX_LOGGER_H
 #define _OPENPBX_LOGGER_H
 
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 #include <stdarg.h>
 

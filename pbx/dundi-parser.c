@@ -21,6 +21,9 @@
  * Distributed Universal Number Discovery (DUNDi)
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/socket.h>

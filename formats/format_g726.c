@@ -21,6 +21,9 @@
  * Headerless G.726 (16/24/32/40kbps) data format for OpenPBX.
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <unistd.h>
 #include <netinet/in.h>
@@ -42,7 +45,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
-#include "openpbx/confdefs.h"
+#include "confdefs.h"
 
 #define	RATE_32		1
 

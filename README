@@ -38,15 +38,9 @@ ANY special hardware, not even a soundcard) to install and run OpenPBX.
 
 	* All Wildcard (tm) products from Digium (www.digium.com)
 	* Sangoma A101,A102 and A104 E1/T1/PRI interfaces (www.sangoma.com)
-	* VoiceTronix OpenLine products (www.voicetronix.com)
-	* QuickNet Internet PhoneJack and LineJack (www.quicknet.net)
 	* Tormenta Dual T1 card (www.bsdtelephony.com.mx)
-	* Full Duplex Sound Cards supported by Linux
-	* Adtran Atlas 800 Plus
-	* ISDN4Linux compatible ISDN cards
+	* capi4linux compatible ISDN cards
 	* HFC chipset based ISDN-BRI PCI cards
-
-Hint: CAPI compatible ISDN cards can be run using the add-on channel chan_capi.
 
   Second, ensure that your system contains a compatible compiler and development
 libraries.  OpenPBX requires either the GNU Compiler Collection (GCC) version

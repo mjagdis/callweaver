@@ -21,6 +21,9 @@
  * Playback the special information tone to get rid of telemarketers
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <string.h>
 #include <stdlib.h>

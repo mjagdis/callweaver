@@ -44,16 +44,16 @@ struct opbx_channel_monitor
 };
 
 /* Start monitoring a channel */
-int opbx_monitor_start(	struct opbx_channel *chan, const char *format_spec,
+extern int (*opbx_monitor_start)(	struct opbx_channel *chan, const char *format_spec,
 						const char *fname_base, int need_lock );
 
 /* Stop monitoring a channel */
-int opbx_monitor_stop( struct opbx_channel *chan, int need_lock);
+extern int (*opbx_monitor_stop)( struct opbx_channel *chan, int need_lock);
 
 /* Change monitoring filename of a channel */
-int opbx_monitor_change_fname(	struct opbx_channel *chan,
+extern int (*opbx_monitor_change_fname)(	struct opbx_channel *chan,
 								const char *fname_base, int need_lock );
 
-void opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon);
+extern void (*opbx_monitor_setjoinfiles)(struct opbx_channel *chan, int turnon);
 
 #endif /* _OPENPBX_MONITOR_H */

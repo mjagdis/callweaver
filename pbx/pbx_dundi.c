@@ -21,6 +21,9 @@
  * Distributed Universal Number Discovery (DUNDi)
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -64,7 +67,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/io.h"
 #include "openpbx/utils.h"
 #include "openpbx/crypto.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 #include "openpbx/acl.h"
 #include "openpbx/aes.h"
 

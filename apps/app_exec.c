@@ -20,6 +20,9 @@
  * Exec application
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -21,6 +21,9 @@
  * Provide Cryptographic Signature capability
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <sys/types.h>
 #include <openssl/ssl.h>
@@ -97,6 +100,14 @@ struct opbx_key {
 
 static struct opbx_key *keys = NULL;
 
+/* Predeclare statics to keep GCC 4.x happy */
+static struct opbx_key *__opbx_key_get(const char *, int);
+static int __opbx_sign_bin(struct opbx_key *, const char *, int, unsigned char *);
+static int __opbx_decrypt_bin(unsigned char *, const unsigned char *, int, struct opbx_key *);
+static int __opbx_encrypt_bin(unsigned char *, const unsigned char *, int, struct opbx_key *);
+static int __opbx_sign(struct opbx_key *, char *, char *);
+static int __opbx_check_signature_bin(struct opbx_key *, const char *, int , const unsigned char *);
+static int __opbx_check_signature(struct opbx_key *, const char *, const char *);
 
 #if 0
 static int fdprint(int fd, char *s)
@@ -129,7 +140,7 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 	return -1;
 }
 
-struct opbx_key *opbx_key_get(char *kname, int ktype)
+static struct opbx_key *__opbx_key_get(const char *kname, int ktype)
 {
 	struct opbx_key *key;
 	opbx_mutex_lock(&keylock);
@@ -314,7 +325,7 @@ static char *binary(int y, int len)
 
 #endif
 
-int opbx_sign_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *dsig)
+static int __opbx_sign_bin(struct opbx_key *key, const char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
 	unsigned int siglen = 128;
@@ -345,7 +356,7 @@ int opbx_sign_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *ds
 	
 }
 
-extern int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
+static int __opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
 {
 	int res;
 	int pos = 0;
@@ -371,7 +382,7 @@ extern int opbx_decrypt_bin(unsigned char *dst, const unsigned char *src, int sr
 	return pos;
 }
 
-extern int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
+static int __opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct opbx_key *key)
 {
 	int res;
 	int bytes;
@@ -399,12 +410,12 @@ extern int opbx_encrypt_bin(unsigned char *dst, const unsigned char *src, int sr
 	return pos;
 }
 
-int opbx_sign(struct opbx_key *key, char *msg, char *sig)
+static int __opbx_sign(struct opbx_key *key, char *msg, char *sig)
 {
 	unsigned char dsig[128];
 	int siglen = sizeof(dsig);
 	int res;
-	res = opbx_sign_bin(key, msg, strlen(msg), dsig);
+	res = __opbx_sign_bin(key, msg, strlen(msg), dsig);
 	if (!res)
 		/* Success -- encode (256 bytes max as documented) */
 		opbx_base64encode(sig, dsig, siglen, 256);
@@ -412,7 +423,7 @@ int opbx_sign(struct opbx_key *key, char *msg, char *sig)
 	
 }
 
-int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen, unsigned char *dsig)
+static int __opbx_check_signature_bin(struct opbx_key *key, const char *msg, int msglen, const unsigned char *dsig)
 {
 	unsigned char digest[20];
 	int res;
@@ -428,7 +439,7 @@ int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen, unsign
 	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
-	res = RSA_verify(NID_sha1, digest, sizeof(digest), dsig, 128, key->rsa);
+	res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *) dsig, 128, key->rsa);
 	
 	if (!res) {
 		opbx_log(LOG_DEBUG, "Key failed verification: %s\n", key->name);
@@ -438,7 +449,7 @@ int opbx_check_signature_bin(struct opbx_key *key, char *msg, int msglen, unsign
 	return 0;
 }
 
-int opbx_check_signature(struct opbx_key *key, char *msg, char *sig)
+static int __opbx_check_signature(struct opbx_key *key, const char *msg, const char *sig)
 {
 	unsigned char dsig[128];
 	int res;
@@ -449,7 +460,7 @@ int opbx_check_signature(struct opbx_key *key, char *msg, char *sig)
 		opbx_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
-	res = opbx_check_signature_bin(key, msg, strlen(msg), dsig);
+	res = __opbx_check_signature_bin(key, msg, strlen(msg), dsig);
 	return res;
 }
 
@@ -571,6 +582,15 @@ static int crypto_init(void)
 	ERR_load_crypto_strings();
 	opbx_cli_register(&cli_show_keys);
 	opbx_cli_register(&cli_init_keys);
+
+	/* Install ourselves into stubs */
+	opbx_key_get = __opbx_key_get;
+	opbx_check_signature = __opbx_check_signature;
+	opbx_check_signature_bin = __opbx_check_signature_bin;
+	opbx_sign = __opbx_sign;
+	opbx_sign_bin = __opbx_sign_bin;
+	opbx_encrypt_bin = __opbx_encrypt_bin;
+	opbx_decrypt_bin = __opbx_decrypt_bin;
 	return 0;
 }
 

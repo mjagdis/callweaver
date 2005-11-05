@@ -19,6 +19,9 @@
  * Caller ID related dialplan functions
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <string.h>

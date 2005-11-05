@@ -1,6 +1,6 @@
 [general]
 ;
-; Define whether callbacklogins should be stored in astdb for
+; Define whether callbacklogins should be stored in opbxdb for
 ; persistence. Persistent logins will be reloaded after
 ; OpenPBX restarts.
 ;

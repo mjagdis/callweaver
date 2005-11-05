@@ -22,6 +22,9 @@
  * 
  * Load the country specific dialtones into the openpbx PBX.
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
  
 #include <unistd.h>
 #include <string.h>

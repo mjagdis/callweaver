@@ -1,0 +1,22 @@
+AUTOMAKE_OPTS = gnu
+opbxmod_LTLIBRARIES	= pbx_functions.la func_uri.la func_callerid.la func_fileexists.la # func_enum_la
+
+pbx_functions_la_SOURCES	= pbx_functions.c pbx_functions.h
+pbx_functions_la_LDFLAGS             = -module -avoid-version -no-undefined
+pbx_functions_la_CFLAGS              = $(AM_CFLAGS)
+pbx_functions_la_LIBADD		= ${top_srcdir}/corelib/libopenpbx.la
+func_uri_la_SOURCES		= func_uri.c
+func_uri_la_LDFLAGS		= -module -avoid-version -no-undefined
+func_uri_la_CFLAGS		= $(AM_CFLAGS)
+func_uri_la_LIBADD		= ${top_srcdir}/corelib/libopenpbx.la
+# func_enum_la_SOURCES		= func_enum.c
+# func_enum_la_LDFLAGS             = -module -avoid-version -no-undefined
+# func_enum_la_CFLAGS              = $(AM_CFLAGS)
+func_callerid_la_SOURCES	= func_callerid.c
+func_callerid_la_LDFLAGS	= -module -avoid-version -no-undefined
+func_callerid_la_CFLAGS		= $(AM_CFLAGS)
+func_callerid_la_LIBADD		= ${top_srcdir}/corelib/libopenpbx.la
+func_fileexists_la_SOURCES	= func_fileexists.c
+func_fileexists_la_LDFLAGS	= -module -avoid-version -no-undefined
+func_fileexists_la_CFLAGS	= $(AM_CFLAGS)
+func_fileexists_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la

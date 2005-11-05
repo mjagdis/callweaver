@@ -14,6 +14,10 @@
 #ifndef _FAXMODEM_H
 #define _FAXMODEM_H
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <pty.h>

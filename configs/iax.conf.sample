@@ -340,7 +340,7 @@ inkeys=freeworlddialup
 ;auth=md5,plaintext,rsa
 ;secret=markpasswd
 ;setvar=foo=bar
-;dbsecret=mysecrets/place	; Secrets can be stored in astdb, too
+;dbsecret=mysecrets/place	; Secrets can be stored in opbxdb, too
 ;notransfer=yes		; Disable IAX native transfer
 ;jitterbuffer=yes	; Override global setting an enable jitter buffer
 ;			; for this user
