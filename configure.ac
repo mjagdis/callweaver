@@ -688,21 +688,21 @@ AM_CONDITIONAL([WANT_OSP],[test -n "${TRANSNEXUS_OSP}"])
 
 #res_jabber
 dnl Loudmouth/Jabber library detection :)
-PKG_CHECK_MODULES([LOUDMOUTH],loudmouth-1.0 >= 1.0.0,[AC_DEFINE([HAVE_LOUDMOUTH],1,[yessss jabber support yes yes yes])],[echo "loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built"])
+PKG_CHECK_MODULES([LOUDMOUTH],
+	[loudmouth-1.0 >= 1.0.0],
+	[HAVE_LOUDMOUTH=1],
+	[AC_MSG_WARN([loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built])])
 
 dnl Selector for jabber support
-AC_ARG_ENABLE(jabber_support,
-	[AC_HELP_STRING([--enable-jabber_support],[enable jabber support. Will enable res_jabber and is automatically selected if --with-app_icd is selected])],
-[   AC_MSG_RESULT(yes) 
-    if test "x$HAVE_LOUDMOUTH" = "xyes"
-    then
-	WANT_JABBER=yes
-    fi],
-[    AC_MSG_RESULT(no)
-])
+AC_ARG_ENABLE(jabber,
+	[AC_HELP_STRING([--enable-jabber],[enable jabber support. Will enable res_jabber and is automatically selected if --with-app_icd is selected])],,
+	[enable_jabber_support="no"])
 
+AC_ARG_WITH([res_jabber],
+	[AC_HELP_STRING([--with-res_jabber],[Enable the building of res_jabber (default=no)])],,
+	[with_res_jabber="no"])
 
-AM_CONDITIONAL([WANT_JABBER],[test -n "${WANT_JABBER}"])
+AM_CONDITIONAL([WANT_RES_JABBER],[test "${enable_jabber}" = "yes" -a "${with_res_jabber}" = "yes" -a -n "${HAVE_LOUDMOUTH}"])
 
 # res_sqlite
 dnl Sqlite ressource module

@@ -47,13 +47,13 @@ res_sqlite_la_LIBADD	= @SQLITE3_THREADSAFE_LIBS@ ${top_srcdir}/corelib/libopenpb
 res_sqlite_la_CFLAGS	= $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@
 endif WANT_RES_SQLITE3
 
-if WANT_JABBER
+if WANT_RES_JABBER
 opbxmod_LTLIBRARIES   	+= res_jabber.la
 res_jabber_la_SOURCES 	= res_jabber.c
 res_jabber_la_LDFLAGS  	= -module -avoid-version -no-undefined
 res_jabber_la_CFLAGS   	= $(AM_CFLAGS) @LOUDMOUTH_CFLAGS@
 res_jabber_la_LIBADD   	= @LOUDMOUTH_LIBS@ ${top_srcdir}/corelib/libopenpbx.la  
-endif WANT_JABBER
+endif WANT_RES_JABBER
 
 if WANT_RES_CONFIG_PGSQL
 opbxmod_LTLIBRARIES     	+= res_config_pgsql.la
