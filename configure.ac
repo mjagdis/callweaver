@@ -751,7 +751,7 @@ AM_CONDITIONAL([WANT_RES_CONFIG_PGSQL],[test -n "${WANT_RES_CONFIG_PGSQL}"])
 
 #res_odbc
 AC_ARG_ENABLE(res_odbc,
-	[  --enable-res_odbc	build res_odbc (default=no)],
+	[AC_HELP_STRING([--enable-res_odbc],[build res_odbc (default=no)])],
 [   AC_MSG_RESULT(yes)
     if test -n "${HAVE_LIBODBC}"
     then
@@ -766,7 +766,7 @@ AM_CONDITIONAL([WANT_RES_ODBC],[test -n "${WANT_RES_ODBC}"])
 
 dnl Selector for res_odbc support
 AC_ARG_ENABLE(res_config_odbc,
-        [  --enable-res_config_odbc        build res_config_odbc (default=no)],
+        [AC_HELP_STRING([--enable-res_config_odbc],[build res_config_odbc (default=no)])],
 [   AC_MSG_RESULT(yes)
     if test -n  "${HAVE_LIBODBC}"
     then
@@ -792,15 +792,12 @@ AC_DEFUN([MYSQL_LIB_CHK],
 
 AC_MSG_CHECKING(for MySQL)
 AC_ARG_WITH(mysql,
-	[  --with-mysql[[=DIR]]         Normally, configure will scan all possible default
-                             installation paths for mysql. When it fails use
-                             this command to tell configure where mysql
-                             installation root directory is.],,[with_mysql="no"])
+	[AC_HELP_STRING([--with-mysql=DIR],[Normally, configure will scan all possible default installation paths for mysql. When it fails use this command to tell configure where MySQL installation root directory is.])],,[with_mysql="no"])
 AC_ARG_WITH(mysql-includes,
-	[  --with-mysql-includes=[[DIR]]  Location of MySQL includes],,[with_mysql_includes=""])
+	[AC_HELP_STRING([--with-mysql-includes=DIR],[Location of MySQL includes])],,[with_mysql_includes=""])
 
 AC_ARG_WITH(mysql-libs,
-	[  --with-mysql-libs=[[DIR]]      Location of MySQL libraries],,[with_mysql_libs=""])
+	[AC_HELP_STRING([--with-mysql-libs=DIR],[Location of MySQL libraries],,[with_mysql_libs=""])])
 
 locations="/usr /usr/local /opt /usr/sfw"
 
@@ -884,7 +881,7 @@ fi
 AC_CHECK_LIB([unicall],[main],[AC_DEFINE([HAVE_LIBUNICALL],["yes"],[yes we have unicall])])
 
 AC_ARG_ENABLE(chan_unicall,
-	[ --enable-chan_unicall ],
+	[AC_HELP_STRING([--enable-chan_unicall],[Build and install chan_unicall.])],
 [ AC_MSG_RESULT(yes)
   if test -n "${HAVE_LIBUNICALL}"
   then
@@ -899,7 +896,7 @@ AM_CONDITIONAL([WANT_CHAN_UNICALL],[test -n "${WANT_CHAN_UNICALL}"])
 
 
 AC_ARG_ENABLE(javascript,
-        [AC_HELP_STRING([--enable-javascript],[Enable res_js javascript extension logic (default=no)])],,
+        [AC_HELP_STRING([--enable-javascript],[Enable the use of javascript (default=no)])],,
 	[enable_javascript="no"])
 
 if test "${enable_javascript}" = "yes"; then
@@ -959,7 +956,7 @@ AM_CONDITIONAL([HAVE_CAPI], [test "${WANT_CHAN_CAPI}" = "yes"])
  # udpfromto.c checks
  #
  AC_ARG_ENABLE(udpfromto,
-       [  --enable-udpfromto                  Enable extended UDP support for multi-homed systems],
+       [AC_HELP_STRING([--enable-udpfromto],[Enable extended UDP support for multi-homed systems])],
        [enable_udpfromto="${enableval}"],
        [enable_udpfromto="no"])
  
