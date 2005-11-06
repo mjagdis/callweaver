@@ -173,7 +173,7 @@ if test -z "${opbxconfdir}"; then
 	   opbxconfdir='${sysconfdir}/openpbx.org'
 	   ;;
         fhs)
-           opbxconfdir='/etc%{prefix}'
+           opbxconfdir='/etc${prefix}'
    esac
 fi
 AC_SUBST([opbxconfdir])
@@ -192,7 +192,7 @@ if test -z "${opbxlibdir}"; then
 	   opbxlibdir='${libdir}/openpbx.org'
 	   ;;
         fhs)
-           opbxlibdir='%{libdir}'
+           opbxlibdir='${libdir}'
            ;;
    esac
 fi
@@ -212,7 +212,7 @@ if test -z "${opbxvardir}"; then
 	   opbxvardir='${localstatedir}/lib/openpbx.org'
 	   ;;
         fhs)
-           opbxvardir='/var%{prefix}'
+           opbxvardir='/var${prefix}'
            ;;
    esac
 fi
