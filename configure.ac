@@ -606,24 +606,31 @@ AM_CONDITIONAL([WANT_VISDN],[test -n "${WANT_VISDN}"])
 
 
 dnl EXOSIP2 based SIP channel
-AC_ARG_ENABLE(chan_exosip2,
-	[AC_HELP_STRING([--enable-chan_exosip2],[use chan_exosip2, an alternative SIP channel driver based on exosip (default=no)])],
-[   AC_MSG_RESULT(yes)
-    AC_CHECK_LIB(ortp, [main],[HAVE_ORTP="yes"])
-    AC_CHECK_LIB(osip2,[main],[HAVE_OSIP2="yes"])
-    AC_CHECK_LIB(eXosip2,[main],[HAVE_EXOSIP2="yes"])
+AC_ARG_WITH(chan_exosip2,
+	[AC_HELP_STRING([--with-chan_exosip2],[use chan_exosip2, an alternative SIP channel driver based on exosip (default=no)])],,[with_chan_exosip2="no"])
 
-    if test "x$HAVE_ORTP" = "xyes" && test "x$HAVE_OSIP2" = "xyes" && \
-       test "x$HAVE_EXOSIP2" = "xyes"
-    then
-	EXOLIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
-    fi],
-[   AC_MSG_RESULT(no)
-])
+if test "${with_chan_exosip2}" = "yes"; then
+   PKG_CHECK_MODULES([GLIB2],
+	[glib-2.0],
+	[HAVE_GLIB2="yes"])
+   AC_CHECK_LIB(ortp,[main],[HAVE_ORTP="yes"])
+   AC_CHECK_LIB(osip2,[main],[HAVE_OSIP2="yes"])
+   AC_CHECK_LIB(eXosip2,[main],[HAVE_EXOSIP2="yes"])
 
-AM_CONDITIONAL([CHAN_EXOSIP2],[test -n "${EXOLIBS}"])
+   if test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}" -a -n "${HAVE_EXOSIP2}"; then
+      CHAN_EXOSIP2_CFLAGS=""
+      CHAN_EXOSIP2_LIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
+      if test -n "${HAVE_GLIB2}"; then
+         CHAN_EXOSIP2_CFLAGS="${CHAN_EXOSIP2_CFLAGS} ${GLIB2_CFLAGS}"
+	 CHAN_EXOSIP2_LIBS="${CHAN_EXOSIP2_LIBS} ${GLIB2_LIBS}"
+      fi
+   fi
+fi
 
-AC_SUBST([EXOLIBS])
+AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}" -a -n "${HAVE_EXOSIP2}"])
+
+AC_SUBST([CHAN_EXOSIP2_CFLAGS])
+AC_SUBST([CHAN_EXOSIP2_LIBS])
 
 ####### apps
 
@@ -687,19 +694,22 @@ AC_SUBST(OSP_CFLAGS)
 AM_CONDITIONAL([WANT_OSP],[test -n "${TRANSNEXUS_OSP}"])
 
 #res_jabber
-dnl Loudmouth/Jabber library detection :)
-PKG_CHECK_MODULES([LOUDMOUTH],
-	[loudmouth-1.0 >= 1.0.0],
-	[HAVE_LOUDMOUTH=1],
-	[AC_MSG_WARN([loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built])])
 
 dnl Selector for jabber support
 AC_ARG_ENABLE(jabber,
-	[AC_HELP_STRING([--enable-jabber],[enable jabber support. Will enable res_jabber and is automatically selected if --with-app_icd is selected])],,
+	[AC_HELP_STRING([--enable-jabber],[Enable jabber support.])],,
 	[enable_jabber_support="no"])
 
+dnl Loudmouth/Jabber library detection :)
+if test "${enable_jabber_support}" = "yes"; then
+   PKG_CHECK_MODULES([LOUDMOUTH],
+	[loudmouth-1.0 >= 1.0.0],
+	[HAVE_LOUDMOUTH=1],
+	[AC_MSG_WARN([loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built])])
+fi
+
 AC_ARG_WITH([res_jabber],
-	[AC_HELP_STRING([--with-res_jabber],[Enable the building of res_jabber (default=no)])],,
+	[AC_HELP_STRING([--with-res_jabber],[Build and install res_jabber (default=no)])],,
 	[with_res_jabber="no"])
 
 AM_CONDITIONAL([WANT_RES_JABBER],[test "${enable_jabber}" = "yes" -a "${with_res_jabber}" = "yes" -a -n "${HAVE_LOUDMOUTH}"])
@@ -721,18 +731,10 @@ AC_SUBST([SQLITE3_THREADSAFE_CFLAGS])
  
 
 dnl Selector for res_sqlite support
-AC_ARG_ENABLE(res_sqlite,
-        [AC_HELP_STRING([--enable-res_sqlite],[enable res_sqlite, will build our own version of libsqlite3.a if system does not contain threadsafe version of sqlite3 (default=no)])],[with_res_sqlite="yes"],[with_res_sqlite="no"])
+AC_ARG_WITH(res_sqlite,
+        [AC_HELP_STRING([--with-res_sqlite],[Build and install res_sqlite (default=no)])],,[with_res_sqlite="no"])
 
-if test "x$with_res_sqlite" != "xno" && \
-   test -n "${SQLITE3_THREADSAFE_LIBS}"
-then
-        WANT_RES_SQLITE3=yes
-fi
-
-AM_CONDITIONAL([WANT_RES_SQLITE3],[test -n "${WANT_RES_SQLITE3}"])
-
-AC_SUBST([WANT_RES_SQLITE3])    
+AM_CONDITIONAL([WANT_RES_SQLITE],[test -n "${want_res_sqlite}"])
 
 #postgresql -- first need to check if it is there and than can check for if someone wants res_config_pgsql and cdr_pgsql
 CT_CHECK_POSTGRES_DB

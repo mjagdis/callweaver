@@ -39,6 +39,12 @@
 #include <pthread.h>
 #include <malloc.h>
 #include <errno.h>
+
+#ifdef HAVE_CONFIG_H
+#undef HAVE_CONFIG_H
+#define HAVE_CONFIG_H_UNDEF
+#endif
+
 #include <eXosip2/eXosip.h>
 #include <ortp/ortp.h>
 #include <ortp/telephonyevents.h>
@@ -54,7 +60,13 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
+#ifdef HAVE_CONFIG_H_UNDEF
+#define HAVE_CONFIG_H
+#endif
+
 #include "openpbx.h"
+
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/channels/chan_sip.c $", "$Revision: 822 $")
 
 #include "openpbx/lock.h"
 #include "openpbx/channel.h"

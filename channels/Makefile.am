@@ -21,18 +21,19 @@ chan_agent_la_SOURCES		= chan_agent.c
 chan_agent_la_LDFLAGS		= -module -avoid-version -no-undefined
 chan_agent_la_LIBADD		= ${top_srcdir}/corelib/libopenpbx.la  
 
-if CHAN_EXOSIP2
-	opbxmod_LTLIBRARIES     += chan_exosip2.la
-	chan_exosip2_la_SOURCES = chan_exosip2.c
-	chan_exosip2_la_LIBADD  = @EXOLIBS@ ${top_srcdir}/corelib/libopenpbx.la
-	chan_exosip2_la_LDFLAGS = -module -avoid-version -no-undefined
-endif CHAN_EXOSIP2 
+if WANT_CHAN_EXOSIP2
+opbxmod_LTLIBRARIES     += chan_exosip2.la
+chan_exosip2_la_SOURCES = chan_exosip2.c
+chan_exosip2_la_CFLAGS  = $(AM_CFLAGS) @CHAN_EXOSIP2_CFLAGS@
+chan_exosip2_la_LIBADD  = @CHAN_EXOSIP2_LIBS@ ${top_srcdir}/corelib/libopenpbx.la
+chan_exosip2_la_LDFLAGS = -module -avoid-version -no-undefined
+endif WANT_CHAN_EXOSIP2 
 
 if WANT_CHAN_UNICALL
-	opbxmod_LTLIBRARIES     += chan_unicall.la
-	chan_unicall_la_SOURCES = chan_unicall.c
-	chan_unicall_la_LIBADD  = -lunicall ${top_srcdir}/corelib/libopenpbx.la
-	chan_unicall_la_LDFLAGS = -module -avoid-version -no-undefined
+opbxmod_LTLIBRARIES     += chan_unicall.la
+chan_unicall_la_SOURCES = chan_unicall.c
+chan_unicall_la_LIBADD  = -lunicall ${top_srcdir}/corelib/libopenpbx.la
+chan_unicall_la_LDFLAGS = -module -avoid-version -no-undefined
 endif WANT_CHAN_UNICALL
 
 if HAVE_CAPI
