@@ -125,7 +125,6 @@ esac
 #
 ######     
 
-AC_PREFIX_DEFAULT(/opt/openpbx.org)
 
 dnl Create the relevant Build variables
 
@@ -145,19 +144,37 @@ fi
 dnl Installation directories
 dnl Prefer modern Filesystem Hierarchy Standard over antiquated GNU standards.
 
-AC_ARG_ENABLE([singledir-install],     
-	[AC_HELP_STRING([--enable-singledir-install],[Install to a separate package directory (default=yes).])],[SINGLEDIR="$enableval"],[SINGLEDIR="yes"])
+AC_ARG_WITH([directory-layout],     
+	[AC_HELP_STRING([--with-directory-layout],[Choose installation directory layout: singledir, lsb, fhs (default=singledir).])],,[with_directory_layout="singledir"])
 
-if test "${SINGLEDIR}" = "no" -a "${prefix}" = "NONE"; then
-	AC_MSG_WARN([If you disable the singledir install, you should also define an prefix with --prefix.])
-fi
+case "${with_directory_layout}" in
+     singledir)
+	AC_MSG_NOTICE([You have chosen the SINGLEDIR directory layout...])
+	ac_default_prefix='/opt/openpbx.org'
+	;;
+     lsb)
+	AC_MSG_NOTICE([You have chosen the LSB directory layout...])
+	ac_default_prefix='/usr/local'
+        ;;
+     fhs)
+	AC_MSG_NOTICE([You have chosen the FHS directory layout...])
+	ac_default_prefix='/opt/openpbx.org'
+        ;;
+     *)
+	AC_MSG_ERROR([Unknown directory layout ${with_directory_layout}])
+esac
 
 if test -z "${opbxconfdir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxconfdir='${sysconfdir}/openpbx'
-	else
-		opbxconfdir='${prefix}/etc'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxconfdir='${prefix}/etc'
+	   ;;
+	lsb)
+	   opbxconfdir='${sysconfdir}/openpbx.org'
+	   ;;
+        fhs)
+           opbxconfdir='/etc%{prefix}'
+   esac
 fi
 AC_SUBST([opbxconfdir])
 
@@ -167,11 +184,17 @@ fi
 AC_SUBST([opbxconffile])
 
 if test -z "${opbxlibdir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxlibdir='${libdir}/openpbx'
-	else
-		opbxlibdir='${libdir}'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxlibdir='${libdir}'
+	   ;;
+	lsb)
+	   opbxlibdir='${libdir}/openpbx.org'
+	   ;;
+        fhs)
+           opbxlibdir='%{libdir}'
+           ;;
+   esac
 fi
 AC_SUBST([opbxlibdir])
 
@@ -181,11 +204,17 @@ fi
 AC_SUBST([opbxmoddir])
 
 if test -z "${opbxvardir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxvardir='${localstatedir}/lib/openpbx'
-	else
-		opbxvardir='${prefix}/var'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxvardir='${prefix}/var'
+	   ;;
+	lsb)
+	   opbxvardir='${localstatedir}/lib/openpbx.org'
+	   ;;
+        fhs)
+           opbxvardir='/var%{prefix}'
+           ;;
+   esac
 fi
 AC_SUBST([opbxvardir])
 
@@ -205,11 +234,17 @@ fi
 AC_SUBST([opbxtmpdir])
 
 if test -z "${opbxrundir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxrundir='${localstatedir}/run/openpbx'
-	else
-		opbxrundir='${prefix}/run'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxrundir='${prefix}/run'
+	   ;;
+	lsb)
+	   opbxrundir='${localstatedir}/run/openpbx.org'
+	   ;;
+        fhs)
+           opbxrundir='${opbxvardir}/run'
+           ;;
+   esac
 fi
 AC_SUBST([opbxrundir])
 
@@ -224,29 +259,47 @@ fi
 AC_SUBST([opbxsocketfile])
 
 if test -z "${opbxlogdir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxlogdir='${localstatedir}/log/openpbx'
-	else
-		opbxlogdir='${prefix}/log'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxlogdir='${prefix}/log'
+	   ;;
+	lsb)
+	   opbxlogdir='${localstatedir}/log/openpbx.org'
+	   ;;
+        fhs)
+           opbxlogdir='${opbxvardir}/log'
+           ;;
+   esac
 fi
 AC_SUBST([opbxlogdir])
 
 if test -z "${opbxspooldir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxspooldir='${localstatedir}/spool/openpbx'
-	else
-		opbxspooldir='${opbxvardir}/spool'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxspooldir='${opbxvardir}/spool'
+	   ;;
+	lsb)
+	   opbxspooldir='${localstatedir}/spool/openpbx.org'
+	   ;;
+        fhs)
+           opbxspooldir='${opbxvardir}/spool'
+           ;;
+   esac
 fi
 AC_SUBST([opbxspooldir])
 
 if test -z "${opbxdatadir}"; then
-	if test "${SINGLEDIR}" = "no"; then
-		opbxdatadir='${datadir}/openpbx'
-	else
-		opbxdatadir='${prefix}/data'
-	fi
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxdatadir='${opbxvardir}/data'
+	   ;;
+	lsb)
+	   opbxdatadir='${datadir}/openpbx.org'
+	   ;;
+        fhs)
+           opbxdatadir='${prefix}/share'
+           ;;
+   esac
 fi
 AC_SUBST([opbxdatadir])
 
@@ -261,12 +314,12 @@ fi
 AC_SUBST([opbxkeydir])
 
 if test -z "${opbxsqlitedir}"; then
-	opbxsqlitedir='${opbxdatadir}/sqlite'
+	opbxsqlitedir='${opbxdbdir}'
 fi
 AC_SUBST([opbxsqlitedir])
 
 if test -z "${opbxagidir}"; then
-	opbxagidir='${opbxdatadir}/agi-bin'
+	opbxagidir='${opbxdatadir}/agi'
 fi
 AC_SUBST([opbxagidir])
 
@@ -1055,7 +1108,7 @@ echo "opbxconffile:     ${opbxconffile}"
 echo "opbxlibdir:       ${opbxlibdir}"
 echo "opbxmoddir:       ${opbxmoddir}"
 echo "opbxvardir:       ${opbxvardir}"
-echo "opbxvardir:       ${opbxvardir}"
+echo "opbxdbdir:        ${opbxdbdir}"
 echo "opbxdbfile:       ${opbxdbfile}"
 echo "opbxtmpdir:       ${opbxtmpdir}"
 echo "opbxrundir:       ${opbxrundir}"
