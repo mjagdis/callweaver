@@ -920,15 +920,11 @@ if test "${enable_javascript}" = "yes"; then
       AC_SUBST(NSPR_CFLAGS)
       AC_SUBST(NSPR_LDFLAGS)
    else
-      AC_PATH_PROG([PKGCONFIG], [pkg-config])
-
-      if test -n "${PKGCONFIG}"; then
-         if ${PKGCONFIG} --exists mozilla-nspr; then
-   	    HAVE_NSPR=1
-   	    NSPR_CFLAGS=`${PKGCONFIG} --cflags mozilla-nspr`
-   	    NSPR_LDFLAGS=`${PKGCONFIG} --libs mozilla-nspr`
-         fi
-      fi
+      PKG_CHECK_MODULES([NSPR],
+	[mozilla-nspr],
+	[HAVE_NSPR=1])
+      AC_SUBST(NSPR_CFLAGS)
+      AC_SUBST(NSPR_LDFLAGS)
    fi
 fi
 
