@@ -926,7 +926,7 @@ if test "${enable_javascript}" = "yes"; then
          if ${PKGCONFIG} --exists mozilla-nspr; then
    	    HAVE_NSPR=1
    	    NSPR_CFLAGS=`${PKGCONFIG} --cflags mozilla-nspr`
-   	    NSPR_LDFLAGS`${PKGCONFIG} --libs mozilla-nspr`
+   	    NSPR_LDFLAGS=`${PKGCONFIG} --libs mozilla-nspr`
          fi
       fi
    fi
