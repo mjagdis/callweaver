@@ -27,6 +27,7 @@
  * memory is at a premium.
  * 
  */
+
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
@@ -102,7 +103,30 @@ static const struct opbx_frame framedefaults =
  */
 #define NOISE_MAX_SIGMA (SIGNAL_MAX_LEVEL / 3)
 
-#ifndef LOW_MEMORY
+#ifdef LOW_MEMORY
+struct noise_params
+{
+	/* factor used to scale random numbers down to desired level */
+	float scalefactor;
+
+	/* state for our fast uniform random number generator */
+	uint32_t rngstate;
+};
+
+/*
+ * 'Quick-n-dirty' uniform random number generator. It is about 6 times
+ * faster than the random() function call provided by standard lib.
+ * Returns pseudo-random numbers between 0 and 2^32-1 inclusive.
+ * As seen on "Numerical Recipes in C, 2nd Edition", Chapter 7, page 284.
+ */
+#define FAST_UNI_RNG_MAX (4294967295UL)
+#define FAST_UNI_RNG_HALF (FAST_UNI_RNG_MAX / 2)
+static inline uint32_t fast_uniform_rng(uint32_t *state)
+{
+	*state = 1664525UL * (*state) + 1013904223UL;
+	return *state;
+}
+#else
 /*
  * We pregenerate 64k of white noise samples that will be used instead of
  * generating the samples continously and wasting CPU cycles. The buffer
@@ -113,13 +137,22 @@ static const struct opbx_frame framedefaults =
 static int16_t pregeneratedsamples[NUM_PREGENERATED_SAMPLES];
 
 /*
+ * The maximum value returned by random() according to the Single UNIX
+ * Specification. Linux and Solaris are both compliant. Are there any
+ * known exceptions?
+ */
+#ifndef RANDOM_MAX
+#define RANDOM_MAX (2147483647L)
+#endif
+
+/*
  * We need a nice, not too expensive, gaussian random number generator.
  * It generates two random numbers at a time, which is great.
  * From http://www.taygeta.com/random/gaussian.html
  */
 static void box_muller_rng(double stddev, double *rn1, double *rn2)
 {
-	const double twicerandmaxinv = 2.0 / RAND_MAX;
+	const double twicerandmaxinv = 2.0 / RANDOM_MAX;
 	double x1, x2, w, temp;
 	 
 	do
@@ -128,13 +161,13 @@ static void box_muller_rng(double stddev, double *rn1, double *rn2)
 		x2 = random() * twicerandmaxinv - 1.0;
 		w = x1 * x1 + x2 * x2;
 	}
-	while (w >= 1.0);
+	while (w >= 1.0 || w == 0.0);
 	temp = -log(w) / w;
 	w = stddev * sqrt(temp + temp);
 	*rn1 = x1 * w;
 	*rn2 = x2 * w;
 }
-#endif /* NOT LOW_MEMORY */
+#endif /* LOW_MEMORY */
 
 static void *noise_alloc(struct opbx_channel *chan, void *data)
 {
@@ -145,12 +178,21 @@ static void *noise_alloc(struct opbx_channel *chan, void *data)
 	/*
 	 * As we have to continuously generate samples based on a triangular
 	 * distribution, we calculate a scale factor that transforms the
-	 * interval [-RAND_MAX / 2, RAND_MAX / 2] into [-a, a] where '2a' is
-	 * the base of the triangle used in our triangular distribution.
-	 * Scale factor will be equal to full power when level is 0dBov.
+	 * interval [-FAST_UNI_RNG_HALF / 2, FAST_UNI_RNG_HALF / 2] into
+	 * [-a, a] where '2a' is the base of the triangle used in our
+	 * triangular distribution. Scale factor will be equal to full power
+	 * when level is 0dBov.
 	 */
-	const double fullpower = 2.0 * NOISE_MAX_SIGMA * sqrt(6.0) / RAND_MAX;
-	float *pscalefactor = malloc(sizeof (float));
+	const double fullpower =
+		2.0 * NOISE_MAX_SIGMA * sqrt(6.0) / FAST_UNI_RNG_HALF;
+	struct noise_params *pnp = malloc(sizeof (struct noise_params));
+
+	if (pnp)
+	{
+		pnp->rngstate = random(); /* seed RNG with a random value */
+		pnp->scalefactor = fullpower * exp10(level * 0.05);
+	}
+	return pnp;
 #else
 	/*
 	 * Pregenerated samples are generated with max standard deviation.
@@ -165,28 +207,28 @@ static void *noise_alloc(struct opbx_channel *chan, void *data)
 	 */
 	const double fullpower = 65536.0;
 	int32_t *pscalefactor = malloc(sizeof (int32_t));
-#endif /* LOW_MEMORY */
 
 	if (pscalefactor)
 	{
 		*pscalefactor = fullpower * exp10(level * 0.05);
 	}
 	return pscalefactor;
+#endif /* LOW_MEMORY */
 }
 
 static void noise_release(struct opbx_channel *chan, void *data)
 {
 #ifdef LOW_MEMORY
-	free((float *)data);
+	free((struct noise_params *)data);
 #else
 	free((int32_t *)data);
 #endif
 }
 
-static int noise_generate(struct opbx_channel *chan, void *data, int len, int samples)
+static int noise_generate(struct opbx_channel *chan, void *data, int dummy, int samples)
 {
 #ifdef LOW_MEMORY
-	float scalefactor = *(float *)data;
+	struct noise_params *pnp = data;
 	long sampleamplitude;
 #else
 	int32_t scalefactor = *(int32_t *)data;
@@ -194,7 +236,7 @@ static int noise_generate(struct opbx_channel *chan, void *data, int len, int sa
 #endif
 	struct opbx_frame f;
 	int16_t *buf, *pbuf;
-	int i;
+	int len, i;
 
 	/* Allocate enough space for samples.
 	 * Remember that slin uses signed dword samples */
@@ -236,27 +278,30 @@ static int noise_generate(struct opbx_channel *chan, void *data, int len, int sa
 	for (i = 0; i < samples; i++)
 	{
 		/*
-		 * Function random() returns a long int. Given that we need
-		 * to add two of these random numbers to obtain a triangularly
-		 * distributed random number, we divide each by 2 to avoid
-		 * potential overflow problems. The result will be a long int
-		 * between 0 and RAND_MAX.
+		 * Function fast_uniform_rng returns an unsigned 32-bit int.
+		 * Given that we need to add two of these random numbers to
+		 * obtain a triangularly distributed random number, we divide
+		 * each by 4 to avoid potential overflow problems. The result
+		 * will be a 32-bit unsigned between 0 and FAST_UNI_RNG_HALF.
 		 */
-		sampleamplitude = (random() >> 1) + (random() >> 1);
+		sampleamplitude = fast_uniform_rng(&pnp->rngstate) >> 2;
+		sampleamplitude += fast_uniform_rng(&pnp->rngstate) >> 2;
 
 		/*
-		 * We subtract RAND_MAX / 2 so that random number will be
-		 * on the interval [-RAND_MAX / 2, RAND_MAX / 2]
+		 * We subtract FAST_UNI_RNG_HALF / 2 so that the random
+		 * number will be on the interval
+		 * [-FAST_UNI_RNG_HALF / 2, FAST_UNI_RNG_HALF / 2]
 		 */
-		sampleamplitude -= RAND_MAX / 2;
+		sampleamplitude -= FAST_UNI_RNG_HALF / 2;
 
 		/*
 		 * Finally, we scale by scalefactor. This is a floating point
 		 * multiplication because doing it with integers/fixed point
-		 * alone is just way too complicated and doesn't speed things
-		 * up that much
+		 * alone is just way too complicated meaning that it wouldn't
+		 * speed things up that much. (I'll be testing this assumption
+		 * in the near future, though...)
 		 */
-		*(pbuf++) = (int16_t)(sampleamplitude * scalefactor);
+		*(pbuf++) = (int16_t)(sampleamplitude * pnp->scalefactor);
 	}
 #else
 	/*
@@ -266,7 +311,7 @@ static int noise_generate(struct opbx_channel *chan, void *data, int len, int sa
 	 * unsigned 16-bit integer, we need NUM_PREGENERATED_SAMPLES to be
 	 * (at least) 2^16 to avoid reading beyond the bounds of the buffer.
 	 */
-	start = random() * (NUM_PREGENERATED_SAMPLES / (float)RAND_MAX);
+	start = random();
 	for (i = 0; i < samples; i++)
 	{
 		*(pbuf++) = (scalefactor * pregeneratedsamples[start++]) >> 16;
@@ -274,13 +319,7 @@ static int noise_generate(struct opbx_channel *chan, void *data, int len, int sa
 #endif
 
 	/* Send it out */
-	if (opbx_write(chan, &f) < 0)
-	{
-		opbx_log(LOG_ERROR, "Failed to write frame to channel '%s'\n",
-			 chan->name);
-		return -1;
-	}
-	return 0;
+	return opbx_write(chan, &f);
 }
 
 static struct opbx_generator noise_generator = 
