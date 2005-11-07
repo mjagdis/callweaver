@@ -1048,7 +1048,6 @@ AC_OUTPUT([Makefile
 		 configs/musiconhold.conf.sample
 		 configs/Makefile
  		 agi/agi-test.agi
-		 agi/numeralize
 		 agi/fastagi-test
 		 sounds/Makefile
 		 sqlite3-embedded/Makefile
