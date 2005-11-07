@@ -149,15 +149,15 @@ example, you only wanted IAX to be available to users on your LAN.
 > bandwidth = [low|medium|high]
 
 The bandwidth selection initializes the codec selection to appropriate
-values for given bandwidths.  The "high" selection enables all codecs and
-is recommended only for 10Mbps or higher connections.  The "medium"
-bandwidth eliminates signed linear, Mu-law and A-law codecs, leaving only
-the codecs which are 32kbps and smaller (with MP3 as a special case).  It
-can be used with broadband connections if desired. "low" eliminates ADPCM
-and MP3 formats, leaving only the G.723.1, GSM, and LPC10.
+values for given bandwidths.  The "high" selection enables all codecs
+and is recommended only for 10Mbps or higher connections.  The
+"medium" bandwidth eliminates signed linear, Mu-law and A-law codecs,
+leaving only the codecs which are 32kbps and smaller.  It can be used
+with broadband connections if desired. "low" eliminates the ADPCM
+format, leaving only the G.723.1, GSM, and LPC10.
 
-> allow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
-> disallow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
+> allow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|slinear|all]
+> disallow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|slinear|all]
 
 The "allow" and "disallow" allow you to fine tune the codec selection 
 beyond the initial bandwidth selection on a codec-by-codec basis.  
@@ -317,8 +317,8 @@ not typically DES3 encrypted and thus do not usually need initialization.
 ---------------
 Peer configuration
 
-> allow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
-> disallow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
+> allow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|slinear|all]
+> disallow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|slinear|all]
 
 The "allow" and "disallow" may be used to enable or disable specific codec 
 support on a per-peer basis.  

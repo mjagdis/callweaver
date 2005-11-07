@@ -2,38 +2,6 @@
 ; Music on Hold -- Sample Configuration
 ;
 
-;[default]
-;mode=quietmp3
-;directory=@OPBX_MOH_MP3_DIR@
-
-; valid mode options:
-; quietmp3 	-- default
-; mp3 		-- loud
-; mp3nb		-- unbuffered
-; quietmp3nb	-- quiet unbuffered
-; custom	-- run a custom application 
-; files		-- read files from a directory in any OpenPBX supported format
-
-;[manual]
-;mode=custom
-; Note that with mode=custom, a directory is not required, such as when reading
-; from a stream.
-;directory=@OPBX_MOH_MP3_DIR@
-;application=/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
-
-;[ulawstream]
-;mode=custom
-;application=/usr/bin/streamplayer 192.168.100.52 888
-;format=ulaw
-
-; mpg123 on Solaris does not always exit properly; madplay may be a better
-; choice
-;[solaris]
-;mode=custom
-;directory=@OPBX_MOH_MP3_DIR@
-;application=/site/sw/bin/madplay -Q -o raw:- --mono -R 8000 -a -12
-;
-
 ;
 ; File-based (native) music on hold
 ;
@@ -54,11 +22,18 @@
 ; understand when it loads.
 ;
 
-;[native]
+;[default]
 ;mode=files
-;directory=@OPBX_MOD_NATIVE_DIR@
+;directory=@opbxmohdir@
 ;
-;[native-random]
+;[default-random]
 ;mode=files
-;directory=@OPBX_MOD_NATIVE_DIR@
+;directory=@opbxmohdir@
 ;random=yes 	; Play the files in a random order
+
+;[ulawstream]
+;mode=custom
+; Note that with mode=custom, a directory is not required, such as when reading
+; from a stream.
+;application=/usr/bin/streamplayer 192.168.100.52 888
+;format=ulaw

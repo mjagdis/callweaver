@@ -57,7 +57,7 @@ struct opbx_format {
 	/* Name of format */
 	char name[80];
 	/* Extensions (separated by | if more than one) 
-	   this format can read.  First is assumed for writing (e.g. .mp3) */
+	   this format can read.  First is assumed for writing (e.g. .gsm) */
 	char exts[80];
 	/* Format of frames it uses/provides (one only) */
 	int format;
