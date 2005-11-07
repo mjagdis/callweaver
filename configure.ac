@@ -736,20 +736,20 @@ AC_ARG_WITH(res_sqlite,
 
 AM_CONDITIONAL([WANT_RES_SQLITE],[test -n "${want_res_sqlite}"])
 
-#postgresql -- first need to check if it is there and than can check for if someone wants res_config_pgsql and cdr_pgsql
+dnl postgresql -- first need to check if it is there and than can check for if someone wants res_config_pgsql and cdr_pgsql
 CT_CHECK_POSTGRES_DB
 
-AC_ARG_ENABLE(res_config_pgsql,
-	[AC_HELP_STRING([--enable-res_config_pgsql],[enable res_config_pgsql (default = no)])],
-[   AC_MSG_RESULT(yes)
-    if test -n "${PQINCPATH}" && test -n "${PQLIBPATH}"
-    then
-	WANT_RES_CONFIG_PGSQL=yes
-    fi],
-[   AC_MSG_RESULT(no)
-])
+AC_ARG_WITH(res_config_pgsql,
+	[AC_HELP_STRING([--with-res_config_pgsql],[Build and install res_config_pgsql (default = no)])],,
+	[with_res_config_pgsql="no"])
 
-AM_CONDITIONAL([WANT_RES_CONFIG_PGSQL],[test -n "${WANT_RES_CONFIG_PGSQL}"])
+AM_CONDITIONAL([WANT_RES_CONFIG_PGSQL],[test "$with_res_config_pgsql" = "yes"])
+
+AC_ARG_WITH(cdr_pgsql,
+	[AC_HELP_STRING([--with-cdr_pgsql],[Build and install cdr_pgsql (default = no)])],,
+	[with_cdr_pgsql="no"])
+
+AM_CONDITIONAL([WANT_CDR_PGSQL],[test "$with_cdr_pgsql" = "yes"])
 
 #res_odbc
 AC_ARG_ENABLE(res_odbc,
