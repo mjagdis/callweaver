@@ -20,7 +20,7 @@ opbxconf_DATA = adsi.conf.sample \
 	iax.conf.sample \
 	iaxprov.conf.sample \
 	indications.conf.sample \
-	logger.conf \
+	logger.conf.sample \
 	manager.conf.sample \
 	meetme.conf.sample \
 	mgcp.conf.sample \
@@ -28,7 +28,8 @@ opbxconf_DATA = adsi.conf.sample \
 	modules.conf.sample \
 	musiconhold.conf.sample \
 	muted.conf.sample \
-	openpbx.conf \
+	openpbx.adsi.sample \
+	openpbx.conf.sample \
 	osp.conf.sample \
 	privacy.conf.sample \
 	queues.conf.sample \
@@ -46,12 +47,12 @@ opbxconf_DATA = adsi.conf.sample \
 
 @substitute@
 
-openpbx.conf: openpbx.conf.in Makefile
-	rm -f openpbx.conf.tmp
-	$(substitute) openpbx.conf.in > openpbx.conf.tmp
-	mv openpbx.conf.tmp openpbx.conf
+openpbx.conf.sample: openpbx.conf.sample.in Makefile
+	rm -f openpbx.conf.sample.tmp
+	$(substitute) openpbx.conf.sample.in > openpbx.conf.sample.tmp
+	mv openpbx.conf.sample.tmp openpbx.conf.sample
 
-logger.conf: logger.conf.in Makefile
-	rm -f logger.conf.tmp
-	$(substitute) logger.conf.in > logger.conf.tmp
-	mv logger.conf.tmp logger.conf
+logger.conf.sample: logger.conf.sample.in Makefile
+	rm -f logger.conf.sample.tmp
+	$(substitute) logger.conf.sample.in > logger.conf.sample.tmp
+	mv logger.conf.sample.tmp logger.conf.sample
