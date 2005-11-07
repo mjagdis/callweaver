@@ -31,18 +31,18 @@ if test "$pg_prefix" != ""; then
    fi
 else
   if test "$pg_inc" != ""; then
-    AC_MSG_CHECKING([for PostgreSQL includes in $pg_prefix/include])
-    if test -f "$pg_prefix/include/libpq-fe.h" ; then
-      PQINCPATH="-I$pg_prefix/include"
+    AC_MSG_CHECKING([for PostgreSQL includes in $pg_inc])
+    if test -f "$pg_inc/libpq-fe.h" ; then
+      PQINCPATH="-I$pg_inc"
       AC_MSG_RESULT([yes])
     else
       AC_MSG_WARN(libpq-fe.h not found)
     fi
   fi
   if test "$pg_lib" != ""; then
-    AC_MSG_CHECKING([for PostgreSQL librarys in $pg_prefix/lib])
-    if test -f "$pg_prefix/lib/libpq.so" ; then
-      PQLIBPATH="-L$pg_prefix/lib"
+    AC_MSG_CHECKING([for PostgreSQL librarys in $pg_lib])
+    if test -f "$pg_lib/libpq.so" ; then
+      PQLIBPATH="-L$pg_lib"
       AC_MSG_RESULT([yes])
     else
       AC_MSG_WARN(libpq.so not found)
