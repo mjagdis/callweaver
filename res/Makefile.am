@@ -59,8 +59,8 @@ if WANT_RES_CONFIG_PGSQL
 opbxmod_LTLIBRARIES     	+= res_config_pgsql.la
 res_config_pgsql_la_SOURCES   = res_config_pgsql.c
 res_config_pgsql_la_LDFLAGS   = -module -avoid-version -no-undefined
-res_config_pgsql_la_CFLAGS    = $(AM_CFLAGS) @PGINCPATH@
-res_config_pgsql_la_LIBADD    = @PGLIBPATH@ -lpq ${top_srcdir}/corelib/libopenpbx.la  
+res_config_pgsql_la_CFLAGS    = $(AM_CFLAGS) @PQINCPATH@
+res_config_pgsql_la_LIBADD    = @PQLIBPATH@ -lpq ${top_srcdir}/corelib/libopenpbx.la  
 endif WANT_RES_CONFIG_PGSQL
 
 if WANT_RES_CONFIG_ODBC
