@@ -641,9 +641,103 @@ chan_streamfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 
 }
 
+
+static JSBool
+chan_dbdel(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+
+        char *family, *key, *name;
+        JSString *str = NULL;
+        int res;
+
+        *rval = BOOLEAN_TO_JSVAL (JSVAL_FALSE);
+
+        if ( !(( str = JS_ValueToString(cx, argv[0])) && ( family = JS_GetStringBytes(str)))) {
+                return JS_FALSE;
+        }
+        if ( !(( str = JS_ValueToString(cx, argv[1])) && ( key = JS_GetStringBytes(str)))) {
+                return JS_FALSE;
+        }
+
+        res = opbx_db_del(family, key);
+        if (!res) {
+	        *rval = BOOLEAN_TO_JSVAL ( JSVAL_TRUE);
+                return JS_TRUE;
+        }
+
+        return JS_TRUE; // return *val as JSVAL_FALSE
+}
+static JSBool
+chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+        char *family, *key, *name, *value;
+        JSString *str = NULL;
+        int res;
+
+        *rval = BOOLEAN_TO_JSVAL (JSVAL_NULL);
+
+        if ( !(( str = JS_ValueToString(cx, argv[0])) && ( family = JS_GetStringBytes(str)))) {
+                return JS_FALSE; 
+        }
+        if ( !(( str = JS_ValueToString(cx, argv[1])) && ( key = JS_GetStringBytes(str)))) {
+                return JS_FALSE;
+        }
+        if ( !(( str = JS_ValueToString(cx, argv[2])) && ( name = JS_GetStringBytes(str)))) {
+                return JS_FALSE;
+        }
+
+        res = opbx_db_put(family, key, name);
+
+        if (!res) {
+		*rval = BOOLEAN_TO_JSVAL ( JSVAL_TRUE);		
+                return JS_TRUE;
+        }
+
+        return JS_FALSE;
+
+}
+static JSBool
+chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
+
+        int res = 0;
+        char tmp[256];
+	tmp[0] = '\0';
+ 
+        JSString *str = NULL;
+
+        char *family, *key;
+
+	*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);
+ 
+        if (!(( str = JS_ValueToString(cx, argv[0])) && ( family = JS_GetStringBytes(str) ))) {
+                return JS_FALSE;
+        }
+        if (!(( str = JS_ValueToString(cx, argv[1])) && ( key = JS_GetStringBytes(str) ))) {
+                return JS_FALSE;
+        }
+
+        res = opbx_db_get(family, key, tmp, sizeof(tmp));
+	if (( res = opbx_db_get(family, key, tmp, sizeof(tmp)) )) {
+		// Error
+		return JS_TRUE; // Return information in *rval to JSVAL_NULL
+	} else {
+		*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);
+		if ( opbx_strlen_zero(tmp) ) 
+			*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);  // NULL
+		else
+			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, tmp)); // Not null
+	}
+
+        return JS_TRUE;
+}
+
 static JSFunctionSpec chan_methods[] = {
     {"GetVar", chan_getvar, 1}, 
     {"SetVar", chan_setvar, 2}, 
+    {"DBGet", chan_dbget, 2},
+    {"DBPut", chan_dbput, 3},
+    {"DBDel", chan_dbdel, 2},
     {"StreamFile", chan_streamfile, 1}, 
     {"RecordFile", chan_recordfile, 1}, 
     {"Exec", chan_exec, 2}, 
@@ -1129,6 +1223,9 @@ static JSFunctionSpec openpbx_functions[] = {
 	{"Log", js_log, 2}, 
 	{"Include", js_include, 1}, 
 	{"GetVar", js_getvar, 1}, 
+	{"DBGet", chan_dbget, 2},
+	{"DBPut", chan_dbput, 3},
+	{"DBDel", chan_dbdel, 2},
 	{"Die", js_die, 1}, 
 	{"Email", js_email, 1}, 
 	{"UnLinkSound", js_unlinksound, 1}, 
