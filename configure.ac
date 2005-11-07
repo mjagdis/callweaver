@@ -370,11 +370,14 @@ AC_CHECK_LIB([t], [main])
 # AC_CHECK_LIB([termcap], [main])
 AC_CHECK_LIB([tonezone], [main],[AC_DEFINE([HAVE_LIBTONEZONE],["yes"],[OK, zaptel is there])])
 AM_CONDITIONAL([HAVE_ZAPTEL],[test -n "${HAVE_LIBTONEZONE}"])
-AC_CHECK_LIB([z], [main],
-	[AC_DEFINE(HAVE_LIBZ,,[zlib (-lz)])
-	 LIBS="$LIBS -lz"
-	 HAVE_LIBZ="yes"],
-	[HAVE_LIBZ="no"])
+
+AC_CHECK_LIB([z], [main], [HAVE_LIBZ=1])
+
+AC_ARG_WITH([pbx_dundi],
+	[AC_HELP_STRING([--with-pbx_dundi],[Build and install pbx_dundi (default=yes)])],,
+	[with_pbx_dundi="yes"])
+
+AM_CONDITIONAL([WANT_PBX_DUNDI],[test "${with_pbx_dundi}" = yes -a -n "${HAVE_LIBZ}"])
 
 dnl checks for library functions
 AC_FUNC_ALLOCA
