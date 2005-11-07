@@ -55,7 +55,7 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision: 46 $")
 #include "openpbx/io.h"
 #include "openpbx/utils.h"
 #include "openpbx/crypto.h"
-#include "openpbx/astdb.h"
+#include "openpbx/opbxdb.h"
 
 #define MODE_MATCH 		0
 #define MODE_MATCHMORE 	1
