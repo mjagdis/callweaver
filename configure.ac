@@ -333,6 +333,11 @@ if test -z "${opbximagesdir}"; then
 fi
 AC_SUBST([opbximagesdir])
 
+if test -z "${opbxmohdir}"; then
+	opbxmohdir='${opbxdatadir}/moh'
+fi
+AC_SUBST([opbxmohdir])
+
 ######
 #
 # Check for headers, structures, typedefs, libs etc that are not realted to specific add on packages
@@ -1118,3 +1123,4 @@ echo "opbxsqlitedir:    ${opbxsqlitedir}"
 echo "opbxagidir:       ${opbxagidir}"
 echo "opbxsoundsdir:    ${opbxsoundsdir}"
 echo "opbximagesdir:    ${opbximagesdir}"
+echo "opbxmohdir:       ${opbxmohdir}"

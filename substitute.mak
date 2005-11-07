@@ -28,5 +28,6 @@ substitute = $(SED) \
 	-e 's,@opbxagidir\@,$(opbxagidir),g' \
 	-e 's,@opbxsoundsdir\@,$(opbxsoundsdir),g' \
 	-e 's,@opbximagesdir\@,$(opbximagesdir),g' \
+	-e 's,@opbxmohdir\@,$(opbxmohdir),g' \
 	-e 's,@opbxrunuser\@,$(opbxrunuser),g' \
 	-e 's,@opbxrungroup\@,$(opbxrungroup),g'

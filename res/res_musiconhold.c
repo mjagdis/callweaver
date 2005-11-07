@@ -116,10 +116,8 @@ struct moh_files_state {
 	unsigned char save_pos;
 };
 
-#define MOH_QUIET		(1 << 0)
-#define MOH_SINGLE		(1 << 1)
-#define MOH_CUSTOM		(1 << 2)
-#define MOH_RANDOMIZE		(1 << 3)
+#define MOH_CUSTOM		(1 << 0)
+#define MOH_RANDOMIZE		(1 << 1)
 
 struct mohclass {
 	char name[MAX_MUSICCLASS];
@@ -130,7 +128,7 @@ struct mohclass {
 	unsigned int flags;
 	int total_files;
 	int format;
-	int pid;		/* PID of mpg123 */
+	int pid;		/* PID of custom command */
 	time_t start;
 	pthread_t thread;
 	struct mohdata *members;
@@ -151,11 +149,6 @@ struct mohdata {
 static struct mohclass *mohclasses;
 
 OPBX_MUTEX_DEFINE_STATIC(moh_lock);
-
-#define LOCAL_MPG_123 "/usr/local/bin/mpg123"
-#define MPG_123 "/usr/bin/mpg123"
-#define MAX_MP3S 256
-
 
 static void opbx_moh_free_class(struct mohclass **class) 
 {
@@ -316,12 +309,12 @@ static struct opbx_generator moh_file_stream =
 	generate: moh_files_generator,
 };
 
-static int spawn_mp3(struct mohclass *class)
+static int spawn_custom_command(struct mohclass *class)
 {
 	int fds[2];
 	int files = 0;
-	char fns[MAX_MP3S][80];
-	char *argv[MAX_MP3S + 50];
+	char fns[MAX_MOHFILES][MAX_MOHFILE_LEN];
+	char *argv[MAX_MOHFILES + 50];
 	char xargs[256];
 	char *argptr;
 	int argc = 0;
@@ -333,69 +326,27 @@ static int spawn_mp3(struct mohclass *class)
 		files = 1;
 	} else {
 		dir = opendir(class->dir);
-		if (!dir && !strstr(class->dir,"http://") && !strstr(class->dir,"HTTP://")) {
+		if (!dir) {
 			opbx_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 			return -1;
 		}
 	}
 
-	if (!opbx_test_flag(class, MOH_CUSTOM)) {
-		argv[argc++] = "mpg123";
-		argv[argc++] = "-q";
-		argv[argc++] = "-s";
-		argv[argc++] = "--mono";
-		argv[argc++] = "-r";
-		argv[argc++] = "8000";
-		
-		if (!opbx_test_flag(class, MOH_SINGLE)) {
-			argv[argc++] = "-b";
-			argv[argc++] = "2048";
-		}
-		
-		argv[argc++] = "-f";
-		
-		if (opbx_test_flag(class, MOH_QUIET))
-			argv[argc++] = "4096";
-		else
-			argv[argc++] = "8192";
-		
-		/* Look for extra arguments and add them to the list */
-		strncpy(xargs, class->args, sizeof(xargs) - 1);
-		argptr = xargs;
-		while (argptr && !opbx_strlen_zero(argptr)) {
-			argv[argc++] = argptr;
-			argptr = strchr(argptr, ',');
-			if (argptr) {
-				*argptr = '\0';
-				argptr++;
-			}
-		}
-	} else  {
-		/* Format arguments for argv vector */
-		strncpy(xargs, class->args, sizeof(xargs) - 1);
-		argptr = xargs;
-		while (argptr && !opbx_strlen_zero(argptr)) {
-			argv[argc++] = argptr;
-			argptr = strchr(argptr, ' ');
-			if (argptr) {
-				*argptr = '\0';
-				argptr++;
-			}
+	/* Format arguments for argv vector */
+	strncpy(xargs, class->args, sizeof(xargs) - 1);
+	argptr = xargs;
+	while (argptr && !opbx_strlen_zero(argptr)) {
+		argv[argc++] = argptr;
+		argptr = strchr(argptr, ' ');
+		if (argptr) {
+			*argptr = '\0';
+			argptr++;
 		}
 	}
 
-
-	if (strstr(class->dir,"http://") || strstr(class->dir,"HTTP://")) {
-		strncpy(fns[files], class->dir, sizeof(fns[files]) - 1);
-		argv[argc++] = fns[files];
-		files++;
-	} else if (dir) {
-		while ((de = readdir(dir)) && (files < MAX_MP3S)) {
-			if ((strlen(de->d_name) > 3) && 
-			    ((opbx_test_flag(class, MOH_CUSTOM) && 
-			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
-			       !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln"))) ||
-			     !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
+	if (dir) {
+		while ((de = readdir(dir)) && (files < MAX_MOHFILES)) {
+			if (strlen(de->d_name) > 3) {
 				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
 				argv[argc++] = fns[files];
 				files++;
@@ -405,6 +356,10 @@ static int spawn_mp3(struct mohclass *class)
 	argv[argc] = NULL;
 	if (dir) {
 		closedir(dir);
+	}
+	if (!files) {
+		opbx_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
+		return -1;
 	}
 	if (pipe(fds)) {	
 		opbx_log(LOG_WARNING, "Pipe failed\n");
@@ -418,12 +373,6 @@ static int spawn_mp3(struct mohclass *class)
 			printf("arg%d: %s\n", x, argv[x]);
 	}
 #endif	
-	if (!files) {
-		opbx_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
-		close(fds[0]);
-		close(fds[1]);
-		return -1;
-	}
 	if (time(NULL) - class->start < respawn_time) {
 		sleep(respawn_time - (time(NULL) - class->start));
 	}
@@ -448,16 +397,7 @@ static int spawn_mp3(struct mohclass *class)
 		}
 		/* Child */
 		chdir(class->dir);
-		if (opbx_test_flag(class, MOH_CUSTOM)) {
-			execv(argv[0], argv);
-		} else {
-			/* Default install is /usr/local/bin */
-			execv(LOCAL_MPG_123, argv);
-			/* Many places have it in /usr/bin */
-			execv(MPG_123, argv);
-			/* Check PATH as a last-ditch effort */
-			execvp("mpg123", argv);
-		}
+		execv(argv[0], argv);
 		opbx_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		close(fds[1]);
 		exit(1);
@@ -468,7 +408,7 @@ static int spawn_mp3(struct mohclass *class)
 	return fds[0];
 }
 
-static void *monmp3thread(void *data)
+static void *monitor_custom_command(void *data)
 {
 #define	MOH_MS_INTERVAL		100
 
@@ -483,10 +423,10 @@ static void *monmp3thread(void *data)
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
 	for(;/* ever */;) {
-		/* Spawn mp3 player if it's not there */
+		/* Spawn custom command if it's not there */
 		if (class->srcfd < 0) {
-			if ((class->srcfd = spawn_mp3(class)) < 0) {
-				opbx_log(LOG_WARNING, "Unable to spawn mp3player\n");
+			if ((class->srcfd = spawn_custom_command(class)) < 0) {
+				opbx_log(LOG_WARNING, "Unable to spawn custom command\n");
 				/* Try again later */
 				sleep(500);
 			}
@@ -512,7 +452,7 @@ static void *monmp3thread(void *data)
 		}
 		if (!class->members)
 			continue;
-		/* Read mp3 audio */
+		/* Read audio */
 		len = opbx_codec_get_len(class->format, res);
 		
 		if ((res2 = read(class->srcfd, sbuf, len)) != len) {
@@ -810,16 +750,9 @@ static int moh_register(struct mohclass *moh)
 		}
 		if (strchr(moh->args, 'r'))
 			opbx_set_flag(moh, MOH_RANDOMIZE);
-	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") || !strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") || !strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
-
-		if (!strcasecmp(moh->mode, "custom"))
-			opbx_set_flag(moh, MOH_CUSTOM);
-		else if (!strcasecmp(moh->mode, "mp3nb"))
-			opbx_set_flag(moh, MOH_SINGLE);
-		else if (!strcasecmp(moh->mode, "quietmp3nb"))
-			opbx_set_flag(moh, MOH_SINGLE | MOH_QUIET);
-		else if (!strcasecmp(moh->mode, "quietmp3"))
-			opbx_set_flag(moh, MOH_QUIET);
+	} else if (!strcasecmp(moh->mode, "custom")) {
+		
+		opbx_set_flag(moh, MOH_CUSTOM);
 		
 		moh->srcfd = -1;
 #ifdef ZAPATA_MOH
@@ -835,7 +768,7 @@ static int moh_register(struct mohclass *moh)
 #else
 		moh->pseudofd = -1;
 #endif
-		if (opbx_pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
+		if (opbx_pthread_create(&moh->thread, NULL, monitor_custom_command, moh)) {
 			opbx_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);
@@ -1072,7 +1005,7 @@ static void opbx_moh_destroy(void)
 			while ((opbx_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
-			opbx_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
+			opbx_log(LOG_DEBUG, "Custom command pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
 		}
 		tmp = moh;
