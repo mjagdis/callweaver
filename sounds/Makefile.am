@@ -353,5 +353,5 @@ allison-en/phonetic/z_p.gsm
 
 install-data-hook:
 	if [ ! -e $(DESTDIR)$(opbxsoundsdir)/en ]; then \
-		ln -s allison-en $(DESTDIR)$(opbxsoundsdir)/en \
+		ln -s allison-en $(DESTDIR)$(opbxsoundsdir)/en; \
 	fi
