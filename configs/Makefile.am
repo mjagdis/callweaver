@@ -42,7 +42,6 @@ opbxconf_DATA = adsi.conf.sample \
 	sip_notify.conf.sample \
 	unicall.conf.sample \
 	voicemail.conf.sample \
-	vpb.conf.sample \
 	woomera.conf.sample \
 	zapata.conf.sample
 
