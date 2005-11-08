@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS			= gnu
 opbxmod_LTLIBRARIES		= app_echo.la app_system.la app_enumlookup.la \
-				app_playback.la app_talkdetect.la app_adsiprog.la app_eval.la  \
+				app_playback.la app_adsiprog.la app_eval.la  \
 				app_privacy.la app_transfer.la app_authenticate.la app_exec.la \
 				app_userevent.la app_cdr.la app_random.la \
 				app_verbose.la app_chanisavail.la app_forkcdr.la app_read.la \
@@ -28,9 +28,6 @@ app_enumlookup_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
 app_playback_la_SOURCES				= app_playback.c
 app_playback_la_LDFLAGS				= -module -avoid-version -no-undefined
 app_playback_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
-app_talkdetect_la_SOURCES			= app_talkdetect.c
-app_talkdetect_la_LDFLAGS			= -module -avoid-version -no-undefined
-app_talkdetect_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
 app_adsiprog_la_SOURCES				= app_adsiprog.c
 app_adsiprog_la_LDFLAGS				= -module -avoid-version -no-undefined
 app_adsiprog_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
@@ -190,3 +187,9 @@ if WANT_VISDN
 	app_visdn_ppp_la_LIBADD			= ${top_srcdir}/corelib/libopenpbx.la
 endif WANT_VISDN
 
+if WANT_APP_TALKDETECT
+opbxmod_LTLIBRARIES		+= app_talkdetect.la
+app_talkdetect_la_SOURCES	= app_talkdetect.c
+app_talkdetect_la_LDFLAGS	= -module -avoid-version -no-undefined
+app_talkdetect_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la
+endif WANT_APP_TALKDETECT

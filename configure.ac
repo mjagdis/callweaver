@@ -649,6 +649,12 @@ dnl app_icd
 #
 #
 
+AC_ARG_WITH([app_talkdetect],
+	[AC_HELP_STRING([--with-app_talkdetect],[Build and install app_talkdetect (default=yes)])],,
+	[with_app_talkdetect="yes"])
+
+AM_CONDITIONAL([WITH_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
+
 ##### ressources
 
 dnl res_osp ... open settlement protocol handling
