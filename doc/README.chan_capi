@@ -66,6 +66,14 @@ This chan_capi version includes:
 - ISDN hold.
 - CAPI Line Interconnect.
 
+Permissions
+===========
+
+OpenPBX.org, by default, runs as the non-root user/group
+openpbx/openpbx.  You must make sure that the /dev/capi* device files
+are readable by OpenPBX.org either by changing the ownership or the
+permissions of the the device files or by running OpenPBX.org as root.
+
 The Dial string
 ===============
 
