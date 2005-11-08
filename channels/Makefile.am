@@ -43,4 +43,11 @@ chan_capi_la_LIBADD  = ${top_srcdir}/corelib/libopenpbx.la -lcapi20
 chan_capi_la_LDFLAGS = -module -avoid-version -no-undefined
 endif HAVE_CAPI
 
+if WANT_CHAN_ZAP
+opbxmod_LTLIBRARIES	+= chan_zap.la
+chan_zap_la_SOURCES	= chan_zap.c
+chan_zap_la_LIBADD 	= -ltonezone -lpri ${top_srcdir}/corelib/libopenpbx.la
+chan_zap_la_LDFLAGS	= -module -avoid-version -no-undefined
+endif WANT_CHAN_ZAP
+
 INCLUDES = -I${top_srcdir}/corelib

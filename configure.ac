@@ -358,7 +358,6 @@ AC_CHECK_LIB([newt], [main],[AC_DEFINE([HAVE_LIBNEWT],["yes"],[yes there is newt
 AM_CONDITIONAL([USE_NEWT],[test -n "${HAVE_LIBNEWT}"])
 AC_CHECK_LIB([nsl], [main])
 AC_CHECK_LIB([ossaudio], [main])
-AC_CHECK_LIB([pri], [main],[AC_DEFINE([HAVE_LIBPRI],["yes"],[say hi to libpri])])
 AC_CHECK_LIB([pthread], [main])
 AC_CHECK_LIB([resolv], [main])
 AC_CHECK_LIB([rt], [main])
@@ -367,8 +366,6 @@ AC_CHECK_LIB([speex], [main],[AC_DEFINE([HAVE_LIBSPEEX],["yes"],[yay we can do s
 AM_CONDITIONAL([HAS_SPEEX],[test -n "${HAVE_LIBSPEEX}"])
 AC_CHECK_LIB([t], [main])
 # AC_CHECK_LIB([termcap], [main])
-AC_CHECK_LIB([tonezone], [main],[AC_DEFINE([HAVE_LIBTONEZONE],["yes"],[OK, zaptel is there])])
-AM_CONDITIONAL([HAVE_ZAPTEL],[test -n "${HAVE_LIBTONEZONE}"])
 
 AC_CHECK_LIB([z], [main], [HAVE_LIBZ=1])
 
@@ -639,7 +636,32 @@ AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}"
 AC_SUBST([CHAN_EXOSIP2_CFLAGS])
 AC_SUBST([CHAN_EXOSIP2_LIBS])
 
+dnl ########## chan_zap ##########
+
+AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
+
+AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
+
+AC_ARG_WITH([chan_zap],
+	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes)])],,
+	[with_chan_zap="yes"])
+
+AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+
 ####### apps
+
+AC_ARG_WITH([app_flash],
+	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
+	[with_app_flash="yes"])
+
+AM_CONDITIONAL([WANT_APP_FLASH], [test "${with_app_flash}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+
+AC_ARG_WITH([app_meetme],
+	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
+	[with_app_meetme="yes"])
+
+AM_CONDITIONAL([WANT_APP_MEETME], [test "${with_app_meetme}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+
 
 dnl app_icd
 #app_icd = "no"

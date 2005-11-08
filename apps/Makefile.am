@@ -161,15 +161,20 @@ app_softhangup_la_SOURCES			= app_softhangup.c
 app_softhangup_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_softhangup_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
 
-if HAVE_ZAPTEL
-	opbxmod_LTLIBRARIES				+= app_meetme.la app_flash_la
-	app_meetme_la_SOURCES			= app_meetme.c enter.h leave.h
-	app_meetme_la_LDFLAGS			= -module -avoid-version -no-undefined
-	app_meetme_la_LIBADD			= ${top_srcdir}/corelib/libopenpbx.la
-	app_flash_la_SOURCES			= app_flash.c
-	app_flash_la_LDFLAGS			= -module -avoid-version -no-undefined
-	app_flash_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
-endif HAVE_ZAPTEL
+if WANT_APP_FLASH
+opbxmod_LTLIBRARIES			+= app_flash.la
+app_flash_la_SOURCES			= app_flash.c
+app_flash_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_flash_la_LIBADD			= ${top_srcdir}/corelib/libopenpbx.la
+endif WANT_APP_FLASH
+
+if WANT_APP_MEETME
+opbxmod_LTLIBRARIES			+= app_meetme.la
+app_meetme_la_SOURCES			= app_meetme.c enter.h leave.h
+app_meetme_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_meetme_la_LIBADD			= ${top_srcdir}/corelib/libopenpbx.la
+endif WANT_APP_MEETME
+
 
 if WANT_OSP
 	opbxmod_LTLIBRARIES				+= app_osplookup_la
