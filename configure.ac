@@ -357,7 +357,6 @@ AC_CHECK_LIB([ncurses], [main],,[AC_CHECK_LIB([curses],[main])])
 AC_CHECK_LIB([newt], [main],[AC_DEFINE([HAVE_LIBNEWT],["yes"],[yes there is newt])])
 AM_CONDITIONAL([USE_NEWT],[test -n "${HAVE_LIBNEWT}"])
 AC_CHECK_LIB([nsl], [main])
-AC_CHECK_LIB([odbc], [main],[AC_DEFINE([HAVE_LIBODBC],["yes"],[say hi to libodbc])])
 AC_CHECK_LIB([ossaudio], [main])
 AC_CHECK_LIB([pri], [main],[AC_DEFINE([HAVE_LIBPRI],["yes"],[say hi to libpri])])
 AC_CHECK_LIB([pthread], [main])
@@ -655,7 +654,7 @@ AC_ARG_WITH([app_talkdetect],
 
 AM_CONDITIONAL([WITH_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
 
-##### ressources
+##### resources
 
 dnl res_osp ... open settlement protocol handling
 dnl look for Transnexus OSP Toolkit (stolen from the OpenH323 configure.ac)
@@ -765,33 +764,27 @@ AC_ARG_WITH(cdr_pgsql,
 
 AM_CONDITIONAL([WANT_CDR_PGSQL],[test "$with_cdr_pgsql" = "yes"])
 
-#res_odbc
-AC_ARG_ENABLE(res_odbc,
-	[AC_HELP_STRING([--enable-res_odbc],[build res_odbc (default=no)])],
-[   AC_MSG_RESULT(yes)
-    if test -n "${HAVE_LIBODBC}"
-    then
-	WANT_RES_ODBC=yes
-    fi],
-[   AC_MSG_RESULT(no)
-])
+AC_CHECK_LIB([odbc], [main], [HAVE_LIBODBC=1])
 
-AM_CONDITIONAL([WANT_RES_ODBC],[test -n "${WANT_RES_ODBC}"])
+if test -n "${HAVE_LIBODBC}"; then
+   ODBC_CFLAGS=""
+   ODBC_LIBS="-lodbc"
+fi
 
-  
+AC_SUBST([ODBC_CFLAGS])
+AC_SUBST([ODBC_LIBS])
 
-dnl Selector for res_odbc support
-AC_ARG_ENABLE(res_config_odbc,
-        [AC_HELP_STRING([--enable-res_config_odbc],[build res_config_odbc (default=no)])],
-[   AC_MSG_RESULT(yes)
-    if test -n  "${HAVE_LIBODBC}"
-    then
-        WANT_RES_CONFIG_ODBC=yes
-    fi],
-[   AC_MSG_RESULT(no)
-])
+AC_ARG_WITH(res_odbc,
+	[AC_HELP_STRING([--with-res_odbc],[Build and install res_odbc (default=no)])],,
+	[with_res_odbc="no"])
 
-AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test -n "${WANT_RES_CONFIG_ODBC}"])
+AM_CONDITIONAL([WANT_RES_ODBC],[test "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
+
+AC_ARG_WITH(res_config_odbc,
+        [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no)])],
+	[with_res_config_odbc="no"])
+
+AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${with_res_config_odbc}" -a -n "${HAVE_LIBODBC}"])
 
 #
 # Optional Packages (odbc,mysql,loudmouth for jabber,pgsql,dbi and system sqlite. Also system speex codec
