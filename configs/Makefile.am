@@ -43,6 +43,7 @@ opbxconf_DATA = adsi.conf.sample \
 	unicall.conf.sample \
 	voicemail.conf.sample \
 	vpb.conf.sample \
+	woomera.conf.sample \
 	zapata.conf.sample
 
 @substitute@

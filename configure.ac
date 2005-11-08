@@ -636,6 +636,14 @@ AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}"
 AC_SUBST([CHAN_EXOSIP2_CFLAGS])
 AC_SUBST([CHAN_EXOSIP2_LIBS])
 
+dnl ########## chan_woomera ##########
+
+AC_ARG_WITH([chan_woomera],
+	[AC_HELP_STRING([--with-chan_woomer],[Build and install chan_woomera (default=yes)])],,
+	[with_chan_woomera="yes"])
+
+AM_CONDITIONAL([WANT_CHAN_WOOMERA], [test "${with_chan_woomera}" = "yes"])
+
 dnl ########## chan_zap ##########
 
 AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
