@@ -1,5 +1,5 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Openpbx -- A telephony toolkit for Linux.
  *
  * res_js: Javascript in your dialplan
  *
