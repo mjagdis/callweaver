@@ -45,7 +45,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
 
-#include "../channels/adtranvofr.h"
 
 
 #define G723_MAX_SIZE 1024
