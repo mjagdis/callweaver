@@ -2016,11 +2016,23 @@ int openpbx_main(int argc, char *argv[])
 		runuser = opbx_config_OPBX_RUN_USER;
 	if (!rungroup)
 		rungroup = opbx_config_OPBX_RUN_GROUP;
-	if (!is_child_of_nonroot && rungroup) {
+	if (!is_child_of_nonroot) {
 		struct group *gr;
+		struct passwd *pw;
+
 		gr = getgrnam(rungroup);
 		if (!gr) {
-			opbx_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
+			opbx_log(LOG_ERROR, "No such group '%s'!\n", rungroup);
+			exit(1);
+		}
+		pw = getpwnam(runuser);
+		if (!pw) {
+			opbx_log(LOG_ERROR, "No such user '%s'!\n", runuser);
+			exit(1);
+		}
+		
+		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
+			opbx_log(LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
 			exit(1);
 		}
 #ifdef __Darwin__
@@ -2028,30 +2040,51 @@ int openpbx_main(int argc, char *argv[])
 #else
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
 #endif
-			opbx_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
+			opbx_log(LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
 			exit(1);
 		}
-		if (option_verbose)
-			opbx_verbose("Running as group '%s'\n", rungroup);
-	}
-	if (!is_child_of_nonroot && runuser) {
-		struct passwd *pw;
-		pw = getpwnam(runuser);
-		if (!pw) {
-			opbx_log(LOG_WARNING, "No such user '%s'!\n", runuser);
-			exit(1);
+		if (option_verbose) {
+			int ngroups;
+			gid_t gid_list[NGROUPS_MAX];
+			int i;
+			struct group *gr2;
+
+			gr2 = getgrgid(getegid());
+			if (gr2) {
+				opbx_verbose("Now running as group '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+			} else {
+				opbx_verbose("Now running as group '' (%d)\n", getegid());
+			}
+
+			opbx_verbose("Supplementary groups:\n");
+			ngroups = getgroups(NGROUPS_MAX, gid_list);
+			for (i = 0; i < ngroups; i++) {
+				gr2 = getgrgid(gid_list[i]);
+				if (gr2) {
+					opbx_verbose("   '%s' (%d)\n", gr2->gr_name, gr2->gr_gid);
+				} else {
+					opbx_verbose("   '' (%d)\n", gid_list[i]);
+				}
+			}
 		}
 #ifdef __Darwin__
 		if (setuid(pw->pw_uid)) {
 #else
 		if (setreuid(pw->pw_uid, pw->pw_uid)) {
 #endif
-			opbx_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
+			opbx_log(LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
 			exit(1);
 		}
 		setenv("OPENPBX_ALREADY_NONROOT","yes",1);
-		if (option_verbose)
-			opbx_verbose("Running as user '%s'\n", runuser);
+		if (option_verbose) {
+			struct passwd *pw2;
+			pw2 = getpwuid(geteuid());
+			if (pw2) {
+				opbx_verbose("Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
+			} else {
+				opbx_verbose("Now running as user '' (%d)\n", getegid());
+			}
+		}
 	}
 
 	/* Check if we're root */
