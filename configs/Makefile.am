@@ -2,13 +2,13 @@ AUTOMAKE_OPTS = gnu
 opbxconf_DATA = adsi.conf.sample \
 	adtranvofr.conf.sample \
 	agents.conf.sample \
+	capi.conf.sample \
 	cdr.conf.sample \
 	cdr_custom.conf.sample \
 	cdr_manager.conf.sample \
 	cdr_odbc.conf.sample \
 	cdr_pgsql.conf.sample \
 	cdr_tds.conf.sample \
-	chan_capi.sample \
 	chan_fax.conf.sample \
 	codecs.conf.sample \
 	dnsmgr.conf.sample \
