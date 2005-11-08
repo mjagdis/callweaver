@@ -21,10 +21,15 @@
  * Enum Functions
  *
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 
 #include "openpbx.h"
+
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_db.c $", "$Revision$")
 
 #ifndef BUILTIN_FUNC
 #include "openpbx/module.h"

@@ -19,6 +19,9 @@
  * Language related dialplan functions
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +29,7 @@
 
 #include "openpbx.h"
 
-/* OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$") */
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"

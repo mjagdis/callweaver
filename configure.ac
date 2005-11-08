@@ -654,6 +654,98 @@ AC_ARG_WITH([app_talkdetect],
 
 AM_CONDITIONAL([WANT_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
 
+##### functions
+
+AC_ARG_WITH([func_callerid],
+        [AC_HELP_STRING([--with-func_callerid],[Build and install func_callerid (default=yes)])],,
+        [with_func_callerid="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_CALLERID],[test "${with_func_callerid}" = "yes"])
+
+AC_ARG_WITH([func_cdr],
+        [AC_HELP_STRING([--with-func_cdr],[Build and install func_cdr (default=yes)])],,
+        [with_func_cdr="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_CDR],[test "${with_func_cdr}" = "yes"])
+
+AC_ARG_WITH([func_db],
+        [AC_HELP_STRING([--with-func_db],[Build and install func_db (default=yes)])],,
+        [with_func_db="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_DB],[test "${with_func_db}" = "yes"])
+
+AC_ARG_WITH([func_enum],
+        [AC_HELP_STRING([--with-func_enum],[Build and install func_enum (default=yes)])],,
+        [with_func_enum="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_ENUM],[test "${with_func_enum}" = "yes"])
+
+AC_ARG_WITH([func_env],
+        [AC_HELP_STRING([--with-func_env],[Build and install func_env (default=yes)])],,
+        [with_func_env="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_ENV],[test "${with_func_env}" = "yes"])
+
+AC_ARG_WITH([func_fileexists],
+        [AC_HELP_STRING([--with-func_fileexists],[Build and install func_fileexists (default=yes)])],,
+        [with_func_fileexists="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_FILEEXISTS],[test "${with_func_fileexists}" = "yes"])
+
+AC_ARG_WITH([func_groupcount],
+        [AC_HELP_STRING([--with-func_groupcount],[Build and install func_groupcount (default=yes)])],,
+        [with_func_groupcount="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_GROUPCOUNT],[test "${with_func_groupcount}" = "yes"])
+
+AC_ARG_WITH([func_language],
+        [AC_HELP_STRING([--with-func_language],[Build and install func_language (default=yes)])],,
+        [with_func_language="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_LANGUAGE],[test "${with_func_language}" = "yes"])
+
+AC_ARG_WITH([func_logic],
+        [AC_HELP_STRING([--with-func_logic],[Build and install func_logic (default=yes)])],,
+        [with_func_logic="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_LOGIC],[test "${with_func_logic}" = "yes"])
+
+AC_ARG_WITH([func_math],
+        [AC_HELP_STRING([--with-func_math],[Build and install func_math (default=yes)])],,
+        [with_func_math="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_MATH],[test "${with_func_math}" = "yes"])
+
+AC_ARG_WITH([func_md5],
+        [AC_HELP_STRING([--with-func_md5],[Build and install func_md5 (default=yes)])],,
+        [with_func_md5="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_MD5],[test "${with_func_md5}" = "yes"])
+
+AC_ARG_WITH([func_moh],
+        [AC_HELP_STRING([--with-func_moh],[Build and install func_moh (default=yes)])],,
+        [with_func_moh="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_MOH],[test "${with_func_moh}" = "yes"])
+
+AC_ARG_WITH([func_strings],
+        [AC_HELP_STRING([--with-func_strings],[Build and install func_strings (default=yes)])],,
+        [with_func_strings="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_STRINGS],[test "${with_func_strings}" = "yes"])
+
+AC_ARG_WITH([func_timeout],
+        [AC_HELP_STRING([--with-func_timeout],[Build and install func_timeout (default=yes)])],,
+        [with_func_timeout="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_TIMEOUT],[test "${with_func_timeout}" = "yes"])
+
+AC_ARG_WITH([func_uri],
+        [AC_HELP_STRING([--with-func_uri],[Build and install func_uri (default=yes)])],,
+        [with_func_uri="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_URI],[test "${with_func_uri}" = "yes"])
+
 ##### resources
 
 dnl res_osp ... open settlement protocol handling

@@ -21,10 +21,15 @@
  * Functions for reading or setting the MusicOnHold class
  * 
  */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
 
 #include <stdlib.h>
 
 #include "openpbx.h"
+
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_md5.c $", "$Revision$")
 
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
