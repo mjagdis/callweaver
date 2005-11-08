@@ -226,6 +226,7 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 		sqlite3_free(sql);
 		sql = NULL;
 	}
+	sqlite3_close(db);
 	return res;
 }
 
@@ -282,6 +283,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 		sql = NULL;
 	}
 
+	sqlite3_close(db);
 	return res;
 }
 
@@ -345,6 +347,7 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 		sql = NULL;
 	}
 
+	sqlite3_close(db);
 	return res;
 }
 
@@ -440,6 +443,7 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 		sql = NULL;
 	}
 
+	sqlite3_close(db);
 	return tree;
 
 }
@@ -530,6 +534,7 @@ static int database_show(int fd, int argc, char *argv[])
 		sql = NULL;
 	}
 
+	sqlite3_close(db);
 	return RESULT_SUCCESS;	
 }
 
