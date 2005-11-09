@@ -26,21 +26,8 @@ noload => pbx_gtkconsole.so
 ;load => pbx_gtkconsole.so
 noload => pbx_kdeconsole.so
 ;
-; Intercom application is obsoleted by
-; chan_oss.  Don't load it.
-;
-noload => app_intercom.so
-;
-; Explicitly load the chan_modem.so early on to be sure
-; it loads before any of the chan_modem_* 's afte rit
-;
 load => res_musiconhold.so
 ;
-; Load either OSS or ALSA, not both
-; By default, load OSS only (automatically) and do not load ALSA
-;
-noload => chan_alsa.so
-;noload => chan_oss.so
 
 ;
 ; Don't try and load the core lib as a module (temporary workaround).
