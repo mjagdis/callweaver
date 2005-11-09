@@ -554,19 +554,18 @@ opbxrunuser="openpbx"
 opbxrungroup="openpbx"
 
 AC_ARG_WITH(openpbx-user,
-	[AC_HELP_STRING([--with-openpbx-user=USER],[use USER instead of default (openpbx)])],[opbx_user="$withval"],[opbx_user="no"])
+	[AC_HELP_STRING([--with-openpbx-user=USER],[Run as USER (default=openpbx)])],,[with_openpbx_user="openpbx"])
 
-if test "x$opbx_user" != "xno" && test "x$opbx_user" != "xyes"; then
-	opbxrunuser="$opbx_user"
+if test "${with_openpbx_user}" != "no" -a "${with_openpbx_user}" != "yes"; then
+	opbxrunuser="$with_openpbx_user"
 fi
 
 AC_ARG_WITH(openpbx-group,
-	[AC_HELP_STRING([--with-openpbx-group=GROUP],[use GROUP instead of default (openpbx)])],[opbx_group="$withval"],[opbx_group="no"])
+	[AC_HELP_STRING([--with-openpbx-group=GROUP],[Run as GROUP (default=openpbx)])],,[with_openpbx_group="openpbx"])
 
-if test "x$opbx_group" != "xno" && test "x$opbx_group" != "xyes"; then
-	opbxrungroup="$opbx_group"
+if test "${with_openpbx_group}" != "no" -a "${with_openpbx_group}" != "yes"; then
+	opbxrungroup="$with_openpbx_group"
 fi
-# set vars
 AC_SUBST(opbxrunuser)
 AC_SUBST(opbxrungroup)  
 
