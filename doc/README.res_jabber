@@ -1,0 +1,68 @@
+> I still don't see how the asterisk sends events to jabber or why
+<anthm> ok do you have a jabber server ?
+<anthm> say it's mydom.com
+<anthm> you make an account res_jabber@mydom.com
+<anthm> and you tell the config in asterisk the details
+<anthm> the master_thread is the / resource
+<anthm> so if you add that account to your buddy list
+<anthm> you will see it log in when you load the module
+<c888> 20:05 1 Brian West 1000 66.250.69.250 (exit)
+* c888 20:05 Brian West  has left the conference.
+<anthm> res_jabber/master_thread
+<anthm> now say you have your dialplan dumping off all calls too the nextgen app
+<anthm> you call the box on iax for instance
+<anthm> and it executes the app
+<anthm> now you will see another instance on your buddy list
+<anthm> res_jabber/iax-xyz-whatever
+<pressure_man> anthm, instead of spieling this all off in irc, how about documenting it?
+<anthm> i just did
+<pressure_man> copy and paste irc channel into README_res_jabber?
+> its better then nothing
+<anthm> anyway whatever jabberid is defined  as master will get a message when that call comes in
+<anthm> you can start a pm with that id that sent you the message and control the call
+<anthm> tell it answer<cr> for instance
+*** huslage (n=huslage@c-67-169-200-122.hsd1.or.comcast.net) has joined channel #openpbx
+<anthm> then tell it stuff like streamfile
+*** Signoff: fanguin (Read error: 110 (Connection timed out))
+<anthm> if you dial any dtmf during all this you will get them all as msgs
+<anthm> you can also query the main_thread resource and ask for a new outbound call
+*** Signoff: file[lap1op] (Connection timed out)
+> Now thats because you have some special logic in extensions.conf that sends it right?
+<anthm>  then once it's up the same rules apply
+> Or does Res_jabber gobble up the entire channel and won't let asterisk touch it?
+<anthm> it's just an app
+> what is the name of the app to invoke that?
+<anthm> yep exactly
+<anthm> nextGen
+> why nextGen?
+<anthm> that's what it is
+<anthm> its a tester for nextgen
+> So I could only interact with it via a controller?
+<anthm> the kicker is, once you have a chat session with 2 separate channels you can command them to trade audio over
++udp
+> But can the controller call other internal asterisk applications?
+<anthm> you can tell it "exec: playback beep"
+<anthm> and it will
+> what about
+> like
+<anthm> though that was not the real point
+> exec: JavaScript /opt/openpbx/js/vociemail.js ?
+<anthm> exec anything
+> is it stable?
+<anthm> *shrug*
+> is there a list of commands that I can do like exec: ?
+<anthm> i'm not really selling it =D
+> huh...
+<anthm> cypromis is the one who tossed it into the openpbx
+<anthm> hence why there is no docs or anything
+> how does the ICD jabber differ from res_jabber?
+*** Signoff: factoryjoe ()
+<anthm> i didnt actually prepare if for release persae
+<anthm> in the perl code
+<anthm> you can see many of them
+<anthm> it uses a proto called NTCP
+> NTCP?
+<anthm> network telephony control protocol
+> yu
+<anthm> my invention
+
