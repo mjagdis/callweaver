@@ -315,11 +315,10 @@ static char *build_filename(const char *filename, const char *ext)
 	} else {
 		char tmp[OPBX_CONFIG_MAX_PATH] = "";
 
-		snprintf(tmp, sizeof(tmp), "%s/%s", opbx_config_OPBX_VAR_DIR, "sounds");
-		fnsize = strlen(tmp) + strlen(filename) + strlen(type) + 3;
+		fnsize = strlen(opbx_config_OPBX_SOUNDS_DIR) + strlen(filename) + strlen(type) + 3;
 		fn = malloc(fnsize);
 		if (fn)
-			snprintf(fn, fnsize, "%s/%s.%s", tmp, filename, type);
+			snprintf(fn, fnsize, "%s/%s.%s", opbx_config_OPBX_SOUNDS_DIR, filename, type);
 	}
 
 	return fn;

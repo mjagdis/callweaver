@@ -167,6 +167,7 @@ char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "openpbx.ctl";
+char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
 
 static char *_argv[256];
 static int shuttingdown = 0;
@@ -1748,6 +1749,7 @@ static void opbx_readconfig(void) {
 	opbx_copy_string(opbx_config_OPBX_PID, opbxpidfile_default, sizeof(opbx_config_OPBX_PID));
 	opbx_copy_string(opbx_config_OPBX_SOCKET, opbxsocketfile_default, sizeof(opbx_config_OPBX_SOCKET));
 	opbx_copy_string(opbx_config_OPBX_RUN_DIR, opbxrundir_default, sizeof(opbx_config_OPBX_RUN_DIR));
+	opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, opbxsoundsdir_default, sizeof(opbx_config_OPBX_SOUNDS_DIR));
 
 	/* no openpbx.conf? no problem, use buildtime config! */
 	if (!cfg) {
