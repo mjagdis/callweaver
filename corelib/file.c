@@ -313,8 +313,6 @@ static char *build_filename(const char *filename, const char *ext)
 		if (fn)
 			snprintf(fn, fnsize, "%s.%s", filename, type);
 	} else {
-		char tmp[OPBX_CONFIG_MAX_PATH] = "";
-
 		fnsize = strlen(opbx_config_OPBX_SOUNDS_DIR) + strlen(filename) + strlen(type) + 3;
 		fn = malloc(fnsize);
 		if (fn)
