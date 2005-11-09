@@ -1025,7 +1025,6 @@ AM_CONDITIONAL([WANT_CHAN_UNICALL],[test -n "${WANT_CHAN_UNICALL}"])
 
 # res_js
 
-
 AC_ARG_ENABLE(javascript,
         [AC_HELP_STRING([--enable-javascript],[Enable the use of javascript (default=no)])],,
 	[enable_javascript="no"])
@@ -1033,8 +1032,13 @@ AC_ARG_ENABLE(javascript,
 if test "${enable_javascript}" = "yes"; then
    AC_CHECK_LIB([js],[main],[HAVE_LIBJS=1])
 
-   if test -n "$HAVE_LIBJS"; then
+   AC_CHECK_HEADERS([jsscript.h],[HAVE_JSSCRIPT_H=1],[AC_CHECK_HEADERS([js/jsscript.h],[HAVE_JS_JSSCRIPT_H=1])])
+
+   if test -n "$HAVE_LIBJS" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \); then
       JS_CFLAGS="-DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE"
+      if test -n "${HAVE_JS_JSSCRIPT_H}"; then
+	 JS_CFLAGS="${JSCFLAGS} -I/usr/include/js"
+      fi
       JS_LDFLAGS="-ljs"
       AC_SUBST(JS_CFLAGS)
       AC_SUBST(JS_LDFLAGS)
@@ -1057,7 +1061,10 @@ if test "${enable_javascript}" = "yes"; then
    fi
 fi
 
-AM_CONDITIONAL([WANT_RES_JS],[test "${enable_javascript}" = "yes" -a -n "${HAVE_LIBJS}" -a -n "${HAVE_NSPR}"])  
+AC_ARG_WITH([res_js],
+	[AC_HELP_STRING([--with-res_js],[Build and install res_js (default=no}])],,[with_res_js="no"])
+
+AM_CONDITIONAL([WANT_RES_JS],[test "${enable_javascript}" = "yes" -a "${with_res_js}" = "yes" -a -n "${HAVE_LIBJS}" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \) -a -n "${HAVE_NSPR}"])  
 
 AC_ARG_ENABLE([chan_capi],
 	[AC_HELP_STRING([--enable-chan_capi],[Build capi channel module])],,[enable_chan_capi="no"])
