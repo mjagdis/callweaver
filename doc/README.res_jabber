@@ -65,4 +65,69 @@
 <anthm> network telephony control protocol
 > yu
 <anthm> my invention
+> alright can I post this in README.res_jabber?
+<anthm> if you would like to sure
+*** Signoff: RoyK (Read error: 110 (Connection timed out))
+<anthm> the perl code was in the tar with the res_jabber b4 not sure if it's still there
+<wsuff> anthm: i think it's in contrib now
+<wsuff> ya res_jabber_addon in contrib
+<anthm> just to test it you can edit the res_jabber.conf to make your jabber_client be the master
+<anthm> you should make an account for the res_jabber with a real client and add it to the roster
+<anthm> so you can see when it logs in
+<anthm> and that is the basic way to test it
+<anthm> you call the app nextgen and you will get a PM saying new call with details
+<anthm> and you can just tell it "answer"
+<c888> 20:20 2 anthm 0 69.216.26.86 (exit)
+* c888 20:20 anthm 0 has left the conference.
+> can I use it in addition to my regular extension logic?
+> Like, still works like for app_queue regular, but i have the ability to all the sudden do a jabber redirect
+<anthm> once you do NextGen it never comes back
+<anthm> so if you want you could make the jabber say exec queue somequeue or something like that
+<anthm> but you lose control
+<anthm> until that exec is done
+<anthm> which why exec is more of a test thing
+<anthm> with the udp audio bridge you still never leave the main loop
+> can you originate another call, and then bridge them together with res_jabber?
+<anthm> you still get all the dtmf events etc
+> udp audio bridge, hmm
+<anthm> yes that is one of the things the perl script does
+> still fuzzy in my head. what does that me3an?
+<anthm> it means
+> so I can originate a call tot he queue, then udp audio bridge them?
+<anthm> if you know the jabber id of 2 difft calls
+<anthm> you can tell 1 to talk to the other one
+> cuz I want to use FollowMe that tries your IM
+<c888> 20:24 1 MikeJ 65.170.43.60 (exit)
+* c888 20:24 Mike J has left the conference.
+<anthm> and they will open udp ports and exchange media regardless of channel type
+> Won't the codecs fuck it up?
+> what jabber function is this?
+> I'm sure its like exec: right?
+<anthm> the channels set read/write to raw
+<anthm> yah there is actually no : that was a typeo
+> does it go to localhost 100% of the time?
+<anthm> the format is <command> <args><CR>
+<anthm> header1: val1:
+<anthm> headern: valn:
+<anthm> <CR><CR>
+<anthm> <CR> being invisible carraige returns
+> Over Jabber?
+> Its not an XML based message -- still CR based?
+> But when jabber gets it, it converts it to XML right... assuming 
+<anthm> bah no way it's encapsulated text message
+<anthm> xml makes me want to vomit
+> you talking about when talking to the master right?
+> <CR> based is fine for this i think. 
+> jez, HTTP and SMTP is <CR> based:)
+<anthm> the control messages are all text packets
+<anthm> the jabber is not really relevant it's just a transport
+> what about event messages?
+<anthm> they look the same but they start with event
+> So the need to be parsed with something that undmerstands event management still though right?
+> No fancy jabber callback functions right?
+<anthm> they are abstracted by the perl code
+<anthm> did you look at it ?
+> Yes
+> I am not planning on using perl however.
+* anthm needs some air
 
