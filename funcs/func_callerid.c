@@ -31,9 +31,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#ifndef BUILTIN_FUNC
 #include "openpbx/module.h"
-#endif /* BUILTIN_FUNC */
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -104,10 +102,7 @@ static void callerid_write(struct opbx_channel *chan, char *cmd, char *data, con
         }
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif /* BUILTIN_FUNC */
-struct opbx_custom_function callerid_function = {
+static struct opbx_custom_function callerid_function = {
 	.name = "CALLERID",
 	.synopsis = "Gets or sets Caller*ID data on the channel.",
 	.syntax = "CALLERID(datatype)",
@@ -117,7 +112,6 @@ struct opbx_custom_function callerid_function = {
 	.write = callerid_write,
 };
 
-#ifndef BUILTIN_FUNC
 static char *tdesc = "Caller ID related dialplan function";
 
 int unload_module(void)
@@ -139,9 +133,6 @@ int usecount(void)
 {
 	return 0;
 }
-
-
-#endif /* BUILTIN_FUNC */
 
 /*
 Local Variables:

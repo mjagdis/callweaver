@@ -34,6 +34,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -68,10 +69,7 @@ static char *function_fieldqty(struct opbx_channel *chan, char *cmd, char *data,
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function fieldqty_function = {
+static struct opbx_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.synopsis = "Count the fields, with an arbitrary delimiter",
 	.syntax = "FIELDQTY(<varname>,<delim>)",
@@ -115,10 +113,7 @@ static char *builtin_function_regex(struct opbx_channel *chan, char *cmd, char *
 	return ret;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function regex_function = {
+static struct opbx_custom_function regex_function = {
 	.name = "REGEX",
 	.synopsis = "Regular Expression: Returns 1 if data matches regular expression.",
 	.syntax = "REGEX(\"<regular expression>\" <data>)",
@@ -135,10 +130,7 @@ static char *builtin_function_len(struct opbx_channel *chan, char *cmd, char *da
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function len_function = {
+static struct opbx_custom_function len_function = {
 	.name = "LEN",
 	.synopsis = "Returns the length of the argument given",
 	.syntax = "LEN(<string>)",
@@ -185,10 +177,7 @@ static char *acf_strftime(struct opbx_channel *chan, char *cmd, char *data, char
 	return "";
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function strftime_function = {
+static struct opbx_custom_function strftime_function = {
 	.name = "STRFTIME",
 	.synopsis = "Returns the current date/time in a specified format.",
 	.syntax = "STRFTIME([<epoch>][,[timezone][,format]])",
@@ -209,10 +198,7 @@ static char *function_eval(struct opbx_channel *chan, char *cmd, char *data, cha
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function eval_function = {
+static struct opbx_custom_function eval_function = {
 	.name = "EVAL",
 	.synopsis = "Evaluate stored variables.",
 	.syntax = "EVAL(<variable>)",
@@ -337,10 +323,7 @@ static char *function_cut(struct opbx_channel *chan, char *cmd, char *data, char
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function cut_function = {
+static struct opbx_custom_function cut_function = {
 	.name = "CUT",
 	.synopsis = "Slices and dices strings, based upon a named delimiter.",
 	.syntax = "CUT(<varname>,<char-delim>,<range-spec>)",
@@ -426,10 +409,7 @@ static char *function_sort(struct opbx_channel *chan, char *cmd, char *data, cha
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function sort_function = {
+static struct opbx_custom_function sort_function = {
 	.name= "SORT",
 	.synopsis = "Sorts a list of key/vals into a list of keys, based upon the vals",
 	.syntax = "SORT(key1:val1[...][,keyN:valN])",
@@ -438,3 +418,45 @@ struct opbx_custom_function sort_function = {
 		"floating-point numbers.\n",
 	.read = function_sort,
 };
+
+static char *tdesc = "string functions";
+
+int unload_module(void)
+{
+	opbx_custom_function_unregister(&fieldqty_function);
+	opbx_custom_function_unregister(&regex_function);
+	opbx_custom_function_unregister(&len_function);
+	opbx_custom_function_unregister(&strftime_function);
+	opbx_custom_function_unregister(&eval_function);
+	opbx_custom_function_unregister(&cut_function);
+        return opbx_custom_function_unregister(&sort_function);
+}
+
+int load_module(void)
+{
+	opbx_custom_function_register(&fieldqty_function);
+	opbx_custom_function_register(&regex_function);
+	opbx_custom_function_register(&len_function);
+	opbx_custom_function_register(&strftime_function);
+	opbx_custom_function_register(&eval_function);
+	opbx_custom_function_register(&cut_function);
+        return opbx_custom_function_register(&sort_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

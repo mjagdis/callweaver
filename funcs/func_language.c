@@ -31,6 +31,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -50,10 +51,7 @@ static void builtin_function_language_write(struct opbx_channel *chan, char *cmd
 		opbx_copy_string(chan->language, value, sizeof(chan->language));
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function language_function = {
+static struct opbx_custom_function language_function = {
 	.name = "LANGUAGE",
 	.synopsis = "Gets or sets the channel's language.",
 	.syntax = "LANGUAGE()",
@@ -68,6 +66,28 @@ struct opbx_custom_function language_function = {
 	.read = builtin_function_language_read,
 	.write = builtin_function_language_write,
 };
+
+static char *tdesc = "language functions";
+
+int unload_module(void)
+{
+        return opbx_custom_function_unregister(&language_function);
+}
+
+int load_module(void)
+{
+        return opbx_custom_function_register(&language_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
 
 /*
 Local Variables:

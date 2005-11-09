@@ -32,6 +32,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -152,53 +153,75 @@ static char *builtin_function_set(struct opbx_channel *chan, char *cmd, char *da
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function isnull_function = {
+static struct opbx_custom_function isnull_function = {
 	.name = "ISNULL",
 	.synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise",
 	.syntax = "ISNULL(<data>)",
 	.read = builtin_function_isnull,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function set_function = {
+static struct opbx_custom_function set_function = {
 	.name = "SET",
 	.synopsis = "SET assigns a value to a channel variable",
 	.syntax = "SET(<varname>=[<value>])",
 	.read = builtin_function_set,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function exists_function = {
+static struct opbx_custom_function exists_function = {
 	.name = "EXISTS",
 	.synopsis = "Existence Test: Returns 1 if exists, 0 otherwise",
 	.syntax = "EXISTS(<data>)",
 	.read = builtin_function_exists,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function if_function = {
+static struct opbx_custom_function if_function = {
 	.name = "IF",
 	.synopsis = "Conditional: Returns the data following '?' if true else the data following ':'",
 	.syntax = "IF(<expr>?[<true>][:<false>])",
 	.read = builtin_function_if,
 };
 
-
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function if_time_function = {
+static struct opbx_custom_function if_time_function = {
 	.name = "IFTIME",
 	.synopsis = "Temporal Conditional: Returns the data following '?' if true else the data following ':'",
 	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",
 	.read = builtin_function_iftime,
 };
+
+static char *tdesc = "logic functions";
+
+int unload_module(void)
+{
+	opbx_custom_function_unregister(&isnull_function);
+	opbx_custom_function_unregister(&set_function);
+	opbx_custom_function_unregister(&exists_function);
+	opbx_custom_function_unregister(&if_function);
+        return opbx_custom_function_unregister(&if_time_function);
+}
+
+int load_module(void)
+{
+	opbx_custom_function_register(&isnull_function);
+	opbx_custom_function_register(&set_function);
+	opbx_custom_function_register(&exists_function);
+	opbx_custom_function_register(&if_function);
+        return opbx_custom_function_register(&if_time_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

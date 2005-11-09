@@ -31,6 +31,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_md5.c $", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/utils.h"
@@ -47,10 +48,7 @@ static void function_moh_write(struct opbx_channel *chan, char *cmd, char *data,
 	opbx_copy_string(chan->musicclass, value, MAX_MUSICCLASS);
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function moh_function = {
+static struct opbx_custom_function moh_function = {
 	.name = "MUSICCLASS",
 	.synopsis = "Read or Set the MusicOnHold class",
 	.syntax = "MUSICCLASS()",
@@ -59,3 +57,32 @@ struct opbx_custom_function moh_function = {
 	.write = function_moh_write,
 };
 
+static char *tdesc = "MOH functions";
+
+int unload_module(void)
+{
+        return opbx_custom_function_unregister(&moh_function);
+}
+
+int load_module(void)
+{
+        return opbx_custom_function_register(&moh_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

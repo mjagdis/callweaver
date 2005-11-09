@@ -31,6 +31,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -62,13 +63,40 @@ static void builtin_function_env_write(struct opbx_channel *chan, char *cmd, cha
 	}
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function env_function = {
+static struct opbx_custom_function env_function = {
 	.name = "ENV",
 	.synopsis = "Gets or sets the environment variable specified",
 	.syntax = "ENV(<envname>)",
 	.read = builtin_function_env_read,
 	.write = builtin_function_env_write,
 };
+
+static char *tdesc = "Get or set environment variables.";
+
+int unload_module(void)
+{
+       return opbx_custom_function_unregister(&env_function);
+}
+
+int load_module(void)
+{
+       return opbx_custom_function_register(&env_function);
+}
+
+char *description(void)
+{
+       return tdesc;
+}
+
+int usecount(void)
+{
+       return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

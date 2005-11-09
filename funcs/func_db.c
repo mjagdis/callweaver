@@ -106,10 +106,7 @@ static void function_db_write(struct opbx_channel *chan, char *cmd, char *data, 
 	}
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function db_function = {
+static struct opbx_custom_function db_function = {
 	.name = "DB",
 	.synopsis = "Read or Write from/to the OpenPBX database",
 	.syntax = "DB(<family>/<key>)",
@@ -157,10 +154,7 @@ static char *function_db_exists(struct opbx_channel *chan, char *cmd, char *data
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function db_exists_function = {
+static struct opbx_custom_function db_exists_function = {
 	.name = "DB_EXISTS",
 	.synopsis = "Check to see if a key exists in the OpenPBX database",
 	.syntax = "DB_EXISTS(<family>/<key>)",
@@ -170,3 +164,35 @@ struct opbx_custom_function db_exists_function = {
 		"also set the variable DB_RESULT to the key's value if it exists.\n",
 	.read = function_db_exists,
 };
+
+static char *tdesc = "database functions";
+
+int unload_module(void)
+{
+	opbx_custom_function_unregister(&db_exists_function);
+        return opbx_custom_function_unregister(&db_function);
+}
+
+int load_module(void)
+{
+        opbx_custom_function_register(&db_exists_function);
+	return opbx_custom_function_register(&db_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

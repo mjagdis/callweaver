@@ -34,7 +34,7 @@
 
 #include "openpbx.h"
 
-/* OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$") */
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
@@ -66,34 +66,26 @@ static char *builtin_function_uridecode(struct opbx_channel *chan, char *cmd, ch
 		opbx_log(LOG_WARNING, "Syntax: URIDECODE(<data>) - missing argument!\n");
 		return NULL;
 	}
-
 	
 	opbx_copy_string(buf, data, len);
 	opbx_uri_decode(buf);
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function urldecode_function = {
+static struct opbx_custom_function urldecode_function = {
 	.name = "URIDECODE",
 	.synopsis = "Decodes an URI-encoded string.",
 	.syntax = "URIDECODE(<data>)",
 	.read = builtin_function_uridecode,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function urlencode_function = {
+static struct opbx_custom_function urlencode_function = {
 	.name = "URIENCODE",
 	.synopsis = "Encodes a string to URI-safe encoding.",
 	.syntax = "URIENCODE(<data>)",
 	.read = builtin_function_uriencode,
 };
 
-#ifndef BUILTIN_FUNC
 static char *tdesc = "URI encode/decode functions";
 
 int unload_module(void)
@@ -115,6 +107,3 @@ int usecount(void)
 {
 	return 0;
 }
-
-
-#endif /* BUILTIN_FUNC */

@@ -33,6 +33,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -136,10 +137,7 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd,
 	}
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function timeout_function = {
+static struct opbx_custom_function timeout_function = {
 	.name = "TIMEOUT",
 	.synopsis = "Gets or sets timeouts on the channel.",
 	.syntax = "TIMEOUT(timeouttype)",
@@ -169,6 +167,28 @@ struct opbx_custom_function timeout_function = {
 	.read = builtin_function_timeout_read,
 	.write = builtin_function_timeout_write,
 };
+
+static char *tdesc = "string functions";
+
+int unload_module(void)
+{
+        return opbx_custom_function_unregister(&timeout_function);
+}
+
+int load_module(void)
+{
+        return opbx_custom_function_register(&timeout_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
 
 /*
 Local Variables:

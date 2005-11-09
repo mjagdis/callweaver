@@ -97,10 +97,7 @@ static void builtin_function_cdr_write(struct opbx_channel *chan, char *cmd, cha
 		opbx_cdr_setvar(chan->cdr, argv[0], value, recursive);
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function cdr_function = {
+static struct opbx_custom_function cdr_function = {
 	.name = "CDR",
 	.synopsis = "Gets or sets a CDR variable",
 	.desc= "Option 'r' searches the entire stack of CDRs on the channel\n",
@@ -109,3 +106,32 @@ struct opbx_custom_function cdr_function = {
 	.write = builtin_function_cdr_write,
 };
 
+static char *tdesc = "CDR related dialplan function";
+
+int unload_module(void)
+{
+        return opbx_custom_function_unregister(&cdr_function);
+}
+
+int load_module(void)
+{
+        return opbx_custom_function_register(&cdr_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

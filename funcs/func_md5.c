@@ -33,6 +33,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -84,23 +85,49 @@ static char *builtin_function_checkmd5(struct opbx_channel *chan, char *cmd, cha
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function md5_function = {
+static struct opbx_custom_function md5_function = {
 	.name = "MD5",
 	.synopsis = "Computes an MD5 digest",
 	.syntax = "MD5(<data>)",
 	.read = builtin_function_md5,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function checkmd5_function = {
+static struct opbx_custom_function checkmd5_function = {
 	.name = "CHECK_MD5",
 	.synopsis = "Checks an MD5 digest",
 	.desc = "Returns 1 on a match, 0 otherwise\n",
 	.syntax = "CHECK_MD5(<digest>,<data>)",
 	.read = builtin_function_checkmd5,
 };
+
+static char *tdesc = "math functions";
+
+int unload_module(void)
+{
+	opbx_custom_function_unregister(&md5_function);
+        return opbx_custom_function_unregister(&checkmd5_function);
+}
+
+int load_module(void)
+{
+	opbx_custom_function_register(&md5_function);
+        return opbx_custom_function_register(&checkmd5_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

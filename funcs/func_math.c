@@ -33,6 +33,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/module.h"
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/logger.h"
@@ -233,10 +234,7 @@ static char *builtin_function_math(struct opbx_channel *chan, char *cmd, char *d
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif /* BUILTIN_FUNC */
-struct opbx_custom_function math_function = {
+static struct opbx_custom_function math_function = {
 	.name = "MATH",
 	.synopsis = "Performs Mathematical Functions",
 	.syntax = "MATH(<number1><op><number 2>[,<type_of_result>])",
@@ -251,3 +249,33 @@ struct opbx_custom_function math_function = {
 		"Example: Set(i=${MATH(123%16,int)}) - sets var i=11",
 	.read = builtin_function_math
 };
+
+static char *tdesc = "math functions";
+
+int unload_module(void)
+{
+        return opbx_custom_function_unregister(&math_function);
+}
+
+int load_module(void)
+{
+        return opbx_custom_function_register(&math_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

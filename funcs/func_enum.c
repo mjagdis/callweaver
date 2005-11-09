@@ -31,9 +31,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_db.c $", "$Revision$")
 
-#ifndef BUILTIN_FUNC
 #include "openpbx/module.h"
-#endif /* BUILTIN_FUNC */
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/utils.h"
@@ -142,11 +140,7 @@ static char *function_enum(struct opbx_channel *chan, char *cmd, char *data, cha
        return buf;
 }
 
-
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function enum_function = {
+static struct opbx_custom_function enum_function = {
        .name = "ENUMLOOKUP",
        .synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
        " or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
@@ -157,8 +151,6 @@ struct opbx_custom_function enum_function = {
        "For more information, see README.enum",
        .read = function_enum,
 };
-
-#ifndef BUILTIN_FUNC
 
 static char *tdesc = "ENUMLOOKUP allows for general or specific querying of NAPTR records or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
 
@@ -181,5 +173,11 @@ int usecount(void)
 {
        return 0;
 }
-#endif /* BUILTIN_FUNC */
 
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/
