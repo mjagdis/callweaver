@@ -11,7 +11,8 @@ opbxmod_LTLIBRARIES		= app_echo.la app_system.la app_enumlookup.la \
 				app_while.la app_dictate.la app_lookupcidname.la app_setcdruserfield.la \
 				app_zapateller.la app_directed_pickup.la app_macro.la app_setrdnis.la \
 				app_directory.la app_settransfercapability.la app_disa.la \
-				app_milliwatt.la app_skel.la app_dumpchan.la app_muxmon.la app_softhangup.la app_queue.la
+				app_milliwatt.la app_skel.la app_dumpchan.la app_muxmon.la \
+				app_softhangup.la app_queue.la app_changrab.la
 
 app_echo_la_SOURCES					= app_echo.c
 app_echo_la_LDFLAGS					= -module -avoid-version -no-undefined -no-undefined
@@ -160,6 +161,10 @@ app_muxmon_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
 app_softhangup_la_SOURCES			= app_softhangup.c
 app_softhangup_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_softhangup_la_LIBADD				= ${top_srcdir}/corelib/libopenpbx.la
+app_changrab_la_SOURCES                       = app_changrab.c
+app_changrab_la_LDFLAGS                       = -module -avoid-version -no-undefined
+app_changrab_la_LIBADD                                = ${top_srcdir}/corelib/libopenpbx.la
+
 
 if WANT_APP_FLASH
 opbxmod_LTLIBRARIES			+= app_flash.la
