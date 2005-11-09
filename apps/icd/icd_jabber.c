@@ -297,7 +297,7 @@ icd_jabber_login_req (int argc, char *argv[])
 //        opbx_hangup(chan);
 //	icd_caller__set_channel((icd_caller *) agent, NULL);
         opbx_stopstream(chan);
-        opbx_deactivate_generator(chan);
+        opbx_generator_deactivate(chan);
         opbx_clear_flag(chan ,  OPBX_FLAG_BLOCKING);
         opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
         opbx_hangup(chan);

@@ -225,7 +225,7 @@ static void noise_release(struct opbx_channel *chan, void *data)
 #endif
 }
 
-static int noise_generate(struct opbx_channel *chan, void *data, int dummy, int samples)
+static int noise_generate(struct opbx_channel *chan, void *data, int samples)
 {
 #ifdef LOW_MEMORY
 	struct noise_params *pnp = data;
@@ -400,7 +400,7 @@ static int noise_exec(struct opbx_channel *chan, void *data)
 	{
 		opbx_answer(chan);
 	}
-	if (opbx_activate_generator(chan, &noise_generator, &level) < 0)
+	if (opbx_generator_activate(chan, &noise_generator, &level) < 0)
 	{
 		opbx_log(LOG_WARNING,
 			 "Failed to activate white noise generator on '%s'\n",
@@ -415,7 +415,7 @@ static int noise_exec(struct opbx_channel *chan, void *data)
 		res = opbx_safe_sleep(chan, timeout);
 	else 
 		while(!opbx_safe_sleep(chan, 10000));
-	opbx_deactivate_generator(chan);
+	opbx_generator_deactivate(chan);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

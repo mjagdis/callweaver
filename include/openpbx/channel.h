@@ -69,10 +69,57 @@ enum opbx_bridge_result {
 
 typedef unsigned long long opbx_group_t;
 
+/*! Data structure used to register new generator */
 struct opbx_generator {
 	void *(*alloc)(struct opbx_channel *chan, void *params);
 	void (*release)(struct opbx_channel *chan, void *data);
-	int (*generate)(struct opbx_channel *chan, void *data, int len, int samples);
+	int (*generate)(struct opbx_channel *chan, void *data, int samples);
+};
+
+/*! Requests sent to generator thread */
+enum opbx_generator_requests {
+	/* this really means 'no request' and MUST be zero*/
+	gen_req_null = 0,
+	/* deactivate current generator if any and activate new one */
+	gen_req_activate,
+	/* deactivate current generator, if any */
+	gen_req_deactivate,
+	/* deactivate current generator if any and terminate gen thread */
+	gen_req_shutdown
+};
+
+/*! Generator channel data */
+struct opbx_generator_channel_data {
+
+	/*! Generator thread for this channel */
+	pthread_t *pgenerator_thread;
+
+	/*! Generator data structures mutex (those in here below).
+	 * To avoid deadlocks, never acquire channel lock when
+	 * generator data mutex is acquired */
+	opbx_mutex_t lock;
+
+	/*! Non-zero if generator is currently active; zero otherwise */
+	int gen_is_active;
+
+	/*! Generator request condition gets signaled after
+	 * changing gen_req to new value */
+	pthread_cond_t gen_req_cond;
+
+	/*! New generator available flag */
+	enum opbx_generator_requests gen_req;
+
+	/*! New generator data */
+	void *gen_data;
+
+	/*! How many samples to generate each time*/
+	int gen_samp;
+
+	/*! New generator function */
+	int (*gen_func)(struct opbx_channel *chan, void *gen_data, int gen_samp);
+
+	/*! What to call to free (release) gen_data */
+	void (*gen_free)(struct opbx_channel *chan, void *gen_data);
 };
 
 struct opbx_callerid {
@@ -206,10 +253,12 @@ struct opbx_channel {
 	char musicclass[MAX_MUSICCLASS];
 	/*! Music State*/
 	void *music_state;
-	/*! Current generator data if there is any */
-	void *generatordata;
-	/*! Current active data generator */
-	struct opbx_generator *generator;
+
+	/*! All generator data including generator data lock*/
+	struct opbx_generator_channel_data gcd;
+
+	/*! Comfort noise level to generate in dBov's */
+	int comfortnoiselevel;
 
 	/*! Who are we bridged to, if we're bridged  Do not access directly,
 	    use opbx_bridged_channel(chan) */
@@ -252,11 +301,6 @@ struct opbx_channel {
 	/*! Original writer format */
 	int oldwriteformat;			
 	
-	/*! Timing fd */
-	int timingfd;
-	int (*timingfunc)(void *data);
-	void *timingdata;
-
 	/*! State of line -- Don't write directly, use opbx_setstate */
 	int _state;				
 	/*! Number of rings so far */
@@ -931,10 +975,16 @@ int opbx_active_channels(void);
 int opbx_shutting_down(void);
 
 /*! Activate a given generator */
-int opbx_activate_generator(struct opbx_channel *chan, struct opbx_generator *gen, void *params);
+int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *gen, void *params);
 
 /*! Deactive an active generator */
-void opbx_deactivate_generator(struct opbx_channel *chan);
+void opbx_generator_deactivate(struct opbx_channel *chan);
+
+/*! Is generator active on channel? */
+inline int opbx_generator_is_active(struct opbx_channel *chan);
+
+/*! Is the caller of this function running in the generator thread? */
+inline int opbx_generator_is_self(struct opbx_channel *chan);
 
 void opbx_set_callerid(struct opbx_channel *chan, const char *cidnum, const char *cidname, const char *ani);
 
@@ -950,10 +1000,6 @@ int opbx_autoservice_start(struct opbx_channel *chan);
 
 /*! Stop servicing a channel for us...  Returns -1 on error or if channel has been hungup */
 int opbx_autoservice_stop(struct opbx_channel *chan);
-
-/* If built with zaptel optimizations, force a scheduled expiration on the
-   timer fd, at which point we call the callback function / data */
-int opbx_settimeout(struct opbx_channel *c, int samples, int (*func)(void *data), void *data);
 
 /*!	\brief Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
    and 1 if supported and requested 

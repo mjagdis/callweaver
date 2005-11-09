@@ -34,18 +34,6 @@
 #include <unistd.h>
 #include <math.h>			/* For PI */
 
-#ifdef ZAPTEL_OPTIMIZATIONS
-#include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
-#ifndef ZT_TIMERPING
-#error "You need newer zaptel!  Please cvs update zaptel"
-#endif
-#endif
-
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -499,6 +487,193 @@ static const struct opbx_channel_tech null_tech = {
 	.description = "Null channel (should not see this)",
 };
 
+/* Activate channel generator */
+int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *gen, void *params)
+{
+	void *gen_data;
+
+	/* Try to allocate new generator */
+	gen_data = gen->alloc(chan, params);
+	if (gen_data) {
+		struct opbx_generator_channel_data *pgcd = &chan->gcd;
+
+		/* We are going to play with new generator data structures */
+		opbx_mutex_lock(&pgcd->lock);
+
+		/* In case the generator thread hasn't yet processed a
+		 * previous activation request, we need to release it's data */
+		if (pgcd->gen_req == gen_req_activate)
+			pgcd->gen_free(chan, pgcd->gen_data);
+		
+		/* Setup new request */
+		pgcd->gen_data = gen_data;
+		pgcd->gen_func = gen->generate;
+		pgcd->gen_samp = 160;
+		pgcd->gen_free = gen->release;
+
+		/* Signal generator thread to activate new generator */
+		pgcd->gen_req = gen_req_activate;
+		pthread_cond_signal(&pgcd->gen_req_cond);
+
+		/* Our job is done */
+		opbx_mutex_unlock(&pgcd->lock);
+		return 0;
+	} else {
+		/* Whoops! */
+		opbx_log(LOG_ERROR, "Generator activation failed\n");
+		return -1;
+	}
+}
+
+/* Deactivate channel generator */
+void opbx_generator_deactivate(struct opbx_channel *chan)
+{
+	struct opbx_generator_channel_data *pgcd = &chan->gcd;
+
+	/* In case the generator thread hasn't yet processed a
+	 * previous activation request, we need to release it's data */
+	opbx_mutex_lock(&pgcd->lock);
+	if (pgcd->gen_req == gen_req_activate)
+		pgcd->gen_free(chan, pgcd->gen_data);
+		
+	/* Current generator, if any, gets deactivated by signaling
+	 * new request with request code being req_deactivate */
+	pgcd->gen_req = gen_req_deactivate;
+	pthread_cond_signal(&pgcd->gen_req_cond);
+	opbx_mutex_unlock(&pgcd->lock);
+}
+
+/* Is channel generator active? */
+int opbx_generator_is_active(struct opbx_channel *chan)
+{
+	struct opbx_generator_channel_data *pgcd = &chan->gcd;
+
+	return OPBX_ATOMIC_GET(pgcd->lock, pgcd->gen_is_active);
+}
+
+/* Is the caller of this function running in the generator thread? */
+int opbx_generator_is_self(struct opbx_channel *chan)
+{
+	struct opbx_generator_channel_data *pgcd = &chan->gcd;
+
+	return pthread_equal(*pgcd->pgenerator_thread, pthread_self());
+}
+
+/* The mighty generator thread */
+static void *opbx_generator_thread(void *data)
+{
+	struct opbx_channel *chan = data;
+	struct opbx_generator_channel_data *pgcd = &chan->gcd;
+	void *cur_gen_data;
+	int cur_gen_samp;
+	int (*cur_gen_func)(struct opbx_channel *chan, void *cur_gen_data, int cur_gen_samp);
+	void (*cur_gen_free)(struct opbx_channel *chan, void *cur_gen_data);
+	struct timeval tv;
+	struct timespec ts;
+	int sleep_interval_ns;
+	int res;
+
+
+	/* Loop continuously until shutdown request is received */
+	opbx_mutex_lock(&pgcd->lock);
+	opbx_log(LOG_DEBUG, "Generator thread started.\n");
+	cur_gen_data = NULL;
+	cur_gen_samp = 0;
+	cur_gen_func = NULL;
+	cur_gen_free = NULL;
+	sleep_interval_ns = 0;
+	for (;;) {
+		/* If generator is active, wait for new request
+		 * or generate after timeout. If generator is not
+		 * active, just wait for new request. */
+		if (pgcd->gen_is_active) {
+			for (;;) {
+				/* Sleep based on number of samples */
+				ts.tv_nsec += sleep_interval_ns;
+				if (ts.tv_nsec >= 1000000000L) {
+					++ts.tv_sec;
+					ts.tv_nsec -= 1000000000L;
+				}
+				res = opbx_pthread_cond_timedwait(&pgcd->gen_req_cond, &pgcd->lock, &ts);
+				if (pgcd->gen_req) {
+					/* Got new request */
+					break;
+				} else if (res == ETIMEDOUT) {
+			 		/* We've got some generating to do. */
+
+					/* Need to unlock generator lock prior
+					 * to calling generate callback because
+					 * it will try to acquire channel lock
+					 * at least by opbx_write. This mean we
+					 * can receive new request here */
+					opbx_mutex_unlock(&pgcd->lock);
+					res = cur_gen_func(chan, cur_gen_data, cur_gen_samp);
+					opbx_mutex_lock(&pgcd->lock);
+					if (res || pgcd->gen_req) {
+						/* Got generator error or new
+						 * request. Deactivate current
+						 * generator */
+						if (!pgcd->gen_req) {
+							opbx_log(LOG_DEBUG, "Generator self-deactivating\n");
+							pgcd->gen_req = gen_req_deactivate;
+						}
+						break;
+					}
+				}
+			}
+		} else {
+			/* Just wait for new request */
+			do {
+				opbx_pthread_cond_wait(&pgcd->gen_req_cond, &pgcd->lock);
+			} while (!pgcd->gen_req);
+		}
+
+		/* If there is an activate generator, free its
+		 * resources because its existence is over. */
+		if (pgcd->gen_is_active) {
+			cur_gen_free(chan, cur_gen_data);
+			pgcd->gen_is_active = 0;
+		}
+
+		/* Process new request */
+		if (pgcd->gen_req == gen_req_activate) {
+			/* Activation request for a new generator. */
+
+			/* Copy gen_* stuff to cur_gen_* stuff, set flag
+			 * gen_is_active, calculate sleep interval and
+			 * obtain current time using CLOCK_MONOTONIC. */
+			cur_gen_data = pgcd->gen_data;
+			cur_gen_samp = pgcd->gen_samp;
+			cur_gen_func = pgcd->gen_func;
+			cur_gen_free = pgcd->gen_free;
+			pgcd->gen_is_active = -1;
+			sleep_interval_ns = 1000000L * cur_gen_samp / 8;
+			gettimeofday(&tv, NULL);
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = 1000 * tv.tv_usec;
+
+			/* CMANTUNES: is this prod thing really necessary? */
+			/* Prod channel */
+			opbx_prod(chan);
+		} else if (pgcd->gen_req == gen_req_shutdown) {
+			/* Shutdown requests. */
+
+			/* Just break the loop */
+			break;
+		} else if (pgcd->gen_req != gen_req_deactivate) {
+			opbx_log(LOG_DEBUG, "Unexpected generator request (%d).\n", pgcd->gen_req);
+		}
+
+		/* Reset request */
+		pgcd->gen_req = gen_req_null;
+	}
+
+	/* Got request to shutdown. */
+	opbx_log(LOG_DEBUG, "Generator thread shut down.\n");
+	opbx_mutex_unlock(&pgcd->lock);
+	return NULL;
+}
+
 /*--- opbx_channel_alloc: Create a new channel structure */
 struct opbx_channel *opbx_channel_alloc(int needqueue)
 {
@@ -510,39 +685,26 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
-		opbx_log(LOG_WARNING, "Channel allocation failed: Refusing due to active shutdown\n");
+		opbx_log(LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
 		return NULL;
 	}
 
 	tmp = malloc(sizeof(struct opbx_channel));
 	if (!tmp) {
-		opbx_log(LOG_WARNING, "Channel allocation failed: Out of memory\n");
+		opbx_log(LOG_ERROR, "Channel allocation failed: Out of memory\n");
 		return NULL;
 	}
 
 	memset(tmp, 0, sizeof(struct opbx_channel));
 	tmp->sched = sched_context_create();
 	if (!tmp->sched) {
-		opbx_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
+		opbx_log(LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
 		return NULL;
 	}
 	
 	for (x=0; x<OPBX_MAX_FDS - 1; x++)
 		tmp->fds[x] = -1;
-
-#ifdef ZAPTEL_OPTIMIZATIONS
-	tmp->timingfd = open("/dev/zap/timer", O_RDWR);
-	if (tmp->timingfd > -1) {
-		/* Check if timing interface supports new
-		   ping/pong scheme */
-		flags = 1;
-		if (!ioctl(tmp->timingfd, ZT_TIMERPONG, &flags))
-			needqueue = 0;
-	}
-#else
-	tmp->timingfd = -1;					
-#endif					
 
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
@@ -559,10 +721,18 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 		/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
 
+	/* Create joinable generator thread and associates */
+	opbx_mutex_init(&tmp->gcd.lock);
+	pthread_cond_init(&tmp->gcd.gen_req_cond, NULL);
+	tmp->gcd.pgenerator_thread = malloc(sizeof (pthread_t));
+	if (!tmp->gcd.pgenerator_thread || opbx_pthread_create(tmp->gcd.pgenerator_thread, NULL, opbx_generator_thread, tmp)) {
+		opbx_log(LOG_WARNING, "Channel allocation reduced functionality: Unable to create generator thread\n");
+		free(tmp->gcd.pgenerator_thread);
+		tmp->gcd.pgenerator_thread = NULL;
+	}
+
 	/* Always watch the alertpipe */
 	tmp->fds[OPBX_MAX_FDS-1] = tmp->alertpipe[0];
-	/* And timing pipe */
-	tmp->fds[OPBX_MAX_FDS-2] = tmp->timingfd;
 	strcpy(tmp->name, "**Unkown**");
 	/* Initial state */
 	tmp->_state = OPBX_STATE_DOWN;
@@ -640,10 +810,6 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			opbx_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
-#ifdef ZAPTEL_OPTIMIZATIONS
-	} else if (chan->timingfd > -1) {
-		ioctl(chan->timingfd, ZT_TIMERPING, &blah);
-#endif				
 	} else if (opbx_test_flag(chan, OPBX_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
 	}
@@ -823,7 +989,7 @@ int opbx_safe_sleep(struct opbx_channel *chan, int ms)
 	struct opbx_frame *f;
 	while(ms > 0) {
 		ms = opbx_waitfor(chan, ms);
-		if (ms <0)
+		if (ms < 0)
 			return -1;
 		if (ms > 0) {
 			f = opbx_read(chan);
@@ -888,6 +1054,22 @@ void opbx_channel_free(struct opbx_channel *chan)
 	}
 
 	opbx_copy_string(name, chan->name, sizeof(name));
+
+	/* Stop generator thread, if it exists */
+	opbx_mutex_lock(&chan->gcd.lock);
+	if (chan->gcd.gen_req == gen_req_activate)
+		chan->gcd.gen_free(chan, chan->gcd.gen_data);
+	if (chan->gcd.pgenerator_thread) {
+		chan->gcd.gen_req = gen_req_shutdown;
+		pthread_cond_signal(&chan->gcd.gen_req_cond);
+		opbx_mutex_unlock(&chan->gcd.lock);
+		pthread_join(*chan->gcd.pgenerator_thread, NULL);
+		free(chan->gcd.pgenerator_thread);
+	} else {
+		opbx_mutex_unlock(&chan->gcd.lock);
+	}
+	pthread_cond_destroy(&chan->gcd.gen_req_cond);
+	opbx_mutex_destroy(&chan->gcd.lock);
 	
 	/* Stop monitoring */
 	if (chan->monitor) {
@@ -911,8 +1093,6 @@ void opbx_channel_free(struct opbx_channel *chan)
 	if ((fd = chan->alertpipe[0]) > -1)
 		close(fd);
 	if ((fd = chan->alertpipe[1]) > -1)
-		close(fd);
-	if ((fd = chan->timingfd) > -1)
 		close(fd);
 	f = chan->readq;
 	chan->readq = NULL;
@@ -1069,10 +1249,8 @@ int opbx_hangup(struct opbx_channel *chan)
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
 	
-	if (chan->generatordata)	/* Clear any tone stuff remaining */ 
-		chan->generator->release(chan, chan->generatordata);
-	chan->generatordata = NULL;
-	chan->generator = NULL;
+	opbx_generator_deactivate(chan); /* Clear generator stuff remaining */
+
 	if (chan->cdr) {		/* End the CDR if it hasn't already */ 
 		opbx_cdr_end(chan->cdr);
 		opbx_cdr_detach(chan->cdr);	/* Post and Free the CDR */ 
@@ -1136,61 +1314,6 @@ int opbx_answer(struct opbx_channel *chan)
 	}
 	opbx_mutex_unlock(&chan->lock);
 	return 0;
-}
-
-
-
-void opbx_deactivate_generator(struct opbx_channel *chan)
-{
-	opbx_mutex_lock(&chan->lock);
-	if (chan->generatordata) {
-		if (chan->generator && chan->generator->release) 
-			chan->generator->release(chan, chan->generatordata);
-		chan->generatordata = NULL;
-		chan->generator = NULL;
-		opbx_clear_flag(chan, OPBX_FLAG_WRITE_INT);
-		opbx_settimeout(chan, 0, NULL, NULL);
-	}
-	opbx_mutex_unlock(&chan->lock);
-}
-
-static int generator_force(void *data)
-{
-	/* Called if generator doesn't have data */
-	void *tmp;
-	int res;
-	int (*generate)(struct opbx_channel *chan, void *tmp, int datalen, int samples);
-	struct opbx_channel *chan = data;
-	tmp = chan->generatordata;
-	chan->generatordata = NULL;
-	generate = chan->generator->generate;
-	res = generate(chan, tmp, 0, 160);
-	chan->generatordata = tmp;
-	if (res) {
-		opbx_log(LOG_DEBUG, "Auto-deactivating generator\n");
-		opbx_deactivate_generator(chan);
-	}
-	return 0;
-}
-
-int opbx_activate_generator(struct opbx_channel *chan, struct opbx_generator *gen, void *params)
-{
-	int res = 0;
-	opbx_mutex_lock(&chan->lock);
-	if (chan->generatordata) {
-		if (chan->generator && chan->generator->release)
-			chan->generator->release(chan, chan->generatordata);
-		chan->generatordata = NULL;
-	}
-	opbx_prod(chan);
-	if ((chan->generatordata = gen->alloc(chan, params))) {
-		opbx_settimeout(chan, 160, generator_force, chan);
-		chan->generator = gen;
-	} else {
-		res = -1;
-	}
-	opbx_mutex_unlock(&chan->lock);
-	return res;
 }
 
 /*--- opbx_waitfor_n_fd: Wait for x amount of time on a file descriptor to have input.  */
@@ -1444,24 +1567,6 @@ int opbx_waitfordigit(struct opbx_channel *c, int ms)
 	return result;
 }
 
-int opbx_settimeout(struct opbx_channel *c, int samples, int (*func)(void *data), void *data)
-{
-	int res = -1;
-#ifdef ZAPTEL_OPTIMIZATIONS
-	if (c->timingfd > -1) {
-		if (!func) {
-			samples = 0;
-			data = 0;
-		}
-		opbx_log(LOG_DEBUG, "Scheduling timer at %d sample intervals\n", samples);
-		res = ioctl(c->timingfd, ZT_TIMERCONFIG, &samples);
-		c->timingfunc = func;
-		c->timingdata = data;
-	}
-#endif	
-	return res;
-}
-
 int opbx_waitfordigit_full(struct opbx_channel *c, int ms, int audiofd, int cmdfd)
 {
 	struct opbx_frame *f;
@@ -1524,11 +1629,6 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	struct opbx_frame *f = NULL;
 	int blah;
 	int prestate;
-#ifdef ZAPTEL_OPTIMIZATIONS
-	int (*func)(void *);
-	void *data;
-	int res;
-#endif
 	static struct opbx_frame null_frame = {
 		OPBX_FRAME_NULL,
 	};
@@ -1546,8 +1646,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) || opbx_check_hangup(chan)) {
-		if (chan->generator)
-			opbx_deactivate_generator(chan);
+		opbx_generator_deactivate(chan);
 		opbx_mutex_unlock(&chan->lock);
 		return NULL;
 	}
@@ -1568,51 +1667,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	if (chan->alertpipe[0] > -1) {
 		read(chan->alertpipe[0], &blah, sizeof(blah));
 	}
-#ifdef ZAPTEL_OPTIMIZATIONS
-	if ((chan->timingfd > -1) && (chan->fdno == OPBX_MAX_FDS - 2) && opbx_test_flag(chan, OPBX_FLAG_EXCEPTION)) {
-		opbx_clear_flag(chan, OPBX_FLAG_EXCEPTION);
-		blah = -1;
-		/* IF we can't get event, assume it's an expired as-per the old interface */
-		res = ioctl(chan->timingfd, ZT_GETEVENT, &blah);
-		if (res) 
-			blah = ZT_EVENT_TIMER_EXPIRED;
 
-		if (blah == ZT_EVENT_TIMER_PING) {
-#if 0
-			opbx_log(LOG_NOTICE, "Oooh, there's a PING!\n");
-#endif			
-			if (!chan->readq || !chan->readq->next) {
-				/* Acknowledge PONG unless we need it again */
-#if 0
-				opbx_log(LOG_NOTICE, "Sending a PONG!\n");
-#endif				
-				if (ioctl(chan->timingfd, ZT_TIMERPONG, &blah)) {
-					opbx_log(LOG_WARNING, "Failed to pong timer on '%s': %s\n", chan->name, strerror(errno));
-				}
-			}
-		} else if (blah == ZT_EVENT_TIMER_EXPIRED) {
-			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
-			func = chan->timingfunc;
-			data = chan->timingdata;
-			opbx_mutex_unlock(&chan->lock);
-			if (func) {
-#if 0
-				opbx_log(LOG_DEBUG, "Calling private function\n");
-#endif			
-				func(data);
-			} else {
-				blah = 0;
-				opbx_mutex_lock(&chan->lock);
-				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
-				chan->timingdata = NULL;
-				opbx_mutex_unlock(&chan->lock);
-			}
-			f =  &null_frame;
-			return f;
-		} else
-			opbx_log(LOG_NOTICE, "No/unknown event '%d' on timer for '%s'?\n", blah, chan->name);
-	}
-#endif
 	/* Check for pending read queue */
 	if (chan->readq) {
 		f = chan->readq;
@@ -1688,8 +1743,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	/* Make sure we always return NULL in the future */
 	if (!f) {
 		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
-		if (chan->generator)
-			opbx_deactivate_generator(chan);
+		opbx_generator_deactivate(chan);
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			opbx_cdr_end(chan->cdr);
@@ -1709,23 +1763,6 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		opbx_cdr_answer(chan->cdr);
 	} 
 
-	/* Run generator sitting on the line if timing device not available
-	 * and synchronous generation of outgoing frames is necessary       */
-	if (f && (f->frametype == OPBX_FRAME_VOICE) && chan->generatordata && !(chan->timingfunc && chan->timingfd > -1)) {
-		void *tmp;
-		int res;
-		int (*generate)(struct opbx_channel *chan, void *tmp, int datalen, int samples);
-
-		tmp = chan->generatordata;
-		chan->generatordata = NULL;
-		generate = chan->generator->generate;
-		res = generate(chan, tmp, f->datalen, f->samples);
-		chan->generatordata = tmp;
-		if (res) {
-			opbx_log(LOG_DEBUG, "Auto-deactivating generator\n");
-			opbx_deactivate_generator(chan);
-		}
-	}
 	/* High bit prints debugging */
 	if (chan->fin & 0x80000000)
 		opbx_frame_dump(chan->name, f, "<<");
@@ -1941,18 +1978,37 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 		opbx_mutex_unlock(&chan->lock);
 		return 0;
 	}
-	if (chan->generatordata) {
-		if (opbx_test_flag(chan, OPBX_FLAG_WRITE_INT))
-			opbx_deactivate_generator(chan);
-		else {
+
+	/* A write by a non channel generator thread may or may not
+	 * deactivate a running channel generator depending on
+	 * whether the OPBX_FLAG_WRITE_INT is set or not for the
+	 * channel. If OPBX_FLAG_WRITE_INT is set, channel generator
+	 * is deactivated. Otherwise, the write is simply ignored. */
+	if (!opbx_generator_is_self(chan) && opbx_generator_is_active(chan))
+	{
+		/* We weren't called by the generator
+		 * thread and channel generator is active */
+		if (opbx_test_flag(chan, OPBX_FLAG_WRITE_INT)) {
+			/* Deactivate generator */
+			opbx_generator_deactivate(chan);
+		} else {
+			/* Write doesn't interrupt generator.
+			 * Write gets ignored instead */
 			opbx_mutex_unlock(&chan->lock);
 			return 0;
 		}
+
 	}
+
 	/* High bit prints debugging */
 	if (chan->fout & 0x80000000)
 		opbx_frame_dump(chan->name, fr, ">>");
+#if 0
+	/* CMANTUNES: Do we really need this CHECK_BLOCKING thing in here?
+	 * I no longer think we do because we can now be reading and writing
+	 * at the same time. Writing is no longer tied to reading as before */
 	CHECK_BLOCKING(chan);
+#endif
 	switch(fr->frametype) {
 	case OPBX_FRAME_CONTROL:
 		/* XXX Interpret control frames XXX */
@@ -1991,6 +2047,12 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 			else
 				f = fr;
 			if (f) {
+
+				/* CMANTUNES: Instead of writing directly here,
+				 * we could insert frame into output queue and
+				 * let the channel driver use a writer thread
+				 * to actually write the stuff, for example. */
+
 				if (f->frametype == OPBX_FRAME_VOICE && chan->spiers) {
 					struct opbx_channel_spy *spying;
 					for (spying = chan->spiers; spying; spying=spying->next) {
@@ -2751,9 +2813,6 @@ int opbx_do_masquerade(struct opbx_channel *original)
 	original->cid = clone->cid;
 	clone->cid = tmpcid;
 	
-	/* Restore original timing file descriptor */
-	original->fds[OPBX_MAX_FDS - 2] = original->timingfd;
-	
 	/* Our native formats are different now */
 	original->nativeformats = clone->nativeformats;
 	
@@ -3067,8 +3126,7 @@ tackygoto:
 }
 
 /*--- opbx_channel_bridge: Bridge two channels together */
-enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx_channel *c1,
-					  struct opbx_bridge_config *config, struct opbx_frame **fo, struct opbx_channel **rc) 
+enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx_channel *c1, struct opbx_bridge_config *config, struct opbx_frame **fo, struct opbx_channel **rc) 
 {
 	struct opbx_channel *who = NULL;
 	enum opbx_bridge_result res = OPBX_BRIDGE_COMPLETE;
@@ -3246,7 +3304,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 	
 		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) ||
 		    (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
-		    !(c0->generator || c1->generator)) {
+		    !(opbx_generator_is_active(c0) || opbx_generator_is_active(c1))) {
 			if (opbx_channel_make_compatible(c0, c1)) {
 				opbx_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
                                 manager_event(EVENT_FLAG_CALL, "Unlink",
@@ -3360,10 +3418,10 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 	return ts;
 }
 
-static int tonepair_generator(struct opbx_channel *chan, void *data, int len, int samples)
+static int tonepair_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	struct tonepair_state *ts = data;
-	int x;
+	int len, x;
 
 	/* we need to prepare a frame with 16 * timelen samples as we're 
 	 * generating SLIN audio
@@ -3399,7 +3457,7 @@ static int tonepair_generator(struct opbx_channel *chan, void *data, int len, in
 static struct opbx_generator tonepair = {
 	alloc: tonepair_alloc,
 	release: tonepair_release,
-	generate: tonepair_generator,
+	generate: tonepair_generate,
 };
 
 int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol)
@@ -3413,33 +3471,25 @@ int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int dur
 		d.vol = 8192;
 	else
 		d.vol = vol;
-	if (opbx_activate_generator(chan, &tonepair, &d))
+	if (opbx_generator_activate(chan, &tonepair, &d))
 		return -1;
 	return 0;
 }
 
 void opbx_tonepair_stop(struct opbx_channel *chan)
 {
-	opbx_deactivate_generator(chan);
+	opbx_generator_deactivate(chan);
 }
 
 int opbx_tonepair(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol)
 {
-	struct opbx_frame *f;
 	int res;
 
 	if ((res = opbx_tonepair_start(chan, freq1, freq2, duration, vol)))
 		return res;
 
-	/* Give us some wiggle room */
-	while(chan->generatordata && (opbx_waitfor(chan, 100) >= 0)) {
-		f = opbx_read(chan);
-		if (f)
-			opbx_frfree(f);
-		else
-			return -1;
-	}
-	return 0;
+	/* Don't return to caller until after duration has passed */
+	return opbx_safe_sleep(chan, duration);
 }
 
 opbx_group_t opbx_get_group(char *s)

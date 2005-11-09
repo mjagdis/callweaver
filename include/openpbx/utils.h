@@ -187,6 +187,16 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
+/*! Atomically get value of "var" protected by "lock" */
+#define OPBX_ATOMIC_GET(lock, var) \
+	({ \
+	 	typeof (var) value; \
+		opbx_mutex_lock(&(lock)); \
+		value = (var); \
+		opbx_mutex_unlock(&(lock)); \
+	 	value; \
+	 })
+ 	
 #define OPBX_STACKSIZE 256 * 1024
 #define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(a,b,c,d,0)
 extern int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);

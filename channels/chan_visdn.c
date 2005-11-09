@@ -1547,8 +1547,13 @@ struct opbx_frame *visdn_exception(struct opbx_channel *opbx_chan)
 	return NULL;
 }
 
+#if 0
+
+CMANTUNES: With the new channel generator thread, this is no longer necessary
+
 static int visdn_generator_start(struct opbx_channel *chan);
 static int visdn_generator_stop(struct opbx_channel *chan);
+#endif
 
 /* We are called with chan->lock'ed */
 static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
@@ -1575,10 +1580,10 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 
 	case -1:
 		opbx_playtones_stop(opbx_chan);
-
+#if 0
 		if (!opbx_chan->pbx)
 			visdn_generator_stop(opbx_chan);
-
+#endif
 		return 0;
 	break;
 
@@ -1587,9 +1592,10 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		tone = opbx_get_indication_tone(opbx_chan->zone, "dial");
 		if (tone) {
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-
+#if 0
 			if (!opbx_chan->pbx)
 				visdn_generator_start(opbx_chan);
+#endif
 		}
 
 		return 0;
@@ -1601,9 +1607,10 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		tone = opbx_get_indication_tone(opbx_chan->zone, "congestion");
 		if (tone) {
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-
+#if 0
 			if (!opbx_chan->pbx)
 				visdn_generator_start(opbx_chan);
+#endif
 		}
 
 		return 0;
@@ -1653,9 +1660,10 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		tone = opbx_get_indication_tone(opbx_chan->zone, "ring");
 		if (tone) {
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-
+#if 0
 			if (!opbx_chan->pbx)
 				visdn_generator_start(opbx_chan);
+#endif
 		}
 
 		return 0;
@@ -1664,10 +1672,10 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 
 	case OPBX_CONTROL_ANSWER:
 		opbx_playtones_stop(opbx_chan);
-
+#if 0
 		if (!opbx_chan->pbx);
 			visdn_generator_stop(opbx_chan);
-
+#endif
 		return 0;
 	break;
 
@@ -1716,9 +1724,10 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		tone = opbx_get_indication_tone(opbx_chan->zone, "busy");
 		if (tone) {
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-
+#if 0
 			if (!opbx_chan->pbx)
 				visdn_generator_start(opbx_chan);
+#endif
 		}
 
 		return 0;
@@ -1934,9 +1943,10 @@ static int visdn_hangup(struct opbx_channel *opbx_chan)
 	}
 
 	// Make sure the generator is stopped
+#if 0
 	if (!opbx_chan->pbx)
 		visdn_generator_stop(opbx_chan);
-
+#endif
 	if (visdn_chan) {
 		if (visdn_chan->channel_fd >= 0) {
 			// Disconnect the softport since we cannot rely on
@@ -3504,9 +3514,10 @@ static void visdn_q931_disconnect_channel(struct q931_channel *channel)
 		return;
 
 	// FIXME
+#if 0
 	if (opbx_chan->generator)
 		visdn_generator_stop(opbx_chan);
-
+#endif
 	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
 
 	opbx_mutex_lock(&opbx_chan->lock);
@@ -3535,6 +3546,10 @@ static pthread_t visdn_generator_thread = OPBX_PTHREADT_NULL;
 OPBX_MUTEX_DEFINE_STATIC(visdn_generator_lock);
 static struct opbx_channel *gen_chans[256];
 static int gen_chans_num = 0;
+
+#if 0
+
+CMANTUNES: With the new channel generator thread, this is no longer necessary
 
 static void *visdn_generator_thread_main(void *aaa)
 {
@@ -3584,7 +3599,7 @@ static void *visdn_generator_thread_main(void *aaa)
 				        opbx_log(LOG_DEBUG,
 						"Auto-deactivating"
 						" generator\n");
-				        opbx_deactivate_generator(chan);
+				        opbx_generator_deactivate(chan);
 				}
 			}
 
@@ -3675,6 +3690,7 @@ err_chan_not_found:
 
 	return 0;
 }
+#endif
 
 static void visdn_q931_start_tone(struct q931_channel *channel,
 	enum q931_tone_type tone)

@@ -124,12 +124,10 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 		if (!res) {
 			while(chan->stream) {
 				res = opbx_sched_wait(chan->sched);
-				if ((res < 0) && !chan->timingfunc) {
+				if (res < 0) {
 					res = 0;
 					break;
 				}
-				if (res < 0)
-					res = 1000;
 				res = opbx_waitfor(chan, res);
 				if (res < 0) {
 					opbx_log(LOG_WARNING, "Waitfor failed on %s\n", chan->name);

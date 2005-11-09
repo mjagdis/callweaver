@@ -188,12 +188,12 @@ static void * playtones_alloc(struct opbx_channel *chan, void *params)
 	return ps;
 }
 
-static int playtones_generator(struct opbx_channel *chan, void *data, int len, int samples)
+static int playtones_generator(struct opbx_channel *chan, void *data, int samples)
 {
 	struct playtones_state *ps = data;
 	struct playtones_item *pi;
 	int32_t s;
-	int x;
+	int len, x;
 
 	/*
 	 * We need to prepare a frame with 16 * timelen samples as we're 
@@ -368,7 +368,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 		s = strsep(&stringp,separator);
 	}
 
-	if (opbx_activate_generator(chan, &playtones, &d)) {
+	if (opbx_generator_activate(chan, &playtones, &d)) {
 		free(d.items);
 		return -1;
 	}
@@ -377,7 +377,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 
 void opbx_playtones_stop(struct opbx_channel *chan)
 {
-	opbx_deactivate_generator(chan);
+	opbx_generator_deactivate(chan);
 }
 
 /*--------------------------------------------*/

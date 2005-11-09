@@ -167,12 +167,10 @@ static void wakeup_sub(struct feature_pvt *p, int a)
 
 static void restore_channel(struct feature_pvt *p, int index)
 {
-	/* Restore timing/alertpipe */
-	p->subs[index].owner->timingfd = p->subs[index].timingfdbackup;
+	/* Restore alertpipe */
 	p->subs[index].owner->alertpipe[0] = p->subs[index].alertpipebackup[0];
 	p->subs[index].owner->alertpipe[1] = p->subs[index].alertpipebackup[1];
 	p->subs[index].owner->fds[OPBX_MAX_FDS-1] = p->subs[index].alertpipebackup[0];
-	p->subs[index].owner->fds[OPBX_MAX_FDS-2] = p->subs[index].timingfdbackup;
 }
 
 static void update_features(struct feature_pvt *p, int index)
@@ -187,7 +185,6 @@ static void update_features(struct feature_pvt *p, int index)
 		}
 		if (!index) {
 			/* Copy timings from master channel */
-			p->subs[index].owner->timingfd = p->subchan->timingfd;
 			p->subs[index].owner->alertpipe[0] = p->subchan->alertpipe[0];
 			p->subs[index].owner->alertpipe[1] = p->subchan->alertpipe[1];
 			if (p->subs[index].owner->nativeformats != p->subchan->readformat) {

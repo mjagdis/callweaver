@@ -335,12 +335,13 @@ static void linear_release(struct opbx_channel *chan, void *params)
 	free(params);
 }
 
-static int linear_generator(struct opbx_channel *chan, void *data, int len, int samples)
+static int linear_generator(struct opbx_channel *chan, void *data, int samples)
 {
 	struct opbx_frame f;
 	short buf[2048 + OPBX_FRIENDLY_OFFSET / 2];
 	struct linear_state *ls = data;
-	int res;
+	int res, len;
+
 	len = samples * 2;
 	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET) {
 		opbx_log(LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
@@ -415,7 +416,7 @@ int opbx_linear_stream(struct opbx_channel *chan, const char *filename, int fd, 
 		lin->fd = fd;
 		lin->allowoverride = allowoverride;
 		lin->autoclose = autoclose;
-		res = opbx_activate_generator(chan, &linearstream, lin);
+		res = opbx_generator_activate(chan, &linearstream, lin);
 	}
 	return res;
 }

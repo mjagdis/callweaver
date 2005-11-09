@@ -59,7 +59,7 @@ static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
 static void *milliwatt_alloc(struct opbx_channel *chan, void *params)
 {
-int	*indexp;
+	int *indexp;
 	indexp = malloc(sizeof(int));
 	if (indexp == NULL) return(NULL);
 	*indexp = 0;
@@ -72,17 +72,17 @@ static void milliwatt_release(struct opbx_channel *chan, void *data)
 	return;
 }
 
-static int milliwatt_generate(struct opbx_channel *chan, void *data, int len, int samples)
+static int milliwatt_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	struct opbx_frame wf;
 	unsigned char waste[OPBX_FRIENDLY_OFFSET];
 	unsigned char buf[640];
-	int i,*indexp = (int *) data;
+	int i, *indexp = (int *) data;
 
-	if (len > sizeof(buf))
+	if (samples > sizeof(buf))
 	{
-		opbx_log(LOG_WARNING,"Only doing %d bytes (%d bytes requested)\n",(int)sizeof(buf),len);
-		len = sizeof(buf);
+		opbx_log(LOG_WARNING,"Only doing %d samples (%d requested)\n",(int)sizeof(buf),samples);
+		samples = sizeof(buf);
 	}
 	waste[0] = 0; /* make compiler happy */
 	wf.frametype = OPBX_FRAME_VOICE;
@@ -90,23 +90,18 @@ static int milliwatt_generate(struct opbx_channel *chan, void *data, int len, in
 	wf.offset = OPBX_FRIENDLY_OFFSET;
 	wf.mallocd = 0;
 	wf.data = buf;
-	wf.datalen = len;
-	wf.samples = wf.datalen;
+	wf.datalen = samples;
+	wf.samples = samples;
 	wf.src = "app_milliwatt";
 	wf.delivery.tv_sec = 0;
 	wf.delivery.tv_usec = 0;
 	/* create a buffer containing the digital milliwatt pattern */
-	for(i = 0; i < len; i++)
+	for(i = 0; i < samples; i++)
 	{
 		buf[i] = digital_milliwatt[(*indexp)++];
 		*indexp &= 7;
 	}
-	if (opbx_write(chan,&wf) < 0)
-	{
-		opbx_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",chan->name,strerror(errno));
-		return -1;
-	}
-	return 0;
+	return opbx_write(chan,&wf);
 }
 
 static struct opbx_generator milliwattgen = 
@@ -127,13 +122,13 @@ static int milliwatt_exec(struct opbx_channel *chan, void *data)
 	{
 		opbx_answer(chan);
 	}
-	if (opbx_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
+	if (opbx_generator_activate(chan,&milliwattgen,"milliwatt") < 0)
 	{
 		opbx_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		return -1;
 	}
 	while(!opbx_safe_sleep(chan, 10000));
-	opbx_deactivate_generator(chan);
+	opbx_generator_deactivate(chan);
 	LOCAL_USER_REMOVE(u);
 	return -1;
 }

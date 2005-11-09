@@ -444,7 +444,7 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
     chan = icd_caller__get_channel(that);
     if (/*icd_caller__get_onhook(that) == 0 && */ chan){
 //        opbx_stopstream(chan);
-//        opbx_deactivate_generator(chan);
+//        opbx_generator_deactivate(chan);
 //        opbx_clear_flag(chan ,  OPBX_FLAG_BLOCKING);
 //        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
 //        opbx_hangup(chan );

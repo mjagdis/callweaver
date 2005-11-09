@@ -37,13 +37,6 @@
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#ifdef ZAPATA_MOH
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
-#endif
 #include <unistd.h>
 #include <sys/ioctl.h>
 
@@ -116,8 +109,10 @@ struct moh_files_state {
 	unsigned char save_pos;
 };
 
-#define MOH_CUSTOM		(1 << 0)
-#define MOH_RANDOMIZE		(1 << 1)
+#define MOH_QUIET		(1 << 0)
+#define MOH_SINGLE		(1 << 1)
+#define MOH_CUSTOM		(1 << 2)
+#define MOH_RANDOMIZE		(1 << 3)
 
 struct mohclass {
 	char name[MAX_MUSICCLASS];
@@ -128,14 +123,12 @@ struct mohclass {
 	unsigned int flags;
 	int total_files;
 	int format;
-	int pid;		/* PID of custom command */
+	int pid;		/* PID of mpg123 */
 	time_t start;
 	pthread_t thread;
 	struct mohdata *members;
 	/* Source of audio */
 	int srcfd;
-	/* FD for timing source */
-	int pseudofd;
 	struct mohclass *next;
 };
 
@@ -149,6 +142,11 @@ struct mohdata {
 static struct mohclass *mohclasses;
 
 OPBX_MUTEX_DEFINE_STATIC(moh_lock);
+
+#define LOCAL_MPG_123 "/usr/local/bin/mpg123"
+#define MPG_123 "/usr/bin/mpg123"
+#define MAX_MP3S 256
+
 
 static void opbx_moh_free_class(struct mohclass **class) 
 {
@@ -243,7 +241,7 @@ static struct opbx_frame *moh_files_readframe(struct opbx_channel *chan)
 	return f;
 }
 
-static int moh_files_generator(struct opbx_channel *chan, void *data, int len, int samples)
+static int moh_files_generator(struct opbx_channel *chan, void *data, int samples)
 {
 	struct moh_files_state *state = chan->music_state;
 	struct opbx_frame *f = NULL;
@@ -258,7 +256,6 @@ static int moh_files_generator(struct opbx_channel *chan, void *data, int len, i
 			state->sample_queue -= f->samples;
 			opbx_frfree(f);
 			if (res < 0) {
-				opbx_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 				return -1;
 			}
 		} else
@@ -309,12 +306,12 @@ static struct opbx_generator moh_file_stream =
 	generate: moh_files_generator,
 };
 
-static int spawn_custom_command(struct mohclass *class)
+static int spawn_mp3(struct mohclass *class)
 {
 	int fds[2];
 	int files = 0;
-	char fns[MAX_MOHFILES][MAX_MOHFILE_LEN];
-	char *argv[MAX_MOHFILES + 50];
+	char fns[MAX_MP3S][80];
+	char *argv[MAX_MP3S + 50];
 	char xargs[256];
 	char *argptr;
 	int argc = 0;
@@ -326,27 +323,69 @@ static int spawn_custom_command(struct mohclass *class)
 		files = 1;
 	} else {
 		dir = opendir(class->dir);
-		if (!dir) {
+		if (!dir && !strstr(class->dir,"http://") && !strstr(class->dir,"HTTP://")) {
 			opbx_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 			return -1;
 		}
 	}
 
-	/* Format arguments for argv vector */
-	strncpy(xargs, class->args, sizeof(xargs) - 1);
-	argptr = xargs;
-	while (argptr && !opbx_strlen_zero(argptr)) {
-		argv[argc++] = argptr;
-		argptr = strchr(argptr, ' ');
-		if (argptr) {
-			*argptr = '\0';
-			argptr++;
+	if (!opbx_test_flag(class, MOH_CUSTOM)) {
+		argv[argc++] = "mpg123";
+		argv[argc++] = "-q";
+		argv[argc++] = "-s";
+		argv[argc++] = "--mono";
+		argv[argc++] = "-r";
+		argv[argc++] = "8000";
+		
+		if (!opbx_test_flag(class, MOH_SINGLE)) {
+			argv[argc++] = "-b";
+			argv[argc++] = "2048";
+		}
+		
+		argv[argc++] = "-f";
+		
+		if (opbx_test_flag(class, MOH_QUIET))
+			argv[argc++] = "4096";
+		else
+			argv[argc++] = "8192";
+		
+		/* Look for extra arguments and add them to the list */
+		strncpy(xargs, class->args, sizeof(xargs) - 1);
+		argptr = xargs;
+		while (argptr && !opbx_strlen_zero(argptr)) {
+			argv[argc++] = argptr;
+			argptr = strchr(argptr, ',');
+			if (argptr) {
+				*argptr = '\0';
+				argptr++;
+			}
+		}
+	} else  {
+		/* Format arguments for argv vector */
+		strncpy(xargs, class->args, sizeof(xargs) - 1);
+		argptr = xargs;
+		while (argptr && !opbx_strlen_zero(argptr)) {
+			argv[argc++] = argptr;
+			argptr = strchr(argptr, ' ');
+			if (argptr) {
+				*argptr = '\0';
+				argptr++;
+			}
 		}
 	}
 
-	if (dir) {
-		while ((de = readdir(dir)) && (files < MAX_MOHFILES)) {
-			if (strlen(de->d_name) > 3) {
+
+	if (strstr(class->dir,"http://") || strstr(class->dir,"HTTP://")) {
+		strncpy(fns[files], class->dir, sizeof(fns[files]) - 1);
+		argv[argc++] = fns[files];
+		files++;
+	} else if (dir) {
+		while ((de = readdir(dir)) && (files < MAX_MP3S)) {
+			if ((strlen(de->d_name) > 3) && 
+			    ((opbx_test_flag(class, MOH_CUSTOM) && 
+			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
+			       !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln"))) ||
+			     !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
 				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
 				argv[argc++] = fns[files];
 				files++;
@@ -356,10 +395,6 @@ static int spawn_custom_command(struct mohclass *class)
 	argv[argc] = NULL;
 	if (dir) {
 		closedir(dir);
-	}
-	if (!files) {
-		opbx_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
-		return -1;
 	}
 	if (pipe(fds)) {	
 		opbx_log(LOG_WARNING, "Pipe failed\n");
@@ -373,6 +408,12 @@ static int spawn_custom_command(struct mohclass *class)
 			printf("arg%d: %s\n", x, argv[x]);
 	}
 #endif	
+	if (!files) {
+		opbx_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
+		close(fds[0]);
+		close(fds[1]);
+		return -1;
+	}
 	if (time(NULL) - class->start < respawn_time) {
 		sleep(respawn_time - (time(NULL) - class->start));
 	}
@@ -397,7 +438,16 @@ static int spawn_custom_command(struct mohclass *class)
 		}
 		/* Child */
 		chdir(class->dir);
-		execv(argv[0], argv);
+		if (opbx_test_flag(class, MOH_CUSTOM)) {
+			execv(argv[0], argv);
+		} else {
+			/* Default install is /usr/local/bin */
+			execv(LOCAL_MPG_123, argv);
+			/* Many places have it in /usr/bin */
+			execv(MPG_123, argv);
+			/* Check PATH as a last-ditch effort */
+			execvp("mpg123", argv);
+		}
 		opbx_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		close(fds[1]);
 		exit(1);
@@ -408,51 +458,47 @@ static int spawn_custom_command(struct mohclass *class)
 	return fds[0];
 }
 
-static void *monitor_custom_command(void *data)
+static void *monmp3thread(void *data)
 {
 #define	MOH_MS_INTERVAL		100
 
 	struct mohclass *class = data;
 	struct mohdata *moh;
-	char buf[8192];
 	short sbuf[8192];
 	int res, res2;
 	int len;
 	struct timeval tv, tv_tmp;
+	long delta;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
 	for(;/* ever */;) {
-		/* Spawn custom command if it's not there */
+		/* Spawn mp3 player if it's not there */
 		if (class->srcfd < 0) {
-			if ((class->srcfd = spawn_custom_command(class)) < 0) {
-				opbx_log(LOG_WARNING, "Unable to spawn custom command\n");
+			if ((class->srcfd = spawn_mp3(class)) < 0) {
+				opbx_log(LOG_WARNING, "Unable to spawn mp3player\n");
 				/* Try again later */
 				sleep(500);
 			}
 		}
-		if (class->pseudofd > -1) {
-			/* Pause some amount of time */
-			res = read(class->pseudofd, buf, sizeof(buf));
+
+		/* Reliable sleep */
+		tv_tmp = opbx_tvnow();
+		if (opbx_tvzero(tv))
+			tv = tv_tmp;
+		delta = opbx_tvdiff_ms(tv_tmp, tv);
+		if (delta < MOH_MS_INTERVAL) {	/* too early */
+			tv = opbx_tvadd(tv, opbx_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
+			usleep(1000 * (MOH_MS_INTERVAL - delta));
 		} else {
-			long delta;
-			/* Reliable sleep */
-			tv_tmp = opbx_tvnow();
-			if (opbx_tvzero(tv))
-				tv = tv_tmp;
-			delta = opbx_tvdiff_ms(tv_tmp, tv);
-			if (delta < MOH_MS_INTERVAL) {	/* too early */
-				tv = opbx_tvadd(tv, opbx_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
-				usleep(1000 * (MOH_MS_INTERVAL - delta));
-			} else {
-				opbx_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
-				tv = tv_tmp;
-			}
-			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
+			opbx_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
+			tv = tv_tmp;
 		}
+		res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
+	
 		if (!class->members)
 			continue;
-		/* Read audio */
+		/* Read mp3 audio */
 		len = opbx_codec_get_len(class->format, res);
 		
 		if ((res2 = read(class->srcfd, sbuf, len)) != len) {
@@ -623,12 +669,12 @@ static void *moh_alloc(struct opbx_channel *chan, void *params)
 	return res;
 }
 
-static int moh_generate(struct opbx_channel *chan, void *data, int len, int samples)
+static int moh_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	struct opbx_frame f;
 	struct mohdata *moh = data;
 	short buf[1280 + OPBX_FRIENDLY_OFFSET / 2];
-	int res;
+	int len, res;
 
 	if (!moh->parent->pid)
 		return -1;
@@ -728,9 +774,6 @@ static int moh_scan_files(struct mohclass *class) {
 
 static int moh_register(struct mohclass *moh)
 {
-#ifdef ZAPATA_MOH
-	int x;
-#endif
 	opbx_mutex_lock(&moh_lock);
 	if (get_mohbyname(moh->name)) {
 		opbx_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
@@ -750,28 +793,20 @@ static int moh_register(struct mohclass *moh)
 		}
 		if (strchr(moh->args, 'r'))
 			opbx_set_flag(moh, MOH_RANDOMIZE);
-	} else if (!strcasecmp(moh->mode, "custom")) {
-		
-		opbx_set_flag(moh, MOH_CUSTOM);
+	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") || !strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") || !strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
+
+		if (!strcasecmp(moh->mode, "custom"))
+			opbx_set_flag(moh, MOH_CUSTOM);
+		else if (!strcasecmp(moh->mode, "mp3nb"))
+			opbx_set_flag(moh, MOH_SINGLE);
+		else if (!strcasecmp(moh->mode, "quietmp3nb"))
+			opbx_set_flag(moh, MOH_SINGLE | MOH_QUIET);
+		else if (!strcasecmp(moh->mode, "quietmp3"))
+			opbx_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
-#ifdef ZAPATA_MOH
-		/* Open /dev/zap/pseudo for timing...  Is
-		   there a better, yet reliable way to do this? */
-		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
-		if (moh->pseudofd < 0) {
-			opbx_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
-		} else {
-			x = 320;
-			ioctl(moh->pseudofd, ZT_SET_BLOCKSIZE, &x);
-		}
-#else
-		moh->pseudofd = -1;
-#endif
-		if (opbx_pthread_create(&moh->thread, NULL, monitor_custom_command, moh)) {
+		if (opbx_pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
 			opbx_log(LOG_WARNING, "Unable to create moh...\n");
-			if (moh->pseudofd > -1)
-				close(moh->pseudofd);
 			opbx_moh_free_class(&moh);
 			return -1;
 		}
@@ -814,15 +849,15 @@ static int local_opbx_moh_start(struct opbx_channel *chan, char *class)
 
 	opbx_set_flag(chan, OPBX_FLAG_MOH);
 	if (mohclass->total_files) {
-		return opbx_activate_generator(chan, &moh_file_stream, mohclass);
+		return opbx_generator_activate(chan, &moh_file_stream, mohclass);
 	} else
-		return opbx_activate_generator(chan, &mohgen, mohclass);
+		return opbx_generator_activate(chan, &mohgen, mohclass);
 }
 
 static void local_opbx_moh_stop(struct opbx_channel *chan)
 {
 	opbx_clear_flag(chan, OPBX_FLAG_MOH);
-	opbx_deactivate_generator(chan);
+	opbx_generator_deactivate(chan);
 
 	if (chan->music_state) {
 		if (chan->stream) {
@@ -1005,7 +1040,7 @@ static void opbx_moh_destroy(void)
 			while ((opbx_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
-			opbx_log(LOG_DEBUG, "Custom command pid %d and child died after %d bytes read\n", pid, tbytes);
+			opbx_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
 		}
 		tmp = moh;
@@ -1025,7 +1060,7 @@ static void moh_on_off(int on)
 			if (on)
 				local_opbx_moh_start(chan, NULL);
 			else
-				opbx_deactivate_generator(chan);
+				opbx_generator_deactivate(chan);
 		}
 		opbx_mutex_unlock(&chan->lock);
 	}
@@ -1120,7 +1155,7 @@ int load_module(void)
 		res = opbx_register_application(app4, moh4_exec, synopsis4, descrip4);
 
 	if (!init_classes()) { 	/* No music classes configured, so skip it */
-		opbx_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
+		opbx_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
 	} else {
 		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
 	}

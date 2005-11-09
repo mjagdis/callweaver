@@ -626,7 +626,7 @@ void icd_bridge__remasq(icd_caller * caller)
 
     if (oldchan) {
         opbx_stopstream(oldchan);
-        opbx_deactivate_generator(oldchan);
+        opbx_generator_deactivate(oldchan);
         opbx_clear_flag(oldchan,  OPBX_FLAG_BLOCKING);
         opbx_softhangup(oldchan,  OPBX_SOFTHANGUP_EXPLICIT);
         if (icd_caller__owns_channel(caller)) {
