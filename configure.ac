@@ -362,8 +362,6 @@ AC_CHECK_LIB([pthread], [main])
 AC_CHECK_LIB([resolv], [main])
 AC_CHECK_LIB([rt], [main])
 AC_CHECK_LIB([socket], [main])
-AC_CHECK_LIB([speex], [main],[AC_DEFINE([HAVE_LIBSPEEX],["yes"],[yay we can do speex])])
-AM_CONDITIONAL([HAS_SPEEX],[test -n "${HAVE_LIBSPEEX}"])
 AC_CHECK_LIB([t], [main])
 # AC_CHECK_LIB([termcap], [main])
 
@@ -1126,6 +1124,15 @@ dnl app_icd
 #	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],,[with_app_icd="no"])
 #
 #
+
+AC_ARG_WITH([codec_speex],
+	[AC_HELP_STRING([--want-codec_speex],[Build and install codec_speex (default=yes)])],,[with_codec_speex="yes"])
+
+if test "${with_codec_speex}"; then
+   AC_CHECK_LIB([speex], [main], [HAVE_LIBSPEEX=1])
+fi
+
+AM_CONDITIONAL([WANT_CODEC_SPEEX],[test "${with_codec_speex}" = "yes" -a -n "${HAVE_LIBSPEEX}"])
 
 ##### functions
 

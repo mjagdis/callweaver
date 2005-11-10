@@ -32,10 +32,10 @@ codec_ilbc_la_CFLAGS    = $(AM_CFLAGS) -I${top_srcdir}/libs/ilbc
 codec_ilbc_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_ilbc_la_LIBADD	= ${top_srcdir}/libs/ilbc/libopbxilbc.la ${top_srcdir}/corelib/libopenpbx.la
 
-if HAS_SPEEX
-	opbxmod_LTLIBRARIES	+= codec_speex_la
-	codec_speex_la_SOURCES	= codec_speex.c slin_speex_ex.h speex_slin_ex.h
-	codec_speex_la_LIBADD	= @LIBSPEEX@ ${top_srcdir}/corelib/libopenpbx.la
-	codec_speex_la_CFLAGS	= @SPEEX_HEADER@ $(AM_CFLAGS) -fPIC
-	codec_speex_la_LDFLAGS  = -module -avoid-version -no-undefined
-endif HAS_SPEEX
+if WANT_CODEC_SPEEX
+opbxmod_LTLIBRARIES	+= codec_speex.la
+codec_speex_la_SOURCES	= codec_speex.c slin_speex_ex.h speex_slin_ex.h
+codec_speex_la_LIBADD	= -lspeex ${top_srcdir}/corelib/libopenpbx.la
+codec_speex_la_CFLAGS	= $(AM_CFLAGS)
+codec_speex_la_LDFLAGS  = -module -avoid-version -no-undefined
+endif WANT_CODEC_SPEEX
