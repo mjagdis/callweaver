@@ -43,6 +43,13 @@ chan_capi_la_LIBADD  = ${top_srcdir}/corelib/libopenpbx.la -lcapi20
 chan_capi_la_LDFLAGS = -module -avoid-version -no-undefined
 endif HAVE_CAPI
 
+if WANT_CHAN_VISDN
+opbxmod_LTLIBRARIES	+= chan_visdn.la
+chan_visdn_la_SOURCES	= chan_visdn.c
+chan_visdn_la_LIBADD	= -lq931 ${top_srcdir}/corelib/libopenpbx.la
+chan_visdn_la_LDFLAGS	= -module -avoid-version -no-undefined
+endif WANT_CHAN_VISDN
+
 if WANT_CHAN_WOOMERA
 opbxmod_LTLIBRARIES	+= chan_woomera.la
 chan_woomera_la_SOURCES	= chan_woomera.c

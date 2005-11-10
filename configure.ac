@@ -569,6 +569,8 @@ fi
 AC_SUBST(opbxrunuser)
 AC_SUBST(opbxrungroup)  
 
+dnl ########## SRTP #########
+
 AC_ARG_ENABLE([srtp],
 	[AC_HELP_STRING([--enable-srtp],[Enable support for SRTP.])],,[enable_srtp="no"])
 
@@ -582,35 +584,38 @@ if test "${enable_srtp}" = "yes"; then
 fi
 AM_CONDITIONAL([WANT_SRTP],[test "$enable_srtp" = "yes"])
 
+dnl ########## SSL ##########
+dnl res_crypto and res_osp and app_osplookup will not work without ssl
+
+AC_ARG_ENABLE([ssl],
+	[AC_HELP_STRING([--enable-ssl],[Enable support for SSL (default=yes)])],,[enable_ssl="yes"])
+
+if test "${enable_ssl}" = "yes"; then
+   CHECK_SSL
+fi
+
+dnl ########## vISDN ##########
+
+AC_ARG_ENABLE([visdn],
+	[AC_HELP_STRING([--enable-visdn],[Enable support for vISDN (default=no)])],,[enable_visdn="no"])
+
+if test "${enable_visdn}" = "yes"; then
+    AC_CHECK_HEADERS([visdn/visdn.h], [HAVE_VISDN_VISDN_H=1])
+    AC_CHECK_LIB([q931], [main], [HAVE_LIBQ931=1])
+fi
+
+
 #######
 #
 # now for channels,apps and ressources
 #
 ######
 
-dnl res_crypto and res_osp and app_osplookup will not work without ssl
-CHECK_SSL
 
-dnl visdn based channel for BRI support, ... build the ppp application for visdn as well
-AC_ARG_ENABLE(chan_visdn,
-	[AC_HELP_STRING([--enable-chan_visdn],[use chan_visdn, an alternative channel for HFC-PCI BRI card support, currently only supports european ISDN BRI (default=no)])],
-[   AC_MSG_RESULT(yes)
-    AC_CHECK_HEADERS([visdn/visdn.h],[AC_DEFINE([VISDN_HEADERS],["yes"],[visdn seems to be installed])])
-    AC_CHECK_LIB([q931], [main],[AC_DEFINE([VISDN_LIBS],[-lq931],[libq931 required for visdn...found!])])
+dnl ########## chan_exosip2 ##########
 
-     if test -n "$VISDN_LIBS" && test -n "$VISDN_HEADERS"
-     then
-     	WANT_VISDN="yes"
-     fi],
-[   AC_MSG_RESULT(no)
-])
-   
-AM_CONDITIONAL([WANT_VISDN],[test -n "${WANT_VISDN}"])
-
-
-dnl EXOSIP2 based SIP channel
 AC_ARG_WITH(chan_exosip2,
-	[AC_HELP_STRING([--with-chan_exosip2],[use chan_exosip2, an alternative SIP channel driver based on exosip (default=no)])],,[with_chan_exosip2="no"])
+	[AC_HELP_STRING([--with-chan_exosip2],[Build and install chan_exosip2 (default=no)])],,[with_chan_exosip2="no"])
 
 if test "${with_chan_exosip2}" = "yes"; then
    PKG_CHECK_MODULES([GLIB2],
@@ -635,10 +640,17 @@ AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}"
 AC_SUBST([CHAN_EXOSIP2_CFLAGS])
 AC_SUBST([CHAN_EXOSIP2_LIBS])
 
+dnl ########## chan_visdn ##########
+
+AC_ARG_WITH([chan_visdn],
+	[AC_HELP_STRING([--want-chan_visdn],[Build and install chan_visdn (default=no)])],,[want_chan_visdn="no"])
+
+AM_CONDITIONAL([WANT_CHAN_VISDN],[test "${with_chan_visdn}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
+
 dnl ########## chan_woomera ##########
 
 AC_ARG_WITH([chan_woomera],
-	[AC_HELP_STRING([--with-chan_woomer],[Build and install chan_woomera (default=yes)])],,
+	[AC_HELP_STRING([--with-chan_woomera],[Build and install chan_woomera (default=yes)])],,
 	[with_chan_woomera="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_WOOMERA], [test "${with_chan_woomera}" = "yes"])
@@ -657,17 +669,455 @@ AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${with_chan_zap}" = "yes" -a -n "${HAVE_L
 
 ####### apps
 
+
+dnl ########## app_adsiprog ##########
+
+AC_ARG_WITH([app_adsiprog],
+	[AC_HELP_STRING([--with-app_adsiprog],[Build and install app_adsiprog (default=yes)])],,
+	[with_app_adsiprog="yes"])
+
+AM_CONDITIONAL([WANT_APP_ADSIPROG],[test "${with_app_adsiprog}" = "yes"])
+
+dnl ########## app_authenticate ##########
+
+AC_ARG_WITH([app_authenticate],
+	[AC_HELP_STRING([--with-app_authenticate],[Build and install app_authenticate (default=yes)])],,
+	[with_app_authenticate="yes"])
+
+AM_CONDITIONAL([WANT_APP_AUTHENTICATE],[test "${with_app_authenticate}" = "yes"])
+
+dnl ########## app_cdr ##########
+
+AC_ARG_WITH([app_cdr],
+	[AC_HELP_STRING([--with-app_cdr],[Build and install app_cdr (default=yes)])],,
+	[with_app_cdr="yes"])
+
+AM_CONDITIONAL([WANT_APP_CDR],[test "${with_app_cdr}" = "yes"])
+
+dnl ########## app_changrab ##########
+
+AC_ARG_WITH([app_changrab],
+	[AC_HELP_STRING([--with-app_changrab],[Build and install app_changrab (default=yes)])],,
+	[with_app_changrab="yes"])
+
+AM_CONDITIONAL([WANT_APP_CHANGRAB],[test "${with_app_changrab}" = "yes"])
+
+dnl ########## app_chanisavail ##########
+
+AC_ARG_WITH([app_chanisavail],
+	[AC_HELP_STRING([--with-app_chanisavail],[Build and install app_chanisavail (default=yes)])],,
+	[with_app_chanisavail="yes"])
+
+AM_CONDITIONAL([WANT_APP_CHANISAVAIL],[test "${with_app_chanisavail}" = "yes"])
+
+dnl ########## app_chanspy ##########
+
+AC_ARG_WITH([app_chanspy],
+	[AC_HELP_STRING([--with-app_chanspy],[Build and install app_chanspy (default=yes)])],,
+	[with_app_chanspy="yes"])
+
+AM_CONDITIONAL([WANT_APP_CHANSPY],[test "${with_app_chanspy}" = "yes"])
+
+dnl ########## app_controlplayback ##########
+
+AC_ARG_WITH([app_controlplayback],
+	[AC_HELP_STRING([--with-app_controlplayback],[Build and install app_controlplayback (default=yes)])],,
+	[with_app_controlplayback="yes"])
+
+AM_CONDITIONAL([WANT_APP_CONTROLPLAYBACK],[test "${with_app_controlplayback}" = "yes"])
+
+dnl ########## app_db ##########
+
+AC_ARG_WITH([app_db],
+	[AC_HELP_STRING([--with-app_db],[Build and install app_db (default=yes)])],,
+	[with_app_db="yes"])
+
+AM_CONDITIONAL([WANT_APP_DB],[test "${with_app_db}" = "yes"])
+
+dnl ########## app_dial ##########
+
+AC_ARG_WITH([app_dial],
+	[AC_HELP_STRING([--with-app_dial],[Build and install app_dial (default=yes)])],,
+	[with_app_dial="yes"])
+
+AM_CONDITIONAL([WANT_APP_DIAL],[test "${with_app_dial}" = "yes"])
+
+dnl ########## app_dictate ##########
+
+AC_ARG_WITH([app_dictate],
+	[AC_HELP_STRING([--with-app_dictate],[Build and install app_dictate (default=yes)])],,
+	[with_app_dictate="yes"])
+
+AM_CONDITIONAL([WANT_APP_DICTATE],[test "${with_app_dictate}" = "yes"])
+
+dnl ########## app_directed_pickup ##########
+
+AC_ARG_WITH([app_directed_pickup],
+	[AC_HELP_STRING([--with-app_directed_pickup],[Build and install app_directed_pickup (default=yes)])],,
+	[with_app_directed_pickup="yes"])
+
+AM_CONDITIONAL([WANT_APP_DIRECTED_PICKUP],[test "${with_app_directed_pickup}" = "yes"])
+
+dnl ########## app_directory ##########
+
+AC_ARG_WITH([app_directory],
+	[AC_HELP_STRING([--with-app_directory],[Build and install app_directory (default=yes)])],,
+	[with_app_directory="yes"])
+
+AM_CONDITIONAL([WANT_APP_DIRECTORY],[test "${with_app_directory}" = "yes"])
+
+dnl ########## app_disa ##########
+
+AC_ARG_WITH([app_disa],
+	[AC_HELP_STRING([--with-app_disa],[Build and install app_disa (default=yes)])],,
+	[with_app_disa="yes"])
+
+AM_CONDITIONAL([WANT_APP_DISA],[test "${with_app_disa}" = "yes"])
+
+dnl ########## app_dumpchan ##########
+
+AC_ARG_WITH([app_dumpchan],
+	[AC_HELP_STRING([--with-app_dumpchan],[Build and install app_dumpchan (default=yes)])],,
+	[with_app_dumpchan="yes"])
+
+AM_CONDITIONAL([WANT_APP_DUMPCHAN],[test "${with_app_dumpchan}" = "yes"])
+
+dnl ########## app_echo ##########
+
+AC_ARG_WITH([app_echo],
+	[AC_HELP_STRING([--with-app_echo],[Build and install app_echo (default=yes)])],,
+	[with_app_echo="yes"])
+
+AM_CONDITIONAL([WANT_APP_ECHO],[test "${with_app_echo}" = "yes"])
+
+dnl ########## app_enumlookup ##########
+
+AC_ARG_WITH([app_enumlookup],
+	[AC_HELP_STRING([--with-app_enumlookup],[Build and install app_enumlookup (default=yes)])],,
+	[with_app_enumlookup="yes"])
+
+AM_CONDITIONAL([WANT_APP_ENUMLOOKUP],[test "${with_app_enumlookup}" = "yes"])
+
+dnl ########## app_eval ##########
+
+AC_ARG_WITH([app_eval],
+	[AC_HELP_STRING([--with-app_eval],[Build and install app_eval (default=yes)])],,
+	[with_app_eval="yes"])
+
+AM_CONDITIONAL([WANT_APP_EVAL],[test "${with_app_eval}" = "yes"])
+
+dnl ########## app_exec ##########
+
+AC_ARG_WITH([app_exec],
+	[AC_HELP_STRING([--with-app_exec],[Build and install app_exec (default=yes)])],,
+	[with_app_exec="yes"])
+
+AM_CONDITIONAL([WANT_APP_EXEC],[test "${with_app_exec}" = "yes"])
+
+dnl ########## app_flash ##########
+
+
 AC_ARG_WITH([app_flash],
 	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
 	[with_app_flash="yes"])
 
 AM_CONDITIONAL([WANT_APP_FLASH], [test "${with_app_flash}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
 
+dnl ########## app_forkcdr ##########
+
+AC_ARG_WITH([app_forkcdr],
+	[AC_HELP_STRING([--with-app_forkcdr],[Build and install app_forkcdr (default=yes)])],,
+	[with_app_forkcdr="yes"])
+
+AM_CONDITIONAL([WANT_APP_FORKCDR],[test "${with_app_forkcdr}" = "yes"])
+
+dnl ########## app_getcpeid ##########
+
+AC_ARG_WITH([app_getcpeid],
+	[AC_HELP_STRING([--with-app_getcpeid],[Build and install app_getcpeid (default=yes)])],,
+	[with_app_getcpeid="yes"])
+
+AM_CONDITIONAL([WANT_APP_GETCPEID],[test "${with_app_getcpeid}" = "yes"])
+
+dnl ########## app_groupcount ##########
+
+AC_ARG_WITH([app_groupcount],
+	[AC_HELP_STRING([--with-app_groupcount],[Build and install app_groupcount (default=yes)])],,
+	[with_app_groupcount="yes"])
+
+AM_CONDITIONAL([WANT_APP_GROUPCOUNT],[test "${with_app_groupcount}" = "yes"])
+
+dnl ########## app_hasnewvoicemail ##########
+
+AC_ARG_WITH([app_hasnewvoicemail],
+	[AC_HELP_STRING([--with-app_hasnewvoicemail],[Build and install app_hasnewvoicemail (default=yes)])],,
+	[with_app_hasnewvoicemail="yes"])
+
+AM_CONDITIONAL([WANT_APP_HASNEWVOICEMAIL],[test "${with_app_hasnewvoicemail}" = "yes"])
+
+dnl ########## app_lookupblacklist ##########
+
+AC_ARG_WITH([app_lookupblacklist],
+	[AC_HELP_STRING([--with-app_lookupblacklist],[Build and install app_lookupblacklist (default=yes)])],,
+	[with_app_lookupblacklist="yes"])
+
+AM_CONDITIONAL([WANT_APP_LOOKUPBLACKLIST],[test "${with_app_lookupblacklist}" = "yes"])
+
+dnl ########## app_lookupcidname ##########
+
+AC_ARG_WITH([app_lookupcidname],
+	[AC_HELP_STRING([--with-app_lookupcidname],[Build and install app_lookupcidname (default=yes)])],,
+	[with_app_lookupcidname="yes"])
+
+AM_CONDITIONAL([WANT_APP_LOOKUPCIDNAME],[test "${with_app_lookupcidname}" = "yes"])
+
+dnl ########## app_macro ##########
+
+AC_ARG_WITH([app_macro],
+	[AC_HELP_STRING([--with-app_macro],[Build and install app_macro (default=yes)])],,
+	[with_app_macro="yes"])
+
+AM_CONDITIONAL([WANT_APP_MACRO],[test "${with_app_macro}" = "yes"])
+
+dnl ########## app_meetme ##########
+
 AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
 	[with_app_meetme="yes"])
 
 AM_CONDITIONAL([WANT_APP_MEETME], [test "${with_app_meetme}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+
+dnl ########## app_milliwatt ##########
+
+AC_ARG_WITH([app_milliwatt],
+	[AC_HELP_STRING([--with-app_milliwatt],[Build and install app_milliwatt (default=yes)])],,
+	[with_app_milliwatt="yes"])
+
+AM_CONDITIONAL([WANT_APP_MILLIWATT],[test "${with_app_milliwatt}" = "yes"])
+
+dnl ########## app_muxmon ##########
+
+AC_ARG_WITH([app_muxmon],
+	[AC_HELP_STRING([--with-app_muxmon],[Build and install app_muxmon (default=yes)])],,
+	[with_app_muxmon="yes"])
+
+AM_CONDITIONAL([WANT_APP_MUXMON],[test "${with_app_muxmon}" = "yes"])
+
+dnl ########## app_osplookup ##########
+
+AC_ARG_WITH([app_osplookup],
+	[AC_HELP_STRING([--with-app_osplookup],[Build and install app_osplookup (default=yes)])],,
+	[with_app_osplookup="yes"])
+
+AM_CONDITIONAL([WANT_APP_OSPLOOKUP],[test "${with_app_osplookup}" = "yes"])
+
+dnl ########## app_playback ##########
+
+AC_ARG_WITH([app_playback],
+	[AC_HELP_STRING([--with-app_playback],[Build and install app_playback (default=yes)])],,
+	[with_app_playback="yes"])
+
+AM_CONDITIONAL([WANT_APP_PLAYBACK],[test "${with_app_playback}" = "yes"])
+
+dnl ########## app_privacy ##########
+
+AC_ARG_WITH([app_privacy],
+	[AC_HELP_STRING([--with-app_privacy],[Build and install app_privacy (default=yes)])],,
+	[with_app_privacy="yes"])
+
+AM_CONDITIONAL([WANT_APP_PRIVACY],[test "${with_app_privacy}" = "yes"])
+
+dnl ########## app_queue ##########
+
+AC_ARG_WITH([app_queue],
+	[AC_HELP_STRING([--with-app_queue],[Build and install app_queue (default=yes)])],,
+	[with_app_queue="yes"])
+
+AM_CONDITIONAL([WANT_APP_QUEUE],[test "${with_app_queue}" = "yes"])
+
+dnl ########## app_random ##########
+
+AC_ARG_WITH([app_random],
+	[AC_HELP_STRING([--with-app_random],[Build and install app_random (default=yes)])],,
+	[with_app_random="yes"])
+
+AM_CONDITIONAL([WANT_APP_RANDOM],[test "${with_app_random}" = "yes"])
+
+dnl ########## app_read ##########
+
+AC_ARG_WITH([app_read],
+	[AC_HELP_STRING([--with-app_read],[Build and install app_read (default=yes)])],,
+	[with_app_read="yes"])
+
+AM_CONDITIONAL([WANT_APP_READ],[test "${with_app_read}" = "yes"])
+
+dnl ########## app_record ##########
+
+AC_ARG_WITH([app_record],
+	[AC_HELP_STRING([--with-app_record],[Build and install app_record (default=yes)])],,
+	[with_app_record="yes"])
+
+AM_CONDITIONAL([WANT_APP_RECORD],[test "${with_app_record}" = "yes"])
+
+dnl ########## app_rxfax ##########
+
+AC_ARG_WITH([app_rxfax],
+	[AC_HELP_STRING([--with-app_rxfax],[Build and install app_rxfax (default=yes)])],,
+	[with_app_rxfax="yes"])
+
+AM_CONDITIONAL([WANT_APP_RXFAX],[test "${with_app_rxfax}" = "yes"])
+
+dnl ########## app_sayunixtime ##########
+
+AC_ARG_WITH([app_sayunixtime],
+	[AC_HELP_STRING([--with-app_sayunixtime],[Build and install app_sayunixtime (default=yes)])],,
+	[with_app_sayunixtime="yes"])
+
+AM_CONDITIONAL([WANT_APP_SAYUNIXTIME],[test "${with_app_sayunixtime}" = "yes"])
+
+dnl ########## app_senddtmf ##########
+
+AC_ARG_WITH([app_senddtmf],
+	[AC_HELP_STRING([--with-app_senddtmf],[Build and install app_senddtmf (default=yes)])],,
+	[with_app_senddtmf="yes"])
+
+AM_CONDITIONAL([WANT_APP_SENDDTMF],[test "${with_app_senddtmf}" = "yes"])
+
+dnl ########## app_sendtext ##########
+
+AC_ARG_WITH([app_sendtext],
+	[AC_HELP_STRING([--with-app_sendtext],[Build and install app_sendtext (default=yes)])],,
+	[with_app_sendtext="yes"])
+
+AM_CONDITIONAL([WANT_APP_SENDTEXT],[test "${with_app_sendtext}" = "yes"])
+
+dnl ########## app_setcdruserfield ##########
+
+AC_ARG_WITH([app_setcdruserfield],
+	[AC_HELP_STRING([--with-app_setcdruserfield],[Build and install app_setcdruserfield (default=yes)])],,
+	[with_app_setcdruserfield="yes"])
+
+AM_CONDITIONAL([WANT_APP_SETCDRUSERFIELD],[test "${with_app_setcdruserfield}" = "yes"])
+
+dnl ########## app_setrdnis ##########
+
+AC_ARG_WITH([app_setrdnis],
+	[AC_HELP_STRING([--with-app_setrdnis],[Build and install app_setrdnis (default=yes)])],,
+	[with_app_setrdnis="yes"])
+
+AM_CONDITIONAL([WANT_APP_SETRDNIS],[test "${with_app_setrdnis}" = "yes"])
+
+dnl ########## app_settransfercapability ##########
+
+AC_ARG_WITH([app_settransfercapability],
+	[AC_HELP_STRING([--with-app_settransfercapability],[Build and install app_settransfercapability (default=yes)])],,
+	[with_app_settransfercapability="yes"])
+
+AM_CONDITIONAL([WANT_APP_SETTRANSFERCAPABILITY],[test "${with_app_settransfercapability}" = "yes"])
+
+dnl ########## app_softhangup ##########
+
+AC_ARG_WITH([app_softhangup],
+	[AC_HELP_STRING([--with-app_softhangup],[Build and install app_softhangup (default=yes)])],,
+	[with_app_softhangup="yes"])
+
+AM_CONDITIONAL([WANT_APP_SOFTHANGUP],[test "${with_app_softhangup}" = "yes"])
+
+dnl ########## app_system ##########
+
+AC_ARG_WITH([app_system],
+	[AC_HELP_STRING([--with-app_system],[Build and install app_system (default=yes)])],,
+	[with_app_system="yes"])
+
+AM_CONDITIONAL([WANT_APP_SYSTEM],[test "${with_app_system}" = "yes"])
+
+dnl ########## app_talkdetect ##########
+
+AC_ARG_WITH([app_talkdetect],
+	[AC_HELP_STRING([--with-app_talkdetect],[Build and install app_talkdetect (default=yes)])],,
+	[with_app_talkdetect="yes"])
+
+AM_CONDITIONAL([WANT_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
+
+dnl ########## app_transfer ##########
+
+AC_ARG_WITH([app_transfer],
+	[AC_HELP_STRING([--with-app_transfer],[Build and install app_transfer (default=yes)])],,
+	[with_app_transfer="yes"])
+
+AM_CONDITIONAL([WANT_APP_TRANSFER],[test "${with_app_transfer}" = "yes"])
+
+dnl ########## app_txfax ##########
+
+AC_ARG_WITH([app_txfax],
+	[AC_HELP_STRING([--with-app_txfax],[Build and install app_txfax (default=yes)])],,
+	[with_app_txfax="yes"])
+
+AM_CONDITIONAL([WANT_APP_TXFAX],[test "${with_app_txfax}" = "yes"])
+
+dnl ########## app_userevent ##########
+
+AC_ARG_WITH([app_userevent],
+	[AC_HELP_STRING([--with-app_userevent],[Build and install app_userevent (default=yes)])],,
+	[with_app_userevent="yes"])
+
+AM_CONDITIONAL([WANT_APP_USEREVENT],[test "${with_app_userevent}" = "yes"])
+
+dnl ########## app_verbose ##########
+
+AC_ARG_WITH([app_verbose],
+	[AC_HELP_STRING([--with-app_verbose],[Build and install app_verbose (default=yes)])],,
+	[with_app_verbose="yes"])
+
+AM_CONDITIONAL([WANT_APP_VERBOSE],[test "${with_app_verbose}" = "yes"])
+
+dnl ########## app_visdn_ppp ##########
+
+AC_ARG_WITH([app_visdn_ppp],
+	[AC_HELP_STRING([--with-app_visdn_ppp],[Build and install app_visdn_ppp (default=yes)])],,
+	[with_app_visdn_ppp="yes"])
+
+AM_CONDITIONAL([WANT_APP_VISDN_PPP],[test "${with_app_visdn_ppp}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
+
+dnl ########## app_voicemail ##########
+
+AC_ARG_WITH([app_voicemail],
+	[AC_HELP_STRING([--with-app_voicemail],[Build and install app_voicemail (default=yes)])],,
+	[with_app_voicemail="yes"])
+
+AM_CONDITIONAL([WANT_APP_VOICEMAIL],[test "${with_app_voicemail}" = "yes"])
+
+dnl ########## app_waitforring ##########
+
+AC_ARG_WITH([app_waitforring],
+	[AC_HELP_STRING([--with-app_waitforring],[Build and install app_waitforring (default=yes)])],,
+	[with_app_waitforring="yes"])
+
+AM_CONDITIONAL([WANT_APP_WAITFORRING],[test "${with_app_waitforring}" = "yes"])
+
+dnl ########## app_waitforsilence ##########
+
+AC_ARG_WITH([app_waitforsilence],
+	[AC_HELP_STRING([--with-app_waitforsilence],[Build and install app_waitforsilence (default=yes)])],,
+	[with_app_waitforsilence="yes"])
+
+AM_CONDITIONAL([WANT_APP_WAITFORSILENCE],[test "${with_app_waitforsilence}" = "yes"])
+
+dnl ########## app_while ##########
+
+AC_ARG_WITH([app_while],
+	[AC_HELP_STRING([--with-app_while],[Build and install app_while (default=yes)])],,
+	[with_app_while="yes"])
+
+AM_CONDITIONAL([WANT_APP_WHILE],[test "${with_app_while}" = "yes"])
+
+dnl ########## app_zapateller ##########
+
+AC_ARG_WITH([app_zapateller],
+	[AC_HELP_STRING([--with-app_zapateller],[Build and install app_zapateller (default=yes)])],,
+	[with_app_zapateller="yes"])
+
+AM_CONDITIONAL([WANT_APP_ZAPATELLER],[test "${with_app_zapateller}" = "yes"])
 
 
 dnl app_icd
@@ -676,12 +1126,6 @@ dnl app_icd
 #	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],,[with_app_icd="no"])
 #
 #
-
-AC_ARG_WITH([app_talkdetect],
-	[AC_HELP_STRING([--with-app_talkdetect],[Build and install app_talkdetect (default=yes)])],,
-	[with_app_talkdetect="yes"])
-
-AM_CONDITIONAL([WANT_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
 
 ##### functions
 

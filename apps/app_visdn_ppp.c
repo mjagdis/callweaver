@@ -13,14 +13,18 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/options.h>
-#include <asterisk/logger.h>
+#include "openpbx.h"
+
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_dial.c $", "$Revision: 878 $")
+
+#include "openpbx/lock.h"
+#include "openpbx/file.h"
+#include "openpbx/logger.h"
+#include "openpbx/channel.h"
+#include "openpbx/pbx.h"
+#include "openpbx/module.h"
+#include "openpbx/options.h"
+#include "openpbx/logger.h"
 
 #include <chan_visdn.h>
 
@@ -58,7 +62,7 @@ static int get_max_fds(void)
 }
 
 static pid_t spawn_ppp(
-	struct ast_channel *chan,
+	struct opbx_channel *chan,
 	const char *argv[],
 	int argc)
 {
@@ -85,33 +89,33 @@ static pid_t spawn_ppp(
 }
 
 
-static int visdn_ppp_exec(struct ast_channel *chan, void *data)
+static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	struct ast_frame *f;
+	struct opbx_frame *f;
 	LOCAL_USER_ADD(u);
 
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_answer(chan);
 
-	ast_mutex_lock(&chan->lock);
+	opbx_mutex_lock(&chan->lock);
 
 	if (strcmp(chan->type, "VISDN")) {
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"Only VISDN channels may be connected to"
 			" this application\n");
 
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 		return -1;
 	}
 
 	struct visdn_chan *visdn_chan = chan->pvt->pvt;
 
 	if (!strlen(visdn_chan->visdn_chanid)) {
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"vISDN crossconnector channel ID not present\n");
-		ast_mutex_unlock(&chan->lock);
+		opbx_mutex_unlock(&chan->lock);
 		return -1;
 	}
 
@@ -138,12 +142,12 @@ static int visdn_ppp_exec(struct ast_channel *chan, void *data)
 	argv[argc++] = "visdn.so";
 	argv[argc++] = visdn_chan->visdn_chanid;
 
-	ast_mutex_unlock(&chan->lock);
+	opbx_mutex_unlock(&chan->lock);
 
 #if 0
 	int i;
 	for (i=0;i<argc;i++) {
-		ast_log(LOG_NOTICE, "Arg %d: %s\n", i, argv[i]);
+		opbx_log(LOG_NOTICE, "Arg %d: %s\n", i, argv[i]);
 	}
 #endif
 
@@ -151,15 +155,15 @@ static int visdn_ppp_exec(struct ast_channel *chan, void *data)
 
 	pid_t pid = spawn_ppp(chan, argv, argc);
 	if (pid < 0) {
-		ast_log(LOG_WARNING, "Failed to spawn pppd\n");
+		opbx_log(LOG_WARNING, "Failed to spawn pppd\n");
 		return -1;
 	}
 
-	while(ast_waitfor(chan, -1) > -1) {
+	while(opbx_waitfor(chan, -1) > -1) {
 
-		f = ast_read(chan);
+		f = opbx_read(chan);
 		if (!f) {
-			ast_log(LOG_NOTICE,
+			opbx_log(LOG_NOTICE,
 				"Channel '%s' hungup."
 				" Signalling PPP at %d to die...\n",
 				chan->name, pid);
@@ -169,12 +173,12 @@ static int visdn_ppp_exec(struct ast_channel *chan, void *data)
 			break;
 		}
 
-		ast_frfree(f);
+		opbx_frfree(f);
 
 		int status;
 		res = wait4(pid, &status, WNOHANG, NULL);
 		if (res < 0) {
-			ast_log(LOG_WARNING,
+			opbx_log(LOG_WARNING,
 				"wait4 returned %d: %s\n",
 				res, strerror(errno));
 
@@ -182,15 +186,15 @@ static int visdn_ppp_exec(struct ast_channel *chan, void *data)
 		} else if (res > 0) {
 			if (option_verbose > 2) {
 				if (WIFEXITED(status)) {
-					ast_verbose(VERBOSE_PREFIX_3
+					opbx_verbose(VERBOSE_PREFIX_3
 						"PPP on %s terminated with status %d\n",
 						chan->name, WEXITSTATUS(status));
 				} else if (WIFSIGNALED(status)) {
-					ast_verbose(VERBOSE_PREFIX_3
+					opbx_verbose(VERBOSE_PREFIX_3
 						"PPP on %s terminated with signal %d\n", 
 						chan->name, WTERMSIG(status));
 				} else {
-					ast_verbose(VERBOSE_PREFIX_3
+					opbx_verbose(VERBOSE_PREFIX_3
 						"PPP on %s terminated weirdly.\n", chan->name);
 				}
 			}
@@ -206,12 +210,12 @@ static int visdn_ppp_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return ast_register_application(app, visdn_ppp_exec, synopsis, descrip);
+	return opbx_register_application(app, visdn_ppp_exec, synopsis, descrip);
 }
 
 char *description(void)
@@ -224,9 +228,4 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
-}
-
-char *key()
-{
-	return ASTERISK_GPL_KEY;
 }
