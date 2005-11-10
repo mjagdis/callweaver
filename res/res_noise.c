@@ -62,11 +62,8 @@ static char *descrip =
 "'timeout' seconds or indefinitely if timeout is absent or is zero.\n\nLevel "
 "is a non-positive number. For example, WhiteNoise(0.0) generates white noise "
 "at full power, while WhiteNoise(-3.0) generates white noise at half full "
-"power. Every -3dBov's reduces white noise power in half. Full power in this "
-"case is defined as noise that overloads the channel roughly 0.3\% of the "
-"time. Note that values below -69dBov's start to give out silence frequently, "
-"resulting in intermittent noise, i.e, alternating periods of silence and "
-"noise.\n";
+"power. Every -3dBov's reduces white noise power in half. Full power is the "
+"maximum amount of power the channel is able to carry.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -93,15 +90,13 @@ static const struct opbx_frame framedefaults =
 #define SIGNAL_MIN_LEVEL (-SIGNAL_MAX_LEVEL)
 
 /*
- * When white noise level is zero dBov (full power, by definition) standard
- * deviation (sigma) is calculated so that 3 * sigma equals max sample value
- * before overload. For signed linear, which is what we use, this value is
- * 32767. The max value of sigma will therefore be 32767.0 / 3.0. This
- * guarantees that roughly 99.7% of the samples generated will be between
- * -32767 and +32767. The rest, 0.3%, will be clipped to conform to the
- * channel limits, i.e., +/-32767.
+ * A square wave of amplitude 32767 transmits the maximum amount of power
+ * on a signed linear coded channel. This amount of power is therefore
+ * defined to be 0dBov and is equal to (32767)^2. Given that sigma^2 is the
+ * amount of power of a normally distributed random signal, the maximum
+ * value of sigma, corresponding to 0dBov, will therefore be 32767.
  */
-#define NOISE_MAX_SIGMA (SIGNAL_MAX_LEVEL / 3)
+#define NOISE_MAX_SIGMA (SIGNAL_MAX_LEVEL)
 
 #ifdef LOW_MEMORY
 struct noise_params
@@ -127,6 +122,16 @@ static inline uint32_t fast_uniform_rng(uint32_t *state)
 	return *state;
 }
 #else
+struct noise_params
+{
+	/*
+	 * Factor used to scale pregenerated samples down to desired level.
+	 * This is a fixed point number with the number of fractional bits
+	 * given by SCALE_FACTOR_FRAC_BITS as defined below.
+	 */
+	int32_t scalefactor;
+};
+
 /*
  * We pregenerate 64k of white noise samples that will be used instead of
  * generating the samples continously and wasting CPU cycles. The buffer
@@ -135,6 +140,27 @@ static inline uint32_t fast_uniform_rng(uint32_t *state)
  */
 #define NUM_PREGENERATED_SAMPLES (65536L)
 static int16_t pregeneratedsamples[NUM_PREGENERATED_SAMPLES];
+
+/*
+ * We cannot pregenerate samples at 0dBov because 30% of those would be
+ * clipped away by the signed linear channel limits. As such, we pregenerate
+ * samples at -10dBov which results in samples that are clipped less than
+ * 0.3% of the time (these are the samples whose value is beyond 3*sigma).
+ * See SCALE_FACTOR_FRAC_BITS below.
+ */
+#define PREGEN_SAMPLES_DBOV (-10)
+
+/*
+ * Number of fractional bits used in the fixed-point scale factor.
+ * This depends on the value of PREGEN_SAMPLES_DBOV. To determine, we compute
+ * exp10(-PREGEN_SAMPLES_DBOV * 0.05). Then, we see how many bits are necessary
+ * to hold the integer part. The number of fractional bits will be 16 minus the
+ * number of bits necessary to hold the integer part.
+ * For example, for PREGEN_SAMPLES_DBOV equal to -10, exp10(-(-10) * 0.05) is
+ * equal to 3.1623. The number of bits to hold the integer part is 2. As such,
+ * the number of fractional bits of the scale factor is 14.
+ */
+#define SCALE_FACTOR_FRAC_BITS (14)
 
 /*
  * The maximum value returned by random() according to the Single UNIX
@@ -171,7 +197,7 @@ static void box_muller_rng(double stddev, double *rn1, double *rn2)
 
 static void *noise_alloc(struct opbx_channel *chan, void *data)
 {
-	/* level is noise level in dBov */
+	/* level is noise level in dBov and is a non-positive number */
 	double level = *(double *)data;
 
 #ifdef LOW_MEMORY
@@ -183,55 +209,57 @@ static void *noise_alloc(struct opbx_channel *chan, void *data)
 	 * triangular distribution. Scale factor will be equal to full power
 	 * when level is 0dBov.
 	 */
-	const double fullpower =
-		2.0 * NOISE_MAX_SIGMA * sqrt(6.0) / FAST_UNI_RNG_HALF;
 	struct noise_params *pnp = malloc(sizeof (struct noise_params));
 
 	if (pnp)
 	{
+		const double fullpower =
+			2.0 * NOISE_MAX_SIGMA * sqrt(6.0) / FAST_UNI_RNG_HALF;
 		pnp->rngstate = random(); /* seed RNG with a random value */
 		pnp->scalefactor = fullpower * exp10(level * 0.05);
 	}
 	return pnp;
 #else
 	/*
-	 * Pregenerated samples are generated with max standard deviation.
-	 * Here, we compute a scale factor that will be later used to scale
-	 * the pregenerated samples to the desidered standard deviation.
-	 * Given that this will involve multiplying all pregenerated samples
-	 * by a constant, we use a fixed point signed 32-bit scale factor
-	 * to speed up multiplication. When level is zero, the scale factor
-	 * will be 1.0. We place the fixed point right in the middle of the
-	 * 32-bit quantity, between bits 15 and 16. Quantity 1.0 will
-	 * therefore be represented as 2^16 (or 1 << 16).
+	 * Pregenerated samples are generated with standard deviation
+	 * (or sigma) corresponding to PREGEN_SAMPLES_DBOV. Here, we compute
+	 * a scale factor that will be later used to scale the pregenerated
+	 * samples to the desidered standard deviation (based on chosen dBov
+	 * level). Given that this will involve multiplying all pregenerated
+	 * samples by a constant, we use a fixed point signed 32-bit scale
+	 * factor to speed up multiplication.
+	 *
+	 * When level is zero dBov's, the scale factor will be
+	 * exp10(-PREGEN_SAMPLES_DBOV / 20). For example, if
+	 * PREGEN_SAMPLES_DBOV is -10, then this scale factor is
+	 * aproximately 3.1623. Multiplying by 2^SCALE_FACTOR_FRAC_BITS, the
+	 * resulting scale factor will be a fixed point number. The
+	 * leftmost SCALE_FACTOR_FRAC_BITS bits will represent the fractional
+	 * part of scale factor. Seen as an integer, this scale factor will
+	 * never exceed 65536.
 	 */
-	const double fullpower = 65536.0;
-	int32_t *pscalefactor = malloc(sizeof (int32_t));
+	struct noise_params *pnp = malloc(sizeof (struct noise_params));
 
-	if (pscalefactor)
+	if (pnp)
 	{
-		*pscalefactor = fullpower * exp10(level * 0.05);
+		const double sf = exp10((level - PREGEN_SAMPLES_DBOV) * 0.05);
+		pnp->scalefactor = floor((1 << SCALE_FACTOR_FRAC_BITS) * sf);
 	}
-	return pscalefactor;
-#endif /* LOW_MEMORY */
+	return pnp;
+#endif /* !LOW_MEMORY */
 }
 
 static void noise_release(struct opbx_channel *chan, void *data)
 {
-#ifdef LOW_MEMORY
 	free((struct noise_params *)data);
-#else
-	free((int32_t *)data);
-#endif
 }
 
 static int noise_generate(struct opbx_channel *chan, void *data, int samples)
 {
-#ifdef LOW_MEMORY
 	struct noise_params *pnp = data;
+#ifdef LOW_MEMORY
 	long sampleamplitude;
 #else
-	int32_t scalefactor = *(int32_t *)data;
 	uint16_t start;
 #endif
 	struct opbx_frame f;
@@ -269,11 +297,12 @@ static int noise_generate(struct opbx_channel *chan, void *data, int samples)
 	 * triangle and '1/a' is its height (area is therefore 1). Given that
 	 * we want to maintain consistent power levels between samples
 	 * generated according to normal and triangular distributions, we get
-	 * a max value for 'a' of (32767.0 / 3.0) * Sqrt(6.0) = 26754. As
-	 * such, when level is 0dbov (and scale factor is 1.0), we will be
-	 * generating samples whose values fall between -26754 and 26754.
-	 * These limits will be adjusted by the scale factor for other levels
-	 * of noise.
+	 * a max value for 'a' of 32767.0 * Sqrt(6.0) = 80262. As such, when
+	 * level is 0dbov (and scale factor is 1.0), we will be generating
+	 * samples whose values fall between -80262 and 80262. These limits
+	 * will be adjusted by the scale factor for other levels of noise.
+	 * Obviously, the channel limits apply and samples will be clipped
+	 * to appropriate levels.
 	 */
 	for (i = 0; i < samples; i++)
 	{
@@ -307,14 +336,15 @@ static int noise_generate(struct opbx_channel *chan, void *data, int samples)
 	/*
 	 * We are going to use pregenerated samples. But we start at
 	 * different points on the pregenerated samples buffer every time
-	 * to create a little bit more randomness. Given that 'start' is a
+	 * to create a little bit more randomness. Given that 'start' is an
 	 * unsigned 16-bit integer, we need NUM_PREGENERATED_SAMPLES to be
 	 * (at least) 2^16 to avoid reading beyond the bounds of the buffer.
 	 */
 	start = random();
 	for (i = 0; i < samples; i++)
 	{
-		*(pbuf++) = (scalefactor * pregeneratedsamples[start++]) >> 16;
+		*(pbuf++) = (pnp->scalefactor * pregeneratedsamples[start++])
+                                   >> SCALE_FACTOR_FRAC_BITS;
 	}
 #endif
 
@@ -428,22 +458,25 @@ int unload_module(void)
 
 int load_module(void)
 {
-#ifndef LOW_MEMORY
+#ifdef LOW_MEMORY
+	opbx_log(LOG_DEBUG,
+                 "Using signed linear noise samples generated on demand\n");
+#else
 	/*
-	 * Let's pregenerate all samples corresponding to level 0dBov.
+	 * Let's pregenerate all samples corresponding
+	 * to level PREGEN_SAMPLES_DBOV
 	 */
 	double randomnumbers[2], sample;
-	double samplessum, samplessquaredsum;
-	long i, j;
 	int16_t *ppregeneratedsamples;
+	double noisesigma;
+	long i, j;
 
+	noisesigma = NOISE_MAX_SIGMA * exp10(PREGEN_SAMPLES_DBOV * 0.05);
 	ppregeneratedsamples = &pregeneratedsamples[0];
-	samplessum = 0;
-	samplessquaredsum = 0;
 	for (i = 0; i < NUM_PREGENERATED_SAMPLES; i += 2)
 	{
-		box_muller_rng(NOISE_MAX_SIGMA,
-				&randomnumbers[0], &randomnumbers[1]);
+		box_muller_rng(noisesigma,
+                               &randomnumbers[0], &randomnumbers[1]);
 		for (j = 0; j < 2; j++)
 		{
 			sample = floor(randomnumbers[j] + 0.5);
@@ -452,19 +485,12 @@ int load_module(void)
 			else if (sample < SIGNAL_MIN_LEVEL)
 				sample = SIGNAL_MIN_LEVEL;
 			*(ppregeneratedsamples++) = sample;
-			samplessum += sample;
-			samplessquaredsum += sample * sample;
 		}
 
 	}
-	opbx_log(LOG_DEBUG,
-		"Generated %ld signed linear noise samples with mean = %.0lf "
-		"(should be between -128 and 128) and standard deviation = "
-		"%.0lf (should be between 10831 and 11013)\n",
-		NUM_PREGENERATED_SAMPLES,
-		samplessum / NUM_PREGENERATED_SAMPLES,
-		sqrt(samplessquaredsum / NUM_PREGENERATED_SAMPLES));
-#endif
+	opbx_log(LOG_DEBUG, "Using %ld pregenerated signed linear noise "
+                            "samples\n", NUM_PREGENERATED_SAMPLES);
+#endif /* !LOW_MEMORY */
 	return opbx_register_application(app, noise_exec, synopsis, descrip);
 }
 
