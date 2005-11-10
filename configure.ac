@@ -868,7 +868,7 @@ dnl Selector for res_sqlite support
 AC_ARG_WITH(res_sqlite,
         [AC_HELP_STRING([--with-res_sqlite],[Build and install res_sqlite (default=no)])],,[with_res_sqlite="no"])
 
-AM_CONDITIONAL([WANT_RES_SQLITE],[test -n "${want_res_sqlite}"])
+AM_CONDITIONAL([WANT_RES_SQLITE],[test "${with_res_sqlite}" = "yes"])
 
 dnl postgresql -- first need to check if it is there and than can check for if someone wants res_config_pgsql and cdr_pgsql
 CT_CHECK_POSTGRES_DB

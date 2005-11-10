@@ -44,7 +44,7 @@ opbxmod_LTLIBRARIES	+= res_sqlite.la
 res_sqlite_la_SOURCES	= res_sqlite.c
 res_sqlite_la_LDFLAGS	= -module -avoid-version -no-undefined
 res_sqlite_la_LIBADD	= @SQLITE3_THREADSAFE_LIBS@ ${top_srcdir}/corelib/libopenpbx.la  
-res_sqlite_la_CFLAGS	= $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@
+res_sqlite_la_CFLAGS	= $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@ -I${top_srcdir}/sqlite3-embedded/src
 endif WANT_RES_SQLITE
 
 if WANT_RES_JABBER

@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sqlite3.h>
-/*#include <sqliteInt.h>*/
+#include <sqliteInt.h>
 
 #include "openpbx/file.h"
 #include "openpbx/logger.h"
