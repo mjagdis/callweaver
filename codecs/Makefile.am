@@ -36,6 +36,6 @@ if WANT_CODEC_SPEEX
 opbxmod_LTLIBRARIES	+= codec_speex.la
 codec_speex_la_SOURCES	= codec_speex.c slin_speex_ex.h speex_slin_ex.h
 codec_speex_la_LIBADD	= -lspeex ${top_srcdir}/corelib/libopenpbx.la
-codec_speex_la_CFLAGS	= $(AM_CFLAGS)
+codec_speex_la_CFLAGS	= $(AM_CFLAGS) @SPEEX_CFLAGS@
 codec_speex_la_LDFLAGS  = -module -avoid-version -no-undefined
 endif WANT_CODEC_SPEEX
