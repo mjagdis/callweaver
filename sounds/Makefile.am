@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS = gnu
 
-nobase_opbxsounds_DATA =  allison-en/agent-alreadyon.gsm \
+SOUNDS =  allison-en/agent-alreadyon.gsm \
 allison-en/agent-incorrect.gsm \
 allison-en/agent-loggedoff.gsm \
 allison-en/agent-loginok.gsm \
@@ -350,6 +350,10 @@ allison-en/phonetic/w_p.gsm \
 allison-en/phonetic/x_p.gsm \
 allison-en/phonetic/y_p.gsm \
 allison-en/phonetic/z_p.gsm
+
+nobase_opbxsounds_DATA =  $(SOUNDS)
+
+EXTRA_DIST = $(SOUNDS)
 
 install-data-hook:
 	if [ ! -e $(DESTDIR)$(opbxsoundsdir)/en ]; then \

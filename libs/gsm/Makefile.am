@@ -9,5 +9,5 @@ libopbxgsm_la_SOURCES 	= src/add.c src/code.c src/debug.c src/decode.c \
 			  inc/proto.h inc/unproto.h 
 libopbxgsm_a_CFLAGS  	= -DWAV49 -DSASR $(AM_CFLAGS) -Iinc
 libopbxgsm_la_LDFLAGS	= -no-undefined 
-INCLUDES		= -Iinc -Isrc
+INCLUDES		= -I$(srcdir)/inc -Isrc
 

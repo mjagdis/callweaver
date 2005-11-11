@@ -340,6 +340,11 @@ if test -z "${opbxmohdir}"; then
 fi
 AC_SUBST([opbxmohdir])
 
+if test -z "${opbxincludedir}"; then
+	opbxincludedir='${includedir}/openpbx'
+fi
+AC_SUBST([opbxincludedir])
+
 ######
 #
 # Check for headers, structures, typedefs, libs etc that are not realted to specific add on packages
@@ -1306,8 +1311,8 @@ AM_CONDITIONAL([WANT_RES_JABBER],[test "${enable_jabber}" = "yes" -a "${with_res
 
 # res_sqlite
 dnl Sqlite ressource module
-SQLITE3_THREADSAFE_LIBS='${top_srcdir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
-SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded'
+SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
+SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
 case "${host}" in
   *cygwin*)
 	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_WIN"
@@ -1609,7 +1614,7 @@ AC_SUBST(LOW_MEMORY)
 AC_SUBST(prefix)
 
 AC_SUBST_FILE(substitute)
-substitute=substitute.mak
+substitute=${srcdir}/substitute.mak
 
 AM_CONFIG_HEADER(include/confdefs.h)  
 
@@ -1620,6 +1625,8 @@ AM_CONFIG_HEADER(include/confdefs.h)
 ######
 AC_CONFIG_SUBDIRS(editline libltdl)    
 AC_OUTPUT([Makefile
+		 include/Makefile
+		 include/openpbx/Makefile
 		 libs/Makefile
                  libs/gsm/Makefile
                  libs/ilbc/Makefile
@@ -1691,6 +1698,7 @@ echo "libdir:           ${libdir}"
 echo "sysconfdir:       ${sysconfdir}"
 echo "localstatedir:    ${localstatedir}"
 echo "datadir:          ${datadir}"
+echo "includedir:       ${includedir}"
 echo ""
 echo "opbxconfdir:      ${opbxconfdir}"
 echo "opbxconffile:     ${opbxconffile}"
@@ -1713,3 +1721,4 @@ echo "opbxagidir:       ${opbxagidir}"
 echo "opbxsoundsdir:    ${opbxsoundsdir}"
 echo "opbximagesdir:    ${opbximagesdir}"
 echo "opbxmohdir:       ${opbxmohdir}"
+echo "opbxincludedir:   ${opbxincludedir}"

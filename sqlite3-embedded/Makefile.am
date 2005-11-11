@@ -17,10 +17,11 @@ src/sqliteInt.h src/vdbe.h
 
 nodist_libopbxsqlite3_la_SOURCES =  sqlite3.h opcodes.c opcodes.h parse.c parse.h 
 
-libopbxsqlite3_la_CFLAGS  = $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@ -Isrc
+libopbxsqlite3_la_CFLAGS  = $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@ -I$(srcdir)/src
 libopbxsqlite3_la_LIBADD  = -lpthread
 libopbxsqlite3_la_LDFLAGS = -no-undefined -version-info "8:6:8"
 
+EXTRA_DIST = src/parse.y tool/lempar.c
 BUILT_SOURCES = opcodes.c opcodes.h parse.c parse.h keywordhash.h sqlite3.h
 CLEANFILES = parse.out parse.c parse.h opcodes.c opcodes.h keywordhash.h sqlite3.h
 
@@ -28,23 +29,21 @@ opcodes.c: opcodes.h mkopcodec.awk
 	sort -n -b +2 opcodes.h | ${AWK} -f mkopcodec.awk > opcodes.c
 
 opcodes.h: parse.h src/vdbe.c mkopcodeh.awk
-	cat parse.h src/vdbe.c | ${AWK} -f mkopcodeh.awk > opcodes.h
+	cat parse.h $(srcdir)/src/vdbe.c | ${AWK} -f mkopcodeh.awk > opcodes.h
 
-parse.h: parse.c
-
-parse.c: parse.y tool/lempar.c lemon
-	cp tool/lempar.c .
-	cp src/parse.y .
+lempar.c parse.c parse.h: parse.y tool/lempar.c lemon
+	cp $(srcdir)/tool/lempar.c .
+	cp $(srcdir)/src/parse.y .
 	./lemon parse.y
 
 parse.y: src/parse.y
-	cp src/parse.y .
+	cp $(srcdir)/src/parse.y .
 
 keywordhash.h: mkkeywordhash tool/mkkeywordhash.c
 	./mkkeywordhash > keywordhash.h
 
 sqlite3.h:  src/sqlite.h.in
-	${SED} -e s/--VERS--/$(RELEASE)/ src/sqlite.h.in | \
+	${SED} -e s/--VERS--/$(RELEASE)/ $(srcdir)/src/sqlite.h.in | \
 	${SED} -e s/--VERSION-NUMBER--/$(VERSION_NUMBER)/ > sqlite3.h
 
 noinst_PROGRAMS = lemon mkkeywordhash

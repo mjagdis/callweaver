@@ -6,36 +6,38 @@ opbxmod_LTLIBRARIES	= codec_lpc10.la codec_adpcm.la \
 
 codec_gsm_la_SOURCES	= codec_gsm.c slin_gsm_ex.h gsm_slin_ex.h
 codec_gsm_la_CFLAGS     = $(AM_CFLAGS) -I${top_srcdir}/libs/gsm/inc
-codec_gsm_la_LIBADD	= ${top_srcdir}/libs/gsm/libopbxgsm.la ${top_srcdir}/corelib/libopenpbx.la
+codec_gsm_la_LIBADD	= ${top_builddir}/libs/gsm/libopbxgsm.la ${top_builddir}/corelib/libopenpbx.la
 codec_gsm_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_lpc10_la_SOURCES	= codec_lpc10.c slin_lpc10_ex.h lpc10_slin_ex.h
 codec_lpc10_la_CFLAGS   = $(AM_CFLAGS) -I${top_srcdir}/libs/lpc10
-codec_lpc10_la_LIBADD	= ${top_srcdir}/libs/lpc10/libopbxlpc10.la ${top_srcdir}/corelib/libopenpbx.la -lm
+codec_lpc10_la_LIBADD	= ${top_builddir}/libs/lpc10/libopbxlpc10.la ${top_builddir}/corelib/libopenpbx.la -lm
 codec_lpc10_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_adpcm_la_SOURCES	= codec_adpcm.c slin_adpcm_ex.h adpcm_slin_ex.h
 codec_adpcm_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_adpcm_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la 
+codec_adpcm_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la 
 codec_ulaw_la_SOURCES	= codec_ulaw.c slin_ulaw_ex.h ulaw_slin_ex.h
 codec_ulaw_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_ulaw_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la 
+codec_ulaw_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la 
 codec_alaw_la_SOURCES	= codec_alaw.c slin_ulaw_ex.h ulaw_slin_ex.h
 codec_alaw_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_alaw_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la 
-codec_a_mu_la_SOURCES	= codec_a_mu.c ula_slin_ex.h
+codec_alaw_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la 
+codec_a_mu_la_SOURCES	= codec_a_mu.c ulaw_slin_ex.h
 codec_a_mu_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_a_mu_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la 
-codec_g726_la_SOURCES	= codec_g726.c g726_slin_ex.h slin_g726_ex.h
+codec_a_mu_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la 
+codec_g726_la_SOURCES   = codec_g726.c g726_slin_ex.h slin_g726_ex.h log2comp.h
 codec_g726_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_g726_la_LIBADD	= ${top_srcdir}/corelib/libopenpbx.la
+codec_g726_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la
 codec_ilbc_la_SOURCES	= codec_ilbc.c ilbc_slin_ex.h slin_ilbc_ex.h
 codec_ilbc_la_CFLAGS    = $(AM_CFLAGS) -I${top_srcdir}/libs/ilbc
 codec_ilbc_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_ilbc_la_LIBADD	= ${top_srcdir}/libs/ilbc/libopbxilbc.la ${top_srcdir}/corelib/libopenpbx.la
+codec_ilbc_la_LIBADD	= ${top_builddir}/libs/ilbc/libopbxilbc.la ${top_builddir}/corelib/libopenpbx.la
 
 if WANT_CODEC_SPEEX
 opbxmod_LTLIBRARIES	+= codec_speex.la
 codec_speex_la_SOURCES	= codec_speex.c slin_speex_ex.h speex_slin_ex.h
-codec_speex_la_LIBADD	= -lspeex ${top_srcdir}/corelib/libopenpbx.la
+codec_speex_la_LIBADD	= -lspeex ${top_builddir}/corelib/libopenpbx.la
 codec_speex_la_CFLAGS	= $(AM_CFLAGS) @SPEEX_CFLAGS@
 codec_speex_la_LDFLAGS  = -module -avoid-version -no-undefined
 endif WANT_CODEC_SPEEX
+
+INCLUDES = -I$(top_srcdir)/include

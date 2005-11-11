@@ -1,5 +1,5 @@
 AUTOMAKE_OPTS = gnu
-opbxconf_DATA = adsi.conf.sample \
+SAMPLES = adsi.conf.sample \
 	adtranvofr.conf.sample \
 	agents.conf.sample \
 	capi.conf.sample \
@@ -45,14 +45,19 @@ opbxconf_DATA = adsi.conf.sample \
 	woomera.conf.sample \
 	zapata.conf.sample
 
+opbxconf_DATA = $(SAMPLES)
+
 @substitute@
+
+EXTRA_DIST = $(SAMPLES) openpbx.conf.sample.in logger.conf.sample.in
+CLEANFILES = openpbx.conf.sample logger.conf.sample musiconhold.conf.sample
 
 openpbx.conf.sample: openpbx.conf.sample.in Makefile
 	rm -f openpbx.conf.sample.tmp
-	$(substitute) openpbx.conf.sample.in > openpbx.conf.sample.tmp
+	$(substitute) $(srcdir)/openpbx.conf.sample.in > openpbx.conf.sample.tmp
 	mv openpbx.conf.sample.tmp openpbx.conf.sample
 
 logger.conf.sample: logger.conf.sample.in Makefile
 	rm -f logger.conf.sample.tmp
-	$(substitute) logger.conf.sample.in > logger.conf.sample.tmp
+	$(substitute) $(srcdir)/logger.conf.sample.in > logger.conf.sample.tmp
 	mv logger.conf.sample.tmp logger.conf.sample

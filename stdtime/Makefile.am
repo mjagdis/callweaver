@@ -1,9 +1,17 @@
 AM_OPTIONS = gnu
+
+if FALSE
 noinst_PROGRAMS = test
-noinst_LTLIBRARIES = libtime.la 
 
 test_SOURCES = test.c
-libtime_la_SOURCES = localtime.c tzinfo.h private.h
+test_LDADD = $(top_builddir)/corelib/libopenpbx.la
+endif FALSE
+
+noinst_LTLIBRARIES = libtime.la 
+
+libtime_la_SOURCES = localtime.c tzfile.h private.h
 libtime_la_LDFLAGS = -no-undefined -avoid-version 
+
+INCLUDES = -I$(top_srcdir)/include
 
 #-static
