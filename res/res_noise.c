@@ -51,7 +51,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/app.h"
 
-static char *tdesc = "White Noise Generation";
+static char *tdesc = "Noise Generation";
 
 static char *app = "WhiteNoise";
 
