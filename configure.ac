@@ -1480,46 +1480,51 @@ AM_CONDITIONAL([WANT_CHAN_UNICALL],[test -n "${WANT_CHAN_UNICALL}"])
 
 # res_js
 
-AC_ARG_WITH(res_noise,
-        [AC_HELP_STRING([--with-res_noise],[Build res_noise.])],,[with_res_noise="yes"])
- 
-AM_CONDITIONAL([WANT_RES_NOISE],[test "${with_res_noise}" = "yes"])
+AC_ARG_ENABLE(javascript,
+        [AC_HELP_STRING([--enable-javascript],[Enable the use of javascript (default=no)])],,
+	[enable_javascript="no"])
 
-#res_js
-AC_ARG_WITH(res_js,
-        [AC_HELP_STRING([--with-res_js],[Build res_js the javascript module.])],,[with_res_js="yes"])
+if test "${enable_javascript}" = "yes"; then
+   AC_CHECK_LIB([js],[main],[HAVE_LIBJS=1])
 
-AM_CONDITIONAL([WANT_RES_JS],[test "${with_res_js}" = "yes"])
+   AC_CHECK_HEADERS([jstypes.h],[HAVE_JSSCRIPT_H=1],,
+[#define XP_UNIX
+])
+   AC_CHECK_HEADERS([js/jstypes.h],[HAVE_JS_JSSCRIPT_H=1],,
+[#define XP_UNIX
+])
 
+   if test -n "$HAVE_LIBJS" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \); then
+      JS_CFLAGS="-DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE"
+      if test -n "${HAVE_JS_JSSCRIPT_H}"; then
+	 JS_CFLAGS="${JSCFLAGS} -I/usr/include/js"
+      fi
+      JS_LDFLAGS="-ljs"
+      AC_SUBST(JS_CFLAGS)
+      AC_SUBST(JS_LDFLAGS)
+   fi
 
-if test "${with_res_js}" = "yes"; then
-        JS_CFLAGS="-DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE"
-        JS_CFLAGS="${JS_CFLAGS} -I/usr/include/js"
-        JS_LDFLAGS="-ljs"
+   AC_PATH_PROG([NSPRCONFIG], [nspr-config])
 
-        AC_SUBST(JS_CFLAGS)
-        AC_SUBST(JS_LDFLAGS)
-
-        AC_PATH_PROG([NSPRCONFIG], [nspr-config])
-
-        if test -n "${NSPRCONFIG}"; then
-                HAVE_NSPR=1
-                NSPR_CFLAGS=`${NSPRCONFIG} --cflags`
-                NSPR_LDFLAGS=`${NSPRCONFIG} --libs`
-        else
-                PKG_CHECK_MODULES([NSPR],[mozilla-nspr],[HAVE_NSPR=1])
-        fi
-
-        AC_SUBST(NSPR_CFLAGS)
-        AC_SUBST(NSPR_LDFLAGS)
-        AC_SUBST(NSPR_CFLAGS)
-        AC_SUBST(NSPR_LDFLAGS)
+   if test -n "${NSPRCONFIG}"; then
+      HAVE_NSPR=1
+      NSPR_CFLAGS=`${NSPRCONFIG} --cflags`
+      NSPR_LDFLAGS=`${NSPRCONFIG} --libs`
+      AC_SUBST(NSPR_CFLAGS)
+      AC_SUBST(NSPR_LDFLAGS)
+   else
+      PKG_CHECK_MODULES([NSPR],
+	[mozilla-nspr],
+	[HAVE_NSPR=1])
+      AC_SUBST(NSPR_CFLAGS)
+      AC_SUBST(NSPR_LDFLAGS)
+   fi
 fi
 
+AC_ARG_WITH([res_js],
+	[AC_HELP_STRING([--with-res_js],[Build and install res_js (default=no) (you must also --enable-javascript)])],,[with_res_js="no"])
 
-
-
-
+AM_CONDITIONAL([WANT_RES_JS],[test "${enable_javascript}" = "yes" -a "${with_res_js}" = "yes" -a -n "${HAVE_LIBJS}" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \) -a -n "${HAVE_NSPR}"])  
 
 AC_ARG_ENABLE([chan_capi],
 	[AC_HELP_STRING([--enable-chan_capi],[Build capi channel module])],,[enable_chan_capi="no"])

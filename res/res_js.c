@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <js/jsstddef.h>
+#include <jsstddef.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
