@@ -258,7 +258,7 @@ if WANT_APP_RXFAX
 opbxmod_LTLIBRARIES			+= app_rxfax.la
 app_rxfax_la_SOURCES			= app_rxfax.c
 app_rxfax_la_LDFLAGS			= -module -avoid-version -no-undefined
-app_rxfax_la_LIBADD			= -lspandsp -ltiff ${top_srcdir}/corelib/libopenpbx.la
+app_rxfax_la_LIBADD			= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_RXFAX
 
 if WANT_APP_SAYUNIXTIME
@@ -335,7 +335,7 @@ if WANT_APP_TXFAX
 opbxmod_LTLIBRARIES			+= app_txfax.la
 app_txfax_la_SOURCES			= app_txfax.c
 app_txfax_la_LDFLAGS			= -module -avoid-version -no-undefined
-app_txfax_la_LIBADD			= -lspandsp -ltiff ${top_srcdir}/corelib/libopenpbx.la
+app_txfax_la_LIBADD			= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_TXFAX
 
 if WANT_APP_USEREVENT

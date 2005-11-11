@@ -1112,7 +1112,7 @@ AC_ARG_WITH([app_txfax],
 	[with_app_txfax="yes"])
 
 AM_CONDITIONAL([WANT_APP_TXFAX],
-	[test "${enable_spandsp}" = "yes" -a "${with_app_txfax}" = "yes" -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"])
+	[test "${enable_spandsp}" = "yes" -a "${with_app_txfax}" = "yes" -a -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"])
 
 dnl ########## app_userevent ##########
 
