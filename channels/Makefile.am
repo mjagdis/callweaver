@@ -43,6 +43,13 @@ chan_capi_la_LIBADD  = ${top_builddir}/corelib/libopenpbx.la -lcapi20
 chan_capi_la_LDFLAGS = -module -avoid-version -no-undefined
 endif HAVE_CAPI
 
+if WANT_CHAN_FAX
+opbxmod_LTLIBRARIES	+= chan_fax.la
+chan_fax_la_SOURCES	= chan_fax.c
+chan_fax_la_LIBADD	= -lspandsp -ltiff ${top_srcdir}/corelib/libopenpbx.la
+chan_fax_la_LDFLAGS	= -module -avoid-version -no-undefined
+endif WANT_CHAN_FAX
+
 if WANT_CHAN_VISDN
 opbxmod_LTLIBRARIES	+= chan_visdn.la
 chan_visdn_la_SOURCES	= chan_visdn.c

@@ -164,6 +164,7 @@ case "${with_directory_layout}" in
         ;;
      *)
 	AC_MSG_ERROR([Unknown directory layout ${with_directory_layout}])
+	;;
 esac
 
 if test -z "${opbxconfdir}"; then
@@ -517,7 +518,7 @@ fi
 AC_MSG_RESULT([$enable_busydetect])
 
 AC_SUBST([BUSYDETECT])
-AC_DEFINE_UNQUOTED([BUSYDETECT],"${BUSYDETECT}",[defined way of finding out how to detect busy])
+AC_DEFINE_UNQUOTED([BUSYDETECT],"${BUSYDETECT}",[Select method for detecting busy signals.])
 
 dnl Optimize for host cpu version
 AC_ARG_ENABLE(optimization,     
@@ -574,6 +575,49 @@ fi
 AC_SUBST(opbxrunuser)
 AC_SUBST(opbxrungroup)  
 
+dnl ########## SpanDSP #########
+
+AC_ARG_ENABLE([spandsp],
+	[AC_HELP_STRING([--enable-spandsp],[Enable SpanDSP support (default=no)])],,[enable_spandsp="no"])
+
+if test "${enable_spandsp}" = "yes"; then
+   AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1])
+   AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1])
+
+   AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR([SpanDSP does not appear to be installed])],
+[#if HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#if HAVE_TIFFIO_H
+#include <tiffio.h>
+#endif
+])
+
+   AC_CHECK_HEADERS([spandsp/t38.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough.  You must have version 0.0.3 or newer.)],
+[#if HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#if HAVE_TIFFIO_H
+#include <tiffio.h>
+#endif
+#if HAVE_SPANDSP_H
+#include <spandsp.h>
+#endif
+])
+
+   AC_CHECK_LIB([spandsp],[t38_gateway_init],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough.  You must have version 0.0.3 or newer.)],[-ltiff])
+
+   if test -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"; then
+      HAVE_SPANDSP=1
+   fi
+fi
+
 dnl ########## SRTP #########
 
 AC_ARG_ENABLE([srtp],
@@ -587,7 +631,7 @@ fi
 if test "${enable_srtp}" = "yes"; then
    AC_DEFINE([ENABLE_SRTP],,[Enable support for SRTP.])
 fi
-AM_CONDITIONAL([WANT_SRTP],[test "$enable_srtp" = "yes"])
+AM_CONDITIONAL([WANT_SRTP],[test "${enable_srtp}" = "yes"])
 
 dnl ########## SSL ##########
 dnl res_crypto and res_osp and app_osplookup will not work without ssl
@@ -644,6 +688,14 @@ AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}"
 
 AC_SUBST([CHAN_EXOSIP2_CFLAGS])
 AC_SUBST([CHAN_EXOSIP2_LIBS])
+
+dnl ########## chan_fax ##########
+
+AC_ARG_WITH([chan_fax],
+	[AC_HELP_STRING([--with-chan_fax],[Build and install chan_fax (default=no)])],,[want_chan_fax="no"])
+
+AM_CONDITIONAL([WANT_CHAN_FAX],
+	[test "${enable_spandsp}" = "yes" -a "${with_chan_fax}" = "yes" -a -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"])
 
 dnl ########## chan_visdn ##########
 
@@ -970,7 +1022,8 @@ AC_ARG_WITH([app_rxfax],
 	[AC_HELP_STRING([--with-app_rxfax],[Build and install app_rxfax (default=yes)])],,
 	[with_app_rxfax="yes"])
 
-AM_CONDITIONAL([WANT_APP_RXFAX],[test "${with_app_rxfax}" = "yes"])
+AM_CONDITIONAL([WANT_APP_RXFAX],
+	[test "${enable_spandsp}" = "yes" -a "${with_app_rxfax}" = "yes" -a -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"])
 
 dnl ########## app_sayunixtime ##########
 
@@ -1058,7 +1111,8 @@ AC_ARG_WITH([app_txfax],
 	[AC_HELP_STRING([--with-app_txfax],[Build and install app_txfax (default=yes)])],,
 	[with_app_txfax="yes"])
 
-AM_CONDITIONAL([WANT_APP_TXFAX],[test "${with_app_txfax}" = "yes"])
+AM_CONDITIONAL([WANT_APP_TXFAX],
+	[test "${enable_spandsp}" = "yes" -a "${with_app_txfax}" = "yes" -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"])
 
 dnl ########## app_userevent ##########
 

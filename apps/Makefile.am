@@ -254,6 +254,13 @@ app_record_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_record_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_RECORD
 
+if WANT_APP_RXFAX
+opbxmod_LTLIBRARIES			+= app_rxfax.la
+app_rxfax_la_SOURCES			= app_rxfax.c
+app_rxfax_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_rxfax_la_LIBADD			= -lspandsp -ltiff ${top_srcdir}/corelib/libopenpbx.la
+endif WANT_APP_RXFAX
+
 if WANT_APP_SAYUNIXTIME
 opbxmod_LTLIBRARIES			+= app_sayunixtime.la
 app_sayunixtime_la_SOURCES		= app_sayunixtime.c
@@ -323,6 +330,13 @@ app_transfer_la_SOURCES			= app_transfer.c
 app_transfer_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_transfer_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_TRANSFER
+
+if WANT_APP_TXFAX
+opbxmod_LTLIBRARIES			+= app_txfax.la
+app_txfax_la_SOURCES			= app_txfax.c
+app_txfax_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_txfax_la_LIBADD			= -lspandsp -ltiff ${top_srcdir}/corelib/libopenpbx.la
+endif WANT_APP_TXFAX
 
 if WANT_APP_USEREVENT
 opbxmod_LTLIBRARIES			+= app_userevent.la
