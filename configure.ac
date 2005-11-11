@@ -67,7 +67,9 @@ AC_LIBTOOL_DLOPEN
 AC_LIBLTDL_CONVENIENCE
 dnl yes we will use libtool to create cygwin shared modules
 AC_LIBTOOL_WIN32_DLL
-AM_PROG_LIBTOOL   
+dnl Disable static libraries by default. Can be enabled with --enable-static
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL   
 AC_SUBST(INCLTDL)
 AC_SUBST(LIBLTDL)
 
