@@ -1347,10 +1347,10 @@ AM_CONDITIONAL([WANT_OSP],[test -n "${TRANSNEXUS_OSP}"])
 dnl Selector for jabber support
 AC_ARG_ENABLE(jabber,
 	[AC_HELP_STRING([--enable-jabber],[Enable jabber support.])],,
-	[enable_jabber_support="no"])
+	[enable_jabber="no"])
 
 dnl Loudmouth/Jabber library detection :)
-if test "${enable_jabber_support}" = "yes"; then
+if test "${enable_jabber}" = "yes"; then
    PKG_CHECK_MODULES([LOUDMOUTH],
 	[loudmouth-1.0 >= 1.0.0],
 	[HAVE_LOUDMOUTH=1],
