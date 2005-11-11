@@ -1,6 +1,6 @@
 opbxlib_LTLIBRARIES = libopenpbx.la
 libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
-	translate.c file.c say.c pbx.c cli.c md5.c term.c \
+	generator.c translate.c file.c say.c pbx.c cli.c md5.c term.c \
 	ulaw.c alaw.c callerid.c fskmodem.c image.c app.c \
 	cdr.c tdd.c acl.c rtp.c manager.c \
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \

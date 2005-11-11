@@ -487,193 +487,6 @@ static const struct opbx_channel_tech null_tech = {
 	.description = "Null channel (should not see this)",
 };
 
-/* Activate channel generator */
-int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *gen, void *params)
-{
-	void *gen_data;
-
-	/* Try to allocate new generator */
-	gen_data = gen->alloc(chan, params);
-	if (gen_data) {
-		struct opbx_generator_channel_data *pgcd = &chan->gcd;
-
-		/* We are going to play with new generator data structures */
-		opbx_mutex_lock(&pgcd->lock);
-
-		/* In case the generator thread hasn't yet processed a
-		 * previous activation request, we need to release it's data */
-		if (pgcd->gen_req == gen_req_activate)
-			pgcd->gen_free(chan, pgcd->gen_data);
-		
-		/* Setup new request */
-		pgcd->gen_data = gen_data;
-		pgcd->gen_func = gen->generate;
-		pgcd->gen_samp = 160;
-		pgcd->gen_free = gen->release;
-
-		/* Signal generator thread to activate new generator */
-		pgcd->gen_req = gen_req_activate;
-		pthread_cond_signal(&pgcd->gen_req_cond);
-
-		/* Our job is done */
-		opbx_mutex_unlock(&pgcd->lock);
-		return 0;
-	} else {
-		/* Whoops! */
-		opbx_log(LOG_ERROR, "Generator activation failed\n");
-		return -1;
-	}
-}
-
-/* Deactivate channel generator */
-void opbx_generator_deactivate(struct opbx_channel *chan)
-{
-	struct opbx_generator_channel_data *pgcd = &chan->gcd;
-
-	/* In case the generator thread hasn't yet processed a
-	 * previous activation request, we need to release it's data */
-	opbx_mutex_lock(&pgcd->lock);
-	if (pgcd->gen_req == gen_req_activate)
-		pgcd->gen_free(chan, pgcd->gen_data);
-		
-	/* Current generator, if any, gets deactivated by signaling
-	 * new request with request code being req_deactivate */
-	pgcd->gen_req = gen_req_deactivate;
-	pthread_cond_signal(&pgcd->gen_req_cond);
-	opbx_mutex_unlock(&pgcd->lock);
-}
-
-/* Is channel generator active? */
-int opbx_generator_is_active(struct opbx_channel *chan)
-{
-	struct opbx_generator_channel_data *pgcd = &chan->gcd;
-
-	return OPBX_ATOMIC_GET(pgcd->lock, pgcd->gen_is_active);
-}
-
-/* Is the caller of this function running in the generator thread? */
-int opbx_generator_is_self(struct opbx_channel *chan)
-{
-	struct opbx_generator_channel_data *pgcd = &chan->gcd;
-
-	return pthread_equal(*pgcd->pgenerator_thread, pthread_self());
-}
-
-/* The mighty generator thread */
-static void *opbx_generator_thread(void *data)
-{
-	struct opbx_channel *chan = data;
-	struct opbx_generator_channel_data *pgcd = &chan->gcd;
-	void *cur_gen_data;
-	int cur_gen_samp;
-	int (*cur_gen_func)(struct opbx_channel *chan, void *cur_gen_data, int cur_gen_samp);
-	void (*cur_gen_free)(struct opbx_channel *chan, void *cur_gen_data);
-	struct timeval tv;
-	struct timespec ts;
-	int sleep_interval_ns;
-	int res;
-
-
-	/* Loop continuously until shutdown request is received */
-	opbx_mutex_lock(&pgcd->lock);
-	opbx_log(LOG_DEBUG, "Generator thread started.\n");
-	cur_gen_data = NULL;
-	cur_gen_samp = 0;
-	cur_gen_func = NULL;
-	cur_gen_free = NULL;
-	sleep_interval_ns = 0;
-	for (;;) {
-		/* If generator is active, wait for new request
-		 * or generate after timeout. If generator is not
-		 * active, just wait for new request. */
-		if (pgcd->gen_is_active) {
-			for (;;) {
-				/* Sleep based on number of samples */
-				ts.tv_nsec += sleep_interval_ns;
-				if (ts.tv_nsec >= 1000000000L) {
-					++ts.tv_sec;
-					ts.tv_nsec -= 1000000000L;
-				}
-				res = opbx_pthread_cond_timedwait(&pgcd->gen_req_cond, &pgcd->lock, &ts);
-				if (pgcd->gen_req) {
-					/* Got new request */
-					break;
-				} else if (res == ETIMEDOUT) {
-			 		/* We've got some generating to do. */
-
-					/* Need to unlock generator lock prior
-					 * to calling generate callback because
-					 * it will try to acquire channel lock
-					 * at least by opbx_write. This mean we
-					 * can receive new request here */
-					opbx_mutex_unlock(&pgcd->lock);
-					res = cur_gen_func(chan, cur_gen_data, cur_gen_samp);
-					opbx_mutex_lock(&pgcd->lock);
-					if (res || pgcd->gen_req) {
-						/* Got generator error or new
-						 * request. Deactivate current
-						 * generator */
-						if (!pgcd->gen_req) {
-							opbx_log(LOG_DEBUG, "Generator self-deactivating\n");
-							pgcd->gen_req = gen_req_deactivate;
-						}
-						break;
-					}
-				}
-			}
-		} else {
-			/* Just wait for new request */
-			do {
-				opbx_pthread_cond_wait(&pgcd->gen_req_cond, &pgcd->lock);
-			} while (!pgcd->gen_req);
-		}
-
-		/* If there is an activate generator, free its
-		 * resources because its existence is over. */
-		if (pgcd->gen_is_active) {
-			cur_gen_free(chan, cur_gen_data);
-			pgcd->gen_is_active = 0;
-		}
-
-		/* Process new request */
-		if (pgcd->gen_req == gen_req_activate) {
-			/* Activation request for a new generator. */
-
-			/* Copy gen_* stuff to cur_gen_* stuff, set flag
-			 * gen_is_active, calculate sleep interval and
-			 * obtain current time using CLOCK_MONOTONIC. */
-			cur_gen_data = pgcd->gen_data;
-			cur_gen_samp = pgcd->gen_samp;
-			cur_gen_func = pgcd->gen_func;
-			cur_gen_free = pgcd->gen_free;
-			pgcd->gen_is_active = -1;
-			sleep_interval_ns = 1000000L * cur_gen_samp / 8;
-			gettimeofday(&tv, NULL);
-			ts.tv_sec = tv.tv_sec;
-			ts.tv_nsec = 1000 * tv.tv_usec;
-
-			/* CMANTUNES: is this prod thing really necessary? */
-			/* Prod channel */
-			opbx_prod(chan);
-		} else if (pgcd->gen_req == gen_req_shutdown) {
-			/* Shutdown requests. */
-
-			/* Just break the loop */
-			break;
-		} else if (pgcd->gen_req != gen_req_deactivate) {
-			opbx_log(LOG_DEBUG, "Unexpected generator request (%d).\n", pgcd->gen_req);
-		}
-
-		/* Reset request */
-		pgcd->gen_req = gen_req_null;
-	}
-
-	/* Got request to shutdown. */
-	opbx_log(LOG_DEBUG, "Generator thread shut down.\n");
-	opbx_mutex_unlock(&pgcd->lock);
-	return NULL;
-}
-
 /*--- opbx_channel_alloc: Create a new channel structure */
 struct opbx_channel *opbx_channel_alloc(int needqueue)
 {
@@ -721,14 +534,10 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 		/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
 
-	/* Create joinable generator thread and associates */
-	opbx_mutex_init(&tmp->gcd.lock);
-	pthread_cond_init(&tmp->gcd.gen_req_cond, NULL);
-	tmp->gcd.pgenerator_thread = malloc(sizeof (pthread_t));
-	if (!tmp->gcd.pgenerator_thread || opbx_pthread_create(tmp->gcd.pgenerator_thread, NULL, opbx_generator_thread, tmp)) {
+	/* Create generator thread and associates */
+	if(opbx_generator_start_thread(tmp))
+	{
 		opbx_log(LOG_WARNING, "Channel allocation reduced functionality: Unable to create generator thread\n");
-		free(tmp->gcd.pgenerator_thread);
-		tmp->gcd.pgenerator_thread = NULL;
 	}
 
 	/* Always watch the alertpipe */
@@ -1055,25 +864,12 @@ void opbx_channel_free(struct opbx_channel *chan)
 
 	opbx_copy_string(name, chan->name, sizeof(name));
 
-	/* Stop generator thread, if it exists */
-	opbx_mutex_lock(&chan->gcd.lock);
-	if (chan->gcd.gen_req == gen_req_activate)
-		chan->gcd.gen_free(chan, chan->gcd.gen_data);
-	if (chan->gcd.pgenerator_thread) {
-		chan->gcd.gen_req = gen_req_shutdown;
-		pthread_cond_signal(&chan->gcd.gen_req_cond);
-		opbx_mutex_unlock(&chan->gcd.lock);
-		pthread_join(*chan->gcd.pgenerator_thread, NULL);
-		free(chan->gcd.pgenerator_thread);
-	} else {
-		opbx_mutex_unlock(&chan->gcd.lock);
-	}
-	pthread_cond_destroy(&chan->gcd.gen_req_cond);
-	opbx_mutex_destroy(&chan->gcd.lock);
-	
+	/* Stop generator thread */
+	opbx_generator_stop_thread(chan);
+
 	/* Stop monitoring */
 	if (chan->monitor) {
-		chan->monitor->stop( chan, 0 );
+		chan->monitor->stop(chan, 0 );
 	}
 
 	/* If there is native format music-on-hold state, free it */

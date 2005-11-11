@@ -51,6 +51,7 @@ extern "C" {
 #include "openpbx/cdr.h"
 #include "openpbx/monitor.h"
 #include "openpbx/utils.h"
+#include "openpbx/generator.h"
 
 #define OPBX_CHANNEL_NAME	80
 
@@ -68,59 +69,6 @@ enum opbx_bridge_result {
 };
 
 typedef unsigned long long opbx_group_t;
-
-/*! Data structure used to register new generator */
-struct opbx_generator {
-	void *(*alloc)(struct opbx_channel *chan, void *params);
-	void (*release)(struct opbx_channel *chan, void *data);
-	int (*generate)(struct opbx_channel *chan, void *data, int samples);
-};
-
-/*! Requests sent to generator thread */
-enum opbx_generator_requests {
-	/* this really means 'no request' and MUST be zero*/
-	gen_req_null = 0,
-	/* deactivate current generator if any and activate new one */
-	gen_req_activate,
-	/* deactivate current generator, if any */
-	gen_req_deactivate,
-	/* deactivate current generator if any and terminate gen thread */
-	gen_req_shutdown
-};
-
-/*! Generator channel data */
-struct opbx_generator_channel_data {
-
-	/*! Generator thread for this channel */
-	pthread_t *pgenerator_thread;
-
-	/*! Generator data structures mutex (those in here below).
-	 * To avoid deadlocks, never acquire channel lock when
-	 * generator data mutex is acquired */
-	opbx_mutex_t lock;
-
-	/*! Non-zero if generator is currently active; zero otherwise */
-	int gen_is_active;
-
-	/*! Generator request condition gets signaled after
-	 * changing gen_req to new value */
-	pthread_cond_t gen_req_cond;
-
-	/*! New generator available flag */
-	enum opbx_generator_requests gen_req;
-
-	/*! New generator data */
-	void *gen_data;
-
-	/*! How many samples to generate each time*/
-	int gen_samp;
-
-	/*! New generator function */
-	int (*gen_func)(struct opbx_channel *chan, void *gen_data, int gen_samp);
-
-	/*! What to call to free (release) gen_data */
-	void (*gen_free)(struct opbx_channel *chan, void *gen_data);
-};
 
 struct opbx_callerid {
 	/*! Malloc'd Dialed Number Identifier */
@@ -973,18 +921,6 @@ int opbx_active_channels(void);
 
 /*! Returns non-zero if OpenPBX is being shut down */
 int opbx_shutting_down(void);
-
-/*! Activate a given generator */
-int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *gen, void *params);
-
-/*! Deactive an active generator */
-void opbx_generator_deactivate(struct opbx_channel *chan);
-
-/*! Is generator active on channel? */
-inline int opbx_generator_is_active(struct opbx_channel *chan);
-
-/*! Is the caller of this function running in the generator thread? */
-inline int opbx_generator_is_self(struct opbx_channel *chan);
 
 void opbx_set_callerid(struct opbx_channel *chan, const char *cidnum, const char *cidname, const char *ani);
 
