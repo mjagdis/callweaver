@@ -12,6 +12,7 @@ opbxagidir => @opbxagidir@
 opbxspooldir => @opbxspooldir@
 opbxrundir => @opbxrundir@
 opbxlogdir => @opbxlogdir@
+opbxsoundsdir => @opbxsoundsdir@
 
 ; Changing the following lines may compromise your security.
 ;[files]

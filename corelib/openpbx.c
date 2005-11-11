@@ -1791,6 +1791,8 @@ static void opbx_readconfig(void) {
 			opbx_copy_string(opbx_config_OPBX_LOG_DIR, v->value, sizeof(opbx_config_OPBX_LOG_DIR));
 		} else if (!strcasecmp(v->name, "opbxagidir")) {
 			opbx_copy_string(opbx_config_OPBX_AGI_DIR, v->value, sizeof(opbx_config_OPBX_AGI_DIR));
+		} else if (!strcasecmp(v->name, "opbxsoundsdir")) {
+			opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, v->value, sizeof(opbx_config_OPBX_SOUNDS_DIR));
 		} else if (!strcasecmp(v->name, "opbxrundir")) {
 			snprintf(opbx_config_OPBX_PID, sizeof(opbx_config_OPBX_PID), "%s/%s", v->value, "openpbx.pid");
 			snprintf(opbx_config_OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET), "%s/%s", v->value, opbx_config_OPBX_CTL);
