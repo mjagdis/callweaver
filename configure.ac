@@ -690,6 +690,17 @@ AC_ARG_WITH([chan_fax],
 AM_CONDITIONAL([WANT_CHAN_FAX],
 	[test "${enable_spandsp}" = "yes" -a "${with_chan_fax}" = "yes" -a -n "${HAVE_TIFFIO_H}" -a -n "${HAVE_LIBTIFF}" -a -n "${HAVE_SPANDSP_H}" -a -n "${HAVE_SPANDSP_T38_H}" -a -n "${HAVE_LIBSPANDSP}"])
 
+dnl ############################################################################
+
+AC_ARG_WITH(chan_unicall,
+	[AC_HELP_STRING([--with-chan_unicall],[Build and install chan_unicall (default=no).])],,[with_chan_unicall="no"])
+
+if test "${with_chan_unicall}" = "yes"; then
+   AC_CHECK_LIB([unicall], [main], [HAVE_LIBUNICALL=1])
+fi
+
+AM_CONDITIONAL([WANT_CHAN_UNICALL],[test "${with_chan_unicall}" = "yes" -a -n "${HAVE_LIBUNICALL}"])
+
 dnl ########## chan_visdn ##########
 
 AC_ARG_WITH([chan_visdn],
@@ -1538,19 +1549,6 @@ else
 	HAVE_MYSQL="no"
 fi
 
-AC_CHECK_LIB([unicall],[main],[AC_DEFINE([HAVE_LIBUNICALL],["yes"],[yes we have unicall])])
-
-AC_ARG_ENABLE(chan_unicall,
-	[AC_HELP_STRING([--enable-chan_unicall],[Build and install chan_unicall.])],
-[ AC_MSG_RESULT(yes)
-  if test -n "${HAVE_LIBUNICALL}"
-  then
-	WANT_CHAN_UNICALL=yes
-  fi],
-[ AC_MSG_RESULT(no)
-])
-
-AM_CONDITIONAL([WANT_CHAN_UNICALL],[test -n "${WANT_CHAN_UNICALL}"])
 
 # res_js
 
