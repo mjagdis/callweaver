@@ -149,13 +149,14 @@ const struct opbx_cause {
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
-	struct chanlist *cl = backends;
+	struct chanlist *cl;
 	opbx_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	opbx_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
 	if (opbx_mutex_lock(&chlock)) {
 		opbx_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
+	cl = backends;
 	while (cl) {
 		opbx_cli(fd, FORMAT, cl->tech->type, cl->tech->description, 
 			(cl->tech->devicestate) ? "yes" : "no", 
