@@ -1283,7 +1283,7 @@ AC_ARG_WITH([func_uri],
 
 AM_CONDITIONAL([WANT_FUNC_URI],[test "${with_func_uri}" = "yes"])
 
-dnl #####################################################################################
+dnl ############################################################################
 
 AC_ARG_WITH([pbx_dundi],
 	[AC_HELP_STRING([--with-pbx_dundi],[Build and install pbx_dundi (default=yes)])],,
@@ -1293,7 +1293,17 @@ if test "${with_pbx_dundi}" = "yes"; then
    AC_CHECK_LIB([z], [main], [HAVE_LIBZ=1])
 fi
    
-AM_CONDITIONAL([WANT_PBX_DUNDI],[test "${with_pbx_dundi}" = yes -a -n "${HAVE_LIBZ}"])
+AM_CONDITIONAL([WANT_PBX_DUNDI],[test "${with_pbx_dundi}" = "yes" -a -n "${HAVE_LIBZ}"])
+
+dnl ############################################################################
+
+AC_ARG_WITH([pbx_realtime],
+	[AC_HELP_STRING([--with-pbx_realtime],[Build and install pbx_realtime (default=yes)])],,
+	[with_pbx_realtime="yes"])
+
+AM_CONDITIONAL([WANT_PBX_REALTIME],[test "${with_pbx_realtime}" = "yes"])
+
+dnl ############################################################################
 
 ##### resources
 
