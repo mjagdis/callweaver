@@ -29,7 +29,7 @@
 #include <sys/signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <tiffio.h>
 #include <spandsp.h>
 

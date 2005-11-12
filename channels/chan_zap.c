@@ -35,9 +35,7 @@
 #endif
 #include <errno.h>
 #include <stdlib.h>
-#if !defined(SOLARIS) && !defined(__FreeBSD__)
-#include <stdint.h>
-#endif
+#include <inttypes.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #ifdef __linux__

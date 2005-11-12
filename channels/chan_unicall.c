@@ -13,9 +13,18 @@
  * the GNU General Public License
  */
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #include <stdio.h>
 #include <string.h>
+#ifdef __NetBSD__
+#include <pthread.h>
+#include <signal.h>
+#else
 #include <sys/signal.h>
+#endif
 #include <sys/select.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -250,7 +259,7 @@ struct unicall_subchannel
 
 #define MAX_SLAVES              4
 
-static struct unicall_pvt
+typedef struct unicall_pvt
 {
     opbx_mutex_t lock;
     struct opbx_channel *owner;                 /* Our current active owner (if applicable) */
@@ -270,7 +279,8 @@ static struct unicall_pvt
     int firstradio;                             /* first radio flag */
     float rxgain;
     float txgain;
-    struct unicall_pvt *next;                   /* Next channel in list */
+    struct unicall_pvt *next;                   /* Next channel in the list */
+    struct unicall_pvt *prev;                   /* Previous channel in the list */
     char context[OPBX_MAX_EXTENSION];
     char exten[OPBX_MAX_EXTENSION];
     char language[MAX_LANGUAGE];
@@ -339,7 +349,11 @@ static struct unicall_pvt
     int alreadyhungup;
     uc_crn_t crn;
     //uc_call_t *call;
-} *iflist = NULL;
+} unicall_pvt_t;
+
+unicall_pvt_t *iflist = NULL;
+unicall_pvt_t *ifend = NULL;
+unicall_pvt_t *round_robin[32];
 
 #define GET_CHANNEL(p) p->channel
 
@@ -1109,10 +1123,24 @@ static int destroy_channel(struct unicall_pvt *prev, struct unicall_pvt *cur, in
         /*endfor*/
         if (!owned)
         {
-            if (prev)
-                prev->next = cur->next;
+			if (prev)
+            {
+				prev->next = cur->next;
+				if (prev->next)
+					prev->next->prev = prev;
+				else
+					ifend = prev;
+                /*endif*/
+			}
             else
-                iflist = cur->next;
+            {
+				iflist = cur->next;
+				if (iflist)
+					iflist->prev = NULL;
+				else
+					ifend = NULL;
+                /*endif*/
+			}
             /*endif*/
             if ((res = unicall_close(cur->subs[SUB_REAL].fd)))
             {
@@ -1127,10 +1155,24 @@ static int destroy_channel(struct unicall_pvt *prev, struct unicall_pvt *cur, in
     }
     else
     {
-        if (prev)
-            prev->next = cur->next;
+		if (prev)
+        {
+			prev->next = cur->next;
+			if (prev->next)
+				prev->next->prev = prev;
+			else
+				ifend = prev;
+            /*endif*/
+		}
         else
-            iflist = cur->next;
+        {
+			iflist = cur->next;
+			if (iflist)
+				iflist->prev = NULL;
+			else
+				ifend = NULL;
+            /*endif*/
+		}
         /*endif*/
         if ((res = unicall_close(cur->subs[SUB_REAL].fd)))
         {
@@ -3292,14 +3334,19 @@ static struct unicall_pvt *mkintf(int channel, char *protocol_class, char *proto
     struct unicall_pvt *tmp = NULL;
     struct unicall_pvt *tmp2;
     struct unicall_pvt *prev = NULL;
+	struct unicall_pvt **wlist;
+	struct unicall_pvt **wend;
     char fn[80];
     int here;
     int x;
     int ret;
     ZT_PARAMS p;
 
+	wlist = &iflist;
+	wend = &ifend;
+
     here = 0;
-    for (prev = NULL, tmp2 = iflist;  tmp2;  prev = tmp2, tmp2 = tmp2->next)
+    for (prev = NULL, tmp2 = *wlist;  tmp2;  prev = tmp2, tmp2 = tmp2->next)
     {
         if (tmp2->channel == channel)
         {
@@ -3447,10 +3494,67 @@ static struct unicall_pvt *mkintf(int channel, char *protocol_class, char *proto
         /*endif*/
     }
     /*endif*/
+	if (tmp  &&  !here)
+    {
+		if (*wlist == NULL)
+        {
+    		/* Nothing on the iflist */
+			*wlist = tmp;
+			tmp->prev = NULL;
+			tmp->next = NULL;
+			*wend = tmp;
+		}
+        else
+        {
+			/* At least one member on the iflist */
+			struct unicall_pvt *working = *wlist;
+
+			/* Check if we maybe have to put it on the beginning */
+			if (working->channel > tmp->channel)
+            {
+				tmp->next = *wlist;
+				tmp->prev = NULL;
+				(*wlist)->prev = tmp;
+				*wlist = tmp;
+			}
+            else
+            {
+			    /* Go through all the members and put the member in the right place */
+				while (working)
+                {
+					/* In the middle */
+					if (working->next)
+                    {
+						if (working->channel < tmp->channel && working->next->channel > tmp->channel)
+                        {
+							tmp->next = working->next;
+							tmp->prev = working;
+							working->next->prev = tmp;
+							working->next = tmp;
+							break;
+						}
+					}
+                    else
+                    {
+    					/* The last */
+						if (working->channel < tmp->channel)
+                        {
+							working->next = tmp;
+							tmp->next = NULL;
+							tmp->prev = working;
+							*wend = tmp;
+							break;
+						}
+					}
+					working = working->next;
+				}
+			}
+		}
+	}
     return tmp;
 }
 
-static inline int available(struct unicall_pvt *p, int channelmatch, int groupmatch)
+static inline int available(struct unicall_pvt *p, int channelmatch, int groupmatch, int *busy)
 {
     /* First, check group matching */
     if ((p->group & groupmatch) != groupmatch)
@@ -3460,6 +3564,9 @@ static inline int available(struct unicall_pvt *p, int channelmatch, int groupma
     if (channelmatch > 0  &&  p->channel != channelmatch)
         return FALSE;
     /*endif*/
+	/* We're at least busy at this point */
+	if (busy)
+        *busy = TRUE;
     /* If do not disturb, definitely not */
     if (p->dnd)
         return FALSE;
@@ -3509,6 +3616,9 @@ static struct unicall_pvt *chandup(struct unicall_pvt *src)
 static struct opbx_channel *unicall_request(const char *type, int format, void *data, int *cause)
 {
     struct unicall_pvt *p;
+	struct unicall_pvt *exit;
+    struct unicall_pvt *start;
+    struct unicall_pvt *end;
     int oldformat;
     int groupmatch = 0;
     int channelmatch = -1;
@@ -3520,7 +3630,17 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     char opt = 0;
     int res = 0;
     int y = 0;
-    
+    char *stringp;
+  	int roundrobin = FALSE;
+	int backwards = FALSE;
+	int busy = FALSE;
+ 	opbx_mutex_t *lock;
+ 
+	/* Assume we're locking the iflock */
+	lock = &iflock;
+	start = iflist;
+	end = ifend;
+
     /* We do signed linear */
     oldformat = format;
     format &= (OPBX_FORMAT_SLINEAR | OPBX_FORMAT_ALAW | OPBX_FORMAT_ULAW);
@@ -3542,11 +3662,9 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         return NULL;
     }
     /*endif*/
-    if (dest[0] == 'g')
+	if (toupper(dest[0]) == 'G'  ||  toupper(dest[0])=='R')
     {
         /* Retrieve the group number */
-        char *stringp = NULL;
-
         stringp = dest + 1;
         s = strsep(&stringp, "/");
         if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1)
@@ -3557,13 +3675,44 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         }
         /*endif*/
         groupmatch = 1 << x;
+		if (toupper(dest[0]) == 'G')
+        {
+			if (dest[0] == 'G')
+            {
+				backwards = 1;
+				p = ifend;
+			}
+            else
+            {
+				p = iflist;
+            }
+            /*endif*/
+		}
+        else
+        {
+			if (dest[0] == 'R')
+            {
+				backwards = 1;
+				if ((p = (round_robin[x])  ?  round_robin[x]->prev  :  ifend) == NULL)
+					p = ifend;
+                /*endif*/
+			}
+            else
+            {
+				if ((p = (round_robin[x])  ?  round_robin[x]->next  :  iflist) == NULL)
+					p = iflist;
+                /*endif*/
+			}
+            /*endif*/
+			roundrobin = 1;
+		}
+        /*endif*/
     }
     else
     {
-        char *stringp = NULL;
-
         stringp = dest;
         s = strsep(&stringp, "/");
+		p = iflist;
         if (!strcasecmp(s, "pseudo"))
         {
             /* Special case for pseudo */
@@ -3580,15 +3729,19 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     }
     /*endif*/
     /* Search for an unowned channel */
-    if (opbx_mutex_lock(&iflock))
+    if (opbx_mutex_lock(lock))
     {
         opbx_log(LOG_ERROR, "Unable to lock interface list???\n");
         return NULL;
     }
     /*endif*/
-    for (p = iflist;  p  &&  tmp == NULL;  p = p->next)
+    exit = p;
+    while (p  &&  tmp == NULL)
     {
-        if (available(p, channelmatch, groupmatch))
+		if (roundrobin)
+			round_robin[x] = p;
+        /*endif*/
+        if (p  &&  available(p, channelmatch, groupmatch, &busy))
         {
             if (option_debug)
                 opbx_log(LOG_DEBUG, "Using channel %d\n", p->channel);
@@ -3663,10 +3816,29 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
             break;
         }
         /*endif*/
+		if (backwards)
+        {
+			if ((p = p->prev) == NULL)
+				p = end;
+            /*endif*/
+		}
+        else
+        {
+			if ((p = p->next) == NULL)
+				p = start;
+            /*endif*/
+    	}
+        /*endif*/
+		/* Stop when we get back where we started */
+		if (p == exit)
+			break;
+        /*endif*/
     }
-    /*endfor*/
-    opbx_mutex_unlock(&iflock);
+    /*endwhile*/
+    opbx_mutex_unlock(lock);
     restart_monitor();
+	if (callwait  ||  (tmp == NULL  &&  busy))
+		*cause = OPBX_CAUSE_BUSY;
     return tmp;
 }
 
