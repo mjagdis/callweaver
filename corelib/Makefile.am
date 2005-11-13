@@ -5,7 +5,7 @@ libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	cdr.c tdd.c acl.c rtp.c manager.c \
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
 	opbxmm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
-	utils.c plc.c jitterbuf.c dnsmgr.c devicestate.c \
+	utils.c jitterbuf.c dnsmgr.c devicestate.c \
 	netsock.c resonator.c slinfactory.c opbx_expr2.c \
 	opbx_expr2f.c strcompat.c loader.c openpbx.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
