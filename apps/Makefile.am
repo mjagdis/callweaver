@@ -345,6 +345,13 @@ app_userevent_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_userevent_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_USEREVENT
 
+if WANT_APP_VALETPARKING
+opbxmod_LTLIBRARIES			+= app_valetparking.la
+app_valetparking_la_SOURCES		= app_valetparking.c
+app_valetparking_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_valetparking_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_VALETPARKING
+
 if WANT_APP_VISDN_PPP
 opbxmod_LTLIBRARIES			+= app_visdn_ppp.la
 app_visdn_ppp_la_SOURCES		= app_visdn_ppp.c
