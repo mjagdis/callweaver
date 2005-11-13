@@ -67,7 +67,13 @@ endif WANT_CHAN_WOOMERA
 if WANT_CHAN_ZAP
 opbxmod_LTLIBRARIES	+= chan_zap.la
 chan_zap_la_SOURCES	= chan_zap.c
-chan_zap_la_LIBADD 	= -ltonezone -lpri ${top_builddir}/corelib/libopenpbx.la
+chan_zap_la_CFLAGS	= $(AM_CFLAGS)
+chan_zap_la_LIBADD 	= -ltonezone
+if HAVE_LIBPRI
+chan_zap_la_CFLAGS	+= -DZAPATA_PRI
+chan_zap_la_LIBADD      += -lpri
+endif HAVE_LIBPRI
+chan_zap_la_LIBADD	+= ${top_builddir}/corelib/libopenpbx.la
 chan_zap_la_LDFLAGS	= -module -avoid-version -no-undefined
 endif WANT_CHAN_ZAP
 

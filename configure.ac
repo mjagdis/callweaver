@@ -646,6 +646,20 @@ if test "${enable_visdn}" = "yes"; then
     AC_CHECK_LIB([q931], [main], [HAVE_LIBQ931=1])
 fi
 
+dnl ###########################################################################
+
+AC_ARG_ENABLE([zaptel],
+	[AC_HELP_STRING([--enable-zaptel],[Enable support for Zaptel (default=yes)])],,[enable_zaptel="yes"])
+
+if test "${enable_zaptel}" = "yes"; then
+   AC_CHECK_HEADERS([zaptel.h linux/zaptel.h])
+
+   AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
+
+   AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
+fi
+
+AM_CONDITIONAL([HAVE_LIBPRI], [test -n "${HAVE_LIBPRI}"])
 
 #######
 #
@@ -716,17 +730,14 @@ AC_ARG_WITH([chan_woomera],
 
 AM_CONDITIONAL([WANT_CHAN_WOOMERA], [test "${with_chan_woomera}" = "yes"])
 
-dnl ########## chan_zap ##########
+dnl ############################################################################
 
-AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
-
-AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
 
 AC_ARG_WITH([chan_zap],
-	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes)])],,
+	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes) (requires --enable-zaptel)])],,
 	[with_chan_zap="yes"])
 
-AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${enable_zaptel}" = "yes" -a "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}"])
 
 ####### apps
 
@@ -882,7 +893,7 @@ AC_ARG_WITH([app_flash],
 	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
 	[with_app_flash="yes"])
 
-AM_CONDITIONAL([WANT_APP_FLASH], [test "${with_app_flash}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+AM_CONDITIONAL([WANT_APP_FLASH], [test "${enable_zaptel}" = "yes" -a "${with_app_flash}" = "yes" -a \( -n "${HAVE_ZAPTEL_H}" -o -n "${HAVE_LINUX_ZAPTEL_H}" \)])
 
 dnl ########## app_forkcdr ##########
 
@@ -946,7 +957,7 @@ AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
 	[with_app_meetme="yes"])
 
-AM_CONDITIONAL([WANT_APP_MEETME], [test "${with_app_meetme}" = "yes" -a -n "${HAVE_LIBTONEZONE}" -a -n "${HAVE_LIBPRI}"])
+AM_CONDITIONAL([WANT_APP_MEETME], [test "${enable_zaptel}" = "yes" -a "${with_app_meetme}" = "yes" -a \( -n "${HAVE_ZAPTEL_H}" -o -n "${HAVE_LINUX_ZAPTEL_H}" \)])
 
 dnl ########## app_milliwatt ##########
 
