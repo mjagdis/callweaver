@@ -34,6 +34,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 

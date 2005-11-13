@@ -30,7 +30,6 @@ extern "C" {
 #endif
 
 #include "openpbx/frame.h"
-#include "openpbx/plc.h"
 
 /* Declared by individual translators */
 struct opbx_translator_pvt;
