@@ -12,6 +12,10 @@
 /*uncomment below or build with -DOPBX_10_COMPAT for 1.0 */ 
 //#define OPBX_10_COMPAT
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #include <openpbx/file.h>
 #include <openpbx/logger.h>
 #include <openpbx/channel.h>
