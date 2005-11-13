@@ -54,7 +54,7 @@
 
 #include "openpbx.h"
 
-openpbx_FILE_VERSION(__FILE__, "$Revision: 1.18 $")
+openpbx_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DEFAULT_VALETPARK_TIME 45000
 
