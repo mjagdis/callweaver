@@ -216,7 +216,7 @@ static void *noise_alloc(struct opbx_channel *chan, void *data)
 		const double fullpower =
 			2.0 * NOISE_MAX_SIGMA * sqrt(6.0) / FAST_UNI_RNG_HALF;
 		pnp->rngstate = random(); /* seed RNG with a random value */
-		pnp->scalefactor = fullpower * exp10(level * 0.05);
+		pnp->scalefactor = fullpower * pow(10, level * 0.05);
 	}
 	return pnp;
 #else
@@ -242,7 +242,7 @@ static void *noise_alloc(struct opbx_channel *chan, void *data)
 
 	if (pnp)
 	{
-		const double sf = exp10((level - PREGEN_SAMPLES_DBOV) * 0.05);
+		const double sf = pow(10, (level - PREGEN_SAMPLES_DBOV) * 0.05);
 		pnp->scalefactor = floor((1 << SCALE_FACTOR_FRAC_BITS) * sf);
 	}
 	return pnp;
@@ -471,7 +471,7 @@ int load_module(void)
 	double noisesigma;
 	long i, j;
 
-	noisesigma = NOISE_MAX_SIGMA * exp10(PREGEN_SAMPLES_DBOV * 0.05);
+	noisesigma = NOISE_MAX_SIGMA * pow(10, PREGEN_SAMPLES_DBOV * 0.05);
 	ppregeneratedsamples = &pregeneratedsamples[0];
 	for (i = 0; i < NUM_PREGENERATED_SAMPLES; i += 2)
 	{
