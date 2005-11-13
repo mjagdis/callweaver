@@ -54,7 +54,7 @@
 
 #include "openpbx.h"
 
-openpbx_FILE_VERSION(__FILE__, "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define DEFAULT_VALETPARK_TIME 45000
 
@@ -64,7 +64,7 @@ static const struct opbx_channel_tech valet_tech = {
 	.type = "Valet",
 	.description = "Valet Unpark Come To ClueCon Aug-3-5 (http://www.cluecon.com)",
 	.requester = valet_request,
-	.capabilities = opbx_FORMAT_SLINEAR,
+	.capabilities = OPBX_FORMAT_SLINEAR,
 };
 
 static char *valetparking = "ValetParking";
@@ -119,10 +119,10 @@ struct valetparkeduser {
 	struct timeval start;
 	int valetparkingnum;
 	/* Where to go if our valetparking time expires */
-	char context[opbx_MAX_EXTENSION];
-	char exten[opbx_MAX_EXTENSION];
-	char lotname[opbx_MAX_EXTENSION];
-	char channame[opbx_MAX_EXTENSION];
+	char context[OPBX_MAX_EXTENSION];
+	char exten[OPBX_MAX_EXTENSION];
+	char lotname[OPBX_MAX_EXTENSION];
+	char channame[OPBX_MAX_EXTENSION];
 	int priority;
 	int valetparkingtime;
 	int old;
@@ -131,7 +131,7 @@ struct valetparkeduser {
 
 static struct valetparkeduser *valetparkinglot;
 
-opbx_MUTEX_DEFINE_STATIC(valetparking_lock);
+OPBX_MUTEX_DEFINE_STATIC(valetparking_lock);
 
 static pthread_t valetparking_thread;
 
@@ -432,15 +432,15 @@ static void *do_valetparking_thread(void *ignore)
 				pu = pu->next;
 				free(pt);
 			} else {
-				for (x=0;x<opbx_MAX_FDS;x++) {
+				for (x=0;x<OPBX_MAX_FDS;x++) {
 					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
 						if (FD_ISSET(pu->chan->fds[x], &efds))
-							opbx_set_flag(pu->chan, opbx_FLAG_EXCEPTION);
+							opbx_set_flag(pu->chan, OPBX_FLAG_EXCEPTION);
 
 						pu->chan->fdno = x;
 						/* See if they need servicing */
 						f = opbx_read(pu->chan);
-						if (!f || ((f->frametype == opbx_FRAME_CONTROL) && (f->subclass ==  opbx_CONTROL_HANGUP))) {
+						if (!f || ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass ==  OPBX_CONTROL_HANGUP))) {
 							/* There's a problem, hang them up*/
 							if (option_verbose > 1) 
 								opbx_verbose(VERBOSE_PREFIX_2 "%s got tired of being Valet Parked\n", pu->chan->name);
@@ -461,8 +461,8 @@ static void *do_valetparking_thread(void *ignore)
 						}
 					}
 				}
-				if (x >= opbx_MAX_FDS) {
-std:					for (x=0;x<opbx_MAX_FDS;x++) {
+				if (x >= OPBX_MAX_FDS) {
+std:					for (x=0;x<OPBX_MAX_FDS;x++) {
 						/* Keep this one for next one */
 						if (pu->chan->fds[x] > -1) {
 							FD_SET(pu->chan->fds[x], &nrfds);
@@ -594,7 +594,7 @@ static int valetpark_call(struct opbx_channel *chan, void *data)
 			opbx_waitfor(chan,-1);
 			memset(&tmp,0,80);
 			opbx_streamfile(chan, "vm-extension", chan->language);
-			res = opbx_waitstream(chan, opbx_DIGIT_ANY);
+			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
 			if(res)
 				return -1;
 
@@ -666,7 +666,7 @@ static struct opbx_channel *do_valetunpark(struct opbx_channel *chan, char *exte
 			opbx_waitfor(chan,-1);
 			memset(&tmp,0,80);
 			opbx_streamfile(chan, "vm-extension", chan->language);
-			res = opbx_waitstream(chan, opbx_DIGIT_ANY);
+			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
 			if(res)
 				return NULL;
 			opbx_app_getdata(chan,"vm-then-pound",tmp,80,5000);
@@ -723,24 +723,24 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
     }
 	if(!lotname) {
         opbx_log(LOG_WARNING,"Please specify a lotname in the dialplan.");
-		*cause = opbx_CAUSE_UNALLOCATED;
+		*cause = OPBX_CAUSE_UNALLOCATED;
         return NULL;
     }
 	if((peer = do_valetunpark(NULL, exten, lotname))) {
-	    if(opbx_test_flag(peer, opbx_FLAG_MOH)) {
+	    if(opbx_test_flag(peer, OPBX_FLAG_MOH)) {
 			opbx_moh_stop(peer);
 		}
 		if(opbx_set_read_format(peer, format) ||
 		   opbx_set_write_format(peer, format)) {
 			opbx_log(LOG_WARNING,"Hanging up on %s because I cant make it the requested format.\n",peer->name);
 			opbx_hangup(peer);
-			*cause = opbx_CAUSE_UNALLOCATED;
+			*cause = OPBX_CAUSE_UNALLOCATED;
 			return NULL;
 		}
 		/* We return the chan we have been protecting which is already up but
 		   be vewy vewy qwiet we will trick openpbx into thinking it's a new channel
 		*/
-		opbx_setstate(peer, opbx_STATE_RESERVED);
+		opbx_setstate(peer, OPBX_STATE_RESERVED);
 	}
 
 	return peer;
@@ -780,7 +780,7 @@ static int valetunpark_call(struct opbx_channel *chan, void *data)
 
 
 	/* JK02: it helps to answer the channel if not already up */
-	if (chan->_state != opbx_STATE_UP) {
+	if (chan->_state != OPBX_STATE_UP) {
 		opbx_answer(chan);
 	}
 	peer = do_valetunpark(chan, exten, lotname);
@@ -801,11 +801,11 @@ static int valetunpark_call(struct opbx_channel *chan, void *data)
 			opbx_verbose(VERBOSE_PREFIX_3 "Channel %s connected to Valet Parked call %d in lot %s\n", chan->name, valetpark,lotname);
 
 		memset(&config,0,sizeof(struct opbx_bridge_config));
-		opbx_set_flag(&(config.features_caller) , opbx_FEATURE_REDIRECT);
-		opbx_set_flag(&(config.features_callee) , opbx_FEATURE_REDIRECT);
+		opbx_set_flag(&(config.features_caller) , OPBX_FEATURE_REDIRECT);
+		opbx_set_flag(&(config.features_callee) , OPBX_FEATURE_REDIRECT);
 		res = opbx_bridge_call(chan,peer,&config);
 
-		if (res != opbx_PBX_NO_HANGUP_PEER)
+		if (res != OPBX_PBX_NO_HANGUP_PEER)
 			opbx_hangup(peer);
 		LOCAL_USER_REMOVE(u);
 		return res;
@@ -918,12 +918,12 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 
 	if (!opbx_mutex_lock(&valetparking_lock)) {
-        if (valetparking_thread && (valetparking_thread != opbx_PTHREADT_STOP)) {
+        if (valetparking_thread && (valetparking_thread != OPBX_PTHREADT_STOP)) {
             pthread_cancel(valetparking_thread);
             pthread_kill(valetparking_thread, SIGURG);
             pthread_join(valetparking_thread, NULL);
         }
-        valetparking_thread = opbx_PTHREADT_STOP;
+        valetparking_thread = OPBX_PTHREADT_STOP;
         opbx_mutex_unlock(&valetparking_lock);
     } else {
         opbx_log(LOG_WARNING, "Unable to lock the valet\n");
