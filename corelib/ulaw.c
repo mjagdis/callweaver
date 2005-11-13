@@ -25,82 +25,28 @@
 #include "confdefs.h"
 #endif
 
+#include <inttypes.h>
+#include <time.h>
+#include <spandsp.h>
+
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/ulaw.h"
 
-#define ZEROTRAP    /* turn on the trap as per the MIL-STD */
-#define BIAS 0x84   /* define the add-in bias for 16 bit samples */
-#define CLIP 32635
-
-unsigned char __opbx_lin2mu[16384];
-short __opbx_mulaw[256];
-
-static unsigned char
-linear2ulaw(short sample)
-{
-  static int exp_lut[256] = {0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
-                             4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-                             5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-                             5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7};
-  int sign, exponent, mantissa;
-  unsigned char ulawbyte;
-
-  /* Get the sample into sign-magnitude. */
-  sign = (sample >> 8) & 0x80;          /* set aside the sign */
-  if (sign != 0) sample = -sample;              /* get magnitude */
-  if (sample > CLIP) sample = CLIP;             /* clip the magnitude */
-
-  /* Convert from 16 bit linear to ulaw. */
-  sample = sample + BIAS;
-  exponent = exp_lut[(sample >> 7) & 0xFF];
-  mantissa = (sample >> (exponent + 3)) & 0x0F;
-  ulawbyte = ~(sign | (exponent << 4) | mantissa);
-#ifdef ZEROTRAP
-  if (ulawbyte == 0) ulawbyte = 0x02;   /* optional CCITT trap */
-#endif
-
-  return(ulawbyte);
-}
+uint8_t __opbx_lin2mu[16384];
+int16_t __opbx_mulaw[256];
 
 void opbx_ulaw_init(void)
 {
 	int i;
-	/* 
-	 *  Set up mu-law conversion table
-	 */
-	for(i = 0;i < 256;i++)
-	   {
-		short mu,e,f,y;
-		static short etab[]={0,132,396,924,1980,4092,8316,16764};
 
-		mu = 255-i;
-		e = (mu & 0x70)/16;
-		f = mu & 0x0f;
-		y = f * (1 << (e + 3));
-		y += etab[e];
-		if (mu & 0x80) y = -y;
-	        __opbx_mulaw[i] = y;
-	   }
-	  /* set up the reverse (mu-law) conversion table */
-	for(i = -32768; i < 32768; i++)
-	   {
-		__opbx_lin2mu[((unsigned short)i) >> 2] = linear2ulaw(i);
-	   }
-
+	/* Set up mu-law conversion table */
+	for (i = 0;  i < 256;  i++)
+        __opbx_mulaw[i] = ulaw_to_linear(i);
+	/* Set up the reverse (mu-law) conversion table */
+	for (i = -32768; i < 32768; i++)
+		__opbx_lin2mu[((unsigned short) i) >> 2] = linear_to_ulaw(i);
+    return 0;
 }
-

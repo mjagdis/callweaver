@@ -20,7 +20,6 @@
 #include <inttypes.h>
 #include <pthread.h>
 #include <errno.h>
-#include <tiffio.h>
 
 #include <spandsp.h>
 

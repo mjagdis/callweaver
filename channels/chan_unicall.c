@@ -33,7 +33,6 @@
 #include <sys/ioctl.h>
 #include <math.h>
 #include <ctype.h>
-#include <tiffio.h>
 #include <linux/zaptel.h>
 
 #include <spandsp.h>

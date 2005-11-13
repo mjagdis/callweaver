@@ -25,6 +25,10 @@
 #include "confdefs.h"
 #endif
 
+#include <inttypes.h>
+#include <time.h>
+#include <spandsp.h>
+
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -67,7 +71,7 @@ static inline unsigned char linear2alaw (short int linear)
 }
 /*- End of function --------------------------------------------------------*/
 
-static inline short int alaw2linear (unsigned char alaw)
+static inline short int alaw2linear(unsigned char alaw)
 {
     int i;
     int seg;
@@ -80,24 +84,18 @@ static inline short int alaw2linear (unsigned char alaw)
     return (short int) ((alaw & 0x80)  ?  i  :  -i);
 }
 
-unsigned char __opbx_lin2a[8192];
-short __opbx_alaw[256];
+uint8_t __opbx_lin2a[8192];
+int16_t __opbx_alaw[256];
 
 void opbx_alaw_init(void)
 {
 	int i;
-	/* 
-	 *  Set up mu-law conversion table
-	 */
-	for(i = 0;i < 256;i++)
-	   {
-	        __opbx_alaw[i] = alaw2linear(i);
-	   }
-	  /* set up the reverse (mu-law) conversion table */
+	
+    /* Set up A-law conversion table */
+	for (i = 0;  i < 256;  i++)
+		__opbx_alaw[i] = alaw_to_linear(i);
+	/* Set up the reverse (A-law) conversion table */
 	for(i = -32768; i < 32768; i++)
-	   {
-		__opbx_lin2a[((unsigned short)i) >> 3] = linear2alaw(i);
-	   }
-
+		__opbx_lin2a[((unsigned short)i) >> 3] = linear_to_alaw(i);
 }
 

@@ -31,9 +31,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <math.h>
 #include <ctype.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 

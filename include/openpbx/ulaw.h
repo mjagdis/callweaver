@@ -30,12 +30,10 @@
 extern void opbx_ulaw_init(void);
 
 /*! converts signed linear to mulaw */
-/*!
-  */
-extern unsigned char __opbx_lin2mu[16384];
+extern uint8_t __opbx_lin2mu[16384];
 
-/*! help */
-extern short __opbx_mulaw[256];
+/*! converts mulaw to signed linear */
+extern int16_t __opbx_mulaw[256];
 
 #define OPBX_LIN2MU(a) (__opbx_lin2mu[((unsigned short)(a)) >> 2])
 #define OPBX_MULAW(a) (__opbx_mulaw[(a)])
