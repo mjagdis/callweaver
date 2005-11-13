@@ -33,7 +33,7 @@ SAMPLES = adsi.conf.sample \
 	osp.conf.sample \
 	privacy.conf.sample \
 	queues.conf.sample \
-	res_jabber.conf.sample
+	res_jabber.conf.sample \
 	res_odbc.conf.sample \
 	res_pgsql.conf.sample \
 	rpt.conf.sample \
