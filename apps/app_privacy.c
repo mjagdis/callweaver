@@ -42,7 +42,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/translate.h"
 #include "openpbx/image.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/app.h"
 #include "openpbx/config.h"
 

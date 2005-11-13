@@ -63,7 +63,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA 183			/* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
 #define GSAMP_SIZE_CR 188			/* Costa Rica, Brazil - Only care about 425 Hz */
-#define GSAMP_SIZE_UK 160			/* UK disconnect goertzel feed - shoud trigger 400hz */
+#define GSAMP_SIZE_UK 160			/* UK disconnect goertzel feed - should trigger 400hz */
 
 #define PROG_MODE_NA		0
 #define PROG_MODE_CR		1	

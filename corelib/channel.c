@@ -55,7 +55,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/indications.h"
 #include "openpbx/monitor.h"
 #include "openpbx/causes.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/utils.h"
 #include "openpbx/lock.h"
 #include "openpbx/app.h"

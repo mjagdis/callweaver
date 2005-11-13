@@ -49,7 +49,7 @@
 #include <openpbx/pbx.h>
 #include <openpbx/options.h>
 #include <openpbx/utils.h>
-#include <openpbx/callerid.h>
+#include <openpbx/phone_no_utils.h>
 #include <openpbx/indications.h>
 #include <openpbx/cli.h>
 #include <openpbx/musiconhold.h>

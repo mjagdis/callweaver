@@ -42,7 +42,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/logger.h"
 #include "openpbx/cli.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 
 #ifdef __OPBX_DEBUG_MALLOC
 static void FREE(void *ptr)

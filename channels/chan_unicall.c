@@ -53,7 +53,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/file.h"
 #include "openpbx/ulaw.h"
 #include "openpbx/alaw.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/adsi.h"
 #include "openpbx/cli.h"
 #include "openpbx/cdr.h"

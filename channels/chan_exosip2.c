@@ -80,7 +80,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/chan
 #include "openpbx/io.h"
 #include "openpbx/rtp.h"
 #include "openpbx/acl.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/file.h"
 #include "openpbx/cli.h"
 #include "openpbx/app.h"

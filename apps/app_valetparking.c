@@ -33,7 +33,7 @@
 #include <openpbx/translate.h>
 #include <openpbx/utils.h>
 #include <openpbx/say.h>
-#include <openpbx/callerid.h>
+#include <openpbx/phone_no_utils.h>
 #include <openpbx/features.h>
 #include <openpbx/musiconhold.h>
 #include <openpbx/config.h>

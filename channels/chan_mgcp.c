@@ -103,7 +103,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/io.h"
 #include "openpbx/rtp.h"
 #include "openpbx/acl.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/cli.h"
 #include "openpbx/say.h"
 #include "openpbx/cdr.h"

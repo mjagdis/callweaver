@@ -23,7 +23,7 @@
 #ifndef _OPENPBX_ADSI_H
 #define _OPENPBX_ADSI_H
 
-#include "openpbx/callerid.h"
+#include "openpbx/old_callerid.h"
 #include "openpbx/channel.h"
 
 /* ADSI Message types */

@@ -47,7 +47,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/crypto.h"
 #include "openpbx/acl.h"
 #include "openpbx/manager.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/app.h"
 #include "openpbx/opbxdb.h"
 #include "openpbx/musiconhold.h"

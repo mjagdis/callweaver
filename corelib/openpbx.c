@@ -57,10 +57,9 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/channel.h"
 #include "openpbx/ulaw.h"
 #include "openpbx/alaw.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 #include "openpbx/module.h"
 #include "openpbx/image.h"
-#include "openpbx/tdd.h"
 #include "openpbx/term.h"
 #include "openpbx/manager.h"
 #include "openpbx/cdr.h"
@@ -1903,7 +1902,6 @@ int openpbx_main(int argc, char *argv[])
 	opbx_alaw_init();
 	callerid_init();
 	opbx_utils_init();
-	tdd_init();
 	/* When OpenPBX restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
 	 * */

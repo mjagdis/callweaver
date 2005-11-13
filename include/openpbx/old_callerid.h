@@ -21,8 +21,8 @@
  * Includes code and algorithms from the Zapata library.
  */
 
-#ifndef _OPENPBX_CALLERID_H
-#define _OPENPBX_CALLERID_H
+#ifndef _OPENPBX_OLD_CALLERID_H
+#define _OPENPBX_OLD_CALLERID_H
 
 #define MAX_CALLERID_SIZE 32000
 
@@ -156,20 +156,6 @@ extern int opbx_callerid_parse(char *instr, char **name, char **location);
  */
 extern int opbx_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
 
-/*! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s... */
-/*!
- * \param n The number to be stripped/shrunk
- * Returns nothing important
- */
-extern void opbx_shrink_phone_number(char *n);
-
-/*! Check if a string consists only of digits.  Returns non-zero if so */
-/*!
- * \param n number to be checked.
- * Returns 0 if n is a number, 1 if it's not.
- */
-extern int opbx_isphonenumber(char *n);
-
 extern int opbx_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
 
 extern char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
@@ -234,48 +220,4 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 	PUT_CLID_BAUD(1);	/* Stop bit */ \
 } while(0);	
 
-/* Various defines and bits for handling PRI- and SS7-type restriction */
-
-#define OPBX_PRES_NUMBER_TYPE				0x03
-#define OPBX_PRES_USER_NUMBER_UNSCREENED			0x00
-#define OPBX_PRES_USER_NUMBER_PASSED_SCREEN		0x01
-#define OPBX_PRES_USER_NUMBER_FAILED_SCREEN		0x02
-#define OPBX_PRES_NETWORK_NUMBER				0x03
-
-#define OPBX_PRES_RESTRICTION				0x60
-#define OPBX_PRES_ALLOWED				0x00
-#define OPBX_PRES_RESTRICTED				0x20
-#define OPBX_PRES_UNAVAILABLE				0x40
-#define OPBX_PRES_RESERVED				0x60
-
-#define OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED \
-	OPBX_PRES_USER_NUMBER_UNSCREENED + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN \
-	OPBX_PRES_USER_NUMBER_PASSED_SCREEN + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN \
-	OPBX_PRES_USER_NUMBER_FAILED_SCREEN + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_ALLOWED_NETWORK_NUMBER	\
-	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED \
-	OPBX_PRES_USER_NUMBER_UNSCREENED + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN \
-	OPBX_PRES_USER_NUMBER_PASSED_SCREEN + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN \
-	OPBX_PRES_USER_NUMBER_FAILED_SCREEN + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_PROHIB_NETWORK_NUMBER \
-	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_NUMBER_NOT_AVAILABLE \
-	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_UNAVAILABLE
-
-int opbx_parse_caller_presentation(const char *data);
-const char *opbx_describe_caller_presentation(int data);
-
-#endif /* _OPENPBX_CALLERID_H */
+#endif /* _OPENPBX_OLD_CALLERID_H */

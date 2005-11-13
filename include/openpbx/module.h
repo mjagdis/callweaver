@@ -183,6 +183,10 @@ int opbx_loader_register(int (*updater)(void));
  */
 int opbx_loader_unregister(int (*updater)(void));
 
+int opbx_loader_init(void);
+
+int opbx_loader_exit(void);
+
 /*! 
  * \brief Reload openpbx modules.
  * \param name the name of the module to reload

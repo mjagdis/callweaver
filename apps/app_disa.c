@@ -47,7 +47,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/translate.h"
 #include "openpbx/ulaw.h"
-#include "openpbx/callerid.h"
+#include "openpbx/phone_no_utils.h"
 
 static char *tdesc = "DISA (Direct Inward System Access) Application";
 

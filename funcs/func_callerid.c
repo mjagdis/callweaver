@@ -38,7 +38,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/utils.h"
 #include "openpbx/app.h"
 #include "openpbx/options.h"
-#include "openpbx/callerid.h"
+#include "openpbx/old_callerid.h"
 
 static char *callerid_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
