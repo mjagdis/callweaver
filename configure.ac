@@ -1132,7 +1132,7 @@ AC_ARG_WITH([app_valetparking],
 	[AC_HELP_STRING([--with-app_valetparking],[Build and install app_valetparking (default=yes)])],,
 	[with_app_valetparking="yes"])
 
-AM_CONDITIONAL([WANT_APP_VERBOSE],[test "${with_app_verbose}" = "yes"])
+AM_CONDITIONAL([WANT_APP_VERBOSE],[test "${with_app_valetparking}" = "yes"])
 
 dnl ########## app_verbose ##########
 
