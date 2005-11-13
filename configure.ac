@@ -1129,8 +1129,8 @@ AM_CONDITIONAL([WANT_APP_USEREVENT],[test "${with_app_userevent}" = "yes"])
 dnl ########## app_valetparking ##########
 
 AC_ARG_WITH([app_valetparking],
-	[AC_HELP_STRING([--with-app_valetparking],[Build and install app_valetparking (default=yes)])],,
-	[with_app_valetparking="yes"])
+	[AC_HELP_STRING([--with-app_valetparking],[Build and install app_valetparking (default=no)])],,
+	[with_app_valetparking="no"])
 
 AM_CONDITIONAL([WANT_APP_VALETPARKING],[test "${with_app_valetparking}" = "yes"])
 
