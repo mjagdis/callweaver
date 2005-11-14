@@ -35,7 +35,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 46 $")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 46 $")
 
 #include "openpbx/file.h"
 #include "openpbx/logger.h"
