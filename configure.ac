@@ -484,7 +484,11 @@ AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is r
 
 AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre5 or newer is required to compile OpenPBX.org.)])
 
-AC_CHECK_HEADERS([spandsp/t38.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre5 or newer to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([spandsp/t38.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre5 or newer to compile OpenPBX.org.)],
+[#ifdef HAVE_SPANDSP_H
+#include <spandsp.h>
+#endif
+])
 
 AC_CHECK_LIB([spandsp],[t38_gateway_init],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre5 or newer to comple OpenPBX.org.)],[-ltiff])
 
