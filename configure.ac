@@ -477,8 +477,24 @@ AC_DEFINE([__BIG_ENDIAN],4321,[for the places where it is not defined])
 
 dnl ############################################################################
 
+AC_ARG_WITH([tiff-includes],
+	[AC_HELP_STRING([--with-tiff-includes],[Location of libtiff include files.])],
+	[CFLAGS="$CFLAGS -I${withval}"])
+
+AC_ARG_WITH([tiff-libs],
+	[AC_HELP_STRING([--with-tiff-libs],[Location of libtiff library files.])],
+	[LDFLAGS="$LDFLAGS -L${withval}"])
+
 AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
 AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
+
+AC_ARG_WITH([spandsp-includes],
+	[AC_HELP_STRING([--with-spandsp-includes],[Location of SpanDSP include files.])],
+	[CFLAGS="$CFLAGS -I${withval}"])
+
+AC_ARG_WITH([spandsp-libs],
+	[AC_HELP_STRING([--with-spandsp-libs],[Location of SpanDSP library files.])],
+	[LDFLAGS="$LDFLAGS -L${withval}"])
 
 AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre5 or newer is required to compile OpenPBX.org.)])
 

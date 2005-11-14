@@ -36,13 +36,17 @@ EXTRA_DIST = openpbx.sgml $(man_MANS) substitute.mak
 SUBDIRS =   libltdl libs editline stdtime sqlite3-embedded include corelib . pbx funcs
 SUBDIRS +=  cdr apps codecs formats channels agi utils res configs sounds
 
+INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)	\
+$(opbxkeydir) $(opbxlogdir) $(opbxrundir) $(opbxspooldir)	\
+$(opbxsqlitedir) $(opbxvardir)
+
 install-data-hook:
-	mkdir -p $(DESTDIR)$(opbxspooldir)
-	mkdir -p $(DESTDIR)$(opbxlogdir)
-	mkdir -p $(DESTDIR)$(opbxrundir)
-	mkdir -p $(DESTDIR)$(opbxsqlitedir)
-	mkdir -p $(DESTDIR)$(opbximagesdir)
-	mkdir -p $(DESTDIR)$(opbxdocdir)
-	mkdir -p $(DESTDIR)$(opbxkeydir)
-	mkdir -p $(DESTDIR)$(opbxvardir)
-	mkdir -p $(DESTDIR)$(opbxdbdir)
+	for install_dir in $(INSTALL_DIRS); \
+	do \
+		mkdir -p $(DESTDIR)$${install_dir}; \
+		if test -z "$(DESTDIR)"; \
+		then \
+			chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)$${install_dir}; \
+		fi; \
+		chmod 0750 $(DESTDIR)$${install_dir}; \
+	done
