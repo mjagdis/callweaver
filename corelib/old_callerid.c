@@ -113,6 +113,27 @@ static inline void gen_tone(unsigned char *buf, int len, int codec, float ddr1, 
 	}
 }
 
+int opbx_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
+{
+	int pos = 0;
+	int saslen=2400;
+	float cr1 = 1.0;
+	float ci1 = 0.0;
+	float cr2 = 1.0;
+	float ci2 = 0.0;
+	if (sendsas) {
+		if (len < saslen)
+			return -1;
+		gen_tone(outbuf, saslen, codec, sasdr, sasdi, &cr1, &ci1);
+		len -= saslen;
+		pos += saslen;
+		cr2 = cr1;
+		ci2 = ci1;
+	}
+	gen_tones(outbuf + pos, len, codec, casdr1, casdi1, casdr2, casdi2, &cr1, &ci1, &cr2, &ci2);
+	return 0;
+}
+
 void callerid_init(void)
 {
 	/* Initialize stuff for inverse FFT */
@@ -232,27 +253,6 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 			cidstring[0]);
 		*flags = CID_UNKNOWN_NUMBER;
 	}
-}
-
-int opbx_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
-{
-	int pos = 0;
-	int saslen=2400;
-	float cr1 = 1.0;
-	float ci1 = 0.0;
-	float cr2 = 1.0;
-	float ci2 = 0.0;
-	if (sendsas) {
-		if (len < saslen)
-			return -1;
-		gen_tone(outbuf, saslen, codec, sasdr, sasdi, &cr1, &ci1);
-		len -= saslen;
-		pos += saslen;
-		cr2 = cr1;
-		ci2 = ci1;
-	}
-	gen_tones(outbuf + pos, len, codec, casdr1, casdi1, casdr2, casdi2, &cr1, &ci1, &cr2, &ci2);
-	return 0;
 }
 
 int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int codec)
