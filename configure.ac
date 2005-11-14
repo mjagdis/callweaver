@@ -33,8 +33,6 @@ AC_C_CONST
 AC_PATH_PROG([GROUPADD], [groupadd])
 AC_PATH_PROGS(GREP, ggrep grep,[echo Missing grep so skipping but I doubt we will get anywhere])
 AC_PATH_PROGS(SVN, svn, [echo Missing subversion so some stuff will be borked],${PATH}:/opt/csw/bin)
-AC_PATH_PROGS(RANLIB,ranlib granlib,[echo Skipping ranlib])
-AC_PATH_PROGS(AR,ar gar,[echo Missing ar so skipping it but that will not work ...])
 AC_PATH_PROGS(SHELL,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(SH,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(M4,gm4 m4,[echo No m4 found, who will process my macros now ?])
