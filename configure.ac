@@ -498,10 +498,6 @@ dnl ###
 dnl ############################################################################
 dnl ############################################################################
 
-dnl Overwrite your config files with the examples provided
-AC_ARG_ENABLE(overwrite,     
-	[AC_HELP_STRING([--enable-overwrite],[overwrite your config with conf file samples])],[OVERWRITE="$enableval"],[OVERWRITE="no"])
-
 dnl Select which Busydetect routine to use
 AC_ARG_ENABLE(busydetect,
 	[AC_HELP_STRING([--enable-busydetect=TYPE],[select which busydetect version to use: none (default) toneonly martin compare_tone_and_silence])],,[enable_busydetect="none"])
@@ -1667,7 +1663,6 @@ AC_SUBST(CPU_OPTIONS)
 AC_SUBST(all_debug)
 AC_SUBST(DEBUG_THREADS)
 AC_SUBST(MALLOC_DEBUG)
-AC_SUBST(OVERWRITE)
 AC_SUBST(LOW_MEMORY)
 AC_SUBST(prefix)
 

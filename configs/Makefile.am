@@ -61,3 +61,19 @@ logger.conf.sample: logger.conf.sample.in Makefile
 	rm -f logger.conf.sample.tmp
 	$(substitute) $(srcdir)/logger.conf.sample.in > logger.conf.sample.tmp
 	mv logger.conf.sample.tmp logger.conf.sample
+
+install-data-hook:
+	if test -z "$(DESTDIR)"; \
+	then \
+		chown -R ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}; \
+	fi
+	chmod 0750 $(DESTDIR)${opbxconfdir}
+	chmod 0640 $(DESTDIR)${opbxconfdir}/*.sample
+	for samplefile in $(DESTDIR)${opbxconfdir}/*.sample; \
+	do \
+		configfile=`echo $${samplefile} | $(SED) 's/\.sample//'`; \
+		if test \! -f $${configfile}; \
+		then \
+			cp -p $${samplefile} $${configfile}; \
+		fi; \
+	done
