@@ -267,9 +267,8 @@ static void *opbx_generator_thread(void *data)
 			}
 		} else {
 			/* Just wait for new request */
-			do {
+			while (!pgcd->gen_req)
 				opbx_pthread_cond_wait(&pgcd->gen_req_cond, &pgcd->lock);
-			} while (!pgcd->gen_req);
 		}
 
 		/* If there is an activate generator, free its
