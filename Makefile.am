@@ -37,8 +37,9 @@ SUBDIRS =   libltdl libs editline stdtime sqlite3-embedded include corelib . pbx
 SUBDIRS +=  cdr apps codecs formats channels agi utils res configs sounds
 
 INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)		\
-$(opbxkeydir) $(opbxlogdir) $(opbxlogdir)/cdr-custom $(opbxrundir)	\
-$(opbxspooldir) $(opbxsqlitedir) $(opbxvardir)
+$(opbxkeydir) $(opbxlogdir) $(opbxlogdir)/cdr-custom			\
+$(opbxlogdir)/cdr-csv $(opbxrundir) $(opbxspooldir) $(opbxsqlitedir)	\
+$(opbxvardir)
 
 install-data-hook:
 	for install_dir in $(INSTALL_DIRS); \
