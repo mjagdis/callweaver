@@ -4,7 +4,7 @@ opbxagi_SCRIPTS 		= agi-test.agi fastagi-test
 eagi_sphinx_test_SOURCES 	= eagi-sphinx-test.c
 eagi_test_SOURCES 		= eagi-test.c
 
-install-exec-hook:
+install-data-hook:
 	if test -z "$(DESTDIR)"; \
 	then \
 		chown -R ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxagidir}; \
