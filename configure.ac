@@ -636,10 +636,9 @@ AC_ARG_ENABLE([zaptel],
 	[AC_HELP_STRING([--enable-zaptel],[Enable support for Zaptel (default=yes)])],,[enable_zaptel="yes"])
 
 if test "${enable_zaptel}" = "yes"; then
-   AC_CHECK_HEADERS([zaptel.h linux/zaptel.h])
-
+   AC_CHECK_HEADERS([zaptel.h], [HAVE_ZAPTEL_H=1])
+   AC_CHECK_HEADERS([linux/zaptel.h], [HAVE_LINUX_ZAPTEL_H=1])
    AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
-
    AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
 fi
 
