@@ -535,11 +535,8 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 		/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
 
-	/* Create generator thread and associates */
-	if(opbx_generator_start_thread(tmp))
-	{
-		opbx_log(LOG_WARNING, "Channel allocation reduced functionality: Unable to create generator thread\n");
-	}
+	/* Init channel generator data struct lock */
+	opbx_mutex_init(&tmp->gcd.lock);
 
 	/* Always watch the alertpipe */
 	tmp->fds[OPBX_MAX_FDS-1] = tmp->alertpipe[0];

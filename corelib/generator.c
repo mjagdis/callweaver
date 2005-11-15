@@ -70,6 +70,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/gene
 
 /* Needed declarations */
 static void *opbx_generator_thread(void *data);
+static int opbx_generator_start_thread(struct opbx_channel *pchan);
 
 /*
  * ****************************************************************************
@@ -78,28 +79,6 @@ static void *opbx_generator_thread(void *data);
  *
  * ****************************************************************************
  */
-
-/*
- * Starts the generator thread associated with the channel.
- * Called when the channel is first being allocated by opbx_channel_alloc.
- */
-int opbx_generator_start_thread(struct opbx_channel *pchan)
-{
-	/* Create joinable generator thread */
-	opbx_mutex_init(&pchan->gcd.lock);
-	pthread_cond_init(&pchan->gcd.gen_req_cond, NULL);
-	pchan->gcd.pgenerator_thread = malloc(sizeof (pthread_t));
-	if (!pchan->gcd.pgenerator_thread ||
-            opbx_pthread_create(pchan->gcd.pgenerator_thread, NULL,
-		                opbx_generator_thread, pchan)) {
-		free(pchan->gcd.pgenerator_thread);
-		pchan->gcd.pgenerator_thread = NULL;
-		return -1;
-	}
-	
-	/* All is good */
-	return 0;
-}
 
 /*
  * Stops the generator thread associated with the channel.
@@ -116,10 +95,11 @@ void opbx_generator_stop_thread(struct opbx_channel *pchan)
 		opbx_mutex_unlock(&pchan->gcd.lock);
 		pthread_join(*pchan->gcd.pgenerator_thread, NULL);
 		free(pchan->gcd.pgenerator_thread);
+		pchan->gcd.pgenerator_thread = NULL;
+		pthread_cond_destroy(&pchan->gcd.gen_req_cond);
 	} else {
 		opbx_mutex_unlock(&pchan->gcd.lock);
 	}
-	pthread_cond_destroy(&pchan->gcd.gen_req_cond);
 	opbx_mutex_destroy(&pchan->gcd.lock);
 }
 
@@ -135,6 +115,12 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 
 		/* We are going to play with new generator data structures */
 		opbx_mutex_lock(&pgcd->lock);
+
+		if(opbx_generator_start_thread(chan)) {
+			/* Whoops! */
+			opbx_log(LOG_ERROR, "Generator activation failed: unable to start generator thread\n");
+			return -1;
+		}
 
 		/* In case the generator thread hasn't yet processed a
 		 * previous activation request, we need to release it's data */
@@ -315,5 +301,32 @@ static void *opbx_generator_thread(void *data)
 	opbx_log(LOG_DEBUG, "Generator thread shut down.\n");
 	opbx_mutex_unlock(&pgcd->lock);
 	return NULL;
+}
+
+/* Starts the generator thread associated with the channel. */
+static int opbx_generator_start_thread(struct opbx_channel *pchan)
+{
+	struct opbx_generator_channel_data *pgcd = &pchan->gcd;
+
+	/* Just return if generator thread is running already */
+	if (pgcd->pgenerator_thread) {
+		return 0;
+	}
+
+	/* Create joinable generator thread */
+	pgcd->pgenerator_thread = malloc(sizeof (pthread_t));
+	if (!pgcd->pgenerator_thread) {
+		return -1;
+	}
+	pthread_cond_init(&pgcd->gen_req_cond, NULL);
+	if(opbx_pthread_create(pgcd->pgenerator_thread, NULL, opbx_generator_thread, pchan)) {
+		free(pgcd->pgenerator_thread);
+		pgcd->pgenerator_thread = NULL;
+		pthread_cond_destroy(&pgcd->gen_req_cond);
+		return -1;
+	}
+
+	/* All is good */
+	return 0;
 }
 

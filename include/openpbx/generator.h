@@ -48,13 +48,13 @@ enum opbx_generator_requests {
 /*! Generator channel data */
 struct opbx_generator_channel_data {
 
-	/*! Generator thread for this channel */
-	pthread_t *pgenerator_thread;
-
 	/*! Generator data structures mutex (those in here below).
 	 * To avoid deadlocks, never acquire channel lock when
 	 * generator data lock is acquired */
 	opbx_mutex_t lock;
+
+	/*! Generator thread for this channel */
+	pthread_t *pgenerator_thread;
 
 	/*! Non-zero if generator is currently active; zero otherwise */
 	int gen_is_active;
@@ -78,9 +78,6 @@ struct opbx_generator_channel_data {
 	/*! What to call to free (release) gen_data */
 	void (*gen_free)(struct opbx_channel *chan, void *gen_data);
 };
-
-/*! Start channel generator thread */
-int opbx_generator_start_thread(struct opbx_channel *pchan);
 
 /*! Stop channel generator thread */
 void opbx_generator_stop_thread(struct opbx_channel *pchan);
