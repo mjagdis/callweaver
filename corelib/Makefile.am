@@ -15,7 +15,7 @@ nodist_libopenpbx_la_SOURCES = defaults.h
 
 libopenpbx_la_CFLAGS 	=  -fomit-frame-pointer -D_REENTRANT -Wall -Wstrict-prototypes 
 libopenpbx_la_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
-libopenpbx_la_LIBADD	= $(LIBLTDL) 
+libopenpbx_la_LIBADD	= -lspandsp -ltiff $(LIBLTDL) 
 libopenpbx_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 libopenpbx_la_LIBADD 	+= ${top_builddir}/editline/src/libedit.la 
 libopenpbx_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 

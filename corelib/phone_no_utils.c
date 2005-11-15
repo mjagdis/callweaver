@@ -128,3 +128,91 @@ int opbx_isphonenumber(const char *n)
 			return 0;
 	return 1;
 }
+
+char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown)
+{
+	if (!unknown)
+		unknown = "<unknown>";
+	if (name && num)
+		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
+	else if (name) 
+		opbx_copy_string(buf, name, bufsiz);
+	else if (num)
+		opbx_copy_string(buf, num, bufsiz);
+	else
+		opbx_copy_string(buf, unknown, bufsiz);
+	return buf;
+}
+
+int opbx_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)
+{
+	char *tmp;
+	char *l = NULL;
+    char *n = NULL;
+    
+	tmp = opbx_strdupa(buf);
+	if (!tmp) {
+		name[0] = '\0';
+		num[0] = '\0';
+		return -1;
+	}
+	opbx_callerid_parse(tmp, &n, &l);
+	if (n)
+		opbx_copy_string(name, n, namelen);
+	else
+		name[0] = '\0';
+	if (l) {
+		opbx_shrink_phone_number(l);
+		opbx_copy_string(num, l, numlen);
+	} else
+		num[0] = '\0';
+	return 0;
+}
+
+int opbx_callerid_parse(char *instr, char **name, char **location)
+{
+	char *ns, *ne;
+	char *ls, *le;
+	char tmp[256];
+	/* Try for "name" <location> format or 
+	   name <location> format */
+	if ((ls = strchr(instr, '<')) && (le = strchr(ls, '>'))) {
+		/* Found the location */
+		*le = '\0';
+		*ls = '\0';
+		*location = ls + 1;
+		if ((ns = strchr(instr, '\"')) && (ne = strchr(ns + 1, '\"'))) {
+			/* Get name out of quotes */
+			*ns = '\0';
+			*ne = '\0';
+			*name = ns + 1;
+			return 0;
+		} else {
+			/* Just trim off any trailing spaces */
+			*name = instr;
+			while(!opbx_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
+				instr[strlen(instr) - 1] = '\0';
+			/* And leading spaces */
+			while(**name && (**name < 33))
+				(*name)++;
+			return 0;
+		}
+	} else {
+		opbx_copy_string(tmp, instr, sizeof(tmp));
+		opbx_shrink_phone_number(tmp);
+		if (opbx_isphonenumber(tmp)) {
+			/* Assume it's just a location */
+			*name = NULL;
+			*location = instr;
+		} else {
+			/* Assume it's just a name.  Make sure it's not quoted though */
+			*name = instr;
+			while(*(*name) && ((*(*name) < 33) || (*(*name) == '\"'))) (*name)++;
+			ne = *name + strlen(*name) - 1;
+			while((ne > *name) && ((*ne < 33) || (*ne == '\"'))) { *ne = '\0'; ne--; }
+			*location = NULL;
+		}
+		return 0;
+	}
+	return -1;
+}

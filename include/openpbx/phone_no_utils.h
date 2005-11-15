@@ -78,7 +78,15 @@ extern int opbx_isphonenumber(const char *n);
 #define OPBX_PRES_NUMBER_NOT_AVAILABLE \
 	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_UNAVAILABLE
 
-int opbx_parse_caller_presentation(const char *data);
-const char *opbx_describe_caller_presentation(int data);
+extern int opbx_parse_caller_presentation(const char *data);
+
+extern const char *opbx_describe_caller_presentation(int data);
+
+extern int opbx_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
+
+extern char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
+
+/*! Destructively parse inbuf into name and location (or number) */
+extern int opbx_callerid_parse(char *instr, char **name, char **location);
 
 #endif /* _OPENPBX_PHONE_NO_UTILS_H */

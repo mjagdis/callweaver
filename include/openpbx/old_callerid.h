@@ -136,16 +136,6 @@ extern int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
  */
 extern int opbx_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
 
-/*! Destructively parse inbuf into name and location (or number) */
-/*!
- * \param inbuf buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
- * \param name address of a pointer-to-char for the name value of the stream.
- * \param location address of a pointer-to-char for the phone number value of the stream.
- * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.
- * Returns 0 on success, -1 on failure.
- */
-extern int opbx_callerid_parse(char *instr, char **name, char **location);
-
 /*! Generate a CAS (CPE Alert Signal) tone for 'n' samples */
 /*!
  * \param outbuf Allocated buffer for data.  Must be at least 2400 bytes unless no SAS is desired
@@ -155,10 +145,6 @@ extern int opbx_callerid_parse(char *instr, char **name, char **location);
  * Returns -1 on error (if len is less than 2400), 0 on success.
  */
 extern int opbx_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
-
-extern int opbx_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
-
-extern char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
 
 /*
  * Caller*ID and other GR-30 compatible generation
