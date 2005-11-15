@@ -356,6 +356,19 @@ nobase_opbxsounds_DATA =  $(SOUNDS)
 EXTRA_DIST = $(SOUNDS)
 
 install-data-hook:
-	if [ ! -e $(DESTDIR)$(opbxsoundsdir)/en ]; then \
+	if test ! -e $(DESTDIR)$(opbxsoundsdir)/en; then \
 		ln -s allison-en $(DESTDIR)$(opbxsoundsdir)/en; \
 	fi
+	if test -z "$(DESTDIR)"; \
+	then \
+		chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxsoundsdir}; \
+	fi; \
+	chmod 0750 $(DESTDIR)${opbxsoundsdir}; \
+	for sound in $(SOUNDS); \
+	do \
+		if test -z "$(DESTDIR)"; \
+		then \
+			chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxsoundsdir}/$${sound}; \
+		fi; \
+		chmod 0640 $(DESTDIR)${opbxsoundsdir}/$${sound}; \
+	done
