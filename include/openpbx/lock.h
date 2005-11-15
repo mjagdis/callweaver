@@ -440,7 +440,8 @@ static inline int __opbx_pthread_cond_timedwait(const char *filename, int lineno
 		t->thread[t->reentrancy] = 0;
 	}
 
-	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime))) {
+	res = pthread_cond_timedwait(cond, &t->mutex, abstime);
+	if (res && res != ETIMEDOUT) {
 		__opbx_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
 				   filename, lineno, func, strerror(res));
 #ifdef THREAD_CRASH
