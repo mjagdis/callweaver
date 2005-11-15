@@ -70,8 +70,13 @@ static int syslog_level_map[] = {
 
 #if defined(__linux__)
 #define GETTID() ((unsigned long)pthread_self())
+#define TIDFMT "%lu"
+#elif defined(__solaris__)
+#define GETTID() ((unsigned int)pthread_self())
+#define TIDFMT "%u"
 #else
-#define GETTID() getpid()
+#define GETTID() ((long)getpid())
+#define TIDFMT "%ld"
 #endif
 
 static char dateformat[256] = "%b %e %T";		/* Original OpenPBX Format */
@@ -671,14 +676,14 @@ static void opbx_log_vsyslog(int level, const char *file, int line, const char *
 		return;
 	}
 	if (level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)GETTID());
+		snprintf(buf, sizeof(buf), "VERBOSE[" TIDFMT "]: ", GETTID());
 		level = __LOG_DEBUG;
 	} else if (level == __LOG_DTMF) {
-		snprintf(buf, sizeof(buf), "DTMF[%ld]: ", (long)GETTID());
+		snprintf(buf, sizeof(buf), "DTMF[" TIDFMT "]: ", GETTID());
 		level = __LOG_DEBUG;
 	} else {
-		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-			 levels[level], (long)GETTID(), file, line, function);
+		snprintf(buf, sizeof(buf), "%s[" TIDFMT "]: %s:%d in %s: ",
+			 levels[level], GETTID(), file, line, function);
 	}
 	s = buf + strlen(buf);
 	vsnprintf(s, sizeof(buf) - strlen(buf), fmt, args);
@@ -751,10 +756,10 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 
 				if (level != __LOG_VERBOSE) {
 					sprintf(linestr, "%d", line);
-					snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: %s:%s %s: " : "%s %s[%ld]: %s:%s %s: ",
+					snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[" TIDFMT "]: %s:%s %s: " : "%s %s[" TIDFMT "]: %s:%s %s: ",
 						date,
 						opbx_term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-						(long)GETTID(),
+						GETTID(),
 						opbx_term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 						opbx_term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						opbx_term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
@@ -768,8 +773,8 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 				int res;
-				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: " : "%s %s[%ld] %s: ", date,
-					levels[level], (long)GETTID(), file);
+				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[" TIDFMT "]: " : "%s %s[" TIDFMT "] %s: ", date,
+					levels[level], GETTID(), file);
 				res = fprintf(chan->fileptr, buf);
 				if (res <= 0 && buf[0] != '\0') {	/* Error, no characters printed */
 					fprintf(stderr,"**** OpenPBX Logging Error: ***********\n");
