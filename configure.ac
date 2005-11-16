@@ -477,6 +477,22 @@ AC_DEFINE([__BIG_ENDIAN],4321,[for the places where it is not defined])
 
 dnl ############################################################################
 
+SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
+SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
+case "${host}" in
+  *cygwin*)
+	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_WIN"
+        ;;
+  *)
+	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_UNIX"
+        ;;
+esac  
+AC_SUBST([SQLITE3_THREADSAFE_LIBS])
+AC_SUBST([SQLITE3_THREADSAFE_CFLAGS])
+
+
+dnl ############################################################################
+
 AC_ARG_WITH([tiff-includes],
 	[AC_HELP_STRING([--with-tiff-includes],[Location of libtiff include files.])],
 	[CFLAGS="$CFLAGS -I${withval}"])
@@ -595,7 +611,88 @@ fi
 AC_SUBST(opbxrunuser)
 AC_SUBST(opbxrungroup)  
 
-dnl ########## SRTP #########
+dnl ############################################################################
+
+AC_ARG_ENABLE([jabber],
+	[AC_HELP_STRING([--enable-jabber],[Enable jabber support. (default=no)])],,[enable_jabber="no"])
+
+if test "${enable_jabber}" = "yes"; then
+   PKG_CHECK_MODULES([LOUDMOUTH],
+	[loudmouth-1.0 >= 1.0.0],
+	[HAVE_LOUDMOUTH=1],
+	[AC_MSG_WARN([loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built])])
+fi
+
+dnl ############################################################################
+
+AC_ARG_ENABLE(javascript,
+        [AC_HELP_STRING([--enable-javascript],[Enable the use of javascript (default=no)])],,
+	[enable_javascript="no"])
+
+if test "${enable_javascript}" = "yes"; then
+   AC_CHECK_LIB([js],[main],[HAVE_LIBJS=1])
+
+   AC_CHECK_HEADERS([jstypes.h],[HAVE_JSSCRIPT_H=1],,
+[#define XP_UNIX
+])
+   AC_CHECK_HEADERS([js/jstypes.h],[HAVE_JS_JSSCRIPT_H=1],,
+[#define XP_UNIX
+])
+
+   if test -n "$HAVE_LIBJS" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \); then
+      JS_CFLAGS="-DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE"
+      if test -n "${HAVE_JS_JSSCRIPT_H}"; then
+	 JS_CFLAGS="${JSCFLAGS} -I/usr/include/js"
+      fi
+      JS_LDFLAGS="-ljs"
+      AC_SUBST(JS_CFLAGS)
+      AC_SUBST(JS_LDFLAGS)
+   fi
+
+   AC_PATH_PROG([NSPRCONFIG], [nspr-config])
+
+   if test -n "${NSPRCONFIG}"; then
+      HAVE_NSPR=1
+      NSPR_CFLAGS=`${NSPRCONFIG} --cflags`
+      NSPR_LDFLAGS=`${NSPRCONFIG} --libs`
+      AC_SUBST(NSPR_CFLAGS)
+      AC_SUBST(NSPR_LDFLAGS)
+   else
+      PKG_CHECK_MODULES([NSPR],
+	[mozilla-nspr],
+	[HAVE_NSPR=1])
+      AC_SUBST(NSPR_CFLAGS)
+      AC_SUBST(NSPR_LDFLAGS)
+   fi
+fi
+
+dnl ############################################################################
+
+AC_ARG_ENABLE([odbc],
+	[AC_HELP_STRING([--enable-odbc],[Enable support for ODBC (default=yes)])],,[enable_odbc="yes"])
+
+if test "${enable_odbc}" = "yes"; then
+   AC_CHECK_LIB([odbc], [main], [HAVE_LIBODBC=1])
+
+   if test -n "${HAVE_LIBODBC}"; then
+      ODBC_CFLAGS=""
+      ODBC_LIBS="-lodbc"
+   fi
+fi
+
+AC_SUBST([ODBC_CFLAGS])
+AC_SUBST([ODBC_LIBS])
+
+dnl ############################################################################
+
+AC_ARG_ENABLE([postgresql],
+	[AC_HELP_STRING([--enable-postgresql],[Enable support for PostgreSQL. (default=yes)])],,[enable_postgresql="yes"])
+
+if test "${enable_postgresql}" = "yes"; then
+   CT_CHECK_POSTGRES_DB
+fi
+
+dnl ############################################################################
 
 AC_ARG_ENABLE([srtp],
 	[AC_HELP_STRING([--enable-srtp],[Enable support for SRTP.])],,[enable_srtp="no"])
@@ -1178,7 +1275,7 @@ if test "${with_chan_capi}" = "yes" ; then
 	fi
 fi
 
-AM_CONDITIONAL([WANT_CHAN_CAPI],[test "${want_chan_capi}" = "yes" -a -n "${HAVE_CAPI20_H}" -a -n "${HAVE_CAPIUTILS_H}"])
+AM_CONDITIONAL([WANT_CHAN_CAPI],[test "${with_chan_capi}" = "yes" -a -n "${HAVE_CAPI20_H}" -a -n "${HAVE_CAPIUTILS_H}"])
 
 dnl ############################################################################
 
@@ -1285,6 +1382,26 @@ AC_ARG_WITH([chan_zap],
 
 AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${enable_zaptel}" = "yes" -a "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}"])
 
+dnl app_icd
+#app_icd = "no"
+#AC_ARG_WITH(app_icd,
+#	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],,[with_app_icd="no"])
+#
+#
+
+dnl ############################################################################
+dnl ############################################################################
+dnl ###
+dnl ### CDR
+dnl ###
+dnl ############################################################################
+dnl ############################################################################
+
+AC_ARG_WITH(cdr_pgsql,
+	[AC_HELP_STRING([--with-cdr_pgsql],[Build and install cdr_pgsql (default=no) (requires --enable-postgresql])],,[with_cdr_pgsql="no"])
+
+AM_CONDITIONAL([WANT_CDR_PGSQL],[test "${enable_postgresql}" = "yes" -a "$with_cdr_pgsql" = "yes"])
+
 dnl ############################################################################
 dnl ############################################################################
 dnl ###
@@ -1292,13 +1409,6 @@ dnl ### Codecs
 dnl ###
 dnl ############################################################################
 dnl ############################################################################
-
-dnl app_icd
-#app_icd = "no"
-#AC_ARG_WITH(app_icd,
-#	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],,[with_app_icd="no"])
-#
-#
 
 AC_ARG_WITH([codec_speex],
 	[AC_HELP_STRING([--with-codec_speex],[Build and install codec_speex (default=yes)])],,[with_codec_speex="yes"])
@@ -1312,7 +1422,13 @@ fi
 
 AM_CONDITIONAL([WANT_CODEC_SPEEX],[test "${with_codec_speex}" = "yes" -a -n "${HAVE_LIBSPEEX}" -a -n "${HAVE_SPEEX_H}"])
 
-##### functions
+dnl ############################################################################
+dnl ############################################################################
+dnl ###
+dnl ### Functions
+dnl ###
+dnl ############################################################################
+dnl ############################################################################
 
 AC_ARG_WITH([func_callerid],
         [AC_HELP_STRING([--with-func_callerid],[Build and install func_callerid (default=yes)])],,
@@ -1320,11 +1436,15 @@ AC_ARG_WITH([func_callerid],
 
 AM_CONDITIONAL([WANT_FUNC_CALLERID],[test "${with_func_callerid}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_cdr],
         [AC_HELP_STRING([--with-func_cdr],[Build and install func_cdr (default=yes)])],,
         [with_func_cdr="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_CDR],[test "${with_func_cdr}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_db],
         [AC_HELP_STRING([--with-func_db],[Build and install func_db (default=yes)])],,
@@ -1332,11 +1452,15 @@ AC_ARG_WITH([func_db],
 
 AM_CONDITIONAL([WANT_FUNC_DB],[test "${with_func_db}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_enum],
         [AC_HELP_STRING([--with-func_enum],[Build and install func_enum (default=yes)])],,
         [with_func_enum="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_ENUM],[test "${with_func_enum}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_env],
         [AC_HELP_STRING([--with-func_env],[Build and install func_env (default=yes)])],,
@@ -1344,11 +1468,15 @@ AC_ARG_WITH([func_env],
 
 AM_CONDITIONAL([WANT_FUNC_ENV],[test "${with_func_env}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_fileexists],
         [AC_HELP_STRING([--with-func_fileexists],[Build and install func_fileexists (default=yes)])],,
         [with_func_fileexists="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_FILEEXISTS],[test "${with_func_fileexists}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_groupcount],
         [AC_HELP_STRING([--with-func_groupcount],[Build and install func_groupcount (default=yes)])],,
@@ -1356,11 +1484,15 @@ AC_ARG_WITH([func_groupcount],
 
 AM_CONDITIONAL([WANT_FUNC_GROUPCOUNT],[test "${with_func_groupcount}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_language],
         [AC_HELP_STRING([--with-func_language],[Build and install func_language (default=yes)])],,
         [with_func_language="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_LANGUAGE],[test "${with_func_language}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_logic],
         [AC_HELP_STRING([--with-func_logic],[Build and install func_logic (default=yes)])],,
@@ -1368,11 +1500,15 @@ AC_ARG_WITH([func_logic],
 
 AM_CONDITIONAL([WANT_FUNC_LOGIC],[test "${with_func_logic}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_math],
         [AC_HELP_STRING([--with-func_math],[Build and install func_math (default=yes)])],,
         [with_func_math="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_MATH],[test "${with_func_math}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_md5],
         [AC_HELP_STRING([--with-func_md5],[Build and install func_md5 (default=yes)])],,
@@ -1380,11 +1516,15 @@ AC_ARG_WITH([func_md5],
 
 AM_CONDITIONAL([WANT_FUNC_MD5],[test "${with_func_md5}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_moh],
         [AC_HELP_STRING([--with-func_moh],[Build and install func_moh (default=yes)])],,
         [with_func_moh="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_MOH],[test "${with_func_moh}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_strings],
         [AC_HELP_STRING([--with-func_strings],[Build and install func_strings (default=yes)])],,
@@ -1392,11 +1532,15 @@ AC_ARG_WITH([func_strings],
 
 AM_CONDITIONAL([WANT_FUNC_STRINGS],[test "${with_func_strings}" = "yes"])
 
+dnl ############################################################################
+
 AC_ARG_WITH([func_timeout],
         [AC_HELP_STRING([--with-func_timeout],[Build and install func_timeout (default=yes)])],,
         [with_func_timeout="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_TIMEOUT],[test "${with_func_timeout}" = "yes"])
+
+dnl ############################################################################
 
 AC_ARG_WITH([func_uri],
         [AC_HELP_STRING([--with-func_uri],[Build and install func_uri (default=yes)])],,
@@ -1404,6 +1548,12 @@ AC_ARG_WITH([func_uri],
 
 AM_CONDITIONAL([WANT_FUNC_URI],[test "${with_func_uri}" = "yes"])
 
+dnl ############################################################################
+dnl ############################################################################
+dnl ###
+dnl ### PBX
+dnl ###
+dnl ############################################################################
 dnl ############################################################################
 
 AC_ARG_WITH([pbx_dundi],
@@ -1425,8 +1575,49 @@ AC_ARG_WITH([pbx_realtime],
 AM_CONDITIONAL([WANT_PBX_REALTIME],[test "${with_pbx_realtime}" = "yes"])
 
 dnl ############################################################################
+dnl ############################################################################
+dnl ###
+dnl ### Resources
+dnl ###
+dnl ############################################################################
+dnl ############################################################################
 
-##### resources
+AC_ARG_WITH(res_config_odbc,
+        [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no) (requires --enable-odbc)])],
+	[with_res_config_odbc="no"])
+
+AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_config_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
+
+dnl ############################################################################
+
+AC_ARG_WITH(res_config_pgsql,
+	[AC_HELP_STRING([--with-res_config_pgsql],[Build and install res_config_pgsql (default=no) (requires --enable-postgresql])],,[with_res_config_pgsql="no"])
+
+AM_CONDITIONAL([WANT_RES_CONFIG_PGSQL],[test "${enable_postgresql}" = "yes" -a "${with_res_config_pgsql}" = "yes"])
+
+dnl ############################################################################
+
+AC_ARG_WITH([res_jabber],
+	[AC_HELP_STRING([--with-res_jabber],[Build and install res_jabber (default=no) (requires --enable-jabber])],,[with_res_jabber="no"])
+
+AM_CONDITIONAL([WANT_RES_JABBER],[test "${enable_jabber}" = "yes" -a "${with_res_jabber}" = "yes" -a -n "${HAVE_LOUDMOUTH}"])
+
+dnl ############################################################################
+
+AC_ARG_WITH([res_js],
+	[AC_HELP_STRING([--with-res_js],[Build and install res_js (default=no) (requires --enable-javascript)])],,[with_res_js="no"])
+
+AM_CONDITIONAL([WANT_RES_JS],[test "${enable_javascript}" = "yes" -a "${with_res_js}" = "yes" -a -n "${HAVE_LIBJS}" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \) -a -n "${HAVE_NSPR}"])  
+
+dnl ############################################################################
+
+AC_ARG_WITH([res_odbc],
+	[AC_HELP_STRING([--with-res_odbc],[Build and install res_odbc (default=no) (requires --enable-odbc)])],,
+	[with_res_odbc="no"])
+
+AM_CONDITIONAL([WANT_RES_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
+
+dnl ############################################################################
 
 dnl res_osp ... open settlement protocol handling
 dnl look for Transnexus OSP Toolkit (stolen from the OpenH323 configure.ac)
@@ -1439,7 +1630,7 @@ dnl MSWIN_CHECK_DIR  transnexus_osp,pthread\lib
 dnl MSWIN_CHECK_DIR  transnexus_osp,pthread\include
 
 AC_ARG_ENABLE(transnexusosp,
-       [AC_HELP_STRING([--disable-transnexusosp],[disable support for the Transnexus OSP toolkit])])
+       [AC_HELP_STRING([--disable-transnexusosp],[disable support for the Transnexus OSP toolkit])],,[enable_transnexusosp="no"])
 
 if test "${enable_transnexusosp}z" = "z" ; then
   enable_transnexusosp="yes"
@@ -1478,243 +1669,24 @@ AC_SUBST(OSP_INCLUDE)
 AC_SUBST(OSP_CFLAGS)
 AM_CONDITIONAL([WANT_OSP],[test -n "${TRANSNEXUS_OSP}"])
 
-#res_jabber
+dnl ############################################################################
 
-dnl Selector for jabber support
-AC_ARG_ENABLE(jabber,
-	[AC_HELP_STRING([--enable-jabber],[Enable jabber support.])],,
-	[enable_jabber="no"])
+AC_ARG_WITH(res_noise,
+	[AC_HELP_STRING([--with-res_noise],[Build and install res_noise (default=no).])],,[with_res_noise="yes"])
 
-dnl Loudmouth/Jabber library detection :)
-if test "${enable_jabber}" = "yes"; then
-   PKG_CHECK_MODULES([LOUDMOUTH],
-	[loudmouth-1.0 >= 1.0.0],
-	[HAVE_LOUDMOUTH=1],
-	[AC_MSG_WARN([loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built])])
-fi
+AM_CONDITIONAL([WANT_RES_NOISE],[test "${with_res_noise}" = "yes"])
 
-AC_ARG_WITH([res_jabber],
-	[AC_HELP_STRING([--with-res_jabber],[Build and install res_jabber (default=no)])],,
-	[with_res_jabber="no"])
+dnl ############################################################################
 
-AM_CONDITIONAL([WANT_RES_JABBER],[test "${enable_jabber}" = "yes" -a "${with_res_jabber}" = "yes" -a -n "${HAVE_LOUDMOUTH}"])
-
-# res_sqlite
-dnl Sqlite ressource module
-SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
-SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
-case "${host}" in
-  *cygwin*)
-	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_WIN"
-        ;;
-  *)
-	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_UNIX"
-        ;;
-esac  
-AC_SUBST([SQLITE3_THREADSAFE_LIBS])
-AC_SUBST([SQLITE3_THREADSAFE_CFLAGS])
- 
-
-dnl Selector for res_sqlite support
 AC_ARG_WITH(res_sqlite,
         [AC_HELP_STRING([--with-res_sqlite],[Build and install res_sqlite (default=no)])],,[with_res_sqlite="no"])
 
 AM_CONDITIONAL([WANT_RES_SQLITE],[test "${with_res_sqlite}" = "yes"])
 
-dnl postgresql -- first need to check if it is there and than can check for if someone wants res_config_pgsql and cdr_pgsql
-CT_CHECK_POSTGRES_DB
-
-AC_ARG_WITH(res_config_pgsql,
-	[AC_HELP_STRING([--with-res_config_pgsql],[Build and install res_config_pgsql (default = no)])],,
-	[with_res_config_pgsql="no"])
-
-AM_CONDITIONAL([WANT_RES_CONFIG_PGSQL],[test "$with_res_config_pgsql" = "yes"])
-
-AC_ARG_WITH(cdr_pgsql,
-	[AC_HELP_STRING([--with-cdr_pgsql],[Build and install cdr_pgsql (default = no)])],,
-	[with_cdr_pgsql="no"])
-
-AM_CONDITIONAL([WANT_CDR_PGSQL],[test "$with_cdr_pgsql" = "yes"])
-
-AC_CHECK_LIB([odbc], [main], [HAVE_LIBODBC=1])
-
-if test -n "${HAVE_LIBODBC}"; then
-   ODBC_CFLAGS=""
-   ODBC_LIBS="-lodbc"
-fi
-
-AC_SUBST([ODBC_CFLAGS])
-AC_SUBST([ODBC_LIBS])
-
-AC_ARG_WITH(res_odbc,
-	[AC_HELP_STRING([--with-res_odbc],[Build and install res_odbc (default=no)])],,
-	[with_res_odbc="no"])
-
-AM_CONDITIONAL([WANT_RES_ODBC],[test "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
-
-AC_ARG_WITH(res_config_odbc,
-        [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no)])],
-	[with_res_config_odbc="no"])
-
-AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${with_res_config_odbc}" -a -n "${HAVE_LIBODBC}"])
-
-#
-# Optional Packages (odbc,mysql,loudmouth for jabber,pgsql,dbi and system sqlite. Also system speex codec
-# and system ilbc codec library
-#
-######
-#
-# MySQL
-#
-AC_DEFUN([MYSQL_INC_CHK],
-	[if test -r $i$1/mysql.h; then MYSQL_INCDIR=$i$1; break; fi])
-AC_DEFUN([MYSQL_LIB_CHK],
-	[if test -r $i$1/libmysqlclient.a -o -r $i$1/libmysqlclient.so; then MYSQL_LIBDIR=$i$1; break; fi])
-
-AC_MSG_CHECKING(for MySQL)
-AC_ARG_WITH(mysql,
-	[AC_HELP_STRING([--with-mysql=DIR],[Normally, configure will scan all possible default installation paths for mysql. When it fails use this command to tell configure where MySQL installation root directory is.])],,[with_mysql="no"])
-AC_ARG_WITH(mysql-includes,
-	[AC_HELP_STRING([--with-mysql-includes=DIR],[Location of MySQL includes])],,[with_mysql_includes=""])
-
-AC_ARG_WITH(mysql-libs,
-	[AC_HELP_STRING([--with-mysql-libs=DIR],[Location of MySQL libraries],,[with_mysql_libs=""])])
-
-locations="/usr /usr/local /opt /usr/sfw"
-
-if test "x${with_mysql}" != "xno" ; then
-
-	if test "x${with_mysql}" != "xyes" ; then
-		locations="$with_mysql $locations"
-	fi
-
-	lib_locations="$locations"
-	include_locations="$locations"
-
-	if test -n "x${with_mysql_includes}" && \
-	   test "x${with_mysql_includes}" != "xno" && \
-	   test "x${with_mysql_includes}" != "xyes"
-	then
-		include_locations="$with_mysql_includes $locations"
-	fi
-
-	if test -n "x${with_mysql_libs}" && \
-	   test "x${with_mysql_libs}" != "xno" && \
-	   test "x${with_mysql_libs}" != "xyes"
-	then
-		lib_locations="$with_mysql_libs $locations"
-	fi
-
-        # Autodetect
-        for i in $include_locations; do
-		MYSQL_INC_CHK(/mysql)
-		MYSQL_INC_CHK(/mysql/include)
-		MYSQL_INC_CHK(/include)
-		MYSQL_INC_CHK(/include/mysql)
-        done
-
-        for i in $lib_locations; do
-		MYSQL_LIB_CHK(/mysql)
-		MYSQL_LIB_CHK(/mysql/lib)
-		MYSQL_LIB_CHK(/lib)
-		MYSQL_LIB_CHK(/lib/mysql)
-        done
-
-	# result
-	if test -z "${MYSQL_LIBDIR}" ; then
-		AC_MSG_ERROR([MySQL libs not found])
-	elif test -z "${MYSQL_INCDIR}" ; then
-		AC_MSG_ERROR([MySQL includes not found])
-	fi
-
-	AC_MSG_RESULT([yes])
-	HAVE_MYSQL="yes"
-
-	# special check, adding -I/usr/include or -I/usr/local/include
-	# is considered evil and may break things
-	if test "x${MYSQL_INCDIR}" != "x/usr/include" && \
-	   test "x${MYSQL_INCDIR}" != "x/usr/local/include"
-	then
-		MYSQL_INCLUDE="-I$MYSQL_INCDIR"
-	fi
-
-	MYSQL_LIBS="-L$MYSQL_LIBDIR -lmysqlclient"
-	MYSQL_DEFINES="-DHAVE_MYSQL"
-
-	# include zlib if available 
-	# (hmm does mysql need it? no idea how to check that...)
-	if test "x${HAVE_LIBZ}" = "xyes" ; then
-		MYSQL_LIBS="$MYSQL_LIBS -lz"
-	fi
-
-	AC_DEFINE(HAVE_MYSQL,,[MySQL support])
-	AC_SUBST(MYSQL_INCLUDE)
-	AC_SUBST(MYSQL_LIBS)
-	AC_SUBST(MYSQL_DEFINES)
-	AC_SUBST(HAVE_MYSQL)
-
-	unset lib_locations include_locations
-else
-	AC_MSG_RESULT(skipped)
-	HAVE_MYSQL="no"
-fi
+dnl ############################################################################
 
 
-# res_js
 
-AC_ARG_ENABLE(javascript,
-        [AC_HELP_STRING([--enable-javascript],[Enable the use of javascript (default=no)])],,
-	[enable_javascript="no"])
-
-if test "${enable_javascript}" = "yes"; then
-   AC_CHECK_LIB([js],[main],[HAVE_LIBJS=1])
-
-   AC_CHECK_HEADERS([jstypes.h],[HAVE_JSSCRIPT_H=1],,
-[#define XP_UNIX
-])
-   AC_CHECK_HEADERS([js/jstypes.h],[HAVE_JS_JSSCRIPT_H=1],,
-[#define XP_UNIX
-])
-
-   if test -n "$HAVE_LIBJS" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \); then
-      JS_CFLAGS="-DXP_UNIX -DSVR4 -DSYSV -D_BSD_SOURCE -DPOSIX_SOURCE -DHAVE_LOCALTIME_R -DX86_LINUX  -DDEBUG -DDEBUG_root -DJS_THREADSAFE -D_GNU_SOURCE"
-      if test -n "${HAVE_JS_JSSCRIPT_H}"; then
-	 JS_CFLAGS="${JSCFLAGS} -I/usr/include/js"
-      fi
-      JS_LDFLAGS="-ljs"
-      AC_SUBST(JS_CFLAGS)
-      AC_SUBST(JS_LDFLAGS)
-   fi
-
-   AC_PATH_PROG([NSPRCONFIG], [nspr-config])
-
-   if test -n "${NSPRCONFIG}"; then
-      HAVE_NSPR=1
-      NSPR_CFLAGS=`${NSPRCONFIG} --cflags`
-      NSPR_LDFLAGS=`${NSPRCONFIG} --libs`
-      AC_SUBST(NSPR_CFLAGS)
-      AC_SUBST(NSPR_LDFLAGS)
-   else
-      PKG_CHECK_MODULES([NSPR],
-	[mozilla-nspr],
-	[HAVE_NSPR=1])
-      AC_SUBST(NSPR_CFLAGS)
-      AC_SUBST(NSPR_LDFLAGS)
-   fi
-fi
-
-AC_ARG_WITH([res_js],
-	[AC_HELP_STRING([--with-res_js],[Build and install res_js (default=no) (you must also --enable-javascript)])],,[with_res_js="no"])
-
-AM_CONDITIONAL([WANT_RES_JS],[test "${enable_javascript}" = "yes" -a "${with_res_js}" = "yes" -a -n "${HAVE_LIBJS}" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \) -a -n "${HAVE_NSPR}"])  
-
- 
-
-AC_ARG_WITH(res_noise,
-	[AC_HELP_STRING([--with-res_noise],[Build res_noise.])],,[with_res_noise="yes"])
-
-AM_CONDITIONAL([WANT_RES_NOISE],[test "${with_res_noise}" = "yes"])
-             
 AC_SUBST(SVN)
 AC_SUBST(GREP)
 AC_SUBST(GROUPADD)
@@ -1774,13 +1746,6 @@ echo "   ************************"
 echo "   *   Configure status   *"
 echo "   ************************"
 echo ""
-
-echo "MySQL Support:       ${HAVE_MYSQL}"
-
-if test "x${HAVE_MYSQL}" = "xyes" ; then
-	echo "MySQL includes:      ${MYSQL_INCDIR}"
-	echo "MySQL libs:          ${MYSQL_LIBDIR}"
-fi
 
 echo "Loudmouth/Jabber Support:  ${HAVE_LIBLOUDMOUTH}"
 if test "x${HAVE_LIBLOUDMOUTH}" = "xyes" ; then
