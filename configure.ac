@@ -1397,6 +1397,13 @@ dnl ###
 dnl ############################################################################
 dnl ############################################################################
 
+AC_ARG_WITH(cdr_odbc,
+	[AC_HELP_STRING([--with-cdr_odbc],[Build and install cdr_odbc (default=no) (requires --enable-odbc])],,[with_cdr_odbc="no"])
+
+AM_CONDITIONAL([WANT_CDR_ODBC],[test "${enable_odbc}" = "yes" -a "$with_cdr_odbc" = "yes" -a -n "${HAVE_LIBODBC}"])
+
+dnl ############################################################################
+
 AC_ARG_WITH(cdr_pgsql,
 	[AC_HELP_STRING([--with-cdr_pgsql],[Build and install cdr_pgsql (default=no) (requires --enable-postgresql])],,[with_cdr_pgsql="no"])
 
