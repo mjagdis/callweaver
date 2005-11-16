@@ -1203,7 +1203,7 @@ if test "${with_chan_exosip2}" = "yes"; then
    fi
 fi
 
-AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test "${want_chan_exosip2}" = "yes" -a -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}" -a -n "${HAVE_EXOSIP2}"])
+AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test "${with_chan_exosip2}" = "yes" -a -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}" -a -n "${HAVE_EXOSIP2}"])
 
 AC_SUBST([CHAN_EXOSIP2_CFLAGS])
 AC_SUBST([CHAN_EXOSIP2_LIBS])
