@@ -38,8 +38,8 @@ SUBDIRS +=  cdr apps codecs formats channels agi utils res configs sounds
 
 INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)		\
 $(opbxkeydir) $(opbxlogdir) $(opbxlogdir)/cdr-custom			\
-$(opbxlogdir)/cdr-csv $(opbxrundir) $(opbxspooldir) $(opbxsqlitedir)	\
-$(opbxvardir)
+$(opbxlogdir)/cdr-csv $(opbxrundir) $(opbxspooldir)			\
+$(opbxspooldir)/voicemail $(opbxsqlitedir) $(opbxvardir)
 
 install-data-hook:
 	for install_dir in $(INSTALL_DIRS); \
