@@ -79,6 +79,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/dnsmgr.h"
 #include "openpbx/devicestate.h"
 #include "openpbx/linkedlists.h"
+#include "openpbx/localtime.h"
+#include "openpbx/udpfromto.h"
 
 #ifdef OSP_SUPPORT
 #include "openpbx/astosp.h"
@@ -1037,9 +1039,14 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 	char iabuf[INET_ADDRSTRLEN];
 
 	if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
-		res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
-	else
-		res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
+		res=opbx_sendfromto(sipsock, data, len, 0, NULL, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
+	else {
+		struct sockaddr_in from;
+		from.sin_family = AF_INET;
+		memcpy(&from.sin_addr, &p->ourip, sizeof(from.sin_addr));
+
+		res=opbx_sendfromto(sipsock, data, len, 0, (struct sockaddr *)&from, sizeof(struct sockaddr_in), (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
+	}
 	if (res != len) {
 		opbx_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s returned %d: %s\n", data, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), res, strerror(errno));
 	}
@@ -3066,7 +3073,7 @@ static void make_our_tag(char *tagbuf, size_t len)
 }
 
 /*--- sip_alloc: Allocate SIP_PVT structure and set defaults ---*/
-static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method)
+static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct sockaddr_in *sout, int useglobal_nat, const int intended_method)
 {
 	struct sip_pvt *p;
 
@@ -3089,8 +3096,11 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 #endif	
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
-		if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
-			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+		if (sout && sout->sin_addr.s_addr)
+			memcpy(&p->ourip, &sout->sin_addr, sizeof(p->ourip));
+		else
+			if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+				memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
@@ -3165,7 +3175,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
 /*--- find_call: Connect incoming SIP message to current dialog or create new dialog structure */
 /*               Called by handle_request ,sipsock_read */
-static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
+static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout, const int intended_method)
 {
 	struct sip_pvt *p;
 	char *callid;
@@ -3213,7 +3223,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		p = p->next;
 	}
 	opbx_mutex_unlock(&iflock);
-	p = sip_alloc(callid, sin, 1, intended_method);
+	p = sip_alloc(callid, sin, sout, 1, intended_method);
 	if (p)
 		opbx_mutex_lock(&p->lock);
 	return p;
@@ -5533,7 +5543,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			r->callid_valid = 1;
 		}
 		/* Allocate SIP packet for registration */
-		p=sip_alloc( r->callid, NULL, 0, SIP_REGISTER);
+		p=sip_alloc( r->callid, NULL, NULL, 0, SIP_REGISTER);
 		if (!p) {
 			opbx_log(LOG_WARNING, "Unable to allocate registration call\n");
 			return 0;
@@ -5877,7 +5887,7 @@ static void reg_source_db(struct sip_peer *peer)
 		opbx_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
 
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
+		opbx_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from opbxdb: '%s' at %s@%s:%d for %d\n",
 			    peer->name, peer->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
@@ -8963,7 +8973,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		struct sip_request req;
 		struct opbx_variable *var;
 
-		p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
+		p = sip_alloc(NULL, NULL, NULL, 0, SIP_NOTIFY);
 		if (!p) {
 			opbx_log(LOG_WARNING, "Unable to build sip pvt data for notify\n");
 			return RESULT_FAILURE;
@@ -11185,17 +11195,18 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 static int sipsock_read(int *id, int fd, short events, void *ignore)
 {
 	struct sip_request req;
-	struct sockaddr_in sin = { 0, };
+	struct sockaddr_in sin = { 0, }, sout = { 0, };
 	struct sip_pvt *p;
 	int res;
-	socklen_t len;
+	socklen_t len, leno;
 	int nounlock;
 	int recount = 0;
 	char iabuf[INET_ADDRSTRLEN];
 
 	len = sizeof(sin);
+	leno = sizeof(sout);
 	memset(&req, 0, sizeof(req));
-	res = recvfrom(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
+	res = opbx_recvfromto(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len, (struct sockaddr *)&sout, &leno);
 	if (res < 0) {
 #if !defined(__FreeBSD__)
 		if (errno == EAGAIN)
@@ -11231,7 +11242,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	/* Process request, with netlock held */
 retrylock:
 	opbx_mutex_lock(&netlock);
-	p = find_call(&req, &sin, req.method);
+	p = find_call(&req, &sin, &sout, req.method);
 	if (p) {
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		if (p->owner && opbx_mutex_trylock(&p->owner->lock)) {
@@ -11279,7 +11290,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	
-	p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
+	p = sip_alloc(NULL, NULL, NULL, 0, SIP_NOTIFY);
 	if (!p) {
 		opbx_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
 		return -1;
@@ -11504,7 +11515,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 			opbx_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
 		sip_destroy(peer->call);
 	}
-	p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
+	p = peer->call = sip_alloc(NULL, NULL, NULL, 0, SIP_OPTIONS);
 	if (!peer->call) {
 		opbx_log(LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
 		return -1;
@@ -11626,7 +11637,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
 		opbx_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", opbx_getformatname(oldformat), opbx_getformatname(global_capability));
 		return NULL;
 	}
-	p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
+	p = sip_alloc(NULL, NULL, NULL, 0, SIP_INVITE);
 	if (!p) {
 		opbx_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
 		return NULL;
@@ -12702,6 +12713,11 @@ static int reload_config(void)
 				   (const char*)&reuseFlag,
 				   sizeof reuseFlag);
 
+			if (opbx_udpfromto_init(sipsock) < 0) {
+				opbx_log(LOG_ERROR, "Failed to set socket parameters");
+				close(sipsock);
+				sipsock = -1;
+			}
 			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				opbx_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
 						opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
