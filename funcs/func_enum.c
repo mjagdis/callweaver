@@ -200,6 +200,8 @@ int unload_module(void)
 {
 	opbx_custom_function_unregister(&enum_function);
 	opbx_custom_function_unregister(&txtcidname_function);
+	
+	STANDARD_HANGUP_LOCALUSERS;
 
 	return 0;
 }
