@@ -282,7 +282,7 @@ void opbx_md5_hash(char *output, char *input)
 		ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
-int opbx_base64decode(unsigned char *dst, char *src, int max)
+int opbx_base64decode(unsigned char *dst, const char *src, int max)
 {
 	int cnt = 0;
 	unsigned int byte = 0;
@@ -320,7 +320,7 @@ int opbx_base64decode(unsigned char *dst, char *src, int max)
 	return cnt;
 }
 
-int opbx_base64encode(char *dst, unsigned char *src, int srclen, int max)
+int opbx_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 {
 	int cnt = 0;
 	unsigned int byte = 0;
