@@ -1994,10 +1994,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			opbx_set_flag(&(bridge_config.features_caller), OPBX_FEATURE_REDIRECT);
 			break;
 		case 'w':
-			opbx_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMON);
+			opbx_set_flag(&(bridge_config.features_callee), OPBX_FEATURE_AUTOMON);
 			break;
 		case 'W':
-			opbx_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
+			opbx_set_flag(&(bridge_config.features_caller), OPBX_FEATURE_AUTOMON);
 			break;
 		case 'd':
 			nondataquality = 0;
