@@ -101,7 +101,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MAX_EXPIRY	3600
 #define DEFAULT_REGISTRATION_TIMEOUT	20
-#define DEFAULT_REGATTEMPTS_MAX	10
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
@@ -366,7 +365,7 @@ static int global_rtpholdtimeout = 0;
 static int global_rtpkeepalive = 0;
 
 static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;	
-static int global_regattempts_max = DEFAULT_REGATTEMPTS_MAX;
+static int global_regattempts_max = 0;
 
 /* Object counters */
 static int suserobjs = 0;
@@ -5729,7 +5728,7 @@ static int sip_reg_timeout(void *data)
 		__sip_pretend_ack(p);
 	}
 	/* If we have a limit, stop registration and give up */
-	if (global_regattempts_max && r->regattempts > global_regattempts_max) {
+	if (global_regattempts_max && (r->regattempts > global_regattempts_max)) {
 		/* Ok, enough is enough. Don't try any more */
 		/* We could add an external notification here... 
 			steal it from app_voicemail :-) */
@@ -10043,13 +10042,15 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		break;
 	case 403:	/* Forbidden */
 		opbx_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
-		p->registry->regattempts = global_regattempts_max+1;
+		if (global_regattempts_max)
+			p->registry->regattempts = global_regattempts_max+1;
 		opbx_sched_del(sched, r->timeout);
 		opbx_set_flag(p, SIP_NEEDDESTROY);	
 		break;
 	case 404:	/* Not found */
 		opbx_log(LOG_WARNING, "Got 404 Not found on SIP register to service %s@%s, giving up\n", p->registry->username,p->registry->hostname);
-		p->registry->regattempts = global_regattempts_max+1;
+		if (global_regattempts_max)
+			p->registry->regattempts = global_regattempts_max+1;
 		opbx_set_flag(p, SIP_NEEDDESTROY);	
 		r->call = NULL;
 		opbx_sched_del(sched, r->timeout);
@@ -10062,7 +10063,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		break;
 	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
 		opbx_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
-		p->registry->regattempts = global_regattempts_max+1;
+		if (global_regattempts_max)
+			p->registry->regattempts = global_regattempts_max+1;
 		opbx_set_flag(p, SIP_NEEDDESTROY);	
 		r->call = NULL;
 		opbx_sched_del(sched, r->timeout);
@@ -12751,7 +12753,7 @@ static int reload_config(void)
 	global_rtpkeepalive = 0;
 	pedanticsipchecking = 0;
 	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
-	global_regattempts_max = DEFAULT_REGATTEMPTS_MAX;
+	global_regattempts_max = 0;
 	opbx_clear_flag(&global_flags, OPBX_FLAGS_ALL);
 	opbx_set_flag(&global_flags, SIP_DTMF_RFC2833);
 	opbx_set_flag(&global_flags, SIP_NAT_RFC3581);
