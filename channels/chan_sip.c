@@ -896,7 +896,7 @@ static int __sip_do_register(struct sip_registry *r);
 static int sipsock  = -1;
 
 
-static struct sockaddr_in bindaddr;
+static struct sockaddr_in bindaddr = { 0, };
 static struct sockaddr_in externip;
 static char externhost[MAXHOSTNAMELEN] = "";
 static time_t externexpire = 0;
@@ -2727,9 +2727,15 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
 		}
 		res = -1;
 		break;
-	case OPBX_CONTROL_PROGRESS:
 	case OPBX_CONTROL_PROCEEDING:
 		if ((ast->_state != OPBX_STATE_UP) && !opbx_test_flag(p, SIP_PROGRESS_SENT) && !opbx_test_flag(p, SIP_OUTGOING)) {
+		       transmit_response(p, "100 Trying", &p->initreq);
+		       break;
+	       }
+	       res = -1;
+	       break;
+       case OPBX_CONTROL_PROGRESS:
+	       if ((ast->_state != OPBX_STATE_UP) && !opbx_test_flag(p, SIP_PROGRESS_SENT) && !opbx_test_flag(p, SIP_OUTGOING)) {
 			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 			opbx_set_flag(p, SIP_PROGRESS_SENT);	
 			break;
@@ -2798,7 +2804,7 @@ static int sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 	    return OPBX_BRIDGE_FAILED_NOWARN;
      } 
      else
-    	    return opbx_rtp_bridge(c0,c1,flag,fo,rc);
+    	    return opbx_rtp_bridge(c0,c1,flag,fo,rc, 0);
 }
 
 /*--- sip_new: Initiate a call in the SIP channel */
@@ -6897,6 +6903,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		case -3:
 			/* URI not found */
 			transmit_response(p, "404 Not found", &p->initreq);
+			/* Set res back to -2 because we don't want to return an invalid domain message. That check already happened up above. */
+			res = -2;
 			break;
 		}
 		if (option_debug > 1) {
@@ -12698,12 +12706,11 @@ static int reload_config(void)
 	char *utype;
 	struct hostent *hp;
 	int format;
-	int oldport = ntohs(bindaddr.sin_port);
 	char iabuf[INET_ADDRSTRLEN];
 	struct opbx_flags dummy;
 	int auto_sip_domains = 0;
+	struct sockaddr_in old_bindaddr = bindaddr;
 
-	
 	cfg = opbx_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -13017,7 +13024,7 @@ static int reload_config(void)
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
 	bindaddr.sin_family = AF_INET;
 	opbx_mutex_lock(&netlock);
-	if ((sipsock > -1) && (ntohs(bindaddr.sin_port) != oldport)) {
+	if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in)))) {
 		close(sipsock);
 		sipsock = -1;
 	}
@@ -13039,8 +13046,8 @@ static int reload_config(void)
 			}
 			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				opbx_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-						opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
-							strerror(errno));
+				opbx_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+				strerror(errno));
 				close(sipsock);
 				sipsock = -1;
 			} else {
