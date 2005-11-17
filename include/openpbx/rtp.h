@@ -118,7 +118,7 @@ char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, c
 
 void opbx_rtp_setnat(struct opbx_rtp *rtp, int nat);
 
-int opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc);
+int opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms);
 
 int opbx_rtp_proto_register(struct opbx_rtp_protocol *proto);
 

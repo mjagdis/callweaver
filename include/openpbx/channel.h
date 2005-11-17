@@ -140,7 +140,7 @@ struct opbx_channel_tech {
 
 	/*! Bridge two channels of the same type together */
 	enum opbx_bridge_result (* const bridge)(struct opbx_channel *c0, struct opbx_channel *c1, int flags,
-						struct opbx_frame **fo, struct opbx_channel **rc);
+						struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms);
 
 	/*! Indicate a particular condition (e.g. OPBX_CONTROL_BUSY or OPBX_CONTROL_RINGING or OPBX_CONTROL_CONGESTION */
 	int (* const indicate)(struct opbx_channel *c, int condition);

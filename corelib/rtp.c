@@ -1843,7 +1843,7 @@ static struct opbx_rtp_protocol *get_proto(struct opbx_channel *chan)
 /* opbx_rtp_bridge: Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
 	of OpenPBX. */
-enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
+enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms)
 {
 	struct opbx_frame *f;
 	struct opbx_channel *who, *cs[3];
@@ -1857,7 +1857,6 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 	char iabuf[INET_ADDRSTRLEN];
 	
 	void *pvt0, *pvt1;
-	int to;
 	int codec0,codec1, oldcodec0, oldcodec1;
 	
 	memset(&vt0, 0, sizeof(vt0));
@@ -1988,7 +1987,6 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 				}
 				return OPBX_BRIDGE_RETRY;
 		}
-		to = -1;
 		/* Now check if they have changed address */
 		opbx_rtp_get_peer(p1, &t1);
 		opbx_rtp_get_peer(p0, &t0);
@@ -2030,7 +2028,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 			memcpy(&vac0, &vt0, sizeof(vac0));
 			oldcodec0 = codec0;
 		}
-		who = opbx_waitfor_n(cs, 2, &to);
+		who = opbx_waitfor_n(cs, 2, &timeoutms);
 		if (!who) {
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
