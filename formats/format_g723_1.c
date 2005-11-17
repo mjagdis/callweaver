@@ -53,7 +53,7 @@ struct opbx_filestream {
 	/* First entry MUST be reserved for the channel type */
 	void *reserved[OPBX_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct opbx_filestream *next;
 	struct opbx_frame *fr;	/* Frame representation of buf */
 	struct timeval orig;	/* Original frame time */
@@ -68,7 +68,7 @@ static char *name = "g723.1";
 static char *desc = "G.723.1 Simple Timestamp File Format";
 static char *exts = "g723.1|g723";
 
-static struct opbx_filestream *g723_open(int fd)
+static struct opbx_filestream *g723_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -81,7 +81,7 @@ static struct opbx_filestream *g723_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr = (struct opbx_frame *)tmp->buf;
 		tmp->fr->data = tmp->buf + sizeof(struct opbx_frame);
 		tmp->fr->frametype = OPBX_FRAME_VOICE;
@@ -96,7 +96,7 @@ static struct opbx_filestream *g723_open(int fd)
 	return tmp;
 }
 
-static struct opbx_filestream *g723_rewrite(int fd, const char *comment)
+static struct opbx_filestream *g723_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -109,7 +109,7 @@ static struct opbx_filestream *g723_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		opbx_mutex_unlock(&g723_lock);
 		opbx_update_use_count();
@@ -124,11 +124,11 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
 	int res;
 	int delay;
 	/* Read the delay for the next packet, and schedule again if necessary */
-	if (read(s->fd, &delay, 4) == 4) 
+	if (fread(&delay, 1, 4, s->f) == 4) 
 		delay = ntohl(delay);
 	else
 		delay = -1;
-	if (read(s->fd, &size, 2) != 2) {
+	if (fread(&size, 1, 2, s->f) != 2) {
 		/* Out of data, or the file is no longer valid.  In any case
 		   go ahead and stop the stream */
 		return NULL;
@@ -146,7 +146,7 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
 	s->fr->offset = OPBX_FRIENDLY_OFFSET;
 	s->fr->datalen = size;
 	s->fr->data = s->buf + sizeof(struct opbx_frame) + OPBX_FRIENDLY_OFFSET;
-	if ((res = read(s->fd, s->fr->data , size)) != size) {
+	if ((res = fread(s->fr->data, 1, size, s->f)) != size) {
 		opbx_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
 		return NULL;
 	}
@@ -172,7 +172,7 @@ static void g723_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&g723_lock);
 	opbx_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -200,16 +200,16 @@ static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
 		opbx_log(LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
 		return 0;
 	}
-	if ((res = write(fs->fd, &delay, 4)) != 4) {
+	if ((res = fwrite(&delay, 1, 4, fs->f)) != 4) {
 		opbx_log(LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
 		return -1;
 	}
 	size = htons(f->datalen);
-	if ((res =write(fs->fd, &size, 2)) != 2) {
+	if ((res = fwrite(&size, 1, 2, fs->f)) != 2) {
 		opbx_log(LOG_WARNING, "Unable to write size: res=%d (%s)\n", res, strerror(errno));
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 		opbx_log(LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
 		return -1;
 	}	
@@ -224,7 +224,7 @@ static int g723_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 static int g723_trunc(struct opbx_filestream *fs)
 {
 	/* Truncate file to current length */
-	if (ftruncate(fs->fd, lseek(fs->fd, 0, SEEK_CUR)) < 0)
+	if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
 		return -1;
 	return 0;
 }

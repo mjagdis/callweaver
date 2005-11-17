@@ -62,9 +62,9 @@ struct opbx_format {
 	/* Format of frames it uses/provides (one only) */
 	int format;
 	/* Open an input stream, and start playback */
-	struct opbx_filestream * (*open)(int fd);
+	struct opbx_filestream * (*open)(FILE * f);
 	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
-	struct opbx_filestream * (*rewrite)(int fd, const char *comment);
+	struct opbx_filestream * (*rewrite)(FILE *f, const char *comment);
 	/* Write a frame to a channel */
 	int (*write)(struct opbx_filestream *, struct opbx_frame *);
 	/* seek num samples into file, whence(think normal seek) */
@@ -106,8 +106,8 @@ OPBX_MUTEX_DEFINE_STATIC(formatlock);
 static struct opbx_format *formats = NULL;
 
 int opbx_format_register(const char *name, const char *exts, int format,
-						struct opbx_filestream * (*open)(int fd),
-						struct opbx_filestream * (*rewrite)(int fd, const char *comment),
+						struct opbx_filestream * (*open)(FILE *f),
+						struct opbx_filestream * (*rewrite)(FILE *f, const char *comment),
 						int (*write)(struct opbx_filestream *, struct opbx_frame *),
 						int (*seek)(struct opbx_filestream *, long sample_offset, int whence),
 						int (*trunc)(struct opbx_filestream *),
@@ -351,6 +351,7 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 	struct opbx_filestream *s;
 	int res=0, ret = 0;
 	char *ext=NULL, *exts, *fn, *nfn;
+	FILE *bfile;
 	struct opbx_channel *chan = (struct opbx_channel *)filename2;
 	
 	/* Start with negative response */
@@ -413,9 +414,10 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 						case ACTION_OPEN:
 							if ((ret < 0) && ((chan->writeformat & f->format) ||
 										((f->format >= OPBX_FORMAT_MAX_AUDIO) && fmt))) {
-								ret = open(fn, O_RDONLY);
-								if (ret >= 0) {
-									s = f->open(ret);
+								bfile = fopen(fn, "r");
+								if (bfile) {
+									ret = 1;
+									s = f->open(bfile);
 									if (s) {
 										s->lasttimeout = -1;
 										s->fmt = f;
@@ -426,11 +428,14 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 										else
 											chan->vstream = s;
 									} else {
-										close(ret);
-										opbx_log(LOG_WARNING, "Unable to open fd on %s\n", fn);
+										fclose(bfile);
+										opbx_log(LOG_WARNING, "Unable to open file on %s\n", fn);
+										ret = -1;
 									}
-								} else
+								} else{
 									opbx_log(LOG_WARNING, "Couldn't open file %s\n", fn);
+									ret = -1;
+								}
 							}
 							break;
 						default:
@@ -472,7 +477,6 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	       set it up.
 		   
 	*/
-	int fd = -1;
 	int fmts = -1;
 	char filename2[256]="";
 	char filename3[256];
@@ -522,8 +526,8 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	/* Set the channel to a format we can work with */
 	res = opbx_set_write_format(chan, fmts);
 	
- 	fd = opbx_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
-	if (fd >= 0)
+ 	res = opbx_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
+	if (res >= 0)
 		return chan->stream;
 	return NULL;
 }
@@ -819,7 +823,7 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 
 struct opbx_filestream *opbx_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
-	int fd;
+	FILE *bfile;
 	struct opbx_format *f;
 	struct opbx_filestream *fs = NULL;
 	char *fn;
@@ -834,13 +838,13 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *type, co
 			continue;
 
 		fn = build_filename(filename, type);
-		fd = open(fn, flags);
-		if (fd >= 0) {
+		bfile = fopen(fn, "r");
+		if (bfile) {
 			errno = 0;
 
-			if (!(fs = f->open(fd))) {
+			if (!(fs = f->open(bfile))) {
 				opbx_log(LOG_WARNING, "Unable to open %s\n", fn);
-				close(fd);
+				fclose(bfile);
 				free(fn);
 				continue;
 			}
@@ -866,6 +870,7 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *type, co
 struct opbx_filestream *opbx_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
 	int fd, myflags = 0;
+	FILE *bfile;
 	struct opbx_format *f;
 	struct opbx_filestream *fs = NULL;
 	char *fn, *orig_fn = NULL;
@@ -893,11 +898,20 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 
 		fn = build_filename(filename, type);
 		fd = open(fn, flags | myflags, mode);
+		if (fd > -1) {
+			/* fdopen() the resulting file stream */
+			bfile = fdopen(fd, ((flags | myflags) & O_RDWR) ? "w+" : "w");
+			if (!bfile) {
+				opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+				close(fd);
+				fd = -1;
+			}
+		}
 		
 		if (option_cache_record_files && fd >= 0) {
 			char *c;
 
-			close(fd);
+			fclose(bfile);
 			/*
 			  We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
 			  What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
@@ -914,11 +928,20 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 			free(fn);
 			fn = buf;
 			fd = open(fn, flags | myflags, mode);
+			if (fd > -1) {
+				/* fdopen() the resulting file stream */
+				bfile = fdopen(fd, ((flags | myflags) & O_RDWR) ? "w+" : "w");
+				if (!bfile) {
+					opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+					close(fd);
+					fd = -1;
+				}
+			}
 		}
 		if (fd >= 0) {
 			errno = 0;
 
-			if ((fs = f->rewrite(fd, comment))) {
+			if ((fs = f->rewrite(bfile, comment))) {
 				fs->trans = NULL;
 				fs->fmt = f;
 				fs->flags = flags;

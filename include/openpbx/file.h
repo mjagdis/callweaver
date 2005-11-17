@@ -49,8 +49,8 @@ struct opbx_filestream;
  * returns 0 on success, -1 on failure
  */
 int opbx_format_register(const char *name, const char *exts, int format,
-						struct opbx_filestream * (*open)(int fd),
-						struct opbx_filestream * (*rewrite)(int fd, const char *comment),
+						struct opbx_filestream * (*open)(FILE *f),
+						struct opbx_filestream * (*rewrite)(FILE *f, const char *comment),
 						int (*write)(struct opbx_filestream *, struct opbx_frame *),
 						int (*seek)(struct opbx_filestream *, long offset, int whence),
 						int (*trunc)(struct opbx_filestream *),

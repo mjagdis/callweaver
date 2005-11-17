@@ -65,7 +65,7 @@ struct opbx_filestream {
 	/* Believe it or not, we must decode/recode to account for the
 	   weird MS format */
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct opbx_frame fr;				/* Frame information */
 	char waste[OPBX_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -80,7 +80,7 @@ static char *name = "gsm";
 static char *desc = "Raw GSM data";
 static char *exts = "gsm";
 
-static struct opbx_filestream *gsm_open(int fd)
+static struct opbx_filestream *gsm_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -93,7 +93,7 @@ static struct opbx_filestream *gsm_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->gsm;
 		tmp->fr.frametype = OPBX_FRAME_VOICE;
 		tmp->fr.subclass = OPBX_FORMAT_GSM;
@@ -107,7 +107,7 @@ static struct opbx_filestream *gsm_open(int fd)
 	return tmp;
 }
 
-static struct opbx_filestream *gsm_rewrite(int fd, const char *comment)
+static struct opbx_filestream *gsm_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -120,7 +120,7 @@ static struct opbx_filestream *gsm_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		opbx_mutex_unlock(&gsm_lock);
 		opbx_update_use_count();
@@ -138,7 +138,7 @@ static void gsm_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&gsm_lock);
 	opbx_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 }
 
@@ -152,7 +152,7 @@ static struct opbx_frame *gsm_read(struct opbx_filestream *s, int *whennext)
 	s->fr.datalen = 33;
 	s->fr.mallocd = 0;
 	s->fr.data = s->gsm;
-	if ((res = read(s->fd, s->gsm, 33)) != 33) {
+	if ((res = fread(s->gsm, 1, 33, s->f)) != 33) {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -178,7 +178,7 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 		int len=0;
 		while(len < f->datalen) {
 			conv65(f->data + len, gsm);
-			if ((res = write(fs->fd, gsm, 66)) != 66) {
+			if ((res = fwrite(gsm, 1, 66, fs->f)) != 66) {
 				opbx_log(LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
 				return -1;
 			}
@@ -189,7 +189,7 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 			opbx_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
 			return -1;
 		}
-		if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+		if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 				opbx_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
 				return -1;
 		}
@@ -202,8 +202,9 @@ static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	off_t offset=0,min,cur,max,distance;
 	
 	min = 0;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	/* have to fudge to frame here, so not fully to sample */
 	distance = (sample_offset/160) * 33;
 	if(whence == SEEK_SET)
@@ -218,23 +219,23 @@ static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 		offset = (offset > max)?max:offset;
 	} else if (offset > max) {
 		int i;
-		lseek(fs->fd, 0, SEEK_END);
+		fseek(fs->f, 0, SEEK_END);
 		for (i=0; i< (offset - max) / 33; i++) {
-			write(fs->fd, gsm_silence, 33);
+			fwrite(gsm_silence, 1, 33, fs->f);
 		}
 	}
-	return lseek(fs->fd, offset, SEEK_SET);
+	return fseek(fs->f, offset, SEEK_SET);
 }
 
 static int gsm_trunc(struct opbx_filestream *fs)
 {
-	return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
+	return ftruncate(fileno(fs->f), ftell(fs->f));
 }
 
 static long gsm_tell(struct opbx_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	return (offset/33)*160;
 }
 

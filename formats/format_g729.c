@@ -55,7 +55,7 @@ struct opbx_filestream {
 	/* Believe it or not, we must decode/recode to account for the
 	   weird MS format */
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct opbx_frame fr;				/* Frame information */
 	char waste[OPBX_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -70,7 +70,7 @@ static char *name = "g729";
 static char *desc = "Raw G729 data";
 static char *exts = "g729";
 
-static struct opbx_filestream *g729_open(int fd)
+static struct opbx_filestream *g729_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -83,7 +83,7 @@ static struct opbx_filestream *g729_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->g729;
 		tmp->fr.frametype = OPBX_FRAME_VOICE;
 		tmp->fr.subclass = OPBX_FORMAT_G729A;
@@ -97,7 +97,7 @@ static struct opbx_filestream *g729_open(int fd)
 	return tmp;
 }
 
-static struct opbx_filestream *g729_rewrite(int fd, const char *comment)
+static struct opbx_filestream *g729_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -110,7 +110,7 @@ static struct opbx_filestream *g729_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		opbx_mutex_unlock(&g729_lock);
 		opbx_update_use_count();
@@ -128,7 +128,7 @@ static void g729_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&g729_lock);
 	opbx_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -144,7 +144,7 @@ static struct opbx_frame *g729_read(struct opbx_filestream *s, int *whennext)
 	s->fr.datalen = 20;
 	s->fr.mallocd = 0;
 	s->fr.data = s->g729;
-	if ((res = read(s->fd, s->g729, 20)) != 20) {
+	if ((res = fread(s->g729, 1, 20, s->f)) != 20) {
 		if (res && (res != 10))
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -168,7 +168,7 @@ static int g729_write(struct opbx_filestream *fs, struct opbx_frame *f)
 		opbx_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			opbx_log(LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
 			return -1;
 	}
@@ -185,8 +185,9 @@ static int g729_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	long bytes;
 	off_t min,cur,max,offset=0;
 	min = 0;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	
 	bytes = 20 * (sample_offset / 160);
 	if (whence == SEEK_SET)
@@ -200,7 +201,7 @@ static int g729_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	}
 	/* protect against seeking beyond begining. */
 	offset = (offset < min)?min:offset;
-	if (lseek(fs->fd, offset, SEEK_SET) < 0)
+	if (fseek(fs->f, offset, SEEK_SET) < 0)
 		return -1;
 	return 0;
 }
@@ -208,7 +209,7 @@ static int g729_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 static int g729_trunc(struct opbx_filestream *fs)
 {
 	/* Truncate file to current length */
-	if (ftruncate(fs->fd, lseek(fs->fd, 0, SEEK_CUR)) < 0)
+	if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
 		return -1;
 	return 0;
 }
@@ -216,7 +217,7 @@ static int g729_trunc(struct opbx_filestream *fs)
 static long g729_tell(struct opbx_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	return (offset/20)*160;
 }
 

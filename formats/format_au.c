@@ -60,7 +60,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 struct opbx_filestream {
 	void *reserved[OPBX_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; 				/* Descriptor */
+	FILE *f; 				/* Descriptor */
 	struct opbx_channel *owner;
 	struct opbx_frame fr;			/* Frame information */
 	char waste[OPBX_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
@@ -101,7 +101,7 @@ static char *exts = "au";
 #endif
 
 
-static int check_header(int fd)
+static int check_header(FILE *f)
 {
 	AU_HEADER(header);
 	u_int32_t magic;
@@ -111,7 +111,7 @@ static int check_header(int fd)
 	u_int32_t sample_rate;
 	u_int32_t channels;
 
-	if (read(fd, header, AU_HEADER_SIZE) != AU_HEADER_SIZE) {
+	if (fread(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
 		opbx_log(LOG_WARNING, "Read failed (header)\n");
 		return -1;
 	}
@@ -139,22 +139,24 @@ static int check_header(int fd)
 		return -1;
 	}
 	/* Skip to data */
-	data_size = lseek(fd, 0, SEEK_END) - hdr_size;
-	if (lseek(fd, hdr_size, SEEK_SET) == -1 ) {
+	fseek(f, 0, SEEK_END);
+	data_size = ftell(f) - hdr_size;
+	if (fseek(f, hdr_size, SEEK_SET) == -1 ) {
 		opbx_log(LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
 		return -1;
 	}
 	return data_size;
 }
 
-static int update_header(int fd)
+static int update_header(FILE *f)
 {
 	off_t cur, end;
 	u_int32_t datalen;
 	int bytes;
 
-	cur = lseek(fd, 0, SEEK_CUR);
-	end = lseek(fd, 0, SEEK_END);
+	cur = ftell(f);
+	fseek(f, 0, SEEK_END);
+	end = ftell(f);
 	/* data starts 24 bytes in */
 	bytes = end - AU_HEADER_SIZE;
 	datalen = htoll(bytes);
@@ -163,22 +165,22 @@ static int update_header(int fd)
 		opbx_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
 	}
-	if (lseek(fd, AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t), SEEK_SET) != (AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t))) {
+	if (fseek(f, AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t), SEEK_SET)) {
 		opbx_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
-	if (write(fd, &datalen, sizeof(datalen)) != sizeof(datalen)) {
+	if (fwrite(&datalen, 1, sizeof(datalen), f) != sizeof(datalen)) {
 		opbx_log(LOG_WARNING, "Unable to set write file size\n");
 		return -1;
 	}
-	if (lseek(fd, cur, SEEK_SET) != cur) {
+	if (fseek(f, cur, SEEK_SET)) {
 		opbx_log(LOG_WARNING, "Unable to return to position\n");
 		return -1;
 	}
 	return 0;
 }
 
-static int write_header(int fd)
+static int write_header(FILE *f)
 {
 	AU_HEADER(header);
 
@@ -190,15 +192,15 @@ static int write_header(int fd)
 	header[AU_HDR_CHANNELS_OFF] = htoll(1);
 
 	/* Write an au header, ignoring sizes which will be filled in later */
-	lseek(fd, 0, SEEK_SET);
-	if (write(fd, header, AU_HEADER_SIZE) != AU_HEADER_SIZE) {
+	fseek(f, 0, SEEK_SET);
+	if (fwrite(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
 		opbx_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
 	return 0;
 }
 
-static struct opbx_filestream *au_open(int fd)
+static struct opbx_filestream *au_open(FILE *f)
 {
 	struct opbx_filestream *tmp;
 
@@ -208,7 +210,7 @@ static struct opbx_filestream *au_open(int fd)
 	}
 
 	memset(tmp, 0, sizeof(struct opbx_filestream));
-	if (check_header(fd) < 0) {
+	if (check_header(f) < 0) {
 		free(tmp);
 		return NULL;
 	}
@@ -217,7 +219,7 @@ static struct opbx_filestream *au_open(int fd)
 		free(tmp);
 		return NULL;
 	}
-	tmp->fd = fd;
+	tmp->f = f;
 	tmp->fr.data = tmp->buf;
 	tmp->fr.frametype = OPBX_FRAME_VOICE;
 	tmp->fr.subclass = OPBX_FORMAT_ULAW;
@@ -230,7 +232,7 @@ static struct opbx_filestream *au_open(int fd)
 	return tmp;
 }
 
-static struct opbx_filestream *au_rewrite(int fd, const char *comment)
+static struct opbx_filestream *au_rewrite(FILE *f, const char *comment)
 {
 	struct opbx_filestream *tmp;
 
@@ -240,7 +242,7 @@ static struct opbx_filestream *au_rewrite(int fd, const char *comment)
 	}
 
 	memset(tmp, 0, sizeof(struct opbx_filestream));
-	if (write_header(fd)) {
+	if (write_header(f)) {
 		free(tmp);
 		return NULL;
 	}
@@ -249,7 +251,7 @@ static struct opbx_filestream *au_rewrite(int fd, const char *comment)
 		free(tmp);
 		return NULL;
 	}
-	tmp->fd = fd;
+	tmp->f = f;
 	localusecnt++;
 	opbx_mutex_unlock(&au_lock);
 	opbx_update_use_count();
@@ -265,7 +267,7 @@ static void au_close(struct opbx_filestream *s)
 	localusecnt--;
 	opbx_mutex_unlock(&au_lock);
 	opbx_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 }
 
@@ -280,7 +282,7 @@ static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -304,11 +306,11 @@ static int au_write(struct opbx_filestream *fs, struct opbx_frame *f)
 		opbx_log(LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			opbx_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
-	update_header(fs->fd);
+	update_header(fs->f);
 	return 0;
 }
 
@@ -319,8 +321,9 @@ static int au_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	
 	samples = sample_offset;
 	min = AU_HEADER_SIZE;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	if (whence == SEEK_SET)
 		offset = samples + min;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -332,21 +335,21 @@ static int au_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	}
 	/* always protect the header space. */
 	offset = (offset < min) ? min : offset;
-	return lseek(fs->fd, offset, SEEK_SET);
+	return fseek(fs->f, offset, SEEK_SET);
 }
 
 static int au_trunc(struct opbx_filestream *fs)
 {
-	if(ftruncate(fs->fd, lseek(fs->fd, 0, SEEK_CUR)))
+	if (ftruncate(fileno(fs->f), ftell(fs->f)))
 		return -1;
-	return update_header(fs->fd);
+	return update_header(fs->f);
 }
 
 static long au_tell(struct opbx_filestream *fs)
 {
 	off_t offset;
 
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	return offset - AU_HEADER_SIZE;
 }
 

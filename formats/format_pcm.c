@@ -51,7 +51,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 struct opbx_filestream {
 	void *reserved[OPBX_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct opbx_channel *owner;
 	struct opbx_frame fr;				/* Frame information */
 	char waste[OPBX_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
@@ -68,7 +68,7 @@ static char *name = "pcm";
 static char *desc = "Raw uLaw 8khz Audio support (PCM)";
 static char *exts = "pcm|ulaw|ul|mu";
 
-static struct opbx_filestream *pcm_open(int fd)
+static struct opbx_filestream *pcm_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -81,7 +81,7 @@ static struct opbx_filestream *pcm_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = OPBX_FRAME_VOICE;
 		tmp->fr.subclass = OPBX_FORMAT_ULAW;
@@ -95,7 +95,7 @@ static struct opbx_filestream *pcm_open(int fd)
 	return tmp;
 }
 
-static struct opbx_filestream *pcm_rewrite(int fd, const char *comment)
+static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -108,7 +108,7 @@ static struct opbx_filestream *pcm_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		opbx_mutex_unlock(&pcm_lock);
 		opbx_update_use_count();
@@ -126,7 +126,7 @@ static void pcm_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&pcm_lock);
 	opbx_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -142,7 +142,7 @@ static struct opbx_frame *pcm_read(struct opbx_filestream *s, int *whennext)
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -165,7 +165,7 @@ static int pcm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 		opbx_log(LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			opbx_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
@@ -177,8 +177,9 @@ static int pcm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	off_t offset=0,min,cur,max;
 
 	min = 0;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	if (whence == SEEK_SET)
 		offset = sample_offset;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -190,18 +191,18 @@ static int pcm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 	}
 	/* always protect against seeking past begining. */
 	offset = (offset < min)?min:offset;
-	return lseek(fs->fd, offset, SEEK_SET);
+	return fseek(fs->f, offset, SEEK_SET);
 }
 
 static int pcm_trunc(struct opbx_filestream *fs)
 {
-	return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
+	return ftruncate(fileno(fs->f), ftell(fs->f));
 }
 
 static long pcm_tell(struct opbx_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	return offset;
 }
 
