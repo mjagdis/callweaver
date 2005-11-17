@@ -258,8 +258,9 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len, int samp
 	short buf0[1280], buf1[1280], buf[1280];
 		
 	if (csth->spy.status == CHANSPY_DONE) {
+		/* Channel is already gone more than likely */
 		return -1;
-        }
+	}
 
 	opbx_mutex_lock(&csth->spy.lock);
 	while((f = csth->spy.queue[0])) {
@@ -329,7 +330,6 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len, int samp
 	frame.datalen = x * 2;
 
 	if (opbx_write(chan, &frame)) {
-		csth->spy.status = CHANSPY_DONE;
 		return -1;
 	}
 
@@ -376,24 +376,12 @@ static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 	struct opbx_channel_spy *cptr=NULL, *prev=NULL;
 	int count = 0;
 
-	while(opbx_mutex_trylock(&chan->lock)) {
-		/* if its locked already it's almost surely hanging up and we are too late 
-		   we can safely remove the head pointer if it points at us without needing a lock.
-		   since everybody spying will be in the same boat whomever is pointing at the head
-		   will surely erase it which is all we really need since it's a linked list of
-		   staticly declared structs that belong to each spy.
-		*/
-		if (chan->spiers == spy) {
-			chan->spiers = NULL;
-			return;
-		}
-		count++;
-		if (count > 10) {
-			return;
-		}
-		sched_yield();
-	}
+	/* If our status has changed, then the channel we're spying on is gone....
+	   DON'T TOUCH IT!!!  RUN AWAY!!! */
+	if (spy->status != CHANSPY_RUNNING)
+		return;
 
+	opbx_mutex_lock(&chan->lock);
 	for(cptr=chan->spiers; cptr; cptr=cptr->next) {
 		if (cptr == spy) {
 			if (prev) {
