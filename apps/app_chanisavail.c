@@ -118,7 +118,7 @@ static int chanavail_exec(struct opbx_channel *chan, void *data)
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
 				status = inuse = opbx_device_state(trychan);
 			}
-			if ((inuse < 1) && (tempchan = opbx_request(tech, chan->nativeformats, number, &status))) {
+			if ((inuse <= 1) && (tempchan = opbx_request(tech, chan->nativeformats, number, &status))) {
 					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
 					/* Store the originally used channel too */
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
