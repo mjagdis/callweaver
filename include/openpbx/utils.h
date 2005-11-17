@@ -142,8 +142,8 @@ extern struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent 
 	\brief Produces MD5 hash based on input string */
 extern void opbx_md5_hash(char *output, char *input);
 
-extern int opbx_base64encode(char *dst, unsigned char *src, int srclen, int max);
-extern int opbx_base64decode(unsigned char *dst, char *src, int max);
+extern int opbx_base64encode(char *dst, const unsigned char *src, int srclen, int max);
+extern int opbx_base64decode(unsigned char *dst, const char *src, int max);
 
 /*! opbx_uri_encode
 	\brief Turn text string to URI-encoded %XX version 
