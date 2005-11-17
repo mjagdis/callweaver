@@ -3103,14 +3103,14 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 		watchers = 0;
 		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
 			watchers++;
-		opbx_cli(fd, "   %-20.20s: %-20.20s  State %2d Watchers %2d\n",
+		opbx_cli(fd, "   %-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			opbx_get_extension_name(hint->exten), opbx_get_extension_app(hint->exten),
-			hint->laststate, watchers);
+			devstate2str(hint->laststate), watchers);
 		num++;
 		hint = hint->next;
 	}
 	opbx_cli(fd, "----------------\n");
-	opbx_cli(fd, "- %d hints registred\n", num);
+	opbx_cli(fd, "- %d hints registered\n", num);
 	opbx_mutex_unlock(&hintlock);
 	return RESULT_SUCCESS;
 }
