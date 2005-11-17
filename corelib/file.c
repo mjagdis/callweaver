@@ -870,7 +870,8 @@ struct opbx_filestream *opbx_readfile(const char *filename, const char *type, co
 struct opbx_filestream *opbx_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
 	int fd, myflags = 0;
-	FILE *bfile;
+	/* compiler claims this variable can be used before initialization... */
+	FILE *bfile = NULL;
 	struct opbx_format *f;
 	struct opbx_filestream *fs = NULL;
 	char *fn, *orig_fn = NULL;
@@ -908,7 +909,7 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 			}
 		}
 		
-		if (option_cache_record_files && fd >= 0) {
+		if (option_cache_record_files && (fd > -1)) {
 			char *c;
 
 			fclose(bfile);
@@ -923,8 +924,9 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 
 			size = strlen(fn) + strlen(record_cache_dir) + 2;
 			buf = alloca(size);
-			memset(buf, 0, size);
-			snprintf(buf, size, "%s/%s", record_cache_dir, fn);
+			strcpy(buf, record_cache_dir);
+			strcat(buf, "/");
+			strcat(buf, fn);
 			free(fn);
 			fn = buf;
 			fd = open(fn, flags | myflags, mode);
@@ -938,9 +940,8 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 				}
 			}
 		}
-		if (fd >= 0) {
+		if (fd > -1) {
 			errno = 0;
-
 			if ((fs = f->rewrite(bfile, comment))) {
 				fs->trans = NULL;
 				fs->fmt = f;
