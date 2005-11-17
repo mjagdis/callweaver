@@ -619,30 +619,6 @@ void opbx_udptl_set_data(struct opbx_udptl *udptl, void *data)
 	udptl->data = data;
 }
 
-void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
-{
-	if (udptl)
-		udptl->far_max_datagram_size = max_datagram;
-	else
-		opbx_log(LOG_WARNING, "udptl structure is null\n");
-}
-
-int opbx_udptl_get_error_correction_scheme(struct opbx_udptl *udptl)
-{
-	if (udptl)
-		return udptl->error_correction_scheme;
-	opbx_log(LOG_WARNING, "udptl structure is null\n");
-	return -1;
-}
-
-int opbx_udptl_get_local_max_datagram(struct opbx_udptl *udptl)
-{
-	if (udptl)
-		return udptl->local_max_datagram_size;
-	opbx_log(LOG_WARNING, "udptl structure is null\n");
-	return -1;
-}
-
 void opbx_udptl_set_callback(struct opbx_udptl *udptl, opbx_udptl_callback callback)
 {
 	udptl->callback = callback;
@@ -726,6 +702,72 @@ void opbx_udptl_offered_from_local(struct opbx_udptl* udptl, int local)
 		opbx_log(LOG_WARNING, "udptl structure is null\n");
 }
 
+int opbx_udptl_get_error_correction_scheme(struct opbx_udptl* udptl)
+{
+    if (udptl)
+	    return udptl->error_correction_scheme;
+    else {
+	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+	    return -1;
+    }
+}
+
+void opbx_udptl_set_error_correction_scheme(struct opbx_udptl* udptl, int ec)
+{
+    if (udptl) {
+	switch (ec) {
+	    case UDPTL_ERROR_CORRECTION_FEC:
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
+		break;
+	    case UDPTL_ERROR_CORRECTION_REDUNDANCY:
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+		break;
+	    case UDPTL_ERROR_CORRECTION_NONE:
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
+		break;
+	    default:
+		opbx_log(LOG_WARNING, "error correction parameter invalid");
+	};
+    } else
+	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+}
+
+int opbx_udptl_get_local_max_datagram(struct opbx_udptl* udptl)
+{
+    if (udptl)
+	    return udptl->local_max_datagram_size;
+    else {
+	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+	    return -1;
+    }
+}
+
+int opbx_udptl_get_far_max_datagram(struct opbx_udptl* udptl)
+{
+    if (udptl)
+	    return udptl->far_max_datagram_size;
+    else {
+	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+	    return -1;
+    }
+}
+
+void opbx_udptl_set_local_max_datagram(struct opbx_udptl* udptl, int max_datagram)
+{
+    if (udptl)
+	    udptl->local_max_datagram_size = max_datagram;
+    else
+	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+}
+
+void opbx_udptl_set_far_max_datagram(struct opbx_udptl* udptl, int max_datagram)
+{
+    if (udptl)
+	    udptl->far_max_datagram_size = max_datagram;
+    else
+	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+}
+
 struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct in_addr addr)
 {
 	struct opbx_udptl *udptl;
@@ -738,7 +780,12 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		return NULL;
 	memset(udptl, 0, sizeof(struct opbx_udptl));
 
-	udptl->error_correction_scheme = udptlfectype ? UDPTL_ERROR_CORRECTION_FEC : UDPTL_ERROR_CORRECTION_REDUNDANCY;
+	if (udptlfectype == 2)
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
+	else if (udptlfectype == 1)
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+	else
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
 	udptl->error_correction_span = udptlfecspan;
 	udptl->error_correction_entries = udptlfecentries;
 	
@@ -1172,9 +1219,9 @@ void opbx_udptl_reload(void)
 		}
 		if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxUdpEC"))) {
 			if (strcmp(s, "t38UDPFEC") == 0)
-				udptlfectype = 1;
+				udptlfectype = 2;
 			else if (strcmp(s, "t38UDPRedundancy") == 0)
-				udptlfectype = 0;
+				udptlfectype = 1;
 		}
 		if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxMaxDatagram"))) {
 			udptlmaxdatagram = atoi(s);

@@ -75,18 +75,24 @@ int opbx_udptl_settos(struct opbx_udptl *udptl, int tos);
 
 void opbx_udptl_set_m_type(struct opbx_udptl* udptl, int pt);
 
-void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram);
-
-int opbx_udptl_get_error_correction_scheme(struct opbx_udptl *udptl);
-
-int opbx_udptl_get_local_max_datagram(struct opbx_udptl *udptl);
-
 void opbx_udptl_set_udptlmap_type(struct opbx_udptl *udptl, int pt,
 									char *mimeType, char *mimeSubtype);
 
 int opbx_udptl_lookup_code(struct opbx_udptl* udptl, int isAstFormat, int code);
 
 void opbx_udptl_offered_from_local(struct opbx_udptl *udptl, int local);
+
+int opbx_udptl_get_error_correction_scheme(struct opbx_udptl* udptl);
+
+void opbx_udptl_set_error_correction_scheme(struct opbx_udptl* udptl, int ec);
+
+int opbx_udptl_get_local_max_datagram(struct opbx_udptl* udptl);
+
+void opbx_udptl_set_local_max_datagram(struct opbx_udptl* udptl, int max_datagram);
+
+int opbx_udptl_get_far_max_datagram(struct opbx_udptl* udptl);
+
+void opbx_udptl_set_far_max_datagram(struct opbx_udptl* udptl, int max_datagram);
 
 void opbx_udptl_get_current_formats(struct opbx_udptl *udptl,
 									int *astFormats, int *nonAstFormats);
