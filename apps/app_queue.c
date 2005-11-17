@@ -1844,6 +1844,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* If we have timed out, break out */
 		if (qe->expire && (time(NULL) > qe->expire)) {
 			*reason = QUEUE_TIMEOUT;
+			opbx_queue_log(qe->parent->name, qe->chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe->pos);
 			break;
 		}
 
@@ -2879,6 +2880,7 @@ check_turns:
                                         record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
+					opbx_queue_log(queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					break;
 				}
 
@@ -2939,6 +2941,7 @@ check_turns:
 					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
+					opbx_queue_log(queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);	
 					break;
 				}
 
