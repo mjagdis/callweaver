@@ -5843,15 +5843,22 @@ void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, cons
 {
 	struct opbx_var_t *newvariable;
 	struct varshead *headp;
-
+	const char *nametail = name;
 
 	if (name[strlen(name)-1] == ')')
 		return opbx_func_write(chan, name, value);
 
 	headp = (chan) ? &chan->varshead : &globals;
 
+	/* For comparison purposes, we have to strip leading underscores */
+	if (*nametail == '_') {
+		nametail++;
+		if (*nametail == '_') 
+			nametail++;
+	}
+
 	OPBX_LIST_TRAVERSE (headp, newvariable, entries) {
-		if (strcasecmp(opbx_var_name(newvariable), name) == 0) {
+		if (strcasecmp(opbx_var_name(newvariable), nametail) == 0) {
 			/* there is already such a variable, delete it */
 			OPBX_LIST_REMOVE(headp, newvariable, entries);
 			opbx_var_delete(newvariable);
@@ -5987,7 +5994,21 @@ void pbx_builtin_clear_globals(void)
 
 static int pbx_checkcondition(char *condition) 
 {
-	return condition ? atoi(condition) : 0;
+	if (condition) {
+		if (*condition == '\0') {
+			/* Empty strings are false */
+			return 0;
+		} else if (*condition >= '0' && *condition <= '9') {
+			/* Numbers are evaluated for truth */
+			return atoi(condition);
+		} else {
+			/* Strings are true */
+			return 1;
+		}
+	} else {
+		/* NULL is also false */
+		return 0;
+	}
 }
 
 static int pbx_builtin_gotoif(struct opbx_channel *chan, void *data)
