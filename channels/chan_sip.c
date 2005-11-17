@@ -7759,7 +7759,7 @@ static char *nat2str(int nat)
 }
 
 /*--- peer_status: Report Peer status in character string */
-/* 	returns 1 if peer is online, -1 if unmonitored */
+/* 	returns 1 if peer is online, 0 if offline */
 static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 {
 	int res = 0;
@@ -7778,7 +7778,9 @@ static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 	} else { 
 		opbx_copy_string(status, "Unmonitored", statuslen);
 		/* Checking if port is 0 */
-		res = -1;
+		if (ntohs(peer->addr.sin_port) != 0 ) {
+			res = 1;
+		}
 	}
 	return res;
 }
@@ -7929,18 +7931,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 		pstatus = peer_status(iterator, status, sizeof(status));
 		if (pstatus) 	
 			peers_online++;
-		else	{
-			if (pstatus == 0)
-				peers_offline++;
-			else {	/* Unmonitored */
-				/* Checking if port is 0 */
-				if ( ntohs(iterator->addr.sin_port) == 0 ) {
-					peers_offline++;
-				} else {
-					peers_online++;
-				}
-			}
-		}			
+		else 
+			peers_offline++;
 		
 		snprintf(srch, sizeof(srch), FORMAT, name,
 			iterator->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
