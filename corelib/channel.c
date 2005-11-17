@@ -2813,12 +2813,16 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 		}
 		who = opbx_waitfor_n(cs, 2, &toms);
 		if (!who) {
+			if (!toms) {
+				res = OPBX_BRIDGE_RETRY;
+				break;
+			}
 			opbx_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
 			if (c0->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE || c1->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE) {
 				if (c0->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE)
-                			c0->_softhangup = 0;
-            			if (c1->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE)
-                			c1->_softhangup = 0;
+					c0->_softhangup = 0;
+				if (c1->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE)
+					c1->_softhangup = 0;
 				c0->_bridge = c1;
 				c1->_bridge = c0;
 			}
@@ -3054,7 +3058,8 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 				opbx_clear_flag(c0, OPBX_FLAG_NBRIDGE);
 				opbx_clear_flag(c1, OPBX_FLAG_NBRIDGE);
 			}
-			
+			if (res == OPBX_BRIDGE_RETRY)
+				continue;
 			switch (res) {
 			case OPBX_BRIDGE_RETRY:
 /*				continue; */

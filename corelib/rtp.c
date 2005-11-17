@@ -2030,6 +2030,8 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 		}
 		who = opbx_waitfor_n(cs, 2, &timeoutms);
 		if (!who) {
+			if (!timeoutms) 
+				return OPBX_BRIDGE_RETRY;
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
 			/* check for hangup / whentohangup */

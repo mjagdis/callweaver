@@ -3186,6 +3186,10 @@ static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_
 				timeoutms = 0;
 		}
 		if (!who) {
+			if (!timeoutms) {
+				res = OPBX_BRIDGE_RETRY;
+				break;
+			}
 			if (opbx_check_hangup(c0) || opbx_check_hangup(c1)) {
 				res = OPBX_BRIDGE_FAILED;
 				break;
