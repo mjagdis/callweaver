@@ -764,6 +764,12 @@ struct opbx_channel *opbx_get_channel_by_name_prefix_locked(const char *name, co
 	return channel_find_locked(NULL, name, namelen, NULL, NULL);
 }
 
+/*--- opbx_walk_channel_by_name_prefix_locked: Get next channel by name prefix and lock it */
+struct opbx_channel *opbx_walk_channel_by_name_prefix_locked(struct opbx_channel *chan, const char *name, const int namelen)
+{
+	return channel_find_locked(chan, name, namelen, NULL, NULL);
+}
+
 /*--- opbx_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
 struct opbx_channel *opbx_get_channel_by_exten_locked(const char *exten, const char *context)
 {
