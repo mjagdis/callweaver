@@ -152,16 +152,67 @@ static struct opbx_custom_function enum_function = {
        .read = function_enum,
 };
 
+static char *function_txtcidname(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	int res;
+	char tech[80];
+	char txt[256] = "";
+	char dest[80];
+	struct localuser *u;
+
+	LOCAL_USER_ACF_ADD(u);
+
+	buf[0] = '\0';
+
+	if (!data || opbx_strlen_zero(data)) {
+	        opbx_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
+	        LOCAL_USER_REMOVE(u);
+	        return buf;
+	}
+
+	res = opbx_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+
+	if (!opbx_strlen_zero(txt))
+	        opbx_copy_string(buf, txt, len);
+
+	LOCAL_USER_REMOVE(u);
+
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct opbx_custom_function txtcidname_function = {
+	 .name = "TXTCIDNAME",
+	 .synopsis = "TXTCIDNAME looks up a caller name via DNS",
+	 .syntax = "TXTCIDNAME(<number>)",
+	 .desc = "This function looks up the given phone number in DNS to retrieve\n"
+	"the caller id name.  The result will either be blank or be the value\n"
+	"found in the TXT record in DNS.\n",
+	 .read = function_txtcidname,
+};
+
+
 static char *tdesc = "ENUMLOOKUP allows for general or specific querying of NAPTR records or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
 
 int unload_module(void)
 {
-       return opbx_custom_function_unregister(&enum_function);
+	opbx_custom_function_unregister(&enum_function);
+	opbx_custom_function_unregister(&txtcidname_function);
+
+	return 0;
 }
 
 int load_module(void)
 {
-       return opbx_custom_function_register(&enum_function);
+	int res;
+
+	res = opbx_custom_function_register(&enum_function);
+	if (!res)
+		opbx_custom_function_register(&txtcidname_function);
+
+	return res;
 }
 
 char *description(void)
@@ -171,7 +222,11 @@ char *description(void)
 
 int usecount(void)
 {
-       return 0;
+	int res;
+	
+	STANDARD_USECOUNT(res);
+
+	return res;
 }
 
 /*
