@@ -26,16 +26,14 @@
 #include "confdefs.h"
 #endif
 
+#include <string.h>
+
+#include "openpbx.h"
+
+OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/ $", "$Revision$")
+
 #include "openpbx/slinfactory.h"
-#include "openpbx/file.h"
 #include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/lock.h"
-#include "openpbx/cli.h"
-#include "openpbx/options.h"
-#include "openpbx/app.h"
 #include "openpbx/translate.h"
 
 
