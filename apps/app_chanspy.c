@@ -374,7 +374,6 @@ static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan
 static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy) 
 {
 	struct opbx_channel_spy *cptr=NULL, *prev=NULL;
-	int count = 0;
 
 	/* If our status has changed, then the channel we're spying on is gone....
 	   DON'T TOUCH IT!!!  RUN AWAY!!! */
