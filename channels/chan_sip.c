@@ -10895,17 +10895,37 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "100 Trying", req);
 			opbx_setstate(c, OPBX_STATE_RING);
 			if (strcmp(p->exten, opbx_pickup_ext())) {
-				if (opbx_pbx_start(c)) {
+				enum opbx_pbx_result res;
+
+				res = opbx_pbx_start(c);
+
+				switch (res) {
+				case OPBX_PBX_FAILED:
+					opbx_log(LOG_WARNING, "Failed to start PBX :(\n");
+					if (ignore)
+						transmit_response(p, "503 Unavailable", req);
+					else
+						transmit_response_reliable(p, "503 Unavailable", req, 1);
+					break;
+				case OPBX_PBX_CALL_LIMIT:
+					opbx_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
+					if (ignore)
+						transmit_response(p, "480 Temporarily Unavailable", req);
+					else
+						transmit_response_reliable(p, "480 Temporarily Unavailable", req, 1);
+					break;
+				case OPBX_PBX_SUCCESS:
+					/* nothing to do */
+					break;
+				}
+
+				if (res) {
 					opbx_log(LOG_WARNING, "Failed to start PBX :(\n");
 					/* Unlock locks so opbx_hangup can do its magic */
 					opbx_mutex_unlock(&c->lock);
 					opbx_mutex_unlock(&p->lock);
 					opbx_hangup(c);
 					opbx_mutex_lock(&p->lock);
-					if (ignore)
-						transmit_response(p, "503 Unavailable", req);
-					else
-						transmit_response_reliable(p, "503 Unavailable", req, 1);
 					c = NULL;
 				}
 			} else {
