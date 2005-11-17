@@ -915,22 +915,14 @@ void opbx_channel_free(struct opbx_channel *chan)
 static void opbx_spy_detach(struct opbx_channel *chan) 
 {
 	struct opbx_channel_spy *chanspy;
-	int to=3000;
-	int sleepms = 100;
 
+	/* Marking the spies as done is sufficient.  Chanspy or spy users will get the picture. */
 	for (chanspy = chan->spiers; chanspy; chanspy = chanspy->next) {
 		if (chanspy->status == CHANSPY_RUNNING) {
 			chanspy->status = CHANSPY_DONE;
 		}
 	}
 
-	/* signal all the spys to get lost and allow them time to unhook themselves 
-	   god help us if they don't......
-	*/
-	while (chan->spiers && to >= 0) {
-		opbx_safe_sleep(chan, sleepms);
-		to -= sleepms;
-	}
 	chan->spiers = NULL;
 	return;
 }
