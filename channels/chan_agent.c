@@ -493,7 +493,7 @@ static struct opbx_frame *agent_read(struct opbx_channel *ast)
  	} else {
  		/* if acknowledgement is not required, and the channel is up, we may have missed
  		   an OPBX_CONTROL_ANSWER (if there was one), so mark the call acknowledged anyway */
- 		if (!p->ackcall && !p->acknowledged && p->chan->_state == OPBX_STATE_UP)
+ 		if (!p->ackcall && !p->acknowledged && p->chan && (p->chan->_state == OPBX_STATE_UP))
   			p->acknowledged = 1;
  		switch (f->frametype) {
  		case OPBX_FRAME_CONTROL:
