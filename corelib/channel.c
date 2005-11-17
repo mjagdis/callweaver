@@ -1654,7 +1654,7 @@ char *opbx_recvtext(struct opbx_channel *chan, int timeout)
 	return buf;
 }
 
-int opbx_sendtext(struct opbx_channel *chan, char *text)
+int opbx_sendtext(struct opbx_channel *chan, const char *text)
 {
 	int res = 0;
 	/* Stop if we're a zombie or need a soft hangup */

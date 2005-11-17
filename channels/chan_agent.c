@@ -247,6 +247,7 @@ static int agent_answer(struct opbx_channel *ast);
 static struct opbx_frame *agent_read(struct opbx_channel *ast);
 static int agent_write(struct opbx_channel *ast, struct opbx_frame *f);
 static int agent_sendhtml(struct opbx_channel *ast, int subclass, const char *data, int datalen);
+static int agent_sendtext(struct opbx_channel *ast, const char *text);
 static int agent_indicate(struct opbx_channel *ast, int condition);
 static int agent_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan);
 static struct opbx_channel *agent_bridgedchannel(struct opbx_channel *chan, struct opbx_channel *bridge);
@@ -264,6 +265,7 @@ static const struct opbx_channel_tech agent_tech = {
 	.read = agent_read,
 	.write = agent_write,
 	.send_html = agent_sendhtml,
+	.send_text = agent_sendtext,
 	.exception = agent_read,
 	.indicate = agent_indicate,
 	.fixup = agent_fixup,
@@ -557,6 +559,17 @@ static int agent_sendhtml(struct opbx_channel *ast, int subclass, const char *da
 	opbx_mutex_lock(&p->lock);
 	if (p->chan) 
 		res = opbx_channel_sendhtml(p->chan, subclass, data, datalen);
+	opbx_mutex_unlock(&p->lock);
+	return res;
+}
+
+static int agent_sendtext(struct opbx_channel *ast, const char *text)
+{
+	struct agent_pvt *p = ast->tech_pvt;
+	int res = -1;
+	opbx_mutex_lock(&p->lock);
+	if (p->chan) 
+		res = opbx_sendtext(p->chan, text);
 	opbx_mutex_unlock(&p->lock);
 	return res;
 }

@@ -714,7 +714,7 @@ int opbx_set_write_format(struct opbx_channel *chan, int format);
  * Write text to a display on a channel
  * Returns 0 on success, -1 on failure
  */
-int opbx_sendtext(struct opbx_channel *chan, char *text);
+int opbx_sendtext(struct opbx_channel *chan, const char *text);
 
 /*! Receives a text character from a channel */
 /*! 
