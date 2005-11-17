@@ -970,7 +970,7 @@ static void opbx_moh_destroy(void)
 			pid = moh->pid;
 			moh->pid = 0;
 			kill(pid, SIGKILL);
-			while ((opbx_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
+			while ((opbx_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
 			opbx_log(LOG_DEBUG, "Custom command pid %d and child died after %d bytes read\n", pid, tbytes);
