@@ -143,42 +143,43 @@ static struct opbx_custom_function len_function = {
 
 static char *acf_strftime(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *format, *epoch, *timezone;
+	char *format, *epoch, *timezone = NULL;
 	long epochi;
 	struct tm time;
 
-	if (data) {
-		format = opbx_strdupa(data);
-		if (format) {
-			epoch = strsep(&format, "|");
-			timezone = strsep(&format, "|");
+	buf[0] = '\0';
 
-			if (epoch && !opbx_strlen_zero(epoch) && sscanf(epoch, "%ld", &epochi) == 1) {
-			} else {
-				struct timeval tv = opbx_tvnow();
-				epochi = tv.tv_sec;
-			}
-
-			opbx_localtime(&epochi, &time, timezone);
-
-			if (!format) {
-				format = "%c";
-			}
-
-			buf[0] = '\0';
-			if (! strftime(buf, len, format, &time)) {
-				opbx_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
-			}
-			buf[len - 1] = '\0';
-
-			return buf;
-		} else {
-			opbx_log(LOG_ERROR, "Out of memory\n");
-		}
-	} else {
+	if (!data) {
 		opbx_log(LOG_ERROR, "OpenPBX function STRFTIME() requires an argument.\n");
+		return buf;
 	}
-	return "";
+	
+	format = opbx_strdupa(data);
+	if (!format) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		return buf;
+	}
+	
+	epoch = strsep(&format, "|");
+	timezone = strsep(&format, "|");
+
+	if (!epoch || opbx_strlen_zero(epoch) || !sscanf(epoch, "%ld", &epochi)) {
+		struct timeval tv = opbx_tvnow();
+		epochi = tv.tv_sec;
+	}
+
+	opbx_localtime(&epochi, &time, timezone);
+
+	if (!format) {
+		format = "%c";
+	}
+
+	if (!strftime(buf, len, format, &time)) {
+		opbx_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
+	}
+	buf[len - 1] = '\0';
+
+	return buf;
 }
 
 static struct opbx_custom_function strftime_function = {
