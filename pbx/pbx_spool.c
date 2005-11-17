@@ -106,12 +106,6 @@ static void init_outgoing(struct outgoing *o)
 
 static void free_outgoing(struct outgoing *o)
 {
-	struct opbx_variable *lopbx;
-	while(o->vars) {
-		lopbx = o->vars;
-		o->vars = o->vars->next;
-		free(lopbx);
-	}
 	free(o);
 }
 
