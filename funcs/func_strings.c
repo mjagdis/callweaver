@@ -78,39 +78,43 @@ static struct opbx_custom_function fieldqty_function = {
 
 static char *builtin_function_regex(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *ret_true = "1", *ret_false = "0", *ret;
 	char *arg, *earg, *tmp, errstr[256] = "";
 	int errcode;
 	regex_t regexbuf;
 
-	ret = ret_false; /* convince me otherwise */
+	opbx_copy_string(buf, "0", len);
+	
 	tmp = opbx_strdupa(data);
-	if (tmp) {
-		/* Regex in quotes */
-		arg = strchr(tmp, '"');
-		if (arg) {
-			arg++;
-			earg = strrchr(arg, '"');
-			if (earg) {
-				*earg = '\0';
-			}
-		} else {
-			arg = tmp;
-		}
-
-		if ((errcode = regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB))) {
-			regerror(errcode, &regexbuf, errstr, sizeof(errstr));
-			opbx_log(LOG_WARNING, "Malformed input %s(%s): %s\n", cmd, data, errstr);
-			ret = NULL;
-		} else {
-			ret = regexec(&regexbuf, data, 0, NULL, 0) ? ret_false : ret_true;
-		}
-		regfree(&regexbuf);
-	} else {
+	if (!tmp) {
 		opbx_log(LOG_ERROR, "Out of memory in %s(%s)\n", cmd, data);
+		return buf;
 	}
 
-	return ret;
+	/* Regex in quotes */
+	arg = strchr(tmp, '"');
+	if (arg) {
+		arg++;
+		earg = strrchr(arg, '"');
+		if (earg) {
+			*earg++ = '\0';
+			/* Skip over any spaces before the data we are checking */
+			while (*earg == ' ')
+				earg++;
+		}
+	} else {
+		arg = tmp;
+	}
+
+	if ((errcode = regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB))) {
+		regerror(errcode, &regexbuf, errstr, sizeof(errstr));
+		opbx_log(LOG_WARNING, "Malformed input %s(%s): %s\n", cmd, data, errstr);
+	} else {
+		if (!regexec(&regexbuf, earg ? earg : "", 0, NULL, 0))
+			opbx_copy_string(buf, "1", len); 
+	}
+	regfree(&regexbuf);
+
+	return buf;
 }
 
 static struct opbx_custom_function regex_function = {
