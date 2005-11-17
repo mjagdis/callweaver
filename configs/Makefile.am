@@ -49,7 +49,7 @@ noinst_DATA = $(SAMPLES)
 
 @substitute@
 
-EXTRA_DIST = $(SAMPLES) openpbx.conf.sample.in logger.conf.sample.in
+EXTRA_DIST = $(SAMPLES) openpbx.conf.sample.in logger.conf.sample.in musiconhold.conf.sample.in
 CLEANFILES = openpbx.conf.sample logger.conf.sample musiconhold.conf.sample
 
 openpbx.conf.sample: openpbx.conf.sample.in Makefile
@@ -61,6 +61,11 @@ logger.conf.sample: logger.conf.sample.in Makefile
 	rm -f logger.conf.sample.tmp
 	$(substitute) $(srcdir)/logger.conf.sample.in > logger.conf.sample.tmp
 	mv logger.conf.sample.tmp logger.conf.sample
+
+musiconhold.conf.sample: musiconhold.conf.sample.in Makefile
+	rm -f musiconhold.conf.sample.tmp
+	$(substitute) $(srcdir)/musiconhold.conf.sample.in > musiconhold.conf.sample.tmp
+	mv musiconhold.conf.sample.tmp musiconhold.conf.sample
 
 install-data-local:
 	mkdir -p $(DESTDIR)${opbxconfdir}; \
