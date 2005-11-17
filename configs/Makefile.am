@@ -45,7 +45,7 @@ SAMPLES = adsi.conf.sample \
 	woomera.conf.sample \
 	zapata.conf.sample
 
-opbxconf_DATA = $(SAMPLES)
+noinst_DATA = $(SAMPLES)
 
 @substitute@
 
@@ -62,18 +62,22 @@ logger.conf.sample: logger.conf.sample.in Makefile
 	$(substitute) $(srcdir)/logger.conf.sample.in > logger.conf.sample.tmp
 	mv logger.conf.sample.tmp logger.conf.sample
 
-install-data-hook:
+install-data-local:
+	mkdir -p $(DESTDIR)${opbxconfdir}; \
 	if test -z "$(DESTDIR)"; \
 	then \
-		chown -R ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}; \
-	fi
-	chmod 0750 $(DESTDIR)${opbxconfdir}
-	chmod 0640 $(DESTDIR)${opbxconfdir}/*.sample
-	for samplefile in $(DESTDIR)${opbxconfdir}/*.sample; \
+		chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}; \
+	fi; \
+	chmod 0750 $(DESTDIR)${opbxconfdir}; \
+	for samplefile in $(SAMPLES); \
 	do \
-		configfile=`echo $${samplefile} | $(SED) 's/\.sample//'`; \
-		if test \! -f $${configfile}; \
+		configfile=`basename $${samplefile} .sample`; \
+		if test ! -f $(DESTDIR)${opbxconfdir}/$${configfile}; \
 		then \
-			cp -p $${samplefile} $${configfile}; \
+			$(INSTALL) -m 0640 $${samplefile} $(DESTDIR)${opbxconfdir}/$${configfile}; \
+			if test -z "$(DESTDIR)"; \
+			then \
+				chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}/$${configfile}; \
+			fi; \
 		fi; \
 	done
