@@ -169,14 +169,28 @@ static char *tdesc = "database functions";
 
 int unload_module(void)
 {
-	opbx_custom_function_unregister(&db_exists_function);
-        return opbx_custom_function_unregister(&db_function);
+        int res = 0;
+
+        if (opbx_custom_function_unregister(&db_exists_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&db_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 int load_module(void)
 {
-        opbx_custom_function_register(&db_exists_function);
-	return opbx_custom_function_register(&db_function);
+        int res = 0;
+
+        if (opbx_custom_function_register(&db_exists_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&db_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 char *description(void)

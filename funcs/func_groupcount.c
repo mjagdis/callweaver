@@ -178,18 +178,40 @@ static char *tdesc = "database functions";
 
 int unload_module(void)
 {
-	opbx_custom_function_unregister(&group_count_function);
-	opbx_custom_function_unregister(&group_match_count_function);
-	opbx_custom_function_unregister(&group_function);
-        return opbx_custom_function_unregister(&group_list_function);
+        int res = 0;
+
+        if (opbx_custom_function_unregister(&group_count_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&group_match_count_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&group_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&group_list_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 int load_module(void)
 {
-	opbx_custom_function_register(&group_count_function);
-	opbx_custom_function_register(&group_match_count_function);
-	opbx_custom_function_register(&group_function);
-        return opbx_custom_function_register(&group_list_function);
+        int res = 0;
+
+        if (opbx_custom_function_register(&group_count_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&group_match_count_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&group_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&group_list_function) < 0)
+                res = -1;
+       
+        return res;
 }
 
 char *description(void)

@@ -104,14 +104,28 @@ static char *tdesc = "math functions";
 
 int unload_module(void)
 {
-	opbx_custom_function_unregister(&md5_function);
-        return opbx_custom_function_unregister(&checkmd5_function);
+        int res = 0;
+
+        if (opbx_custom_function_unregister(&md5_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&checkmd5_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 int load_module(void)
 {
-	opbx_custom_function_register(&md5_function);
-        return opbx_custom_function_register(&checkmd5_function);
+        int res = 0;
+
+        if (opbx_custom_function_register(&md5_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&checkmd5_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 char *description(void)

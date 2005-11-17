@@ -423,24 +423,58 @@ static char *tdesc = "string functions";
 
 int unload_module(void)
 {
-	opbx_custom_function_unregister(&fieldqty_function);
-	opbx_custom_function_unregister(&regex_function);
-	opbx_custom_function_unregister(&len_function);
-	opbx_custom_function_unregister(&strftime_function);
-	opbx_custom_function_unregister(&eval_function);
-	opbx_custom_function_unregister(&cut_function);
-        return opbx_custom_function_unregister(&sort_function);
+        int res = 0;
+
+        if (opbx_custom_function_unregister(&fieldqty_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&regex_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&len_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&strftime_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&eval_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&cut_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&sort_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 int load_module(void)
 {
-	opbx_custom_function_register(&fieldqty_function);
-	opbx_custom_function_register(&regex_function);
-	opbx_custom_function_register(&len_function);
-	opbx_custom_function_register(&strftime_function);
-	opbx_custom_function_register(&eval_function);
-	opbx_custom_function_register(&cut_function);
-        return opbx_custom_function_register(&sort_function);
+        int res = 0;
+
+        if (opbx_custom_function_register(&fieldqty_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&regex_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&len_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&strftime_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&eval_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&cut_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&sort_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 char *description(void)

@@ -192,20 +192,46 @@ static char *tdesc = "logic functions";
 
 int unload_module(void)
 {
-	opbx_custom_function_unregister(&isnull_function);
-	opbx_custom_function_unregister(&set_function);
-	opbx_custom_function_unregister(&exists_function);
-	opbx_custom_function_unregister(&if_function);
-        return opbx_custom_function_unregister(&if_time_function);
+        int res = 0;
+
+        if (opbx_custom_function_unregister(&isnull_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&set_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&exists_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&if_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_unregister(&if_time_function) < 0)
+                res = -1;
+
+        return res;
 }
 
 int load_module(void)
 {
-	opbx_custom_function_register(&isnull_function);
-	opbx_custom_function_register(&set_function);
-	opbx_custom_function_register(&exists_function);
-	opbx_custom_function_register(&if_function);
-        return opbx_custom_function_register(&if_time_function);
+        int res = 0;
+
+        if (opbx_custom_function_register(&isnull_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&set_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&exists_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&if_function) < 0)
+                res = -1;
+
+        if (opbx_custom_function_register(&if_time_function) < 0)
+                res = -1;
+        
+        return res;
 }
 
 char *description(void)
