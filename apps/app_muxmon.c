@@ -71,6 +71,8 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+OPBX_MUTEX_DEFINE_STATIC(modlock);
+
 struct muxmon {
 	struct opbx_channel *chan;
 	char *filename;
@@ -522,6 +524,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 			muxmon_exec(chan, args);
 		} else if (!strcasecmp(op, "stop")) {
 			struct opbx_channel_spy *cptr=NULL;
+			int count=0;
 			
 			while(opbx_mutex_trylock(&chan->lock)) {
 				count++;
