@@ -5789,7 +5789,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			append_history(p, "RegistryInit", tmp);
 		}
 		/* Find address to hostname */
-		if (create_addr(p,r->hostname)) {
+		if (create_addr(p, r->hostname)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
@@ -11388,12 +11388,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ignore=1;
 		}
 	
-		extract_uri(p, req);
 		e = opbx_skip_blanks(e);
 		if (sscanf(e, "%d %n", &respid, &len) != 1) {
 			opbx_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 		} else {
-			handle_response(p, respid, e + len, req,ignore, seqno);
+			/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
+			if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
+				extract_uri(p, req);
+			handle_response(p, respid, e + len, req, ignore, seqno);
 		}
 		return 0;
 	}
