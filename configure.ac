@@ -17,8 +17,8 @@
 #
 ######
 AC_PREREQ(2.59)
-AC_INIT(OpenPBX.org,1.1-beta,openpbx-dev@openpbx.org)
-AM_INIT_AUTOMAKE(OpenPBX.org,1.1-beta)
+AC_INIT(OpenPBX.org,0.2-beta,openpbx-dev@openpbx.org)
+AM_INIT_AUTOMAKE(OpenPBX.org,0.2-beta)
 dnl define GNU Source to make sure every compiler and tool 
 dnl  knows that we use GNU compliant macros etc
 AC_GNU_SOURCE
