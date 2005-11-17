@@ -1654,8 +1654,8 @@ static int pbx_load_module(void)
 									"autofallthrough"));
 		clearglobalvars_config = opbx_true(opbx_variable_retrieve(cfg, "general", 
 									"clearglobalvars"));
-		option_priority_jumping = opbx_true(opbx_variable_retrieve(cfg, "general",
-									 "priorityjumping"));
+		option_priority_jumping = !opbx_false(opbx_variable_retrieve(cfg, "general",
+									   "priorityjumping"));
 
 		v = opbx_variable_browse(cfg, "globals");
 		while(v) {
