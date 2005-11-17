@@ -6338,7 +6338,9 @@ static int advanced_options(struct opbx_channel *chan, struct opbx_vm_user *vmu,
 
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+	RETRIEVE(vms->curdir, vms->curmsg);
 	msg_cfg = opbx_config_load(filename);
+	DISPOSE(vms->curdir, vms->curmsg);
 	if (!msg_cfg) {
 		opbx_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
