@@ -332,24 +332,34 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 		}
 	}
 
-	if (k==3 && opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
-	{
-		opbx_playtones_stop(chan);
-		/* We're authenticated and have a valid extension */
-		if (ourcallerid && *ourcallerid)
-		{
-			opbx_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
-			opbx_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
-		}
+	if (k == 3) {
+		int recheck = 0;
 
-		if (!opbx_strlen_zero(acctcode)) {
-			strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+		if (!opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+			exten[0] = 'i';
+			exten[1] = '\0';
+			recheck = 1;
 		}
-		opbx_cdr_reset(chan->cdr, OPBX_CDR_FLAG_POSTED);
-		opbx_goto_if_exists(chan, ourcontext, exten, 1);
-		LOCAL_USER_REMOVE(u);
-		return 0;
+		if (!recheck || opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+			opbx_playtones_stop(chan);
+			/* We're authenticated and have a target extension */
+			if (ourcallerid && *ourcallerid)
+			{
+				opbx_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
+				opbx_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
+			}
+
+			if (!opbx_strlen_zero(acctcode))
+				strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+
+			opbx_cdr_reset(chan->cdr, OPBX_CDR_FLAG_POSTED);
+			opbx_explicit_goto(chan, ourcontext, exten, 1);
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		}
 	}
+
+	/* Received invalid, but no "i" extension exists in the given context */
 
 reorder:
 
