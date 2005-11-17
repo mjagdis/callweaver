@@ -81,35 +81,35 @@ static char *parkedcall = "ParkedCall";
 static int parkingtime = DEFAULT_PARK_TIME;
 
 /* Context for which parking is made accessible */
-static char parking_con[OPBX_MAX_EXTENSION] = "parkedcalls";
+static char parking_con[OPBX_MAX_EXTENSION];
 
 /* Context for dialback for parking (KLUDGE) */
-static char parking_con_dial[OPBX_MAX_EXTENSION] = "park-dial";
+static char parking_con_dial[OPBX_MAX_EXTENSION];
 
 /* Extension you type to park the call */
-static char parking_ext[OPBX_MAX_EXTENSION] = "700";
+static char parking_ext[OPBX_MAX_EXTENSION];
 
-static char pickup_ext[OPBX_MAX_EXTENSION] = "*8";
+static char pickup_ext[OPBX_MAX_EXTENSION];
 
 /* Default sounds */
-static char courtesytone[256] = "";
-static char xfersound[256] = "beep";
-static char xferfailsound[256] = "pbx-invalid";
+static char courtesytone[256];
+static char xfersound[256];
+static char xferfailsound[256];
 
 /* First available extension for parking */
-static int parking_start = 701;
+static int parking_start;
 
 /* Last available extension for parking */
-static int parking_stop = 750;
+static int parking_stop;
 
-static int parking_offset = 0;
+static int parking_offset;
 
-static int parkfindnext = 0;
+static int parkfindnext;
 
-static int adsipark = 0;
+static int adsipark;
 
-static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
-static int featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
+static int transferdigittimeout;
+static int featuredigittimeout;
 
 /* Default courtesy tone played when party joins conference */
 
@@ -1832,6 +1832,12 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 		}
 		OPBX_LIST_UNLOCK(&feature_list);
 	}
+	opbx_cli(fd, "\nCall parking\n");
+	opbx_cli(fd, "------------\n");
+	opbx_cli(fd,"%-20s:	%s\n", "Parking extension", parking_ext);
+	opbx_cli(fd,"%-20s:	%s\n", "Parking context", parking_con);
+	opbx_cli(fd,"%-20s:	%d-%d\n", "Parked call extensions", parking_start, parking_stop);
+	opbx_cli(fd,"\n");
 	
 	return RESULT_SUCCESS;
 }
@@ -1961,7 +1967,26 @@ static int load_config(void)
 	struct opbx_context *con = NULL;
 	struct opbx_config *cfg = NULL;
 	struct opbx_variable *var = NULL;
-	
+	char old_parking_ext[OPBX_MAX_EXTENSION];
+	char old_parking_con[OPBX_MAX_EXTENSION];
+
+	if (!opbx_strlen_zero(parking_con)) {
+		strcpy(old_parking_ext, parking_ext);
+		strcpy(old_parking_con, parking_con);
+	} 
+
+	/* Reset to defaults */
+	strcpy(parking_con, "parkedcalls");
+	strcpy(parking_con_dial, "park-dial");
+	strcpy(parking_ext, "700");
+	strcpy(pickup_ext, "*8");
+	courtesytone[0] = '\0';
+	strcpy(xfersound, "beep");
+	strcpy(xferfailsound, "pbx-invalid");
+	parking_start = 701;
+	parking_stop = 750;
+	parkfindnext = 0;
+
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 
@@ -2099,10 +2124,12 @@ static int load_config(void)
 	}
 	opbx_config_destroy(cfg);
 
-	
-	if (con)
-		opbx_context_remove_extension2(con, __opbx_parking_ext(), 1, registrar);
-	
+	/* Remove the old parking extension */
+	if (!opbx_strlen_zero(old_parking_con) && (con = opbx_context_find(old_parking_con)))   {
+		opbx_context_remove_extension2(con, old_parking_ext, 1, registrar);
+		opbx_log(LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
+	}
+
 	if (!(con = opbx_context_find(parking_con))) {
 		if (!(con = opbx_context_create(NULL, parking_con, registrar))) {
 			opbx_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
@@ -2121,6 +2148,8 @@ int load_module(void)
 	int res;
 	
 	OPBX_LIST_HEAD_INIT(&feature_list);
+	memset(parking_ext, 0, sizeof(parking_ext));
+	memset(parking_con, 0, sizeof(parking_con));
 
 	if ((res = load_config()))
 		return res;
