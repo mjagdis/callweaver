@@ -332,7 +332,7 @@ static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc);
+static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms);
 
 static int zt_sendtext(struct opbx_channel *c, const char *text);
 
@@ -3175,13 +3175,12 @@ static void enable_dtmf_detect(struct zt_pvt *p)
 #endif		
 }
 
-static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
+static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms)
 {
 	struct opbx_channel *who;
 	struct zt_pvt *p0, *p1, *op0, *op1;
 	struct zt_pvt *master = NULL, *slave = NULL;
 	struct opbx_frame *f;
-	int to;
 	int inconf = 0;
 	int nothingok = 1;
 	int ofd0, ofd1;
@@ -3404,8 +3403,7 @@ static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_ch
 		}
 #endif
 
-		to = -1;
-		who = opbx_waitfor_n(priority ? c0_priority : c1_priority, 2, &to);
+		who = opbx_waitfor_n(priority ? c0_priority : c1_priority, 2, &timeoutms);
 		if (!who) {
 			opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
 			continue;

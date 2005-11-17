@@ -728,7 +728,7 @@ static struct opbx_frame *iax2_read(struct opbx_channel *c);
 static int iax2_write(struct opbx_channel *c, struct opbx_frame *f);
 static int iax2_indicate(struct opbx_channel *c, int condition);
 static int iax2_setoption(struct opbx_channel *c, int option, void *data, int datalen);
-static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc);
+static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms);
 static int iax2_transfer(struct opbx_channel *c, const char *dest);
 static int iax2_fixup(struct opbx_channel *oldchannel, struct opbx_channel *newchan);
 
@@ -3084,7 +3084,7 @@ static void unlock_both(unsigned short callno0, unsigned short callno1)
 	opbx_mutex_unlock(&iaxsl[callno0]);
 }
 
-static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
+static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms)
 {
 	struct opbx_channel *cs[3];
 	struct opbx_channel *who;
@@ -3164,6 +3164,11 @@ static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_
 		}
 		to = 1000;
 		who = opbx_waitfor_n(cs, 2, &to);
+		if (timeoutms > -1) {
+			timeoutms -= (1000 - to);
+			if (timeoutms < 0)
+				timeoutms = 0;
+		}
 		if (!who) {
 			if (opbx_check_hangup(c0) || opbx_check_hangup(c1)) {
 				res = OPBX_BRIDGE_FAILED;
