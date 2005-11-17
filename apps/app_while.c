@@ -87,7 +87,14 @@ static int execif_exec(struct opbx_channel *chan, void *data) {
 	struct opbx_app *app = NULL;
 
 	LOCAL_USER_ADD(u);
-	expr = opbx_strdupa((char *) data);
+
+	expr = opbx_strdupa(data);
+	if (!expr) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
 	if ((myapp = strchr(expr,'|'))) {
 		*myapp = '\0';
 		myapp++;

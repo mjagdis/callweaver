@@ -59,6 +59,9 @@ static int verbose_exec(struct opbx_channel *chan, void *data)
 {
 	char *vtext;
 	int vsize;
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
 
 	if (data) {
 		vtext = opbx_strdupa((char *)data);
@@ -95,6 +98,8 @@ static int verbose_exec(struct opbx_channel *chan, void *data)
 			opbx_log(LOG_ERROR, "Out of memory\n");
 		}
 	}
+
+	LOCAL_USER_REMOVE(u);
 
 	return 0;
 }

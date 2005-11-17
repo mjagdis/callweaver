@@ -65,21 +65,33 @@ static int senddtmf_exec(struct opbx_channel *chan, void *data)
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
-	if (data && !opbx_strlen_zero(data) && (digits = opbx_strdupa((char *)data))) {
-		if((to = strchr(digits,'|'))) {
-			*to = '\0';
-			to++;
-			timeout = atoi(to);
-		}
-		LOCAL_USER_ADD(u);
-		if(timeout <= 0)
-			timeout = 250;
-
-		res = opbx_dtmf_stream(chan,NULL,digits,timeout);
-		LOCAL_USER_REMOVE(u);
-	} else {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
+		return 0;
 	}
+
+	LOCAL_USER_ADD(u);
+
+	digits = opbx_strdupa(data);
+	if (!digits) {
+		opbx_log(LOG_ERROR, "Out of Memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	if ((to = strchr(digits,'|'))) {
+		*to = '\0';
+		to++;
+		timeout = atoi(to);
+	}
+		
+	if(timeout <= 0)
+		timeout = 250;
+
+	res = opbx_dtmf_stream(chan,NULL,digits,timeout);
+		
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

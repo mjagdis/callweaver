@@ -49,10 +49,17 @@ LOCAL_USER_DECL;
 
 static int nocdr_exec(struct opbx_channel *chan, void *data)
 {
+	struct localuser *u;
+	
+	LOCAL_USER_ADD(u);
+
 	if (chan->cdr) {
 		opbx_cdr_free(chan->cdr);
 		chan->cdr = NULL;
 	}
+
+	LOCAL_USER_REMOVE(u);
+
 	return 0;
 }
 

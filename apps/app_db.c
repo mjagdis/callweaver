@@ -80,22 +80,24 @@ LOCAL_USER_DECL;
 
 static int deltree_exec(struct opbx_channel *chan, void *data)
 {
-	int arglen;
 	char *argv, *family, *keytree;
+	struct localuser *u;
 
-	arglen = strlen(data);
-	argv = alloca(arglen + 1);
-	if (!argv) {	/* Why would this fail? */
-		opbx_log(LOG_DEBUG, "Memory allocation failed\n");
+	LOCAL_USER_ADD(u);
+
+	argv = opbx_strdupa(data);
+	if (!argv) {
+		opbx_log(LOG_ERROR, "Memory allocation failed\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	memcpy(argv, data, arglen + 1);
 
 	if (strchr(argv, '/')) {
 		family = strsep(&argv, "/");
 		keytree = strsep(&argv, "\0");
 			if (!family || !keytree) {
 				opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+				LOCAL_USER_REMOVE(u);
 				return 0;
 			}
 		if (!strlen(keytree))
@@ -117,27 +119,31 @@ static int deltree_exec(struct opbx_channel *chan, void *data)
 			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
 	}
 
+	LOCAL_USER_REMOVE(u);
+
 	return 0;
 }
 
 static int del_exec(struct opbx_channel *chan, void *data)
 {
-	int arglen;
 	char *argv, *family, *key;
+	struct localuser *u;
 
-	arglen = strlen(data);
-	argv = alloca(arglen + 1);
-	if (!argv) {	/* Why would this fail? */
-		opbx_log (LOG_DEBUG, "Memory allocation failed\n");
+	LOCAL_USER_ADD(u);
+
+	argv = opbx_strdupa(data);
+	if (!argv) {
+		opbx_log (LOG_ERROR, "Memory allocation failed\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	memcpy(argv, data, arglen + 1);
 
 	if (strchr(argv, '/')) {
 		family = strsep(&argv, "/");
 		key = strsep(&argv, "\0");
 		if (!family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
@@ -149,27 +155,31 @@ static int del_exec(struct opbx_channel *chan, void *data)
 	} else {
 		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
 	}
+
+	LOCAL_USER_REMOVE(u);
+	
 	return 0;
 }
 
 static int put_exec(struct opbx_channel *chan, void *data)
 {
-	int arglen;
 	char *argv, *value, *family, *key;
 	static int dep_warning = 0;
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
 
 	if (!dep_warning) {
 		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
-	arglen = strlen(data);
-	argv = alloca(arglen + 1);
-	if (!argv) {	/* Why would this fail? */
-		opbx_log(LOG_DEBUG, "Memory allocation failed\n");
+	argv = opbx_strdupa(data);
+	if (!argv) {
+		opbx_log(LOG_ERROR, "Memory allocation failed\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	memcpy(argv, data, arglen + 1);
 
 	if (strchr(argv, '/') && strchr(argv, '=')) {
 		family = strsep(&argv, "/");
@@ -177,6 +187,7 @@ static int put_exec(struct opbx_channel *chan, void *data)
 		value = strsep(&argv, "\0");
 		if (!value || !family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
@@ -189,28 +200,32 @@ static int put_exec(struct opbx_channel *chan, void *data)
 	} else	{
 		opbx_log (LOG_DEBUG, "Ignoring, no parameters\n");
 	}
+
+	LOCAL_USER_REMOVE(u);
+
 	return 0;
 }
 
 static int get_exec(struct opbx_channel *chan, void *data)
 {
-	int arglen;
 	char *argv, *varname, *family, *key;
 	char dbresult[256];
 	static int dep_warning = 0;
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
 
 	if (!dep_warning) {
 		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
-	arglen = strlen(data);
-	argv = alloca(arglen + 1);
-	if (!argv) {	/* Why would this fail? */
-		opbx_log(LOG_DEBUG, "Memory allocation failed\n");
+	argv = opbx_strdupa(data);
+	if (!argv) {
+		opbx_log(LOG_ERROR, "Memory allocation failed\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	memcpy(argv, data, arglen + 1);
 
 	if (strchr(argv, '=') && strchr(argv, '/')) {
 		varname = strsep(&argv, "=");
@@ -218,6 +233,7 @@ static int get_exec(struct opbx_channel *chan, void *data)
 		key = strsep(&argv, "\0");
 		if (!varname || !family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
@@ -230,13 +246,14 @@ static int get_exec(struct opbx_channel *chan, void *data)
 			if (option_verbose > 2)
 			opbx_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
 			/* Send the call to n+101 priority, where n is the current priority */
-			if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-				chan->priority += 100;
+			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		}
-
 	} else {
 		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
 	}
+
+	LOCAL_USER_REMOVE(u);
+
 	return 0;
 }
 
@@ -258,12 +275,10 @@ int load_module(void)
 	int retval;
 
 	retval = opbx_register_application(g_app, get_exec, g_synopsis, g_descrip);
-	if (!retval)
-		retval = opbx_register_application(p_app, put_exec, p_synopsis, p_descrip);
-	if (!retval)
-		retval = opbx_register_application(d_app, del_exec, d_synopsis, d_descrip);
-	if (!retval)
-		retval = opbx_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
+	retval |= opbx_register_application(p_app, put_exec, p_synopsis, p_descrip);
+	retval |= opbx_register_application(d_app, del_exec, d_synopsis, d_descrip);
+	retval |= opbx_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
+	
 	return retval;
 }
 

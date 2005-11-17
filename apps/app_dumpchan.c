@@ -141,9 +141,10 @@ static int dumpchan_exec(struct opbx_channel *chan, void *data)
 	char info[1024];
 	int level = 0;
 	static char *line = "================================================================================";
+	
 	LOCAL_USER_ADD(u);
 
-	if (data) {
+	if (data && !opbx_strlen_zero(data)) {
 		level = atoi(data);
 	}
 
@@ -153,6 +154,7 @@ static int dumpchan_exec(struct opbx_channel *chan, void *data)
 		opbx_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n",chan->name, line, info, vars, line);
 
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 

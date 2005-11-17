@@ -5484,9 +5484,9 @@ static int vm_exec(struct opbx_channel *chan, void *data)
 	struct opbx_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	
-	memset(&leave_options, 0, sizeof(leave_options));
-
 	LOCAL_USER_ADD(u);
+	
+	memset(&leave_options, 0, sizeof(leave_options));
 
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer(chan);
@@ -5529,16 +5529,18 @@ static int vm_exec(struct opbx_channel *chan, void *data)
 		}
 	} else {
 		res = opbx_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
-		if (res < 0)
+		if (res < 0) {
+			LOCAL_USER_REMOVE(u);
 			return res;
-		if (opbx_strlen_zero(tmp))
+		}
+		if (opbx_strlen_zero(tmp)) {
+			LOCAL_USER_REMOVE(u);
 			return 0;
+		}	
 	}
 
 	res = leave_voicemail(chan, argv[0], &leave_options);
 
-	LOCAL_USER_REMOVE(u);
-	
 	if (res == ERROR_LOCK_PATH) {
 		opbx_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
 		/*Send the call to n+101 priority, where n is the current priority*/
@@ -5547,6 +5549,8 @@ static int vm_exec(struct opbx_channel *chan, void *data)
 		res = 0;
 	}
 	
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 
@@ -5595,12 +5599,19 @@ static int vm_box_exists(struct opbx_channel *chan, void *data)
 	struct opbx_vm_user svm;
 	char *context, *box;
 
-	if (!data || !(box = opbx_strdupa(data))) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
+
+	box = opbx_strdupa(data);
+	if (!box) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	if ((context = strchr(box, '@'))) {
 		*context = '\0';
@@ -5624,6 +5635,8 @@ static int vmauthenticate(struct opbx_channel *chan, void *data)
 	int silent = 0;
 	int res = -1;
 
+	LOCAL_USER_ADD(u);
+	
 	if (s) {
 		s = opbx_strdupa(s);
 		if (!s) {
@@ -5642,8 +5655,6 @@ static int vmauthenticate(struct opbx_channel *chan, void *data)
 	if (options) {
 		silent = (strchr(options, 's')) != NULL;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3, silent)) {
 		pbx_builtin_setvar_helper(chan, "AUTH_MAILBOX", mailbox);

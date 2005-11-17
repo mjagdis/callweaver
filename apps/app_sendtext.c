@@ -73,13 +73,14 @@ static int sendtext_exec(struct opbx_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char *status = "UNSUPPORTED";
-
-	if (!data || !strlen((char *)data)) {
+		
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	}
-
+	
 	LOCAL_USER_ADD(u);
+
 	opbx_mutex_lock(&chan->lock);
 	if (!chan->tech->send_text) {
 		opbx_mutex_unlock(&chan->lock);

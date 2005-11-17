@@ -88,11 +88,14 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 	char passwd[256];
 	char *opts;
 	char *prompt;
+	
 	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+
 	if (chan->_state != OPBX_STATE_UP) {
 		res = opbx_answer(chan);
 		if (res) {
@@ -100,6 +103,7 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 			return -1;
 		}
 	}
+	
 	strncpy(password, data, sizeof(password) - 1);
 	opts=strchr(password, '|');
 	if (opts) {

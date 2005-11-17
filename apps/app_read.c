@@ -92,11 +92,23 @@ static int read_exec(struct opbx_channel *chan, void *data)
 	char *argcopy = NULL;
 	char *args[8];
 
-	if (data)
-		argcopy = opbx_strdupa((char *)data);
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "Read requires an argument (variable)\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+	
+	argcopy = opbx_strdupa(data);
+	if (!argcopy) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	if (opbx_separate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
-		opbx_log(LOG_WARNING, "Cannot Parse Arguements.\n");
+		opbx_log(LOG_WARNING, "Cannot Parse Arguments.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -145,9 +157,10 @@ static int read_exec(struct opbx_channel *chan, void *data)
 	}
 	if (!(varname) || opbx_strlen_zero(varname)) {
 		opbx_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+	
 	if (chan->_state != OPBX_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */

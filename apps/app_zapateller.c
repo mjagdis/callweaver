@@ -71,7 +71,7 @@ static int zapateller_exec(struct opbx_channel *chan, void *data)
 
 	stringp=data;
         c = strsep(&stringp, "|");
-        while(c && strlen(c)) {
+        while(c && !opbx_strlen_zero(c)) {
 		if (!strcasecmp(c, "answer"))
 			answer = 1;
 		else if (!strcasecmp(c, "nocallerid"))

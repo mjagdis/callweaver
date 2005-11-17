@@ -113,11 +113,13 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 	char *save_macro_priority;
 	char *save_macro_offset;
 	struct localuser *u;
-  
+ 
 	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
-		return 0;
+		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	/* Count how many levels deep the rabbit hole goes */
 	tmp = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
@@ -129,16 +131,18 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 
 	if (depth >= 7) {
 		opbx_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
-	tmp = opbx_strdupa((char *) data);
+	tmp = opbx_strdupa(data);
 	rest = tmp;
 	macro = strsep(&rest, "|");
 	if (!macro || opbx_strlen_zero(macro)) {
 		opbx_log(LOG_WARNING, "Invalid macro name specified\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	snprintf(fullmacro, sizeof(fullmacro), "macro-%s", macro);
@@ -147,10 +151,10 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 			opbx_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 		else
 	  		opbx_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-
-	LOCAL_USER_ADD(u);
+	
 	/* Save old info */
 	oldpriority = chan->priority;
 	opbx_copy_string(oldexten, chan->exten, sizeof(oldexten));
@@ -308,24 +312,33 @@ static int macroif_exec(struct opbx_channel *chan, void *data)
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
+	struct localuser *u;
 
-	if((expr = opbx_strdupa((char *) data))) {
-		if ((label_a = strchr(expr, '?'))) {
-			*label_a = '\0';
-			label_a++;
-			if ((label_b = strchr(label_a, ':'))) {
-				*label_b = '\0';
-				label_b++;
-			}
-			if (opbx_true(expr))
-				macro_exec(chan, label_a);
-			else if (label_b) 
-				macro_exec(chan, label_b);
-			
-		} else
-			opbx_log(LOG_WARNING, "Invalid Syntax.\n");
-	} else 
+	LOCAL_USER_ADD(u);
+
+	expr = opbx_strdupa(data);
+	if (!expr) {
 		opbx_log(LOG_ERROR, "Out of Memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	if ((label_a = strchr(expr, '?'))) {
+		*label_a = '\0';
+		label_a++;
+		if ((label_b = strchr(label_a, ':'))) {
+			*label_b = '\0';
+			label_b++;
+		}
+		if (opbx_true(expr))
+			macro_exec(chan, label_a);
+		else if (label_b) 
+			macro_exec(chan, label_b);
+	} else
+		opbx_log(LOG_WARNING, "Invalid Syntax.\n");
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 			

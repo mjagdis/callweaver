@@ -64,12 +64,15 @@ static int waitforring_exec(struct opbx_channel *chan, void *data)
 	struct opbx_frame *f;
 	int res = 0;
 	int ms;
+
 	if (!data || (sscanf(data, "%d", &ms) != 1)) {
                 opbx_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
 		return 0;
 	}
-	ms *= 1000;
+
 	LOCAL_USER_ADD(u);
+
+	ms *= 1000;
 	while(ms > 0) {
 		ms = opbx_waitfor(chan, ms);
 		if (ms < 0) {

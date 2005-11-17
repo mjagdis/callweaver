@@ -413,10 +413,12 @@ static int directory_exec(struct opbx_channel *chan, void *data)
 	int last = 1;
 	char *context, *dialcontext, *dirintro, *options;
 
-	if (!data) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	context = opbx_strdupa(data);
 	dialcontext = strchr(context, '|');
@@ -434,10 +436,10 @@ static int directory_exec(struct opbx_channel *chan, void *data)
 		dialcontext = context;
 
 	cfg = realtime_directory(context);
-	if (!cfg)
+	if (!cfg) {
+		LOCAL_USER_REMOVE(u);
 		return -1;
-
-	LOCAL_USER_ADD(u);
+	}
 
 	dirintro = opbx_variable_retrieve(cfg, context, "directoryintro");
 	if (!dirintro || opbx_strlen_zero(dirintro))

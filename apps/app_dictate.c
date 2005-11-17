@@ -101,7 +101,8 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 		maxlen = 0,
 		mode = 0;
 		
-
+	LOCAL_USER_ADD(u);
+	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", opbx_config_OPBX_SPOOL_DIR);
 	if (data && !opbx_strlen_zero(data) && (mydata = opbx_strdupa(data))) {
 		argc = opbx_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
@@ -116,10 +117,10 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 	oldr = chan->readformat;
 	if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) < 0) {
 		opbx_log(LOG_WARNING, "Unable to set to linear mode.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
 	opbx_answer(chan);
 	opbx_safe_sleep(chan, 200);
 	for(res = 0; !res;) {

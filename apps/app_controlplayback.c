@@ -84,12 +84,14 @@ static int controlplayback_exec(struct opbx_channel *chan, void *data)
 		arg_pause = 5,
 		arg_restart = 6,
 	};
-
-	if (!data || opbx_strlen_zero((char *)data)) {
+	
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+	
 	tmp = opbx_strdupa(data);
 	memset(argv, 0, sizeof(argv));
 
@@ -97,6 +99,7 @@ static int controlplayback_exec(struct opbx_channel *chan, void *data)
 
 	if (argc < 1) {
 		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -115,12 +118,8 @@ static int controlplayback_exec(struct opbx_channel *chan, void *data)
 	if (argv[arg_restart] && !is_on_phonepad(*argv[arg_restart]))
 		argv[arg_restart] = NULL;
 
-	LOCAL_USER_ADD(u);
-
 	res = opbx_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
 
-	LOCAL_USER_REMOVE(u);
-	
 	/* If we stopped on one of our stop keys, return 0  */
 	if (argv[arg_stop] && strchr(argv[arg_stop], res)) 
 		res = 0;
@@ -129,6 +128,8 @@ static int controlplayback_exec(struct opbx_channel *chan, void *data)
 		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			res = 0;
 	}
+
+	LOCAL_USER_REMOVE(u);
 
 	return res;
 }

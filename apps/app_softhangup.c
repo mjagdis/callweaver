@@ -63,17 +63,18 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 	char *options, *cut, *cdata, *match;
 	char name[OPBX_CHANNEL_NAME] = "";
 	int all = 0;
-
-	if (!data) {
+	
+	if (!data || opbx_strlen_zero(data)) {
                 opbx_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
 	}
 	
+	LOCAL_USER_ADD(u);
+
 	cdata = opbx_strdupa(data);
 	match = strsep(&cdata, "|");
 	options = strsep(&cdata, "|");
 	all = options && strchr(options,'a');
-	LOCAL_USER_ADD(u);
 	c = opbx_channel_walk_locked(NULL);
 	while (c) {
 		strncpy(name, c->name, sizeof(name)-1);
@@ -98,6 +99,7 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 		}
 		c = opbx_channel_walk_locked(c);
 	}
+	
 	LOCAL_USER_REMOVE(u);
 
 	return 0;

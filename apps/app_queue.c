@@ -2559,24 +2559,26 @@ static int pqm_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	char *queuename, *interface;
 
-	if (!data) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface])\n");
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	queuename = opbx_strdupa((char *)data);
 	if (!queuename) {
 		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	interface = strchr(queuename, '|');
 	if (!interface) {
 		opbx_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface])\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	*interface = '\0';
 	interface++;
@@ -2587,6 +2589,7 @@ static int pqm_exec(struct opbx_channel *chan, void *data)
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -2600,24 +2603,26 @@ static int upqm_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	char *queuename, *interface;
 
-	if (!data) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface])\n");
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	queuename = opbx_strdupa((char *)data);
 	if (!queuename) {
 		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	interface = strchr(queuename, '|');
 	if (!interface) {
 		opbx_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface])\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	*interface = '\0';
 	interface++;
@@ -2628,6 +2633,7 @@ static int upqm_exec(struct opbx_channel *chan, void *data)
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -2644,18 +2650,19 @@ static int rqm_exec(struct opbx_channel *chan, void *data)
 	char tmpchan[256]="";
 	char *interface = NULL;
 
-	if (!data) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[|interface])\n");
 		return -1;
 	}
 
-	info = opbx_strdupa((char *)data);
+	LOCAL_USER_ADD(u);
+
+	info = opbx_strdupa(data);
 	if (!info) {
 		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	queuename = info;
 	if (queuename) {
@@ -2707,17 +2714,19 @@ static int aqm_exec(struct opbx_channel *chan, void *data)
 	char *penaltys=NULL;
 	int penalty = 0;
 
-	if (!data) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[|[interface][|penalty]])\n");
 		return -1;
 	}
 
-	info = opbx_strdupa((char *)data);
+	LOCAL_USER_ADD(u);
+
+	info = opbx_strdupa(data);
 	if (!info) {
 		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
 
 	queuename = info;
 	if (queuename) {
@@ -2797,7 +2806,7 @@ static int queue_exec(struct opbx_channel *chan, void *data)
 		opbx_log(LOG_WARNING, "Queue requires an argument: queuename[|options[|URL][|announceoverride][|timeout]]\n");
 		return -1;
 	}
-	
+
 	LOCAL_USER_ADD(u);
 
 	/* Setup our queue entry */
@@ -3027,12 +3036,15 @@ static char *queue_function_qac(struct opbx_channel *chan, char *cmd, char *data
 	struct localuser *u;
 	struct member *m;
 
+	LOCAL_USER_ACF_ADD(u);
+
+	opbx_copy_string(buf, "0", len);
+	
 	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_ERROR, "QUEUEAGENTCOUNT requires an argument: queuename\n");
-		return "0";
+		LOCAL_USER_REMOVE(u);
+		return buf;
 	}
-	
-	LOCAL_USER_ACF_ADD(u);
 
 	opbx_mutex_lock(&qlock);
 

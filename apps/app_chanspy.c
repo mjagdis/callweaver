@@ -543,23 +543,25 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	oldrf = chan->readformat;
 	oldwf = chan->writeformat;
 	if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR) < 0) {
 		opbx_log(LOG_ERROR, "Could Not Set Read Format.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR) < 0) {
 		opbx_log(LOG_ERROR, "Could Not Set Write Format.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
 	opbx_answer(chan);
 
 	opbx_set_flag(chan, OPBX_FLAG_SPYING); /* so nobody can spy on us while we are spying */
-
 
 	if ((argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		spec = argv[0];

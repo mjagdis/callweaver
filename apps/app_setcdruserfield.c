@@ -114,9 +114,9 @@ static int setcdruserfield_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	int res = 0;
 	
-	LOCAL_USER_ADD(u)
-	if (chan->cdr && data) 
-	{
+	LOCAL_USER_ADD(u);
+
+	if (chan->cdr && data) {
 		opbx_cdr_setuserfield(chan, (char*)data);
 	}
 
@@ -130,9 +130,9 @@ static int appendcdruserfield_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	int res = 0;
 	
-	LOCAL_USER_ADD(u)
-	if (chan->cdr && data) 
-	{
+	LOCAL_USER_ADD(u);
+
+	if (chan->cdr && data) {
 		opbx_cdr_appenduserfield(chan, (char*)data);
 	}
 

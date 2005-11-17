@@ -403,24 +403,26 @@ static int muxmon_exec(struct opbx_channel *chan, void *data)
 		*filename = NULL,
 		*post_process = NULL;
 	
-	if (!data) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "muxmon requires an argument\n");
 		return -1;
 	}
 
-	if (!(args = opbx_strdupa(data))) {
-		opbx_log(LOG_WARNING, "Memory Error!\n");
-        return -1;
-	}
-	
 	LOCAL_USER_ADD(u);
 
+	args = opbx_strdupa(data);
+	if (!args) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	if ((argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		filename = argv[0];
-		if ( argc > 1) {
+		if (argc > 1) {
 			options = argv[1];
 		}
-		if ( argc > 2) {
+		if (argc > 2) {
 			post_process = argv[2];
 		}
 	}
@@ -455,12 +457,13 @@ static int muxmon_exec(struct opbx_channel *chan, void *data)
 			else {
 				readvol = writevol = minmax(x, 4);
 				x = get_volfactor(readvol);
-                readvol = minmax(x, 16);
+				readvol = minmax(x, 16);
 				x = get_volfactor(writevol);
-                writevol = minmax(x, 16);
+				writevol = minmax(x, 16);
 			}
 		}
 	}
+	pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);
 
 	if (filename) {
 		pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);

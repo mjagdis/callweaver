@@ -92,11 +92,13 @@ static int system_exec_helper(struct opbx_channel *chan, void *data, int failmod
 {
 	int res=0;
 	struct localuser *u;
-	if (!data) {
+	
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "System requires an argument(command)\n");
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		return failmode;
 	}
+
 	LOCAL_USER_ADD(u);
 
 	/* Do our thing here */
@@ -123,6 +125,7 @@ static int system_exec_helper(struct opbx_channel *chan, void *data, int failmod
 	} 
 
 	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

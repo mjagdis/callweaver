@@ -1670,8 +1670,16 @@ static int count_exec(struct opbx_channel *chan, void *data)
 		opbx_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
-	localdata = opbx_strdupa(data);
+
 	LOCAL_USER_ADD(u);
+	
+	localdata = opbx_strdupa(data);
+	if (!localdata) {
+		opbx_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	confnum = strsep(&localdata,"|");       
 	conf = find_conf(chan, confnum, 0, 0, NULL);
 	if (conf)
@@ -1707,17 +1715,19 @@ static int conf_exec(struct opbx_channel *chan, void *data)
 	int always_prompt = 0;
 	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[OPBX_MAX_EXTENSION] = "";
 
+	LOCAL_USER_ADD(u);
+
 	if (!data || opbx_strlen_zero(data)) {
 		allowretry = 1;
 		notdata = "";
 	} else {
 		notdata = data;
 	}
-	LOCAL_USER_ADD(u);
+	
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer(chan);
 
-	info = opbx_strdupa((char *)notdata);
+	info = opbx_strdupa(notdata);
 
 	if (info) {
 		char *tmp = strsep(&info, "|");
@@ -1959,6 +1969,9 @@ static int admin_exec(struct opbx_channel *chan, void *data) {
 	char *params, *command = NULL, *caller = NULL, *conf = NULL;
 	struct opbx_conference *cnf;
 	struct opbx_conf_user *user = NULL;
+	struct localuser *u;
+	
+	LOCAL_USER_ADD(u);
 
 	opbx_mutex_lock(&conflock);
 	/* The param has the conference number the user and the command to execute */
@@ -1971,6 +1984,7 @@ static int admin_exec(struct opbx_channel *chan, void *data) {
 		if (!command) {
 			opbx_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
 			opbx_mutex_unlock(&conflock);
+			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		cnf = confs;
@@ -2062,6 +2076,9 @@ static int admin_exec(struct opbx_channel *chan, void *data) {
 		}
 	}
 	opbx_mutex_unlock(&conflock);
+
+	LOCAL_USER_REMOVE(u);
+	
 	return 0;
 }
 

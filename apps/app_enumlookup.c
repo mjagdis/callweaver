@@ -88,27 +88,27 @@ static int enumlookup_exec(struct opbx_channel *chan, void *data)
 	static int dep_warning=0;
 	struct localuser *u;
 
+	if (!data || opbx_strlen_zero(data)) {
+		opbx_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
+		return -1;
+	}
+		
 	if (!dep_warning) {
 		opbx_log(LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
-		dep_warning=1;
+		dep_warning = 1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	tech[0] = '\0';
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
-		res = 0;
-	}
-	LOCAL_USER_ADD(u);
-	if (!res) {
-               res = opbx_get_enum(chan, data, dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
-		printf("ENUM got '%d'\n", res);
-	}
-	LOCAL_USER_REMOVE(u);
+	res = opbx_get_enum(chan, data, dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
+	
 	if (!res) {	/* Failed to do a lookup */
 		/* Look for a "busy" place */
 		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "ERROR");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	pbx_builtin_setvar_helper(chan, "ENUMSTATUS", tech);
@@ -170,6 +170,9 @@ static int enumlookup_exec(struct opbx_channel *chan, void *data)
 			res = 0;
 		}
 	}
+
+	LOCAL_USER_REMOVE(u);
+
 	return 0;
 }
 

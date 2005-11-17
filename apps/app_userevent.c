@@ -64,24 +64,31 @@ LOCAL_USER_DECL;
 static int userevent_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
-	char info[512];
-    char eventname[512];
+	char *info;
+	char eventname[512];
 	char *eventbody;
 
-	if (!data || !strlen(data)) {
+	if (!data || opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
 		return -1;
 	}
 
-	strncpy(info, (char *)data, strlen((char *)data) + OPBX_MAX_EXTENSION-1);
+	LOCAL_USER_ADD(u);
+
+	info = opbx_strdupa(data);
+	if (!info) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
 	snprintf(eventname, sizeof(eventname), "UserEvent%s", info);
 	eventbody = strchr(eventname, '|');
 	if (eventbody) {
 		*eventbody = '\0';
 		eventbody++;
 	}
-	LOCAL_USER_ADD(u);
-
+	
 	if(eventbody) {
             opbx_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, eventbody);
             manager_event(EVENT_FLAG_USER, eventname, 
