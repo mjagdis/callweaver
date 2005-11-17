@@ -8055,10 +8055,10 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 /*--- print_group: Print call group and pickup group ---*/
-static void  print_group(int fd, unsigned int group) 
+static void  print_group(int fd, unsigned int group, int crlf) 
 {
 	char buf[256];
-	opbx_cli(fd, "%s\n", opbx_print_group(buf, sizeof(buf), group) );
+	opbx_cli(fd, crlf ? "%s\r\n" : "%s\n", opbx_print_group(buf, sizeof(buf), group) );
 }
 
 /*--- dtmfmode2str: Convert DTMF mode to printable string ---*/
@@ -8379,9 +8379,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		if (!opbx_strlen_zero(peer->fromdomain))
 			opbx_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
 		opbx_cli(fd, "  Callgroup    : ");
-		print_group(fd, peer->callgroup);
+		print_group(fd, peer->callgroup, 0);
 		opbx_cli(fd, "  Pickupgroup  : ");
-		print_group(fd, peer->pickupgroup);
+		print_group(fd, peer->pickupgroup, 0);
 		opbx_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		opbx_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		opbx_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
@@ -8456,9 +8456,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		if (!opbx_strlen_zero(peer->fromdomain))
 			opbx_cli(fd, "SIP-FromDomain: %s\r\n", peer->fromdomain);
 		opbx_cli(fd, "Callgroup: ");
-		print_group(fd, peer->callgroup);
+		print_group(fd, peer->callgroup, 1);
 		opbx_cli(fd, "Pickupgroup: ");
-		print_group(fd, peer->pickupgroup);
+		print_group(fd, peer->pickupgroup, 1);
 		opbx_cli(fd, "VoiceMailbox: %s\r\n", peer->mailbox);
 		opbx_cli(fd, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		opbx_cli(fd, "Call limit: %d\r\n", peer->call_limit);
@@ -8545,9 +8545,9 @@ static int sip_show_user(int fd, int argc, char *argv[])
 		opbx_cli(fd, "  CallingPres  : %s\n", opbx_describe_caller_presentation(user->callingpres));
 		opbx_cli(fd, "  Call limit   : %d\n", user->call_limit);
 		opbx_cli(fd, "  Callgroup    : ");
-		print_group(fd, user->callgroup);
+		print_group(fd, user->callgroup, 0);
 		opbx_cli(fd, "  Pickupgroup  : ");
-		print_group(fd, user->pickupgroup);
+		print_group(fd, user->pickupgroup, 0);
 		opbx_cli(fd, "  Callerid     : %s\n", opbx_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
 		opbx_cli(fd, "  ACL          : %s\n", (user->ha?"Yes":"No"));
 		opbx_cli(fd, "  Codec Order  : (");

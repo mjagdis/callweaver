@@ -4116,7 +4116,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int iax2_show_peers(int fd, int argc, char *argv[])
+static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -4125,13 +4125,14 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 	int offline_peers = 0;
 	int unmonitored_peers = 0;
 
-#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s\n"
-#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s\n"
+#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s"
+#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s"
 
 	struct iax2_peer *peer;
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
 	int registeredonly=0;
+	char *term = manager ? "\r\n" : "\n";
 
 	switch (argc) {
 	case 6:
@@ -4167,7 +4168,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 	}
 
 	opbx_mutex_lock(&peerl.lock);
-	opbx_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status");
+	opbx_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		char status[20];
@@ -4210,19 +4211,19 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 					opbx_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
 					ntohs(peer->addr.sin_port), opbx_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-					peer->encmethods ? "(E)" : "   ", status);
+					peer->encmethods ? "(E)" : "   ", status, term);
 
 		opbx_cli(fd, FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 					opbx_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
 					ntohs(peer->addr.sin_port), opbx_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-					peer->encmethods ? "(E)" : "   ", status);
+					peer->encmethods ? "(E)" : "   ", status, term);
 		total_peers++;
 	}
 	opbx_mutex_unlock(&peerl.lock);
 
-	opbx_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
+	opbx_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -4232,6 +4233,10 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static int iax2_show_peers(int fd, int argc, char *argv[])
+{
+	return __iax2_show_peers(0, fd, argc, argv);
+}
 static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
 {
 	opbx_cli_netstats(s->fd, 0);
@@ -4269,8 +4274,12 @@ static int manager_iax2_show_peers( struct mansession *s, struct message *m )
 {
 	char *a[] = { "iax2", "show", "users" };
 	int ret;
-	ret = iax2_show_peers( s->fd, 3, a );
-	opbx_cli( s->fd, "\r\n\r\n" );
+	char *id;
+	id = astman_get_header(m,"ActionID");
+	if (id && !opbx_strlen_zero(id))
+		opbx_cli(s->fd, "ActionID: %s\r\n",id);
+	ret = __iax2_show_peers(1, s->fd, 3, a );
+	opbx_cli(s->fd, "\r\n\r\n" );
 	return ret;
 } /* /JDG */
 
