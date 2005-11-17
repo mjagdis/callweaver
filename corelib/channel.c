@@ -915,7 +915,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	free(chan);
 	opbx_mutex_unlock(&chlock);
 
-	opbx_device_state_changed(name);
+	opbx_device_state_changed_literal(name);
 }
 
 static void opbx_spy_detach(struct opbx_channel *chan) 
@@ -2722,7 +2722,7 @@ int opbx_setstate(struct opbx_channel *chan, int state)
 		return 0;
 
 	chan->_state = state;
-	opbx_device_state_changed(chan->name);
+	opbx_device_state_changed_literal(chan->name);
 	manager_event(EVENT_FLAG_CALL,
 		      (oldstate == OPBX_STATE_DOWN) ? "Newchannel" : "Newstate",
 		      "Channel: %s\r\n"
