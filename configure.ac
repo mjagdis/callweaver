@@ -55,11 +55,14 @@ else
 	AC_SUBST([SVN_VERSION])
 fi   
 
-######
-#
-# Libtool definitions
-#
-######
+dnl ###########################################################################
+dnl ###########################################################################
+dnl ###
+dnl ### Libtool definitions
+dnl ###
+dnl ###########################################################################
+dnl ###########################################################################
+
 dnl check for dlopen support (for shared modules)
 AC_LIBTOOL_DLOPEN
 AC_LIBLTDL_CONVENIENCE
@@ -71,11 +74,13 @@ AC_PROG_LIBTOOL
 AC_SUBST(INCLTDL)
 AC_SUBST(LIBLTDL)
 
-######
-#
-# OS dependant stuff
-#
-######
+dnl ###########################################################################
+dnl ###########################################################################
+dnl ###
+dnl ### OS Dependent Stuff
+dnl ###
+dnl ###########################################################################
+dnl ###########################################################################
 
 dnl Shamelessly stolen from editline configure.in to create the relevant cygwin stuff
 dnl Platform-specific settings.  
@@ -475,7 +480,7 @@ AC_C_BIGENDIAN(AC_DEFINE([__BYTE_ORDER],__BIG_ENDIAN,[Big Endian]),AC_DEFINE([__
 AC_DEFINE([__LITTLE_ENDIAN],1234,[for the places where it is not defined])
 AC_DEFINE([__BIG_ENDIAN],4321,[for the places where it is not defined])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
 SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
@@ -491,7 +496,7 @@ AC_SUBST([SQLITE3_THREADSAFE_LIBS])
 AC_SUBST([SQLITE3_THREADSAFE_CFLAGS])
 
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([tiff-includes],
 	[AC_HELP_STRING([--with-tiff-includes],[Location of libtiff include files.])],
@@ -522,13 +527,13 @@ AC_CHECK_HEADERS([spandsp/t38.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP do
 
 AC_CHECK_LIB([spandsp],[t38_gateway_init],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre5 or newer to comple OpenPBX.org.)],[-ltiff])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### Optional stuff
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 dnl Select which Busydetect routine to use
 AC_ARG_ENABLE(busydetect,
@@ -611,7 +616,7 @@ fi
 AC_SUBST(opbxrunuser)
 AC_SUBST(opbxrungroup)  
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_ENABLE([jabber],
 	[AC_HELP_STRING([--enable-jabber],[Enable jabber support. (default=no)])],,[enable_jabber="no"])
@@ -623,7 +628,7 @@ if test "${enable_jabber}" = "yes"; then
 	[AC_MSG_WARN([loudmouth library not found ... jabber related features (res_jabber, app_icd) will not be built])])
 fi
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_ENABLE(javascript,
         [AC_HELP_STRING([--enable-javascript],[Enable the use of javascript (default=no)])],,
@@ -666,7 +671,7 @@ if test "${enable_javascript}" = "yes"; then
    fi
 fi
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_ENABLE([odbc],
 	[AC_HELP_STRING([--enable-odbc],[Enable support for ODBC (default=yes)])],,[enable_odbc="yes"])
@@ -683,7 +688,7 @@ fi
 AC_SUBST([ODBC_CFLAGS])
 AC_SUBST([ODBC_LIBS])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_ENABLE([postgresql],
 	[AC_HELP_STRING([--enable-postgresql],[Enable support for PostgreSQL. (default=yes)])],,[enable_postgresql="yes"])
@@ -692,7 +697,7 @@ if test "${enable_postgresql}" = "yes"; then
    CT_CHECK_POSTGRES_DB
 fi
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_ENABLE([srtp],
 	[AC_HELP_STRING([--enable-srtp],[Enable support for SRTP.])],,[enable_srtp="no"])
@@ -707,7 +712,7 @@ if test "${enable_srtp}" = "yes"; then
 fi
 AM_CONDITIONAL([WANT_SRTP],[test "${enable_srtp}" = "yes"])
 
-dnl ###########################################################################
+dnl ##########################################################################
 
 AC_ARG_ENABLE([ssl],
 	[AC_HELP_STRING([--enable-ssl],[Enable support for SSL (default=yes)])],,[enable_ssl="yes"])
@@ -716,7 +721,7 @@ if test "${enable_ssl}" = "yes"; then
    CHECK_SSL
 fi
 
-dnl ###########################################################################
+dnl ##########################################################################
 
 AC_ARG_ENABLE([udpfromto],
        [AC_HELP_STRING([--enable-udpfromto],[Enable extended UDP support for multi-homed systems (default=no)])],,
@@ -757,7 +762,7 @@ if test "${enable_udpfromto}" = "yes" ; then
    fi
 fi     
 
-dnl ###########################################################################
+dnl ##########################################################################
 
 AC_ARG_ENABLE([visdn],
 	[AC_HELP_STRING([--enable-visdn],[Enable support for vISDN (default=no)])],,[enable_visdn="no"])
@@ -767,7 +772,7 @@ if test "${enable_visdn}" = "yes"; then
     AC_CHECK_LIB([q931], [main], [HAVE_LIBQ931=1])
 fi
 
-dnl ###########################################################################
+dnl ##########################################################################
 
 AC_ARG_ENABLE([zaptel],
 	[AC_HELP_STRING([--enable-zaptel],[Enable support for Zaptel (default=yes)])],,[enable_zaptel="yes"])
@@ -781,15 +786,15 @@ fi
 
 AM_CONDITIONAL([HAVE_LIBPRI], [test -n "${HAVE_LIBPRI}"])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### Apps
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_adsiprog],
 	[AC_HELP_STRING([--with-app_adsiprog],[Build and install app_adsiprog (default=yes)])],,
@@ -797,7 +802,7 @@ AC_ARG_WITH([app_adsiprog],
 
 AM_CONDITIONAL([WANT_APP_ADSIPROG],[test "${with_app_adsiprog}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_authenticate],
 	[AC_HELP_STRING([--with-app_authenticate],[Build and install app_authenticate (default=yes)])],,
@@ -805,7 +810,7 @@ AC_ARG_WITH([app_authenticate],
 
 AM_CONDITIONAL([WANT_APP_AUTHENTICATE],[test "${with_app_authenticate}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_cdr],
 	[AC_HELP_STRING([--with-app_cdr],[Build and install app_cdr (default=yes)])],,
@@ -813,7 +818,7 @@ AC_ARG_WITH([app_cdr],
 
 AM_CONDITIONAL([WANT_APP_CDR],[test "${with_app_cdr}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_changrab],
 	[AC_HELP_STRING([--with-app_changrab],[Build and install app_changrab (default=yes)])],,
@@ -821,7 +826,7 @@ AC_ARG_WITH([app_changrab],
 
 AM_CONDITIONAL([WANT_APP_CHANGRAB],[test "${with_app_changrab}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_chanisavail],
 	[AC_HELP_STRING([--with-app_chanisavail],[Build and install app_chanisavail (default=yes)])],,
@@ -829,7 +834,7 @@ AC_ARG_WITH([app_chanisavail],
 
 AM_CONDITIONAL([WANT_APP_CHANISAVAIL],[test "${with_app_chanisavail}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_chanspy],
 	[AC_HELP_STRING([--with-app_chanspy],[Build and install app_chanspy (default=yes)])],,
@@ -837,7 +842,7 @@ AC_ARG_WITH([app_chanspy],
 
 AM_CONDITIONAL([WANT_APP_CHANSPY],[test "${with_app_chanspy}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_controlplayback],
 	[AC_HELP_STRING([--with-app_controlplayback],[Build and install app_controlplayback (default=yes)])],,
@@ -845,7 +850,7 @@ AC_ARG_WITH([app_controlplayback],
 
 AM_CONDITIONAL([WANT_APP_CONTROLPLAYBACK],[test "${with_app_controlplayback}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_db],
 	[AC_HELP_STRING([--with-app_db],[Build and install app_db (default=yes)])],,
@@ -853,7 +858,7 @@ AC_ARG_WITH([app_db],
 
 AM_CONDITIONAL([WANT_APP_DB],[test "${with_app_db}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_dial],
 	[AC_HELP_STRING([--with-app_dial],[Build and install app_dial (default=yes)])],,
@@ -861,7 +866,7 @@ AC_ARG_WITH([app_dial],
 
 AM_CONDITIONAL([WANT_APP_DIAL],[test "${with_app_dial}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_dictate],
 	[AC_HELP_STRING([--with-app_dictate],[Build and install app_dictate (default=yes)])],,
@@ -869,7 +874,7 @@ AC_ARG_WITH([app_dictate],
 
 AM_CONDITIONAL([WANT_APP_DICTATE],[test "${with_app_dictate}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_directed_pickup],
 	[AC_HELP_STRING([--with-app_directed_pickup],[Build and install app_directed_pickup (default=yes)])],,
@@ -877,7 +882,7 @@ AC_ARG_WITH([app_directed_pickup],
 
 AM_CONDITIONAL([WANT_APP_DIRECTED_PICKUP],[test "${with_app_directed_pickup}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_directory],
 	[AC_HELP_STRING([--with-app_directory],[Build and install app_directory (default=yes)])],,
@@ -885,7 +890,7 @@ AC_ARG_WITH([app_directory],
 
 AM_CONDITIONAL([WANT_APP_DIRECTORY],[test "${with_app_directory}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_disa],
 	[AC_HELP_STRING([--with-app_disa],[Build and install app_disa (default=yes)])],,
@@ -893,7 +898,7 @@ AC_ARG_WITH([app_disa],
 
 AM_CONDITIONAL([WANT_APP_DISA],[test "${with_app_disa}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_dumpchan],
 	[AC_HELP_STRING([--with-app_dumpchan],[Build and install app_dumpchan (default=yes)])],,
@@ -901,7 +906,7 @@ AC_ARG_WITH([app_dumpchan],
 
 AM_CONDITIONAL([WANT_APP_DUMPCHAN],[test "${with_app_dumpchan}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_echo],
 	[AC_HELP_STRING([--with-app_echo],[Build and install app_echo (default=yes)])],,
@@ -909,7 +914,7 @@ AC_ARG_WITH([app_echo],
 
 AM_CONDITIONAL([WANT_APP_ECHO],[test "${with_app_echo}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_enumlookup],
 	[AC_HELP_STRING([--with-app_enumlookup],[Build and install app_enumlookup (default=yes)])],,
@@ -917,7 +922,7 @@ AC_ARG_WITH([app_enumlookup],
 
 AM_CONDITIONAL([WANT_APP_ENUMLOOKUP],[test "${with_app_enumlookup}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_eval],
 	[AC_HELP_STRING([--with-app_eval],[Build and install app_eval (default=yes)])],,
@@ -925,7 +930,7 @@ AC_ARG_WITH([app_eval],
 
 AM_CONDITIONAL([WANT_APP_EVAL],[test "${with_app_eval}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_exec],
 	[AC_HELP_STRING([--with-app_exec],[Build and install app_exec (default=yes)])],,
@@ -933,7 +938,7 @@ AC_ARG_WITH([app_exec],
 
 AM_CONDITIONAL([WANT_APP_EXEC],[test "${with_app_exec}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_flash],
 	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
@@ -941,7 +946,7 @@ AC_ARG_WITH([app_flash],
 
 AM_CONDITIONAL([WANT_APP_FLASH], [test "${enable_zaptel}" = "yes" -a "${with_app_flash}" = "yes" -a \( -n "${HAVE_ZAPTEL_H}" -o -n "${HAVE_LINUX_ZAPTEL_H}" \)])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_forkcdr],
 	[AC_HELP_STRING([--with-app_forkcdr],[Build and install app_forkcdr (default=yes)])],,
@@ -949,7 +954,7 @@ AC_ARG_WITH([app_forkcdr],
 
 AM_CONDITIONAL([WANT_APP_FORKCDR],[test "${with_app_forkcdr}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_getcpeid],
 	[AC_HELP_STRING([--with-app_getcpeid],[Build and install app_getcpeid (default=yes)])],,
@@ -957,7 +962,7 @@ AC_ARG_WITH([app_getcpeid],
 
 AM_CONDITIONAL([WANT_APP_GETCPEID],[test "${with_app_getcpeid}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_groupcount],
 	[AC_HELP_STRING([--with-app_groupcount],[Build and install app_groupcount (default=yes)])],,
@@ -965,7 +970,7 @@ AC_ARG_WITH([app_groupcount],
 
 AM_CONDITIONAL([WANT_APP_GROUPCOUNT],[test "${with_app_groupcount}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_hasnewvoicemail],
 	[AC_HELP_STRING([--with-app_hasnewvoicemail],[Build and install app_hasnewvoicemail (default=yes)])],,
@@ -973,7 +978,7 @@ AC_ARG_WITH([app_hasnewvoicemail],
 
 AM_CONDITIONAL([WANT_APP_HASNEWVOICEMAIL],[test "${with_app_hasnewvoicemail}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_lookupblacklist],
 	[AC_HELP_STRING([--with-app_lookupblacklist],[Build and install app_lookupblacklist (default=yes)])],,
@@ -981,7 +986,7 @@ AC_ARG_WITH([app_lookupblacklist],
 
 AM_CONDITIONAL([WANT_APP_LOOKUPBLACKLIST],[test "${with_app_lookupblacklist}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_lookupcidname],
 	[AC_HELP_STRING([--with-app_lookupcidname],[Build and install app_lookupcidname (default=yes)])],,
@@ -989,7 +994,7 @@ AC_ARG_WITH([app_lookupcidname],
 
 AM_CONDITIONAL([WANT_APP_LOOKUPCIDNAME],[test "${with_app_lookupcidname}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_macro],
 	[AC_HELP_STRING([--with-app_macro],[Build and install app_macro (default=yes)])],,
@@ -997,7 +1002,7 @@ AC_ARG_WITH([app_macro],
 
 AM_CONDITIONAL([WANT_APP_MACRO],[test "${with_app_macro}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
@@ -1005,7 +1010,7 @@ AC_ARG_WITH([app_meetme],
 
 AM_CONDITIONAL([WANT_APP_MEETME], [test "${enable_zaptel}" = "yes" -a "${with_app_meetme}" = "yes" -a \( -n "${HAVE_ZAPTEL_H}" -o -n "${HAVE_LINUX_ZAPTEL_H}" \)])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_milliwatt],
 	[AC_HELP_STRING([--with-app_milliwatt],[Build and install app_milliwatt (default=yes)])],,
@@ -1013,7 +1018,7 @@ AC_ARG_WITH([app_milliwatt],
 
 AM_CONDITIONAL([WANT_APP_MILLIWATT],[test "${with_app_milliwatt}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_muxmon],
 	[AC_HELP_STRING([--with-app_muxmon],[Build and install app_muxmon (default=yes)])],,
@@ -1021,7 +1026,7 @@ AC_ARG_WITH([app_muxmon],
 
 AM_CONDITIONAL([WANT_APP_MUXMON],[test "${with_app_muxmon}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_osplookup],
 	[AC_HELP_STRING([--with-app_osplookup],[Build and install app_osplookup (default=yes)])],,
@@ -1029,7 +1034,7 @@ AC_ARG_WITH([app_osplookup],
 
 AM_CONDITIONAL([WANT_APP_OSPLOOKUP],[test "${with_app_osplookup}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_playback],
 	[AC_HELP_STRING([--with-app_playback],[Build and install app_playback (default=yes)])],,
@@ -1037,7 +1042,7 @@ AC_ARG_WITH([app_playback],
 
 AM_CONDITIONAL([WANT_APP_PLAYBACK],[test "${with_app_playback}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_privacy],
 	[AC_HELP_STRING([--with-app_privacy],[Build and install app_privacy (default=yes)])],,
@@ -1045,7 +1050,7 @@ AC_ARG_WITH([app_privacy],
 
 AM_CONDITIONAL([WANT_APP_PRIVACY],[test "${with_app_privacy}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_queue],
 	[AC_HELP_STRING([--with-app_queue],[Build and install app_queue (default=yes)])],,
@@ -1053,7 +1058,7 @@ AC_ARG_WITH([app_queue],
 
 AM_CONDITIONAL([WANT_APP_QUEUE],[test "${with_app_queue}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_random],
 	[AC_HELP_STRING([--with-app_random],[Build and install app_random (default=yes)])],,
@@ -1061,7 +1066,7 @@ AC_ARG_WITH([app_random],
 
 AM_CONDITIONAL([WANT_APP_RANDOM],[test "${with_app_random}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_read],
 	[AC_HELP_STRING([--with-app_read],[Build and install app_read (default=yes)])],,
@@ -1069,7 +1074,7 @@ AC_ARG_WITH([app_read],
 
 AM_CONDITIONAL([WANT_APP_READ],[test "${with_app_read}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_record],
 	[AC_HELP_STRING([--with-app_record],[Build and install app_record (default=yes)])],,
@@ -1077,7 +1082,7 @@ AC_ARG_WITH([app_record],
 
 AM_CONDITIONAL([WANT_APP_RECORD],[test "${with_app_record}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_rxfax],
 	[AC_HELP_STRING([--with-app_rxfax],[Build and install app_rxfax (default=yes)])],,
@@ -1086,7 +1091,7 @@ AC_ARG_WITH([app_rxfax],
 AM_CONDITIONAL([WANT_APP_RXFAX],
 	[test "${with_app_rxfax}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_sayunixtime],
 	[AC_HELP_STRING([--with-app_sayunixtime],[Build and install app_sayunixtime (default=yes)])],,
@@ -1094,7 +1099,7 @@ AC_ARG_WITH([app_sayunixtime],
 
 AM_CONDITIONAL([WANT_APP_SAYUNIXTIME],[test "${with_app_sayunixtime}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_senddtmf],
 	[AC_HELP_STRING([--with-app_senddtmf],[Build and install app_senddtmf (default=yes)])],,
@@ -1102,7 +1107,7 @@ AC_ARG_WITH([app_senddtmf],
 
 AM_CONDITIONAL([WANT_APP_SENDDTMF],[test "${with_app_senddtmf}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_sendtext],
 	[AC_HELP_STRING([--with-app_sendtext],[Build and install app_sendtext (default=yes)])],,
@@ -1110,7 +1115,7 @@ AC_ARG_WITH([app_sendtext],
 
 AM_CONDITIONAL([WANT_APP_SENDTEXT],[test "${with_app_sendtext}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_setcdruserfield],
 	[AC_HELP_STRING([--with-app_setcdruserfield],[Build and install app_setcdruserfield (default=yes)])],,
@@ -1118,7 +1123,7 @@ AC_ARG_WITH([app_setcdruserfield],
 
 AM_CONDITIONAL([WANT_APP_SETCDRUSERFIELD],[test "${with_app_setcdruserfield}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_setrdnis],
 	[AC_HELP_STRING([--with-app_setrdnis],[Build and install app_setrdnis (default=yes)])],,
@@ -1126,7 +1131,7 @@ AC_ARG_WITH([app_setrdnis],
 
 AM_CONDITIONAL([WANT_APP_SETRDNIS],[test "${with_app_setrdnis}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_settransfercapability],
 	[AC_HELP_STRING([--with-app_settransfercapability],[Build and install app_settransfercapability (default=yes)])],,
@@ -1134,7 +1139,7 @@ AC_ARG_WITH([app_settransfercapability],
 
 AM_CONDITIONAL([WANT_APP_SETTRANSFERCAPABILITY],[test "${with_app_settransfercapability}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_softhangup],
 	[AC_HELP_STRING([--with-app_softhangup],[Build and install app_softhangup (default=yes)])],,
@@ -1142,7 +1147,7 @@ AC_ARG_WITH([app_softhangup],
 
 AM_CONDITIONAL([WANT_APP_SOFTHANGUP],[test "${with_app_softhangup}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_system],
 	[AC_HELP_STRING([--with-app_system],[Build and install app_system (default=yes)])],,
@@ -1150,7 +1155,7 @@ AC_ARG_WITH([app_system],
 
 AM_CONDITIONAL([WANT_APP_SYSTEM],[test "${with_app_system}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_talkdetect],
 	[AC_HELP_STRING([--with-app_talkdetect],[Build and install app_talkdetect (default=yes)])],,
@@ -1158,7 +1163,7 @@ AC_ARG_WITH([app_talkdetect],
 
 AM_CONDITIONAL([WANT_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_transfer],
 	[AC_HELP_STRING([--with-app_transfer],[Build and install app_transfer (default=yes)])],,
@@ -1166,7 +1171,7 @@ AC_ARG_WITH([app_transfer],
 
 AM_CONDITIONAL([WANT_APP_TRANSFER],[test "${with_app_transfer}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_txfax],
 	[AC_HELP_STRING([--with-app_txfax],[Build and install app_txfax (default=yes)])],,
@@ -1175,7 +1180,7 @@ AC_ARG_WITH([app_txfax],
 AM_CONDITIONAL([WANT_APP_TXFAX],
 	[test "${with_app_txfax}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_userevent],
 	[AC_HELP_STRING([--with-app_userevent],[Build and install app_userevent (default=yes)])],,
@@ -1183,7 +1188,7 @@ AC_ARG_WITH([app_userevent],
 
 AM_CONDITIONAL([WANT_APP_USEREVENT],[test "${with_app_userevent}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_valetparking],
 	[AC_HELP_STRING([--with-app_valetparking],[Build and install app_valetparking (default=no)])],,
@@ -1191,7 +1196,7 @@ AC_ARG_WITH([app_valetparking],
 
 AM_CONDITIONAL([WANT_APP_VALETPARKING],[test "${with_app_valetparking}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_verbose],
 	[AC_HELP_STRING([--with-app_verbose],[Build and install app_verbose (default=yes)])],,
@@ -1199,7 +1204,7 @@ AC_ARG_WITH([app_verbose],
 
 AM_CONDITIONAL([WANT_APP_VERBOSE],[test "${with_app_verbose}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_visdn_ppp],
 	[AC_HELP_STRING([--with-app_visdn_ppp],[Build and install app_visdn_ppp (default=yes)])],,
@@ -1207,7 +1212,7 @@ AC_ARG_WITH([app_visdn_ppp],
 
 AM_CONDITIONAL([WANT_APP_VISDN_PPP],[test "${with_app_visdn_ppp}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_voicemail],
 	[AC_HELP_STRING([--with-app_voicemail],[Build and install app_voicemail (default=yes)])],,
@@ -1215,7 +1220,7 @@ AC_ARG_WITH([app_voicemail],
 
 AM_CONDITIONAL([WANT_APP_VOICEMAIL],[test "${with_app_voicemail}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_waitforring],
 	[AC_HELP_STRING([--with-app_waitforring],[Build and install app_waitforring (default=yes)])],,
@@ -1223,7 +1228,7 @@ AC_ARG_WITH([app_waitforring],
 
 AM_CONDITIONAL([WANT_APP_WAITFORRING],[test "${with_app_waitforring}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_waitforsilence],
 	[AC_HELP_STRING([--with-app_waitforsilence],[Build and install app_waitforsilence (default=yes)])],,
@@ -1231,7 +1236,7 @@ AC_ARG_WITH([app_waitforsilence],
 
 AM_CONDITIONAL([WANT_APP_WAITFORSILENCE],[test "${with_app_waitforsilence}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_while],
 	[AC_HELP_STRING([--with-app_while],[Build and install app_while (default=yes)])],,
@@ -1239,7 +1244,7 @@ AC_ARG_WITH([app_while],
 
 AM_CONDITIONAL([WANT_APP_WHILE],[test "${with_app_while}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([app_zapateller],
 	[AC_HELP_STRING([--with-app_zapateller],[Build and install app_zapateller (default=yes)])],,
@@ -1247,20 +1252,20 @@ AC_ARG_WITH([app_zapateller],
 
 AM_CONDITIONAL([WANT_APP_ZAPATELLER],[test "${with_app_zapateller}" = "yes"])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### Channels
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_agent],
 	[AC_HELP_STRING([--with-chan_agent],[Build and install chan_agent (default=yes)])],,[with_chan_agent="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_AGENT],[test "${with_chan_agent}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 	
 AC_ARG_WITH([chan_capi],
 	[AC_HELP_STRING([--with-chan_capi],[Build and install chan_capi (default=no)])],,[enable_chan_capi="no"])
@@ -1277,7 +1282,7 @@ fi
 
 AM_CONDITIONAL([WANT_CHAN_CAPI],[test "${with_chan_capi}" = "yes" -a -n "${HAVE_CAPI20_H}" -a -n "${HAVE_CAPIUTILS_H}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(chan_exosip2,
 	[AC_HELP_STRING([--with-chan_exosip2],[Build and install chan_exosip2 (default=no)])],,[with_chan_exosip2="no"])
@@ -1305,7 +1310,7 @@ AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test "${with_chan_exosip2}" = "yes" -a -n "$
 AC_SUBST([CHAN_EXOSIP2_CFLAGS])
 AC_SUBST([CHAN_EXOSIP2_LIBS])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_fax],
 	[AC_HELP_STRING([--with-chan_fax],[Build and install chan_fax (default=no)])],,[want_chan_fax="no"])
@@ -1313,42 +1318,42 @@ AC_ARG_WITH([chan_fax],
 AM_CONDITIONAL([WANT_CHAN_FAX],
 	[test "${with_chan_fax}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_features],
 	[AC_HELP_STRING([--with-chan_features],[Build and install chan_features (default=yes)])],,[with_chan_features="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_FEATURES],[test "${with_chan_features}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_iax2],
 	[AC_HELP_STRING([--with-chan_iax2],[Build and install chan_iax2 (default=yes)])],,[with_chan_iax2="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_IAX2],[test "${with_chan_iax2}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_local],
 	[AC_HELP_STRING([--with-chan_local],[Build and install chan_local (default=yes)])],,[with_chan_local="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_LOCAL],[test "${with_chan_local}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_mgcp],
 	[AC_HELP_STRING([--with-chan_mgcp],[Build and install chan_mgcp (default=yes)])],,[with_chan_mgcp="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_MGCP],[test "${with_chan_mgcp}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_sip],
 	[AC_HELP_STRING([--with-chan_sip],[Build and install chan_sip (default=yes)])],,[with_chan_sip="yes"])
 
 AM_CONDITIONAL([WANT_CHAN_SIP],[test "${with_chan_sip}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(chan_unicall,
 	[AC_HELP_STRING([--with-chan_unicall],[Build and install chan_unicall (default=no).])],,[with_chan_unicall="no"])
@@ -1359,14 +1364,14 @@ fi
 
 AM_CONDITIONAL([WANT_CHAN_UNICALL],[test "${with_chan_unicall}" = "yes" -a -n "${HAVE_LIBUNICALL}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_visdn],
 	[AC_HELP_STRING([--want-chan_visdn],[Build and install chan_visdn (default=no)])],,[want_chan_visdn="no"])
 
 AM_CONDITIONAL([WANT_CHAN_VISDN],[test "${with_chan_visdn}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_woomera],
 	[AC_HELP_STRING([--with-chan_woomera],[Build and install chan_woomera (default=yes)])],,
@@ -1374,7 +1379,7 @@ AC_ARG_WITH([chan_woomera],
 
 AM_CONDITIONAL([WANT_CHAN_WOOMERA], [test "${with_chan_woomera}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([chan_zap],
 	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes) (requires --enable-zaptel)])],,
@@ -1389,33 +1394,33 @@ dnl app_icd
 #
 #
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### CDR
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(cdr_odbc,
 	[AC_HELP_STRING([--with-cdr_odbc],[Build and install cdr_odbc (default=no) (requires --enable-odbc])],,[with_cdr_odbc="no"])
 
 AM_CONDITIONAL([WANT_CDR_ODBC],[test "${enable_odbc}" = "yes" -a "${with_cdr_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(cdr_pgsql,
 	[AC_HELP_STRING([--with-cdr_pgsql],[Build and install cdr_pgsql (default=no) (requires --enable-postgresql])],,[with_cdr_pgsql="no"])
 
 AM_CONDITIONAL([WANT_CDR_PGSQL],[test "${enable_postgresql}" = "yes" -a "$with_cdr_pgsql" = "yes"])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### Codecs
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([codec_speex],
 	[AC_HELP_STRING([--with-codec_speex],[Build and install codec_speex (default=yes)])],,[with_codec_speex="yes"])
@@ -1429,13 +1434,13 @@ fi
 
 AM_CONDITIONAL([WANT_CODEC_SPEEX],[test "${with_codec_speex}" = "yes" -a -n "${HAVE_LIBSPEEX}" -a -n "${HAVE_SPEEX_H}"])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### Functions
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_callerid],
         [AC_HELP_STRING([--with-func_callerid],[Build and install func_callerid (default=yes)])],,
@@ -1443,7 +1448,7 @@ AC_ARG_WITH([func_callerid],
 
 AM_CONDITIONAL([WANT_FUNC_CALLERID],[test "${with_func_callerid}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_cdr],
         [AC_HELP_STRING([--with-func_cdr],[Build and install func_cdr (default=yes)])],,
@@ -1451,7 +1456,7 @@ AC_ARG_WITH([func_cdr],
 
 AM_CONDITIONAL([WANT_FUNC_CDR],[test "${with_func_cdr}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_db],
         [AC_HELP_STRING([--with-func_db],[Build and install func_db (default=yes)])],,
@@ -1459,7 +1464,7 @@ AC_ARG_WITH([func_db],
 
 AM_CONDITIONAL([WANT_FUNC_DB],[test "${with_func_db}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_enum],
         [AC_HELP_STRING([--with-func_enum],[Build and install func_enum (default=yes)])],,
@@ -1467,7 +1472,7 @@ AC_ARG_WITH([func_enum],
 
 AM_CONDITIONAL([WANT_FUNC_ENUM],[test "${with_func_enum}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_env],
         [AC_HELP_STRING([--with-func_env],[Build and install func_env (default=yes)])],,
@@ -1475,7 +1480,7 @@ AC_ARG_WITH([func_env],
 
 AM_CONDITIONAL([WANT_FUNC_ENV],[test "${with_func_env}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_fileexists],
         [AC_HELP_STRING([--with-func_fileexists],[Build and install func_fileexists (default=yes)])],,
@@ -1483,7 +1488,7 @@ AC_ARG_WITH([func_fileexists],
 
 AM_CONDITIONAL([WANT_FUNC_FILEEXISTS],[test "${with_func_fileexists}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_groupcount],
         [AC_HELP_STRING([--with-func_groupcount],[Build and install func_groupcount (default=yes)])],,
@@ -1491,7 +1496,7 @@ AC_ARG_WITH([func_groupcount],
 
 AM_CONDITIONAL([WANT_FUNC_GROUPCOUNT],[test "${with_func_groupcount}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_language],
         [AC_HELP_STRING([--with-func_language],[Build and install func_language (default=yes)])],,
@@ -1499,7 +1504,7 @@ AC_ARG_WITH([func_language],
 
 AM_CONDITIONAL([WANT_FUNC_LANGUAGE],[test "${with_func_language}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_logic],
         [AC_HELP_STRING([--with-func_logic],[Build and install func_logic (default=yes)])],,
@@ -1507,7 +1512,7 @@ AC_ARG_WITH([func_logic],
 
 AM_CONDITIONAL([WANT_FUNC_LOGIC],[test "${with_func_logic}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_math],
         [AC_HELP_STRING([--with-func_math],[Build and install func_math (default=yes)])],,
@@ -1515,7 +1520,7 @@ AC_ARG_WITH([func_math],
 
 AM_CONDITIONAL([WANT_FUNC_MATH],[test "${with_func_math}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_md5],
         [AC_HELP_STRING([--with-func_md5],[Build and install func_md5 (default=yes)])],,
@@ -1523,7 +1528,7 @@ AC_ARG_WITH([func_md5],
 
 AM_CONDITIONAL([WANT_FUNC_MD5],[test "${with_func_md5}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_moh],
         [AC_HELP_STRING([--with-func_moh],[Build and install func_moh (default=yes)])],,
@@ -1531,7 +1536,7 @@ AC_ARG_WITH([func_moh],
 
 AM_CONDITIONAL([WANT_FUNC_MOH],[test "${with_func_moh}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_strings],
         [AC_HELP_STRING([--with-func_strings],[Build and install func_strings (default=yes)])],,
@@ -1539,7 +1544,7 @@ AC_ARG_WITH([func_strings],
 
 AM_CONDITIONAL([WANT_FUNC_STRINGS],[test "${with_func_strings}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_timeout],
         [AC_HELP_STRING([--with-func_timeout],[Build and install func_timeout (default=yes)])],,
@@ -1547,7 +1552,7 @@ AC_ARG_WITH([func_timeout],
 
 AM_CONDITIONAL([WANT_FUNC_TIMEOUT],[test "${with_func_timeout}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([func_uri],
         [AC_HELP_STRING([--with-func_uri],[Build and install func_uri (default=yes)])],,
@@ -1555,13 +1560,13 @@ AC_ARG_WITH([func_uri],
 
 AM_CONDITIONAL([WANT_FUNC_URI],[test "${with_func_uri}" = "yes"])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### PBX
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([pbx_dundi],
 	[AC_HELP_STRING([--with-pbx_dundi],[Build and install pbx_dundi (default=yes)])],,
@@ -1573,7 +1578,7 @@ fi
    
 AM_CONDITIONAL([WANT_PBX_DUNDI],[test "${with_pbx_dundi}" = "yes" -a -n "${HAVE_LIBZ}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([pbx_realtime],
 	[AC_HELP_STRING([--with-pbx_realtime],[Build and install pbx_realtime (default=yes)])],,
@@ -1581,41 +1586,41 @@ AC_ARG_WITH([pbx_realtime],
 
 AM_CONDITIONAL([WANT_PBX_REALTIME],[test "${with_pbx_realtime}" = "yes"])
 
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 dnl ###
 dnl ### Resources
 dnl ###
-dnl ############################################################################
-dnl ############################################################################
+dnl ###########################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([res_config_odbc],
         [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no) (requires --enable-odbc)])],,[with_res_config_odbc="no"])
 
 AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_config_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(res_config_pgsql,
 	[AC_HELP_STRING([--with-res_config_pgsql],[Build and install res_config_pgsql (default=no) (requires --enable-postgresql])],,[with_res_config_pgsql="no"])
 
 AM_CONDITIONAL([WANT_RES_CONFIG_PGSQL],[test "${enable_postgresql}" = "yes" -a "${with_res_config_pgsql}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([res_jabber],
 	[AC_HELP_STRING([--with-res_jabber],[Build and install res_jabber (default=no) (requires --enable-jabber])],,[with_res_jabber="no"])
 
 AM_CONDITIONAL([WANT_RES_JABBER],[test "${enable_jabber}" = "yes" -a "${with_res_jabber}" = "yes" -a -n "${HAVE_LOUDMOUTH}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([res_js],
 	[AC_HELP_STRING([--with-res_js],[Build and install res_js (default=no) (requires --enable-javascript)])],,[with_res_js="no"])
 
 AM_CONDITIONAL([WANT_RES_JS],[test "${enable_javascript}" = "yes" -a "${with_res_js}" = "yes" -a -n "${HAVE_LIBJS}" -a \( -n "${HAVE_JSSCRIPT_H}" -o -n "${HAVE_JS_JSSCRIPT_H}" \) -a -n "${HAVE_NSPR}"])  
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH([res_odbc],
 	[AC_HELP_STRING([--with-res_odbc],[Build and install res_odbc (default=no) (requires --enable-odbc)])],,
@@ -1623,7 +1628,7 @@ AC_ARG_WITH([res_odbc],
 
 AM_CONDITIONAL([WANT_RES_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 dnl res_osp ... open settlement protocol handling
 dnl look for Transnexus OSP Toolkit (stolen from the OpenH323 configure.ac)
@@ -1675,23 +1680,21 @@ AC_SUBST(OSP_INCLUDE)
 AC_SUBST(OSP_CFLAGS)
 AM_CONDITIONAL([WANT_OSP],[test -n "${TRANSNEXUS_OSP}"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(res_noise,
 	[AC_HELP_STRING([--with-res_noise],[Build and install res_noise (default=no).])],,[with_res_noise="yes"])
 
 AM_CONDITIONAL([WANT_RES_NOISE],[test "${with_res_noise}" = "yes"])
 
-dnl ############################################################################
+dnl ###########################################################################
 
 AC_ARG_WITH(res_sqlite,
         [AC_HELP_STRING([--with-res_sqlite],[Build and install res_sqlite (default=no)])],,[with_res_sqlite="no"])
 
 AM_CONDITIONAL([WANT_RES_SQLITE],[test "${with_res_sqlite}" = "yes"])
 
-dnl ############################################################################
-
-
+dnl ###########################################################################
 
 AC_SUBST(SVN)
 AC_SUBST(GREP)
