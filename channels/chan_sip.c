@@ -101,6 +101,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MAX_EXPIRY	3600
 #define DEFAULT_REGISTRATION_TIMEOUT	20
+#define DEFAULT_MAX_FORWARDS	"70"
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
@@ -701,7 +702,6 @@ static struct sip_pvt {
 	struct sip_request initreq;		/* Initial request */
 	
 	int maxtime;				/* Max time for first response */
-	int maxforwards;			/* keep the max-forwards info */
 	int initid;				/* Auto-congest ID if appropriate */
 	int autokillid;				/* Auto-kill ID */
 	time_t lastrtprx;			/* Last RTP received */
@@ -2672,7 +2672,6 @@ static int sip_senddigit(struct opbx_channel *ast, char digit)
 	return res;
 }
 
-#define DEFAULT_MAX_FORWARDS	70
 
 
 /*--- sip_transfer: Transfer SIP call */
@@ -4279,6 +4278,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_header(resp, req, "CSeq");
 	add_header(resp, "User-Agent", default_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
+	add_header(resp, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
 		   contact info */
@@ -4293,11 +4293,6 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		}
 	} else if (p->our_contact[0]) {
 		add_header(resp, "Contact", p->our_contact);
-	}
-	if (p->maxforwards) {
-		char tmp[256];
-		snprintf(tmp, sizeof(tmp), "%d", p->maxforwards);
-		add_header(resp, "Max-Forwards", tmp);
 	}
 	return 0;
 }
@@ -4395,6 +4390,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "CSeq", tmp);
 
 	add_header(req, "User-Agent", default_useragent);
+	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	if (p->rpid)
 		add_header(req, "Remote-Party-ID", p->rpid);
@@ -5280,7 +5276,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		opbx_build_string(&invite, &invite_max, "%s", urioptions);
 	}
 
-       /* If custom URI options have been provided, append them */
+	/* If custom URI options have been provided, append them */
 	if (p->options && p->options->uri_options)
 		opbx_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
 
@@ -5313,6 +5309,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", default_useragent);
+	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	if (p->rpid)
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
@@ -5921,6 +5918,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
 	add_header(&req, "User-Agent", default_useragent);
+	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	
 	if (auth) 	/* Add auth header */
@@ -5981,7 +5979,6 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	char from[256];
 	char *of, *c;
 	char referto[256];
-	char tmp[80];
 
 	if (opbx_test_flag(p, SIP_OUTGOING)) 
 		of = get_header(&p->initreq, "To");
@@ -6007,26 +6004,16 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
 	}
 
-	opbx_copy_string(tmp, get_header(&p->initreq, "Max-Forwards"), sizeof(tmp));
-	if (strlen(tmp) && atoi(tmp)) {
-		p->maxforwards = atoi(tmp) - 1;
-	} else {
-               p->maxforwards = DEFAULT_MAX_FORWARDS - 1;
-	}
-	if (p->maxforwards > -1) {
-		/* save in case we get 407 challenge */
-		opbx_copy_string(p->refer_to, referto, sizeof(p->refer_to));
-		opbx_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
+	/* save in case we get 407 challenge */
+	opbx_copy_string(p->refer_to, referto, sizeof(p->refer_to));
+	opbx_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
 
-		reqprep(&req, p, SIP_REFER, 0, 1);
-		add_header(&req, "Refer-To", referto);
-		if (!opbx_strlen_zero(p->our_contact))
-			add_header(&req, "Referred-By", p->our_contact);
-		add_blank_header(&req);
-		return send_request(p, &req, 1, p->ocseq);
-	} else {
-		return -1;
-	}
+	reqprep(&req, p, SIP_REFER, 0, 1);
+	add_header(&req, "Refer-To", referto);
+	if (!opbx_strlen_zero(p->our_contact))
+		add_header(&req, "Referred-By", p->our_contact);
+	add_blank_header(&req);
+	return send_request(p, &req, 1, p->ocseq);
 }
 
 /*--- transmit_info_with_digit: Send SIP INFO dtmf message, see Cisco documentation on cisco.co
@@ -13651,21 +13638,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 		}
 	}
 
-	/* make sure the forwarding won't be forever */
-	opbx_copy_string(tmp, get_header(&p->initreq, "Max-Forwards"), sizeof(tmp));
-	if (strlen(tmp) && atoi(tmp)) {
-		/* we found Max-Forwards in the original SIP request */
-		p->maxforwards = atoi(tmp) - 1;
-	} else {
-		/* just send our 302 Moved Temporarily */
-		p->maxforwards = DEFAULT_MAX_FORWARDS - 1;
-	}
-	if (p->maxforwards > -1) {
-		snprintf(p->our_contact, sizeof(p->our_contact), "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
-		transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
-	} else {
-		transmit_response(p, "483 Too Many Hops", &p->initreq);
-	}
+	snprintf(p->our_contact, sizeof(p->our_contact), "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
+	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
+
 	/* this is all that we want to send to that SIP device */
 	opbx_set_flag(p, SIP_ALREADYGONE);
 
