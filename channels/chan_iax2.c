@@ -9135,6 +9135,13 @@ static char *function_iaxpeer(struct opbx_channel *chan, char *cmd, char *data, 
 		return ret;
 	}
 
+	/* if our channel, return the IP address of the endpoint of current channel */
+	if (!strcmp(peername,"CURRENTCHANNEL")) {
+	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
+		opbx_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
+		return buf;
+	}
+
 	if ((colname = strchr(peername, ':'))) {
 		*colname = '\0';
 		colname++;
@@ -9183,9 +9190,9 @@ static char *function_iaxpeer(struct opbx_channel *chan, char *cmd, char *data, 
 struct opbx_custom_function iaxpeer_function = {
     .name = "IAXPEER",
     .synopsis = "Gets IAX peer information",
-    .syntax = "IAXPEER(<peername>[:item])",
+    .syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])",
     .read = function_iaxpeer,
-	.desc = "Valid items are:\n"
+	.desc = "If peername specified, valid items are:\n"
 	"- ip (default)          The IP address.\n"
 	"- mailbox               The configured mailbox.\n"
 	"- context               The configured context.\n"
@@ -9195,6 +9202,8 @@ struct opbx_custom_function iaxpeer_function = {
 	"- callerid_num          The configured Caller ID number.\n"
 	"- codecs                The configured codecs.\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"\n"
+	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
 	"\n"
 };
 
