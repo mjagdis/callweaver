@@ -1274,11 +1274,33 @@ int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment)
 
 	for (count = 0; count < f->samples; count++) {
 		if (adjustment > 0) {
-			fdata[count] *= abs(adjustment);
+			opbx_slinear_saturated_multiply(&fdata[count], abs(adjustment));
 		} else if (adjustment < 0) {
-			fdata[count] /= abs(adjustment);
+			opbx_slinear_saturated_divide(&fdata[count], abs(adjustment));
 		}
 	}
+
+	return 0;
+}
+
+int opbx_frame_slinear_sum(struct opbx_frame *f1, struct opbx_frame *f2)
+{
+	int count;
+	short *data1, *data2;
+
+	if ((f1->frametype != AST_FRAME_VOICE) || (f1->subclass != AST_FORMAT_SLINEAR))
+		return -1;
+
+	if ((f2->frametype != AST_FRAME_VOICE) || (f2->subclass != AST_FORMAT_SLINEAR))
+		return -1;
+
+	if (f1->samples != f2->samples)
+		return -1;
+
+	for (count = 0, data1 = f1->data, data2 = f2->data;
+	     count < f1->samples;
+	     count++, data1++, data2++)
+		opbx_slinear_saturated_add(data1, *data2);
 
 	return 0;
 }
