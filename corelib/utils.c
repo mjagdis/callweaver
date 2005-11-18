@@ -574,7 +574,7 @@ int opbx_build_string(char **buffer, size_t *space, const char *fmt, ...)
 
 int opbx_true(const char *s)
 {
-	if (!s || opbx_strlen_zero(s))
+	if (opbx_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a true value */
@@ -591,7 +591,7 @@ int opbx_true(const char *s)
 
 int opbx_false(const char *s)
 {
-	if (!s || opbx_strlen_zero(s))
+	if (opbx_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a false value */

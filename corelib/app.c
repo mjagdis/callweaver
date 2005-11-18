@@ -397,7 +397,7 @@ int opbx_linear_stream(struct opbx_channel *chan, const char *filename, int fd, 
 	int res = -1;
 	int autoclose = 0;
 	if (fd < 0) {
-		if (!filename || opbx_strlen_zero(filename))
+		if (opbx_strlen_zero(filename))
 			return -1;
 		autoclose = 1;
 		if (filename[0] == '/') 
@@ -1002,7 +1002,7 @@ int opbx_app_group_split_group(char *data, char *group, int group_max, char *cat
 	char tmp[256];
 	char *grp=NULL, *cat=NULL;
 
-	if (data && !opbx_strlen_zero(data)) {
+	if (!opbx_strlen_zero(data)) {
 		opbx_copy_string(tmp, data, sizeof(tmp));
 		grp = tmp;
 		cat = strchr(tmp, '@');
@@ -1012,7 +1012,7 @@ int opbx_app_group_split_group(char *data, char *group, int group_max, char *cat
 		}
 	}
 
-	if (grp && !opbx_strlen_zero(grp))
+	if (!opbx_strlen_zero(grp))
 		opbx_copy_string(group, grp, group_max);
 	else
 		res = -1;
@@ -1047,10 +1047,10 @@ int opbx_app_group_get_count(char *group, char *category)
 	char cat[80];
 	char *s;
 
-	if (group == NULL || opbx_strlen_zero(group))
+	if (opbx_strlen_zero(group))
 		return 0;
 
- 	s = (category && !opbx_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+ 	s = (!opbx_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
 	opbx_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;
@@ -1073,14 +1073,14 @@ int opbx_app_group_match_get_count(char *groupmatch, char *category)
 	char cat[80];
 	char *s;
 
-	if (!groupmatch || opbx_strlen_zero(groupmatch))
+	if (opbx_strlen_zero(groupmatch))
 		return 0;
 
 	/* if regex compilation fails, return zero matches */
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	s = (category && !opbx_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	s = (!opbx_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
 	opbx_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;

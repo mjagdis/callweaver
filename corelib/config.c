@@ -634,11 +634,12 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 				}
 				if (process_buf) {
 					char *buf = opbx_strip(process_buf);
-					if (!opbx_strlen_zero(buf))
+					if (!opbx_strlen_zero(buf)) {
 						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
 							cfg = NULL;
 							break;
 						}
+					}
 				}
 			}
 		}

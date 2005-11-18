@@ -488,7 +488,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		opbx_stopstream(chan);
 		opbx_generator_deactivate(chan);
 	}
-	if (preflang && !opbx_strlen_zero(preflang)) {
+	if (!opbx_strlen_zero(preflang)) {
 		opbx_copy_string(filename3, filename, sizeof(filename3));
 		endpart = strrchr(filename3, '/');
 		if (endpart) {
@@ -552,7 +552,7 @@ struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *
 	char lang2[MAX_LANGUAGE];
 	/* XXX H.263 only XXX */
 	char *fmt = "h263";
-	if (preflang && !opbx_strlen_zero(preflang)) {
+	if (!opbx_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = opbx_fileexists(filename2, fmt, NULL);
 		if (fmts < 1) {
@@ -739,7 +739,7 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
 	char *c;
 	char lang2[MAX_LANGUAGE];
 	int res = -1;
-	if (preflang && !opbx_strlen_zero(preflang)) {
+	if (!opbx_strlen_zero(preflang)) {
 		/* Insert the language between the last two parts of the path */
 		opbx_copy_string(tmp, filename, sizeof(tmp));
 		c = strrchr(tmp, '/');

@@ -4486,9 +4486,9 @@ int opbx_explicit_goto(struct opbx_channel *chan, const char *context, const cha
 	if (!chan)
 		return -1;
 
-	if (context && !opbx_strlen_zero(context))
+	if (!opbx_strlen_zero(context))
 		opbx_copy_string(chan->context, context, sizeof(chan->context));
-	if (exten && !opbx_strlen_zero(exten))
+	if (!opbx_strlen_zero(exten))
 		opbx_copy_string(chan->exten, exten, sizeof(chan->exten));
 	if (priority > -1) {
 		chan->priority = priority;
@@ -4524,8 +4524,8 @@ int opbx_async_goto(struct opbx_channel *chan, const char *context, const char *
 			tmpchan->writeformat = chan->writeformat;
 			/* Setup proper location */
 			opbx_explicit_goto(tmpchan,
-					  (context && !opbx_strlen_zero(context)) ? context : chan->context,
-					  (exten && !opbx_strlen_zero(exten)) ? exten : chan->exten,
+					  (!opbx_strlen_zero(context)) ? context : chan->context,
+					  (!opbx_strlen_zero(exten)) ? exten : chan->exten,
 					  priority);
 
 			/* Masquerade into temp channel */
@@ -5011,7 +5011,7 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
 				chan = opbx_channel_alloc(0);
 				if (chan) {
 					opbx_copy_string(chan->name, "OutgoingSpoolFailed", sizeof(chan->name));
-					if (context && !opbx_strlen_zero(context))
+					if (!opbx_strlen_zero(context))
 						opbx_copy_string(chan->context, context, sizeof(chan->context));
 					opbx_copy_string(chan->exten, "failed", sizeof(chan->exten));
 					chan->priority = 1;
@@ -5100,7 +5100,7 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
 
 	if (locked_channel) 
 		*locked_channel = NULL;
-	if (!app || opbx_strlen_zero(app)) {
+	if (opbx_strlen_zero(app)) {
 		res = -1;
 		goto outgoing_app_cleanup;	
 	}
@@ -5454,7 +5454,7 @@ static int pbx_builtin_prefix(struct opbx_channel *chan, void *data)
 {
 	char newexten[OPBX_MAX_EXTENSION];
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_DEBUG, "Ignoring, since there is no prefix to add\n");
 		return 0;
 	}
@@ -5469,7 +5469,7 @@ static int pbx_builtin_suffix(struct opbx_channel *chan, void *data)
 {
 	char newexten[OPBX_MAX_EXTENSION];
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_DEBUG, "Ignoring, since there is no suffix to add\n");
 		return 0;
 	}
@@ -5486,7 +5486,7 @@ static int pbx_builtin_gotoiftime(struct opbx_channel *chan, void *data)
 	char *s, *ts;
 	struct opbx_timing timing;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?[[context|]extension|]priority\n");
 		return -1;
 	}
@@ -5514,7 +5514,7 @@ static int pbx_builtin_execiftime(struct opbx_channel *chan, void *data)
 	struct opbx_app *app;
 	const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "%s\n", usage);	
 		return -1;
 	}
@@ -5901,7 +5901,7 @@ int pbx_builtin_setvar(struct opbx_channel *chan, void *data)
 	int global = 0;
 	int x;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
 		return 0;
 	}
@@ -5939,7 +5939,7 @@ int pbx_builtin_importvar(struct opbx_channel *chan, void *data)
 	char tmp[VAR_BUF_SIZE]="";
 	char *s;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
@@ -5970,7 +5970,7 @@ static int pbx_builtin_setglobalvar(struct opbx_channel *chan, void *data)
 	char *value;
 	char *stringp = NULL;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
@@ -6025,7 +6025,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, void *data)
 	int rc;
 	char *stringp=NULL;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Ignoring, since there is no variable to check\n");
 		return 0;
 	}
@@ -6037,7 +6037,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, void *data)
 	branch2=strsep(&stringp,"");
 	branch = pbx_checkcondition(condition) ? branch1 : branch2;
 	
-	if ((branch==NULL) || opbx_strlen_zero(branch)) {
+	if (opbx_strlen_zero(branch)) {
 		opbx_log(LOG_DEBUG, "Not taking any branch\n");
 		return(0);
 	}
@@ -6055,7 +6055,7 @@ static int pbx_builtin_saynumber(struct opbx_channel *chan, void *data)
 	char *options = (char *) NULL;
 
 	
-	if (!data || opbx_strlen_zero((char *)data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
 		return -1;
 	}
@@ -6345,7 +6345,7 @@ int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string)
 	int ipri;
 	int mode = 0;
 
-	if (!goto_string || opbx_strlen_zero(goto_string)) {
+	if (opbx_strlen_zero(goto_string)) {
 		opbx_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
 		return -1;
 	}

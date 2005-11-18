@@ -1706,7 +1706,7 @@ static void opbx_remotecontrol(char * data)
 	for(;;) {
 		ebuf = (char *)el_gets(el, &num);
 
-		if (ebuf && !opbx_strlen_zero(ebuf)) {
+		if (!opbx_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {

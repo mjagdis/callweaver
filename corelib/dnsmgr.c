@@ -85,7 +85,7 @@ struct opbx_dnsmgr_entry *opbx_dnsmgr_get(const char *name, struct in_addr *resu
 {
 	struct opbx_dnsmgr_entry *entry;
 
-	if (!name || !result || opbx_strlen_zero(name))
+	if (!result || opbx_strlen_zero(name))
 		return NULL;
 
 	entry = calloc(1, sizeof(*entry) + strlen(name));
@@ -115,7 +115,7 @@ void opbx_dnsmgr_release(struct opbx_dnsmgr_entry *entry)
 
 int opbx_dnsmgr_lookup(const char *name, struct in_addr *result, struct opbx_dnsmgr_entry **dnsmgr)
 {
-	if (!name || opbx_strlen_zero(name) || !result || !dnsmgr)
+	if (opbx_strlen_zero(name) || !result || !dnsmgr)
 		return -1;
 
 	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name))

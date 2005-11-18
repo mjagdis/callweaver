@@ -182,7 +182,7 @@ static const char *opbx_cdr_getvar_internal(struct opbx_cdr *cdr, const char *na
 	struct opbx_var_t *variables;
 	struct varshead *headp;
 
-	if (!name || opbx_strlen_zero(name))
+	if (opbx_strlen_zero(name))
 		return NULL;
 
 	while (cdr) {
