@@ -91,12 +91,12 @@ void opbx_generator_stop_thread(struct opbx_channel *pchan)
 		pchan->gcd.gen_free(pchan, pchan->gcd.gen_data);
 	if (pchan->gcd.pgenerator_thread) {
 		pchan->gcd.gen_req = gen_req_shutdown;
-		pthread_cond_signal(&pchan->gcd.gen_req_cond);
+		opbx_cond_signal(&pchan->gcd.gen_req_cond);
 		opbx_mutex_unlock(&pchan->gcd.lock);
 		pthread_join(*pchan->gcd.pgenerator_thread, NULL);
 		free(pchan->gcd.pgenerator_thread);
 		pchan->gcd.pgenerator_thread = NULL;
-		pthread_cond_destroy(&pchan->gcd.gen_req_cond);
+		opbx_cond_destroy(&pchan->gcd.gen_req_cond);
 	} else {
 		opbx_mutex_unlock(&pchan->gcd.lock);
 	}
@@ -136,7 +136,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 
 		/* Signal generator thread to activate new generator */
 		pgcd->gen_req = gen_req_activate;
-		pthread_cond_signal(&pgcd->gen_req_cond);
+		opbx_cond_signal(&pgcd->gen_req_cond);
 
 		/* Our job is done */
 		opbx_mutex_unlock(&pgcd->lock);
@@ -162,7 +162,7 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	/* Current generator, if any, gets deactivated by signaling
 	 * new request with request code being req_deactivate */
 	pgcd->gen_req = gen_req_deactivate;
-	pthread_cond_signal(&pgcd->gen_req_cond);
+	opbx_cond_signal(&pgcd->gen_req_cond);
 	opbx_mutex_unlock(&pgcd->lock);
 }
 
@@ -231,7 +231,7 @@ static void *opbx_generator_thread(void *data)
 					++ts.tv_sec;
 					ts.tv_nsec -= 1000000000L;
 				}
-				res = opbx_pthread_cond_timedwait(&pgcd->gen_req_cond, &pgcd->lock, &ts);
+				res = opbx_cond_timedwait(&pgcd->gen_req_cond, &pgcd->lock, &ts);
 				if (pgcd->gen_req) {
 					/* Got new request */
 					break;
@@ -261,7 +261,7 @@ static void *opbx_generator_thread(void *data)
 		} else {
 			/* Just wait for new request */
 			while (!pgcd->gen_req)
-				opbx_pthread_cond_wait(&pgcd->gen_req_cond, &pgcd->lock);
+				opbx_cond_wait(&pgcd->gen_req_cond, &pgcd->lock);
 		}
 
 		/* If there is an activate generator, free its
@@ -325,11 +325,11 @@ static int opbx_generator_start_thread(struct opbx_channel *pchan)
 	if (!pgcd->pgenerator_thread) {
 		return -1;
 	}
-	pthread_cond_init(&pgcd->gen_req_cond, NULL);
+	opbx_cond_init(&pgcd->gen_req_cond, NULL);
 	if(opbx_pthread_create(pgcd->pgenerator_thread, NULL, opbx_generator_thread, pchan)) {
 		free(pgcd->pgenerator_thread);
 		pgcd->pgenerator_thread = NULL;
-		pthread_cond_destroy(&pgcd->gen_req_cond);
+		opbx_cond_destroy(&pgcd->gen_req_cond);
 		return -1;
 	}
 

@@ -1288,10 +1288,10 @@ int opbx_frame_slinear_sum(struct opbx_frame *f1, struct opbx_frame *f2)
 	int count;
 	short *data1, *data2;
 
-	if ((f1->frametype != AST_FRAME_VOICE) || (f1->subclass != AST_FORMAT_SLINEAR))
+	if ((f1->frametype != OPBX_FRAME_VOICE) || (f1->subclass != OPBX_FORMAT_SLINEAR))
 		return -1;
 
-	if ((f2->frametype != AST_FRAME_VOICE) || (f2->subclass != AST_FORMAT_SLINEAR))
+	if ((f2->frametype != OPBX_FRAME_VOICE) || (f2->subclass != OPBX_FORMAT_SLINEAR))
 		return -1;
 
 	if (f1->samples != f2->samples)

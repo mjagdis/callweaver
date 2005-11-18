@@ -61,7 +61,7 @@ struct opbx_generator_channel_data {
 
 	/*! Generator request condition gets signaled after
 	 * changing gen_req to new value */
-	pthread_cond_t gen_req_cond;
+	opbx_cond_t gen_req_cond;
 
 	/*! New generator request available flag */
 	enum opbx_generator_requests gen_req;
