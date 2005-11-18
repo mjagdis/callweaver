@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Routines implementing call parking
+ * \brief Routines implementing call parking
  * 
  */
 #ifdef HAVE_CONFIG_H

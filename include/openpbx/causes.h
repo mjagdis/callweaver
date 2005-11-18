@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Internal OpenPBX hangup causes
+/*! \file
+ * \brief Internal OpenPBX hangup causes
  */
 
 #ifndef _OPENPBX_CAUSES_H

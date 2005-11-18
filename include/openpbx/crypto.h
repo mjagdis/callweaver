@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Provide cryptographic signature routines
+/*! \file
+ * \brief Provide cryptographic signature routines
  */
 
 #ifndef _OPENPBX_CRYPTO_H
@@ -35,8 +35,7 @@ extern "C" {
 
 struct opbx_key;
 
-/*! Retrieve a key */
-/*! 
+/*! \brief Retrieve a key 
  * \param name of the key we are retrieving
  * \param int type of key (OPBX_KEY_PUBLIC or OPBX_KEY_PRIVATE)
  *
@@ -45,8 +44,7 @@ struct opbx_key;
 extern struct opbx_key *(*opbx_key_get)(const char *key, int type);
 
 
-/*! Check the authenticity of a message signature using a given public key */
-/*!
+/*! \brief Check the authenticity of a message signature using a given public key 
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param sig the proposed valid signature in mime64-like encoding
@@ -56,8 +54,7 @@ extern struct opbx_key *(*opbx_key_get)(const char *key, int type);
  */
 extern int (*opbx_check_signature)(struct opbx_key *key, const char *msg, const char *sig);
 
-/*! Check the authenticity of a message signature using a given public key */
-/*!
+/*! \brief Check the authenticity of a message signature using a given public key 
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param sig the proposed valid signature in raw binary representation
@@ -77,6 +74,7 @@ extern int (*opbx_check_signature_bin)(struct opbx_key *key, const char *msg, in
  *
  */
 extern int (*opbx_sign)(struct opbx_key *key, char *msg, char *sig);
+
 /*!
  * \param key a private key to use to create the signature
  * \param msg the message to sign

@@ -16,8 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
- * DNS support
+/*! \file
+ * \brief DNS support for OpenPBX
+ * \author Thorsten Lockert <tholo at trollphone.org>
  */
 
 #ifndef _OPENPBX_DNS_H

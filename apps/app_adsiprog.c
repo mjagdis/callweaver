@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Program OpenPBX ADSI Scripts into phone
+/*! \file
+ * \brief Program OpenPBX ADSI Scripts into phone
  * 
  */
 #ifdef HAVE_CONFIG_H

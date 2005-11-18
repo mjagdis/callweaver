@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * OpenPBX internal frame definitions.
+/*! \file
+ * \brief OpenPBX internal frame definitions.
  */
 
 #ifndef _OPENPBX_FRAME_H

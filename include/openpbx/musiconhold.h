@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Music on hold handling
+/*! \file
+ * \brief Music on hold handling
  */
 
 #ifndef _OPENPBX_MOH_H

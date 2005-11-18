@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Options provided by main openpbx program
+/*! \file
+ * \brief Options provided by main openpbx program
  */
 
 #ifndef _OPENPBX_OPTIONS_H

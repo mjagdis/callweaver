@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Background DNS update manager
+/*! \file
+ * \brief Background DNS update manager
  */
 
 #ifndef _OPENPBX_DNSMGR_H

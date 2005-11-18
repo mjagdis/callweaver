@@ -15,9 +15,9 @@
  *
  */
 
-/*
+/*! \file
  *
- * SayUnixTime application
+ * \brief SayUnixTime application
  * 
  */
 #ifdef HAVE_CONFIG_H

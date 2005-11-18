@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Scheduler Routines (derived from cheops)
+/*! \file
+ * \brief Scheduler Routines (derived from cheops)
  */
 
 #ifndef _OPENPBX_SCHED_H

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * General OpenPBX channel definitions.
+/*! \file
+ * \brief General OpenPBX channel transcoding definitions.
  */
 
 #ifndef _OPENPBX_TRANSCAP_H

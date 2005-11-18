@@ -20,9 +20,11 @@
  */
 
 
-/*
+/*! \file
  *
- *
+ * \brief ODBC resource manager
+ * 
+ * \arg See also: \ref cdrodbc
  *
  */
 #ifdef HAVE_CONFIG_H

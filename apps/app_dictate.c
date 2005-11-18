@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Virtual Dictation Machine Application For OpenPBX
+ * \brief Virtual Dictation Machine Application For OpenPBX
  *
  */
 #ifdef HAVE_CONFIG_H

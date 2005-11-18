@@ -15,10 +15,10 @@
  *
  */
 
-/*
+/*! \file
+ * \brief Eval application
  *
- * Eval application
- *
+ * \author Tilghman Lesher <app_eval__v001 at the-tilghman.com>
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

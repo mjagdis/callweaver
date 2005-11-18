@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Configuration File Parser
+/*! \file
+ * \brief Configuration File Parser
  */
 
 #ifndef _OPENPBX_CONFIG_H
@@ -37,8 +37,8 @@ struct opbx_variable {
 	char *name;
 	char *value;
 	int lineno;
-	int object;		/* 0 for variable, 1 for object */
-	int blanklines; 	/* Number of blanklines following entry */
+	int object;		/*!< 0 for variable, 1 for object */
+	int blanklines; 	/*!< Number of blanklines following entry */
 	struct opbx_comment *precomments;
 	struct opbx_comment *sameline;
 	struct opbx_variable *next;
@@ -59,8 +59,7 @@ struct opbx_config_engine {
 	struct opbx_config_engine *next;
 };
 
-/*! Load a config file */
-/*! 
+/*! \brief Load a config file 
  * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to OPBX_CONFIG_DIR
  * Create a config structure from a given configuration file.
  *
@@ -68,16 +67,14 @@ struct opbx_config_engine {
  */
 struct opbx_config *opbx_config_load(const char *filename);
 
-/*! Destroys a config */
-/*!
+/*! \brief Destroys a config 
  * \param config pointer to config data structure
  * Free memory associated with a given config
  *
  */
 void opbx_config_destroy(struct opbx_config *config);
 
-/*! Goes through categories */
-/*!
+/*! \brief Goes through categories 
  * \param config Which config structure you wish to "browse"
  * \param prev A pointer to a previous category.
  * This funtion is kind of non-intuitive in it's use.  To begin, one passes NULL as the second arguement.  It will return a pointer to the string of the first category in the file.  From here on after, one must then pass the previous usage's return value as the second pointer, and it will return a pointer to the category name afterwards.
@@ -86,8 +83,7 @@ void opbx_config_destroy(struct opbx_config *config);
  */
 char *opbx_category_browse(struct opbx_config *config, const char *prev);
 
-/*! Goes through variables */
-/*!
+/*! \brief Goes through variables
  * Somewhat similar in intent as the opbx_category_browse.
  * List variables of config file category
  *
@@ -95,8 +91,7 @@ char *opbx_category_browse(struct opbx_config *config, const char *prev);
  */
 struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, const char *category);
 
-/*! Gets a variable */
-/*!
+/*! \brief Gets a variable 
  * \param config which (opened) config to use
  * \param category category under which the variable lies
  * \param value which variable you wish to get the data for
@@ -106,8 +101,7 @@ struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, con
  */
 char *opbx_variable_retrieve(const struct opbx_config *config, const char *category, const char *variable);
 
-/*! Retrieve a category if it exists */
-/*!
+/*! \brief Retrieve a category if it exists
  * \param config which config to use
  * \param category_name name of the category you're looking for
  * This will search through the categories within a given config file for a match.
@@ -116,8 +110,7 @@ char *opbx_variable_retrieve(const struct opbx_config *config, const char *categ
  */
 struct opbx_category *opbx_category_get(const struct opbx_config *config, const char *category_name);
 
-/*! Check for category duplicates */
-/*!
+/*! \brief Check for category duplicates 
  * \param config which config to use
  * \param category_name name of the category you're looking for
  * This will search through the categories within a given config file for a match.
@@ -126,8 +119,7 @@ struct opbx_category *opbx_category_get(const struct opbx_config *config, const 
  */
 int opbx_category_exist(const struct opbx_config *config, const char *category_name);
 
-/*! Retrieve realtime configuration */
-/*!
+/*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
@@ -138,8 +130,7 @@ int opbx_category_exist(const struct opbx_config *config, const char *category_n
  */
 struct opbx_variable *opbx_load_realtime(const char *family, ...);
 
-/*! Retrieve realtime configuration */
-/*!
+/*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
@@ -151,8 +142,7 @@ struct opbx_variable *opbx_load_realtime(const char *family, ...);
  */
 struct opbx_config *opbx_load_realtime_multientry(const char *family, ...);
 
-/*! Update realtime configuration */
-/*!
+/*! \brief Update realtime configuration 
  * \param family which family/config to be updated
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
@@ -163,21 +153,24 @@ struct opbx_config *opbx_load_realtime_multientry(const char *family, ...);
  */
 int opbx_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
-/*! Check if realtime engine is configured for family 
-  returns 1 if family is configured in realtime and engine exists
-  \param family which family/config to be checked
+/*! \brief Check if realtime engine is configured for family 
+ * returns 1 if family is configured in realtime and engine exists
+ * \param family which family/config to be checked
 */
 int opbx_check_realtime(const char *family);
 
-/*! Free variable list */
-/*!
+/*! \brief Free variable list 
  * \param var the linked list of variables to free
  * This function frees a list of variables.
  */
 void opbx_variables_destroy(struct opbx_variable *var);
 
+/*! \brief Register config engine */
 int opbx_config_engine_register(struct opbx_config_engine *newconfig);
+
+/*! \brief Deegister config engine */
 int opbx_config_engine_deregister(struct opbx_config_engine *del);
+
 int register_config_cli(void);
 void read_config_maps(void);
 

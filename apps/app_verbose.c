@@ -15,9 +15,9 @@
  *
  */
 
-/*
+/*! \file
  *
- * Verbose application
+ * \brief Verbose logging application
  *
  */
 #ifdef HAVE_CONFIG_H

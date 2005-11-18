@@ -15,10 +15,11 @@
  *
  */
 
-/*
+/*! \file
  *
- * Random application
+ * \brief Random application
  *
+ * \author Tilghman Lesher <openpbx__app_random__200508 at the-tilghman.com>
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

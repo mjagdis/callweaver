@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Generic File Format Support.
+/*! \file
+ * \brief Generic File Format Support.
  */
 
 #ifndef _OPENPBX_FILE_H

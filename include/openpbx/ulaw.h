@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * u-Law to Signed linear conversion
+/*! \file
+ * \brief u-Law to Signed linear conversion
  */
 
 #ifndef _OPENPBX_ULAW_H

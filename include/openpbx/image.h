@@ -16,14 +16,14 @@
  * at the top of the source tree.
  */
 
-/*
- * General OpenPBX channel definitions.
+/*! \file
+ * \brief General OpenPBX channel definitions for image handling
  */
 
 #ifndef _OPENPBX_IMAGE_H
 #define _OPENPBX_IMAGE_H
 
-/*! structure associated with registering an image format */
+/*! \brief structure associated with registering an image format */
 struct opbx_imager {
 	/*! Name */
 	char *name;						

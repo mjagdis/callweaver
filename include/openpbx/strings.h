@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * String manipulation functions
+/*! \file
+ * \brief String manipulation functions
  */
 
 #ifndef _OPENPBX_STRINGS_H

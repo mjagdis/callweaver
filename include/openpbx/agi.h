@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * AGI Extension interfaces
+/*! \file
+ * \brief AGI Extension interfaces - OpenPBX Gateway Interface
  */
 
 #ifndef _OPENPBX_AGI_H

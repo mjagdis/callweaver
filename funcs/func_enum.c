@@ -16,10 +16,10 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Enum Functions
- *
+ * \brief ENUM Functions
+ * \arg See also AstENUM
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Standard Command Line Interface
+/*! \file
+ * \brief Standard Command Line Interface
  */
 
 #ifndef _OPENPBX_CLI_H
@@ -42,7 +42,7 @@ extern void opbx_cli(int fd, char *fmt, ...)
 
 #define OPBX_CLI_COMPLETE_EOF	"_EOF_"
 
-/*! A command line entry */ 
+/*! \brief A command line entry */ 
 struct opbx_cli_entry {
 	/*! Null terminated list of the words of the command */
 	char *cmda[OPBX_MAX_CMD_LEN];
@@ -60,14 +60,13 @@ struct opbx_cli_entry {
 	int inuse;
 };
 
-/*! Interprets a command */
-/*! Interpret a command s, sending output to fd
+/*! \brief Interprets a command 
+ * Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
 extern int opbx_cli_command(int fd, char *s);
 
-/*! Registers a command or an array of commands */
-/*! 
+/*! \brief Registers a command or an array of commands 
  * \param e which cli entry to register
  * Register your own command
  * Returns 0 on success, -1 on failure
@@ -75,14 +74,14 @@ extern int opbx_cli_command(int fd, char *s);
 extern int opbx_cli_register(struct opbx_cli_entry *e);
 
 /*! 
+ * \brief Register multiple commands
  * \param e pointer to first cli entry to register
  * \param len number of entries to register
- * Register multiple commands
  */
 extern void opbx_cli_register_multiple(struct opbx_cli_entry *e, int len);
 
-/*! Unregisters a command or an array of commands */
-/*!
+/*! \brief Unregisters a command or an array of commands
+ *
  * \param e which cli entry to unregister
  * Unregister your own command.  You must pass a completed opbx_cli_entry structure
  * Returns 0.
@@ -90,14 +89,14 @@ extern void opbx_cli_register_multiple(struct opbx_cli_entry *e, int len);
 extern int opbx_cli_unregister(struct opbx_cli_entry *e);
 
 /*!
+ * \brief Unregister multiple commands
  * \param e pointer to first cli entry to unregister
  * \param len number of entries to unregister
- * Unregister multiple commands
  */
 extern void opbx_cli_unregister_multiple(struct opbx_cli_entry *e, int len);
 
-/*! Readline madness */
-/* Useful for readline, that's about it
+/*! \brief Readline madness 
+ * Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */
 extern char *opbx_cli_generator(char *, char *, int);

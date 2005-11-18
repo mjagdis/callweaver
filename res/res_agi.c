@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * OpenPBX Gateway Interface
+ * \brief AGI - the OpenPBX Gateway Interface
  * 
  */
 #ifdef HAVE_CONFIG_H

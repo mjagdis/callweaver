@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * General OpenPBX channel definitions.
+/*! \file
+ * \brief General OpenPBX PBX channel definitions.
  */
 
 #ifndef _OPENPBX_CHANNEL_H

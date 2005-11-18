@@ -20,10 +20,15 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Postgres CDR records.
- * 
+ * \brief PostgreSQL CDR logger
+ *
+ * \author Matthew D. Hardeman <mhardemn at papersoft.com>
+ *
+ * See also
+ * \arg \ref Config_cdr
+ * \arg http://www.postgresql.org/
  */
 
 #ifdef HAVE_CONFIG_H

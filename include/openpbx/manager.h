@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * AMI - OpenPBX Management Interface
+/*! \file
+ * \brief AMI - OpenPBX Management Interface
  * External call management support 
  */
 

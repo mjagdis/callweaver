@@ -16,10 +16,12 @@
  * at the top of the source tree.
  */
 
-/** @file res_indications.c 
+/*! \file res_indications.c 
  *
- * Load the indications
+ * \brief Load the indications
  * 
+ * \author Pauline Middelink <middelink at polyware.nl>
+ *
  * Load the country specific dialtones into the openpbx PBX.
  */
 #ifdef HAVE_CONFIG_H

@@ -27,9 +27,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Voicemail System
+ * \brief Comedian Mail - Voicemail System
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -1403,7 +1403,7 @@ static int copy(char *infile, char *outfile)
 			}
 			if (len) {
 				res = write(ofd, buf, len);
-				if (res != len) {
+				if (errno == ENOMEM || errno == ENOSPC || res != len) {
 					opbx_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
 					close(ifd);
 					close(ofd);

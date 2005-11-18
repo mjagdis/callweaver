@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * I/O Management (derived from Cheops-NG)
+/*! \file
+ * \brief I/O Management (derived from Cheops-NG)
  */
 
 #ifndef _OPENPBX_IO_H

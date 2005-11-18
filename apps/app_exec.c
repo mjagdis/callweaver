@@ -15,10 +15,11 @@
  *
  */
 
-/*
+/*! \file
  *
- * Exec application
+ * \brief Exec application
  *
+ * \author Tilghman Lesher <app_exec__v001 at the-tilghman.com>
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

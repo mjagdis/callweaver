@@ -16,12 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * URI encoding / decoding
+ * \brief URI encoding / decoding
  * 
- * For now this code only supports 8 bit characters, not unicode,
- * which we ultimately will need to support.
+ * \note For now this code only supports 8 bit characters, not unicode,
+         which we ultimately will need to support.
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -43,7 +43,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/app.h"
 #include "openpbx/module.h"
 
-/*--- builtin_function_uriencode: Encode URL according to RFC 2396 */
+/*! \brief builtin_function_uriencode: Encode URL according to RFC 2396 */
 static char *builtin_function_uriencode(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char uri[BUFSIZ];
@@ -59,7 +59,7 @@ static char *builtin_function_uriencode(struct opbx_channel *chan, char *cmd, ch
 	return buf;
 }
 
-/*--- builtin_function_uridecode: Decode URI according to RFC 2396 */
+/*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
 static char *builtin_function_uridecode(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	if (!data || opbx_strlen_zero(data)) {

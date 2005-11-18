@@ -11,6 +11,9 @@
  * the GNU General Public License
  */
 
+/*! \file
+ * \brief OpenPBX main include file. File version handling, generic pbx functions.
+*/
 #ifndef _OPENPBX_H
 #define _OPENPBX_H
 

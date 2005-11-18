@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Skeleton application
+ * \brief Skeleton application
  * 
  */
 #ifdef HAVE_CONFIG_H

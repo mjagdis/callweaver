@@ -17,7 +17,11 @@
  */
 
 /*
- * Real-time Transport Protocol support
+ * \file rtp.h
+ * \brief Supports RTP and RTCP with Symmetric RTP support for NAT traversal.
+ *
+ * RTP is defined in RFC 3550.
+ *
  */
 
 #ifndef _OPENPBX_RTP_H

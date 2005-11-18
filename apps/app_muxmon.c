@@ -16,11 +16,10 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Muxmon Record A Call Natively
- *
+/*! \file
+ * \brief muxmon() - record a call natively
  */
+
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
