@@ -603,7 +603,8 @@ struct sip_auth {
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
 #define SIP_PAGE2_RTUPDATE		(1 << 1)
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
-#define SIP_PAGE2_RTIGNOREREGEXPIRE	(1 << 3)
+#define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 3)
+#define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)
 
 /* SIP packet flags */
 #define SIP_PKT_DEBUG		(1 << 0)	/* Debug this packet */
@@ -1091,7 +1092,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 		res=opbx_sendfromto(sipsock, data, len, 0, (struct sockaddr *)&from, sizeof(struct sockaddr_in), (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
 	}
 	if (res != len) {
-		opbx_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s returned %d: %s\n", data, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), res, strerror(errno));
+		opbx_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), res, ntohs(p->sa.sin_port), strerror(errno));
 	}
 	return res;
 }
@@ -1614,7 +1615,7 @@ static int sip_sendtext(struct opbx_channel *ast, const char *text)
 }
 
 /*--- realtime_update_peer: Update peer object in realtime storage ---*/
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, int expirey)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey)
 {
 	char port[10];
 	char ipaddr[20];
@@ -1628,7 +1629,10 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 		opbx_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 		snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	}
-	opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
+	if (fullcontact)
+		opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, "fullcontact", fullcontact, NULL);
+	else
+		opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
 }
 
 /*--- register_peer_exten: Automatically add peer extension to dial plan ---*/
@@ -1680,10 +1684,10 @@ static void sip_destroy_peer(struct sip_peer *peer)
 /*--- update_peer: Update peer data in database (if used) ---*/
 static void update_peer(struct sip_peer *p, int expiry)
 {
+	int rtcachefriends = opbx_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS);
 	if (opbx_test_flag((&global_flags_page2), SIP_PAGE2_RTUPDATE) &&
-		(opbx_test_flag(p, SIP_REALTIME) || 
-		 opbx_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))) {
-		realtime_update_peer(p->name, &p->addr, p->username, expiry);
+		(opbx_test_flag(p, SIP_REALTIME) || rtcachefriends)) {
+		realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry);
 	}
 }
 
@@ -1728,14 +1732,14 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		opbx_variables_destroy(var);
 		return (struct sip_peer *) NULL;
 	}
-		
+
 	/* Peer found in realtime, now build it in memory */
 	peer = build_peer(newpeername, var, !opbx_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
-
 	if (!peer) {
 		opbx_variables_destroy(var);
 		return (struct sip_peer *) NULL;
 	}
+
 	if (opbx_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
 		/* Cache peer */
 		opbx_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
@@ -1750,6 +1754,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		opbx_set_flag(peer, SIP_REALTIME);
 	}
 	opbx_variables_destroy(var);
+
 	return peer;
 }
 
@@ -6077,6 +6082,16 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	add_blank_header(&resp);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
+static void destroy_association(struct sip_peer *peer)
+{
+	if (!opbx_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE)) {
+		if (opbx_test_flag(&(peer->flags_page2), SIP_PAGE2_RT_FROMCONTACT)) {
+			opbx_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", NULL);
+		} else {
+			opbx_db_del("SIP/Registry", peer->name);
+		}
+	}
+}
 
 /*--- expire_register: Expire registration of SIP peer ---*/
 static int expire_register(void *data)
@@ -6084,7 +6099,9 @@ static int expire_register(void *data)
 	struct sip_peer *peer = data;
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
-	opbx_db_del("SIP/Registry", peer->name);
+
+	destroy_association(peer);
+
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, 0);
 	peer->expire = -1;
@@ -6117,6 +6134,8 @@ static void reg_source_db(struct sip_peer *peer)
 	int port;
 	char *scan, *addr, *port_str, *expiry_str, *username, *contact;
 
+	if (opbx_test_flag(&(peer->flags_page2), SIP_PAGE2_RT_FROMCONTACT)) 
+		return;
 	if (opbx_db_get("SIP/Registry", peer->name, data, sizeof(data)))
 		return;
 
@@ -6297,7 +6316,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		if (p->expire > -1)
 			opbx_sched_del(sched, p->expire);
 		p->expire = -1;
-		opbx_db_del("SIP/Registry", p->name);
+
+		destroy_association(p);
+		
 		register_peer_exten(p, 0);
 		p->fullcontact[0] = '\0';
 		p->useragent[0] = '\0';
@@ -6370,7 +6391,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		p->expire = -1;
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
-	if (!(opbx_test_flag(p, SIP_REALTIME) && opbx_test_flag((&p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)))
+	if (!opbx_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT)) 
 		opbx_db_put("SIP/Registry", p->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
 	if (inaddrcmp(&p->addr, &oldsin)) {
@@ -8668,7 +8689,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		opbx_cli(fd, "  Realtime Users:         %s\n", realtimeusers ? "Yes" : "No");
 		opbx_cli(fd, "  Cache Friends:          %s\n", opbx_test_flag(&global_flags_page2, SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
 		opbx_cli(fd, "  Update:                 %s\n", opbx_test_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
-		opbx_cli(fd, "  Ignore Reg. Expire:     %s\n", opbx_test_flag(&global_flags_page2, SIP_PAGE2_RTIGNOREREGEXPIRE) ? "Yes" : "No");
+		opbx_cli(fd, "  Ignore Reg. Expire:     %s\n", opbx_test_flag(&global_flags_page2, SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No");
 		opbx_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
 	}
 	opbx_cli(fd, "\n----\n");
@@ -12595,7 +12616,10 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 			inet_aton(v->value, &(peer->addr.sin_addr));
 		} else if (realtime && !strcasecmp(v->name, "name"))
 			opbx_copy_string(peer->name, v->value, sizeof(peer->name));
-		else if (!strcasecmp(v->name, "secret")) 
+		else if (realtime && !strcasecmp(v->name, "fullcontact")) {
+			opbx_copy_string(peer->fullcontact, v->value, sizeof(peer->fullcontact));
+			opbx_set_flag((&peer->flags_page2), SIP_PAGE2_RT_FROMCONTACT);
+		} else if (!strcasecmp(v->name, "secret")) 
 			opbx_copy_string(peer->secret, v->value, sizeof(peer->secret));
 		else if (!strcasecmp(v->name, "md5secret")) 
 			opbx_copy_string(peer->md5secret, v->value, sizeof(peer->md5secret));
@@ -12738,11 +12762,12 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
 		 */
 		v=v->next;
 	}
-	if (realtime && !opbx_test_flag((&global_flags_page2), SIP_PAGE2_RTIGNOREREGEXPIRE) && opbx_test_flag(peer, SIP_DYNAMIC)) {
+	if (!opbx_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE) && opbx_test_flag(peer, SIP_DYNAMIC)) {
 		time_t nowtime;
 
 		time(&nowtime);
 		if ((nowtime - regseconds) > 0) {
+			destroy_association(peer);
 			memset(&peer->addr, 0, sizeof(peer->addr));
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
@@ -12863,8 +12888,8 @@ static int reload_config(void)
 			opbx_set2_flag((&global_flags_page2), opbx_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
 		} else if (!strcasecmp(v->name, "rtupdate")) {
 			opbx_set2_flag((&global_flags_page2), opbx_true(v->value), SIP_PAGE2_RTUPDATE);	
-		} else if (!strcasecmp(v->name, "rtignoreregexpire")) {
-			opbx_set2_flag((&global_flags_page2), opbx_true(v->value), SIP_PAGE2_RTIGNOREREGEXPIRE);	
+		} else if (!strcasecmp(v->name, "ignoreregexpire")) {
+			opbx_set2_flag((&global_flags_page2), opbx_true(v->value), SIP_PAGE2_IGNOREREGEXPIRE);	
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
 			int i = atoi(v->value);
 			if (i > 0)
