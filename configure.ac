@@ -146,6 +146,18 @@ if test -n $BUILD_OS ; then
 	AC_SUBST([BUILD_KERNEL])
 fi
 
+dnl check for host compiler when cross compiling
+if test "$host" = "$build"; then
+	HOST_CC="${CC}"
+else
+	HOST_CC="${HOST_CC-gcc}"
+fi
+AC_CHECK_PROG(have_host_cc, ${HOST_CC}, yes, no)
+if test "$have_host_cc" = "no"; then
+	AC_MSG_ERROR(No valid host compiler set with HOST_CC)
+fi
+AC_SUBST(HOST_CC)
+
 dnl Installation directories
 dnl Prefer modern Filesystem Hierarchy Standard over antiquated GNU standards.
 

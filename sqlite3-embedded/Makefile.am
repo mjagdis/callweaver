@@ -46,8 +46,12 @@ sqlite3.h:  src/sqlite.h.in
 	${SED} -e s/--VERS--/$(RELEASE)/ $(srcdir)/src/sqlite.h.in | \
 	${SED} -e s/--VERSION-NUMBER--/$(VERSION_NUMBER)/ > sqlite3.h
 
+lemon: tool/lemon.c
+	$(HOST_CC) -o $@ $<
+	
+mkkeywordhash: tool/mkkeywordhash.c
+	$(HOST_CC) -o $@ $<
+
+
 noinst_PROGRAMS = lemon mkkeywordhash
 
-lemon_SOURCES = tool/lemon.c
-
-mkkeywordhash_SOURCES = tool/mkkeywordhash.c
