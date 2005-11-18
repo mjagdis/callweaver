@@ -267,6 +267,18 @@ void opbx_unregister_atexit(void (*func)(void));
 						static struct localuser *localusers = NULL; \
 						static int localusecnt = 0;
 
+#define STANDARD_INCREMENT_USECOUNT \
+	opbx_mutex_lock(&localuser_lock); \
+	localusecnt++; \
+	opbx_mutex_unlock(&localuser_lock); \
+	opbx_update_use_count();
+
+#define STANDARD_DECREMENT_USECOUNT \
+	opbx_mutex_lock(&localuser_lock); \
+	localusecnt--; \
+	opbx_mutex_unlock(&localuser_lock); \
+	opbx_update_use_count();
+
 /*! 
  * \brief Add a localuser.
  * \param u a pointer to a localuser struct
@@ -352,16 +364,16 @@ void opbx_unregister_atexit(void (*func)(void));
 		u = u->next; \
 		free(ul); \
 	} \
-	opbx_mutex_unlock(&localuser_lock); \
 	localusecnt=0; \
+	opbx_mutex_unlock(&localuser_lock); \
+	opbx_update_use_count(); \
 }
 
 /*!
  * \brief Set the specfied integer to the current usecount.
  * \param res the integer variable to set.
  *
- * This macro sets the specfied integer variable to the local usecount.  It
- * handles all the necessary thread synchronization.
+ * This macro sets the specfied integer variable to the local usecount.
  *
  * <b>Sample Usage:</b>
  * \code
