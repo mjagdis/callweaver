@@ -18,9 +18,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ENUM Support for OpenPBX
+ * \brief DNS SRV Record Lookup Support for OpenPBX
+ * 
+ * \arg See also \ref AstENUM
  *
  */
 #ifdef HAVE_CONFIG_H

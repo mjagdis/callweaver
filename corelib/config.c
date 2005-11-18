@@ -16,10 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Configuration File Parser
- * 
+ * \brief Configuration File Parser
+ *
+ * Includes the OpenPBX Realtime API - ARA
+ * See README.realtime
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

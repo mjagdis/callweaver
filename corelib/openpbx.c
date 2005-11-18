@@ -15,10 +15,41 @@
  * at the top of the source tree.
  */
 
-/*
+
+/* Doxygenified Copyright Header */
+/*!
+ * \mainpage OpenPBX -- An Open Source Telephony Toolkit
  *
- * Top level source file for openpbx
- * 
+ * \arg \ref DevDoc 
+ * \arg \ref ConfigFiles
+ *
+ * \section copyright Copyright and author
+ *
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ * OpenPBX is a trade mark registered by Digium, Inc.
+ *
+ * \author Mark Spencer <markster at digium.com>
+ * Also see \ref AstCREDITS
+ *
+ * \section license License
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ * \verbinclude LICENSE
+ *
+ */
+
+/*! \file
+  \brief Top level source file for OpenPBX  - the Open Source PBX. Implementation
+  of PBX core functions and CLI interface.
+  
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
@@ -116,19 +147,20 @@ int fully_booted = 0;
 char record_cache_dir[OPBX_CACHE_DIR_LEN] = opbxtmpdir_default;
 char debug_filename[OPBX_FILENAME_MAX] = "";
 
-static int opbx_socket = -1;		/* UNIX Socket for allowing remote control */
-static int opbx_consock = -1;		/* UNIX Socket for controlling another openpbx */
+static int opbx_socket = -1;		/*!< UNIX Socket for allowing remote control */
+static int opbx_consock = -1;		/*!< UNIX Socket for controlling another openpbx */
 int opbx_mainpid;
 struct console {
-	int fd;					/* File descriptor */
-	int p[2];				/* Pipe */
-	pthread_t t;			/* Thread of handler */
+	int fd;				/*!< File descriptor */
+	int p[2];			/*!< Pipe */
+	pthread_t t;			/*!< Thread of handler */
 };
 
 static struct opbx_atexit {
 	void (*func)(void);
 	struct opbx_atexit *next;
 } *atexits = NULL;
+
 OPBX_MUTEX_DEFINE_STATIC(atexitslock);
 
 time_t opbx_startuptime;
@@ -226,6 +258,7 @@ static char show_version_files_help[] =
 "       Shows the revision numbers of the files used to build this copy of OpenPBX.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
 
+/*! CLI command to list module versions */
 static int handle_show_version_files(int fd, int argc, char *argv[])
 {
 #define FORMAT "%-25.25s %-40.40s\n"
@@ -347,7 +380,7 @@ static int fdprint(int fd, const char *s)
 	return write(fd, s, strlen(s) + 1);
 }
 
-/* NULL handler so we can collect the child exit status */
+/*! NULL handler so we can collect the child exit status */
 static void null_sig_handler(int signal)
 {
 
@@ -412,7 +445,7 @@ int opbx_safe_system(const char *s)
 	return res;
 }
 
-/*
+/*!
  * write the string to all attached console clients
  */
 static void opbx_network_puts(const char *string)
@@ -424,7 +457,7 @@ static void opbx_network_puts(const char *string)
 	}
 }
 
-/*
+/*!
  * write the string to the console, and all attached
  * console clients
  */
@@ -661,13 +694,15 @@ static int opbx_tryconnect(void)
 		return 1;
 }
 
+/*! Urgent handler
+ Called by soft_hangup to interrupt the poll, read, or other
+ system call.  We don't actually need to do anything though.  
+ Remember: Cannot EVER opbx_log from within a signal handler 
+ SLD: seems to be some pthread activity relating to the printf anyway:
+ which is leading to a deadlock? 
+ */
 static void urg_handler(int num)
 {
-	/* Called by soft_hangup to interrupt the poll, read, or other
-	   system call.  We don't actually need to do anything though.  */
-	/* Cannot EVER opbx_log from within a signal handler */
-	/* SLD: seems to be some pthread activity relating to the printf anyway:
-	 * which is leading to a deadlock? */
 #if 0
 	if (option_debug > 2) 
 		printf("-- OpenPBX Urgent handler\n");
@@ -702,9 +737,9 @@ static void child_handler(int sig)
 	signal(sig, child_handler);
 }
 
+/*! Set an X-term or screen title */
 static void set_title(char *text)
 {
-	/* Set an X-term or screen title */
 	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
 		fprintf(stdout, "\033]2;%s\007", text);
 }
@@ -715,12 +750,12 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
+/*! We set ourselves to a high priority, that we might pre-empt everything
+   else.  If your PBX has heavy activity on it, this is a good thing.  */
 int opbx_set_priority(int pri)
 {
 	struct sched_param sched;
 	memset(&sched, 0, sizeof(sched));
-	/* We set ourselves to a high priority, that we might pre-empt everything
-	   else.  If your PBX has heavy activity on it, this is a good thing.  */
 #ifdef __linux__
 	if (pri) {  
 		sched.sched_priority = 10;

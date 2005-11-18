@@ -18,10 +18,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * DNS Support for OpenPBX
+ * \brief DNS Support for OpenPBX
  *
+ * \author Thorsten Lockert <tholo at trollphone.org>
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

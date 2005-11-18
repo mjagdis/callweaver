@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * OpenPBX Logger
+/*! \file
+ * \brief OpenPBX Logger
  * 
  * Logging routines
  *

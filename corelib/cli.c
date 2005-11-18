@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Standard Command Line Interface
+ * \brief Standard Command Line Interface
  * 
  */
 #ifdef HAVE_CONFIG_H

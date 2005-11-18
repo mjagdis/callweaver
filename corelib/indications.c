@@ -16,10 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Tone Management
+ * \brief Tone Management
  * 
+ * \author Pauline Middelink <middelink@polyware.nl>
+ *
  * This set of function allow us to play a list of tones on a channel.
  * Each element has two frequencies, which are mixed together and a
  * duration. For silence both frequencies can be set to 0.

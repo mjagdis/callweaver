@@ -14,10 +14,13 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Utility functions
+ * \brief Utility functions
  *
+ * \note These are important for portability and security,
+ * so please use them in favour of other routines.
+ * Please consult the CODING GUIDELINES for more information.
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
@@ -195,7 +198,7 @@ struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
 		/* Forge a reply for IP's to avoid octal IP's being interpreted as octal */
 		if (dots != 3)
 			return NULL;
-		memset(hp, 0, sizeof(struct ast_hostent));
+		memset(hp, 0, sizeof(struct opbx_hostent));
 		hp->hp.h_addr_list = hp->buf;
 		hp->hp.h_addr = hp->buf + sizeof(void *);
 		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)

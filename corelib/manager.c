@@ -137,7 +137,7 @@ void del_manager_hook(struct manager_custom_hook *hook)
 
 }
 
-/*--- authority_to_str: Convert authority code to string with serveral options */
+/*! authority_to_str: Convert authority code to string with serveral options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
 	int running_total = 0, i;
@@ -340,7 +340,7 @@ struct opbx_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
-/* NOTE:
+/*! NOTE:
    Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
    hold the session lock _or_ be running in an action callback (in which case s->busy will
    be non-zero). In either of these cases, there is no need to lock-protect the session's
@@ -348,7 +348,6 @@ struct opbx_variable *astman_get_variables(struct message *m)
    be read until either the current action finishes or get_input() obtains the session
    lock.
  */
-
 void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
 	char *id = astman_get_header(m,"ActionID");
@@ -377,7 +376,7 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 	astman_send_response(s, m, "Success", msg);
 }
 
-/* Tells you if smallstr exists inside bigstr
+/*! Tells you if smallstr exists inside bigstr
    which is delim by delim and uses no buf or stringsep
    opbx_instring("this|that|more","this",',') == 1;
 
@@ -458,7 +457,7 @@ static int opbx_strings_to_mask(char *string)
 	return ret;
 }
 
-/* 
+/*! 
    Rather than braindead on,off this now can also accept a specific int mask value 
    or a ',' delim list of mask strings (the same as manager.conf) -anthm
 */

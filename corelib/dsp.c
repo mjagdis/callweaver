@@ -19,6 +19,12 @@
  * at the top of the source tree.
  */
 
+/*! \file
+ *
+ * \brief Convenience Signal Processing routines
+ *
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif

@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ENUM Support for OpenPBX
+ * \brief ENUM Support for OpenPBX
  *
  */
 #ifdef HAVE_CONFIG_H
