@@ -1290,7 +1290,7 @@ static int iax_check_version(char *dev)
 {
 	int res = 0;
 	struct iax_firmware *cur;
-	if (dev && !opbx_strlen_zero(dev)) {
+	if (!opbx_strlen_zero(dev)) {
 		opbx_mutex_lock(&waresl.lock);
 		cur = waresl.wares;
 		while(cur) {
@@ -1312,7 +1312,7 @@ static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev
 	unsigned int start = (desc >> 8) & 0xffffff;
 	unsigned int bytes;
 	struct iax_firmware *cur;
-	if (dev && !opbx_strlen_zero((char *)dev) && bs) {
+	if (!opbx_strlen_zero((char *)dev) && bs) {
 		start *= bs;
 		opbx_mutex_lock(&waresl.lock);
 		cur = waresl.wares;
@@ -2838,7 +2838,7 @@ struct parsed_dial_string {
  */
 static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 {
-	if (!data || opbx_strlen_zero(data))
+	if (opbx_strlen_zero(data))
 		return;
 
 	pds->peer = strsep(&data, "/");
@@ -2955,9 +2955,9 @@ static int iax2_call(struct opbx_channel *c, char *dest, int timeout)
 	if (opbx_test_flag(iaxs[callno], IAX_SENDANI) && c->cid.cid_ani)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->cid.cid_ani);
 
-	if (c->language && !opbx_strlen_zero(c->language))
+	if (!opbx_strlen_zero(c->language))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
-	if (c->cid.cid_dnid && !opbx_strlen_zero(c->cid.cid_dnid))
+	if (!opbx_strlen_zero(c->cid.cid_dnid))
 		iax_ie_append_str(&ied, IAX_IE_DNID, c->cid.cid_dnid);
 
 	if (pds.context)
@@ -4290,7 +4290,7 @@ static int manager_iax2_show_peers( struct mansession *s, struct message *m )
 	int ret;
 	char *id;
 	id = astman_get_header(m,"ActionID");
-	if (id && !opbx_strlen_zero(id))
+	if (!opbx_strlen_zero(id))
 		opbx_cli(s->fd, "ActionID: %s\r\n",id);
 	ret = __iax2_show_peers(1, s->fd, 3, a );
 	opbx_cli(s->fd, "\r\n\r\n" );
@@ -5125,9 +5125,9 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 	int res = -1;
 	int x;
 	char iabuf[INET_ADDRSTRLEN];
-	if (keyn && !opbx_strlen_zero(keyn)) {
+	if (!opbx_strlen_zero(keyn)) {
 		if (!(authmethods & IAX_AUTH_RSA)) {
-			if (!secret || opbx_strlen_zero(secret)) 
+			if (opbx_strlen_zero(secret)) 
 				opbx_log(LOG_NOTICE, "Asked to authenticate to %s with an RSA key, but they don't allow RSA authentication\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		} else if (opbx_strlen_zero(challenge)) {
 			opbx_log(LOG_NOTICE, "No challenge provided for RSA authentication to %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
@@ -5149,7 +5149,7 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 		}
 	} 
 	/* Fall back */
-	if (res && secret && !opbx_strlen_zero(secret)) {
+	if (res && !opbx_strlen_zero(secret)) {
 		if ((authmethods & IAX_AUTH_MD5) && !opbx_strlen_zero(challenge)) {
 			struct MD5Context md5;
 			unsigned char digest[16];
@@ -5196,7 +5196,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		p->encmethods = 0;
 
 	/* Check for override RSA authentication first */
-	if ((override && !opbx_strlen_zero(override)) || (okey && !opbx_strlen_zero(okey))) {
+	if (!opbx_strlen_zero(override) || !opbx_strlen_zero(okey)) {
 		/* Normal password authentication */
 		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 	} else {
@@ -7683,7 +7683,7 @@ static int iax2_prov_app(struct opbx_channel *chan, void *data)
 	int force =0;
 	unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
 	char iabuf[INET_ADDRSTRLEN];
-	if (!data || opbx_strlen_zero(data))
+	if (opbx_strlen_zero(data))
 		data = "default";
 	sdata = opbx_strdupa(data);
 	opts = strchr(sdata, '|');

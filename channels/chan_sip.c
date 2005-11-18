@@ -993,7 +993,7 @@ int find_sip_method(char *msg)
 {
 	int i, res = 0;
 	
-	if (!msg || opbx_strlen_zero(msg))
+	if (opbx_strlen_zero(msg))
 		return 0;
 
 	/* Strictly speaking, SIP methods are case SENSITIVE, but we don't check */
@@ -1014,7 +1014,7 @@ unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 	int i;
 	unsigned int profile = 0;
 
-	if (!supported || opbx_strlen_zero(supported) )
+	if (opbx_strlen_zero(supported) )
 		return 0;
 
 	if (option_debug > 2 && sipdebug)
@@ -1605,7 +1605,7 @@ static int sip_sendtext(struct opbx_channel *ast, const char *text)
 		opbx_verbose("Sending text %s on %s\n", text, ast->name);
 	if (!p)
 		return -1;
-	if (!text || opbx_strlen_zero(text))
+	if (opbx_strlen_zero(text))
 		return 0;
 	if (debug)
 		opbx_verbose("Really sending text %s on %s\n", text, ast->name);
@@ -3355,7 +3355,7 @@ static int sip_register(char *value, int lineno)
 		*hostname = '\0';
 		hostname++;
 	}
-	if (!username || opbx_strlen_zero(username) || !hostname || opbx_strlen_zero(hostname)) {
+	if (opbx_strlen_zero(username) || opbx_strlen_zero(hostname)) {
 		opbx_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
 		return -1;
 	}
@@ -3370,7 +3370,7 @@ static int sip_register(char *value, int lineno)
 	hostname = strsep(&stringp, "/");
 	if (hostname) 
 		contact = strsep(&stringp, "/");
-	if (!contact || opbx_strlen_zero(contact))
+	if (opbx_strlen_zero(contact))
 		contact = "s";
 	stringp=hostname;
 	hostname = strsep(&stringp, ":");
@@ -5076,7 +5076,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 	n = strchr(c, ';');
 	if (n)
 		*n = '\0';
-	if (c && !opbx_strlen_zero(c))
+	if (!opbx_strlen_zero(c))
 		opbx_copy_string(p->uri, c, sizeof(p->uri));
 }
 
@@ -5114,7 +5114,7 @@ static void build_rpid(struct sip_pvt *p)
 	if (p->owner && p->owner->cid.cid_name) {
 		clin = strdup(p->owner->cid.cid_name);
 	}
-	if (!clin || opbx_strlen_zero(clin))
+	if (opbx_strlen_zero(clin))
 		clin = clid;
 
 	switch (p->callingpres) {
@@ -5229,7 +5229,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 	if (!l)
 		l = default_callerid;
-	if (!n || opbx_strlen_zero(n))
+	if (opbx_strlen_zero(n))
 		n = l;
 	/* Allow user to be overridden */
 	if (!opbx_strlen_zero(p->fromuser))
@@ -5604,7 +5604,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 
 	opbx_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	opbx_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", (vmexten && !opbx_strlen_zero(vmexten)) ? vmexten : global_vmexten, p->fromdomain);
+	opbx_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !opbx_strlen_zero(vmexten) ? vmexten : global_vmexten, p->fromdomain);
 	opbx_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 
 	if (t > tmp + sizeof(tmp))
@@ -5896,7 +5896,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	
 	/* Fromdomain is what we are registering to, regardless of actual
 	   host name from SRV */
-	if (p->fromdomain && !opbx_strlen_zero(p->fromdomain))
+	if (!opbx_strlen_zero(p->fromdomain))
 		snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
 	else
 		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
@@ -5923,7 +5923,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	
 	if (auth) 	/* Add auth header */
 		add_header(&req, authheader, auth);
-	else if ( !opbx_strlen_zero(r->nonce) ) {
+	else if (!opbx_strlen_zero(r->nonce)) {
 		char digest[1024];
 
 		/* We have auth data to reuse, build a digest header! */
@@ -6283,7 +6283,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	   what we currently have stored as their contact address, so return
 	   it
 	*/
-	if (opbx_strlen_zero(c) && (!expires || opbx_strlen_zero(expires))) {
+	if (opbx_strlen_zero(c) && opbx_strlen_zero(expires)) {
 		if ((p->expire > -1) && !opbx_strlen_zero(p->fullcontact)) {
 			/* tell them when the registration is going to expire */
 			pvt->expiry = opbx_sched_when(sched, p->expire);
@@ -7883,7 +7883,7 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 	char idtext[256] = "";
 	int total = 0;
 
-	if (id && !opbx_strlen_zero(id))
+	if (!opbx_strlen_zero(id))
 		snprintf(idtext,256,"ActionID: %s\r\n",id);
 
 	astman_send_ack(s, m, "Peer status list will follow");
@@ -7923,7 +7923,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 
 	if (s) {	/* Manager - get ActionID */
 		id = astman_get_header(m,"ActionID");
-		if (id && !opbx_strlen_zero(id))
+		if (!opbx_strlen_zero(id))
 			snprintf(idtext,256,"ActionID: %s\r\n",id);
 	}
 
@@ -8293,7 +8293,7 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 	int ret;
 
 	peer = astman_get_header(m,"Peer");
-	if (!peer || opbx_strlen_zero(peer)) {
+	if (opbx_strlen_zero(peer)) {
 		astman_send_error(s, m, "Peer: <name> missing.\n");
 		return 0;
 	}
@@ -8302,7 +8302,7 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 	a[2] = "peer";
 	a[3] = peer;
 
-	if (id && !opbx_strlen_zero(id))
+	if (!opbx_strlen_zero(id))
 		opbx_cli(s->fd, "ActionID: %s\r\n",id);
 	ret = _sip_show_peer(1, s->fd, s, m, 4, a );
 	opbx_cli( s->fd, "\r\n\r\n" );
@@ -9640,7 +9640,7 @@ static struct opbx_custom_function sip_header_function = {
 /*--- function_check_sipdomain: Dial plan function to check if domain is local */
 static char *func_check_sipdomain(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "CHECKSIPDOMAIN requires an argument - A domain name\n");
 		return buf;
 	}
@@ -10731,7 +10731,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			parse_sip_options(p, supported);
 	}
 	required = get_header(req, "Required");
-	if (required && !opbx_strlen_zero(required)) {
+	if (!opbx_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
 		if (required_profile) { 	/* They require something */
 			/* At this point we support no extensions, so fail */
@@ -11260,7 +11260,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			return 0;
 		}
 		/* Initialize the context if it hasn't been already */
-		if (p->subscribecontext && !opbx_strlen_zero(p->subscribecontext))
+		if (!opbx_strlen_zero(p->subscribecontext))
 			opbx_copy_string(p->context, p->subscribecontext, sizeof(p->context));
 		else if (opbx_strlen_zero(p->context))
 			strcpy(p->context, default_context);
@@ -12210,7 +12210,7 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 {
 	struct domain *d;
 
-	if (!domain || opbx_strlen_zero(domain)) {
+	if (opbx_strlen_zero(domain)) {
 		opbx_log(LOG_WARNING, "Zero length domain.\n");
 		return 1;
 	}
@@ -12223,7 +12223,7 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 
 	opbx_copy_string(d->domain, domain, sizeof(d->domain));
 
-	if (context && !opbx_strlen_zero(context))
+	if (!opbx_strlen_zero(context))
 		opbx_copy_string(d->context, context, sizeof(d->context));
 
 	d->mode = mode;
@@ -12281,7 +12281,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 	struct sip_auth *auth;
 	struct sip_auth *b = NULL, *a = authlist;
 
-	if (!configuration || opbx_strlen_zero(configuration))
+	if (opbx_strlen_zero(configuration))
 		return authlist;
 
 	opbx_log(LOG_DEBUG, "Auth config ::  %s\n", configuration);
@@ -12295,7 +12295,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 		*realm = '\0';
 		realm++;
 	}
-	if (!username || opbx_strlen_zero(username) || !realm || opbx_strlen_zero(realm)) {
+	if (opbx_strlen_zero(username) || opbx_strlen_zero(realm)) {
 		opbx_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
 		return authlist;
 	}
@@ -13008,7 +13008,7 @@ static int reload_config(void)
 
 			if (opbx_strlen_zero(domain))
 				opbx_log(LOG_WARNING, "Empty domain specified at line %d\n", v->lineno);
-			else if (context && opbx_strlen_zero(context))
+			else if (opbx_strlen_zero(context))
 				opbx_log(LOG_WARNING, "Empty context specified at line %d for domain '%s'\n", v->lineno, domain);
 			else
 				add_sip_domain(opbx_strip(domain), SIP_DOMAIN_CONFIG, context ? opbx_strip(context) : "");

@@ -910,7 +910,7 @@ static int mgcp_call(struct opbx_channel *ast, char *dest, int timeout)
 	opbx_mutex_lock(&sub->lock);
 	switch (p->hookstate) {
 	case MGCP_OFFHOOK:
-		if (distinctive_ring && !opbx_strlen_zero(distinctive_ring)) {
+		if (!opbx_strlen_zero(distinctive_ring)) {
 			snprintf(tone, sizeof(tone), "L/wt%s", distinctive_ring);
 			if (mgcpdebug) {
 				opbx_verbose(VERBOSE_PREFIX_3 "MGCP distinctive callwait %s\n", tone);
@@ -924,7 +924,7 @@ static int mgcp_call(struct opbx_channel *ast, char *dest, int timeout)
 		break;
 	case MGCP_ONHOOK:
 	default:
-		if (distinctive_ring && !opbx_strlen_zero(distinctive_ring)) {
+		if (!opbx_strlen_zero(distinctive_ring)) {
 			snprintf(tone, sizeof(tone), "L/r%s", distinctive_ring);
 			if (mgcpdebug) {
 				opbx_verbose(VERBOSE_PREFIX_3 "MGCP distinctive ring %s\n", tone);
@@ -1806,7 +1806,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	/* Scan through the RTP payload types specified in a "m=" line: */
 	opbx_rtp_pt_clear(sub->rtp);
 	codecs = opbx_strdupa(m + len);
-	while (codecs && !opbx_strlen_zero(codecs)) {
+	while (!opbx_strlen_zero(codecs)) {
 		if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 			if (codec_count)
 				break;
@@ -3319,7 +3319,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 		/* Must have at least one header */
 		return 1;
 	}
-	if (!req.identifier || opbx_strlen_zero(req.identifier)) {
+	if (opbx_strlen_zero(req.identifier)) {
 		opbx_log(LOG_NOTICE, "Message from %s missing identifier\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 		return 1;
 	}
@@ -3361,9 +3361,9 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 				gw->name, ident);
 		}
 	} else {
-		if (!req.endpoint || opbx_strlen_zero(req.endpoint) || 
-		    !req.version || opbx_strlen_zero(req.version) || 
-			!req.verb || opbx_strlen_zero(req.verb)) {
+		if (opbx_strlen_zero(req.endpoint) || 
+		    	opbx_strlen_zero(req.version) || 
+			opbx_strlen_zero(req.verb)) {
 			opbx_log(LOG_NOTICE, "Message must have a verb, an idenitifier, version, and endpoint\n");
 			return 1;
 		}

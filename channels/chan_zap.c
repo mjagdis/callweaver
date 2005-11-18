@@ -9149,7 +9149,7 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 		if (argc < 5) 
 			return RESULT_SHOWUSAGE;
 
-		if (!argv[4] || opbx_strlen_zero(argv[4]))
+		if (opbx_strlen_zero(argv[4]))
 			return RESULT_SHOWUSAGE;
 
 		myfd = open(argv[4], O_CREAT|O_WRONLY);
@@ -9854,7 +9854,7 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 	char idText[256] = "";
 
 	astman_send_ack(s, m, "Zapata channel status will follow");
-	if (id && !opbx_strlen_zero(id))
+	if (!opbx_strlen_zero(id))
 		snprintf(idText, sizeof(idText) - 1, "ActionID: %s\r\n", id);
 
 	opbx_mutex_lock(&iflock);
@@ -10254,7 +10254,7 @@ static int setup_zap(int reload)
 			else
 				callprogress &= ~6;
 		} else if (!strcasecmp(v->name, "echocancel")) {
-			if (v->value && !opbx_strlen_zero(v->value)) {
+			if (!opbx_strlen_zero(v->value)) {
 				y = atoi(v->value);
 			} else
 				y = 0;
