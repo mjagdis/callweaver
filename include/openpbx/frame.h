@@ -435,6 +435,17 @@ static inline int opbx_codec_interp_len(int format)
  */
 int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment);
 
+/*!
+  \brief Sums two frames of audio samples.
+  \param f1 The first frame (which will contain the result)
+  \param f2 The second frame
+  \return 0 for success, non-zero for an error
+
+  The frames must be OPBX_FRAME_VOICE and must contain OPBX_FORMAT_SLINEAR samples,
+  and must contain the same number of samples.
+ */
+int opbx_frame_slinear_sum(struct opbx_frame *f1, struct opbx_frame *f2);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
