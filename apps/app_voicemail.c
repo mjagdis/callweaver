@@ -2978,7 +2978,7 @@ static void adsi_message(struct opbx_channel *chan, struct vm_state *vms)
 				stringp = (char *)buf;
 				strsep(&stringp, "=");
 				val = strsep(&stringp, "=");
-				if (val && !opbx_strlen_zero(val)) {
+				if (!opbx_strlen_zero(val)) {
 					if (!strcmp((char *)buf, "callerid"))
 						opbx_copy_string(cid, val, sizeof(cid));
 					if (!strcmp((char *)buf, "origdate"))
@@ -3594,7 +3594,7 @@ static int play_message_category(struct opbx_channel *chan, char *category)
 {
 	int res = 0;
 
-	if (category && !opbx_strlen_zero(category))
+	if (!opbx_strlen_zero(category))
 		res = opbx_play_and_wait(chan, category);
 
 	return res;
@@ -4964,7 +4964,7 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 		if (useadsi)
 			adsi_password(chan);
 
-		if (prefix && !opbx_strlen_zero(prefix)) {
+		if (!opbx_strlen_zero(prefix)) {
 			char fullusername[80] = "";
 			opbx_copy_string(fullusername, prefix, sizeof(fullusername));
 			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
@@ -4995,7 +4995,7 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 		else {
 			if (option_verbose > 2)
 				opbx_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "<any>");
-			if (prefix && !opbx_strlen_zero(prefix))
+			if (!opbx_strlen_zero(prefix))
 				mailbox[0] = '\0';
 		}
 		logretries++;
@@ -5059,7 +5059,7 @@ static int vm_execmain(struct opbx_channel *chan, void *data)
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer(chan);
 
-	if (data && !opbx_strlen_zero(data)) {
+	if (!opbx_strlen_zero(data)) {
 		char *tmp;
 		int argc;
 		char *argv[2];
@@ -5135,7 +5135,7 @@ static int vm_execmain(struct opbx_channel *chan, void *data)
 	vms.heard = calloc(vmu->maxmsg, sizeof(int));
 	
 	/* Set language from config to override channel language */
-	if (vmu->language && !opbx_strlen_zero(vmu->language))
+	if (!opbx_strlen_zero(vmu->language))
 		opbx_copy_string(chan->language, vmu->language, sizeof(chan->language));
 	snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s", VM_SPOOL_DIR, vmu->context);
 	mkdir(vms.curdir, 0700);
@@ -5491,7 +5491,7 @@ static int vm_exec(struct opbx_channel *chan, void *data)
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer(chan);
 
-	if (data && !opbx_strlen_zero(data)) {
+	if (!opbx_strlen_zero(data)) {
 		opbx_copy_string(tmp, data, sizeof(tmp));
 		argc = opbx_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 		if (argc == 2) {
@@ -5599,7 +5599,7 @@ static int vm_box_exists(struct opbx_channel *chan, void *data)
 	struct opbx_vm_user svm;
 	char *context, *box;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
 		return -1;
 	}
@@ -5976,7 +5976,7 @@ static int load_config(void)
 			opbx_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
 			stringp = opbx_strdupa(s);
 			for (x = 0 ; x < MAX_NUM_CID_CONTEXTS ; x++){
-				if ((stringp)&&(!opbx_strlen_zero(stringp))){
+				if (!opbx_strlen_zero(stringp)) {
 					q = strsep(&stringp,",");
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;

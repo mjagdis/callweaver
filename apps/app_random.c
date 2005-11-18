@@ -65,7 +65,7 @@ static int random_exec(struct opbx_channel *chan, void *data)
 	char *prob;
 	int probint;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
 		return -1;
 	}

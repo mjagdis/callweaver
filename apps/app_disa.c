@@ -129,7 +129,7 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 	FILE *fp;
 	char *stringp=NULL;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}

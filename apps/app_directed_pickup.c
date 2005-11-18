@@ -60,7 +60,7 @@ static int pickup_exec(struct opbx_channel *chan, void *data)
 	char *tmp = NULL, *exten = NULL, *context = NULL;
 	char workspace[256] = "";
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Pickup requires an argument (extension) !\n");
 		return -1;	
 	}

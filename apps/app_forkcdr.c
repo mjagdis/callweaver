@@ -77,7 +77,7 @@ static int forkcdr_exec(struct opbx_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
-	if (data && !opbx_strlen_zero(data))
+	if (!opbx_strlen_zero(data))
 		opbx_set2_flag(chan->cdr, strchr((char *)data, 'v'), OPBX_CDR_FLAG_KEEP_VARS);
 	
 	opbx_cdr_fork(chan);

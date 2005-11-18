@@ -403,7 +403,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 						if (opbx_test_flag(o, DIAL_FORCECALLERID)) {
 							char *newcid = NULL;
 
-							if (strlen(in->macroexten))
+							if (!opbx_strlen_zero(in->macroexten))
 								newcid = in->macroexten;
 							else
 								newcid = in->exten;
@@ -695,7 +695,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	char *dblgoto = NULL;
 	int priority_jump = 0;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
 		return -1;
 	}
@@ -735,7 +735,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		}
 	} else
 		timeout = NULL;
-	if (!peers || opbx_strlen_zero(peers)) {
+	if (opbx_strlen_zero(peers)) {
 		opbx_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
 		goto out;
 	}
@@ -969,7 +969,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		char callerid[60];
 
 		l = chan->cid.cid_num;
-		if (l && !opbx_strlen_zero(l)) {
+		if (!opbx_strlen_zero(l)) {
 			opbx_shrink_phone_number(l);
 			if( privacy ) {
 				if (option_verbose > 2)
@@ -1239,7 +1239,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		cur = rest;
 	} while (cur);
 	
-	if (timeout && !opbx_strlen_zero(timeout)) {
+	if (!opbx_strlen_zero(timeout)) {
 		to = atoi(timeout);
 		if (to > 0)
 			to *= 1000;
@@ -1298,12 +1298,11 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		if (!number)
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
- 		/* JDG: sendurl */
- 		if ( url && !opbx_strlen_zero(url) && opbx_channel_supports_html(peer) ) {
+ 		if (!opbx_strlen_zero(url) && opbx_channel_supports_html(peer) ) {
  			opbx_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			opbx_channel_sendurl( peer, url );
- 		} /* /JDG */
-		if( privacy || screen ) {
+ 		}
+		if (privacy || screen) {
 			int res2;
 			int loopcount = 0;
 			if( privdb_val == OPBX_PRIVACY_UNKNOWN ) {
@@ -1598,12 +1597,12 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 				time(&now);
 				chan->whentohangup = now + calldurationlimit;
 			}
-			if (dtmfcalled && !opbx_strlen_zero(dtmfcalled)) { 
+			if (!opbx_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n",dtmfcalled);
 				res = opbx_dtmf_stream(peer,chan,dtmfcalled,250);
 			}
-			if (dtmfcalling && !opbx_strlen_zero(dtmfcalling)) {
+			if (!opbx_strlen_zero(dtmfcalling)) {
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n",dtmfcalling);
 				res = opbx_dtmf_stream(chan,peer,dtmfcalling,250);
@@ -1702,7 +1701,7 @@ static int retrydial_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	struct opbx_flags peerflags;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "RetryDial requires an argument!\n");
 		return -1;
 	}	

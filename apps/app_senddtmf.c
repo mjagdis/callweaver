@@ -65,7 +65,7 @@ static int senddtmf_exec(struct opbx_channel *chan, void *data)
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return 0;
 	}

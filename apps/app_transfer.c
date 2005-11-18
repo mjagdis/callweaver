@@ -78,7 +78,7 @@ static int transfer_exec(struct opbx_channel *chan, void *data)
 	char *dest = data;
 	char *status;
 
-	if (!dest || opbx_strlen_zero(dest)) {
+	if (opbx_strlen_zero(dest)) {
 		opbx_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;

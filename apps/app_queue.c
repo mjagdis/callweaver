@@ -2559,7 +2559,7 @@ static int pqm_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	char *queuename, *interface;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface])\n");
 		return -1;
 	}
@@ -2603,7 +2603,7 @@ static int upqm_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	char *queuename, *interface;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface])\n");
 		return -1;
 	}
@@ -2650,7 +2650,7 @@ static int rqm_exec(struct opbx_channel *chan, void *data)
 	char tmpchan[256]="";
 	char *interface = NULL;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[|interface])\n");
 		return -1;
 	}
@@ -2714,7 +2714,7 @@ static int aqm_exec(struct opbx_channel *chan, void *data)
 	char *penaltys=NULL;
 	int penalty = 0;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[|[interface][|penalty]])\n");
 		return -1;
 	}
@@ -2742,14 +2742,14 @@ static int aqm_exec(struct opbx_channel *chan, void *data)
 				penaltys++;
 			}
 		}
-		if (!interface || opbx_strlen_zero(interface)) {
+		if (opbx_strlen_zero(interface)) {
 			opbx_copy_string(tmpchan, chan->name, sizeof(tmpchan));
 			interface = strrchr(tmpchan, '-');
 			if (interface)
 				*interface = '\0';
 			interface = tmpchan;
 		}
-		if (penaltys && !opbx_strlen_zero(penaltys)) {
+		if (!opbx_strlen_zero(penaltys)) {
 			if ((sscanf(penaltys, "%d", &penalty) != 1) || penalty < 0) {
 				opbx_log(LOG_WARNING, "Penalty '%s' is invalid, must be an integer >= 0\n", penaltys);
 				penalty = 0;
@@ -2802,7 +2802,7 @@ static int queue_exec(struct opbx_channel *chan, void *data)
 	/* Our queue entry */
 	struct queue_ent qe;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Queue requires an argument: queuename[|options[|URL][|announceoverride][|timeout]]\n");
 		return -1;
 	}
@@ -3040,7 +3040,7 @@ static char *queue_function_qac(struct opbx_channel *chan, char *cmd, char *data
 
 	opbx_copy_string(buf, "0", len);
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_ERROR, "QUEUEAGENTCOUNT requires an argument: queuename\n");
 		LOCAL_USER_REMOVE(u);
 		return buf;

@@ -81,7 +81,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 	int origrformat=0;
 	struct opbx_dsp *dsp;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
 	}

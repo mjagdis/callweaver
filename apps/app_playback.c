@@ -73,7 +73,7 @@ static int playback_exec(struct opbx_channel *chan, void *data)
 	char *stringp = NULL;
 	char *front = NULL, *back = NULL;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}

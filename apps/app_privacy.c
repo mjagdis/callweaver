@@ -88,7 +88,7 @@ privacy_exec (struct opbx_channel *chan, void *data)
 	struct opbx_config *cfg;
 
 	LOCAL_USER_ADD (u);
-	if (chan->cid.cid_num && !opbx_strlen_zero(chan->cid.cid_num)) {
+	if (!opbx_strlen_zero(chan->cid.cid_num)) {
 		if (option_verbose > 2)
 			opbx_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
 	} else {

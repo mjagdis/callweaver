@@ -252,7 +252,7 @@ static int _while_exec(struct opbx_channel *chan, void *data, int end)
 	memset(my_name, 0, size);
 	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
 	
-	if (!label || opbx_strlen_zero(label)) {
+	if (opbx_strlen_zero(label)) {
 		if (end) 
 			label = used_index;
 		else if (!(label = pbx_builtin_getvar_helper(chan, my_name))) {

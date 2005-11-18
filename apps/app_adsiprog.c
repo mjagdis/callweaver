@@ -1559,7 +1559,7 @@ static int adsi_exec(struct opbx_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 	
-	if (!data || opbx_strlen_zero(data))
+	if (opbx_strlen_zero(data))
 		data = "openpbx.adsi";
 	
 	if (!adsi_available(chan)) {

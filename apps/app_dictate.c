@@ -104,7 +104,7 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", opbx_config_OPBX_SPOOL_DIR);
-	if (data && !opbx_strlen_zero(data) && (mydata = opbx_strdupa(data))) {
+	if (!opbx_strlen_zero(data) && (mydata = opbx_strdupa(data))) {
 		argc = opbx_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
 	}
 	

@@ -75,7 +75,7 @@ static int app_exec(struct opbx_channel *chan, void *data)
 	char *opts[2];
 	char *argv[2];
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n",app);
 		LOCAL_USER_REMOVE(u);
 		return -1;
@@ -99,7 +99,7 @@ static int app_exec(struct opbx_channel *chan, void *data)
 		opbx_parseoptions(app_opts, &flags, opts, options);
 	}
 
-	if (dummy && !opbx_strlen_zero(dummy)) 
+	if (!opbx_strlen_zero(dummy)) 
 		opbx_log(LOG_NOTICE, "Dummy value is : %s\n", dummy);
 
 	if (opbx_test_flag(&flags, OPTION_A))

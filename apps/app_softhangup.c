@@ -64,7 +64,7 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 	char name[OPBX_CHANNEL_NAME] = "";
 	int all = 0;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
                 opbx_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
 	}

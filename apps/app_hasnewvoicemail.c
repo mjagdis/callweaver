@@ -118,13 +118,13 @@ static int hasvoicemail_exec(struct opbx_channel *chan, void *data)
 
 	temps = input;
 	if ((temps = strsep(&input, "|"))) {
-		if (input && !opbx_strlen_zero(input))
+		if (!opbx_strlen_zero(input))
 			varname = input;
 		input = temps;
 	}
 
 	if ((vmbox = strsep(&input, "@")))
-		if (input && !opbx_strlen_zero(input))
+		if (!opbx_strlen_zero(input))
 			context = input;
 	if (!vmbox)
 		vmbox = input;

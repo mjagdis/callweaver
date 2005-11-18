@@ -148,7 +148,7 @@ static int group_check_exec(struct opbx_channel *chan, void *data)
 		deprecation_warning = 1;
 	}
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "CheckGroup requires an argument(max[@category])\n");
 		return res;
 	}

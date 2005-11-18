@@ -89,7 +89,7 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 	char *opts;
 	char *prompt;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
 	}

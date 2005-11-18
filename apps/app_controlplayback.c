@@ -85,7 +85,7 @@ static int controlplayback_exec(struct opbx_channel *chan, void *data)
 		arg_restart = 6,
 	};
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}

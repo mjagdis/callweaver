@@ -403,7 +403,7 @@ static int muxmon_exec(struct opbx_channel *chan, void *data)
 		*filename = NULL,
 		*post_process = NULL;
 	
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "muxmon requires an argument\n");
 		return -1;
 	}

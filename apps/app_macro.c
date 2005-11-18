@@ -114,7 +114,7 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 	char *save_macro_offset;
 	struct localuser *u;
  
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return -1;
 	}
@@ -140,7 +140,7 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 	tmp = opbx_strdupa(data);
 	rest = tmp;
 	macro = strsep(&rest, "|");
-	if (!macro || opbx_strlen_zero(macro)) {
+	if (opbx_strlen_zero(macro)) {
 		opbx_log(LOG_WARNING, "Invalid macro name specified\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;

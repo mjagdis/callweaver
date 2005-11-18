@@ -296,7 +296,7 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 	int lastuserchoice = 0;
 	char *start, *pos, *conv,*stringp=NULL;
 
-	if (!context || opbx_strlen_zero(context)) {
+	if (opbx_strlen_zero(context)) {
 		opbx_log(LOG_WARNING,
 			"Directory must be called with an argument "
 			"(context in which to interpret extensions)\n");
@@ -413,7 +413,7 @@ static int directory_exec(struct opbx_channel *chan, void *data)
 	int last = 1;
 	char *context, *dialcontext, *dirintro, *options;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
@@ -442,9 +442,9 @@ static int directory_exec(struct opbx_channel *chan, void *data)
 	}
 
 	dirintro = opbx_variable_retrieve(cfg, context, "directoryintro");
-	if (!dirintro || opbx_strlen_zero(dirintro))
+	if (opbx_strlen_zero(dirintro))
 		dirintro = opbx_variable_retrieve(cfg, "general", "directoryintro");
-	if (!dirintro || opbx_strlen_zero(dirintro)) {
+	if (opbx_strlen_zero(dirintro)) {
 		if (last)
 			dirintro = "dir-intro";	
 		else

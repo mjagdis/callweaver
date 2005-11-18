@@ -103,7 +103,7 @@ static int record_exec(struct opbx_channel *chan, void *data)
 	int flags;
 	
 	/* The next few lines of code parse out the filename and header from the input string */
-	if (!data || opbx_strlen_zero(data)) { /* no data implies no filename or anything is present */
+	if (opbx_strlen_zero(data)) { /* no data implies no filename or anything is present */
 		opbx_log(LOG_WARNING, "Record requires an argument (filename)\n");
 		return -1;
 	}

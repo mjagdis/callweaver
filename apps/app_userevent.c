@@ -68,7 +68,7 @@ static int userevent_exec(struct opbx_channel *chan, void *data)
 	char eventname[512];
 	char *eventbody;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
 		return -1;
 	}

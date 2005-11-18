@@ -88,7 +88,7 @@ static int enumlookup_exec(struct opbx_channel *chan, void *data)
 	static int dep_warning=0;
 	struct localuser *u;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
 		return -1;
 	}

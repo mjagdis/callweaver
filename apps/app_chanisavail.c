@@ -78,7 +78,7 @@ static int chanavail_exec(struct opbx_channel *chan, void *data)
 	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur, *options, *stringp;
 	struct opbx_channel *tempchan;
 
-	if (!data || opbx_strlen_zero(data)) {
+	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "ChanIsAvail requires an argument (Zap/1&Zap/2)\n");
 		return -1;
 	}
