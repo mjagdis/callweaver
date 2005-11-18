@@ -58,7 +58,6 @@
 #include "openpbx/cli.h"
 #include "openpbx/utils.h"
 #include "openpbx/causes.h"
-#include "openpbx/endian.h"
 
 #include "openpbx/busy.h"
 #include "openpbx/ringtone.h"
