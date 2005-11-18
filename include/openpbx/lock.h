@@ -95,6 +95,8 @@ struct opbx_mutex_info {
 
 typedef struct opbx_mutex_info opbx_mutex_t;
 
+typedef pthread_cond_t opbx_cond_t;
+
 static inline int __opbx_pthread_mutex_init_attr(const char *filename, int lineno, const char *func,
 						const char *mutex_name, opbx_mutex_t *t,
 						pthread_mutexattr_t *attr) 
@@ -345,8 +347,33 @@ static inline int __opbx_pthread_mutex_unlock(const char *filename, int lineno, 
 	return res;
 }
 
+static inline int __opbx_pthread_cond_init(const char *filename, int lineno, const char *func,
+					  const char *cond_name, opbx_cond_t *cond, pthread_condattr_t *cond_attr)
+{
+	return pthread_cond_init(cond, cond_attr);
+}
+
+static inline int __opbx_pthread_cond_signal(const char *filename, int lineno, const char *func,
+					    const char *cond_name, opbx_cond_t *cond)
+{
+	return pthread_cond_signal(cond);
+}
+
+static inline int __opbx_pthread_cond_broadcast(const char *filename, int lineno, const char *func,
+					       const char *cond_name, opbx_cond_t *cond)
+{
+	return pthread_cond_broadcast(cond);
+}
+
+static inline int __opbx_pthread_cond_destroy(const char *filename, int lineno, const char *func,
+					     const char *cond_name, opbx_cond_t *cond)
+{
+	return pthread_cond_destroy(cond);
+}
+
 static inline int __opbx_pthread_cond_wait(const char *filename, int lineno, const char *func,
-					  pthread_cond_t *cond, const char *mutex_name, opbx_mutex_t *t)
+					  const char *cond_name, const char *mutex_name,
+					  opbx_cond_t *cond, opbx_mutex_t *t)
 {
 	int res;
 	int canlog = strcmp(filename, "logger.c");
@@ -404,8 +431,8 @@ static inline int __opbx_pthread_cond_wait(const char *filename, int lineno, con
 }
 
 static inline int __opbx_pthread_cond_timedwait(const char *filename, int lineno, const char *func,
-					       pthread_cond_t *cond, const struct timespec *abstime,
-					       const char *mutex_name, opbx_mutex_t *t)
+					       const char *cond_name, const char *mutex_name, opbx_cond_t *cond,
+					       opbx_mutex_t *t, const struct timespec *abstime)
 {
 	int res;
 	int canlog = strcmp(filename, "logger.c");
@@ -464,22 +491,16 @@ static inline int __opbx_pthread_cond_timedwait(const char *filename, int lineno
 }
 
 #define opbx_mutex_init(pmutex) __opbx_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
-#define opbx_pthread_mutex_init(pmutex,attr) __opbx_pthread_mutex_init_attr(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, attr)
 #define opbx_mutex_destroy(a) __opbx_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define opbx_mutex_lock(a) __opbx_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define opbx_mutex_unlock(a) __opbx_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define opbx_mutex_trylock(a) __opbx_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define opbx_pthread_cond_wait(cond, a) __opbx_pthread_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, cond, #a, a)
-#define opbx_pthread_cond_timedwait(cond, a, t) __opbx_pthread_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, cond, t, #a, a)
-
-#define pthread_mutex_t use_opbx_mutex_t_instead_of_pthread_mutex_t
-#define pthread_mutex_lock use_opbx_mutex_lock_instead_of_pthread_mutex_lock
-#define pthread_mutex_unlock use_opbx_mutex_unlock_instead_of_pthread_mutex_unlock
-#define pthread_mutex_trylock use_opbx_mutex_trylock_instead_of_pthread_mutex_trylock
-#define pthread_mutex_init use_opbx_pthread_mutex_init_instead_of_pthread_mutex_init
-#define pthread_mutex_destroy use_opbx_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
-#define pthread_cond_wait use_opbx_pthread_cond_wait_instead_of_pthread_cond_wait
-#define pthread_cond_timedwait use_opbx_pthread_cond_wait_instead_of_pthread_cond_timedwait
+#define opbx_cond_init(cond, attr) __opbx_pthread_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
+#define opbx_cond_destroy(cond) __opbx_pthread_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define opbx_cond_signal(cond) __opbx_pthread_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define opbx_cond_broadcast(cond) __opbx_pthread_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define opbx_cond_wait(cond, mutex) __opbx_pthread_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
+#define opbx_cond_timedwait(cond, mutex, time) __opbx_pthread_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
 
 #else /* !DEBUG_THREADS */
 
@@ -545,10 +566,30 @@ static inline int opbx_mutex_trylock(opbx_mutex_t *pmutex)
 #define opbx_mutex_trylock(pmutex) pthread_mutex_trylock(pmutex)
 #endif /* OPBX_MUTEX_INIT_W_CONSTRUCTORS */
 
-#define opbx_pthread_cond_wait pthread_cond_wait
-#define opbx_pthread_cond_timedwait pthread_cond_timedwait
+typedef pthread_cond_t opbx_cond_t
+
+#define opbx_cond_init pthread_cond_init
+#define opbx_cond_destroy pthread_cond_destroy
+#define opbx_cond_signal pthread_cond_signal
+#define opbx_cond_broadcast pthread_cond_broadcast
+#define opbx_cond_wait pthread_cond_wait
+#define opbx_cond_timedwait pthread_cond_timedwait
 
 #endif /* !DEBUG_THREADS */
+
+#define pthread_mutex_t use_opbx_mutex_t_instead_of_pthread_mutex_t
+#define pthread_mutex_lock use_opbx_mutex_lock_instead_of_pthread_mutex_lock
+#define pthread_mutex_unlock use_opbx_mutex_unlock_instead_of_pthread_mutex_unlock
+#define pthread_mutex_trylock use_opbx_mutex_trylock_instead_of_pthread_mutex_trylock
+#define pthread_mutex_init use_opbx_mutex_init_instead_of_pthread_mutex_init
+#define pthread_mutex_destroy use_opbx_mutex_destroy_instead_of_pthread_mutex_destroy
+#define pthread_cond_t use_opbx_cond_t_instead_of_pthread_cond_t
+#define pthread_cond_init use_opbx_cond_init_instead_of_pthread_cond_init
+#define pthread_cond_destroy use_opbx_cond_destroy_instead_of_pthread_cond_destroy
+#define pthread_cond_signal use_opbx_cond_signal_instead_of_pthread_cond_signal
+#define pthread_cond_broadcast use_opbx_cond_broadcopbx_instead_of_pthread_cond_broadcast
+#define pthread_cond_wait use_opbx_cond_wait_instead_of_pthread_cond_wait
+#define pthread_cond_timedwait use_opbx_cond_wait_instead_of_pthread_cond_timedwait
 
 #define OPBX_MUTEX_DEFINE_STATIC(mutex) __OPBX_MUTEX_DEFINE(static,mutex)
 #define OPBX_MUTEX_DEFINE_EXPORTED(mutex) __OPBX_MUTEX_DEFINE(/**/,mutex)
