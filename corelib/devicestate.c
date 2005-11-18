@@ -198,12 +198,13 @@ static void do_state_change(const char *device)
 
 static int __opbx_device_state_changed_literal(char *buf)
 {
-	char *device;
-	char *parse;
+	char *device, *tmp;
 	struct state_change *change = NULL;
 
-	parse = buf;
-	device = strsep(&parse, "-");
+	device = buf;
+	tmp = strrchr(device, '-');
+	if (tmp)
+		*tmp = '\0';
 	if (change_thread != OPBX_PTHREADT_NULL)
 		change = calloc(1, sizeof(*change) + strlen(device));
 
