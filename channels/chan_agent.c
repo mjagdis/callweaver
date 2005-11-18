@@ -1679,12 +1679,14 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	char agent[OPBX_MAX_AGENT] = "";
 	char xpass[OPBX_MAX_AGENT] = "";
 	char *errmsg;
-	char *info;
-	char *opt_user = NULL;
-	char *options = NULL;
+	char *parse;
+	OPBX_DECLARE_APP_ARGS(args,
+			     OPBX_APP_ARG(agent_id);
+			     OPBX_APP_ARG(options);
+			     OPBX_APP_ARG(extension);
+		);
 	char *tmpoptions = NULL;
 	char *context = NULL;
-	char *exten = NULL;
 	int play_announcement = 1;
 	char agent_goodbye[OPBX_MAX_FILENAME_LEN];
 	int update_cdr = updatecdr;
@@ -1692,12 +1694,13 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 
 	LOCAL_USER_ADD(u);
 
-	info = opbx_strdupa(data);
-	if (!info) {
+	if (!(parse = opbx_strdupa(data))) {
 		opbx_log(LOG_ERROR, "Out of memory!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+
+	OPBX_STANDARD_APP_ARGS(args, parse);
 
 	opbx_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
 
@@ -1727,33 +1730,24 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	}
 	/* End Channel Specific Login Overrides */
 	
-	/* Read command line options */
-	opt_user = info;
-	if (callbackmode) {
-		options = opt_user;
-		strsep(&options, "|");
-		exten = options;
-		strsep(&exten, "|");
-		context = exten;
-		strsep(&context, "@");
-	} else {
-		options = opt_user;
-		strsep(&options, "|");
+	if (callbackmode && args.extension) {
+		parse = args.extension;
+		args.extension = strsep(&parse, "@");
+		context = parse;
 	}
 
-	while (!opbx_strlen_zero(options)) {
-		if (*options == 's') {
+	while (!opbx_strlen_zero(args.options)) {
+		if (*args.options == 's') {
 			play_announcement = 0;
 			break;
 		}
 	}
-	/* End command line options */
 
 	if (chan->_state != OPBX_STATE_UP)
 		res = opbx_answer(chan);
 	if (!res) {
-		if (!opbx_strlen_zero(opt_user))
-			opbx_copy_string(user, opt_user, OPBX_MAX_AGENT);
+		if (!opbx_strlen_zero(args.agent_id))
+			opbx_copy_string(user, args.agent_id, OPBX_MAX_AGENT);
 		else
 			res = opbx_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
 	}
@@ -1832,17 +1826,17 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 						int pos = 0;
 						/* Retrieve login chan */
 						for (;;) {
-							if (exten) {
-								opbx_copy_string(tmpchan, exten, sizeof(tmpchan));
+							if (args.extension) {
+								opbx_copy_string(tmpchan, args.extension, sizeof(tmpchan));
 								res = 0;
 							} else
 								res = opbx_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
 							if (opbx_strlen_zero(tmpchan) || opbx_exists_extension(chan, !opbx_strlen_zero(context) ? context : "default", tmpchan,
 													     1, NULL))
 								break;
-							if (exten) {
-								opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", exten, p->agent);
-								exten = NULL;
+							if (args.extension) {
+								opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", args.extension, p->agent);
+								args.extension = NULL;
 								pos = 0;
 							} else {
 								opbx_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !opbx_strlen_zero(context) ? context : "default", p->agent);
@@ -1859,7 +1853,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 								}
 							}
 						}
-						exten = tmpchan;
+						args.extension = tmpchan;
 						if (!res) {
 							set_agentbycallerid(p->logincallerid, NULL);
 							if (!opbx_strlen_zero(context) && !opbx_strlen_zero(tmpchan))
@@ -2083,7 +2077,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 			pbx_builtin_setvar_helper(chan, "AGENTNUMBER", user);
 			if (login_state==1) {
 				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "on");
-				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", exten);
+				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", args.extension);
 			}
 			else {
 				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "off");
