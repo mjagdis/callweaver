@@ -1263,3 +1263,22 @@ int opbx_codec_get_len(int format, int samples)
 
 	return len;
 }
+
+int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment)
+{
+	int count;
+	short *fdata = f->data;
+
+	if ((f->frametype != OPBX_FRAME_VOICE) || (f->subclass != OPBX_FORMAT_SLINEAR))
+		return -1;
+
+	for (count = 0; count < f->samples; count++) {
+		if (adjustment > 0) {
+			fdata[count] *= abs(adjustment);
+		} else if (adjustment < 0) {
+			fdata[count] /= abs(adjustment);
+		}
+	}
+
+	return 0;
+}

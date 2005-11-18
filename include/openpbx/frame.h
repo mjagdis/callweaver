@@ -49,7 +49,7 @@ struct opbx_frame {
 	int samples;				
 	/*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
 	int mallocd;				
-	/*! How far into "data" the data really starts */
+	/*! How many bytes exist _before_ "data" that can be used if needed */
 	int offset;				
 	/*! Optional source of frame for debugging */
 	const char *src;				
@@ -64,8 +64,8 @@ struct opbx_frame {
 };
 
 #define OPBX_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
-						    				have this number of bytes for additional
-											headers.  */
+						  have this number of bytes for additional
+						  headers.  */
 #define OPBX_MIN_OFFSET 		32		/*! Make sure we keep at least this much handy */
 
 /*! Need the header be free'd? */
@@ -426,6 +426,14 @@ static inline int opbx_codec_interp_len(int format)
 { 
 	return (format == OPBX_FORMAT_ILBC) ? 30 : 20;
 }
+
+/*!
+  \brief Adjusts the volume of the audio samples contained in a frame.
+  \param f The frame containing the samples (must be OPBX_FRAME_VOICE and OPBX_FORMAT_SLINEAR)
+  \param adjustment The number of dB to adjust up or down.
+  \return 0 for success, non-zero for an error
+ */
+int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
