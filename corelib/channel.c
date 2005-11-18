@@ -1244,7 +1244,20 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 	}
 	if (*ms > 0) 
 		start = opbx_tvnow();
-	res = poll(pfds, max, rms);
+	
+	if (sizeof(int) == 4) {
+		do {
+			int kbrms = rms;
+			if (kbrms > 600000)
+				kbrms = 600000;
+			res = poll(pfds, max, kbrms);
+			if (!res)
+				rms -= kbrms;
+		} while (!res && (rms > 0));
+	} else {
+		res = poll(pfds, max, rms);
+	}
+	
 	if (res < 0) {
 		for (x=0; x < n; x++) 
 			opbx_clear_flag(c[x], OPBX_FLAG_BLOCKING);
