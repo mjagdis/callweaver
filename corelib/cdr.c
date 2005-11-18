@@ -94,7 +94,7 @@ OPBX_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 
 /* these are used to wake up the CDR thread when there's work to do */
 OPBX_MUTEX_DEFINE_STATIC(cdr_pending_lock);
-static pthread_cond_t cdr_pending_cond;
+static opbx_cond_t cdr_pending_cond;
 
 /*
  * We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
@@ -959,7 +959,7 @@ static void submit_unscheduled_batch(void)
 	cdr_sched = opbx_sched_add(sched, 1, submit_scheduled_batch, NULL);
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
 	opbx_mutex_lock(&cdr_pending_lock);
-	pthread_cond_signal(&cdr_pending_cond);
+	opbx_cond_signal(&cdr_pending_cond);
 	opbx_mutex_unlock(&cdr_pending_lock);
 }
 
@@ -1035,7 +1035,7 @@ static void *do_cdr(void *data)
 		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
 		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
 		opbx_mutex_lock(&cdr_pending_lock);
-		opbx_pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
+		opbx_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
 		numevents = opbx_sched_runq(sched);
 		opbx_mutex_unlock(&cdr_pending_lock);
 		if (option_debug > 1)
@@ -1182,7 +1182,7 @@ static int do_reload(void)
 	/* if this reload enabled the CDR batch mode, create the background thread
 	   if it does not exist */
 	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == OPBX_PTHREADT_NULL)) {
-		pthread_cond_init(&cdr_pending_cond, NULL);
+		opbx_cond_init(&cdr_pending_cond, NULL);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (opbx_pthread_create(&cdr_thread, &attr, do_cdr, NULL) < 0) {
@@ -1201,7 +1201,7 @@ static int do_reload(void)
 		pthread_kill(cdr_thread, SIGURG);
 		pthread_join(cdr_thread, NULL);
 		cdr_thread = OPBX_PTHREADT_NULL;
-		pthread_cond_destroy(&cdr_pending_cond);
+		opbx_cond_destroy(&cdr_pending_cond);
 		opbx_cli_unregister(&cli_submit);
 		opbx_unregister_atexit(opbx_cdr_engine_term);
 		res = 0;

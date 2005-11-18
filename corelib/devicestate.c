@@ -70,7 +70,7 @@ struct state_change {
 static OPBX_LIST_HEAD_STATIC(state_changes, state_change);
 
 static pthread_t change_thread = OPBX_PTHREADT_NULL;
-static pthread_cond_t change_pending;
+static opbx_cond_t change_pending;
 
 /*--- devstate2str: Find devicestate as text message for output */
 const char *devstate2str(int devstate) 
@@ -219,7 +219,7 @@ static int __opbx_device_state_changed_literal(char *buf)
 		OPBX_LIST_INSERT_TAIL(&state_changes, change, list);
 		if (OPBX_LIST_FIRST(&state_changes) == change)
 			/* the list was empty, signal the thread */
-			pthread_cond_signal(&change_pending);
+			opbx_cond_signal(&change_pending);
 		OPBX_LIST_UNLOCK(&state_changes);
 	}
 
@@ -263,7 +263,7 @@ static void *do_devstate_changes(void *data)
 		} else {
 			/* there was no entry, so atomically unlock the list and wait for
 			   the condition to be signalled (returns with the lock held) */
-			opbx_pthread_cond_wait(&change_pending, &state_changes.lock);
+			opbx_cond_wait(&change_pending, &state_changes.lock);
 		}
 	}
 
@@ -275,7 +275,7 @@ int opbx_device_state_engine_init(void)
 {
 	pthread_attr_t attr;
 
-	pthread_cond_init(&change_pending, NULL);
+	opbx_cond_init(&change_pending, NULL);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (opbx_pthread_create(&change_thread, &attr, do_devstate_changes, NULL) < 0) {
