@@ -347,33 +347,33 @@ static inline int __opbx_pthread_mutex_unlock(const char *filename, int lineno, 
 	return res;
 }
 
-static inline int __opbx_pthread_cond_init(const char *filename, int lineno, const char *func,
-					  const char *cond_name, opbx_cond_t *cond, pthread_condattr_t *cond_attr)
+static inline int __opbx_cond_init(const char *filename, int lineno, const char *func,
+				  const char *cond_name, opbx_cond_t *cond, pthread_condattr_t *cond_attr)
 {
 	return pthread_cond_init(cond, cond_attr);
 }
 
-static inline int __opbx_pthread_cond_signal(const char *filename, int lineno, const char *func,
-					    const char *cond_name, opbx_cond_t *cond)
+static inline int __opbx_cond_signal(const char *filename, int lineno, const char *func,
+				    const char *cond_name, opbx_cond_t *cond)
 {
 	return pthread_cond_signal(cond);
 }
 
-static inline int __opbx_pthread_cond_broadcast(const char *filename, int lineno, const char *func,
-					       const char *cond_name, opbx_cond_t *cond)
+static inline int __opbx_cond_broadcast(const char *filename, int lineno, const char *func,
+				       const char *cond_name, opbx_cond_t *cond)
 {
 	return pthread_cond_broadcast(cond);
 }
 
-static inline int __opbx_pthread_cond_destroy(const char *filename, int lineno, const char *func,
-					     const char *cond_name, opbx_cond_t *cond)
+static inline int __opbx_cond_destroy(const char *filename, int lineno, const char *func,
+				     const char *cond_name, opbx_cond_t *cond)
 {
 	return pthread_cond_destroy(cond);
 }
 
-static inline int __opbx_pthread_cond_wait(const char *filename, int lineno, const char *func,
-					  const char *cond_name, const char *mutex_name,
-					  opbx_cond_t *cond, opbx_mutex_t *t)
+static inline int __opbx_cond_wait(const char *filename, int lineno, const char *func,
+				  const char *cond_name, const char *mutex_name,
+				  opbx_cond_t *cond, opbx_mutex_t *t)
 {
 	int res;
 	int canlog = strcmp(filename, "logger.c");
@@ -430,9 +430,9 @@ static inline int __opbx_pthread_cond_wait(const char *filename, int lineno, con
 	return res;
 }
 
-static inline int __opbx_pthread_cond_timedwait(const char *filename, int lineno, const char *func,
-					       const char *cond_name, const char *mutex_name, opbx_cond_t *cond,
-					       opbx_mutex_t *t, const struct timespec *abstime)
+static inline int __opbx_cond_timedwait(const char *filename, int lineno, const char *func,
+				       const char *cond_name, const char *mutex_name, opbx_cond_t *cond,
+				       opbx_mutex_t *t, const struct timespec *abstime)
 {
 	int res;
 	int canlog = strcmp(filename, "logger.c");
@@ -495,12 +495,12 @@ static inline int __opbx_pthread_cond_timedwait(const char *filename, int lineno
 #define opbx_mutex_lock(a) __opbx_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define opbx_mutex_unlock(a) __opbx_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define opbx_mutex_trylock(a) __opbx_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define opbx_cond_init(cond, attr) __opbx_pthread_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
-#define opbx_cond_destroy(cond) __opbx_pthread_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define opbx_cond_signal(cond) __opbx_pthread_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define opbx_cond_broadcast(cond) __opbx_pthread_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define opbx_cond_wait(cond, mutex) __opbx_pthread_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
-#define opbx_cond_timedwait(cond, mutex, time) __opbx_pthread_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
+#define opbx_cond_init(cond, attr) __opbx_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
+#define opbx_cond_destroy(cond) __opbx_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define opbx_cond_signal(cond) __opbx_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define opbx_cond_broadcast(cond) __opbx_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define opbx_cond_wait(cond, mutex) __opbx_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
+#define opbx_cond_timedwait(cond, mutex, time) __opbx_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
 
 #else /* !DEBUG_THREADS */
 
@@ -517,9 +517,18 @@ static inline int opbx_mutex_init(opbx_mutex_t *pmutex)
 	pthread_mutexattr_settype(&attr, OPBX_MUTEX_KIND);
 	return pthread_mutex_init(pmutex, &attr);
 }
+
 #define opbx_pthread_mutex_init(pmutex,a) pthread_mutex_init(pmutex,a)
-#define opbx_mutex_unlock(pmutex) pthread_mutex_unlock(pmutex)
-#define opbx_mutex_destroy(pmutex) pthread_mutex_destroy(pmutex)
+
+static inline int opbx_mutex_unlock(opbx_mutex_t *pmutex)
+{
+	return pthread_mutex_unlock(pmutex);
+}
+
+static inline int opbx_mutex_destroy(opbx_mutex_t *pmutex)
+{
+	return pthread_mutex_destroy(pmutex);
+}
 
 #if defined(OPBX_MUTEX_INIT_W_CONSTRUCTORS)
 /* if OPBX_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
@@ -535,8 +544,15 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 	opbx_mutex_destroy(&mutex); \
 }
 
-#define opbx_mutex_lock(pmutex) pthread_mutex_lock(pmutex)
-#define opbx_mutex_trylock(pmutex) pthread_mutex_trylock(pmutex)
+static inline int opbx_mutex_lock(opbx_mutex_t *pmutex)
+{
+	return pthread_mutex_lock(pmutex);
+}
+
+static inline int opbx_mutex_trylock(opbx_mutex_t *pmutex)
+{
+	return pthread_mutex_trylock(pmutex);
+}
 
 #elif defined(OPBX_MUTEX_INIT_ON_FIRST_USE)
 /* if OPBX_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
@@ -562,18 +578,50 @@ static inline int opbx_mutex_trylock(opbx_mutex_t *pmutex)
 /* By default, use static initialization of mutexes.*/ 
 #define __OPBX_MUTEX_DEFINE(scope,mutex) \
 	scope opbx_mutex_t mutex = OPBX_MUTEX_INIT_VALUE
-#define opbx_mutex_lock(pmutex) pthread_mutex_lock(pmutex)
-#define opbx_mutex_trylock(pmutex) pthread_mutex_trylock(pmutex)
+
+static inline int opbx_mutex_lock(opbx_mutex_t *pmutex)
+{
+	return pthread_mutex_lock(pmutex);
+}
+
+static inline int opbx_mutex_trylock(opbx_mutex_t *pmutex)
+{
+	return pthread_mutex_trylock(pmutex);
+}
+
 #endif /* OPBX_MUTEX_INIT_W_CONSTRUCTORS */
 
-typedef pthread_cond_t opbx_cond_t
+typedef pthread_cond_t opbx_cond_t;
 
-#define opbx_cond_init pthread_cond_init
-#define opbx_cond_destroy pthread_cond_destroy
-#define opbx_cond_signal pthread_cond_signal
-#define opbx_cond_broadcast pthread_cond_broadcast
-#define opbx_cond_wait pthread_cond_wait
-#define opbx_cond_timedwait pthread_cond_timedwait
+static inline int opbx_cond_init(opbx_cond_t *cond, pthread_condattr_t *cond_attr)
+{
+	return pthread_cond_init(cond, cond_attr);
+}
+
+static inline int opbx_cond_signal(opbx_cond_t *cond)
+{
+	return pthread_cond_signal(cond);
+}
+
+static inline int opbx_cond_broadcast(opbx_cond_t *cond)
+{
+	return pthread_cond_broadcast(cond);
+}
+
+static inline int opbx_cond_destroy(opbx_cond_t *cond)
+{
+	return pthread_cond_destroy(cond);
+}
+
+static inline int opbx_cond_wait(opbx_cond_t *cond, opbx_mutex_t *t)
+{
+	return pthread_cond_wait(cond, t);
+}
+
+static inline int opbx_cond_timedwait(opbx_cond_t *cond, opbx_mutex_t *t, const struct timespec *abstime)
+{
+	return pthread_cond_timedwait(cond, t, abstime);
+}
 
 #endif /* !DEBUG_THREADS */
 
