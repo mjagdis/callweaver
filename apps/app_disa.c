@@ -341,6 +341,7 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 		int recheck = 0;
 
 		if (!opbx_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
 			exten[0] = 'i';
 			exten[1] = '\0';
 			recheck = 1;
