@@ -2135,8 +2135,13 @@ int openpbx_main(int argc, char *argv[])
 
 	/* Check if we're root */
 	if (!geteuid()) {
-		opbx_log(LOG_ERROR, "Running as root has been disabled\n");
-		exit(1);
+#ifdef VERY_SECURE
+               opbx_log(LOG_ERROR, "Running as root has been disabled\n");
+               exit(1);
+#else
+
+		opbx_log(LOG_ERROR, "Running as root has been enabled\n");
+#endif
 	}
 
 #endif
