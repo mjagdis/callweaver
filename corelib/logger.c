@@ -35,6 +35,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/stat.h>
+#ifdef STACK_BACKTRACES
+#include <execinfo.h>
+#endif
 
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
 		        from <syslog.h> which is included by logger.h */
@@ -817,6 +820,35 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 		if (option_verbose)
 			opbx_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
+}
+
+void opbx_backtrace(int levels)
+{
+#ifdef STACK_BACKTRACES
+	int count=0, i=0;
+	void **addresses;
+	char **strings;
+
+	addresses = calloc(levels, sizeof(void *));
+	if (addresses) {
+		count = backtrace(addresses, levels);
+		strings = backtrace_symbols(addresses, count);
+		if (strings) {
+			opbx_log(LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
+			for (i=0; i < count ; i++) {
+				opbx_log(LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+			}
+			free(strings);
+		} else {
+			opbx_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+		}
+		free(addresses);
+	} else {
+		opbx_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+	}
+#else
+	opbx_log(LOG_WARNING, "Must compile with gcc optimizations at -O1 or lower for stack backtraces\n");
+#endif
 }
 
 void opbx_verbose(const char *fmt, ...)
