@@ -5,8 +5,6 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * This work was motivated by Jeremy McNamara 
- * hacked to be configurable by anthm and bkw 9/28/2004
  *
  * See http://www.openpbx.org for more information about
  * the OpenPBX project. Please do not directly contact
@@ -19,10 +17,13 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Translate between signed linear and Speex (Open Codec)
+ * \brief Translate between signed linear and Speex (Open Codec)
  *
+ * http://www.speex.org
+ * \note This work was motivated by Jeremy McNamara 
+ * hacked to be configurable by anthm and bkw 9/28/2004
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

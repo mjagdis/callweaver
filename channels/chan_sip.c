@@ -10608,6 +10608,11 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
 			return 0;
 		free(d);
 	}
+
+	if (opbx_canmatch_extension(NULL, p->context, c, 1, NULL)) {
+		return 1;
+	}
+	
 	return -1;
 }
 

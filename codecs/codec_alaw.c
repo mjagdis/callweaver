@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * codec_alaw.c - translate between signed linear and alaw
+ * \brief codec_alaw.c - translate between signed linear and alaw
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -60,22 +60,20 @@ static int useplc = 0;
 #include "slin_ulaw_ex.h"
 #include "ulaw_slin_ex.h"
 
-/*
- * Private workspace for translating signed linear signals to alaw.
+/*!
+ * \brief Private workspace for translating signed linear signals to alaw.
  */
-
 struct alaw_encoder_pvt
 {
   struct opbx_frame f;
-  char offset[OPBX_FRIENDLY_OFFSET];   /* Space to build offset */
-  unsigned char outbuf[BUFFER_SIZE];  /* Encoded alaw, two nibbles to a word */
+  char offset[OPBX_FRIENDLY_OFFSET];   /*!< Space to build offset */
+  unsigned char outbuf[BUFFER_SIZE];  /*!< Encoded alaw, two nibbles to a word */
   int tail;
 };
 
-/*
- * Private workspace for translating alaw signals to signed linear.
+/*!
+ * \brief Private workspace for translating alaw signals to signed linear.
  */
-
 struct alaw_decoder_pvt
 {
   struct opbx_frame f;
@@ -85,8 +83,8 @@ struct alaw_decoder_pvt
   plc_state_t plc;
 };
 
-/*
- * alawToLin_New
+/*!
+ * \brief alawToLin_New
  *  Create a new instance of alaw_decoder_pvt.
  *
  * Results:
@@ -96,8 +94,7 @@ struct alaw_decoder_pvt
  *  None.
  */
 
-static struct opbx_translator_pvt *
-alawtolin_new (void)
+static struct opbx_translator_pvt * alawtolin_new (void)
 {
   struct alaw_decoder_pvt *tmp;
   tmp = malloc (sizeof (struct alaw_decoder_pvt));
@@ -112,8 +109,8 @@ alawtolin_new (void)
   return (struct opbx_translator_pvt *) tmp;
 }
 
-/*
- * LinToalaw_New
+/*!
+ * \brief LinToalaw_New
  *  Create a new instance of alaw_encoder_pvt.
  *
  * Results:
@@ -123,8 +120,7 @@ alawtolin_new (void)
  *  None.
  */
 
-static struct opbx_translator_pvt *
-lintoalaw_new (void)
+static struct opbx_translator_pvt * lintoalaw_new (void)
 {
   struct alaw_encoder_pvt *tmp;
   tmp = malloc (sizeof (struct alaw_encoder_pvt));
@@ -138,8 +134,8 @@ lintoalaw_new (void)
   return (struct opbx_translator_pvt *) tmp;
 }
 
-/*
- * alawToLin_FrameIn
+/*!
+ * \brief alawToLin_FrameIn
  *  Fill an input buffer with packed 4-bit alaw values if there is room
  *  left.
  *
@@ -185,8 +181,8 @@ alawtolin_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
   return 0;
 }
 
-/*
- * alawToLin_FrameOut
+/*!
+ * \brief alawToLin_FrameOut
  *  Convert 4-bit alaw encoded signals to 16-bit signed linear.
  *
  * Results:
@@ -197,8 +193,7 @@ alawtolin_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
  *  None.
  */
 
-static struct opbx_frame *
-alawtolin_frameout (struct opbx_translator_pvt *pvt)
+static struct opbx_frame * alawtolin_frameout (struct opbx_translator_pvt *pvt)
 {
   struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
 
@@ -217,8 +212,8 @@ alawtolin_frameout (struct opbx_translator_pvt *pvt)
   return &tmp->f;
 }
 
-/*
- * LinToalaw_FrameIn
+/*!
+ * \brief LinToalaw_FrameIn
  *  Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
@@ -228,8 +223,7 @@ alawtolin_frameout (struct opbx_translator_pvt *pvt)
  *  tmp->tail is number of signal values in the input buffer.
  */
 
-static int
-lintoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int lintoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
   struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   int x;
@@ -246,8 +240,8 @@ lintoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
   return 0;
 }
 
-/*
- * LinToalaw_FrameOut
+/*!
+ * \brief LinToalaw_FrameOut
  *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
  *  of 4-bit alaw packed two to a byte (Big Endian).
  *
@@ -258,8 +252,7 @@ lintoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct opbx_frame *
-lintoalaw_frameout (struct opbx_translator_pvt *pvt)
+static struct opbx_frame * lintoalaw_frameout (struct opbx_translator_pvt *pvt)
 {
   struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
@@ -278,12 +271,11 @@ lintoalaw_frameout (struct opbx_translator_pvt *pvt)
 }
 
 
-/*
- * alawToLin_Sample
+/*!
+ * \brief alawToLin_Sample
  */
 
-static struct opbx_frame *
-alawtolin_sample (void)
+static struct opbx_frame * alawtolin_sample (void)
 {
   static struct opbx_frame f;
   f.frametype = OPBX_FRAME_VOICE;
@@ -297,12 +289,11 @@ alawtolin_sample (void)
   return &f;
 }
 
-/*
- * LinToalaw_Sample
+/*!
+ * \brief LinToalaw_Sample
  */
 
-static struct opbx_frame *
-lintoalaw_sample (void)
+static struct opbx_frame * lintoalaw_sample (void)
 {
   static struct opbx_frame f;
   f.frametype = OPBX_FRAME_VOICE;
@@ -317,8 +308,8 @@ lintoalaw_sample (void)
   return &f;
 }
 
-/*
- * alaw_Destroy
+/*!
+ * \brief alaw_Destroy
  *  Destroys a private workspace.
  *
  * Results:
@@ -328,16 +319,15 @@ lintoalaw_sample (void)
  *  None.
  */
 
-static void
-alaw_destroy (struct opbx_translator_pvt *pvt)
+static void alaw_destroy (struct opbx_translator_pvt *pvt)
 {
   free (pvt);
   localusecnt--;
   opbx_update_use_count ();
 }
 
-/*
- * The complete translator for alawToLin.
+/*!
+ * \brief The complete translator for alawToLin.
  */
 
 static struct opbx_translator alawtolin = {
@@ -352,8 +342,8 @@ static struct opbx_translator alawtolin = {
   alawtolin_sample
 };
 
-/*
- * The complete translator for LinToalaw.
+/*!
+ * \brief The complete translator for LinToalaw.
  */
 
 static struct opbx_translator lintoalaw = {
@@ -368,8 +358,7 @@ static struct opbx_translator lintoalaw = {
   lintoalaw_sample
 };
 
-static void 
-parse_config(void)
+static void parse_config(void)
 {
   struct opbx_config *cfg;
   struct opbx_variable *var;
@@ -389,15 +378,13 @@ parse_config(void)
   }
 }
 
-int
-reload(void)
+int reload(void)
 {
   parse_config();
   return 0;
 }
 
-int
-unload_module (void)
+int unload_module (void)
 {
   int res;
   opbx_mutex_lock (&localuser_lock);
@@ -410,8 +397,7 @@ unload_module (void)
   return res;
 }
 
-int
-load_module (void)
+int load_module (void)
 {
   int res;
   parse_config();
@@ -427,14 +413,12 @@ load_module (void)
  * Return a description of this module.
  */
 
-char *
-description (void)
+char * description (void)
 {
   return tdesc;
 }
 
-int
-usecount (void)
+int usecount (void)
 {
   int res;
   STANDARD_USECOUNT (res);
