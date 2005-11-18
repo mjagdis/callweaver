@@ -1252,6 +1252,18 @@ AC_ARG_WITH([app_zapateller],
 
 AM_CONDITIONAL([WANT_APP_ZAPATELLER],[test "${with_app_zapateller}" = "yes"])
 
+
+dnl ###########################################################################
+
+AC_ARG_WITH([chan_alsa],
+        [AC_HELP_STRING([--with-chan_alsa],[Build and install chan_alsa (default=no)])],,
+        [with_chan_alsa="no"])
+
+AM_CONDITIONAL([WANT_CHAN_ALSA],[test "${with_chan_alsa}" = "yes"])
+
+
+
+
 dnl ###########################################################################
 dnl ###########################################################################
 dnl ###

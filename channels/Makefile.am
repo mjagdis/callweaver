@@ -100,4 +100,12 @@ chan_zap_la_LIBADD		+= ${top_builddir}/corelib/libopenpbx.la
 chan_zap_la_LDFLAGS		= -module -avoid-version -no-undefined
 endif WANT_CHAN_ZAP
 
+
+if WANT_CHAN_ALSA
+opbxmod_LTLIBRARIES		+= chan_alsa.la
+chan_alsa_la_SOURCES		= chan_alsa.c
+chan_alsa_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
+chan_alsa_la_LDFLAGS            = -module -avoid-version -no-undefined
+endif WANT_CHAN_ALSA
+
 INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
