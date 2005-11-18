@@ -173,6 +173,7 @@ struct opbx_cdr *opbx_cdr_dup(struct opbx_cdr *cdr)
 	/* The varshead is unusable, volatile even, after the memcpy so we take care of that here */
 	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
 	opbx_cdr_copy_vars(newcdr, cdr);
+	newcdr->next = NULL;
 
 	return newcdr;
 }
