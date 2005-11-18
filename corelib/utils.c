@@ -170,7 +170,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 #endif
 
-/* Re-entrant (thread safe) version of gethostbyname that replaces the 
+/*! \brief Re-entrant (thread safe) version of gethostbyname that replaces the 
    standard gethostbyname (which is not thread safe)
 */
 struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
@@ -220,9 +220,6 @@ struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp)
 }
 
 
-/* This is a regression test for recursive mutexes.
-   test_for_thread_safety() will return 0 if recursive mutex locks are
-   working properly, and non-zero if they are not working properly. */
 
 OPBX_MUTEX_DEFINE_STATIC(test_lock);
 OPBX_MUTEX_DEFINE_STATIC(test_lock2);
@@ -230,6 +227,9 @@ static pthread_t test_thread;
 static int lock_count = 0;
 static int test_errors = 0;
 
+/*! \brief This is a regression test for recursive mutexes.
+   test_for_thread_safety() will return 0 if recursive mutex locks are
+   working properly, and non-zero if they are not working properly. */
 static void *test_thread_body(void *data) 
 { 
 	opbx_mutex_lock(&test_lock);
@@ -281,7 +281,7 @@ int test_for_thread_safety(void)
 	return(test_errors);          /* return 0 on success. */
 }
 
-/*--- opbx_md5_hash: Produce 16 char MD5 hash of value. ---*/
+/*! \brief opbx_md5_hash: Produce 16 char MD5 hash of value. ---*/
 void opbx_md5_hash(char *output, char *input)
 {
 	struct MD5Context md5;
@@ -412,7 +412,7 @@ static void base64_init(void)
 #endif
 }
 
-/*--- opbx_uri_encode: Turn text string to URI-encoded %XX version ---*/
+/*! \brief  opbx_uri_encode: Turn text string to URI-encoded %XX version ---*/
 /* 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
 	If doreserved == 1 we will convert reserved characters also.
@@ -454,7 +454,7 @@ char *opbx_uri_encode(char *string, char *outbuf, int buflen, int doreserved)
 	return outbuf;
 }
 
-/*--- opbx_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
+/*! \brief  opbx_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
 void opbx_uri_decode(char *s) 
 {
 	char *o;
@@ -471,7 +471,7 @@ void opbx_uri_decode(char *s)
 	*o = '\0';
 }
 
-/*--- opbx_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
+/*! \brief  opbx_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
 const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);

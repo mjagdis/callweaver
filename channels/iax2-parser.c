@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Implementation of Inter-OpenPBX eXchange
+ * \brief Implementation of Inter-OpenPBX eXchange Protocol, v 2
  * 
  */
 #ifdef HAVE_CONFIG_H

@@ -405,7 +405,7 @@ static int wait_file(struct opbx_channel *chan, const char *ints, const char *fi
 	return res;
 }
 
-/*--- opbx_say_number_full: call language-specific functions */
+/*! \brief  opbx_say_number_full: call language-specific functions */
 /* Called from AGI */
 int opbx_say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
@@ -449,13 +449,13 @@ int opbx_say_number_full(struct opbx_channel *chan, int num, const char *ints, c
 	return(opbx_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd));
 }
 
-/*--- opbx_say_number: call language-specific functions without file descriptors */
+/*! \brief  opbx_say_number: call language-specific functions without file descriptors */
 int opbx_say_number(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options)
 {
 	return(opbx_say_number_full(chan, num, ints, language, options, -1, -1));
 }
 
-/*--- opbx_say_number_full_en: English syntax */
+/*! \brief  opbx_say_number_full_en: English syntax */
 /* This is the default syntax, if no other syntax defined in this file is used */
 static int opbx_say_number_full_en(struct opbx_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
@@ -529,7 +529,7 @@ static int exp10_int(int power)
 	return res;
 }
 
-/*--- opbx_say_number_full_cz: Czech syntax */
+/*! \brief  opbx_say_number_full_cz: Czech syntax */
 /* files needed:
  * 1m,2m - gender male
  * 1w,2w - gender female
@@ -644,7 +644,7 @@ static int opbx_say_number_full_cz(struct opbx_channel *chan, int num, const cha
 	return res; 
 }
 
-/*--- opbx_say_number_full_da: Danish syntax */
+/*! \brief  opbx_say_number_full_da: Danish syntax */
 /* New files:
  In addition to English, the following sounds are required: "1N", "millions", "and" and "1-and" through "9-and" 
  */
@@ -752,7 +752,7 @@ static int opbx_say_number_full_da(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_de: German syntax */
+/*! \brief  opbx_say_number_full_de: German syntax */
 /* New files:
  In addition to English, the following sounds are required:
  "millions"
@@ -892,7 +892,7 @@ static int opbx_say_number_full_de(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_en_GB: British and Norwegian syntax */
+/*! \brief  opbx_say_number_full_en_GB: British and Norwegian syntax */
 /* New files:
  In addition to American English, the following sounds are required:  "and"
  */
@@ -968,7 +968,7 @@ static int opbx_say_number_full_en_GB(struct opbx_channel *chan, int num, const 
 	return res;
 }
 
-/*--- opbx_say_number_full_es: Spanish syntax */
+/*! \brief  opbx_say_number_full_es: Spanish syntax */
 /* New files:
  Requires a few new audios:
    1F.gsm: feminine 'una'
@@ -1074,7 +1074,7 @@ static int opbx_say_number_full_es(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_fr: French syntax */
+/*! \brief  opbx_say_number_full_fr: French syntax */
 /* 	Extra sounds needed:
  	1F: feminin 'une'
  	et: 'and' */
@@ -1166,7 +1166,7 @@ static int opbx_say_number_full_fr(struct opbx_channel *chan, int num, const cha
 
 
 
-/*--- opbx_say_number_full_he: Hebrew syntax */
+/*! \brief  opbx_say_number_full_he: Hebrew syntax */
 /* 	Extra sounds needed:
  	1F: feminin 'one'
 	ve: 'and'
@@ -1310,7 +1310,7 @@ static int opbx_say_number_full_he(struct opbx_channel *chan, int num,
 	return res;
 }
 
-/*--- opbx_say_number_full_it:  Italian */
+/*! \brief  opbx_say_number_full_it:  Italian */
 static int opbx_say_number_full_it(struct opbx_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
 	int res = 0;
@@ -1463,7 +1463,7 @@ static int opbx_say_number_full_it(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_nl: dutch syntax */
+/*! \brief  opbx_say_number_full_nl: dutch syntax */
 /* New files: digits/nl-en
  */
 static int opbx_say_number_full_nl(struct opbx_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
@@ -1540,7 +1540,7 @@ static int opbx_say_number_full_nl(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_no: Norwegian syntax */
+/*! \brief  opbx_say_number_full_no: Norwegian syntax */
 /* New files:
  In addition to American English, the following sounds are required:  "and", "1N"
  */
@@ -2021,7 +2021,7 @@ static int opbx_say_number_full_pt(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_se: Swedish syntax */
+/*! \brief  opbx_say_number_full_se: Swedish syntax */
 static int opbx_say_number_full_se(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	int res = 0;
@@ -2093,7 +2093,7 @@ static int opbx_say_number_full_se(struct opbx_channel *chan, int num, const cha
 	return res;
 }
 
-/*--- opbx_say_number_full_tw: Taiwanese syntax */
+/*! \brief  opbx_say_number_full_tw: Taiwanese syntax */
 static int opbx_say_number_full_tw(struct opbx_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
 	int res = 0;
@@ -2159,7 +2159,7 @@ static int opbx_say_number_full_tw(struct opbx_channel *chan, int num, const cha
 }
 
 
-/*--- determine last digits for thousands/millions (ru) */
+/*! \brief  determine last digits for thousands/millions (ru) */
 static int get_lastdigits_ru(int num) {
 	if (num < 20) {
 		return num;
@@ -2172,8 +2172,8 @@ static int get_lastdigits_ru(int num) {
 }
 
 
-/*--- opbx_say_number_full_ru: Russian syntax */
-/*--- additional files:
+/*! \brief  opbx_say_number_full_ru: Russian syntax */
+/*! \brief  additional files:
 	n00.gsm			(one hundred, two hundred, ...)
 	thousand.gsm
 	million.gsm
@@ -2265,7 +2265,7 @@ static int opbx_say_number_full_ru(struct opbx_channel *chan, int num, const cha
 }
 
 
-/*--- opbx_say_enumeration_full: call language-specific functions */
+/*! \brief  opbx_say_enumeration_full: call language-specific functions */
 /* Called from AGI */
 int opbx_say_enumeration_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
@@ -2281,13 +2281,13 @@ int opbx_say_enumeration_full(struct opbx_channel *chan, int num, const char *in
 	return(opbx_say_enumeration_full_en(chan, num, ints, language, audiofd, ctrlfd));
 }
 
-/*--- opbx_say_enumeration: call language-specific functions without file descriptors */
+/*! \brief  opbx_say_enumeration: call language-specific functions without file descriptors */
 int opbx_say_enumeration(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options)
 {
 	return(opbx_say_enumeration_full(chan, num, ints, language, options, -1, -1));
 }
 
-/*--- opbx_say_enumeration_full_en: English syntax */
+/*! \brief  opbx_say_enumeration_full_en: English syntax */
 /* This is the default syntax, if no other syntax defined in this file is used */
 static int opbx_say_enumeration_full_en(struct opbx_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
@@ -2386,7 +2386,7 @@ static int opbx_say_enumeration_full_en(struct opbx_channel *chan, int num, cons
 	return res;
 }
 
-/*--- opbx_say_enumeration_full_da: Danish syntax */
+/*! \brief  opbx_say_enumeration_full_da: Danish syntax */
 static int opbx_say_enumeration_full_da(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	/* options can be: '' or 'm' male gender; 'f' female gender; 'n' neuter gender; 'p' plural */
@@ -2549,7 +2549,7 @@ static int opbx_say_enumeration_full_da(struct opbx_channel *chan, int num, cons
 	return res;
 }
 
-/*--- opbx_say_enumeration_full_de: German syntax */
+/*! \brief  opbx_say_enumeration_full_de: German syntax */
 static int opbx_say_enumeration_full_de(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	/* options can be: '' or 'm' male gender; 'f' female gender; 'n' neuter gender; 'p' plural */

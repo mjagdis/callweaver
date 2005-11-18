@@ -60,8 +60,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/app.h"
 #include "openpbx/devicestate.h"
 
-/*
- * I M P O R T A N T :
+/*!
+ * \note I M P O R T A N T :
  *
  *		The speed of extension handling will likely be among the most important
  * aspects of this PBX.  The switching scheme as it exists right now isn't
@@ -911,7 +911,7 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 	return NULL;
 }
 
-/*--- pbx_retrieve_variable: Support for OpenPBX built-in variables and
+ /*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
       functions in the dialplan
   ---*/
 void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
@@ -1727,7 +1727,7 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
 
 }
 
-/*--- opbx_hint_extension: Find hint for given extension in context */
+/*! \brief  opbx_hint_extension: Find hint for given extension in context */
 static struct opbx_exten *opbx_hint_extension(struct opbx_channel *c, const char *context, const char *exten)
 {
 	struct opbx_exten *e;
@@ -1747,7 +1747,7 @@ static struct opbx_exten *opbx_hint_extension(struct opbx_channel *c, const char
 	return e;
 }
 
-/*--- opbx_extensions_state2: Check state of extension by using hints */
+/*! \brief  opbx_extensions_state2: Check state of extension by using hints */
 static int opbx_extension_state2(struct opbx_exten *e)
 {
 	char hint[OPBX_MAX_EXTENSION] = "";    
@@ -1821,7 +1821,7 @@ static int opbx_extension_state2(struct opbx_exten *e)
 	return OPBX_EXTENSION_NOT_INUSE;
 }
 
-/*--- opbx_extension_state2str: Return extension_state as string */
+/*! \brief  opbx_extension_state2str: Return extension_state as string */
 const char *opbx_extension_state2str(int extension_state)
 {
 	int i;
@@ -1834,7 +1834,7 @@ const char *opbx_extension_state2str(int extension_state)
 	return "Unknown";	
 }
 
-/*--- opbx_extension_state: Check extension state for an extension by using hint */
+/*! \brief  opbx_extension_state: Check extension state for an extension by using hint */
 int opbx_extension_state(struct opbx_channel *c, char *context, char *exten)
 {
 	struct opbx_exten *e;
@@ -1888,7 +1888,7 @@ void opbx_hint_state_changed(const char *device)
 	opbx_mutex_unlock(&hintlock);
 }
 			
-/*--- opbx_extension_state_add: Add watcher for extension states */
+/*! \brief  opbx_extension_state_add: Add watcher for extension states */
 int opbx_extension_state_add(const char *context, const char *exten, 
 			    opbx_state_cb_type callback, void *data)
 {
@@ -1971,7 +1971,7 @@ int opbx_extension_state_add(const char *context, const char *exten,
 	return cblist->id;
 }
 
-/*--- opbx_extension_state_del: Remove a watcher from the callback list */
+/*! \brief  opbx_extension_state_del: Remove a watcher from the callback list */
 int opbx_extension_state_del(int id, opbx_state_cb_type callback)
 {
 	struct opbx_hint *list;
@@ -2034,7 +2034,7 @@ int opbx_extension_state_del(int id, opbx_state_cb_type callback)
 	return -1;
 }
 
-/*--- opbx_add_hint: Add hint to hint list, check initial extension state */
+/*! \brief  opbx_add_hint: Add hint to hint list, check initial extension state */
 static int opbx_add_hint(struct opbx_exten *e)
 {
 	struct opbx_hint *list;
@@ -2077,7 +2077,7 @@ static int opbx_add_hint(struct opbx_exten *e)
 	return 0;
 }
 
-/*--- opbx_change_hint: Change hint for an extension */
+/*! \brief  opbx_change_hint: Change hint for an extension */
 static int opbx_change_hint(struct opbx_exten *oe, struct opbx_exten *ne)
 { 
 	struct opbx_hint *list;
@@ -2098,7 +2098,7 @@ static int opbx_change_hint(struct opbx_exten *oe, struct opbx_exten *ne)
 	return -1;
 }
 
-/*--- opbx_remove_hint: Remove hint from extension */
+/*! \brief  opbx_remove_hint: Remove hint from extension */
 static int opbx_remove_hint(struct opbx_exten *e)
 {
 	/* Cleanup the Notifys if hint is removed */
@@ -2143,7 +2143,7 @@ static int opbx_remove_hint(struct opbx_exten *e)
 }
 
 
-/*--- opbx_get_hint: Get hint for channel */
+/*! \brief  opbx_get_hint: Get hint for channel */
 int opbx_get_hint(char *hint, int hintsize, char *name, int namesize, struct opbx_channel *c, const char *context, const char *exten)
 {
 	struct opbx_exten *e;
@@ -3087,7 +3087,7 @@ static int handle_show_application(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- handle_show_hints: CLI support for listing registred dial plan hints */
+/*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
 static int handle_show_hints(int fd, int argc, char *argv[])
 {
 	struct opbx_hint *hint;
@@ -3122,7 +3122,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- handle_show_switches: CLI support for listing registred dial plan switches */
+/*! \brief  handle_show_switches: CLI support for listing registred dial plan switches */
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct opbx_switch *sw;
@@ -3885,7 +3885,7 @@ static char *days[] =
 	"sat",
 };
 
-/*--- get_dow: Get day of week */
+/*! \brief  get_dow: Get day of week */
 static unsigned int get_dow(char *dow)
 {
 	char *c;
