@@ -80,7 +80,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 	maxlen--;
 	if (maxlen > len)
 		maxlen = len;
-	strncpy(output,value, maxlen);
+	opbx_copy_string(output, value, maxlen);
 	output[maxlen] = '\0';
 }
 
@@ -95,7 +95,7 @@ static void dump_prefs(char *output, int maxlen, void *value, int len)
 	if (maxlen > len)
 		maxlen = len;
 
-	strncpy(output,value, maxlen);
+	opbx_copy_string(output, value, maxlen);
 	output[maxlen] = '\0';
 	
 	opbx_codec_pref_convert(&pref, output, total_len, 0);
@@ -315,7 +315,7 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 				if (prov_ies[x].dump) {
 					prov_ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
 					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
-					strncpy(output, tmp, maxlen - 1);
+					opbx_copy_string(output, tmp, maxlen);
 					maxlen -= strlen(output); output += strlen(output);
 				} else {
 					if (ielen)
@@ -323,7 +323,7 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 					else
 						strcpy(interp, "Present");
 					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
-					strncpy(output, tmp, maxlen - 1);
+					opbx_copy_string(output, tmp, maxlen);
 					maxlen -= strlen(output); output += strlen(output);
 				}
 				found++;
@@ -331,7 +331,7 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 		}
 		if (!found) {
 			snprintf(tmp, (int)sizeof(tmp), "       Unknown Prov IE %03d  : Present\n", ie);
-			strncpy(output, tmp, maxlen - 1);
+			opbx_copy_string(output, tmp, maxlen);
 			maxlen -= strlen(output); output += strlen(output);
 		}
 		iedata += (2 + ielen);
