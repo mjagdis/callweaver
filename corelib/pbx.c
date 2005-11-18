@@ -2435,11 +2435,18 @@ out:
 static int increase_call_count(const struct opbx_channel *c)
 {
 	int failed = 0;
-
+	double curloadavg;
 	opbx_mutex_lock(&maxcalllock);
 	if (option_maxcalls) {
 		if (countcalls >= option_maxcalls) {
 			opbx_log(LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
+			failed = -1;
+		}
+	}
+	if (option_maxload) {
+		getloadavg(&curloadavg, 1);
+		if (curloadavg >= option_maxload) {
+			opbx_log(LOG_NOTICE, "Maximum loadavg limit of %lf load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
 			failed = -1;
 		}
 	}

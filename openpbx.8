@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "OPENPBX" "8" "17 May 2005" "openpbx 1.0" ""
+.TH "OPENPBX" "8" "17 November 2005" "openpbx 0.2" ""
 
 .SH NAME
 openpbx \- All-purpose telephony server.
@@ -71,6 +71,11 @@ Provide brief summary of command line arguments and terminate.
 .TP
 \fB-i\fR
 Prompt user to intialize any encrypted private keys during startup.
+.TP
+\fB-L \fIloadaverage\fB\fR
+Limits the maximum load average before rejecting new calls.  This can
+be useful to prevent a system from being brought down by terminating
+too many simultaneous calls.
 .TP
 \fB-M \fIvalue\fB\fR
 Limits the maximum number of calls to the specified value.  This can

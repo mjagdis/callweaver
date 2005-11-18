@@ -141,6 +141,7 @@ int option_overrideconfig = 0;
 int option_reconnect = 0;
 int option_transcode_slin = 1;
 int option_maxcalls = 0;
+double option_maxload = 0.0;
 int option_dontwarn = 0;
 int option_priority_jumping = 1;
 int fully_booted = 0;
@@ -1890,6 +1891,10 @@ static void opbx_readconfig(void) {
 			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
 			}
+		} else if (!strcasecmp(v->name, "maxload")) {
+			if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
+				option_maxload = 0.0;
+			}
 		}
 		v = v->next;
 	}
@@ -1945,7 +1950,7 @@ int openpbx_main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
 	/* Check for options */
-	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:M:")) != -1) {
+	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:L:M:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1980,6 +1985,10 @@ int openpbx_main(int argc, char *argv[])
 		case 'M':
 			if ((sscanf(optarg, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0))
 				option_maxcalls = 0;
+			break;
+		case 'L':
+			if ((sscanf(optarg, "%lf", &option_maxload) != 1) || (option_maxload < 0.0))
+				option_maxload = 0.0;
 			break;
 		case 'q':
 			option_quiet++;
