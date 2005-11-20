@@ -646,7 +646,6 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 	int res;
 	struct sockaddr_in sin;
 	socklen_t len;
-	uint16_t seqno;
 	char iabuf[INET_ADDRSTRLEN];
 	uint16_t *udptlheader;
 	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
