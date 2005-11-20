@@ -18,8 +18,10 @@ txgain=0.8
                  ;name not starting with 'g' or 'contr'.
 ;ntmode=yes      ;if isdn card operates in nt mode, set this to yes
 isdnmode=msn     ;'MSN' (point-to-multipoint) or 'DID' (direct inward dial)
-                 ;when using NT-mode, ptp should be set in any case
-incomingmsn=*    ;allow incoming calls to this list of MSNs/DIDs, * == any
+                 ;when using NT-mode, 'DID' should be set in any case
+incomingmsn=*    ;allow incoming calls to this list of MSNs/DIDs, * = any
+;defaultcid=123  ;set a default caller id to that interface for dial-out,
+                 ;this caller id will be used when dial option 'd' is set.
 ;controller=0    ;ISDN4BSD default
 ;controller=7    ;ISDN4BSD USB default
 controller=1     ;capi controller number to use
@@ -32,8 +34,11 @@ context=capi-in  ;context for incoming calls
 holdtype=hold    ;when Asterisk puts the call on hold, ISDN HOLD will be used. If
                  ;set to 'local' (default value), no hold is done and Asterisk may
                  ;play MOH.
-;immediate=yes   ;immediate start of pbx with extension 's' if no digits were
-                 ;received on incoming call (no destination number yet)
+;immediate=yes   ;DID: immediate start of pbx with extension 's' if no digits were
+                 ;     received on incoming call (no destination number yet)
+                 ;MSN: start pbx on CONNECT_IND and don't wait for SETUP/SENDING-COMPLETE.
+                 ;     info like REDIRECTINGNUMBER may be lost, but this is necessary for
+                 ;     drivers/pbx/telco which does not send SETUP or SENDING-COMPLETE.
 ;echosquelch=1   ;_VERY_PRIMITIVE_ echo suppression
 ;echocancel=yes  ;EICON DIVA SERVER (CAPI) echo cancelation
                  ;(possible values: 'no', 'yes', 'force', 'g164', 'g165') 
@@ -41,15 +46,7 @@ echocancelold=yes;use facility selector 6 instead of correct 8 (necessary for ol
 ;echotail=64     ;echo cancel tail setting
 ;bridge=yes      ;native bridging (CAPI line interconnect) if available
 ;callgroup=1     ;Asterisk call group
-;deflect=1234567 ;deflect incoming calls to 1234567 if all B channels are busy
 devices=2        ;number of concurrent calls on this controller
                  ;(2 makes sense for single BRI, 30 for PRI)
 
-
-;[myName]
-;;PointToPoint (55512-0)
-;isdnmode=ptp
-;incomingmsn=*
-;controller=2
-;devices=30
 

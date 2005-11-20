@@ -19,27 +19,24 @@
 #ifndef _ASTERISK_CAPI_H
 #define _ASTERISK_CAPI_H
 
-#define OPBX_CAPI_MAX_CONTROLLERS        16
-#define OPBX_CAPI_MAX_DEVICES            30
-#define OPBX_CAPI_MAX_BUF                160
-
-#define OPBX_CAPI_MAX_B3_BLOCKS          7
+#define CAPI_MAX_CONTROLLERS             16
+#define CAPI_MAX_B3_BLOCKS                7
 
 /* was : 130 bytes Alaw = 16.25 ms audio not suitable for VoIP */
 /* now : 160 bytes Alaw = 20 ms audio */
 /* you can tune this to your need. higher value == more latency */
-#define OPBX_CAPI_MAX_B3_BLOCK_SIZE      160
+#define CAPI_MAX_B3_BLOCK_SIZE          160
 
-#define OPBX_CAPI_BCHANS                 120
-#define ALL_SERVICES                    0x1FFF03FF
+#define CAPI_BCHANS                     120
+#define ALL_SERVICES             0x1FFF03FF
 
-#define OPBX_CAPI_ISDNMODE_MSN           0
-#define OPBX_CAPI_ISDNMODE_DID           1
+#define CAPI_ISDNMODE_MSN                 0
+#define CAPI_ISDNMODE_DID                 1
 
 /*
  * helper for opbx_verbose with different verbose settings
  */
-#define cc_opbx_verbose(o_v, c_d, text...)				\
+#define cc_verbose(o_v, c_d, text...)					\
 	do { 								\
 		if ((o_v == 0) || (option_verbose > o_v)) {		\
 			if ((!c_d) || ((c_d) && (capidebug))) {		\
@@ -83,7 +80,7 @@ static inline unsigned short read_capi_dword(void *m)
  * Remenants of older pre-fork chan_capi here.
  */
 
-#define CC_OPBX_CHANNEL_PVT(c) c->tech_pvt
+#define CC_CHANNEL_PVT(c) c->tech_pvt
 #define CC_OPBX_BRIDGED_CHANNEL(x) opbx_bridged_channel(x)
 #define CC_BRIDGE_RETURN enum opbx_bridge_result
 
@@ -115,10 +112,10 @@ typedef struct fax3proto3 {
 } B3_PROTO_FAXG3;
 
 /* duration in ms for sending and detecting dtmfs */
-#define OPBX_CAPI_DTMF_DURATION          0x40
+#define CAPI_DTMF_DURATION              0x40
 
-#define OPBX_CAPI_NATIONAL_PREF          "0"
-#define OPBX_CAPI_INTERNAT_PREF          "00"
+#define CAPI_NATIONAL_PREF               "0"
+#define CAPI_INTERNAT_PREF              "00"
 
 #define ECHO_TX_COUNT                   5 /* 5 x 20ms = 100ms */
 #define ECHO_EFFECTIVE_TX_COUNT         3 /* 2 x 20ms = 40ms == 40-100ms  ... ignore first 40ms */
@@ -153,15 +150,15 @@ typedef struct fax3proto3 {
 #define CAPI_STATE_DID                  8
 #define CAPI_STATE_INCALL               9
 
-#define CAPI_STATE_ONHOLD               10
+#define CAPI_STATE_ONHOLD              10
 
-#define OPBX_CAPI_B3_DONT                0
-#define OPBX_CAPI_B3_ALWAYS              1
-#define OPBX_CAPI_B3_ON_SUCCESS          2
+#define CAPI_B3_DONT                    0
+#define CAPI_B3_ALWAYS                  1
+#define CAPI_B3_ON_SUCCESS              2
 
-#define OPBX_CAPI_MAX_STRING             2048
+#define CAPI_MAX_STRING              2048
 
-struct opbx_capi_gains {
+struct cc_capi_gains {
 	unsigned char txgains[256];
 	unsigned char rxgains[256];
 };
@@ -173,14 +170,19 @@ struct opbx_capi_gains {
 #define CAPI_ISDN_STATE_PROGRESS      0x0010
 #define CAPI_ISDN_STATE_LI            0x0020
 #define CAPI_ISDN_STATE_DISCONNECT    0x0040
+#define CAPI_ISDN_STATE_DID           0x0080
+#define CAPI_ISDN_STATE_PBX           0x8000
+
+#define CAPI_CHANNELTYPE_B            0
+#define CAPI_CHANNELTYPE_D            1
 
 /* ! Private data for a capi device */
-struct opbx_capi_pvt {
+struct capi_pvt {
 	opbx_mutex_t lock;
 	int fd;
 	int fd2;
 
-	char name[OPBX_CAPI_MAX_STRING];	
+	char name[CAPI_MAX_STRING];
 
 	/*! Channel we belong to, possibly NULL */
 	struct opbx_channel *owner;		
@@ -198,11 +200,11 @@ struct opbx_capi_pvt {
 	unsigned long controllers;
 
 	/* send buffer */
-	unsigned char send_buffer[OPBX_CAPI_MAX_B3_BLOCKS * OPBX_CAPI_MAX_B3_BLOCK_SIZE];
+	unsigned char send_buffer[CAPI_MAX_B3_BLOCKS * CAPI_MAX_B3_BLOCK_SIZE];
 	unsigned short send_buffer_handle;
 
 	/* receive buffer */
-	unsigned char rec_buffer[OPBX_CAPI_MAX_BUF + OPBX_FRIENDLY_OFFSET];
+	unsigned char rec_buffer[CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET];
 
 	/* current state */
 	int state;
@@ -212,9 +214,11 @@ struct opbx_capi_pvt {
 	
 	char context[OPBX_MAX_EXTENSION];
 	/*! Multiple Subscriber Number we listen to (, seperated list) */
-	char incomingmsn[OPBX_CAPI_MAX_STRING];	
+	char incomingmsn[CAPI_MAX_STRING];	
 	/*! Prefix to Build CID */
-	char prefix[OPBX_MAX_EXTENSION];	
+	char prefix[OPBX_MAX_EXTENSION];
+	/* the default caller id */
+	char defaultcid[CAPI_MAX_STRING];
 
 	/*! Caller ID if available */
 	char cid[OPBX_MAX_EXTENSION];	
@@ -262,6 +266,8 @@ struct opbx_capi_pvt {
 	int doholdtype;
 	/* line interconnect allowed */
 	int bridge;
+	/* channeltype */
+	int channeltype;
 
 	/* Common ISDN Profile (CIP) */
 	int cip;
@@ -273,9 +279,6 @@ struct opbx_capi_pvt {
 	/* Fax ready ? */
 	int FaxState;
 
-	/* deflect on circuitbusy */
-	char deflect2[OPBX_MAX_EXTENSION];
-	
 	/* not all codecs supply frames in nice 160 byte chunks */
 	struct opbx_smoother *smoother;
 	/* ok, we stop to be nice and give them the lowest possible latency 130 samples * 2 = 260 bytes */
@@ -291,7 +294,7 @@ struct opbx_capi_pvt {
 	float rxmin;
 	float txmin;
 	
-	struct opbx_capi_gains g;
+	struct cc_capi_gains g;
 
 	float txgain;
 	float rxgain;
@@ -301,10 +304,10 @@ struct opbx_capi_pvt {
 	unsigned int reasonb3;
 
 	/*! Next channel in list */
-	struct opbx_capi_pvt *next;
+	struct capi_pvt *next;
 };
 
-struct opbx_capi_profile {
+struct cc_capi_profile {
 	unsigned short ncontrollers;
 	unsigned short nbchannels;
 	unsigned char globaloptions;
@@ -318,13 +321,13 @@ struct opbx_capi_profile {
 	unsigned int manufacturer[5];
 };
 
-struct opbx_capi_conf {
-	char name[OPBX_CAPI_MAX_STRING];	
-	char incomingmsn[OPBX_CAPI_MAX_STRING];
+struct cc_capi_conf {
+	char name[CAPI_MAX_STRING];	
+	char incomingmsn[CAPI_MAX_STRING];
+	char defaultcid[CAPI_MAX_STRING];
 	char context[OPBX_MAX_EXTENSION];
-	char controllerstr[OPBX_CAPI_MAX_STRING];
+	char controllerstr[CAPI_MAX_STRING];
 	char prefix[OPBX_MAX_EXTENSION];
-	char deflect2[OPBX_MAX_EXTENSION];
 	char accountcode[20];
 	int devices;
 	int softdtmf;
@@ -344,15 +347,13 @@ struct opbx_capi_conf {
 	float txgain;
 };
 
-struct opbx_capi_controller {
+struct cc_capi_controller {
 	/* which controller is this? */
 	int controller;
 	/* how many bchans? */
 	int nbchannels;
 	/* free bchans */
 	int nfreebchannels;
-	/* DID */
-	int isdnmode;
 	/* features: */
 	int dtmf;
 	int echocancel;
