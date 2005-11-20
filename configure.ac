@@ -1292,7 +1292,7 @@ AM_CONDITIONAL([WANT_CHAN_AGENT],[test "${with_chan_agent}" = "yes"])
 dnl ###########################################################################
 	
 AC_ARG_WITH([chan_capi],
-	[AC_HELP_STRING([--with-chan_capi],[Build and install chan_capi (default=no)])],,[enable_chan_capi="no"])
+	[AC_HELP_STRING([--with-chan_capi],[Build and install chan_capi (default=no)])],,[with_chan_capi="no"])
 
 if test "${with_chan_capi}" = "yes" ; then
    AC_CHECK_HEADERS([capi20.h], [HAVE_CAPI20_H=1])
