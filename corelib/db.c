@@ -488,10 +488,6 @@ static int database_show(int fd, int argc, char *argv[])
 		return -1;
 	}
 
-	if (!family || opbx_strlen_zero(family)) {
-		family = "_undef_";
-	}
-
 	if (argc == 4) {
 		/* Family and key tree */
 		prefix = argv[3];
