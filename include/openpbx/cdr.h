@@ -47,7 +47,6 @@
 #include "openpbx/channel.h"
 
 struct opbx_channel;
-OPBX_LIST_HEAD(varshead,opbx_var_t);
 
 /*! Responsible for call detail data */
 struct opbx_cdr {

@@ -31,6 +31,8 @@ struct opbx_var_t {
 	char name[0];
 };
 
+OPBX_LIST_HEAD_NOLOCK(varshead, opbx_var_t);
+
 struct opbx_var_t *opbx_var_assign(const char *name, const char *value);
 void opbx_var_delete(struct opbx_var_t *var);
 char *opbx_var_name(struct opbx_var_t *var);

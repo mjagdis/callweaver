@@ -6109,7 +6109,7 @@ int load_pbx(void)
 		opbx_verbose( "OpenPBX Core Initializing\n");
 		opbx_verbose( "Registering builtin applications:\n");
 	}
-	OPBX_LIST_HEAD_INIT(&globals);
+	OPBX_LIST_HEAD_INIT_NOLOCK(&globals);
 	opbx_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(pbx_cli[0]));
 
 	/* Register builtin applications */

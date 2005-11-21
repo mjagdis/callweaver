@@ -562,7 +562,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
 			if (opbx_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
-				OPBX_LIST_HEAD_INIT(&headp);
+				OPBX_LIST_HEAD_INIT_NOLOCK(&headp);
 				newvariable = opbx_var_assign("NUMBER", called_number);
 				OPBX_LIST_INSERT_HEAD(&headp, newvariable, entries);
 				newvariable = opbx_var_assign("EID", dr[anscnt].eid_str);
