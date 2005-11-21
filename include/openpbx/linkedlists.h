@@ -138,7 +138,7 @@ struct name {								\
 */
 #define OPBX_LIST_HEAD_SET(head, entry) do {				\
 	(head)->first = (entry);					\
-	(head)->last = NULL;						\
+	(head)->last = (entry);						\
 	opbx_mutex_init(&(head)->lock);					\
 } while (0)
 
@@ -152,7 +152,7 @@ struct name {								\
 */
 #define OPBX_LIST_HEAD_SET_NOLOCK(head, entry) do {			\
 	(head)->first = (entry);					\
-	(head)->last = NULL;						\
+	(head)->last = (entry);						\
 } while (0)
 
 /*!
