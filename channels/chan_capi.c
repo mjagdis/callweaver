@@ -4067,7 +4067,7 @@ int mkif(struct cc_capi_conf *conf)
 		}
 		memset(tmp, 0, sizeof(struct capi_pvt));
 		
-		opbx_pthread_mutex_init(&(tmp->lock),NULL);
+		opbx_mutex_init(&(tmp->lock));
 	
 		if (i == 0) {
 			snprintf(tmp->name, sizeof(tmp->name) - 1, "%s-pseudo-D", conf->name);
