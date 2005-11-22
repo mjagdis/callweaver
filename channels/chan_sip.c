@@ -4681,9 +4681,9 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	opbx_build_string(&m_modem_next, &m_modem_left, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
 
 	if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0)
-		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVerison:0\r\n");
+		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:0\r\n");
 	if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_1)
-		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVerison:1\r\n");
+		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:1\r\n");
 	if ((x = t38_get_rate(p->t38jointcapability))) 
 		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38MaxBitRate:%d\r\n",x);
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxFillBitRemoval:%d\r\n", (p->t38jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
