@@ -964,7 +964,7 @@ static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEB
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
-static int sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc); /* Function to bridge to SIP channels if T38 support enabled */
+static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms); /* Function to bridge to SIP channels if T38 support enabled */
 static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pvt, int reinvite); /* T38 negotiation helper function */
 
 /* Definition of this channel for channel registration */
@@ -2781,7 +2781,7 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
 	return res;
 }
 
-static int sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc) {
+static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms) {
      int res1=0;
      int res2=0;
      
@@ -2798,9 +2798,14 @@ static int sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
      }
      opbx_mutex_unlock(&c1->lock);
     
-     if (res1 && res2)
-    	     return opbx_udptl_bridge(c0,c1,flag,fo,rc);
-
+     if (res1 && res2) {
+		if(opbx_udptl_bridge(c0,c1,flag,fo,rc)) {
+			return OPBX_BRIDGE_COMPLETE;		
+		} else {
+			return OPBX_BRIDGE_FAILED;
+		}
+		
+     }
      if (res1 || res2)
     	     return OPBX_BRIDGE_FAILED_NOWARN;
      
@@ -2814,7 +2819,11 @@ static int sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 	    return OPBX_BRIDGE_FAILED_NOWARN;
      } 
      else
-    	    return opbx_rtp_bridge(c0,c1,flag,fo,rc, 0);
+    		if(opbx_rtp_bridge(c0,c1,flag,fo,rc, 0)) {
+			return OPBX_BRIDGE_COMPLETE;
+		} else {
+			return OPBX_BRIDGE_FAILED;
+		}
 }
 
 /*--- sip_new: Initiate a call in the SIP channel */
@@ -9960,33 +9969,36 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (p->owner && (p->owner->_state == OPBX_STATE_UP)) { /* if this is a re-invite */ 
 			struct opbx_channel *bridgepeer = NULL;
 			struct sip_pvt *bridgepvt = NULL;
-			bridgepeer = opbx_bridged_channel(p->owner);
-			if (!strcasecmp(bridgepeer->type,"SIP")) {
-				bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
-				if (bridgepvt->udptl) {
-					if (p->t38state == 4) { 
-						/* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
-						/* Send response with T38 SDP to the other side of the bridge */
-						sip_handle_t38_reinvite(bridgepeer,p,0);
-					} else if (p->t38state == 0 && bridgepeer && (bridgepvt->t38state == 5)) { /* This is case of RTP re-invite after T38 session */
-						opbx_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
-						/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-						opbx_set_flag(p, SIP_NEEDDESTROY);
+			if ((bridgepeer=opbx_bridged_channel(p->owner))) {
+				if (!strcasecmp(bridgepeer->type,"SIP")) {
+					bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
+					if (bridgepvt->udptl) {
+						if (p->t38state == 4) { 
+							/* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
+							/* Send response with T38 SDP to the other side of the bridge */
+							sip_handle_t38_reinvite(bridgepeer,p,0);
+						} else if (p->t38state == 0 && bridgepeer && (bridgepvt->t38state == 5)) { /* This is case of RTP re-invite after T38 session */
+							opbx_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
+							/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
+							opbx_set_flag(p, SIP_NEEDDESTROY);
+						}
+					} else {
+							opbx_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
+							opbx_mutex_lock(&bridgepvt->lock);
+							bridgepvt->t38state = 0;
+							opbx_mutex_unlock(&bridgepvt->lock);
+							opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+							p->t38state = 0;
+							opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
 					}
 				} else {
-						opbx_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
-						opbx_mutex_lock(&bridgepvt->lock);
-						bridgepvt->t38state = 0;
-						opbx_mutex_unlock(&bridgepvt->lock);
-						opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+						/* Other side is not a SIP channel */ 
+						opbx_log(LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
 						p->t38state = 0;
 						opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
 				}
 			} else {
-					/* Other side is not a SIP channel */ 
-					opbx_log(LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
-					p->t38state = 0;
-					opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+				opbx_log(LOG_ERROR, "Channel Bridge information is non-existant.  Should never happend\n");
 			}
 		}
 		if ((p->t38state == 2) || (p->t38state == 1)) {
