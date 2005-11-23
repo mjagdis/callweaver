@@ -1337,7 +1337,7 @@ dnl ###########################################################################
 AC_ARG_WITH([chan_fax],
 	[AC_HELP_STRING([--with-chan_fax],[Build and install chan_fax (default=no)])],,[want_chan_fax="no"])
 
-if test "${enable_spandsp}" = "yes" -a "${with_chan_fax}" = "yes"; then
+if test "${with_chan_fax}" = "yes"; then
    CHAN_FAX_LIBS="-lspandsp -ltiff"
    AC_CHECK_HEADERS([pty.h], [HAVE_PTY_H=1])
    AC_CHECK_LIB([util], [openpty], [HAVE_OPENPTY=1 CHAN_FAX_LIBS="${CHAN_FAX_LIBS} -lutil"],
@@ -1346,7 +1346,7 @@ fi
 AC_SUBST(CHAN_FAX_LIBS)
 
 AM_CONDITIONAL([WANT_CHAN_FAX],
-	[test "${enable_spandsp}" = "yes" -a "${with_chan_fax}" = "yes" -a -n "${HAVE_OPENPTY}"])
+	[test "${with_chan_fax}" = "yes" -a -n "${HAVE_OPENPTY}"])
 
 dnl ###########################################################################
 
