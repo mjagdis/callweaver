@@ -45,6 +45,10 @@ SAMPLES = adsi.conf.sample \
 	woomera.conf.sample \
 	zapata.conf.sample
 
+if WANT_CHAN_ALSA
+SAMPLES	+= alsa.conf.sample
+endif WANT_CHAN_ALSA
+
 noinst_DATA = $(SAMPLES)
 
 @substitute@

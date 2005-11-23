@@ -27,7 +27,12 @@ noload => pbx_gtkconsole.so
 noload => pbx_kdeconsole.so
 ;
 load => res_musiconhold.so
+
 ;
+; Don't load chan_alsa by default.  If you need it for debugging you
+; can always load it manually from the CLI.
+;
+noload => chan_alsa.so
 
 ;
 ; Don't try and load the core lib as a module (temporary workaround).
