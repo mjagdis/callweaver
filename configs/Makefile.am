@@ -50,7 +50,7 @@ endif WANT_CHAN_ALSA
 
 if WANT_CHAN_FAX
 SAMPLES += chan_fax.conf.sample
-endif
+endif WANT_CHAN_FAX
 
 noinst_DATA = $(SAMPLES)
 
