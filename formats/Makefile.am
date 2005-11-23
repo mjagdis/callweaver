@@ -28,9 +28,11 @@ format_h263_la_SOURCES 		= format_h263.c
 format_h263_la_LDFLAGS          = -module -avoid-version -no-undefined
 format_h263_la_LIBADD           = ${top_builddir}/corelib/libopenpbx.la  
 
+if WANT_FORMAT_JPEG
 format_jpeg_la_SOURCES 		= format_jpeg.c
 format_jpeg_la_LDFLAGS          = -module -avoid-version -no-undefined
-format_jpeg_la_LIBADD           = ${top_builddir}/corelib/libopenpbx.la  
+format_jpeg_la_LIBADD           = -ljpeg ${top_builddir}/corelib/libopenpbx.la  
+endif WANT_FORMAT_JPEG
 
 format_pcm_alaw_la_SOURCES 	= format_pcm_alaw.c
 format_pcm_alaw_la_LDFLAGS      = -module -avoid-version -no-undefined
