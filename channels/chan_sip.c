@@ -2798,14 +2798,9 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
      }
      opbx_mutex_unlock(&c1->lock);
     
-     if (res1 && res2) {
-		if(opbx_udptl_bridge(c0,c1,flag,fo,rc)) {
-			return OPBX_BRIDGE_COMPLETE;		
-		} else {
-			return OPBX_BRIDGE_FAILED;
-		}
-		
-     }
+     if (res1 && res2)
+		return opbx_udptl_bridge(c0,c1,flag,fo,rc);
+
      if (res1 || res2)
     	     return OPBX_BRIDGE_FAILED_NOWARN;
      
@@ -2819,11 +2814,7 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
 	    return OPBX_BRIDGE_FAILED_NOWARN;
      } 
      else
-    		if(opbx_rtp_bridge(c0,c1,flag,fo,rc, 0)) {
-			return OPBX_BRIDGE_COMPLETE;
-		} else {
-			return OPBX_BRIDGE_FAILED;
-		}
+	return opbx_rtp_bridge(c0,c1,flag,fo,rc, 0);
 }
 
 /*--- sip_new: Initiate a call in the SIP channel */

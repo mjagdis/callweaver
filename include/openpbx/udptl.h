@@ -99,7 +99,7 @@ void opbx_udptl_get_current_formats(struct opbx_udptl *udptl,
 
 void opbx_udptl_setnat(struct opbx_udptl *udptl, int nat);
 
-int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc);
+enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc);
 
 int opbx_udptl_proto_register(struct opbx_udptl_protocol *proto);
 

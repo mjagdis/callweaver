@@ -982,7 +982,7 @@ static struct opbx_udptl_protocol *get_proto(struct opbx_channel *chan)
 	return NULL;
 }
 
-int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
+enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc)
 {
 	struct opbx_frame *f;
 	struct opbx_channel *who;
@@ -1012,13 +1012,13 @@ int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 		opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
-		return -1;
+		return OPBX_BRIDGE_FAILED;
 	}
 	if (!pr1) {
 		opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
-		return -1;
+		return OPBX_BRIDGE_FAILED;
 	}
 	pvt0 = c0->tech_pvt;
 	pvt1 = c1->tech_pvt;
@@ -1028,7 +1028,7 @@ int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 		/* Somebody doesn't want to play... */
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
-		return -2;
+		return OPBX_BRIDGE_FAILED_NOWARN;
 	}
 	if (pr0->set_udptl_peer(c0, p1)) {
 		opbx_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
@@ -1053,7 +1053,7 @@ int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 				opbx_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 				/* Tell it to try again later */
-				return -3;
+				return OPBX_BRIDGE_RETRY;
 		}
 		to = -1;
 		opbx_udptl_get_peer(p1, &t1);
@@ -1086,7 +1086,7 @@ int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 			*rc = who;
 			opbx_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			/* That's all we needed */
-			return 0;
+			return OPBX_BRIDGE_COMPLETE;
 		} else {
 			if (f->frametype == OPBX_FRAME_MODEM) {
 				/* Forward T.38 frames if they happen upon us */
@@ -1103,7 +1103,7 @@ int opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag
 		cs[0] = cs[1];
 		cs[1] = cs[2];
 	}
-	return -1;
+	return OPBX_BRIDGE_FAILED;
 }
 
 static int udptl_do_debug_ip(int fd, int argc, char *argv[])
