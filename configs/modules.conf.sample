@@ -35,11 +35,6 @@ load => res_musiconhold.so
 noload => chan_alsa.so
 
 ;
-; Don't try and load the core lib as a module (temporary workaround).
-;
-noload => libopenpbx.so
-
-;
 ; Module names listed in "global" section will have symbols globally
 ; exported to modules loaded after them.
 ;
