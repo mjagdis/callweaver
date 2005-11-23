@@ -6264,7 +6264,7 @@ enum parse_register_result {
 /*--- parse_register_contact: Parse contact header and save registration ---*/
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
 {
-	char contact[80]; 
+	char contact[256]; 
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
 	char *expires = get_header(req, "Expires");
