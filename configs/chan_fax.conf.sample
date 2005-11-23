@@ -11,5 +11,8 @@ modems => 10
 context => chan_fax
 vblevel => 2
 
+; Change the prefix for the modem-devices from /dev/FAX to something else
+; device-prefix => /dev/FAX
+
 ;timeout-ms => 30
 ;trap-seg => true

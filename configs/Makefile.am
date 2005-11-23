@@ -9,7 +9,6 @@ SAMPLES = adsi.conf.sample \
 	cdr_odbc.conf.sample \
 	cdr_pgsql.conf.sample \
 	cdr_tds.conf.sample \
-	chan_fax.conf.sample \
 	codecs.conf.sample \
 	dnsmgr.conf.sample \
 	dundi.conf.sample \
@@ -48,6 +47,10 @@ SAMPLES = adsi.conf.sample \
 if WANT_CHAN_ALSA
 SAMPLES	+= alsa.conf.sample
 endif WANT_CHAN_ALSA
+
+if WANT_CHAN_FAX
+SAMPLES += chan_fax.conf.sample
+endif
 
 noinst_DATA = $(SAMPLES)
 

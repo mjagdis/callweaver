@@ -93,7 +93,7 @@ char *faxmodem_state2name(int state);
 void faxmodem_clear_logger(void);
 void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
 int faxmodem_close(struct faxmodem *fm);
-int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler);
+int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix);
 
 
 #endif

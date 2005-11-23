@@ -58,6 +58,7 @@ static struct faxmodem FAXMODEM_POOL[MAX_FAXMODEMS] = {};
 static int SOFT_TIMEOUT = TIMEOUT;
 static int SOFT_MAX_FAXMODEMS = MAX_FAXMODEMS;
 static int READY = 0;
+char *DEVICE_PREFIX;
 static char *CONTEXT = NULL;
 static int VBLEVEL = 0;
 
@@ -940,7 +941,7 @@ static void *faxmodem_thread(void *obj)
 	char buf[1024], tmp[80];
 
 	opbx_mutex_lock(&control_lock);
-	faxmodem_init(fm, control_handler);
+	faxmodem_init(fm, control_handler, DEVICE_PREFIX);
 	opbx_mutex_unlock(&control_lock);
 
 	THREADCOUNT++;
@@ -1052,6 +1053,9 @@ static int parse_config(int reload) {
 						set_context(v->value);
 					} else if (!strcasecmp(v->name, "vblevel")) {
 						set_vblevel(atoi(v->value));
+					} else if (!strcasecmp(v->name, "device-prefix")) {
+						free(DEVICE_PREFIX);
+					        DEVICE_PREFIX = strdup(v->value);
 					}
 				}
 			}
@@ -1117,6 +1121,8 @@ static void graceful_unload(void)
 	ASTOBJ_CONTAINER_DESTROY(&private_object_list);
 	opbx_channel_unregister(&technology);
 	opbx_cli_unregister(&cli_chan_fax);
+
+	free(DEVICE_PREFIX);
 }
 
 
@@ -1124,6 +1130,7 @@ int load_module()
 {
 	ASTOBJ_CONTAINER_INIT(&private_object_list);
 
+	DEVICE_PREFIX = strdup("/dev/FAX");
 	
 	if(!parse_config(0)) {
 		return -1;

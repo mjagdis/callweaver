@@ -115,7 +115,7 @@ int faxmodem_close(struct faxmodem *fm)
 	return r;
 }
 
-int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler)
+int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix)
 {
 	
 	memset(fm, 0, sizeof(*fm));
@@ -132,7 +132,7 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
 
     do_log(LOGGER.info, "Opened pty, slave device: %s\n", fm->stty);
 
-	snprintf(fm->devlink, sizeof(fm->devlink), "/dev/FAX%d", NEXT_ID++);
+	snprintf(fm->devlink, sizeof(fm->devlink), "%s%d", device_prefix, NEXT_ID++);
 
     if (!unlink(fm->devlink)) {
 		do_log(LOGGER.warn, "Removed old %s\n", fm->devlink);
