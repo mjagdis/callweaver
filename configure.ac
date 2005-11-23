@@ -370,7 +370,6 @@ AC_SUBST([opbxincludedir])
 dnl check for required libraries (also for addons)
 dnl needed to move check for sqlite threadsafe here since it needs to check if we have a threadsafe sqlite3 BEFORE we check for libpthread)
 #AC_CHECK_SQLITE3_THREADSAFE
-AC_CHECK_LIB([asound], [main])
 AC_CHECK_LIB([c], [main])
 AC_CHECK_LIB([db], [main])
 dnl # AC_CHECK_LIB([expat], [main]) # why would we need this one ?
@@ -1264,18 +1263,6 @@ AC_ARG_WITH([app_zapateller],
 
 AM_CONDITIONAL([WANT_APP_ZAPATELLER],[test "${with_app_zapateller}" = "yes"])
 
-
-dnl ###########################################################################
-
-AC_ARG_WITH([chan_alsa],
-        [AC_HELP_STRING([--with-chan_alsa],[Build and install chan_alsa (default=no)])],,
-        [with_chan_alsa="no"])
-
-AM_CONDITIONAL([WANT_CHAN_ALSA],[test "${with_chan_alsa}" = "yes"])
-
-
-
-
 dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
@@ -1283,6 +1270,17 @@ dnl ### Channels
 dnl ###
 dnl ###########################################################################
 dnl ###########################################################################
+
+PKG_CHECK_MODULES([ALSA], [alsa], [HAVE_ALSA=1])
+
+AC_SUBST(ALSA_CFLAGS)
+AC_SUBST(ALSA_LDFLAGS)
+
+AC_ARG_WITH([chan_alsa],
+        [AC_HELP_STRING([--with-chan_alsa],[Build and install chan_alsa (default=no)])],,
+        [with_chan_alsa="no"])
+
+AM_CONDITIONAL([WANT_CHAN_ALSA],[test "${with_chan_alsa}" = "yes" -a -n "${HAVE_ALSA}"])
 
 AC_ARG_WITH([chan_agent],
 	[AC_HELP_STRING([--with-chan_agent],[Build and install chan_agent (default=yes)])],,[with_chan_agent="yes"])

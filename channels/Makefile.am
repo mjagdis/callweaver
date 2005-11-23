@@ -2,6 +2,14 @@ AUTOMAKE_OPTS			= gnu
 
 opbxmod_LTLIBRARIES 		=
 
+if WANT_CHAN_ALSA
+opbxmod_LTLIBRARIES		+= chan_alsa.la
+chan_alsa_la_SOURCES		= chan_alsa.c
+chan_alsa_la_CFLAGS		= $(AM_CFLAGS) @ALSA_CFLAGS@
+chan_alsa_la_LIBADD		= @ALSA_LDFLAGS@ ${top_builddir}/corelib/libopenpbx.la
+chan_alsa_la_LDFLAGS            = -module -avoid-version -no-undefined
+endif WANT_CHAN_ALSA
+
 if WANT_CHAN_AGENT
 opbxmod_LTLIBRARIES     	+= chan_agent.la
 chan_agent_la_SOURCES		= chan_agent.c
@@ -99,13 +107,5 @@ endif HAVE_LIBPRI
 chan_zap_la_LIBADD		+= ${top_builddir}/corelib/libopenpbx.la
 chan_zap_la_LDFLAGS		= -module -avoid-version -no-undefined
 endif WANT_CHAN_ZAP
-
-
-if WANT_CHAN_ALSA
-opbxmod_LTLIBRARIES		+= chan_alsa.la
-chan_alsa_la_SOURCES		= chan_alsa.c
-chan_alsa_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
-chan_alsa_la_LDFLAGS            = -module -avoid-version -no-undefined
-endif WANT_CHAN_ALSA
 
 INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
