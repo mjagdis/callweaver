@@ -6,7 +6,7 @@ if WANT_CHAN_ALSA
 opbxmod_LTLIBRARIES		+= chan_alsa.la
 chan_alsa_la_SOURCES		= chan_alsa.c
 chan_alsa_la_CFLAGS		= $(AM_CFLAGS) @ALSA_CFLAGS@
-chan_alsa_la_LIBADD		= @ALSA_LDFLAGS@ ${top_builddir}/corelib/libopenpbx.la
+chan_alsa_la_LIBADD		= @ALSA_LIBS@ ${top_builddir}/corelib/libopenpbx.la
 chan_alsa_la_LDFLAGS            = -module -avoid-version -no-undefined
 endif WANT_CHAN_ALSA
 

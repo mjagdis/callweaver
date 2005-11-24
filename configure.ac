@@ -1274,7 +1274,7 @@ dnl ###########################################################################
 PKG_CHECK_MODULES([ALSA], [alsa], [HAVE_ALSA=1])
 
 AC_SUBST(ALSA_CFLAGS)
-AC_SUBST(ALSA_LDFLAGS)
+AC_SUBST(ALSA_LIBS)
 
 AC_ARG_WITH([chan_alsa],
         [AC_HELP_STRING([--with-chan_alsa],[Build and install chan_alsa (default=no)])],,
