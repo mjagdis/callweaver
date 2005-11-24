@@ -35,6 +35,7 @@ SAMPLES = adsi.conf.sample \
 	res_jabber.conf.sample \
 	res_odbc.conf.sample \
 	res_pgsql.conf.sample \
+	res_sqlite.conf.sample \
 	rpt.conf.sample \
 	rtp.conf.sample \
 	sip.conf.sample \
