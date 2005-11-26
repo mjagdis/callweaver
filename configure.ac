@@ -1400,7 +1400,7 @@ AM_CONDITIONAL([WANT_CHAN_UNICALL],[test "${with_chan_unicall}" = "yes" -a -n "$
 dnl ###########################################################################
 
 AC_ARG_WITH([chan_visdn],
-	[AC_HELP_STRING([--want-chan_visdn],[Build and install chan_visdn (default=no)])],,[want_chan_visdn="no"])
+	[AC_HELP_STRING([--with-chan_visdn],[Build and install chan_visdn (default=no)])],,[with_chan_visdn="no"])
 
 AM_CONDITIONAL([WANT_CHAN_VISDN],[test "${with_chan_visdn}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
 
