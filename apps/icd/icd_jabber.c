@@ -98,13 +98,13 @@ extern struct icd_queue {
     icd_queue_holdannounce holdannounce;
     icd_queue_chimeinfo chimeinfo;
     char monitor_args[256];
-    int priority;               /* priority of this queue in relation to other queues */
-//    int wait_timeout;           /* How many seconds before timing out of queue */
+    int priority;               // priority of this queue in relation to other queues 
+//    int wait_timeout;           // How many seconds before timing out of queue 
 //    void_hash_table *params;
 //    icd_listeners *listeners;
 //    icd_queue_state state;
-//    int flag;                   /*accept calls, tagged iter mem q, match em from config untag mark for delete */
-/*      icd_status(*dump_fn) (icd_queue *, int verbosity, int fd, void *extra);
+//    int flag;                   //accept calls, tagged iter mem q, match em from config untag mark for delete 
+//      icd_status(*dump_fn) (icd_queue *, int verbosity, int fd, void *extra);
     void *dump_fn_extra;
     icd_memory *memory;
     opbx_mutex_t lock;
@@ -679,10 +679,10 @@ originate (void *arg)
   int res;
 
   res = opbx_pbx_outgoing_exten (in->tech,  OPBX_FORMAT_SLINEAR, in->data, in->timeout,
-			  in->context, in->exten, in->priority, &reason, 1, 0,
+			  in->context, in->exten, in->priority, 1, 
 			  !opbx_strlen_zero (in->cid_num) ? in->cid_num : NULL,
 			  !opbx_strlen_zero (in->callerid) ? in->callerid
-			   : NULL, in->variable, in->account, &chan, NULL);
+			   : NULL, in->variable, in->account, &chan);
 			  
   if(res){
      icd_jabber_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] FAILED reason[%d] [%s]", in->tech, in->data, in->exten, in->context, reason, control_frame_state(reason));
@@ -1033,7 +1033,7 @@ icd_jabber_initialize ()
   
   opbx_pthread_create (&icd_jabber_threads[1], NULL, icd_jabber_messages,
 		      NULL);
-  opbx_channel_register_listen_events(opbx_channel_listen_events);
+//  opbx_channel_register_listen_events(opbx_channel_listen_events);
   for (;;)
     {
       sem_wait (&icd_jabber_fifo_semaphore);
@@ -1068,7 +1068,7 @@ void
 icd_jabber_clear ()
 {
    JabberOK =0;
-   opbx_channel_register_listen_events(NULL);
+//   opbx_channel_register_listen_events(NULL);
    g_main_loop_quit (icd_jabber_main_loop);
    lm_connection_close (icd_jabber_connection, NULL);
    lm_connection_unref(icd_jabber_connection);

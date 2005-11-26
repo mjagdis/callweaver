@@ -412,7 +412,8 @@ struct opbx_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *cont
             *data = '\0';
             data++;
             /* BCA - Is ULAW the only format we support? */
-            chan = opbx_request(type,  OPBX_FORMAT_ALAW, data, &cause, NULL);
+            chan = opbx_request(type,  OPBX_FORMAT_ALAW, data, &cause);
+
         }
         ICD_STD_FREE(type);
     }

@@ -110,7 +110,7 @@ extern "C" {
         /* Threading and locking */
         opbx_mutex_t lock;
         pthread_t thread;
-        pthread_cond_t wakeup;
+        opbx_cond_t wakeup;
         icd_thread_state thread_state;
     };
 

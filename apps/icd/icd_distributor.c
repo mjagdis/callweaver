@@ -243,7 +243,7 @@ icd_status icd_distributor__clear(icd_distributor *that) {
     that->customer_list_allocated = 0;
     that->agent_list_allocated = 0;
     pthread_cancel(that->thread);
-    pthread_cond_destroy(&(that->wakeup));
+    opbx_cond_destroy(&(that->wakeup));
     opbx_mutex_destroy(&(that->lock));
     
     return ICD_SUCCESS;
@@ -293,7 +293,7 @@ icd_status icd_distributor__add_agent_list(icd_distributor *that, icd_member_lis
     result = icd_list__merge((icd_list *)that->agents, (icd_list *)new_list);
     if (icd_distributor__agents_pending(that) > 0) {
         result = icd_distributor__lock(that);
-        pthread_cond_signal(&(that->wakeup));
+        opbx_cond_signal(&(that->wakeup));
         result = icd_distributor__unlock(that);
     }
     return result;
@@ -369,7 +369,7 @@ icd_status icd_distributor__add_customer_list(icd_distributor *that, icd_member_
     result = icd_list__merge((icd_list *)that->customers, (icd_list *)new_list);
     if (icd_distributor__customers_pending(that)) {
         result = icd_distributor__lock(that);
-        pthread_cond_signal(&(that->wakeup));
+        opbx_cond_signal(&(that->wakeup));
         result = icd_distributor__unlock(that);
     }
     return result;
@@ -456,7 +456,7 @@ icd_status icd_distributor__set_agent_list(icd_distributor *that, icd_member_lis
     that->agents = agents;
     if (icd_distributor__agents_pending(that)) {
         result = icd_distributor__lock(that);
-        pthread_cond_signal(&(that->wakeup));
+        opbx_cond_signal(&(that->wakeup));
         result = icd_distributor__unlock(that);
     }
     return result;
@@ -483,7 +483,7 @@ icd_status icd_distributor__set_customer_list(icd_distributor *that, icd_member_
     that->customers = customers;
     if (icd_distributor__customers_pending(that)) {
         result = icd_distributor__lock(that);
-        pthread_cond_signal(&(that->wakeup));
+        opbx_cond_signal(&(that->wakeup));
         result = icd_distributor__unlock(that);
     }
     return result;
@@ -986,10 +986,10 @@ icd_status icd_distributor__set_config_params(icd_distributor *that, icd_config 
 icd_status icd_distributor__create_thread(icd_distributor *that) {
 /* 
 %TC Create a single thread of execution for each queue in icd_queue.conf  eg 5 entries = 5 threads
-Create the condition that wakes up the dist thread, see pthread_cond_signal
-We will invoke pthread_cond_signal each time an event occurs that requires the dist thread to do some work
+Create the condition that wakes up the dist thread, see opbx_cond_signal
+We will invoke opbx_cond_signal each time an event occurs that requires the dist thread to do some work
 like when a customer, agent is added see icd_distributor__add_agent, icd_distributor__add_customer etc
-when the dist has no work to do we invoke pthread_cond_wait see icd_distributor__run
+when the dist has no work to do we invoke opbx_cond_wait see icd_distributor__run
 */
 
     pthread_attr_t attr;
@@ -1003,7 +1003,7 @@ when the dist has no work to do we invoke pthread_cond_wait see icd_distributor_
 
     /* Create the condition that wakes up the dist thread */
     result = pthread_condattr_init(&condattr);
-    result = pthread_cond_init(&(that->wakeup), &condattr);
+    result = opbx_cond_init(&(that->wakeup), &condattr);
     result = pthread_condattr_destroy(&condattr);
 
     /* Create the thread */
@@ -1078,7 +1078,7 @@ void *icd_distributor__standard_run(void *that) {
                         icd_distributor__get_name(dist), dist->link_fn);
                 result = dist->link_fn(dist, dist->link_fn_extra);  
             } else {
-                pthread_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */
+                opbx_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */
                 result = icd_distributor__unlock(dist);
                 if (icd_verbose > 4)
                     opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n", 
@@ -1086,7 +1086,7 @@ void *icd_distributor__standard_run(void *that) {
             }
         } else {
             /* TBD - Make paused thread work better. 
-             *        - Use pthread_cond_wait()
+             *        - Use opbx_cond_wait()
              *        - Use same or different condition variable? 
              */
         }
@@ -1141,7 +1141,7 @@ icd_status icd_distributor__add_caller(icd_distributor *that, icd_member *new_me
     }
 
     result = icd_distributor__lock(that);
-    pthread_cond_signal(&(that->wakeup));
+    opbx_cond_signal(&(that->wakeup));
     result = icd_distributor__unlock(that);
     return result;
 }
@@ -1166,7 +1166,7 @@ icd_status icd_distributor__pushback_caller(icd_distributor *that, icd_member *n
     }
 
     result = icd_distributor__lock(that);
-    pthread_cond_signal(&(that->wakeup));
+    opbx_cond_signal(&(that->wakeup));
     result = icd_distributor__unlock(that);
     return result;
 }

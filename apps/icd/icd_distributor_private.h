@@ -44,7 +44,7 @@ struct icd_distributor {
     icd_listeners *listeners;
     opbx_mutex_t lock;
     pthread_t thread;
-    pthread_cond_t wakeup;
+    opbx_cond_t wakeup;
     icd_memory *memory;
     void_hash_table *params;
 };

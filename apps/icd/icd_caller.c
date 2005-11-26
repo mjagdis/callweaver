@@ -522,7 +522,7 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
 
     /* Create the condition that wakes up the thread running in __run() */
     result = pthread_condattr_init(&condattr);
-    result = pthread_cond_init(&(that->wakeup), &condattr);
+    result = opbx_cond_init(&(that->wakeup), &condattr);
     result = pthread_condattr_destroy(&condattr);
 
     vetoed = icd_event__generate(ICD_EVENT_INIT, NULL);
@@ -599,7 +599,7 @@ icd_status icd_caller__clear(icd_caller * that)
     if (that->using_caller_thread) {
         pthread_cancel(that->thread);
     }
-    pthread_cond_destroy(&(that->wakeup));
+    opbx_cond_destroy(&(that->wakeup));
     opbx_mutex_destroy(&(that->lock));
 
     that->owner = NULL;
@@ -1387,7 +1387,7 @@ icd_status icd_caller__set_state(icd_caller * that, icd_caller_state state)
         that->state = state;
         time(&that->last_mod);
         time(&that->last_state_change);
-        pthread_cond_signal(&(that->wakeup));
+        opbx_cond_signal(&(that->wakeup));
         icd_caller__unlock(that);
 
         return ICD_SUCCESS;
@@ -3722,7 +3722,7 @@ void *icd_caller__standard_run(void *ptr)
                     opbx_log(LOG_WARNING, "Unrecognized Caller State");
                 }
             } else {
-                pthread_cond_wait(&(that->wakeup), &(that->lock));      /* wait for signal */
+                opbx_cond_wait(&(that->wakeup), &(that->lock));      /* wait for signal */
                 result = icd_caller__unlock(that);
             }
         } else {
