@@ -1,18 +1,16 @@
 /*
- * vISDN channel driver for OpenPBX
+ * vISDN channel driver for Asterisk
  *
  * Copyright (C) 2004-2005 Daniele Orlandi
  *
  * Authors: Daniele "Vihai" Orlandi <daniele@orlandi.com>
- * Adopted for OpenPBX by Michael "cypromis" Bielicki <michal.bielicki@halo2.pl>
  *
  * This program is free software and may be modified and distributed
  * under the terms and conditions of the GNU General Public License.
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "confdefs.h"
-#endif
+
+#include "chan_visdn.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -42,17 +40,16 @@
 
 #include <openpbx/lock.h>
 #include <openpbx/channel.h>
-#include <openpbx/channel_pvt.h>
 #include <openpbx/config.h>
 #include <openpbx/logger.h>
 #include <openpbx/module.h>
 #include <openpbx/pbx.h>
 #include <openpbx/options.h>
 #include <openpbx/utils.h>
-#include <openpbx/phone_no_utils.h>
 #include <openpbx/indications.h>
 #include <openpbx/cli.h>
 #include <openpbx/musiconhold.h>
+#include <openpbx/devicestate.h>
 
 #include <streamport.h>
 #include <lapd.h>
@@ -60,12 +57,11 @@
 
 #include <visdn/visdn.h>
 
-#include "chan_visdn.h"
-//#include "echo.h"
 
-#include "confdefs.h"
+#define VISDN_DESCRIPTION "VISDN Channel For OpenPBX.org"
+#define VISDN_CHAN_TYPE "VISDN"
+#define VISDN_CONFIG_FILE "chan_visdn.conf"
 
-#define FRAME_SIZE 160
 
 #define assert(cond)							\
 	do {								\
@@ -78,13 +74,7 @@
 
 OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-// static char context[OPBX_MAX_EXTENSION] = "default";
-
 static pthread_t visdn_q931_thread = OPBX_PTHREADT_NULL;
-
-#define VISDN_DESCRIPTION "VISDN Channel For OpenPBX"
-#define VISDN_CHAN_TYPE "VISDN"
-#define VISDN_CONFIG_FILE "visdn.conf"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -93,6 +83,8 @@ enum poll_info_type
 	POLL_INFO_TYPE_INTERFACE,
 	POLL_INFO_TYPE_DLC,
 	POLL_INFO_TYPE_NETLINK,
+	POLL_INFO_TYPE_CCB_Q931,
+	POLL_INFO_TYPE_Q931_CCB,
 };
 
 struct poll_info
@@ -171,6 +163,16 @@ struct visdn_state
 
 	int have_to_exit;
 
+	struct list_head ccb_q931_queue;
+	opbx_mutex_t ccb_q931_queue_lock;
+	int ccb_q931_queue_pipe_read;
+	int ccb_q931_queue_pipe_write;
+
+	struct list_head q931_ccb_queue;
+	opbx_mutex_t q931_ccb_queue_lock;
+	int q931_ccb_queue_pipe_read;
+	int q931_ccb_queue_pipe_write;
+
 	struct list_head ifs;
 
 	struct pollfd polls[100];
@@ -181,8 +183,6 @@ struct visdn_state
 	int open_pending_nextcheck;
 
 	int usecnt;
-	int timer_fd;
-	int control_fd;
 	int netlink_socket;
 
 	int debug;
@@ -192,11 +192,9 @@ struct visdn_state
 	struct visdn_interface default_intf;
 } visdn = {
 	.usecnt = 0,
-	.timer_fd = -1,
-	.control_fd = -1,
 #ifdef DEBUG_DEFAULTS
 	.debug = TRUE,
-	.debug_q921 = FALSE,
+	.debug_q921 = TRUE,
 	.debug_q931 = TRUE,
 #else
 	.debug = FALSE,
@@ -728,7 +726,7 @@ static void visdn_copy_interface_config(
 static void visdn_reload_config(void)
 {
 	struct opbx_config *cfg;
-	cfg = opbx_load(VISDN_CONFIG_FILE);
+	cfg = opbx_config_load(VISDN_CONFIG_FILE);
 	if (!cfg) {
 		opbx_log(LOG_WARNING,
 			"Unable to load config %s, VISDN disabled\n",
@@ -800,7 +798,7 @@ static void visdn_reload_config(void)
 
 	opbx_mutex_unlock(&visdn.lock);
 
-	opbx_destroy(cfg);
+	opbx_config_destroy(cfg);  // FIXME
 }
 
 static int do_visdn_reload(int fd, int argc, char *argv[])
@@ -1030,7 +1028,7 @@ static char debug_visdn_generic_help[] =
 
 static struct opbx_cli_entry debug_visdn_generic =
 {
-        { "debug", "visdn", "generic", NULL },
+	{ "debug", "visdn", "generic", NULL },
 	do_debug_visdn_generic,
 	"Enables generic vISDN debugging",
 	debug_visdn_generic_help,
@@ -1039,7 +1037,7 @@ static struct opbx_cli_entry debug_visdn_generic =
 
 static struct opbx_cli_entry no_debug_visdn_generic =
 {
-        { "no", "debug", "visdn", "generic", NULL },
+	{ "no", "debug", "visdn", "generic", NULL },
 	do_no_debug_visdn_generic,
 	"Disables generic vISDN debugging",
 	NULL,
@@ -1052,7 +1050,7 @@ static char debug_visdn_q921_help[] =
 
 static struct opbx_cli_entry debug_visdn_q921 =
 {
-        { "debug", "visdn", "q921", NULL },
+	{ "debug", "visdn", "q921", NULL },
 	do_debug_visdn_q921,
 	"Enables q.921 tracing",
 	debug_visdn_q921_help,
@@ -1061,7 +1059,7 @@ static struct opbx_cli_entry debug_visdn_q921 =
 
 static struct opbx_cli_entry no_debug_visdn_q921 =
 {
-        { "no", "debug", "visdn", "q921", NULL },
+	{ "no", "debug", "visdn", "q921", NULL },
 	do_no_debug_visdn_q921,
 	"Disables q.921 tracing",
 	NULL,
@@ -1074,7 +1072,7 @@ static char debug_visdn_q931_help[] =
 
 static struct opbx_cli_entry debug_visdn_q931 =
 {
-        { "debug", "visdn", "q931", NULL },
+	{ "debug", "visdn", "q931", NULL },
 	do_debug_visdn_q931,
 	"Enables q.931 tracing",
 	debug_visdn_q931_help,
@@ -1083,7 +1081,7 @@ static struct opbx_cli_entry debug_visdn_q931 =
 
 static struct opbx_cli_entry no_debug_visdn_q931 =
 {
-        { "no", "debug", "visdn", "q931", NULL },
+	{ "no", "debug", "visdn", "q931", NULL },
 	do_no_debug_visdn_q931,
 	"Disables q.931 tracing",
 	NULL,
@@ -1096,7 +1094,7 @@ static char show_visdn_interfaces_help[] =
 
 static struct opbx_cli_entry show_visdn_interfaces =
 {
-        { "show", "visdn", "interfaces", NULL },
+	{ "show", "visdn", "interfaces", NULL },
 	do_show_visdn_interfaces,
 	"Displays vISDN interface information",
 	show_visdn_interfaces_help,
@@ -1109,7 +1107,7 @@ static char visdn_visdn_reload_help[] =
 
 static struct opbx_cli_entry visdn_reload =
 {
-        { "visdn", "reload", NULL },
+	{ "visdn", "reload", NULL },
 	do_visdn_reload,
 	"Reloads vISDN configuration",
 	visdn_visdn_reload_help,
@@ -1122,7 +1120,7 @@ static char visdn_show_visdn_channels_help[] =
 
 static struct opbx_cli_entry show_visdn_channels =
 {
-        { "show", "visdn", "channels", NULL },
+	{ "show", "visdn", "channels", NULL },
 	do_show_visdn_channels,
 	"Displays vISDN channel information",
 	visdn_show_visdn_channels_help,
@@ -1135,7 +1133,7 @@ static char show_visdn_calls_help[] =
 
 static struct opbx_cli_entry show_visdn_calls =
 {
-        { "show", "visdn", "calls", NULL },
+	{ "show", "visdn", "calls", NULL },
 	do_show_visdn_calls,
 	"Lists vISDN calls",
 	show_visdn_calls_help,
@@ -1197,16 +1195,75 @@ static enum q931_ie_calling_party_number_type_of_number
 	}
 }
 
+void q931_send_primitive(
+	struct q931_call *call,
+	enum q931_primitive primitive,
+	struct q931_ies *ies)
+{
+	struct q931_ccb_message *msg;
+	msg = malloc(sizeof(*msg));
+	if (!msg)
+		return;
+
+	msg->call = call;
+	msg->primitive = primitive;
+
+	q931_ies_init(&msg->ies);
+
+	if (ies)
+		q931_ies_copy(&msg->ies, ies);
+
+	opbx_mutex_lock(&visdn.ccb_q931_queue_lock);
+	list_add_tail(&msg->node, &visdn.ccb_q931_queue);
+	opbx_mutex_unlock(&visdn.ccb_q931_queue_lock);
+
+	if (write(visdn.ccb_q931_queue_pipe_write, " ", 1) < 0) {
+		opbx_log(LOG_WARNING,
+			"Cannot write on ccb_q931_pipe_write\n");
+	}
+}
+
+void visdn_queue_primitive(
+	struct q931_call *call,
+	enum q931_primitive primitive,
+	const struct q931_ies *ies,
+	unsigned long par1,
+	unsigned long par2)
+{
+	struct q931_ccb_message *msg;
+	msg = malloc(sizeof(*msg));
+	if (!msg)
+		return;
+
+	msg->call = call;
+	msg->primitive = primitive;
+	msg->par1 = par1;
+	msg->par2 = par2;
+
+	if (ies) {
+		q931_ies_init(&msg->ies);
+		q931_ies_copy(&msg->ies, ies);
+	}
+
+	opbx_mutex_lock(&visdn.q931_ccb_queue_lock);
+	list_add_tail(&msg->node, &visdn.q931_ccb_queue);
+	opbx_mutex_unlock(&visdn.q931_ccb_queue_lock);
+
+	if (write(visdn.q931_ccb_queue_pipe_write, " ", 1) < 0) {
+		opbx_log(LOG_WARNING,
+			"Cannot write on q931_ccb_pipe_write\n");
+	}
+}
+
+
 static int visdn_call(
 	struct opbx_channel *opbx_chan,
 	char *orig_dest,
 	int timeout)
 {
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 	int err;
 	char dest[256];
-
-	visdn_chan->pbx_started = TRUE;
 
 	strncpy(dest, orig_dest, sizeof(dest));
 
@@ -1251,9 +1308,6 @@ static int visdn_call(
 		}
 	}
 
-	opbx_mutex_unlock(&opbx_chan->lock);
-	opbx_mutex_lock(&visdn.lock);
-
 	int found = FALSE;
 	struct visdn_interface *intf;
 	list_for_each_entry(intf, &visdn.ifs, ifs_node) {
@@ -1267,13 +1321,13 @@ static int visdn_call(
 	if (!found) {
 		opbx_log(LOG_WARNING, "Interface %s not found\n", intf_name);
 		err = -1;
-                goto err_intf_not_found;
+		goto err_intf_not_found;
 	}
 
 	if (!intf->q931_intf) {
 		opbx_log(LOG_WARNING, "Interface %s not present\n", intf_name);
 		err = -1;
-                goto err_intf_not_found;
+		goto err_intf_not_found;
 	}
 
 	struct q931_call *q931_call;
@@ -1343,13 +1397,13 @@ static int visdn_call(
 		q931_ies_add_put(&ies, &sc->ie);
 	}
 
-	if (opbx_chan->callerid && strlen(opbx_chan->callerid)) {
+	if (opbx_chan->cid.cid_name && strlen(opbx_chan->cid.cid_name)) {
 
-		char callerid[255];
-		char *name, *number;
+		char *name = NULL;
+		char *number = NULL;
 
-		strncpy(callerid, opbx_chan->callerid, sizeof(callerid));
-		opbx_callerid_parse(callerid, &name, &number);
+		strcpy(name, opbx_chan->cid.cid_name);
+		strcpy(number, opbx_chan->cid.cid_num);
 
 		if (number) {
 			struct q931_ie_calling_party_number *cgpn =
@@ -1370,9 +1424,10 @@ static int visdn_call(
 			q931_ies_add_put(&ies, &cgpn->ie);
 		} else {
 			opbx_log(LOG_WARNING,
-				"Unable to parse '%s'"
+				"Unable to parse '%s <%s>'"
 				" into CallerID name & number\n",
-				callerid);
+				opbx_chan->cid.cid_name, 
+				opbx_chan->cid.cid_num);
 		}
 	}
 
@@ -1384,12 +1439,7 @@ static int visdn_call(
 	hlc->presentation_method = Q931_IE_HLC_PM_HIGH_LAYER_PROTOCOL_PROFILE;
 	hlc->characteristics_identification = Q931_IE_HLC_CI_TELEPHONY;
 
-	q931_setup_request(q931_call, &ies);
-
-	opbx_mutex_unlock(&visdn.lock);
-	opbx_mutex_lock(&opbx_chan->lock);
-
-	q931_call_put(q931_call);
+	q931_send_primitive(q931_call, Q931_CCB_SETUP_REQUEST, &ies);
 
 	return 0;
 
@@ -1398,8 +1448,6 @@ err_channel_not_down:
 	q931_call_put(q931_call);
 err_call_alloc:
 err_intf_not_found:
-	opbx_mutex_unlock(&visdn.lock);
-	opbx_mutex_lock(&opbx_chan->lock);
 err_invalid_format:
 err_invalid_destination:
 
@@ -1408,7 +1456,7 @@ err_invalid_destination:
 
 static int visdn_answer(struct opbx_channel *opbx_chan)
 {
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	visdn_debug("visdn_answer\n");
 
@@ -1419,8 +1467,6 @@ static int visdn_answer(struct opbx_channel *opbx_chan)
 		return -1;
 	}
 
-	opbx_mutex_unlock(&opbx_chan->lock);
-	opbx_mutex_lock(&visdn.lock);
 	if (visdn_chan->q931_call->state == U6_CALL_PRESENT ||
 	    visdn_chan->q931_call->state == U7_CALL_RECEIVED ||
 	    visdn_chan->q931_call->state == U9_INCOMING_CALL_PROCEEDING ||
@@ -1428,10 +1474,9 @@ static int visdn_answer(struct opbx_channel *opbx_chan)
 	    visdn_chan->q931_call->state == N2_OVERLAP_SENDING ||
 	    visdn_chan->q931_call->state == N3_OUTGOING_CALL_PROCEEDING ||
 	    visdn_chan->q931_call->state == N4_CALL_DELIVERED) {
-		q931_setup_response(visdn_chan->q931_call, NULL);
+		q931_send_primitive(visdn_chan->q931_call,
+			Q931_CCB_SETUP_RESPONSE, NULL);
 	}
-	opbx_mutex_unlock(&visdn.lock);
-	opbx_mutex_lock(&opbx_chan->lock);
 
 	return 0;
 }
@@ -1440,18 +1485,17 @@ static int visdn_bridge(
 	struct opbx_channel *c0,
 	struct opbx_channel *c1,
 	int flags, struct opbx_frame **fo,
-	struct opbx_channel **rc)
+	struct opbx_channel **rc,
+	int timeout)
 {
-	opbx_log(LOG_WARNING, "visdn_bridge\n");
-
 	return -2;
 
 	/* if need DTMF, cant native bridge (at least not yet...) */
 	if (flags & (OPBX_BRIDGE_DTMF_CHANNEL_0 | OPBX_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
 
-	struct visdn_chan *visdn_chan1 = c0->pvt->pvt;
-	struct visdn_chan *visdn_chan2 = c1->pvt->pvt;
+	struct visdn_chan *visdn_chan1 = c0->tech_pvt;
+	struct visdn_chan *visdn_chan2 = c1->tech_pvt;
 
 	char path[100], dest1[100], dest2[100];
 
@@ -1477,7 +1521,7 @@ static int visdn_bridge(
 	chanid1++;
 
 	snprintf(path, sizeof(path),
-		"/sys/class/net/%s/visdn_channel/../B%d",
+		"/sys/class/net/%s/visdn_channel/connected/../B%d",
 		visdn_chan2->q931_call->intf->name,
 		visdn_chan2->q931_call->channel->id+1);
 
@@ -1499,27 +1543,59 @@ static int visdn_bridge(
 
 	visdn_debug("Connecting chan %s to chan %s\n", chanid1, chanid2);
 
-	struct visdn_connect vc;
-	snprintf(vc.src_chanid, sizeof(vc.src_chanid), "%s", chanid1);
-	snprintf(vc.dst_chanid, sizeof(vc.dst_chanid), "%s", chanid2);
-	vc.flags = 0;
-
-	if (ioctl(visdn.control_fd, VISDN_IOC_CONNECT,
-	    (caddr_t) &vc) < 0) {
+	int fd = open("/sys/visdn_tdm/internal-cxc/connect", O_WRONLY);
+	if (fd < 0) {
 		opbx_log(LOG_ERROR,
-			"ioctl(VISDN_CONNECT): %s\n",
+			"Cannot open /sys/visdn_tdm/internal-cxc/connect: %s\n",
 			strerror(errno));
 		return -2;
 	}
 
-	struct opbx_channel *cs[3];
+	if (ioctl(visdn_chan1->channel_fd,
+			VISDN_IOC_DISCONNECT, NULL) < 0) {
+		opbx_log(LOG_ERROR,
+			"ioctl(VISDN_IOC_DISCONNECT): %s\n",
+			strerror(errno));
+	}
+
+	close(visdn_chan1->channel_fd);
+	visdn_chan1->channel_fd = -1;
+
+	if (ioctl(visdn_chan2->channel_fd,
+			VISDN_IOC_DISCONNECT, NULL) < 0) {
+		opbx_log(LOG_ERROR,
+			"ioctl(VISDN_IOC_DISCONNECT): %s\n",
+			strerror(errno));
+	}
+
+	close(visdn_chan2->channel_fd);
+	visdn_chan2->channel_fd = -1;
+
+	char command[256];
+	snprintf(command, sizeof(command),
+		"%s\n%s\n",
+		chanid1,
+		chanid2);
+
+	if (write(fd, command, strlen(command)) < 0) {
+		opbx_log(LOG_ERROR,
+			"Cannot write to /sys/visdn_tdm/internal-cxc/connect: %s\n",
+			strerror(errno));
+
+		close(fd);
+
+		return -2;
+	}
+
+	close(fd);
+
+	struct opbx_channel *cs[2];
 	cs[0] = c0;
 	cs[1] = c1;
-	cs[2] = NULL;
 
+	struct opbx_channel *who = NULL;
 	for (;;) {
-		struct opbx_channel *who;
-		int to;
+		int to = -1;
 		who = opbx_waitfor_n(cs, 2, &to);
 		if (!who) {
 			opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
@@ -1528,14 +1604,38 @@ static int visdn_bridge(
 
 		struct opbx_frame *f;
 		f = opbx_read(who);
-		if (!f) {
-			return 0;
+		if (!f)
+			break;
+
+		if (f->frametype == OPBX_FRAME_DTMF) {
+			if (((who == c0) && (flags & OPBX_BRIDGE_DTMF_CHANNEL_0)) ||
+			    ((who == c1) && (flags & OPBX_BRIDGE_DTMF_CHANNEL_1))) {
+
+				*fo = f;
+				*rc = who;
+
+				// Disconnect channels
+				return 0;
+			}
+
+			if (who == c0)
+				opbx_write(c1, f);
+			else
+				opbx_write(c0, f);
 		}
 
-		printf("Frame %s\n", who->name);
-
 		opbx_frfree(f);
+
+		// Braindead anyone?
+		struct opbx_channel *t;
+		t = cs[0];
+		cs[0] = cs[1];
+		cs[1] = t;
 	}
+
+	// Really braindead
+	*fo = NULL;
+	*rc = who;
 
 	return 0;
 }
@@ -1547,18 +1647,10 @@ struct opbx_frame *visdn_exception(struct opbx_channel *opbx_chan)
 	return NULL;
 }
 
-#if 0
-
-CMANTUNES: With the new channel generator thread, this is no longer necessary
-
-static int visdn_generator_start(struct opbx_channel *chan);
-static int visdn_generator_stop(struct opbx_channel *chan);
-#endif
-
 /* We are called with chan->lock'ed */
 static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 {
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	if (!visdn_chan) {
 		opbx_log(LOG_ERROR, "NO VISDN_CHAN!!\n");
@@ -1580,23 +1672,15 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 
 	case -1:
 		opbx_playtones_stop(opbx_chan);
-#if 0
-		if (!opbx_chan->pbx)
-			visdn_generator_stop(opbx_chan);
-#endif
+
 		return 0;
 	break;
 
 	case OPBX_CONTROL_OFFHOOK: {
 		const struct tone_zone_sound *tone;
 		tone = opbx_get_indication_tone(opbx_chan->zone, "dial");
-		if (tone) {
+		if (tone)
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-#if 0
-			if (!opbx_chan->pbx)
-				visdn_generator_start(opbx_chan);
-#endif
-		}
 
 		return 0;
 	}
@@ -1605,25 +1689,20 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 	case OPBX_CONTROL_HANGUP: {
 		const struct tone_zone_sound *tone;
 		tone = opbx_get_indication_tone(opbx_chan->zone, "congestion");
-		if (tone) {
+		if (tone)
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-#if 0
-			if (!opbx_chan->pbx)
-				visdn_generator_start(opbx_chan);
-#endif
-		}
 
 		return 0;
 	}
 	break;
 
 	case OPBX_CONTROL_RINGING: {
-                struct q931_ies ies = Q931_IES_INIT;
+		struct q931_ies ies = Q931_IES_INIT;
 
 		struct q931_ie_progress_indicator *pi = NULL;
 
-		if (opbx_chan->dialed &&
-		   strcmp(opbx_chan->dialed->type, VISDN_CHAN_TYPE)) {
+		if (opbx_chan->_bridge &&
+		   strcmp(opbx_chan->_bridge->type, VISDN_CHAN_TYPE)) {
 
 			visdn_debug("Channel is not VISDN, sending"
 					" progress indicator\n");
@@ -1644,27 +1723,17 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		pi->progress_description = Q931_IE_PI_PD_IN_BAND_INFORMATION;
 		q931_ies_add_put(&ies, &pi->ie);
 
-		opbx_setstate(opbx_chan, OPBX_STATE_RINGING);
-
-		opbx_mutex_unlock(&opbx_chan->lock);
-		opbx_mutex_lock(&visdn.lock);
-
 		if (visdn_chan->q931_call->state == N1_CALL_INITIATED)
-			q931_proceeding_request(visdn_chan->q931_call, NULL);
+			q931_send_primitive(visdn_chan->q931_call,
+				Q931_CCB_PROCEEDING_REQUEST, NULL);
 
-		q931_alerting_request(visdn_chan->q931_call, &ies);
-		opbx_mutex_unlock(&visdn.lock);
-		opbx_mutex_lock(&opbx_chan->lock);
+		q931_send_primitive(visdn_chan->q931_call,
+			Q931_CCB_ALERTING_REQUEST, &ies);
 
 		const struct tone_zone_sound *tone;
 		tone = opbx_get_indication_tone(opbx_chan->zone, "ring");
-		if (tone) {
+		if (tone)
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-#if 0
-			if (!opbx_chan->pbx)
-				visdn_generator_start(opbx_chan);
-#endif
-		}
 
 		return 0;
 	}
@@ -1672,15 +1741,12 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 
 	case OPBX_CONTROL_ANSWER:
 		opbx_playtones_stop(opbx_chan);
-#if 0
-		if (!opbx_chan->pbx);
-			visdn_generator_stop(opbx_chan);
-#endif
+
 		return 0;
 	break;
 
 	case OPBX_CONTROL_BUSY: {
-                struct q931_ies ies = Q931_IES_INIT;
+		struct q931_ies ies = Q931_IES_INIT;
 
 		struct q931_ie_cause *cause = q931_ie_cause_alloc();
 		cause->coding_standard = Q931_IE_C_CS_CCITT;
@@ -1689,11 +1755,7 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		cause->value = Q931_IE_C_CV_USER_BUSY;
 		q931_ies_add_put(&ies, &cause->ie);
 
-		opbx_mutex_unlock(&opbx_chan->lock);
-		opbx_mutex_lock(&visdn.lock);
-		q931_disconnect_request(visdn_chan->q931_call, &ies);
-		opbx_mutex_unlock(&visdn.lock);
-		opbx_mutex_lock(&opbx_chan->lock);
+		q931_send_primitive(visdn_chan->q931_call, Q931_CCB_DISCONNECT_REQUEST, &ies);
 
 		const struct tone_zone_sound *tone;
 		tone = opbx_get_indication_tone(opbx_chan->zone, "busy");
@@ -1705,7 +1767,7 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 	break;
 
 	case OPBX_CONTROL_CONGESTION: {
-                struct q931_ies ies = Q931_IES_INIT;
+		struct q931_ies ies = Q931_IES_INIT;
 
 		struct q931_ie_cause *cause = q931_ie_cause_alloc();
 		cause->coding_standard = Q931_IE_C_CS_CCITT;
@@ -1714,28 +1776,19 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		cause->value = Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
 		q931_ies_add_put(&ies, &cause->ie);
 
-		opbx_mutex_unlock(&opbx_chan->lock);
-		opbx_mutex_lock(&visdn.lock);
-		q931_disconnect_request(visdn_chan->q931_call, &ies);
-		opbx_mutex_unlock(&visdn.lock);
-		opbx_mutex_lock(&opbx_chan->lock);
+		q931_send_primitive(visdn_chan->q931_call, Q931_CCB_DISCONNECT_REQUEST, &ies);
 
 		const struct tone_zone_sound *tone;
 		tone = opbx_get_indication_tone(opbx_chan->zone, "busy");
-		if (tone) {
+		if (tone)
 			opbx_playtones_start(opbx_chan, 0, tone->data, 1);
-#if 0
-			if (!opbx_chan->pbx)
-				visdn_generator_start(opbx_chan);
-#endif
-		}
 
 		return 0;
 	}
 	break;
 
 	case OPBX_CONTROL_PROGRESS: {
-                struct q931_ies ies = Q931_IES_INIT;
+		struct q931_ies ies = Q931_IES_INIT;
 
 		struct q931_ie_progress_indicator *pi =
 			q931_ie_progress_indicator_alloc();
@@ -1743,8 +1796,8 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 		pi->location = q931_ie_progress_indicator_location(
 					visdn_chan->q931_call);
 
-		if (opbx_chan->dialed &&
-		   strcmp(opbx_chan->dialed->type, VISDN_CHAN_TYPE)) {
+		if (opbx_chan->_bridge &&
+		   strcmp(opbx_chan->_bridge->type, VISDN_CHAN_TYPE)) {
 			pi->progress_description =
 				Q931_IE_PI_PD_CALL_NOT_END_TO_END; // FIXME
 		} else if (visdn_chan->is_voice) {
@@ -1754,22 +1807,14 @@ static int visdn_indicate(struct opbx_channel *opbx_chan, int condition)
 
 		q931_ies_add_put(&ies, &pi->ie);
 
-		opbx_mutex_unlock(&opbx_chan->lock);
-		opbx_mutex_lock(&visdn.lock);
-		q931_progress_request(visdn_chan->q931_call, &ies);
-		opbx_mutex_unlock(&visdn.lock);
-		opbx_mutex_lock(&opbx_chan->lock);
+		q931_send_primitive(visdn_chan->q931_call, Q931_CCB_PROGRESS_REQUEST, &ies);
 
 		return 0;
 	}
 	break;
 
 	case OPBX_CONTROL_PROCEEDING:
-		opbx_mutex_unlock(&opbx_chan->lock);
-		opbx_mutex_lock(&visdn.lock);
-		q931_proceeding_request(visdn_chan->q931_call, NULL);
-		opbx_mutex_unlock(&visdn.lock);
-		opbx_mutex_lock(&opbx_chan->lock);
+		q931_send_primitive(visdn_chan->q931_call, Q931_CCB_PROCEEDING_REQUEST, NULL);
 
 		return 0;
 	break;
@@ -1782,7 +1827,7 @@ static int visdn_fixup(
 	struct opbx_channel *oldchan,
 	struct opbx_channel *newchan)
 {
-	struct visdn_chan *chan = newchan->pvt->pvt;
+	struct visdn_chan *chan = newchan->tech_pvt;
 
 	if (chan->opbx_chan != oldchan) {
 		opbx_log(LOG_WARNING, "old channel wasn't %p but was %p\n",
@@ -1807,8 +1852,8 @@ static int visdn_setoption(
 }
 
 static int visdn_transfer(
-	struct opbx_channel *opbx,
-	char *dest)
+	struct opbx_channel *opbx_chan,
+	const char *dest)
 {
 	opbx_log(LOG_ERROR, "%s\n", __FUNCTION__);
 
@@ -1817,31 +1862,39 @@ static int visdn_transfer(
 
 static int visdn_send_digit(struct opbx_channel *opbx_chan, char digit)
 {
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	opbx_log(LOG_NOTICE, "%s %c\n", __FUNCTION__, digit);
+
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 	struct q931_call *q931_call = visdn_chan->q931_call;
 	struct visdn_interface *intf = q931_call->intf->pvt;
 
-	struct q931_ies ies = Q931_IES_INIT;
+	if (visdn_chan->may_send_digits) {
+		visdn_debug("Not ready to send digits, queuing\n");
 
-	struct q931_ie_called_party_number *cdpn =
-		q931_ie_called_party_number_alloc();
-	cdpn->type_of_number = visdn_type_of_number_to_cdpn(
+		struct q931_ies ies = Q931_IES_INIT;
+
+		struct q931_ie_called_party_number *cdpn =
+			q931_ie_called_party_number_alloc();
+		cdpn->type_of_number = visdn_type_of_number_to_cdpn(
 							intf->type_of_number);
-	cdpn->numbering_plan_identificator = Q931_IE_CDPN_NPI_ISDN_TELEPHONY;
-	cdpn->number[0] = digit;
-	cdpn->number[1] = '\0';
-	q931_ies_add_put(&ies, &cdpn->ie);
+		cdpn->numbering_plan_identificator =
+			Q931_IE_CDPN_NPI_ISDN_TELEPHONY;
 
-	opbx_mutex_unlock(&opbx_chan->lock);
-	opbx_mutex_lock(&visdn.lock);
-	q931_info_request(q931_call, &ies);
-	opbx_mutex_unlock(&visdn.lock);
-	opbx_mutex_lock(&opbx_chan->lock);
+		cdpn->number[0] = digit;
+		cdpn->number[1] = '\0';
+		q931_ies_add_put(&ies, &cdpn->ie);
+
+		q931_send_primitive(visdn_chan->q931_call,
+			Q931_CCB_INFO_REQUEST, &ies);
+	} else {
+		visdn_chan->queued_digits[
+			strlen(visdn_chan->queued_digits)] = digit;
+	}
 
 	return 1;
 }
 
-static int visdn_sendtext(struct opbx_channel *opbx, char *text)
+static int visdn_sendtext(struct opbx_channel *opbx_chan, const char *text)
 {
 	opbx_log(LOG_WARNING, "%s\n", __FUNCTION__);
 
@@ -1850,9 +1903,6 @@ static int visdn_sendtext(struct opbx_channel *opbx, char *text)
 
 static void visdn_destroy(struct visdn_chan *visdn_chan)
 {
-//	if (visdn_chan->ec)
-//		echo_can_free(visdn_chan->ec);
-
 	free(visdn_chan);
 }
 
@@ -1868,8 +1918,6 @@ static struct visdn_chan *visdn_alloc()
 
 	visdn_chan->channel_fd = -1;
 
-//	visdn_chan->ec = echo_can_create(256, 0);
-
 	return visdn_chan;
 }
 
@@ -1877,61 +1925,51 @@ static int visdn_hangup(struct opbx_channel *opbx_chan)
 {
 	visdn_debug("visdn_hangup %s\n", opbx_chan->name);
 
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
+	struct q931_call *q931_call = visdn_chan->q931_call;
 
-	if (visdn_chan->q931_call) {
-		/*
-		After we return from visdn_hangup() the opbx_channel is not
-		valid anymore. On the other way, q.931 "hangup" is a long
-		process, we can only invoke a DISCONNECT-REQ primitive and
-		leave libq931 handle the disconnection process.
-		Unfortunately the consequence is that we cannot rely on
-		libq931's disconnect_channel to actually disconnect the
-		streamport channel. We also cannot generate the disconnection
-		tones.
-
-		Asterisk is very lacky in this respect. A better
-		implementation would have used a reference counter to allow
-		the channel driver to hold a channel until it's not needed
-		anymore
-		*/
-
-		visdn_chan->q931_call->pvt = NULL;
+	opbx_mutex_lock(&visdn.lock);
+	if (q931_call) {
+		q931_call->pvt = NULL;
 
 		if (
-		    visdn_chan->q931_call->state != N0_NULL_STATE &&
-		    visdn_chan->q931_call->state != N1_CALL_INITIATED &&
-		    visdn_chan->q931_call->state != N11_DISCONNECT_REQUEST &&
-		    visdn_chan->q931_call->state != N12_DISCONNECT_INDICATION &&
-		    visdn_chan->q931_call->state != N15_SUSPEND_REQUEST &&
-		    visdn_chan->q931_call->state != N17_RESUME_REQUEST &&
-		    visdn_chan->q931_call->state != N19_RELEASE_REQUEST &&
-		    visdn_chan->q931_call->state != N22_CALL_ABORT &&
-		    visdn_chan->q931_call->state != U0_NULL_STATE &&
-		    visdn_chan->q931_call->state != U6_CALL_PRESENT &&
-		    visdn_chan->q931_call->state != U11_DISCONNECT_REQUEST &&
-		    visdn_chan->q931_call->state != U12_DISCONNECT_INDICATION &&
-		    visdn_chan->q931_call->state != U15_SUSPEND_REQUEST &&
-		    visdn_chan->q931_call->state != U17_RESUME_REQUEST &&
-		    visdn_chan->q931_call->state != U19_RELEASE_REQUEST) {
+		    q931_call->state != N0_NULL_STATE &&
+		    q931_call->state != N1_CALL_INITIATED &&
+		    q931_call->state != N11_DISCONNECT_REQUEST &&
+		    q931_call->state != N12_DISCONNECT_INDICATION &&
+		    q931_call->state != N15_SUSPEND_REQUEST &&
+		    q931_call->state != N17_RESUME_REQUEST &&
+		    q931_call->state != N19_RELEASE_REQUEST &&
+		    q931_call->state != N22_CALL_ABORT &&
+		    q931_call->state != U0_NULL_STATE &&
+		    q931_call->state != U6_CALL_PRESENT &&
+		    q931_call->state != U11_DISCONNECT_REQUEST &&
+		    q931_call->state != U12_DISCONNECT_INDICATION &&
+		    q931_call->state != U15_SUSPEND_REQUEST &&
+		    q931_call->state != U17_RESUME_REQUEST &&
+		    q931_call->state != U19_RELEASE_REQUEST) {
 
-                        struct q931_ies ies = Q931_IES_INIT;
+			struct q931_ies ies = Q931_IES_INIT;
 
 			struct q931_ie_cause *cause = q931_ie_cause_alloc();
 			cause->coding_standard = Q931_IE_C_CS_CCITT;
 			cause->location = q931_ie_cause_location_call(
-							visdn_chan->q931_call);
+							q931_call);
 			cause->value = Q931_IE_C_CV_NORMAL_CALL_CLEARING;
 			q931_ies_add_put(&ies, &cause->ie);
 
-			opbx_mutex_lock(&visdn.lock);
-			q931_disconnect_request(visdn_chan->q931_call, &ies);
-			opbx_mutex_unlock(&visdn.lock);
+			q931_send_primitive(q931_call,
+				Q931_CCB_DISCONNECT_REQUEST, &ies);
 		}
 
-		q931_call_put(visdn_chan->q931_call);
-		visdn_chan->q931_call = NULL;
+		q931_call_put(q931_call);
 	}
+
+	opbx_mutex_unlock(&visdn.lock);
+
+	opbx_mutex_lock(&opbx_chan->lock);
+
+	visdn_chan->q931_call = NULL;
 
 	if (visdn_chan->suspended_call) {
 		// We are responsible for the channel
@@ -1942,11 +1980,8 @@ static int visdn_hangup(struct opbx_channel *opbx_chan)
 		visdn_chan->suspended_call = NULL;
 	}
 
-	// Make sure the generator is stopped
-#if 0
-	if (!opbx_chan->pbx)
-		visdn_generator_stop(opbx_chan);
-#endif
+	close(opbx_chan->fds[0]);
+
 	if (visdn_chan) {
 		if (visdn_chan->channel_fd >= 0) {
 			// Disconnect the softport since we cannot rely on
@@ -1969,10 +2004,12 @@ static int visdn_hangup(struct opbx_channel *opbx_chan)
 
 		visdn_destroy(visdn_chan);
 
-		opbx_chan->pvt->pvt = NULL;
+		opbx_chan->tech_pvt = NULL;
 	}
 
 	opbx_setstate(opbx_chan, OPBX_STATE_DOWN);
+
+	opbx_mutex_unlock(&opbx_chan->lock);
 
 	visdn_debug("visdn_hangup complete\n");
 
@@ -1981,9 +2018,16 @@ static int visdn_hangup(struct opbx_channel *opbx_chan)
 
 static struct opbx_frame *visdn_read(struct opbx_channel *opbx_chan)
 {
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 	static struct opbx_frame f;
-	static char buf[512];
+	char buf[512];
+
+	read(opbx_chan->fds[0], buf, 1);
+
+	f.src = VISDN_CHAN_TYPE;
+	f.mallocd = 0;
+	f.delivery.tv_sec = 0;
+	f.delivery.tv_usec = 0;
 
 	if (visdn_chan->channel_fd < 0) {
 		f.frametype = OPBX_FRAME_NULL;
@@ -1992,34 +2036,23 @@ static struct opbx_frame *visdn_read(struct opbx_channel *opbx_chan)
 		f.datalen = 0;
 		f.data = NULL;
 		f.offset = 0;
-		f.src = VISDN_CHAN_TYPE;
-		f.mallocd = 0;
-		f.delivery.tv_sec = 0;
-		f.delivery.tv_usec = 0;
 
 		return &f;
 	}
 
-	int nread = read(visdn_chan->channel_fd, buf, 512);
+	int nread = read(visdn_chan->channel_fd, buf, sizeof(buf));
 	if (nread < 0) {
 		opbx_log(LOG_WARNING, "read error: %s\n", strerror(errno));
 		return &f;
 	}
 
-/*
-	for (i=0; i<nread; i++) {
-		buf[i] = linear_to_alaw(
-				echo_can_update(visdn_chan->ec,
-					alaw_to_linear(txbuf[i]),
-					alaw_to_linear(buf[i])));
-	}
-*/
-
 #if 0
 struct timeval tv;
 gettimeofday(&tv, NULL);
 unsigned long long t = tv.tv_sec * 1000000ULL + tv.tv_usec;
-opbx_verbose(VERBOSE_PREFIX_3 "R %.3f %d %d\n", t/1000000.0, visdn_chan->channel_fd, r);*/
+opbx_verbose(VERBOSE_PREFIX_3 "R %.3f %d\n",
+	t/1000000.0,
+	visdn_chan->channel_fd);
 #endif
 
 	f.frametype = OPBX_FRAME_VOICE;
@@ -2028,17 +2061,15 @@ opbx_verbose(VERBOSE_PREFIX_3 "R %.3f %d %d\n", t/1000000.0, visdn_chan->channel
 	f.datalen = nread;
 	f.data = buf;
 	f.offset = 0;
-	f.src = VISDN_CHAN_TYPE;
-	f.mallocd = 0;
-	f.delivery.tv_sec = 0;
-	f.delivery.tv_usec = 0;
 
 	return &f;
 }
 
-static int visdn_write(struct opbx_channel *opbx_chan, struct opbx_frame *frame)
+static int visdn_write(
+	struct opbx_channel *opbx_chan,
+	struct opbx_frame *frame)
 {
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	if (frame->frametype != OPBX_FRAME_VOICE) {
 		opbx_log(LOG_WARNING,
@@ -2090,9 +2121,15 @@ static struct opbx_channel *visdn_new(
 		return NULL;
 	}
 
-        opbx_chan->type = VISDN_CHAN_TYPE;
+	opbx_chan->tech = &visdn_tech;
+	// opbx_chan->type = VISDN_CHAN_TYPE;
 
-	opbx_chan->fds[0] = visdn.timer_fd;
+	opbx_chan->fds[0] = open("/dev/visdn/timer", O_RDONLY);
+	if (opbx_chan->fds[0] < 0) {
+		opbx_log(LOG_ERROR, "Unable to open timer: %s\n",
+			strerror(errno));
+		return NULL;
+	}
 
 	if (state == OPBX_STATE_RING)
 		opbx_chan->rings = 1;
@@ -2100,37 +2137,28 @@ static struct opbx_channel *visdn_new(
 	opbx_chan->adsicpe = OPBX_ADSI_UNAVAILABLE;
 
 	opbx_chan->nativeformats = OPBX_FORMAT_ALAW;
-	opbx_chan->pvt->rawreadformat = OPBX_FORMAT_ALAW;
+	opbx_chan->rawreadformat = OPBX_FORMAT_ALAW;  // FIXME
 	opbx_chan->readformat = OPBX_FORMAT_ALAW;
-	opbx_chan->pvt->rawwriteformat = OPBX_FORMAT_ALAW;
+	opbx_chan->rawwriteformat = OPBX_FORMAT_ALAW;  // FIXME
 	opbx_chan->writeformat = OPBX_FORMAT_ALAW;
+	// opbx_chan->oldwriteformat = OPBX_FORMAT_ALAW;
 
 //	opbx_chan->language[0] = '\0';
-//	opbx_set_flag(opbx_chan, OPBX_FLAG_DIGITAL);
+//	opbx_set_flag(opbx_chan, AST_FLAG_DIGITAL);
 
 	visdn_chan->opbx_chan = opbx_chan;
-	opbx_chan->pvt->pvt = visdn_chan;
-
-	opbx_chan->pvt->call = visdn_call;
-	opbx_chan->pvt->hangup = visdn_hangup;
-	opbx_chan->pvt->answer = visdn_answer;
-	opbx_chan->pvt->read = visdn_read;
-	opbx_chan->pvt->write = visdn_write;
-	opbx_chan->pvt->bridge = visdn_bridge;
-	opbx_chan->pvt->exception = visdn_exception;
-	opbx_chan->pvt->indicate = visdn_indicate;
-	opbx_chan->pvt->fixup = visdn_fixup;
-	opbx_chan->pvt->setoption = visdn_setoption;
-	opbx_chan->pvt->send_text = visdn_sendtext;
-	opbx_chan->pvt->transfer = visdn_transfer;
-	opbx_chan->pvt->send_digit = visdn_send_digit;
+	opbx_chan->tech_pvt = visdn_chan;
 
 	opbx_setstate(opbx_chan, state);
 
 	return opbx_chan;
 }
 
-static struct opbx_channel *visdn_request(char *type, int format, void *data)
+static struct opbx_channel *visdn_request(
+		const char *type, 
+		int format, 
+		void *data,
+		int *cause)
 {
 	struct visdn_chan *visdn_chan;
 	char *dest = NULL;
@@ -2172,6 +2200,18 @@ static struct opbx_channel *visdn_request(char *type, int format, void *data)
 static void refresh_polls_list()
 {
 	visdn.npolls = 0;
+
+	visdn.polls[visdn.npolls].fd = visdn.q931_ccb_queue_pipe_read;
+	visdn.polls[visdn.npolls].events = POLLIN | POLLERR;
+	visdn.poll_infos[visdn.npolls].type = POLL_INFO_TYPE_Q931_CCB;
+	visdn.poll_infos[visdn.npolls].interface = NULL;
+	(visdn.npolls)++;
+
+	visdn.polls[visdn.npolls].fd = visdn.ccb_q931_queue_pipe_read;
+	visdn.polls[visdn.npolls].events = POLLIN | POLLERR;
+	visdn.poll_infos[visdn.npolls].type = POLL_INFO_TYPE_CCB_Q931;
+	visdn.poll_infos[visdn.npolls].interface = NULL;
+	(visdn.npolls)++;
 
 	visdn.polls[visdn.npolls].fd = visdn.netlink_socket;
 	visdn.polls[visdn.npolls].events = POLLIN | POLLERR;
@@ -2374,7 +2414,7 @@ static void visdn_netlink_receive()
 		return;
 	}
 
-	// Implement multipar messages FIXME FIXME TODO
+	// Implement multipart messages FIXME FIXME TODO
 
 	if (hdr->nlmsg_type == RTM_NEWLINK) {
 		struct ifinfomsg *ifi = NLMSG_DATA(hdr);
@@ -2413,6 +2453,32 @@ static void visdn_netlink_receive()
 	}
 }
 
+static void visdn_ccb_q931_receive()
+{
+	struct q931_ccb_message *msg;
+
+	while(1) {
+		opbx_mutex_lock(&visdn.ccb_q931_queue_lock);
+
+		msg = list_entry(visdn.ccb_q931_queue.next,
+				struct q931_ccb_message, node);
+		if (&msg->node == &visdn.ccb_q931_queue) {
+			opbx_mutex_unlock(&visdn.ccb_q931_queue_lock);
+			break;
+		}
+
+		char buf[1];
+		read(visdn.ccb_q931_queue_pipe_read, buf, 1);
+
+		q931_ccb_dispatch(msg);
+		list_del_init(&msg->node);
+
+		opbx_mutex_unlock(&visdn.ccb_q931_queue_lock);
+	}
+}
+
+static void visdn_q931_ccb_receive();
+
 static int visdn_q931_thread_do_poll()
 {
 	longtime_t usec_to_wait = q931_run_timers(visdn.libq931);
@@ -2440,7 +2506,6 @@ static int visdn_q931_thread_do_poll()
 	}
 
 	opbx_mutex_lock(&visdn.lock);
-
 	if (time(NULL) > visdn.open_pending_nextcheck) {
 
 		struct visdn_interface *intf;
@@ -2451,12 +2516,14 @@ static int visdn_q931_thread_do_poll()
 						intf->name);
 
 				if (visdn_open_interface(intf) < 0)
-					visdn.open_pending_nextcheck = time(NULL) + 2;
+					visdn.open_pending_nextcheck =
+							time(NULL) + 2;
 			}
 		}
 
 		refresh_polls_list();
 	}
+	opbx_mutex_unlock(&visdn.lock);
 
 	int i;
 	for(i = 0; i < visdn.npolls; i++) {
@@ -2467,13 +2534,27 @@ static int visdn_q931_thread_do_poll()
 				visdn_netlink_receive();
 				break; // polls list may have been changed
 			}
+		} else if (visdn.poll_infos[i].type == POLL_INFO_TYPE_Q931_CCB) {
+			if (visdn.polls[i].revents &
+					(POLLIN | POLLPRI | POLLERR |
+					 POLLHUP | POLLNVAL)) {
+				visdn_q931_ccb_receive();
+			}
+		} else if (visdn.poll_infos[i].type == POLL_INFO_TYPE_CCB_Q931) {
+			if (visdn.polls[i].revents &
+					(POLLIN | POLLPRI | POLLERR |
+					 POLLHUP | POLLNVAL)) {
+				visdn_ccb_q931_receive();
+			}
 		} else if (visdn.poll_infos[i].type == POLL_INFO_TYPE_INTERFACE) {
 			if (visdn.polls[i].revents &
 					(POLLIN | POLLPRI | POLLERR |
 					 POLLHUP | POLLNVAL)) {
+				opbx_mutex_lock(&visdn.lock);
 				visdn_accept(
 					visdn.poll_infos[i].interface,
 					visdn.polls[i].fd);
+				opbx_mutex_unlock(&visdn.lock);
 				break; // polls list may have been changed
 			}
 		} else if (visdn.poll_infos[i].type == POLL_INFO_TYPE_DLC) {
@@ -2482,17 +2563,21 @@ static int visdn_q931_thread_do_poll()
 					 POLLHUP | POLLNVAL)) {
 
 				int err;
+				opbx_mutex_lock(&visdn.lock);
 				err = q931_receive(visdn.poll_infos[i].dlc);
 
 				if (err == Q931_RECEIVE_REFRESH) {
 					refresh_polls_list();
+					opbx_mutex_unlock(&visdn.lock);
 
 					break;
 				}
+				opbx_mutex_unlock(&visdn.lock);
 			}
 		}
 	}
 
+	opbx_mutex_lock(&visdn.lock);
 	int active_calls_cnt = 0;
 	if (visdn.have_to_exit) {
 		active_calls_cnt = 0;
@@ -2512,7 +2597,6 @@ static int visdn_q931_thread_do_poll()
 			"There are still %d active calls, waiting...\n",
 			active_calls_cnt);
 	}
-
 	opbx_mutex_unlock(&visdn.lock);
 
 	return (!visdn.have_to_exit || active_calls_cnt > 0);
@@ -2565,7 +2649,7 @@ static void visdn_q931_connect_indication(
 {
 	FUNC_DEBUG();
 
-	q931_setup_complete_request(q931_call, NULL);
+	q931_send_primitive(q931_call, Q931_CCB_SETUP_COMPLETE_REQUEST, NULL);
 
 	struct opbx_channel *opbx_chan = callpvt_to_opbxchan(q931_call);
 
@@ -2581,13 +2665,7 @@ static void visdn_q931_disconnect_indication(
 {
 	FUNC_DEBUG();
 
-	struct opbx_channel *opbx_chan = callpvt_to_opbxchan(q931_call);
-
-	if (opbx_chan) {
-		opbx_softhangup(opbx_chan, OPBX_SOFTHANGUP_DEV);
-	}
-
-	q931_release_request(q931_call, NULL);
+	q931_send_primitive(q931_call, Q931_CCB_RELEASE_REQUEST, NULL);
 }
 
 static void visdn_q931_error_indication(
@@ -2595,29 +2673,6 @@ static void visdn_q931_error_indication(
 	const struct q931_ies *ies)
 {
 	FUNC_DEBUG();
-}
-
-static int visdn_handle_called_number(
-	struct visdn_chan *visdn_chan,
-	const struct q931_ie_called_party_number *ie)
-{
-	if (strlen(visdn_chan->called_number) + strlen(ie->number) - 1 >
-			sizeof(visdn_chan->called_number)) {
-		opbx_log(LOG_NOTICE,
-			"Called number overflow\n");
-
-		return FALSE;
-	}
-
-	if (ie->number[strlen(ie->number) - 1] == '#') {
-		visdn_chan->sending_complete = TRUE;
-		strncat(visdn_chan->called_number, ie->number,
-			strlen(ie->number)-1);
-	} else {
-		strcat(visdn_chan->called_number, ie->number);
-	}
-
-	return TRUE;
 }
 
 static void visdn_q931_info_indication(
@@ -2631,8 +2686,7 @@ static void visdn_q931_info_indication(
 	if (!opbx_chan)
 		return;
 
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
-	struct visdn_interface *intf = q931_call->intf->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	if (q931_call->state != U2_OVERLAP_SENDING &&
 	    q931_call->state != N2_OVERLAP_SENDING) {
@@ -2646,148 +2700,62 @@ static void visdn_q931_info_indication(
 	for(i=0; i<ies->count; i++) {
 		if (ies->ies[i]->type->id == Q931_IE_SENDING_COMPLETE) {
 			visdn_chan->sending_complete = TRUE;
-		} else if (ies->ies[i]->type->id == Q931_IE_CALLED_PARTY_NUMBER) {
+		} else if (ies->ies[i]->type->id ==
+					 Q931_IE_CALLED_PARTY_NUMBER) {
 			cdpn = container_of(ies->ies[i],
 				struct q931_ie_called_party_number, ie);
 		}
 	}
 
-	if (opbx_chan->pbx) {
-		if (!cdpn)
-			return;
-
-opbx_log(LOG_WARNING, "Trying to send DTMF FRAME\n");
-
-		for(i=0; cdpn->number[i]; i++) {
-			struct opbx_frame f = { OPBX_FRAME_DTMF, cdpn->number[i] };
-			opbx_queue_frame(opbx_chan, &f);
-		}
-
+	if (!cdpn)
 		return;
-	}
 
-	if (!visdn_handle_called_number(visdn_chan, cdpn)) {
-                struct q931_ies ies = Q931_IES_INIT;
-
-		struct q931_ie_cause *cause = q931_ie_cause_alloc();
-		cause->coding_standard = Q931_IE_C_CS_CCITT;
-		cause->location = q931_ie_cause_location_call(q931_call);
-		cause->value = Q931_IE_C_CV_INVALID_NUMBER_FORMAT;
-		q931_ies_add_put(&ies, &cause->ie);
-
-		q931_disconnect_request(q931_call, &ies);
-
-		return;
-	}
-
-	opbx_setstate(opbx_chan, OPBX_STATE_DIALING);
-
-	if (visdn_chan->sending_complete) {
-		if (opbx_exists_extension(NULL, intf->context,
-				visdn_chan->called_number, 1,
-				visdn_chan->calling_number)) {
-
-			strncpy(opbx_chan->exten,
-				visdn_chan->called_number,
-				sizeof(opbx_chan->exten)-1);
-
-			opbx_setstate(opbx_chan, OPBX_STATE_RINGING);
-
-			visdn_chan->pbx_started = TRUE;
-
-			if (opbx_pbx_start(opbx_chan)) {
-				opbx_log(LOG_ERROR,
-					"Unable to start PBX on %s\n",
-					opbx_chan->name);
-				opbx_hangup(opbx_chan);
-
-		                struct q931_ies ies = Q931_IES_INIT;
-
-				struct q931_ie_cause *cause = q931_ie_cause_alloc();
-				cause->coding_standard = Q931_IE_C_CS_CCITT;
-				cause->location = q931_ie_cause_location_call(q931_call);
-				cause->value = Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
-				q931_ies_add_put(&ies, &cause->ie);
-
-				q931_disconnect_request(q931_call, &ies);
-			} else {
-				q931_proceeding_request(q931_call, NULL);
-
-				opbx_setstate(opbx_chan, OPBX_STATE_RING);
-			}
-		} else {
-	                struct q931_ies ies = Q931_IES_INIT;
-
-			struct q931_ie_cause *cause = q931_ie_cause_alloc();
-			cause->coding_standard = Q931_IE_C_CS_CCITT;
-			cause->location = q931_ie_cause_location_call(q931_call);
-			cause->value = Q931_IE_C_CV_UNALLOCATED_NUMBER;
-			q931_ies_add_put(&ies, &cause->ie);
-
-			q931_disconnect_request(q931_call, &ies);
-		}
-	} else {
-		if (!opbx_canmatch_extension(NULL, intf->context,
-				visdn_chan->called_number, 1,
-				visdn_chan->calling_number)) {
-
-	                struct q931_ies ies = Q931_IES_INIT;
-
-			struct q931_ie_cause *cause = q931_ie_cause_alloc();
-			cause->coding_standard = Q931_IE_C_CS_CCITT;
-			cause->location = q931_ie_cause_location_call(q931_call);
-			cause->value = Q931_IE_C_CV_NO_ROUTE_TO_DESTINATION;
-			q931_ies_add_put(&ies, &cause->ie);
-
-			q931_disconnect_request(q931_call, &ies);
-
-			return;
-		}
-
-		if (opbx_exists_extension(NULL, intf->context,
-				visdn_chan->called_number, 1,
-				visdn_chan->calling_number)) {
-
-			strncpy(opbx_chan->exten,
-				visdn_chan->called_number,
-				sizeof(opbx_chan->exten)-1);
-
-			opbx_setstate(opbx_chan, OPBX_STATE_RINGING);
-
-			visdn_chan->pbx_started = TRUE;
-
-			if (opbx_pbx_start(opbx_chan)) {
-				opbx_log(LOG_ERROR,
-					"Unable to start PBX on %s\n",
-					opbx_chan->name);
-				opbx_hangup(opbx_chan);
-
-		                struct q931_ies ies = Q931_IES_INIT;
-
-				struct q931_ie_cause *cause = q931_ie_cause_alloc();
-				cause->coding_standard = Q931_IE_C_CS_CCITT;
-				cause->location = q931_ie_cause_location_call(q931_call);
-				cause->value = Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
-				q931_ies_add_put(&ies, &cause->ie);
-
-				q931_disconnect_request(q931_call, &ies);
-			}
-
-			if (!opbx_matchmore_extension(NULL, intf->context,
-					visdn_chan->called_number, 1,
-					visdn_chan->calling_number)) {
-
-				q931_proceeding_request(q931_call, NULL);
-			}
-		}
+	for(i=0; cdpn->number[i]; i++) {
+		struct opbx_frame f =
+			{ OPBX_FRAME_DTMF, cdpn->number[i] };
+		opbx_queue_frame(opbx_chan, &f);
 	}
 }
 
 static void visdn_q931_more_info_indication(
 	struct q931_call *q931_call,
-	const struct q931_ies *ies)
+	const struct q931_ies *user_ies)
 {
 	FUNC_DEBUG();
+
+	struct opbx_channel *opbx_chan = callpvt_to_opbxchan(q931_call);
+
+	if (!opbx_chan)
+		return;
+
+	opbx_mutex_lock(&opbx_chan->lock);
+
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
+	struct visdn_interface *intf = q931_call->intf->pvt;
+
+	visdn_chan->may_send_digits = TRUE;
+
+	if (strlen(visdn_chan->queued_digits)) {
+		visdn_debug("more-info-indication received, flushing"
+			" digits queue\n");
+
+		struct q931_ies ies = Q931_IES_INIT;
+
+		struct q931_ie_called_party_number *cdpn =
+			q931_ie_called_party_number_alloc();
+		cdpn->type_of_number = visdn_type_of_number_to_cdpn(
+							intf->type_of_number);
+		cdpn->numbering_plan_identificator =
+			Q931_IE_CDPN_NPI_ISDN_TELEPHONY;
+
+		strcpy(cdpn->number, visdn_chan->queued_digits);
+		q931_ies_add_put(&ies, &cdpn->ie);
+
+		q931_send_primitive(visdn_chan->q931_call,
+			Q931_CCB_INFO_REQUEST, &ies);
+	}
+
+	opbx_mutex_unlock(&opbx_chan->lock);
 }
 
 static void visdn_q931_notify_indication(
@@ -2807,6 +2775,11 @@ static void visdn_q931_proceeding_indication(
 
 	if (!opbx_chan)
 		return;
+
+	opbx_mutex_lock(&opbx_chan->lock);
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
+	visdn_chan->may_send_digits = TRUE;
+	opbx_mutex_unlock(&opbx_chan->lock);
 
 	opbx_queue_control(opbx_chan, OPBX_CONTROL_PROCEEDING);
 }
@@ -2851,12 +2824,7 @@ static void visdn_q931_release_confirm(
 	if (!opbx_chan)
 		return;
 
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
-
-	if (visdn_chan->pbx_started)
-		opbx_softhangup(opbx_chan, OPBX_SOFTHANGUP_DEV);
-	else
-		opbx_hangup(opbx_chan);
+	opbx_softhangup(opbx_chan, OPBX_SOFTHANGUP_DEV);
 }
 
 static void visdn_q931_release_indication(
@@ -2870,12 +2838,7 @@ static void visdn_q931_release_indication(
 	if (!opbx_chan)
 		return;
 
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
-
-	if (visdn_chan->pbx_started)
-		opbx_softhangup(opbx_chan, OPBX_SOFTHANGUP_DEV);
-	else
-		opbx_hangup(opbx_chan);
+	opbx_softhangup(opbx_chan, OPBX_SOFTHANGUP_DEV);
 }
 
 static void visdn_q931_resume_confirm(
@@ -2939,19 +2902,19 @@ static void visdn_q931_resume_indication(
 
 	assert(suspended_call->opbx_chan);
 
-	struct visdn_chan *visdn_chan = suspended_call->opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = suspended_call->opbx_chan->tech_pvt;
 
 	q931_call->pvt = suspended_call->opbx_chan;
 	visdn_chan->q931_call = q931_call;
 	visdn_chan->suspended_call = NULL;
 
-	if (!strcmp(suspended_call->opbx_chan->bridge->type, VISDN_CHAN_TYPE)) {
+	if (!strcmp(suspended_call->opbx_chan->_bridge->type, VISDN_CHAN_TYPE)) {
 		// Wow, the remote channel is ISDN too, let's notify it!
 
 		struct q931_ies response_ies = Q931_IES_INIT;
 
 		struct visdn_chan *remote_visdn_chan =
-				suspended_call->opbx_chan->bridge->pvt->pvt;
+				suspended_call->opbx_chan->_bridge->tech_pvt;
 
 		struct q931_call *remote_call = remote_visdn_chan->q931_call;
 
@@ -2960,11 +2923,14 @@ static void visdn_q931_resume_indication(
 		notify->description = Q931_IE_NI_D_USER_RESUMED;
 		q931_ies_add_put(&response_ies, &notify->ie);
 
-		q931_notify_request(remote_call, &response_ies);
+		q931_send_primitive(remote_call, Q931_CCB_NOTIFY_REQUEST, &response_ies);
 	}
 
-	opbx_moh_stop(suspended_call->opbx_chan->bridge);
-	q931_resume_response(q931_call, suspended_call->q931_chan, NULL);
+	opbx_moh_stop(suspended_call->opbx_chan->_bridge);
+
+	// FIXME: Transform suspended_call->q931_chan to IE and pass it
+	assert(0);
+	q931_send_primitive(q931_call, Q931_CCB_RESUME_RESPONSE, NULL);
 
 	list_del(&suspended_call->node);
 	free(suspended_call);
@@ -2981,7 +2947,7 @@ err_opbx_chan:
 	c->value = cause;
 	q931_ies_add_put(&resp_ies, &c->ie);
 
-	q931_resume_reject_request(q931_call, &resp_ies);
+	q931_send_primitive(visdn_chan->q931_call, Q931_CCB_RESUME_REJECT_REQUEST, &resp_ies);
 
 	return;
 }
@@ -3015,6 +2981,8 @@ static void visdn_q931_setup_indication(
 {
 	FUNC_DEBUG();
 
+	char called_number[32] = "";
+
 	struct visdn_chan *visdn_chan;
 	visdn_chan = visdn_alloc();
 	if (!visdn_chan) {
@@ -3035,9 +3003,12 @@ static void visdn_q931_setup_indication(
 				container_of(ies->ies[i],
 					struct q931_ie_called_party_number, ie);
 
-			if (!visdn_handle_called_number(visdn_chan, cdpn)) {
+			if (strlen(called_number) + strlen(cdpn->number) - 1 >
+					sizeof(called_number)) {
+				opbx_log(LOG_NOTICE,
+					"Called number overflow\n");
 
-		                struct q931_ies ies = Q931_IES_INIT;
+				struct q931_ies ies = Q931_IES_INIT;
 
 				struct q931_ie_cause *cause = q931_ie_cause_alloc();
 				cause->coding_standard = Q931_IE_C_CS_CCITT;
@@ -3045,10 +3016,18 @@ static void visdn_q931_setup_indication(
 				cause->value = Q931_IE_C_CV_INVALID_NUMBER_FORMAT;
 				q931_ies_add_put(&ies, &cause->ie);
 
-				q931_reject_request(q931_call, &ies);
-
-				return;
+				q931_send_primitive(visdn_chan->q931_call,
+					Q931_CCB_REJECT_REQUEST, &ies);
 			}
+
+			if (cdpn->number[strlen(cdpn->number) - 1] == '#') {
+				visdn_chan->sending_complete = TRUE;
+				strncat(called_number, cdpn->number,
+					strlen(cdpn->number)-1);
+			} else {
+				strcat(called_number, cdpn->number);
+			}
+
 		} else if (ies->ies[i]->type->id == Q931_IE_CALLING_PARTY_NUMBER) {
 			struct q931_ie_calling_party_number *cgpn =
 				container_of(ies->ies[i],
@@ -3091,7 +3070,7 @@ static void visdn_q931_setup_indication(
 				visdn_chan->is_voice = TRUE;
 				q931_call->tones_option = intf->tones_option;
 			} else {
-		                struct q931_ies ies = Q931_IES_INIT;
+				struct q931_ies ies = Q931_IES_INIT;
 
 				struct q931_ie_cause *cause = q931_ie_cause_alloc();
 				cause->coding_standard = Q931_IE_C_CS_CCITT;
@@ -3101,7 +3080,8 @@ static void visdn_q931_setup_indication(
 					Q931_IE_C_CV_BEARER_CAPABILITY_NOT_IMPLEMENTED;
 				q931_ies_add_put(&ies, &cause->ie);
 
-				q931_reject_request(q931_call, &ies);
+				q931_send_primitive(visdn_chan->q931_call,
+					Q931_CCB_REJECT_REQUEST, &ies);
 
 				return;
 			}
@@ -3131,23 +3111,21 @@ static void visdn_q931_setup_indication(
 
 	if (strlen(visdn_chan->calling_number) &&
 	    !intf->force_inbound_caller_id)
-		opbx_chan->callerid = strdup(visdn_chan->calling_number);
+		opbx_chan->cid.cid_num = strdup(visdn_chan->calling_number);
 	else
-		opbx_chan->callerid = strdup(intf->default_inbound_caller_id);
+		opbx_chan->cid.cid_num = strdup(intf->default_inbound_caller_id);
 
 	if (!intf->overlap_sending ||
 	    visdn_chan->sending_complete) {
 		if (opbx_exists_extension(NULL, intf->context,
-				visdn_chan->called_number, 1,
+				called_number, 1,
 				visdn_chan->calling_number)) {
 
 			strncpy(opbx_chan->exten,
-				visdn_chan->called_number,
+				called_number,
 				sizeof(opbx_chan->exten)-1);
 
 			opbx_setstate(opbx_chan, OPBX_STATE_RING);
-
-			visdn_chan->pbx_started = TRUE;
 
 			if (opbx_pbx_start(opbx_chan)) {
 				opbx_log(LOG_ERROR,
@@ -3155,17 +3133,23 @@ static void visdn_q931_setup_indication(
 					opbx_chan->name);
 				opbx_hangup(opbx_chan);
 
-		                struct q931_ies ies = Q931_IES_INIT;
+				struct q931_ies ies = Q931_IES_INIT;
 
-				struct q931_ie_cause *cause = q931_ie_cause_alloc();
+				struct q931_ie_cause *cause =
+					q931_ie_cause_alloc();
 				cause->coding_standard = Q931_IE_C_CS_CCITT;
-				cause->location = q931_ie_cause_location_call(q931_call);
-				cause->value = Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
+				cause->location =
+					q931_ie_cause_location_call(q931_call);
+				cause->value =
+					Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
+
 				q931_ies_add_put(&ies, &cause->ie);
 
-				q931_reject_request(q931_call, &ies);
+				q931_send_primitive(visdn_chan->q931_call,
+					Q931_CCB_REJECT_REQUEST, &ies);
 			} else {
-				q931_proceeding_request(q931_call, NULL);
+				q931_send_primitive(visdn_chan->q931_call,
+					Q931_CCB_PROCEEDING_REQUEST, NULL);
 
 				opbx_setstate(opbx_chan, OPBX_STATE_RING);
 			}
@@ -3173,105 +3157,70 @@ static void visdn_q931_setup_indication(
 			opbx_log(LOG_NOTICE,
 				"No extension '%s' in context '%s',"
 				" rejecting call\n",
-				visdn_chan->called_number,
+				called_number,
 				intf->context);
 
-			opbx_hangup(opbx_chan);
 
-	                struct q931_ies ies = Q931_IES_INIT;
+			struct q931_ies ies = Q931_IES_INIT;
 
 			struct q931_ie_cause *cause = q931_ie_cause_alloc();
 			cause->coding_standard = Q931_IE_C_CS_CCITT;
-			cause->location = q931_ie_cause_location_call(q931_call);
+			cause->location =
+				q931_ie_cause_location_call(q931_call);
+
 			cause->value = Q931_IE_C_CV_NO_ROUTE_TO_DESTINATION;
 			q931_ies_add_put(&ies, &cause->ie);
 
-			q931_reject_request(q931_call, &ies);
+			q931_send_primitive(visdn_chan->q931_call,
+				Q931_CCB_REJECT_REQUEST, &ies);
+			opbx_hangup(opbx_chan);
 		}
-
 	} else {
-		if (!opbx_canmatch_extension(NULL,
-				intf->context,
-				visdn_chan->called_number, 1,
-				visdn_chan->calling_number)) {
 
-                        struct q931_ies ies_proc = Q931_IES_INIT;
+		strncpy(opbx_chan->exten, "s",
+			sizeof(opbx_chan->exten)-1);
+
+		if (opbx_pbx_start(opbx_chan)) {
+			opbx_log(LOG_ERROR,
+				"Unable to start PBX on %s\n",
+				opbx_chan->name);
+			opbx_hangup(opbx_chan);
+
+			struct q931_ies ies_proc = Q931_IES_INIT;
+			struct q931_ie_cause *cause = q931_ie_cause_alloc();
+			cause->coding_standard = Q931_IE_C_CS_CCITT;
+			cause->location =
+				q931_ie_cause_location_call(q931_call);
+
+			cause->value = Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
+			q931_ies_add_put(&ies_proc, &cause->ie);
+
+			struct q931_ies ies_disc = Q931_IES_INIT;
 			if (visdn_chan->is_voice) {
 				struct q931_ie_progress_indicator *pi =
 					q931_ie_progress_indicator_alloc();
 				pi->coding_standard = Q931_IE_PI_CS_CCITT;
-				pi->location = q931_ie_progress_indicator_location(
+				pi->location =
+					q931_ie_progress_indicator_location(
 							visdn_chan->q931_call);
 				pi->progress_description =
 					Q931_IE_PI_PD_IN_BAND_INFORMATION;
-				q931_ies_add_put(&ies_proc, &pi->ie);
+				q931_ies_add_put(&ies_disc, &pi->ie);
 			}
 
-		        struct q931_ies ies_disc = Q931_IES_INIT;
-			struct q931_ie_cause *cause = q931_ie_cause_alloc();
-			cause->coding_standard = Q931_IE_C_CS_CCITT;
-			cause->location = q931_ie_cause_location_call(q931_call);
-			cause->value = Q931_IE_C_CV_NO_ROUTE_TO_DESTINATION;
-			cause->value = Q931_IE_C_CV_NETWORK_OUT_OF_ORDER;
-			q931_ies_add_put(&ies_disc, &cause->ie);
-
-			q931_proceeding_request(q931_call, &ies_proc);
-			q931_disconnect_request(q931_call, &ies_disc);
-
-			return;
+			q931_send_primitive(visdn_chan->q931_call,
+				Q931_CCB_PROCEEDING_REQUEST, &ies_proc);
+			q931_send_primitive(visdn_chan->q931_call,
+				Q931_CCB_DISCONNECT_REQUEST, &ies_disc);
+		} else {
+			q931_send_primitive(visdn_chan->q931_call,
+				Q931_CCB_MORE_INFO_REQUEST, NULL);
 		}
 
-		if (opbx_exists_extension(NULL, intf->context,
-				visdn_chan->called_number, 1,
-				visdn_chan->calling_number)) {
-
-			strncpy(opbx_chan->exten,
-				visdn_chan->called_number,
-				sizeof(opbx_chan->exten)-1);
-
-			opbx_setstate(opbx_chan, OPBX_STATE_RING);
-
-			visdn_chan->pbx_started = TRUE;
-
-			if (opbx_pbx_start(opbx_chan)) {
-				opbx_log(LOG_ERROR,
-					"Unable to start PBX on %s\n",
-					opbx_chan->name);
-				opbx_hangup(opbx_chan);
-
-		                struct q931_ies ies_proc = Q931_IES_INIT;
-				struct q931_ie_cause *cause = q931_ie_cause_alloc();
-				cause->coding_standard = Q931_IE_C_CS_CCITT;
-				cause->location = q931_ie_cause_location_call(q931_call);
-				cause->value = Q931_IE_C_CV_DESTINATION_OUT_OF_ORDER;
-				q931_ies_add_put(&ies_proc, &cause->ie);
-
-                                struct q931_ies ies_disc = Q931_IES_INIT;
-				if (visdn_chan->is_voice) {
-					struct q931_ie_progress_indicator *pi =
-						q931_ie_progress_indicator_alloc();
-					pi->coding_standard = Q931_IE_PI_CS_CCITT;
-					pi->location = q931_ie_progress_indicator_location(
-								visdn_chan->q931_call);
-					pi->progress_description =
-						Q931_IE_PI_PD_IN_BAND_INFORMATION;
-					q931_ies_add_put(&ies_disc, &pi->ie);
-				}
-
-				q931_proceeding_request(q931_call, &ies_proc);
-				q931_disconnect_request(q931_call, &ies_disc);
-			} else {
-				if (!opbx_matchmore_extension(NULL, intf->context,
-						visdn_chan->called_number, 1,
-						visdn_chan->calling_number)) {
-
-					q931_proceeding_request(q931_call, NULL);
-				} else {
-					q931_more_info_request(q931_call, NULL);
-				}
-			}
-		} else {
-			q931_more_info_request(q931_call, NULL);
+		for(i=0; called_number[i]; i++) {
+			struct opbx_frame f =
+				{ OPBX_FRAME_DTMF, called_number[i] };
+			opbx_queue_frame(opbx_chan, &f);
 		}
 	}
 
@@ -3364,19 +3313,19 @@ static void visdn_q931_suspend_indication(
 
 	list_add_tail(&suspended_call->node, &intf->suspended_calls);
 
-	q931_suspend_response(q931_call, NULL);
+	q931_send_primitive(q931_call, Q931_CCB_SUSPEND_RESPONSE, NULL);
 
-	assert(opbx_chan->bridge);
+	assert(opbx_chan->_bridge);
 
-	opbx_moh_start(opbx_chan->bridge, NULL);
+	opbx_moh_start(opbx_chan->_bridge, NULL);
 
-	if (!strcmp(opbx_chan->bridge->type, VISDN_CHAN_TYPE)) {
+	if (!strcmp(opbx_chan->_bridge->type, VISDN_CHAN_TYPE)) {
 		// Wow, the remote channel is ISDN too, let's notify it!
 
 		struct q931_ies response_ies = Q931_IES_INIT;
 
 		struct visdn_chan *remote_visdn_chan =
-					opbx_chan->bridge->pvt->pvt;
+					opbx_chan->_bridge->tech_pvt;
 
 		struct q931_call *remote_call = remote_visdn_chan->q931_call;
 
@@ -3385,10 +3334,10 @@ static void visdn_q931_suspend_indication(
 		notify->description = Q931_IE_NI_D_USER_SUSPENDED;
 		q931_ies_add_put(&response_ies, &notify->ie);
 
-		q931_notify_request(remote_call, &response_ies);
+		q931_send_primitive(remote_call, Q931_CCB_NOTIFY_REQUEST, &response_ies);
 	}
 
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	if (!opbx_chan->whentohangup ||
 	    time(NULL) + 45 < opbx_chan->whentohangup)
@@ -3412,7 +3361,7 @@ err_opbx_chan:
 	c->value = cause;
 	q931_ies_add_put(&resp_ies, &c->ie);
 
-	q931_suspend_reject_request(q931_call, &resp_ies);
+	q931_send_primitive(visdn_chan->q931_call, Q931_CCB_SUSPEND_REJECT_REQUEST, &resp_ies);
 
 	return;
 }
@@ -3424,23 +3373,21 @@ static void visdn_q931_timeout_indication(
 	FUNC_DEBUG();
 }
 
-static void visdn_q931_connect_channel(struct q931_channel *channel)
+static void visdn_q931_connect_channel(
+	struct q931_channel *channel)
 {
 	FUNC_DEBUG();
 
-	assert(channel);
 	assert(channel->call);
-
 	struct opbx_channel *opbx_chan = callpvt_to_opbxchan(channel->call);
 
 	if (!opbx_chan)
 		return;
 
 	opbx_mutex_lock(&opbx_chan->lock);
-	assert(opbx_chan->pvt);
-	assert(opbx_chan->pvt->pvt);
+	assert(opbx_chan->tech_pvt);
 
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	char path[100], dest[100];
 	snprintf(path, sizeof(path),
@@ -3504,7 +3451,8 @@ err_readlink:
 	opbx_mutex_unlock(&opbx_chan->lock);
 }
 
-static void visdn_q931_disconnect_channel(struct q931_channel *channel)
+static void visdn_q931_disconnect_channel(
+	struct q931_channel *channel)
 {
 	FUNC_DEBUG();
 
@@ -3513,12 +3461,7 @@ static void visdn_q931_disconnect_channel(struct q931_channel *channel)
 	if (!opbx_chan)
 		return;
 
-	// FIXME
-#if 0
-	if (opbx_chan->generator)
-		visdn_generator_stop(opbx_chan);
-#endif
-	struct visdn_chan *visdn_chan = opbx_chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 
 	opbx_mutex_lock(&opbx_chan->lock);
 
@@ -3542,156 +3485,6 @@ static void visdn_q931_disconnect_channel(struct q931_channel *channel)
 	opbx_mutex_unlock(&opbx_chan->lock);
 }
 
-static pthread_t visdn_generator_thread = OPBX_PTHREADT_NULL;
-OPBX_MUTEX_DEFINE_STATIC(visdn_generator_lock);
-static struct opbx_channel *gen_chans[256];
-static int gen_chans_num = 0;
-
-#if 0
-
-CMANTUNES: With the new channel generator thread, this is no longer necessary
-
-static void *visdn_generator_thread_main(void *aaa)
-{
-	struct opbx_frame f;
-	__u8 buf[256];
-
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_ALAW;
-	f.samples = 80;
-	f.datalen = 80;
-	f.data = buf;
-	f.offset = 0;
-	f.src = VISDN_CHAN_TYPE;
-	f.mallocd = 0;
-	f.delivery.tv_sec = 0;
-	f.delivery.tv_usec = 0;
-
-	visdn_debug("Generator thread started\n");
-
-	while (gen_chans_num) {
-		struct opbx_channel *chan;
-
-		struct opbx_channel *gen_chans_copy[256];
-		int gen_chans_copy_num = 0;
-
-		opbx_mutex_lock(&visdn_generator_lock);
-		gen_chans_copy_num = gen_chans_num;
-		memcpy(gen_chans_copy, gen_chans,
-			sizeof(*gen_chans_copy) * gen_chans_copy_num);
-		opbx_mutex_unlock(&visdn_generator_lock);
-
-		int ms = 500;
-		chan = opbx_waitfor_n(gen_chans_copy, gen_chans_copy_num, &ms);
-		if (chan) {
-			void *tmp;
-			int res;
-
-			opbx_mutex_lock(&chan->lock);
-
-			if (chan->generator) {
-				tmp = chan->generatordata;
-				chan->generatordata = NULL;
-				res = chan->generator->generate(
-					chan, tmp, f.datalen, f.samples);
-				chan->generatordata = tmp;
-				if (res) {
-				        opbx_log(LOG_DEBUG,
-						"Auto-deactivating"
-						" generator\n");
-				        opbx_generator_deactivate(chan);
-				}
-			}
-
-			opbx_mutex_unlock(&chan->lock);
-		}
-	}
-
-	visdn_generator_thread = OPBX_PTHREADT_NULL;
-
-	visdn_debug("Generator thread stopped\n");
-
-	return NULL;
-}
-
-static int visdn_generator_start(struct opbx_channel *chan)
-{
-	int res = -1;
-
-	opbx_mutex_lock(&visdn_generator_lock);
-
-	int i;
-	for (i=0; i<gen_chans_num; i++) {
-		if (gen_chans[i] == chan)
-			goto already_generating;
-	}
-
-	if (gen_chans_num > sizeof(gen_chans)) {
-		opbx_log(LOG_WARNING, "MAX 256 chans in dialtone generation\n");
-		goto err_too_many_channels;
-	}
-
-	gen_chans[gen_chans_num] = chan;
-	gen_chans_num++;
-
-	if (visdn_generator_thread == OPBX_PTHREADT_NULL) {
-		if (opbx_pthread_create(&visdn_generator_thread, NULL,
-				visdn_generator_thread_main, NULL)) {
-			opbx_log(LOG_WARNING,
-				"Unable to create autoservice thread :(\n");
-		} else
-			pthread_kill(visdn_generator_thread, SIGURG);
-	}
-
-err_too_many_channels:
-already_generating:
-	opbx_mutex_unlock(&visdn_generator_lock);
-
-	return res;
-}
-
-static int visdn_generator_stop(struct opbx_channel *chan)
-{
-	opbx_mutex_lock(&visdn_generator_lock);
-
-	int i;
-	for (i=0; i<gen_chans_num; i++) {
-		if (gen_chans[i] == chan) {
-			int j;
-			for (j=i; j<gen_chans_num-1; j++)
-				gen_chans[j] = gen_chans[j+1];
-
-			break;
-		}
-	}
-
-	if (i == gen_chans_num)
-		goto err_chan_not_found;
-
-	gen_chans_num--;
-
-
-	if (gen_chans_num == 0 &&
-	    visdn_generator_thread != OPBX_PTHREADT_NULL) {
-		pthread_kill(visdn_generator_thread, SIGURG);
-	}
-
-	opbx_mutex_unlock(&visdn_generator_lock);
-
-	/* Wait for it to un-block */
-	while(chan->blocking)
-		usleep(1000);
-
-	return 0;
-
-err_chan_not_found:
-
-	opbx_mutex_unlock(&visdn_generator_lock);
-
-	return 0;
-}
-#endif
-
 static void visdn_q931_start_tone(struct q931_channel *channel,
 	enum q931_tone_type tone)
 {
@@ -3699,7 +3492,7 @@ static void visdn_q931_start_tone(struct q931_channel *channel,
 
 	struct opbx_channel *opbx_chan = callpvt_to_opbxchan(channel->call);
 
-	// Unfortunately, after opbx_hangup the channel is not valid
+	// Unfortunately, after ast_hangup the channel is not valid
 	// anymore and we cannot generate further tones thought we should
 	if (!opbx_chan)
 		return;
@@ -3796,6 +3589,229 @@ void visdn_q931_timer_update(struct q931_lib *lib)
 	pthread_kill(visdn_q931_thread, SIGURG);
 }
 
+static void visdn_q931_ccb_receive()
+{
+	struct q931_ccb_message *msg;
+
+	while(1) {
+		opbx_mutex_lock(&visdn.q931_ccb_queue_lock);
+
+		msg = list_entry(visdn.q931_ccb_queue.next,
+				struct q931_ccb_message, node);
+		if (&msg->node == &visdn.q931_ccb_queue) {
+			opbx_mutex_unlock(&visdn.q931_ccb_queue_lock);
+			break;
+		}
+
+		char buf[1];
+		read(visdn.q931_ccb_queue_pipe_read, buf, 1);
+
+		list_del_init(&msg->node);
+
+		opbx_mutex_unlock(&visdn.q931_ccb_queue_lock);
+
+		switch (msg->primitive) {
+		case Q931_CCB_ALERTING_INDICATION:
+			visdn_q931_alerting_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_CONNECT_INDICATION:
+			visdn_q931_connect_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_DISCONNECT_INDICATION:
+			visdn_q931_disconnect_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_ERROR_INDICATION:
+			visdn_q931_error_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_INFO_INDICATION:
+			visdn_q931_info_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_MORE_INFO_INDICATION:
+			visdn_q931_more_info_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_NOTIFY_INDICATION:
+			visdn_q931_notify_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_PROCEEDING_INDICATION:
+			visdn_q931_proceeding_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_PROGRESS_INDICATION:
+			visdn_q931_progress_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_REJECT_INDICATION:
+			visdn_q931_reject_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_RELEASE_CONFIRM:
+			visdn_q931_release_confirm(msg->call, &msg->ies,
+								msg->par1);
+		break;
+
+		case Q931_CCB_RELEASE_INDICATION:
+			visdn_q931_release_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_RESUME_CONFIRM:
+			visdn_q931_resume_confirm(msg->call, &msg->ies,
+							msg->par1);
+		break;
+
+		case Q931_CCB_RESUME_INDICATION:
+			visdn_q931_resume_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_SETUP_COMPLETE_INDICATION:
+			visdn_q931_setup_complete_indication(msg->call,
+						&msg->ies, msg->par1);
+		break;
+
+		case Q931_CCB_SETUP_CONFIRM:
+			visdn_q931_setup_confirm(msg->call, &msg->ies, msg->par1);
+		break;
+
+		case Q931_CCB_SETUP_INDICATION:
+			visdn_q931_setup_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_STATUS_INDICATION:
+			visdn_q931_status_indication(msg->call, &msg->ies,
+						msg->par1);
+		break;
+
+		case Q931_CCB_SUSPEND_CONFIRM:
+			visdn_q931_suspend_confirm(msg->call, &msg->ies,
+						msg->par1);
+		break;
+
+		case Q931_CCB_SUSPEND_INDICATION:
+			visdn_q931_suspend_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_TIMEOUT_INDICATION:
+			visdn_q931_timeout_indication(msg->call, &msg->ies);
+		break;
+
+		case Q931_CCB_TIMEOUT_MANAGEMENT_INDICATION:
+			visdn_q931_timeout_management_indication(
+				(struct q931_global_call *)msg->par1);
+		break;
+
+		case Q931_CCB_STATUS_MANAGEMENT_INDICATION:
+			visdn_q931_status_management_indication(
+				(struct q931_global_call *)msg->par1);
+		break;
+
+		case Q931_CCB_MANAGEMENT_RESTART_CONFIRM:
+			visdn_q931_management_restart_confirm(
+				(struct q931_global_call *)msg->par1,
+				(struct q931_chanset *)msg->par2);
+		break;
+
+		case Q931_CCB_CONNECT_CHANNEL:
+			visdn_q931_connect_channel(
+				(struct q931_channel *)msg->par1);
+		break;
+
+		case Q931_CCB_DISCONNECT_CHANNEL:
+			visdn_q931_disconnect_channel(
+				(struct q931_channel *)msg->par1);
+		break;
+
+		case Q931_CCB_START_TONE:
+			visdn_q931_start_tone(
+				(struct q931_channel *)msg->par1, msg->par2);
+		break;
+
+		case Q931_CCB_STOP_TONE:
+			visdn_q931_stop_tone((struct q931_channel *)msg->par1);
+		break;
+
+		default:
+			opbx_log(LOG_WARNING, "Unexpected primitive %d\n",
+				msg->primitive);
+		}
+	}
+}
+
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
+static int visdn_exec_overlap_dial(struct opbx_channel *chan, void *data)
+{
+	struct localuser *u;
+	LOCAL_USER_ADD(u);
+
+	char called_number[64] = "";
+
+	while(opbx_waitfor(chan, -1) > -1) {
+		struct opbx_frame *f;
+		f = opbx_read(chan);
+		if (!f)
+			break;
+
+		if (f->frametype == OPBX_FRAME_DTMF) {
+			opbx_setstate(chan, OPBX_STATE_DIALING);
+
+			if(strlen(called_number) >= sizeof(called_number)-1)
+				break;
+
+			called_number[strlen(called_number)] = f->subclass;
+
+			if (!opbx_canmatch_extension(NULL,
+					chan->context,
+					called_number, 1,
+					chan->cid.cid_num)) {
+
+				opbx_indicate(chan, OPBX_CONTROL_CONGESTION);
+				opbx_safe_sleep(chan, 30000);
+				return -1;
+			}
+
+			if (opbx_exists_extension(NULL,
+					chan->context,
+					called_number, 1,
+					chan->cid.cid_num)) {
+
+				if (!opbx_matchmore_extension(NULL,
+					chan->context,
+					called_number, 1,
+					chan->cid.cid_num)) {
+
+					opbx_setstate(chan, OPBX_STATE_RING);
+					opbx_indicate(chan,
+						OPBX_CONTROL_PROCEEDING);
+				}
+
+				chan->priority = 0;
+				strncpy(chan->exten, called_number,
+						sizeof(chan->exten));
+
+				opbx_frfree(f);
+
+				return 0;
+			}
+		}
+
+		opbx_frfree(f);
+	}
+
+	LOCAL_USER_REMOVE(u);
+	return -1;
+}
+
+static char *visdn_overlap_dial_descr =
+"  vISDNOverlapDial():\n";
+
 int load_module()
 {
 	int res = 0;
@@ -3804,89 +3820,40 @@ int load_module()
 	// No worries, internal structures are read-only and thread safe
 	opbx_mutex_init(&visdn.lock);
 
+	INIT_LIST_HEAD(&visdn.ccb_q931_queue);
+	opbx_mutex_init(&visdn.ccb_q931_queue_lock);
+
+	INIT_LIST_HEAD(&visdn.q931_ccb_queue);
+	opbx_mutex_init(&visdn.q931_ccb_queue_lock);
+
+	int filedes[2];
+	if (pipe(filedes) < 0) {
+		opbx_log(LOG_ERROR, "Unable to create pipe: %s\n",
+			strerror(errno));
+		return -1;
+	}
+
+	visdn.ccb_q931_queue_pipe_read = filedes[0];
+	visdn.ccb_q931_queue_pipe_write = filedes[1];
+
+	if (pipe(filedes) < 0) {
+		opbx_log(LOG_ERROR, "Unable to create pipe: %s\n",
+			strerror(errno));
+		return -1;
+	}
+
+	visdn.q931_ccb_queue_pipe_read = filedes[0];
+	visdn.q931_ccb_queue_pipe_write = filedes[1];
+
 	INIT_LIST_HEAD(&visdn.ifs);
 
 	visdn.libq931 = q931_init();
 	q931_set_logger_func(visdn.libq931, visdn_logger);
 
-	visdn.libq931->pvt =
 	visdn.libq931->timer_update = visdn_q931_timer_update;
-
-	// Setup all callbacks for libq931 primitives
-	visdn.libq931->alerting_indication =
-		visdn_q931_alerting_indication;
-	visdn.libq931->connect_indication =
-		visdn_q931_connect_indication;
-	visdn.libq931->disconnect_indication =
-		visdn_q931_disconnect_indication;
-	visdn.libq931->error_indication =
-		visdn_q931_error_indication;
-	visdn.libq931->info_indication =
-		visdn_q931_info_indication;
-	visdn.libq931->more_info_indication =
-		visdn_q931_more_info_indication;
-	visdn.libq931->notify_indication =
-		visdn_q931_notify_indication;
-	visdn.libq931->proceeding_indication =
-		visdn_q931_proceeding_indication;
-	visdn.libq931->progress_indication =
-		visdn_q931_progress_indication;
-	visdn.libq931->reject_indication =
-		visdn_q931_reject_indication;
-	visdn.libq931->release_confirm =
-		visdn_q931_release_confirm;
-	visdn.libq931->release_indication =
-		visdn_q931_release_indication;
-	visdn.libq931->resume_confirm =
-		visdn_q931_resume_confirm;
-	visdn.libq931->resume_indication =
-		visdn_q931_resume_indication;
-	visdn.libq931->setup_complete_indication =
-		visdn_q931_setup_complete_indication;
-	visdn.libq931->setup_confirm =
-		visdn_q931_setup_confirm;
-	visdn.libq931->setup_indication =
-		visdn_q931_setup_indication;
-	visdn.libq931->status_indication =
-		visdn_q931_status_indication;
-	visdn.libq931->suspend_confirm =
-		visdn_q931_suspend_confirm;
-	visdn.libq931->suspend_indication =
-		visdn_q931_suspend_indication;
-	visdn.libq931->timeout_indication =
-		visdn_q931_timeout_indication;
-
-	visdn.libq931->connect_channel =
-		visdn_q931_connect_channel;
-	visdn.libq931->disconnect_channel =
-		visdn_q931_disconnect_channel;
-	visdn.libq931->start_tone =
-		visdn_q931_start_tone;
-	visdn.libq931->stop_tone =
-		visdn_q931_stop_tone;
-
-	visdn.libq931->management_restart_confirm =
-		visdn_q931_management_restart_confirm;
-	visdn.libq931->timeout_management_indication =
-		visdn_q931_timeout_management_indication;
-	visdn.libq931->status_management_indication =
-		visdn_q931_status_management_indication;
+	visdn.libq931->queue_primitive = visdn_queue_primitive;
 
 	visdn_reload_config();
-
-	visdn.timer_fd = open("/dev/visdn/timer", O_RDONLY);
-	if (visdn.timer_fd < 0) {
-		opbx_log(LOG_ERROR, "Unable to open timer: %s\n",
-			strerror(errno));
-		return -1;
-	}
-
-	visdn.control_fd = open("/dev/visdn/control", O_RDONLY);
-	if (visdn.control_fd < 0) {
-		opbx_log(LOG_ERROR, "Unable to open control: %s\n",
-			strerror(errno));
-		return -1;
-	}
 
 	visdn.netlink_socket = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if(visdn.netlink_socket < 0) {
@@ -3961,9 +3928,7 @@ int load_module()
 		return -1;
 	}
 
-	if (opbx_channel_register_ex(VISDN_CHAN_TYPE, VISDN_DESCRIPTION,
-			 OPBX_FORMAT_ALAW,
-			 visdn_request, visdn_devicestate)) {
+	if (opbx_channel_register(&visdn_tech)) {
 		opbx_log(LOG_ERROR, "Unable to register channel class %s\n",
 			VISDN_CHAN_TYPE);
 		return -1;
@@ -3980,11 +3945,19 @@ int load_module()
 	opbx_cli_register(&show_visdn_interfaces);
 	opbx_cli_register(&show_visdn_calls);
 
+	opbx_register_application(
+		"VISDNOverlapDial",
+		visdn_exec_overlap_dial,
+		"Plays dialtone and waits for digits",
+		visdn_overlap_dial_descr);
+
 	return res;
 }
 
 int unload_module(void)
 {
+	opbx_unregister_application("VISDNOverlapDial");
+
 	opbx_cli_unregister(&show_visdn_calls);
 	opbx_cli_unregister(&show_visdn_interfaces);
 	opbx_cli_unregister(&show_visdn_channels);
@@ -3996,10 +3969,7 @@ int unload_module(void)
 	opbx_cli_unregister(&no_debug_visdn_generic);
 	opbx_cli_unregister(&debug_visdn_generic);
 
-	opbx_channel_unregister(VISDN_CHAN_TYPE);
-
-	close(visdn.timer_fd);
-	close(visdn.control_fd);
+	opbx_channel_unregister(&visdn_tech);
 
 	if (visdn.libq931)
 		q931_leave(visdn.libq931);
@@ -4027,3 +3997,4 @@ char *description()
 {
 	return VISDN_DESCRIPTION;
 }
+
