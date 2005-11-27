@@ -1365,6 +1365,10 @@ static CC_BRIDGE_RETURN capi_bridge(struct opbx_channel *c0,
 
 		who = opbx_waitfor_n(priority ? c0_priority : c1_priority, 2, &timeoutms);
 		if (!who) {
+			if (!timeoutms) {
+				ret = OPBX_BRIDGE_RETRY;
+				break;
+			}
 			cc_log(LOG_DEBUG, "Ooh, empty read...\n");
 			continue;
 		}
