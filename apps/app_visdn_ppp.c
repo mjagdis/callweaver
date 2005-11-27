@@ -26,7 +26,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps
 #include "openpbx/options.h"
 #include "openpbx/logger.h"
 
-#include <chan_visdn.h>
+#include "../channels/chan_visdn.h"
 
 static char *tdesc = "vISDN";
 static char *app = "vISDNppp";
@@ -110,7 +110,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	struct visdn_chan *visdn_chan = chan->pvt->pvt;
+	struct visdn_chan *visdn_chan = chan->tech_pvt;
 
 	if (!strlen(visdn_chan->visdn_chanid)) {
 		opbx_log(LOG_WARNING,
