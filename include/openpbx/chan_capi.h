@@ -77,6 +77,13 @@ static inline unsigned short read_capi_dword(void *m)
 }
 
 /*
+ * PBX defines
+ */
+#define cc_mutex_lock(x) opbx_mutex_lock(x)
+#define cc_mutex_unlock(x) opbx_mutex_unlock(x)
+#define cc_log(x...) opbx_log(x)
+
+/*
  * Remenants of older pre-fork chan_capi here.
  */
 

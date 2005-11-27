@@ -174,10 +174,10 @@ static _cword get_capi_MessageNumber(void)
 {
 	_cword mn;
 
-	opbx_mutex_lock(&messagenumber_lock);
+	cc_mutex_lock(&messagenumber_lock);
 	mn = capi_MessageNumber;
 	capi_MessageNumber++;
-	opbx_mutex_unlock(&messagenumber_lock);
+	cc_mutex_unlock(&messagenumber_lock);
 
 	return(mn);
 }
@@ -189,20 +189,20 @@ static MESSAGE_EXCHANGE_ERROR _capi_put_cmsg(_cmsg *CMSG)
 {
 	MESSAGE_EXCHANGE_ERROR error;
 	
-	if (opbx_mutex_lock(&capi_put_lock)) {
-		opbx_log(LOG_WARNING, "Unable to lock capi put!\n");
+	if (cc_mutex_lock(&capi_put_lock)) {
+		cc_log(LOG_WARNING, "Unable to lock capi put!\n");
 		return -1;
 	} 
 	
 	error = capi20_put_cmsg(CMSG);
 	
-	if (opbx_mutex_unlock(&capi_put_lock)) {
-		opbx_log(LOG_WARNING, "Unable to unlock capi put!\n");
+	if (cc_mutex_unlock(&capi_put_lock)) {
+		cc_log(LOG_WARNING, "Unable to unlock capi put!\n");
 		return -1;
 	}
 
 	if (error) {
-		opbx_log(LOG_ERROR, "CAPI error sending %s (NCCI=%#x) (error=%#x)\n",
+		cc_log(LOG_ERROR, "CAPI error sending %s (NCCI=%#x) (error=%#x)\n",
 			capi_cmsg2str(CMSG), (unsigned int)HEADER_CID(CMSG), error);
 	} else {
 		unsigned short wCmd = HEADER_CMD(CMSG);
@@ -231,7 +231,7 @@ static MESSAGE_EXCHANGE_ERROR check_wait_get_cmsg(_cmsg *CMSG)
 	Info = capi20_waitformessage(capi_ApplID, &tv);
 	if ((Info != 0x0000) && (Info != 0x1104)) {
 		if (capidebug) {
-			opbx_log(LOG_DEBUG, "Error waiting for cmsg... INFO = %#x\n", Info);
+			cc_log(LOG_DEBUG, "Error waiting for cmsg... INFO = %#x\n", Info);
 		}
 		return Info;
 	}
@@ -245,7 +245,7 @@ static MESSAGE_EXCHANGE_ERROR check_wait_get_cmsg(_cmsg *CMSG)
  		 * For BSD hide problem from "chan_capi":
  		 */
  		if((HEADER_CID(CMSG) & 0xFF) == 0) {
-		    HEADER_CID(CMSG) += capi_num_controllers;
+			HEADER_CID(CMSG) += capi_num_controllers;
  		}
 	}
 	return Info;
@@ -389,12 +389,12 @@ static void capi_echo_canceller(struct opbx_channel *c, int function)
 		return;
 
 	/* If echo cancellation is not requested or supported, don't attempt to enable it */
-	opbx_mutex_lock(&contrlock);
+	cc_mutex_lock(&contrlock);
 	if (!capi_controllers[i->controller]->echocancel || !i->doEC) {
-		opbx_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&contrlock);
 		return;
 	}
-	opbx_mutex_unlock(&contrlock);
+	cc_mutex_unlock(&contrlock);
 
 	cc_verbose(2, 0, VERBOSE_PREFIX_2 "%s: Setting up echo canceller (PLCI=%#x, function=%d, options=%d, tail=%d)\n",
 			i->name, i->PLCI, function, i->ecOption, i->ecTail);
@@ -439,10 +439,10 @@ static int capi_detect_dtmf(struct opbx_channel *c, int flag)
 	
 	/* does the controller support dtmf? and do we want to use it? */
 	
-	opbx_mutex_lock(&contrlock);
+	cc_mutex_lock(&contrlock);
 	
 	if ((capi_controllers[i->controller]->dtmf == 1) && (i->doDTMF == 0)) {
-		opbx_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&contrlock);
 		cc_verbose(2, 0, VERBOSE_PREFIX_2 "%s: Setting up DTMF detector (PLCI=%#x, flag=%d)\n",
 			i->name, i->PLCI, flag);
 		FACILITY_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
@@ -462,7 +462,7 @@ static int capi_detect_dtmf(struct opbx_channel *c, int flag)
 			return error;
 		}
 	} else {
-		opbx_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&contrlock);
 		/* do software dtmf detection */
 		if (i->doDTMF == 0) {
 			i->doDTMF = 1;
@@ -526,14 +526,14 @@ static int capi_send_digit(struct opbx_channel *c, char digit)
 	int ret = 0;
     
 	if (i == NULL) {
-		opbx_log(LOG_ERROR, "No interface!\n");
+		cc_log(LOG_ERROR, "No interface!\n");
 		return -1;
 	}
 
 	memset(buf, 0, sizeof(buf));
 
-	opbx_mutex_lock(&i->lock);
-	
+	cc_mutex_lock(&i->lock);
+
 	if ((c->_state == OPBX_STATE_DIALING) &&
 	    (i->state != CAPI_STATE_DISCONNECTING)) {
 		did[0] = digit;
@@ -548,20 +548,21 @@ static int capi_send_digit(struct opbx_channel *c, char digit)
 			strncat(i->overlapdigits, &digit, 1);
 			i->doOverlap = 1;
 		}
-		opbx_mutex_unlock(&i->lock);
+		cc_mutex_unlock(&i->lock);
 		return ret;
 	}
 
 	if ((i->earlyB3 != 1) && (i->state == CAPI_STATE_BCONNECTED)) {
 		/* we have a real connection, so send real DTMF */
-		opbx_mutex_lock(&contrlock);
+		cc_mutex_lock(&contrlock);
 		if ((capi_controllers[i->controller]->dtmf == 0) || (i->doDTMF > 0)) {
 			/* let * fake it */
-			opbx_mutex_unlock(&contrlock);
+			cc_mutex_unlock(&contrlock);
+			cc_mutex_unlock(&i->lock);
 			return -1;
 		}
 		
-		opbx_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&contrlock);
 	
 		FACILITY_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
 		FACILITY_REQ_PLCI(&CMSG) = i->NCCI;
@@ -579,7 +580,7 @@ static int capi_send_digit(struct opbx_channel *c, char digit)
 				i->name, digit);
 		}
 	}
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return ret;
 }
 
@@ -660,7 +661,7 @@ static void capi_activehangup(struct opbx_channel *c)
 	char *cause;
 
 	if (i == NULL) {
-		opbx_log(LOG_WARNING, "No interface!\n");
+		cc_log(LOG_WARNING, "No interface!\n");
 		return;
 	}
 
@@ -723,11 +724,11 @@ static int capi_hangup(struct opbx_channel *c)
 	 */
 
 	if (i == NULL) {
-		opbx_log(LOG_ERROR, "channel has no interface!\n");
+		cc_log(LOG_ERROR, "channel has no interface!\n");
 		return -1;
 	}
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 
 	cc_verbose(3, 0, VERBOSE_PREFIX_2 "%s: CAPI Hangingup\n",
 		i->name);
@@ -744,9 +745,9 @@ static int capi_hangup(struct opbx_channel *c)
 		opbx_dsp_free(i->vad);
 	}
 	
-	opbx_mutex_lock(&usecnt_lock);
+	cc_mutex_lock(&usecnt_lock);
 	usecnt--;
-	opbx_mutex_unlock(&usecnt_lock);
+	cc_mutex_unlock(&usecnt_lock);
 	
 	opbx_update_use_count();
 	
@@ -758,7 +759,7 @@ static int capi_hangup(struct opbx_channel *c)
 		interface_cleanup(i);
 	}
 
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 
 	return 0;
 }
@@ -821,7 +822,7 @@ static void parse_dialstring(char *buffer, char **interface, char **dest, char *
 				*param = buffer_p;
 				cp++;
 			} else {
-				opbx_log(LOG_WARNING, "Too many parts in dialstring '%s'\n",
+				cc_log(LOG_WARNING, "Too many parts in dialstring '%s'\n",
 					buffer);
 			}
 			continue;
@@ -864,8 +865,8 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	strncpy(buffer, idest, sizeof(buffer) - 1);
 	parse_dialstring(buffer, &interface, &dest, &param, &ocid);
 
-	opbx_mutex_lock(&i->lock);
-	
+	cc_mutex_lock(&i->lock);
+
 	/* init param settings */
 	i->doB3 = CAPI_B3_DONT;
 	i->doOverlap = 0;
@@ -876,17 +877,17 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 		switch (*param) {
 		case 'b':	/* always B3 */
 			if (i->doB3 != CAPI_B3_DONT)
-				opbx_log(LOG_WARNING, "B3 already set in '%s'\n", idest);
+				cc_log(LOG_WARNING, "B3 already set in '%s'\n", idest);
 			i->doB3 = CAPI_B3_ALWAYS;
 			break;
 		case 'B':	/* only do B3 on successfull calls */
 			if (i->doB3 != CAPI_B3_DONT)
-				opbx_log(LOG_WARNING, "B3 already set in '%s'\n", idest);
+				cc_log(LOG_WARNING, "B3 already set in '%s'\n", idest);
 			i->doB3 = CAPI_B3_ON_SUCCESS;
 			break;
 		case 'o':	/* overlap sending of digits */
 			if (i->doOverlap)
-				opbx_log(LOG_WARNING, "Overlap already set in '%s'\n", idest);
+				cc_log(LOG_WARNING, "Overlap already set in '%s'\n", idest);
 			i->doOverlap = 1;
 			break;
 		case 'd':	/* use default cid */
@@ -895,14 +896,14 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 			use_defaultcid = 1;
 			break;
 		default:
-			opbx_log(LOG_WARNING, "Unknown parameter '%c' in '%s', ignoring.\n",
+			cc_log(LOG_WARNING, "Unknown parameter '%c' in '%s', ignoring.\n",
 				*param, idest);
 		}
 		param++;
 	}
 	if (((!dest) || (!dest[0])) && (i->doB3 != CAPI_B3_ALWAYS)) {
-		opbx_log(LOG_ERROR, "No destination or dialtone requested in '%s'\n", idest);
-		opbx_mutex_unlock(&i->lock);
+		cc_log(LOG_ERROR, "No destination or dialtone requested in '%s'\n", idest);
+		cc_mutex_unlock(&i->lock);
 		return -1;
 	}
 
@@ -978,7 +979,7 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 
         if ((error = _capi_put_cmsg(&CMSG))) {
 		interface_cleanup(i);
-		opbx_mutex_unlock(&i->lock);
+		cc_mutex_unlock(&i->lock);
 		return error;
 	}
 
@@ -986,7 +987,7 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	opbx_setstate(c, OPBX_STATE_DIALING);
 
 	/* now we shall return .... the rest has to be done by handle_msg */
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return 0;
 }
 
@@ -1053,9 +1054,9 @@ static int capi_answer(struct opbx_channel *c)
 	int ret;
 	int bprot[3] = { 1, 1, 0 };
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 	ret = capi_send_answer(c, bprot, NULL);
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return ret;
 }
 
@@ -1068,7 +1069,7 @@ struct opbx_frame *capi_read(struct opbx_channel *c)
 	int readsize = 0;
 	
 	if (i == NULL) {
-		opbx_log(LOG_ERROR, "channel has no interface\n");
+		cc_log(LOG_ERROR, "channel has no interface\n");
 		return NULL;
 	}
 
@@ -1084,12 +1085,12 @@ struct opbx_frame *capi_read(struct opbx_channel *c)
 	i->fr.delivery.tv_usec = 0;
 	readsize = read(i->fd, &i->fr, sizeof(struct opbx_frame));
 	if (readsize != sizeof(struct opbx_frame)) {
-		opbx_log(LOG_ERROR, "did not read a whole frame\n");
+		cc_log(LOG_ERROR, "did not read a whole frame\n");
 	}
 	if (i->fr.frametype == OPBX_FRAME_VOICE) {
 		readsize = read(i->fd, i->fr.data, i->fr.datalen);
 		if (readsize != i->fr.datalen) {
-			opbx_log(LOG_ERROR, "did not read whole frame data\n");
+			cc_log(LOG_ERROR, "did not read whole frame data\n");
 		}
 	}
 	
@@ -1106,12 +1107,12 @@ struct opbx_frame *capi_read(struct opbx_channel *c)
 				/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 				pbx_builtin_setvar_helper(c, "FAXEXTEN", c->exten);
 				if (opbx_async_goto(c, c->context, "fax", 1))
-					opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", c->name, c->context);
+					cc_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", c->name, c->context);
 			} else {
 				cc_verbose(3, 0, VERBOSE_PREFIX_3 "Fax detected, but no fax extension\n");
 			}
 		} else {
-			opbx_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+			cc_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
 		}
 	}
 	return &i->fr;
@@ -1131,52 +1132,52 @@ int capi_write(struct opbx_channel *c, struct opbx_frame *f)
 	int txavg=0;
 
 	if (!i) {
-		opbx_log(LOG_ERROR, "channel has no interface\n");
+		cc_log(LOG_ERROR, "channel has no interface\n");
 		return -1;
 	} 
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 
 	/* dont send audio to the local exchange! */
 	if ((i->earlyB3 == 1) || (!i->NCCI)) {
-		opbx_mutex_unlock(&i->lock);
+		cc_mutex_unlock(&i->lock);
 		return 0;
 	}
 
 	if (f->frametype == OPBX_FRAME_NULL) {
-		opbx_mutex_unlock(&i->lock);
+		cc_mutex_unlock(&i->lock);
 		return 0;
 	}
 	if (f->frametype == OPBX_FRAME_DTMF) {
-		opbx_log(LOG_ERROR, "dtmf frame should be written\n");
-		opbx_mutex_unlock(&i->lock);
+		cc_log(LOG_ERROR, "dtmf frame should be written\n");
+		cc_mutex_unlock(&i->lock);
 		return 0;
 	}
 	if (f->frametype != OPBX_FRAME_VOICE) {
-		opbx_log(LOG_ERROR,"not a voice frame\n");
-		opbx_mutex_unlock(&i->lock);
+		cc_log(LOG_ERROR,"not a voice frame\n");
+		cc_mutex_unlock(&i->lock);
 		return -1;
 	}
 	if (i->FaxState) {
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: write on fax_receive?\n",
 			i->name);
-		opbx_mutex_unlock(&i->lock);
+		cc_mutex_unlock(&i->lock);
 		return 0;
 	}
 	if (f->subclass != capi_capability) {
-		opbx_log(LOG_ERROR, "dont know how to write subclass %d\n", f->subclass);
-		opbx_mutex_unlock(&i->lock);
+		cc_log(LOG_ERROR, "dont know how to write subclass %d\n", f->subclass);
+		cc_mutex_unlock(&i->lock);
 		return -1;
 	}
 	if ((!f->data) || (!f->datalen) || (!i->smoother)) {
-		opbx_log(LOG_ERROR, "No data for FRAME_VOICE %s\n", c->name);
-		opbx_mutex_unlock(&i->lock);
+		cc_log(LOG_ERROR, "No data for FRAME_VOICE %s\n", c->name);
+		cc_mutex_unlock(&i->lock);
 		return 0;
 	}
 
 	if (opbx_smoother_feed(i->smoother, f) != 0) {
-		opbx_log(LOG_ERROR, "%s: failed to fill smoother\n", i->name);
-		opbx_mutex_unlock(&i->lock);
+		cc_log(LOG_ERROR, "%s: failed to fill smoother\n", i->name);
+		cc_mutex_unlock(&i->lock);
 		return -1;
 	}
 
@@ -1227,16 +1228,16 @@ int capi_write(struct opbx_channel *c, struct opbx_frame *f)
 		}
 
 		if (!error) {
-			opbx_mutex_lock(&i->lockB3q);
+			cc_mutex_lock(&i->lockB3q);
 			i->B3q -= fsmooth->datalen;
 			if (i->B3q < 0)
 				i->B3q = 0;
-			opbx_mutex_unlock(&i->lockB3q);
+			cc_mutex_unlock(&i->lockB3q);
 		}
 
 	        fsmooth = opbx_smoother_read(i->smoother);
 	}
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return 0;
 }
 
@@ -1250,9 +1251,9 @@ static int capi_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan
 	cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: %s fixup now %s\n",
 		i->name, oldchan->name, newchan->name);
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 	i->owner = newchan;
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return 0;
 }
 
@@ -1333,13 +1334,13 @@ static CC_BRIDGE_RETURN capi_bridge(struct opbx_channel *c0,
 	if ((!i0->bridge) || (!i1->bridge))
 		return OPBX_BRIDGE_FAILED_NOWARN;
 
-	opbx_mutex_lock(&contrlock);
+	cc_mutex_lock(&contrlock);
 	if ((!capi_controllers[i0->controller]->lineinterconnect) ||
 	    (!capi_controllers[i1->controller]->lineinterconnect)) {
-		opbx_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&contrlock);
 		return OPBX_BRIDGE_FAILED_NOWARN;
 	}
-	opbx_mutex_unlock(&contrlock);
+	cc_mutex_unlock(&contrlock);
 
 	if (!(flags & OPBX_BRIDGE_DTMF_CHANNEL_0))
 		capi_detect_dtmf(i0->owner, 0);
@@ -1364,7 +1365,7 @@ static CC_BRIDGE_RETURN capi_bridge(struct opbx_channel *c0,
 
 		who = opbx_waitfor_n(priority ? c0_priority : c1_priority, 2, &timeoutms);
 		if (!who) {
-			opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
+			cc_log(LOG_DEBUG, "Ooh, empty read...\n");
 			continue;
 		}
 		f = opbx_read(who);
@@ -1414,7 +1415,7 @@ static struct opbx_channel *capi_new(struct capi_pvt *i, int state)
 	tmp = opbx_channel_alloc(0);
 	
 	if (tmp == NULL) {
-		opbx_log(LOG_ERROR,"Unable to allocate channel!\n");
+		cc_log(LOG_ERROR,"Unable to allocate channel!\n");
 		return(NULL);
 	}
 
@@ -1423,7 +1424,7 @@ static struct opbx_channel *capi_new(struct capi_pvt *i, int state)
 	tmp->type = channeltype;
 
 	if (pipe(fds) != 0) {
-	    	opbx_log(LOG_ERROR, "%s: unable to create pipe.\n", i->name);
+	    	cc_log(LOG_ERROR, "%s: unable to create pipe.\n", i->name);
 		opbx_channel_free(tmp);
 		return NULL;
 	}
@@ -1483,9 +1484,9 @@ static struct opbx_channel *capi_new(struct capi_pvt *i, int state)
 	strncpy(tmp->exten, i->dnid, sizeof(tmp->exten) - 1);
 	strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode) - 1);
 	i->owner = tmp;
-	opbx_mutex_lock(&usecnt_lock);
+	cc_mutex_lock(&usecnt_lock);
 	usecnt++;
-	opbx_mutex_unlock(&usecnt_lock);
+	cc_mutex_unlock(&usecnt_lock);
 	opbx_update_use_count();
 	
 	opbx_setstate(tmp, state);
@@ -1512,7 +1513,7 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 	parse_dialstring(buffer, &interface, &dest, &param, &ocid);
 
 	if ((!interface) || (!dest)) {
-		opbx_log(LOG_ERROR, "Syntax error in dialstring. Read the docs!\n");
+		cc_log(LOG_ERROR, "Syntax error in dialstring. Read the docs!\n");
 		*cause = OPBX_CAUSE_INVALID_NUMBER_FORMAT;
 		return NULL;
 	}
@@ -1530,7 +1531,7 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 				interface);
  	}
 
-	opbx_mutex_lock(&iflock);
+	cc_mutex_lock(&iflock);
 	
 	for (i = iflist; (i && notfound); i = i->next) {
 		if ((i->owner) || (i->channeltype != CAPI_CHANNELTYPE_B)) {
@@ -1538,13 +1539,13 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 			continue;
 		}
 		/* unused channel */
-		opbx_mutex_lock(&contrlock);
+		cc_mutex_lock(&contrlock);
 		if (controller) {
 			/* DIAL(CAPI/contrX/...) */
 			if ((!(i->controllers & (1 << controller))) ||
 			    (capi_controllers[controller]->nfreebchannels < 1)) {
 				/* keep on running! */
-				opbx_mutex_unlock(&contrlock);
+				cc_mutex_unlock(&contrlock);
 				continue;
 			}
 			foundcontroller = controller;
@@ -1552,13 +1553,13 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 			/* DIAL(CAPI/gX/...) */
 			if ((interface[0] == 'g') && (!(i->group & capigroup))) {
 				/* keep on running! */
-				opbx_mutex_unlock(&contrlock);
+				cc_mutex_unlock(&contrlock);
 				continue;
 			}
 			/* DIAL(CAPI/<interface-name>/...) */
 			if ((interface[0] != 'g') && (strcmp(interface, i->name))) {
 				/* keep on running! */
-				opbx_mutex_unlock(&contrlock);
+				cc_mutex_unlock(&contrlock);
 				continue;
 			}
 			for (foundcontroller = 1; foundcontroller <= capi_num_controllers; foundcontroller++) {
@@ -1569,7 +1570,7 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 			}
 			if (foundcontroller > capi_num_controllers) {
 				/* keep on running! */
-				opbx_mutex_unlock(&contrlock);
+				cc_mutex_unlock(&contrlock);
 				continue;
 			}
 		}
@@ -1578,17 +1579,17 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 		i->controller = foundcontroller;
 		tmp = capi_new(i, OPBX_STATE_RESERVED);
 		if (!tmp) {
-			opbx_log(LOG_ERROR, "cannot create new capi channel\n");
+			cc_log(LOG_ERROR, "cannot create new capi channel\n");
 			interface_cleanup(i);
 		}
 		i->PLCI = 0;
 		i->outgoing = 1;	/* this is an outgoing line */
 		i->earlyB3 = -1;
-		opbx_mutex_unlock(&contrlock);
-		opbx_mutex_unlock(&iflock);
+		cc_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&iflock);
 		return tmp;
 	}
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 	cc_verbose(2, 0, VERBOSE_PREFIX_3 "didn't find capi device for interface '%s'\n",
 		interface);
 	*cause = OPBX_CAUSE_REQUESTED_CHAN_UNAVAIL;
@@ -1637,7 +1638,7 @@ static void capi_change_bchan_fax(struct opbx_channel *c, B3_PROTO_FAXG3 *b3conf
 			waitcount--;
 		}
 		if (i->state != CAPI_STATE_CONNECTED) {
-			opbx_log(LOG_WARNING, "capi receivefax disconnect b3 wait error\n");
+			cc_log(LOG_WARNING, "capi receivefax disconnect b3 wait error\n");
 		}
 	}
 
@@ -1666,11 +1667,11 @@ static int capi_receive_fax(struct opbx_channel *c, char *data)
 	B3_PROTO_FAXG3 b3conf;
 
 	if (!data) { /* no data implies no filename or anything is present */
-		opbx_log(LOG_WARNING, "capi receivefax requires a filename\n");
+		cc_log(LOG_WARNING, "capi receivefax requires a filename\n");
 		return -1;
 	}
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 
 	filename = strsep(&data, "|");
 	stationid = strsep(&data, "|");
@@ -1682,8 +1683,8 @@ static int capi_receive_fax(struct opbx_channel *c, char *data)
 		headline = emptyid;
 
 	if ((i->fFax = fopen(filename, "wb")) == NULL) {
-		opbx_mutex_unlock(&i->lock);
-		opbx_log(LOG_WARNING, "can't create fax output file (%s)\n", strerror(errno));
+		cc_mutex_unlock(&i->lock);
+		cc_log(LOG_WARNING, "can't create fax output file (%s)\n", strerror(errno));
 		return -1;
 	}
 
@@ -1702,8 +1703,8 @@ static int capi_receive_fax(struct opbx_channel *c, char *data)
 		break;
 	default:
 		i->FaxState = 0;
-		opbx_mutex_unlock(&i->lock);
-		opbx_log(LOG_WARNING, "capi receive fax in wrong state (%d)\n",
+		cc_mutex_unlock(&i->lock);
+		cc_log(LOG_WARNING, "capi receive fax in wrong state (%d)\n",
 			i->state);
 		return -1;
 	}
@@ -1734,7 +1735,7 @@ static int capi_receive_fax(struct opbx_channel *c, char *data)
 			VERBOSE_PREFIX_1 "capi receivefax: fax receive successful.\n");
 	}
 	
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return res;
 }
 
@@ -1746,20 +1747,20 @@ static void capi_handle_dtmf_fax(struct opbx_channel *c)
 	struct capi_pvt *p;
 
 	if (!c) {
-		opbx_log(LOG_ERROR, "No channel!\n");
+		cc_log(LOG_ERROR, "No channel!\n");
 		return;
 	}
 	p = CC_CHANNEL_PVT(c);
 	
 	if (p->faxhandled) {
-		opbx_log(LOG_DEBUG, "Fax already handled\n");
+		cc_log(LOG_DEBUG, "Fax already handled\n");
 		return;
 	}
 	
 	p->faxhandled++;
 	
 	if (!strcmp(c->exten, "fax")) {
-		opbx_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+		cc_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
 		return;
 	}
 	if (!opbx_exists_extension(c, c->context, "fax", 1, p->cid)) {
@@ -1774,7 +1775,7 @@ static void capi_handle_dtmf_fax(struct opbx_channel *c)
 	pbx_builtin_setvar_helper(c, "FAXEXTEN", c->exten);
 	
 	if (opbx_async_goto(c, c->context, "fax", 1))
-		opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", c->name, c->context);
+		cc_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", c->name, c->context);
 	return;
 }
 
@@ -1788,12 +1789,12 @@ static struct capi_pvt *find_interface_by_plci(unsigned int plci)
 	if (plci == 0)
 		return NULL;
 
-	opbx_mutex_lock(&iflock);
+	cc_mutex_lock(&iflock);
 	for (i = iflist; i; i = i->next) {
 		if (i->PLCI == plci)
 			break;
 	}
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 
 	return i;
 }
@@ -1805,12 +1806,12 @@ static struct capi_pvt *find_interface_by_msgnum(unsigned short msgnum)
 {
 	struct capi_pvt *i;
 
-	opbx_mutex_lock(&iflock);
+	cc_mutex_lock(&iflock);
 	for (i = iflist; i; i = i->next) {
 		    if ((i->PLCI == 0) && (i->MessageNumber == msgnum))
 			break;
 	}
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 
 	return i;
 }
@@ -1831,7 +1832,7 @@ static int pipe_frame(struct capi_pvt *i, struct opbx_frame *f)
 	}
 
 	if (i->fd2 == -1) {
-		opbx_log(LOG_ERROR, "No fd in pipe_frame for %s\n",
+		cc_log(LOG_ERROR, "No fd in pipe_frame for %s\n",
 			i->owner->name);
 		return -1;
 	}
@@ -1854,14 +1855,14 @@ static int pipe_frame(struct capi_pvt *i, struct opbx_frame *f)
 	if (select(i->fd2 + 1, NULL, &wfds, NULL, &tv) == 1) {
 		written = write(i->fd2, f, sizeof(struct opbx_frame));
 		if (written < (signed int) sizeof(struct opbx_frame)) {
-			opbx_log(LOG_ERROR, "wrote %d bytes instead of %d\n",
+			cc_log(LOG_ERROR, "wrote %d bytes instead of %d\n",
 				written, sizeof(struct opbx_frame));
 			return -1;
 		}
 		if (f->frametype == OPBX_FRAME_VOICE) {
 			written = write(i->fd2, f->data, f->datalen);
 			if (written < f->datalen) {
-				opbx_log(LOG_ERROR, "wrote %d bytes instead of %d\n",
+				cc_log(LOG_ERROR, "wrote %d bytes instead of %d\n",
 					written, f->datalen);
 				return -1;
 			}
@@ -2012,7 +2013,7 @@ static void start_pbx_on_match(struct capi_pvt *i, unsigned int PLCI, _cword Mes
 		i->isdnstate |= CAPI_ISDN_STATE_PBX;
 		opbx_setstate(i->owner, OPBX_STATE_RING);
 		if (opbx_pbx_start(i->owner)) {
-			opbx_log(LOG_ERROR, "%s: Unable to start pbx on channel!\n",
+			cc_log(LOG_ERROR, "%s: Unable to start pbx on channel!\n",
 				i->name);
 			chan_to_hangup = i->owner;
 		} else {
@@ -2029,7 +2030,7 @@ static void start_pbx_on_match(struct capi_pvt *i, unsigned int PLCI, _cword Mes
 	default:
 		/* doesn't match */
 		i->isdnstate |= CAPI_ISDN_STATE_PBX; /* don't try again */
-		opbx_log(LOG_ERROR, "%s: did not find exten for '%s', ignoring call.\n",
+		cc_log(LOG_ERROR, "%s: did not find exten for '%s', ignoring call.\n",
 			i->name, i->dnid);
 		CONNECT_RESP_HEADER(&CMSG2, capi_ApplID, MessageNumber, 0);
 		CONNECT_RESP_PLCI(&CMSG2) = PLCI;
@@ -2049,7 +2050,7 @@ static void handle_did_digits(_cmsg *CMSG, unsigned int PLCI, unsigned int NCCI,
 	int a;
 
 	if (!i->owner) {
-		opbx_log(LOG_ERROR, "No channel for interface!\n");
+		cc_log(LOG_ERROR, "No channel for interface!\n");
 		return;
 	}
 
@@ -2208,7 +2209,7 @@ static void handle_setup_element(_cmsg *CMSG, unsigned int PLCI, struct capi_pvt
 	i->isdnstate |= CAPI_ISDN_STATE_SETUP;
 
 	if (!i->owner) {
-		opbx_log(LOG_ERROR, "No channel for interface!\n");
+		cc_log(LOG_ERROR, "No channel for interface!\n");
 		return;
 	}
 
@@ -2289,7 +2290,7 @@ static void capi_handle_info_indication(_cmsg *CMSG, unsigned int PLCI, unsigned
 		struct opbx_frame ft = { OPBX_FRAME_TEXT, capi_number(INFO_IND_INFOELEMENT(CMSG),0), };
 		opbx_sendtext(i->owner,capi_number(INFO_IND_INFOELEMENT(CMSG), 0));
 		opbx_queue_frame(i->owner, &ft);
-		opbx_log(LOG_NOTICE,"%s\n",capi_number(INFO_IND_INFOELEMENT(CMSG),0));
+		cc_log(LOG_NOTICE,"%s\n",capi_number(INFO_IND_INFOELEMENT(CMSG),0));
 		#endif
 		break;
 	case 0x0029:	/* Date/Time */
@@ -2493,13 +2494,13 @@ static void capi_handle_facility_indication(_cmsg *CMSG, unsigned int PLCI, unsi
 	if (FACILITY_IND_FACILITYSELECTOR(CMSG) == FACILITYSELECTOR_SUPPLEMENTARY) {
 		/* supplementary sservices */
 #if 0
-		opbx_log(LOG_NOTICE,"FACILITY_IND PLCI = %#x\n",PLCI);
-		opbx_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[0]);
-		opbx_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[1]);
-		opbx_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[2]);
-		opbx_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[3]);
-		opbx_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[4]);
-		opbx_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[5]);
+		cc_log(LOG_NOTICE,"FACILITY_IND PLCI = %#x\n",PLCI);
+		cc_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[0]);
+		cc_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[1]);
+		cc_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[2]);
+		cc_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[3]);
+		cc_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[4]);
+		cc_log(LOG_NOTICE,"%#x\n",FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[5]);
 #endif
 		/* ECT */
 		if ( (FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[1] == 0x6) &&
@@ -2516,7 +2517,7 @@ static void capi_handle_facility_indication(_cmsg *CMSG, unsigned int PLCI, unsi
 		     (FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[3] == 0x2) ) {
 			if ((FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[5] != 0) || 
 			    (FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[4] != 0)) { 
-				opbx_log(LOG_WARNING, "%s: unable to retrieve PLCI=%#x, REASON = 0x%02x%02x\n",
+				cc_log(LOG_WARNING, "%s: unable to retrieve PLCI=%#x, REASON = 0x%02x%02x\n",
 					i->name, PLCI,
 					FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[5],
 					FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[4]);
@@ -2546,7 +2547,7 @@ static void capi_handle_facility_indication(_cmsg *CMSG, unsigned int PLCI, unsi
 				/* reason != 0x0000 == problem */
 				i->onholdPLCI = 0;
 				i->state = CAPI_STATE_BCONNECTED;
-				opbx_log(LOG_WARNING, "%s: unable to put PLCI=%#x onhold, REASON = 0x%02x%02x, maybe you need to subscribe for this...\n",
+				cc_log(LOG_WARNING, "%s: unable to put PLCI=%#x onhold, REASON = 0x%02x%02x, maybe you need to subscribe for this...\n",
 					i->name, PLCI,
 					FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[5],
 					FACILITY_IND_FACILITYINDICATIONPARAMETER(CMSG)[4]);
@@ -2592,16 +2593,16 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 		cc_verbose(6, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND (len=%d) Fax\n",
 			i->name, b3len);
 		if (fwrite(b3buf, 1, b3len, i->fFax) != b3len)
-			opbx_log(LOG_WARNING, "%s : error writing output file (%s)\n",
+			cc_log(LOG_WARNING, "%s : error writing output file (%s)\n",
 				i->name, strerror(errno));
 		return;
 	}
 	    
-	opbx_mutex_lock(&i->lockB3q);
+	cc_mutex_lock(&i->lockB3q);
 	if (i->B3q < 800) {
 		i->B3q += b3len;
 	}
-	opbx_mutex_unlock(&i->lockB3q);
+	cc_mutex_unlock(&i->lockB3q);
 
 	if ((i->doES == 1)) {
 		for (j = 0; j < b3len; j++) {
@@ -2738,11 +2739,11 @@ static void capi_handle_connect_b3_active_indication(_cmsg *CMSG, unsigned int P
 	
 	return_on_no_interface("CONNECT_ACTIVE_B3_IND");
 
-	opbx_mutex_lock(&contrlock);
+	cc_mutex_lock(&contrlock);
 	if (i->controller > 0) {
 		capi_controllers[i->controller]->nfreebchannels--;
 	}
-	opbx_mutex_unlock(&contrlock);
+	cc_mutex_unlock(&contrlock);
 
 	if (i->state == CAPI_STATE_DISCONNECTING) {
 		cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: CONNECT_B3_ACTIVE_IND during disconnect for NCCI %#x\n",
@@ -2753,7 +2754,7 @@ static void capi_handle_connect_b3_active_indication(_cmsg *CMSG, unsigned int P
 	i->state = CAPI_STATE_BCONNECTED;
 
 	if (!i->owner) {
-		opbx_log(LOG_ERROR, "%s: No channel for interface!\n",
+		cc_log(LOG_ERROR, "%s: No channel for interface!\n",
 			i->name);
 		return;
 	}
@@ -2810,11 +2811,11 @@ static void capi_handle_disconnect_b3_indication(_cmsg *CMSG, unsigned int PLCI,
 		break;
 	}
 
-	opbx_mutex_lock(&contrlock);
+	cc_mutex_lock(&contrlock);
 	if (i->controller > 0) {
 		capi_controllers[i->controller]->nfreebchannels++;
 	}
-	opbx_mutex_unlock(&contrlock);
+	cc_mutex_unlock(&contrlock);
 }
 
 /*
@@ -2898,7 +2899,7 @@ static void capi_handle_disconnect_indication(_cmsg *CMSG, unsigned int PLCI, un
 			chan_to_softhangup = i->owner;
 		} else {
 			/* dont ever hangup while hanging up! */
-			/* opbx_log(LOG_NOTICE,"no soft hangup by capi\n"); */
+			/* cc_log(LOG_NOTICE,"no soft hangup by capi\n"); */
 		}
 	}
 
@@ -2920,22 +2921,22 @@ static int capi_call_deflect(struct opbx_channel *c, char *param)
 	int	res = 0;
 
 	if ((!param) || (!strlen(param))) {
-		opbx_log(LOG_WARNING, "capi deflection requires an argument (destination phone number)\n");
+		cc_log(LOG_WARNING, "capi deflection requires an argument (destination phone number)\n");
 		return -1;
 	}
 	if (!(capi_controllers[i->controller]->CD)) {
-		opbx_log(LOG_NOTICE,"%s: CALL DEFLECT for %s not supported by controller.\n",
+		cc_log(LOG_NOTICE,"%s: CALL DEFLECT for %s not supported by controller.\n",
 			i->name, c->name);
 		return -1;
 	}
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 	
 	if ((i->state != CAPI_STATE_INCALL) &&
 	    (i->state != CAPI_STATE_DID) &&
 	    (i->state != CAPI_STATE_ALERTING)) {
-		opbx_mutex_unlock(&i->lock);
-		opbx_log(LOG_WARNING, "wrong state of call for call deflection\n");
+		cc_mutex_unlock(&i->lock);
+		cc_log(LOG_WARNING, "wrong state of call for call deflection\n");
 		return -1;
 	}
 	if (i->state != CAPI_STATE_ALERTING) {
@@ -3008,7 +3009,7 @@ static int capi_call_deflect(struct opbx_channel *c, char *param)
 	cc_verbose(2, 1, VERBOSE_PREFIX_3 "%s: sent INFO_REQ for CD PLCI = %#x\n",
 		i->name, i->PLCI);
 
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return(res);
 }
 
@@ -3065,7 +3066,7 @@ static void capi_handle_connect_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 	}
 
 	/* well...somebody is calling us. let's set up a channel */
-	opbx_mutex_lock(&iflock);
+	cc_mutex_lock(&iflock);
 	for (i = iflist; i; i = i->next) {
 		if (i->owner) {
 			/* has already owner */
@@ -3138,8 +3139,8 @@ static void capi_handle_connect_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 				i->name, i->cid, i->dnid);
 
 			*interface = i;
-			opbx_mutex_lock(&i->lock);
-			opbx_mutex_unlock(&iflock);
+			cc_mutex_lock(&i->lock);
+			cc_mutex_unlock(&iflock);
 			
 			pbx_builtin_setvar_helper(i->owner, "BCHANNELINFO", bchannelinfo);
 			sprintf(buffer, "%d", callednplan);
@@ -3164,12 +3165,12 @@ static void capi_handle_connect_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 			return;
 		}
 	}
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 
 	/* obviously we are not called...so tell capi to ignore this call */
 
 	if (capidebug) {
-		opbx_log(LOG_WARNING, "did not find device for msn = %s\n", DNID);
+		cc_log(LOG_WARNING, "did not find device for msn = %s\n", DNID);
 	}
 	
 	CONNECT_RESP_HEADER(&CMSG2, capi_ApplID, HEADER_MSGNUM(CMSG), 0);
@@ -3232,7 +3233,7 @@ static void capi_handle_facility_confirmation(_cmsg *CMSG, unsigned int PLCI, un
 		}
 		return;
 	}
-	opbx_log(LOG_ERROR, "%s: unhandled FACILITY_CONF 0x%x\n",
+	cc_log(LOG_ERROR, "%s: unhandled FACILITY_CONF 0x%x\n",
 		i->name, FACILITY_CONF_FACILITYSELECTOR(CMSG));
 }
 
@@ -3254,7 +3255,7 @@ static void show_capi_conf_error(struct capi_pvt *i,
 			       "Command=%s,0x%04x\n",
 			       name, wInfo, PLCI, capi_command_to_string(wCmd), wCmd);
 	} else {
-		opbx_log(LOG_WARNING, "%s: conf_error 0x%04x "
+		cc_log(LOG_WARNING, "%s: conf_error 0x%04x "
 			"PLCI=0x%x Command=%s,0x%04x\n",
 			name, wInfo, PLCI, capi_command_to_string(wCmd), wCmd);
 	}
@@ -3281,7 +3282,7 @@ static void capi_handle_msg(_cmsg *CMSG)
 	}
 
 	if (i != NULL)
-		opbx_mutex_lock(&i->lock);
+		cc_mutex_lock(&i->lock);
 
 	/* main switch table */
 
@@ -3338,7 +3339,7 @@ static void capi_handle_msg(_cmsg *CMSG)
 	case CAPI_P_CONF(CONNECT):
 		wInfo = CONNECT_CONF_INFO(CMSG);
 		if (i) {
-			opbx_log(LOG_ERROR, "CAPI: CONNECT_CONF for already "
+			cc_log(LOG_ERROR, "CAPI: CONNECT_CONF for already "
 				"defined interface received\n");
 			break;
 		}
@@ -3412,7 +3413,7 @@ static void capi_handle_msg(_cmsg *CMSG)
 		break;
 
 	default:
-		opbx_log(LOG_ERROR, "CAPI: Command=%s,0x%04x",
+		cc_log(LOG_ERROR, "CAPI: Command=%s,0x%04x",
 			capi_command_to_string(wCmd), wCmd);
 		break;
 	}
@@ -3432,7 +3433,7 @@ static void capi_handle_msg(_cmsg *CMSG)
 	}
 
 	if (i != NULL)
-		opbx_mutex_unlock(&i->lock);
+		cc_mutex_unlock(&i->lock);
 
 	return;
 }
@@ -3454,19 +3455,19 @@ static int capi_retrieve(struct opbx_channel *c, char *param)
 
 	if (param) {
 		plci = (unsigned int)strtoul(param, NULL, 0);
-		opbx_mutex_lock(&iflock);
+		cc_mutex_lock(&iflock);
 		for (i = iflist; i; i = i->next) {
 			if (i->onholdPLCI == plci)
 				break;
 		}
-		opbx_mutex_unlock(&iflock);
+		cc_mutex_unlock(&iflock);
 		if (!i) {
 			plci = 0;
 		}
 	}
 
 	if (!i) {
-		opbx_log(LOG_WARNING, "%s is not valid or not on capi hold to retrieve!\n",
+		cc_log(LOG_WARNING, "%s is not valid or not on capi hold to retrieve!\n",
 			c->name);
 		return 0;
 	}
@@ -3480,7 +3481,7 @@ static int capi_retrieve(struct opbx_channel *c, char *param)
 	}
 
 	if ((!plci) || (i->state != CAPI_STATE_ONHOLD)) {
-		opbx_log(LOG_WARNING, "%s: 0x%x is not valid or not on hold to retrieve!\n",
+		cc_log(LOG_WARNING, "%s: 0x%x is not valid or not on hold to retrieve!\n",
 			i->name, plci);
 		return 0;
 	}
@@ -3488,7 +3489,7 @@ static int capi_retrieve(struct opbx_channel *c, char *param)
 		i->name, plci);
 
 	if (!(capi_controllers[i->controller]->holdretrieve)) {
-		opbx_log(LOG_NOTICE,"%s: RETRIEVE for %s not supported by controller.\n",
+		cc_log(LOG_NOTICE,"%s: RETRIEVE for %s not supported by controller.\n",
 			i->name, c->name);
 		return -1;
 	}
@@ -3535,19 +3536,19 @@ static int capi_ect(struct opbx_channel *c, char *param)
 	}
 
 	if (!plci) {
-		opbx_log(LOG_WARNING, "%s: No id for ECT !\n", i->name);
+		cc_log(LOG_WARNING, "%s: No id for ECT !\n", i->name);
 		return -1;
 	}
 
-	opbx_mutex_lock(&iflock);
+	cc_mutex_lock(&iflock);
 	for (ii = iflist; ii; ii = ii->next) {
 		if (ii->onholdPLCI == plci)
 			break;
 	}
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 
 	if (!ii) {
-		opbx_log(LOG_WARNING, "%s: 0x%x is not on hold !\n",
+		cc_log(LOG_WARNING, "%s: 0x%x is not on hold !\n",
 			i->name, plci);
 		return -1;
 	}
@@ -3556,13 +3557,13 @@ static int capi_ect(struct opbx_channel *c, char *param)
 		i->name, plci);
 
 	if (!(capi_controllers[i->controller]->ECT)) {
-		opbx_log(LOG_WARNING, "%s: ECT for %s not supported by controller.\n",
+		cc_log(LOG_WARNING, "%s: ECT for %s not supported by controller.\n",
 			i->name, c->name);
 		return -1;
 	}
 
 	if (!(ii->isdnstate & CAPI_ISDN_STATE_HOLD)) {
-		opbx_log(LOG_WARNING, "%s: PLCI %#x (%s) is not on hold for ECT\n",
+		cc_log(LOG_WARNING, "%s: PLCI %#x (%s) is not on hold for ECT\n",
 			i->name, plci, ii->name);
 		return -1;
 	}
@@ -3578,7 +3579,7 @@ static int capi_ect(struct opbx_channel *c, char *param)
 		usleep(10000);
 	}
 	if (i->state != CAPI_STATE_CONNECTED) {
-		opbx_log(LOG_WARNING, "%s: destination not connected for ECT\n",
+		cc_log(LOG_WARNING, "%s: destination not connected for ECT\n",
 			i->name);
 		return -1;
 	}
@@ -3620,18 +3621,18 @@ static int capi_hold(struct opbx_channel *c, char *param)
 	/*  TODO: support holdtype notify */
 
 	if (i->isdnstate & CAPI_ISDN_STATE_HOLD) {
-		opbx_log(LOG_NOTICE,"%s: %s already on hold.\n",
+		cc_log(LOG_NOTICE,"%s: %s already on hold.\n",
 			i->name, c->name);
 		return 0;
 	}
 
 	if (i->state != CAPI_STATE_BCONNECTED) {
-		opbx_log(LOG_NOTICE,"%s: Cannot put on hold %s while not connected.\n",
+		cc_log(LOG_NOTICE,"%s: Cannot put on hold %s while not connected.\n",
 			i->name, c->name);
 		return 0;
 	}
 	if (!(capi_controllers[i->controller]->holdretrieve)) {
-		opbx_log(LOG_NOTICE,"%s: HOLD for %s not supported by controller.\n",
+		cc_log(LOG_NOTICE,"%s: HOLD for %s not supported by controller.\n",
 			i->name, c->name);
 		return 0;
 	}
@@ -3672,12 +3673,12 @@ static int capi_malicious(struct opbx_channel *c, char *param)
 	char	fac[4];
 
 	if (!(capi_controllers[i->controller]->MCID)) {
-		opbx_log(LOG_NOTICE, "%s: MCID for %s not supported by controller.\n",
+		cc_log(LOG_NOTICE, "%s: MCID for %s not supported by controller.\n",
 			i->name, c->name);
 		return -1;
 	}
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 
 	fac[0] = 3;      /* len */
 	fac[1] = 0x0e;   /* MCID */
@@ -3694,7 +3695,7 @@ static int capi_malicious(struct opbx_channel *c, char *param)
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: sent MCID for PLCI=%#x\n",
 		i->name, i->PLCI);
 
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return 0;
 }
 
@@ -3706,7 +3707,7 @@ static int capi_echosquelch(struct opbx_channel *c, char *param)
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 
 	if (!param) {
-		opbx_log(LOG_WARNING, "Parameter for echosquelch missing.\n");
+		cc_log(LOG_WARNING, "Parameter for echosquelch missing.\n");
 		return -1;
 	}
 	if (opbx_true(param)) {
@@ -3714,7 +3715,7 @@ static int capi_echosquelch(struct opbx_channel *c, char *param)
 	} else if (opbx_false(param)) {
 		i->doES = 0;
 	} else {
-		opbx_log(LOG_WARNING, "Parameter for echosquelch invalid.\n");
+		cc_log(LOG_WARNING, "Parameter for echosquelch invalid.\n");
 		return -1;
 	}
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: echosquelch switched %s\n",
@@ -3730,7 +3731,7 @@ static int capi_holdtype(struct opbx_channel *c, char *param)
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 
 	if (!param) {
-		opbx_log(LOG_WARNING, "Parameter for holdtype missing.\n");
+		cc_log(LOG_WARNING, "Parameter for holdtype missing.\n");
 		return -1;
 	}
 	if (!strcasecmp(param, "hold")) {
@@ -3740,7 +3741,7 @@ static int capi_holdtype(struct opbx_channel *c, char *param)
 	} else if (!strcasecmp(param, "local")) {
 		i->doholdtype = CC_HOLDTYPE_LOCAL;
 	} else {
-		opbx_log(LOG_WARNING, "Parameter for holdtype invalid.\n");
+		cc_log(LOG_WARNING, "Parameter for holdtype invalid.\n");
 		return -1;
 	}
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: holdtype switched %s\n",
@@ -3759,11 +3760,11 @@ static int capi_signal_progress(struct opbx_channel *c, char *param)
 	unsigned char fac[12];
 
 	if ((i->state != CAPI_STATE_DID) && (i->state != CAPI_STATE_INCALL)) {
-		opbx_log(LOG_WARNING, "wrong channel state to signal PROGRESS\n");
+		cc_log(LOG_WARNING, "wrong channel state to signal PROGRESS\n");
 		return 0;
 	}
 	if (!(i->ntmode)) {
-		opbx_log(LOG_WARNING, "PROGRESS sending for non NT-mode not possible\n");
+		cc_log(LOG_WARNING, "PROGRESS sending for non NT-mode not possible\n");
 		return 0;
 	}
 
@@ -3831,7 +3832,7 @@ static int capicommand_exec(struct opbx_channel *chan, void *data)
 	struct capicommands_s *capicmd = &capicommands[0];
 
 	if (!data) {
-		opbx_log(LOG_WARNING, "capiCommand requires arguments\n");
+		cc_log(LOG_WARNING, "capiCommand requires arguments\n");
 		return -1;
 	}
 
@@ -3851,14 +3852,14 @@ static int capicommand_exec(struct opbx_channel *chan, void *data)
 	}
 	if (!capicmd->cmd) {
 		LOCAL_USER_REMOVE(u);
-		opbx_log(LOG_WARNING, "Unknown command '%s' for capiCommand\n",
+		cc_log(LOG_WARNING, "Unknown command '%s' for capiCommand\n",
 			command);
 		return -1;
 	}
 
 	if ((capicmd->capionly) && (strcmp(chan->type, "CAPI"))) {
 		LOCAL_USER_REMOVE(u);
-		opbx_log(LOG_WARNING, "capiCommand works on CAPI channels only, check your extensions.conf!\n");
+		cc_log(LOG_WARNING, "capiCommand works on CAPI channels only, check your extensions.conf!\n");
 		return -1;
 	}
 
@@ -3881,7 +3882,7 @@ static int capi_indicate(struct opbx_channel *c, int condition)
 		return -1;
 	}
 
-	opbx_mutex_lock(&i->lock);
+	cc_mutex_lock(&i->lock);
 
 	switch (condition) {
 	case OPBX_CONTROL_RINGING:
@@ -3957,7 +3958,7 @@ static int capi_indicate(struct opbx_channel *c, int condition)
 			i->name, condition, c->name);
 		break;
 	}
-	opbx_mutex_unlock(&i->lock);
+	cc_mutex_unlock(&i->lock);
 	return(ret);
 }
 
@@ -4137,7 +4138,7 @@ int mkif(struct cc_capi_conf *conf)
 		tmp->next = iflist; /* prepend */
 		iflist = tmp;
 		/*
-		  opbx_log(LOG_NOTICE, "capi_pvt(%s,%s,%#x,%d) (%d,%d,%d) (%d)(%f/%f) %d\n",
+		  cc_log(LOG_NOTICE, "capi_pvt(%s,%s,%#x,%d) (%d,%d,%d) (%d)(%f/%f) %d\n",
 		  	tmp->incomingmsn, tmp->context, (int)tmp->controllers, conf->devices,
 			tmp->doEC, tmp->ecOption, tmp->ecTail, tmp->doES, tmp->rxgain,
 			tmp->txgain, callgroup);
@@ -4185,13 +4186,13 @@ static void supported_sservices(struct cc_capi_controller *cp)
 
 	/* parse supported sservices */
 	if (FACILITY_CONF_FACILITYSELECTOR(&CMSG2) != FACILITYSELECTOR_SUPPLEMENTARY) {
-		opbx_log(LOG_NOTICE, "unexpected FACILITY_SELECTOR = %#x\n",
+		cc_log(LOG_NOTICE, "unexpected FACILITY_SELECTOR = %#x\n",
 			FACILITY_CONF_FACILITYSELECTOR(&CMSG2));
 		return;
 	}
 
 	if (FACILITY_CONF_FACILITYCONFIRMATIONPARAMETER(&CMSG2)[4] != 0) {
-		opbx_log(LOG_NOTICE, "supplementary services info  = %#x\n",
+		cc_log(LOG_NOTICE, "supplementary services info  = %#x\n",
 			(short)FACILITY_CONF_FACILITYCONFIRMATIONPARAMETER(&CMSG2)[1]);
 		return;
 	}
@@ -4258,12 +4259,12 @@ static int capi_info(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 		
 	for (i = 1; i <= capi_num_controllers; i++) {
-		opbx_mutex_lock(&contrlock);
+		cc_mutex_lock(&contrlock);
 		if (capi_controllers[i] != NULL) {
 			opbx_cli(fd, "Contr%d: %d B channels total, %d B channels free.\n",
 				i, capi_controllers[i]->nbchannels, capi_controllers[i]->nfreebchannels);
 		}
-		opbx_mutex_unlock(&contrlock);
+		cc_mutex_unlock(&contrlock);
 	}
 	return RESULT_SUCCESS;
 }
@@ -4354,14 +4355,14 @@ static int cc_init_capi(void)
 	int controller;
 
 	if (capi20_isinstalled() != 0) {
-		opbx_log(LOG_WARNING, "CAPI not installed, CAPI disabled!\n");
+		cc_log(LOG_WARNING, "CAPI not installed, CAPI disabled!\n");
 		return -1;
 	}
 
 	if (capi20_register(CAPI_BCHANS, CAPI_MAX_B3_BLOCKS,
 			CAPI_MAX_B3_BLOCK_SIZE, &capi_ApplID) != 0) {
 		capi_ApplID = 0;
-		opbx_log(LOG_NOTICE,"unable to register application at CAPI!\n");
+		cc_log(LOG_NOTICE,"unable to register application at CAPI!\n");
 		return -1;
 	}
 
@@ -4372,7 +4373,7 @@ static int cc_init_capi(void)
 #else
 	if (capi20_get_profile(0, (char *)&profile) != 0) {
 #endif
-		opbx_log(LOG_NOTICE,"unable to get CAPI profile!\n");
+		cc_log(LOG_NOTICE,"unable to get CAPI profile!\n");
 		return -1;
 	} 
 
@@ -4397,7 +4398,7 @@ static int cc_init_capi(void)
 #endif
 		cp = malloc(sizeof(struct cc_capi_controller));
 		if (!cp) {
-			opbx_log(LOG_ERROR, "Error allocating memory for struct cc_capi_controller\n");
+			cc_log(LOG_ERROR, "Error allocating memory for struct cc_capi_controller\n");
 			return -1;
 		}
 		memset(cp, 0, sizeof(struct cc_capi_controller));
@@ -4465,13 +4466,13 @@ static int cc_post_init_capi(void)
 	for (controller = 1; controller <= capi_num_controllers; controller++) {
 		if (capi_used_controllers & (1 << controller)) {
 			if (ListenOnController(ALL_SERVICES, controller) != 0) {
-				opbx_log(LOG_ERROR,"Unable to listen on contr%d\n", controller);
+				cc_log(LOG_ERROR,"Unable to listen on contr%d\n", controller);
 			} else {
 				cc_verbose(2, 0, VERBOSE_PREFIX_3 "listening on contr%d CIPmask = %#x\n",
 					controller, ALL_SERVICES);
 			}
 		} else {
-			opbx_log(LOG_NOTICE, "Unused contr%d\n",controller);
+			cc_log(LOG_NOTICE, "Unused contr%d\n",controller);
 		}
 	}
 
@@ -4542,13 +4543,13 @@ static int conf_interface(struct cc_capi_conf *conf, struct opbx_variable *v)
 		}
 		if (!strcasecmp(v->name, "rxgain")) {
 			if (sscanf(v->value, "%f", &conf->rxgain) != 1) {
-				opbx_log(LOG_ERROR,"invalid rxgain\n");
+				cc_log(LOG_ERROR,"invalid rxgain\n");
 			}
 			continue;
 		}
 		if (!strcasecmp(v->name, "txgain")) {
 			if (sscanf(v->value, "%f", &conf->txgain) != 1) {
-				opbx_log(LOG_ERROR, "invalid txgain\n");
+				cc_log(LOG_ERROR, "invalid txgain\n");
 			}
 			continue;
 		}
@@ -4580,7 +4581,7 @@ static int conf_interface(struct cc_capi_conf *conf, struct opbx_variable *v)
 				conf->ecoption = EC_OPTION_DISABLE_NEVER;
 			}
 			else {
-				opbx_log(LOG_ERROR,"Unknown echocancel parameter \"%s\" -- ignoring\n",v->value);
+				cc_log(LOG_ERROR,"Unknown echocancel parameter \"%s\" -- ignoring\n",v->value);
 			}
 			continue;
 		}
@@ -4597,7 +4598,7 @@ static int conf_interface(struct cc_capi_conf *conf, struct opbx_variable *v)
 			else if (!strcasecmp(v->value, "msn"))
 			    conf->isdnmode = CAPI_ISDNMODE_MSN;
 			else
-			    opbx_log(LOG_ERROR,"Unknown isdnmode parameter \"%s\" -- ignoring\n",
+			    cc_log(LOG_ERROR,"Unknown isdnmode parameter \"%s\" -- ignoring\n",
 			    	v->value);
 		}
 	}
@@ -4630,11 +4631,11 @@ static int capi_eval_config(struct opbx_config *cfg)
 			strncpy(capi_international_prefix, v->value, sizeof(capi_international_prefix) - 1);
 		} else if (!strcasecmp(v->name, "rxgain")) {
 			if (sscanf(v->value,"%f",&rxgain) != 1) {
-				opbx_log(LOG_ERROR,"invalid rxgain\n");
+				cc_log(LOG_ERROR,"invalid rxgain\n");
 			}
 		} else if (!strcasecmp(v->name, "txgain")) {
 			if (sscanf(v->value,"%f",&txgain) != 1) {
-				opbx_log(LOG_ERROR,"invalid txgain\n");
+				cc_log(LOG_ERROR,"invalid txgain\n");
 			}
 		} else if (!strcasecmp(v->name, "ulaw")) {
 			if (opbx_true(v->value)) {
@@ -4649,7 +4650,7 @@ static int capi_eval_config(struct opbx_config *cfg)
 			continue;
 			
 		if (!strcasecmp(cat, "interfaces")) {
-			opbx_log(LOG_WARNING, "Config file syntax has changed! Don't use 'interfaces'\n");
+			cc_log(LOG_WARNING, "Config file syntax has changed! Don't use 'interfaces'\n");
 			return -1;
 		}
 		cc_verbose(4, 0, VERBOSE_PREFIX_2 "Reading config for %s\n",
@@ -4665,12 +4666,12 @@ static int capi_eval_config(struct opbx_config *cfg)
 		strncpy(conf.name, cat, sizeof(conf.name) - 1);
 
 		if (conf_interface(&conf, opbx_variable_browse(cfg, cat))) {
-			opbx_log(LOG_ERROR, "Error interface config.\n");
+			cc_log(LOG_ERROR, "Error interface config.\n");
 			return -1;
 		}
 
 		if (mkif(&conf)) {
-			opbx_log(LOG_ERROR,"Error creating interface list\n");
+			cc_log(LOG_ERROR,"Error creating interface list\n");
 			return -1;
 		}
 	}
@@ -4688,7 +4689,7 @@ static char *vanitynumber(struct opbx_channel *chan, char *cmd, char *data, char
 	*buf = 0;
 
 	if (!data) {
-		opbx_log(LOG_WARNING, "This function requires a parameter name.\n");
+		cc_log(LOG_WARNING, "This function requires a parameter name.\n");
 		return NULL;
 	}
 
@@ -4748,17 +4749,17 @@ int load_module(void)
 
 	/* We *must* have a config file otherwise stop immediately, well no */
 	if (!cfg) {
-		opbx_log(LOG_ERROR, "Unable to load config %s, CAPI disabled\n", config);
+		cc_log(LOG_ERROR, "Unable to load config %s, CAPI disabled\n", config);
 		return 0;
 	}
 
-	if (opbx_mutex_lock(&iflock)) {
-		opbx_log(LOG_ERROR, "Unable to lock interface list???\n");
+	if (cc_mutex_lock(&iflock)) {
+		cc_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return -1;
 	}
 
 	if ((res = cc_init_capi()) != 0) {
-		opbx_mutex_unlock(&iflock);
+		cc_mutex_unlock(&iflock);
 		return(res);
 	}
 
@@ -4766,19 +4767,19 @@ int load_module(void)
 	opbx_config_destroy(cfg);
 
 	if (res != 0) {
-		opbx_mutex_unlock(&iflock);
+		cc_mutex_unlock(&iflock);
 		return(res);
 	}
 
 	if ((res = cc_post_init_capi()) != 0) {
-		opbx_mutex_unlock(&iflock);
+		cc_mutex_unlock(&iflock);
 		return(res);
 	}
 	
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 	
 	if (opbx_channel_register(&capi_tech)) {
-		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
+		cc_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		unload_module();
 		return -1;
 	}
@@ -4793,7 +4794,7 @@ int load_module(void)
 
 	if (opbx_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 		monitor_thread = (pthread_t)(0-1);
-		opbx_log(LOG_ERROR, "Unable to start monitor thread!\n");
+		cc_log(LOG_ERROR, "Unable to start monitor thread!\n");
 		return -1;
 	}
 
@@ -4822,11 +4823,11 @@ int unload_module()
 		pthread_join(monitor_thread, NULL);
 	}
 
-	opbx_mutex_lock(&iflock);
+	cc_mutex_lock(&iflock);
 
 	if (capi_ApplID > 0) {
 		if (capi20_release(capi_ApplID) != 0)
-			opbx_log(LOG_WARNING,"Unable to unregister from CAPI!\n");
+			cc_log(LOG_WARNING,"Unable to unregister from CAPI!\n");
 	}
 
 	for (controller = 1; controller <= capi_num_controllers; controller++) {
@@ -4839,13 +4840,13 @@ int unload_module()
 	i = iflist;
 	while (i) {
 		if (i->owner)
-			opbx_log(LOG_WARNING, "On unload, interface still has owner.\n");
+			cc_log(LOG_WARNING, "On unload, interface still has owner.\n");
 		itmp = i;
 		i = i->next;
 		free(itmp);
 	}
 
-	opbx_mutex_unlock(&iflock);
+	cc_mutex_unlock(&iflock);
 	
 	opbx_channel_unregister(&capi_tech);
 	
@@ -4856,9 +4857,9 @@ int usecount()
 {
 	int res;
 	
-	opbx_mutex_lock(&usecnt_lock);
+	cc_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	opbx_mutex_unlock(&usecnt_lock);
+	cc_mutex_unlock(&usecnt_lock);
 
 	return res;
 }
