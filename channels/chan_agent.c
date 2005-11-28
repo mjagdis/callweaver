@@ -1680,6 +1680,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	char xpass[OPBX_MAX_AGENT] = "";
 	char *errmsg;
 	char *parse;
+	char *opts;
 	OPBX_DECLARE_APP_ARGS(args,
 			     OPBX_APP_ARG(agent_id);
 			     OPBX_APP_ARG(options);
@@ -1736,11 +1737,12 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 		context = parse;
 	}
 
-	while (!opbx_strlen_zero(args.options)) {
-		if (*args.options == 's') {
+	opts = args.options;
+	while (!opbx_strlen_zero(opts)) {
+		if (*opts == 's') {
 			play_announcement = 0;
-			break;
 		}
+		opts++;
 	}
 
 	if (chan->_state != OPBX_STATE_UP)
@@ -1825,7 +1827,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 						char tmpchan[OPBX_MAX_BUF] = "";
 						int pos = 0;
 						/* Retrieve login chan */
-						for (;;) {
+						while (!args.extension || args.extension[0] != '#') {
 							if (!opbx_strlen_zero(args.extension)) {
 								opbx_copy_string(tmpchan, args.extension, sizeof(tmpchan));
 								res = 0;
