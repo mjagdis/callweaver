@@ -96,6 +96,8 @@ struct private_object {
 #ifdef DO_TRACE
 	int debug[2];
 #endif
+        char *cid_num;
+        char *cid_name;
 };
 
 
@@ -304,6 +306,9 @@ static void tech_destroy(struct private_object *tech_pvt)
 		close(tech_pvt->pipe[1]);
 	}
 
+	if (tech_pvt->cid_name) free(tech_pvt->cid_name);
+	if (tech_pvt->cid_num) free(tech_pvt->cid_num);
+
 	free(tech_pvt);	
 	opbx_mutex_lock(&usecnt_lock);
 	usecnt--;
@@ -452,6 +457,15 @@ static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 
 	tech_pvt = self->tech_pvt;
 	tech_pvt->fm->state = FAXMODEM_STATE_RINGING;
+
+	/* Remember callerid so we can send it to our user.
+	 * Without this the callerid is wrong unless the 'o' option is used
+	 * in Dial() */
+	if (tech_pvt->cid_name) free(tech_pvt->cid_name);
+	if (tech_pvt->cid_num) free(tech_pvt->cid_num);
+	tech_pvt->cid_name = strdup(self->cid.cid_name);
+	tech_pvt->cid_num = strdup(self->cid.cid_num);
+
 	launch_faxmodem_media_thread(tech_pvt);
 
 	return res;
@@ -534,8 +548,8 @@ static void *faxmodem_media_thread(void *obj)
 		opbx_cli(fm->master, "%s%s", buf, teminator);
 		strftime(buf, sizeof(buf), "TIME=%H%M", localtime(&noww));
 		opbx_cli(fm->master, "%s%s", buf, teminator);
-		opbx_cli(fm->master, "NAME=%s%s", tech_pvt->owner->cid.cid_name, teminator);
-		opbx_cli(fm->master, "NMBR=%s%s", tech_pvt->owner->cid.cid_num, teminator);
+		opbx_cli(fm->master, "NAME=%s%s", tech_pvt->cid_name, teminator);
+		opbx_cli(fm->master, "NMBR=%s%s", tech_pvt->cid_num, teminator);
 		opbx_cli(fm->master, "NDID=%s%s", fm->digits, teminator);
 		t31_call_event(&fm->t31_state, T31_CALL_EVENT_ALERTING);
 	}
