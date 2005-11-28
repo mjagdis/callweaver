@@ -6,8 +6,6 @@ SAMPLES = adsi.conf.sample \
 	cdr.conf.sample \
 	cdr_custom.conf.sample \
 	cdr_manager.conf.sample \
-	cdr_odbc.conf.sample \
-	cdr_pgsql.conf.sample \
 	cdr_tds.conf.sample \
 	codecs.conf.sample \
 	dnsmgr.conf.sample \
@@ -37,6 +35,14 @@ SAMPLES = adsi.conf.sample \
 	sip.conf.sample \
 	sip_notify.conf.sample \
 	voicemail.conf.sample
+
+if WANT_CDR_ODBC
+SAMPLES	+= cdr_odbc.conf.sample
+endif WANT_CDR_ODBC
+
+if WANT_CDR_PGSQL
+SAMPLES	+= cdr_pgsql.conf.sample
+endif WANT_CDR_PGSQL
 
 if WANT_CHAN_ALSA
 SAMPLES	+= alsa.conf.sample
