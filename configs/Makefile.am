@@ -54,7 +54,7 @@ endif WANT_CHAN_FAX
 
 if WANT_CHAN_UNICALL
 SAMPLES += unicall.conf.sample
-endif
+endif WANT_CHAN_UNICALL
 
 if WANT_CHAN_WOOMERA
 SAMPLES += woomera.conf.sample
