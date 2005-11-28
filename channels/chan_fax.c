@@ -138,11 +138,11 @@ static int tech_write_video(struct opbx_channel *self, struct opbx_frame *frame)
 
 /* Helper Function Prototypes */
 static void tech_destroy(struct private_object *tech_pvt);
-static struct opbx_channel *channel_new(const char *type, int format, void *data, int *cause);
 static int waitfor_socket(int fd, int timeout) ;
 static struct faxmodem *acquire_modem(int index);
 static void tech_destroy(struct private_object *tech_pvt) ;
 static struct opbx_channel *channel_new(const char *type, int format, void *data, int *cause);
+static void channel_destroy(struct opbx_channel *chan);
 static struct opbx_channel *tech_requester(const char *type, int format, void *data, int *cause);
 static int tech_devicestate(void *data);
 static int tech_send_digit(struct opbx_channel *self, char digit);
@@ -358,7 +358,19 @@ static struct opbx_channel *channel_new(const char *type, int format, void *data
 	return chan;
 }
 
+/* Destroy the channel since we didn't use it */
+void channel_destroy(struct opbx_channel *chan)
+{
+    ASTOBJ_CONTAINER_UNLINK(&private_object_list, chan->tech_pvt);
+    free(chan->tech_pvt);
+    chan->tech_pvt = 0;
 
+    opbx_mutex_lock(&usecnt_lock);
+    usecnt++;
+    opbx_mutex_unlock(&usecnt_lock);
+
+    opbx_hangup(chan);
+}
 
 
 /********************CHANNEL METHOD LIBRARY********************
@@ -403,6 +415,7 @@ static struct opbx_channel *tech_requester(const char *type, int format, void *d
 			opbx_copy_string(fm->digits, did, sizeof(fm->digits));
 		} else {
 			opbx_log(LOG_ERROR, "FAILURE ACQUIRING MODEM!\n");
+			channel_destroy(chan);
 			return NULL;
 		}
 
