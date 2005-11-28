@@ -1397,39 +1397,23 @@ static int visdn_call(
 		q931_ies_add_put(&ies, &sc->ie);
 	}
 
-	if (opbx_chan->cid.cid_name && strlen(opbx_chan->cid.cid_name)) {
+	if (opbx_chan->cid.cid_num && strlen(opbx_chan->cid.cid_num)) {
+		struct q931_ie_calling_party_number *cgpn =
+			q931_ie_calling_party_number_alloc();
 
-		char *name = NULL;
-		char *number = NULL;
+		cgpn->type_of_number =
+			visdn_type_of_number_to_cgpn(intf->local_type_of_number);
+		cgpn->numbering_plan_identificator =
+			Q931_IE_CGPN_NPI_ISDN_TELEPHONY;
+		cgpn->presentation_indicator =
+			Q931_IE_CGPN_PI_PRESENTATION_ALLOWED;
+		cgpn->screening_indicator =
+			Q931_IE_CGPN_SI_USER_PROVIDED_VERIFIED_AND_PASSED;
 
-		strcpy(name, opbx_chan->cid.cid_name);
-		strcpy(number, opbx_chan->cid.cid_num);
+		strncpy(cgpn->number, opbx_chan->cid.cid_num, sizeof(cgpn->number));
 
-		if (number) {
-			struct q931_ie_calling_party_number *cgpn =
-				q931_ie_calling_party_number_alloc();
-
-			cgpn->type_of_number =
-				visdn_type_of_number_to_cgpn(
-						intf->local_type_of_number);
-			cgpn->numbering_plan_identificator =
-				Q931_IE_CGPN_NPI_ISDN_TELEPHONY;
-			cgpn->presentation_indicator =
-				Q931_IE_CGPN_PI_PRESENTATION_ALLOWED;
-			cgpn->screening_indicator =
-				Q931_IE_CGPN_SI_USER_PROVIDED_VERIFIED_AND_PASSED;
-
-			strncpy(cgpn->number, number, sizeof(cgpn->number));
-
-			q931_ies_add_put(&ies, &cgpn->ie);
-		} else {
-			opbx_log(LOG_WARNING,
-				"Unable to parse '%s <%s>'"
-				" into CallerID name & number\n",
-				opbx_chan->cid.cid_name, 
-				opbx_chan->cid.cid_num);
-		}
-	}
+		q931_ies_add_put(&ies, &cgpn->ie);
+	} 
 
 	struct q931_ie_high_layer_compatibility *hlc =
 		q931_ie_high_layer_compatibility_alloc();
