@@ -32,18 +32,11 @@ SAMPLES = adsi.conf.sample \
 	osp.conf.sample \
 	privacy.conf.sample \
 	queues.conf.sample \
-	res_jabber.conf.sample \
-	res_odbc.conf.sample \
-	res_pgsql.conf.sample \
-	res_sqlite.conf.sample \
 	rpt.conf.sample \
 	rtp.conf.sample \
 	sip.conf.sample \
 	sip_notify.conf.sample \
-	unicall.conf.sample \
-	voicemail.conf.sample \
-	woomera.conf.sample \
-	zapata.conf.sample
+	voicemail.conf.sample
 
 if WANT_CHAN_ALSA
 SAMPLES	+= alsa.conf.sample
@@ -52,6 +45,34 @@ endif WANT_CHAN_ALSA
 if WANT_CHAN_FAX
 SAMPLES += chan_fax.conf.sample
 endif WANT_CHAN_FAX
+
+if WANT_CHAN_UNICALL
+SAMPLES += unicall.conf.sample
+endif
+
+if WANT_CHAN_WOOMERA
+SAMPLES += woomera.conf.sample
+endif WANT_CHAN_WOOMERA
+
+if WANT_CHAN_ZAP
+SAMPLES += zapata.conf.sample
+endif WANT_CHAN_ZAP
+
+if WANT_RES_JABBER
+SAMPLES += res_jabber.conf.sample
+endif WANT_RES_JABBER
+
+if WANT_RES_ODBC
+SAMPLES += res_odbc.conf.sample
+endif WANT_RES_ODBC
+
+if WANT_RES_PGSQL
+SAMPLES += res_pgsql.conf.sample
+endif WANT_RES_PGSQL
+
+if WANT_RES_SQLITE
+SAMPLES += res_sqlite.conf.sample
+endif WANT_RES_SQLITE
 
 noinst_DATA = $(SAMPLES)
 
