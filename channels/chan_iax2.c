@@ -6362,14 +6362,16 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 										duped_fr = iaxfrdup2(&fr);
 										if (duped_fr) {
 											schedule_delivery(duped_fr, updatehistory, 1);
-											fr.ts = duped_fr->ts;
+/* duped_fr doesn't exist any more        
+											fr.ts = duped_fr->ts; */
 										}
 									}
 #else
 									duped_fr = iaxfrdup2(&fr);
 									if (duped_fr) {
 										schedule_delivery(duped_fr, updatehistory, 1);
-										fr.ts = duped_fr->ts;
+/* duped_fr doesn't exist any more
+										fr.ts = duped_fr->ts; */
 									}
 #endif
 									if (iaxs[fr.callno]->last < fr.ts) {
@@ -7557,14 +7559,16 @@ retryowner2:
 		duped_fr = iaxfrdup2(&fr);
 		if (duped_fr) {
 			schedule_delivery(duped_fr, updatehistory, 0);
-			fr.ts = duped_fr->ts;
+/* duped_fr doesn't exist any more        
+			fr.ts = duped_fr->ts; */
 		}
 	}
 #else
 	duped_fr = iaxfrdup2(&fr);
 	if (duped_fr) {
 		schedule_delivery(duped_fr, updatehistory, 0);
-		fr.ts = duped_fr->ts;
+/* duped_fr doesn't exist any more        
+		fr.ts = duped_fr->ts; */
 	}
 #endif
 
