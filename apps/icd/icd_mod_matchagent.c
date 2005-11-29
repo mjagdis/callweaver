@@ -15,6 +15,51 @@ icd_status distribute_customer_match_agent(icd_distributor * dist,
                                            icd_caller *agent_caller,
                                            icd_caller *customer_caller,
                                            icd_member *customer);
+                                           
+void *icd_distributor__match_agent_run(void *that) { 
+	    icd_distributor *dist; 
+	    icd_status result; 
+ 	 
+	    assert(that != NULL); 
+	    assert(((icd_distributor *)that)->customers != NULL); 
+	    assert(((icd_distributor *)that)->agents != NULL); 
+	 
+	    dist = (icd_distributor *)that; 
+	     
+	    while (dist->thread_state != ICD_THREAD_STATE_FINISHED) { 
+	        if (dist->thread_state == ICD_THREAD_STATE_RUNNING) { 
+	            result = icd_distributor__lock(dist); 
+	            /* Distribute callers if we can, or pause until some are added */ 
+	            if (icd_distributor__customers_pending(dist) &&  
+	                    icd_distributor__agents_pending(dist)) { 
+	                result = icd_distributor__unlock(dist); 
+	                /* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom 
+	                 * function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn 
+	                */ 
+	                if (icd_verbose > 4) 
+	                    ast_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
+	                        icd_distributor__get_name(dist), dist->link_fn); 
+	                result = dist->link_fn(dist, dist->link_fn_extra);   
+	                result = icd_distributor__lock(dist); 
+	            } 
+	/* All distributor links are now created wait for changes of customer or agent list  */      
+	            pthread_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
+	            result = icd_distributor__unlock(dist); 
+	            if (icd_verbose > 4) 
+	                    ast_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  
+	                        icd_distributor__get_name(dist));             
+	        } else { 
+	            /* TBD - Make paused thread work better.  
+	             *        - Use pthread_cond_wait() 
+	             *        - Use same or different condition variable?  
+	             */ 
+ 	        } 
+	        /* Play nice */ 
+	        sched_yield(); 
+	    } 
+	    /* Do any cleanup here */ 
+	    return NULL; 
+	} 
 
 static icd_status init_icd_distributor_match_agent(icd_distributor * that, char *name, icd_config * data)
 {
@@ -26,6 +71,7 @@ static icd_status init_icd_distributor_match_agent(icd_distributor * that, char 
     icd_distributor__create_lists(that, data);
     icd_list__set_node_insert_func((icd_list *) that->agents, icd_list__insert_fifo, NULL);
     icd_distributor__set_link_callers_fn(that, link_callers_via_pop_customer_match_agent, NULL);
+	icd_distributor__set_run_fn(that, icd_distributor__match_agent_run);  
     icd_distributor__create_thread(that);
 
     opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Distributor[%s] Initialized !\n", name);
