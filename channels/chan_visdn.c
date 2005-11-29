@@ -3027,7 +3027,7 @@ static void visdn_q931_setup_indication(
 
 			snprintf(visdn_chan->calling_number,
 				sizeof(visdn_chan->calling_number),
-				"<%s%s>", prefix, cgpn->number);
+				"%s%s", prefix, cgpn->number);
 
 		} else if (ies->ies[i]->type->id == Q931_IE_BEARER_CAPABILITY) {
 
