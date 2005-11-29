@@ -172,6 +172,7 @@ icd_jabber_login_req (int argc, char *argv[])
     int  oldrformat = 0, oldwformat = 0;
     char *passwd=NULL;
     char * channelstring;
+    static int logFlag=1; 
 
     opbx_log(LOG_WARNING,"funkcja login [%d]\n", argc);
 
@@ -203,11 +204,17 @@ icd_jabber_login_req (int argc, char *argv[])
         icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] already logged in.", agentname);
         return 1;
      }
-        
+	if(icd_caller__get_param((icd_caller *) agent, "LogInProgress")){ 
+	        opbx_log(LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agentname);         
+	        icd_jabber_send_message("LOGIN FAILURE! Agent [%s] - previous login try not finished yet.", agentname); 
+	        return 1; 
+	    } 
+	    icd_caller__set_param((icd_caller *) agent, "LogInProgress", &logFlag);         
     chan =icd_bridge_get_openpbx_channel(channelstring, NULL, NULL, NULL);
     if(!chan) {
         opbx_log(LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
         icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - Not avaliable channel [%s].", agentname, channelstring);
+        icd_caller__del_param((icd_caller *) agent, "LogInProgress");
 	return 1;
     }
     /* Make sure channel is properly set up */
@@ -231,6 +238,7 @@ icd_jabber_login_req (int argc, char *argv[])
             opbx_set_write_format(chan, oldwformat);
 //        LOCAL_USER_REMOVE(u);
         opbx_hangup(chan);
+        icd_caller__del_param((icd_caller *) agent, "LogInProgress"); 
         return 1;
     }
 
@@ -252,6 +260,7 @@ icd_jabber_login_req (int argc, char *argv[])
 	 
 /* More detailed check why there is no answer probably needed in the future. */	 
          opbx_hangup(chan);
+         icd_caller__del_param((icd_caller *) agent, "LogInProgress");
 	 return 1;
      }	 
      agent = app_icd__dtmf_login(chan, agentname, passwd, 3);
@@ -259,6 +268,7 @@ icd_jabber_login_req (int argc, char *argv[])
             opbx_log(LOG_WARNING, "Agent [%s] wrong password.\n",agentname);
             icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - wrong password.", agentname);
             opbx_hangup(chan);
+            icd_caller__del_param((icd_caller *) agent, "LogInProgress"); 
             return 1;
       }    
        	  
@@ -274,7 +284,7 @@ icd_jabber_login_req (int argc, char *argv[])
     icd_jabber_send_message("LOGIN OK!  Agent [%s] - successfully logged in.", agentname);
 
 		  
-       
+     icd_caller__del_param((icd_caller *) agent, "LogInProgress");  
         /* At this point, we have an agent. We hope he is already in queues but not in distributors. */
     if (icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_SUSPEND ||
       icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_INITIALIZED)
@@ -655,6 +665,7 @@ icd_jabber_transfer (int argc, char *argv[])
       }	
     }
     icd_caller__remove_all_associations(customer);
+    icd_caller__set_active_member(customer, NULL); 
     icd_caller__remove_from_all_queues(customer);
     icd_caller__set_active_member(customer, NULL);
     icd_caller__add_to_queue(customer, queue);
