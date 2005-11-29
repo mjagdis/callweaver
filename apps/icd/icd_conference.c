@@ -546,7 +546,10 @@ icd_status icd_conference__join(icd_caller * that)
 
     icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
 //    icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_CALL_END);
-
+/* Any other but CONFERENCED state means that other thread changed caller state - and I hope it knew what for*/   
+	    if(icd_caller__get_state(that)==ICD_CALLER_STATE_CONFERENCED){ 
+	           icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END); 
+ 	    }   
     if (that->conference && that->conference->owner != that)
         icd_conference__clear(that);
 

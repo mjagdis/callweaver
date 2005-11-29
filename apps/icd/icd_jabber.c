@@ -62,6 +62,7 @@ char jabber_login[100];
 char jabber_password[100];
 char jabber_send_address[100];
 int JabberOK = 0;
+opbx_mutex_t jabber_lock; 
  
 extern struct opbx_channel *agent_channel0;
 void *jabber_messages ();
@@ -602,10 +603,15 @@ icd_jabber_transfer (int argc, char *argv[])
     icd_caller__remove_from_all_queues(customer);
     icd_caller__set_active_member(customer, NULL);
     icd_caller__add_to_queue(customer, queue);
+    if(icd_caller__get_state(customer) != ICD_CALLER_STATE_READY){ 
+ 	/*  Customer thread is paused so no cleanup nor other actions are taken,  
+ 		    this is to allow pass from COFERENCED to READY state  */      
+ 		icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END); 
+ 		icd_caller__set_state(customer, ICD_CALLER_STATE_READY); 
+ 	}     
+ 	icd_caller__return_to_distributors(customer);  
     icd_caller__start_caller_response(customer);
-    if(icd_caller__get_state(customer) != ICD_CALLER_STATE_READY)
-         icd_caller__set_state(customer, ICD_CALLER_STATE_READY);
-    icd_caller__return_to_distributors(customer);		 
+    
 //    icd_caller__set_state(customer, ICD_CALLER_STATE_BRIDGE_FAILED);	 
     
 //    iter = icd_list__get_iterator((icd_list *) (customer->memberships));
@@ -887,20 +893,31 @@ pthread_t icd_jabber_threads[2];
 void
 icd_jabber_put_fifo (const char *str)
 {
+	int retval; 
   if(!JabberOK) return;
   
-  write (icd_jabber_fifo_write, str, MSG_SIZE);
-  sem_post (&icd_jabber_fifo_semaphore);
-}
+   retval = opbx_mutex_lock(&jabber_lock); 
+ 	  if(!retval){    
+ 	     write (icd_jabber_fifo_write, str, MSG_SIZE); 
+	     sem_post (&icd_jabber_fifo_semaphore); 
+	     opbx_mutex_unlock(&jabber_lock); 
+	  } 
+	  else { 
+	     opbx_log (LOG_WARNING, "Unable to lock jabber to send message [%s]\n", str); 
+	  } 
+	} 
 
 char *
 icd_jabber_get_fifo ()
 {
   char *c;
+  int retval;
   c = (char *) calloc (1, MSG_SIZE + 1);
 //  struct timeval now;
 
+//  retval = opbx_mutex_lock(&jabber_lock); 
   read (icd_jabber_fifo_read, c, MSG_SIZE);
+ //  opbx_mutex_unlock(&jabber_lock);
 //  gettimeofday(&now, NULL);
 //  opbx_log (LOG_WARNING, "Get Jabber message [%ld:%6ld] [%s]\n", now.tv_sec, now.tv_usec, c);
 //  sprintf(c + strlen(c), " [%ld:%6ld]",now.tv_sec, now.tv_usec);
@@ -917,6 +934,7 @@ icd_jabber_fifo_start ()
 
   icd_jabber_fifo_read = open (fn, O_RDONLY | O_NONBLOCK);
   icd_jabber_fifo_write = open (fn, O_WRONLY);
+  opbx_mutex_init(&jabber_lock); 
 }
 
 static LmHandlerResult
@@ -1079,6 +1097,8 @@ icd_jabber_clear ()
    g_main_loop_quit (icd_jabber_main_loop);
    lm_connection_close (icd_jabber_connection, NULL);
    lm_connection_unref(icd_jabber_connection);
+   
+   opbx_mutex_destroy(&jabber_lock);
   
 } 
 void icd_jabber_send_message( char *format, ...)
@@ -1087,7 +1107,7 @@ void icd_jabber_send_message( char *format, ...)
    char message[1024];
    
    va_start(args, format);
-   vsnprintf(message, 1024, format, args);
+   vsnprintf(message, sizeof(message)-1, format, args);
    va_end(args);	
    icd_jabber_put_fifo(message);
 }   
