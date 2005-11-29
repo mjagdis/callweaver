@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# chkconfig: 2345 99 15
+# chkconfig: - 99 15
 # description: Open source PBX 
 # processname: openpbx
 
