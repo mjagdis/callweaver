@@ -62,6 +62,9 @@ char *DEVICE_PREFIX;
 static char *CONTEXT = NULL;
 static int VBLEVEL = 0;
 
+static const char *TERMINATOR = "\r\n";
+
+
 #define IO_READ "1"
 #define IO_HUP "0"
 #define IO_PROD "2"
@@ -98,6 +101,10 @@ struct private_object {
 #endif
         char *cid_num;
         char *cid_name;
+
+    /* If this is true it means we already sent a hangup-statusmessage
+     * to our user, so don't bother with it when hanging up */
+        int hangup_msg_sent; 
 };
 
 
@@ -156,7 +163,6 @@ static struct opbx_frame *tech_read(struct opbx_channel *self);
 static int tech_write(struct opbx_channel *self, struct opbx_frame *frame);
 static int tech_write_video(struct opbx_channel *self, struct opbx_frame *frame);
 static struct opbx_frame *tech_exception(struct opbx_channel *self);
-static int tech_indicate(struct opbx_channel *self, int condition);
 static int tech_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan);
 static int tech_send_html(struct opbx_channel *self, int subclass, const char *data, int datalen);
 static int tech_send_text(struct opbx_channel *self, const char *text);
@@ -513,6 +519,9 @@ static int tech_hangup(struct opbx_channel *self)
 		tech_destroy(tech_pvt);
 	}
 	
+	if (!tech_pvt->hangup_msg_sent)
+	    opbx_cli(tech_pvt->fm->master, "NO CARRIER%s", TERMINATOR);
+
 	return res;
 }
 
@@ -536,7 +545,6 @@ static void *faxmodem_media_thread(void *obj)
 	int ms = 0;
 	int avail, lastmodembufsize = 0, flowoff = 0;
 	char modembuf[DSP_BUFFER_MAXSIZE];
-	const char *teminator = "\r\n";
 	char buf[80];
 	time_t noww;
 	int gotlen = 0;
@@ -556,14 +564,14 @@ static void *faxmodem_media_thread(void *obj)
 
 	if (fm->state == FAXMODEM_STATE_RINGING) {
 		time(&noww);
-		opbx_cli(fm->master, "%s", teminator);
+		opbx_cli(fm->master, "%s", TERMINATOR);
 		strftime(buf, sizeof(buf), "DATE=%m%d", localtime(&noww));
-		opbx_cli(fm->master, "%s%s", buf, teminator);
+		opbx_cli(fm->master, "%s%s", buf, TERMINATOR);
 		strftime(buf, sizeof(buf), "TIME=%H%M", localtime(&noww));
-		opbx_cli(fm->master, "%s%s", buf, teminator);
-		opbx_cli(fm->master, "NAME=%s%s", tech_pvt->cid_name, teminator);
-		opbx_cli(fm->master, "NMBR=%s%s", tech_pvt->cid_num, teminator);
-		opbx_cli(fm->master, "NDID=%s%s", fm->digits, teminator);
+		opbx_cli(fm->master, "%s%s", buf, TERMINATOR);
+		opbx_cli(fm->master, "NAME=%s%s", tech_pvt->cid_name, TERMINATOR);
+		opbx_cli(fm->master, "NMBR=%s%s", tech_pvt->cid_num, TERMINATOR);
+		opbx_cli(fm->master, "NDID=%s%s", fm->digits, TERMINATOR);
 		t31_call_event(&fm->t31_state, T31_CALL_EVENT_ALERTING);
 	}
 
@@ -783,8 +791,40 @@ static int tech_indicate(struct opbx_channel *self, int condition)
 {
 	struct private_object *tech_pvt;
 	int res = 0;
+	int hangup = 0;
 
 	tech_pvt = self->tech_pvt;
+        if (VBLEVEL > 1) {
+                opbx_verbose(VBPREFIX  "Indication %d on %s\n", condition,
+			     self->name);
+        }
+
+	switch(condition) {
+	case OPBX_CONTROL_RINGING:
+	case OPBX_CONTROL_ANSWER:
+	case OPBX_CONTROL_PROGRESS:
+	    hangup = 0;
+	    break;
+	case OPBX_CONTROL_BUSY:
+	case OPBX_CONTROL_CONGESTION:
+	    opbx_cli(tech_pvt->fm->master, "BUSY%s", TERMINATOR);
+	    hangup = 1;
+	    break;
+	default:
+	    if (VBLEVEL > 1)
+                opbx_verbose(VBPREFIX  "UNKNOWN Indication %d on %s\n", 
+			     condition,
+                             self->name);
+	}
+
+	if (hangup) {
+	    if (VBLEVEL > 1) {
+                opbx_verbose(VBPREFIX  "Hanging up because of indication %d "
+			     "on %s\n", condition, self->name);
+	    }	    
+	    tech_pvt->hangup_msg_sent = 1;
+	    opbx_softhangup(self, OPBX_SOFTHANGUP_EXPLICIT);
+	}
 	return res;
 }
 
@@ -920,7 +960,10 @@ static int control_handler(struct faxmodem *fm, const char *num)
 					chan->fds[0] = tech_pvt->pipe[0];
 					fm->psock = tech_pvt->pipe[1];
 					fm->state = FAXMODEM_STATE_CALLING;
-					opbx_pbx_start(chan);
+					if (opbx_pbx_start(chan)) {
+					    opbx_log(LOG_WARNING, "Unable to start PBX on %\s\n", chan->name);
+					    opbx_hangup(chan);
+					}
 #ifdef DOTRACE
 					tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
 					tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
