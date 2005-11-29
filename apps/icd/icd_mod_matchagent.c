@@ -37,7 +37,7 @@ void *icd_distributor__match_agent_run(void *that) {
 	                 * function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn 
 	                */ 
 	                if (icd_verbose > 4) 
-	                    ast_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
+	                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
 	                        icd_distributor__get_name(dist), dist->link_fn); 
 	                result = dist->link_fn(dist, dist->link_fn_extra);   
 	                result = icd_distributor__lock(dist); 
@@ -46,7 +46,7 @@ void *icd_distributor__match_agent_run(void *that) {
 	            pthread_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
 	            result = icd_distributor__unlock(dist); 
 	            if (icd_verbose > 4) 
-	                    ast_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  
+	                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  
 	                        icd_distributor__get_name(dist));             
 	        } else { 
 	            /* TBD - Make paused thread work better.  

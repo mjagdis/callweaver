@@ -966,8 +966,10 @@ int icd_bridge__check_hangup(icd_caller * that)
     chan = (opbx_channel *) icd_caller__get_channel(that);
 
     if (chan != NULL && chan->name != NULL) {
-        return (opbx_check_hangup(chan) == 0) ? 0 : 1;
-    }
+         if (opbx_check_hangup(chan) == 0)  
+	               return 0; 
+	    } 
+	    icd_caller__set_channel(that, NULL); 
     return 1;
 }
 
