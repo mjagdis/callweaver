@@ -90,28 +90,6 @@ struct lista
 struct lista *head = NULL;
 struct lista *tail = NULL;
 
-/*
-extern struct icd_queue {
-    char *name;
-    icd_distributor *distributor;
-    icd_member_list *customers;
-    icd_member_list *agents;
-    icd_queue_holdannounce holdannounce;
-    icd_queue_chimeinfo chimeinfo;
-    char monitor_args[256];
-    int priority;               // priority of this queue in relation to other queues 
-//    int wait_timeout;           // How many seconds before timing out of queue 
-//    void_hash_table *params;
-//    icd_listeners *listeners;
-//    icd_queue_state state;
-//    int flag;                   //accept calls, tagged iter mem q, match em from config untag mark for delete 
-//      icd_status(*dump_fn) (icd_queue *, int verbosity, int fd, void *extra);
-    void *dump_fn_extra;
-    icd_memory *memory;
-    opbx_mutex_t lock;
-    int allocated;
-};
-*/
 extern icd_agent *app_icd__dtmf_login (struct opbx_channel *chan, char *login,
 				       char *pass, int tries);
 
@@ -526,6 +504,77 @@ icd_jabber_record(int argc, char *argv[])
 
    return 0;
 }
+/* 
+ 	params: 
+ 	argv[0] = queue 
+ 	513	argv[1] = agent id 
+ 	514	argv[2] = queue name to which agent will be joined 
+ 	515	argv[3] = nothing or R to remove from queue, if argv[2]=all remove from all queues 
+ 	516	*/ 
+ 
+	int	icd_jabber_join_queue (int argc, char *argv[]) 
+	{ 
+	    icd_caller *agent = NULL; 
+	    char *agentname; 
+	    char *queuename; 
+	    int remove=0; 
+	    icd_queue *queue; 
+	    icd_member *member; 
+	 
+	     
+	    if ((argc != 3) && (argc !=4)) { 
+	         icd_jabber_send_message("JOIN QUEUE FAILURE!  - wrong parameters number."); 
+	         return 1; 
+	    }     
+	    agentname = argv[1]; 
+	    queuename = argv[2]; 
+	    agent = (icd_caller *) icd_fieldset__get_value(agents, agentname);    
+	    if (agent == NULL) { 
+	        opbx_log(LOG_WARNING, 
+	                    "JOIN QUEUE FAILURE!  Agent '%s' could not be found.\n", agentname); 
+	        icd_jabber_send_message("JOIN QUEUE FAILURE!  Agent [%s] - could not be found.", agentname); 	                     
+	        return 1; 
+	    } 
+	    if (argc==4) 
+	      if(!strcasecmp(argv[3],"R")) { 
+	        remove = 1; 
+	    } 
+	    queue = NULL;  
+	    if(!remove || strcasecmp(queuename,"all")){          
+	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename); 
+	      if (queue == NULL) { 
+	            opbx_log(LOG_WARNING, "JOIN QUEUE FAILURE! Agent joined undefined Queue [%s]\n", queuename); 
+	            icd_jabber_send_message("JOIN QUEUE FAILURE! Agent [%s] joined undefined Queue [%s]", 
+	            agentname, queuename); 
+	            return 1; 
+	      } 
+	    }  
+	 
+	    opbx_log(LOG_NOTICE, "Agent [%s] will join the queue [%s]\n", agentname, queuename); 
+	    if(queue){ 
+	       if (remove) { 
+	          if(agent->memberships) 
+	             if(member = icd_member_list__get_for_queue(agent->memberships, queue)){ 
+	                if(icd_caller__get_active_member(agent) == member){ 
+	                   icd_caller__set_active_member (agent, NULL); 
+	                }   
+	                icd_caller__remove_from_queue(agent, queue); 
+	             }    
+ 	       } 
+ 	       else { 
+ 	           icd_caller__add_to_queue(agent, queue); 
+	           member = icd_member_list__get_for_queue(agent->memberships, queue); 
+	           if(member){ 
+	                 icd_queue__agent_distribute(queue, member); 
+	            } 
+	       }  
+	    } 
+	    else { 
+	       icd_caller__remove_from_all_queues(agent); 
+	    }    
+	    return 0; 
+	 
+	} 
 /*
 params:
 argv[0] = tr
@@ -1008,6 +1057,7 @@ icd_jabber_messages ()
   icd_jabber_reg_func ("hangup",icd_jabber_hang_up);
   icd_jabber_reg_func ("record",icd_jabber_record);
   icd_jabber_reg_func ("hangup_chan",icd_jabber_hangup_channel);
+  icd_jabber_reg_func ("queue",icd_jabber_join_queue);
   icd_jabber_main_loop = g_main_loop_new (NULL, FALSE);
   g_main_loop_run (icd_jabber_main_loop);
   return NULL;
