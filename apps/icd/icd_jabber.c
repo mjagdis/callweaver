@@ -133,8 +133,15 @@ int icd_jabber_ack_req (int argc, char *argv[])
                     "Function Ack failed. Agent '%s' could not be found.\n", agentname);        
 	return 1;
   }		    
-  icd_caller__add_flag((icd_caller *)agent, ICD_ACK_EXTERN_FLAG);
-  opbx_log(LOG_NOTICE, "Jabber Function Ack for agent '%s' .\n", agentname);        
+  if(icd_caller__get_state(icd_caller *) agent) == ICD_CALLER_STATE_READY ||
+     icd_caller__get_state(icd_caller *) agent) == ICD_CALLER_STATE_DISTRIBUTING ||
+     icd_caller__get_state(icd_caller *) agent) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) {
+     	icd_caller__add_flag((icd_caller *)agent, ICD_ACK_EXTERN_FLAG);
+     	opbx_log(LOG_NOTICE, "Jabber Function Ack for agent '%s' .\n", agentname);
+     } else {
+     	opbx_log(LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agentname, icd_caller__get_state_string((icd_caller *) agent));
+     	return 1;
+     }
   return 0;
 }
 
