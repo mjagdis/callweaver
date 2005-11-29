@@ -105,11 +105,11 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
             */
 	case ICD_EVENT_LINK:
 	case ICD_EVENT_UNLINK:
-	case ICD_EVENT_PUSH:
-	case ICD_EVENT_POP:
-        case ICD_EVENT_PUSHBACK:
+/*	case ICD_EVENT_PUSH:
+	case ICD_EVENT_POP: 
+        case ICD_EVENT_PUSHBACK: */
 	case ICD_EVENT_DISTRIBUTE:
-	case ICD_EVENT_DISTRIBUTED:
+/*	case ICD_EVENT_DISTRIBUTED: */
            if (smsg) 
                 opbx_verbose(VERBOSE_PREFIX_1 "[%s][%s] %s \n", icd_module_strings[icd_event__get_module_id(event)],
                             icd_event_strings[icd_event__get_event_id(event)], smsg);
