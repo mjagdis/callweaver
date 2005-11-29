@@ -1089,6 +1089,8 @@ extern opbx_group_t opbx_get_group(char *s);
 /* print call- and pickup groups into buffer */
 extern char *opbx_print_group(char *buf, int buflen, opbx_group_t group);
 
+/* Function to listen to events in a channel (needed for icd jabber stuff, does not use the manager but probably should) */
+int opbx_channe;_register_listen_events( void (*)(struct opbx_channel *, const char *));
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

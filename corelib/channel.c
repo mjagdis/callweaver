@@ -91,6 +91,11 @@ static struct chanlist *backends = NULL;
  */
 static struct opbx_channel *channels = NULL;
 
+/*
+ *  Function to listen for state changes in the channel
+ */
+static void (*opbx_channel_listen_events)(struct opbx_channel *chan, const char *dialstring) = NULL;
+
 /* Protect the channel list, both backends and channels.
  */
 OPBX_MUTEX_DEFINE_STATIC(chlock);
@@ -1067,6 +1072,8 @@ int opbx_hangup(struct opbx_channel *chan)
 	}
 			
 	opbx_mutex_unlock(&chan->lock);
+	if(opbx_channel_listen_events)
+		opbx_channel_listen_events(chan,"HANGUP");
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -2117,6 +2124,8 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 			if (chan->tech->requester)
 				c = chan->tech->requester(type, capabilities, data, cause);
 			if (c) {
+				if(opbx_channel_listen_events)
+					opbx_channel_listen_events(c, (char *) data);
 				if (c->_state == OPBX_STATE_DOWN) {
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"
@@ -2727,6 +2736,12 @@ void opbx_set_callerid(struct opbx_channel *chan, const char *callerid, const ch
 				);
 }
 
+int opbx_channel_register_listen_events( void (listen_fun)(struct opbx_channel *, const char *))
+{
+	opbx_channel_listen_events = listen_fun;
+	return 0;
+};
+
 int opbx_setstate(struct opbx_channel *chan, int state)
 {
 	int oldstate = chan->_state;
@@ -2735,6 +2750,8 @@ int opbx_setstate(struct opbx_channel *chan, int state)
 		return 0;
 
 	chan->_state = state;
+	if(opbx_channel_listen_events)
+		opbx_channel_listen_events(chan, NULL);
 	opbx_device_state_changed_literal(chan->name);
 	manager_event(EVENT_FLAG_CALL,
 		      (oldstate == OPBX_STATE_DOWN) ? "Newchannel" : "Newstate",
