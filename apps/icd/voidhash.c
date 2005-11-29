@@ -3,6 +3,7 @@
 #include <string.h>
 #include <voidhash.h>
 #include <icd_types.h>
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_adsiprog.c $", "$Revision: 1055 $")
 
 /*--- VH_ElfHash ---------------------------------------------------
  *  The published hash algorithm used in the UNIX ELF format

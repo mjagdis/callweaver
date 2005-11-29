@@ -1,13 +1,33 @@
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU Library General Public License as       *
- *   published by the Free Software Foundation; either version 2 of the    *
- *   License, or (at your option) any later version                        *
- *                                                                         *
- ***************************************************************************/
-
+/*
+ * Intelligent Call Distributor
+ *
+ * Copyright (C) 2003, 2004, 2005
+ *
+ * Written by Anthony Minessale II <anthmct at yahoo dot com>
+ * Written by Bruce Atherton <bruce at callenish dot com>
+ * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Halo Kwadrat Sp. z o.o. 
+ * 
+ * This application is a part of:
+ * 
+ * OpenPBX -- An open source telephony toolkit.
+ *
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ *
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
 #include <icd_common.h>
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_adsiprog.c $", "$Revision: 1055 $")
 #include <icd_apr.h>
 
 #define ICD_APR_PREFIX "  ** ICD APR--->"
