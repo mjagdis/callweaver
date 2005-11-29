@@ -110,7 +110,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes) 
 {
 	struct opbx_frame *frame_ptr;
-	int sofar = 0, ineed, remain;
+	size_t sofar = 0, ineed, remain;
 	short *frame_data, *offset = buf;
 
 	while (sofar < bytes) {
