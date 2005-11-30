@@ -84,9 +84,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <icd_common.h>
-#include <icd_listeners.h>
-#include <icd_event.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_listeners.h"
+#include "openpbx/icd/icd_event.h"
 
 /*===== Private types and APIs =====*/
 

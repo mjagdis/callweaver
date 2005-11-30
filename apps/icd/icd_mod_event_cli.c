@@ -7,9 +7,9 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <icd_module_api.h>
-#include <icd_jabber.h>
-#include <icd_conference.h>
+#include "openpbx/icd/icd_module_api.h"
+#include "openpbx/icd/icd_jabber.h"
+#include "openpbx/icd/icd_conference.h"
 /* Private implemenations */
 static int module_id = 0;
 static char *module_name = "event_cli";

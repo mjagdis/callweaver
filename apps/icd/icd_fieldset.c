@@ -35,11 +35,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <openpbx/logger.h>
-#include <icd_types.h>
-#include <icd_fieldset.h>
-#include <icd_common.h>
-#include <voidhash.h>
+#include "openpbx/logger.h"
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_fieldset.h"
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/voidhash.h"
 
 /*===== Private Types, Variables, and APIs =====*/
 

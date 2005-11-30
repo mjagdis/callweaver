@@ -30,12 +30,12 @@
  *
  */
 
-#include <icd_common.h>
-#include <icd_member.h>
-#include <icd_caller.h>
-#include <icd_queue.h>
-#include <icd_distributor.h>
-#include <icd_fieldset.h>
+#include <openpbx/icd/icd_common.h>
+#include <openpbx/icd/icd_member.h>
+#include <openpbx/icd/icd_caller.h>
+#include <openpbx/icd/icd_queue.h>
+#include <openpbx/icd/icd_distributor.h>
+#include <openpbx/icd/icd_fieldset.h>
 
 static icd_module module_id = ICD_MEMBER;
 

@@ -26,13 +26,13 @@
  *
  */
 
-#include <icd_common.h>
-#include <icd_bridge.h>
-#include <icd_customer.h>
-#include <icd_caller.h>
-#include <icd_caller_private.h>
-#include <icd_plugable_fn.h>
-#include <icd_plugable_fn_list.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_bridge.h"
+#include "openpbx/icd/icd_customer.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_caller_private.h"
+#include "openpbx/icd/icd_plugable_fn.h"
+#include "openpbx/icd/icd_plugable_fn_list.h"
 
 //static icd_module module_id = ICD_CUSTOMER;
 

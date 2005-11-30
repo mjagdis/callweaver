@@ -29,11 +29,11 @@
  */
 
 #include <assert.h>
-#include <icd_common.h>
-#include <icd_caller_list.h>
-#include <icd_list.h>
-#include <icd_list_private.h>
-#include <icd_caller.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_caller_list.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_list_private.h"
+#include "openpbx/icd/icd_caller.h"
 
 /*===== Private APIs, Types, and Variables =====*/
 

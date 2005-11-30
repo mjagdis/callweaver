@@ -22,15 +22,15 @@
 */
 
 #include <assert.h>
-#include <icd_types.h>
-#include <icd_common.h>
-#include <icd_conference.h>
-#include <icd_caller.h>
-#include <icd_caller_private.h>
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_conference.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_caller_private.h"
 #include <sys/ioctl.h>
 #include <errno.h>
-#include <conf_enter.h>
-#include <conf_leave.h>
+#include "openpbx/icd/conf_enter.h"
+#include "openpbx/icd/conf_leave.h"
 
 #define ENTER   0
 #define LEAVE   1

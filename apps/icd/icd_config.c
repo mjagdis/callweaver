@@ -33,15 +33,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <openpbx/logger.h>
-#include <icd_types.h>
-#include <icd_config.h>
-#include <icd_fieldset.h>
-#include <icd_common.h>
+#include "openpbx/logger.h"
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_config.h"
+#include "openpbx/icd/icd_fieldset.h"
+#include "openpbx/icd/icd_common.h"
 
 /* This is for getting at the function pointers in the registry */
-#include <icd_distributor.h>
-#include <icd_list.h>
+#include "openpbx/icd/icd_distributor.h"
+#include "openpbx/icd/icd_list.h"
 
 /*===== Private Types, Variables, and APIs =====*/
 

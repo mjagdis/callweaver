@@ -26,9 +26,9 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-#include <icd_common.h>
+#include "openpbx/icd/icd_common.h"
 OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_adsiprog.c $", "$Revision: 1055 $")
-#include <icd_apr.h>
+#include "openpbx/icd/icd_apr.h"
 
 #define ICD_APR_PREFIX "  ** ICD APR--->"
 

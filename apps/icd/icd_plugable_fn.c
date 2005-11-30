@@ -8,14 +8,14 @@
  ***************************************************************************/
 
 #include <assert.h>
-#include <icd_types.h>
-#include <icd_plugable_fn.h>
-#include <icd_plugable_fn_list.h>
-#include <icd_fieldset.h>
-#include <icd_common.h>
-#include <icd_caller.h>
-#include <icd_queue.h>
-#include <icd_distributor.h>
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_plugable_fn.h"
+#include "openpbx/icd/icd_plugable_fn_list.h"
+#include "openpbx/icd/icd_fieldset.h"
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_queue.h"
+#include "openpbx/icd/icd_distributor.h"
 
 static int PLUGABLE_FN_ID_POOL = 1;
 

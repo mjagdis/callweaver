@@ -7,17 +7,17 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <app_icd.h>
-#include <icd_command.h>
-#include <icd_common.h>
-#include <icd_fieldset.h>
+#include "openpbx/icd/app_icd.h"
+#include "openpbx/icd/icd_command.h"
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_fieldset.h"
 /* For dump function only */
-#include <icd_queue.h>
-#include <icd_distributor.h>
-#include <icd_list.h>
-#include <icd_caller.h>
-#include <icd_member.h>
-#include <icd_member_list.h>
+#include "openpbx/icd/icd_queue.h"
+#include "openpbx/icd/icd_distributor.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_member.h"
+#include "openpbx/icd/icd_member_list.h"
 
 static int verbosity = 1;
 

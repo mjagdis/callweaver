@@ -28,8 +28,8 @@
  *
  */
 
-#include <icd_distributor_list.h>
-#include <icd_types.h>
+#include "openpbx/icd/icd_distributor_list.h"
+#include "openpbx/icd/icd_types.h"
 
 /***** Constructors and Destructors *****/
 

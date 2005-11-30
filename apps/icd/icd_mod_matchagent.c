@@ -7,7 +7,7 @@
  *   korczynski@gmail.com                                                                      *
  ***************************************************************************/
 
-#include <icd_module_api.h>
+#include "openpbx/icd/icd_module_api.h"
 
 extern icd_fieldset *agents;
 icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, void *extra);

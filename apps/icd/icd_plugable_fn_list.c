@@ -20,11 +20,11 @@
  */
 
 #include <assert.h>
-#include <icd_common.h>
-#include <icd_plugable_fn.h>
-#include <icd_plugable_fn_list.h>
-#include <icd_list.h>
-#include <icd_list_private.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_plugable_fn.h"
+#include "openpbx/icd/icd_plugable_fn_list.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_list_private.h"
 
 static icd_module module_id = ICD_PLUGABLE_FN_LIST;
 

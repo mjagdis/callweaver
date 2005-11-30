@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <loudmouth/loudmouth.h>
 #include <pthread.h>
-#include <icd_common.h>
+#include "openpbx/icd/icd_common.h"
 #include <malloc.h>
 #include <semaphore.h>
 

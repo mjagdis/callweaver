@@ -26,16 +26,16 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-#include <icd_types.h>
-#include <icd_globals.h>
-#include <icd_common.h>
-#include <icd_bridge.h>
-#include <icd_member.h>
-#include <icd_queue.h>
-#include <icd_caller.h>
-#include <icd_caller_list.h>
-#include <icd_list.h>
-#include <icd_distributor.h>
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_globals.h"
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_bridge.h"
+#include "openpbx/icd/icd_member.h"
+#include "openpbx/icd/icd_queue.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_caller_list.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_distributor.h"
 #ifndef  OPBX_FLAG_NONATIVE
 #define  OPBX_FLAG_NONATIVE (1 << 7)
 #endif

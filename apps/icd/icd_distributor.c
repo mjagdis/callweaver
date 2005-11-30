@@ -33,20 +33,20 @@
 
 
 #include <assert.h>
-#include <icd_common.h>
-#include <icd_distributor.h>
-#include <icd_distributor_private.h>
-#include <icd_list.h>
-#include <icd_caller.h>
-#include <icd_member.h>
-#include <icd_member_list.h>
-#include <icd_agent.h>
-#include <icd_customer.h>
-#include <icd_plugable_fn.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_distributor.h"
+#include "openpbx/icd/icd_distributor_private.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_member.h"
+#include "openpbx/icd/icd_member_list.h"
+#include "openpbx/icd/icd_agent.h"
+#include "openpbx/icd/icd_customer.h"
+#include "openpbx/icd/icd_plugable_fn.h"
 
-#include <openpbx/app.h>
+#include "openpbx/app.h"
 
-#include <icd_bridge.h>
+#include "openpbx/icd/icd_bridge.h"
 #include <loudmouth/loudmouth.h>
 #include <pthread.h>
 #include <semaphore.h>

@@ -1,40 +1,40 @@
 #define _REENTRANT
 
-#include <app_icd.h>
-#include <icd_common.h>
-#include <icd_globals.h>
-#include <icd_distributor.h>
-#include <voidhash.h>
-#include <icd_command.h>
-#include <icd_fieldset.h>
-#include <icd_queue.h>
-#include <icd_customer.h>
-#include <icd_conference.h>
-#include <icd_agent.h>
-#include <icd_bridge.h>
-#include <icd_caller.h>
-#include <icd_config.h>
-#include <icd_member.h>
-#include <icd_event.h>
+#include <openpbx/icd/app_icd.h>
+#include <openpbx/icd/icd_common.h>
+#include <openpbx/icd/icd_globals.h>
+#include <openpbx/icd/icd_distributor.h>
+#include <openpbx/icd/voidhash.h>
+#include <openpbx/icd/icd_command.h>
+#include <openpbx/icd/icd_fieldset.h>
+#include <openpbx/icd/icd_queue.h>
+#include <openpbx/icd/icd_customer.h>
+#include <openpbx/icd/icd_conference.h>
+#include <openpbx/icd/icd_agent.h>
+#include <openpbx/icd/icd_bridge.h>
+#include <openpbx/icd/icd_caller.h>
+#include <openpbx/icd/icd_config.h>
+#include <openpbx/icd/icd_member.h>
+#include <openpbx/icd/icd_event.h>
 #include <openpbx/app.h>
 
 #include <assert.h>
-#include <icd_types.h>
-#include <icd_common.h>
-#include <icd_caller.h>
-#include <icd_distributor.h>
-#include <icd_caller_list.h>
-#include <icd_globals.h>
-#include <icd_member_list.h>
-#include <icd_list.h>
-#include <icd_member.h>
-#include <icd_queue.h>
-#include <icd_customer.h>
-#include <icd_agent.h>
-#include <icd_bridge.h>
-#include <icd_plugable_fn.h>
-#include <icd_plugable_fn_list.h>
-#include <icd_listeners.h>
+#include <openpbx/icd/icd_types.h>
+#include <openpbx/icd/icd_common.h>
+#include <openpbx/icd/icd_caller.h>
+#include <openpbx/icd/icd_distributor.h>
+#include <openpbx/icd/icd_caller_list.h>
+#include <openpbx/icd/icd_globals.h>
+#include <openpbx/icd/icd_member_list.h>
+#include <openpbx/icd/icd_list.h>
+#include <openpbx/icd/icd_member.h>
+#include <openpbx/icd/icd_queue.h>
+#include <openpbx/icd/icd_customer.h>
+#include <openpbx/icd/icd_agent.h>
+#include <openpbx/icd/icd_bridge.h>
+#include <openpbx/icd/icd_plugable_fn.h>
+#include <openpbx/icd/icd_plugable_fn_list.h>
+#include <openpbx/icd/icd_listeners.h>
 
 
 #include <stdlib.h>
@@ -43,14 +43,14 @@
 #include <fcntl.h>
 #include <loudmouth/loudmouth.h>
 #include <pthread.h>
-#include <icd_common.h>
+#include <openpbx/icd/icd_common.h>
 #include <malloc.h>
 #include <semaphore.h>
 
 #include <openpbx/app.h>
 
-#include <icd_caller_private.h>
-#include <icd_jabber.h>
+#include <openpbx/icd/icd_caller_private.h>
+#include <openpbx/icd/icd_jabber.h>
 
 #define MSG_SIZE 2048
 #define JABBER_FUNCT_ARGS_MAX 5

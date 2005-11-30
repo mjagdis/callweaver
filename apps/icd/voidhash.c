@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <voidhash.h>
-#include <icd_types.h>
+#include "openpbx/icd/voidhash.h"
+#include "openpbx/icd/icd_types.h"
 OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_adsiprog.c $", "$Revision: 1055 $")
 
 /*--- VH_ElfHash ---------------------------------------------------

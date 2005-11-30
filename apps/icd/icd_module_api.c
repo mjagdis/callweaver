@@ -7,15 +7,15 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <icd_module_api.h>
-#include <icd_common.h>
+#include "openpbx/icd/icd_module_api.h"
+#include "openpbx/icd/icd_common.h"
 #ifdef __APPLE__
-#include <openpbx/dlfcn-compat.h>
+#include "openpbx/dlfcn-compat.h"
 #else
 #include <dlfcn.h>
 #endif
-#include <icd_globals.h>
-#include <icd_caller.h>
+#include "openpbx/icd/icd_globals.h"
+#include "openpbx/icd/icd_caller.h"
 #include <dirent.h>
 
 static void_hash_table *loaded_modules;
