@@ -221,6 +221,11 @@ if test -z "${opbxmoddir}"; then
 fi
 AC_SUBST([opbxmoddir])
 
+if test -z "${opbxicdmoddir}"; then
+	opbxicdmoddir='${opbxmoddir}/icd'
+fi
+AC_SUBST([opbxicdmoddir])
+
 if test -z "${opbxvardir}"; then
    case "${with_directory_layout}" in
 	singledir)
@@ -1809,6 +1814,7 @@ AC_OUTPUT([Makefile
                  libs/lpc10/Makefile
                  agi/Makefile
                  apps/Makefile
+                 apps/icd/Makefile
                  cdr/Makefile
                  channels/Makefile
                  codecs/Makefile

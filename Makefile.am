@@ -40,7 +40,7 @@ INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)		\
 $(opbxkeydir) $(opbxlogdir) $(opbxlogdir)/cdr-custom			\
 $(opbxlogdir)/cdr-csv $(opbxmohdir) $(opbxrundir) $(opbxspooldir)	\
 $(opbxspooldir)/voicemail $(opbxspooldir)/meetme			\
-$(opbxspooldir)/outgoing $(opbxsqlitedir) $(opbxvardir)
+$(opbxspooldir)/outgoing $(opbxsqlitedir) $(opbxvardir) $(opbxicdmoddir)
 
 install-data-hook:
 	for install_dir in $(INSTALL_DIRS); \
