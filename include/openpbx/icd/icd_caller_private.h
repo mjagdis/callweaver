@@ -32,15 +32,15 @@
 #ifndef ICD_CALLER_PRIVATE_H
 #define ICD_CALLER_PRIVATE_H
 
-#include <openpbx/lock.h>
-#include <openpbx/channel.h>
-#include <icd_types.h>
-#include <icd_conference.h>
-#include <icd_distributor.h>
-#include <icd_caller.h>
-#include <icd_list.h>
-#include <icd_queue.h>
-#include <icd_plugable_fn.h>
+#include "openpbx/lock.h"
+#include "openpbx/channel.h"
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_conference.h"
+#include "openpbx/icd/icd_distributor.h"
+#include "openpbx/icd/icd_caller.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_queue.h"
+#include "openpbx/icd/icd_plugable_fn.h"
 
 #ifdef __cplusplus
 extern "C" {

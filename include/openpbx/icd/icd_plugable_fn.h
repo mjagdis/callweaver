@@ -10,7 +10,7 @@
 #ifndef ICD_PLUGABLE_FN_H
 #define ICD_PLUGABLE_FN_H
 
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 #include <assert.h>
 
 #ifdef __cplusplus

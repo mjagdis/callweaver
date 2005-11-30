@@ -36,7 +36,7 @@
 #ifndef APP_ICD_H
 #define APP_ICD_H
 
-#include <openpbx/icd/icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {

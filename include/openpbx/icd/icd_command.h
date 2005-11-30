@@ -10,7 +10,7 @@
 #ifndef ICD_COMMAND_H
 
 #define ICD_COMMAND_H
-#include <icd_common.h>
+#include "openpbx/icd/icd_common.h"
 
 void create_command_hash(void);
 void destroy_command_hash(void);

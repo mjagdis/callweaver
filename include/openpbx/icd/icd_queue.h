@@ -29,8 +29,8 @@
 #ifndef ICD_QUEUE_H
 #define ICD_QUEUE_H
 
-#include <icd_types.h>
-#include <icd_member.h>
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_member.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -30,7 +30,7 @@
 #define ICD_CUSTOMER_H
 
 #include <time.h>
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {

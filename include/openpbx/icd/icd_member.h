@@ -33,7 +33,7 @@
 #ifndef ICD_MEMBER_H
 #define ICD_MEMBER_H
 
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {

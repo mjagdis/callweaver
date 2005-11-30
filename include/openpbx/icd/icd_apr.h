@@ -11,7 +11,7 @@
 #define ICD_APR_H
 #include <apr_strings.h>
 #include <apr_pools.h>
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 void *icd_apr__malloc(size_t size);
 void *icd_apr__calloc(size_t size);

@@ -9,7 +9,7 @@
 
 #ifndef ICD_DISTRIBUTOR_PRIVATE_H
 #define ICD_DISTRIBUTOR_PRIVATE_H
-#include <icd_plugable_fn.h>
+#include "openpbx/icd/icd_plugable_fn.h"
 
 /*===== Private functions =====*/
 

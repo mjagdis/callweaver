@@ -32,8 +32,8 @@
 
 #ifndef ICD_DISTRIBUTOR_H
 #define ICD_DISTRIBUTOR_H
-#include <icd_types.h>
-#include <voidhash.h>
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/voidhash.h"
 
 #ifdef __cplusplus
 extern "C" {

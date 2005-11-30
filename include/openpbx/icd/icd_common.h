@@ -23,7 +23,6 @@
 /* Openpbx Includes */
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_record.c $", "$Revision: 1055 $")
 #include "openpbx/file.h"
 #include "openpbx/say.h"
 #include "openpbx/logger.h"

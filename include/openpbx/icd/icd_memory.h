@@ -24,7 +24,7 @@
 #ifndef ICD_MEMORY_H
 #define ICD_MEMORY_H
 
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {

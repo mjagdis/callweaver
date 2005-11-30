@@ -27,7 +27,7 @@
 #ifndef ICD_PLUGABLE_FN_LIST_H
 #define ICD_PLUGABLE_FN_LIST_H
 
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {

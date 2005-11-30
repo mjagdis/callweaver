@@ -47,7 +47,7 @@
 
 #ifndef ICD_EVENT_H
 #define ICD_EVENT_H
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {

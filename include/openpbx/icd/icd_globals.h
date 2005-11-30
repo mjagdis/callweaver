@@ -10,7 +10,7 @@
 #ifndef ICD_GLOBALS_H
 
 #define ICD_GLOBALS_H
-#include <icd_common.h>
+#include "openpbx/icd/icd_common.h"
 #include <signal.h>
 #include <setjmp.h>
 

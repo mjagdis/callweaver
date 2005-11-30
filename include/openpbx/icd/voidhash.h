@@ -9,7 +9,7 @@
 
 #ifndef _VOIDHASH_H
 #define _VOIDHASH_H
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 #include <sys/types.h>
 
 #define VOID_HASH_TABLE_KEY_SIZE 255

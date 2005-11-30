@@ -31,8 +31,8 @@
 #ifndef ICD_LIST_PRIVATE_H
 #define ICD_LIST_PRIVATE_H
 
-#include <openpbx/lock.h>
-#include <icd_types.h>
+#include "openpbx/lock.h"
+#include "openpbx/icd/icd_types.h"
 
 #ifdef __cplusplus
 extern "C" {
