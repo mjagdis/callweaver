@@ -7,7 +7,6 @@ SAMPLES = adsi.conf.sample \
 	cdr_tds.conf.sample \
 	codecs.conf.sample \
 	dnsmgr.conf.sample \
-	dundi.conf.sample \
 	enum.conf.sample \
 	extconfig.conf.sample \
 	extensions.conf.sample \
@@ -23,10 +22,16 @@ SAMPLES = adsi.conf.sample \
 	openpbx.conf.sample \
 	osp.conf.sample \
 	privacy.conf.sample \
-	queues.conf.sample \
 	rpt.conf.sample \
-	rtp.conf.sample \
-	voicemail.conf.sample
+	rtp.conf.sample
+
+if WANT_APP_QUEUE
+SAMPLES += queues.conf.sample
+endif WANT_APP_QUEUE
+
+if WANT_APP_VOICEMAIL
+SAMPLES += voicemail.conf.sample
+endif WANT_APP_VOICEMAIL
 
 if WANT_CDR_ODBC
 SAMPLES	+= cdr_odbc.conf.sample
@@ -83,6 +88,10 @@ endif WANT_CHAN_WOOMERA
 if WANT_CHAN_ZAP
 SAMPLES += zapata.conf.sample
 endif WANT_CHAN_ZAP
+
+if WANT_PBX_DUNDI
+SAMPLES += dundi.conf.sample
+endif WANT_PBX_DUNDI
 
 if WANT_RES_JABBER
 SAMPLES += res_jabber.conf.sample
