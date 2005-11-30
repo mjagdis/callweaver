@@ -45,27 +45,27 @@
  *
  */
 
-#include <app_icd.h>
-#include <icd_common.h>
-#include <icd_globals.h>
-#include <icd_distributor.h>
-#include <voidhash.h>
-#include <icd_command.h>
-#include <icd_fieldset.h>
-#include <icd_queue.h>
-#include <icd_customer.h>
-#include <icd_conference.h>
-#include <icd_agent.h>
-#include <icd_bridge.h>
-#include <icd_caller.h>
-#include <icd_config.h>
-#include <icd_member.h>
-#include <icd_event.h>
+#include <openpbx/icd/app_icd.h>
+#include <openpbx/icd/icd_common.h>
+#include <openpbx/icd/icd_globals.h>
+#include <openpbx/icd/icd_distributor.h>
+#include <openpbx/icd/voidhash.h>
+#include <openpbx/icd/icd_command.h>
+#include <openpbx/icd/icd_fieldset.h>
+#include <openpbx/icd/icd_queue.h>
+#include <openpbx/icd/icd_customer.h>
+#include <openpbx/icd/icd_conference.h>
+#include <openpbx/icd/icd_agent.h>
+#include <openpbx/icd/icd_bridge.h>
+#include <openpbx/icd/icd_caller.h>
+#include <openpbx/icd/icd_config.h>
+#include <openpbx/icd/icd_member.h>
+#include <openpbx/icd/icd_event.h>
 #include <openpbx/app.h>
 #include <loudmouth/loudmouth.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "icd_jabber.h"
+#include <openpbx/icd/icd_jabber.h>
 
 static char *qdesc = "Intelligent Call Distribution System";
 
