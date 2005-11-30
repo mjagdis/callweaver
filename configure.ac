@@ -581,31 +581,65 @@ dnl Enable debugging
 AC_ARG_ENABLE(debug,
 	[AC_HELP_STRING([--enable-debug],[build with debug information])],,[enable_debug="no"])
 
-AM_CONDITIONAL([DEBUG],[test "x$enable_debug" != "xno"])
+if test "${enable_debug}" = "yes"; then
+   AC_DEFINE([DEBUG],[],[Enable extra debugging.])
+fi
+
+dnl Enable debugging
+AC_ARG_ENABLE(debug-scheduler,
+	[AC_HELP_STRING([--enable-debug-scheduler],[build with scheduler debug information])],,[enable_debug_scheduler="no"])
+
+if test "${enable_debug_scheduler}" = "yes"; then
+   AC_DEFINE([DEBUG_SCHEDULER],[],[Enable scheduler debugging.])
+fi
+
+dnl Enable debugging
+AC_ARG_ENABLE(stack-backtraces,
+	[AC_HELP_STRING([--enable-stack-backtraces],[build with stack backtraces])],,[enable_stack_backtraces="no"])
+
+if test "${enable_stack_backtraces}" = "yes"; then
+   AC_DEFINE([STACK_BACKTRACES],[],[Enable generation of stack backtraces.])
+fi
+
+dnl
+AC_ARG_ENABLE(do-crash,
+	[AC_HELP_STRING([--enable-do-crash],[enable DO_CRASH])],,[enable_do_crash="no"])
+
+if test "${enable_do_crash}" = "yes"; then
+   AC_DEFINE([DO_CRASH],[],[Enable DO_CRASH.])
+fi
 
 dnl Enable frame tracing
-AC_ARG_ENABLE(frame_tracing,
-        [AC_HELP_STRING([--enable-frame_tracing],[build with frame tracer])],,[enable_frame_tracing="no"])
+AC_ARG_ENABLE(frame-tracing,
+        [AC_HELP_STRING([--enable-frame-tracing],[Build with frame tracing.])],,[enable_frame_tracing="no"])
 
-AM_CONDITIONAL([TRACE_FRAMES],[test "x$enable_frame_tracing" != "xno"])
+if test "${enable_frame_tracing}" = "yes"; then
+   AC_DEFINE([TRACE_FRAMES],[],[Build with frame tracing.])
+fi
 
 dnl Enable valgrind shit
 AC_ARG_ENABLE(valgrind,
-        [AC_HELP_STRING([--enable-valgrind],[build with valgrind information])],,[enable_valgrind="no"])
+        [AC_HELP_STRING([--enable-valgrind],[Build with valgrind information])],,[enable_valgrind="no"])
 
-AM_CONDITIONAL([VALGRIND],[test "x$enable_valgrind" != "xno" ])
+if test "${enable_valgrind}" = "yes"; then
+   AC_DEFINE([VALGRIND],[],[Build with valgrind information.])
+fi
 
 dnl Enable profiling
 AC_ARG_ENABLE(profiling,
 	[AC_HELP_STRING([--enable-profiling],[build with profiling support])],,[enable_profiling="no"])
 
-AM_CONDITIONAL([PROFILING],[test "x$enable_profiling" != "xno"])
+if test "${enable_profiling}" = "yes"; then
+   AC_DEFINE([PROFILING],[],[Build with profiling support.])
+fi
 
 dnl Low memory support
 AC_ARG_ENABLE(low_memory,
 	[AC_HELP_STRING([--enable-low_memory],[enable low_memory support])],,[enable_low_memory="no"])
 
-AM_CONDITIONAL([LOW_MEMORY],[test "x$enable_low_memory" != "xno"])
+if test "${enable_low_memory}" = "yes"; then
+   AC_DEFINE([LOW_MEMORY],[],[Low memory support.])
+fi
 
 dnl Select user and group
 opbxrunuser="openpbx"
