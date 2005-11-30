@@ -9,8 +9,8 @@
 #include <sched.h>
 
 #include "CuTest.h"
-#include "../icd_list.h"
-#include "../icd_config.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_config.h"
 
 /*-------------------------------------------------------------------------*
  * Helper functions

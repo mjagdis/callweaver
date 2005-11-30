@@ -6,19 +6,19 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <time.h>
-#include "../../../include/asterisk/cli.h"
-#include "../../../include/asterisk/lock.h"
-#include "../../../include/asterisk/logger.h"
-#include "../icd_types.h"
+#include "openpbx/cli.h"
+#include "openpbx/lock.h"
+#include "openpbx/logger.h"
+#include "openpbx/icd/icd_types.h"
 
-struct ast_channel { int x; };
-struct ast_cdr { int x; };
-struct ast_frame { int x; };
-typedef struct ast_cdr ast_cdrbe;
+struct opbx_channel { int x; };
+struct opbx_cdr { int x; };
+struct opbx_frame { int x; };
+typedef struct opbx_cdr opbx_cdrbe;
 int option_verbose;
-struct ast_variable { int x; };
-struct ast_config { int x; };
-struct ast_app { int x; };
+struct opbx_variable { int x; };
+struct opbx_config { int x; };
+struct opbx_app { int x; };
 
 int icd_debug;
 
@@ -27,7 +27,7 @@ int icd_verbose;
 icd_config_registry *app_icd_config_registry;
 
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) {
+void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...) {
     va_list ap;
 
     fprintf(stdout, "File %s, Line %d (%s): ", file, line, function);
@@ -37,7 +37,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
     fflush(stdout);
 }
 
-void ast_verbose(const char *fmt, ...) {
+void opbx_verbose(const char *fmt, ...) {
     va_list ap;
 
     va_start(ap, fmt);
@@ -47,37 +47,37 @@ void ast_verbose(const char *fmt, ...) {
 }
 
 
-void ast_cli(int fd, char *fmt, ...) {
+void opbx_cli(int fd, char *fmt, ...) {
 }
 
-int ast_hangup(struct ast_channel *chan) {
+int opbx_hangup(struct opbx_channel *chan) {
     return 0;
 }
 
-char ast_waitstream(struct ast_channel *c, char *breakon) {
+char opbx_waitstream(struct opbx_channel *c, char *breakon) {
     return '\0';
 }
 
-int ast_streamfile(struct ast_channel *c, char *filename, char *preflang) {
+int opbx_streamfile(struct opbx_channel *c, char *filename, char *preflang) {
     return 0;
 }
 
-void ast_moh_stop(struct ast_channel *chan) {
+void opbx_moh_stop(struct opbx_channel *chan) {
 }
 
-int ast_moh_start(struct ast_channel *chan, char *class) {
+int opbx_moh_start(struct opbx_channel *chan, char *class) {
     return 0;
 }
 
-char ast_waitfordigit(struct ast_channel *c, int ms) {
+char opbx_waitfordigit(struct opbx_channel *c, int ms) {
     return '\0';
 }
 
-int ast_autoservice_stop(struct ast_channel *chan) {
+int opbx_autoservice_stop(struct opbx_channel *chan) {
     return 0;
 }
 
-int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeout, int *extout) {
+int opbx_park_call(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout) {
     return 0;
 }
 
@@ -85,57 +85,57 @@ char *ast_parking_ext(void) {
     return NULL;
 }
 
-int ast_write(struct ast_channel *chan, struct ast_frame *frame) {
+int opbx_write(struct opbx_channel *chan, struct opbx_frame *frame) {
     return 0;
 }
 
-void ast_cdr_free(struct ast_cdr *cdr) {
+void opbx_cdr_free(struct opbx_cdr *cdr) {
 }
 
-int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *chan) {
+int opbx_cdr_init(struct opbx_cdr *cdr, struct opbx_channel *chan) {
     return 0;
 }
 
-int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *chan) {
+int opbx_cdr_setcid(struct opbx_cdr *cdr, struct opbx_channel *chan) {
     return 0;
 }
 
-int ast_cdr_register(char *name, char *desc, ast_cdrbe be) {
+int opbx_cdr_register(char *name, char *desc, opbx_cdrbe be) {
     return 0;
 }
 
-void ast_cdr_unregister(char *name) {
+void opbx_cdr_unregister(char *name) {
 }
 
-void ast_cdr_start(struct ast_cdr *cdr) {
+void opbx_cdr_start(struct opbx_cdr *cdr) {
 }
 
-void ast_cdr_answer(struct ast_cdr *cdr) {
+void opbx_cdr_answer(struct opbx_cdr *cdr) {
 }
 
-void ast_cdr_busy(struct ast_cdr *cdr) {
+void opbx_cdr_busy(struct opbx_cdr *cdr) {
 }
 
-void ast_cdr_failed(struct ast_cdr *cdr) {
+void opbx_cdr_failed(struct opbx_cdr *cdr) {
 }
 
-int ast_cdr_disposition(struct ast_cdr *cdr, int cause) {
+int opbx_cdr_disposition(struct opbx_cdr *cdr, int cause) {
     return 0;
 }
 
-void ast_cdr_end(struct ast_cdr *cdr) {
+void opbx_cdr_end(struct opbx_cdr *cdr) {
 }
 
-void ast_cdr_post(struct ast_cdr *cdr) {
+void opbx_cdr_post(struct opbx_cdr *cdr) {
 }
 
-void ast_cdr_setdestchan(struct ast_cdr *cdr, char *chan) {
+void opbx_cdr_setdestchan(struct opbx_cdr *cdr, char *chan) {
 }
 
-void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data) {
+void opbx_cdr_setapp(struct opbx_cdr *cdr, char *app, char *data) {
 }
 
-int ast_cdr_amaflags2int(char *flag) {
+int opbx_cdr_amaflags2int(char *flag) {
     return 0;
 }
 
@@ -143,176 +143,176 @@ char *ast_cdr_disp2str(int disposition) {
     return  NULL;
 }
 
-void ast_cdr_reset(struct ast_cdr *cdr, int post) {
+void opbx_cdr_reset(struct opbx_cdr *cdr, int post) {
 }
 
 char *ast_cdr_flags2str(int flags) {
     return  NULL;
 }
 
-int ast_cdr_setaccount(struct ast_channel *chan, char *account) {
+int opbx_cdr_setaccount(struct opbx_channel *chan, char *account) {
     return 0;
 }
 
-int ast_cdr_update(struct ast_channel *chan) {
+int opbx_cdr_update(struct opbx_channel *chan) {
     return 0;
 }
 
-void ast_frfree(struct ast_frame *fr) {
+void opbx_frfree(struct opbx_frame *fr) {
 }
 
-struct ast_cdr *ast_cdr_alloc(void) {
+struct opbx_cdr *ast_cdr_alloc(void) {
     return NULL;
 }
 
-struct ast_frame *ast_read(struct ast_channel *chan) {
+struct opbx_frame *ast_read(struct opbx_channel *chan) {
     return NULL;
 }
 
-int ast_waitfor(struct ast_channel *chan, int ms) {
+int opbx_waitfor(struct opbx_channel *chan, int ms) {
     return 0;
 }
 
-int ast_call(struct ast_channel *chan, char *addr, int timeout) {
+int opbx_call(struct opbx_channel *chan, char *addr, int timeout) {
     return 0;
 }
 
-struct ast_channel *ast_request(char *type, int format, void *data) {
+struct opbx_channel *ast_request(char *type, int format, void *data) {
     return NULL;
 }
 
-void ast_set_callerid(struct ast_channel *chan, char *callerid, int  anitoo) {
+void opbx_set_callerid(struct opbx_channel *chan, char *callerid, int  anitoo) {
 }
 
-int ast_stopstream(struct ast_channel *c) {
+int opbx_stopstream(struct opbx_channel *c) {
     return 0;
 }
 
-int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority, int needlock) {
+int opbx_async_goto(struct opbx_channel *chan, char *context, char *exten, int priority, int needlock) {
     return 0;
 }
 
-int ast_channel_setoption(struct ast_channel *channel, int option, void *data, int datalen, int block) {
+int opbx_channel_setoption(struct opbx_channel *channel, int option, void *data, int datalen, int block) {
     return 0;
 }
 
-int ast_answer(struct ast_channel *chan) {
+int opbx_answer(struct opbx_channel *chan) {
     return 0;
 }
 
-int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc) {
+int opbx_channel_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc) {
     return 0;
 }
 
-int ast_indicate(struct ast_channel *chan, int condition) {
+int opbx_indicate(struct opbx_channel *chan, int condition) {
     return 0;
 }
 
-int ast_autoservice_start(struct ast_channel *chan) {
+int opbx_autoservice_start(struct opbx_channel *chan) {
     return 0;
 }
 
-int ast_matchmore_extension(struct ast_channel *c, char *context, char *exten, int priority, char *callerid) {
+int opbx_matchmore_extension(struct opbx_channel *c, char *context, char *exten, int priority, char *callerid) {
     return 0;
 }
 
-int ast_exists_extension(struct ast_channel *c, char *context, char *exten, int priority, char *callerid) {
+int opbx_exists_extension(struct opbx_channel *c, char *context, char *exten, int priority, char *callerid) {
     return 0;
 }
 
-int ast_softhangup(struct ast_channel *chan, int cause) {
+int opbx_softhangup(struct opbx_channel *chan, int cause) {
     return 0;
 }
 
-int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout) {
+int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout) {
     return 0;
 }
 
-int ast_best_codec(int fmts) {
+int opbx_best_codec(int fmts) {
     return 0;
 }
 
-int ast_set_read_format(struct ast_channel *chan, int format) {
+int opbx_set_read_format(struct opbx_channel *chan, int format) {
     return 0;
 }
 
-int ast_set_write_format(struct ast_channel *chan, int format) {
+int opbx_set_write_format(struct opbx_channel *chan, int format) {
     return 0;
 }
 
-int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1) {
+int opbx_channel_make_compatible(struct opbx_channel *c0, struct opbx_channel *c1) {
     return 0;
 }
 
 
-int ast_cli_register ( struct ast_cli_entry * e ) { 
+int opbx_cli_register ( struct opbx_cli_entry * e ) { 
     return 0; 
 }
 
-int ast_register_application ( char * app, int(* execute)(struct ast_channel *, void *), char * synopsis, char * description) {
+int opbx_register_application ( char * app, int(* execute)(struct opbx_channel *, void *), char * synopsis, char * description) {
     return 0;
 }
 
-int ast_unregister_application(char *app) {
+int opbx_unregister_application(char *app) {
     return 0;
 }
 
 
-int ast_true(char *val) {
+int opbx_true(char *val) {
     return 0;
 }
 
-void ast_update_use_count(void) {
+void opbx_update_use_count(void) {
 }
 
-int ast_safe_sleep(struct ast_channel *chan, int ms) {
+int opbx_safe_sleep(struct opbx_channel *chan, int ms) {
     return 0;
 }
 
-char *ast_category_browse(struct ast_config *config, char *prev) {
+char *ast_category_browse(struct opbx_config *config, char *prev) {
     return NULL;
 }
 
-struct ast_variable *ast_variable_browse(struct ast_config *config, char *category) {
+struct opbx_variable *ast_variable_browse(struct opbx_config *config, char *category) {
     return NULL;
 }
 
 
-void ast_destroy(struct ast_config *config) {
+void opbx_destroy(struct opbx_config *config) {
 }
 
-struct ast_config *ast_load(char *configfile) {
+struct opbx_config *ast_load(char *configfile) {
     return NULL;
 }
 
-int ast_say_digits(struct ast_channel *chan, int num, char *ints, char *lang) {
+int opbx_say_digits(struct opbx_channel *chan, int num, char *ints, char *lang) {
     return 0;
 }
 
-struct ast_channel *ast_channel_alloc(int needalertpipe) {
+struct opbx_channel *ast_channel_alloc(int needalertpipe) {
     return NULL;
 }
 
-int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone) {
+int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *clone) {
     return 0;
 }
 
-void ast_deactivate_generator(struct ast_channel *chan) {
+void opbx_deactivate_generator(struct opbx_channel *chan) {
 }
 
-int ast_say_number(struct ast_channel *chan, int num, char *ints, char *lang, char *options) {
+int opbx_say_number(struct opbx_channel *chan, int num, char *ints, char *lang, char *options) {
     return 0;
 }
 
-int ast_check_hangup(struct ast_channel *chan) {
+int opbx_check_hangup(struct opbx_channel *chan) {
     return 0;
 }
 
-struct ast_app *pbx_findapp(char *app) {
+struct opbx_app *pbx_findapp(char *app) {
  return NULL;
 } 
 
-int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstrck) {
+int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data, int newstrck) {
  return 0;
 }
  
@@ -320,10 +320,10 @@ char *ast_state2str(int state) {
  return NULL;
 }
  
-struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds, int *exception,int *outfd, int *ms) {
+struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *fds, int nfds, int *exception,int *outfd, int *ms) {
 	return NULL;
 }
 
-int ast_cli_unregister(struct ast_cli_entry *e) {
+int opbx_cli_unregister(struct opbx_cli_entry *e) {
     return 0;
 }
