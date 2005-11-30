@@ -1,8 +1,6 @@
 AUTOMAKE_OPTS = gnu
 SAMPLES = adsi.conf.sample \
 	adtranvofr.conf.sample \
-	agents.conf.sample \
-	capi.conf.sample \
 	cdr.conf.sample \
 	cdr_custom.conf.sample \
 	cdr_manager.conf.sample \
@@ -13,14 +11,10 @@ SAMPLES = adsi.conf.sample \
 	enum.conf.sample \
 	extconfig.conf.sample \
 	extensions.conf.sample \
-	features.conf.sample \
-	iax.conf.sample \
-	iaxprov.conf.sample \
 	indications.conf.sample \
 	logger.conf.sample \
 	manager.conf.sample \
 	meetme.conf.sample \
-	mgcp.conf.sample \
 	modem.conf.sample \
 	modules.conf.sample \
 	musiconhold.conf.sample \
@@ -32,8 +26,6 @@ SAMPLES = adsi.conf.sample \
 	queues.conf.sample \
 	rpt.conf.sample \
 	rtp.conf.sample \
-	sip.conf.sample \
-	sip_notify.conf.sample \
 	voicemail.conf.sample
 
 if WANT_CDR_ODBC
@@ -44,17 +36,45 @@ if WANT_CDR_PGSQL
 SAMPLES	+= cdr_pgsql.conf.sample
 endif WANT_CDR_PGSQL
 
+if WANT_CHAN_AGENT
+SAMPLES += agents.conf.sample
+endif WANT_CHAN_AGENT
+
 if WANT_CHAN_ALSA
 SAMPLES	+= alsa.conf.sample
 endif WANT_CHAN_ALSA
+
+if WANT_CHAN_CAPI
+SAMPLES += capi.conf.sample
+endif WANT_CHAN_CAPI
 
 if WANT_CHAN_FAX
 SAMPLES += chan_fax.conf.sample
 endif WANT_CHAN_FAX
 
+if WANT_CHAN_FEATURES
+SAMPLES += features.conf.sample
+endif WANT_CHAN_FEATURES
+
+if WANT_CHAN_IAX2
+SAMPLES += iax.conf.sample iaxprov.conf.sample
+endif WANT_CHAN_IAX2
+
+if WANT_CHAN_MGCP
+SAMPLES += mgcp.conf.sample
+endif WANT_CHAN_MGCP
+
+if WANT_CHAN_SIP
+SAMPLES += sip.conf.sample sip_notify.conf.sample
+endif WANT_CHAN_SIP
+
 if WANT_CHAN_UNICALL
 SAMPLES += unicall.conf.sample
 endif WANT_CHAN_UNICALL
+
+if WANT_CHAN_VISDN
+SAMPLES += chan_visdn.conf.sample
+endif WANT_CHAN_VISDN
 
 if WANT_CHAN_WOOMERA
 SAMPLES += woomera.conf.sample
