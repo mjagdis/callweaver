@@ -11,7 +11,7 @@
 
 #define ICD_COMMON_H
 
-/* Standard libraries */
+/* Standard Includes */
 #include <assert.h>
 #include <pthread.h>
 #include <sched.h>
@@ -20,31 +20,34 @@
 #include <string.h>
 #include <netinet/in.h>
 
-/* Asterisk Libraries */
-#include <openpbx/file.h>
-#include <openpbx/say.h>
-#include <openpbx/logger.h>
-#include <openpbx/utils.h>
-#include <openpbx/options.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/cli.h>
-#include <openpbx/config.h>
-#include <openpbx/manager.h>
-#include <openpbx/features.h>
+/* Openpbx Includes */
+#include "openpbx.h"
 
-/* ICD Libraries */
-#include <icd_fieldset.h>
-#include <icd_listeners.h>
-#include <icd_event.h>
-#include <voidhash.h>
-#include <icd_config.h>
-#include <icd_types.h>
-#include <icd_globals.h>
-#include <icd_plugable_fn.h>
-#include <icd_jabber.h>
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_record.c $", "$Revision: 1055 $")
+#include "openpbx/file.h"
+#include "openpbx/say.h"
+#include "openpbx/logger.h"
+#include "openpbx/utils.h"
+#include "openpbx/options.h"
+#include "openpbx/channel.h"
+#include "openpbx/pbx.h"
+#include "openpbx/module.h"
+#include "openpbx/musiconhold.h"
+#include "openpbx/cli.h"
+#include "openpbx/config.h"
+#include "openpbx/manager.h"
+#include "openpbx/features.h"
+
+/* ICD Includes */
+#include "openpbx/icd/icd_fieldset.h"
+#include "openpbx/icd/icd_listeners.h"
+#include "openpbx/icd/icd_event.h"
+#include "openpbx/icd/voidhash.h"
+#include "openpbx/icd/icd_config.h"
+#include "openpbx/icd/icd_types.h"
+#include "openpbx/icd/icd_globals.h"
+#include "openpbx/icd/icd_plugable_fn.h"
+#include "openpbx/icd/icd_jabber.h"
 
 /* 
    Support for pre/post 1.0 rendition of opbx_set_(read/write)_format.
