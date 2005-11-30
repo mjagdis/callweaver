@@ -46,7 +46,7 @@
 #ifndef ICD_AGENT_H
 #define ICD_AGENT_H
 
-#include <icd_types.h>
+#include "openpbx/icd/icd_types.h"
 OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_adsiprog.c $", "$Revision: 1055 $")
 
 #ifdef __cplusplus
