@@ -38,10 +38,10 @@
  */
 
 #include <assert.h>
-#include <openpbx/icd/icd_common.h>
-#include <openpbx/icd/icd_metalist.h>
-#include <openpbx/icd/icd_list.h>
-#include <openpbx/icd/icd_list_private.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_metalist.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_list_private.h"
 
 /*===== Private types and APIs =====*/
 

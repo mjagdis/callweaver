@@ -28,11 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <openpbx/icd/icd_common.h>
+#include "openpbx/icd/icd_common.h"
 
 /*===== Public APIs =====*/
 
-#include <openpbx/icd/icd_listeners.h>
+#include "openpbx/icd/icd_listeners.h"
 
 /*===== Private Types and APIs =====*/
 

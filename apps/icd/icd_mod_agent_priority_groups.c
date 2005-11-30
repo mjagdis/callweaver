@@ -7,7 +7,7 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <openpbx/icd/icd_module_api.h>
+#include "openpbx/icd/icd_module_api.h"
 
 /* This is a custom call distribution strategy based on the following algo
  * agents are assignged to M priority groups see icd_config/icd_agent.conf-> priority=

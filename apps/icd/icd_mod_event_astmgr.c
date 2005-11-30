@@ -7,7 +7,7 @@
  *                                                                         *
  ***************************************************************************/
 
-#include <openpbx/icd/icd_module_api.h>
+#include "openpbx/icd/icd_module_api.h"
 
 /* Private implemenations */
 static int module_id = 0;

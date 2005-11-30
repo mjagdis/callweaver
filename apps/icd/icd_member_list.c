@@ -25,13 +25,13 @@
  */
 
 #include <assert.h>
-#include <openpbx/icd/icd_common.h>
-#include <openpbx/icd/icd_member_list.h>
-#include <openpbx/icd/icd_list.h>
-#include <openpbx/icd/icd_list_private.h>
-#include <openpbx/icd/icd_member.h>
+#include "openpbx/icd/icd_common.h"
+#include "openpbx/icd/icd_member_list.h"
+#include "openpbx/icd/icd_list.h"
+#include "openpbx/icd/icd_list_private.h"
+#include "openpbx/icd/icd_member.h"
 /* For dump function only, should be done from icd_member */
-#include <openpbx/icd/icd_caller.h>
+#include "openpbx/icd/icd_caller.h"
 
 /*===== Private APIs, types, and variables =====*/
 
