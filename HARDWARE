@@ -49,12 +49,14 @@ Zaptel compatible hardware
 -- Sangoma
 	http://www.sangoma.com
 
-   * Wanpipe A101 - Single T1/E1 interface connects to a single T1/PRI or
+   * Wanpipe A101 - Single T1/E1/J1 interface connects to a single T1/PRI or
      E1/EuroPRI interface. Supports RBS and PRI Voice with PRI HDLC in hardware,
      PPP, FR, and HDLC Data.
 
-   * Wanpipe A102 - Dual T1/E1 Version of the A101
+   * Wanpipe A102 - Dual T1/E1/J1 Version of the A101
 
-   * Wanpipe A104 - Quad T1/E1 Version of the A101
+   * Wanpipe A104 - Quad T1/E1/J1 Version of the A101
+   
+   * Wanpipe A104d - Quad T1/E1/J1 Echo Cancelling version of A104
 
                         
