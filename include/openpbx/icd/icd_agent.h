@@ -1,19 +1,18 @@
 /*
- * Intelligent Call Distributor
+ * ICD - Intelligent Call Distributor 
  *
  * Copyright (C) 2003, 2004, 2005
  *
  * Written by Anthony Minessale II <anthmct at yahoo dot com>
  * Written by Bruce Atherton <bruce at callenish dot com>
+ * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
  * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
- * Halo Kwadrat Sp. z o.o. 
+ * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
  * 
  * This application is a part of:
  * 
  * OpenPBX -- An open source telephony toolkit.
- *
  * Copyright (C) 1999 - 2005, Digium, Inc.
- *
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.openpbx.org for more information about
@@ -30,9 +29,6 @@
 /*! \file
  * \brief icd_agent.h  -  an agent or device
  * 
- */
- 
-/*
  * The icd_agent module represents an internal entity that is going to deal with a
  * agent call as represented by icd_agent. That entity might be a person at
  * the end of a channel, or it might be a program or device.

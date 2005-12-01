@@ -1,5 +1,5 @@
-/*
-  * U-law 8-bit audio data
+/*! \file
+  *  \brief U-law 8-bit audio data
   *
   * Source: enter.raw
   *
