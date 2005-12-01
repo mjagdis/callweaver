@@ -34,6 +34,10 @@ load => res_musiconhold.so
 ;
 noload => chan_alsa.so
 
+; Don't load chan_woomera by default.  Loading it without having any
+; woomera Server running will be confusing.
+noload => chan_woomera.so
+
 ;
 ; Module names listed in "global" section will have symbols globally
 ; exported to modules loaded after them.

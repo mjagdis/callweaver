@@ -28,7 +28,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps
 
 #include "../channels/chan_visdn.h"
 
-static char *tdesc = "vISDN";
+static char *tdesc = "vISDN ppp RAS module";
 static char *app = "vISDNppp";
 static char *synopsis = "Runs pppd and connects channel to visdn-ppp gateway";
 

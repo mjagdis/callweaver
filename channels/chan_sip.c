@@ -10098,7 +10098,11 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
 /*! \brief  opbx_quiet_chan: Turn off generator data */
 static void opbx_quiet_chan(struct opbx_channel *chan) 
 {
-	opbx_generator_deactivate(chan);
+	if (chan) {
+		opbx_generator_deactivate(chan);
+	} else {
+		opbx_log(LOG_WARNING, "Aiiiee. Tried to quit_chan non-existing Channel!\n");
+	}
 }
 
 /*! \brief  attempt_transfer: Attempt transfer of SIP call ---*/
@@ -10123,7 +10127,10 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 	chanb = p2->owner;
 	bridgea = opbx_bridged_channel(chana);
 	bridgeb = opbx_bridged_channel(chanb);
+
 	
+	// Will the other bridge ever be active?
+	// i.e.: is peerd ever != NULL? -mc
 	if (bridgea) {
 		peera = chana;
 		peerb = chanb;
@@ -10134,13 +10141,17 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		peerb = chana;
 		peerc = bridgeb;
 		peerd = bridgea;
+	} else {
+		opbx_log(LOG_WARNING, "Neither bridgea nor bridgeb?\n");
 	}
+					
 	
 	if (peera && peerb && peerc && (peerb != peerc)) {
 		opbx_quiet_chan(peera);
 		opbx_quiet_chan(peerb);
 		opbx_quiet_chan(peerc);
-		opbx_quiet_chan(peerd);
+		if (peerd)
+			opbx_quiet_chan(peerd);
 
 		if (peera->cdr && peerb->cdr) {
 			peerb->cdr = opbx_cdr_append(peerb->cdr, peera->cdr);
