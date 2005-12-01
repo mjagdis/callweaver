@@ -1,22 +1,35 @@
-/***************************************************************************
-        icd_distributor.c  -  a strategy to assign a call to an agent
-                             -------------------
-    begin                : Mon Dec 15 2003
-    copyright            : (C) 2003 by Bruce Atherton
-    email                : bruce@callenish.com
-***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
-
-
 /*
+ * Intelligent Call Distributor
+ *
+ * Copyright (C) 2003, 2004, 2005
+ *
+ * Written by Anthony Minessale II <anthmct at yahoo dot com>
+ * Written by Bruce Atherton <bruce at callenish dot com> copyright <C> 2003
+ * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Halo Kwadrat Sp. z o.o. 
+ * 
+ * This application is a part of:
+ * 
+ * OpenPBX -- An open source telephony toolkit.
+ *
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ *
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*! \file
+ * \brief    icd_distributor.c  -  a strategy to assign a call to an agent
+ *
  * The icd_distributor module holds a set of all agents and customers that can
  * talk to one another, as well as a thread of execution that can bridge the
  * channels.
@@ -30,6 +43,10 @@
  * the comparison function set to icd_agent__cmp_priority().
  *
  */
+ 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif 
 
 
 #include <assert.h>

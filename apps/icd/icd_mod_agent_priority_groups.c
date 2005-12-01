@@ -1,15 +1,36 @@
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU Library General Public License as       *
- *   published by the Free Software Foundation; either version 2 of the    *
- *   License, or (at your option) any later version                        *
- *                                                                         *
- ***************************************************************************/
+/*
+ * ICD - Intelligent Call Distributor 
+ *
+ * Copyright (C) 2003, 2004, 2005
+ *
+ * Written by Anthony Minessale II <anthmct at yahoo dot com>
+ * Written by Bruce Atherton <bruce at callenish dot com>
+ * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
+ * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
+ * 
+ * This application is a part of:
+ * 
+ * OpenPBX -- An open source telephony toolkit.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
 
-#include "openpbx/icd/icd_module_api.h"
 
-/* This is a custom call distribution strategy based on the following algo
+/*! \file
+ *  \brief icd_mod_agent_priorities - distributor strategy to prioritise on agents module
+ * 
+ * This is a custom call distribution strategy based on the following algo
  * agents are assignged to M priority groups see icd_config/icd_agent.conf-> priority=
  * agents in priority group N are are all called first at the same time
  * when the first agent in that groups times out or all members are busy
@@ -41,6 +62,13 @@
  *  hangus em u
  *  
  */
+ 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif 
+
+#include "openpbx/icd/icd_module_api.h"
+
 /* public apis */
 int icd_module_command_agtpri(int fd, int argc, char **argv);
 static icd_plugable_fn *icd_module_get_plugable_fns(icd_caller * that);

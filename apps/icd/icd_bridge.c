@@ -1,19 +1,18 @@
 /*
- * Intelligent Call Distributor
+ * ICD - Intelligent Call Distributor 
  *
  * Copyright (C) 2003, 2004, 2005
  *
  * Written by Anthony Minessale II <anthmct at yahoo dot com>
  * Written by Bruce Atherton <bruce at callenish dot com>
+ * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
  * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
- * Halo Kwadrat Sp. z o.o. 
+ * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
  * 
  * This application is a part of:
  * 
  * OpenPBX -- An open source telephony toolkit.
- *
  * Copyright (C) 1999 - 2005, Digium, Inc.
- *
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.openpbx.org for more information about
@@ -26,6 +25,15 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
+ 
+ /*! \file
+  * \brief icd_bridge.c - direct bridging taken mostly out of the asterisk pbx
+  */
+
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif 
+
 #include "openpbx/icd/icd_types.h"
 #include "openpbx/icd/icd_globals.h"
 #include "openpbx/icd/icd_common.h"

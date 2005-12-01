@@ -5,15 +5,14 @@
  *
  * Written by Anthony Minessale II <anthmct at yahoo dot com>
  * Written by Bruce Atherton <bruce at callenish dot com>
+ * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
  * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
- * Halo Kwadrat Sp. z o.o. 
+ * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
  * 
  * This application is a part of:
  * 
  * OpenPBX -- An open source telephony toolkit.
- *
  * Copyright (C) 1999 - 2005, Digium, Inc.
- *
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.openpbx.org for more information about
@@ -27,7 +26,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
+ * \brief Main entry point to the ICD system
+ * 
  * This is the main entry point for the ICD program.
  * It is responsible for providing the APIs that Asterisk requires in
  * order to load ICD as a module, as well as providing all of the set up
@@ -44,6 +45,10 @@
  * @deffunc function prototype if required
  *
  */
+ 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif  
 
 #include "openpbx/icd/app_icd.h"
 #include "openpbx/icd/icd_common.h"
@@ -132,9 +137,9 @@ icd_fieldset *customers;
 
 /* static icd_module module_id = APP_ICD; */
 
-/*** For Asterisk functions ***/
+/*** For Openpbx functions ***/
 
-/* Required for interacting with the Asterisk CLI */
+/* Required for interacting with the OpenPBX.org CLI */
 static struct opbx_cli_entry icd_command_cli_struct = {
     {"icd", NULL, NULL, NULL},
     icd_command_cli, "Execute ICD Command",
@@ -144,7 +149,7 @@ static struct opbx_cli_entry icd_command_cli_struct = {
 /* Creates a list of channels controlled by this module ("local" channels) */
 STANDARD_LOCAL_USER;
 
-/* Creates other variables that Asterisk requires for the local channel list */
+/* Creates other variables that OpenPBX.org requires for the local channel list */
 LOCAL_USER_DECL;
 
 /*** For the ICD Module Initialization ***/
@@ -208,9 +213,9 @@ static int handle_core(int sig)
 }
 #endif
 
-/***** Asterisk Required Module API Implementation *****/
+/***** OpenPBX.org Required Module API Implementation *****/
 
-/* Asterisk calls this when it loads a module. All of our initialization is here. */
+/* OpenPBX.org calls this when it loads a module. All of our initialization is here. */
 int load_module(void)
 {
     
@@ -238,7 +243,7 @@ int load_module(void)
     */
     icd_conference__init_registry();
 
-    /* Now do all the registration with Asterisk. done b4 loadable mods so they can add icd cmds */
+    /* Now do all the registration with OpenPBX.org. done b4 loadable mods so they can add icd cmds */
     create_command_hash();
 
     opbx_verbose(VERBOSE_PREFIX_2 "APP ICD: Loading external modules.\n");
@@ -276,11 +281,11 @@ int load_module(void)
        abort();
        }
     */
-    icd_jabber_send_message("Asterisk and ICD up");
+    icd_jabber_send_message("OpenPBX.org and ICD up");
     return 0;
 }
 
-/* Asterisk calls this to unload a module. All our cleanup is in here. */
+/* OpenPBX.org calls this to unload a module. All our cleanup is in here. */
 int unload_module(void)
 {
     icd_fieldset_iterator *iter;
@@ -289,7 +294,7 @@ int unload_module(void)
     icd_agent *agent;
 
     ICD_UNINIT;
-    opbx_log(LOG_WARNING, "ICD unloading from Asterisk, all callers will be lost!\n");
+    opbx_log(LOG_WARNING, "ICD unloading from OpenPBX.org, all callers will be lost!\n");
     icd_jabber_clear ();
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
@@ -356,7 +361,7 @@ char *description(void)
     return qdesc;
 }
 
-/* Asterisk calls this when we are reloaded. All reinitialization is here. */
+/* OpenPBX.org calls this when we are reloaded. All reinitialization is here. */
 int reload(void)
 {
     icd_status result;

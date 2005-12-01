@@ -1,21 +1,34 @@
-/***************************************************************************
-                     icd_customer.c  -  a customer call
-                             -------------------
-    begin                : Mon Dec 15 2003
-    copyright            : (C) 2003 by Bruce Atherton
-    email                : bruce at callenish dot com
-***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU Library General Public License as       *
- *   published by the Free Software Foundation; either version 2 of the    *
- *   License, or (at your option) any later version                        *
- *                                                                         *
- ***************************************************************************/
-
 /*
+ * ICD - Intelligent Call Distributor 
+ *
+ * Copyright (C) 2003, 2004, 2005
+ *
+ * Written by Anthony Minessale II <anthmct at yahoo dot com>
+ * Written by Bruce Atherton <bruce at callenish dot com>
+ * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
+ * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
+ * 
+ * This application is a part of:
+ * 
+ * OpenPBX -- An open source telephony toolkit.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*! \file
+ * \brief icd_customer.c - a customer call
+ * 
  * The icd_customer module represents a call that needs to be serviced by an
  * internal entity, aka an icd_agent. Although typically this will actually
  * be a customer of the company, it could be any call that needs servicing.
@@ -25,6 +38,10 @@
  * of a call will be here.
  *
  */
+ 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif  
 
 #include "openpbx/icd/icd_common.h"
 #include "openpbx/icd/icd_bridge.h"
