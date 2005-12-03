@@ -78,6 +78,11 @@ static struct {
 	char *tablename;
 } globals;
 
+static struct opbx_db_data {
+	char *data;
+	int datalen;
+	int rownum;
+};
 
 static int dbinit(void);
 static void sqlite_pick_path(char *dbname, char *buf, size_t size);
@@ -237,9 +242,10 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 
 static int get_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
-	struct opbx_frame *dframe = pArg;
+	struct opbx_db_data *result = pArg;
 
-	opbx_copy_string(dframe->data, argv[0], dframe->datalen);
+	opbx_copy_string(result->data, argv[0], result->datalen);
+	result->rownum++;
 	return 0;
 }
 
@@ -249,7 +255,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 	char *sql;
 	char *zErr = 0;
 	int res = 0;
-	struct opbx_frame dframe;
+	struct opbx_db_data result;
 	sqlite3 *db;
 
 	sanity_check();
@@ -261,15 +267,16 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 		family = "_undef_";
 	}
 
-	dframe.data = value;
-	dframe.datalen = valuelen;
+	result.data = value;
+	result.datalen = valuelen;
+	result.rownum = 0;
 
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
 		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   get_callback,
-						   &dframe,
+						   &result,
 						   &zErr
 						   );
 		
@@ -277,7 +284,10 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
 		} else {
-			res = 0;
+			if (result.rownum)
+				res = 0;
+			else
+				res = -1;
 		}
 	} else {
 		opbx_log(LOG_ERROR, "Memory Error!\n");
