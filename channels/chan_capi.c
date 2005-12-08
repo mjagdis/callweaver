@@ -893,7 +893,7 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 			break;
 		case 'd':	/* use default cid */
 			if (i->doOverlap)
-				obpx_log(LOG_WARNING, "Default CID already set in '%s'\n", idest);
+				cc_log(LOG_WARNING, "Default CID already set in '%s'\n", idest);
 			use_defaultcid = 1;
 			break;
 		default:
@@ -1627,16 +1627,15 @@ static void capi_change_bchan_fax(struct opbx_channel *c, B3_PROTO_FAXG3 *b3conf
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
 
-	if ((i->isdnstate & CAPI_ISDN_STATE_B3_UP) ||
-	    (i->isdnstate & CAPI_ISDN_STATE_B3_PEND)) {
+	if ((i->isdnstate & (CAPI_ISDN_STATE_B3_UP | CAPI_ISDN_STATE_B3_PEND))) {
 		int waitcount = 200;
 		DISCONNECT_B3_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
 		DISCONNECT_B3_REQ_NCCI(&CMSG) = i->NCCI;
 		_capi_put_cmsg(&CMSG);
 	
 		/* wait for the B3 layer to go down */
-		while ((waitcount > 0) && ((i->isdnstate & CAPI_ISDN_STATE_B3_UP)) ||
-		                           (i->isdnstate & CAPI_ISDN_STATE_B3_PEND)) {
+		while ((waitcount > 0) &&
+		       (i->isdnstate & (CAPI_ISDN_STATE_B3_UP | CAPI_ISDN_STATE_B3_PEND))) {
 			usleep(10000);
 			waitcount--;
 		}
@@ -1766,6 +1765,7 @@ static void capi_handle_dtmf_fax(struct opbx_channel *c)
 		cc_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
 		return;
 	}
+
 	if (!opbx_exists_extension(c, c->context, "fax", 1, p->cid)) {
 		cc_verbose(3, 0, VERBOSE_PREFIX_3 "Fax tone detected, but no fax extension for %s\n", c->name);
 		return;
@@ -2074,6 +2074,7 @@ static void handle_did_digits(_cmsg *CMSG, unsigned int PLCI, unsigned int NCCI,
 	}
 
 	did = capi_number(INFO_IND_INFOELEMENT(CMSG), 1);
+
 	if ((!(i->isdnstate & CAPI_ISDN_STATE_DID)) &&
 	    (strlen(i->dnid) && !strcasecmp(i->dnid, did))) {
 		did = NULL;
@@ -2930,7 +2931,7 @@ static int capi_call_deflect(struct opbx_channel *c, char *param)
 	}
 
 	cc_mutex_lock(&i->lock);
-	
+
 	if ((i->state != CAPI_STATE_INCALL) &&
 	    (i->state != CAPI_STATE_DID) &&
 	    (i->state != CAPI_STATE_ALERTING)) {
@@ -3756,7 +3757,6 @@ static int capi_signal_progress(struct opbx_channel *c, char *param)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
-	unsigned char fac[12];
 
 	if ((i->state != CAPI_STATE_DID) && (i->state != CAPI_STATE_INCALL)) {
 		cc_log(LOG_WARNING, "wrong channel state to signal PROGRESS\n");
@@ -4068,7 +4068,7 @@ int mkif(struct cc_capi_conf *conf)
 		} else {
 			strncpy(tmp->name, conf->name, sizeof(tmp->name) - 1);
 			tmp->channeltype = CAPI_CHANNELTYPE_B;
-		}	
+		}
 		strncpy(tmp->context, conf->context, sizeof(tmp->context) - 1);
 		strncpy(tmp->incomingmsn, conf->incomingmsn, sizeof(tmp->incomingmsn) - 1);
 		strncpy(tmp->defaultcid, conf->defaultcid, sizeof(tmp->defaultcid) - 1);
@@ -4500,6 +4500,7 @@ static int conf_interface(struct cc_capi_conf *conf, struct opbx_variable *v)
 		CONF_STRING(conf->controllerstr, "controller");
 		CONF_STRING(conf->prefix, "prefix");
 		CONF_STRING(conf->accountcode, "accountcode");
+
 		if (!strcasecmp(v->name, "softdtmf")) {
 			if ((!conf->softdtmf) && (opbx_true(v->value))) {
 				conf->softdtmf = 1;
