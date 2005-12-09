@@ -113,7 +113,7 @@ static struct opbx_custom_function db_function = {
 	.desc = "This function will read or write a value from/to the OpenPBX database.\n"
 		"DB(...) will read a value from the database, while DB(...)=value\n"
 		"will write a value to the database.  On a read, this function\n"
-		"returns the value from the datase, or NULL if it does not exist.\n"
+		"returns the value from the database, or NULL if it does not exist.\n"
 		"On a write, this function will always return NULL.  Reading a database value\n"
 		"will also set the variable DB_RESULT.\n",
 	.read = function_db_read,

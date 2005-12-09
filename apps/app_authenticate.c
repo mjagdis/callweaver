@@ -55,7 +55,7 @@ static char *descrip =
 "given password in order to continue execution.  If the\n"
 "password begins with the '/' character, it is interpreted as\n"
 "a file which contains a list of valid passwords (1 per line).\n"
-"an optional set of opions may be provided by concatenating any\n"
+"an optional set of options may be provided by concatenating any\n"
 "of the following letters:\n"
 "     a - Set account code to the password that is entered\n"
 "     d - Interpret path as database key, not literal file\n"
