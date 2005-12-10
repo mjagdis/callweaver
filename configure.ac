@@ -247,7 +247,7 @@ fi
 AC_SUBST([opbxdbdir])
 
 if test -z "${opbxdbfile}"; then
-	opbxdbfile='${opbxdbdir}/opbxdb'
+	opbxdbfile='opbxdb'
 fi
 AC_SUBST([opbxdbfile])
 

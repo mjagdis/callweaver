@@ -1809,6 +1809,8 @@ static void opbx_readconfig(void) {
 			opbx_copy_string(opbx_config_OPBX_CTL_GROUP, v->value, sizeof(opbx_config_OPBX_CTL_GROUP));
 		} else if (!strcasecmp(v->name, "opbxctl")) {
 			opbx_copy_string(opbx_config_OPBX_CTL, v->value, sizeof(opbx_config_OPBX_CTL));
+		} else if (!strcasecmp(v->name, "opbxdb")) {
+			opbx_copy_string(opbx_config_OPBX_DB, v->value, sizeof(opbx_config_OPBX_DB));
 		}
 		v = v->next;
 	}
@@ -1821,7 +1823,8 @@ static void opbx_readconfig(void) {
 			snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "opbxvarlibdir")) {
 			opbx_copy_string(opbx_config_OPBX_VAR_DIR, v->value, sizeof(opbx_config_OPBX_VAR_DIR));
-			snprintf(opbx_config_OPBX_DB, sizeof(opbx_config_OPBX_DB), "%s/%s", v->value, "opbxdb");    
+		} else if (!strcasecmp(v->name, "opbxdbdir")) {
+			opbx_copy_string(opbx_config_OPBX_DB_DIR, v->value, sizeof(opbx_config_OPBX_DB_DIR));
 		} else if (!strcasecmp(v->name, "opbxlogdir")) {
 			opbx_copy_string(opbx_config_OPBX_LOG_DIR, v->value, sizeof(opbx_config_OPBX_LOG_DIR));
 		} else if (!strcasecmp(v->name, "opbxagidir")) {

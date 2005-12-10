@@ -136,7 +136,7 @@ static void sqlite_pick_path(char *dbname, char *buf, size_t size)
 	if (strchr(dbname, '/')) {
 		strncpy(buf, dbname, size);
 	} else {
-		snprintf(buf, size, "%s/%s.db", globals.dbdir, dbname);
+		snprintf(buf, size, "%s/%s", globals.dbdir, dbname);
 	}
 }
 
