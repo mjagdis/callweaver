@@ -2,6 +2,8 @@ AUTOMAKE_OPTS			= gnu
 
 opbxmod_LTLIBRARIES 		=
 
+SUBDIRS				= sccp
+
 if WANT_CHAN_ALSA
 opbxmod_LTLIBRARIES		+= chan_alsa.la
 chan_alsa_la_SOURCES		= chan_alsa.c

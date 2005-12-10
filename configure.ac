@@ -1427,6 +1427,27 @@ AM_CONDITIONAL([WANT_CHAN_SIP],[test "${with_chan_sip}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([chan_sccp],
+	[AC_HELP_STRING([--with-chan_sccp],[Build and install chan_sccp (default=yes)])],,[with_chan_sccp="no"])
+
+AM_CONDITIONAL([WANT_CHAN_SCCP],[test "${with_chan_sccp}" = "yes"])
+
+AC_ARG_ENABLE([sccp-park],
+	[AC_HELP_STRING([--disable-sccp-park],[Disable sccp call parking support (default=enabled)])],,[enable_sccp_park="yes"])
+
+if test "x${enable_sccp_park}" != "xno"; then
+	AC_DEFINE([CS_SCCP_PARK],[1],[chan_sccp call parking support])
+fi
+
+AC_ARG_ENABLE([sccp-pickup],
+	[AC_HELP_STRING([--disable-sccp-pickup],[Disable sccp call pickup support (default=enabled)])],,[enable_sccp_pickup="yes"])
+
+if test "x${enable_sccp_pickup}" != "xno"; then
+	AC_DEFINE([CS_SCCP_PICKUP],[1],[chan_sccp call pickup support])
+fi
+
+dnl ###########################################################################
+
 AC_ARG_WITH(chan_unicall,
 	[AC_HELP_STRING([--with-chan_unicall],[Build and install chan_unicall (default=no).])],,[with_chan_unicall="no"])
 
@@ -1817,6 +1838,7 @@ AC_OUTPUT([Makefile
                  apps/icd/Makefile
                  cdr/Makefile
                  channels/Makefile
+                 channels/sccp/Makefile
                  codecs/Makefile
  		 corelib/Makefile
                  formats/Makefile

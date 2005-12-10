@@ -73,6 +73,10 @@ if WANT_CHAN_SIP
 SAMPLES += sip.conf.sample sip_notify.conf.sample
 endif WANT_CHAN_SIP
 
+if WANT_CHAN_SCCP
+SAMPLES	+= sccp.conf.sample
+endif WANT_CHAN_SCCP
+
 if WANT_CHAN_UNICALL
 SAMPLES += unicall.conf.sample
 endif WANT_CHAN_UNICALL
