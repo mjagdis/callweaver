@@ -38,6 +38,7 @@
 #include "openpbx/icd/icd_module_api.h"
 
 extern icd_fieldset *agents;
+extern int icd_verbose;
 icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, void *extra);
 icd_status distribute_customer_match_agent(icd_distributor * dist, 
                                            icd_caller *agent_caller,

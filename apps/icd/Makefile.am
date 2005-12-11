@@ -5,7 +5,7 @@ app_icd_la_SOURCES		= app_icd.c icd_agent.c icd_bridge.c icd_caller.c icd_caller
  	        icd_conference.c icd_config.c icd_customer.c icd_distributor.c icd_distributor_list.c \
 	        icd_event.c icd_fieldset.c icd_list.c icd_listeners.c icd_member.c icd_member_list.c \
 	        icd_metalist.c icd_queue.c voidhash.c \
- 	    		icd_module_api.c icd_plugable_fn.c icd_plugable_fn_list.c icd_jabber.c
+ 	    		icd_module_api.c icd_plugable_fn.c icd_plugable_fn_list.c
 app_icd_la_LDFLAGS						= -module -avoid-version -no-undefined
 app_icd_la_LIBADD						= ${top_builddir}/corelib/libopenpbx.la
 

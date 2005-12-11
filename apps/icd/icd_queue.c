@@ -28,7 +28,7 @@
  
  /*! \file
   *  \brief icd_queue.c - central queueing definitions
- 
+*/ 
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif 

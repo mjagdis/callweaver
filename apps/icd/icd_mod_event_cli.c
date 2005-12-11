@@ -31,7 +31,7 @@
 #endif  
 
 #include "openpbx/icd/icd_module_api.h"
-#include "openpbx/icd/icd_jabber.h"
+#include "openpbx/icd/icd_command.h"
 #include "openpbx/icd/icd_conference.h"
 /* Private implemenations */
 static int module_id = 0;

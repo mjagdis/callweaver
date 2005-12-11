@@ -64,9 +64,7 @@
 #include "openpbx/app.h"
 
 #include "openpbx/icd/icd_bridge.h"
-#include <loudmouth/loudmouth.h>
 #include <pthread.h>
-#include <semaphore.h>
 
 // ----------
 struct opbx_channel *agent_channel0 = NULL;

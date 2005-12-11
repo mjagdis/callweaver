@@ -47,6 +47,17 @@ int icd_command_show(int fd, int argc, char **argv);
 int icd_command_dump(int fd, int argc, char **argv);
 int icd_command_list(int fd, int argc, char **argv);
 int icd_command_load(int fd, int argc, char **argv);
+int icd_command_transfer(int fd, int argc, char **argv);
+int icd_command_ack_req(int fd, int argc, char **argv);
+int icd_command_login_req(int fd, int argc, char **argv);
+int icd_command_logout_req(int fd, int argc, char **argv);
+int icd_command_originate(int fd, int argc, char **argv);
+int icd_command_hang_up(int fd, int argc, char **argv);
+int icd_command_hangup_channel(int fd, int argc, char **argv);
+int icd_command_record(int fd, int argc, char **argv);
+int icd_command_join_queue(int fd, int argc, char **argv);
+void icd_jabber_send_message( char *format, ...);
+
 
 #endif
 

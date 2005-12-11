@@ -67,10 +67,7 @@
 #include "openpbx/icd/icd_member.h"
 #include "openpbx/icd/icd_event.h"
 #include "openpbx/app.h"
-#include <loudmouth/loudmouth.h>
 #include <pthread.h>
-#include <semaphore.h>
-#include "openpbx/icd/icd_jabber.h"
 
 static char *qdesc = "Intelligent Call Distribution System";
 
@@ -107,7 +104,7 @@ static int core_count = 0;
 #endif
 
 /* icd verbosity using ast verbose in caller fsm, icd flag can be set to ast option or run independent*/
-int icd_verbose = 0;
+int icd_verbose=2;
 
 /* icd debug flag enables debugging using opbx_log-debug in caller fsm  */
 int icd_debug = 0;
@@ -232,7 +229,6 @@ int load_module(void)
      */
     reload_icd();
     /* Create variables from ICD modules */
-    opbx_pthread_create(&icd_jabber_threads[0], NULL, icd_jabber_initialize, NULL);
     app_icd_config_registry = create_icd_config_registry("ICD Config Registry");
 
     queues = create_icd_fieldset("ICD Queues");
@@ -1739,7 +1735,6 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                 icd_config_name);
         return ICD_ENOTFOUND;
     }
-    jabber_server[0]=jabber_login[0]=jabber_password[0]=jabber_send_address[0]='\0';
     entry = opbx_category_browse(astcfg, NULL);
     /* For each category (demarcated by "[]") in the file */
 
@@ -1770,35 +1765,13 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                     icd_verbose = option_verbose;       /*default to ast option_verbose */
 
             }                   /*general section */
-	       /*jabber section */
-            if (strcasecmp(entry, "jabber") == 0) {
-                if (strcasecmp(varlist->name, "jabber_server") == 0) {
-                    strncpy(jabber_server, varlist->value, sizeof(jabber_server)-1);
-                    if (icd_debug)
-                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_server);
-                }
-                if (strcasecmp(varlist->name, "jabber_login") == 0) {
-                    strncpy(jabber_login, varlist->value, sizeof(jabber_login)-1);
-                    if (icd_debug)
-                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_login);
-                }
-                if (strcasecmp(varlist->name, "jabber_password") == 0) {
-                    strncpy(jabber_password, varlist->value, sizeof(jabber_password)-1);
-                    if (icd_debug)
-                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_password);
-                }
-                if (strcasecmp(varlist->name, "jabber_send_address") == 0) {
-                    strncpy(jabber_send_address, varlist->value, sizeof(jabber_send_address)-1);
-                    if (icd_debug)
-                        opbx_log(LOG_DEBUG, "Set %s=%s\n", varlist->name, jabber_send_address);
-                }
-            }                   /*jabber section end */
             if (strcasecmp(entry, "events") == 0) {
                 if (strcasecmp(varlist->name, "module_mask") == 0) {
                     /* iterrate over our modules & see if the module string is in the module_mask */
-                    for (mod = APP_ICD; mod <= ICD_MAX_MODULES; ++mod) {
-                        if (icd_module_strings[mod] != NULL
-                            && icd_instr(varlist->value, icd_module_strings[mod], icd_delimiter))
+                    for (mod = APP_ICD; mod < ICD_MAX_MODULES; ++mod) {
+                    	if (icd_module_strings[mod] == NULL)
+                    	    break;
+                        if (icd_instr(varlist->value, icd_module_strings[mod], icd_delimiter))
                             module_mask[mod] = 1;
                         else
                             module_mask[mod] = 0;
@@ -1809,8 +1782,9 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
                 if (strcasecmp(varlist->name, "event_mask") == 0) {
                     /* iterrate over our events & see if the event string is in the event_mask */
                     for (event = ICD_EVENT_TEST; event < ICD_MAX_EVENTS; ++event) {
-                        if (icd_event_strings[event] != NULL 
-                            && icd_instr(varlist->value, icd_event_strings[event], icd_delimiter))
+                        if (icd_event_strings[event] == NULL )
+                            break;
+                        if(icd_instr(varlist->value, icd_event_strings[event], icd_delimiter))
                             event_mask[event] = 1;
                         else
                             event_mask[event] = 0;

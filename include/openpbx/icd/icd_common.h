@@ -65,7 +65,6 @@
 #include "openpbx/icd/icd_types.h"
 #include "openpbx/icd/icd_globals.h"
 #include "openpbx/icd/icd_plugable_fn.h"
-#include "openpbx/icd/icd_jabber.h"
 
 /* 
    Support for pre/post 1.0 rendition of opbx_set_(read/write)_format.
