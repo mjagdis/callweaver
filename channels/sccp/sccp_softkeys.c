@@ -219,9 +219,6 @@ void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	sccp_log(10)(VERBOSE_PREFIX_3 "### Native PICKUP was not compiled in\n");
 #else
 	struct opbx_channel *ast, *original = NULL;
-#ifndef CS_OPBX_CHANNEL_HAS_CID
-	char * name, * number, *cidtmp; // For the callerid parse below
-#endif
 
 	if (!l)
 		l = d->currentLine;
@@ -273,16 +270,7 @@ void sccp_sk_gpickup(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 		opbx_hangup(ast);
 
 	if (original) {
-#ifdef CS_OPBX_CHANNEL_HAS_CID
 		sccp_channel_set_callingparty(c, original->cid.cid_name, original->cid.cid_num);
-#else
-		if (original->callerid && (cidtmp = strdup(original->callerid))) {
-			opbx_callerid_parse(cidtmp, &name, &number);
-			sccp_channel_set_callingparty(c, name, number);
-			free(cidtmp);
-			cidtmp = NULL;
-		}
-#endif
 	}
 	opbx_mutex_lock(&c->lock);
 	c->calltype = SKINNY_CALLTYPE_INBOUND;
