@@ -6255,7 +6255,7 @@ static void reg_source_db(struct sip_peer *peer)
 		opbx_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
 
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
+		opbx_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from opbxdb: '%s' at %s@%s:%d for %d\n",
 			    peer->name, peer->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
