@@ -1622,28 +1622,12 @@ static int opbx_el_write_history(char *filename)
 
 static int opbx_el_read_history(char *filename)
 {
-	char buf[256];
-	FILE *f;
-	int ret = -1;
+	HistEvent ev;
 
 	if (el_hist == NULL || el == NULL)
 		opbx_el_initialize();
 
-	if ((f = fopen(filename, "r")) == NULL)
-		return ret;
-
-	while (!feof(f)) {
-		fgets(buf, sizeof(buf), f);
-		if (!strcmp(buf, "_HiStOrY_V2_\n"))
-			continue;
-		if (opbx_all_zeros(buf))
-			continue;
-		if ((ret = opbx_el_add_history(buf)) == -1)
-			break;
-	}
-	fclose(f);
-
-	return ret;
+	return (history(el_hist, &ev, H_LOAD, filename));
 }
 
 static void opbx_remotecontrol(char * data)
