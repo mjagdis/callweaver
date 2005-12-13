@@ -457,7 +457,7 @@ int opbx_best_codec(int fmts)
 	{
 		/* Okay, ulaw is used by all telephony equipment, so start with it */
 		OPBX_FORMAT_ULAW,
-		/* Unless of course, you're a silly European, so then prefer ALAW */
+		/* Unless of course, you're a European, so then prefer ALAW */
 		OPBX_FORMAT_ALAW,
 		/* Okay, well, signed linear is easy to translate into other stuff */
 		OPBX_FORMAT_SLINEAR,
