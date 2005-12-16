@@ -2592,9 +2592,11 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 	int rxavg = 0;
 	int txavg = 0;
 
-	b3len = DATA_B3_IND_DATALENGTH(CMSG);
-	b3buf = &(i->rec_buffer[OPBX_FRIENDLY_OFFSET]);
-	memcpy(b3buf, (char *)DATA_B3_IND_DATA(CMSG), b3len);
+	if (i != NULL) {
+		b3len = DATA_B3_IND_DATALENGTH(CMSG);
+		b3buf = &(i->rec_buffer[OPBX_FRIENDLY_OFFSET]);
+		memcpy(b3buf, (char *)DATA_B3_IND_DATA(CMSG), b3len);
+	}
 	
 	/* send a DATA_B3_RESP very quickly to free the buffer in capi */
 	DATA_B3_RESP_HEADER(&CMSG2, capi_ApplID, HEADER_MSGNUM(CMSG), 0);
@@ -2694,10 +2696,7 @@ static void capi_handle_connect_active_indication(_cmsg *CMSG, unsigned int PLCI
 	
 	CONNECT_ACTIVE_RESP_HEADER(&CMSG2, capi_ApplID, HEADER_MSGNUM(CMSG), 0);
 	CONNECT_ACTIVE_RESP_PLCI(&CMSG2) = PLCI;
-	
-	if (_capi_put_cmsg(&CMSG2) != 0) {
-		return;
-	}
+	_capi_put_cmsg(&CMSG2);
 	
 	return_on_no_interface("CONNECT_ACTIVE_IND");
 
@@ -2745,11 +2744,8 @@ static void capi_handle_connect_b3_active_indication(_cmsg *CMSG, unsigned int P
 	/* then send a CONNECT_B3_ACTIVE_RESP */
 	CONNECT_B3_ACTIVE_RESP_HEADER(&CMSG2, capi_ApplID, HEADER_MSGNUM(CMSG), 0);
 	CONNECT_B3_ACTIVE_RESP_NCCI(&CMSG2) = NCCI;
+	_capi_put_cmsg(&CMSG2);
 
-	if (_capi_put_cmsg(&CMSG2) != 0) {
-		return;
-	}
-	
 	return_on_no_interface("CONNECT_ACTIVE_B3_IND");
 
 	cc_mutex_lock(&contrlock);
@@ -2797,7 +2793,6 @@ static void capi_handle_disconnect_b3_indication(_cmsg *CMSG, unsigned int PLCI,
 
 	DISCONNECT_B3_RESP_HEADER(&CMSG2, capi_ApplID, HEADER_MSGNUM(CMSG), 0);
 	DISCONNECT_B3_RESP_NCCI(&CMSG2) = NCCI;
-
 	_capi_put_cmsg(&CMSG2);
 
 	return_on_no_interface("DISCONNECT_B3_IND");
@@ -2834,10 +2829,12 @@ static void capi_handle_connect_b3_indication(_cmsg *CMSG, unsigned int PLCI, un
 	CONNECT_B3_RESP_HEADER(&CMSG2, capi_ApplID, HEADER_MSGNUM(CMSG), 0);
 	CONNECT_B3_RESP_NCCI(&CMSG2) = NCCI;
 	CONNECT_B3_RESP_REJECT(&CMSG2) = 0;
+	_capi_put_cmsg(&CMSG2);
+
+	return_on_no_interface("CONNECT_B3_IND");
 
 	i->NCCI = NCCI;
 
-	_capi_put_cmsg(&CMSG2);
 	return;
 }
 
@@ -3303,35 +3300,27 @@ static void capi_handle_msg(_cmsg *CMSG)
 		capi_handle_connect_indication(CMSG, PLCI, NCCI, &i);
 		break;
 	case CAPI_P_IND(DATA_B3):
-		if(i == NULL) break;
 		capi_handle_data_b3_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(CONNECT_B3):
-		if(i == NULL) break;
 		capi_handle_connect_b3_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(CONNECT_B3_ACTIVE):
-		if(i == NULL) break;
 		capi_handle_connect_b3_active_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(DISCONNECT_B3):
-		if(i == NULL) break;
 		capi_handle_disconnect_b3_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(DISCONNECT):
-		if(i == NULL) break;
 		capi_handle_disconnect_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(FACILITY):
-		if(i == NULL) break;
 		capi_handle_facility_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(INFO):
-		if(i == NULL) break;
 		capi_handle_info_indication(CMSG, PLCI, NCCI, i);
 		break;
 	case CAPI_P_IND(CONNECT_ACTIVE):
-		if(i == NULL) break;
 		capi_handle_connect_active_indication(CMSG, PLCI, NCCI, i);
 		break;
 
