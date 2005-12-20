@@ -1144,6 +1144,11 @@ int capi_write(struct opbx_channel *c, struct opbx_frame *f)
 		return 0;
 	}
 
+	if ((!(i->ntmode)) && (i->state != CAPI_STATE_CONNECTED)) {
+		cc_mutex_unlock(&i->lock);
+		return 0;
+	}
+
 	if (f->frametype == OPBX_FRAME_NULL) {
 		cc_mutex_unlock(&i->lock);
 		return 0;
