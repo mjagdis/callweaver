@@ -101,19 +101,14 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
         case ICD_EVENT_STATECHANGE:
             caller = (icd_caller *) icd_event__get_source(event);
             chan = icd_caller__get_channel(caller);
-            opbx_verbose(VERBOSE_PREFIX_1 "[%s] id[%d] [%s] clid[%s] name[%s] run[%s] state - %s \n",
-                        icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller),
-                        icd_caller__get_name(caller), chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "nochan",
-                        chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan",
-                        icd_caller__get_plugable_fns_name(caller), smsg);
-	    conf = icd_caller__get_conference(caller);		
+	        conf = icd_caller__get_conference(caller);		
             if(conf != NULL)
 	          confnr = conf->ztc.confno;
-            icd_jabber_send_message("[%s] id[%d] [%s] clid[%s] name[%s] run[%s] channel_name[%s] conf[%d] state - %s \n",
+            opbx_verbose(VERBOSE_PREFIX_1 "[%s] id[%d] [%s] clid[%s] name[%s] channel_name[%s] uniqueid[%s] conf[%d] run[%s] state - %s \n",
                         icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller),
                         icd_caller__get_name(caller), chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "nochan",
                         chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan",
-			icd_caller__get_plugable_fns_name(caller), chan ? chan->name : "nochan", confnr, smsg);
+                        chan ? chan->name : "nochan", chan ? chan->uniqueid : "nochan",confnr, smsg);
 	    break;
 	    
         case ICD_EVENT_READY:
@@ -135,10 +130,7 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
 /*	case ICD_EVENT_DISTRIBUTED: */
            if (smsg) 
                 opbx_verbose(VERBOSE_PREFIX_1 "[%s][%s] %s \n", icd_module_strings[icd_event__get_module_id(event)],
-                            icd_event_strings[icd_event__get_event_id(event)], smsg);
-	    if (smsg)		    
-	        icd_jabber_send_message("[%s] [%s] %s", icd_module_strings[icd_event__get_module_id(event)], icd_event_strings[icd_event__get_event_id(event)], smsg);		    
-	     
+                            icd_event_strings[icd_event__get_event_id(event)], smsg);	     
 	     break;
 	     
         default:

@@ -281,8 +281,9 @@ int icd_bridge__wait_call_customer(icd_caller * that)
             if (icd_verbose > 2)
                 opbx_log(LOG_WARNING, "Caller %s [%d] disconnected while waiting their turn\n",
                     icd_caller__get_name(that), icd_caller__get_id(that));
-                icd_jabber_send_message("[ICD_BRIDGE] [HANGUP OF] customer id[%d] [%s] chan_name[%s] name[%s]",  
-	                  icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan"); 
+                icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: HANGUP\r\nID: %d\r\n"
+                "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\n",  
+	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan"); 
             res = -1;
 
             /* prolly should update a counter of callers that abandoned need to lock q & update */
@@ -305,8 +306,9 @@ int icd_bridge__wait_call_customer(icd_caller * that)
         if (res == 1){ 
           opbx_log(LOG_WARNING, "Caller exit while waiting turn in line no agents available customer id[%d] [%s] \n", icd_caller__get_id(that), icd_caller__get_name(that));
 	  if(ok_exit_noagent(that)){
-            icd_jabber_send_message("[ICD_BRIDGE] [NOAGENT TIMEOUT] customer id[%d] [%s] chan_name[%s] name[%s] go to priority [%d]",  
-	                 icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan", chan->priority); 
+                icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: NoAgentTimeout\r\nID: %d\r\n"
+                "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\n",  
+	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan"); 
             icd_caller__stop_waiting(that);
             icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);     /* todo new exit code */
             break;
@@ -315,13 +317,17 @@ int icd_bridge__wait_call_customer(icd_caller * that)
             /*set res to [t]imeout ext in context for ok_exit, the ext for wait timeouts   */
 	    /* it will be serviced like regular timeout   */
             res = 116;  /* 116-t or we could just use 85-T */
-            icd_jabber_send_message("[ICD_BRIDGE] [NOAGENT TIMEOUT, NO EXTENSION] customer id[%d] [%s] chan_name[%s] name[%s]", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan"); 
+            icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: NoAgentTimeout\r\nID: %d\r\n"
+                "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\nExtension: NoExtension\r\n",  
+	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan"); 
 	    break;
 	  }
 	}     
 
         if (ok_exit(that, res)) {
-            icd_jabber_send_message("[ICD_BRIDGE] [EXIT] customer id[%d] [%s] chan_name[%s] name[%s] go to extension [%d]", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan", res); 
+           icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: Exit\r\nID: %d\r\n"
+                "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\nExtension: %d\r\n",  
+	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan",res); 
             opbx_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
             icd_caller__stop_waiting(that);
             icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);     /* todo new exit code */
@@ -331,11 +337,15 @@ int icd_bridge__wait_call_customer(icd_caller * that)
     }
     if(res == 116){ /*Timeout  */
         if (ok_exit(that, res)) {
-			icd_jabber_send_message("[ICD_BRIDGE] [TIMEOUT] customer id[%d] [%s] chan_name[%s] name[%s] go to extension [t]", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan");
+           icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: Timeout\r\nID: %d\r\n"
+                "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\nExtension: %d\r\n",  
+	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan",res); 
             opbx_log(LOG_WARNING, "Caller exit to exten[%d] while waiting turn in line\n", res);
 	}  
 	else {
-            icd_jabber_send_message("[ICD_BRIDGE] [TIMEOUT, NO EXTENSION] customer id[%d] [%s] chan_name[%s] name[%s]", icd_caller__get_id(that),icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan"); 
+        icd_manager_send_message("Module: ICD_BRIDGE\r\nEvent: Timeout\r\nID: %d\r\n"
+               "CallerName: %s\r\nChannelName: %s\r\nUniqueid: %s\r\nExtension: NoExtension\r\n",  
+	             icd_caller__get_id(that), icd_caller__get_name(that), chan ? chan->name: "nochan", chan ? chan->uniqueid : "nochan"); 
 	}    
         icd_caller__stop_waiting(that);
         icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);     /* todo new exit code */
@@ -405,7 +415,7 @@ int icd_bridge_wait_ack(icd_caller * that)
         /* ok we got some type of dtmf, ok to bridge */
     if (res) {
     	         if (chan->stream) { 
-	            ast_stopstream(chan);       /* cut off any files that are playing */ 
+	            opbx_stopstream(chan);       /* cut off any files that are playing */ 
 	         } 
     			return 0;
 	}

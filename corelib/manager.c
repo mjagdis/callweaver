@@ -1505,7 +1505,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 
 		if (opbx_strlen_zero(tmp)) {
 			opbx_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
-					 event, authority_to_str(category, auth, sizeof(auth)));
+					 event, authority_to_str(category, auth, sizeof(auth)-1));
 			va_start(ap, fmt);
 			opbx_build_string_va(&tmp_next, &tmp_left, fmt, ap);
 			va_end(ap);
@@ -1531,11 +1531,11 @@ int manager_event(int category, char *event, char *fmt, ...)
 		char *p;
 		int len;
 		opbx_mutex_lock(&hooklock);
-		snprintf(tmp, sizeof(tmp), "Event: %s\r\nPrivilege: %s\r\n", event, authority_to_str(category, tmp, sizeof(tmp)));
+		snprintf(tmp, sizeof(tmp)-1, "Event: %s\r\nPrivilege: %s\r\n", event, authority_to_str(category, auth, sizeof(auth)-1));
 		len = strlen(tmp);
 		p = tmp + len;
 		va_start(ap, fmt);
-		vsnprintf(p, sizeof(tmp) - len, fmt, ap);
+		vsnprintf(p, sizeof(tmp) - len - 1, fmt, ap);
 		va_end(ap);
 		for (hookp = manager_hooks ; hookp; hookp = hookp->next) {
 			hookp->helper(category, event, tmp);

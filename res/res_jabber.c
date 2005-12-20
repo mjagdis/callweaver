@@ -19,7 +19,7 @@
 #include <string.h>
 #include <loudmouth/loudmouth.h>
 #include <assert.h>
-//#define PATCHED_MANAGER
+#define PATCHED_MANAGER
 
 #include "openpbx/file.h"
 #include "openpbx/logger.h"
@@ -199,6 +199,9 @@ static int parse_jabber_command_main(struct jabber_message *jmsg);
 static int res_jabber_exec(struct opbx_channel *chan, void *data);
 static void init_globals(int do_free); 
 static int config_jabber(int reload); 
+static void *cli_command_thread(void *cli_command);
+static void launch_cli_thread(char *cli_command); 
+
 
 
 
@@ -210,7 +213,7 @@ static int config_jabber(int reload);
 static int jabber_manager_event(int category, char *event, char *body)
 {
 	struct jabber_message_node *node;
-	if ((node=jabber_message_node_printf(globals.event_master, "ASTERISK EVENT", "%s", body))) {
+	if ((node=jabber_message_node_printf(globals.event_master, "ASTERISK EVENT", "%s", body))) { 
 		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 	}
 	return 0;
@@ -1752,6 +1755,44 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
   return sd;
   }
 */
+static void *cli_command_thread(void *cli_command)
+{
+ 	int fd;
+   	fd = fileno(stderr);
+   	opbx_cli_command(fd, (char *)cli_command);
+/*   	free(cli_command);	 */
+}	
+
+static void launch_cli_thread(char *cli_command) 
+{
+	pthread_attr_t attr;
+	int result = 0;
+	char *cli_command_dup;
+	pthread_t thread;
+	struct jabber_message_node *node;
+
+    if(!opbx_strlen_zero(cli_command)) {
+        cli_command_dup = opbx_strdupa(cli_command);
+        if (!cli_command_dup){
+        	return;
+        }
+    }
+    else {
+    	return;
+    }
+	if ((node = jabber_message_node_printf("Cli command", 
+											    "Cli Command Call",
+												"Command: %s\n",
+												cli_command 
+												))) {
+				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
+	}
+	result = pthread_attr_init(&attr);
+	pthread_attr_setschedpolicy(&attr, SCHED_RR);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	result = opbx_pthread_create(&thread, &attr, cli_command_thread, cli_command_dup);
+	result = pthread_attr_destroy(&attr);
+}
 
 static int parse_jabber_command_main(struct jabber_message *jmsg)
 {
@@ -1867,6 +1908,9 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 			}
 		}
 	}
+   if (!strcasecmp(jmsg->command, "cli")) {
+   	    launch_cli_thread(jmsg->command_args);
+   }
 
 	return res;
 }

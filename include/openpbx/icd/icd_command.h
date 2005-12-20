@@ -56,7 +56,7 @@ int icd_command_hang_up(int fd, int argc, char **argv);
 int icd_command_hangup_channel(int fd, int argc, char **argv);
 int icd_command_record(int fd, int argc, char **argv);
 int icd_command_join_queue(int fd, int argc, char **argv);
-void icd_jabber_send_message( char *format, ...);
+void icd_manager_send_message( char *format, ...);
 
 
 #endif

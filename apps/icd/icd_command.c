@@ -861,7 +861,7 @@ int icd_command_login_req (int fd, int argc, char **argv)
     opbx_log(LOG_WARNING,"funkcja login [%d]\n", argc);
 
     if ((argc != 3) && (argc !=4)){
-         icd_jabber_send_message("LOGIN FAILURE! - wrong parameters number.");
+         icd_manager_send_message("LOGIN FAILURE! - wrong parameters number.");
 	return ICD_EGENERAL;
     }	 
     channelstring = argv[1];
@@ -879,25 +879,25 @@ int icd_command_login_req (int fd, int argc, char **argv)
         opbx_log(LOG_WARNING,
                     "AGENT LOGGIN FAILURE!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agentname);        
-        icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] could not be found.", agentname);
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] could not be found.", agentname);
 	    return ICD_EGENERAL;
        }       
     if (icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_SUSPEND &&
       icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_INITIALIZED) {
         opbx_log(LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agentname);        
-        icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] already logged in.", agentname);
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] already logged in.", agentname);
  	    return ICD_EGENERAL;
      }
 	if(icd_caller__get_param((icd_caller *) agent, "LogInProgress")){ 
 	        opbx_log(LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agentname);         
-	        icd_jabber_send_message("LOGIN FAILURE! Agent [%s] - previous login try not finished yet.", agentname); 
+	        icd_manager_send_message("LOGIN FAILURE! Agent [%s] - previous login try not finished yet.", agentname); 
 	        return ICD_EGENERAL;
 	    } 
 	    icd_caller__set_param((icd_caller *) agent, "LogInProgress", &logFlag);         
     chan =icd_bridge_get_openpbx_channel(channelstring, NULL, NULL, NULL);
     if(!chan) {
         opbx_log(LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
-        icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - Not avaliable channel [%s].", agentname, channelstring);
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - Not avaliable channel [%s].", agentname, channelstring);
         icd_caller__del_param((icd_caller *) agent, "LogInProgress");
 	    return ICD_EGENERAL;
     }
@@ -915,7 +915,7 @@ int icd_command_login_req (int fd, int argc, char **argv)
     
     if(res) {
         opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
-        icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - Unable to prepare channel [%s].", agentname, channelstring);
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - Unable to prepare channel [%s].", agentname, channelstring);
         if(oldrformat)
             opbx_set_read_format(chan, oldrformat);
         if(oldwformat)
@@ -940,7 +940,7 @@ int icd_command_login_req (int fd, int argc, char **argv)
      res = icd_bridge_dial_openpbx_channel((icd_caller *) agent, channelstring, 20000);
      if (res != OPBX_CONTROL_ANSWER){
          opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agentname, channelstring);
-        icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - unable to get answer from channel [%s].", agentname, channelstring);
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - unable to get answer from channel [%s].", agentname, channelstring);
 	 
 /* More detailed check why there is no answer probably needed in the future. */	 
          opbx_hangup(chan);
@@ -950,7 +950,7 @@ int icd_command_login_req (int fd, int argc, char **argv)
      agent = app_icd__dtmf_login(chan, agentname, passwd, 3);
      if (!agent){
             opbx_log(LOG_WARNING, "Agent [%s] wrong password.\n",agentname);
-            icd_jabber_send_message("LOGIN FAILURE!  Agent [%s] - wrong password.", agentname);
+            icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - wrong password.", agentname);
             opbx_hangup(chan);
             icd_caller__del_param((icd_caller *) agent, "LogInProgress"); 
 	        return ICD_EGENERAL;
@@ -965,7 +965,7 @@ int icd_command_login_req (int fd, int argc, char **argv)
        
     opbx_log(LOG_NOTICE, "Agent [%s] found in registry and marked in use.\n",
                     icd_caller__get_name((icd_caller *) agent));
-    icd_jabber_send_message("LOGIN OK!  Agent [%s] - successfully logged in.", agentname);
+    icd_manager_send_message("LOGIN OK!  Agent [%s] - successfully logged in.", agentname);
 
 		  
      icd_caller__del_param((icd_caller *) agent, "LogInProgress");  
@@ -1029,7 +1029,7 @@ int icd_command_logout_req (int fd, int argc, char **argv)
     /* Identify agent just like app_icd__agent_exec, only this time we skip
        dynamically creating an agent. */
     if (argc != 3) {
-         icd_jabber_send_message("LOGOUT FAILURE!  - wrong parameters number.");
+         icd_manager_send_message("LOGOUT FAILURE!  - wrong parameters number.");
          return ICD_EGENERAL;
     }	 
     agentname = argv[1];
@@ -1038,7 +1038,7 @@ int icd_command_logout_req (int fd, int argc, char **argv)
     if (agent == NULL) {
         opbx_log(LOG_WARNING,
                     "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agentname);
-        icd_jabber_send_message("LOGOUT FAILURE!  Agent [%s] - could not be found.", agentname);
+        icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - could not be found.", agentname);
 		    
 	        return ICD_EGENERAL;
     }
@@ -1047,7 +1047,7 @@ int icd_command_logout_req (int fd, int argc, char **argv)
           if(strcmp(passwd, passwd_to_check)){
           opbx_log(LOG_WARNING,
                     "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agentname);
-          icd_jabber_send_message("LOGOUT FAILURE!  Agent [%s] - wrong password [%s].", agentname, passwd_to_check);
+          icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - wrong password [%s].", agentname, passwd_to_check);
           return ICD_EGENERAL;
     }     
     
@@ -1057,7 +1057,7 @@ int icd_command_logout_req (int fd, int argc, char **argv)
      * caller state that is actually different, a paused/waiting/down state.
      */
     
-     icd_jabber_send_message("LOGOUT OK!  Agent [%s].", agentname);
+     icd_manager_send_message("LOGOUT OK!  Agent [%s].", agentname);
      
      if (icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
              opbx_log(LOG_WARNING,
@@ -1133,7 +1133,7 @@ int icd_command_record(int fd, int argc, char **argv)
 
   if (argc != 3  && argc != 4 ) {
        opbx_log (LOG_WARNING, "Function record bad no of parameters [%d]\n", argc);
-       icd_jabber_send_message("RECORD FAILURE! - wrong parameters number.");
+       icd_manager_send_message("RECORD FAILURE! - wrong parameters number.");
        return ICD_EGENERAL;
    }    
    
@@ -1143,7 +1143,7 @@ int icd_command_record(int fd, int argc, char **argv)
         record_start = 0;
    if (record_start == -1) {
        opbx_log (LOG_WARNING, "Function record first parameter [%s] start/stop allowed\n", argv[1]);
-       icd_jabber_send_message("RECORD FAILURE! - first parameter [%s] start/stop allowed.", argv[1]);
+       icd_manager_send_message("RECORD FAILURE! - first parameter [%s] start/stop allowed.", argv[1]);
        return ICD_EGENERAL;
    }    
 	
@@ -1157,24 +1157,24 @@ int icd_command_record(int fd, int argc, char **argv)
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
    if (customer == NULL) {
             opbx_log(LOG_WARNING, "Record FAILURE! Customer [%s] not found\n", customer_source);
-            icd_jabber_send_message("RECORD FAILURE! - customer [%s] not found.", customer_source);
+            icd_manager_send_message("RECORD FAILURE! - customer [%s] not found.", customer_source);
 	        return ICD_EGENERAL;
    }
    chan = icd_caller__get_channel(customer);
    if (chan == NULL) {
             opbx_log(LOG_WARNING, "Record FAILURE! Channel for customer [%s] not found\n", customer_source);
-            icd_jabber_send_message("RECORD FAILURE! - channel for customer  [%s] not found.", customer_source);
+            icd_manager_send_message("RECORD FAILURE! - channel for customer  [%s] not found.", customer_source);
 	        return ICD_EGENERAL;
    }
    if (chan->name == NULL) {
             opbx_log(LOG_WARNING, "Record FAILURE! Channel name for customer [%s] not found\n", customer_source);
-            icd_jabber_send_message("RECORD FAILURE! - channel name for customer  [%s] not found.", customer_source);
+            icd_manager_send_message("RECORD FAILURE! - channel name for customer  [%s] not found.", customer_source);
 	        return ICD_EGENERAL;
    }
    strncpy(buf + strlen(buf), chan->name, sizeof(buf) - strlen(buf));
    if (!record_start){
    	opbx_log(LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
-        icd_jabber_send_message("RECORD STOP OK! - customer [%s].", customer_source);
+        icd_manager_send_message("RECORD STOP OK! - customer [%s].", customer_source);
         fd = fileno(stderr);
         opbx_cli_command(fd, buf);
         return ICD_SUCCESS;
@@ -1197,7 +1197,7 @@ int icd_command_record(int fd, int argc, char **argv)
    fd = fileno(stderr);
    opbx_cli_command(fd, buf);
    opbx_log(LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
-   icd_jabber_send_message("RECORD START OK! - customer [%s].", customer_source);
+   icd_manager_send_message("RECORD START OK! - customer [%s].", customer_source);
 
    return ICD_SUCCESS;
 }
@@ -1220,7 +1220,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	 
 	     
 	    if ((argc != 3) && (argc !=4)) { 
-	         icd_jabber_send_message("JOIN QUEUE FAILURE!  - wrong parameters number."); 
+	         icd_manager_send_message("JOIN QUEUE FAILURE!  - wrong parameters number."); 
   	         return ICD_EGENERAL;
 	    }     
 	    agentname = argv[1]; 
@@ -1229,7 +1229,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    if (agent == NULL) { 
 	        opbx_log(LOG_WARNING, 
 	                    "JOIN QUEUE FAILURE!  Agent '%s' could not be found.\n", agentname); 
-	        icd_jabber_send_message("JOIN QUEUE FAILURE!  Agent [%s] - could not be found.", agentname); 	                     
+	        icd_manager_send_message("JOIN QUEUE FAILURE!  Agent [%s] - could not be found.", agentname); 	                     
 	        return ICD_EGENERAL;
 	    } 
 	    if (argc==4) 
@@ -1241,7 +1241,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename); 
 	      if (queue == NULL) { 
 	            opbx_log(LOG_WARNING, "JOIN QUEUE FAILURE! Agent joined undefined Queue [%s]\n", queuename); 
-	            icd_jabber_send_message("JOIN QUEUE FAILURE! Agent [%s] joined undefined Queue [%s]", 
+	            icd_manager_send_message("JOIN QUEUE FAILURE! Agent [%s] joined undefined Queue [%s]", 
 	            agentname, queuename); 
 	            return ICD_EGENERAL;
 	      } 
@@ -1292,7 +1292,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
 
   if (argc != 3 && argc != 4 ) {
        opbx_log (LOG_WARNING, "bad parameters\n");
-       icd_jabber_send_message("TRANSFER FAILURE! - wrong parameters number.");
+       icd_manager_send_message("TRANSFER FAILURE! - wrong parameters number.");
        return ICD_EGENERAL;
    }    
    customer_source = argv[1];
@@ -1304,13 +1304,13 @@ int icd_command_transfer (int fd, int argc, char **argv)
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
    if (customer == NULL) {
             opbx_log(LOG_WARNING, "Transfer FAILURE! Customer [%s] not found\n", customer_source);
-            icd_jabber_send_message("TRANSFER FAILURE! - customer [%s] not found", customer_source);
+            icd_manager_send_message("TRANSFER FAILURE! - customer [%s] not found", customer_source);
 	        return ICD_EGENERAL;
    }
    queue = (icd_queue *) icd_fieldset__get_value(queues, queue_destination);
    if (queue == NULL) {
             opbx_log(LOG_WARNING, "Transfer FAILURE! Customer transfered to undefined Queue [%s]\n", queue_destination);
-            icd_jabber_send_message("TRANSFER FAILURE! - customer [%s] transfer to undefined Queue [%s].",
+            icd_manager_send_message("TRANSFER FAILURE! - customer [%s] transfer to undefined Queue [%s].",
 	    customer_source, queue_destination);
         return ICD_EGENERAL;
    }
@@ -1319,7 +1319,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
        agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id_destination);
        if (agent ==NULL) {
             opbx_log(LOG_WARNING, "Transfer FAILURE! Agent [%s] not found\n", agent_id_destination);
-            icd_jabber_send_message("TRANSFER FAILURE! - customer [%s] transfer to undefined agent [%s].",
+            icd_manager_send_message("TRANSFER FAILURE! - customer [%s] transfer to undefined agent [%s].",
 	    customer_source, agent_id_destination);
         return ICD_EGENERAL;
        }
@@ -1333,7 +1333,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
    }    
    opbx_log (LOG_NOTICE, "Transfer customer [%s] to queue [%s]",
 		 icd_caller__get_name (customer), queue_destination);
-   icd_jabber_send_message("TRANSFER OK! - customer [%s] to queue [%s]",
+   icd_manager_send_message("TRANSFER OK! - customer [%s] to queue [%s]",
 			 icd_caller__get_name (customer), queue_destination);
    icd_caller__pause_caller_response(customer);
    if (icd_caller__get_state(customer) != ICD_CALLER_STATE_READY) {
@@ -1444,10 +1444,10 @@ originate (void *arg)
 			   : NULL, in->variable, &chan);
 			  
   if(res){
-     icd_jabber_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] FAILED reason[%d] [%s]", in->tech, in->data, in->exten, in->context, reason, control_frame_state(reason));
+     icd_manager_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] FAILED reason[%d] [%s]", in->tech, in->data, in->exten, in->context, reason, control_frame_state(reason));
    }
    else{
-     icd_jabber_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] OK, state [%s]", in->tech, in->data, in->exten, in->context, control_frame_state(reason));
+     icd_manager_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] OK, state [%s]", in->tech, in->data, in->exten, in->context, control_frame_state(reason));
    }
 			  
   /* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
@@ -1480,7 +1480,7 @@ int icd_command_originate (int fd, int argc, char **argv)
 
   if ((argc!= 3 ) && (argc !=4)){    
       opbx_log (LOG_WARNING, "bad parameters\n");
-      icd_jabber_send_message("ORIGINATE FAILURE! - wrong parameters number");
+      icd_manager_send_message("ORIGINATE FAILURE! - wrong parameters number");
   }    
   chan_name = opbx_strdupa (argv[1]);
   if (argc == 4){
@@ -1505,14 +1505,14 @@ int icd_command_originate (int fd, int argc, char **argv)
    }
    else {
       opbx_log (LOG_WARNING, "ORIGINATE FAILURE! - Wrong dial srting [%s].\n", tech);
-      icd_jabber_send_message("ORIGINATE FAILURE! - Wrong dial string [%s].", tech);
+      icd_manager_send_message("ORIGINATE FAILURE! - Wrong dial string [%s].", tech);
       return ICD_EGENERAL;
    }
    in = malloc (sizeof (struct fast_originate_helper));
    if (!in)
    {
       opbx_log (LOG_WARNING, "No Memory!\n");
-      icd_jabber_send_message("ORIGINATE FAILURE! - no memory.");
+      icd_manager_send_message("ORIGINATE FAILURE! - no memory.");
       return ICD_EGENERAL;
     }
     memset (in, 0, sizeof (struct fast_originate_helper));
@@ -1537,7 +1537,7 @@ int icd_command_originate (int fd, int argc, char **argv)
 }
 
 
-void icd_jabber_send_message( char *format, ...)
+void icd_manager_send_message( char *format, ...)
 {
    va_list args;
    char message[1024];
@@ -1545,7 +1545,9 @@ void icd_jabber_send_message( char *format, ...)
    va_start(args, format);
    vsnprintf(message, sizeof(message)-1, format, args);
    va_end(args);	
-/*   icd_jabber_put_fifo(message); */
+   manager_event(EVENT_FLAG_USER, "icd_message",
+                "Message: %s\r\n", message);
+   
 }
 
 

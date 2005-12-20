@@ -835,7 +835,7 @@ icd_status icd_caller__link_to_caller(icd_caller * that, icd_caller * associate)
     assert(that != NULL);
     assert(associate != NULL);
 
-    snprintf(buf, sizeof(buf), "CREATE LINK: %s(%d) to %s(%d)\n", icd_caller__get_name(that), that->id,
+    snprintf(buf, sizeof(buf), "CREATE LINK: %s(%d) to %s(%d)", icd_caller__get_name(that), that->id,
         icd_caller__get_name(associate), associate->id);
     icd_run = that->get_plugable_fn(that);
     vetoed =

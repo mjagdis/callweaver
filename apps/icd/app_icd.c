@@ -277,8 +277,7 @@ int load_module(void)
        abort();
        }
     */
-    icd_jabber_send_message("OpenPBX.org and ICD up");
-    return 0;
+     return 0;
 }
 
 /* OpenPBX.org calls this to unload a module. All our cleanup is in here. */
@@ -291,7 +290,6 @@ int unload_module(void)
 
     ICD_UNINIT;
     opbx_log(LOG_WARNING, "ICD unloading from OpenPBX.org, all callers will be lost!\n");
-    icd_jabber_clear ();
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
 
@@ -744,11 +742,11 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
 
     /* This becomes the thread to manage customer state and incoming stream */
     cust_uniq_name = NULL;
-    if (chan) if(chan->cid.cid_name) {
-        cust_uniq_name = chan->cid.cid_name;
+    if (chan) if(chan->uniqueid) {
+        cust_uniq_name = chan->uniqueid;
         icd_fieldset__set_value(customers, cust_uniq_name, customer);
 	if(queue){
-            icd_jabber_send_message("Approximate waiting time for cutomer[%s] in queue[%s] position [%d] is [%d] minutes", cust_uniq_name, icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
+            icd_manager_send_message("Approximate waiting time for cutomer[%s] in queue[%s] position [%d] is [%d] minutes", cust_uniq_name, icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
 	}    
 	
     }	
