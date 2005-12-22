@@ -107,7 +107,7 @@ static void destroy_session(sccp_session_t * s) {
 		return;
 	d = s->device;
 	opbx_mutex_lock(&GLOB(devices_lock));
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Killing Session %s\n", (d) ? d->id : "SCCP", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Killing Session %s\n", DEV_ID_LOG(d), opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 
 	if (d) {
 		opbx_mutex_lock(&d->lock);

@@ -73,7 +73,7 @@ void sccp_indicate_nolock(sccp_channel_t * c, uint8_t state) {
 		sccp_dev_set_mwi(d, l, 0);
 		if (!d->mwioncall)
 			sccp_dev_set_mwi(d, NULL, 0);
-		sccp_dev_set_ringer(d, SKINNY_STATION_RINGOFF);
+		sccp_dev_set_ringer(d, SKINNY_STATION_RINGOFF, l->instance, c->callid);
 		sccp_dev_set_speaker(d, SKINNY_STATIONSPEAKER_ON);
 //		sccp_dev_set_microphone(d, SKINNY_STATIONMIC_ON);
 		sccp_dev_set_lamp(d, SKINNY_STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
@@ -96,7 +96,7 @@ void sccp_indicate_nolock(sccp_channel_t * c, uint8_t state) {
 		if (c == d->active_channel)
 			sccp_dev_stoptone(d, l->instance, c->callid);
 		if (oldstate == SCCP_CHANNELSTATE_RINGIN)
-			sccp_dev_set_ringer(d, SKINNY_STATION_RINGOFF);
+			sccp_dev_set_ringer(d, SKINNY_STATION_RINGOFF, l->instance, c->callid);
 		sccp_handle_time_date_req(d->session, NULL);
 		c->state = SCCP_CHANNELSTATE_DOWN;
 		sccp_opbx_setstate(c, OPBX_STATE_DOWN);
@@ -124,12 +124,12 @@ void sccp_indicate_nolock(sccp_channel_t * c, uint8_t state) {
 		sccp_channel_set_callstate(c, SKINNY_CALLSTATE_RINGIN);
 		sccp_channel_send_callinfo(c);
 		sccp_dev_set_lamp(d, SKINNY_STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
-		sccp_dev_set_ringer(d, c->ringermode);
+		sccp_dev_set_ringer(d, c->ringermode, l->instance, c->callid);
 		sccp_dev_set_keyset(d, l->instance, c->callid, KEYMODE_RINGIN);
 		sccp_opbx_setstate(c, OPBX_STATE_RINGING);
 		break;
 	case SCCP_CHANNELSTATE_CONNECTED:
-		sccp_dev_set_ringer(d, SKINNY_STATION_RINGOFF);
+		sccp_dev_set_ringer(d, SKINNY_STATION_RINGOFF, l->instance, c->callid);
 		sccp_dev_set_speaker(d, SKINNY_STATIONSPEAKER_ON);
 //		if (c->calltype == SKINNY_CALLTYPE_OUTBOUND)
 		sccp_dev_stoptone(d, l->instance, c->callid);

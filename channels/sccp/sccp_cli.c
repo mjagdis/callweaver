@@ -95,6 +95,7 @@ static int sccp_show_globals(int fd, int argc, char * argv[]) {
 #else
 	opbx_cli(fd, "Platform byte order   : BIG ENDIAN\n");
 #endif
+	opbx_cli(fd, "Protocol Version      : %d\n", GLOB(protocolversion));
 	opbx_cli(fd, "Server Name           : %s\n", GLOB(servername));
 	opbx_cli(fd, "Bind Address          : %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port)));
 	opbx_cli(fd, "Keepalive             : %d\n", GLOB(keepalive));
@@ -165,6 +166,7 @@ static int sccp_show_device(int fd, int argc, char * argv[]) {
 	opbx_cli(fd, "Current settings for selected Device\n");
 	opbx_cli(fd, "------------------------------------\n\n");
 	opbx_cli(fd, "MAC-Address        : %s\n", d->id);
+	opbx_cli(fd, "Protocol Version   : phone=%d, channel=%d\n", d->protocolversion, GLOB(protocolversion));
 	opbx_cli(fd, "Registration state : %s(%d)\n", skinny_registrationstate2str(d->registrationState), d->registrationState);
 	opbx_cli(fd, "State              : %s(%d)\n", skinny_devicestate2str(d->state), d->state);
 	opbx_cli(fd, "MWI handset light  : %s\n", (d->mwilight) ? "ON" : "OFF");
@@ -277,7 +279,7 @@ static int sccp_show_devices(int fd, int argc, char * argv[]) {
 
 	opbx_mutex_lock(&GLOB(devices_lock));
 	d = GLOB(devices);
-	while(d) {
+	while (d) {
 		opbx_cli(fd, "%-16s %-15s %-16s %-10s\n",// %-10s %-16s %c%c %-10s\n",
 			d->description,
 			(d->session) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), d->session->sin.sin_addr) : "--",

@@ -66,7 +66,7 @@ sccp_line_t * sccp_line_find_byname(const char * name) {
 		l = l->next;
 	}
 	if (l && l->device)
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: found line %s\n", l->device->id, l->name);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: found line %s\n", DEV_ID_LOG(l->device), l->name);
 	opbx_mutex_unlock(&GLOB(lines_lock));
 	return l;
 }
@@ -103,7 +103,7 @@ sccp_channel_t * sccp_channel_find_byid(uint32_t id) {
 	}
 	opbx_mutex_unlock(&GLOB(channels_lock));
 	if (c)
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d)\n", c->device->id, c->callid);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d)\n", DEV_ID_LOG(c->device), c->callid);
 	return c;
 }
 
@@ -120,7 +120,7 @@ sccp_channel_t * sccp_channel_find_byid_on_line(sccp_line_t * l, uint32_t id) {
 	}
 	opbx_mutex_unlock(&l->lock);
 	if (c)
-	  sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d)\n", c->device->id, c->callid);
+	  sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d)\n", DEV_ID_LOG(c->device), c->callid);
 	return c;
 }
 
@@ -128,7 +128,7 @@ sccp_channel_t * sccp_channel_find_bystate_on_line(sccp_line_t * l, uint8_t stat
 	sccp_channel_t * c;
 	if (!l)
 		return NULL;
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Looking for a channel with state \"%s\" (%d) on line %s\n", l->device->id, sccp_indicate2str(state), state, l->name);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Looking for a channel with state \"%s\" (%d) on line %s\n", DEV_ID_LOG(l->device), sccp_indicate2str(state), state, l->name);
 
 	opbx_mutex_lock(&l->lock);
 	c = l->channels;
@@ -139,7 +139,7 @@ sccp_channel_t * sccp_channel_find_bystate_on_line(sccp_line_t * l, uint8_t stat
 	}
 	opbx_mutex_unlock(&l->lock);
 	if (c)
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d) with state \"%s\" (%d) on line %s\n", l->device->id, c->callid, sccp_indicate2str(state), state, l->name);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d) with state \"%s\" (%d) on line %s\n", DEV_ID_LOG(l->device), c->callid, sccp_indicate2str(state), state, l->name);
 	return c;
 }
 
@@ -147,7 +147,7 @@ sccp_channel_t * sccp_channel_find_bycallstate_on_line(sccp_line_t * l, uint8_t 
 	sccp_channel_t * c;
 	if (!l)
 		return NULL;
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Looking for a channel with state \"%s\" (%d) on line %s\n", l->device->id, sccp_callstate2str(state), state, l->name);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Looking for a channel with state \"%s\" (%d) on line %s\n", DEV_ID_LOG(l->device), sccp_callstate2str(state), state, l->name);
 
 	opbx_mutex_lock(&l->lock);
 	c = l->channels;
@@ -158,7 +158,7 @@ sccp_channel_t * sccp_channel_find_bycallstate_on_line(sccp_line_t * l, uint8_t 
 	}
 	opbx_mutex_unlock(&l->lock);
 	if (c)
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d) with state \"%s\" (%d) on line %s\n", l->device->id, c->callid, sccp_callstate2str(state), state, l->name);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d) with state \"%s\" (%d) on line %s\n", DEV_ID_LOG(l->device), c->callid, sccp_callstate2str(state), state, l->name);
 	return c;
 }
 
@@ -178,7 +178,7 @@ sccp_channel_t * sccp_channel_find_bystate_on_device(sccp_device_t * d, uint8_t 
 	}
 	opbx_mutex_unlock(&d->lock);
 	if (c)
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d) with state \"%s\" (%d) on device\n", l->device->id, c->callid, sccp_indicate2str(state), state);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Found channel (%d) with state \"%s\" (%d) on device\n", d->id, c->callid, sccp_indicate2str(state), state);
 	return c;
 }
 
@@ -210,7 +210,7 @@ OUT:
 void sccp_opbx_setstate(sccp_channel_t * c, int state) {
 	if (c && c->owner) {
 		opbx_setstate(c->owner, state);
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set openpbx state %s (%d) for call %d\n", c->device->id, opbx_state2str(state), state, c->callid);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set asterisk state %s (%d) for call %d\n", DEV_ID_LOG(c->device), opbx_state2str(state), state, c->callid);
 	}
 }
 

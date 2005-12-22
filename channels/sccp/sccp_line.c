@@ -27,15 +27,23 @@
 /* Kills a line's channels. */
 /* Called with a lock on l->lock */
 void sccp_line_kill(sccp_line_t * l) {
-  sccp_channel_t * c = l->channels;
-  while (c) {
-    sccp_channel_t * t = c->next;
-    sccp_channel_delete(c);
-    c = t;
-  }
+	sccp_channel_t * c;
+	sccp_channel_t * t;
+	
+	if (!l)
+		return;
+	c = l->channels;
+	while (c) {
+		t = c->next;
+		sccp_channel_endcall(c);
+		c = t;
+	}
 }
 
 void sccp_line_delete_nolock(sccp_line_t * l) {
+	if (!l)
+		return;
+
 	/* remove from the global lines list */
 	if (l->next) { /* not the last one */
 		opbx_mutex_lock(&l->next->lock);

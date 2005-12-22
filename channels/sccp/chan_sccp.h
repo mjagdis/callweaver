@@ -118,12 +118,14 @@ static inline unsigned long long bswap_64(unsigned long long x) {
 #define htoles(x) bswap_16(x)
 #endif
 
-#define SCCP_VERSION "20051209"
+#define SCCP_VERSION "20051217"
 
 /* I don't like the -1 returned value */
 #define sccp_true(x) (opbx_true(x) ? 1 : 0)
 #define sccp_log(x) if (sccp_globals->debug >= x) opbx_verbose
 #define GLOB(x) sccp_globals->x
+
+#define DEV_ID_LOG(x) x ? x->id : "SCCP"
 
 #define CS_OPBX_CHANNEL_PVT(x) x->tech_pvt
 
@@ -322,10 +324,13 @@ struct sccp_device {
 	int capability;
 
 	/* channel state where to open the rtp media stream */
-	uint8_t					earlyrtp;
+	uint8_t earlyrtp;
 
 	/* Number of currently active channels */
 	uint8_t channelCount;
+	
+	/* skinny protocol version */
+	uint8_t protocolversion;
 
 /*	btnlist					*btntemplate; XXX remove */
 
@@ -468,6 +473,8 @@ struct sccp_global_vars {
 	uint8_t					earlyrtp;
 		/* dnd mode: see SCCP_DNDMODE_* */
 	uint8_t dndmode;
+		/* skinny protocol version */
+	uint8_t protocolversion;
 
 	/* autoanswer stuff */
 	uint8_t					autoanswer_ring_time;

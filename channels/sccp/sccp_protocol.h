@@ -54,6 +54,16 @@
 #define SKINNY_CALLTYPE_OUTBOUND			 2
 #define SKINNY_CALLTYPE_FORWARD 			 3
 
+#define SKINNY_CALLPRIORITY_HIGHEST			 0
+#define SKINNY_CALLPRIORITY_HIGH			 1
+#define SKINNY_CALLPRIORITY_MEDIUM			 2
+#define SKINNY_CALLPRIORITY_LOW				 3
+#define SKINNY_CALLPRIORITY_NORMAL			 4
+
+#define SKINNY_CALLSECURITYSTATE_UNKNOWN			0
+#define SKINNY_CALLSECURITYSTATE_NOTAUTHENTICATED	1
+#define SKINNY_CALLSECURITYSTATE_AUTHENTICATED	 	2
+
 #define StationMaxDeviceNameSize		16
 #define StationMaxButtonTemplateSize	42
 #define StationMaxButtonTemplateNameSize	44
@@ -628,6 +638,11 @@ typedef union {
 		uint32_t lel_parm2;
 	} AlarmMessage;
 
+	/* 0x34 FeatureStatReqMessage */
+	struct {
+		uint32_t lel_featureIndex;
+	} FeatureStatReqMessage;
+
 	struct {} MulticastMediaReceptionAck;
 
 	struct {
@@ -730,18 +745,30 @@ typedef union {
 		uint32_t lel_ssValue;
 		uint32_t lel_maxFramesPerPacket;
 		uint32_t lel_g723BitRate; /* only used with G.723 payload */
+		uint32_t lel_conferenceId1;
+		uint32_t  unknown1;
+		uint32_t  unknown2;
+		uint32_t  unknown3;
+		uint32_t  unknown4;
+		uint32_t  unknown5;
+		uint32_t  unknown6;
+		uint32_t  unknown7;
+		uint32_t  unknown8;
+		uint32_t  unknown9;
+		uint32_t  unknown10;
 	} StartMediaTransmission;
 
 	struct {
-		int32_t lel_conferenceId;
-		int32_t lel_passThruPartyId;
+		uint32_t lel_conferenceId;
+		uint32_t lel_passThruPartyId;
+		uint32_t lel_conferenceId1;
 	} StopMediaTransmission;
 
 	struct {} StartMediaReception;
 
 	struct {
-		int32_t lel_conferenceId;
-		int32_t lel_passThruPartyId;
+		uint32_t lel_conferenceId;
+		uint32_t lel_passThruPartyId;
 	} StopMediaReception;
 
 	struct {
@@ -762,8 +789,8 @@ typedef union {
 		char cdpnVoiceMailbox[StationMaxDirnumSize];
 		char originalCdpnVoiceMailbox[StationMaxDirnumSize];
 		char lastRedirectingVoiceMailbox[StationMaxDirnumSize];
-		uint32_t callInstance;
-		uint32_t callSecurityStatus;
+		uint32_t lel_callInstance;
+		uint32_t lel_callSecurityStatus;
 		uint32_t partyPIRestrictionBits;
 	/*	partyPIRestrictionBits struct
 		0 RestrictCallingPartyName
@@ -880,11 +907,19 @@ typedef union {
 		uint32_t  unknown2;
 		uint32_t  unknown3;
 		uint32_t  unknown4;
+		uint32_t  unknown5;
+		uint32_t  unknown6;
+		uint32_t  unknown7;
+		uint32_t  unknown8;
+		uint32_t  unknown9;
+		uint32_t  unknown10;
 	} OpenReceiveChannel;
 
 	struct {
 		uint32_t lel_conferenceId;
 		uint32_t lel_passThruPartyId;
+		/* version 5 fields */
+		uint32_t lel_conferenceId1;
 	} CloseReceiveChannel;
 
 	struct {			// Request Statistics from Phone
@@ -919,7 +954,7 @@ typedef union {
 		uint32_t	lel_lineInstance;
 		uint32_t	lel_callReference;
 		uint32_t	lel_unknown1;
-		uint32_t	lel_unknown2;
+		uint32_t	lel_priority;
 		uint32_t	lel_unknown3;
 	} CallStateMessage;
 
@@ -942,6 +977,15 @@ typedef union {
 
 	struct {} ClearNotifyMessage;
 	
+	
+    /* 0x11F FeatureStatMessage */
+	struct {
+		uint32_t lel_featureIndex;
+		uint32_t lel_featureID;
+		char featureTextLabel[StationMaxNameSize];
+		uint32_t lel_featureStatus;
+	} FeatureStatMessage;
+      
 	struct {
 		uint32_t lel_displayTimeout;
 		uint32_t lel_priority;

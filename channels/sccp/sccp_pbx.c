@@ -96,6 +96,11 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 	d = l->device;
 	s = d->session;
 
+	if (!l || !d || !s) {
+		opbx_log(LOG_WARNING, "SCCP: weird error. The channel %d has no line or device or session\n", (c ? c->callid : 0) );
+		return -1;
+	}
+
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Asterisk request to call %s\n", d->id, ast->name);
 
 	opbx_mutex_lock(&d->lock);
@@ -226,7 +231,7 @@ static int sccp_pbx_hangup(struct opbx_channel * ast) {
 		sccp_channel_stop_rtp(c);
 	}
 
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Current channel %s-%d state %s(%d)\n", d->id, l->name, c->callid, sccp_indicate2str(c->state), c->state);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Current channel %s-%d state %s(%d)\n", DEV_ID_LOG(d), l ? l->name : "(null)", c->callid, sccp_indicate2str(c->state), c->state);
 
 	if ( c->state != SCCP_CHANNELSTATE_DOWN) {
 		/* we are in a passive hangup */
@@ -237,7 +242,7 @@ static int sccp_pbx_hangup(struct opbx_channel * ast) {
 
 	if (c->calltype == SKINNY_CALLTYPE_OUTBOUND && !c->hangupok) {
 		opbx_mutex_unlock(&c->lock);
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Waiting for the dialing thread to go down on channel %s\n", d->id, ast->name);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Waiting for the dialing thread to go down on channel %s\n", DEV_ID_LOG(d), ast->name);
 		do {
 			usleep(10000);
 			opbx_mutex_lock(&c->lock);
@@ -252,10 +257,12 @@ static int sccp_pbx_hangup(struct opbx_channel * ast) {
 	sccp_channel_delete(c);
 	opbx_mutex_unlock(&GLOB(channels_lock));
 
-	opbx_mutex_lock(&d->session->lock);
-	d->session->needcheckringback = 1;
-	opbx_mutex_unlock(&d->session->lock);
-	
+	if (d && d->session) {
+		opbx_mutex_lock(&d->session->lock);
+		d->session->needcheckringback = 1;
+		opbx_mutex_unlock(&d->session->lock);
+	}
+
 	return 0;
 }
 
@@ -275,6 +282,8 @@ static int sccp_pbx_answer(struct opbx_channel *ast) {
 
 static struct opbx_frame * sccp_pbx_read(struct opbx_channel *ast) {
 	sccp_channel_t * c = CS_OPBX_CHANNEL_PVT(ast);
+	if (!c)
+		return NULL;
 	struct opbx_frame *fr;
 	opbx_mutex_lock(&c->lock);
 	fr = sccp_rtp_read(c);
@@ -285,18 +294,21 @@ static struct opbx_frame * sccp_pbx_read(struct opbx_channel *ast) {
 static int sccp_pbx_write(struct opbx_channel *ast, struct opbx_frame *frame) {
 	sccp_channel_t * c = CS_OPBX_CHANNEL_PVT(ast);
 
+	if (!c)
+		return 0;
+
 	int res = 0;
 	if (frame->frametype != OPBX_FRAME_VOICE) {
 		if (frame->frametype == OPBX_FRAME_IMAGE)
 			return 0;
 		else {
-			opbx_log(LOG_WARNING, "%s: Can't send %d type frames with SCCP write on channel %d\n", (c) ? c->device->id : "SCCP", frame->frametype, (c) ? c->callid : 0);
+			opbx_log(LOG_WARNING, "%s: Can't send %d type frames with SCCP write on channel %d\n", DEV_ID_LOG(c->device), frame->frametype, (c) ? c->callid : 0);
 			return 0;
 		}
 	} else {
 		if (!(frame->subclass & ast->nativeformats)) {
 			opbx_log(LOG_WARNING, "%s: Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-			(c) ? c->device->id : "SCCP", frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
+			DEV_ID_LOG(c->device), frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
 			return -1;
 		}
 	}
@@ -358,7 +370,7 @@ static int sccp_pbx_indicate(struct opbx_channel *ast, int ind) {
 		return -1;
 
 	opbx_mutex_lock(&c->lock);
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Asterisk indicate '%d' (%s) condition on channel %s\n", (c) ? c->device->id : "SCCP", ind, sccp_control2str(ind), ast->name);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Asterisk indicate '%d' (%s) condition on channel %s\n", DEV_ID_LOG(c->device), ind, sccp_control2str(ind), ast->name);
 	if (c->state == SCCP_CHANNELSTATE_CONNECTED) {
 		/* let's openpbx emulate it */
 		opbx_mutex_unlock(&c->lock);
@@ -466,7 +478,7 @@ static int sccp_pbx_recvdigit(struct opbx_channel *ast, char digit) {
 
 static int sccp_pbx_sendtext(struct opbx_channel *ast, const char *text) {
 	sccp_channel_t * c = CS_OPBX_CHANNEL_PVT(ast);
-	sccp_device_t * d = NULL;
+	sccp_device_t * d;
 
 	if (!c || !c->device)
 		return -1;
@@ -495,6 +507,7 @@ const struct opbx_channel_tech sccp_tech = {
 	.fixup = sccp_pbx_fixup,
 	.send_digit = sccp_pbx_recvdigit,
 	.send_text = sccp_pbx_sendtext,
+/*	.bridge = opbx_rtp_bridge */
 };
 
 uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
@@ -502,6 +515,11 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	struct opbx_channel * tmp;
 	sccp_line_t * l = c->line;
 	int fmt;
+
+	if (!l || !d || !d->session) {
+		opbx_log(LOG_ERROR, "SCCP: Unable to allocate asterisk channel\n");
+		return 0;
+	}
 
 	tmp = opbx_channel_alloc(1);
 	if (!tmp) {
@@ -698,7 +716,7 @@ void sccp_pbx_senddigit(sccp_channel_t * c, char digit) {
 void sccp_pbx_senddigits(sccp_channel_t * c, char digits[OPBX_MAX_EXTENSION]) {
 	int i;
 	struct opbx_frame f = { OPBX_FRAME_DTMF, 0};
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending digits %s\n", c->device->id, digits);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending digits %s\n", DEV_ID_LOG(c->device), digits);
 	// We don't just call sccp_pbx_senddigit due to potential overhead, and issues with locking
 	f.src = "SCCP";
 	f.offset = 0;
@@ -707,7 +725,7 @@ void sccp_pbx_senddigits(sccp_channel_t * c, char digits[OPBX_MAX_EXTENSION]) {
 	opbx_mutex_lock(&c->lock);
 	for (i = 0; digits[i] != '\0'; i++) {
 		f.subclass = digits[i];
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending digit %c\n", c->device->id, digits[i]);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending digit %c\n", DEV_ID_LOG(c->device), digits[i]);
 		opbx_queue_frame(c->owner, &f);
 	}
 	opbx_mutex_unlock(&c->lock);

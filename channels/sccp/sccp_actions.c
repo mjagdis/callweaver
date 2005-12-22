@@ -43,7 +43,7 @@ struct opbx_ha {
 };
 
 void sccp_handle_alarm(sccp_session_t * s, sccp_moo_t * r) {
-	sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Alarm Message: Severity: %s (%d), %s [%d/%d]\n", skinny_alarm2str(letohl(r->msg.AlarmMessage.lel_alarmSeverity)), letohl(r->msg.AlarmMessage.lel_alarmSeverity), r->msg.AlarmMessage.text, letohl(r->msg.AlarmMessage.lel_parm1), letohl(r->msg.AlarmMessage.lel_parm2));
+	sccp_log(1)(VERBOSE_PREFIX_3 "SCCP: Alarm Message: Severity: %s (%d), %s [%d/%d]\n", skinny_alarm2str(letohl(r->msg.AlarmMessage.lel_alarmSeverity)), letohl(r->msg.AlarmMessage.lel_alarmSeverity), r->msg.AlarmMessage.text, letohl(r->msg.AlarmMessage.lel_parm1), letohl(r->msg.AlarmMessage.lel_parm2));
 }
 
 void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
@@ -129,6 +129,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 	d->session = s;
 	s->lastKeepAlive = time(0);
 	d->mwilight = 0;
+	d->protocolversion = r->msg.RegisterMessage.protocolVer;
 	opbx_mutex_unlock(&d->lock);
 
 	/* pre-attach lines. We will wait for button template req if the phone does support it */
@@ -200,7 +201,11 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Ask the phone to send keepalive message every %d seconds\n", d->id, GLOB(keepalive));
 	REQ(r1, RegisterAckMessage);
-	r1->msg.RegisterAckMessage.protocolVer = 3;
+	if  (r->msg.RegisterMessage.protocolVer > GLOB(protocolversion))
+		r1->msg.RegisterAckMessage.protocolVer = GLOB(protocolversion);
+	else
+		r1->msg.RegisterAckMessage.protocolVer = r->msg.RegisterMessage.protocolVer;
+
 	r1->msg.RegisterAckMessage.lel_keepAliveInterval = htolel(GLOB(keepalive));
 	r1->msg.RegisterAckMessage.lel_secondaryKeepAliveInterval = htolel(GLOB(keepalive));
 
@@ -237,7 +242,7 @@ void sccp_handle_unregister(sccp_session_t * s, sccp_moo_t * r) {
 	REQ(r1, UnregisterAckMessage);
   	r1->msg.UnregisterAckMessage.lel_status = SKINNY_UNREGISTERSTATUS_OK;
 	sccp_session_send(s, r1);
-	sccp_log(1)(VERBOSE_PREFIX_3 "%s: unregister request sent\n", (d) ? d->id : "SCCP");
+	sccp_log(1)(VERBOSE_PREFIX_3 "%s: unregister request sent\n", DEV_ID_LOG(d));
 	if (d)
 		sccp_dev_set_registered(d, SKINNY_DEVICE_RS_NONE);
 	sccp_session_close(s);
@@ -565,7 +570,7 @@ void sccp_handle_speed_dial_stat_req(sccp_session_t * s, sccp_moo_t * r) {
 		opbx_copy_string(r1->msg.SpeedDialStatMessage.speedDialDirNumber, k->ext, sizeof(r1->msg.SpeedDialStatMessage.speedDialDirNumber));
 		opbx_copy_string(r1->msg.SpeedDialStatMessage.speedDialDisplayName, k->name, sizeof(r1->msg.SpeedDialStatMessage.speedDialDisplayName));
 	} else {
-		sccp_log(3)(VERBOSE_PREFIX_3 "%s: speeddial %d not assigned\n", s->device->id, wanted);
+		sccp_log(3)(VERBOSE_PREFIX_3 "%s: speeddial %d not assigned\n", DEV_ID_LOG(s->device), wanted);
 	}
 
 	sccp_dev_send(s->device, r1);
@@ -838,6 +843,9 @@ void sccp_handle_onhook(sccp_session_t * s, sccp_moo_t * r) {
 		return;
 	}
 
+	if (!d->session)
+		return;
+	
 	/* we need this for callwaiting, hold, answer and stuff */
 	d->state = SCCP_DEVICESTATE_ONHOOK;
 	sccp_log(1)(VERBOSE_PREFIX_3 "%s is Onhook\n", s->device->id);
@@ -925,6 +933,9 @@ void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_line_t * l;
 	uint8_t trnsfvm = 0;
 	uint8_t pickupgroup= 0;
+	
+	if (!d)
+		return;
 
 	REQ(r1, SoftKeySetResMessage);
 	r1->msg.SoftKeySetResMessage.lel_softKeySetOffset = htolel(0);
@@ -1015,7 +1026,7 @@ void sccp_handle_time_date_req(sccp_session_t * s, sccp_moo_t * req) {
   sccp_moo_t * r1;
   REQ(r1, DefineTimeDate);
 
-  if (NULL == s) {
+  if (!s || !s->device) {
        opbx_log(LOG_WARNING,"Session no longer valid\n");
        return;
   }
@@ -1234,7 +1245,7 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_device_t * d;
 	int status = 0;
 
-	if (!s)
+	if (!s || !s->device)
 		return;
 
 	d = s->device;
@@ -1249,7 +1260,7 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 
 	status = letohl(r->msg.OpenReceiveChannelAck.lel_orcStatus);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Got OpenChannel ACK.  Status: %d, RemoteIP (%s): %s, Port: %d, PassThruId: %d\n",
-		(d) ? d->id : "SCCP",
+		d->id,
 		status, (d->trustphoneip ? "Phone" : "Connection"),
 		opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr),
 		ntohs(sin.sin_port),
@@ -1257,7 +1268,7 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 
 	if (status) {
 		/* rtp error from the phone */
-		opbx_log(LOG_ERROR, "%s: OpenReceiveChannelAck error from the phone! No rtp media available\n",(d) ? d->id : "SCCP" );
+		opbx_log(LOG_ERROR, "%s: OpenReceiveChannelAck error from the phone! No rtp media available\n", d->id);
 		return;
 	}
 	c = sccp_channel_find_byid_on_device(d, letohl(r->msg.OpenReceiveChannelAck.lel_passThruPartyId));
@@ -1267,21 +1278,21 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 		memcpy(&c->rtp_addr, &sin, sizeof(sin));
 		if (c->rtp) {
 			sccp_channel_startmediatransmission(c);
-			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set the RTP media address to %s:%d\n", d->id,opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set the RTP media address to %s:%d\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			opbx_rtp_set_peer(c->rtp, &sin);
 		} else {
-			opbx_log(LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no openpbx rtp channel!\n", d->id,opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			opbx_log(LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no openpbx rtp channel!\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 		}
 		opbx_mutex_unlock(&c->lock);
 	} else {
-		opbx_log(LOG_ERROR, "%s: No channel with this PassThruId!\n",(d) ? d->id : "SCCP" );
+		opbx_log(LOG_ERROR, "%s: No channel with this PassThruId!\n", d->id);
 	}
 }
 
 void sccp_handle_version(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_moo_t * r1;
 
-	if (!s->device)
+	if (!s || !s->device)
 		return;
 
 	REQ(r1, VersionMessage);
@@ -1307,7 +1318,7 @@ void sccp_handle_ServerResMessage(sccp_session_t * s, sccp_moo_t * r) {
 
 	/* old protocol function replaced by the SEP file server addesses list */
 
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending servers message\n", s->device->id);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Sending servers message\n", DEV_ID_LOG(s->device));
 
 	REQ(r1, ServerResMessage);
 
@@ -1383,4 +1394,14 @@ void sccp_handle_forward_stat_req(sccp_session_t * s, sccp_moo_t * r) {
 		r1->msg.ForwardStatMessage.lel_lineNumber = r->msg.ForwardStatReqMessage.lel_lineNumber;
 		sccp_dev_send(d, r1);
 	}
+}
+
+void sccp_handle_feature_stat_req(sccp_session_t * s, sccp_moo_t * r) {
+	sccp_device_t * d = s->device;
+
+	if (!d)
+		return;
+
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Got Feature Status Request.  Index = %d\n", d->id, letohl(r->msg.FeatureStatReqMessage.lel_featureIndex));
+	/* for now we are unable to use this skinny message */
 }

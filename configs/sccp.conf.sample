@@ -56,7 +56,7 @@ private = on				; permit the private function softkey
 ;mwilamp = on				; Set the MWI lamp style when MWI active to on, off, wink, flash or blink
 ;mwioncall = off				; Set the MWI on call.
 ;blindtransferindication = ring	; moh or ring. the blind transfer should ring the caller or just play music on hold
-
+;protocolversion = 3                   ; skinny version protocol. Just for testing. 2 to 6
 
 
 [devices]

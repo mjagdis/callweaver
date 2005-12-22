@@ -267,7 +267,7 @@ void sccp_hint_notify_linestate(sccp_line_t * l, uint8_t state, sccp_device_t * 
 
 	while (h) {
 		d = h->device;
-		if (!d->session) {
+		if (!d || !d->session) {
 			h = h->next;
 			continue;
 		}
@@ -332,6 +332,11 @@ void sccp_hint_notify_linestate(sccp_line_t * l, uint8_t state, sccp_device_t * 
 void sccp_hint_notify_channelstate(sccp_device_t *d, uint8_t instance, sccp_channel_t * c) {
 	sccp_moo_t * r;
 	uint8_t lamp = SKINNY_LAMP_OFF;
+
+	if (!d)
+		d = c->device;
+	if (!d)
+		return;
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: HINT notify state %s (%d) of the channel %d \n", d->id, sccp_callstate2str(c->callstate), c->callstate, c->callid);
 
@@ -573,9 +578,12 @@ uint8_t sccp_handle_message(sccp_moo_t * r, sccp_session_t * s) {
   case ForwardStatReqMessage:
 	sccp_handle_forward_stat_req(s,r);
 	break;
+  case FeatureStatReqMessage:
+	sccp_handle_feature_stat_req(s,r);
+	break;
   default:
 	if (GLOB(debug))
-		opbx_log(LOG_WARNING, "Unhandled SCCP Message: %d - %s\n", mid, sccpmsg2str(mid));
+		opbx_log(LOG_WARNING, "Unhandled SCCP Message: %d - %s with length %d\n", mid, sccpmsg2str(mid), r->length);
   }
 
   free(r);
@@ -669,6 +677,7 @@ static int reload_config(void) {
 	int transfer_tone = 0;
 	int callwaiting_tone = 0;
 	int amaflags = 0;
+	int protocolversion = 0;
 
 	memset(&GLOB(global_codecs), 0, sizeof(GLOB(global_codecs)));
 	memset(&GLOB(bindaddr), 0, sizeof(GLOB(bindaddr)));
@@ -692,7 +701,16 @@ static int reload_config(void) {
 	}
 
 	while (v) {
-		if (!strcasecmp(v->name, "servername")) {
+		if (!strcasecmp(v->name, "protocolversion")) {
+			if (sscanf(v->value, "%i", &protocolversion) == 1) {
+				if (protocolversion < 2 || protocolversion > 6)
+					GLOB(protocolversion) = 3;
+				else
+					GLOB(protocolversion) = protocolversion;
+			} else {
+				opbx_log(LOG_WARNING, "Invalid protocolversion number '%s' at line %d of SCCP.CONF\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "servername")) {
 			opbx_copy_string(GLOB(servername), v->value, sizeof(GLOB(servername)));
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = opbx_gethostbyname(v->value, &ahp))) {
@@ -1294,6 +1312,7 @@ int load_module() {
 	GLOB(callwaiting_tone) = SKINNY_TONE_CALLWAITINGTONE;
 	GLOB(private) = 1; /* permit private function */
 	GLOB(mwilamp) = SKINNY_LAMP_ON;
+	GLOB(protocolversion) = 3;
 
 	if (!reload_config()) {
 		if (opbx_channel_register(&sccp_tech)) {

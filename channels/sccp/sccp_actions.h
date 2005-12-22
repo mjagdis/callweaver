@@ -24,3 +24,4 @@ void sccp_handle_ServerResMessage(sccp_session_t * s, sccp_moo_t * r);
 void sccp_handle_ConfigStatMessage(sccp_session_t * s, sccp_moo_t * r);
 void sccp_handle_EnblocCallMessage(sccp_session_t * s, sccp_moo_t * r);
 void sccp_handle_forward_stat_req(sccp_session_t * s, sccp_moo_t * r);
+void sccp_handle_feature_stat_req(sccp_session_t * s, sccp_moo_t * r);

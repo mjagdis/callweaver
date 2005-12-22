@@ -32,7 +32,7 @@
 
 void sccp_dev_build_buttontemplate(sccp_device_t *d, btnlist * btn) {
 	uint8_t i;
-	if (!d)
+	if (!d || !d->session)
 		return;
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Building button template %s(%d), user config %s\n",	d->id, skinny_devicetype2str(d->skinny_type), d->skinny_type, d->config_type);
 	switch (d->skinny_type) {
@@ -173,7 +173,7 @@ void sccp_dev_sendmsg(sccp_device_t * d, sccp_message_t t) {
 int sccp_session_send(sccp_session_t * s, sccp_moo_t * r) {
 	ssize_t res;
 	if (!s || s->fd <= 0) {
-		opbx_log(LOG_ERROR, "Tried to send packet over DOWN device.\n");
+		sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Tried to send packet over DOWN device.\n");
 		free(r);
 		return -1;
 	}
@@ -234,7 +234,7 @@ void sccp_dev_set_keyset(sccp_device_t * d, uint8_t line, uint32_t callid, uint8
 
 void sccp_dev_set_mwi(sccp_device_t * d, sccp_line_t * l, uint8_t hasMail) {
 	sccp_moo_t * r;
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 
 	if (l) {
@@ -258,7 +258,7 @@ void sccp_dev_set_mwi(sccp_device_t * d, sccp_line_t * l, uint8_t hasMail) {
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Turn %s the MWI on line %d\n",	d->id, hasMail ? "ON" : "OFF", (l ? l->instance : 0));
 }
 
-void sccp_dev_set_ringer(sccp_device_t * d, uint8_t opt) {
+void sccp_dev_set_ringer(sccp_device_t * d, uint8_t opt, uint32_t line, uint32_t callid) {
 	sccp_moo_t * r;
 	if (!d->session)
 		return;
@@ -267,13 +267,16 @@ void sccp_dev_set_ringer(sccp_device_t * d, uint8_t opt) {
 	d->ringermode = opt;
 	REQ(r, SetRingerMessage);
 	r->msg.SetRingerMessage.lel_ringMode = htolel(opt);
+	r->msg.SetRingerMessage.lel_unknown1 = htolel(opt); /* always 1 */
+	r->msg.SetRingerMessage.lel_lineInstance = htolel(line);
+	r->msg.SetRingerMessage.lel_callReference = htolel(callid);
 	sccp_dev_send(d, r);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Send ringer mode %s(%d) on device\n", d->id, skinny_ringermode2str(opt), opt);
 }
 
 void sccp_dev_set_speaker(sccp_device_t * d, uint8_t mode) {
 	sccp_moo_t * r;
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 
 	REQ(r, SetSpeakerModeMessage);
@@ -284,7 +287,7 @@ void sccp_dev_set_speaker(sccp_device_t * d, uint8_t mode) {
 
 void sccp_dev_set_microphone(sccp_device_t * d, uint8_t mode) {
 	sccp_moo_t * r;
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 
 	REQ(r, SetMicroModeMessage);
@@ -319,7 +322,7 @@ void sccp_dev_set_deactivate_cplane(sccp_channel_t * c) {
 
 void sccp_dev_starttone(sccp_device_t * d, uint8_t tone, uint8_t line, uint32_t callid, uint32_t timeout) {
 	sccp_moo_t * r;
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 
 	REQ(r, StartToneMessage);
@@ -334,7 +337,7 @@ void sccp_dev_starttone(sccp_device_t * d, uint8_t tone, uint8_t line, uint32_t 
 
 void sccp_dev_stoptone(sccp_device_t * d, uint8_t line, uint32_t callid) {
 	sccp_moo_t * r;
-	if (!d)
+	if (!d || !d->session)
 		return;
 	REQ(r, StopToneMessage);
 	r->msg.StopToneMessage.lel_lineInstance = htolel(line);
@@ -346,7 +349,7 @@ void sccp_dev_stoptone(sccp_device_t * d, uint8_t line, uint32_t callid) {
 void sccp_dev_clearprompt(sccp_device_t * d, uint8_t line, uint32_t callid) {
 	sccp_moo_t * r;
 
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
@@ -363,7 +366,7 @@ void sccp_dev_clearprompt(sccp_device_t * d, uint8_t line, uint32_t callid) {
 void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, char * msg, int timeout) {
 	sccp_moo_t * r;
 
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
@@ -380,6 +383,9 @@ void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, ch
 }
 
 void sccp_dev_cleardisplay(sccp_device_t * d) {
+	if (!d || !d->session)
+		return;
+
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
 	sccp_dev_sendmsg(d, ClearDisplay);
@@ -389,7 +395,7 @@ void sccp_dev_cleardisplay(sccp_device_t * d) {
 void sccp_dev_display(sccp_device_t * d, char * msg) {
 	sccp_moo_t * r;
 
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
@@ -405,6 +411,9 @@ void sccp_dev_display(sccp_device_t * d, char * msg) {
 }
 
 void sccp_dev_cleardisplaynotify(sccp_device_t * d) {
+	if (!d || !d->session)
+		return;
+
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
 	sccp_dev_sendmsg(d, ClearNotifyMessage);
@@ -414,7 +423,7 @@ void sccp_dev_cleardisplaynotify(sccp_device_t * d) {
 void sccp_dev_displaynotify(sccp_device_t * d, char * msg, uint32_t timeout) {
 	sccp_moo_t * r;
 
-	if (!d->session)
+	if (!d || !d->session)
 		return;
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
@@ -429,6 +438,9 @@ void sccp_dev_displaynotify(sccp_device_t * d, char * msg, uint32_t timeout) {
 }
 
 void sccp_dev_cleardisplayprinotify(sccp_device_t * d) {
+	if (!d || !d->session)
+		return;
+
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
 	sccp_dev_sendmsg(d, ClearPriNotifyMessage);
@@ -438,8 +450,9 @@ void sccp_dev_cleardisplayprinotify(sccp_device_t * d) {
 void sccp_dev_displayprinotify(sccp_device_t * d, char * msg, uint32_t priority, uint32_t timeout) {
 	sccp_moo_t * r;
 
-	if (!d->session)
+	if (!d || !d->session)
 		return;
+
 	if (d->skinny_type < 6 || (d->skinny_type > 9 && d->skinny_type <= 255) || (!strcasecmp(d->config_type,"kirk"))) return; /* only for telecaster and new phones */
 
 	if (!msg || opbx_strlen_zero(msg))
@@ -454,6 +467,9 @@ void sccp_dev_displayprinotify(sccp_device_t * d, char * msg, uint32_t priority,
 
 sccp_speed_t * sccp_dev_speed_find_byindex(sccp_device_t * d, uint8_t instance, uint8_t type) {
 	/* type could be SKINNY_BUTTONTYPE_SPEEDDIAL or SKINNY_BUTTONTYPE_LINE. See the button template functions */
+	if (!d || !d->session)
+		return NULL;
+
 	sccp_speed_t * k = d->speed_dials;
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: searching for index %d and type %d\n", d->id, instance, type);
@@ -471,6 +487,9 @@ sccp_speed_t * sccp_dev_speed_find_byindex(sccp_device_t * d, uint8_t instance, 
 sccp_line_t * sccp_dev_get_activeline(sccp_device_t * d) {
 	/* XXX fixme */
 	/* What's up if the currentLine is NULL? let's do the check */
+	if (!d || !d->session)
+		return NULL;
+
 	if (!d->currentLine) {
 		d->currentLine = d->lines;
 		if (d->currentLine) {
@@ -486,8 +505,9 @@ sccp_line_t * sccp_dev_get_activeline(sccp_device_t * d) {
 
 void sccp_dev_set_activeline(sccp_line_t * l) {
 	sccp_device_t * d = ( (l) ? l->device : NULL);
-	if (!l || !d)
+	if (!l || !d || !d->session)
 		return;
+
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Send the active line %s\n", d->id, l->name);
 	opbx_mutex_lock(&d->lock);
 	d->currentLine = l;
@@ -501,7 +521,7 @@ void sccp_dev_check_mwi(sccp_device_t * d) {
 	uint8_t devicehasmsgs = 0;
 	uint8_t devicehaschannels = 0;
 
-	if (!d)
+	if (!d || !d->session)
 		return;
 
 	opbx_mutex_lock(&d->lock);
@@ -566,6 +586,9 @@ void sccp_dev_check_displayprompt(sccp_device_t * d) {
 	char tmp[256] = "";
 	int timeout = 0;
 	uint8_t res = 0;
+
+	if (!d || !d->session)
+		return;
 
 	opbx_mutex_lock(&d->lock);
 
@@ -634,6 +657,9 @@ void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
 	sccp_line_t * current;
 	sccp_channel_t * chan = NULL;
 
+	if (!d || !d->session)
+		return;
+
 	current = sccp_dev_get_activeline(d);
 
 	if (!wanted || !current || wanted->device != d || current == wanted)
@@ -670,7 +696,7 @@ void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {
 void sccp_dev_set_lamp(sccp_device_t * d, uint16_t stimulus, uint8_t instance, uint8_t lampMode) {
 	sccp_moo_t * r;
 
-	if (!d)
+	if (!d || !d->session)
 		return;
 
 	REQ(r, SetLampMessage);
@@ -685,7 +711,7 @@ void sccp_dev_forward_status(sccp_line_t * l) {
 	sccp_device_t * d = l->device;
 	sccp_moo_t * r1 = NULL;
 
-	if (!d)
+	if (!d || !d->session)
 		return;
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Send Forward Status.  Line: %s\n", d->id, l->name);
@@ -805,7 +831,7 @@ void sccp_dev_clean(sccp_device_t * d) {
 	sccp_hint_t *h;
 	sccp_hostname_t *permithost;
 
-	if (!d)
+	if (!d || !d->session)
 		return;
 
 	k = d->speed_dials;
