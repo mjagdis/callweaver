@@ -39,12 +39,11 @@
  *  \arg \ref ConfigFiles
  *  \arg \ref SoundFiles
  * \section wwwsites Web sites
- * \arg Main:  OpenPBX Developer's website http://www.openpbx.org/developers/
- * \arg Bugs: The Issue tracker http://bugs.digium.com
- * \arg Lists: List server http://lists.digium.com
- * \arg Wiki: The OpenPBX Wiki 	http://www.voip-info.org
+ * \arg Main:  OpenPBX website http://www.openpbx.org
+ * \arg Bugs: The Issue tracker http://trac.openpbx.org
+ * \arg Lists: List server http://lists.openpbx.org
+ * \arg Wiki: The OpenPBX Wiki 	http://wiki.openpbx.org
  * \arg Docs: The OpenPBX Documentation Project http://www.openpbxdocs.org
- * \arg Digium: The OpenPBX company http://www.digium.com
  */
 
 /*! \page CodeGuide Coding Guidelines
@@ -321,9 +320,6 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  *  OpenPBX includes a large amount of sound files. Many of these
  *  are used by applications and demo scripts within openpbx.
  *
- *  Additional sound files are available in the openpbx-addons
- *  repository on cvs.digium.com
- * 
  *  \section SoundList List of included sound files
  *  \verbinclude sounds.txt
  */
