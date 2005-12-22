@@ -24,8 +24,7 @@ SAMPLES = adsi.conf.sample \
 	privacy.conf.sample \
 	rpt.conf.sample \
 	rtp.conf.sample \
-	udptl.conf.sample \
-	unicall.conf.sample
+	udptl.conf.sample
 
 if WANT_APP_QUEUE
 SAMPLES += queues.conf.sample
