@@ -2591,7 +2591,7 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 {
 	_cmsg CMSG2;
 	struct opbx_frame fr;
-	unsigned char *b3buf;
+	unsigned char *b3buf = NULL;
 	int b3len = 0;
 	int j;
 	int rxavg = 0;
