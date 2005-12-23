@@ -29,10 +29,10 @@ group=1          ;dialout group
 ;prefix=0        ;set a prefix to calling number on incoming calls
 softdtmf=on      ;enable/disable software dtmf detection, recommended for AVM cards
 relaxdtmf=on     ;in addition to softdtmf, you can use relaxed dtmf detection
-accountcode=     ;Asterisk accountcode to use in CDRs
+accountcode=     ;OpenPBX accountcode to use in CDRs
 context=capi-in  ;context for incoming calls
-holdtype=hold    ;when Asterisk puts the call on hold, ISDN HOLD will be used. If
-                 ;set to 'local' (default value), no hold is done and Asterisk may
+holdtype=hold    ;when OpenPBX puts the call on hold, ISDN HOLD will be used. If
+                 ;set to 'local' (default value), no hold is done and OpenPBX may
                  ;play MOH.
 ;immediate=yes   ;DID: immediate start of pbx with extension 's' if no digits were
                  ;     received on incoming call (no destination number yet)
@@ -45,7 +45,7 @@ holdtype=hold    ;when Asterisk puts the call on hold, ISDN HOLD will be used. I
 echocancelold=yes;use facility selector 6 instead of correct 8 (necessary for older eicon drivers)
 ;echotail=64     ;echo cancel tail setting
 ;bridge=yes      ;native bridging (CAPI line interconnect) if available
-;callgroup=1     ;Asterisk call group
+;callgroup=1     ;OpenPBX call group
 devices=2        ;number of concurrent calls on this controller
                  ;(2 makes sense for single BRI, 30 for PRI)
 

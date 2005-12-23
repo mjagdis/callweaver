@@ -8,7 +8,7 @@
 ;
 
 [general]
-servername = Asterisk			; show this name on the device registration
+servername = OpenPBX			; show this name on the device registration
 keepalive = 60				; phone keep alive message evey 60 secs. Used to check the voicemail
 debug = 1					; console debug level. 1 => 10
 context = sccp
