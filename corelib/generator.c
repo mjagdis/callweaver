@@ -28,45 +28,12 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#if 0
-#include <stdio.h>
-#include <string.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <unistd.h>
-#include <math.h>			/* For PI */
-#endif
-
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/generator.c $", "$Revision: 878 $")
 
 #include "openpbx/channel.h"	/* generator.h is included */
 #include "openpbx/lock.h"
-
-#if 0
-#include "openpbx/pbx.h"
-#include "openpbx/frame.h"
-#include "openpbx/sched.h"
-#include "openpbx/options.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/logger.h"
-#include "openpbx/say.h"
-#include "openpbx/file.h"
-#include "openpbx/cli.h"
-#include "openpbx/translate.h"
-#include "openpbx/manager.h"
-#include "openpbx/chanvars.h"
-#include "openpbx/linkedlists.h"
-#include "openpbx/indications.h"
-#include "openpbx/monitor.h"
-#include "openpbx/causes.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/utils.h"
-#include "openpbx/app.h"
-#include "openpbx/transcap.h"
-#include "openpbx/devicestate.h"
-#endif
 
 /* Needed declarations */
 static void *opbx_generator_thread(void *data);
@@ -164,6 +131,8 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	pgcd->gen_req = gen_req_deactivate;
 	opbx_cond_signal(&pgcd->gen_req_cond);
 	opbx_mutex_unlock(&pgcd->lock);
+	while (opbx_generator_is_active(chan))
+		usleep(1000);
 }
 
 /* Is channel generator active? */
