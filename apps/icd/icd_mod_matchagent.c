@@ -72,7 +72,7 @@ void *icd_distributor__match_agent_run(void *that) {
 	                result = icd_distributor__lock(dist); 
 	            } 
 	/* All distributor links are now created wait for changes of customer or agent list  */      
-	            pthread_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
+	            opbx_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
 	            result = icd_distributor__unlock(dist); 
 	            if (icd_verbose > 4) 
 	                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  
