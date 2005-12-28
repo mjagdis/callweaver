@@ -241,7 +241,7 @@ struct capi_pvt {
 	unsigned int callgroup;
 	unsigned int group;
 	
-	/*! default language */
+	/* language */
 	char language[MAX_LANGUAGE];	
 
 	/* additional numbers to dial */
@@ -329,7 +329,8 @@ struct cc_capi_profile {
 };
 
 struct cc_capi_conf {
-	char name[CAPI_MAX_STRING];	
+	char name[CAPI_MAX_STRING];
+	char language[MAX_LANGUAGE];
 	char incomingmsn[CAPI_MAX_STRING];
 	char defaultcid[CAPI_MAX_STRING];
 	char context[OPBX_MAX_EXTENSION];
