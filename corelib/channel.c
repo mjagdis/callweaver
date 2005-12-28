@@ -2132,8 +2132,10 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 					"State: %s\r\n"
 					"CallerID: %s\r\n"
 					"CallerIDName: %s\r\n"
-					"Uniqueid: %s\r\n",
-					c->name, opbx_state2str(c->_state), c->cid.cid_num ? c->cid.cid_num : "<unknown>", c->cid.cid_name ? c->cid.cid_name : "<unknown>",c->uniqueid);
+					"Uniqueid: %s\r\n"
+					"Type: %s\r\n"
+					"Dialstring: %s\r\n",					
+					c->name, opbx_state2str(c->_state), c->cid.cid_num ? c->cid.cid_num : "<unknown>", c->cid.cid_name ? c->cid.cid_name : "<unknown>",c->uniqueid,type,(char *)data);
 				}
 			}
 			return c;

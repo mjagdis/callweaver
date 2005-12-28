@@ -104,7 +104,7 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
     icd_event *event = icd_event__get_extra(factory_event);
     int module_id = icd_event__get_module_id(event);
     int event_id = icd_event__get_event_id(event);
-    int call_pos, call_cnt;
+    int call_pos=0, call_cnt=0;
 
     switch (event_id) {
     case ICD_EVENT_ADD:
@@ -120,11 +120,19 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
              * hmm no way to tell which ? add new 
              */
             queue = (icd_queue *) icd_event__get_extra(event);
-            manager_event(EVENT_FLAG_USER, "icd_addtoqueue",
-                "Channel: %s\r\nCallerID: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-                (chan ? chan->name : "unknown"),
-                (chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "unknown"),
-                (queue ? icd_queue__get_name(queue) : "unknown"), call_pos, call_cnt);
+            if (queue){
+                if(icd_caller__has_role(caller, ICD_CUSTOMER_ROLE)){
+                	call_cnt = icd_queue__get_customer_count(queue);
+                }
+                else {
+                 	call_cnt = icd_queue__agent_active_count(queue);
+                }
+            }
+            manager_event(EVENT_FLAG_USER, "icd_add_to_queue",
+                "Module: %s\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelUniqueID: %s\r\nChannelName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+                icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller), 
+         		(chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "nochan"), icd_caller__get_name(caller),
+                chan ? chan->uniqueid : "nochan", chan ? chan->name : "nochan", (queue ? icd_queue__get_name(queue) : "unknown"), call_pos, call_cnt);
 
             break;
         case ICD_AGENT:

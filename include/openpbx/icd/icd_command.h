@@ -51,7 +51,6 @@ int icd_command_transfer(int fd, int argc, char **argv);
 int icd_command_ack_req(int fd, int argc, char **argv);
 int icd_command_login_req(int fd, int argc, char **argv);
 int icd_command_logout_req(int fd, int argc, char **argv);
-int icd_command_originate(int fd, int argc, char **argv);
 int icd_command_hang_up(int fd, int argc, char **argv);
 int icd_command_hangup_channel(int fd, int argc, char **argv);
 int icd_command_record(int fd, int argc, char **argv);

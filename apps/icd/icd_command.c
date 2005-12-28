@@ -110,8 +110,8 @@ void create_command_hash(void)
     icd_command_register("load", icd_command_load, "reload icd queues and agents from config files ",
         "<agents|queues>", "Load new configuration data from the icd config files");
  
-    icd_command_register("tr", icd_command_transfer, "transfer customer to a queue ",
-        "icd tr", "");
+    icd_command_register("transfer", icd_command_transfer, "transfer customer to a new extension ",
+        "icd transfer <CustomerUniqueID> <extension@context:priority> <agentID> ", "");
  
     icd_command_register("ack", icd_command_ack_req, "send ACK signal for agent ",
         "icd ack <agent id>", "");
@@ -122,9 +122,6 @@ void create_command_hash(void)
     icd_command_register("logout", icd_command_logout_req, "logout agent ",
         "icd logout <agent id> <password>", "");
  
-    icd_command_register("or", icd_command_originate, "originate a new call ",
-        "icd or <dialstring> <extension> <context> ", "");
-
     icd_command_register("hangup", icd_command_hang_up, "hangup agent ",
         "icd hangup <agent id>", "");
 
@@ -1271,24 +1268,20 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    }    
      return ICD_SUCCESS;
 	 
-	} 
-/*
-params:
-argv[0] = tr
-argv[1] = customer (or agent?) id?
-argv[2] = queue name to which customer will be transfered
-argv[3] = agent id to which customer will be transfered, queue should be connected to matchagent distributor 
-*/
+} 
 
 int icd_command_transfer (int fd, int argc, char **argv)
 {
   icd_caller *customer, *agent;
+  struct opbx_channel *chan = NULL;
   char *customer_source;
   char *queue_destination;
   char *agent_id_destination;
   char *ident;
   icd_queue * queue;
   char key[30];  
+  int pri=0;
+  char *pria, *exten, *context;
 
   if (argc != 3 && argc != 4 ) {
        opbx_log (LOG_WARNING, "bad parameters\n");
@@ -1296,7 +1289,6 @@ int icd_command_transfer (int fd, int argc, char **argv)
        return ICD_EGENERAL;
    }    
    customer_source = argv[1];
-   queue_destination = argv[2];
    agent_id_destination = NULL;
    if (argc == 4){
       agent_id_destination = argv[3];
@@ -1307,15 +1299,8 @@ int icd_command_transfer (int fd, int argc, char **argv)
             icd_manager_send_message("TRANSFER FAILURE! - customer [%s] not found", customer_source);
 	        return ICD_EGENERAL;
    }
-   queue = (icd_queue *) icd_fieldset__get_value(queues, queue_destination);
-   if (queue == NULL) {
-            opbx_log(LOG_WARNING, "Transfer FAILURE! Customer transfered to undefined Queue [%s]\n", queue_destination);
-            icd_manager_send_message("TRANSFER FAILURE! - customer [%s] transfer to undefined Queue [%s].",
-	    customer_source, queue_destination);
-        return ICD_EGENERAL;
-   }
    if (agent_id_destination != NULL){
-/* prepare for matchagent distributor "idetifier" fields should be the same */    
+/* prepare for matchagent distributor "identifier" fields should be the same */    
        agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id_destination);
        if (agent ==NULL) {
             opbx_log(LOG_WARNING, "Transfer FAILURE! Agent [%s] not found\n", agent_id_destination);
@@ -1331,211 +1316,37 @@ int icd_command_transfer (int fd, int argc, char **argv)
        }    
        icd_caller__set_param_string(customer, "identifier", ident);
    }    
-   opbx_log (LOG_NOTICE, "Transfer customer [%s] to queue [%s]",
-		 icd_caller__get_name (customer), queue_destination);
-   icd_manager_send_message("TRANSFER OK! - customer [%s] to queue [%s]",
-			 icd_caller__get_name (customer), queue_destination);
-   icd_caller__pause_caller_response(customer);
-   if (icd_caller__get_state(customer) != ICD_CALLER_STATE_READY) {
-      if (icd_caller__get_state(customer) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) {
-          icd_caller__set_state_on_associations(customer, ICD_CALLER_STATE_CHANNEL_FAILED);	 
-      }
-      else{	  
-        icd_caller__set_state_on_associations(customer, ICD_CALLER_STATE_CALL_END);	 
-      }	
-    }
-    icd_caller__remove_all_associations(customer);
-    icd_caller__set_active_member(customer, NULL); 
-    icd_caller__remove_from_all_queues(customer);
-    icd_caller__set_active_member(customer, NULL);
-    icd_caller__add_to_queue(customer, queue);
-    if(icd_caller__get_state(customer) != ICD_CALLER_STATE_READY){ 
- 	/*  Customer thread is paused so no cleanup nor other actions are taken,  
- 		    this is to allow pass from COFERENCED to READY state  */      
- 		icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END); 
- 		icd_caller__set_state(customer, ICD_CALLER_STATE_READY); 
- 	}     
- 	icd_caller__return_to_distributors(customer);  
-    icd_caller__start_caller_response(customer);
-    
-//    icd_caller__set_state(customer, ICD_CALLER_STATE_BRIDGE_FAILED);	 
-    
-//    iter = icd_list__get_iterator((icd_list *) (customer->memberships));
-//    while (icd_list_iterator__has_more(iter)) {
-//        member = (icd_member *) icd_list_iterator__next(iter);
-//        icd_queue__customer_join(icd_member__get_queue(member), member);
-//    }
- //   destroy_icd_list_iterator(&iter);
-//    icd_caller__add_to_queue(customer, queue);
-     return ICD_SUCCESS;
-}
-
-struct fast_originate_helper
-{
-  char tech[256];
-  char data[256];
-  int timeout;
-  char app[256];
-  char appdata[256];
-  char callerid[256];
-  struct opbx_variable *variable;
-  char account[256];
-  char context[256];
-  char exten[256];
-  char cid_num[256];
-  char cid_name[256];
-  int priority;
-};
-
-const char *control_frame_state(int control_frame)
-{
-   switch (control_frame){
-	case 0: return "TIMEOUT";
-      	case  OPBX_CONTROL_HANGUP: return "HANGUP";
-/*! Local ring */
-	case  OPBX_CONTROL_RING	: return "RING";
-/*! Remote end is ringing */
-	case   OPBX_CONTROL_RINGING : return "RINGING";
-/*! Remote end has answered */
-	case  OPBX_CONTROL_ANSWER	: return "ANSWER";
-/*! Remote end is busy */
-	case  OPBX_CONTROL_BUSY	: return "BUSY";
-/*! Make it go off hook */
-	case  OPBX_CONTROL_TAKEOFFHOOK: return "TAKEOFFHOOK";
-/*! Line is off hook */
-	case  OPBX_CONTROL_OFFHOOK: return "OFFHOOK";
-/*! Congestion (circuits busy) */
-	case  OPBX_CONTROL_CONGESTION: return "CONGESTION";
-/*! Flash hook */
-	case  OPBX_CONTROL_FLASH	: return "FLASH";
-/*! Wink */
-	case  OPBX_CONTROL_WINK: return "WINK";
-/*! Set a low-level option */
-	case  OPBX_CONTROL_OPTION	: return "OPTION";
-/*! Key Radio */
-	case	 OPBX_CONTROL_RADIO_KEY	: return "RADIO_KEY";
-/*! Un-Key Radio */
-	case	 OPBX_CONTROL_RADIO_UNKEY	: return "RADIO_UNKEY";
-/*! Indicate PROGRESS */
-	case  OPBX_CONTROL_PROGRESS : return "PROGRESS";
-/*! Indicate CALL PROCEEDING */
-	case  OPBX_CONTROL_PROCEEDING: return "PROCEEDING";
-/*! Indicate call is placed on hold */
-	case  OPBX_CONTROL_HOLD	: return "HOLD";
-/*! Indicate call is left from hold */
-	case  OPBX_CONTROL_UNHOLD	: return "UNHOLD";
-	default: return "UNKNOWN";
-  }
-  return "";
-}
-
-static void *
-originate (void *arg)
-{
-  struct fast_originate_helper *in = arg;
-  int reason = 0;
-  struct opbx_channel *chan = NULL;
-  int res;
-
-  res = opbx_pbx_outgoing_exten (in->tech,  OPBX_FORMAT_SLINEAR, in->data, in->timeout,
-			  in->context, in->exten, in->priority, &reason, 1, 
-			  !opbx_strlen_zero (in->cid_num) ? in->cid_num : NULL,
-			  !opbx_strlen_zero (in->callerid) ? in->callerid
-			   : NULL, in->variable, &chan);
-			  
-  if(res){
-     icd_manager_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] FAILED reason[%d] [%s]", in->tech, in->data, in->exten, in->context, reason, control_frame_state(reason));
-   }
-   else{
-     icd_manager_send_message("Originate channel tech [%s] [%s] to extension [%s] in context [%s] OK, state [%s]", in->tech, in->data, in->exten, in->context, control_frame_state(reason));
-   }
-			  
-  /* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
-  if (chan)
-    {
-      opbx_mutex_unlock (&chan->lock);
-    }
-  free (in);
-  return NULL;
-}
-
-
-/*
-params:
-argv[0] = or
-argv[1] = channelname
-argv[2] = extension@context if 2 agruments or context if 3 arguments 
-argv[3] = extension if 3 arguments
-*/
-
-
-int icd_command_originate (int fd, int argc, char **argv)
-{
-  char *chan_name, *context, *exten, *tech, *data, *callerid, *account;
-  int timeout = 60000; /*miliseconds */
-  struct fast_originate_helper *in;
-  pthread_t thread;
-  pthread_attr_t attr;
-  int result;
-
-  if ((argc!= 3 ) && (argc !=4)){    
-      opbx_log (LOG_WARNING, "bad parameters\n");
-      icd_manager_send_message("ORIGINATE FAILURE! - wrong parameters number");
-  }    
-  chan_name = opbx_strdupa (argv[1]);
-  if (argc == 4){
-    context = opbx_strdupa(argv[2]);
-    exten = opbx_strdupa (argv[3]);
-  }
-  else{
-    exten = opbx_strdupa (argv[2]);
-    if (context = strchr (exten, '@')){
-       *context = 0;
-  	context++;
-    }
-    else{
-    	context = opbx_strdupa("to_queue");
-    }
-  }
-  tech = opbx_strdupa (chan_name);
-  if (data = strchr (tech, '/'))
-  {
-      *data = '\0';
-      data++;
-   }
-   else {
-      opbx_log (LOG_WARNING, "ORIGINATE FAILURE! - Wrong dial srting [%s].\n", tech);
-      icd_manager_send_message("ORIGINATE FAILURE! - Wrong dial string [%s].", tech);
-      return ICD_EGENERAL;
-   }
-   in = malloc (sizeof (struct fast_originate_helper));
-   if (!in)
-   {
-      opbx_log (LOG_WARNING, "No Memory!\n");
-      icd_manager_send_message("ORIGINATE FAILURE! - no memory.");
-      return ICD_EGENERAL;
-    }
-    memset (in, 0, sizeof (struct fast_originate_helper));
-
-    callerid = NULL;
-    account = NULL;
-
-    strncpy (in->tech, tech, sizeof (in->tech));
-    strncpy (in->data, data, sizeof (in->data));
-    in->timeout = timeout;
-    strncpy (in->context, context, sizeof (in->context));
-    strncpy (in->exten, exten, sizeof (in->exten));
-    in->priority = 1;
-    opbx_log (LOG_WARNING, "Originating Call %s/%s %s %s %d\n", in->tech,
-		   in->data, in->context, in->exten, in->priority);
-    result = pthread_attr_init (&attr);
-    pthread_attr_setschedpolicy (&attr, SCHED_RR);
-    pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-    opbx_pthread_create (&thread, &attr, originate, in);
-    pthread_attr_destroy (&attr);
+    exten = opbx_strdupa(argv[2]);
+	if((context = strchr(exten,'@'))) {
+		*context = 0;
+		context++;
+		if(!(context && exten)) {
+			opbx_cli(fd,"Transfer failure: no context");
+			return ICD_EGENERAL;
+		}
+		if((pria = strchr(context,':'))) {
+			*pria = '\0';
+			pria++;
+			pri = atoi(pria);
+		} 
+		if(!pri)
+			pri = 1;
+	}
+	else {		
+		opbx_cli(fd,"Transfer failure: no context");
+		return ICD_EGENERAL;
+	}
+	chan = icd_caller__get_channel(customer);
+	if(opbx_goto_if_exists(chan, context, exten, pri)){
+	   opbx_verbose("Transfer failed customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
+	   
+	};
+	opbx_verbose("Transferring customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
+ 	if(icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END) != ICD_SUCCESS){
+		opbx_cli(fd,"Transfer failure: Unable no set customer[%s] state to CALL_END. CurrentSate[%s]", customer_source, icd_caller__get_state_string(customer));
+ 	}; 
     return ICD_SUCCESS;
 }
-
 
 void icd_manager_send_message( char *format, ...)
 {

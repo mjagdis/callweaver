@@ -830,13 +830,17 @@ icd_status icd_caller__link_to_caller(icd_caller * that, icd_caller * associate)
 {
     icd_status vetoed;
     icd_plugable_fn *icd_run;
+    struct opbx_channel *chan = NULL,*chanAssoc = NULL;
     char buf[120];
 
     assert(that != NULL);
     assert(associate != NULL);
+    chan = icd_caller__get_channel(that);
+    chanAssoc = icd_caller__get_channel(associate);
 
-    snprintf(buf, sizeof(buf), "CREATE LINK: %s(%d) to %s(%d)", icd_caller__get_name(that), that->id,
-        icd_caller__get_name(associate), associate->id);
+    snprintf(buf, sizeof(buf), "CREATE LINK: id[%d] UniqueID[%s] to id[%d] UniqueID[%s]", 
+    that->id, chan ? chan->uniqueid : "nochan",
+    associate->id, chanAssoc ? chanAssoc->uniqueid : "nochan");
     icd_run = that->get_plugable_fn(that);
     vetoed =
         icd_event__notify_with_message(ICD_EVENT_LINK, buf, associate, icd_run->link_fn, icd_run->link_fn_extra);

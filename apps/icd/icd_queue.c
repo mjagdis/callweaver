@@ -425,6 +425,7 @@ icd_status icd_queue__customer_distribute(icd_queue * that, icd_member * member)
 {
     icd_status vetoed;
     icd_caller *caller;
+    struct opbx_channel *chan = NULL;
     char msg[120];
 
     assert(that != NULL);
@@ -435,8 +436,9 @@ icd_status icd_queue__customer_distribute(icd_queue * that, icd_member * member)
        vetoed = icd_event__generate(ICD_EVENT_DISTRIBUTE, member);
      */
     caller = icd_member__get_caller(member);
-    snprintf(msg, sizeof(msg), "Cust id[%d] [%s] to Queue[%s] Dist[%s]", icd_caller__get_id(caller),
-        icd_caller__get_name(caller), that->name, (char *) vh_read(icd_distributor__get_params(that->distributor),
+    chan = icd_caller__get_channel(caller);
+    snprintf(msg, sizeof(msg)-1, "Customer id[%d] name[%s] UniqueID[%s] to Queue[%s] Dist[%s]", icd_caller__get_id(caller),
+        icd_caller__get_name(caller), chan ? chan->uniqueid : "nochan", that->name, (char *) vh_read(icd_distributor__get_params(that->distributor),
             "dist"));
 
     vetoed = icd_event__generate_with_msg(ICD_EVENT_DISTRIBUTE, msg, member);
@@ -569,6 +571,7 @@ icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * member)
 {
     icd_status vetoed;
     icd_caller *caller;
+    struct opbx_channel *chan = NULL;
     char msg[120];
 
     assert(that != NULL);
@@ -578,8 +581,9 @@ icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * member)
        vetoed = icd_event__generate(ICD_EVENT_DISTRIBUTE, member);
      */
     caller = icd_member__get_caller(member);
-    snprintf(msg, sizeof(msg), "Agent id[%d] [%s] to Queue[%s] Dist[%s]", icd_caller__get_id(caller),
-        icd_caller__get_name(caller), that->name, (char *) vh_read(icd_distributor__get_params(that->distributor),
+    chan = icd_caller__get_channel(caller);
+    snprintf(msg, sizeof(msg)-1, "Agent id[%d] name[%s] UniqueID[%s] to Queue[%s] Dist[%s]", icd_caller__get_id(caller),
+        icd_caller__get_name(caller), chan ? chan->uniqueid : "nochan", that->name, (char *) vh_read(icd_distributor__get_params(that->distributor),
             "dist"));
 
     vetoed = icd_event__generate_with_msg(ICD_EVENT_DISTRIBUTE, msg, member);

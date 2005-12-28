@@ -746,7 +746,7 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
         cust_uniq_name = chan->uniqueid;
         icd_fieldset__set_value(customers, cust_uniq_name, customer);
 	if(queue){
-            icd_manager_send_message("Approximate waiting time for cutomer[%s] in queue[%s] position [%d] is [%d] minutes", cust_uniq_name, icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
+            icd_manager_send_message("Approx. wait time for customer[%s] UniqueID[%s] in queue[%s] position [%d] is [%d] minutes", custname, cust_uniq_name?cust_uniq_name:"nochan", icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
 	}    
 	
     }	
