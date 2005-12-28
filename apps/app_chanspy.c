@@ -598,7 +598,7 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 	if (recbase) {
 		char filename[512];
 		snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",opbx_config_OPBX_MONITOR_DIR, recbase, time(NULL));
-		if ((fd = open(filename, O_CREAT | O_WRONLY, O_TRUNC)) <= 0) {
+		if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0) {
 			opbx_log(LOG_WARNING, "Cannot open %s for recording\n", filename);
 			fd = 0;
 		}
