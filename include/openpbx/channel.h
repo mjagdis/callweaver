@@ -316,8 +316,8 @@ struct opbx_channel {
 	/* A linked list for variables */
 	struct varshead varshead;
 
-	unsigned int callgroup;
-	unsigned int pickupgroup;
+	opbx_group_t callgroup;
+	opbx_group_t pickupgroup;
 
 	/*! channel flags of OPBX_FLAG_ type */
 	unsigned int flags;

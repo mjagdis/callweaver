@@ -1522,7 +1522,8 @@ struct opbx_channel *capi_request(const char *type, int format, void *data, int 
 	struct opbx_channel *tmp = NULL;
 	char *dest, *interface, *param, *ocid;
 	char buffer[CAPI_MAX_STRING];
-	unsigned int capigroup = 0, controller = 0;
+	opbx_group_t capigroup = 0;
+	unsigned int controller = 0;
 	unsigned int foundcontroller;
 	int notfound = 1;
 

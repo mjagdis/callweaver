@@ -238,8 +238,8 @@ struct capi_pvt {
 
 	char accountcode[20];	
 
-	unsigned int callgroup;
-	unsigned int group;
+	opbx_group_t callgroup;
+	opbx_group_t group;
 	
 	/* language */
 	char language[MAX_LANGUAGE];	
@@ -349,8 +349,8 @@ struct cc_capi_conf {
 	int holdtype;
 	int es;
 	int bridge;
-	unsigned int callgroup;
-	unsigned int group;
+	opbx_group_t callgroup;
+	opbx_group_t group;
 	float rxgain;
 	float txgain;
 };
