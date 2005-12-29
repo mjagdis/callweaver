@@ -131,8 +131,6 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	pgcd->gen_req = gen_req_deactivate;
 	opbx_cond_signal(&pgcd->gen_req_cond);
 	opbx_mutex_unlock(&pgcd->lock);
-	while (opbx_generator_is_active(chan))
-		usleep(1000);
 }
 
 /* Is channel generator active? */
