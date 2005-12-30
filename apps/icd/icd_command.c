@@ -111,15 +111,15 @@ void create_command_hash(void)
         "<agents|queues>", "Load new configuration data from the icd config files");
  
     icd_command_register("transfer", icd_command_transfer, "transfer customer to a new extension ",
-        "icd transfer <CustomerUniqueID> <extension@context:priority> <agentID> ", "");
+        "icd transfer <CustomerUniqueID> <extension@context:priority>", "");
  
-    icd_command_register("ack", icd_command_ack_req, "send ACK signal for agent ",
+    icd_command_register("ack", icd_command_ack, "send ACK signal for agent ",
         "icd ack <agent id>", "");
  
-    icd_command_register("login", icd_command_login_req, "login agent ",
+    icd_command_register("login", icd_command_login, "login agent ",
         "icd login <dialstring> <agent id> <password>", "");
  
-    icd_command_register("logout", icd_command_logout_req, "logout agent ",
+    icd_command_register("logout", icd_command_logout, "logout agent ",
         "icd logout <agent id> <password>", "");
  
     icd_command_register("hangup", icd_command_hang_up, "hangup agent ",
@@ -779,9 +779,9 @@ icd_status icd_command_load_queues(int fd, int argc, char **argv)
     return ICD_SUCCESS;
 }
 
-int icd_command_ack_req (int fd, int argc, char **argv)
+int icd_command_ack (int fd, int argc, char **argv)
 {
-  char * agentname;
+  char * agent_id;
   icd_agent *agent = NULL;
 
   manager_event(EVENT_FLAG_USER, "icd_event: ","ACK");
@@ -793,20 +793,20 @@ int icd_command_ack_req (int fd, int argc, char **argv)
 	   argv[0]);
      return ICD_EGENERAL;
   }
-  agentname = argv[1];   	   
-  agent = (icd_agent *) icd_fieldset__get_value(agents, agentname);
+  agent_id = argv[1];   	   
+  agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);
   if (!agent) {
         opbx_log(LOG_WARNING,
-                    "Function Ack failed. Agent '%s' could not be found.\n", agentname);        
+                    "Function Ack failed. Agent '%s' could not be found.\n", agent_id);        
 	return ICD_EGENERAL;
   }		    
   if(icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_READY ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_DISTRIBUTING ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) {
      	icd_caller__add_flag((icd_caller *)agent, ICD_ACK_EXTERN_FLAG);
-     	opbx_log(LOG_NOTICE, "Jabber Function Ack for agent '%s' .\n", agentname);
+     	opbx_log(LOG_NOTICE, "Jabber Function Ack for agent '%s' .\n", agent_id);
      } else {
-     	opbx_log(LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agentname, icd_caller__get_state_string((icd_caller *) agent));
+     	opbx_log(LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
      	return ICD_EGENERAL;
      }
     return ICD_SUCCESS;
@@ -814,212 +814,142 @@ int icd_command_ack_req (int fd, int argc, char **argv)
 
 int icd_command_hang_up (int fd, int argc, char **argv)
 {
-    icd_agent *agent = NULL;
-    char *agentname;
+    icd_caller *agent = NULL;
+    char *agent_id;
+    
     opbx_log(LOG_WARNING,"Function Hang up [%d]\n", argc);
 
     if (argc != 2) {
        opbx_log(LOG_WARNING,"Function Hang up failed- bad number of parameters [%d]\n", argc);
        return ICD_EGENERAL;
     }
-    agentname = argv[1];   
-    agent = (icd_agent *) icd_fieldset__get_value(agents, agentname);
+    agent_id = argv[1];   
+    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);
     if (!agent) {
         opbx_log(LOG_WARNING,
-                    "Function Hang up failed. Agent '%s' could not be found.\n", agentname);        
+                    "Function Hang up failed. Agent '%s' could not be found.\n", agent_id);        
 	return ICD_EGENERAL;
-     }		    
-     if(icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_BRIDGED &&
-        icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_CONFERENCED){
-        opbx_log(LOG_WARNING,
-                    "Function Hang up failed. Agent '%s' in state [%s].\n", agentname,
-		    icd_caller__get_state_string((icd_caller *) agent));        
+    }		    
+    if(icd_caller__get_state(agent) != ICD_CALLER_STATE_BRIDGED &&
+       icd_caller__get_state(agent) != ICD_CALLER_STATE_CONFERENCED){
+       opbx_log(LOG_WARNING,
+                   "Function Hang up failed. Agent '%s' in state [%s].\n", agent_id,
+		    icd_caller__get_state_string(agent));        
 	return ICD_EGENERAL;
-     }  
-     opbx_log(LOG_NOTICE, "Function Hang up for agent '%s' executed.\n", agentname);
-     icd_caller__set_state_on_associations((icd_caller *) agent, ICD_CALLER_STATE_CALL_END);     
-  
-     return ICD_SUCCESS;
+    }    
+    icd_caller__set_state(agent, ICD_CALLER_STATE_CALL_END);     
+    opbx_log(LOG_NOTICE, "Function Hang up for agent [%s] executed OK.\n", agent_id);
+    return ICD_SUCCESS;
 }
 
-
-int icd_command_login_req (int fd, int argc, char **argv)
-{
-/* The code is copied frop app_icd_agent_exec and slightly modified. In the future there should be one function */
+static void *icd_command_login_thread(void *arg) {
+    icd_caller *agent = arg;
     struct opbx_channel *chan;
-    icd_agent *agent = NULL;
-    char *agentname;
-    int res = 0;
-    int  oldrformat = 0, oldwformat = 0;
-    char *passwd=NULL;
-    char * channelstring;
-    static int logFlag=1; 
+    char *channelstring;
+    char *agent_id;
+    int res;
+    char buf[200];
+    char *passwd;
+	
+	channelstring = icd_caller__get_channel_string(agent);
+	agent_id = icd_caller__get_caller_id(agent);
+    chan = icd_caller__get_channel(agent);
+    res = icd_bridge_dial_openpbx_channel(agent, channelstring, 20000);
+    icd_caller__set_channel(agent, NULL);
+    if (res != OPBX_CONTROL_ANSWER){
+        opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - unable to get answer from channel [%s].", agent_id, channelstring);	 
+/* More detailed check why there is no answer probably needed in the future. */	 
+        opbx_hangup(chan);
+        icd_caller__del_param(agent, "LogInProgress");
+	    return ICD_EGENERAL;
+    }	 
+  	sprintf(buf, "agent=%s", agent_id);
+  	passwd = icd_caller__get_param(agent, "login_password");
+  	if(passwd){
+  		sprintf(buf + strlen(buf), "|password=%s", passwd);  			
+    }
+    app_icd__agent_exec(chan, buf);
+    icd_caller__del_param(agent, "LogInProgress");
+    opbx_log(LOG_NOTICE, "Agent login: External thread for Agent [%s] ending\n", agent_id);
+    chan = icd_caller__get_channel(agent);
+    if(chan){
+        icd_caller__stop_waiting(agent);
+        opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+        opbx_hangup(chan);
+        icd_caller__set_channel(agent, NULL);
+    }	
+}
 
-    opbx_log(LOG_WARNING,"funkcja login [%d]\n", argc);
+int icd_command_login (int fd, int argc, char **argv)
+{
+    struct opbx_channel *chan;
+    icd_caller *agent = NULL;
+    char *agent_id;
+    char *passwd=NULL;
+    char *channelstring;
+    int logFlag=1;
+    int res;
+	pthread_t thread;
+	pthread_attr_t attr;
+	int result;
 
     if ((argc != 3) && (argc !=4)){
          icd_manager_send_message("LOGIN FAILURE! - wrong parameters number.");
 	return ICD_EGENERAL;
     }	 
     channelstring = argv[1];
-    agentname = argv[2];
+    agent_id = argv[2];
     if (argc==4) passwd = argv[3];
       	 
-    
-//    LOCAL_USER_ADD(u);
-
-    // check state and do nothing, logout or enyth else
-    agent = (icd_agent *) icd_fieldset__get_value(agents, agentname);
-    
+    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
     if (!agent) {
-//chech passwd    
         opbx_log(LOG_WARNING,
-                    "AGENT LOGGIN FAILURE!  Agent '%s' could not be found.\n"
-                    "Please correct the 'agent' argument in the extensions.conf file\n", agentname);        
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] could not be found.", agentname);
+                    "AGENT LOGIN FAILURE!  Agent '%s' could not be found.\n"
+                    "Please correct the 'agent' argument in the extensions.conf file\n", agent_id);        
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] could not be found.", agent_id);
 	    return ICD_EGENERAL;
-       }       
-    if (icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_SUSPEND &&
-      icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_INITIALIZED) {
-        opbx_log(LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agentname);        
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] already logged in.", agentname);
+    }       
+    if (icd_caller__get_state(agent) != ICD_CALLER_STATE_SUSPEND &&
+      icd_caller__get_state(agent) != ICD_CALLER_STATE_INITIALIZED) {
+        opbx_log(LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agent_id);        
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] already logged in.", agent_id);
  	    return ICD_EGENERAL;
-     }
-	if(icd_caller__get_param((icd_caller *) agent, "LogInProgress")){ 
-	        opbx_log(LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agentname);         
-	        icd_manager_send_message("LOGIN FAILURE! Agent [%s] - previous login try not finished yet.", agentname); 
-	        return ICD_EGENERAL;
-	    } 
-	    icd_caller__set_param((icd_caller *) agent, "LogInProgress", &logFlag);         
+    }
+	if(icd_caller__get_param(agent, "LogInProgress")){ 
+	    opbx_log(LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agent_id);         
+	    icd_manager_send_message("LOGIN FAILURE! Agent [%s] - previous login try not finished yet.", agent_id); 
+	    return ICD_EGENERAL;
+	} 
+    icd_caller__set_param(agent, "LogInProgress", &logFlag);         
     chan =icd_bridge_get_openpbx_channel(channelstring, NULL, NULL, NULL);
     if(!chan) {
         opbx_log(LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - Not avaliable channel [%s].", agentname, channelstring);
-        icd_caller__del_param((icd_caller *) agent, "LogInProgress");
+        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - Not avaliable channel [%s].", agent_id, channelstring);
+        icd_caller__del_param(agent, "LogInProgress");
 	    return ICD_EGENERAL;
     }
-    /* Make sure channel is properly set up */
-    
-   if (chan->_state != OPBX_STATE_UP) {
-        res = opbx_answer(chan);
+    icd_caller__set_channel(agent, chan);
+    icd_caller__set_channel_string(agent, channelstring);
+    icd_caller__set_param_string(agent, "channel", channelstring);
+    if (passwd) {
+    	icd_caller__set_param_string(agent, "login_password", passwd);
     }
-    oldrformat = chan->readformat;
-    oldwformat = chan->writeformat;
-    
-    if(!(res=opbx_set_read_format(chan,  OPBX_FORMAT_SLINEAR))) {
-        res = opbx_set_write_format(chan,  OPBX_FORMAT_SLINEAR);
+    else{
+    	icd_caller__del_param(agent, "login_password");
     }
-    
-    if(res) {
-        opbx_log(LOG_WARNING,"Unable to prepare channel %s\n",chan->name);
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - Unable to prepare channel [%s].", agentname, channelstring);
-        if(oldrformat)
-            opbx_set_read_format(chan, oldrformat);
-        if(oldwformat)
-            opbx_set_write_format(chan, oldwformat);
-//        LOCAL_USER_REMOVE(u);
-        opbx_hangup(chan);
-        icd_caller__del_param((icd_caller *) agent, "LogInProgress"); 
-	    return ICD_EGENERAL;
-    }
-
-    /* We need to find the appropriate agent:
-     *   1. find match for "agent" parameter from extensions.conf in agents registry
-     *   2. if "dynamic" is true, generate an agent as for customers if "agent" doesn't exist already
-     *           (in this case, "queue" in extensions.conf will be a good idea unless agent adds self to queues)login Zap/g2/103 1002 1002
-     *   3. if "identify" is true and channel is up, get DTMF and search for agent (authentication comes later)
-     *   4. otherwise error
-     * TBD - Do we need to protect against two users trying to use the same agent structure? YES!
-     */
-     icd_caller__set_channel((icd_caller *) agent, chan);
-     icd_caller__set_channel_string((icd_caller *) agent, channelstring);
-     icd_caller__set_param_string((icd_caller *) agent, "channel", channelstring);
-     res = icd_bridge_dial_openpbx_channel((icd_caller *) agent, channelstring, 20000);
-     if (res != OPBX_CONTROL_ANSWER){
-         opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agentname, channelstring);
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - unable to get answer from channel [%s].", agentname, channelstring);
-	 
-/* More detailed check why there is no answer probably needed in the future. */	 
-         opbx_hangup(chan);
-         icd_caller__del_param((icd_caller *) agent, "LogInProgress");
-	     return ICD_EGENERAL;
-     }	 
-     agent = app_icd__dtmf_login(chan, agentname, passwd, 3);
-     if (!agent){
-            opbx_log(LOG_WARNING, "Agent [%s] wrong password.\n",agentname);
-            icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - wrong password.", agentname);
-            opbx_hangup(chan);
-            icd_caller__del_param((icd_caller *) agent, "LogInProgress"); 
-	        return ICD_EGENERAL;
-      }    
-       	  
- //       if(res!= OPBX_CONTROL_ANSWER){
-//        opbx_log(LOG_WARNING,
-//                    "AGENT FAILURE!  Agent '%s' timeout\n", agentname);        
-//          return 1;
-//	}
-//       res = icd_bridge__play_sound_file(chan, "agent-loginok");
-       
-    opbx_log(LOG_NOTICE, "Agent [%s] found in registry and marked in use.\n",
-                    icd_caller__get_name((icd_caller *) agent));
-    icd_manager_send_message("LOGIN OK!  Agent [%s] - successfully logged in.", agentname);
-
-		  
-     icd_caller__del_param((icd_caller *) agent, "LogInProgress");  
-        /* At this point, we have an agent. We hope he is already in queues but not in distributors. */
-    if (icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_SUSPEND ||
-      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_INITIALIZED)
-    {
-    ((icd_caller *) agent)->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
-    icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_READY);
-    
-    if (icd_caller__get_onhook((icd_caller *) agent)) {
-        /* On hook - Tell caller to start thread */
-        opbx_log(LOG_NOTICE, "Agent login: Agent onhook %s starting independent caller thread\n", agentname);
-//        icd_bridge__safe_hangup((icd_caller *) agent);
-//        opbx_hangup(chan);
-//	icd_caller__set_channel((icd_caller *) agent, NULL);
-        opbx_stopstream(chan);
-        opbx_generator_deactivate(chan);
-        opbx_clear_flag(chan ,  OPBX_FLAG_BLOCKING);
-        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
-        opbx_hangup(chan);
-	icd_caller__set_channel((icd_caller *) agent, NULL);
-
-        icd_caller__add_role((icd_caller *) agent, ICD_LOOPER_ROLE);
-        icd_caller__loop((icd_caller *) agent, 1);
-    } else {
-        /* Off hook - Use the PBX thread */
-        opbx_log(LOG_NOTICE, "Agent login: Agent offhook %s starting independent caller thread\n", agentname);
-//        icd_caller__assign_channel((icd_caller *) agent, chan);
-        icd_caller__add_role((icd_caller *) agent, ICD_LOOPER_ROLE);
-
-        /* This becomes the thread to manage agent state and incoming stream */
-        icd_caller__loop((icd_caller *) agent, 0);
-        /* Once we hit here, the call is finished */
-        icd_caller__stop_waiting((icd_caller *) agent);
-        opbx_softhangup(chan ,  OPBX_SOFTHANGUP_EXPLICIT);
-        opbx_hangup(chan );
-        icd_caller__set_channel((icd_caller *) agent, NULL);
-    }
-    opbx_log(LOG_NOTICE, "Agent login: Jabber thread for Agent %s ending\n", agentname);
-   } else {
-//Agent has thread already   
-         opbx_log(LOG_NOTICE, "Agent login: Agent [%s] in state [%s]\n", agentname,
-	 icd_caller__get_state_string((icd_caller *) agent));
-               if(icd_caller__get_state((icd_caller *) agent) != ICD_CALLER_STATE_READY)
-                icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_CALL_END);		
-     }
-//    LOCAL_USER_REMOVE(u);
-     return ICD_SUCCESS;
+	result = pthread_attr_init(&attr);
+	pthread_attr_setschedpolicy(&attr, SCHED_RR);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	result = opbx_pthread_create(&thread, &attr, icd_command_login_thread, agent);
+	result = pthread_attr_destroy(&attr);	
+    return 0;
 }
 
-//extern static icd_status icd_caller__remove_from_all_queues(icd_caller * that);
-//icd_status icd_caller__remove_all_associations(icd_caller * that);
-int icd_command_logout_req (int fd, int argc, char **argv)
+int icd_command_logout (int fd, int argc, char **argv)
 {
     icd_agent *agent = NULL;
-    char *agentname;
+    char *agent_id;
     char *passwd_to_check;
     char *passwd; 
 
@@ -1029,13 +959,13 @@ int icd_command_logout_req (int fd, int argc, char **argv)
          icd_manager_send_message("LOGOUT FAILURE!  - wrong parameters number.");
          return ICD_EGENERAL;
     }	 
-    agentname = argv[1];
+    agent_id = argv[1];
     passwd_to_check = argv[2];
-    agent = (icd_agent *) icd_fieldset__get_value(agents, agentname);   
+    agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);   
     if (agent == NULL) {
         opbx_log(LOG_WARNING,
-                    "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agentname);
-        icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - could not be found.", agentname);
+                    "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agent_id);
+        icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - could not be found.", agent_id);
 		    
 	        return ICD_EGENERAL;
     }
@@ -1043,27 +973,27 @@ int icd_command_logout_req (int fd, int argc, char **argv)
     if (passwd) 
           if(strcmp(passwd, passwd_to_check)){
           opbx_log(LOG_WARNING,
-                    "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agentname);
-          icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - wrong password [%s].", agentname, passwd_to_check);
+                    "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agent_id);
+          icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - wrong password [%s].", agent_id, passwd_to_check);
           return ICD_EGENERAL;
     }     
     
-    opbx_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged out.\n", agentname);
+    opbx_log(LOG_NOTICE, "Agent [%s] (found in registry) will be logged out.\n", agent_id);
     /* TBD - Implement state change to ICD_CALLER_STATE_WAIT. We can't just pause the thread
      * because the caller's members would still be in the distributors. We need to go into a
      * caller state that is actually different, a paused/waiting/down state.
      */
     
-     icd_manager_send_message("LOGOUT OK!  Agent [%s].", agentname);
+     icd_manager_send_message("LOGOUT OK!  Agent [%s].", agent_id);
      
      if (icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
-             opbx_log(LOG_WARNING,
-                    "LOGOUT FAILURE!  Agent '%s' vetoed or ivalid state change, state [%s].\n", agentname,icd_caller__get_state_string((icd_caller *) agent));
-	        return ICD_EGENERAL;
+        opbx_log(LOG_WARNING,
+                    "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agent_id,icd_caller__get_state_string((icd_caller *) agent));
+	    return ICD_EGENERAL;
 	} 
 	else {	    
-               opbx_log(LOG_WARNING, "LOGOUT OK!  Agent '%s' logged out.\n", agentname);
-     return ICD_SUCCESS;
+        opbx_log(LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
+        return ICD_SUCCESS;
 	}
     return ICD_EGENERAL;
 }
@@ -1209,7 +1139,7 @@ int icd_command_record(int fd, int argc, char **argv)
 int icd_command_join_queue (int fd, int argc, char **argv) 
 { 
 	    icd_caller *agent = NULL; 
-	    char *agentname; 
+	    char *agent_id; 
 	    char *queuename; 
 	    int remove=0; 
 	    icd_queue *queue; 
@@ -1220,13 +1150,13 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	         icd_manager_send_message("JOIN QUEUE FAILURE!  - wrong parameters number."); 
   	         return ICD_EGENERAL;
 	    }     
-	    agentname = argv[1]; 
+	    agent_id = argv[1]; 
 	    queuename = argv[2]; 
-	    agent = (icd_caller *) icd_fieldset__get_value(agents, agentname);    
+	    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
 	    if (agent == NULL) { 
 	        opbx_log(LOG_WARNING, 
-	                    "JOIN QUEUE FAILURE!  Agent '%s' could not be found.\n", agentname); 
-	        icd_manager_send_message("JOIN QUEUE FAILURE!  Agent [%s] - could not be found.", agentname); 	                     
+	                    "JOIN QUEUE FAILURE!  Agent '%s' could not be found.\n", agent_id); 
+	        icd_manager_send_message("JOIN QUEUE FAILURE!  Agent [%s] - could not be found.", agent_id); 	                     
 	        return ICD_EGENERAL;
 	    } 
 	    if (argc==4) 
@@ -1239,12 +1169,12 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	      if (queue == NULL) { 
 	            opbx_log(LOG_WARNING, "JOIN QUEUE FAILURE! Agent joined undefined Queue [%s]\n", queuename); 
 	            icd_manager_send_message("JOIN QUEUE FAILURE! Agent [%s] joined undefined Queue [%s]", 
-	            agentname, queuename); 
+	            agent_id, queuename); 
 	            return ICD_EGENERAL;
 	      } 
 	    }  
 	 
-	    opbx_log(LOG_NOTICE, "Agent [%s] will join the queue [%s]\n", agentname, queuename); 
+	    opbx_log(LOG_NOTICE, "Agent [%s] will join the queue [%s]\n", agent_id, queuename); 
 	    if(queue){ 
 	       if (remove) { 
 	          if(agent->memberships) 
@@ -1272,50 +1202,24 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 
 int icd_command_transfer (int fd, int argc, char **argv)
 {
-  icd_caller *customer, *agent;
+  icd_caller *customer;
   struct opbx_channel *chan = NULL;
   char *customer_source;
-  char *queue_destination;
-  char *agent_id_destination;
-  char *ident;
-  icd_queue * queue;
-  char key[30];  
   int pri=0;
   char *pria, *exten, *context;
 
-  if (argc != 3 && argc != 4 ) {
+  if (argc != 3) {
        opbx_log (LOG_WARNING, "bad parameters\n");
        icd_manager_send_message("TRANSFER FAILURE! - wrong parameters number.");
        return ICD_EGENERAL;
    }    
    customer_source = argv[1];
-   agent_id_destination = NULL;
-   if (argc == 4){
-      agent_id_destination = argv[3];
-   }   
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
    if (customer == NULL) {
             opbx_log(LOG_WARNING, "Transfer FAILURE! Customer [%s] not found\n", customer_source);
             icd_manager_send_message("TRANSFER FAILURE! - customer [%s] not found", customer_source);
 	        return ICD_EGENERAL;
    }
-   if (agent_id_destination != NULL){
-/* prepare for matchagent distributor "identifier" fields should be the same */    
-       agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id_destination);
-       if (agent ==NULL) {
-            opbx_log(LOG_WARNING, "Transfer FAILURE! Agent [%s] not found\n", agent_id_destination);
-            icd_manager_send_message("TRANSFER FAILURE! - customer [%s] transfer to undefined agent [%s].",
-	    customer_source, agent_id_destination);
-        return ICD_EGENERAL;
-       }
-       ident = icd_caller__get_param(agent, "identifier");
-       if (ident == NULL) {
-           snprintf(key, 30, icd_caller__get_param(agent, "agent_id"));
-           icd_caller__set_param_string(agent, "identifier", key);
-           ident = icd_caller__get_param(agent, "identifier");
-       }    
-       icd_caller__set_param_string(customer, "identifier", ident);
-   }    
     exten = opbx_strdupa(argv[2]);
 	if((context = strchr(exten,'@'))) {
 		*context = 0;

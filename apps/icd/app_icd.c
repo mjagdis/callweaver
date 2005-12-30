@@ -68,6 +68,7 @@
 #include "openpbx/icd/icd_event.h"
 #include "openpbx/app.h"
 #include <pthread.h>
+#include "openpbx/icd/icd_caller_private.h"
 
 static char *qdesc = "Intelligent Call Distribution System";
 
@@ -976,6 +977,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
     char *hookinfo;
     char *noauth;
     char *identifier;
+    char *passwd;
     char agentbuf[256];
     int res = 0;
     int dynamic = 0, oldrformat = 0, oldwformat = 0;
@@ -1020,6 +1022,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
     dynamicstring = vh_read(arghash, "dynamic");
     agentname = vh_read(arghash, "agent");
     queuename = vh_read(arghash, "queues");
+    passwd = vh_read(arghash, "password");
     if (queuename == NULL) {
         queuename = vh_read(arghash, "queue");
     }
@@ -1033,7 +1036,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
                 if (agent)
                     res = icd_bridge__play_sound_file(chan, "agent-loginok");
             } else
-                agent = app_icd__dtmf_login(chan, agentname, NULL, 3);
+                agent = app_icd__dtmf_login(chan, agentname, passwd, 3);
         }
         if (agent != NULL) {
             opbx_log(LOG_NOTICE, "Agent [%s] found in registry and marked in use.\n",
@@ -1158,10 +1161,13 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
         identifier = icd_caller__get_param((icd_caller *) agent, "identifier");
     }
     icd_caller__set_param_string((icd_caller *) agent, "identifier", identifier);
-
+    ((icd_caller *)agent)->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
     if (icd_caller__get_onhook((icd_caller *) agent)) {
         /* On hook - Tell caller to start thread */
         opbx_log(LOG_NOTICE, "Exec Agent: Agent %s starting independent caller thread\n", agentname);
+        opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+        opbx_hangup(chan);
+        icd_caller__set_channel((icd_caller *)agent, NULL);        
         icd_caller__loop((icd_caller *) agent, 1);
 //        res = icd_bridge__play_sound_file(chan, "agent-loginok");
     } else {
@@ -1188,7 +1194,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
     if(oldwformat)
         opbx_set_write_format(chan, oldwformat);
 */	
-    return -1;
+    return 0;
 }
 
 /* this is where the agent becomes a member of a queue */
@@ -1651,7 +1657,10 @@ int app_icd__logout_exec(struct opbx_channel *chan, void *data)
      * because the caller's members would still be in the distributors. We need to go into a
      * caller state that is actually different, a paused/waiting/down state.
      */
-    icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_SUSPEND);
+    if(icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_SUSPEND)!=ICD_SUCCESS){
+       opbx_log(LOG_WARNING, "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agentname, icd_caller__get_state_string((icd_caller *) agent));
+       return -1;   	
+    }	
 
     LOCAL_USER_REMOVE(u);
 
@@ -2073,10 +2082,14 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                 /*found bridge_tech */
                 if (agent) {
                     fieldval = icd_config__get_value(config, "agent_id");
-                    if (fieldval)
+                    if (fieldval){
                         icd_fieldset__set_value(agents, fieldval, agent);
-                    else
+                        icd_caller__set_caller_id(agent, fieldval);
+                    }    
+                    else {
                         icd_fieldset__set_value(agents, entry, agent);
+                        icd_caller__set_caller_id(agent, entry);
+                    }    
                     icd_agent__add_listener(agent, agents, clear_agent_from_registry, entry);
                 }
 
