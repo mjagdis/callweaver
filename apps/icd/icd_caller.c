@@ -830,17 +830,13 @@ icd_status icd_caller__link_to_caller(icd_caller * that, icd_caller * associate)
 {
     icd_status vetoed;
     icd_plugable_fn *icd_run;
-    struct opbx_channel *chan = NULL,*chanAssoc = NULL;
     char buf[120];
 
     assert(that != NULL);
     assert(associate != NULL);
-    chan = icd_caller__get_channel(that);
-    chanAssoc = icd_caller__get_channel(associate);
 
-    snprintf(buf, sizeof(buf), "CREATE LINK: id[%d] UniqueID[%s] to id[%d] UniqueID[%s]", 
-    that->id, chan ? chan->uniqueid : "nochan",
-    associate->id, chanAssoc ? chanAssoc->uniqueid : "nochan");
+    snprintf(buf, sizeof(buf), "CREATE LINK: name[%s] CallerID[%s] to name[%s] CallerID[%s]", 
+    that->name, that->caller_id, associate->name, associate->caller_id);
     icd_run = that->get_plugable_fn(that);
     vetoed =
         icd_event__notify_with_message(ICD_EVENT_LINK, buf, associate, icd_run->link_fn, icd_run->link_fn_extra);
@@ -3636,8 +3632,8 @@ void *icd_caller__standard_run(void *ptr)
                      * No action is usually required. This is a thread information state.
                      * standard plugable function is icd_caller__standard_state_distribute
                      if (icd_verbose > 4)*/
-                     opbx_log(LOG_NOTICE, "Caller %d [%s] run[%p] in state - DISTRIBUTING \n",
-                     icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_distribute_fn);
+                     opbx_log(LOG_NOTICE, "Caller id[%d] name[%s] caller_id[%s] run[%p] in state - DISTRIBUTING \n",
+                     icd_caller__get_id(that), icd_caller__get_name(that), icd_caller__get_caller_id(that), icd_run->state_distribute_fn);
                      
                      
                     icd_event__notify(ICD_EVENT_DISTRIBUTE, NULL, icd_run->state_distribute_fn,
@@ -3704,7 +3700,7 @@ void *icd_caller__standard_run(void *ptr)
                      opbx_log(LOG_NOTICE, "Caller %d [%s] run[%p] in state - STATE_SUSPEND \n",
                      icd_caller__get_id(that), icd_caller__get_name(that),icd_run->state_suspend_fn);
                      */
-                    opbx_log(LOG_WARNING," Caller [%d]  [%s] state - SUSPEND \n",icd_caller__get_id(that), icd_caller__get_name(that));
+                    opbx_log(LOG_NOTICE," Caller id[%d] name[%s] caller_id[%s] state - SUSPEND \n",icd_caller__get_id(that), icd_caller__get_name(that), icd_caller__get_caller_id(that));
                     icd_event__notify(ICD_EVENT_SUSPEND, NULL, icd_run->state_suspend_fn,
                         icd_run->state_suspend_fn_extra);
                     break;

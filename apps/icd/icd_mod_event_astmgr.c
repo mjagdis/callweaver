@@ -120,7 +120,7 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
                 "Module: %s\r\nID: %s\r\nCallerID: %s\r\nCallerName: %s\r\nMessage: %s\r\n",
                 (chan ? chan->name : "unknown"),
                 */
-                (chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "nochan"),icd_caller__get_name(caller),
+                icd_caller__get_caller_id(caller), icd_caller__get_name(caller),
                 chan ? chan->uniqueid : "nochan", chan ? chan->name : "nochan", 
                 confnr,  smsg);
 

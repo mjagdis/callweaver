@@ -104,9 +104,9 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
 	        conf = icd_caller__get_conference(caller);		
             if(conf != NULL)
 	          confnr = conf->ztc.confno;
-            opbx_verbose(VERBOSE_PREFIX_1 "[%s] id[%d] [%s] clid[%s] name[%s] channel_name[%s] uniqueid[%s] conf[%d] run[%s] state - %s \n",
+              opbx_verbose(VERBOSE_PREFIX_1 "[%s] id[%d] [%s] clid[%s] name[%s] channel_name[%s] uniqueid[%s] conf[%d] run[%s] state - %s \n",
                         icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller),
-                        icd_caller__get_name(caller), chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "nochan",
+                        icd_caller__get_name(caller), icd_caller__get_caller_id(caller),
                         chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan",
                         chan ? chan->name : "nochan", chan ? chan->uniqueid : "nochan",confnr, smsg);
 	    break;

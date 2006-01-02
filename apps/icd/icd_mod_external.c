@@ -130,8 +130,8 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
             }
             manager_event(EVENT_FLAG_USER, "icd_add_to_queue",
                 "Module: %s\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelUniqueID: %s\r\nChannelName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-                icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller), 
-         		(chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "nochan"), icd_caller__get_name(caller),
+                icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller), icd_caller__get_caller_id(caller), 
+         		icd_caller__get_name(caller),
                 chan ? chan->uniqueid : "nochan", chan ? chan->name : "nochan", (queue ? icd_queue__get_name(queue) : "unknown"), call_pos, call_cnt);
 
             break;
@@ -157,7 +157,7 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
         chan = (opbx_channel *) icd_caller__get_channel(caller);
         manager_event(EVENT_FLAG_USER, "icd_channelup",
             "Id: %d\r\n" "Channel: %s\r\n" "Uniqueid: %s\r\n" "Callerid: %s\r\n", icd_caller__get_id(caller),
-            chan->name, chan->uniqueid, (chan->cid.cid_num ? chan->cid.cid_num : "unknown"));
+            chan->name, chan->uniqueid, icd_caller__get_caller_id(caller));
 
         opbx_verbose(VERBOSE_PREFIX_2 "FAT_AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
             icd_caller__get_id(caller), icd_caller__get_name(caller), icd_event__get_message(event)
@@ -210,8 +210,7 @@ opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event))
             }
             manager_event(EVENT_FLAG_USER, "icd_addtoqueue",
                 "Channel: %s\r\nCallerID: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-                (chan ? chan->name : "unknown"),
-                (chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" : "unknown"),
+                (chan ? chan->name : "unknown"), icd_caller__get_caller_id(caller),
                 (queue ? icd_queue__get_name(queue) : "unknown"), call_pos, call_cnt);
             break;
         case ICD_DISTRIBUTOR_LIST:
@@ -238,7 +237,7 @@ opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event))
         chan = (opbx_channel *) icd_caller__get_channel(caller);
         manager_event(EVENT_FLAG_USER, "icd_channelup",
             "Id: %d\r\n" "Channel: %s\r\n" "Uniqueid: %s\r\n" "Callerid: %s\r\n", icd_caller__get_id(caller),
-            chan->name, chan->uniqueid, (chan->cid.cid_num ? chan->cid.cid_num : "unknown"));
+            chan->name, chan->uniqueid, icd_caller__get_caller_id(caller));
 
         opbx_verbose(VERBOSE_PREFIX_2 "AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
             icd_caller__get_id(caller), icd_caller__get_name(caller), icd_event__get_message(event)
