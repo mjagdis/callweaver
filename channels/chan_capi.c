@@ -416,7 +416,7 @@ static void capi_echo_canceller(struct opbx_channel *c, int function)
 		/* buf 8 and 9 are "pre-delay lenght ms" */
 	}
 
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = buf;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)buf;
         
 	if (_capi_put_cmsg(&CMSG) != 0) {
 		return;
@@ -459,7 +459,7 @@ static int capi_detect_dtmf(struct opbx_channel *c, int flag)
 		}
 		write_capi_word(&buf[3], CAPI_DTMF_DURATION);
 		write_capi_word(&buf[5], CAPI_DTMF_DURATION);
-		FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = buf;
+		FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)buf;
         
 		if ((error = _capi_put_cmsg(&CMSG)) != 0) {
 			return error;
@@ -507,7 +507,7 @@ static int capi_send_info_digits(struct capi_pvt *i, char *digits, int len)
 	for (a = 0; a < len; a++) {
 		buf[a + 2] = digits[a];
 	}
-	INFO_REQ_CALLEDPARTYNUMBER(&CMSG) = buf;
+	INFO_REQ_CALLEDPARTYNUMBER(&CMSG) = (_cstruct)buf;
 
 	if ((error = _capi_put_cmsg(&CMSG)) != 0) {
 		return error;
@@ -576,7 +576,7 @@ static int capi_send_digit(struct opbx_channel *c, char digit)
 	        write_capi_word(&buf[5], CAPI_DTMF_DURATION);
 	        buf[7] = 1;
 		buf[8] = digit;
-		FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = buf;
+		FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)buf;
         
 		if ((ret = _capi_put_cmsg(&CMSG)) == 0) {
 			cc_verbose(3, 0, VERBOSE_PREFIX_4 "%s: sent dtmf '%c'\n",
@@ -951,8 +951,8 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	}
 	called[1] = 0x80;
 	strncpy(&called[2], dest, sizeof(called) - 3);
-	CONNECT_REQ_CALLEDPARTYNUMBER(&CMSG) = called;
-	CONNECT_REQ_CALLEDPARTYSUBADDRESS(&CMSG) = dsa;
+	CONNECT_REQ_CALLEDPARTYNUMBER(&CMSG) = (_cstruct)called;
+	CONNECT_REQ_CALLEDPARTYSUBADDRESS(&CMSG) = (_cstruct)dsa;
 
 	if (c->cid.cid_num) 
 		strncpy(callerid, c->cid.cid_num, sizeof(callerid) - 1);
@@ -970,8 +970,8 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	calling[2] = 0x80 | (CLIR & 0x63);
 	strncpy(&calling[3], callerid, sizeof(calling) - 4);
 
-	CONNECT_REQ_CALLINGPARTYNUMBER(&CMSG) = calling;
-	CONNECT_REQ_CALLINGPARTYSUBADDRESS(&CMSG) = osa;
+	CONNECT_REQ_CALLINGPARTYNUMBER(&CMSG) = (_cstruct)calling;
+	CONNECT_REQ_CALLINGPARTYSUBADDRESS(&CMSG) = (_cstruct)osa;
 
 	CONNECT_REQ_B1PROTOCOL(&CMSG) = 1;
 	CONNECT_REQ_B2PROTOCOL(&CMSG) = 1;
@@ -980,7 +980,7 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	bchaninfo[0] = 2;
 	bchaninfo[1] = 0x0;
 	bchaninfo[2] = 0x0;
-	CONNECT_REQ_BCHANNELINFORMATION(&CMSG) = bchaninfo; /* 0 */
+	CONNECT_REQ_BCHANNELINFORMATION(&CMSG) = (_cstruct)bchaninfo; /* 0 */
 
         if ((error = _capi_put_cmsg(&CMSG))) {
 		interface_cleanup(i);
@@ -1028,12 +1028,12 @@ static int capi_send_answer(struct opbx_channel *c, int *bprot, _cstruct b3conf)
 		buf[1] = 0x00;
 		buf[2] = 0x80;
 		strncpy(&buf[3], dnid, sizeof(buf) - 4);
-		CONNECT_RESP_CONNECTEDNUMBER(&CMSG) = buf;
+		CONNECT_RESP_CONNECTEDNUMBER(&CMSG) = (_cstruct)buf;
 	}
 	CONNECT_RESP_B1PROTOCOL(&CMSG) = bprot[0];
 	CONNECT_RESP_B2PROTOCOL(&CMSG) = bprot[1];
 	CONNECT_RESP_B3PROTOCOL(&CMSG) = bprot[2];
-	CONNECT_RESP_B3CONFIGURATION(&CMSG) = b3conf;
+	CONNECT_RESP_B3CONFIGURATION(&CMSG) = (_cstruct)b3conf;
 
 	cc_verbose(3, 0, VERBOSE_PREFIX_2 "%s: Answering for %s\n",
 		i->name, dnid);
@@ -1310,7 +1310,7 @@ static int line_interconnect(struct capi_pvt *i0, struct capi_pvt *i1, int start
 		write_capi_dword(&buf[4], i1->PLCI);
 	}
 
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = buf;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)buf;
         
 	_capi_put_cmsg(&CMSG);
 
@@ -3031,10 +3031,10 @@ static int capi_call_deflect(struct opbx_channel *c, char *param)
 	INFO_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
 	INFO_REQ_CONTROLLER(&CMSG) = i->controller;
 	INFO_REQ_PLCI(&CMSG) = i->PLCI;
-	INFO_REQ_BCHANNELINFORMATION(&CMSG) = (unsigned char*)bchaninfo; /* use D-Channel */
+	INFO_REQ_BCHANNELINFORMATION(&CMSG) = (_cstruct)bchaninfo; /* use D-Channel */
 	INFO_REQ_KEYPADFACILITY(&CMSG) = 0;
 	INFO_REQ_USERUSERDATA(&CMSG) = 0;
-	INFO_REQ_FACILITYDATAARRAY(&CMSG) = (unsigned char*)fac + 4;
+	INFO_REQ_FACILITYDATAARRAY(&CMSG) = (_cstruct)fac + 4;
 
 	_capi_put_cmsg(&CMSG);
 
@@ -3528,7 +3528,7 @@ static int capi_retrieve(struct opbx_channel *c, char *param)
 	FACILITY_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(),0);
 	FACILITY_REQ_PLCI(&CMSG) = plci;
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (char *)&fac;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 
 	_capi_put_cmsg(&CMSG);
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: sent RETRIEVE for PLCI=%#x\n",
@@ -3620,7 +3620,7 @@ static int capi_ect(struct opbx_channel *c, char *param)
 	FACILITY_REQ_CONTROLLER(&CMSG) = i->controller;
 	FACILITY_REQ_PLCI(&CMSG) = i->PLCI;
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (char *)&fac;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 
 	_capi_put_cmsg(&CMSG);
 	
@@ -3671,7 +3671,7 @@ static int capi_hold(struct opbx_channel *c, char *param)
 	FACILITY_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(),0);
 	FACILITY_REQ_PLCI(&CMSG) = i->PLCI;
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (char *)&fac;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 
 	_capi_put_cmsg(&CMSG);
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: sent HOLD for PLCI=%#x\n",
@@ -3714,7 +3714,7 @@ static int capi_malicious(struct opbx_channel *c, char *param)
 	FACILITY_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(),0);
 	FACILITY_REQ_PLCI(&CMSG) = i->PLCI;
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (char *)&fac;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 
 	_capi_put_cmsg(&CMSG);
 
@@ -4204,7 +4204,7 @@ static void supported_sservices(struct cc_capi_controller *cp)
 	FACILITY_REQ_CONTROLLER(&CMSG) = cp->controller;
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
 	fac[0] = 3;
-	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (char *)&fac;
+	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 	_capi_put_cmsg(&CMSG);
 
 	tv.tv_sec = 1;
@@ -4410,7 +4410,7 @@ static int cc_init_capi(void)
 #elif (CAPI_OS_HINT == 2)
 	if (capi20_get_profile(0, &profile, sizeof(profile)) != 0) {
 #else
-	if (capi20_get_profile(0, (char *)&profile) != 0) {
+	if (capi20_get_profile(0, (unsigned char *)&profile) != 0) {
 #endif
 		cc_log(LOG_NOTICE,"unable to get CAPI profile!\n");
 		return -1;
@@ -4433,7 +4433,7 @@ static int cc_init_capi(void)
 #elif (CAPI_OS_HINT == 2)
 		capi20_get_profile(controller, &profile, sizeof(profile));
 #else
-		capi20_get_profile(controller, (char *)&profile);
+		capi20_get_profile(controller, (unsigned char *)&profile);
 #endif
 		cp = malloc(sizeof(struct cc_capi_controller));
 		if (!cp) {
