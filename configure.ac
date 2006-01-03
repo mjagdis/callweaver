@@ -1542,6 +1542,29 @@ AC_ARG_WITH([format_jpeg],
 AM_CONDITIONAL([WANT_FORMAT_JPEG],[test "${with_format_jpeg}" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH([format_oggvorbis],
+        [AC_HELP_STRING([--with-format_oggvorbis],[Build and install format_oggvorbis (default=yes)])],,
+        [with_format_oggvorbis="yes"])
+
+if test "${with_format_oggvorbis}" = "yes"; then
+	AC_CHECK_LIB([ogg], [main], [HAVE_LIBOGG=1 OGG_LIBS="-logg"])
+	AC_CHECK_LIB([vorbis], [main], [HAVE_LIBVORBIS=1 VORBIS_LIBS="-lvorbis"])
+	AC_CHECK_LIB([vorbisenc], [main], [HAVE_LIBVORBISENC=1 VORBIS_LIBS="${VORBIS_LIBS} -lvorbisenc"])
+
+	AC_CHECK_HEADER([ogg/ogg.h], [HAVE_OGG_H=1])
+	AC_CHECK_HEADER([vorbis/vorbisenc.h], [HAVE_VORBIS_H=1])
+
+	if test -n "${HAVE_LIBVORBIS}" -a -n "${HAVE_LIBVORBISENC}" -a -n "${HAVE_LIBOGG}"; then
+		AC_SUBST([VORBIS_LIBS], [${VORBIS_LIBS}])
+		AC_SUBST([OGG_LIBS], [${OGG_LIBS}])
+	fi
+fi
+
+AM_CONDITIONAL([WANT_FORMAT_OGGVORBIS],
+	[test "${with_format_oggvorbis}" = "yes" -a -n "${HAVE_LIBVORBIS}" -a -n "${HAVE_LIBVORBISENC}" -a -n "${HAVE_LIBOGG}" -a -n "${HAVE_OGG_H}" -a -n "${HAVE_VORBIS_H}"])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Functions

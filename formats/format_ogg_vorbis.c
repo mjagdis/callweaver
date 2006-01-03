@@ -57,7 +57,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 struct opbx_filestream {
 	void *reserved[OPBX_RESERVED_POINTERS];
 
-	int fd;
+	FILE *fp;
 
 	/* structures for handling the Ogg container */
 	ogg_sync_state	 oy;
@@ -98,7 +98,7 @@ static char *exts = "ogg";
  * \param fd Descriptor that points to on disk storage of the OGG/Vorbis data.
  * \return The new filestream.
  */
-static struct opbx_filestream *ogg_vorbis_open(int fd)
+static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
 {
 	int i;
 	int bytes;
@@ -112,22 +112,23 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 		memset(tmp, 0, sizeof(struct opbx_filestream));
 
 		tmp->writing = 0;
-		tmp->fd = fd;
+		tmp->fp = fp;
 
 		ogg_sync_init(&tmp->oy);
 
 		buffer = ogg_sync_buffer(&tmp->oy, BLOCK_SIZE);
-		bytes = read(tmp->fd, buffer, BLOCK_SIZE);
+		bytes = fread(buffer, 1, BLOCK_SIZE, tmp->fp);
+
 		ogg_sync_wrote(&tmp->oy, bytes);
 
 		result = ogg_sync_pageout(&tmp->oy, &tmp->og);
 		if(result != 1) {
 			if(bytes < BLOCK_SIZE) {
-				opbx_log(LOG_ERROR, "Run out of data...\n");
+				opbx_log(LOG_ERROR, "Run out of data... %d %s\n", errno, strerror(errno));
 			} else {
 				opbx_log(LOG_ERROR, "Input does not appear to be an Ogg bitstream.\n");
 			}
-			close(fd);
+			fclose(fp);
 			ogg_sync_clear(&tmp->oy);
 			free(tmp);
 			return NULL;
@@ -139,7 +140,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 
 		if(ogg_stream_pagein(&tmp->os, &tmp->og) < 0) { 
 			opbx_log(LOG_ERROR, "Error reading first page of Ogg bitstream data.\n");
-			close(fd);
+			fclose(fp);
 			ogg_stream_clear(&tmp->os);
 			vorbis_comment_clear(&tmp->vc);
 			vorbis_info_clear(&tmp->vi);
@@ -150,7 +151,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 		
 		if(ogg_stream_packetout(&tmp->os, &tmp->op) != 1) { 
 			opbx_log(LOG_ERROR, "Error reading initial header packet.\n");
-			close(fd);
+			fclose(fp);
 			ogg_stream_clear(&tmp->os);
 			vorbis_comment_clear(&tmp->vc);
 			vorbis_info_clear(&tmp->vi);
@@ -161,7 +162,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 		
 		if(vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op) < 0) { 
 			opbx_log(LOG_ERROR, "This Ogg bitstream does not contain Vorbis audio data.\n");
-			close(fd);
+			fclose(fp);
 			ogg_stream_clear(&tmp->os);
 			vorbis_comment_clear(&tmp->vc);
 			vorbis_info_clear(&tmp->vi);
@@ -184,7 +185,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 							break;
 						if(result < 0) {
 							opbx_log(LOG_ERROR, "Corrupt secondary header.  Exiting.\n");
-							close(fd);
+							fclose(fp);
 							ogg_stream_clear(&tmp->os);
 							vorbis_comment_clear(&tmp->vc);
 							vorbis_info_clear(&tmp->vi);
@@ -199,10 +200,10 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 			}
 
 			buffer = ogg_sync_buffer(&tmp->oy, BLOCK_SIZE);
-			bytes = read(tmp->fd, buffer, BLOCK_SIZE);
+			bytes = fread(buffer, 1, BLOCK_SIZE, tmp->fp);
 			if(bytes == 0 && i < 2) {
 				opbx_log(LOG_ERROR, "End of file before finding all Vorbis headers!\n");
-				close(fd);
+				fclose(fp);
 				ogg_stream_clear(&tmp->os);
 				vorbis_comment_clear(&tmp->vc);
 				vorbis_info_clear(&tmp->vi);
@@ -234,7 +235,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 
 		if(tmp->vi.rate != 8000) {
 			opbx_log(LOG_ERROR, "Only 8000Hz OGG/Vorbis files are currently supported!\n");
-			close(fd);
+			fclose(fp);
 			ogg_stream_clear(&tmp->os);
 			vorbis_block_clear(&tmp->vb);
 			vorbis_dsp_clear(&tmp->vd);
@@ -250,7 +251,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
 
 		if(opbx_mutex_lock(&ogg_vorbis_lock)) {
 			opbx_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
-			close(fd);
+			fclose(fp);
 			ogg_stream_clear(&tmp->os);
 			vorbis_block_clear(&tmp->vb);
 			vorbis_dsp_clear(&tmp->vd);
@@ -273,7 +274,7 @@ static struct opbx_filestream *ogg_vorbis_open(int fd)
  * \param comment Comment that should be embedded in the OGG/Vorbis file.
  * \return A new filestream.
  */
-static struct opbx_filestream *ogg_vorbis_rewrite(int fd, const char *comment)
+static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
 {
 	ogg_packet header;
 	ogg_packet header_comm;
@@ -285,7 +286,7 @@ static struct opbx_filestream *ogg_vorbis_rewrite(int fd, const char *comment)
 		memset(tmp, 0, sizeof(struct opbx_filestream));
 
 		tmp->writing = 1;
-		tmp->fd = fd;
+		tmp->fp = fp;
 
 		vorbis_info_init(&tmp->vi);
 
@@ -313,15 +314,15 @@ static struct opbx_filestream *ogg_vorbis_rewrite(int fd, const char *comment)
 		while(!tmp->eos) {
 			if(ogg_stream_flush(&tmp->os, &tmp->og) == 0)
 				break;
-			write(tmp->fd, tmp->og.header, tmp->og.header_len);
-			write(tmp->fd, tmp->og.body, tmp->og.body_len);
+			fwrite(tmp->og.header, 1, tmp->og.header_len, tmp->fp);
+			fwrite(tmp->og.body, 1, tmp->og.body_len, tmp->fp);
 			if(ogg_page_eos(&tmp->og))
 				tmp->eos = 1;
 		}
 
 		if(opbx_mutex_lock(&ogg_vorbis_lock)) {
 			opbx_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
-			close(fd);
+			fclose(fp);
 			ogg_stream_clear(&tmp->os);
 			vorbis_block_clear(&tmp->vb);
 			vorbis_dsp_clear(&tmp->vd);
@@ -353,8 +354,8 @@ static void write_stream(struct opbx_filestream *s)
 				if(ogg_stream_pageout(&s->os, &s->og) == 0) {
 					break;
 				}
-				write(s->fd, s->og.header, s->og.header_len);
-				write(s->fd, s->og.body, s->og.body_len);
+				fwrite(s->og.header, 1, s->og.header_len, s->fp);
+				fwrite(s->og.body, 1, s->og.body_len, s->fp);
 				if(ogg_page_eos(&s->og)) {
 					s->eos = 1;
 				}
@@ -437,7 +438,7 @@ static void ogg_vorbis_close(struct opbx_filestream *s)
 		ogg_sync_clear(&s->oy);
 	}
 	
-	close(s->fd);
+	fclose(s->fp);
 	free(s);
 }
 
@@ -506,7 +507,7 @@ static int read_samples(struct opbx_filestream *s, float ***pcm)
 			/* get a buffer from OGG to read the data into */
 			buffer = ogg_sync_buffer(&s->oy, BLOCK_SIZE);
 			/* read more data from the file descriptor */
-			bytes = read(s->fd, buffer, BLOCK_SIZE);
+			bytes = fread(buffer, 1, BLOCK_SIZE, s->fp);
 			/* Tell OGG how many bytes we actually read into the buffer */
 			ogg_sync_wrote(&s->oy, bytes);
 			if(bytes == 0) {

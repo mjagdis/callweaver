@@ -1,8 +1,7 @@
 AUTOMAKE_OPTS 		= gnu
 opbxmod_LTLIBRARIES = format_au.la format_g723_1.la format_g726.la	\
-format_g729.la format_gsm.la format_h263.la format_jpeg.la		\
-format_pcm.la format_pcm_alaw.la format_sln.la format_wav.la		\
-format_wav_gsm.la
+format_g729.la format_gsm.la format_h263.la format_pcm.la		\
+format_pcm_alaw.la format_sln.la format_wav.la format_wav_gsm.la
 
 format_au_la_SOURCES 		= format_au.c
 format_au_la_LDFLAGS            = -module -avoid-version -no-undefined
@@ -29,10 +28,18 @@ format_h263_la_LDFLAGS          = -module -avoid-version -no-undefined
 format_h263_la_LIBADD           = ${top_builddir}/corelib/libopenpbx.la  
 
 if WANT_FORMAT_JPEG
+opbxmod_LTLIBRARIES		+= format_jpeg.la
 format_jpeg_la_SOURCES 		= format_jpeg.c
 format_jpeg_la_LDFLAGS          = -module -avoid-version -no-undefined
 format_jpeg_la_LIBADD           = -ljpeg ${top_builddir}/corelib/libopenpbx.la  
 endif WANT_FORMAT_JPEG
+
+if WANT_FORMAT_OGGVORBIS
+opbxmod_LTLIBRARIES		+= format_ogg_vorbis.la
+format_ogg_vorbis_la_SOURCES 	= format_ogg_vorbis.c
+format_ogg_vorbis_la_LDFLAGS     = -module -avoid-version -no-undefined
+format_ogg_vorbis_la_LIBADD      = ${top_builddir}/corelib/libopenpbx.la @OGG_LIBS@ @VORBIS_LIBS@
+endif WANT_FORMAT_OGGVORBIS
 
 format_pcm_alaw_la_SOURCES 	= format_pcm_alaw.c
 format_pcm_alaw_la_LDFLAGS      = -module -avoid-version -no-undefined
