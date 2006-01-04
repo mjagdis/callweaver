@@ -25,6 +25,7 @@
 #include <openpbx/module.h>
 #include <openpbx/features.h>
 #include <openpbx/cli.h>
+#include <openpbx/manager.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -344,9 +345,27 @@ struct fopbx_originate_helper {
 static void *originate(void *arg) {
 	struct fopbx_originate_helper *in = arg;
 	int reason=0;
+	int res;
 	struct opbx_channel *chan = NULL;
 
-	opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, !opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
+	res = opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, !opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
+	manager_event(EVENT_FLAG_CALL, "Originate", 
+			"ChannelRequested: %s/%s\r\n"
+			"Context: %s\r\n"
+			"Extension: %s\r\n"
+			"Priority: %d\r\n"
+			"Result: %d\r\n"
+			"Reason: %d\r\n"
+			"Reason-txt: %s\r\n",
+			in->tech,
+			in->data,
+			in->context, 
+			in->exten, 
+			in->priority, 
+			res,
+			reason,
+			opbx_control2str(reason)
+	);
 
 	/* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
 	if (chan) {

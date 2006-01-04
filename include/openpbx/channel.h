@@ -843,6 +843,13 @@ int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *
  */
 const char *opbx_cause2str(int state);
 
+/*! Gives the string form of a given control frame type */
+/*! 
+ * \param control to get the description of
+ * Give a name to a control code
+ * Returns the text form of the binary control code given
+ */
+const char *opbx_control2str(int control);
 /*! Gives the string form of a given channel state */
 /*! 
  * \param state state to get the name of
@@ -1088,9 +1095,6 @@ static inline int opbx_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds
 extern opbx_group_t opbx_get_group(char *s);
 /* print call- and pickup groups into buffer */
 extern char *opbx_print_group(char *buf, int buflen, opbx_group_t group);
-
-/* Function to listen to events in a channel (needed for icd jabber stuff, does not use the manager but probably should) */
-int opbx_channel_register_listen_events( void (*)(struct opbx_channel *, const char *));
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

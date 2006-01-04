@@ -91,11 +91,6 @@ static struct chanlist *backends = NULL;
  */
 static struct opbx_channel *channels = NULL;
 
-/*
- *  Function to listen for state changes in the channel
- */
-static void (*opbx_channel_listen_events)(struct opbx_channel *chan, const char *dialstring) = NULL;
-
 /* Protect the channel list, both backends and channels.
  */
 OPBX_MUTEX_DEFINE_STATIC(chlock);
@@ -150,6 +145,30 @@ const struct opbx_cause {
 	{ OPBX_CAUSE_INTERWORKING, "Interworking, unspecified" },
 };
 
+/* Control frame types */
+const struct opbx_control {
+	int control;
+	const char *desc;
+} controles[] = {
+	{OPBX_CONTROL_HANGUP, "Other end has hungup"},
+	{OPBX_CONTROL_RING, "Local ring"},
+	{OPBX_CONTROL_RINGING, "Remote end is ringing"},
+	{OPBX_CONTROL_ANSWER,"Remote end has answered"},
+	{OPBX_CONTROL_BUSY, "Remote end is busy"},
+	{OPBX_CONTROL_TAKEOFFHOOK, "Make it go off hook"},
+	{OPBX_CONTROL_OFFHOOK, "Line is off hook"},
+	{OPBX_CONTROL_CONGESTION, "Congestion (circuits busy"},
+	{OPBX_CONTROL_FLASH, "Flash hook"},
+	{OPBX_CONTROL_WINK, "Wink"},
+	{OPBX_CONTROL_OPTION, "Set a low-level option"},
+	{OPBX_CONTROL_RADIO_KEY, "Key Radio"},
+	{OPBX_CONTROL_RADIO_UNKEY, "Un-Key Radio"},
+	{OPBX_CONTROL_PROGRESS, "Indicate PROGRESS"},
+	{OPBX_CONTROL_PROCEEDING, "Indicate CALL PROCEEDING"},
+	{OPBX_CONTROL_HOLD, "Indicate call is placed on hold"},
+	{OPBX_CONTROL_UNHOLD, "Indicate call is left from hold"},
+	{OPBX_CONTROL_VIDUPDATE, "Indicate video frame update"},
+};
 
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
@@ -394,6 +413,18 @@ const char *opbx_cause2str(int cause)
 	for (x=0; x < sizeof(causes) / sizeof(causes[0]); x++) 
 		if (causes[x].cause == cause)
 			return causes[x].desc;
+
+	return "Unknown";
+}
+
+/*--- opbx_control2str: Gives the string form of a given control frame */
+const char *opbx_control2str(int control)
+{
+	int x;
+
+	for (x=0; x < sizeof(controles) / sizeof(controles[0]); x++) 
+		if (controles[x].control == control)
+			return controles[x].desc;
 
 	return "Unknown";
 }
@@ -1072,8 +1103,6 @@ int opbx_hangup(struct opbx_channel *chan)
 	}
 			
 	opbx_mutex_unlock(&chan->lock);
-	if(opbx_channel_listen_events)
-		opbx_channel_listen_events(chan,"HANGUP");
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -2124,8 +2153,6 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 			if (chan->tech->requester)
 				c = chan->tech->requester(type, capabilities, data, cause);
 			if (c) {
-				if(opbx_channel_listen_events)
-					opbx_channel_listen_events(c, (char *) data);
 				if (c->_state == OPBX_STATE_DOWN) {
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"
@@ -2738,12 +2765,6 @@ void opbx_set_callerid(struct opbx_channel *chan, const char *callerid, const ch
 				);
 }
 
-int opbx_channel_register_listen_events( void (listen_fun)(struct opbx_channel *, const char *))
-{
-	opbx_channel_listen_events = listen_fun;
-	return 0;
-};
-
 int opbx_setstate(struct opbx_channel *chan, int state)
 {
 	int oldstate = chan->_state;
@@ -2752,8 +2773,6 @@ int opbx_setstate(struct opbx_channel *chan, int state)
 		return 0;
 
 	chan->_state = state;
-	if(opbx_channel_listen_events)
-		opbx_channel_listen_events(chan, NULL);
 	opbx_device_state_changed_literal(chan->name);
 	manager_event(EVENT_FLAG_CALL,
 		      (oldstate == OPBX_STATE_DOWN) ? "Newchannel" : "Newstate",
