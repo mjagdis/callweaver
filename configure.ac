@@ -1425,6 +1425,13 @@ AC_ARG_WITH([chan_sip],
 
 AM_CONDITIONAL([WANT_CHAN_SIP],[test "${with_chan_sip}" = "yes"])
 
+AC_ARG_ENABLE([t38],
+	[AC_HELP_STRING([--enable-t38],[Enable T.38 support (default=no)])],,[enable_t38="no"])
+
+if test "x${enable_t38}" != "xno"; then
+	AC_DEFINE([T38_SUPPORT],[1],[chan_sip T.38 support])
+fi
+
 dnl ###########################################################################
 
 AC_ARG_WITH([chan_sccp],
