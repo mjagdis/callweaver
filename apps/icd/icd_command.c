@@ -784,8 +784,6 @@ int icd_command_ack (int fd, int argc, char **argv)
   char * agent_id;
   icd_agent *agent = NULL;
 
-  manager_event(EVENT_FLAG_USER, "icd_event: ","ACK");
-
   opbx_log (LOG_WARNING, "parameters count: %i, function name: %s\n", argc,
 	   argv[0]);
   if  (argc != 2) {
@@ -800,6 +798,8 @@ int icd_command_ack (int fd, int argc, char **argv)
                     "Function Ack failed. Agent '%s' could not be found.\n", agent_id);        
 	return ICD_EGENERAL;
   }		    
+  manager_event(EVENT_FLAG_USER, "icd_event","FunctionCall :ACK\r\n"
+  											  "AgentID: %s\r\n", agent_id);
   if(icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_READY ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_DISTRIBUTING ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) {
@@ -862,7 +862,7 @@ static void *icd_command_login_thread(void *arg) {
 /* More detailed check why there is no answer probably needed in the future. */	 
         opbx_hangup(chan);
         icd_caller__del_param(agent, "LogInProgress");
-	    return ICD_EGENERAL;
+	    return;
     }	 
   	sprintf(buf, "agent=%s", agent_id);
   	passwd = icd_caller__get_param(agent, "login_password");
@@ -993,6 +993,12 @@ int icd_command_logout (int fd, int argc, char **argv)
 	} 
 	else {	    
         opbx_log(LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
+		manager_event(EVENT_FLAG_USER, "icd_event","AgentLogout :OK\r\n"
+		"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\n",
+		icd_caller__get_id((icd_caller *)agent),
+		icd_caller__get_caller_id((icd_caller *)agent), 
+		icd_caller__get_name((icd_caller *)agent));
+        
         return ICD_SUCCESS;
 	}
     return ICD_EGENERAL;
@@ -1052,6 +1058,7 @@ int icd_command_record(int fd, int argc, char **argv)
   char rec_format_buf[50]="";
   char *rec_format;
   char buf[300];
+  char cust_buf[40];
   opbx_channel * chan;
   char * customer_source;
   struct tm *ptr;
@@ -1116,8 +1123,15 @@ int icd_command_record(int fd, int argc, char **argv)
    }   
    tm = time(NULL);
    ptr = localtime(&tm);
+   int pos; char c;
+   cust_buf[0] = '\0';
+   for(pos=0;(pos < strlen(customer_source)) && (pos < sizeof(cust_buf)-1);pos++){
+   	  c = customer_source[pos];
+      cust_buf[pos] = ((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) ? c : '_';
+   	  cust_buf[pos + 1] = '\0';
+   }
    strftime(buf + strlen(buf), sizeof(buf) - strlen(buf), rec_directory_buf, ptr);
-   strncpy(buf + strlen(buf),  customer_source, sizeof(buf) - strlen(buf)-1);
+   strncpy(buf + strlen(buf),  cust_buf, sizeof(buf) - strlen(buf)-1);
    strncpy(buf + strlen(buf),  rec_format_buf, sizeof(buf) - strlen(buf)-1);
  
 //   muxmon <start|stop> <chan_name> <args>opbx_cli_command(fd, command);fd can be like fileno(stderr)

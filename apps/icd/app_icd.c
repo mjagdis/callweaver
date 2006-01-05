@@ -1165,6 +1165,13 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
     }
     icd_caller__set_param_string((icd_caller *) agent, "identifier", identifier);
     ((icd_caller *)agent)->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
+	manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin :OK\r\n"
+	"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelUniqueID: %s\r\nChannelName: %s\r\n",
+	icd_caller__get_id((icd_caller *)agent),
+	icd_caller__get_caller_id((icd_caller *)agent), 
+	icd_caller__get_name((icd_caller *)agent),
+    chan ? chan->uniqueid : "nochan", 
+    chan ? chan->name : "nochan");
     if (icd_caller__get_onhook((icd_caller *) agent)) {
         /* On hook - Tell caller to start thread */
         opbx_log(LOG_NOTICE, "Exec Agent: Agent %s starting independent caller thread\n", agentname);
@@ -1182,6 +1189,11 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
         /* This becomes the thread to manage agent state and incoming stream */
         icd_caller__loop((icd_caller *) agent, 0);
         /* Once we hit here, the call is finished */
+		manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin :END\r\n"
+		"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\n",
+		icd_caller__get_id((icd_caller *)agent),
+		icd_caller__get_caller_id((icd_caller *)agent), 
+		icd_caller__get_name((icd_caller *)agent));
     }
     if (icd_caller__get_dynamic((icd_caller *) agent)) {
         destroy_icd_agent(&agent);

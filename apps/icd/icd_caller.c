@@ -2204,14 +2204,28 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
             result = icd_caller__dial_channel(that);
             if (icd_caller__has_role(that, ICD_AGENT_ROLE) && !icd_caller__get_onhook(that) &&
 	        icd_caller__get_acknowledge_call(that) && result == ICD_SUCCESS){
-                 if(that->entertained) 
-                       icd_caller__stop_waiting(that);
-/* The queue akcnowledgment parameter overrides agent acknowledgement parameter */ 		       
-		   
-		   res = icd_bridge_wait_ack(that);  
-		   if (res)
-                        result = ICD_EGENERAL;
-	    } 	
+            	if(that->entertained) 
+                      icd_caller__stop_waiting(that);
+			/* Check if any customer has an NO_ACK -param. In that case now akcnowledgment waiting is needed */ 		       
+        		iter = icd_list__get_iterator((icd_list *) (that->associations));
+        		int ack_wait = 1;
+        		char *no_ack;
+        		while (icd_list_iterator__has_more(iter)) {
+            		associate = (icd_caller *) icd_list_iterator__next(iter);
+    				no_ack = icd_caller__get_param(associate, "no_ack");
+    				if (no_ack != NULL)
+    					if(opbx_true(no_ack)) {
+    						ack_wait = 0;
+    						break;
+    				}
+        		}
+        		destroy_icd_list_iterator(&iter);
+				if(ack_wait){			
+		    		res = icd_bridge_wait_ack(that);  
+		    		if (res)
+           	  			result = ICD_EGENERAL;
+				}
+           	} 	
         }
 
         /* We have either failed to create a channel or bring it up. */
