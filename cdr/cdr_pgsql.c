@@ -9,6 +9,8 @@
  * Copyright (C) 2005 Business Technology Group (http://www.btg.co.nz)
  *   Danel Swarbrick <daniel@btg.co.nz>
  *
+ * Based in part on original by Matthew D. Hardeman <mhardemn@papersoft.com>
+ *
  * See http://www.openpbx.org for more information about
  * the OpenPBX project. Please do not directly contact
  * any of the maintainers of this project for assistance;
@@ -24,7 +26,7 @@
  *
  * \brief PostgreSQL CDR logger
  *
- * \author Matthew D. Hardeman <mhardemn at papersoft.com>
+ * \author Daniel Swarbrick <daniel@btg.co.nz>
  *
  * See also
  * \arg \ref Config_cdr
