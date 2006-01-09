@@ -564,9 +564,20 @@ icd_status icd_conference__join(icd_caller * that)
 /* We are conference owner - wait for all other users to end conference, the owner leaves as the last.
    This is to avoid cross removing of assosciacions (owner and user at the same time)      		
    It is enough to test conf->usecount probably */
-            while(icd_caller_list__has_callers(icd_caller__get_associations(that))){
+            int tstep;
+            int maxsteps = 100;  
+            for (tstep=0; tstep < maxsteps; tstep++){
+                if(!icd_caller_list__has_callers(icd_caller__get_associations(that))){
+                	break;
+                }
             	usleep(100000);
             }
+            if(tstep >= maxsteps){
+                opbx_log(LOG_WARNING, "This is not supposed to happen. Conference owner name[%s] callerid[%s] leaves before members waiting over 10s for mambers lo leave.\n", 
+                icd_caller__get_name(that), icd_caller__get_caller_id(that));
+            	icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_CALL_END);
+                icd_caller__remove_all_associations(that);
+            } 	
     	}
     	else {
 /* ToDo In case of many conf users - only if last user leaves (not including owner) */   		

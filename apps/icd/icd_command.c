@@ -1255,24 +1255,28 @@ int icd_command_transfer (int fd, int argc, char **argv)
   char *pria, *exten, *context;
 
   if (argc != 3) {
-       opbx_log (LOG_WARNING, "bad parameters\n");
-       icd_manager_send_message("TRANSFER FAILURE! - wrong parameters number.");
-       return ICD_EGENERAL;
+       opbx_cli(fd, "Transfer FAILURE! bad parameters\n");
+       manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Transfer\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+       return 1;
    }    
    customer_source = argv[1];
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
    if (customer == NULL) {
-            opbx_log(LOG_WARNING, "Transfer FAILURE! Customer [%s] not found\n", customer_source);
-            icd_manager_send_message("TRANSFER FAILURE! - customer [%s] not found", customer_source);
-	        return ICD_EGENERAL;
+            opbx_cli(fd,"Transfer FAILURE! Customer [%s] not found\n", customer_source);
+            manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Transfer\r\nResult: Fail\r\nCause: Customer not found\r\nCallerID: %s\r\n", customer_source);
+	        return 1;
    }
-    exten = opbx_strdupa(argv[2]);
+   	exten = opbx_strdupa(argv[2]);
 	if((context = strchr(exten,'@'))) {
 		*context = 0;
 		context++;
 		if(!(context && exten)) {
-			opbx_cli(fd,"Transfer failure: no context");
-			return ICD_EGENERAL;
+			opbx_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
+            manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Transfer\r\nResult: Fail\r\nCause: Wrong extension@context\r\nCallerID: %s\r\n", customer_source);
+			return 1;
 		}
 		if((pria = strchr(context,':'))) {
 			*pria = '\0';
@@ -1283,19 +1287,43 @@ int icd_command_transfer (int fd, int argc, char **argv)
 			pri = 1;
 	}
 	else {		
-		opbx_cli(fd,"Transfer failure: no context");
-		return ICD_EGENERAL;
+		opbx_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+        	"Command: Transfer\r\nResult: Fail\r\nCause: Wrong extension@context\r\nCallerID: %s\r\n", customer_source);
+		return 1;
 	}
 	chan = icd_caller__get_channel(customer);
+    if(!chan){
+		opbx_cli(fd,"Transfer failure, customer[%s] : no channel\n", customer_source);
+    	manager_event(EVENT_FLAG_USER, "icd_command",
+    	"Command: Transfer\r\nResult: Fail\r\nCause: No channel\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
+        customer_source, context, exten, pri);
+    }	 	
+    if(!opbx_exists_extension(chan, context, exten, pri, NULL)){
+		opbx_cli(fd,"Transfer failure, customer[%s] : not correct context-extension\n", customer_source);
+    	manager_event(EVENT_FLAG_USER, "icd_command",
+    	"Command: Transfer\r\nResult: Fail\r\nCause: Destination not exist\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
+        customer_source, context, exten, pri);
+        return 1;
+    }	 	
 	if(opbx_goto_if_exists(chan, context, exten, pri)){
-	   opbx_verbose("Transfer failed customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
-	   
+		opbx_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
+    	manager_event(EVENT_FLAG_USER, "icd_command",
+    	"Command: Transfer\r\nResult: Fail\r\nCause: Unknown\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
+        customer_source, context, exten, pri);
+	    return 1;	   
 	};
-	opbx_verbose("Transferring customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
  	if(icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END) != ICD_SUCCESS){
-		opbx_cli(fd,"Transfer failure: Unable no set customer[%s] state to CALL_END. CurrentSate[%s]", customer_source, icd_caller__get_state_string(customer));
+		opbx_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%d]\n", customer_source, context, exten, pri);
+    	manager_event(EVENT_FLAG_USER, "icd_command",
+    	"Command: Transfer\r\nResult: Fail\r\nCause: Unable to change state to CALL_END\r\nCallerID: %s\r\nState: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
+        customer_source, icd_caller__get_state_string(customer), context, exten, pri);
+		return 1;
  	}; 
-    return ICD_SUCCESS;
+    manager_event(EVENT_FLAG_USER, "icd_command",
+    	"Command: Transfer\r\nResult: OK\r\nCallerID: %s\r\nContext: %s\r\nExtension: %s\r\nPriority: %d\r\n", 
+        customer_source, context, exten, pri);
+    return 0;
 }
 
 void icd_manager_send_message( char *format, ...)
