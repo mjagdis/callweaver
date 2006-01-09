@@ -1165,7 +1165,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
     }
     icd_caller__set_param_string((icd_caller *) agent, "identifier", identifier);
     ((icd_caller *)agent)->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
-	manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin :OK\r\n"
+	manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin: OK\r\n"
 	"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelUniqueID: %s\r\nChannelName: %s\r\n",
 	icd_caller__get_id((icd_caller *)agent),
 	icd_caller__get_caller_id((icd_caller *)agent), 
@@ -1189,7 +1189,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
         /* This becomes the thread to manage agent state and incoming stream */
         icd_caller__loop((icd_caller *) agent, 0);
         /* Once we hit here, the call is finished */
-		manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin :END\r\n"
+		manager_event(EVENT_FLAG_USER, "icd_event","AgentLogin: END\r\n"
 		"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\n",
 		icd_caller__get_id((icd_caller *)agent),
 		icd_caller__get_caller_id((icd_caller *)agent), 
@@ -2099,11 +2099,11 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                     fieldval = icd_config__get_value(config, "agent_id");
                     if (fieldval){
                         icd_fieldset__set_value(agents, fieldval, agent);
-                        icd_caller__set_caller_id(agent, fieldval);
+                        icd_caller__set_caller_id((icd_caller *) agent, fieldval);
                     }    
                     else {
                         icd_fieldset__set_value(agents, entry, agent);
-                        icd_caller__set_caller_id(agent, entry);
+                        icd_caller__set_caller_id((icd_caller *) agent, entry);
                     }    
                     icd_agent__add_listener(agent, agents, clear_agent_from_registry, entry);
                 }

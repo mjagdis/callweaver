@@ -858,7 +858,10 @@ static void *icd_command_login_thread(void *arg) {
     icd_caller__set_channel(agent, NULL);
     if (res != OPBX_CONTROL_ANSWER){
         opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - unable to get answer from channel [%s].", agent_id, channelstring);	 
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Login\r\nResult: Fail\r\nCause: No channel answer\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelString: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                channelstring);
 /* More detailed check why there is no answer probably needed in the future. */	 
         opbx_hangup(chan);
         icd_caller__del_param(agent, "LogInProgress");
@@ -895,8 +898,9 @@ int icd_command_login (int fd, int argc, char **argv)
 	int result;
 
     if ((argc != 3) && (argc !=4)){
-         icd_manager_send_message("LOGIN FAILURE! - wrong parameters number.");
-	return ICD_EGENERAL;
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Login\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+		return ICD_EGENERAL;
     }	 
     channelstring = argv[1];
     agent_id = argv[2];
@@ -905,27 +909,37 @@ int icd_command_login (int fd, int argc, char **argv)
     agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
     if (!agent) {
         opbx_log(LOG_WARNING,
-                    "AGENT LOGIN FAILURE!  Agent '%s' could not be found.\n"
+                    "AGENT LOGIN Fail!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agent_id);        
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] could not be found.", agent_id);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Login\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
 	    return ICD_EGENERAL;
     }       
     if (icd_caller__get_state(agent) != ICD_CALLER_STATE_SUSPEND &&
       icd_caller__get_state(agent) != ICD_CALLER_STATE_INITIALIZED) {
         opbx_log(LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agent_id);        
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] already logged in.", agent_id);
- 	    return ICD_EGENERAL;
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Login\r\nResult: Fail\r\nCause: Already logged\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                icd_caller__get_state_string(agent));
+         	    return ICD_EGENERAL;
     }
 	if(icd_caller__get_param(agent, "LogInProgress")){ 
 	    opbx_log(LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agent_id);         
-	    icd_manager_send_message("LOGIN FAILURE! Agent [%s] - previous login try not finished yet.", agent_id); 
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Login\r\nResult: Fail\r\nCause: Previouv login try not finished\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                icd_caller__get_state_string(agent));
 	    return ICD_EGENERAL;
 	} 
     icd_caller__set_param(agent, "LogInProgress", &logFlag);         
     chan =icd_bridge_get_openpbx_channel(channelstring, NULL, NULL, NULL);
     if(!chan) {
         opbx_log(LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
-        icd_manager_send_message("LOGIN FAILURE!  Agent [%s] - Not avaliable channel [%s].", agent_id, channelstring);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Login\r\nResult: Fail\r\nCause: Channel not avaliable\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                icd_caller__get_state_string(agent));
         icd_caller__del_param(agent, "LogInProgress");
 	    return ICD_EGENERAL;
     }
@@ -948,7 +962,7 @@ int icd_command_login (int fd, int argc, char **argv)
 
 int icd_command_logout (int fd, int argc, char **argv)
 {
-    icd_agent *agent = NULL;
+    icd_caller *agent = NULL;
     char *agent_id;
     char *passwd_to_check;
     char *passwd; 
@@ -956,25 +970,30 @@ int icd_command_logout (int fd, int argc, char **argv)
     /* Identify agent just like app_icd__agent_exec, only this time we skip
        dynamically creating an agent. */
     if (argc != 3) {
-         icd_manager_send_message("LOGOUT FAILURE!  - wrong parameters number.");
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Logout\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
          return ICD_EGENERAL;
     }	 
     agent_id = argv[1];
     passwd_to_check = argv[2];
-    agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);   
+    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);   
     if (agent == NULL) {
         opbx_log(LOG_WARNING,
                     "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agent_id);
-        icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - could not be found.", agent_id);
+          manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Logout\r\nResult: Fail\r\nCause: Agent not found\r\nCallerID: %s\r\n", agent_id);
 		    
 	        return ICD_EGENERAL;
     }
-    passwd = icd_caller__get_param((icd_caller *) agent, "passwd");
+    passwd = icd_caller__get_param(agent, "passwd");
     if (passwd) 
           if(strcmp(passwd, passwd_to_check)){
           opbx_log(LOG_WARNING,
                     "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agent_id);
-          icd_manager_send_message("LOGOUT FAILURE!  Agent [%s] - wrong password [%s].", agent_id, passwd_to_check);
+          manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Logout\r\nResult: Fail\r\nCause: Wrong password\r\nID: %d\r\nCallerID: %s\r\nAgentName: %s\r\nAgentState: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                icd_caller__get_state_string(agent));
           return ICD_EGENERAL;
     }     
     
@@ -984,20 +1003,21 @@ int icd_command_logout (int fd, int argc, char **argv)
      * caller state that is actually different, a paused/waiting/down state.
      */
     
-     icd_manager_send_message("LOGOUT OK!  Agent [%s].", agent_id);
-     
-     if (icd_caller__set_state((icd_caller *) agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
+     if (icd_caller__set_state(agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
         opbx_log(LOG_WARNING,
-                    "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agent_id,icd_caller__get_state_string((icd_caller *) agent));
+                    "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agent_id,icd_caller__get_state_string(agent));
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Logout\r\nResult: Fail\r\nCause: Unable to change state\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                icd_caller__get_state_string(agent));
 	    return ICD_EGENERAL;
 	} 
 	else {	    
         opbx_log(LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
-		manager_event(EVENT_FLAG_USER, "icd_event","AgentLogout :OK\r\n"
-		"ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\n",
-		icd_caller__get_id((icd_caller *)agent),
-		icd_caller__get_caller_id((icd_caller *)agent), 
-		icd_caller__get_name((icd_caller *)agent));
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Logout\r\nResult: OK\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
+                icd_caller__get_id(agent), icd_caller__get_caller_id(agent), icd_caller__get_name(agent),
+                icd_caller__get_state_string(agent));
         
         return ICD_SUCCESS;
 	}
@@ -1067,7 +1087,8 @@ int icd_command_record(int fd, int argc, char **argv)
 
   if (argc != 3  && argc != 4 ) {
        opbx_log (LOG_WARNING, "Function record bad no of parameters [%d]\n", argc);
-       icd_manager_send_message("RECORD FAILURE! - wrong parameters number.");
+       manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Record\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
        return ICD_EGENERAL;
    }    
    
@@ -1077,7 +1098,8 @@ int icd_command_record(int fd, int argc, char **argv)
         record_start = 0;
    if (record_start == -1) {
        opbx_log (LOG_WARNING, "Function record first parameter [%s] start/stop allowed\n", argv[1]);
-       icd_manager_send_message("RECORD FAILURE! - first parameter [%s] start/stop allowed.", argv[1]);
+       manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Record\r\nResult: Fail\r\nCause: Wrong parameters\r\n");
        return ICD_EGENERAL;
    }    
 	
@@ -1090,25 +1112,33 @@ int icd_command_record(int fd, int argc, char **argv)
    customer_source = argv[2]; 
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
    if (customer == NULL) {
-            opbx_log(LOG_WARNING, "Record FAILURE! Customer [%s] not found\n", customer_source);
-            icd_manager_send_message("RECORD FAILURE! - customer [%s] not found.", customer_source);
+            opbx_log(LOG_WARNING, "Record Fail! Customer [%s] not found\n", customer_source);
+       		manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Record\r\nResult: Fail\r\nCause: Wrong customer ID\r\nCallerID: %s\r\n", 
+                customer_source);
 	        return ICD_EGENERAL;
    }
    chan = icd_caller__get_channel(customer);
    if (chan == NULL) {
             opbx_log(LOG_WARNING, "Record FAILURE! Channel for customer [%s] not found\n", customer_source);
-            icd_manager_send_message("RECORD FAILURE! - channel for customer  [%s] not found.", customer_source);
+       		manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Record\r\nResult: Fail\r\nCause: No customer channel\r\nCallerID: %s\r\n", 
+                customer_source);
 	        return ICD_EGENERAL;
    }
    if (chan->name == NULL) {
             opbx_log(LOG_WARNING, "Record FAILURE! Channel name for customer [%s] not found\n", customer_source);
-            icd_manager_send_message("RECORD FAILURE! - channel name for customer  [%s] not found.", customer_source);
+       		manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Record\r\nResult: Fail\r\nCause: No customer channel name\r\nCallerID: %s\r\n", 
+                customer_source);
 	        return ICD_EGENERAL;
    }
    strncpy(buf + strlen(buf), chan->name, sizeof(buf) - strlen(buf));
    if (!record_start){
-   	opbx_log(LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
-        icd_manager_send_message("RECORD STOP OK! - customer [%s].", customer_source);
+   		opbx_log(LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
+    	manager_event(EVENT_FLAG_USER, "icd_event",
+                "Command: RecordStop\r\nResult: OK\r\nCallerID: %s\r\n", 
+                customer_source);
         fd = fileno(stderr);
         opbx_cli_command(fd, buf);
         return ICD_SUCCESS;
@@ -1138,7 +1168,9 @@ int icd_command_record(int fd, int argc, char **argv)
    fd = fileno(stderr);
    opbx_cli_command(fd, buf);
    opbx_log(LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
-   icd_manager_send_message("RECORD START OK! - customer [%s].", customer_source);
+   manager_event(EVENT_FLAG_USER, "icd_event",
+                "Command: RecordStart\r\nResult: OK\r\nCallerID: %s\r\n", 
+                customer_source);
 
    return ICD_SUCCESS;
 }

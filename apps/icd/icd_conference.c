@@ -564,14 +564,20 @@ icd_status icd_conference__join(icd_caller * that)
 /* We are conference owner - wait for all other users to end conference, the owner leaves as the last.
    This is to avoid cross removing of assosciacions (owner and user at the same time)      		
    It is enough to test conf->usecount probably */
-            while(!icd_caller_list__has_callers(icd_caller__get_associations(that))){
+            while(icd_caller_list__has_callers(icd_caller__get_associations(that))){
             	usleep(100000);
             }
     	}
     	else {
+/* ToDo In case of many conf users - only if last user leaves (not including owner) */   		
+    		if (!icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+            	icd_caller__set_state(that->conference->owner, ICD_CALLER_STATE_CALL_END);
+    		}
     		icd_conference__clear(that);
+            icd_caller__remove_all_associations(that);
     	}
     }
+    
     return ICD_SUCCESS;
 }
 
