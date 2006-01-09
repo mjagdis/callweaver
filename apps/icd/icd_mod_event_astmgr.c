@@ -114,15 +114,19 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
 	           confnr = conf->ztc.confno;
             
             manager_event(EVENT_FLAG_USER, "icd_state_change",
-                "Module: %s\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nChannelUniqueID: %s\r\nChannelName: %s\r\nConferenceNumber: %d\r\nMessage: %s\r\n",
-                icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller),
-                /*icd_caller__get_name(caller),
-                "Module: %s\r\nID: %s\r\nCallerID: %s\r\nCallerName: %s\r\nMessage: %s\r\n",
-                (chan ? chan->name : "unknown"),
-                */
-                icd_caller__get_caller_id(caller), icd_caller__get_name(caller),
-                chan ? chan->uniqueid : "nochan", chan ? chan->name : "nochan", 
-                confnr,  smsg);
+                "Module: %s\r\nICD_ID: %d\r\nICD_CallerID: %s\r\nICD_CallerName: %s\r\n"
+                "CallerID: %s\r\nCallerIDName: %s\r\nUniqueID: %s\r\nChannelName: %s\r\n"
+                "ConferenceNumber: %d\r\nMessage: %s\r\n",
+                icd_module_strings[icd_event__get_module_id(event)], 
+                icd_caller__get_id(caller),
+                icd_caller__get_caller_id(caller), 
+                icd_caller__get_name(caller),
+                chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" :"nochan",
+                chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan",                
+                chan ? chan->uniqueid : "nochan", 
+                chan ? chan->name : "nochan", 
+                confnr,  
+                smsg);
 
             break;
         case ICD_EVENT_READY:

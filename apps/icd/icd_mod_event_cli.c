@@ -104,12 +104,18 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
 	        conf = icd_caller__get_conference(caller);		
             if(conf != NULL)
 	          confnr = conf->ztc.confno;
-              opbx_verbose(VERBOSE_PREFIX_1 "[%s] ICD_id[%d] ICD_name[%s] ICD_CallerID[%s] CallerIDName[%s] Channel[%s] Uniqueid[%s] conf[%d] state - %s \n",
-                        icd_module_strings[icd_event__get_module_id(event)], icd_caller__get_id(caller),
-                        icd_caller__get_name(caller), icd_caller__get_caller_id(caller),
+              opbx_verbose(VERBOSE_PREFIX_1 "[%s] ICD_id[%d] ICD_name[%s] ICD_CallerID[%s] "
+              "CallerID[%s] CallerIDName[%s] Channel[%s] Uniqueid[%s] conf[%d] state - %s \n",
+                        icd_module_strings[icd_event__get_module_id(event)], 
+                        icd_caller__get_id(caller),
+                        icd_caller__get_name(caller), 
+                        icd_caller__get_caller_id(caller),
                         chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" :"nochan",
                         chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan",
-                        chan ? chan->name : "nochan", chan ? chan->uniqueid : "nochan",confnr, smsg);
+                        chan ? chan->name : "nochan", 
+                        chan ? chan->uniqueid : "nochan",
+                        confnr, 
+                        smsg);
 	    break;
 	    
         case ICD_EVENT_READY:
