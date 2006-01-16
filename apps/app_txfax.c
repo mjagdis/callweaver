@@ -289,7 +289,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             {
                 //printf("T.38 frame received\n");
                 call_is_t38_mode = TRUE;
-                t38_rx_ifp_packet(&t38, 0, inf->data, inf->datalen);
+                t38_rx_ifp_packet(&t38, inf->seq_no, inf->data, inf->datalen);
             }
             opbx_frfree(inf);
         }

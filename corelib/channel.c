@@ -1883,6 +1883,12 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 		else
 			res = 0;
 		break;
+	case OPBX_FRAME_MODEM:
+		if (chan->tech->write)
+			res = chan->tech->write(chan, fr);
+		else
+			res = 0;
+		break;
 	default:
 		if (chan->tech->write) {
 			if (chan->writetrans) 

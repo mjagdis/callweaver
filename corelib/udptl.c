@@ -24,7 +24,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -340,7 +340,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 					s->f[ifp_no].subclass = OPBX_MODEM_T38;
 
 					s->f[ifp_no].mallocd = 0;
-					//s->f[ifp_no].???seq_no = seq_no - i;
+					s->f[ifp_no].seq_no = seq_no - i;
 					s->f[ifp_no].datalen = lengths[i - 1];
 					s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
 					s->f[ifp_no].offset = 0;
@@ -362,7 +362,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			s->f[ifp_no].subclass = OPBX_MODEM_T38;
 			
 			s->f[ifp_no].mallocd = 0;
-			//s->f[ifp_no].???seq_no = seq_no;
+			s->f[ifp_no].seq_no = seq_no;
 			s->f[ifp_no].datalen = ifp_len;
 			s->f[ifp_no].data = (uint8_t *) ifp;
 			s->f[ifp_no].offset = 0;
@@ -463,7 +463,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 				s->f[ifp_no].subclass = OPBX_MODEM_T38;
 			
 				s->f[ifp_no].mallocd = 0;
-				//s->f[ifp_no].???seq_no = j;
+				s->f[ifp_no].seq_no = j;
 				s->f[ifp_no].datalen = s->rx[l].buf_len;
 				s->f[ifp_no].data = s->rx[l].buf;
 				s->f[ifp_no].offset = 0;
@@ -481,7 +481,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 		s->f[ifp_no].subclass = OPBX_MODEM_T38;
 			
 		s->f[ifp_no].mallocd = 0;
-		//s->f[ifp_no].???seq_no = j;
+		s->f[ifp_no].seq_no = j;
 		s->f[ifp_no].datalen = ifp_len;
 		s->f[ifp_no].data = (uint8_t *) ifp;
 		s->f[ifp_no].offset = 0;

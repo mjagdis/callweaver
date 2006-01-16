@@ -29,6 +29,7 @@ extern "C" {
 
 #include <sys/types.h>
 #include <sys/time.h>
+#include <inttypes.h>
 #include "confdefs.h"
 
 struct opbx_codec_pref {
@@ -51,6 +52,8 @@ struct opbx_frame {
 	int mallocd;				
 	/*! How many bytes exist _before_ "data" that can be used if needed */
 	int offset;				
+	/*! Next expected frame number */
+	uint16_t seq_no;
 	/*! Optional source of frame for debugging */
 	const char *src;				
 	/*! Pointer to actual data */
