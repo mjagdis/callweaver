@@ -966,6 +966,8 @@ static void opbx_moh_destroy(void)
 	moh = mohclasses;
 
 	while (moh) {
+		if (moh->thread) 
+			pthread_kill(moh->thread, SIGKILL); 
 		if (moh->pid) {
 			opbx_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
