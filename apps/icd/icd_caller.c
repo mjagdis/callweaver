@@ -2204,8 +2204,8 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
             result = icd_caller__dial_channel(that);
             if (icd_caller__has_role(that, ICD_AGENT_ROLE) && !icd_caller__get_onhook(that) &&
 	        icd_caller__get_acknowledge_call(that) && result == ICD_SUCCESS){
-            	if(that->entertained) 
-                      icd_caller__stop_waiting(that);
+//            	if(that->entertained) 
+//                      icd_caller__stop_waiting(that);
 			/* Check if any customer has an NO_ACK -param. In that case now akcnowledgment waiting is needed */ 		       
         		iter = icd_list__get_iterator((icd_list *) (that->associations));
         		int ack_wait = 1;

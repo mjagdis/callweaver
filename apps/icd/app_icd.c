@@ -117,10 +117,10 @@ char icd_delimiter = '|';
 char opbx_delimiter = '|';
 
 /* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
-static int module_mask[ICD_MAX_MODULES];
+int module_mask[ICD_MAX_MODULES];
 
 /* This is the event mask (icd.conf event_mask=)for what events to show in the default icd cli.*/
-static int event_mask[ICD_MAX_EVENTS];
+int event_mask[ICD_MAX_EVENTS];
 
 /* This is the registry for queues, associating queue names with objects.*/
 icd_fieldset *queues;

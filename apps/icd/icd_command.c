@@ -46,7 +46,6 @@
 #include "openpbx/icd/icd_member.h"
 #include "openpbx/icd/icd_member_list.h"
 #include "openpbx/icd/icd_bridge.h"
-#include "openpbx/icd/app_icd.h"
 #include "openpbx/icd/icd_agent.h"
 #include "openpbx/icd/icd_customer.h"
 #include "openpbx/icd/icd_caller_private.h"
@@ -70,8 +69,6 @@ static icd_status icd_command_load_queues(int fd, int argc, char **argv);
 static icd_status icd_command_load_agents(int fd, int argc, char **argv);
 static icd_status icd_command_load_conferences(int fd, int argc, char **argv);
 static icd_status icd_command_load_app_icd(int fd, int argc, char **argv);
-
-extern icd_agent *app_icd__dtmf_login(struct opbx_channel *chan, char *login, char *pass, int tries);
 
 typedef struct icd_command_node icd_command_node;
 
@@ -804,14 +801,14 @@ int icd_command_ack (int fd, int argc, char **argv)
      	icd_caller__add_flag((icd_caller *)agent, ICD_ACK_EXTERN_FLAG);
    	 manager_event(EVENT_FLAG_USER, "icd_command",
        "Command: Ack\r\nResult: OK\r\nCallerID: %s\r\nState: %s\r\n", 
-       agent_id, icd_caller__get_state_string(agent));
+       agent_id, icd_caller__get_state_string((icd_caller *)agent));
      opbx_cli(fd, "icd ack for agent[%s] - OK\n", agent_id);
      return 0;
   }
   opbx_log(LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
   manager_event(EVENT_FLAG_USER, "icd_command",
        "Command: Ack\r\nResult: Fail\r\nCause: Not correct state\r\nCallerID: %s\r\nState: %s\r\n", 
-       agent_id, icd_caller__get_state_string(agent));
+       agent_id, icd_caller__get_state_string((icd_caller *)agent));
   return -1;
 }
 
@@ -890,13 +887,14 @@ static void *icd_command_login_thread(void *arg) {
     app_icd__agent_exec(chan, buf);
     icd_caller__del_param(agent, "LogInProgress");
     opbx_log(LOG_NOTICE, "Agent login: External thread for Agent [%s] ending\n", agent_id);
+    icd_bridge__safe_hangup(agent);
     chan = icd_caller__get_channel(agent);
-    if(chan){
+/*    if(chan){
         icd_caller__stop_waiting(agent);
         opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
         opbx_hangup(chan);
         icd_caller__set_channel(agent, NULL);
-    }	
+    }*/	
 }
 
 int icd_command_login (int fd, int argc, char **argv)
@@ -947,9 +945,10 @@ int icd_command_login (int fd, int argc, char **argv)
                 icd_caller__get_state_string(agent));
 	    return ICD_EGENERAL;
 	} 
-    icd_caller__set_param(agent, "LogInProgress", &logFlag);         
-    chan =icd_bridge_get_openpbx_channel(channelstring, NULL, NULL, NULL);
-    if(!chan) {
+    icd_caller__set_param(agent, "LogInProgress", &logFlag);
+    icd_caller__set_channel_string(agent, channelstring);
+    icd_caller__set_param_string(agent, "channel", channelstring);
+    if(!icd_caller__create_channel(agent) ) {
         opbx_log(LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
         manager_event(EVENT_FLAG_USER, "icd_command",
                 "Command: Login\r\nResult: Fail\r\nCause: Channel not avaliable\r\nID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nCallerState: %s\r\n",
@@ -958,9 +957,6 @@ int icd_command_login (int fd, int argc, char **argv)
         icd_caller__del_param(agent, "LogInProgress");
 	    return ICD_EGENERAL;
     }
-    icd_caller__set_channel(agent, chan);
-    icd_caller__set_channel_string(agent, channelstring);
-    icd_caller__set_param_string(agent, "channel", channelstring);
     if (passwd) {
     	icd_caller__set_param_string(agent, "login_password", passwd);
     }
@@ -1262,7 +1258,8 @@ int icd_command_join_queue (int fd, int argc, char **argv)
                	  agent_id, queuename);
 	       }  
 	    } 
-	    else { 
+	    else {
+           icd_caller__set_active_member (agent, NULL); 
 	       icd_caller__remove_from_all_queues(agent); 
       	   opbx_cli(fd,"icd queue OK! Agent[%s] added to all queues\n", agent_id);
            manager_event(EVENT_FLAG_USER, "icd_command",

@@ -85,6 +85,11 @@ extern "C" {
 /* This is the registry for customers, associating agent names with objects. only used for callbacks*/
     extern icd_fieldset *customers;
 
+/* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
+    extern int module_mask[ICD_MAX_MODULES];
+
+/* This is the event mask (icd.conf event_mask=)for what events to show in the default icd cli.*/
+    extern int event_mask[ICD_MAX_EVENTS];
 /***** Initialization Routines *****/
 
 /* Initialize the ICD system so that it is ready for use but not configured. */

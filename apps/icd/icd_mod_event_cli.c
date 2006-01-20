@@ -33,14 +33,11 @@
 #include "openpbx/icd/icd_module_api.h"
 #include "openpbx/icd/icd_command.h"
 #include "openpbx/icd/icd_conference.h"
+#include "openpbx/icd/app_icd.h"
+
 /* Private implemenations */
 static int module_id = 0;
 static char *module_name = "event_cli";
-/* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
-static int module_mask[ICD_MAX_MODULES];
-
-/* This is the event mask (icd.conf event_mask=)for what events to show in the default icd cli.*/
-static int event_mask[ICD_MAX_EVENTS];     
 
 static int icd_module__event_cli(void *listener, icd_event * event, void *extra);
 
@@ -94,7 +91,7 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
       event_mask[icd_event__get_event_id(event)]
       );
     */
-//    if (module_mask[module_id] && event_mask[event_id]) {
+    if (module_mask[module_id] && event_mask[event_id]) {
         /* filter based on icd.conf events */
         smsg = icd_event__get_message(event);
         switch (event_id) {
@@ -117,36 +114,13 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
                         confnr, 
                         smsg);
 	    break;
-	    
-        case ICD_EVENT_READY:
-            break;
-            /*                
-                              case ICD_EVENT_DISTRIBUTE:
-
-                              break;
-                              case ICD_EVENT_BRIDGED:
-
-                              break;
-            */
-	case ICD_EVENT_LINK:
-	case ICD_EVENT_UNLINK:
-/*	case ICD_EVENT_PUSH:
-	case ICD_EVENT_POP: 
-        case ICD_EVENT_PUSHBACK: */
-	case ICD_EVENT_DISTRIBUTE:
-/*	case ICD_EVENT_DISTRIBUTED: */
-           if (smsg) 
-                opbx_verbose(VERBOSE_PREFIX_1 "[%s][%s] %s \n", icd_module_strings[icd_event__get_module_id(event)],
-                            icd_event_strings[icd_event__get_event_id(event)], smsg);	     
-	     break;
-	     
         default:
             if (smsg)
                 /*opbx_verbose(VERBOSE_PREFIX_1 "APP_ICD: %s \n",string); */
                 opbx_verbose(VERBOSE_PREFIX_1 "[%s][%s] %s \n", icd_module_strings[icd_event__get_module_id(event)],
                             icd_event_strings[icd_event__get_event_id(event)], smsg);
         }
-//    }
+    }
 
     /* No veto today, thank you. */
     return 0;

@@ -36,18 +36,11 @@
 
 #include "openpbx/icd/icd_module_api.h"
 #include "openpbx/icd/icd_conference.h"
+#include "openpbx/icd/app_icd.h"
 
 /* Private implemenations */
 static int module_id = 0;
 static char *module_name = "event_astmgr";
-
-/* This is the module mask (icd.conf module_mask_astmgr=) 
-for what module events to show in the default icd cli.
-*/
-static int module_mask[ICD_MAX_MODULES];
-
-/* This is the event mask (icd.conf event_mask_astmgr=)for what events to show in the default icd cli.*/
-static int event_mask[ICD_MAX_EVENTS];     
 
 static int icd_module__event_astmgr(void *listener, icd_event * factory_event, void *extra);
 
@@ -102,7 +95,7 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
       event_mask[icd_event__get_event_id(event)]
       );
     */
-/*    if (module_mask[module_id] && event_mask[event_id]) */{
+    if (module_mask[module_id] && event_mask[event_id]) {
         /* filter based on icd.conf events */
         smsg = icd_event__get_message(event);
         switch (event_id) {
@@ -111,12 +104,18 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
             chan = icd_caller__get_channel(caller);
   	        conf = icd_caller__get_conference(caller);		
             if(conf != NULL)
-	           confnr = conf->ztc.confno;
-            
-            manager_event(EVENT_FLAG_USER, "icd_state_change",
-                "Module: %s\r\nICD_ID: %d\r\nICD_CallerID: %s\r\nICD_CallerName: %s\r\n"
-                "CallerID: %s\r\nCallerIDName: %s\r\nUniqueID: %s\r\nChannelName: %s\r\n"
-                "ConferenceNumber: %d\r\nMessage: %s\r\n",
+	           confnr = conf->ztc.confno;            
+            manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
+                "Module: %s\r\n"
+                "ICD_ID: %d\r\n"
+                "ICD_CallerID: %s\r\n"
+                "ICD_CallerName: %s\r\n"
+                "CallerID: %s\r\n"
+                "CallerIDName: %s\r\n"
+                "UniqueID: %s\r\n"
+                "ChannelName: %s\r\n"
+                "ConferenceNumber: %d\r\n"
+                "Message: %s\r\n",
                 icd_module_strings[icd_event__get_module_id(event)], 
                 icd_caller__get_id(caller),
                 icd_caller__get_caller_id(caller), 
@@ -129,25 +128,16 @@ static int icd_module__event_astmgr(void *listener, icd_event * factory_event, v
                 smsg);
 
             break;
-        case ICD_EVENT_READY:
-            break;
-        case ICD_EVENT_BRIDGED:
-            break;
-        case ICD_EVENT_BRIDGE_END:
-            break;
-		case ICD_EVENT_LINK:
-		case ICD_EVENT_UNLINK:
-		case ICD_EVENT_DISTRIBUTE:
+        default:
             if (smsg)
-                manager_event(EVENT_FLAG_USER, "icd_event",
-                "Module: %s\r\nEvent: %s\r\nMessage: %s\r\n",
+                manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)], 
+                "Module: %s\r\n"
+                "Source: %s\r\n"
+                "Message: %s\r\n",
                 icd_module_strings[icd_event__get_module_id(event)],
-                icd_event_strings[icd_event__get_event_id(event)], 
+                icd_event__get_name(event)?icd_event__get_name(event):"unknown",
                 smsg);
             break;
-        default:
-            break;
-
         }
     }
 

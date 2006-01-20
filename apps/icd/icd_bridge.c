@@ -370,6 +370,9 @@ int icd_bridge_wait_ack(icd_caller * that)
     max_wait_ack = icd_caller__get_timeout(that)/1000; /*converting from milisec to seconds */	
 /*Prepare to extern ackowledgement */    
     icd_caller__clear_flag(that, ICD_ACK_EXTERN_FLAG);
+    icd_caller__stop_waiting(that);
+//PF-test    
+    usleep(100000);
     opbx_streamfile(chan, "queue-callswaiting", chan->language); 
 	/* This is the wait loop for agents that requirement an acknowledgement  b4 we bridge the call */
     for (;;) {
@@ -378,7 +381,7 @@ int icd_bridge_wait_ack(icd_caller * that)
                 break;
             }
             if(!icd_caller_list__has_callers(icd_caller__get_associations(that))){
-                icd_caller__standard_start_waiting(that);
+                icd_caller__start_waiting(that);
 	        result = -1;
 		break;
 	    }
@@ -404,11 +407,14 @@ int icd_bridge_wait_ack(icd_caller * that)
 
     if (result < 0) {
 //           icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+    	if (chan->stream) { 
+	            opbx_stopstream(chan);       /* cut off any files that are playing */ 
+    	}
         return result;
      }
         /* If they hungup, return immediately */
     if (res < 0) {
-//            icd_bridge__safe_hangup(that);
+       icd_bridge__safe_hangup(that);
 //            icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
         return -1;   
      }
@@ -420,6 +426,9 @@ int icd_bridge_wait_ack(icd_caller * that)
     			return 0;
 	}
 /* Never get here - for compiler's sake */	 
+   if (chan->stream) { 
+	            opbx_stopstream(chan);       /* cut off any files that are playing */ 
+   	}
     return 0;	 
 }
 
