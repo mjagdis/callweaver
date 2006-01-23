@@ -1306,7 +1306,7 @@ static int compare_weight(struct opbx_call_queue *rq, struct member *member)
 		opbx_mutex_lock(&q->lock);
 		if (q->count && q->members) {
 			for (mem = q->members; mem; mem = mem->next) {
-				if (mem == member) {
+				if (!strcmp(mem->interface, member->interface)) {
 					opbx_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
 					if (q->weight > rq->weight) {
 						opbx_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
@@ -1994,7 +1994,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char oldcontext[OPBX_MAX_CONTEXT]="";
 	char queuename[256]="";
 	char *newnum;
-	char *monitorfilename;
 	struct opbx_channel *peer;
 	struct opbx_channel *which;
 	struct localuser *lpeer;
@@ -2211,7 +2210,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
-			monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
+			const char *monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
 			if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
 				which = qe->chan;
 			else
@@ -2721,7 +2720,7 @@ static int rqm_exec(struct opbx_channel *chan, void *data)
 	OPBX_STANDARD_APP_ARGS(args, parse);
 
 	if (opbx_strlen_zero(args.interface)) {
-		opbx_copy_string(args.interface, chan->name, sizeof(args.interface));
+		args.interface = opbx_strdupa(chan->name);
 		temppos = strrchr(args.interface, '-');
 		if (temppos)
 			*temppos = '\0';
@@ -2788,7 +2787,7 @@ static int aqm_exec(struct opbx_channel *chan, void *data)
 	OPBX_STANDARD_APP_ARGS(args, parse);
 
 	if (opbx_strlen_zero(args.interface)) {
-		opbx_copy_string(args.interface, chan->name, sizeof(args.interface));
+		args.interface = opbx_strdupa(chan->name);
 		temppos = strrchr(args.interface, '-');
 		if (temppos)
 			*temppos = '\0';
@@ -2845,7 +2844,7 @@ static int queue_exec(struct opbx_channel *chan, void *data)
 	char *options = NULL;
 	char *url = NULL;
 	char *announceoverride = NULL;
-	char *user_priority;
+	const char *user_priority;
 	int prio;
 	char *queuetimeoutstr = NULL;
 	enum queue_result reason = QUEUE_UNKNOWN;
