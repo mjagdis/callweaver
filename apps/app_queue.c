@@ -77,6 +77,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/channel.h"
 #include "openpbx/pbx.h"
 #include "openpbx/options.h"
+#include "openpbx/app.h"
+#include "openpbx/linkedlists.h"
 #include "openpbx/module.h"
 #include "openpbx/translate.h"
 #include "openpbx/say.h"
@@ -154,27 +156,39 @@ static char *descrip =
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
-"   AddQueueMember(queuename[|interface[|penalty]]):\n"
+"   AddQueueMember(queuename[|interface[|penalty[|options]]]):\n"
 "Dynamically adds interface to an existing queue.\n"
 "If the interface is already in the queue and there exists an n+101 priority\n"
 "then it will then jump to this priority.  Otherwise it will return an error\n"
+"The option string may contain zero or more of the following characters:\n"
+"       'j' -- jump to +101 priority when appropriate.\n"
+"  This application sets the following channel variable upon completion:\n"
+"     AQMSTATUS    The status of the attempt to add a queue member as a \n"
+"                     text string, one of\n"
+"           ADDED | MEMBERALREADY | NOSUCHQUEUE \n"
 "Example: AddQueueMember(techsupport|SIP/3000)\n"
 "";
 
 static char *app_rqm = "RemoveQueueMember" ;
 static char *app_rqm_synopsis = "Dynamically removes queue members" ;
 static char *app_rqm_descrip =
-"   RemoveQueueMember(queuename[|interface]):\n"
+"   RemoveQueueMember(queuename[|interface[|options]]):\n"
 "Dynamically removes interface to an existing queue\n"
 "If the interface is NOT in the queue and there exists an n+101 priority\n"
 "then it will then jump to this priority.  Otherwise it will return an error\n"
+"The option string may contain zero or more of the following characters:\n"
+"       'j' -- jump to +101 priority when appropriate.\n"
+"  This application sets the following channel variable upon completion:\n"
+"     RQMSTATUS      The status of the attempt to remove a queue member as a\n"
+"                     text string, one of\n"
+"           REMOVED | NOTINQUEUE | NOSUCHQUEUE \n"
 "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
 "";
 
 static char *app_pqm = "PauseQueueMember" ;
 static char *app_pqm_synopsis = "Pauses a queue member" ;
 static char *app_pqm_descrip =
-"   PauseQueueMember([queuename]|interface):\n"
+"   PauseQueueMember([queuename]|interface[|options]):\n"
 "Pauses (blocks calls for) a queue member.\n"
 "The given interface will be paused in the given queue.  This prevents\n"
 "any calls from being sent from the queue to the interface until it is\n"
@@ -182,17 +196,30 @@ static char *app_pqm_descrip =
 "queuename is given, the interface is paused in every queue it is a\n"
 "member of.  If the interface is not in the named queue, or if no queue\n"
 "is given and the interface is not in any queue, it will jump to\n"
-" priority n+101, if it exists.  The application will fail if the interface is not\n"
-"found and no extension to jump to exists.\n"
+"priority n+101, if it exists and the appropriate options are set.\n"
+"The application will fail if the interface is not found and no extension\n"
+"to jump to exists.\n"
+"The option string may contain zero or more of the following characters:\n"
+"       'j' -- jump to +101 priority when appropriate.\n"
+"  This application sets the following channel variable upon completion:\n"
+"     PQMSTATUS      The status of the attempt to pause a queue member as a\n"
+"                     text string, one of\n"
+"           PAUSED | NOTFOUND\n"
 "Example: PauseQueueMember(|SIP/3000)\n";
 
 static char *app_upqm = "UnpauseQueueMember" ;
 static char *app_upqm_synopsis = "Unpauses a queue member" ;
 static char *app_upqm_descrip =
-"   UnpauseQueueMember([queuename]|interface):\n"
+"   UnpauseQueueMember([queuename]|interface[|options]):\n"
 "Unpauses (resumes calls to) a queue member.\n"
 "This is the counterpart to PauseQueueMember and operates exactly the\n"
 "same way, except it unpauses instead of pausing the given interface.\n"
+"The option string may contain zero or more of the following characters:\n"
+"       'j' -- jump to +101 priority when appropriate.\n"
+"  This application sets the following channel variable upon completion:\n"
+"     UPQMSTATUS       The status of the attempt to unpause a queue \n"
+"                      member as a text string, one of\n"
+"            UNPAUSED | NOTFOUND\n"
 "Example: UnpauseQueueMember(|SIP/3000)\n";
 
 /*! \brief Persistent Members opbxdb family */
@@ -2557,88 +2584,112 @@ static void reload_queue_members(void)
 static int pqm_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
-	char *queuename, *interface;
+	char *parse;
+	int priority_jump = 0;
+	OPBX_DECLARE_APP_ARGS(args,
+		OPBX_APP_ARG(queuename);
+		OPBX_APP_ARG(interface);
+		OPBX_APP_ARG(options);
+	);
 
 	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface])\n");
+		opbx_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface[|options])\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	queuename = opbx_strdupa((char *)data);
-	if (!queuename) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+	if (!(parse = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	interface = strchr(queuename, '|');
-	if (!interface) {
-		opbx_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface])\n");
+	OPBX_STANDARD_APP_ARGS(args, parse);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	if (opbx_strlen_zero(args.interface)) {
+		opbx_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	*interface = '\0';
-	interface++;
-
-	if (set_member_paused(queuename, interface, 1)) {
-		opbx_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", interface);
-		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-			LOCAL_USER_REMOVE(u);
-			return 0;
+	if (set_member_paused(args.queuename, args.interface, 1)) {
+		opbx_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", args.interface);
+		if (priority_jump || option_priority_jumping) {
+			if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
+				pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
+				LOCAL_USER_REMOVE(u);
+				return 0;
+			}
 		}
 		LOCAL_USER_REMOVE(u);
+		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
 	LOCAL_USER_REMOVE(u);
-
+	pbx_builtin_setvar_helper(chan, "PQMSTATUS", "PAUSED");
 	return 0;
 }
 
 static int upqm_exec(struct opbx_channel *chan, void *data)
 {
 	struct localuser *u;
-	char *queuename, *interface;
+	char *parse;
+	int priority_jump = 0;
+	OPBX_DECLARE_APP_ARGS(args,
+		OPBX_APP_ARG(queuename);
+		OPBX_APP_ARG(interface);
+		OPBX_APP_ARG(options);
+	);
 
 	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface])\n");
+		opbx_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface[|options])\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	queuename = opbx_strdupa((char *)data);
-	if (!queuename) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+	if (!(parse = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	interface = strchr(queuename, '|');
-	if (!interface) {
-		opbx_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface])\n");
+	OPBX_STANDARD_APP_ARGS(args, parse);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	if (opbx_strlen_zero(args.interface)) {
+		opbx_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	*interface = '\0';
-	interface++;
-
-	if (set_member_paused(queuename, interface, 0)) {
-		opbx_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", interface);
-		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-			LOCAL_USER_REMOVE(u);
-			return 0;
+	if (set_member_paused(args.queuename, args.interface, 0)) {
+		opbx_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", args.interface);
+		if (priority_jump || option_priority_jumping) {
+			if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
+				pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
+				LOCAL_USER_REMOVE(u);
+				return 0;
+			}
 		}
 		LOCAL_USER_REMOVE(u);
+		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
 	LOCAL_USER_REMOVE(u);
-
+	pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "UNPAUSED");
 	return 0;
 }
 
@@ -2646,52 +2697,56 @@ static int rqm_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char *info, *queuename;
-	char tmpchan[256]="";
-	char *interface = NULL;
+	char *parse, *temppos = NULL;
+	int priority_jump = 0;
+	OPBX_DECLARE_APP_ARGS(args,
+		OPBX_APP_ARG(queuename);
+		OPBX_APP_ARG(interface);
+		OPBX_APP_ARG(options);
+	);
 
 	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[|interface])\n");
+		opbx_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[|interface[|options]])\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	info = opbx_strdupa(data);
-	if (!info) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+	if (!(parse = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	queuename = info;
-	if (queuename) {
-		interface = strchr(queuename, '|');
-		if (interface) {
-			*interface = '\0';
-			interface++;
-		}
-		else {
-			opbx_copy_string(tmpchan, chan->name, sizeof(tmpchan));
-			interface = strrchr(tmpchan, '-');
-			if (interface)
-				*interface = '\0';
-			interface = tmpchan;
-		}
+	OPBX_STANDARD_APP_ARGS(args, parse);
+
+	if (opbx_strlen_zero(args.interface)) {
+		opbx_copy_string(args.interface, chan->name, sizeof(args.interface));
+		temppos = strrchr(args.interface, '-');
+		if (temppos)
+			*temppos = '\0';
 	}
 
-	switch (remove_from_queue(queuename, interface)) {
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	switch (remove_from_queue(args.queuename, args.interface)) {
 	case RES_OKAY:
-		opbx_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", interface, queuename);
+		opbx_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
+		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
 		res = 0;
 		break;
 	case RES_EXISTS:
-		opbx_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
+		opbx_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
 		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");
 		res = 0;
 		break;
 	case RES_NOSUCHQUEUE:
-		opbx_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+		opbx_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", args.queuename);
+		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOSUCHQUEUE");
 		res = 0;
 		break;
 	case RES_OUTOFMEMORY:
@@ -2707,72 +2762,71 @@ static int aqm_exec(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char *queuename;
-	char *info;
-	char tmpchan[512]="";
-	char *interface=NULL;
-	char *penaltys=NULL;
+	char *parse, *temppos = NULL;
+	int priority_jump = 0;
+	OPBX_DECLARE_APP_ARGS(args,
+		OPBX_APP_ARG(queuename);
+		OPBX_APP_ARG(interface);
+		OPBX_APP_ARG(penalty);
+		OPBX_APP_ARG(options);
+	);
 	int penalty = 0;
 
 	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[|[interface][|penalty]])\n");
+		opbx_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[|[interface][|penalty][|options]])\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	info = opbx_strdupa(data);
-	if (!info) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+	if (!(parse = opbx_strdupa(data))) {
+		opbx_log(LOG_WARNING, "Memory Error!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	queuename = info;
-	if (queuename) {
-		interface = strchr(queuename, '|');
-		if (interface) {
-			*interface = '\0';
-			interface++;
-		}
-		if (interface) {
-			penaltys = strchr(interface, '|');
-			if (penaltys) {
-				*penaltys = '\0';
-				penaltys++;
-			}
-		}
-		if (opbx_strlen_zero(interface)) {
-			opbx_copy_string(tmpchan, chan->name, sizeof(tmpchan));
-			interface = strrchr(tmpchan, '-');
-			if (interface)
-				*interface = '\0';
-			interface = tmpchan;
-		}
-		if (!opbx_strlen_zero(penaltys)) {
-			if ((sscanf(penaltys, "%d", &penalty) != 1) || penalty < 0) {
-				opbx_log(LOG_WARNING, "Penalty '%s' is invalid, must be an integer >= 0\n", penaltys);
-				penalty = 0;
-			}
+	OPBX_STANDARD_APP_ARGS(args, parse);
+
+	if (opbx_strlen_zero(args.interface)) {
+		opbx_copy_string(args.interface, chan->name, sizeof(args.interface));
+		temppos = strrchr(args.interface, '-');
+		if (temppos)
+			*temppos = '\0';
+	}
+
+	if (!opbx_strlen_zero(args.penalty)) {
+		if ((sscanf(args.penalty, "%d", &penalty) != 1) || penalty < 0) {
+			opbx_log(LOG_WARNING, "Penalty '%s' is invalid, must be an integer >= 0\n", args.penalty);
+			penalty = 0;
 		}
 	}
 
-	switch (add_to_queue(queuename, interface, penalty, 0, queue_persistent_members)) {
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+
+	switch (add_to_queue(args.queuename, args.interface, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
-		opbx_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", interface, queuename);
+		opbx_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", args.interface, args.queuename);
+		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "ADDED");
 		res = 0;
 		break;
 	case RES_EXISTS:
-		opbx_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		opbx_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", args.interface, args.queuename);
+		if (priority_jump || option_priority_jumping) 
+			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "MEMBERALREADY");
 		res = 0;
 		break;
 	case RES_NOSUCHQUEUE:
-		opbx_log(LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", queuename);
+		opbx_log(LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", args.queuename);
+		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "NOSUCHQUEUE");
 		res = 0;
 		break;
 	case RES_OUTOFMEMORY:
-		opbx_log(LOG_ERROR, "Out of memory adding member %s to queue %s\n", interface, queuename);
+		opbx_log(LOG_ERROR, "Out of memory adding member %s to queue %s\n", args.interface, args.queuename);
 		break;
 	}
 
