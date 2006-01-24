@@ -3586,9 +3586,6 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 	ms = opbx_tvdiff_ms(p1->rxcore, p2->offset);
 	fakets += ms;
 
-	/* FIXME? SLD would rather remove this and leave it to the end system to deal with */
-	if (fakets <= p2->lastsent)
-		fakets = p2->lastsent + 1;
 	p2->lastsent = fakets;
 	return fakets;
 }
@@ -5610,6 +5607,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	if (inaddrcmp(&p->addr, sin)) {
 		if (iax2_regfunk)
 			iax2_regfunk(p->name, 1);
+		/* Stash the IP address from which they registered */
+		memcpy(&p->addr, sin, sizeof(p->addr));
 		snprintf(data, sizeof(data), "%s:%d:%d", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expiry);
 		if (!opbx_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
 			opbx_db_put("IAX/Registry", p->name, data);
@@ -5617,19 +5616,18 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 				opbx_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
 					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
-			opbx_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 			register_peer_exten(p, 1);
+			opbx_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		} else if (!opbx_test_flag(p, IAX_TEMPONLY)) {
 			if  (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
 					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
-			opbx_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 			register_peer_exten(p, 0);
 			opbx_db_del("IAX/Registry", p->name);
+			opbx_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		}
 		/* Update the host */
-		memcpy(&p->addr, sin, sizeof(p->addr));
 		/* Verify that the host is really there */
 		iax2_poke_peer(p, callno);
 	}		

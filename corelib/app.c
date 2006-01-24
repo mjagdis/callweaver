@@ -213,6 +213,13 @@ int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *pr
 					opbx_frfree(f);
 					break;
 				}
+				res = opbx_writestream(writer, f);
+				if (res < 0) {
+					opbx_log(LOG_WARNING, "Failed to write to stream at %s!\n", dest);
+					opbx_frfree(f);
+					break;
+				}
+
 			}
 			opbx_frfree(f);
 		}
