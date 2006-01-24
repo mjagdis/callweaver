@@ -113,7 +113,7 @@ int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt)
 {
 	int res = 0;
 	res = SQLExecute(stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
 		opbx_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
 		opbx_mutex_lock(&obj->lock);
 		obj->up = 0;
@@ -150,7 +150,6 @@ int odbc_sanity_check(odbc_obj *obj)
 	char *test_sql = "select 1";
 	SQLHSTMT stmt;
 	int res = 0;
-	SQLLEN rowcount = 0;
 
 	opbx_mutex_lock(&obj->lock);
 	if(obj->up) { /* so you say... let's make sure */
@@ -165,11 +164,6 @@ int odbc_sanity_check(odbc_obj *obj)
 				res = SQLExecute(stmt);
 				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 					obj->up = 0; /* Liar!*/
-				} else {
-					res = SQLRowCount(stmt, &rowcount);
-					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						obj->up = 0; /* Liar!*/
-					}
 				}
 			}
 		}

@@ -67,7 +67,6 @@ static struct opbx_variable *realtime_odbc(const char *database, const char *tab
 	int res;
 	int x;
 	struct opbx_variable *var=NULL, *prev=NULL;
-	SQLLEN rowcount=0;
 	SQLULEN colsize;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
@@ -129,13 +128,6 @@ static struct opbx_variable *realtime_odbc(const char *database, const char *tab
 		return NULL;
 	}
 
-	res = SQLRowCount(stmt, &rowcount);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		opbx_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return NULL;
-	}
-
 	res = SQLNumResultCols(stmt, &colcount);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		opbx_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
@@ -143,48 +135,50 @@ static struct opbx_variable *realtime_odbc(const char *database, const char *tab
 		return NULL;
 	}
 
-	if (rowcount) {
-		res = SQLFetch(stmt);
+	res = SQLFetch(stmt);
+	if (res == SQL_NO_DATA) {
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	for (x=0;x<colcount;x++) {
+		rowdata[0] = '\0';
+		collen = sizeof(coltitle);
+		res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+					&datatype, &colsize, &decimaldigits, &nullable);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			opbx_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
+			if (var)
+				opbx_variables_destroy(var);
 			return NULL;
 		}
-		for (x=0;x<colcount;x++) {
-			rowdata[0] = '\0';
-			collen = sizeof(coltitle);
-			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
-						&datatype, &colsize, &decimaldigits, &nullable);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				opbx_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
-				if (var)
-					opbx_variables_destroy(var);
-				return NULL;
-			}
 
-			indicator = 0;
-			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
-			if (indicator == SQL_NULL_DATA)
-				continue;
+		indicator = 0;
+		res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
+		if (indicator == SQL_NULL_DATA)
+			continue;
 
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-				if (var)
-					opbx_variables_destroy(var);
-				return NULL;
-			}
-			stringp = rowdata;
-			while(stringp) {
-				chunk = strsep(&stringp, ";");
-				if (chunk && !opbx_strlen_zero(opbx_strip(chunk))) {
-					if (prev) {
-						prev->next = opbx_variable_new(coltitle, chunk);
-						if (prev->next)
-							prev = prev->next;
-					} else 
-						prev = var = opbx_variable_new(coltitle, chunk);
-					
-				}
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			opbx_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			if (var)
+				opbx_variables_destroy(var);
+			return NULL;
+		}
+		stringp = rowdata;
+		while(stringp) {
+			chunk = strsep(&stringp, ";");
+			if (chunk && !opbx_strlen_zero(opbx_strip(chunk))) {
+				if (prev) {
+					prev->next = opbx_variable_new(coltitle, chunk);
+					if (prev->next)
+						prev = prev->next;
+				} else 
+					prev = var = opbx_variable_new(coltitle, chunk);
+
 			}
 		}
 	}
@@ -213,7 +207,6 @@ static struct opbx_config *realtime_multi_odbc(const char *database, const char 
 	struct opbx_config *cfg=NULL;
 	struct opbx_category *cat=NULL;
 	struct opbx_realloca ra;
-	SQLLEN rowcount=0;
 	SQLULEN colsize;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
@@ -281,13 +274,6 @@ static struct opbx_config *realtime_multi_odbc(const char *database, const char 
 		return NULL;
 	}
 
-	res = SQLRowCount(stmt, &rowcount);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		opbx_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return NULL;
-	}
-
 	res = SQLNumResultCols(stmt, &colcount);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		opbx_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
@@ -302,9 +288,8 @@ static struct opbx_config *realtime_multi_odbc(const char *database, const char 
 		return NULL;
 	}
 
-	while (rowcount--) {
+	while ((res=SQLFetch(stmt)) != SQL_NO_DATA) {
 		var = NULL;
-		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			opbx_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			continue;

@@ -485,7 +485,7 @@ int opbx_utils_init(void)
 
 #ifndef __linux__
 #undef pthread_create /* For opbx_pthread_create function only */
-#endif /* ! LINUX */
+#endif /* !__linux__ */
 
 int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
 {
@@ -695,7 +695,7 @@ char *strcasestr(const char *haystack, const char *needle)
 		return NULL;
 	}
 }
-#endif
+#endif /* !HAVE_STRCASESTR */
 
 #ifndef HAVE_STRNLEN
 size_t strnlen(const char *s, size_t n)
@@ -708,7 +708,7 @@ size_t strnlen(const char *s, size_t n)
 
 	return len;
 }
-#endif
+#endif /* !HAVE_STRNLEN */
 
 #if !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC)
 char *strndup(const char *s, size_t n)
@@ -722,7 +722,7 @@ char *strndup(const char *s, size_t n)
 	new[len] = '\0';
 	return memcpy(new, s, len);
 }
-#endif
+#endif /* !defined(HAVE_STRNDUP) && !defined(__OPBX_DEBUG_MALLOC) */
 
 #if !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap)
@@ -742,7 +742,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 
 	return size;
 }
-#endif
+#endif /* !defined(HAVE_VASPRINTF) && !defined(__OPBX_DEBUG_MALLOC) */
 
 #ifndef HAVE_STRTOQ
 #ifndef LONG_MIN
@@ -843,4 +843,40 @@ uint64_t strtoq(const char *nptr, char **endptr, int base)
 	         *((const char **)endptr) = any ? s - 1 : nptr;
 	 return acc;
 }
-#endif
+#endif /* !HAVE_STRTOQ */
+
+#if (!defined(getloadavg))
+#ifdef linux
+/* Alternative method of getting load avg on Linux only */
+int getloadavg(double *list, int nelem)
+{
+	FILE *LOADAVG;
+	double avg[3] = { 0.0, 0.0, 0.0 };
+	int i, res = -1;
+
+	if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
+		fscanf(LOADAVG, "%lf %lf %lf", &avg[0], &avg[1], &avg[2]);
+		res = 0;
+		fclose(LOADAVG);
+	}
+
+	for (i = 0; (i < nelem) && (i < 3); i++) {
+		list[i] = avg[i];
+	}
+
+	return res;
+}
+#else /* !linux */
+/* Return something that won't cancel the call, but still return -1, in case
+ * we correct the implementation to check return value */
+int getloadavg(double *list, int nelem)
+{
+	int i;
+
+	for (i = 0; i < nelem; i++) {
+		list[i] = 0.1;
+	}
+	return -1;
+}
+#endif /* linux */
+#endif /* !defined(getloadavg) */
