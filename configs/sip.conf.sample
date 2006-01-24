@@ -210,7 +210,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;ignoreregexpire=yes		; Enabling this setting has two functions:
 				;
 				; For non-realtime peers, when their registration expires, the information
-				; will _not_ be removed from memory or the Asterisk database; if you attempt
+				; will _not_ be removed from memory or the OpenPBX database; if you attempt
 				; to place a call to the peer, the existing information will be used in spite
 				; of it having expired
 				;
