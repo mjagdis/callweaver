@@ -352,7 +352,7 @@ icd_status icd_conference__join(icd_caller * that)
     icd_conference *conf;
 
     /*  OPBX_FORMAT_ULAW  OPBX_FORMAT_SLINEAR this requires ioctl on the conference fd  */
-    int icd_conf_format = PBX_FORMAT_SLINEAR;
+    int icd_conf_format = OPBX_FORMAT_SLINEAR;
 
     int x;
     ZT_BUFFERINFO bi;
@@ -425,7 +425,7 @@ icd_status icd_conference__join(icd_caller * that)
                 return ICD_STDERR;
             }
 
-            if (ioctl(fd, ZT_SETLINEAR, &x))
+            if (ioctl(fd, ZT_SETLINEAR, &x)) {
                 opbx_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
                 close(fd);
                 return ICD_STDERR;
