@@ -2002,7 +2002,7 @@ int openpbx_main(int argc, char *argv[])
 		case 'i':
 			option_initcrypto++;
 			break;
-		case'g':
+		case 'g':
 			option_dumpcore++;
 			break;
 		case 'h':
@@ -2032,6 +2032,10 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
+	if (option_console && !option_verbose) 
+		opbx_verbose("[ Reading Master Configuration ]");
+	opbx_readconfig();
+
 	if (option_dumpcore) {
 		struct rlimit l;
 		memset(&l, 0, sizeof(l));
@@ -2041,10 +2045,6 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
-
-	if (option_console && !option_verbose) 
-		opbx_verbose("[ Reading Master Configuration ]");
-	opbx_readconfig();
 
 #ifndef __CYGWIN__
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
