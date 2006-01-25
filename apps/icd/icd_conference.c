@@ -475,6 +475,7 @@ icd_status icd_conference__join(icd_caller * that)
     for (;;) {
         outfd = -1;
         ms = -1;
+        read_frame = NULL;
 
         active_channel = opbx_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 

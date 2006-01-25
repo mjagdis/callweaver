@@ -372,8 +372,13 @@ int icd_bridge_wait_ack(icd_caller * that)
     icd_caller__clear_flag(that, ICD_ACK_EXTERN_FLAG);
     icd_caller__stop_waiting(that);
 //PF-test    
-    usleep(100000);
+//    icd_caller__play_sound_file(that,   "queue-callswaiting");
+//    usleep(100000);
+    
     opbx_streamfile(chan, "queue-callswaiting", chan->language); 
+    sleep(5);
+//PF-test        
+//    opbx_set_write_format(chan, 8);
 	/* This is the wait loop for agents that requirement an acknowledgement  b4 we bridge the call */
     for (;;) {
             if (!(icd_caller__get_state(that) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)) {
@@ -775,22 +780,22 @@ void icd_bridge__safe_hangup(icd_caller * caller)
      */
 
     newchan = opbx_channel_alloc(0);
-    opbx_mutex_lock(&oldchan->lock);
-    strncpy(newchan->name, oldchan->name, sizeof(newchan->name));
-    newchan->readformat = oldchan->readformat;
-    newchan->writeformat = oldchan->writeformat;
-    opbx_mutex_unlock(&oldchan->lock);
-    /*note masq will blindly lock both channels, does not check if the channels are still there ? */
-    if (!opbx_channel_masquerade(newchan, oldchan)) {
-        f = opbx_read(newchan);
-        if (f)
-            opbx_frfree(f);
-    }
-
     if (newchan) {
-        opbx_softhangup(newchan,  OPBX_SOFTHANGUP_EXPLICIT);
-        opbx_hangup(newchan);
-        newchan = NULL;
+       opbx_mutex_lock(&oldchan->lock);
+       strncpy(newchan->name, oldchan->name, sizeof(newchan->name));
+       newchan->readformat = oldchan->readformat;
+       newchan->writeformat = oldchan->writeformat;
+       opbx_mutex_unlock(&oldchan->lock);
+       /*note masq will blindly lock both channels, does not check if the channels are still there ? */
+       if (!opbx_channel_masquerade(newchan, oldchan)) {
+           f = opbx_read(newchan);
+           if (f)
+             opbx_frfree(f);
+       }
+
+       opbx_softhangup(newchan,  OPBX_SOFTHANGUP_EXPLICIT);
+       opbx_hangup(newchan);
+       newchan = NULL;
     }
 
     if (oldchan) {
