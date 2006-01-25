@@ -2609,7 +2609,13 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
 			memset(&peer->addr, 0, sizeof(peer->addr));
 			if (option_debug)
-				opbx_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
+				opbx_log(LOG_DEBUG, "realtime_peer: Bah, '%s' is expired (%ld/%ld/%ld)!\n",
+						peername, nowtime - regseconds, regseconds, nowtime);
+		}
+		else {
+			if (option_debug)
+				opbx_log(LOG_DEBUG, "realtime_peer: Registration for '%s' still active (%ld/%ld/%ld)!\n",
+						peername, nowtime - regseconds, regseconds, nowtime);
 		}
 	}
 
@@ -4970,6 +4976,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	return res;
 }
 
+/*! \brief Verify inbound registration */
 static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *ies)
 {
 	char requeststr[256] = "";
@@ -5004,6 +5011,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* We release the lock for the call to prevent a deadlock, but it's okay because
 	   only the current thread could possibly make it go away or make changes */
 	opbx_mutex_unlock(&iaxsl[callno]);
+	/* SLD: first call to lookup peer during registration */
 	p = find_peer(peer, 1);
 	opbx_mutex_lock(&iaxsl[callno]);
 
@@ -5385,6 +5393,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	return 0; 
 }
 
+/*! \brief Acknowledgment received for OUR registration */
 static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int callno)
 {
 	struct iax2_registry *reg;
@@ -5522,6 +5531,8 @@ static void prune_peers(void);
 static int expire_registry(void *data)
 {
 	struct iax2_peer *p = data;
+
+	opbx_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
 	/* Reset the address */
 	memset(&p->addr, 0, sizeof(p->addr));
 	/* Reset expire notice */
@@ -5597,6 +5608,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 
 	memset(&ied, 0, sizeof(ied));
 
+	/* SLD: Another find_peer call during registration - this time when we are really updating our registration */
 	if (!(p = find_peer(name, 1))) {
 		opbx_log(LOG_WARNING, "No such peer '%s'\n", name);
 		return -1;
@@ -5687,6 +5699,7 @@ static int registry_authrequest(char *name, int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
+	/* SLD: third call to find_peer in registration */
 	p = find_peer(name, 1);
 	if (p) {
 		memset(&ied, 0, sizeof(ied));
@@ -7325,7 +7338,7 @@ retryowner2:
 					opbx_log(LOG_DEBUG, "Destroying call %d\n", fr.callno);
 				break;
 			case IAX_COMMAND_VNAK:
-				opbx_log(LOG_DEBUG, "Sending VNAK\n");
+				opbx_log(LOG_DEBUG, "Received VNAK: resending outstanding frames\n");
 				/* Force retransmission */
 				vnak_retransmit(fr.callno, fr.iseqno);
 				break;
@@ -7602,7 +7615,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 	/* Schedule the next registration attempt */
 	if (reg->expire > -1)
 		opbx_sched_del(sched, reg->expire);
-	/* Setup the registration a little early */
+	/* Setup the next registration a little early */
 	reg->expire  = opbx_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	/* Send the request */
 	memset(&ied, 0, sizeof(ied));
@@ -7882,7 +7895,7 @@ static void *network_thread(void *ignore)
 {
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
-	int res;
+	int res, count;
 	struct iax_frame *f, *freeme;
 	if (timingfd > -1)
 		opbx_io_add(io, timingfd, timing_read, OPBX_IO_IN | OPBX_IO_PRI, NULL);
@@ -7891,6 +7904,7 @@ static void *network_thread(void *ignore)
 		   sent, and scheduling retransmissions if appropriate */
 		opbx_mutex_lock(&iaxq.lock);
 		f = iaxq.head;
+		count = 0;
 		while(f) {
 			freeme = NULL;
 			if (!f->sentyet) {
@@ -7898,6 +7912,7 @@ static void *network_thread(void *ignore)
 				/* Send a copy immediately -- errors here are ok, so don't bother locking */
 				if (iaxs[f->callno]) {
 					send_packet(f);
+					count++;
 				} 
 				if (f->retries < 0) {
 					/* This is not supposed to be retransmitted */
@@ -7923,12 +7938,20 @@ static void *network_thread(void *ignore)
 				iax_frame_free(freeme);
 		}
 		opbx_mutex_unlock(&iaxq.lock);
+		if (count >= 20)
+			opbx_log(LOG_WARNING, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
+
+		/* Now do the IO, and run scheduled tasks */
 		res = opbx_sched_wait(sched);
 		if ((res > 1000) || (res < 0))
 			res = 1000;
 		res = opbx_io_wait(io, res);
 		if (res >= 0) {
-			opbx_sched_runq(sched);
+			if (res >= 20)
+				opbx_log(LOG_WARNING, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
+			count = opbx_sched_runq(sched);
+			if (count >= 20)
+				opbx_log(LOG_WARNING, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 		}
 	}
 	return NULL;
@@ -9248,12 +9271,14 @@ static int iax2_devicestate(void *data)
 	if (option_debug > 2)
 		opbx_log(LOG_DEBUG, "Checking device state for device %s\n", dest);
 
+	/* SLD: FIXME: second call to find_peer during registration */
 	p = find_peer(host, 1);
 	if (p) {
 		found++;
 		res = OPBX_DEVICE_UNAVAILABLE;
 		if (option_debug > 2) 
-			opbx_log(LOG_DEBUG, "Found peer. Now checking device state for peer %s\n", host);
+			opbx_log(LOG_DEBUG, "iax2_devicestate(%s): Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
+				host, dest, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 		    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {
