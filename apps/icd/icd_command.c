@@ -887,14 +887,14 @@ static void *icd_command_login_thread(void *arg) {
     app_icd__agent_exec(chan, buf);
     icd_caller__del_param(agent, "LogInProgress");
     opbx_log(LOG_NOTICE, "Agent login: External thread for Agent [%s] ending\n", agent_id);
-    icd_bridge__safe_hangup(agent);
+/*    icd_bridge__safe_hangup(agent);*/
     chan = icd_caller__get_channel(agent);
-/*    if(chan){
+    if(chan){
         icd_caller__stop_waiting(agent);
         opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
         opbx_hangup(chan);
         icd_caller__set_channel(agent, NULL);
-    }*/	
+    }	
 }
 
 int icd_command_login (int fd, int argc, char **argv)

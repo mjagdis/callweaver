@@ -376,7 +376,7 @@ int icd_bridge_wait_ack(icd_caller * that)
 //    usleep(100000);
     
     opbx_streamfile(chan, "queue-callswaiting", chan->language); 
-    sleep(5);
+//    sleep(5);
 //PF-test        
 //    opbx_set_write_format(chan, 8);
 	/* This is the wait loop for agents that requirement an acknowledgement  b4 we bridge the call */
