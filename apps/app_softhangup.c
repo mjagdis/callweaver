@@ -45,7 +45,7 @@ static char *synopsis = "Soft Hangup Application";
 
 static char *tdesc = "Hangs up the requested channel";
 
-static char *desc = "  SoftHangup(Technology/resource|options)\n"
+static char *desc = "  SoftHangup(|Technology/resource|options)\n"
 "Hangs up the requested channel.  Always returns 0\n"
 "- 'options' may contain the following letter:\n"
 "     'a' : hang up all channels on a specified device instead of a single resource\n";
@@ -65,7 +65,10 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 	int all = 0;
 	
 	if (opbx_strlen_zero(data)) {
-                opbx_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
+		if (chan){
+			opbx_log(LOG_WARNING, "Soft hanging %s up.\n",chan->name);
+			opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+		}
 		return 0;
 	}
 	
