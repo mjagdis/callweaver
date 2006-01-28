@@ -13,7 +13,11 @@ libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	ecdisa.h aesopt.h jitterbuf.h opbx_expr2.h
 nodist_libopenpbx_la_SOURCES = defaults.h
 
+if WANT_DEBUG
+libopenpbx_la_CFLAGS 	=  -D_REENTRANT -Wall -Wstrict-prototypes 
+else
 libopenpbx_la_CFLAGS 	=  -fomit-frame-pointer -D_REENTRANT -Wall -Wstrict-prototypes 
+endif
 libopenpbx_la_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
 libopenpbx_la_LIBADD	= -lspandsp -ltiff $(LIBLTDL) 
 libopenpbx_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@

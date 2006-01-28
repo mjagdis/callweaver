@@ -589,6 +589,7 @@ AC_ARG_ENABLE(debug,
 if test "${enable_debug}" = "yes"; then
    AC_DEFINE([DEBUG],[],[Enable extra debugging.])
 fi
+AM_CONDITIONAL([WANT_DEBUG],[test "${enable_debug}" = "yes"])
 
 dnl Enable debugging
 AC_ARG_ENABLE(debug-scheduler,

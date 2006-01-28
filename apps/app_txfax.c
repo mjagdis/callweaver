@@ -221,6 +221,10 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                 return -1;
             }
         }
+
+	memset(&fax, 0, sizeof(fax));
+	memset(&t38, 0, sizeof(t38));
+
         fax_init(&fax, calling_party, NULL);
         if (verbose)
             fax.t30_state.logging.level = SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW;
