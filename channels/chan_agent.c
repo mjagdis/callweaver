@@ -2326,7 +2326,11 @@ static void reload_agents(void)
 
 	opbx_mutex_lock(&agentlock);
 	for (entry = db_tree; entry; entry = entry->next) {
-		agent_num = entry->key + strlen(pa_family) + 2;
+        	if (!strncmp(entry->key, pa_family, strlen(pa_family))){
+                       agent_num = entry->key + strlen(pa_family) + 2;
+               	} else {
+                       agent_num = entry->key;
+	        }
 		cur_agent = agents;
 		while (cur_agent) {
 			opbx_mutex_lock(&cur_agent->lock);
