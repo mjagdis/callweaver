@@ -1,9 +1,10 @@
 /*
  * (CAPI*)
  *
- * An implementation of Common ISDN API 2.0 for Asterisk
+ * An implementation of Common ISDN API 2.0 for
+ * Asterisk / OpenPBX.org
  *
- * Copyright (C) 2005 Cytronics & Melware
+ * Copyright (C) 2005-2006 Cytronics & Melware
  *
  * Armin Schindler <armin@melware.de>
  * 
@@ -16,8 +17,8 @@
  * distributed under the terms of the GNU Public License.
  */
  
-#ifndef _ASTERISK_CAPI_H
-#define _ASTERISK_CAPI_H
+#ifndef _PBX_CAPI_H
+#define _PBX_CAPI_H
 
 #define CAPI_MAX_CONTROLLERS             16
 #define CAPI_MAX_B3_BLOCKS                7
@@ -25,27 +26,13 @@
 /* was : 130 bytes Alaw = 16.25 ms audio not suitable for VoIP */
 /* now : 160 bytes Alaw = 20 ms audio */
 /* you can tune this to your need. higher value == more latency */
-#define CAPI_MAX_B3_BLOCK_SIZE          160
+#define CAPI_MAX_B3_BLOCK_SIZE          172 /* 160 + RTP-Header */
 
 #define CAPI_BCHANS                     120
 #define ALL_SERVICES             0x1FFF03FF
 
 #define CAPI_ISDNMODE_MSN                 0
 #define CAPI_ISDNMODE_DID                 1
-
-/*
- * helper for opbx_verbose with different verbose settings
- */
-#define cc_verbose(o_v, c_d, text...)					\
-	do { 								\
-		if ((o_v == 0) || (option_verbose > o_v)) {		\
-			if ((!c_d) || ((c_d) && (capidebug))) {		\
-				opbx_mutex_lock(&verbose_lock);		\
-				opbx_verbose(text);			\
-				opbx_mutex_unlock(&verbose_lock);	\
-			}						\
-		}							\
-	} while(0)
 
 /* some helper functions */
 static inline void write_capi_word(void *m, unsigned short val)
@@ -67,7 +54,7 @@ static inline void write_capi_dword(void *m, unsigned int val)
 	((unsigned char *)m)[2] = (val >> 16) & 0xff;
 	((unsigned char *)m)[3] = (val >> 24) & 0xff;
 }
-static inline unsigned short read_capi_dword(void *m)
+static inline unsigned int read_capi_dword(void *m)
 {
 	unsigned int val;
 
@@ -77,24 +64,41 @@ static inline unsigned short read_capi_dword(void *m)
 }
 
 /*
- * PBX defines
+ * define some private functions
  */
-#define cc_mutex_lock(x) opbx_mutex_lock(x)
-#define cc_mutex_unlock(x) opbx_mutex_unlock(x)
-#define cc_log(x...) opbx_log(x)
+#define cc_mutex_t                opbx_mutex_t
+#define cc_mutex_init             opbx_mutex_init
+#define cc_mutex_lock(x)          opbx_mutex_lock(x)
+#define cc_mutex_unlock(x)        opbx_mutex_unlock(x)
+#define cc_copy_string(dst, src, size)  opbx_copy_string(dst, src, size)
+#define cc_log(x...)              opbx_log(x)
+#define cc_pbx_verbose(x...)      opbx_verbose(x)
 
 /*
- * Remenants of older pre-fork chan_capi here.
+ * helper for <pbx>_verbose with different verbose settings
  */
+#define cc_verbose(o_v, c_d, text...)					\
+	do { 								\
+		if ((o_v == 0) || (option_verbose > o_v)) {		\
+			if ((!c_d) || ((c_d) && (capidebug))) {		\
+				cc_mutex_lock(&verbose_lock);		\
+				cc_pbx_verbose(text);			\
+				cc_mutex_unlock(&verbose_lock);	\
+			}						\
+		}							\
+	} while(0)
 
-#define CC_CHANNEL_PVT(c) c->tech_pvt
-#define CC_OPBX_BRIDGED_CHANNEL(x) opbx_bridged_channel(x)
-#define CC_BRIDGE_RETURN enum opbx_bridge_result
 
-#ifndef OPBX_MUTEX_DEFINE_STATIC
-#define OPBX_MUTEX_DEFINE_STATIC(mutex)		\
-	static opbx_mutex_t mutex = OPBX_MUTEX_INITIALIZER
-#endif
+#define CC_CHANNEL_PVT(c) (c)->tech_pvt
+
+/*
+ * prototypes
+ */
+extern unsigned capi_ApplID;
+extern cc_mutex_t verbose_lock;
+extern int capidebug;
+extern MESSAGE_EXCHANGE_ERROR _capi_put_cmsg(_cmsg *CMSG);
+extern _cword get_capi_MessageNumber(void);
 
 /* FAX Resolutions */
 #define FAX_STANDARD_RESOLUTION         0
@@ -111,12 +115,14 @@ static inline unsigned short read_capi_dword(void *m)
 #define FAX_BINARY_FILE_TRANSFER_FORMAT 7
 
 /* Fax struct */
-typedef struct fax3proto3 {
+struct fax3proto3 {
 	unsigned char len;
-	unsigned short resolution __attribute__ ((packed));
-	unsigned short format __attribute__ ((packed));
-	unsigned char Infos[100] __attribute__ ((packed));
-} B3_PROTO_FAXG3;
+	unsigned short resolution;
+	unsigned short format;
+	unsigned char Infos[100];
+} __attribute__((__packed__));
+
+typedef struct fax3proto3 B3_PROTO_FAXG3;
 
 /* duration in ms for sending and detecting dtmfs */
 #define CAPI_DTMF_DURATION              0x40
@@ -128,10 +134,12 @@ typedef struct fax3proto3 {
 #define ECHO_EFFECTIVE_TX_COUNT         3 /* 2 x 20ms = 40ms == 40-100ms  ... ignore first 40ms */
 #define ECHO_TXRX_RATIO                 2.3 /* if( rx < (txavg/ECHO_TXRX_RATIO) ) rx=0; */
 
-#define FACILITYSELECTOR_DTMF              1
-#define FACILITYSELECTOR_SUPPLEMENTARY     3
-#define FACILITYSELECTOR_LINE_INTERCONNECT 5
-#define FACILITYSELECTOR_ECHO_CANCEL       8
+#define FACILITYSELECTOR_DTMF              0x0001
+#define FACILITYSELECTOR_SUPPLEMENTARY     0x0003
+#define FACILITYSELECTOR_LINE_INTERCONNECT 0x0005
+#define FACILITYSELECTOR_ECHO_CANCEL       0x0008
+#define FACILITYSELECTOR_FAX_OVER_IP       0x00fd
+#define FACILITYSELECTOR_VOICE_OVER_IP     0x00fe
 
 #define CC_HOLDTYPE_LOCAL               0
 #define CC_HOLDTYPE_HOLD                1
@@ -179,6 +187,7 @@ struct cc_capi_gains {
 #define CAPI_ISDN_STATE_DID           0x00000080
 #define CAPI_ISDN_STATE_B3_PEND       0x00000100
 #define CAPI_ISDN_STATE_B3_UP         0x00000200
+#define CAPI_ISDN_STATE_RTP           0x00000400
 #define CAPI_ISDN_STATE_PBX           0x80000000
 
 #define CAPI_CHANNELTYPE_B            0
@@ -186,7 +195,7 @@ struct cc_capi_gains {
 
 /* ! Private data for a capi device */
 struct capi_pvt {
-	opbx_mutex_t lock;
+	cc_mutex_t lock;
 	int fd;
 	int fd2;
 
@@ -208,7 +217,8 @@ struct capi_pvt {
 	unsigned long controllers;
 
 	/* send buffer */
-	unsigned char send_buffer[CAPI_MAX_B3_BLOCKS * CAPI_MAX_B3_BLOCK_SIZE];
+	unsigned char send_buffer[CAPI_MAX_B3_BLOCKS *
+		(CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET)];
 	unsigned short send_buffer_handle;
 
 	/* receive buffer */
@@ -220,12 +230,15 @@ struct capi_pvt {
 	/* the state of the line */
 	unsigned int isdnstate;
 	int cause;
+
+	/* which b-protocol is active */
+	int bproto;
 	
 	char context[OPBX_MAX_EXTENSION];
 	/*! Multiple Subscriber Number we listen to (, seperated list) */
 	char incomingmsn[CAPI_MAX_STRING];	
 	/*! Prefix to Build CID */
-	char prefix[OPBX_MAX_EXTENSION];
+	char prefix[OPBX_MAX_EXTENSION];	
 	/* the default caller id */
 	char defaultcid[CAPI_MAX_STRING];
 
@@ -292,7 +305,6 @@ struct capi_pvt {
 
 	/* outgoing queue count */
 	int B3q;
-	opbx_mutex_t lockB3q;
 
 	/* do ECHO SURPRESSION */
 	int ES;
@@ -310,6 +322,12 @@ struct capi_pvt {
 	unsigned int reason;
 	unsigned int reasonb3;
 
+	/* RTP */
+	struct opbx_rtp *rtp;
+	int capability;
+	int rtpcodec;
+	int codec;
+
 	/*! Next channel in list */
 	struct capi_pvt *next;
 };
@@ -326,10 +344,10 @@ struct cc_capi_profile {
 	unsigned int b3protocols;
 	unsigned int reserved3[6];
 	unsigned int manufacturer[5];
-};
+} __attribute__((__packed__));
 
 struct cc_capi_conf {
-	char name[CAPI_MAX_STRING];
+	char name[CAPI_MAX_STRING];	
 	char language[MAX_LANGUAGE];
 	char incomingmsn[CAPI_MAX_STRING];
 	char defaultcid[CAPI_MAX_STRING];
@@ -353,6 +371,8 @@ struct cc_capi_conf {
 	opbx_group_t group;
 	float rxgain;
 	float txgain;
+	struct opbx_codec_pref prefs;
+	int capability;
 };
 
 struct cc_capi_controller {
@@ -379,6 +399,8 @@ struct cc_capi_controller {
 	int MWI;
 	int CCNR;
 	int CONF;
+	/* RTP */
+	int rtpcodec;
 };
 
 

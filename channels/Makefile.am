@@ -21,7 +21,7 @@ endif WANT_CHAN_AGENT
 
 if WANT_CHAN_CAPI
 opbxmod_LTLIBRARIES  		+= chan_capi.la
-chan_capi_la_SOURCES 		= chan_capi.c c20msg.c
+chan_capi_la_SOURCES 		= chan_capi.c c20msg.c chan_capi_rtp.c
 chan_capi_la_LIBADD  		= -lcapi20 ${top_builddir}/corelib/libopenpbx.la
 chan_capi_la_LDFLAGS 		= -module -avoid-version -no-undefined
 endif WANT_CHAN_CAPI
