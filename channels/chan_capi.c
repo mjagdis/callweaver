@@ -33,7 +33,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 1.199 $")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 1.200 $")
 
 #include "openpbx/lock.h"
 #include "openpbx/frame.h" 
@@ -1324,7 +1324,7 @@ static int capi_write(struct opbx_channel *c, struct opbx_frame *f)
 		DATA_B3_REQ_DATA(&CMSG) = buf;
 		i->send_buffer_handle++;
 
-		if ((i->doES == 1)) {
+		if ((i->doES == 1) && (c->transfercapability != PRI_TRANS_CAP_DIGITAL)) {
 			for (j = 0; j < fsmooth->datalen; j++) {
 				buf[j] = reversebits[ ((unsigned char *)fsmooth->data)[j] ]; 
 				if (capi_capability == OPBX_FORMAT_ULAW) {
@@ -1339,7 +1339,7 @@ static int capi_write(struct opbx_channel *c, struct opbx_frame *f)
 			}
 			i->txavg[ECHO_TX_COUNT - 1] = txavg;
 		} else {
-			if (i->txgain == 1.0) {
+			if ((i->txgain == 1.0) || (c->transfercapability == PRI_TRANS_CAP_DIGITAL)) {
 				for (j = 0; j < fsmooth->datalen; j++) {
 					buf[j] = reversebits[((unsigned char *)fsmooth->data)[j]];
 				}
