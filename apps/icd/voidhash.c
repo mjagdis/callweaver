@@ -268,6 +268,7 @@ int vh_delete(void_hash_table * hash, char *name)
             ICD_STD_FREE(store);
 
             ret = 1;
+            break;
         }
         last = store;
         store = store->next;

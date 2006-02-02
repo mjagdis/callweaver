@@ -1261,9 +1261,9 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    else {
            icd_caller__set_active_member (agent, NULL); 
 	       icd_caller__remove_from_all_queues(agent); 
-      	   opbx_cli(fd,"icd queue OK! Agent[%s] added to all queues\n", agent_id);
+      	   opbx_cli(fd,"icd queue OK! Agent[%s] removed from all queues\n", agent_id);
            manager_event(EVENT_FLAG_USER, "icd_command",
-              	  "Command: Queue\r\nSubCommand: AddAll\r\nResult: OK\r\nCallerID: %s\r\n", 
+              	  "Command: Queue\r\nSubCommand: RemoveAll\r\nResult: OK\r\nCallerID: %s\r\n", 
                	  agent_id);
 	    }    
      return ICD_SUCCESS;
