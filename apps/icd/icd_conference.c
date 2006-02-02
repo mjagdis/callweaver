@@ -355,6 +355,7 @@ icd_status icd_conference__join(icd_caller * that)
     int icd_conf_format = OPBX_FORMAT_SLINEAR;
 
     int x;
+    int pseudo_fd=0;
     ZT_BUFFERINFO bi;
     char __buf[CONF_SIZE +  OPBX_FRIENDLY_OFFSET];
     char *buf = __buf +  OPBX_FRIENDLY_OFFSET;
@@ -401,6 +402,7 @@ icd_status icd_conference__join(icd_caller * that)
                 return ICD_STDERR;
             }
             x = 1;
+            pseudo_fd=1;
             /* Make non-blocking */
             flags = fcntl(fd, F_GETFL);
             if (flags < 0) {
@@ -460,6 +462,7 @@ icd_status icd_conference__join(icd_caller * that)
     if (opbx_set_write_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
+        if (pseudo_fd) close(fd);
         return ICD_STDERR;
     }
 
@@ -467,6 +470,7 @@ icd_status icd_conference__join(icd_caller * that)
     if (opbx_set_read_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
+        if (pseudo_fd) close(fd);
         return ICD_STDERR;
     }
 	
@@ -590,7 +594,8 @@ icd_status icd_conference__join(icd_caller * that)
             icd_caller__remove_all_associations(that);
     	}
     }
-    
+    if (pseudo_fd) close(fd);
+       
     return ICD_SUCCESS;
 }
 
