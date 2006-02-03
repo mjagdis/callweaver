@@ -225,10 +225,7 @@ int icd_command_cli(int fd, int argc, char **argv)
         func = icd_command_pointer("help");
 
     if (func != NULL) {
-        for (x = 1; x < argc; x++) {
-            mem += (strlen(argv[x]) + 1);
-        }
-        newargv = calloc(mem, 1);
+        newargv = malloc((argc - 1)*sizeof(char *));
 
         for (x = 1; x < argc; x++) {
             newargv[y] = malloc(strlen(argv[x]) + 1);
@@ -239,7 +236,7 @@ int icd_command_cli(int fd, int argc, char **argv)
         newargc = argc - 1;
         func(fd, newargc, newargv);
         y = 0;
-        for (x = 2; x < argc; x++) {
+        for (x = 1; x < argc; x++) {
             free(newargv[y++]);
         }
         free(newargv);

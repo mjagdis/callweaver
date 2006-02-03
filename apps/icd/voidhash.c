@@ -261,7 +261,10 @@ int vh_delete(void_hash_table * hash, char *name)
 
             if (last) {
                 last->next = store->next;
-            } else {
+            } else if(store->next){
+            	hash->data[key] = store->next;
+            }
+            else  {
                 hash->data[key] = (hash_storage *) vh_init_hash_storage();
             }
 
