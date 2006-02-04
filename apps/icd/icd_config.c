@@ -358,7 +358,7 @@ icd_config *icd_config__get_subset(icd_config * that, char *begin_key)
     subset = create_icd_config(that->registry, begin_key);
     while (icd_config_iterator__has_more(iter)) {
         curr_key = icd_config_iterator__next(iter);
-        if (strlen(curr_key) > begin_len && strncmp(curr_key, begin_key, begin_len)) {
+        if (strlen(curr_key) > begin_len && !strncmp(curr_key, begin_key, begin_len)) {
             icd_config__set_value(subset, &(curr_key[begin_len]), icd_config__get_value(that, curr_key));
         }
     }

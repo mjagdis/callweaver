@@ -737,8 +737,23 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
             }
         }
     } else {
-        icd_caller__add_to_queue((icd_caller *) customer, queue);
-        icd_caller__add_role((icd_caller *) customer, ICD_LOOPER_ROLE);
+        if(icd_list__size((icd_list *)icd_queue__get_customers(queue)) <= icd_list__count((icd_list *)icd_queue__get_customers(queue))){
+           opbx_log(LOG_ERROR, "No room in a queue [%s]\n", icd_queue__get_name(queue));
+	   manager_event(EVENT_FLAG_USER, "icd_event","CustomerCall: NoRoomInAQueue\r\n"
+	   "ID: %d\r\nCallerID: %s\r\nCallerName: %s\r\nQueue: %s\r\nCustomersInQueue: %d\r\nChannelUniqueID: %s\r\nChannelName: %s\r\n",
+	   icd_caller__get_id((icd_caller *)customer),
+	   icd_caller__get_caller_id((icd_caller *)customer), 
+	   icd_caller__get_name((icd_caller *)customer),
+	   icd_queue__get_name(queue),
+	   icd_list__count((icd_list *)icd_queue__get_customers(queue)),
+           chan ? chan->uniqueid : "nochan", 
+           chan ? chan->name : "nochan");
+	   return 1;
+	}
+	else{
+          icd_caller__add_to_queue((icd_caller *) customer, queue);
+          icd_caller__add_role((icd_caller *) customer, ICD_LOOPER_ROLE);
+	}
     }
 
     /* This becomes the thread to manage customer state and incoming stream */
@@ -757,6 +772,24 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
     	custname, cust_uniq_name?cust_uniq_name:"nochan", icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
 	}    
     icd_caller__loop((icd_caller *) customer, 0);
+/*Remove all spiers - muxmon */    
+    struct opbx_channel_spy *cptr=NULL;
+    int count=0;
+    while(opbx_mutex_trylock(&chan->lock)) {
+		count++;
+		if (count > 10) {
+                        opbx_log(LOG_ERROR, "Cannot Lock Channel!\n");
+			break;
+		}
+		usleep(1000);
+		sched_yield();
+    }
+    for(cptr=chan->spiers; cptr; cptr=cptr->next) {
+			cptr->status = CHANSPY_DONE;
+    }
+    opbx_mutex_unlock(&chan->lock);
+    usleep(10000);
+    
     if (cust_uniq_name) 
         icd_fieldset__remove_key(customers, cust_uniq_name);
     destroy_icd_customer(&customer);    /* TC always destroy the customer callers */
