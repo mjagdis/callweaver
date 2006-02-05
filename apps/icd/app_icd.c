@@ -787,8 +787,8 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
     for(cptr=chan->spiers; cptr; cptr=cptr->next) {
 			cptr->status = CHANSPY_DONE;
     }
+    chan->spiers = NULL;
     opbx_mutex_unlock(&chan->lock);
-    usleep(10000);
     
     if (cust_uniq_name) 
         icd_fieldset__remove_key(customers, cust_uniq_name);

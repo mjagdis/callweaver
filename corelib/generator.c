@@ -118,6 +118,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 /* Deactivate channel generator */
 void opbx_generator_deactivate(struct opbx_channel *chan)
 {
+	int i; 
 	struct opbx_generator_channel_data *pgcd = &chan->gcd;
 
 	/* In case the generator thread hasn't yet processed a
@@ -131,6 +132,20 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	pgcd->gen_req = gen_req_deactivate;
 	opbx_cond_signal(&pgcd->gen_req_cond);
 	opbx_mutex_unlock(&pgcd->lock);
+        /* Wait for the generator to deactivate */ 
+        sched_yield(); 
+         for (i = 0; i < GENERATOR_WAIT_ITERATIONS; i++) { 
+            if (!pgcd->gen_is_active) 
+               break; 
+             usleep(10000); 
+         }
+        if (pgcd->gen_is_active) { 
+             opbx_log(LOG_ERROR, "Generator still active on %s!!!\n",  
+                    chan->name);
+             return; 
+        }
+         opbx_log(LOG_DEBUG, "Generator on %s stopped after %d iterations\n", 
+                  chan->name, i);                                                	
 }
 
 /* Is channel generator active? */
@@ -180,7 +195,8 @@ static void *opbx_generator_thread(void *data)
 
 	/* Loop continuously until shutdown request is received */
 	opbx_mutex_lock(&pgcd->lock);
-	opbx_log(LOG_DEBUG, "Generator thread started.\n");
+    opbx_log(LOG_DEBUG, "Generator thread started on %s\n", 
+             chan->name); 
 	cur_gen_data = NULL;
 	cur_gen_samp = 0;
 	cur_gen_func = NULL;
@@ -272,7 +288,7 @@ static void *opbx_generator_thread(void *data)
 	}
 
 	/* Got request to shutdown. */
-	opbx_log(LOG_DEBUG, "Generator thread shut down.\n");
+    opbx_log(LOG_DEBUG, "Generator thread shut down on %s\n", chan->name); 
 	opbx_mutex_unlock(&pgcd->lock);
 	return NULL;
 }
