@@ -582,6 +582,7 @@ icd_status icd_conference__join(icd_caller * that)
                 opbx_log(LOG_WARNING, "This is not supposed to happen. Conference owner name[%s] callerid[%s] leaves before members waiting over 10s for members lo leave.\n", 
                 icd_caller__get_name(that), icd_caller__get_caller_id(that));
             	icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_CALL_END);
+            	usleep(100000);
                 icd_caller__remove_all_associations(that);
             } 	
     	}
