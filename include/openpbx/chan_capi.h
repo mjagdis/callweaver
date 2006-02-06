@@ -26,7 +26,7 @@
 /* was : 130 bytes Alaw = 16.25 ms audio not suitable for VoIP */
 /* now : 160 bytes Alaw = 20 ms audio */
 /* you can tune this to your need. higher value == more latency */
-#define CAPI_MAX_B3_BLOCK_SIZE          172 /* 160 + RTP-Header */
+#define CAPI_MAX_B3_BLOCK_SIZE          160
 
 #define CAPI_BCHANS                     120
 #define ALL_SERVICES             0x1FFF03FF
@@ -99,6 +99,13 @@ extern cc_mutex_t verbose_lock;
 extern int capidebug;
 extern MESSAGE_EXCHANGE_ERROR _capi_put_cmsg(_cmsg *CMSG);
 extern _cword get_capi_MessageNumber(void);
+
+/*
+ * B protocol settings
+ */
+#define CC_BPROTO_TRANSPARENT   0
+#define CC_BPROTO_FAXG3         1
+#define CC_BPROTO_RTP           2
 
 /* FAX Resolutions */
 #define FAX_STANDARD_RESOLUTION         0
@@ -187,7 +194,8 @@ struct cc_capi_gains {
 #define CAPI_ISDN_STATE_DID           0x00000080
 #define CAPI_ISDN_STATE_B3_PEND       0x00000100
 #define CAPI_ISDN_STATE_B3_UP         0x00000200
-#define CAPI_ISDN_STATE_RTP           0x00000400
+#define CAPI_ISDN_STATE_B3_CHANGE     0x00000400
+#define CAPI_ISDN_STATE_RTP           0x00000800
 #define CAPI_ISDN_STATE_PBX           0x80000000
 
 #define CAPI_CHANNELTYPE_B            0
@@ -301,7 +309,6 @@ struct capi_pvt {
 
 	/* not all codecs supply frames in nice 160 byte chunks */
 	struct opbx_smoother *smoother;
-	/* ok, we stop to be nice and give them the lowest possible latency 130 samples * 2 = 260 bytes */
 
 	/* outgoing queue count */
 	int B3q;
