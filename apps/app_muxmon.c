@@ -106,6 +106,8 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 	int count = 0;
 
 	if (chan) {
+		if(chan->spiers == NULL)
+		   return;
 		while(opbx_mutex_trylock(&chan->lock)) {
 			if (chan->spiers == spy) {
 				chan->spiers = NULL;
@@ -220,6 +222,7 @@ static void *muxmon_thread(void *obj)
 	memset(&spy, 0, sizeof(spy));
 	spy.status = CHANSPY_RUNNING;
 	opbx_mutex_init(&spy.lock);
+	spy.next = NULL;
 	startmon(muxmon->chan, &spy);
 	if (opbx_test_flag(muxmon, MUXFLAG_RUNNING)) {
 		if (option_verbose > 1) {
