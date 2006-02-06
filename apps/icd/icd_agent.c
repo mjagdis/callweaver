@@ -389,7 +389,7 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
     /*things to do with agents at call end, this is not for use for Fail states */
     if (that->associations != NULL){
     	iter = icd_list__get_iterator((icd_list *) (that->associations));
-      	while (cd_list_iterator__has_more(iter)) {
+      	while (icd_list_iterator__has_more(iter)) {
 			associate = (icd_caller *) icd_list_iterator__next(iter);
 			if(!associate) 
 			   break;			
