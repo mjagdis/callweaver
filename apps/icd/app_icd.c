@@ -784,9 +784,14 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
 		usleep(1000);
 		sched_yield();
     }
-    for(cptr=chan->spiers; cptr; cptr=cptr->next) {
+/* This should work, but it happens that chan->spiers->next is a strange pointer */    
+/*    for(cptr=chan->spiers; cptr; cptr=cptr->next) {
 			cptr->status = CHANSPY_DONE;
     }
+*/
+/* This is not wise but it will work till fixing problem */
+    if(chan->spiers) chan->spiers->status = CHANSPY_DONE;
+  
     chan->spiers = NULL;
     usleep(100000);
     opbx_mutex_unlock(&chan->lock);
