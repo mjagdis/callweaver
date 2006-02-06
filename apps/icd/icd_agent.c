@@ -389,8 +389,7 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
     /*things to do with agents at call end, this is not for use for Fail states */
     if (that->associations != NULL){
     	iter = icd_list__get_iterator((icd_list *) (that->associations));
-      	while (icd_list_iterator__has_more(iter)) {
-        	associate = (icd_caller *) icd_list_iterator__next(iter);
+      	while (associate = (icd_caller *) icd_list_iterator__next(iter)) {
 			state = icd_caller__get_state(associate);
 			if((state == ICD_CALLER_STATE_CONFERENCED) || (state == ICD_CALLER_STATE_BRIDGED)){ 
            		result = icd_caller__set_state(associate, ICD_CALLER_STATE_CALL_END);
