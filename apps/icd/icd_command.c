@@ -1242,18 +1242,30 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    }
 	    else { 
 	      long waitloop=0;
-	      while( (icd_caller__get_state(agent) ==  ICD_CALLER_STATE_DISTRIBUTING) ||
-	             (icd_caller__get_state(agent) ==  ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)){
+	      for (waitloop=0; waitloop < 50000; waitloop++){
+	        if((icd_caller__get_state(agent) !=  ICD_CALLER_STATE_DISTRIBUTING) &&
+	             (icd_caller__get_state(agent) !=  ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)){
+                   if (icd_caller__lock(agent) == ICD_SUCCESS) {
+		   /* Now - when agent is locked - state change is impossible, but current state can be different - check needed*/
+	             if((icd_caller__get_state(agent) !=  ICD_CALLER_STATE_DISTRIBUTING) &&
+	                (icd_caller__get_state(agent) !=  ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)){
+		        break;
+		      }
+		      else{
+		        icd_caller__unlock(agent);
+		      }
+		    }
+		 }      
 		usleep(1000);    
-		waitloop++;
-		if (waitloop > 50000){
+	      }
+ 	      if (waitloop >= 50000){
             	   opbx_cli(fd,"Icd remove from queue [%s] failed! Waiting too long for agent[%s] to be in appropriate state\n", queuename, agent_id );
             	   manager_event(EVENT_FLAG_USER, "icd_command",
                    "Command: Queue\r\nSubCommand: Remove\r\nResult: Fail\r\nCause: Waiting too long for caller state\r\nCallerID: %s\r\nQueue: %s\r\n", 
                   agent_id, queuename);
 		  return 1;
-		}   
-              }
+	      }   
+
 	      if(queue){ 
 	       if(agent->memberships) 
 	           if(member = icd_member_list__get_for_queue(agent->memberships, queue)){ 
@@ -1275,6 +1287,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
               	  "Command: Queue\r\nSubCommand: RemoveAll\r\nResult: OK\r\nCallerID: %s\r\n", 
                	  agent_id);
 	    }
+            icd_caller__unlock(agent);
 	}        
      return 0;
 	 

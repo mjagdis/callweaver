@@ -788,6 +788,7 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
 			cptr->status = CHANSPY_DONE;
     }
     chan->spiers = NULL;
+    usleep(100000);
     opbx_mutex_unlock(&chan->lock);
     
     if (cust_uniq_name) 
