@@ -42,6 +42,8 @@ void opbx_slinfactory_init(struct opbx_slinfactory *sf)
 	memset(sf, 0, sizeof(struct opbx_slinfactory));
 	sf->offset = sf->hold;
 	sf->queue = NULL;
+	opbx_mutex_init(&(sf->lock));
+
 }
 
 void opbx_slinfactory_destroy(struct opbx_slinfactory *sf) 
@@ -57,6 +59,8 @@ void opbx_slinfactory_destroy(struct opbx_slinfactory *sf)
 		sf->queue = f->next;
 		opbx_frfree(f);
 	}
+	opbx_mutex_destroy(&(sf->lock));
+
 }
 
 int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
@@ -66,7 +70,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 	if (!f) {
 		return 0;
 	}
-
+	opbx_mutex_lock(&(sf->lock));
 	if (f->subclass != OPBX_FORMAT_SLINEAR) {
 		if (sf->trans && f->subclass != sf->format) {
 			opbx_translator_free_path(sf->trans);
@@ -75,6 +79,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 		if (!sf->trans) {
 			if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, f->subclass)) == NULL) {
 				opbx_log(LOG_WARNING, "Cannot build a path from %s to slin\n", opbx_getformatname(f->subclass));
+				opbx_mutex_unlock(&(sf->lock));
 				return 0;
 			} else {
 				sf->format = f->subclass;
@@ -99,9 +104,11 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 			sf->queue = frame;
 		}
 		frame->next = NULL;
-		sf->size += frame->datalen;	
+		sf->size += frame->datalen;
+		opbx_mutex_unlock(&(sf->lock));
 		return x;
 	}
+	opbx_mutex_unlock(&(sf->lock));
 
 	return 0;
 	
@@ -112,6 +119,8 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 	struct opbx_frame *frame_ptr;
 	size_t sofar = 0, ineed, remain;
 	short *frame_data, *offset = buf;
+	
+	opbx_mutex_lock(&(sf->lock));
 
 	while (sofar < bytes) {
 		ineed = bytes - sofar;
@@ -156,6 +165,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 	}
 
 	sf->size -= sofar;
+	opbx_mutex_unlock(&(sf->lock));
 	return sofar;
 }
 

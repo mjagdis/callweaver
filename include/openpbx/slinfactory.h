@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include "openpbx/lock.h"
+
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -40,6 +42,8 @@ struct opbx_slinfactory {
 	size_t holdlen;
 	int size;
 	int format;
+	opbx_mutex_t lock;
+
 };
 
 void opbx_slinfactory_init(struct opbx_slinfactory *sf);
