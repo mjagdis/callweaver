@@ -26,6 +26,8 @@
 #ifndef _OPENPBX_GENERATOR_H
 #define _OPENPBX_GENERATOR_H
 
+#define GENERATOR_WAIT_ITERATIONS 100
+
 /*! Data structure used to register new generator */
 struct opbx_generator {
 	void *(*alloc)(struct opbx_channel *chan, void *params);

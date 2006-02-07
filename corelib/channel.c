@@ -1489,8 +1489,8 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) || opbx_check_hangup(chan)) {
-		opbx_generator_deactivate(chan);
 		opbx_mutex_unlock(&chan->lock);
+		opbx_generator_deactivate(chan);
 		return NULL;
 	}
 	prestate = chan->_state;
