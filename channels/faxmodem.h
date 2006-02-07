@@ -14,6 +14,14 @@
 #ifndef _FAXMODEM_H
 #define _FAXMODEM_H
 
+; Change the ring strategy, default is 'first-free'
+; ring-strategy = first-free
+; ring-strategy = roundrobin
+
+; Change the ring strategy, default is 'first-free'
+; ring-strategy = first-free
+; ring-strategy = roundrobin
+
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
@@ -92,7 +100,7 @@ struct faxmodem {
 char *faxmodem_state2name(int state);
 void faxmodem_clear_logger(void);
 void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info);
-int faxmodem_close(struct faxmodem *fm);
+int faxmodem_close(volatile struct faxmodem *fm);
 int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handler, const char *device_prefix);
 
 

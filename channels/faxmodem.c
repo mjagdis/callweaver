@@ -93,9 +93,11 @@ void faxmodem_set_logger(faxmodem_logger_t logger, int err, int warn, int info)
 	LOGGER.info = info;
 }
 
-int faxmodem_close(struct faxmodem *fm) 
+int faxmodem_close(volatile struct faxmodem *fm) 
 {
 	int r = 0;
+
+	faxmodem_clear_flag(fm, FAXMODEM_FLAG_RUNNING);
 
 	if (fm->master > -1) {
 		close(fm->master);
@@ -108,8 +110,6 @@ int faxmodem_close(struct faxmodem *fm)
 		fm->slave = -1;
 		r++;
 	}
-
-	faxmodem_clear_flag(fm, FAXMODEM_FLAG_RUNNING);
 
 	REF_COUNT--;
 	return r;
