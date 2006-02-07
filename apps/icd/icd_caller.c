@@ -2096,7 +2096,8 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
 
     /* clear all association b4 push onto Distributor since dist will set associations */
     icd_caller__remove_all_associations(that);
-
+    /* lock to avoid bad interraction with async remove from queue command */ 
+    icd_caller__lock(that);    
     iter = icd_list__get_iterator((icd_list *) (that->memberships));
     while (icd_list_iterator__has_more(iter)) {
         member = (icd_member *) icd_list_iterator__next(iter);
@@ -2117,6 +2118,7 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
         }
     }
     destroy_icd_list_iterator(&iter);
+    icd_caller__unlock(that);
 
     /* You play hold music and listen on channel for offhook only */
     if (icd_caller__get_onhook(that)) {
