@@ -14,14 +14,6 @@
 #ifndef _FAXMODEM_H
 #define _FAXMODEM_H
 
-; Change the ring strategy, default is 'first-free'
-; ring-strategy = first-free
-; ring-strategy = roundrobin
-
-; Change the ring strategy, default is 'first-free'
-; ring-strategy = first-free
-; ring-strategy = roundrobin
-
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
