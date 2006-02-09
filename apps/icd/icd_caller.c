@@ -3408,9 +3408,10 @@ icd_status icd_caller__set_state_on_associations(icd_caller * that, icd_caller_s
     iter = icd_list__get_iterator((icd_list *) (that->associations));
 
     while (icd_list_iterator__has_more(iter)) {
-
+        
         associate = (icd_caller *) icd_list_iterator__next(iter);
-        result = icd_caller__set_state(associate, state);
+	if (associate != NULL)
+            result = icd_caller__set_state(associate, state);
 
         if (result != ICD_SUCCESS) {
 
