@@ -1230,15 +1230,25 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    }  	 
 	    opbx_log(LOG_NOTICE, "Agent [%s] will %s the queue [%s]\n", agent_id, remove?"leave":"join", queuename); 
             if(!remove){ 
+              if (icd_caller__lock(agent) == ICD_SUCCESS) {
  	        icd_caller__add_to_queue(agent, queue); 
 	        member = icd_member_list__get_for_queue(agent->memberships, queue); 
 	        if(member){ 
 	                 icd_queue__agent_distribute(queue, member); 
-	        } 
+	        }
+		icd_caller__unlock(agent);
                 opbx_cli(fd,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
                  manager_event(EVENT_FLAG_USER, "icd_command",
                	  "Command: Queue\r\nSubCommand: Add\r\nResult: OK\r\nCallerID: %s\r\nQueue: %s\r\n", 
                 agent_id, queuename);
+		}
+		else{
+            	opbx_cli(fd,"icd queue FAILURE! Cannot lock agent[%s], Queue[%s]\n", agent_id, queuename);
+            	manager_event(EVENT_FLAG_USER, "icd_command",
+                	"Command: Queue\r\nResult: Fail\r\nCause: Agent lock failure\r\nCallerID: %s\r\nQueue: %s\r\n", agent_id, queuename);
+	        	return 1;
+		
+		}
 	    }
 	    else { 
 	      long waitloop=0;
