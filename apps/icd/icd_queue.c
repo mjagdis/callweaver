@@ -350,6 +350,8 @@ icd_status icd_queue__calc_holdtime(icd_queue * that)
     while (icd_list_iterator__has_more(iter)) {
         member = (icd_member *) icd_list_iterator__next(iter);
         caller = icd_member__get_caller(member);
+	if(caller == NULL) 
+		continue;
         start = icd_caller__get_start(caller);
         time(&now);
         total += (now - start) / 60;
