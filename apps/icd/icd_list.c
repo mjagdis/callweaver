@@ -839,6 +839,19 @@ int icd_list_iterator__has_more(icd_list_iterator * that)
     return (that->next != NULL);
 }
 
+/* Indicates whether there are more elements in the list. */
+int icd_list_iterator__has_more_nolock(icd_list_iterator * that)
+{
+    assert(that != NULL);
+    if (!that->next || !that->parent) {
+        return 0;
+    }
+    if (that && that->next && that->next->state && that->next->state != ICD_NODE_STATE_USED && that->curr
+        && that->curr->state && that->curr->state == ICD_NODE_STATE_USED) {
+        that->next = that->curr->next;
+    }
+    return (that->next != NULL);
+}
 /* Returns the next element from the list. */
 void *icd_list_iterator__next(icd_list_iterator * that)
 {

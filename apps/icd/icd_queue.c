@@ -346,8 +346,9 @@ icd_status icd_queue__calc_holdtime(icd_queue * that)
     int old = 0, new = 0;
 
     old = icd_queue__get_holdannounce_holdtime(that);
+    icd_list__lock((icd_list *) (that->customers));
     iter = icd_list__get_iterator((icd_list *) (that->customers));
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         member = (icd_member *) icd_list_iterator__next(iter);
         caller = icd_member__get_caller(member);
 	if(caller == NULL) 
@@ -357,6 +358,7 @@ icd_status icd_queue__calc_holdtime(icd_queue * that)
         total += (now - start) / 60;
         count++;
     }
+    icd_list__unlock((icd_list *) (that->customers));
     new = (total < 1 || count < 1) ? 0 : (int) (total / count);
     if (new != old) {
         opbx_verbose("== APP_ICD: Setting hold time to %d minutes for queue %s == \n", new,
@@ -477,7 +479,7 @@ int icd_queue__agent_active_count(icd_queue * that)
     
     icd_list__lock((icd_list *) (that->agents));
     iter = icd_list__get_iterator((icd_list *) (that->agents));
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         member = (icd_member *) icd_list_iterator__next(iter);
         caller = icd_member__get_caller(member);
 	if((icd_caller__get_state(caller) != ICD_CALLER_STATE_INITIALIZED) 

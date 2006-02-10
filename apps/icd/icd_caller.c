@@ -673,13 +673,15 @@ icd_status icd_caller__clear_suspend(icd_caller * that)
     icd_caller__set_active_member(that, NULL);
     if (that->memberships != NULL) {
 //        icd_caller__remove_from_all_queues(that);
+       icd_list__lock((icd_list *) (that->memberships));
        iter = icd_list__get_iterator((icd_list *) (that->memberships));
-       while (icd_list_iterator__has_more(iter)) {
+       while (icd_list_iterator__has_more_nolock(iter)) {
              member = (icd_member *) icd_list_iterator__next(iter);
 	     queue = icd_member__get_queue(member);
 	     if (queue)
                  icd_queue__agent_dist_quit(queue, member);		     
         }
+        icd_list__unlock((icd_list *) (that->memberships));
         destroy_icd_list_iterator(&iter);
     }	
 
@@ -2097,9 +2099,9 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
     /* clear all association b4 push onto Distributor since dist will set associations */
     icd_caller__remove_all_associations(that);
     /* lock to avoid bad interraction with async remove from queue command */ 
-    icd_caller__lock(that);    
+    icd_list__lock((icd_list *) (that->memberships));
     iter = icd_list__get_iterator((icd_list *) (that->memberships));
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         member = (icd_member *) icd_list_iterator__next(iter);
         if (that->require_pushback && member == that->active_member) {
             if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)) {
@@ -2118,7 +2120,7 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
         }
     }
     destroy_icd_list_iterator(&iter);
-    icd_caller__unlock(that);
+    icd_list__unlock((icd_list *) (that->memberships));
 
     /* You play hold music and listen on channel for offhook only */
     if (icd_caller__get_onhook(that)) {
@@ -2209,10 +2211,11 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
 //            	if(that->entertained) 
 //                      icd_caller__stop_waiting(that);
 			/* Check if any customer has an NO_ACK -param. In that case now akcnowledgment waiting is needed */ 		       
+ 	                icd_list__lock((icd_list *) (that->associations));
         		iter = icd_list__get_iterator((icd_list *) (that->associations));
         		int ack_wait = 1;
         		char *no_ack;
-        		while (icd_list_iterator__has_more(iter)) {
+        		while (icd_list_iterator__has_more_nolock(iter)) {
             		associate = (icd_caller *) icd_list_iterator__next(iter);
     				no_ack = icd_caller__get_param(associate, "no_ack");
     				if (no_ack != NULL)
@@ -2222,6 +2225,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     				}
         		}
         		destroy_icd_list_iterator(&iter);
+ 	                icd_list__unlock((icd_list *)(that->associations));
 				if(ack_wait){			
 		    		res = icd_bridge_wait_ack(that);  
 		    		if (res)
@@ -2240,9 +2244,10 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
         config = create_icd_config(app_icd_config_registry, "caller");
         live_associations = create_icd_list(config);
         destroy_icd_config(&config);
+        icd_list__lock((icd_list *) (that->associations));
         iter = icd_list__get_iterator((icd_list *) (that->associations));
 
-        while (icd_list_iterator__has_more(iter)) {
+        while (icd_list_iterator__has_more_nolock(iter)) {
 
             associate = (icd_caller *) icd_list_iterator__next(iter);
                 opbx_log(LOG_WARNING, "\nCallers %d and %d are about to be bridged\n", icd_caller__get_id(that),
@@ -2270,6 +2275,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
         }
 
         destroy_icd_list_iterator(&iter);
+        icd_list__unlock((icd_list *) (that->associations));
 
         /* Atleast one association is up. */
         link_count = icd_list__count(live_associations);
@@ -3304,8 +3310,9 @@ icd_status icd_caller__return_to_distributors(icd_caller * that)
     assert(that->memberships != NULL);
 
     final_result = ICD_SUCCESS;
+    icd_list__lock((icd_list *) (that->memberships));
     iter = icd_list__get_iterator((icd_list *) (that->memberships));
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         member = icd_list_iterator__next(iter);
         queue = icd_member__get_queue(member);
         if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
@@ -3318,6 +3325,7 @@ icd_status icd_caller__return_to_distributors(icd_caller * that)
         }
     }
     destroy_icd_list_iterator(&iter);
+    icd_list__unlock((icd_list *) (that->memberships));
     return final_result;
 }
 
@@ -3405,9 +3413,10 @@ icd_status icd_caller__set_state_on_associations(icd_caller * that, icd_caller_s
     assert(that != NULL);
     assert(that->associations != NULL);
 
+    icd_list__lock((icd_list *) (that->associations));
     iter = icd_list__get_iterator((icd_list *) (that->associations));
 
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         
         associate = (icd_caller *) icd_list_iterator__next(iter);
 	if (associate != NULL)
@@ -3419,6 +3428,7 @@ icd_status icd_caller__set_state_on_associations(icd_caller * that, icd_caller_s
         }
     }
     destroy_icd_list_iterator(&iter);
+    icd_list__lock((icd_list *) (that->associations));
     return result;
 }
 

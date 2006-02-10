@@ -226,6 +226,9 @@ extern "C" {
 /* Indicates whether there are more elements in the list. */
     int icd_list_iterator__has_more(icd_list_iterator * that);
 
+/* Indicates whether there are more elements in the list. */
+    int icd_list_iterator__has_more_nolock(icd_list_iterator * that);
+
 /* Returns the next element from the list. */
     void *icd_list_iterator__next(icd_list_iterator * that);
 
