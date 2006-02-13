@@ -72,6 +72,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <regex.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
@@ -2137,6 +2138,14 @@ int openpbx_main(int argc, char *argv[])
 	}
 
 #endif
+
+	/* after set*id() the dumpable flag is deleted,
+	   so we set it again to get core dumps */
+	if (option_dumpcore) {
+		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) == -1) {
+			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
+		}
+	}
 
 	opbx_term_init();
 	printf(opbx_term_end());
