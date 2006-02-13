@@ -371,16 +371,12 @@ int icd_bridge_wait_ack(icd_caller * that)
 /*Prepare to extern ackowledgement */    
     icd_caller__clear_flag(that, ICD_ACK_EXTERN_FLAG);
     icd_caller__stop_waiting(that);
-//PF-test    
-//    icd_caller__play_sound_file(that,   "queue-callswaiting");
-//    usleep(100000);
     
-    opbx_streamfile(chan, "queue-callswaiting", chan->language); 
-//    sleep(5);
-//PF-test        
-//    opbx_set_write_format(chan, 8);
+    res = icd_bridge__play_sound_file(chan, "queue-callswaiting"); 
+
 	/* This is the wait loop for agents that requirement an acknowledgement  b4 we bridge the call */
-    for (;;) {
+	if(!res){
+      for (;;) {
             if (!(icd_caller__get_state(that) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)) {
                 result = -1;
                 break;
@@ -408,7 +404,8 @@ int icd_bridge_wait_ack(icd_caller * that)
                 result = -1;
                 break;
 	    }	
-    }
+      }
+	}
 
     if (result < 0) {
 //           icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);

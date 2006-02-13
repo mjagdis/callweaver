@@ -3428,7 +3428,7 @@ icd_status icd_caller__set_state_on_associations(icd_caller * that, icd_caller_s
         }
     }
     destroy_icd_list_iterator(&iter);
-    icd_list__lock((icd_list *) (that->associations));
+    icd_list__unlock((icd_list *) (that->associations));
     return result;
 }
 
