@@ -435,6 +435,12 @@ void *icd_list__pop(icd_list * that)
     }
 
     if (icd_list__lock(that) == ICD_SUCCESS) {
+    /*In the meantime node could become invalid */
+        node = that->head;
+        if (node == NULL) {
+           icd_list__unlock(that);
+           return NULL;
+        }
         that->head = node->next;
         that->count--;
         retval = node->payload;
