@@ -2200,7 +2200,7 @@ int openpbx_main(int argc, char *argv[])
 		opbx_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)opbx_config_OPBX_PID, strerror(errno));
 
 	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
-		daemon(0,0);
+		daemon(1,0);
 		/* Blindly re-write pid file since we are forking */
 		unlink((char *)opbx_config_OPBX_PID);
 		f = fopen((char *)opbx_config_OPBX_PID, "w");
