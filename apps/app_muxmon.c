@@ -117,6 +117,7 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 			count++;
 			if (count > 10) {
 			    opbx_log(LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
+			    chan->spiers = NULL;
 				return;
 			}
 			sched_yield();

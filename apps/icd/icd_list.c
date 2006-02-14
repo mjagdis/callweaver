@@ -543,21 +543,27 @@ int icd_list__position(icd_list * that, void *target)
 
     assert(that != NULL);
 
+    if (icd_list__lock(that) != ICD_SUCCESS) {
+       return -1;
+    }
     iter = icd_list__get_node_iterator(that);
     if (iter == NULL) {
+        icd_list__unlock(that);
         return -1;
     }
     count = 0;
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         node = icd_list_iterator__next(iter);
         payload = icd_list__get_payload(node);
         if (payload == target) {
             destroy_icd_list_iterator(&iter);
+            icd_list__unlock(that);
             return count;
         }
         count++;
     }
     destroy_icd_list_iterator(&iter);
+    icd_list__unlock(that);
     return -1;
 }
 
@@ -1083,19 +1089,25 @@ icd_list_node *icd_list__fetch_node(icd_list * that, void *key, int (*match_fn) 
     assert(that != NULL);
     assert(match_fn != NULL);
 
+    if (icd_list__lock(that) != ICD_SUCCESS) {
+            return NULL;
+    }
     iter = icd_list__get_node_iterator(that);
     if (iter == NULL) {
+        icd_list__unlock(that);
         return NULL;
     }
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         node = icd_list_iterator__next(iter);
         payload = icd_list__get_payload(node);
         if (match_fn(key, payload)) {
             destroy_icd_list_iterator(&iter);
+            icd_list__unlock(that);
             return node;
         }
     }
     destroy_icd_list_iterator(&iter);
+    icd_list__unlock(that);
     return NULL;
 }
 
@@ -1126,11 +1138,15 @@ icd_status icd_list__drop_node(icd_list * that, void *key, int (*match_fn) (void
     assert(that != NULL);
     assert(match_fn != NULL);
 
+    if (icd_list__lock(that) != ICD_SUCCESS) {
+            return ICD_ELOCK;
+    }
     iter = icd_list__get_node_iterator((icd_list *) that);
     if (iter == NULL) {
+        icd_list__unlock(that);
         return ICD_ERESOURCE;
     }
-    while (icd_list_iterator__has_more(iter)) {
+    while (icd_list_iterator__has_more_nolock(iter)) {
         node = icd_list_iterator__next(iter);
         payload = icd_list__get_payload(node);
         if (match_fn(key, payload)) {
@@ -1138,29 +1154,28 @@ icd_status icd_list__drop_node(icd_list * that, void *key, int (*match_fn) (void
             vetoed = icd_event__notify(ICD_EVENT_REMOVE, node->payload, that->del_fn, that->del_fn_extra);
             if (vetoed == ICD_EVETO) {
                 opbx_log(LOG_NOTICE, "Removal of Node from ICD List %s has been vetoed\n", icd_list__get_name(that));
+                icd_list__unlock(that);
                 return ICD_EVETO;
             }
 
-            if (icd_list__lock(that) == ICD_SUCCESS) {
-                if (that->head == node) {
+            if (that->head == node) {
                     that->head = node->next;
-                }
-                if (that->tail == node) {
-                    that->tail = prevnode;
-                }
-                if (prevnode != NULL) {
-                    prevnode->next = node->next;
-                }
-                that->count--;
-                icd_list__free_node(that, node);
-                icd_list__unlock(that);
-                return ICD_SUCCESS;
             }
-            return ICD_ELOCK;
+            if (that->tail == node) {
+                    that->tail = prevnode;
+            }
+            if (prevnode != NULL) {
+                    prevnode->next = node->next;
+            }
+            that->count--;
+            icd_list__free_node(that, node);
+            icd_list__unlock(that);
+            return ICD_SUCCESS;
         }
         prevnode = node;
     }
     destroy_icd_list_iterator(&iter);
+    icd_list__unlock(that);
     return ICD_ENOTFOUND;
 }
 
