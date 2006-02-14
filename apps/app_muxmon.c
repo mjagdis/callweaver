@@ -109,12 +109,14 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 		if(chan->spiers == NULL)
 		   return;
 		while(opbx_mutex_trylock(&chan->lock)) {
-			if (chan->spiers == spy) {
+/*			if (chan->spiers == spy) {
 				chan->spiers = NULL;
 				return;
 			}
+*/			
 			count++;
 			if (count > 10) {
+			    opbx_log(LOG_ERROR, "Muxmon - unable to lock channel to stopmon \n");
 				return;
 			}
 			sched_yield();
@@ -126,7 +128,8 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 					prev->next = cptr->next;
 					cptr->next = NULL;
 				} else
-					chan->spiers = NULL;
+					chan->spiers = cptr->next;
+					cptr->next = NULL;
 			}
 			prev = cptr;
 		}
@@ -221,8 +224,8 @@ static void *muxmon_thread(void *obj)
 
 	memset(&spy, 0, sizeof(spy));
 	spy.status = CHANSPY_RUNNING;
-	opbx_mutex_init(&spy.lock);
 	spy.next = NULL;
+	opbx_mutex_init(&spy.lock);
 	startmon(muxmon->chan, &spy);
 	if (opbx_test_flag(muxmon, MUXFLAG_RUNNING)) {
 		if (option_verbose > 1) {
@@ -336,7 +339,9 @@ static void *muxmon_thread(void *obj)
 		muxmon->post_process = NULL;
 	}
 /* In case of channel hangup - this is dangerous. Cli stop command do clearing */
-/*	stopmon(muxmon->chan, &spy);   */
+	if(spy.status == CHANSPY_RUNNING){
+    	 stopmon(muxmon->chan, &spy);  
+	}
 	if (option_verbose > 1) {
 		opbx_verbose(VERBOSE_PREFIX_2 "Finished Recording %s\n", name);
 	}
