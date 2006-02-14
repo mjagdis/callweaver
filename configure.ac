@@ -1892,7 +1892,6 @@ AC_OUTPUT([Makefile
 		 configs/Makefile
  		 agi/agi-test.agi
 		 agi/fastagi-test
-		 sounds/Makefile
 		 sqlite3-embedded/Makefile
 		 sqlite3-embedded/mkopcodec.awk
 		 sqlite3-embedded/mkopcodeh.awk
