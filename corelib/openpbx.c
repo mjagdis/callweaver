@@ -79,6 +79,9 @@
 #include <netdb.h>
 #endif
 
+#undef _POSIX_SOURCE
+#include <sys/capability.h>
+
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -2058,6 +2061,19 @@ int openpbx_main(int argc, char *argv[])
 	if (!is_child_of_nonroot) {
 		struct group *gr;
 		struct passwd *pw;
+		cap_user_header_t cap_header;
+		cap_user_data_t cap_data;
+
+		cap_header = alloca(sizeof(*cap_header));
+		cap_data = alloca(sizeof(*cap_data));
+		if (cap_header != NULL) {
+			cap_header->version = _LINUX_CAPABILITY_VERSION;
+			cap_header->pid = 0;
+		}
+		/* inherit our capabilities */
+		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+			opbx_log(LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
+		}
 
 		gr = getgrnam(rungroup);
 		if (!gr) {
@@ -2122,6 +2138,18 @@ int openpbx_main(int argc, char *argv[])
 				opbx_verbose("Now running as user '%s' (%d)\n", pw2->pw_name, pw2->pw_uid);
 			} else {
 				opbx_verbose("Now running as user '' (%d)\n", getegid());
+			}
+		}
+		if ((cap_header != NULL) && (cap_data != NULL)) {
+			/* get current capabilities */
+			if (capget(cap_header, cap_data) == -1) {
+				opbx_log(LOG_WARNING, "Unable to get capabilities\n");
+			}
+			cap_data->effective = 1 << CAP_NET_ADMIN;
+			/* set capabilities including NET_ADMIN */
+			/* this allows us to e.g. set all TOS bits */
+			if (capset(cap_header, cap_data) == -1) {
+				opbx_log(LOG_WARNING, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
 			}
 		}
 	}
