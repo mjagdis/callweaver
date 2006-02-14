@@ -242,8 +242,12 @@ static void *muxmon_thread(void *obj)
 
 			while (opbx_test_flag(muxmon, MUXFLAG_RUNNING)) {
 				samp0 = samp1 = len0 = len1 = 0;
-
-				if (opbx_check_hangup(muxmon->chan) || spy.status != CHANSPY_RUNNING) {
+                                /*In case of hapgup it is safer to start from testing this */  
+				if (spy.status != CHANSPY_RUNNING) {
+					opbx_clear_flag(muxmon, MUXFLAG_RUNNING);
+					break;
+				}
+				if (opbx_check_hangup(muxmon->chan)) {
 					opbx_clear_flag(muxmon, MUXFLAG_RUNNING);
 					break;
 				}
@@ -331,8 +335,8 @@ static void *muxmon_thread(void *obj)
 		free(muxmon->post_process);
 		muxmon->post_process = NULL;
 	}
-
-	stopmon(muxmon->chan, &spy);
+/* In case of channel hangup - this is dangerous. Cli stop command do clearing */
+/*	stopmon(muxmon->chan, &spy);   */
 	if (option_verbose > 1) {
 		opbx_verbose(VERBOSE_PREFIX_2 "Finished Recording %s\n", name);
 	}
@@ -544,6 +548,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 			for(cptr=chan->spiers; cptr; cptr=cptr->next) {
 				cptr->status = CHANSPY_DONE;
 			}
+			chan->spiers = NULL;
 			opbx_mutex_unlock(&chan->lock);
 		}
 		return 0;

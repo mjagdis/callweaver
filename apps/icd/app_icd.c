@@ -772,29 +772,6 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
     	custname, cust_uniq_name?cust_uniq_name:"nochan", icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue));
 	}    
     icd_caller__loop((icd_caller *) customer, 0);
-/*Remove all spiers - muxmon */    
-    struct opbx_channel_spy *cptr=NULL;
-    int count=0;
-    while(opbx_mutex_trylock(&chan->lock)) {
-		count++;
-		if (count > 10) {
-                        opbx_log(LOG_ERROR, "Cannot Lock Channel!\n");
-			break;
-		}
-		usleep(1000);
-		sched_yield();
-    }
-/* This should work, but it happens that chan->spiers->next is a strange pointer */    
-/*    for(cptr=chan->spiers; cptr; cptr=cptr->next) {
-			cptr->status = CHANSPY_DONE;
-    }
-*/
-/* This is not wise but it will work till fixing problem */
-    if(chan->spiers) chan->spiers->status = CHANSPY_DONE;
-  
-    chan->spiers = NULL;
-    usleep(100000);
-    opbx_mutex_unlock(&chan->lock);
     
     if (cust_uniq_name) 
         icd_fieldset__remove_key(customers, cust_uniq_name);
