@@ -1079,8 +1079,6 @@ int opbx_hangup(struct opbx_channel *chan)
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
 	
-	opbx_generator_deactivate(chan); /* Clear generator stuff remaining */
-
 	if (chan->cdr) {		/* End the CDR if it hasn't already */ 
 		opbx_cdr_end(chan->cdr);
 		opbx_cdr_detach(chan->cdr);	/* Post and Free the CDR */ 
@@ -1103,6 +1101,13 @@ int opbx_hangup(struct opbx_channel *chan)
 	}
 			
 	opbx_mutex_unlock(&chan->lock);
+	
+	/** opbx_generator_deactivate after mutex_unlock*/
+	if (option_debug)
+	    opbx_log(LOG_DEBUG, "Generator : deactivate after channel unlock (hangup function)\n");
+	opbx_generator_deactivate(chan);
+	
+	
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -1613,7 +1618,16 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		chan->fin &= 0x80000000;
 	else
 		chan->fin++;
+		
+	
 	opbx_mutex_unlock(&chan->lock);
+	/** generator deactivate after channel unlock */
+	if (!f && opbx_generator_is_active(chan)){
+	    if (option_debug)
+		opbx_log(LOG_DEBUG, "Generator not finished in previous deactivate attempt - trying deactivate after channel unlock (opbx_read function)\n");
+	    opbx_generator_deactivate(chan);
+	}	
+	
 	return f;
 }
 
@@ -1833,7 +1847,14 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 		 * thread and channel generator is active */
 		if (opbx_test_flag(chan, OPBX_FLAG_WRITE_INT)) {
 			/* Deactivate generator */
+
+			/** unlock & lock added - testing if this caused crashes*/
+			opbx_mutex_unlock(&chan->lock);
+			if (option_debug)
+			    opbx_log(LOG_DEBUG, "trying deactivate generator with unlock/lock channel (opbx_write function)\n");
 			opbx_generator_deactivate(chan);
+			opbx_mutex_lock(&chan->lock);
+			
 		} else {
 			/* Write doesn't interrupt generator.
 			 * Write gets ignored instead */
