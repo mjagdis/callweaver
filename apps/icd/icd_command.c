@@ -1144,7 +1144,14 @@ int icd_command_record(int fd, int argc, char **argv)
                 customer_source);
         fd = fileno(stderr);
         opbx_cli_command(fd, buf);
-        return ICD_SUCCESS;
+        return 0;
+   }
+   if(chan->spiers !=NULL){
+   	opbx_log(LOG_NOTICE, "Start of recording for customer [%s] failed - already recording \n", customer_source);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: Record\r\nSubCommand: Start\r\nResult: Fail\r\nCause: Already recording\r\nCallerID: %s\r\n", 
+                customer_source);
+	return 1;
    }
    strcpy(buf + strlen(buf), " ");
    strncpy(rec_directory_buf, argv[3],sizeof(rec_directory_buf)-1);
@@ -1179,7 +1186,7 @@ int icd_command_record(int fd, int argc, char **argv)
                 "Command: RecordStart\r\nCallerID: %s\r\nFileName: %s\r\n", 
                 customer_source, RecFile);
 
-   return ICD_SUCCESS;
+   return 0;
 }
 /* 
  	params: 
