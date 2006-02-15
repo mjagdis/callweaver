@@ -597,6 +597,9 @@ static void *moh_alloc(struct opbx_channel *chan, void *params)
 	struct mohdata *res;
 	struct mohclass *class = params;
 
+	/* Stop any generators that might be running */
+	opbx_generator_deactivate(chan);
+
 	res = mohalloc(class);
 	if (res) {
 		res->origwfmt = chan->writeformat;
