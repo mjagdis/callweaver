@@ -1408,9 +1408,9 @@ AM_CONDITIONAL([WANT_CHAN_IAX2],[test "${with_chan_iax2}" = "yes"])
 dnl ###########################################################################
 
 AC_ARG_ENABLE([iax-trunking],
-        [AC_HELP_STRING([--disable-iax-trunking],[Disables the IAX trunking feature])],,[enable_iax_trunking="yes"])
+        [AC_HELP_STRING([--enable-iax-trunking],[Disables the IAX trunking feature])],,[enable_iax_trunking="no"])
 
-if test "${enable_iax_trunking}" != "no"; then
+if test "${enable_iax_trunking}" = "yes"; then
    AC_DEFINE([IAX_TRUNKING],,[Enable IAX trunking feature])
 fi
 
