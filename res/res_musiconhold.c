@@ -597,9 +597,6 @@ static void *moh_alloc(struct opbx_channel *chan, void *params)
 	struct mohdata *res;
 	struct mohclass *class = params;
 
-	/* Stop any generators that might be running */
-	opbx_generator_deactivate(chan);
-
 	res = mohalloc(class);
 	if (res) {
 		res->origwfmt = chan->writeformat;
@@ -784,6 +781,9 @@ static int local_opbx_moh_start(struct opbx_channel *chan, char *class)
 		opbx_log(LOG_WARNING, "No class: %s\n", (char *)class);
 		return -1;
 	}
+
+	/* Stop any generators that might be running */
+	opbx_generator_deactivate(chan);
 
 	opbx_set_flag(chan, OPBX_FLAG_MOH);
 	if (mohclass->total_files) {
