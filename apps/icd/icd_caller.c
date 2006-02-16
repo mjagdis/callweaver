@@ -3242,6 +3242,7 @@ icd_status icd_caller__remove_all_associations(icd_caller * that)
     assert(that != NULL);
     assert(that->associations != NULL);
 
+//    icd_caller_list__lock(that->associations);
     final_result = ICD_SUCCESS;
     associate = icd_list__pop((icd_list *) that->associations);
     while(associate != NULL) {
