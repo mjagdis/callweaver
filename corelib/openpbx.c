@@ -80,7 +80,11 @@
 #endif
 
 #undef _POSIX_SOURCE
+#ifdef __linux__
+#include <linux/capability.h>
+#else
 #include <sys/capability.h>
+#endif
 
 #include "openpbx.h"
 
