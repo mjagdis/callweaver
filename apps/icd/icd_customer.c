@@ -325,22 +325,17 @@ int icd_customer__standard_state_call_end(icd_event * event, void *extra)
        call.
      */
     if (that->associations != NULL){
-    	iter = icd_list__get_iterator((icd_list *) (that->associations));
-    	while (icd_list_iterator__has_more(iter)) {
-	                associate = (icd_caller *) icd_list_iterator__next(iter);
-			if(!associate) 
-			   break;
-			state = icd_caller__get_state(associate);
-			if((state == ICD_CALLER_STATE_CONFERENCED) || (state == ICD_CALLER_STATE_BRIDGED)){ 
-    			result = icd_caller__set_state(associate, ICD_CALLER_STATE_CALL_END);
-			}   
-			if(state == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE){ 
-    			result = icd_caller__set_state(associate, ICD_CALLER_STATE_CHANNEL_FAILED);
-			}   
-		}
-      	destroy_icd_list_iterator(&iter);
+        associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
+        while(associate != NULL) {
+             icd_caller_list__remove_caller_by_element(associate->associations, that);
+/*	     state = icd_caller__get_state(associate);
+	     if(state == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE){ 
+         		result = icd_caller__set_state(associate, ICD_CALLER_STATE_ASSOCIATE_FAILED);
+             }    
+*/    	     
+	     associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
+      	}
     }  
-    icd_caller__remove_all_associations(that);
     if (that->chan && icd_caller__get_onhook(that)) {
         icd_bridge__safe_hangup(that);
     }

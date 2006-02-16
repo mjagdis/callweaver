@@ -2107,8 +2107,8 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
             if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)) {
                 icd_queue__customer_pushback(icd_member__get_queue(member), member);
             } else {
-//                icd_queue__agent_pushback(icd_member__get_queue(member), member);
-                icd_queue__agent_distribute(icd_member__get_queue(member), member);
+                icd_queue__agent_pushback(icd_member__get_queue(member), member);
+/*                icd_queue__agent_distribute(icd_member__get_queue(member), member);*/
             }
             that->require_pushback = 0;
         } else {

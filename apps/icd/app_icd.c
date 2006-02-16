@@ -621,6 +621,11 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
         sprintf(custname, "caller_%d_for_conf_%s", icd_caller__get_id((icd_caller *) customer), conference_name);
     icd_caller__set_name((icd_caller *) customer, custname);
     icd_caller__set_dynamic((icd_caller *) customer, 1);
+    snprintf(input, sizeof(input), "Memberships of Caller %s", custname);
+    icd_member_list__set_name(icd_caller__get_memberships((icd_caller *) customer), input);
+    snprintf(input, sizeof(input), "Associations of Caller %s", custname);
+    icd_caller_list__set_name(icd_caller__get_associations((icd_caller *) customer), input);
+    
     destroy_icd_config(&config);
 
     if (nohangup && opbx_true(nohangup))
