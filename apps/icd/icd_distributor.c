@@ -660,8 +660,8 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     int c_id;
     int a_id;
     icd_status result;
-    icd_caller *customer_caller;
-    icd_caller *agent_caller;
+    icd_caller *customer_caller = NULL;
+    icd_caller *agent_caller = NULL;
     
     assert(dist != NULL);
     assert(dist->customers != NULL);
@@ -672,7 +672,8 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     }
 
     agent_member = icd_member_list__pop(dist->agents);
-    agent_caller = icd_member__get_caller(agent_member);
+    if(agent_member)
+        agent_caller = icd_member__get_caller(agent_member);
 
     if (agent_member == NULL || agent_caller == NULL) {
         opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
@@ -751,8 +752,8 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     int c_id;
     int a_id;
     icd_status result;
-    icd_caller *customer_caller;
-    icd_caller *agent_caller;
+    icd_caller *customer_caller = NULL;
+    icd_caller *agent_caller = NULL;
 
     assert(dist != NULL);
     assert(dist->customers != NULL);
@@ -763,7 +764,8 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     }
 
     agent_member = icd_member_list__pop(dist->agents);
-    agent_caller = icd_member__get_caller(agent_member);
+    if(agent_member)
+        agent_caller = icd_member__get_caller(agent_member);
     if (agent_member == NULL || agent_caller == NULL) {
         opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
