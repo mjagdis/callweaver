@@ -570,6 +570,35 @@ icd_status icd_queue__agent_dist_quit(icd_queue * that, icd_member * member)
     return icd_distributor__remove_agent(that->distributor, (icd_agent *) caller);
 }
 
+/* Removes a customer from the distributor of the queue */
+icd_status icd_queue__customer_dist_quit(icd_queue * that, icd_member * member)
+{
+    icd_caller *caller;
+    icd_status vetoed;
+
+    assert(that != NULL);
+    assert(member != NULL);
+
+    if (that->distributor == NULL) {
+        return ICD_SUCCESS;
+    }
+    /* Check for valid caller */
+    caller = icd_member__get_caller(member);
+    if (caller == NULL || icd_caller__has_role(caller, ICD_CUSTOMER_ROLE) == 0) {
+        opbx_log(LOG_WARNING, "Invalid caller %s requesting to be removed from customer distributor %s\n",
+            icd_caller__get_name(caller), icd_queue__get_name(that));
+    }
+    /* Check for veto */
+    vetoed = icd_event__generate(ICD_EVENT_REMOVE, member);
+    if (vetoed == ICD_EVETO) {
+        return ICD_EVETO;
+    }
+
+    /* Remove from both the distributor and the queue */
+
+    opbx_log(LOG_WARNING, "DEBUG, %d REMOVED FROM DIST\n", icd_caller__get_id(caller));
+    return icd_distributor__remove_customer(that->distributor, (icd_customer *) caller);
+}
 /* Tells the queue to add agent to distributor. Removes if already present. */
 icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * member)
 {

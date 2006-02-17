@@ -93,6 +93,7 @@ extern "C" {
     icd_status icd_queue__agent_distribute(icd_queue * that, icd_member * caller);
     icd_status icd_queue__agent_pushback(icd_queue * that, icd_member * caller);
     icd_status icd_queue__agent_dist_quit(icd_queue * that, icd_member * member);
+	icd_status icd_queue__customer_dist_quit(icd_queue * that, icd_member * member);
 
 /***** Getters and Setters *****/
     icd_status icd_queue__set_name(icd_queue * that, char *name);
