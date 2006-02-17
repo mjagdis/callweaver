@@ -3282,10 +3282,36 @@ icd_status icd_caller__remove_from_all_queues(icd_caller * that)
 icd_status icd_caller__join_callers(icd_caller * that, icd_caller * associate)
 {
     int result;
+    icd_member *member;
+    icd_list_iterator *iter;
+    icd_queue *queue;
 
     if (icd_debug)
         opbx_log(LOG_DEBUG, "CROSS-LINK: %d to %d\n", that->id, associate->id);
+/*We remove callers from all distributors */
+ 	
+    icd_list__lock((icd_list *) (that->memberships));
+    iter = icd_list__get_iterator((icd_list *) (that->memberships));
+    while (icd_list_iterator__has_more_nolock(iter)) {
+             member = (icd_member *) icd_list_iterator__next(iter);
+	     queue = icd_member__get_queue(member);
+	     if (queue)
+                 icd_queue__agent_dist_quit(queue, member);		     
+    }
+    icd_list__unlock((icd_list *) (that->memberships));
+    destroy_icd_list_iterator(&iter);
 
+    icd_list__lock((icd_list *) (associate->memberships));
+    iter = icd_list__get_iterator((icd_list *) (associate->memberships));
+    while (icd_list_iterator__has_more_nolock(iter)) {
+             member = (icd_member *) icd_list_iterator__next(iter);
+	     queue = icd_member__get_queue(member);
+	     if (queue)
+                 icd_queue__agent_dist_quit(queue, member);		     
+    }
+    icd_list__unlock((icd_list *) (associate->memberships));
+    destroy_icd_list_iterator(&iter);
+    
     result = icd_caller__link_to_caller(that, associate);
     if (result != ICD_SUCCESS) {
         return result;
