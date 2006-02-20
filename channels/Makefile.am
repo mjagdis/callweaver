@@ -26,14 +26,6 @@ chan_capi_la_LIBADD  		= -lcapi20 ${top_builddir}/corelib/libopenpbx.la
 chan_capi_la_LDFLAGS 		= -module -avoid-version -no-undefined
 endif WANT_CHAN_CAPI
 
-if WANT_CHAN_EXOSIP2
-opbxmod_LTLIBRARIES     	+= chan_exosip2.la
-chan_exosip2_la_SOURCES 	= chan_exosip2.c
-chan_exosip2_la_CFLAGS  	= $(AM_CFLAGS) @CHAN_EXOSIP2_CFLAGS@
-chan_exosip2_la_LIBADD  	= @CHAN_EXOSIP2_LIBS@ ${top_builddir}/corelib/libopenpbx.la
-chan_exosip2_la_LDFLAGS 	= -module -avoid-version -no-undefined
-endif WANT_CHAN_EXOSIP2 
-
 if WANT_CHAN_FAX
 opbxmod_LTLIBRARIES		+= chan_fax.la
 chan_fax_la_SOURCES		= chan_fax.c faxmodem.c faxmodem.h

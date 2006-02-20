@@ -1349,34 +1349,6 @@ AM_CONDITIONAL([WANT_CHAN_CAPI],[test "${with_chan_capi}" = "yes" -a -n "${HAVE_
 
 dnl ###########################################################################
 
-AC_ARG_WITH(chan_exosip2,
-	[AC_HELP_STRING([--with-chan_exosip2],[Build and install chan_exosip2 (default=no)])],,[with_chan_exosip2="no"])
-
-if test "${with_chan_exosip2}" = "yes"; then
-   PKG_CHECK_MODULES([GLIB2],
-	[glib-2.0],
-	[HAVE_GLIB2="yes"])
-   AC_CHECK_LIB(ortp,[main],[HAVE_ORTP="yes"])
-   AC_CHECK_LIB(osip2,[main],[HAVE_OSIP2="yes"])
-   AC_CHECK_LIB(eXosip2,[main],[HAVE_EXOSIP2="yes"])
-
-   if test -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}" -a -n "${HAVE_EXOSIP2}"; then
-      CHAN_EXOSIP2_CFLAGS=""
-      CHAN_EXOSIP2_LIBS="-leXosip2 -losip2 -losipparser2 -lortp -lpthread"
-      if test -n "${HAVE_GLIB2}"; then
-         CHAN_EXOSIP2_CFLAGS="${CHAN_EXOSIP2_CFLAGS} ${GLIB2_CFLAGS}"
-	 CHAN_EXOSIP2_LIBS="${CHAN_EXOSIP2_LIBS} ${GLIB2_LIBS}"
-      fi
-   fi
-fi
-
-AM_CONDITIONAL([WANT_CHAN_EXOSIP2],[test "${with_chan_exosip2}" = "yes" -a -n "${HAVE_ORTP}" -a -n "${HAVE_OSIP2}" -a -n "${HAVE_EXOSIP2}"])
-
-AC_SUBST([CHAN_EXOSIP2_CFLAGS])
-AC_SUBST([CHAN_EXOSIP2_LIBS])
-
-dnl ###########################################################################
-
 AC_ARG_WITH([chan_fax],
 	[AC_HELP_STRING([--with-chan_fax],[Build and install chan_fax (default=no)])],,[want_chan_fax="no"])
 
