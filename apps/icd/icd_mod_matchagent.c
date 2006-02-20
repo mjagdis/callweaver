@@ -37,6 +37,9 @@
 
 #include "openpbx/icd/icd_module_api.h"
 
+#include "openpbx/icd/icd_member_list.h"
+
+
 extern icd_fieldset *agents;
 extern int icd_verbose;
 icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, void *extra);
@@ -186,19 +189,23 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
         if(icd_caller__get_state(agent_caller) != ICD_CALLER_STATE_READY){
 	   	continue;
 		}       
+		icd_member_list__lock(icd_caller__get_memberships(agent_caller));		
         agent = icd_caller__get_member_for_distributor(agent_caller, dist);
 		if ((agent==NULL) || (icd_distributor__agent_position(dist, (icd_agent *) agent_caller) < 0)) {
 /*            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
                 icd_distributor__get_name(dist), tmp_str);
 */                
+		    icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
 			continue;
         }
         result = icd_member__distribute(agent);
         if (result != ICD_SUCCESS) {
             opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
                 icd_distributor__get_name(dist), tmp_str);
+ 		    	icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
                 continue;
         }
+		icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
 
     	result = icd_member__distribute(customer);
     	if (result != ICD_SUCCESS) {

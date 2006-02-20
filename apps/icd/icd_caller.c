@@ -2183,6 +2183,8 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);
+    
+	icd_list__lock((icd_list *) (that->memberships));
     member = icd_caller__get_active_member(that);
     if(member){
        queue = icd_member__get_queue(member);
@@ -2190,9 +2192,12 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     if(!queue){
        if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {
             icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_READY);
-            icd_caller__set_state(that, ICD_CALLER_STATE_READY);
        }
+       icd_caller__set_state(that, ICD_CALLER_STATE_READY);
+	   icd_list__unlock((icd_list *) (that->memberships));
+       return 1;
     }
+    icd_list__unlock((icd_list *) (that->memberships));
     icd_queue__calc_holdtime(queue);
 
     if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)){
