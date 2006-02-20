@@ -246,17 +246,17 @@ icd_plugable_fn *icd_customer_get_plugable_fns(icd_caller * that)
     icd_plugable_fn *plugable_fns = NULL;
     char *dist_name = NULL;
     icd_distributor *dist = NULL;
+    icd_member *member;
+
 
     assert(that != NULL);
 
-    if (icd_caller__get_active_member(that) == NULL) {
+    member = icd_caller__get_active_member(that);
+    if (member == NULL) {
         /* always return our standard plugable interface when no distributor */
         plugable_fns = &icd_customer_plugable_fns;
 
     } else {
-        dist_name =
-            vh_read(icd_distributor__get_params(icd_member__get_distributor(icd_caller__get_active_member(that))),
-            "dist");
         /* check if there is a caller specific plugable_fn in plugable_fns_list for this dist */
         //plugable_fns = icd_plugable_fn_list__fetch_fns(that->plugable_fns_list, dist_name);    
         //if (plugable_fns == NULL) {
@@ -264,10 +264,16 @@ icd_plugable_fn *icd_customer_get_plugable_fns(icd_caller * that)
          * no caller specific plugable defined then we try dist specific else
          * we just go with our static local interface for agent 
          */
-        dist = icd_member__get_distributor(icd_caller__get_active_member(that));
-        plugable_fns = icd_distributor__get_plugable_fn(dist, that);
-        if (plugable_fns == NULL)
-            plugable_fns = &icd_customer_plugable_fns;
+        dist = icd_member__get_distributor(member);
+	if(dist == NULL){
+        	plugable_fns = &icd_customer_plugable_fns;
+	}
+	else {	
+        	dist_name = vh_read(icd_distributor__get_params(dist), "dist");
+        	plugable_fns = icd_distributor__get_plugable_fn(dist, that);
+        	if (plugable_fns == NULL)
+            		plugable_fns = &icd_customer_plugable_fns;
+	}
         //}        
 
     }

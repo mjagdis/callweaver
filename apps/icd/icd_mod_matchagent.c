@@ -213,7 +213,7 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
     	result = icd_distributor__select_bridger(agent_caller, customer_caller);
 
    		opbx_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
-        icd_distributor__get_name(dist), icd_caller__get_caller_id(customer_caller), icd_caller__get_caller_id(agent_caller));
+        icd_distributor__get_name(dist), icd_caller__get_id(customer_caller), icd_caller__get_id(agent_caller));
     	if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
         	result = icd_caller__bridge(customer_caller);
     	} else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {

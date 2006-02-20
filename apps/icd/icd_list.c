@@ -746,16 +746,17 @@ icd_status icd_list__lock(icd_list * that)
     if (that->state == ICD_LIST_STATE_CLEARED || that->state == ICD_LIST_STATE_DESTROYED) {
         return ICD_ERESOURCE;
     }
+   
    if (icd_debug)
-            opbx_log(LOG_DEBUG, "List [%s] try to lock\n", that->name);
+            opbx_log(LOG_DEBUG, "List [%s] try to lock" ICD_PTHREAD_FORMAT "\n", that->name ICD_PTHREAD_ID);
     retval = opbx_mutex_lock(&that->lock);
     if (retval == 0) {
        if (icd_debug)
-            opbx_log(LOG_DEBUG, "List [%s] locked\n", that->name);
+            opbx_log(LOG_DEBUG, "List [%s] locked" ICD_PTHREAD_FORMAT "\n", that->name ICD_PTHREAD_ID);
         return ICD_SUCCESS;
     }
     if (icd_debug)
-            opbx_log(LOG_DEBUG, "List [%s] lock failed\n", that->name);
+            opbx_log(LOG_DEBUG, "List [%s] lock failed" ICD_PTHREAD_FORMAT "\n", that->name ICD_PTHREAD_ID);
     return ICD_ELOCK;
 }
 
@@ -770,15 +771,15 @@ icd_status icd_list__unlock(icd_list * that)
         return ICD_ERESOURCE;
     }
     if (icd_debug)
-            opbx_log(LOG_DEBUG, "List [%s] try to unlock\n", that->name);
+            opbx_log(LOG_DEBUG, "List [%s] try to unlock" ICD_PTHREAD_FORMAT "\n", that->name ICD_PTHREAD_ID);
     retval = opbx_mutex_unlock(&that->lock);
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "List [%s] unlocked\n", that->name);
+            opbx_log(LOG_DEBUG, "List [%s] unlocked" ICD_PTHREAD_FORMAT "\n", that->name ICD_PTHREAD_ID);
         return ICD_SUCCESS;
     }
     if (icd_debug)
-            opbx_log(LOG_DEBUG, "List [%s] unlock failed\n", that->name);
+            opbx_log(LOG_DEBUG, "List [%s] unlock failed" ICD_PTHREAD_FORMAT "\n", that->name ICD_PTHREAD_ID);
     return ICD_ELOCK;
 }
 

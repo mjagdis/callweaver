@@ -301,15 +301,19 @@ icd_plugable_fn *icd_agent_get_plugable_fns(icd_caller * that)
     icd_plugable_fn *plugable_fns = NULL;
     char *dist_name = NULL;
     icd_distributor *dist = NULL;
+    icd_member *member;
 
     assert(that != NULL);
-
-    if (icd_caller__get_active_member(that) == NULL) {
+    member = icd_caller__get_active_member(that);
+    if (member == NULL) {
         /* always return our standard plugable interface when no distributor */
         plugable_fns = &icd_agent_plugable_fns;
 
     } else {
-        dist = icd_member__get_distributor(icd_caller__get_active_member(that));
+        dist = icd_member__get_distributor(member);
+	if (dist == NULL){
+        	plugable_fns = &icd_agent_plugable_fns;
+	}	
         dist_name = vh_read(icd_distributor__get_params(dist), "dist");
         /* check if there is a caller specific plugable_fn in plugable_fns_list for this dist */
         /* plugable_fns = icd_plugable_fn_list__fetch_fns(that->plugable_fns_list, dist_name); */

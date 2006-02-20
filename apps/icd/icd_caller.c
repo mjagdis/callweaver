@@ -1797,16 +1797,19 @@ icd_status icd_caller__lock(icd_caller * that)
             icd_caller__get_id(that), icd_caller__get_name(that), that->state);
         return ICD_ERESOURCE;
     }
+   if (icd_debug)
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Try to Lock" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
+                icd_caller__get_name(that) ICD_PTHREAD_ID);
     retval = opbx_mutex_lock(&that->lock);
 
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Lock for succeeded\n", icd_caller__get_id(that),
-                icd_caller__get_name(that));
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Lock for succeeded" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
+                icd_caller__get_name(that) ICD_PTHREAD_ID);
         return ICD_SUCCESS;
     }
-    opbx_log(LOG_WARNING, "Caller id[%d] [%s] Lock failed code %d\n", icd_caller__get_id(that),
-        icd_caller__get_name(that), retval);
+    opbx_log(LOG_WARNING, "Caller id[%d] [%s] Lock failed code %d" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
+        icd_caller__get_name(that), retval ICD_PTHREAD_ID);
     return ICD_ELOCK;
 }
 
@@ -1822,15 +1825,18 @@ icd_status icd_caller__unlock(icd_caller * that)
             icd_caller__get_id(that), icd_caller__get_name(that), that->state);
         return ICD_ERESOURCE;
     }
+   if (icd_debug)
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Try to UnLock" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
+                icd_caller__get_name(that) ICD_PTHREAD_ID);
     retval = opbx_mutex_unlock(&that->lock);
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] UnLock for succeeded\n", icd_caller__get_id(that),
-                icd_caller__get_name(that));
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] UnLock for succeeded" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
+                icd_caller__get_name(that) ICD_PTHREAD_ID);
         return ICD_SUCCESS;
     }
-    opbx_log(LOG_WARNING, " Caller id[%d] [%s] UnLock failed code %d\n", icd_caller__get_id(that),
-        icd_caller__get_name(that), retval);
+    opbx_log(LOG_WARNING, " Caller id[%d] [%s] UnLock failed code %d" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
+        icd_caller__get_name(that), retval ICD_PTHREAD_ID);
     return ICD_ELOCK;
 }
 
@@ -2169,7 +2175,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     int link_count = 0;
     icd_bridge_technology bridge_tech;
     char conf_name[10];
-    icd_queue *queue;
+    icd_queue *queue = NULL;
     icd_member *member;
     icd_caller *caller;
     int res, it;
@@ -2178,8 +2184,15 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);
     member = icd_caller__get_active_member(that);
-
-    queue = icd_member__get_queue(member);
+    if(member){
+       queue = icd_member__get_queue(member);
+    }
+    if(!queue){
+       if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {
+            icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_READY);
+            icd_caller__set_state(that, ICD_CALLER_STATE_READY);
+       }
+    }
     icd_queue__calc_holdtime(queue);
 
     if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)){
