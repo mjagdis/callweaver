@@ -1383,12 +1383,15 @@ icd_status icd_caller__set_state(icd_caller * that, icd_caller_state state)
     states.newstate = state;
 
     /* just changing to the same state so, um yeah it worked!... */
+    if (icd_caller__lock(that) == ICD_SUCCESS) {
     if (states.oldstate == states.newstate) {
+        icd_caller__unlock(that);
         return ICD_SUCCESS;
     }
     
 
     if (icd_caller__valid_state_change(that, &states) != ICD_SUCCESS) {
+        icd_caller__unlock(that);
         return ICD_ESTATE;
     }
 
@@ -1399,10 +1402,10 @@ icd_status icd_caller__set_state(icd_caller * that, icd_caller_state state)
         icd_event__notify_with_message(ICD_EVENT_STATECHANGE, buf, &states, icd_run->state_fn,
         icd_run->state_fn_extra);
     if (vetoed == ICD_EVETO) {
+        icd_caller__unlock(that);
         return ICD_EVETO;
     }
 
-    if (icd_caller__lock(that) == ICD_SUCCESS) {
         that->state = state;
         time(&that->last_mod);
         time(&that->last_state_change);
