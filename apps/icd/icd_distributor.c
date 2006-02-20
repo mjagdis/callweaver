@@ -679,8 +679,16 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
         opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
-
-    result = icd_member__distribute(agent_member);
+    
+	icd_member_list__lock(icd_caller__get_memberships(agent_caller));
+	/* check if agent_member still exists */		
+    if(agent_member == icd_member_list__get_for_caller(icd_caller__get_memberships(agent_caller), agent_caller)){
+       result = icd_member__distribute(agent_member);
+    }
+    else{
+        result = ICD_ENOTFOUND;    	
+    }
+	icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
     if (result != ICD_SUCCESS) {
         return result;
     }
@@ -770,7 +778,15 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
         opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
-    result = icd_member__distribute(agent_member);
+	icd_member_list__lock(icd_caller__get_memberships(agent_caller));
+	/* check if agent_member still exists */		
+    if(agent_member == icd_member_list__get_for_caller(icd_caller__get_memberships(agent_caller), agent_caller)){
+       result = icd_member__distribute(agent_member);
+    }
+    else{
+        result = ICD_ENOTFOUND;    	
+    }
+	icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
     if (result != ICD_SUCCESS) {
         /* Some other distributor got to this agent first */
         return result;
