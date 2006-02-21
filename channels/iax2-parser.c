@@ -29,6 +29,10 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "openpbx.h"
 
@@ -37,14 +41,10 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/frame.h"
 #include "openpbx/utils.h"
 #include "openpbx/unaligned.h"
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
+
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
-
 
 static int frames = 0;
 static int iframes = 0;

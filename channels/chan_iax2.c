@@ -89,7 +89,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #endif
 #include "iax2.h"
 #include "iax2-parser.h"
-#include "iax2-provision.h"
 
 /* Define NEWJB to use the new channel independent jitterbuffer,
  * otherwise, use the old jitterbuffer */
@@ -357,15 +356,6 @@ static struct iax2_trunk_peer {
 
 OPBX_MUTEX_DEFINE_STATIC(tpeerlock);
 
-struct iax_firmware {
-	struct iax_firmware *next;
-	int fd;
-	int mmaplen;
-	int dead;
-	struct opbx_iax2_firmware_header *fwh;
-	unsigned char *buf;
-};
-
 enum iax_reg_state {
 	REG_STATE_UNREGISTERED = 0,
 	REG_STATE_REGSENT,
@@ -607,11 +597,6 @@ static struct opbx_peer_list {
 	opbx_mutex_t lock;
 } peerl;
 
-static struct opbx_firmware_list {
-	struct iax_firmware *wares;
-	opbx_mutex_t lock;
-} waresl;
-
 /*! Extension exists */
 #define CACHE_FLAG_EXISTS		(1 << 0)
 /*! Extension is nonexistent */
@@ -717,7 +702,6 @@ static int iax2_write(struct opbx_channel *c, struct opbx_frame *f);
 static int iax2_do_register(struct iax2_registry *reg);
 static void prune_peers(void);
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
-static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
 
 static struct opbx_channel *iax2_request(const char *type, int format, void *data, int *cause);
 static int iax2_devicestate(void *data);
@@ -1127,269 +1111,6 @@ static int iax2_queue_frame(int callno, struct opbx_frame *f)
 			break;
 	}
 	return 0;
-}
-
-static void destroy_firmware(struct iax_firmware *cur)
-{
-	/* Close firmware */
-	if (cur->fwh) {
-		munmap(cur->fwh, ntohl(cur->fwh->datalen) + sizeof(*(cur->fwh)));
-	}
-	close(cur->fd);
-	free(cur);
-}
-
-static int try_firmware(char *s)
-{
-	struct stat stbuf;
-	struct iax_firmware *cur;
-	int ifd;
-	int fd;
-	int res;
-	
-	struct opbx_iax2_firmware_header *fwh, fwh2;
-	struct MD5Context md5;
-	unsigned char sum[16];
-	unsigned char buf[1024];
-	int len, chunk;
-	char *s2;
-	char *last;
-	s2 = alloca(strlen(s) + 100);
-	if (!s2) {
-		opbx_log(LOG_WARNING, "Alloca failed!\n");
-		return -1;
-	}
-	last = strrchr(s, '/');
-	if (last)
-		last++;
-	else
-		last = s;
-	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)rand());
-	res = stat(s, &stbuf);
-	if (res < 0) {
-		opbx_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
-		return -1;
-	}
-	/* Make sure it's not a directory */
-	if (S_ISDIR(stbuf.st_mode))
-		return -1;
-	ifd = open(s, O_RDONLY);
-	if (ifd < 0) {
-		opbx_log(LOG_WARNING, "Cannot open '%s': %s\n", s, strerror(errno));
-		return -1;
-	}
-	fd = open(s2, O_RDWR | O_CREAT | O_EXCL);
-	if (fd < 0) {
-		opbx_log(LOG_WARNING, "Cannot open '%s' for writing: %s\n", s2, strerror(errno));
-		close(ifd);
-		return -1;
-	}
-	/* Unlink our newly created file */
-	unlink(s2);
-	
-	/* Now copy the firmware into it */
-	len = stbuf.st_size;
-	while(len) {
-		chunk = len;
-		if (chunk > sizeof(buf))
-			chunk = sizeof(buf);
-		res = read(ifd, buf, chunk);
-		if (res != chunk) {
-			opbx_log(LOG_WARNING, "Only read %d of %d bytes of data :(: %s\n", res, chunk, strerror(errno));
-			close(ifd);
-			close(fd);
-			return -1;
-		}
-		res = write(fd, buf, chunk);
-		if (res != chunk) {
-			opbx_log(LOG_WARNING, "Only write %d of %d bytes of data :(: %s\n", res, chunk, strerror(errno));
-			close(ifd);
-			close(fd);
-			return -1;
-		}
-		len -= chunk;
-	}
-	close(ifd);
-	/* Return to the beginning */
-	lseek(fd, 0, SEEK_SET);
-	if ((res = read(fd, &fwh2, sizeof(fwh2))) != sizeof(fwh2)) {
-		opbx_log(LOG_WARNING, "Unable to read firmware header in '%s'\n", s);
-		close(fd);
-		return -1;
-	}
-	if (ntohl(fwh2.magic) != IAX_FIRMWARE_MAGIC) {
-		opbx_log(LOG_WARNING, "'%s' is not a valid firmware file\n", s);
-		close(fd);
-		return -1;
-	}
-	if (ntohl(fwh2.datalen) != (stbuf.st_size - sizeof(fwh2))) {
-		opbx_log(LOG_WARNING, "Invalid data length in firmware '%s'\n", s);
-		close(fd);
-		return -1;
-	}
-	if (fwh2.devname[sizeof(fwh2.devname) - 1] || opbx_strlen_zero((char *)fwh2.devname)) {
-		opbx_log(LOG_WARNING, "No or invalid device type specified for '%s'\n", s);
-		close(fd);
-		return -1;
-	}
-	fwh = mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0); 
-	if (!fwh) {
-		opbx_log(LOG_WARNING, "mmap failed: %s\n", strerror(errno));
-		close(fd);
-		return -1;
-	}
-	MD5Init(&md5);
-	MD5Update(&md5, fwh->data, ntohl(fwh->datalen));
-	MD5Final(sum, &md5);
-	if (memcmp(sum, fwh->chksum, sizeof(sum))) {
-		opbx_log(LOG_WARNING, "Firmware file '%s' fails checksum\n", s);
-		munmap(fwh, stbuf.st_size);
-		close(fd);
-		return -1;
-	}
-	cur = waresl.wares;
-	while(cur) {
-		if (!strcmp((char *)cur->fwh->devname, (char *)fwh->devname)) {
-			/* Found a candidate */
-			if (cur->dead || (ntohs(cur->fwh->version) < ntohs(fwh->version)))
-				/* The version we have on loaded is older, load this one instead */
-				break;
-			/* This version is no newer than what we have.  Don't worry about it.
-			   We'll consider it a proper load anyhow though */
-			munmap(fwh, stbuf.st_size);
-			close(fd);
-			return 0;
-		}
-		cur = cur->next;
-	}
-	if (!cur) {
-		/* Allocate a new one and link it */
-		cur = malloc(sizeof(struct iax_firmware));
-		if (cur) {
-			memset(cur, 0, sizeof(struct iax_firmware));
-			cur->fd = -1;
-			cur->next = waresl.wares;
-			waresl.wares = cur;
-		}
-	}
-	if (cur) {
-		if (cur->fwh) {
-			munmap(cur->fwh, cur->mmaplen);
-		}
-		if (cur->fd > -1)
-			close(cur->fd);
-		cur->fwh = fwh;
-		cur->fd = fd;
-		cur->mmaplen = stbuf.st_size;
-		cur->dead = 0;
-	}
-	return 0;
-}
-
-static int iax_check_version(char *dev)
-{
-	int res = 0;
-	struct iax_firmware *cur;
-	if (!opbx_strlen_zero(dev)) {
-		opbx_mutex_lock(&waresl.lock);
-		cur = waresl.wares;
-		while(cur) {
-			if (!strcmp(dev, (char *)cur->fwh->devname)) {
-				res = ntohs(cur->fwh->version);
-				break;
-			}
-			cur = cur->next;
-		}
-		opbx_mutex_unlock(&waresl.lock);
-	}
-	return res;
-}
-
-static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev, unsigned int desc)
-{
-	int res = -1;
-	unsigned int bs = desc & 0xff;
-	unsigned int start = (desc >> 8) & 0xffffff;
-	unsigned int bytes;
-	struct iax_firmware *cur;
-	if (!opbx_strlen_zero((char *)dev) && bs) {
-		start *= bs;
-		opbx_mutex_lock(&waresl.lock);
-		cur = waresl.wares;
-		while(cur) {
-			if (!strcmp((char *)dev, (char *)cur->fwh->devname)) {
-				iax_ie_append_int(ied, IAX_IE_FWBLOCKDESC, desc);
-				if (start < ntohl(cur->fwh->datalen)) {
-					bytes = ntohl(cur->fwh->datalen) - start;
-					if (bytes > bs)
-						bytes = bs;
-					iax_ie_append_raw(ied, IAX_IE_FWBLOCKDATA, cur->fwh->data + start, bytes);
-				} else {
-					bytes = 0;
-					iax_ie_append(ied, IAX_IE_FWBLOCKDATA);
-				}
-				if (bytes == bs)
-					res = 0;
-				else
-					res = 1;
-				break;
-			}
-			cur = cur->next;
-		}
-		opbx_mutex_unlock(&waresl.lock);
-	}
-	return res;
-}
-
-
-static void reload_firmware(void)
-{
-	struct iax_firmware *cur, *curl, *curp;
-	DIR *fwd;
-	struct dirent *de;
-	char dir[256];
-	char fn[256];
-	/* Mark all as dead */
-	opbx_mutex_lock(&waresl.lock);
-	cur = waresl.wares;
-	while(cur) {
-		cur->dead = 1;
-		cur = cur->next;
-	}
-	/* Now that we've freed them, load the new ones */
-	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)opbx_config_OPBX_VAR_DIR);
-	fwd = opendir(dir);
-	if (fwd) {
-		while((de = readdir(fwd))) {
-			if (de->d_name[0] != '.') {
-				snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
-				if (!try_firmware(fn)) {
-					if (option_verbose > 1)
-						opbx_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
-				}
-			}
-		}
-		closedir(fwd);
-	} 
-
-	/* Clean up leftovers */
-	cur = waresl.wares;
-	curp = NULL;
-	while(cur) {
-		curl = cur;
-		cur = cur->next;
-		if (curl->dead) {
-			if (curp) {
-				curp->next = cur;
-			} else {
-				waresl.wares = cur;
-			}
-			destroy_firmware(curl);
-		} else {
-			curp = cur;
-		}
-	}
-	opbx_mutex_unlock(&waresl.lock);
 }
 
 static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned int ts, int seqno, int now, int transfer, int final);
@@ -4261,31 +3982,6 @@ static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
 	return RESULT_SUCCESS;
 }
 
-static int iax2_show_firmware(int fd, int argc, char *argv[])
-{
-#define FORMAT2 "%-15.15s  %-15.15s %-15.15s\n"
-#if !defined(__FreeBSD__)
-#define FORMAT "%-15.15s  %-15d %-15d\n"
-#else /* __FreeBSD__ */
-#define FORMAT "%-15.15s  %-15d %-15ld\n"
-#endif /* __FreeBSD__ */
-	struct iax_firmware *cur;
-	if ((argc != 3) && (argc != 4))
-		return RESULT_SHOWUSAGE;
-	opbx_mutex_lock(&waresl.lock);
-	
-	opbx_cli(fd, FORMAT2, "Device", "Version", "Size");
-	for (cur = waresl.wares;cur;cur = cur->next) {
-		if ((argc == 3) || (!strcasecmp(argv[3], (char *)cur->fwh->devname))) 
-			opbx_cli(fd, FORMAT, cur->fwh->devname, ntohs(cur->fwh->version),
-				ntohl(cur->fwh->datalen));
-	}
-	opbx_mutex_unlock(&waresl.lock);
-	return RESULT_SUCCESS;
-#undef FORMAT
-#undef FORMAT2
-}
-
 /* JDG: callback to display iax peers in manager */
 static int manager_iax2_show_peers( struct mansession *s, struct message *m )
 {
@@ -5687,9 +5383,6 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->cid_name);
 		}
 	}
-	version = iax_check_version(devtype);
-	if (version) 
-		iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
 	if (opbx_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
 	return send_command_final(iaxs[callno], OPBX_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
@@ -6165,22 +5858,6 @@ static int iax_park(struct opbx_channel *chan1, struct opbx_channel *chan2)
 	return -1;
 }
 
-
-static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
-
-static int check_provisioning(struct sockaddr_in *sin, int sockfd, char *si, unsigned int ver)
-{
-	unsigned int ourver;
-	char rsi[80];
-	snprintf(rsi, sizeof(rsi), "si-%s", si);
-	if (iax_provision_version(&ourver, rsi, 1))
-		return 0;
-	if (option_debug)
-		opbx_log(LOG_DEBUG, "Service identifier '%s', we think '%08x', they think '%08x'\n", si, ourver, ver);
-	if (ourver != ver) 
-		iax2_provision(sin, sockfd, NULL, rsi, 1);
-	return 0;
-}
 
 static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep) 
 {
@@ -6744,8 +6421,6 @@ retryowner:
 				/* Ignore if it's already up */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
-				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
-					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 				/* For security, always ack immediately */
 				if (delayreject)
 					send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -7357,8 +7032,6 @@ retryowner2:
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd, ies.refresh))
 						opbx_log(LOG_WARNING, "Registry error\n");
-					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
-						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 					break;
 				}
 				registry_authrequest(iaxs[fr.callno]->peer, fr.callno);
@@ -7456,14 +7129,9 @@ retryowner2:
 				break;
 			case IAX_COMMAND_FWDOWNL:
 				/* Firmware download */
+				opbx_log(LOG_DEBUG, "Rejecting firmware download request.");
 				memset(&ied0, 0, sizeof(ied0));
-				res = iax_firmware_append(&ied0, (unsigned char *)ies.devicetype, ies.fwdesc);
-				if (res < 0)
-					send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
-				else if (res > 0)
-					send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
-				else
-					send_command(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
+				send_command_final(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				break;
 			default:
 				opbx_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
@@ -7624,124 +7292,6 @@ static int iax2_do_register(struct iax2_registry *reg)
 	send_command(iaxs[reg->callno],OPBX_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
 	reg->regstate = REG_STATE_REGSENT;
 	return 0;
-}
-
-static char *iax2_prov_complete_template_3rd(char *line, char *word, int pos, int state)
-{
-	if (pos != 3)
-		return NULL;
-	return iax_prov_complete_template(line, word, pos, state);
-}
-
-static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force)
-{
-	/* Returns 1 if provisioned, -1 if not able to find destination, or 0 if no provisioning
-	   is found for template */
-	struct iax_ie_data provdata;
-	struct iax_ie_data ied;
-	unsigned int sig;
-	struct sockaddr_in sin;
-	int callno;
-	struct create_addr_info cai;
-
-	memset(&cai, 0, sizeof(cai));
-
-	if (option_debug)
-		opbx_log(LOG_DEBUG, "Provisioning '%s' from template '%s'\n", dest, template);
-
-	if (iax_provision_build(&provdata, &sig, template, force)) {
-		opbx_log(LOG_DEBUG, "No provisioning found for template '%s'\n", template);
-		return 0;
-	}
-
-	if (end) {
-		memcpy(&sin, end, sizeof(sin));
-		cai.sockfd = sockfd;
-	} else if (create_addr(dest, &sin, &cai))
-		return -1;
-
-	/* Build the rest of the message */
-	memset(&ied, 0, sizeof(ied));
-	iax_ie_append_raw(&ied, IAX_IE_PROVISIONING, provdata.buf, provdata.pos);
-
-	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
-	if (!callno)
-		return -1;
-
-	opbx_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno]) {
-		/* Schedule autodestruct in case they don't ever give us anything back */
-		if (iaxs[callno]->autoid > -1)
-			opbx_sched_del(sched, iaxs[callno]->autoid);
-		iaxs[callno]->autoid = opbx_sched_add(sched, 15000, auto_hangup, (void *)(long)callno);
-		opbx_set_flag(iaxs[callno], IAX_PROVISION);
-		/* Got a call number now, so go ahead and send the provisioning information */
-		send_command(iaxs[callno], OPBX_FRAME_IAX, IAX_COMMAND_PROVISION, 0, ied.buf, ied.pos, -1);
-	}
-	opbx_mutex_unlock(&iaxsl[callno]);
-
-	return 1;
-}
-
-static char *papp = "IAX2Provision";
-static char *psyn = "Provision a calling IAXy with a given template";
-static char *pdescrip = 
-"  IAX2Provision([template]): Provisions the calling IAXy (assuming\n"
-"the calling entity is in fact an IAXy) with the given template or\n"
-"default if one is not specified.  Returns -1 on error or 0 on success.\n";
-
-static int iax2_prov_app(struct opbx_channel *chan, void *data)
-{
-	int res;
-	char *sdata;
-	char *opts;
-	int force =0;
-	unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
-	char iabuf[INET_ADDRSTRLEN];
-	if (opbx_strlen_zero(data))
-		data = "default";
-	sdata = opbx_strdupa(data);
-	opts = strchr(sdata, '|');
-	if (opts)
-		*opts='\0';
-
-	if (chan->type != channeltype) {
-		opbx_log(LOG_NOTICE, "Can't provision a non-IAX device!\n");
-		return -1;
-	} 
-	if (!callno || !iaxs[callno] || !iaxs[callno]->addr.sin_addr.s_addr) {
-		opbx_log(LOG_NOTICE, "Can't provision something with no IP?\n");
-		return -1;
-	}
-	res = iax2_provision(&iaxs[callno]->addr, iaxs[callno]->sockfd, NULL, sdata, force);
-	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "Provisioned IAXY at '%s' with '%s'= %d\n", 
-		opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr),
-		sdata, res);
-	return res;
-}
-
-
-static int iax2_prov_cmd(int fd, int argc, char *argv[])
-{
-	int force = 0;
-	int res;
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
-	if ((argc > 4)) {
-		if (!strcasecmp(argv[4], "forced"))
-			force = 1;
-		else
-			return RESULT_SHOWUSAGE;
-	}
-	res = iax2_provision(NULL, -1, argv[2], argv[3], force);
-	if (res < 0)
-		opbx_cli(fd, "Unable to find peer/address '%s'\n", argv[2]);
-	else if (res < 1)
-		opbx_cli(fd, "No template (including wildcard) matching '%s'\n", argv[3]);
-	else
-		opbx_cli(fd, "Provisioning '%s' with template '%s'%s\n", argv[2], argv[3], force ? ", forced" : "");
-	return RESULT_SUCCESS;
 }
 
 static int iax2_poke_noanswer(void *data)
@@ -8807,8 +8357,6 @@ static int reload_config(void)
 	for (peer = peerl.peers; peer; peer = peer->next)
 		iax2_poke_peer(peer, 0);
 	opbx_mutex_unlock(&peerl.lock);
-	reload_firmware();
-	iax_provision_reload();
 	return 0;
 }
 
@@ -9328,13 +8876,6 @@ static char iax2_reload_usage[] =
 "Usage: iax2 reload\n"
 "       Reloads IAX configuration from iax.conf\n";
 
-static char show_prov_usage[] =
-"Usage: iax2 provision <host> <template> [forced]\n"
-"       Provisions the given peer or IP address using a template\n"
-"       matching either 'template' or '*' if the template is not\n"
-"       found.  If 'forced' is specified, even empty provisioning\n"
-"       fields will be provisioned as empty fields.\n";
-
 static char show_users_usage[] = 
 "Usage: iax2 show users [like <pattern>]\n"
 "       Lists all known IAX2 users.\n"
@@ -9353,10 +8894,6 @@ static char show_peers_usage[] =
 "       Lists all known IAX2 peers.\n"
 "       Optional 'registered' argument lists only peers with known addresses.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
-
-static char show_firmware_usage[] = 
-"Usage: iax2 show firmware\n"
-"       Lists all known IAX firmware images.\n";
 
 static char show_reg_usage[] =
 "Usage: iax2 show registry\n"
@@ -9419,8 +8956,6 @@ static struct opbx_cli_entry iax2_cli[] = {
 	  "Reload IAX configuration", iax2_reload_usage },
 	{ { "iax2", "show", "users", NULL }, iax2_show_users,
 	  "Show defined IAX users", show_users_usage },
-	{ { "iax2", "show", "firmware", NULL }, iax2_show_firmware,
-	  "Show available IAX firmwares", show_firmware_usage },
 	{ { "iax2", "show", "channels", NULL }, iax2_show_channels,
 	  "Show active IAX channels", show_channels_usage },
 	{ { "iax2", "show", "netstats", NULL }, iax2_show_netstats,
@@ -9443,8 +8978,6 @@ static struct opbx_cli_entry iax2_cli[] = {
 	  "Disable IAX jitterbuffer debugging", no_debug_jb_usage },
 	{ { "iax2", "test", "losspct", NULL }, iax2_test_losspct,
 	  "Set IAX2 incoming frame loss percentage", iax2_test_losspct_usage },
-	{ { "iax2", "provision", NULL }, iax2_prov_cmd,
-	  "Provision an IAX device", show_prov_usage, iax2_prov_complete_template_3rd },
 #ifdef IAXTESTS
 	{ { "iax2", "test", "late", NULL }, iax2_test_late,
 	  "Test the receipt of a late frame", iax2_test_late_usage },
@@ -9469,12 +9002,10 @@ static int __unload_module(void)
 			iax2_destroy(x);
 	opbx_manager_unregister( "IAXpeers" );
 	opbx_manager_unregister( "IAXnetstats" );
-	opbx_unregister_application(papp);
 	opbx_cli_unregister_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
 	opbx_unregister_switch(&iax2_switch);
 	opbx_channel_unregister(&iax2_tech);
 	delete_users();
-	iax_provision_unload();
 	return 0;
 }
 
@@ -9483,7 +9014,6 @@ int unload_module()
 	opbx_mutex_destroy(&iaxq.lock);
 	opbx_mutex_destroy(&userl.lock);
 	opbx_mutex_destroy(&peerl.lock);
-	opbx_mutex_destroy(&waresl.lock);
 	opbx_custom_function_unregister(&iaxpeer_function);
 	return __unload_module();
 }
@@ -9546,12 +9076,9 @@ int load_module(void)
 	opbx_mutex_init(&iaxq.lock);
 	opbx_mutex_init(&userl.lock);
 	opbx_mutex_init(&peerl.lock);
-	opbx_mutex_init(&waresl.lock);
 	
 	opbx_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
 
-	opbx_register_application(papp, iax2_prov_app, psyn, pdescrip);
-	
 	opbx_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
 	opbx_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
 
@@ -9595,8 +9122,6 @@ int load_module(void)
 		iax2_poke_peer(peer, 0);
 	}
 	opbx_mutex_unlock(&peerl.lock);
-	reload_firmware();
-	iax_provision_reload();
 	return res;
 }
 

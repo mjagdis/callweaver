@@ -63,7 +63,7 @@ SAMPLES += features.conf.sample
 endif WANT_CHAN_FEATURES
 
 if WANT_CHAN_IAX2
-SAMPLES += iax.conf.sample iaxprov.conf.sample
+SAMPLES += iax.conf.sample
 endif WANT_CHAN_IAX2
 
 if WANT_CHAN_MGCP

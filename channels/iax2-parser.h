@@ -18,6 +18,8 @@
 #ifndef _IAX2_PARSER_H
 #define _IAX2_PARSER_H
 
+#include "openpbx/frame.h"
+
 struct iax_ies {
 	char *called_number;
 	char *calling_number;
