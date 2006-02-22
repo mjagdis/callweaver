@@ -37,7 +37,6 @@
 #include <fcntl.h>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
-#include <openssl/evp.h>
 
 #include "openpbx.h"
 
@@ -50,7 +49,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/options.h"
 #include "openpbx/crypto.h"
-#include "openpbx/md5.h"
 #include "openpbx/cli.h"
 #include "openpbx/io.h"
 #include "openpbx/lock.h"

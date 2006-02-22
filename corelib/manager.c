@@ -57,7 +57,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/app.h"
 #include "openpbx/pbx.h"
-#include "openpbx/md5.h"
 #include "openpbx/acl.h"
 #include "openpbx/utils.h"
 
@@ -523,17 +522,8 @@ static int authenticate(struct mansession *s, struct message *m)
 					opbx_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
 					if (!opbx_strlen_zero(key) && s->challenge) {
-						int x;
-						int len=0;
 						char md5key[256] = "";
-						struct MD5Context md5;
-						unsigned char digest[16];
-						MD5Init(&md5);
-						MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
-						MD5Update(&md5, (unsigned char *) password, strlen(password));
-						MD5Final(digest, &md5);
-						for (x=0;x<16;x++)
-							len += sprintf(md5key + len, "%2.2x", digest[x]);
+						opbx_md5_hash_two(md5key, s->challenge, password);
 						if (!strcmp(md5key, key))
 							break;
 						else {

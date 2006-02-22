@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <stdio.h>
 #include <dirent.h>
 #include <string.h>
@@ -46,7 +47,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/module.h"
 #include "openpbx/options.h"
 #include "openpbx/crypto.h"
-#include "openpbx/md5.h"
 #include "openpbx/cli.h"
 #include "openpbx/io.h"
 #include "openpbx/lock.h"
@@ -94,7 +94,9 @@ struct opbx_key {
 	/* FD for output */
 	int outfd;
 	/* Last MD5 Digest */
-	unsigned char digest[16];
+	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	unsigned int md_len;
+	/* Next key */
 	struct opbx_key *next;
 };
 
@@ -160,9 +162,10 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 	int ktype = 0;
 	char *c = NULL;
 	char ffname[256];
-	unsigned char digest[16];
 	FILE *f;
-	struct MD5Context md5;
+	EVP_MD_CTX mdctx;
+	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	unsigned int md_len;
 	struct opbx_key *key;
 	static int notice = 0;
 	int found = 0;
@@ -195,21 +198,21 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 		opbx_log(LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
 		return NULL;
 	}
-	MD5Init(&md5);
+	EVP_DigestInit(&mdctx, EVP_md5());
 	while(!feof(f)) {
 		/* Calculate a "whatever" quality md5sum of the key */
 		char buf[256];
 		memset(buf, 0, 256);
 		fgets(buf, sizeof(buf), f);
 		if (!feof(f)) {
-			MD5Update(&md5, (unsigned char *) buf, strlen(buf));
+			EVP_DigestUpdate(&mdctx, (unsigned char *) buf, strlen(buf));
 		}
 	}
-	MD5Final(digest, &md5);
+	EVP_DigestFinal(&mdctx, md_value, &md_len);
 	if (key) {
 		/* If the MD5 sum is the same, and it isn't awaiting a passcode 
 		   then this is far enough */
-		if (!memcmp(digest, key->digest, 16) &&
+		if (!memcmp(md_value, key->md_value, md_len) &&
 		    !(key->ktype & KEY_NEEDS_PASSCODE)) {
 			fclose(f);
 			key->delme = 0;
@@ -246,7 +249,8 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
 	/* Keep the key type */
-	memcpy(key->digest, digest, 16);
+	memcpy(key->md_value, md_value, md_len);
+	key->md_len = md_len;
 	/* Can I/O takes the FD we're given */
 	key->infd = ifd;
 	key->outfd = ofd;
@@ -512,13 +516,6 @@ static void crypto_load(int ifd, int ofd)
 	opbx_mutex_unlock(&keylock);
 }
 
-static void md52sum(char *sum, unsigned char *md5)
-{
-	int x;
-	for (x=0;x<16;x++) 
-		sum += sprintf(sum, "%02x", *(md5++));
-}
-
 static int show_keys(int fd, int argc, char *argv[])
 {
 	struct opbx_key *key;
@@ -529,7 +526,7 @@ static int show_keys(int fd, int argc, char *argv[])
 	key = keys;
 	opbx_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
 	while(key) {
-		md52sum(sum, key->digest);
+		opbx_hash_to_hex(sum, key->md_value, key->md_len);
 		opbx_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
 			(key->ktype & 0xf) == OPBX_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);

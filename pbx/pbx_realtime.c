@@ -49,7 +49,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 46 $")
 #include "openpbx/term.h"
 #include "openpbx/manager.h"
 #include "openpbx/cli.h"
-#include "openpbx/md5.h"
 #include "openpbx/linkedlists.h"
 #include "openpbx/chanvars.h"
 #include "openpbx/sched.h"

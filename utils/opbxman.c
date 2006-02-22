@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "openpbx/md5.h"
 #include "openpbx/manager.h"
 
 #undef gethostbyname
@@ -654,17 +653,8 @@ static int login(char *hostname)
 			m = wait_for_response(10000);
 			if (m && !strcasecmp(get_header(m, "Response"), "Success")) {
 				char *challenge = get_header(m, "Challenge");
-				int x;
-				int len = 0;
 				char md5key[256] = "";
-				struct MD5Context md5;
-				unsigned char digest[16];
-				MD5Init(&md5);
-				MD5Update(&md5, challenge, strlen(challenge));
-				MD5Update(&md5, pass, strlen(pass));
-				MD5Final(digest, &md5);
-				for (x=0; x<16; x++)
-					len += sprintf(md5key + len, "%2.2x", digest[x]);
+				opbx_md5_hash_two(md5key, challenge, pass);
 				manager_action("Login",
 						"AuthType: MD5\r\n"
 						"Username: %s\r\n"

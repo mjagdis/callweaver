@@ -1,6 +1,6 @@
 opbxlib_LTLIBRARIES = libopenpbx.la
 libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
-	generator.c translate.c file.c say.c pbx.c cli.c md5.c term.c \
+	generator.c translate.c file.c say.c pbx.c cli.c term.c \
 	ulaw.c alaw.c phone_no_utils.c old_callerid.c fskmodem.c image.c app.c \
 	cdr.c acl.c rtp.c manager.c \
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
@@ -19,7 +19,8 @@ else
 libopenpbx_la_CFLAGS 	=  -fomit-frame-pointer -D_REENTRANT -Wall -Wstrict-prototypes 
 endif
 libopenpbx_la_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
-libopenpbx_la_LIBADD	= -lspandsp -ltiff $(LIBLTDL) 
+libopenpbx_la_CFLAGS	+= @SSL_CFLAGS@
+libopenpbx_la_LIBADD	= -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 libopenpbx_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 libopenpbx_la_LIBADD 	+= ${top_builddir}/editline/src/libedit.la 
 libopenpbx_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 

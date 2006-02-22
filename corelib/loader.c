@@ -47,7 +47,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/rtp.h"
 #include "openpbx/lock.h"
 #include "libltdl/ltdl.h"
-#include "openpbx/md5.h"
 
 #ifndef RTLD_NOW
 #define RTLD_NOW 0

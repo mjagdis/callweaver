@@ -7,6 +7,7 @@ streamplayer_SOURCES = streamplayer.c ${top_srcdir}/corelib/strcompat.c
 
 if USE_NEWT
 	bin_PROGRAMS += opbxman
-	opbxman_SOURCES = opbxman.c ${top_srcdir}/corelib/md5.c
-	opbxman_LDADD = -lnewt
+	opbxman_CFLAGS = $(AM_CFLAGS) @SSL_CFLAGS@
+	opbxman_SOURCES = opbxman.c ${top_srcdir}/corelib/utils.c
+	opbxman_LDADD = -lnewt @SSL_LIBS@
 endif USE_NEWT

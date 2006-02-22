@@ -37,6 +37,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <openssl/evp.h>
 
 #include "openpbx.h"
 
@@ -45,7 +46,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/lock.h"
 #include "openpbx/io.h"
 #include "openpbx/logger.h"
-#include "openpbx/md5.h"
 #include "openpbx/options.h"
 #include "openpbx/config.h"
 
@@ -281,20 +281,62 @@ int test_for_thread_safety(void)
 	return(test_errors);          /* return 0 on success. */
 }
 
-/*! \brief opbx_md5_hash: Produce 16 char MD5 hash of value. ---*/
+void opbx_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len)
+{
+	int x;
+	int len = 0;
+
+	for (x = 0; x < md_len; x++)
+		len += sprintf(output + len, "%2.2x", md_value[x]);
+}
+
+/*! \Brief opbx_md5_hash_bin: Produce 16 char MD5 hash of value. ---*/
+int opbx_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned int input_len)
+{
+	EVP_MD_CTX mdctx;
+	unsigned int md_len;
+
+	EVP_DigestInit(&mdctx, EVP_md5());
+	EVP_DigestUpdate(&mdctx, input, input_len);
+	EVP_DigestFinal(&mdctx, md_value, &md_len);
+
+	return md_len;
+}
+
 void opbx_md5_hash(char *output, char *input)
 {
-	struct MD5Context md5;
-	unsigned char digest[16];
-	char *ptr;
-	int x;
+	unsigned int md_len;
+	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	
+	md_len = opbx_md5_hash_bin(md_value, (unsigned char *) input, strlen(input));
 
-	MD5Init(&md5);
-	MD5Update(&md5, (unsigned char *)input, strlen(input));
-	MD5Final(digest, &md5);
-	ptr = output;
-	for (x=0; x<16; x++)
-		ptr += sprintf(ptr, "%2.2x", digest[x]);
+	opbx_hash_to_hex(output, md_value, md_len);
+}
+
+int opbx_md5_hash_two_bin(unsigned char *md_value,
+			  unsigned char *input1, unsigned int input1_len,
+			  unsigned char *input2, unsigned int input2_len)
+{
+	EVP_MD_CTX mdctx;
+	unsigned int md_len;
+
+	EVP_DigestInit(&mdctx, EVP_md5());
+	EVP_DigestUpdate(&mdctx, input1, input1_len);
+	EVP_DigestUpdate(&mdctx, input2, input2_len);
+	EVP_DigestFinal(&mdctx, md_value, &md_len);
+	
+	return md_len;
+}
+
+void opbx_md5_hash_two(char *output, char *input1, char *input2)
+{
+	unsigned int md_len;
+	unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+	
+	md_len = opbx_md5_hash_two_bin(md_value, (unsigned char *) input1, strlen(input1),
+				       (unsigned char *) input2, strlen(input2));
+
+	opbx_hash_to_hex(output, md_value, md_len);
 }
 
 int opbx_base64decode(unsigned char *dst, const char *src, int max)

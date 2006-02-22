@@ -26,6 +26,7 @@
 #endif
 
 #include <stdlib.h>
+
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -42,7 +43,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/options.h"
 #include "openpbx/cli.h"
 #include "openpbx/translate.h"
-#include "openpbx/md5.h"
 #include "openpbx/cdr.h"
 #include "openpbx/crypto.h"
 #include "openpbx/acl.h"
@@ -3600,18 +3600,17 @@ static int decrypt_frame(int callno, struct opbx_iax2_full_hdr *fh, struct opbx_
 	int res=-1;
 	if (!opbx_test_flag(iaxs[callno], IAX_KEYPOPULATED)) {
 		/* Search for possible keys, given secrets */
-		struct MD5Context md5;
-		unsigned char digest[16];
+		unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+		int md_len;
 		char *tmppw, *stringp;
 		
 		tmppw = opbx_strdupa(iaxs[callno]->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
-			MD5Init(&md5);
-			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
-			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
-			MD5Final(digest, &md5);
-			build_enc_keys(digest, &iaxs[callno]->ecx, &iaxs[callno]->dcx);
+			md_len = opbx_md5_hash_two_bin(md_value,
+						       iaxs[callno]->challenge, strlen(iaxs[callno]->challenge),
+						       tmppw, strlen(tmppw));
+			build_enc_keys(md_value, &iaxs[callno]->ecx, &iaxs[callno]->dcx);
 			res = decode_frame(&iaxs[callno]->dcx, fh, f, datalen);
 			if (!res) {
 				opbx_set_flag(iaxs[callno], IAX_KEYPOPULATED);
@@ -4646,20 +4645,12 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 			keyn = strsep(&stringp, ":");
 		}
 	} else if (p->authmethods & IAX_AUTH_MD5) {
-		struct MD5Context md5;
-		unsigned char digest[16];
 		char *tmppw, *stringp;
 		
 		tmppw = opbx_strdupa(p->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
-			MD5Init(&md5);
-			MD5Update(&md5, (unsigned char *)p->challenge, strlen(p->challenge));
-			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
-			MD5Final(digest, &md5);
-			/* If they support md5, authenticate with it.  */
-			for (x=0;x<16;x++)
-				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
+			opbx_md5_hash_two(requeststr, p->challenge, tmppw);
 			if (!strcasecmp(requeststr, md5secret)) {
 				res = 0;
 				break;
@@ -4776,19 +4767,12 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
 	} else if (!opbx_strlen_zero(md5secret) && (p->authmethods & IAX_AUTH_MD5) && !opbx_strlen_zero(iaxs[callno]->challenge)) {
-		struct MD5Context md5;
-		unsigned char digest[16];
 		char *tmppw, *stringp;
 		
 		tmppw = opbx_strdupa(p->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
-			MD5Init(&md5);
-			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
-			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
-			MD5Final(digest, &md5);
-			for (x=0;x<16;x++)
-				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
+			opbx_md5_hash_two(requeststr, iaxs[callno]->challenge, tmppw);
 			if (!strcasecmp(requeststr, md5secret)) 
 				break;
 		}
@@ -4852,18 +4836,16 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 	/* Fall back */
 	if (res && !opbx_strlen_zero(secret)) {
 		if ((authmethods & IAX_AUTH_MD5) && !opbx_strlen_zero(challenge)) {
-			struct MD5Context md5;
-			unsigned char digest[16];
-			char digres[128];
-			MD5Init(&md5);
-			MD5Update(&md5, (unsigned char *)challenge, strlen(challenge));
-			MD5Update(&md5, (unsigned char *)secret, strlen(secret));
-			MD5Final(digest, &md5);
+			unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
+			int md_len;
+			char digres[OPBX_MAX_HEX_MD_SIZE];
+			md_len = opbx_md5_hash_two_bin(md_value,
+						       challenge, strlen(challenge), 
+						       secret, strlen(secret));
 			/* If they support md5, authenticate with it.  */
-			for (x=0;x<16;x++)
-				sprintf(digres + (x << 1),  "%2.2x", digest[x]); /* safe */
+			opbx_hash_to_hex(digres, md_value, md_len);
 			if (ecx && dcx)
-				build_enc_keys(digest, ecx, dcx);
+				build_enc_keys(md_value, ecx, dcx);
 			iax_ie_append_str(ied, IAX_IE_MD5_RESULT, digres);
 			res = 0;
 		} else if (authmethods & IAX_AUTH_PLAINTEXT) {

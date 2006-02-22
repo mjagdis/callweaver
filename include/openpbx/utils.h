@@ -29,6 +29,7 @@
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
 #include <limits.h>
+#include <openssl/evp.h>
 
 #include "openpbx/lock.h"
 #include "openpbx/time.h"
@@ -140,9 +141,26 @@ struct opbx_hostent {
 
 extern struct hostent *opbx_gethostbyname(const char *host, struct opbx_hostent *hp);
 
+#define OPBX_MAX_BINARY_MD_SIZE EVP_MAX_MD_SIZE
+#define OPBX_MAX_HEX_MD_SIZE ((EVP_MAX_MD_SIZE * 2) + 1)
+
+/* opbx_hash_to_hex
+   \brief Convert binary message digest to hex-encoded version. */
+extern void opbx_hash_to_hex(char *output, unsigned char *md_value, unsigned int md_len);
+
+extern int opbx_md5_hash_bin(unsigned char *md_value, unsigned char *input, unsigned int input_len);
+
 /* opbx_md5_hash 
 	\brief Produces MD5 hash based on input string */
 extern void opbx_md5_hash(char *output, char *input);
+
+extern int opbx_md5_hash_two_bin(unsigned char *output,
+				 unsigned char *input1, unsigned int input1_len,
+				 unsigned char *input2, unsigned int input2_len);
+
+/* opbx_md5_hash_two 
+	\brief Produces MD5 hash based on two input strings */
+extern void opbx_md5_hash_two(char *output, char *input1, char *input2);
 
 extern int opbx_base64encode(char *dst, const unsigned char *src, int srclen, int max);
 extern int opbx_base64decode(unsigned char *dst, const char *src, int max);
