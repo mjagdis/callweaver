@@ -126,7 +126,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 		ineed = bytes - sofar;
 
 		if (sf->holdlen) {
-			if ((sofar + sf->holdlen) <= ineed) {
+			if ((sf->holdlen) <= ineed) {
 				memcpy(offset, sf->hold, sf->holdlen);
 				sofar += sf->holdlen;
 				offset += (sf->holdlen / sizeof(short));
@@ -142,16 +142,17 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 			continue;
 		}
 		
-		if ((frame_ptr = sf->queue)) {
+		if (sofar < bytes && (frame_ptr = sf->queue)) {
 			sf->queue = frame_ptr->next;
 			frame_data = frame_ptr->data;
 			
-			if ((sofar + frame_ptr->datalen) <= ineed) {
+			if ((frame_ptr->datalen) <= ineed) {
 				memcpy(offset, frame_data, frame_ptr->datalen);
 				sofar += frame_ptr->datalen;
 				offset += (frame_ptr->datalen / sizeof(short));
 			} else {
 				remain = frame_ptr->datalen - ineed;
+
 				memcpy(offset, frame_data, ineed);
 				sofar += ineed;
 				frame_data += (ineed / sizeof(short));
