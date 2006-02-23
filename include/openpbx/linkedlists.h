@@ -1,7 +1,7 @@
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -101,6 +101,23 @@ struct name {								\
 }
 
 /*!
+  \brief Defines initial values for a declaration of OPBX_LIST_HEAD
+*/
+#define OPBX_LIST_HEAD_INIT_VALUE	{		\
+	.first = NULL,					\
+	.last = NULL,					\
+	.lock = OPBX_MUTEX_INIT_VALUE,			\
+	}
+
+/*!
+  \brief Defines initial values for a declaration of OPBX_LIST_HEAD_NOLOCK
+*/
+#define OPBX_LIST_HEAD_NOLOCK_INIT_VALUE	{	\
+	.first = NULL,					\
+	.last = NULL,					\
+	}
+
+/*!
   \brief Defines a structure to be used to hold a list of specified type, statically initialized.
   \param name This will be the name of the defined structure.
   \param type This is the type of each list entry.
@@ -122,11 +139,18 @@ struct name {								\
 	struct type *first;						\
 	struct type *last;						\
 	opbx_mutex_t lock;						\
-} name = {								\
-	.first = NULL,							\
-	.last = NULL,							\
-	.lock = OPBX_MUTEX_INIT_VALUE,					\
-};
+} name = OPBX_LIST_HEAD_INIT_VALUE
+
+/*!
+  \brief Defines a structure to be used to hold a list of specified type, statically initialized.
+
+  This is the same as OPBX_LIST_HEAD_STATIC, except without the lock included.
+*/
+#define OPBX_LIST_HEAD_NOLOCK_STATIC(name, type)				\
+struct name {								\
+	struct type *first;						\
+	struct type *last;						\
+} name = OPBX_LIST_HEAD_NOLOCK_INIT_VALUE
 
 /*!
   \brief Initializes a list head structure with a specified first entry.
@@ -274,9 +298,11 @@ struct {								\
 #define OPBX_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
 	typeof((head)->first) __list_next;						\
 	typeof((head)->first) __list_prev = NULL;					\
-	for ((var) = (head)->first,  __list_next = (var) ? (var)->field.next : NULL;	\
+	typeof((head)->first) __new_prev = NULL;					\
+	for ((var) = (head)->first, __new_prev = (var),					\
+	      __list_next = (var) ? (var)->field.next : NULL;				\
 	     (var);									\
-	     __list_prev = (var), (var) = __list_next,					\
+	     __list_prev = __new_prev, (var) = __list_next,				\
 	     __list_next = (var) ? (var)->field.next : NULL				\
 	    )
 
@@ -292,12 +318,34 @@ struct {								\
   previous entry, if any).
  */
 #define OPBX_LIST_REMOVE_CURRENT(head, field)						\
+	__new_prev = __list_prev;							\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
 	else										\
 		(head)->first = __list_next;						\
 	if (!__list_next)								\
 		(head)->last = __list_prev;
+
+/*!
+  \brief Inserts a list entry before the current entry during a traversal.
+  \param head This is a pointer to the list head structure
+  \param elm This is a pointer to the entry to be inserted.
+  \param field This is the name of the field (declared using OPBX_LIST_ENTRY())
+  used to link entries of this list together.
+
+  \note This macro can \b only be used inside an OPBX_LIST_TRAVERSE_SAFE_BEGIN()
+  block.
+ */
+#define OPBX_LIST_INSERT_BEFORE_CURRENT(head, elm, field) do {		\
+	if (__list_prev) {						\
+		(elm)->field.next = __list_prev->field.next;		\
+		__list_prev->field.next = elm;				\
+	} else {							\
+		(elm)->field.next = (head)->first;			\
+		(head)->first = (elm);					\
+	}								\
+	__new_prev = (elm);						\
+} while (0)
 
 /*!
   \brief Closes a safe loop traversal block.
@@ -369,8 +417,8 @@ struct {								\
 #define OPBX_LIST_INSERT_HEAD(head, elm, field) do {			\
 		(elm)->field.next = (head)->first;			\
 		(head)->first = (elm);					\
-		if (!(head)->last)                                      \
-		        (head)->last = (elm);                           \
+		if (!(head)->last)					\
+			(head)->last = (elm);				\
 } while (0)
 
 /*!
@@ -381,7 +429,8 @@ struct {								\
   used to link entries of this list together.
 
   Note: The link field in the appended entry is \b not modified, so if it is
-  actually the head of a list itself, the entire list will be appended.
+  actually the head of a list itself, the entire list will be appended
+  temporarily (until the next OPBX_LIST_INSERT_TAIL is performed).
  */
 #define OPBX_LIST_INSERT_TAIL(head, elm, field) do {			\
       if (!(head)->first) {						\
@@ -424,14 +473,14 @@ struct {								\
 #define OPBX_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
 		(head)->first = (elm)->field.next;			\
-		if ((head)->last = (elm))			\
+		if ((head)->last == (elm))			\
 			(head)->last = NULL;			\
 	} else {								\
 		typeof(elm) curelm = (head)->first;			\
 		while (curelm->field.next != (elm))			\
 			curelm = curelm->field.next;			\
 		curelm->field.next = (elm)->field.next;			\
-		if ((head)->last == curelm->field.next)			\
+		if ((head)->last == (elm))				\
 			(head)->last = curelm;				\
 	}								\
 } while (0)
