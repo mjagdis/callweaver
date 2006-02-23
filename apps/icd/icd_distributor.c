@@ -927,10 +927,16 @@ icd_status icd_distributor__select_bridger(icd_caller *primary,
         return ICD_SUCCESS;
     }
     if (secondary_channel == NULL) {
-        icd_caller__add_role(secondary, ICD_BRIDGER_ROLE);
+/* strategy changed. If scondary - customer has no channel then primary-agent role brigee  is not serviced well by ICD */ 
+/*        icd_caller__add_role(secondary, ICD_BRIDGER_ROLE);
         icd_caller__add_role(primary, ICD_BRIDGEE_ROLE);
         icd_caller__clear_role(primary, ICD_BRIDGER_ROLE);
         icd_caller__clear_role(secondary, ICD_BRIDGEE_ROLE);
+*/	
+        icd_caller__add_role(primary, ICD_BRIDGER_ROLE);
+        icd_caller__add_role(secondary, ICD_BRIDGEE_ROLE);
+        icd_caller__clear_role(secondary, ICD_BRIDGER_ROLE);
+        icd_caller__clear_role(primary, ICD_BRIDGEE_ROLE);
         return ICD_SUCCESS;
     }
 
