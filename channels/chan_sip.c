@@ -145,6 +145,11 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEBUG_READ	0			/* Recieved data	*/
 #define DEBUG_SEND	1			/* Transmit data	*/
 
+#ifdef OPBX_GENERIC_JB
+#include "openpbx/generic_jb.h"
+static struct opbx_jb_conf global_jbconf;
+#endif /* OPBX_GENERIC_JB */
+
 static const char desc[] = "Session Initiation Protocol (SIP)";
 static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
@@ -731,6 +736,9 @@ static struct sip_pvt {
 	struct opbx_variable *chanvars;		/*!< Channel variables to set for call */
 	struct sip_pvt *next;			/*!< Next call in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
+#ifdef OPBX_GENERIC_JB
+	struct opbx_jb_conf jbconf;
+#endif /* OPBX_GENERIC_JB */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -975,7 +983,11 @@ static const struct opbx_channel_tech sip_tech = {
 	.type = channeltype,
 	.description = "Session Initiation Protocol (SIP)",
 	.capabilities = ((OPBX_FORMAT_MAX_AUDIO << 1) - 1),
-	.properties = OPBX_CHAN_TP_WANTSJITTER,
+#ifdef OPBX_GENERIC_JB
+	.properties = OPBX_CHAN_TP_WANTSJITTER | OPBX_CHAN_TP_CREATESJITTER,
+#else /* OPBX_GENERIC_JB */
+ 	.properties = OPBX_CHAN_TP_WANTSJITTER,
+#endif /* OPBX_GENERIC_JB */
 	.requester = sip_request_call,
 	.devicestate = sip_devicestate,
 	.call = sip_call,
@@ -2980,7 +2992,15 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	/* Set channel variables for this call from configuration */
 	for (v = i->chanvars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp,v->name,v->value);
-				
+
+#ifdef OPBX_GENERIC_JB
+	/* Configure the new channel jb */
+	if(tmp != NULL && i != NULL && i->rtp != NULL)
+	{
+		opbx_jb_configure(tmp, &i->jbconf);
+	}
+#endif /* OPBX_GENERIC_JB */
+								
 	return tmp;
 }
 
@@ -3312,6 +3332,11 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 	}	
 #endif
 	strcpy(p->context, default_context);
+
+#ifdef OPBX_GENERIC_JB
+	/* Assign default jb conf to the new sip_pvt */
+	memcpy(&p->jbconf, &global_jbconf, sizeof(struct opbx_jb_conf));
+#endif /* OPBX_GENERIC_JB */
 
 	/* Add to active dialog list */
 	opbx_mutex_lock(&iflock);
@@ -13018,6 +13043,11 @@ static int reload_config(void)
 	expiry = DEFAULT_EXPIRY;
 	global_allowguest = 1;
 
+#ifdef OPBX_GENERIC_JB
+	/* Copy the default jb config over global_jbconf */
+	opbx_jb_default_config(&global_jbconf);
+#endif /* OPBX_GENERIC_JB */
+
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	v = opbx_variable_browse(cfg, "general");
 	while(v) {
@@ -13025,6 +13055,15 @@ static int reload_config(void)
 			v = v->next;
 			continue;
 		}
+
+#ifdef OPBX_GENERIC_JB
+		/* handle jb conf */
+		if(opbx_jb_read_conf(&global_jbconf, v->name, v->value) == 0)
+		{
+			v = v->next;
+			continue;
+		}
+#endif /* OPBX_GENERIC_JB */
 
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {

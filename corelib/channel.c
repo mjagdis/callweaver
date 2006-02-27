@@ -948,6 +948,11 @@ void opbx_channel_free(struct opbx_channel *chan)
 	            opbx_var_delete(vardata);
 	}
 
+#ifdef OPBX_GENERIC_JB
+	/* Destroy the jitterbuffer */
+	opbx_jb_destroy(chan);
+#endif /* OPBX_GENERIC_JB */
+
 	free(chan);
 	opbx_mutex_unlock(&chlock);
 
@@ -2878,6 +2883,11 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 	int watch_c1_dtmf;
 	void *pvt0, *pvt1;
 	
+#ifdef OPBX_GENERIC_JB
+	/* Indicates whether a frame was queued into a jitterbuffer */
+	int frame_put_in_jb;
+#endif /* OPBX_GENERIC_JB */
+
 	cs[0] = c0;
 	cs[1] = c1;
 	pvt0 = c0->tech_pvt;
@@ -2887,6 +2897,11 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 	watch_c0_dtmf = config->flags & OPBX_BRIDGE_DTMF_CHANNEL_0;
 	watch_c1_dtmf = config->flags & OPBX_BRIDGE_DTMF_CHANNEL_1;
 
+#ifdef OPBX_GENERIC_JB
+	/* Check the need of a jitterbuffer for each channel */
+	opbx_jb_do_usecheck(c0, c1);
+#endif /* OPBX_GENERIC_JB */
+
 	for (;;) {
 		if ((c0->tech_pvt != pvt0) || (c1->tech_pvt != pvt1) ||
 		    (o0nativeformats != c0->nativeformats) ||
@@ -2895,12 +2910,24 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 			res = OPBX_BRIDGE_RETRY;
 			break;
 		}
+
+#ifdef OPBX_GENERIC_JB
+		/* Calculate the appropriate max sleep interval - 
+		 * in general, this is the time,
+		 * left to the closest jb delivery moment */
+		toms = opbx_jb_get_when_to_wakeup(c0, c1, toms);
+#endif /* OPBX_GENERIC_JB */
 		who = opbx_waitfor_n(cs, 2, &toms);
 		if (!who) {
 			if (!toms) {
 				res = OPBX_BRIDGE_RETRY;
 				break;
 			}
+#ifdef OPBX_GENERIC_JB
+			/* No frame received within the specified timeout - 
+			 * check if we have to deliver now */
+			opbx_jb_get_and_deliver(c0, c1);
+#endif /* OPBX_GENERIC_JB */
 			opbx_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
 			if (c0->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE || c1->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE) {
 				if (c0->_softhangup == OPBX_SOFTHANGUP_UNBRIDGE)
@@ -2920,6 +2947,10 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 			opbx_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
 			break;
 		}
+#ifdef OPBX_GENERIC_JB
+		/* Try add the frame info the who's bridged channel jitterbuff */
+		frame_put_in_jb = !opbx_jb_put((who == c0) ? c1 : c0, f);
+#endif /* OPBX_GENERIC_JB */
 
 		if ((f->frametype == OPBX_FRAME_CONTROL) && !(config->flags & OPBX_BRIDGE_IGNORE_SIGS)) {
 			if ((f->subclass == OPBX_CONTROL_HOLD) || (f->subclass == OPBX_CONTROL_UNHOLD) ||
@@ -2959,7 +2990,18 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 				last = who;
 #endif
 tackygoto:
+#ifdef OPBX_GENERIC_JB
+				/* Write immediately frames, not passed through jb */
+				if(!frame_put_in_jb)
+				{
+					opbx_write((who == c0) ? c1 : c0, f);
+				}
+				
+				/* Check if we have to deliver now */
+				opbx_jb_get_and_deliver(c0, c1);
+#else /* OPBX_GENERIC_JB */
 				opbx_write((who == c0) ? c1 : c0, f);
+#endif /* OPBX_GENERIC_JB */
 			}
 		}
 		opbx_frfree(f);

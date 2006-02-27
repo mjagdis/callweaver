@@ -64,6 +64,16 @@ struct opbx_frame {
 	struct opbx_frame *prev;			
 	/*! Next/Prev for linking stand alone frames */
 	struct opbx_frame *next;			
+#ifdef OPBX_GENERIC_JB
+	/*! Timing data flag */
+	int has_timing_info;
+	/*! Timestamp in milliseconds */
+	long ts;
+	/*! Length in milliseconds */
+	long len;
+	/*! Sequence number */
+	int seqno;
+#endif /* OPBX_GENERIC_JB */
 };
 
 #define OPBX_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to

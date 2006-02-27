@@ -73,10 +73,13 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; You can adjust several parameters relating to the jitter buffer.
 ; The jitter buffer's function is to compensate for varying
 ; network delay.
-;
-; There are presently two jitterbuffer implementations available for OpenPBX
-; and chan_iax2; the classic and the new, channel/application independent
-; implementation.  These are controlled at compile-time.  The new jitterbuffer
+
+; There are presently three jitterbuffer implementations available for
+; chan_iax2; the classic, new, channel/application independent
+; implementation. And the generic channel/application independent 
+; jitterbuffer. The generic jitterbuffer is mostly the same as the new, and
+; will probably replace it entirely when it is thoroughly tested.
+; These are controlled at compile-time.  The new jitterbuffer
 ; additionally has support for PLC which greatly improves quality as the
 ; jitterbuffer adapts size, and in compensating for lost packets.
 ;
@@ -146,6 +149,12 @@ forcejitterbuffer=no
 ;maxexcessbuffer=80
 ;minexcessbuffer=10
 ;jittershrinkrate=1
+
+
+;;;;;;;;;;;;; Generic jitterbuffer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; This channel features the generic jitter-buffer. Information for
+; it's configuration is in doc/README.generic_jb
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
 

@@ -37,6 +37,10 @@
 #include <sys/poll.h>
 #endif
 
+#ifdef OPBX_GENERIC_JB
+#include "openpbx/generic_jb.h"
+#endif /* OPBX_GENERIC_JB */
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -342,11 +346,22 @@ struct opbx_channel {
 	/*! For easy linking */
 	struct opbx_channel *next;
 
+#ifdef OPBX_GENERIC_JB
+	/*! The jitterbuffer state  */
+	struct opbx_jb jb;
+#endif /* OPBX_GENERIC_JB */
 };
 
 /* Channel tech properties: */
 /* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
 #define OPBX_CHAN_TP_WANTSJITTER	(1 << 0)	
+
+#ifdef OPBX_GENERIC_JB
+/* \defgroup chanprop Channel tech properties:
+	\brief Channels have this property if they can create jitter; i.e. most VoIP channels */
+/* @{ */
+#define OPBX_CHAN_TP_CREATESJITTER (1 << 1)
+#endif /* OPBX_GENERIC_JB */
 
 /* This flag has been deprecated by the transfercapbilty data member in struct opbx_channel */
 /* #define OPBX_FLAG_DIGITAL	(1 << 0) */	/* if the call is a digital ISDN call */

@@ -471,7 +471,13 @@ immediate=no
 ; Configure jitter buffers in zapata (each one is 20ms, default is 4)
 ;
 ;jitterbuffers=4
-;
+
+;;;;;;;;;;;;; Generic jitterbuffer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; This channel features the generic jitter-buffer. Information for
+; it's configuration is in doc/README.generic_jb
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 ; You can define your own custom ring cadences here.  You can define up to 8
 ; pairs.  If the silence is negative, it indicates where the callerid spill is
 ; to be placed.  Also, if you define any custom cadences, the default cadences

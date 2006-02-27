@@ -34,7 +34,6 @@ extern "C" {
 	/* ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
 #define JB_ADJUST_DELAY 40
 
-
 /* return codes */
 #define JB_OK		0
 #define JB_EMPTY	1
@@ -53,6 +52,7 @@ extern "C" {
 typedef struct jb_conf {
 	/* settings */
 	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
+	long min_jitterbuf;     /* Minimum / Initial JB size */
  	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
 	long max_contig_interp; /* the max interp frames to return in a row */
 } jb_conf;
@@ -101,6 +101,7 @@ typedef struct jitterbuf {
 	long hist_minbuf[JB_HISTORY_MAXBUF_SZ];	/* a sorted buffer of the min delays (lowest first) */
 	int  hist_maxbuf_valid;			/* are the "maxbuf"/minbuf valid? */
 
+	int force_resync;                       /* force a resync of this jb */
 
 	jb_frame *frames; 		/* queued frames */
 	jb_frame *free; 		/* free frames (avoid malloc?) */

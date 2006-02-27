@@ -1,0 +1,64 @@
+The generic Jitterbuffer
+------------------------
+
+The generic jitter buffer is a generic implementation of
+jitterbuffering that can be used in any channel bu adding just a few
+lines of code.
+It is currently implemented in IAX and SIP. 
+Any channel using RTP can be converted to use it with a few trivial
+lines of code, look at chan_sip for an example.
+
+The jitter buffer currently has two actual buffers:
+ fixed - A fixed length implementation by Slav Klenov
+ adaptive - An adaptive jitter buffer implemented by Steve Kann
+   	    more info about this can be found in README.jitterbuffer
+
+The configuration parameters are identical for each channel, and are
+documented here instead of in each channel. 
+NOTE: You must configure the jitterbuffer on the RECEIVING channel. So
+if you have something like:
+	Phone (SIP) -> OPBX -> (ZAP) Phone
+and get jitter on the SIP-connection then you must configure the
+jitterbuffer on the ZAP-channel for it to work.
+
+;------------------- GENERIC JITTER BUFFER CONFIGURATION ----------------------
+; These options are only for the third jitter-buffer variant! Disable the
+; options above if you plan on using this.
+
+; jb-enable = yes              ; Enables the use of a jitterbuffer on the
+                               ; receiving side of a SIP
+                               ; channel. Defaults to "no". An
+                               ; enabled jitterbuffer will be used
+                               ; only if the sending side can create
+                               ; and the receiving side can not
+                               ; accept jitter. The SIP channel can
+                               ; accept jitter,  thus a jitterbuffer
+                               ; on the receive SIP side will be used
+                               ; only if it is forced and enabled.
+
+; jb-force = no	               ; Forces the use of a jitterbuffer on the
+                               ; receive side of a SIP channel.
+                               ; Defaults to "no".
+
+; jb-min-size = 60             ; Minimum / initial length of the jitterbuffer
+
+; jb-max-size = 200            ; Max length of the jitterbuffer in ms.
+
+; jb-resynch-threshold = 1000  ; Jump in the frame timestamps over which
+                               ; the jitterbuffer is resynchronized. Useful
+                               ; to improve the quality of the voice, with
+                               ; big jumps in/broken timestamps, usualy sent
+                               ; from exotic devices and programs. Defaults
+                               ; to 1000.
+
+; jb-impl = fixed              ; Jitterbuffer implementation, used on the
+                               ; receiving side of a SIP channel. Two
+                               ; implementation are currenlty available -
+                               ; "fixed" (with size always equals to
+                               ; jb-max-size) and "adaptive" (with variable
+                               ; size, actually the new jb of IAX2).
+                               ; Defaults to fixed.
+
+; jb-log = no                  ; Enables jitterbuffer frame logging.
+                               ; Defaults to "no".
+;------------------------------------------------------------------------------

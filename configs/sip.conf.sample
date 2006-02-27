@@ -237,6 +237,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; To disallow requests for domains not serviced by this server:
 ; allowexternaldomains=no
 
+;;;;;;;;;;;;; Generic jitterbuffer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; This channel features the generic jitter-buffer. Information for
+; it's configuration is in doc/README.generic_jb
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your
 ; OpenPBX server for authentication. These credentials override

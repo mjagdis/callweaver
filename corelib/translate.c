@@ -158,6 +158,18 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
 	struct opbx_trans_pvt *p;
 	struct opbx_frame *out;
 	struct timeval delivery;
+#ifdef OPBX_GENERIC_JB
+	int has_timing_info;
+	long ts;
+	long len;
+	int seqno;
+	
+	has_timing_info = f->has_timing_info;
+	ts = f->ts;
+	len = f->len;
+	seqno = f->seqno;
+#endif /* OPBX_GENERIC_JB */
+
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
@@ -212,6 +224,18 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
 			/* Invalidate prediction if we're entering a silence period */
 			if (out->frametype == OPBX_FRAME_CNG)
 				path->nextout = opbx_tv(0, 0);
+
+#ifdef OPBX_GENERIC_JB
+			out->has_timing_info = has_timing_info;
+			if(has_timing_info)
+			{
+			        out->ts = ts;
+				out->len = len;
+				//out->len = opbx_codec_get_samples(out) / 8;
+				out->seqno = seqno;
+			}
+#endif /* OPBX_GENERIC_JB */
+
 			return out;
 		}
 		p = p->next;

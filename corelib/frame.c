@@ -284,6 +284,8 @@ void opbx_frfree(struct opbx_frame *fr)
 struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 {
 	struct opbx_frame *out;
+	void *tmp;
+
 	if (!(fr->mallocd & OPBX_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
 		out = opbx_frame_header_new();
@@ -298,6 +300,16 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 		out->offset = fr->offset;
 		out->src = NULL;
 		out->data = fr->data;
+#ifdef OPBX_GENERIC_JB
+		/* Copy the timing data */
+		out->has_timing_info = fr->has_timing_info;
+		if(fr->has_timing_info)
+		{
+			out->ts = fr->ts;
+			out->len = fr->len;
+			out->seqno = fr->seqno;
+		}
+#endif /* OPBX_GENERIC_JB */
 	} else {
 		out = fr;
 	}
@@ -307,6 +319,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 	} else
 		out->src = fr->src;
 	if (!(fr->mallocd & OPBX_MALLOCD_DATA))  {
+	        tmp = fr->data;
 		out->data = malloc(fr->datalen + OPBX_FRIENDLY_OFFSET);
 		if (!out->data) {
 			free(out);
@@ -316,7 +329,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 		out->data += OPBX_FRIENDLY_OFFSET;
 		out->offset = OPBX_FRIENDLY_OFFSET;
 		out->datalen = fr->datalen;
-		memcpy(out->data, fr->data, fr->datalen);
+		memcpy(out->data, tmp, fr->datalen);
 	}
 	out->mallocd = OPBX_MALLOCD_HDR | OPBX_MALLOCD_SRC | OPBX_MALLOCD_DATA;
 	return out;
@@ -360,7 +373,16 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
 		out->src = NULL;
 	out->prev = NULL;
 	out->next = NULL;
-	memcpy(out->data, f->data, out->datalen);	
+	memcpy(out->data, f->data, out->datalen);
+#ifdef OPBX_GENERIC_JB
+	out->has_timing_info = f->has_timing_info;
+	if(f->has_timing_info)
+	{
+		out->ts = f->ts;
+		out->len = f->len;
+		out->seqno = f->seqno;
+	}
+#endif /* OPBX_GENERIC_JB */
 	return out;
 }
 

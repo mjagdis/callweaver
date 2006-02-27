@@ -85,6 +85,11 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/transcap.h"
 #include "openpbx/fskmodem.h"
 
+#ifdef OPBX_GENERIC_JB
+#include "openpbx/generic_jb.h"
+static struct opbx_jb_conf global_jbconf;
+#endif /* OPBX_GENERIC_JB */
+
 #ifndef ZT_SIG_EM_E1
 #error "Your zaptel is too old.  please cvs update"
 #endif
@@ -652,6 +657,10 @@ static struct zt_pvt {
 	int dsp_features;
 #endif	
 	int polarity;
+
+#ifdef OPBX_GENERIC_JB
+	struct opbx_jb_conf jbconf;
+#endif /* OPBX_GENERIC_JB */
 
 } *iflist = NULL, *ifend = NULL;
 
@@ -5256,6 +5265,15 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 		}
 	} else
 		opbx_log(LOG_WARNING, "Unable to allocate channel structure\n");
+
+#ifdef OPBX_GENERIC_JB
+	/* Configure the new channel jb */
+	if(tmp != NULL && i != NULL)
+	{
+		opbx_jb_configure(tmp, &i->jbconf);
+	}
+#endif /* OPBX_GENERIC_JB */
+
 	return tmp;
 }
 
@@ -6891,6 +6909,11 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
 		tmp->channel = channel;
+#ifdef OPBX_GENERIC_JB
+		/* Assign default jb conf to the new zt_pvt */
+		memcpy(&tmp->jbconf, &global_jbconf, 
+		       sizeof(struct opbx_jb_conf));
+#endif /* OPBX_GENERIC_JB */
 	}
 
 	if (tmp) {
@@ -10076,8 +10099,23 @@ static int setup_zap(int reload)
 		}
 	}
 #endif
+
+#ifdef OPBX_GENERIC_JB
+	/* Copy the default jb config over global_jbconf */
+	opbx_jb_default_config(&global_jbconf);
+#endif /* OPBX_GENERIC_JB */
+
 	v = opbx_variable_browse(cfg, "channels");
 	while(v) {
+#ifdef OPBX_GENERIC_JB
+		/* handle jb conf */
+		if(opbx_jb_read_conf(&global_jbconf, v->name, v->value) == 0)
+		{
+			v = v->next;
+			continue;
+		}
+#endif /* OPBX_GENERIC_JB */
+
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel")
 #ifdef ZAPATA_PRI

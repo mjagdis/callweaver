@@ -31,6 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <openpbx/logger.h>
+
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -78,7 +80,7 @@ void jb_reset(jitterbuf *jb)
 	jb->info.conf = s;
 
 	/* initialize length */
-	jb->info.current = jb->info.target = JB_TARGET_EXTRA; 
+	jb->info.current = jb->info.target = jb->info.conf.min_jitterbuf;
 	jb->info.silence_begin_ts = -1; 
 }
 
@@ -127,11 +129,33 @@ static int longcmp(const void *a, const void *b)
 }
 #endif
 
+static void resync(jitterbuf *jb, long ts, long now)
+{
+	long delay = now - (ts - jb->info.resync_offset);
+	long threshold = 2 * jb->info.jitter + jb->info.conf.resync_threshold;
+
+	/* resync the jitterbuffer */
+	jb->info.cnt_delay_discont = 0;
+	jb->hist_ptr = 0;
+	jb->hist_maxbuf_valid = 0;
+	jb->force_resync = 0;
+	
+	jb_warn("Resyncing the jb. lopbx_delay %ld, this delay %ld, threshold %ld, new offset %ld\n", jb->info.lopbx_delay, delay, threshold, ts - now);
+	jb->info.resync_offset = ts - now;
+	jb->info.lopbx_delay = 0; /* after resync, frame is right on time */
+}
+
 static int history_put(jitterbuf *jb, long ts, long now, long ms) 
 {
 	long delay = now - (ts - jb->info.resync_offset);
 	long threshold = 2 * jb->info.jitter + jb->info.conf.resync_threshold;
 	long kicked;
+
+	/* check if a resync has been requested, or is needed */
+	if (jb->force_resync) {
+		resync(jb, ts, now);
+		delay = 0;
+	}
 
 	/* don't add special/negative times to history */
 	if (ts <= 0) 
@@ -139,18 +163,13 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 
 	/* check for drastic change in delay */
 	if (jb->info.conf.resync_threshold != -1) {
-		if (abs(delay - jb->info.lopbx_delay) > threshold) {
+	    if (abs(delay - jb->info.lopbx_delay) > threshold) {
 			jb->info.cnt_delay_discont++;
 			if (jb->info.cnt_delay_discont > 3) {
-				/* resync the jitterbuffer */
-				jb->info.cnt_delay_discont = 0;
-				jb->hist_ptr = 0;
-				jb->hist_maxbuf_valid = 0;
-
-				jb_warn("Resyncing the jb. lopbx_delay %ld, this delay %ld, threshold %ld, new offset %ld\n", jb->info.lopbx_delay, delay, threshold, ts - now);
-				jb->info.resync_offset = ts - now;
-				jb->info.lopbx_delay = delay = 0; /* after resync, frame is right on time */
+				resync(jb, ts, now);
+				delay = 0;
 			} else {
+			    jb_dbg("Semiresyncing!\n");
 				return -1;
 			}
 		} else {
@@ -159,7 +178,7 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 		}
 	}
 
-	kicked = jb->history[jb->hist_ptr & JB_HISTORY_SZ];
+	kicked = jb->history[jb->hist_ptr % JB_HISTORY_SZ];
 
 	jb->history[(jb->hist_ptr++) % JB_HISTORY_SZ] = delay;
 
@@ -385,6 +404,8 @@ static int queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		frame->next->prev = frame;
 		frame->prev->next = frame;
 	}
+
+	jb_dbg("Head ts=%d  rsoffs=%d\n", jb->frames->ts, jb->info.resync_offset);
 	return head;
 }
 
@@ -412,8 +433,8 @@ static jb_frame *_queue_get(jitterbuf *jb, long ts, int all)
 	if (!frame)
 		return NULL;
 
-	/*jb_warn("queue_get: ASK %ld FIRST %ld\n", ts, frame->ts); */
-
+	jb_dbg("queue_get: ASK %ld FIRST %ld\n", ts, frame->ts); 
+	
 	if (all || ts >= frame->ts) {
 		/* remove this frame */
 		frame->prev->next = frame->next;
@@ -434,7 +455,7 @@ static jb_frame *_queue_get(jitterbuf *jb, long ts, int all)
 		/* we return the frame pointer, even though it's on free list, 
 		 * but caller must copy data */
 		return frame;
-	} 
+	} 		     
 
 	return NULL;
 }
@@ -724,6 +745,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 
 		frame = queue_get(jb, now - jb->info.current);
 		if (!frame) {
+			jb_dbg("Didn't get a frame from queue\n");
 			return JB_NOFRAME;
 		} else if (frame->type != JB_TYPE_VOICE) {
 			/* normal case; in silent mode, got a non-voice frame */
@@ -762,7 +784,7 @@ long jb_next(jitterbuf *jb)
 {
 	if (jb->info.silence_begin_ts) {
 		long next = queue_next(jb);
-		if (next > 0) { 
+		if (next >= 0) { 
 			history_get(jb);
 			/* shrink during silence */
 			if (jb->info.target - jb->info.current < -JB_TARGET_EXTRA)
@@ -820,9 +842,17 @@ int jb_setconf(jitterbuf *jb, jb_conf *conf)
 {
 	/* take selected settings from the struct */
 
+	if (conf->min_jitterbuf == -1)
+		jb->info.target = jb->info.conf.min_jitterbuf =JB_TARGET_EXTRA;
+	else
+		jb->info.target = jb->info.conf.min_jitterbuf = 
+			conf->min_jitterbuf;
+
 	jb->info.conf.max_jitterbuf = conf->max_jitterbuf;
  	jb->info.conf.resync_threshold = conf->resync_threshold;
 	jb->info.conf.max_contig_interp = conf->max_contig_interp;
+
+	jb_reset(jb);
 
 	return JB_OK;
 }

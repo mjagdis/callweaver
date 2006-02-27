@@ -10,7 +10,8 @@ libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	opbx_expr2f.c strcompat.c loader.c openpbx.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
 	stubfunctions-monitor.c udptl.c udpfromto.c coef_in.h coef_out.h \
-	ecdisa.h aesopt.h jitterbuf.h opbx_expr2.h
+	ecdisa.h aesopt.h jitterbuf.h opbx_expr2.h \
+	jitterbuf_scx.c generic_jb.c
 nodist_libopenpbx_la_SOURCES = defaults.h
 
 if WANT_DEBUG

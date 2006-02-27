@@ -94,6 +94,12 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
  * otherwise, use the old jitterbuffer */
 #define NEWJB
 
+#ifdef OPBX_GENERIC_JB
+#include "openpbx/generic_jb.h"
+
+static struct opbx_jb_conf global_jbconf;
+#endif /* OPBX_GENERIC_JB */
+
 #ifdef NEWJB
 #include "jitterbuf.h"
 #endif
@@ -475,6 +481,9 @@ struct chan_iax2_pvt {
 	/*! Historic jitter value */
 	int historicjitter;
 #endif
+#ifdef OPBX_GENERIC_JB
+	struct opbx_jb_conf jbconf;
+#endif /* OPBX_GENERIC_JB */
 	/*! LAG */
 	int lag;
 	/*! Error, as discovered by the manager */
@@ -720,11 +729,17 @@ static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_
 static int iax2_transfer(struct opbx_channel *c, const char *dest);
 static int iax2_fixup(struct opbx_channel *oldchannel, struct opbx_channel *newchan);
 
+static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
+
 static const struct opbx_channel_tech iax2_tech = {
 	.type = channeltype,
 	.description = tdesc,
 	.capabilities = IAX_CAPABILITY_FULLBANDWIDTH,
-	.properties = OPBX_CHAN_TP_WANTSJITTER,
+#ifdef OPBX_GENERIC_JB
+	.properties = OPBX_CHAN_TP_WANTSJITTER | OPBX_CHAN_TP_CREATESJITTER,
+#else /* OPBX_GENERIC_JB */
+ 	.properties = OPBX_CHAN_TP_WANTSJITTER,
+#endif /* OPBX_GENERIC_JB */
 	.requester = iax2_request,
 	.devicestate = iax2_devicestate,
 	.send_digit = iax2_digit,
@@ -887,12 +902,18 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 
 			tmp->jb = jb_new();
 			tmp->jbid = -1;
+			jbconf.min_jitterbuf = -1;
 			jbconf.max_jitterbuf = maxjitterbuffer;
 			jbconf.resync_threshold = resyncthreshold;
 			jbconf.max_contig_interp = maxjitterinterps;
 			jb_setconf(tmp->jb,&jbconf);
 		}
 #endif
+#ifdef OPBX_GENERIC_JB
+		/* Assign default jb conf to the new iax2_pvt */
+		memcpy(&tmp->jbconf, &global_jbconf, 
+		       sizeof(struct opbx_jb_conf));
+#endif /* OPBX_GENERIC_JB */
 	}
 	return tmp;
 }
@@ -1100,7 +1121,8 @@ static int iax2_queue_frame(int callno, struct opbx_frame *f)
 			if (opbx_mutex_trylock(&iaxs[callno]->owner->lock)) {
 				/* Avoid deadlock by pausing and trying again */
 				opbx_mutex_unlock(&iaxsl[callno]);
-				usleep(1);
+				sched_yield();
+				usleep(100);
 				opbx_mutex_lock(&iaxsl[callno]);
 			} else {
 				opbx_queue_frame(iaxs[callno]->owner, f);
@@ -1759,7 +1781,6 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
 
 #ifdef BRIDGE_OPTIMIZATION
 static unsigned int calc_fakestamp(struct chan_iax2_pvt *from, struct chan_iax2_pvt *to, unsigned int ts);
@@ -1960,9 +1981,18 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
 
+#ifdef OPBX_GENERIC_JB
+        if (fr->af.frametype == OPBX_FRAME_VOICE) {
+		fr->af.has_timing_info = 1;
+		fr->af.ts = fr->ts;
+		fr->af.seqno = fr->iseqno;
+		fr->af.len = opbx_codec_get_samples(&fr->af) / 8;
+        } else
+		fr->af.has_timing_info = 0;
+#endif /* !OPBX_GENERIC_JB below */
+
 	if (updatehistory) {
 #ifndef NEWJB
-
 		/* Attempt to spot a change of timebase on timestamps coming from the other side
 		   We detect by noticing a jump in consecutive timestamps that can't reasonably be explained
 		   by network jitter or reordering.  Sometimes, also, the peer stops sending us frames
@@ -3124,6 +3154,13 @@ static struct opbx_channel *opbx_iax2_new(int callno, int state, int capability)
 			pbx_builtin_setvar_helper(tmp,v->name,v->value);
 		
 	}
+#ifdef OPBX_GENERIC_JB
+	/* Configure the new channel jb */
+	if(tmp != NULL && i != NULL)
+	{
+		opbx_jb_configure(tmp, &i->jbconf);
+	}
+#endif /* OPBX_GENERIC_JB */
 	return tmp;
 }
 
@@ -5843,6 +5880,13 @@ static int iax_park(struct opbx_channel *chan1, struct opbx_channel *chan2)
 
 static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep) 
 {
+#ifdef OPBX_GENERIC_JB
+	if (opbx_test_flag(&pvt->jbconf, OPBX_GENERIC_JB_ENABLED)) {
+		opbx_log(LOG_DEBUG, "Not sending RR for generic jb\n");
+		return;
+	}
+#endif
+
 #ifdef NEWJB
 	jb_info stats;
 	jb_getinfo(pvt->jb, &stats);
@@ -8107,6 +8151,11 @@ static int set_config(char *config_file, int reload)
 	memset(&globalflags, 0, sizeof(globalflags));
 	opbx_set_flag(&globalflags, IAX_RTUPDATE);
 
+#ifdef OPBX_GENERIC_JB
+	/* Copy the default jb config over global_jbconf */
+	opbx_jb_default_config(&global_jbconf);
+#endif /* OPBX_GENERIC_JB */
+
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
@@ -8123,6 +8172,15 @@ static int set_config(char *config_file, int reload)
 			opbx_log(LOG_WARNING, "Invalid tos value, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n");
 	}
 	while(v) {
+#ifdef OPBX_GENERIC_JB
+		/* handle jb conf */
+		if(opbx_jb_read_conf(&global_jbconf, v->name, v->value) == 0)
+		{
+			v = v->next;
+			continue;
+		}
+#endif /* OPBX_GENERIC_JB */
+
 		if (!strcasecmp(v->name, "bindport")){ 
 			if (reload)
 				opbx_log(LOG_NOTICE, "Ignoring bindport on reload\n");
