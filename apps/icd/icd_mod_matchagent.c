@@ -158,92 +158,114 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
     /* Go through all the customers looking for a match */
     /* For each customer on the list, try to find the match agent. 
      * Return after all customer has been pass looked over once */
-    while(1){
-      LinkFound = 0;
-      result = icd_member_list__lock(dist->customers);
-      iter = icd_distributor__get_customer_iterator(dist);
-      while (icd_list_iterator__has_more_nolock(iter)) {
-        customer = (icd_member *) icd_list_iterator__next(iter);
-		if (customer != NULL) {
-            customer_caller = icd_member__get_caller(customer);
+	while(1){
+		LinkFound = 0;
+		result = icd_member_list__lock(dist->customers);
+		iter = icd_distributor__get_customer_iterator(dist);
+		while (icd_list_iterator__has_more_nolock(iter)) {
+			customer = (icd_member *) icd_list_iterator__next(iter);
+			if (customer != NULL) {
+				customer_caller = icd_member__get_caller(customer);
+			}    
+			if (customer == NULL || customer_caller == NULL) {
+				opbx_log(LOG_ERROR, "MatchAgent Distributor %s could not retrieve customer from list\n",
+				icd_distributor__get_name(dist));
+				continue;
+			}
+	
+			tmp_str = icd_caller__get_param(customer_caller, "identifier");
+	
+			if (tmp_str == NULL) {
+				opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that customer [%s] has no identifier\n",
+				icd_distributor__get_name(dist), icd_caller__get_name(customer_caller));
+				continue;
+			}
+			agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);   
+			if (agent_caller == NULL) {
+				opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in ICD\n",
+				icd_distributor__get_name(dist), tmp_str);
+				continue;
+			}
+			if(icd_caller__get_state(agent_caller) != ICD_CALLER_STATE_READY){
+				continue;
+			}       
+			icd_member_list__lock(dist->agents);		
+			agent = icd_member_list__get_for_caller(dist->agents, agent_caller);
+			if (agent == NULL ) {
+			/*  opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
+                	icd_distributor__get_name(dist), tmp_str);
+			*/                
+				icd_member_list__unlock(dist->agents);		
+				continue;
+        		}
+			if (icd_member__lock(agent) != ICD_SUCCESS){
+				icd_member_list__unlock(dist->agents);		
+				continue;
+			}
+			icd_member_list__unlock(dist->agents);
+			result = icd_member__distribute(agent);
+			if (result != ICD_SUCCESS) {
+				opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
+				icd_distributor__get_name(dist), tmp_str);
+				icd_member__unlock(agent);
+				continue;
+			}
+			result = icd_member__distribute(customer);
+			if (result != ICD_SUCCESS) {
+				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+				icd_member__unlock(agent);
+				continue;
+			}
+			LinkFound = 1;
+			if (icd_member__lock(customer_caller) != ICD_SUCCESS){
+				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+				icd_member__unlock(agent);
+				continue;
+			}
+			icd_member_list__unlock(dist->customers);
+			result = icd_caller__join_callers(customer_caller, agent_caller);
+			if (result != ICD_SUCCESS) {
+				icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
+				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+				icd_member__unlock(customer);
+				icd_member__unlock(agent);
+			}
+			else {
+
+			/* Figure out who the bridger is, and who the bridgee is */
+				result = icd_distributor__select_bridger(agent_caller, customer_caller);
+
+				opbx_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
+				icd_distributor__get_name(dist), icd_caller__get_id(customer_caller), icd_caller__get_id(agent_caller));
+				if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
+					result = icd_caller__bridge(customer_caller);
+				} else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
+					result = icd_caller__bridge(agent_caller);
+				} else {
+					opbx_log(LOG_ERROR, "MatchAgent Distributor %s found no bridger responsible to bridge call\n",
+					icd_distributor__get_name(dist));
+					icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+					icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
+					icd_member__unlock(customer);
+					icd_member__unlock(agent);
+					continue;
+				}
+			}
+			if( LinkFound) {
+				icd_member__unlock(customer);
+				icd_member__unlock(agent);
+				break;
+			}
+      		} /*  while (icd_list_iterator__has_more(iter)) */
+		if(! LinkFound) {
+			result = icd_member_list__unlock(dist->customers);
+		}
+		destroy_icd_list_iterator(&iter);
+		if(! LinkFound) {
+			break;
 		}    
-        if (customer == NULL || customer_caller == NULL) {
-            opbx_log(LOG_ERROR, "MatchAgent Distributor %s could not retrieve customer from list\n",
-                    icd_distributor__get_name(dist));
-                continue;
-        }
-	
-        tmp_str = icd_caller__get_param(customer_caller, "identifier");
-	
-        if (tmp_str == NULL) {
-            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that customer [%s] has no identifier\n",
-                icd_distributor__get_name(dist), icd_caller__get_name(customer_caller));
-                continue;
-            }
-        agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);   
-        if (agent_caller == NULL) {
-            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in ICD\n",
-                icd_distributor__get_name(dist), tmp_str);
-                continue;
-            }
-        if(icd_caller__get_state(agent_caller) != ICD_CALLER_STATE_READY){
-	   	continue;
-		}       
-		icd_member_list__lock(icd_caller__get_memberships(agent_caller));		
-        agent = icd_caller__get_member_for_distributor(agent_caller, dist);
-		if ((agent==NULL) || (icd_distributor__agent_position(dist, (icd_agent *) agent_caller) < 0)) {
-/*            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that agent [%s] is not in distributor\n",
-                icd_distributor__get_name(dist), tmp_str);
-*/                
-		    icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
-			continue;
-        }
-        result = icd_member__distribute(agent);
-        if (result != ICD_SUCCESS) {
-            opbx_log(LOG_WARNING, "MatchAgent Distributor [%s] reports that cannot distribute agent [%s]\n",
-                icd_distributor__get_name(dist), tmp_str);
- 		    	icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
-                continue;
-        }
-		icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
-
-    	result = icd_member__distribute(customer);
-    	if (result != ICD_SUCCESS) {
-        	icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
-        	continue;
-        }
-		LinkFound = 1;
-        result = icd_member_list__unlock(dist->customers);
-    	result = icd_caller__join_callers(customer_caller, agent_caller);
-
-    	/* Figure out who the bridger is, and who the bridgee is */
-    	result = icd_distributor__select_bridger(agent_caller, customer_caller);
-
-   		opbx_verbose(VERBOSE_PREFIX_3 "MatchAgent Distributor [%s] Link CustomerID[%d] to AgentID[%d]\n",
-        icd_distributor__get_name(dist), icd_caller__get_id(customer_caller), icd_caller__get_id(agent_caller));
-    	if (icd_caller__has_role(customer_caller, ICD_BRIDGER_ROLE)) {
-        	result = icd_caller__bridge(customer_caller);
-    	} else if (icd_caller__has_role(agent_caller, ICD_BRIDGER_ROLE)) {
-        	result = icd_caller__bridge(agent_caller);
-    	} else {
-        	opbx_log(LOG_ERROR, "MatchAgent Distributor %s found no bridger responsible to bridge call\n",
-            	icd_distributor__get_name(dist));
-        	icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
-        	icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
-        	continue;
-    	}
-		if( LinkFound) 
-	    	break;
-      	} /*  while (icd_list_iterator__has_more(iter)) */
-      	if(! LinkFound) {
-      		result = icd_member_list__unlock(dist->customers);
-      	}
-      	destroy_icd_list_iterator(&iter);
-      	if(! LinkFound) {
-    	break;
-      	}    
-    }
-    return ICD_SUCCESS;
+	}
+	return ICD_SUCCESS;
 }
 
 

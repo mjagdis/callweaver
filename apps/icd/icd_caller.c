@@ -1379,14 +1379,21 @@ icd_status icd_caller__set_state(icd_caller * that, icd_caller_state state)
 
     assert(that != NULL);
 
+    if (icd_caller__lock(that) == ICD_SUCCESS) {
+    
     states.oldstate = icd_caller__get_state(that);
     states.newstate = state;
 
     /* just changing to the same state so, um yeah it worked!... */
-    if (icd_caller__lock(that) == ICD_SUCCESS) {
     if (states.oldstate == states.newstate) {
         icd_caller__unlock(that);
-        return ICD_SUCCESS;
+/* This state error code is important to let know other distributors not to use this caller. An error code should be probably is case of other states as well */	
+	if (state == ICD_CALLER_STATE_DISTRIBUTING) {
+		return ICD_ESTATE;
+	}
+	else { 
+        	return ICD_SUCCESS;
+	}
     }
     
 
@@ -2187,10 +2194,13 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);
     
-	icd_list__lock((icd_list *) (that->memberships));
+    icd_list__lock((icd_list *) (that->memberships));
     member = icd_caller__get_active_member(that);
+    /*check if mamber is valid   */    
     if(member){
-       queue = icd_member__get_queue(member);
+       if(icd_member_list__member_position(that->memberships, member) >= 0){
+       		queue = icd_member__get_queue(member);
+       }
     }
     if(!queue){
        if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {
@@ -2208,10 +2218,16 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
      }
 
     
+    /* caller has BRIDGER ROLE */
+    if (!icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {   
+       /* caller has BRIDGEE ROLE usually (always?) customer*/
+       /* Let the bridger know that bredgee prompts are finished */ 
+       icd_caller__add_flag(that, ICD_ACK_EXTERN_FLAG);
+       return 0;
+    }
     result = ICD_SUCCESS;
     /* Distributor sets this state on BRIDGER */
-    if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {
-
+    
         /* %TC set state on all bridgees to get chan realy to keep our FSM happy
          * do we realy just have the Dist set bridgees to this state ??
          */
@@ -2289,9 +2305,10 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
 
             /* We have either failed to create a channel or bring it up. */
             if (associate->chan && (result == ICD_SUCCESS)) {
-                icd_list__push(live_associations, associate);
-                icd_caller__set_state(associate, ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE);
-                icd_caller__clear_flag(associate, ICD_ACK_EXTERN_FLAG);
+                if(icd_caller__set_state(associate, ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) == ICD_SUCCESS){
+                	icd_caller__clear_flag(associate, ICD_ACK_EXTERN_FLAG);
+                	icd_list__push(live_associations, associate);
+		}
             }
         }
 
@@ -2301,16 +2318,25 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
         /* Atleast one association is up. */
         link_count = icd_list__count(live_associations);
 
-        if (link_count > 0) {
+        if (link_count <= 0) {
+            	opbx_log(LOG_WARNING, "No associations are found, setting our state to channel failed\n");
+            	icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
+        	destroy_icd_list(&live_associations);
+    		return 0;
+	}
             bridge_tech = (link_count > 1 || (that->bridge_technology == ICD_BRIDGE_CONFERENCE)
                 || icd_conference__get_global_usage())? ICD_BRIDGE_CONFERENCE : ICD_BRIDGE_STANDARD;
 
             /* Bridge only the first element of the associations */
+	    /*to make sure that associate structure is valid (CUSTOMER hangup case ) */
+            icd_list__lock((icd_list *) (that->associations));
             associate = (icd_caller *) icd_list__peek((icd_list *) live_associations);
             if (icd_verbose > 4) {
-                opbx_log(LOG_NOTICE, "%s=%s -> %s=%s\n\n", that->chan->name, opbx_state_strings[that->chan->_state],
+	            if(icd_caller_list__caller_position(that->associations, associate) >=0){ 
+                	opbx_log(LOG_NOTICE, "%s=%s -> %s=%s\n\n", that->chan->name, opbx_state_strings[that->chan->_state],
                     associate->chan->name, opbx_state_strings[associate->chan->_state]);
-            }
+            	}
+	    }
 
 /* We want for customer to wait until prompt (if any) is finished. Change of customer state causes end of waiting loop after prompt is finished.  */	    
             res=0;
@@ -2330,6 +2356,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
             if(res <0){
                 opbx_log(LOG_WARNING, "Channel of bridger [%s] failed while waiting for bridgee[%s]\n", icd_caller__get_name(that), icd_caller__get_name(associate));
                 icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
+                icd_list__unlock((icd_list *) (that->associations));
                 icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_ASSOCIATE_FAILED);
                 destroy_icd_list(&live_associations); 
 		return 1;
@@ -2337,6 +2364,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
             if(it>100){
                 opbx_log(LOG_WARNING, "Bridger [%s] waited too long for bridgee [%s] prompt to be finished\n", icd_caller__get_name(that), icd_caller__get_name(associate));
                 icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
+                icd_list__unlock((icd_list *) (that->associations));
                 icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_ASSOCIATE_FAILED);
                 destroy_icd_list(&live_associations); 
 		return 1;
@@ -2348,9 +2376,11 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
                 }
             }
             /* In case of hangup of associate   */       
-	            if(icd_caller_list__caller_position(that->associations, associate) <0){ 
+	            if((icd_caller_list__caller_position(that->associations, associate) <0) ||
+		       (icd_caller__get_state(associate) != ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE)) { 
 	                icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED); 
-                icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_ASSOCIATE_FAILED); 
+                	icd_list__unlock((icd_list *) (that->associations));
+                	icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_ASSOCIATE_FAILED); 
 	                icd_caller__start_waiting(that); 
 	                destroy_icd_list(&live_associations); 
 	                return 1;    
@@ -2374,6 +2404,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
                     icd_conference__associate(associate, conf, 0);
                     icd_caller__set_state(that, ICD_CALLER_STATE_CONFERENCED);
                     icd_caller__set_state(associate, ICD_CALLER_STATE_CONFERENCED);
+                    icd_list__unlock((icd_list *) (that->associations));
                     destroy_icd_list(&live_associations);
                     return 0;
                 }
@@ -2386,18 +2417,9 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
                 /* TBD - Cleanup from invalid state change */
             }
 
-        } else {
-            opbx_log(LOG_WARNING, "No associations are found, setting our state to channel failed\n");
-            icd_caller__set_state(that, ICD_CALLER_STATE_CHANNEL_FAILED);
-        }
+        icd_list__unlock((icd_list *) (that->associations));
         destroy_icd_list(&live_associations);
-    }
-    /* caller has BRIDGER ROLE */
-    else {    /* caller has BRIDGEE ROLE usually (always?) customer*/
-    /* Let the bridger know that bredgee prompts are finished */ 
-       icd_caller__add_flag(that, ICD_ACK_EXTERN_FLAG);
-    }
-    return 0;
+    	return 0;
 }
 
 /* Standard function for reacting to the bridged state */
@@ -2478,7 +2500,10 @@ int icd_caller__standard_state_bridge_failed(icd_event * event, void *extra)
      */
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);
-    icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+    
+    if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {    
+    	icd_caller__set_state_on_associations(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+    }
 
     return icd_caller__pushback_and_ready_on_fail(event, extra);
 }
@@ -3350,6 +3375,9 @@ icd_status icd_caller__join_callers(icd_caller * that, icd_caller * associate)
         return result;
     }
     result = icd_caller__link_to_caller(associate, that);
+    if (result != ICD_SUCCESS) {
+	icd_caller__remove_all_associations(that);
+    }
     return result;
 }
 

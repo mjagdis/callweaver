@@ -109,6 +109,9 @@ extern "C" {
 /* Pop the top element off of the list. */
     void *icd_list__pop(icd_list * that);
 
+/* Pop the top element off of the list -list is locked if retunr value is not null */
+    void *icd_list__pop_locked(icd_list * that);
+
 /* Look at the top element of the list without removing it. */
     void *icd_list__peek(icd_list * that);
 

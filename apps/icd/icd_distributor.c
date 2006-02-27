@@ -671,25 +671,24 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
         return ICD_ENOTFOUND;
     }
 
-    agent_member = icd_member_list__pop(dist->agents);
-    if(agent_member)
-        agent_caller = icd_member__get_caller(agent_member);
-
+    agent_member = icd_member_list__pop_locked(dist->agents);
+    if(agent_member) {
+        if (icd_member__lock(agent_member) == ICD_SUCCESS){
+        	agent_caller = icd_member__get_caller(agent_member);
+		if(!agent_caller){
+			icd_member__unlock(agent_member);
+		}
+	}
+	icd_member_list__unlock(dist->agents);
+    }
     if (agent_member == NULL || agent_caller == NULL) {
         opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve agent from list\n", icd_distributor__get_name(dist));
         return ICD_ERESOURCE;
     }
     
-	icd_member_list__lock(icd_caller__get_memberships(agent_caller));
-	/* check if agent_member still exists */		
-    if(agent_member == icd_member_list__get_for_caller(icd_caller__get_memberships(agent_caller), agent_caller)){
-       result = icd_member__distribute(agent_member);
-    }
-    else{
-        result = ICD_ENOTFOUND;    	
-    }
-	icd_member_list__unlock(icd_caller__get_memberships(agent_caller));		
+    result = icd_member__distribute(agent_member);
     if (result != ICD_SUCCESS) {
+	icd_member__unlock(agent_member);
         return result;
     }
     
@@ -699,23 +698,34 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
         return result;
     }
 */
-    customer_member = icd_member_list__pop(dist->customers);
+    customer_member = icd_member_list__pop_locked(dist->customers);
     if (customer_member == NULL) {
         opbx_log(LOG_ERROR, "ICD Distributor %s could not retrieve customer from list\n", icd_distributor__get_name(dist));
         icd_caller__start_waiting(agent_caller);
 	icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+	icd_member_list__unlock(dist->customers);
+	icd_member__unlock(agent_member);
         return ICD_ENOTFOUND;
     }
 
-    customer_caller = icd_member__get_caller(customer_member);
+    if (icd_member__lock(customer_member) == ICD_SUCCESS){
+       	customer_caller = icd_member__get_caller(customer_member);
+	if(!customer_caller){
+		icd_member__unlock(customer_member);
+	}
+     }
+    icd_member_list__unlock(dist->customers);
     if(customer_caller == NULL) {
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+	icd_member__unlock(agent_member);
         return ICD_ERESOURCE;
     }
 
     result = icd_member__distribute(customer_member);
     if (result != ICD_SUCCESS) {
-        icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+        icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);   
+	icd_member__unlock(agent_member);
+	icd_member__unlock(customer_member);
         return result;
     }
     
@@ -727,6 +737,13 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     // TC TBD agent_caller = icd_caller__clone_if_necessary(agent_caller);
 
     result = icd_caller__join_callers(customer_caller, agent_caller);
+    if (result != ICD_SUCCESS) {
+        icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
+        icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+	icd_member__unlock(agent_member);
+	icd_member__unlock(customer_member);
+        return result;
+    }
 
     c_id = icd_caller__get_id(customer_caller);
     a_id = icd_caller__get_id(agent_caller);
@@ -744,12 +761,16 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
         opbx_log(LOG_ERROR, "ICD Distributor %s found no bridger responsible to bridge call\n", icd_distributor__get_name(dist));
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
+	icd_member__unlock(agent_member);
+	icd_member__unlock(customer_member);
         return ICD_EGENERAL;
     }
-
+/*
     icd_caller__dump_debug(customer_caller);
     icd_caller__dump_debug(agent_caller);
-
+*/
+    icd_member__unlock(agent_member);
+    icd_member__unlock(customer_member);
     return ICD_SUCCESS;
 }
 
@@ -799,6 +820,7 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         return ICD_ERESOURCE;
     }
+    
     result = icd_member__distribute(customer_member);
     if (result != ICD_SUCCESS) {
         /* Some other distributor got to this customer first */
@@ -807,6 +829,11 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     }
 
     result = icd_caller__join_callers(customer_caller, agent_caller);
+    if (result != ICD_SUCCESS) {
+        icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
+        icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
+        return result;
+    }
 
     c_id = icd_caller__get_id(customer_caller);
     a_id = icd_caller__get_id(agent_caller);
@@ -829,12 +856,13 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
 
     /*TC do we still want this behavior do we remove pop push bcus agent CANT go back till  state_ready
      * Add agent back on to distributor so it gets its turn in round-robin fashion */
+/*    
     result = icd_member_list__push(dist->agents, agent_member);
-   
-
+*/   
+/*
     icd_caller__dump_debug(customer_caller);
     icd_caller__dump_debug(agent_caller);
-
+*/
     return ICD_SUCCESS;
 }
 

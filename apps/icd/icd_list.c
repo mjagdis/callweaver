@@ -416,6 +416,21 @@ icd_status icd_list__push(icd_list * that, void *element)
    or the payload is null. */
 void *icd_list__pop(icd_list * that)
 {
+    void *retval;
+
+    retval = icd_list__pop_locked(that);
+    if(retval){
+           icd_list__unlock(that);
+    }    
+    return retval;
+
+}
+
+/* Pop the top node off of the list and returns its payload.
+   Returns NULL if an error occurs, the list is empty, there is a veto,
+   or the payload is null. If payload is not null - List is locked*/
+void *icd_list__pop_locked(icd_list * that)
+{
     icd_list_node *node;
     void *retval;
     icd_status vetoed;
@@ -448,7 +463,9 @@ void *icd_list__pop(icd_list * that)
             that->tail = NULL;
         }
         icd_list__free_node(that, node);
-        icd_list__unlock(that);
+        if(!retval) {
+		icd_list__unlock(that);
+	}
         return retval;
     }
 
@@ -460,7 +477,6 @@ void *icd_list__pop(icd_list * that)
     return NULL;
 
 }
-
 /* Returns the payload of the top node of the list without altering the list.
    Returns NULL if an error occurs, the list is empty, or the payload is null. */
 void *icd_list__peek(icd_list * that)

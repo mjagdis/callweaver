@@ -193,6 +193,13 @@ icd_member *icd_member_list__pop(icd_member_list * that)
     return (icd_member *) icd_list__pop((icd_list *) that);
 }
 
+/* Retrieves a member from the list, returns null if there are none (typesafe wrapper). */
+icd_member *icd_member_list__pop_locked(icd_member_list * that)
+{
+    assert(that != NULL);
+
+    return (icd_member *) icd_list__pop_locked((icd_list *) that);
+}
 /* Pushback to the top of the list a formerly popped node. */
 icd_status icd_member_list__pushback(icd_member_list * that, icd_member * new_member)
 {
