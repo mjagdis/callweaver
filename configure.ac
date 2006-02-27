@@ -1304,6 +1304,14 @@ AC_ARG_WITH([app_zapateller],
 AM_CONDITIONAL([WANT_APP_ZAPATELLER],[test "${with_app_zapateller}" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH([app_conference],
+	[AC_HELP_STRING([--with-app_conference],[Build and install app_conference (default=yes)])],,
+	[with_app_conference="yes"])
+
+AM_CONDITIONAL([WANT_APP_CONFERENCE],[test "${with_app_conference}" = "yes"])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Channels
@@ -1849,6 +1857,7 @@ AC_OUTPUT([Makefile
                  agi/Makefile
                  apps/Makefile
                  apps/icd/Makefile
+		 apps/conference/Makefile
                  cdr/Makefile
                  channels/Makefile
                  channels/sccp/Makefile
