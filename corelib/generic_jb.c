@@ -345,13 +345,21 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f)
 		return -1;
 	}
 	
-	if(!f->has_timing_info || f->len < 2)
+	/* We consider an enabled jitterbuffer should receive frames with valid
+	   timing info. */
+	if(!f->has_timing_info || f->len < 2 || f->ts < 0)
 	{
-		/* TODO: Shouldn't we disable the jb here? Or we can produce timestamp and seqno? */
+		opbx_log(LOG_WARNING, "Recieved frame with invalid timing "
+			 "info: has_timing_info=%d, len=%ld, ts=%ld\n", 
+			 f->has_timing_info, f->len, f->ts);
 		return -1;
 	}
 	
-	frr = opbx_frdup(f);
+	if(f->mallocd & OPBX_MALLOCD_HDR) {
+		frr = opbx_frdup(f);
+	} else {
+		frr = opbx_frisolate(f);
+	}
 	if(frr == NULL)
 	{
 		opbx_log(LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", chan->name);

@@ -305,8 +305,6 @@ int scx_jb_put(struct scx_jb *jb, void *data, long ms, long ts, long now)
 
 int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long interpl)
 {
-	long halflen;
-	
 	assert(now >= 0);
 	assert(interpl >= 2);
 	
@@ -326,10 +324,8 @@ int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long int
 		return SCX_JB_INTERP;
 	}
 	
-	halflen = (long) ((double) jb->frames->ms / 2.0);
-	
 	/* Isn't it too late for the first frame available in the jb? */
-	if(now > jb->frames->delivery + halflen)
+	if(now > jb->frames->delivery + jb->frames->ms)
 	{
 		/* yes - should drop this frame and update next to point the next frame (get_jb_head() does it) */
 		get_jb_head(jb, frame);
@@ -338,7 +334,7 @@ int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long int
 	}
 	
 	/* isn't it too early to play the first frame available? */
-	if(now < jb->frames->delivery  - halflen)
+	if(now < jb->frames->delivery)
 	{
 		/* yes - should interpolate one frame */
 		/* update next */
