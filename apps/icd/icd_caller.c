@@ -591,7 +591,6 @@ icd_status icd_caller__clear(icd_caller * that)
     }
 
     icd_caller__set_state(that, ICD_CALLER_STATE_CLEARED);
-    
     if (that->params && that->params->allocated) {
         /*opbx_log(LOG_WARNING,"caller clear() freeing hash memory\n"); */
         vh_destroy(&(that->params));

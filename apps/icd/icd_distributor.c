@@ -720,12 +720,36 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
 	icd_member__unlock(agent_member);
         return ICD_ERESOURCE;
     }
-
-    result = icd_member__distribute(customer_member);
+    
+    if(icd_caller__get_state(customer_caller) == ICD_CALLER_STATE_READY){
+	icd_member__unlock(customer_member);
+	/* TODO There is a danger of customer destroying at this point by customer thread*/
+    	icd_caller__lock(customer_caller);
+	if(icd_caller__get_state(customer_caller) == ICD_CALLER_STATE_READY){
+	/* Still in READY state - OK */
+		result = ICD_SUCCESS;
+	}
+	else {
+		result = ICD_ERESOURCE;
+    		icd_caller__unlock(customer_caller);
+	}
+    }
+    else {
+	result = ICD_ERESOURCE;
+	icd_member__unlock(customer_member);
+    }	
+		
     if (result != ICD_SUCCESS) {
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);   
 	icd_member__unlock(agent_member);
-	icd_member__unlock(customer_member);
+        return result;
+    }
+    
+    result = icd_member__distribute(customer_member);
+    if (result != ICD_SUCCESS) {
+	icd_caller__unlock(customer_caller);
+        icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);   
+	icd_member__unlock(agent_member);
         return result;
     }
     
@@ -741,7 +765,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
         icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
 	icd_member__unlock(agent_member);
-	icd_member__unlock(customer_member);
+	icd_caller__unlock(customer_caller);
         return result;
     }
 
@@ -762,7 +786,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
         icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
         icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
 	icd_member__unlock(agent_member);
-	icd_member__unlock(customer_member);
+	icd_caller__unlock(customer_caller);
         return ICD_EGENERAL;
     }
 /*
@@ -770,7 +794,7 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     icd_caller__dump_debug(agent_caller);
 */
     icd_member__unlock(agent_member);
-    icd_member__unlock(customer_member);
+    icd_caller__unlock(customer_caller);
     return ICD_SUCCESS;
 }
 

@@ -331,17 +331,19 @@ int icd_customer__standard_state_call_end(icd_event * event, void *extra)
        call.
      */
     if (that->associations != NULL){
-        associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
+        icd_caller__remove_all_associations(that);
+/*        associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
         while(associate != NULL) {
              icd_caller_list__remove_caller_by_element(associate->associations, that);
-/*	     state = icd_caller__get_state(associate);
+	     state = icd_caller__get_state(associate);
 	     if(state == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE){ 
          		result = icd_caller__set_state(associate, ICD_CALLER_STATE_ASSOCIATE_FAILED);
              }    
-*/    	     
+    	     
 	     associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
-      	}
-    }  
+	     
+      	}  */
+    }
     if (that->chan && icd_caller__get_onhook(that)) {
         icd_bridge__safe_hangup(that);
     }
