@@ -11978,10 +11978,8 @@ restartsearch:
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
 		opbx_mutex_unlock(&monlock);
 		pthread_testcancel();
-		/* Wait for sched or io */
-		res = opbx_sched_wait(sched);
-		if ((res < 0) || (res > 1000))
-			res = 1000;
+		/* Wait for IO */
+		res = 1000;
 		/* If we might need to send more mailboxes, don't wait long at all.*/
 		if (fastrestart)
 			res = 1;
@@ -11989,11 +11987,6 @@ restartsearch:
 		if (res > 20)
 			opbx_log(LOG_DEBUG, "chan_sip: opbx_io_wait ran %d all at once\n", res);
 		opbx_mutex_lock(&monlock);
-		if (res >= 0)  {
-			res = opbx_sched_runq(sched);
-			if (res >= 20)
-				opbx_log(LOG_DEBUG, "chan_sip: opbx_sched_runq ran %d all at once\n", res);
-		}
 
 		/* needs work to send mwi to realtime peers */
 		time(&t);

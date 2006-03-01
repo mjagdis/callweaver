@@ -196,7 +196,6 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 					}
 					opbx_frfree(fr);
 				}
-				opbx_sched_runq(chan->sched);
 			}
 			opbx_stopstream(chan);
 		} else {

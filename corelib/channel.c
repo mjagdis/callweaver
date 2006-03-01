@@ -581,7 +581,6 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	strcpy(tmp->name, "**Unkown**");
 	/* Initial state */
 	tmp->_state = OPBX_STATE_DOWN;
-	tmp->streamid = -1;
 	tmp->appl = NULL;
 	tmp->data = NULL;
 	tmp->fin = global_fin;

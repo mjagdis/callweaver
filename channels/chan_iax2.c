@@ -30,7 +30,7 @@
 #include "openpbx.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
-
+     
 #include "openpbx/lock.h"
 #include "openpbx/frame.h" 
 #include "openpbx/channel.h"
@@ -79,16 +79,13 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <regex.h>
-#ifdef IAX_TRUNKING
-#include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
-#endif
 #include "iax2.h"
 #include "iax2-parser.h"
+
+#ifdef IAX_TRUNKING
+#include <openpbx/timer.h>
+opbx_timer_t trunktimer;
+#endif
 
 /* Define NEWJB to use the new channel independent jitterbuffer,
  * otherwise, use the old jitterbuffer */
@@ -173,8 +170,6 @@ static int tos = 0;
 
 static int min_reg_expire;
 static int max_reg_expire;
-
-static int timingfd = -1;				/* Timing file descriptor */
 
 static struct opbx_netsock_list *netsock;
 static int defaultsockfd = -1;
@@ -5653,7 +5648,8 @@ static inline int iax2_trunk_expired(struct iax2_trunk_peer *tpeer, struct timev
 	return 0;
 }
 
-static int timing_read(int *id, int fd, short events, void *cbdata)
+#ifdef IAX_TRUNKING
+static void timing_read(opbx_timer_t *t, void *user_data)
 {
 	char buf[1024];
 	int res;
@@ -5661,29 +5657,12 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_trunk_peer *tpeer, *prev = NULL, *drop=NULL;
 	int processed = 0;
 	int totalcalls = 0;
-#ifdef ZT_TIMERACK
-	int x = 1;
-#endif
 	struct timeval now;
+
 	if (iaxtrunkdebug)
 		opbx_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", MAX_TRUNKDATA);
 	gettimeofday(&now, NULL);
-	if (events & OPBX_IO_PRI) {
-#ifdef ZT_TIMERACK
-		/* Great, this is a timing interface, just call the ioctl */
-		if (ioctl(fd, ZT_TIMERACK, &x)) 
-			opbx_log(LOG_WARNING, "Unable to acknowledge zap timer\n");
-		res = 0;
-#endif		
-	} else {
-		/* Read and ignore from the pseudo channel for timing */
-		res = read(fd, buf, sizeof(buf));
-		if (res < 1) {
-			opbx_log(LOG_WARNING, "Unable to read from timing fd\n");
-			opbx_mutex_unlock(&peerl.lock);
-			return 1;
-		}
-	}
+
 	/* For each peer that supports trunking... */
 	opbx_mutex_lock(&tpeerlock);
 	tpeer = tpeers;
@@ -5727,8 +5706,9 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	if (iaxtrunkdebug)
 		opbx_verbose("Ending trunk processing with %d peers and %d call chunks processed\n", processed, totalcalls);
 	iaxtrunkdebug =0;
-	return 1;
+	return;
 }
+#endif
 
 struct dpreq_data {
 	int callno;
@@ -5736,6 +5716,7 @@ struct dpreq_data {
 	char callednum[OPBX_MAX_EXTENSION];
 	char *callerid;
 };
+
 
 static void dp_lookup(int callno, char *context, char *callednum, char *callerid, int skiplock)
 {
@@ -7473,8 +7454,7 @@ static void *network_thread(void *ignore)
 	   from the network, and queue them for delivery to the channels */
 	int res, count;
 	struct iax_frame *f, *freeme;
-	if (timingfd > -1)
-		opbx_io_add(io, timingfd, timing_read, OPBX_IO_IN | OPBX_IO_PRI, NULL);
+
 	for(;;) {
 		/* Go through the queue, sending messages which have not yet been
 		   sent, and scheduling retransmissions if appropriate */
@@ -7517,17 +7497,11 @@ static void *network_thread(void *ignore)
 		if (count >= 20)
 			opbx_log(LOG_WARNING, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
 
-		/* Now do the IO, and run scheduled tasks */
-		res = opbx_sched_wait(sched);
-		if ((res > 1000) || (res < 0))
-			res = 1000;
-		res = opbx_io_wait(io, res);
+		/* Now do the IO */
+		res = opbx_io_wait(io, 1000);
 		if (res >= 0) {
 			if (res >= 20)
 				opbx_log(LOG_WARNING, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
-			count = opbx_sched_runq(sched);
-			if (count >= 20)
-				opbx_log(LOG_WARNING, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 		}
 	}
 	return NULL;
@@ -7718,10 +7692,12 @@ static struct iax2_peer *build_peer(const char *name, struct opbx_variable *v, i
 				opbx_set2_flag(peer, opbx_true(v->value), IAX_MESSAGEDETAIL);	
 			} else if (!strcasecmp(v->name, "trunk")) {
 				opbx_set2_flag(peer, opbx_true(v->value), IAX_TRUNK);	
-				if (opbx_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
-					opbx_log(LOG_WARNING, "Unable to support trunking on peer '%s' without zaptel timing\n", peer->name);
+#ifndef IAX_TRUNKING
+				if (opbx_test_flag(peer, IAX_TRUNK)) {
+					opbx_log(LOG_WARNING, "Unable to support trunking on peer '%s'Trunking support is not compiled!\n", peer->name);
 					opbx_clear_flag(peer, IAX_TRUNK);
 				}
+#endif
 			} else if (!strcasecmp(v->name, "auth")) {
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
@@ -7918,10 +7894,12 @@ static struct iax2_user *build_user(const char *name, struct opbx_variable *v, i
 				opbx_parse_allow_disallow(&user->prefs, &user->capability,v->value, 0);
 			} else if (!strcasecmp(v->name, "trunk")) {
 				opbx_set2_flag(user, opbx_true(v->value), IAX_TRUNK);	
-				if (opbx_test_flag(user, IAX_TRUNK) && (timingfd < 0)) {
-					opbx_log(LOG_WARNING, "Unable to support trunking on user '%s' without zaptel timing\n", user->name);
+#ifndef IAX_TRUNKING
+				if (opbx_test_flag(user, IAX_TRUNK)) {
+					opbx_log(LOG_WARNING, "Unable to support trunking on user '%s': Trunking support is not compiled!\n", user->name);
 					opbx_clear_flag(user, IAX_TRUNK);
 				}
+#endif
 			} else if (!strcasecmp(v->name, "auth")) {
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
@@ -8105,15 +8083,18 @@ static void prune_peers(void){
 static void set_timing(void)
 {
 #ifdef IAX_TRUNKING
-	int bs = trunkfreq * 8;
-	if (timingfd > -1) {
-		if (
-#ifdef ZT_TIMERACK
-			ioctl(timingfd, ZT_TIMERCONFIG, &bs) &&
-#endif			
-			ioctl(timingfd, ZT_SET_BLOCKSIZE, &bs))
-			opbx_log(LOG_WARNING, "Unable to set blocksize on timing source\n");
-	}
+	static int timerrunning = 0;
+
+	/* If the timer is running, destroy it */
+	if (timerrunning)
+		opbx_timer_destroy(&trunktimer);
+	
+	/* Create a 1ms timer */
+	timerrunning = 1;
+	opbx_repeating_timer_create(&trunktimer, trunkfreq * 1000, 
+				    timing_read, 0);
+	opbx_timer_start(&trunktimer);
+
 #endif
 }
 
@@ -9031,6 +9012,12 @@ static struct opbx_cli_entry iax2_cli[] = {
 static int __unload_module(void)
 {
 	int x;
+
+#ifdef IAX_TRUNKING
+	/* Destroy the trunking timer */
+	opbx_timer_destroy(&trunktimer);
+#endif
+
 	/* Cancel the network thread, close the net socket */
 	if (netthreadid != OPBX_PTHREADT_NULL) {
 		pthread_cancel(netthreadid);
@@ -9082,16 +9069,6 @@ int load_module(void)
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(IAX_DEFAULT_PORTNO);
 	sin.sin_addr.s_addr = INADDR_ANY;
-
-#ifdef IAX_TRUNKING
-#ifdef ZT_TIMERACK
-	timingfd = open("/dev/zap/timer", O_RDWR);
-	if (timingfd < 0)
-#endif
-		timingfd = open("/dev/zap/pseudo", O_RDWR);
-	if (timingfd < 0) 
-		opbx_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
-#endif		
 
 	memset(iaxs, 0, sizeof(iaxs));
 

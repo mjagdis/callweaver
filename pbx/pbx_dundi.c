@@ -1287,11 +1287,16 @@ static int do_register_expire(void *data)
 {
 	struct dundi_peer *peer = data;
 	char eid_str[20];
-	/* Called with peerlock already held */
+
+	opbx_mutex_lock(&peerlock);
+
 	opbx_log(LOG_DEBUG, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	peer->registerexpire = -1;
 	peer->lastms = 0;
 	memset(&peer->addr, 0, sizeof(peer->addr));
+
+	opbx_mutex_lock(&peerlock);
+
 	return 0;
 }
 
@@ -2101,15 +2106,8 @@ static void *network_thread(void *ignore)
 	/* Establish I/O callback for socket read */
 	opbx_io_add(io, netsocket, socket_read, OPBX_IO_IN, NULL);
 	for(;;) {
-		res = opbx_sched_wait(sched);
-		if ((res > 1000) || (res < 0))
-			res = 1000;
-		res = opbx_io_wait(io, res);
-		if (res >= 0) {
-			opbx_mutex_lock(&peerlock);
-			opbx_sched_runq(sched);
-			opbx_mutex_unlock(&peerlock);
-		}
+		/* 10s select timeout */
+		res = opbx_io_wait(io, 10000);
 		check_password();
 	}
 	return NULL;
@@ -3069,8 +3067,10 @@ static int do_autokill(void *data)
 	char eid_str[20];
 	opbx_log(LOG_NOTICE, "Transaction to '%s' took too long to ACK, destroying\n", 
 		dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
+	opbx_mutex_lock(&peerlock);
 	trans->autokillid = -1;
 	destroy_trans(trans, 0); /* We could actually set it to 1 instead of 0, but we won't ;-) */
+	opbx_mutex_unlock(&peerlock);
 	return 0;
 }
 
@@ -4193,7 +4193,9 @@ static int do_register(void *data)
 	struct dundi_peer *peer = data;
 	char eid_str[20];
 	char eid_str2[20];
-	/* Called with peerlock already held */
+
+	opbx_mutex_lock(&peerlock);
+
 	opbx_log(LOG_DEBUG, "Register us as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
 	peer->registerid = opbx_sched_add(sched, default_expiration * 1000, do_register, data);
 	/* Destroy old transaction if there is one */
@@ -4211,6 +4213,8 @@ static int do_register(void *data)
 	} else
 		opbx_log(LOG_NOTICE, "Unable to create new transaction for registering to '%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 
+	opbx_mutex_unlock(&peerlock);
+
 	return 0;
 }
 
@@ -4219,13 +4223,18 @@ static int do_qualify(void *data)
 	struct dundi_peer *peer;
 	peer = data;
 	peer->qualifyid = -1;
+	opbx_mutex_lock(&peerlock);
 	qualify_peer(peer, 0);
+	opbx_mutex_unlock(&peerlock);
 	return 0;
 }
 
 static void qualify_peer(struct dundi_peer *peer, int schedonly)
 {
 	int when;
+
+	opbx_mutex_lock(&peerlock);
+
 	if (peer->qualifyid > -1)
 		opbx_sched_del(sched, peer->qualifyid);
 	peer->qualifyid = -1;
@@ -4247,6 +4256,9 @@ static void qualify_peer(struct dundi_peer *peer, int schedonly)
 			dundi_send(peer->qualtrans, DUNDI_COMMAND_NULL, 0, 1, NULL);
 		}
 	}
+
+	opbx_mutex_unlock(&peerlock);
+
 }
 static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 {

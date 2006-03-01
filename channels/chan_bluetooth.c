@@ -2328,11 +2328,8 @@ do_monitor(void * data)
 
     /* -- End Build pfds -- */
 
-    res = opbx_sched_wait(sched);
+    res = 100;
     res = poll(pfds, cnt, MAX(100, MIN(100, res)));
-
-    if (res == 0)
-      opbx_sched_runq(sched);
 
     if (pfds[0].revents) {
       handle_incoming(rfcomm_sock_ag, BLT_ROLE_AG);

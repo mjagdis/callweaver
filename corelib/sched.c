@@ -46,6 +46,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/channel.h"
 #include "openpbx/lock.h"
 #include "openpbx/utils.h"
+#include <openpbx/timer.h>
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
@@ -72,12 +73,49 @@ struct sched_context {
 	/* Schedule entry and main queue */
  	struct sched *schedq;
 
+	/* The scheduling timer */
+	opbx_timer_t timer;
+
 #ifdef SCHED_MAX_CACHE
 	/* Cache of unused schedule structures and how many */
 	struct sched *schedc;
 	int schedccnt;
 #endif
 };
+
+static void timer_set(struct sched_context *con)
+{
+	long ms;
+	int res;
+
+        if (con->schedq) {
+                ms = opbx_tvdiff_ms(con->schedq->when, opbx_tvnow());
+
+		/* If the event has bassed start a timer that triggers almost
+		 * immediately */
+                if (ms <= 0)
+                        ms = 1;
+
+		DEBUG(opbx_log(LOG_DEBUG, "Setting timer 0x%lx to %d ms\n", 
+			       &con->timer, ms));
+		res = opbx_timer_newtime(&con->timer, ms * 1000);
+
+		if (res == -1)
+			opbx_log(LOG_ERROR, "Failed starting timer!\n");
+        }
+}
+
+static void timer_func(opbx_timer_t *t, void *user_data)
+{
+	struct sched_context *con = (struct sched_context *) user_data;
+
+	DEBUG(opbx_log(LOG_DEBUG, "Scheduler timer 0x%lx fired!\n", t));
+	opbx_sched_runq(con);
+
+	/* Reset the timer for the next task
+	 * We only need to reset if something actually happened */
+	timer_set(con);
+}
 
 struct sched_context *sched_context_create(void)
 {
@@ -94,6 +132,10 @@ struct sched_context *sched_context_create(void)
 		tmp->schedccnt = 0;
 #endif
 	}
+
+	/* Create timer */
+	opbx_oneshot_timer_create(&tmp->timer, 0, timer_func, tmp);
+
 	return tmp;
 }
 
@@ -101,6 +143,10 @@ void sched_context_destroy(struct sched_context *con)
 {
 	struct sched *s, *sl;
 	opbx_mutex_lock(&con->lock);
+
+	/* Kill the timer */
+	opbx_timer_destroy(&con->timer);
+
 #ifdef SCHED_MAX_CACHE
 	/* Eliminate the cache */
 	s = con->schedc;
@@ -232,6 +278,7 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	 */
 	struct sched *tmp;
 	int res = -1;
+
 	DEBUG(opbx_log(LOG_DEBUG, "opbx_sched_add()\n"));
 	if (!when) {
 		opbx_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
@@ -256,6 +303,10 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
 	opbx_sched_dump(con);
 #endif
+
+	/* Set a timer for the first task */
+	timer_set(con);
+
 	opbx_mutex_unlock(&con->lock);
 	return res;
 }
@@ -290,6 +341,10 @@ int opbx_sched_del(struct sched_context *con, int id)
 		last = s;
 		s = s->next;
 	}
+
+	/* Reset the timer for the next task */
+	timer_set(con);
+
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
 	opbx_sched_dump(con);
@@ -393,6 +448,7 @@ int opbx_sched_runq(struct sched_context *con)
 		} else
 			break;
 	}
+
 	opbx_mutex_unlock(&con->lock);
 	return x;
 }

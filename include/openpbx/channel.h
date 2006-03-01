@@ -242,12 +242,8 @@ struct opbx_channel {
 	int fdno;				
 	/*! Schedule context */
 	struct sched_context *sched;		
-	/*! For streaming playback, the schedule ID */
-	int streamid;				
 	/*! Stream itself. */
 	struct opbx_filestream *stream;		
-	/*! For streaming playback, the schedule ID */
-	int vstreamid;				
 	/*! Stream itself. */
 	struct opbx_filestream *vstream;		
 	/*! Original writer format */

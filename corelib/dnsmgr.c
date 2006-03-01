@@ -146,17 +146,6 @@ int opbx_dnsmgr_lookup(const char *name, struct in_addr *result, struct opbx_dns
 	}
 }
 
-static void *do_refresh(void *data)
-{
-	for (;;) {
-		pthread_testcancel();
-		usleep(opbx_sched_wait(sched));
-		pthread_testcancel();
-		opbx_sched_runq(sched);
-	}
-	return NULL;
-}
-
 static int refresh_list(void *data)
 {
 	struct refresh_info *info = data;
@@ -337,18 +326,12 @@ static int do_reload(int loading)
 	}
 
 	/* if this reload enabled the manager, create the background thread
-	   if it does not exist */
+	   if it does not exist 
+	   This no longer uses a thread since the scheduler has it's own
+	   timers now */
 	if (enabled && !was_enabled && (refresh_thread == OPBX_PTHREADT_NULL)) {
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(&refresh_thread, &attr, do_refresh, NULL) < 0) {
-			opbx_log(LOG_ERROR, "Unable to start refresh thread.\n");
-			opbx_sched_del(sched, refresh_sched);
-		}
-		else {
-			opbx_cli_register(&cli_refresh);
-			res = 0;
-		}
+		opbx_cli_register(&cli_refresh);
+		res = 0;
 	}
 	/* if this reload disabled the manager and there is a background thread,
 	   kill it */

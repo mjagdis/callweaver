@@ -678,6 +678,7 @@ static int retrans_pkt(void *data)
 
 	/* find out expired msgs */
 	opbx_mutex_lock(&gw->msgs_lock);
+	opbx_mutex_lock(&monlock);
 
 	prev = NULL, cur = gw->msgs;
 	while (cur) {
@@ -727,6 +728,8 @@ static int retrans_pkt(void *data)
 		exq = exq->next;
 		free(cur);
 	}
+
+	opbx_mutex_unlock(&monlock);
 
 	return res;
 }
@@ -3453,16 +3456,8 @@ static void *do_monitor(void *data)
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
 		opbx_mutex_unlock(&monlock);
 		pthread_testcancel();
-		/* Wait for sched or io */
-		res = opbx_sched_wait(sched);
-		/* SC: copied from chan_sip.c */
-		if ((res < 0) || (res > 1000))
-			res = 1000;
-		res = opbx_io_wait(io, res);
-		opbx_mutex_lock(&monlock);
-		if (res >= 0) 
-			opbx_sched_runq(sched);
-		opbx_mutex_unlock(&monlock);
+		/* Wait for IO */
+		res = opbx_io_wait(io, 10000);
 	}
 	/* Never reached */
 	return NULL;
@@ -4196,7 +4191,6 @@ static int reload_config(void)
 
 			/* FS: process queue and IO */
 			if (monitor_thread == pthread_self()) {
-				if (sched) opbx_sched_runq(sched);
 				if (io) opbx_io_wait(io, 10);
 			}
 		}
