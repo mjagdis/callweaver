@@ -575,7 +575,7 @@ conf_frame* get_silent_frame( void )
 	// we'll let this leak until the application terminates
 	if ( static_silent_frame == NULL )
 	{
-		// ast_log( AST_CONF_DEBUG, "creating cached silent frame\n" ) ;
+		opbx_log( LOG_DEBUG, "creating cached silent frame\n" ) ;
 		struct opbx_frame* fr = get_silent_slinear_frame() ;
 		
 		static_silent_frame = create_conf_frame( NULL, NULL, fr ) ;

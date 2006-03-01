@@ -189,7 +189,7 @@
 
 // AST_FORMAT_MAX_AUDIO is 1 << 15, so we support 0..15
 #define AC_SUPPORTED_FORMATS 15
-#define AC_SLINEAR_INDEX OPBX_FORMAT_SLINEAR
+#define AC_SLINEAR_INDEX 6
 
 //
 // app_conference functions
