@@ -78,7 +78,7 @@ static struct {
 	char *tablename;
 } globals;
 
-static struct opbx_db_data {
+struct opbx_db_data {
 	char *data;
 	int datalen;
 	int rownum;

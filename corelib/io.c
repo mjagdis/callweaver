@@ -40,9 +40,9 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 
 #ifdef DEBUG_IO
-#define DEBUG DEBUG_M
+#define DEBUG_LOG(a) DEBUG_M(a)
 #else
-#define DEBUG(a) 
+#define DEBUG_LOG(a) 
 #endif
 
 /* 
@@ -126,7 +126,7 @@ static int io_grow(struct io_context *ioc)
 	 * -1 on failure
 	 */
 	void *tmp;
-	DEBUG(opbx_log(LOG_DEBUG, "io_grow()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "io_grow()\n"));
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
 	tmp = realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(struct io_rec));
 	if (tmp) {
@@ -162,7 +162,7 @@ int *opbx_io_add(struct io_context *ioc, int fd, opbx_io_cb callback, short even
 	 * data as an argument.  Returns NULL on failure.
 	 */
 	int *ret;
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_io_add()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_io_add()\n"));
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
 		 * We don't have enough space for this entry.  We need to
@@ -270,7 +270,7 @@ int opbx_io_wait(struct io_context *ioc, int howlong)
 	int res;
 	int x;
 	int origcnt;
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_io_wait()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_io_wait()\n"));
 	res = poll(ioc->fds, ioc->fdcnt, howlong);
 	if (res > 0) {
 		/*

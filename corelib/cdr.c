@@ -1095,7 +1095,6 @@ static int do_reload(void)
 	int was_enabled;
 	int was_batchmode;
 	int res=0;
-	pthread_attr_t attr;
 
 	opbx_mutex_lock(&cdr_batch_lock);
 

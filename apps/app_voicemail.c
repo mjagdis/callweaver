@@ -69,6 +69,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/localtime.h"
 #include "openpbx/cli.h"
 #include "openpbx/utils.h"
+#include "openpbx/phone_no_utils.h"
+
 #ifdef USE_ODBC_STORAGE
 #include "openpbx/res_odbc.h"
 #endif

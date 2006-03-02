@@ -855,18 +855,6 @@ static void stevek_warning_output(const char *fmt, ...)
 	opbx_log(LOG_WARNING, buf);
 }
 
-static void stevek_debug_output(const char *fmt, ...)
-{
-	va_list args;
-	char buf[1024];
-
-	va_start(args, fmt);
-	vsnprintf(buf, 1024, fmt, args);
-	va_end(args);
-
-	opbx_verbose(buf);
-}
-
 static void * jb_create_stevek(struct opbx_jb_conf *general_config, long resynch_threshold)
 {
 	jb_conf jbconf;

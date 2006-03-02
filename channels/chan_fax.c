@@ -1008,7 +1008,7 @@ static int control_handler(struct faxmodem *fm, const char *num)
 					fm->psock = tech_pvt->pipe[1];
 					fm->state = FAXMODEM_STATE_CALLING;
 					if (opbx_pbx_start(chan)) {
-					    opbx_log(LOG_WARNING, "Unable to start PBX on %\s\n", chan->name);
+					    opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
 					    opbx_hangup(chan);
 					}
 #ifdef DOTRACE

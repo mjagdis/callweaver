@@ -26,9 +26,9 @@
 #endif
 
 #ifdef DEBUG_SCHEDULER
-#define DEBUG(a) DEBUG_M(a)
+#define DEBUG_LOG(a) DEBUG_M(a)
 #else
-#define DEBUG(a) 
+#define DEBUG_LOG(a) 
 #endif
 
 #include <stdio.h>
@@ -96,8 +96,8 @@ static void timer_set(struct sched_context *con)
                 if (ms <= 0)
                         ms = 1;
 
-		DEBUG(opbx_log(LOG_DEBUG, "Setting timer 0x%lx to %d ms\n", 
-			       &con->timer, ms));
+		DEBUG_LOG(opbx_log(LOG_DEBUG, "Setting timer 0x%lx to %ld ms\n", 
+			       (unsigned long)&con->timer, ms));
 		res = opbx_timer_newtime(&con->timer, ms * 1000);
 
 		if (res == -1)
@@ -109,7 +109,8 @@ static void timer_func(opbx_timer_t *t, void *user_data)
 {
 	struct sched_context *con = (struct sched_context *) user_data;
 
-	DEBUG(opbx_log(LOG_DEBUG, "Scheduler timer 0x%lx fired!\n", t));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "Scheduler timer 0x%lx fired!\n", 
+		       (unsigned long)t));
 	opbx_sched_runq(con);
 
 	/* Reset the timer for the next task
@@ -211,7 +212,7 @@ int opbx_sched_wait(struct sched_context *con)
 	 * until the next scheduled event
 	 */
 	int ms;
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_sched_wait()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_wait()\n"));
 	opbx_mutex_lock(&con->lock);
 	if (!con->schedq) {
 		ms = -1;
@@ -279,7 +280,7 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	struct sched *tmp;
 	int res = -1;
 
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_sched_add()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_add()\n"));
 	if (!when) {
 		opbx_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
 		return -1;
@@ -325,7 +326,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 	 * id.
 	 */
 	struct sched *last=NULL, *s;
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_sched_del()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_del()\n"));
 	opbx_mutex_lock(&con->lock);
 	s = con->schedq;
 	while(s) {
@@ -400,7 +401,7 @@ int opbx_sched_runq(struct sched_context *con)
 	struct timeval tv;
 	int x=0;
 	int res;
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_sched_runq()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_runq()\n"));
 		
 	opbx_mutex_lock(&con->lock);
 	for(;;) {
@@ -457,7 +458,7 @@ long opbx_sched_when(struct sched_context *con,int id)
 {
 	struct sched *s;
 	long secs;
-	DEBUG(opbx_log(LOG_DEBUG, "opbx_sched_when()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_when()\n"));
 
 	opbx_mutex_lock(&con->lock);
 	s=con->schedq;

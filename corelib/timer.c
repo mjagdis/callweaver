@@ -149,10 +149,11 @@ void opbx_timer_destroy(opbx_timer_t *t)
 {
 	if (t->active) {
 		timer_delete(t->timer_id);
-		opbx_log(LOG_DEBUG, "Destroying timer 0x%lx!\n", t);
+		opbx_log(LOG_DEBUG, "Destroying timer 0x%lx!\n", 
+			 (unsigned long)t);
 	} else
 		opbx_log(LOG_DEBUG, "Attempted to destroy inactive timer "
-			 "0x%lx!\n", t);
+			 "0x%lx!\n", (unsigned long)t);
 	t->active = 0;
 }
 
@@ -179,7 +180,7 @@ int opbx_timer_start(opbx_timer_t *t)
 	}
 
 	opbx_log(LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
-		 "%ld.%ld\n", t,
+		 "%ld.%ld\n", (unsigned long)t,
 		 spec.it_value.tv_sec, spec.it_value.tv_nsec, 
 		 spec.it_interval.tv_sec, spec.it_interval.tv_nsec);
 

@@ -39,6 +39,7 @@
 #include "openpbx/cli.h"
 #include "openpbx/say.h"
 #include "openpbx/utils.h"
+#include "openpbx/translate.h"
 
 /* standard includes */
 #include <stdio.h>

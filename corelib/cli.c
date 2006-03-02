@@ -789,7 +789,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->jb.conf.timing_compensation,
 		c->jb.flags,
 #endif /* !OPBX_GENERIC_JB */
-		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
+		c->context, c->exten, c->priority, (int)c->callgroup, 
+		(int)c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 		( c-> data ? (!opbx_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 		(opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
