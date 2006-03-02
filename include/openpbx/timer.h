@@ -42,7 +42,7 @@ struct __opbx_timer_t {
 	opbx_timer_type_t type;
 	timer_t timer_id;
 	pthread_t *thread;
-	long interval;
+        unsigned long interval;
 	opbx_timer_func *func;
 	void *user_data;
 };
@@ -53,14 +53,14 @@ struct __opbx_timer_t {
  * fairly quickly
  *
  * Returns -1 on failure, 0 otherwise */
-int opbx_repeating_timer_create(opbx_timer_t *t, long interval, 
+int opbx_repeating_timer_create(opbx_timer_t *t, unsigned long interval, 
 				opbx_timer_func *func, void *user_data);
 
 /* Create a one-shot timer that only fires once after it has been started.
  * Parameters are as above.
  * This timer can be started multiple times with opbx_timer_start(), so
  * it is not necessary to recreate it after use */
-int opbx_oneshot_timer_create(opbx_timer_t *t, long interval, 
+int opbx_oneshot_timer_create(opbx_timer_t *t, unsigned long interval, 
 			      opbx_timer_func *func, void *user_data);
 
 /* Stop and destroy a timer */
@@ -75,11 +75,11 @@ int opbx_timer_stop(opbx_timer_t *t);
 
 /* Reset the firing interval on a timer. This will also automatically
  * restart the timer for you. */
-int opbx_timer_newtime(opbx_timer_t *t, long interval);
+int opbx_timer_newtime(opbx_timer_t *t, unsigned long interval);
 
 /* Run a one-shot timer, that is created, fired and destroyed in one call
  * This is a shorthand for calling the create, start and destroy functions. */
-int opbx_simple_timer(opbx_timer_t *t, long interval,
+int opbx_simple_timer(opbx_timer_t *t, unsigned long interval,
 		      opbx_timer_func *func, void *user_data);
 
 #endif /* _OPENPBX_TIMER_H */

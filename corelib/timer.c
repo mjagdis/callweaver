@@ -56,7 +56,7 @@ static void sighandler_and_destroyer(sigval_t sigval)
 	opbx_timer_destroy(t);
 }
 
-static void _set_interval(opbx_timer_t *t, long interval)
+static void _set_interval(opbx_timer_t *t, unsigned long interval)
 {
 	struct timespec res;
 	int st;
@@ -94,7 +94,7 @@ static void _set_interval(opbx_timer_t *t, long interval)
 }
 
 static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type, 
-			 long interval, opbx_timer_func *func, 
+			 unsigned long interval, opbx_timer_func *func, 
 			 void *user_data, void (*hdlr)(sigval_t))
 {
 	char buf[128];
@@ -132,13 +132,13 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 	return 0;
 }
 
-int opbx_repeating_timer_create(opbx_timer_t *t, long interval, 
+int opbx_repeating_timer_create(opbx_timer_t *t, unsigned long interval, 
 				opbx_timer_func *func, void *user_data)
 {
 	return _timer_create(t, OPBX_TIMER_REPEATING, interval, func, 
 			    user_data, sighandler);
 }
-int opbx_oneshot_timer_create(opbx_timer_t *t, long interval, 
+int opbx_oneshot_timer_create(opbx_timer_t *t, unsigned long interval, 
 			      opbx_timer_func *func, void *user_data)
 {
 	return _timer_create(t, OPBX_TIMER_ONESHOT, interval, func, 
@@ -211,7 +211,7 @@ int opbx_timer_stop(opbx_timer_t *t)
 	return 0;
 }
 
-int opbx_simple_timer(opbx_timer_t *t, long interval,
+int opbx_simple_timer(opbx_timer_t *t, unsigned long interval,
 		      opbx_timer_func *func, void *user_data)
 {
 	int res;
@@ -230,7 +230,7 @@ int opbx_simple_timer(opbx_timer_t *t, long interval,
 	return res;
 }
 
-int opbx_timer_newtime(opbx_timer_t *t, long interval)
+int opbx_timer_newtime(opbx_timer_t *t, unsigned long interval)
 {
 	_set_interval(t, interval);
 	return opbx_timer_start(t);
