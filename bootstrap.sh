@@ -28,11 +28,11 @@ autoconf --version | grep 2.59 > /dev/null ||
 libtoolize --copy --force --ltdl
 aclocal -I acmacros
 autoheader --force
-automake --add-missing
+automake --copy --add-missing
 autoconf --force
 pushd libltdl
 aclocal
-automake --add-missing
+automake --copy --add-missing
 autoheader --force
 autoconf --force
 popd
@@ -40,7 +40,7 @@ pushd editline
 libtoolize --copy --force
 aclocal
 autoheader --force
-automake --add-missing
+automake --copy --add-missing
 autoconf --force
 popd
 #pushd sqlite3-embedded
