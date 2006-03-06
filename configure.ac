@@ -1321,6 +1321,27 @@ AC_ARG_WITH([app_conference],
 AM_CONDITIONAL([WANT_APP_CONFERENCE],[test "${with_app_conference}" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH([app_ldap],
+	[AC_HELP_STRING([--with-app_ldap],[Build and install app_ldap (default=no)])],,
+	[with_app_ldap="no"])
+
+AM_CONDITIONAL([WANT_APP_LDAP],[test "${with_app_ldap}" = "yes"])
+
+if test "${with_app_ldap}" = "yes"; then
+   AC_CHECK_LIB(ldap, ldap_open, [], [
+		      echo "LDAP libraries not found. Install openldap-dev"
+		      exit -1
+		      ])
+
+   AC_CHECK_LIB(lber, ber_alloc, [], [
+		      echo "BER libraries not found. Install openldap-dev"
+		      exit -1
+		      ])
+
+fi
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Channels

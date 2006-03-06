@@ -402,4 +402,11 @@ app_zapateller_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_zapateller_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_ZAPATELLER
 
+if WANT_APP_LDAP
+opbxmod_LTLIBRARIES			+= app_ldap.la
+app_ldap_la_SOURCES			= app_ldap.c
+app_ldap_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_ldap_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_LDAP
+
 INCLUDES = -I$(top_srcdir)/include
