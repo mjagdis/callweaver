@@ -319,6 +319,10 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         call_is_t38_mode = FALSE;
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
+            // =hk= end application when T38/T30 has finished
+            if ((t38.current_rx_type == T30_MODEM_DONE) ||
+                (t38.current_tx_type == T30_MODEM_DONE)) break;
+
             if (call_is_t38_mode)
                 t38_send_timeout(&t38);
             if (res == 0)
