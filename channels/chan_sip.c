@@ -4794,8 +4794,9 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxDatagram:%d\r\n",x);
 	if (p->t38jointcapability != T38FAX_UDP_EC_NONE)
 		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxUdpEC:%s\r\n", (p->t38jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
-	if (p->udptl)
-		len = strlen(m_modem) + strlen(a_modem);
+
+	len = strlen(v) + strlen(o) + strlen(s) + strlen(c) + strlen(t) + strlen(m_modem) + strlen(a_modem);
+
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
 	add_line(resp, v);
