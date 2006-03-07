@@ -3904,7 +3904,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				opbx_log(LOG_DEBUG,"RateMangement: %s\n", s);
 				if (!strcasecmp(s, "localTCF"))
 					peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
-				else if (!strcasecmp(s, "transferedTCF"))
+				else if (!strcasecmp(s, "transferredTCF"))
 					peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 			}
 			if ((sscanf(a, "T38FaxUdpEC:%s", s) == 1)) {
@@ -4788,7 +4788,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxFillBitRemoval:%d\r\n", (p->t38jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingMMR:%d\r\n", (p->t38jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingJBIG:%d\r\n", (p->t38jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxRateManagement:%s\r\n", (p->t38jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferedTCF");
+	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxRateManagement:%s\r\n", (p->t38jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
 	x = opbx_udptl_get_local_max_datagram(p->udptl);
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxBuffer:%d\r\n",x);
 	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxDatagram:%d\r\n",x);
