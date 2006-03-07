@@ -1890,6 +1890,7 @@ AC_OUTPUT([Makefile
 		 apps/conference/Makefile
                  cdr/Makefile
                  channels/Makefile
+                 channels/iax2/Makefile
                  channels/sccp/Makefile
                  codecs/Makefile
  		 corelib/Makefile
