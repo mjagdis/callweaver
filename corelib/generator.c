@@ -193,7 +193,7 @@ static void *opbx_generator_thread(void *data)
 	void (*cur_gen_free)(struct opbx_channel *chan, void *cur_gen_data);
 	struct timeval tv;
 	struct timespec ts;
-	int sleep_interval_ns;
+	long sleep_interval_ns;
 	int res;
 
 
