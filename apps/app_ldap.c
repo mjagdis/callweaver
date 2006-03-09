@@ -99,11 +99,8 @@ static int ldap_exec (struct opbx_channel *chan, void *data)
     return 0;
   }
 
-#ifdef NEW_CONFIG
   cfg = opbx_config_load(LDAP_CONFIG);
-#else
-  cfg = opbx_load(LDAP_CONFIG);
-#endif
+
   if(!cfg) {
     opbx_log(LOG_WARNING, "No such configuration file %s\n", LDAP_CONFIG);
     return -1;
@@ -193,11 +190,7 @@ static int ldap_exec (struct opbx_channel *chan, void *data)
 			     ))
       chan->priority += 100;
   }
-#ifdef NEW_CONFIG
   opbx_config_destroy(cfg);
-#else
-  opbx_destroy(cfg);
-#endif
   free(filter);
   free(base);
 

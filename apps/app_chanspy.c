@@ -103,7 +103,7 @@ static void spy_release(struct opbx_channel *chan, void *data);
 static void *spy_alloc(struct opbx_channel *chan, void *params);
 static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum);
 static void opbx_flush_spy_queue(struct opbx_channel_spy *spy);
-static int spy_generate(struct opbx_channel *chan, void *data, int len, int samples);
+static int spy_generate(struct opbx_channel *chan, void *data, int len);
 static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan, struct opbx_channel_spy *spy);
 static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy);
 static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd);
@@ -248,7 +248,7 @@ static int spy_queue_ready(struct opbx_channel_spy *spy)
 }
 #endif
 
-static int spy_generate(struct opbx_channel *chan, void *data, int len, int samples) 
+static int spy_generate(struct opbx_channel *chan, void *data, int len)
 {
 
 	struct chanspy_translation_helper *csth = data;

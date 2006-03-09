@@ -29,7 +29,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL:$", "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/sched.h"
 #include "openpbx/astobj.h"
@@ -244,7 +244,12 @@ static int tech_setoption(struct opbx_channel *self, int option, void *data, int
 static int tech_queryoption(struct opbx_channel *self, int option, void *data, int *datalen);
 static struct opbx_channel *tech_bridged_channel(struct opbx_channel *self, struct opbx_channel *bridge);
 static int tech_transfer(struct opbx_channel *self, const char *newdest);
-static int tech_bridge(struct opbx_channel *chan_a, struct opbx_channel *chan_b, int flags, struct opbx_frame **outframe, struct opbx_channel **recent_chan);
+static enum opbx_bridge_result tech_bridge(struct opbx_channel *chan_a, 
+					   struct opbx_channel *chan_b, 
+					   int flags, 
+					   struct opbx_frame **outframe, 
+					   struct opbx_channel **recent_chan,
+					   int timeoutms);
 static int tech_write_video(struct opbx_channel *self, struct opbx_frame *frame);
 
 
@@ -1890,7 +1895,7 @@ static int tech_transfer(struct opbx_channel *self, const char *newdest)
 }
 
 /*--- tech_bridge:  Technology-specific code executed to natively bridge 2 of our channels ---*/
-static int tech_bridge(struct opbx_channel *chan_a, struct opbx_channel *chan_b, int flags, struct opbx_frame **outframe, struct opbx_channel **recent_chan)
+static enum opbx_bridge_result tech_bridge(struct opbx_channel *chan_a, struct opbx_channel *chan_b, int flags, struct opbx_frame **outframe, struct opbx_channel **recent_chan, int timeoutms)
 {
 	int res = -1;
 

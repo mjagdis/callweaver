@@ -88,9 +88,9 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t *buf, int len)
 {
     struct opbx_frame outf;
-    struct ast_channel *chan;
+    struct opbx_channel *chan;
 
-    chan = (struct ast_channel *) user_data;
+    chan = (struct opbx_channel *) user_data;
     memset(&outf, 0, sizeof(outf));
     outf.frametype = OPBX_FRAME_MODEM;
     outf.subclass = OPBX_MODEM_T38;
