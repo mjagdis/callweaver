@@ -216,14 +216,14 @@ void conference_exec( struct opbx_conference *conf )
 				member->inFramesNeeded = ( time_diff / OPBX_CONF_FRAME_INTERVAL ) - 1 ;
 								
 // !!! TESTING !!!
-if ( 
-	conf->debug_flag == 1 
-	&& member->inFramesNeeded > 0 
-)
-{
-	opbx_log( OPBX_CONF_DEBUG, "channel => %s, inFramesNeeded => %d, inFramesCount => %d\n", 
-		member->channel_name, member->inFramesNeeded, member->inFramesCount ) ;
-}
+				if ( 
+				    conf->debug_flag == 1 
+				    && member->inFramesNeeded > 0 
+				    )
+				{
+					opbx_log( OPBX_CONF_DEBUG, "channel => %s, inFramesNeeded => %d, inFramesCount => %d\n", 
+						  member->channel_name, member->inFramesNeeded, member->inFramesCount ) ;
+				}
 
 				// non-listener member should have frames,
 				// unless silence detection dropped them
@@ -238,17 +238,17 @@ if (
 				
 // !!! TESTING !!!
 #if 0
-if ( member->speaking_state == 1 )
-{
-	opbx_log( OPBX_CONF_DEBUG, "member has stopped speaking, channel => %s, incoming => %d, outgoing => %d\n",
-		member->channel_name, member->inFramesCount, member->outFramesCount ) ;
-}
+				if ( member->speaking_state == 1 )
+				{
+					opbx_log( OPBX_CONF_DEBUG, "member has stopped speaking, channel => %s, incoming => %d, outgoing => %d\n",
+						  member->channel_name, member->inFramesCount, member->outFramesCount ) ;
+				}
 #endif
-if ( conf->debug_flag == 1 )
-{
-	opbx_log( OPBX_CONF_DEBUG, "member is silent, channel => %s, incoming => %d, outgoing => %d\n",
-		member->channel_name, member->inFramesCount, member->outFramesCount ) ;
-}
+				if ( conf->debug_flag == 1 )
+				{
+					opbx_log( OPBX_CONF_DEBUG, "member is silent, channel => %s, incoming => %d, outgoing => %d\n",
+						  member->channel_name, member->inFramesCount, member->outFramesCount ) ;
+				}
 
 				// mark member as silent
 				member->speaking_state = 0 ;
@@ -262,26 +262,22 @@ if ( conf->debug_flag == 1 )
 
 // !!! TESTING !!!
 #if 0
-if ( member->speaking_state == 1 )
-{
-	opbx_log( OPBX_CONF_DEBUG, "member has stopped speaking, channel => %s, incoming => %d, outgoing => %d\n",
-		member->channel_name, member->inFramesCount, member->outFramesCount ) ;
-}
+				if ( member->speaking_state == 1 ) {
+						opbx_log( OPBX_CONF_DEBUG, "member has stopped speaking, channel => %s, incoming => %d, outgoing => %d\n",
+							  member->channel_name, member->inFramesCount, member->outFramesCount ) ;
+				}
 #endif
-if ( conf->debug_flag == 1 )
-{
-	opbx_log( OPBX_CONF_DEBUG, "member is silent, channel => %s, incoming => %d, outgoing => %d\n",
-		member->channel_name, member->inFramesCount, member->outFramesCount ) ;
-}
-
+				if ( conf->debug_flag == 1 ) {
+					opbx_log( OPBX_CONF_DEBUG, "member is silent, channel => %s, incoming => %d, outgoing => %d\n",
+						  member->channel_name, member->inFramesCount, member->outFramesCount ) ;
+				}
+				
 				// mark member as silent
 				member->speaking_state = 0 ;
-				
+
 				// count the listeners
 				++listener_count ;
-			}
-			else
-			{
+			} else {
 				// this speaking member has spoken
 				// ast_log( AST_CONF_DEBUG, "speaking member, channel => %s\n", member->channel_name ) ;
 				
@@ -292,23 +288,21 @@ if ( conf->debug_flag == 1 )
 					cfr->next = spoken_frames ;
 					spoken_frames->prev = cfr ;
 				}
-
+				
 				// point the list at the new frame
 				spoken_frames = cfr ;
 				
-// !!! TESTING !!!
 #if 0
-if ( member->speaking_state == 0 )
-{
-	opbx_log( OPBX_CONF_DEBUG, "member has started speaking, channel => %s, incoming => %d, outgoing => %d\n",
-		member->channel_name, member->inFramesCount, member->outFramesCount ) ;
-}
+// !!! TESTING !!!
+				if ( member->speaking_state == 0 ) {
+					opbx_log( OPBX_CONF_DEBUG, "member has started speaking, channel => %s, incoming => %d, outgoing => %d\n",
+						  member->channel_name, member->inFramesCount, member->outFramesCount ) ;
+				}
 #endif
-if ( conf->debug_flag == 1 )
-{
-	opbx_log( OPBX_CONF_DEBUG, "member is speaking, channel => %s, incoming => %d, outgoing => %d\n",
-		member->channel_name, member->inFramesCount, member->outFramesCount ) ;
-}
+				if ( conf->debug_flag == 1 ) {
+					opbx_log( OPBX_CONF_DEBUG, "member is speaking, channel => %s, incoming => %d, outgoing => %d\n",
+						  member->channel_name, member->inFramesCount, member->outFramesCount ) ;
+				}
 				
 				// mark member as speaker
 				member->speaking_state = 1 ;
@@ -318,8 +312,8 @@ if ( conf->debug_flag == 1 )
 				++speaker_count ;
 			}
 
-			// release member mutex
-			opbx_mutex_unlock( &member->lock ) ;
+// release member mutex
+opbx_mutex_unlock( &member->lock ) ;
 
 			// adjust our pointer to the next inline
 			member = member->next ;
@@ -329,14 +323,11 @@ if ( conf->debug_flag == 1 )
 		// break, if we have no more members
 		//
 
-		if ( conf->membercount == 0 ) 
-		{
+		if ( conf->membercount == 0 ) {
 			opbx_log( LOG_NOTICE, "removing conference, count => %d, name => %s\n", conf->membercount, conf->name ) ;
 			remove_conf( conf ) ; // stop the conference
 			break ; // break from main processing loop
 		}
-
-		// ast_log( AST_CONF_DEBUG, "finished processing incoming audio, name => %s\n", conf->name ) ;
 
 
 		//---------------//
@@ -463,6 +454,14 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
 
 	struct opbx_conference* conf = NULL ;
 
+	/* Ugly hack but currently we can't support ILBC due to it's
+	 * longer frames */
+	if (member->write_format == OPBX_FORMAT_ILBC) {
+		opbx_log(LOG_ERROR, "ILBC peer cannot join, since ILBC "
+			 "frames aren't currently supported!\n");
+		return NULL;
+	}
+
 	// acquire mutex
 	opbx_mutex_lock( &start_stop_conf_lock ) ;
 
@@ -497,7 +496,7 @@ struct opbx_conference* start_conference( struct opbx_conf_member* member )
 		//
 		add_member( member, conf ) ;
 		
-	}
+	}	
 
 	// release mutex
 	opbx_mutex_unlock( &start_stop_conf_lock ) ;
@@ -552,7 +551,7 @@ struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member
 	// allocate memory for conference
 	//
 
-	struct opbx_conference *conf = malloc( sizeof( struct opbx_conference ) ) ;
+	struct opbx_conference *conf = calloc(1, sizeof( struct opbx_conference ) ) ;
 	
 	if ( conf == NULL ) 
 	{
@@ -585,17 +584,6 @@ struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member
 	// initialize mutexes
 	opbx_mutex_init( &conf->lock ) ;
 	
-	// build translation paths	
-
-	int c;	
-	for ( c = 0 ; c < AC_SUPPORTED_FORMATS ; ++c )
-	{
-		if ( c == AC_SLINEAR_INDEX )
-			conf->from_slinear_paths[ c ] = NULL;
-		else 
-			conf->from_slinear_paths[ c ] =opbx_translator_build_path( 1 << c, OPBX_FORMAT_SLINEAR);
-	}
-
 	// add the initial member
 	add_member( member, conf ) ;
 	
@@ -752,6 +740,17 @@ void add_member( struct opbx_conf_member *member, struct opbx_conference *conf )
 	
 	// acquire the conference lock
 	opbx_mutex_lock( &conf->lock ) ;
+
+	/* Set up translator paths for the codecs used by member */
+	if (!conf->from_slinear_paths[member->write_format_index]) {
+		int c = member->write_format_index;
+		opbx_log(LOG_DEBUG, "Creating translation from slinear "
+			 "to %s\n", 
+			 opbx_getformatname(1 << c));
+		conf->from_slinear_paths[c] = 
+			opbx_translator_build_path( 1 << c,
+						    OPBX_FORMAT_SLINEAR);
+	}
 
 	member->next = conf->memberlist ; // next is now list
 	conf->memberlist = member ; // member is now at head of list
@@ -1014,7 +1013,7 @@ int queue_frame_for_listener(
 	//
 
 	short found_flag = 0 ;
-	struct opbx_frame* qf ;
+	struct opbx_frame *qf, *oqf;
 
 	for ( ; frame != NULL ; frame = frame->next ) 
 	{
@@ -1057,8 +1056,8 @@ int queue_frame_for_listener(
 			}
 			
 			// convert using the conference's translation path
-			qf = convert_frame_from_slinear( conf->from_slinear_paths[ member->write_format_index ], qf ) ;
-			if ( qf == NULL )
+			oqf = convert_frame_from_slinear( conf->from_slinear_paths[ member->write_format_index ], qf ) ;
+			if ( oqf == NULL )
 				opbx_log( LOG_WARNING, "unable to translate frame for listener, channel => %s , member->write_format => %d , member->write_format_index %d , qf->frametype -> %d , qf->subclass -> %d, qf->datalen=> %d, qf->samples =>%d\n", member->channel_name , member->write_format, member->write_format_index, qf->frametype, qf->subclass , qf->datalen, qf->samples) ;
 			
 			// store the converted frame
@@ -1066,6 +1065,7 @@ int queue_frame_for_listener(
 			frame->converted[ member->write_format_index ] = qf ;
 //ast_log (AST_CONF_DEBUG, "storing converted frame into index=>%d, qf->frametype=>%d, qf->subclass=%d, qf->datalen=%d \n",member->write_format_index, qf->frametype, qf->subclass, qf->datalen);
 		}
+		qf = oqf;
 
 		if ( qf != NULL )
 		{
