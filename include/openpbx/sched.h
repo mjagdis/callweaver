@@ -45,6 +45,14 @@ struct sched_context;
  */
 extern struct sched_context *sched_context_create(void);
 
+/*! New schedule context */
+/* !
+ * Create a scheduling context for a manual scheduler.
+ * You need to run sched_runq() yourself.
+ * Returns a malloc'd sched_context structure, NULL on failure
+ */
+extern struct sched_context *sched_manual_context_create(void);
+
 /*! destroys a schedule context */
 /*!
  * \param c Context to free

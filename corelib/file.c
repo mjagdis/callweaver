@@ -52,7 +52,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/lock.h"
 #include "openpbx/app.h"
 #include "openpbx/pbx.h"
-#include <openpbx/timer.h>
 
 struct opbx_format {
 	/* Name of format */
@@ -100,8 +99,6 @@ struct opbx_filestream {
 	int lastwriteformat;
 	int lasttimeout;
 	struct opbx_channel *owner;
-	/* Timer for this stream */
-	opbx_timer_t timer;
 };
 
 OPBX_MUTEX_DEFINE_STATIC(formatlock);
@@ -587,7 +584,7 @@ struct opbx_frame *opbx_readframe(struct opbx_filestream *s)
 	return f;
 }
 
-static void opbx_readaudio_callback(opbx_timer_t *t, void *data)
+static int opbx_readaudio_callback(void *data)
 {
 	struct opbx_filestream *s = data;
 	struct opbx_frame *fr;
@@ -598,22 +595,24 @@ static void opbx_readaudio_callback(opbx_timer_t *t, void *data)
 		if (fr) {
 			if (opbx_write(s->owner, fr)) {
 				opbx_log(LOG_WARNING, "Failed to write frame\n");
-				opbx_timer_destroy(t);
-				return;
+				s->owner->streamid = -1;
+				return 0;
 			}
 		} else {
 			/* Stream has finished */
-			opbx_timer_destroy(t);
-			return;
+			s->owner->streamid = -1;
+			return 0;
 		}
 	}
 	if (whennext != s->lasttimeout) {
+			s->owner->streamid = opbx_sched_add(s->owner->sched, whennext/8, opbx_readaudio_callback, s);
 		s->lasttimeout = whennext;
+		return 0;
 	}
-	return;
+	return 1;
 }
 
-static void opbx_readvideo_callback(opbx_timer_t *t, void *data)
+static int opbx_readvideo_callback(void *data)
 {
 	struct opbx_filestream *s = data;
 	struct opbx_frame *fr;
@@ -624,20 +623,21 @@ static void opbx_readvideo_callback(opbx_timer_t *t, void *data)
 		if (fr) {
 			if (opbx_write(s->owner, fr)) {
 				opbx_log(LOG_WARNING, "Failed to write frame\n");
-				opbx_timer_destroy(t);
-				return;
+				s->owner->vstreamid = -1;
+				return 0;
 			}
 		} else {
 			/* Stream has finished */
-			opbx_timer_destroy(t);
-			return;
+			s->owner->vstreamid = -1;
+			return 0;
 		}
 	}
 	if (whennext != s->lasttimeout) {
+		s->owner->vstreamid = opbx_sched_add(s->owner->sched, whennext/8, opbx_readvideo_callback, s);
 		s->lasttimeout = whennext;
-		return;
+		return 0;
 	}
-	return;
+	return 1;
 }
 
 int opbx_applystream(struct opbx_channel *chan, struct opbx_filestream *s)
@@ -648,27 +648,10 @@ int opbx_applystream(struct opbx_channel *chan, struct opbx_filestream *s)
 
 int opbx_playstream(struct opbx_filestream *s)
 {
-	int whennext;
-	struct opbx_frame *fr;
-
-	fr = s->fmt->read(s, &whennext);
-	if (fr) {
-		if (opbx_write(s->owner, fr)) {
-			opbx_log(LOG_WARNING, "Failed to write first frame\n");
-			return 0;
-		}
-
-		/* Convert time from samples to miliseconds */
-		whennext /= 8;
-		if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO) 
-			opbx_repeating_timer_create(&s->timer,whennext * 1000, 
-						    opbx_readaudio_callback,s);
-		else
-			opbx_repeating_timer_create(&s->timer,whennext * 1000, 
-						    opbx_readvideo_callback,s);
-
-		opbx_timer_start(&s->timer);
-	}
+	if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO)
+		opbx_readaudio_callback(s);
+	else
+		opbx_readvideo_callback(s);
 	return 0;
 }
 
@@ -706,16 +689,18 @@ int opbx_closestream(struct opbx_filestream *f)
 {
 	char *cmd = NULL;
 	size_t size = 0;
-
 	/* Stop a running stream if there is one */
 	if (f->owner) {
-		/* Stop the stream timer */
-		opbx_timer_destroy(&f->timer);
-
 		if (f->fmt->format < OPBX_FORMAT_MAX_AUDIO) {
 			f->owner->stream = NULL;
+			if (f->owner->streamid > -1)
+				opbx_sched_del(f->owner->sched, f->owner->streamid);
+			f->owner->streamid = -1;
 		} else {
 			f->owner->vstream = NULL;
+			if (f->owner->vstreamid > -1)
+				opbx_sched_del(f->owner->sched, f->owner->vstreamid);
+			f->owner->vstreamid = -1;
 		}
 	}
 	/* destroy the translator on exit */
@@ -1002,11 +987,12 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 	struct opbx_frame *fr;
 	if (!breakon) breakon = "";
 	while(c->stream) {
-		if (!c->stream->timer.active) {
-			/* Stream has ended */
+		res = opbx_sched_wait(c->sched);
+		if ((res < 0)) {
+			opbx_stopstream(c);
 			break;
 		}
-		res = opbx_waitfor(c, 100);
+		res = opbx_waitfor(c, res);
 		if (res < 0) {
 			opbx_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
@@ -1044,6 +1030,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 			/* Ignore */
 			opbx_frfree(fr);
 		}
+		opbx_sched_runq(c->sched);
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -1061,11 +1048,12 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 			rewind = "";
 	
 	while(c->stream) {
-		if (!c->stream->timer.active) {
-			/* Stream has ended */
+		res = opbx_sched_wait(c->sched);
+		if ((res < 0)) {
+			opbx_stopstream(c);
 			break;
 		}
-		res = opbx_waitfor(c, 100);
+		res = opbx_waitfor(c, res);
 		if (res < 0) {
 			opbx_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
@@ -1106,7 +1094,10 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 			}
 			/* Ignore */
 			opbx_frfree(fr);
-		}
+		} else
+			opbx_sched_runq(c->sched);
+	
+		
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -1123,11 +1114,11 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 		breakon = "";
 	
 	while(c->stream) {
-		if (!c->stream->timer.active) {
-			/* Stream has ended */
+		ms = opbx_sched_wait(c->sched);
+		if (ms < 0) {
+			opbx_stopstream(c);
 			break;
 		}
-		ms = 100;
 		rchan = opbx_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
 			/* Continue */
@@ -1175,6 +1166,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 			/* Ignore */
 			opbx_frfree(fr);
 		}
+		opbx_sched_runq(c->sched);
 	}
 	return (c->_softhangup ? -1 : 0);
 }
@@ -1190,11 +1182,12 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 
 	if (!context) context = c->context;
 	while(c->stream) {
-		if (!c->stream->timer.active) {
-			/* Stream has ended */
+		res = opbx_sched_wait(c->sched);
+		if (res < 0) {
+			opbx_stopstream(c);
 			break;
 		}
-		res = opbx_waitfor(c, 100);
+		res = opbx_waitfor(c, res);
 		if (res < 0) {
 			opbx_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
@@ -1232,6 +1225,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 			/* Ignore */
 			opbx_frfree(fr);
 		}
+		opbx_sched_runq(c->sched);
 	}
 	return (c->_softhangup ? -1 : 0);
 }

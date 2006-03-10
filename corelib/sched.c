@@ -74,6 +74,7 @@ struct sched_context {
  	struct sched *schedq;
 
 	/* The scheduling timer */
+	int usetimer;
 	opbx_timer_t timer;
 
 #ifdef SCHED_MAX_CACHE
@@ -88,7 +89,7 @@ static void timer_set(struct sched_context *con)
 	long ms;
 	int res;
 
-        if (con->schedq) {
+        if (con->usetimer && con->schedq) {
                 ms = opbx_tvdiff_ms(con->schedq->when, opbx_tvnow());
 
 		/* If the event has bassed start a timer that triggers almost
@@ -118,7 +119,7 @@ static void timer_func(opbx_timer_t *t, void *user_data)
 	timer_set(con);
 }
 
-struct sched_context *sched_context_create(void)
+static struct sched_context *context_create(void)
 {
 	struct sched_context *tmp;
 	tmp = malloc(sizeof(struct sched_context));
@@ -134,8 +135,30 @@ struct sched_context *sched_context_create(void)
 #endif
 	}
 
+	return tmp;
+}
+
+struct sched_context *sched_context_create(void)
+{
+	struct sched_context *tmp;
+
+	tmp = context_create();
+
 	/* Create timer */
+	tmp->usetimer = 1;
 	opbx_oneshot_timer_create(&tmp->timer, 0, timer_func, tmp);
+
+	return tmp;
+}
+
+struct sched_context *sched_manual_context_create(void)
+{
+	struct sched_context *tmp;
+
+	tmp = context_create();
+
+	/* Disable timer */
+	tmp->usetimer = 0;
 
 	return tmp;
 }
@@ -146,7 +169,9 @@ void sched_context_destroy(struct sched_context *con)
 	opbx_mutex_lock(&con->lock);
 
 	/* Kill the timer */
-	opbx_timer_destroy(&con->timer);
+	if (con->usetimer)
+		opbx_timer_destroy(&con->timer);
+	con->usetimer = 0;
 
 #ifdef SCHED_MAX_CACHE
 	/* Eliminate the cache */
@@ -306,7 +331,8 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 #endif
 
 	/* Set a timer for the first task */
-	timer_set(con);
+	if (con->usetimer)
+		timer_set(con);
 
 	opbx_mutex_unlock(&con->lock);
 	return res;
@@ -344,7 +370,8 @@ int opbx_sched_del(struct sched_context *con, int id)
 	}
 
 	/* Reset the timer for the next task */
-	timer_set(con);
+	if (con->usetimer)
+		timer_set(con);
 
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */

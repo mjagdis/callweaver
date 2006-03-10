@@ -548,7 +548,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	}
 
 	memset(tmp, 0, sizeof(struct opbx_channel));
-	tmp->sched = sched_context_create();
+	tmp->sched = sched_manual_context_create();
 	if (!tmp->sched) {
 		opbx_log(LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
