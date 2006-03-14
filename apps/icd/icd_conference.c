@@ -366,7 +366,12 @@ icd_status icd_conference__join(icd_caller * that)
 
     if (!conf || !chan || !conf->ztc.confno) {
         opbx_log(LOG_ERROR, "Invalid conference....\n");
-        icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+        if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+	}
+	else {
+	     icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+	}
         return ICD_STDERR;
     }
     
@@ -376,11 +381,23 @@ icd_status icd_conference__join(icd_caller * that)
     if (opbx_set_write_format(chan, icd_conf_format) < 0) {
         opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
+        if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+	}
+	else {
+	     icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+	}
         return ICD_STDERR;
     }
 
     /* Set it into linear mode (read) */
     if (opbx_set_read_format(chan, icd_conf_format) < 0) {
+        if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+	}
+	else {
+	     icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+	}
         opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         return ICD_STDERR;
@@ -398,7 +415,12 @@ icd_status icd_conference__join(icd_caller * that)
             fd = open_pseudo_zap();
             if (!fd) {
                 opbx_log(LOG_ERROR, "Can't create pseudo channel...\n");
-                icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
                 return ICD_STDERR;
             }
             x = 1;
@@ -408,11 +430,23 @@ icd_status icd_conference__join(icd_caller * that)
             if (flags < 0) {
                 opbx_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
                 close(fd);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
                 return ICD_STDERR;
             }
             if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
                 opbx_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
                 close(fd);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
                 return ICD_STDERR;
             }
             /* Setup buffering information */
@@ -424,12 +458,24 @@ icd_status icd_conference__join(icd_caller * that)
             if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
                 opbx_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
                 close(fd);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
                 return ICD_STDERR;
             }
 
             if (ioctl(fd, ZT_SETLINEAR, &x)) {
                 opbx_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
                 close(fd);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
                 return ICD_STDERR;
             }
             nfds = 1;
@@ -463,6 +509,12 @@ icd_status icd_conference__join(icd_caller * that)
         opbx_log(LOG_WARNING, "Unable to set '%s' to write correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         if (pseudo_fd) close(fd);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
         return ICD_STDERR;
     }
 
@@ -471,6 +523,12 @@ icd_status icd_conference__join(icd_caller * that)
         opbx_log(LOG_WARNING, "Unable to set '%s' to read correct audio codec mode[%d]\n", chan->name,
             icd_conf_format);
         if (pseudo_fd) close(fd);
+        	if(icd_caller__has_flag(that, ICD_MONITOR_FLAG)){
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_CALL_END);
+		}
+		else {
+	     		icd_caller__set_state(that, ICD_CALLER_STATE_BRIDGE_FAILED);
+		}
         return ICD_STDERR;
     }
 	

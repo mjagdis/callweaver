@@ -82,7 +82,7 @@ extern "C" {
 /* This is the registry for agents, associating agent names with objects.*/
     extern icd_fieldset *agents;
 
-/* This is the registry for customers, associating agent names with objects. only used for callbacks*/
+/* This is the registry for customers, associating agent names with objects. */
     extern icd_fieldset *customers;
 
 /* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/

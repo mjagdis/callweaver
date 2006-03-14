@@ -82,17 +82,6 @@
 #endif
 #endif
 
-/*To debug thread locks - works only when icd debug is on - assume that pthread_t is unsigned long*/
-/* if not - do not define ICD_PTHREAD_T_LONG  */
-#define ICD_PTHREAD_T_LONG
-
-#ifdef ICD_PTHREAD_T_LONG
-#define ICD_PTHREAD_FORMAT " thread[%lu]"
-#define ICD_PTHREAD_ID , pthread_self()
-#else
-#define ICD_PTHREAD_FORMAT 
-#define ICD_PTHREAD_ID 
-#endif
 
 /* For Emacs:
  * Local Variables:

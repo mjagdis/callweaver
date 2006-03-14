@@ -131,6 +131,9 @@ icd_fieldset *agents;
 /* This is the registry for customers, associating customers names with objects. */
 icd_fieldset *customers;
 
+/* This is the lock customers add, remove and seek */
+opbx_mutex_t customers_lock;
+
 /***** Private APIs, Types, and Variables */
 
 /* static icd_module module_id = APP_ICD; */
@@ -234,7 +237,10 @@ int load_module(void)
 
     queues = create_icd_fieldset("ICD Queues");
     agents = create_icd_fieldset("ICD Agents");
-    customers = create_icd_fieldset("ICD Customers");   /* only used by onhook callbacks */
+    customers = create_icd_fieldset("ICD Customers");  
+    opbx_mutex_init(&customers_lock);
+
+    
     /* TBD convert this is the std icd_field set wrapper on void hash
        conferences = create_icd_fieldset("ICD Conferences"); 
     */
@@ -316,7 +322,9 @@ int unload_module(void)
 
     destroy_icd_fieldset(&queues);
     destroy_icd_fieldset(&agents);
+    opbx_mutex_destroy(&customers_lock);
     destroy_icd_fieldset(&customers);
+    
 
     /* must unload loadable mod after callers since we may have function ptrs that 
      * are need till we destroy all agents / customer 
@@ -760,16 +768,18 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
           icd_caller__add_role((icd_caller *) customer, ICD_LOOPER_ROLE);
 	}
     }
-
     /* This becomes the thread to manage customer state and incoming stream */
-    cust_uniq_name = NULL;
+    input[0] = '\0';
+    cust_uniq_name = input;
     if (chan) if(chan->uniqueid) {
-        cust_uniq_name = chan->uniqueid;
+        strncpy(input, chan->uniqueid, sizeof(input));
     }
-    if(!cust_uniq_name){
-    	cust_uniq_name = custname;
-    }		
+    if(strlen(input) + 6 < sizeof(input))
+    	sprintf(input + strlen(input), ".%d", icd_caller__get_id((icd_caller *)customer));
+    
+    opbx_mutex_lock(&customers_lock);
     icd_fieldset__set_value(customers, cust_uniq_name, customer);
+    opbx_mutex_unlock(&customers_lock);
 	icd_caller__set_caller_id((icd_caller *)customer, cust_uniq_name);
 	if(queue){
 		manager_event(EVENT_FLAG_USER, "icd_event",
@@ -778,8 +788,11 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
 	}    
     icd_caller__loop((icd_caller *) customer, 0);
     
-    if (cust_uniq_name) 
+    if (cust_uniq_name) {
+        opbx_mutex_lock(&customers_lock);    
         icd_fieldset__remove_key(customers, cust_uniq_name);
+        opbx_mutex_unlock(&customers_lock);    
+    }
     destroy_icd_customer(&customer);    /* TC always destroy the customer callers */
 
     /* Once we hit here, the call is finished */

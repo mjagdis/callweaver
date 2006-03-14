@@ -167,6 +167,7 @@ icd_status init_icd_distributor(icd_distributor *that, char *name, icd_config *d
     if(that->allocated != 1)
         ICD_MEMSET_ZERO(that,sizeof(icd_distributor));
 
+    icd_distributor__reset_added_callers_number(that);
     /* install all the config params into a hash to look at later */ 
     key = icd_config__get_value(data, "params");
     if(key) {
@@ -1160,6 +1161,7 @@ void *icd_distributor__standard_run(void *that) {
             /* Distribute callers if we can, or pause until some are added */
             if (icd_distributor__customers_pending(dist) && 
                     icd_distributor__agents_pending(dist)) {
+                icd_distributor__reset_added_callers_number(dist);
                 result = icd_distributor__unlock(dist);
                 /* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom
                  * function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn
@@ -1232,6 +1234,7 @@ icd_status icd_distributor__add_caller(icd_distributor *that, icd_member *new_me
     }
 
     result = icd_distributor__lock(that);
+    that->number_of_callers_added++;
     opbx_cond_signal(&(that->wakeup));
     result = icd_distributor__unlock(that);
     return result;
@@ -1257,6 +1260,7 @@ icd_status icd_distributor__pushback_caller(icd_distributor *that, icd_member *n
     }
 
     result = icd_distributor__lock(that);
+    that->number_of_callers_added++;
     opbx_cond_signal(&(that->wakeup));
     result = icd_distributor__unlock(that);
     return result;
@@ -1384,3 +1388,13 @@ icd_status init_icd_distributor_ringall(icd_distributor *that, char *name, icd_c
     return ICD_SUCCESS;
 }
 
+/* Gets the number of callers added since last link function call. */
+    unsigned int icd_distributor__get_added_callers_number(icd_distributor * that){
+    
+          return  that->number_of_callers_added;
+    }
+
+/*  Resets the number of callers added since last link function call.  */
+    void icd_distributor__reset_added_callers_number(icd_distributor * that){
+        that->number_of_callers_added = 0;
+    }

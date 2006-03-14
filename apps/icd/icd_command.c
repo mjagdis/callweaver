@@ -52,6 +52,10 @@
 
 static int verbosity = 1;
 
+/* This is the lock customers add, remove and seek */
+    extern opbx_mutex_t customers_lock;
+
+
 /*
 static char show_icd_help[] =
 "Usage: icd command <command>\n"
@@ -61,6 +65,7 @@ static char show_icd_help[] =
 static void_hash_table *COMMAND_HASH;
 static icd_status icd_command_show_queue(int fd, int argc, char **argv);
 static icd_status icd_command_show_agent(int fd, int argc, char **argv);
+static icd_status icd_command_show_customer(int fd, int argc, char **argv);
 static icd_status icd_command_dump_queue(int fd, int argc, char **argv);
 static icd_status icd_command_dump_distributor(int fd, int argc, char **argv);
 static icd_status icd_command_dump_agent(int fd, int argc, char **argv);
@@ -99,7 +104,7 @@ void create_command_hash(void)
         "control of debug dumps reading config files and other process messages during icd call routing");
 
     icd_command_register("show", icd_command_show, "show agent or queue infomation",
-        "<object type> [specific object]", "Available object types:\n\nqueue, agent");
+        "<object type> [specific object]", "Available object types:\n\nqueue, agent, customer");
 
     icd_command_register("dump", icd_command_dump, "dump internal information", "<object type> [specific object]",
         "Available object types:\n\nqueue,distributor,caller, agent, customer");
@@ -392,6 +397,9 @@ int icd_command_show(int fd, int argc, char **argv)
         if (!strcmp(argv[1], "a") || !strcmp(argv[1], "agent") || !strcmp(argv[1], "agents")) {
             icd_command_show_agent(fd, argc, argv);
         }
+	if (!strcmp(argv[1], "c") || !strcmp(argv[1], "customer") || !strcmp(argv[1], "customers")) {
+            icd_command_show_customer(fd, argc, argv);
+        }
     } else
         icd_command_help(fd, 2, help);
 
@@ -401,15 +409,20 @@ int icd_command_show(int fd, int argc, char **argv)
 icd_status icd_command_show_queue(int fd, int argc, char **argv)
 {
 //QUEUE UNATTENDED CALLS        ASSIGNED/THIS QUEUE/OTHER QUEUE
-#define FMT_QUEUE_HEADING "%7s %-12s %-7s %-10s %12s %-14s\n"
+#define FMT_QUEUE_HEADING "%-18s %-8s %-14s %-15s %-10s %-18s\n"
 
     icd_fieldset_iterator *iter;
     char *curr_key;
     icd_queue *queue;
+    int state_count[20];
+    int state;
+    icd_list_iterator *list_iter;
+    icd_member *member;
+    icd_caller *caller = NULL;
 
     opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
-    opbx_cli(fd, FMT_QUEUE_HEADING, "QUEUE", "UNATTENDED", "CALLS", "ASSIGNED", "THIS QUEUE", "OTHER QUEUES");
+    opbx_cli(fd, FMT_QUEUE_HEADING, "QUEUE", "AGENTS", "LOGIN AGENTS", "PENDING AGENTS", "CUSTOMERS", "PENDING CUSTOMERS");
 
     iter = icd_fieldset__get_key_iterator(queues);
     while (icd_fieldset_iterator__has_more(iter)) {
@@ -417,6 +430,43 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
         if (argc == 2 || (!strcmp(curr_key, argv[2]))) {
             queue = (icd_queue *) icd_fieldset__get_value(queues, curr_key);
             icd_queue__show(queue, verbosity, fd);
+            for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
+	    icd_member_list__lock(icd_queue__get_agents(queue));
+            list_iter = icd_queue__get_agent_iterator(queue);
+            while (icd_list_iterator__has_more(list_iter)) {
+                member = (icd_member *) icd_list_iterator__next(list_iter);
+		if(member){
+	            caller = icd_member__get_caller(member);
+	            state_count[icd_caller__get_state(caller)]++;
+		}
+	    }
+	    icd_member_list__unlock(icd_queue__get_agents(queue));
+            destroy_icd_list_iterator(&list_iter);
+	    opbx_cli(fd, "AGENTS STATES:");
+	    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
+                if(state_count[state] > 0)
+                    opbx_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+            }
+            
+	    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
+	    icd_member_list__lock(icd_queue__get_customers(queue));
+            list_iter = icd_queue__get_customer_iterator(queue);
+            while (icd_list_iterator__has_more(list_iter)) {
+                member = (icd_member *) icd_list_iterator__next(list_iter);
+		if(member){
+	            caller = icd_member__get_caller(member);
+	            state_count[icd_caller__get_state(caller)]++;
+		}
+	    }
+	    icd_member_list__unlock(icd_queue__get_customers(queue));
+            destroy_icd_list_iterator(&list_iter);
+	    opbx_cli(fd, "\nCUSTOMERS STATES:");
+	    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
+                if(state_count[state] > 0)
+                    opbx_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+            }
+	    opbx_cli(fd, "\n");
+	    
             if (argc != 2)
                 break;
         }
@@ -433,8 +483,8 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
 /* Create a cli ui display of the agent */
 icd_status icd_command_show_agent(int fd, int argc, char **argv)
 {
-#define FMT_AGENT_HEADING "%10s %-3s %-15s %-20s %20s %-10s  %-5s\n"
-#define FMT_AGENT_DATA1   "%10s %-3d %-15s %-20s %20s %-10s  %-5s\n"
+#define FMT_AGENT_HEADING "%-10s %-5s %-15s %-25s %-20s %20s %-10s  %-5s\n"
+#define FMT_AGENT_DATA1   "%-10s %-5d %-15s %-25s %-20s %-20s "
 #define FMT_AGENT_DATA2   "%s:%d:%s:%s:%s:%s:%s:\n"
 
     char *curr_key;
@@ -446,13 +496,17 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
     icd_list_iterator *list_iter;
     icd_member *member;
     icd_queue *queue;
+    int state_count[20];
+    int state;
     char buf[256];
 
     opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
     opbx_cli(fd, "\n");
-    opbx_cli(fd, FMT_AGENT_HEADING, "GROUP", "ID", "NAME", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
-
+    opbx_cli(fd, FMT_AGENT_HEADING, "GROUP", "ID", "NAME", "STATE", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
+    
+    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
+        
     iter = icd_fieldset__get_key_iterator(agents);
     while (icd_fieldset_iterator__has_more(iter)) {
         curr_key = icd_fieldset_iterator__next(iter);
@@ -460,11 +514,13 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
         caller = (icd_caller *) agent;
         buf[0] = '\0';
 
+	state_count[icd_caller__get_state(caller)]++;
 	if(argc >=3)
 	  if(strcmp(argv[2],icd_caller__get_caller_id(caller)))
 	     continue; 
         /* lets find all the channels they are talking to */
         if (icd_caller__get_state(caller) == ICD_CALLER_STATE_BRIDGED || icd_caller__get_state(caller) == ICD_CALLER_STATE_CONFERENCED) {
+            icd_list__lock((icd_list *) (icd_caller__get_associations(caller)));
             list_iter = icd_list__get_iterator((icd_list *) (icd_caller__get_associations(caller)));
             while (icd_list_iterator__has_more(list_iter)) {
                 associate = (icd_caller *) icd_list_iterator__next(list_iter);
@@ -481,12 +537,13 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
                 }
             }
             destroy_icd_list_iterator(&list_iter);
+            icd_list__unlock((icd_list *) (icd_caller__get_associations(caller)));
         }
-	opbx_cli(fd, "%10s  %-3d %-15s %-20s %-20s", (char *) icd_caller__get_param(caller, "group"),
-            icd_caller__get_id(caller), icd_caller__get_name(caller),
+	opbx_cli(fd, FMT_AGENT_DATA1, (char *) icd_caller__get_param(caller, "group"),
+            icd_caller__get_id(caller), icd_caller__get_name(caller), icd_caller__get_state_string(caller)+17,
             icd_caller__get_channel(caller) ? icd_caller__get_channel(caller)->name : "(None)", buf);
 	    
-        opbx_cli(fd, "; queues :");
+        icd_list__lock((icd_list *) (icd_caller__get_memberships(caller)));
         list_iter = icd_list__get_iterator((icd_list *) (icd_caller__get_memberships(caller)));
         while (icd_list_iterator__has_more(list_iter)) {
                 member = (icd_member *) icd_list_iterator__next(list_iter);
@@ -498,12 +555,116 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
                 }
         }
         destroy_icd_list_iterator(&list_iter);
+        icd_list__unlock((icd_list *) (icd_caller__get_memberships(caller)));
         
 
         opbx_cli(fd, "\n");
     }
 
     destroy_icd_fieldset_iterator(&iter);
+    opbx_cli(fd, "AGENTS IN STATE:" );
+    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
+          if(state_count[state] > 0)
+                opbx_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+    }
+
+    opbx_cli(fd, "\n");
+    cli_line(fd, "=", 80);
+    opbx_cli(fd, "\n");
+
+    return ICD_SUCCESS;
+
+}
+
+/* Create a cli ui display of the agent */
+icd_status icd_command_show_customer(int fd, int argc, char **argv)
+{
+#define FMT_CUSTOMER_HEADING "%-10s %-5s %-20s %-25s %-20s %20s %-10s  %-5s\n"
+#define FMT_CUSTOMER_DATA1   "%-10s %-5d %-20s %-25s %-20s %-20s "
+#define FMT_CUSTOMER_DATA2   "%s:%d:%s:%s:%s:%s:%s:\n"
+
+    char *curr_key;
+    struct opbx_channel *chan = NULL;
+    icd_customer *customer = NULL;
+    icd_caller *caller = NULL;
+    icd_caller *associate = NULL;
+    icd_fieldset_iterator *iter;
+    icd_list_iterator *list_iter;
+    icd_member *member;
+    icd_queue *queue;
+    int state_count[20];
+    int state;
+    char buf[256];
+
+    opbx_cli(fd, "\n");
+    cli_line(fd, "=", 80);
+    opbx_cli(fd, "\n");
+    opbx_cli(fd, FMT_CUSTOMER_HEADING, "GROUP", "ID", "CALLER ID", "STATE", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
+    
+    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
+    
+    opbx_mutex_lock(&customers_lock);       
+    iter = icd_fieldset__get_key_iterator(customers);
+    while (icd_fieldset_iterator__has_more(iter)) {
+        curr_key = icd_fieldset_iterator__next(iter);
+        customer = icd_fieldset__get_value(customers, curr_key);
+        caller = (icd_caller *) customer;
+        buf[0] = '\0';
+
+	state_count[icd_caller__get_state(caller)]++;
+	if(argc >=3)
+	  if(strcmp(argv[2],icd_caller__get_caller_id(caller)))
+	     continue; 
+        /* lets find all the channels they are talking to */
+        if (icd_caller__get_state(caller) == ICD_CALLER_STATE_BRIDGED || icd_caller__get_state(caller) == ICD_CALLER_STATE_CONFERENCED) {
+            icd_list__lock((icd_list *) (icd_caller__get_associations(caller)));
+            list_iter = icd_list__get_iterator((icd_list *) (icd_caller__get_associations(caller)));
+            while (icd_list_iterator__has_more(list_iter)) {
+                associate = (icd_caller *) icd_list_iterator__next(list_iter);
+
+                if (icd_caller__get_state(associate) == ICD_CALLER_STATE_BRIDGED || icd_caller__get_state(caller) == ICD_CALLER_STATE_CONFERENCED) {
+                    chan = icd_caller__get_channel(associate);
+                  
+                    if ((sizeof(buf) - strlen(buf) - strlen(chan->name) - 1) > 0)
+                        strcat(buf, chan->name);
+/*
+                if ((sizeof(buf) - strlen(buf) -strlen(chan->callerid ? chan->callerid : "unknown") -1) > 0 )
+                    strcat(buf,chan->callerid ? chan->callerid : "unknown");                
+*/
+                }
+            }
+            destroy_icd_list_iterator(&list_iter);
+            icd_list__unlock((icd_list *) (icd_caller__get_associations(caller)));
+        }
+	opbx_cli(fd, FMT_CUSTOMER_DATA1, (char *) icd_caller__get_param(caller, "group"),
+            icd_caller__get_id(caller), icd_caller__get_caller_id(caller), icd_caller__get_state_string(caller)+17,
+            icd_caller__get_channel(caller) ? icd_caller__get_channel(caller)->name : "(None)", buf);
+	    
+        icd_list__lock((icd_list *) (icd_caller__get_memberships(caller)));
+        list_iter = icd_list__get_iterator((icd_list *) (icd_caller__get_memberships(caller)));
+        while (icd_list_iterator__has_more(list_iter)) {
+                member = (icd_member *) icd_list_iterator__next(list_iter);
+		if(member){
+	          queue = icd_member__get_queue(member);
+		  if(queue){
+                      opbx_cli(fd, "%s, ", icd_queue__get_name(queue));
+		  }
+                }
+        }
+        destroy_icd_list_iterator(&list_iter);
+        icd_list__unlock((icd_list *) (icd_caller__get_memberships(caller)));
+        
+
+        opbx_cli(fd, "\n");
+    }
+
+    opbx_mutex_unlock(&customers_lock);
+    destroy_icd_fieldset_iterator(&iter);
+    opbx_cli(fd, "CUSTOMERS IN STATE:" );
+    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
+          if(state_count[state] > 0)
+                  opbx_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+    }
 
     opbx_cli(fd, "\n");
     cli_line(fd, "=", 80);
@@ -1130,7 +1291,10 @@ int icd_command_record(int fd, int argc, char **argv)
         strcpy(buf,"MuxMon stop ");
    }	 
    customer_source = argv[2]; 
+   opbx_mutex_lock(&customers_lock);
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
+   opbx_mutex_unlock(&customers_lock);
+
    if (customer == NULL) {
             opbx_cli(fd, "Record FAILURE! Customer [%s] not found\n", customer_source);
        		manager_event(EVENT_FLAG_USER, "icd_command",
@@ -1316,7 +1480,9 @@ int icd_command_transfer (int fd, int argc, char **argv)
        return 1;
    }    
    customer_source = argv[1];
+   opbx_mutex_lock(&customers_lock);
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
+   opbx_mutex_unlock(&customers_lock);
    if (customer == NULL) {
             opbx_cli(fd,"Transfer FAILURE! Customer [%s] not found\n", customer_source);
             manager_event(EVENT_FLAG_USER, "icd_command",

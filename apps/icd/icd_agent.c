@@ -405,6 +405,7 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
     	associate = (icd_caller *) icd_list__pop((icd_list *) that->associations);
       	}
     }  
+    icd_caller__set_active_member(that, NULL);
     if (icd_caller__get_onhook(that) == 0) {
         /* Off Hook agent hung up */
         if ((that->chan == NULL || (that->chan != NULL && that->chan->_softhangup))) {
@@ -412,11 +413,10 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
             return 0;
         }
     }
-    /* so we are now either a (onHook with or w/o channel) or (OffHook with a channel) in any case push back */
+    /* so we are now either a (onHook with or w/o channel) or (OffHook with a channel) */
     if (icd_debug)
         opbx_log(LOG_WARNING, "Caller id[%d] [%s] Set Push Back\n", icd_caller__get_id(that),
             icd_caller__get_name(that));
-
     icd_caller__set_pushback(that);
 
     wait = vh_read(that->params, "wrapup");
@@ -584,6 +584,7 @@ icd_status icd_agent__standard_cleanup_caller(icd_caller * that)
                 icd_caller__get_id(that), icd_caller__get_name(that));
         icd_bridge__safe_hangup(that);
         that->thread_state = ICD_THREAD_STATE_FINISHED;
+	
     }
     return ICD_SUCCESS;
 

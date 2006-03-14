@@ -157,6 +157,12 @@ extern "C" {
 /* Sets the name of this distributor. */
     icd_status icd_distributor__set_name(icd_distributor * that, char *name);
 
+/* Gets the number of callers added since last link function call. */
+    unsigned int icd_distributor__get_added_callers_number(icd_distributor * that);
+
+/*  Resets the number of callers added since last link function call.  */
+    void icd_distributor__reset_added_callers_number(icd_distributor * that);
+
 /* Gets the name of this distributor. */
     char *icd_distributor__get_name(icd_distributor * that);
 

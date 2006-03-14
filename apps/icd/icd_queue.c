@@ -693,30 +693,19 @@ icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, int fd, voi
 /* Create a cli ui display of the queue */
 icd_status icd_queue__show(icd_queue * that, int verbosity, int fd)
 {
-#define FMT_QUEUE_DATA "%7s %-12d %-7d %-10d %12d %-14d\n"
+#define FMT_QUEUE_DATA "%-18s %-8d %-14d %-15d %-10d %-18d\n"
     static char *indent = "    ";
 
     assert(that != NULL);
     //vh_keylist *keys;
 
-    opbx_cli(fd, FMT_QUEUE_DATA, icd_queue__get_name(that), icd_distributor__customers_pending(that->distributor),
-        icd_distributor__customers_pending(that->distributor),
-        icd_distributor__customers_pending(that->distributor),
-        icd_distributor__customers_pending(that->distributor),
+    opbx_cli(fd, FMT_QUEUE_DATA, icd_queue__get_name(that), 
+        icd_queue__get_agent_count(that),
+        icd_queue__agent_active_count(that),
+        icd_distributor__agents_pending(that->distributor),
+        icd_queue__get_customer_count(that),
         icd_distributor__customers_pending(that->distributor));
 
-    if (verbosity > 1) {
-        opbx_cli(fd, "\n%scustomers=%p  {\n", indent, that->customers);
-        icd_member_list__dump(that->customers, verbosity - 1, fd);
-        opbx_cli(fd, "%s}\n", indent);
-    }
-
-    if (verbosity > 1) {
-        opbx_cli(fd, "%s{\n\n%sagents=%p {\n", indent, indent, that->agents);
-        icd_member_list__dump(that->agents, verbosity - 1, fd);
-        opbx_cli(fd, "%s}\n", indent);
-    }
-    opbx_cli(fd, "%s\n", indent);
 
     return ICD_SUCCESS;
 

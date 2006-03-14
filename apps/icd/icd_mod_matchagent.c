@@ -44,7 +44,8 @@ extern icd_fieldset *agents;
 extern int icd_verbose;
 icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, void *extra);
                                            
-void *icd_distributor__match_agent_run(void *that) { 
+void *icd_distributor__match_agent_run(void *that) 
+{ 
 	    icd_distributor *dist; 
 	    icd_status result; 
  	 
@@ -58,36 +59,37 @@ void *icd_distributor__match_agent_run(void *that) {
 	        if (dist->thread_state == ICD_THREAD_STATE_RUNNING) { 
 	            result = icd_distributor__lock(dist); 
 	            /* Distribute callers if we can, or pause until some are added */ 
-	            if (icd_distributor__customers_pending(dist) &&  
-	                    icd_distributor__agents_pending(dist)) { 
-	                result = icd_distributor__unlock(dist); 
-	                /* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom 
-	                 * function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn 
-	                */ 
-	                if (icd_verbose > 4) 
-	                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
-	                        icd_distributor__get_name(dist), dist->link_fn); 
-	                result = dist->link_fn(dist, dist->link_fn_extra);   
-	                result = icd_distributor__lock(dist); 
-	            } 
-	/* All distributor links are now created wait for changes of customer or agent list  */      
-	            opbx_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
-	            result = icd_distributor__unlock(dist); 
-	            if (icd_verbose > 4) 
-	                    opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  
-	                        icd_distributor__get_name(dist));             
-	        } else { 
+		while(icd_distributor__get_added_callers_number(dist) > 0){
+			icd_distributor__reset_added_callers_number(dist);
+			if (icd_distributor__customers_pending(dist) && icd_distributor__agents_pending(dist)) { 
+				result = icd_distributor__unlock(dist); 
+				/* func ptr to the icd_distributor__link_callers_via_?? note may also come from custom 
+				* function eg from icd_mod_?? installed using icd_distributor__set_link_callers_fn 
+				*/ 
+				if (icd_verbose > 4) 
+				opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] link_fn[%p]  \n",  
+					icd_distributor__get_name(dist), dist->link_fn); 
+				result = dist->link_fn(dist, dist->link_fn_extra);   
+				result = icd_distributor__lock(dist); 
+			}
+		} 
+		/* All distributor links are now created wait for changes of customer or agent list  */      
+		opbx_cond_wait(&(dist->wakeup), &(dist->lock)); /* wait until signal received */ 
+		result = icd_distributor__unlock(dist); 
+		if (icd_verbose > 4) 
+			opbx_verbose(VERBOSE_PREFIX_3 "Distributor__run [%s] wait  \n",  icd_distributor__get_name(dist));             
+		} else { 
 	            /* TBD - Make paused thread work better.  
 	             *        - Use pthread_cond_wait() 
 	             *        - Use same or different condition variable?  
 	             */ 
- 	        } 
+ 	        }
 	        /* Play nice */ 
 	        sched_yield(); 
 	    } 
 	    /* Do any cleanup here */ 
 	    return NULL; 
-	} 
+} 
 
 static icd_status init_icd_distributor_match_agent(icd_distributor * that, char *name, icd_config * data)
 {
@@ -210,24 +212,42 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 				icd_member__unlock(agent);
 				continue;
 			}
+			
+			if(icd_caller__get_state(customer_caller) == ICD_CALLER_STATE_READY){
+				icd_caller__lock(customer_caller);
+				if(icd_caller__get_state(customer_caller) == ICD_CALLER_STATE_READY){
+				/* Still in READY state - OK */
+					result = ICD_SUCCESS;
+				}
+				else {
+					result = ICD_ERESOURCE;
+					icd_caller__unlock(customer_caller);
+				}
+			}
+			else {
+				result = ICD_ERESOURCE;
+			}	
+		
+			if (result != ICD_SUCCESS) {
+				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);   
+				icd_member__unlock(agent);
+				continue;
+			}
+			
 			result = icd_member__distribute(customer);
 			if (result != ICD_SUCCESS) {
+				icd_caller__unlock(customer_caller);
 				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
 				icd_member__unlock(agent);
 				continue;
 			}
 			LinkFound = 1;
-			if (icd_member__lock(customer_caller) != ICD_SUCCESS){
-				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
-				icd_member__unlock(agent);
-				continue;
-			}
 			icd_member_list__unlock(dist->customers);
 			result = icd_caller__join_callers(customer_caller, agent_caller);
 			if (result != ICD_SUCCESS) {
 				icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
 				icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
-				icd_member__unlock(customer);
+				icd_caller__unlock(customer_caller);
 				icd_member__unlock(agent);
 			}
 			else {
@@ -246,13 +266,13 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
 					icd_distributor__get_name(dist));
 					icd_caller__set_state(agent_caller, ICD_CALLER_STATE_READY);
 					icd_caller__set_state(customer_caller, ICD_CALLER_STATE_READY);
-					icd_member__unlock(customer);
+					icd_caller__unlock(customer_caller);
 					icd_member__unlock(agent);
 					continue;
 				}
 			}
 			if( LinkFound) {
-				icd_member__unlock(customer);
+				icd_caller__unlock(customer_caller);
 				icd_member__unlock(agent);
 				break;
 			}

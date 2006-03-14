@@ -66,6 +66,8 @@ struct icd_distributor {
     opbx_cond_t wakeup;
     icd_memory *memory;
     void_hash_table *params;
+/* This is for distibutor to know that link_fn call is needed  */    
+    unsigned int number_of_callers_added;
 };
 
 #endif

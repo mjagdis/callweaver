@@ -1807,18 +1807,18 @@ icd_status icd_caller__lock(icd_caller * that)
         return ICD_ERESOURCE;
     }
    if (icd_debug)
-            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Try to Lock" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
-                icd_caller__get_name(that) ICD_PTHREAD_ID);
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Try to Lock\n", icd_caller__get_id(that),
+                icd_caller__get_name(that));
     retval = opbx_mutex_lock(&that->lock);
 
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Lock for succeeded" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
-                icd_caller__get_name(that) ICD_PTHREAD_ID);
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Lock for succeeded\n", icd_caller__get_id(that),
+                icd_caller__get_name(that));
         return ICD_SUCCESS;
     }
-    opbx_log(LOG_WARNING, "Caller id[%d] [%s] Lock failed code %d" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
-        icd_caller__get_name(that), retval ICD_PTHREAD_ID);
+    opbx_log(LOG_WARNING, "Caller id[%d] [%s] Lock failed code %d\n", icd_caller__get_id(that),
+        icd_caller__get_name(that), retval);
     return ICD_ELOCK;
 }
 
@@ -1835,17 +1835,17 @@ icd_status icd_caller__unlock(icd_caller * that)
         return ICD_ERESOURCE;
     }
    if (icd_debug)
-            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Try to UnLock" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
-                icd_caller__get_name(that) ICD_PTHREAD_ID);
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] Try to UnLock\n", icd_caller__get_id(that),
+                icd_caller__get_name(that));
     retval = opbx_mutex_unlock(&that->lock);
     if (retval == 0) {
         if (icd_debug)
-            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] UnLock for succeeded" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
-                icd_caller__get_name(that) ICD_PTHREAD_ID);
+            opbx_log(LOG_DEBUG, "Caller id[%d] [%s] UnLock for succeeded\n", icd_caller__get_id(that),
+                icd_caller__get_name(that));
         return ICD_SUCCESS;
     }
-    opbx_log(LOG_WARNING, " Caller id[%d] [%s] UnLock failed code %d" ICD_PTHREAD_FORMAT "\n", icd_caller__get_id(that),
-        icd_caller__get_name(that), retval ICD_PTHREAD_ID);
+    opbx_log(LOG_WARNING, " Caller id[%d] [%s] UnLock failed code %d\n", icd_caller__get_id(that),
+        icd_caller__get_name(that), retval);
     return ICD_ELOCK;
 }
 
@@ -2125,7 +2125,6 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
                 icd_queue__agent_pushback(icd_member__get_queue(member), member);
 /*                icd_queue__agent_distribute(icd_member__get_queue(member), member);*/
             }
-            that->require_pushback = 0;
         } else {
             if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)) {
                 icd_queue__customer_distribute(icd_member__get_queue(member), member);
@@ -2134,6 +2133,7 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
             }
         }
     }
+    that->require_pushback = 0;
     destroy_icd_list_iterator(&iter);
     icd_list__unlock((icd_list *) (that->memberships));
 
@@ -2232,6 +2232,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
          */
 
         /* Try to create a channel and bring it up if not present */
+        icd_caller__set_active_member(that, NULL);
         if (that->chan == NULL) {
             icd_caller__create_channel(that);
         }
@@ -2658,6 +2659,8 @@ int icd_caller__standard_state_conference(icd_event * event, void *extra)
     caller = (icd_caller *) icd_event__get_source(event);
     assert(caller != NULL);
    
+    icd_caller__set_start_now(caller);
+    caller->callcount++;
     icd_conference__join(caller);
     
     return 0;
@@ -2784,7 +2787,7 @@ int icd_caller__cmp_call_start_time_order(icd_caller * caller1, icd_caller * cal
     Time1 = icd_caller__get_start(caller1);
     Time2 = icd_caller__get_start(caller2);
 
-    if ((Time1 = (Time1 > Time2) ? 1 : ((Time1 < Time2) ? -1 : 0)) == 0) {
+    if (((Time1 > Time2) ? 1 : ((Time1 < Time2) ? -1 : 0)) == 0) {
         Time1 = caller1->caller_created;
         Time2 = caller2->caller_created;
     }
