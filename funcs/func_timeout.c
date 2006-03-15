@@ -89,10 +89,16 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd,
 	char timestr[64];
 	struct tm myt;
 
+        if (!chan) {
+                opbx_log(LOG_ERROR, "No channel! Timeout only works on "
+                         "channels\n");
+                return;
+        }
+
 	if (!data) {
-		opbx_log(LOG_ERROR, "Must specify type of timeout to set.");
+		opbx_log(LOG_ERROR, "Must specify type of timeout to set.\n");
 		return;
-	}
+	}        
 	
 	if (!value)
 		return;
@@ -132,7 +138,7 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd,
 		break;
 
 	default:
-		opbx_log(LOG_ERROR, "Unknown timeout type specified.");
+		opbx_log(LOG_ERROR, "Unknown timeout type specified.\n");
 		break;
 	}
 }
