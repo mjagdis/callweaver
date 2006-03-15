@@ -349,9 +349,6 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f)
 	   timing info. */
 	if(!f->has_timing_info || f->len < 2 || f->ts < 0)
 	{
-		opbx_log(LOG_WARNING, "Recieved frame with invalid timing "
-			 "info: has_timing_info=%d, len=%ld, ts=%ld\n", 
-			 f->has_timing_info, f->len, f->ts);
 		return -1;
 	}
 	
