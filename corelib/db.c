@@ -381,7 +381,6 @@ static int tree_callback(void *pArg, int argc, char **argv, char **columnNames)
 	int x = 0;
 	char *keys, *values;
 	struct opbx_db_entry **treeptr = pArg,
-		*lopbx = NULL,
 		*cur = NULL,
 		*ret = NULL;
 
@@ -395,12 +394,10 @@ static int tree_callback(void *pArg, int argc, char **argv, char **columnNames)
 			cur->key = cur->data + strlen(values) + 1;
 			strcpy(cur->data, values);
 			strcpy(cur->key, keys);
-			if (lopbx) {
-					lopbx->next = cur;
-			} else {
-				ret = cur;
+			if (*treeptr) {
+				cur->next = *treeptr;
 			}
-			lopbx = cur;
+			ret = cur;
 		}
 	}
 
@@ -465,12 +462,12 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 
 void opbx_db_freetree(struct opbx_db_entry *dbe)
 {
-	struct opbx_db_entry *lopbx;
+	struct opbx_db_entry *last;
 
 	while (dbe) {
-		lopbx = dbe;
+		last = dbe;
 		dbe = dbe->next;
-		free(lopbx);
+		free(last);
 	}
 }
 
