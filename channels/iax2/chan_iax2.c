@@ -174,6 +174,8 @@ static int max_reg_expire;
 static struct opbx_netsock_list *netsock;
 static int defaultsockfd = -1;
 
+static int listen_port = IAX_DEFAULT_PORTNO;
+
 static int usecnt;
 OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
 
@@ -2456,7 +2458,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		hp = opbx_gethostbyname(peername, &ahp);
 		if (hp) {
 			memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
-			sin->sin_port = htons(IAX_DEFAULT_PORTNO);
+			sin->sin_port = htons(listen_port);
 			/* use global iax prefs for unknown peer/user */
 			opbx_codec_pref_convert(&prefs, cai->prefs, sizeof(cai->prefs), 1);
 			return 0;
@@ -5209,7 +5211,7 @@ static int iax2_register(char *value, int lineno)
 		reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 		reg->addr.sin_family = AF_INET;
 		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
-		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
+		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(listen_port);
 		reg->next = registrations;
 		reg->callno = 0;
 		registrations = reg;
@@ -7570,7 +7572,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 {
 	struct sockaddr_in sin;
 	int nonlocal = 1;
-	int port = IAX_DEFAULT_PORTNO;
+	int port = listen_port;
 	int sockfd = defaultsockfd;
 	char *tmp;
 	char *addr;
@@ -7588,7 +7590,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	if (portstr) {
 		port = atoi(portstr);
 		if (port < 1)
-			port = IAX_DEFAULT_PORTNO;
+			port = listen_port;
 	}
 	
 	if (!opbx_get_ip(&sin, addr)) {
@@ -7669,7 +7671,7 @@ static struct iax2_peer *build_peer(const char *name, struct opbx_variable *v, i
 		peer->secret[0] = '\0';
 		if (!found) {
 			opbx_copy_string(peer->name, name, sizeof(peer->name));
-			peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
+			peer->addr.sin_port = htons(listen_port);
 			peer->expiry = min_reg_expire;
 		}
 		peer->prefs = prefs;
@@ -8109,7 +8111,7 @@ static int set_config(char *config_file, int reload)
 	char *utype;
 	char *tosval;
 	int format;
-	int portno = IAX_DEFAULT_PORTNO;
+	int portno = listen_port;
 	int  x;
 	struct iax2_user *user;
 	struct iax2_peer *peer;
@@ -8166,7 +8168,7 @@ static int set_config(char *config_file, int reload)
 			if (reload)
 				opbx_log(LOG_NOTICE, "Ignoring bindport on reload\n");
 			else
-				portno = atoi(v->value);
+				listen_port = portno = atoi(v->value);
 		} else if (!strcasecmp(v->name, "pingtime")) 
 			ping_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "nochecksums")) {
@@ -9067,7 +9069,7 @@ int load_module(void)
 #endif
 	
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(IAX_DEFAULT_PORTNO);
+	sin.sin_port = htons(listen_port);
 	sin.sin_addr.s_addr = INADDR_ANY;
 
 	memset(iaxs, 0, sizeof(iaxs));
@@ -9116,7 +9118,7 @@ int load_module(void)
 			return -1;
 		} else {
 			if (option_verbose > 1)
-				opbx_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d\n", IAX_DEFAULT_PORTNO);
+				opbx_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to address 0.0.0.0:%d\n", listen_port);
 			defaultsockfd = opbx_netsock_sockfd(ns);
 		}
 	}
