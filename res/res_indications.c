@@ -185,11 +185,11 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 					opbx_cli(fd,"Country Indication      PlayList\n"
 						   "=====================================\n");
 				}
-				j = snprintf(buf,sizeof(buf),"%-7.7s %-15.15s ",tz->country,"<ringcadance>");
-				for (i=0; i<tz->nrringcadance; i++) {
-					j += snprintf(buf+j,sizeof(buf)-j,"%d,",tz->ringcadance[i]);
+				j = snprintf(buf,sizeof(buf),"%-7.7s %-15.15s ",tz->country,"<ringcadence>");
+				for (i=0; i<tz->nrringcadence; i++) {
+					j += snprintf(buf+j,sizeof(buf)-j,"%d,",tz->ringcadence[i]);
 				}
-				if (tz->nrringcadance) j--;
+				if (tz->nrringcadence) j--;
 				opbx_copy_string(buf+j,"\n",sizeof(buf)-j);
 				opbx_cli(fd,buf);
 				for (ts=tz->tones; ts; ts=ts->next)
@@ -274,26 +274,26 @@ static int ind_load_module(void)
 		while(v) {
 			if (!strcasecmp(v->name, "description")) {
 				opbx_copy_string(tones->description, v->value, sizeof(tones->description));
-			} else if (!strcasecmp(v->name,"ringcadance")) {
+			} else if (!strcasecmp(v->name,"ringcadence") || !strcasecmp(v->name,"ringcadance")) {
 				char *ring,*rings = opbx_strdupa(v->value);
 				c = rings;
 				ring = strsep(&c,",");
 				while (ring) {
 					int *tmp, val;
 					if (!isdigit(ring[0]) || (val=atoi(ring))==-1) {
-						opbx_log(LOG_WARNING,"Invalid ringcadance given '%s' at line %d.\n",ring,v->lineno);
+						opbx_log(LOG_WARNING,"Invalid ringcadence given '%s' at line %d.\n",ring,v->lineno);
 						ring = strsep(&c,",");
 						continue;
 					}
-					tmp = realloc(tones->ringcadance,(tones->nrringcadance+1)*sizeof(int));
+					tmp = realloc(tones->ringcadence,(tones->nrringcadence+1)*sizeof(int));
 					if (!tmp) {
 						opbx_log(LOG_WARNING, "Out of memory\n");
 						opbx_config_destroy(cfg);
 						return -1;
 					}
-					tones->ringcadance = tmp;
-					tmp[tones->nrringcadance] = val;
-					tones->nrringcadance++;
+					tones->ringcadence = tmp;
+					tmp[tones->nrringcadence] = val;
+					tones->nrringcadence++;
 					/* next item */
 					ring = strsep(&c,",");
 				}
