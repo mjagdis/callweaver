@@ -1,9 +1,5 @@
 ; Sample OpenPBX config file for CDR logging to PostgresSQL
 
 [global]
-;hostname=localhost
-;port=5432
-;dbname=openpbx
-;password=password
-;user=postgres
+;dsn=host=localhost dbname=cdrdb user=openpbx password=secret
 ;table=cdr		;SQL table where CDRs will be inserted

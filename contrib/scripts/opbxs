@@ -146,12 +146,12 @@ if(($args{install} or $args{installonly}) and $vars{MODULES_DIR}) {
   my ($mod) = $file =~ /([^\/]*)$/;
 
   if($args{autoload}) {
-    $bad = esystem("/usr/sbin/openpbx -rx 'unload $mod'");
+    $bad = esystem("/opt/openpbx.org/sbin/openpbx -rx 'unload $mod'");
   }
   $bad = esystem("/bin/cp -p ${base}.so $vars{MODULES_DIR}") if(!$bad);
   
   if($args{autoload}) {
-    $bad = esystem("/usr/sbin/openpbx -rx 'load $mod'");
+    $bad = esystem("/opt/openpbx.org/sbin/openpbx -rx 'load $mod'");
   }
 }
 

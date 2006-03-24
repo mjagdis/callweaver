@@ -12,7 +12,7 @@ RETVAL=0
 case "$1" in
   start)
 	echo -n "Starting OpenPBX: "
-	daemon /usr/sbin/openpbx
+	daemon /opt/openpbx.org/sbin/openpbx
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/openpbx

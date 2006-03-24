@@ -209,7 +209,7 @@ sub validmailbox()
 		$context = "default";
 	}
 	if (!$filename) {
-		$filename = "/etc/openpbx/voicemail.conf";
+		$filename = "/opt/openpbx.org/etc/voicemail.conf";
 	}
 	if (!$category) {
 		$category = "general";
@@ -218,7 +218,7 @@ sub validmailbox()
 	while(<VMAIL>) {
 		chomp;
 		if (/include\s\"([^\"]+)\"$/) {
-			($tmp, $category) = &validmailbox($mbox, $context, "/etc/openpbx/$1");
+			($tmp, $category) = &validmailbox($mbox, $context, "/opt/openpbx.org/etc/$1");
 			if ($tmp) {
 				return ($tmp, $category);
 			}
@@ -265,7 +265,7 @@ sub mailbox_options()
 	local $tmp2;
 	local $tmp;
 	if (!$filename) {
-		$filename = "/etc/openpbx/voicemail.conf";
+		$filename = "/opt/openpbx.org/etc/voicemail.conf";
 	}
 	if (!$category) {
 		$category = "general";
@@ -277,7 +277,7 @@ sub mailbox_options()
 		chomp;
 		s/\;.*$//;
 		if (/include\s\"([^\"]+)\"$/) {
-			($tmp2, $category) = &mailbox_options($context, $current, "/etc/openpbx/$1", $category);
+			($tmp2, $category) = &mailbox_options($context, $current, "/opt/openpbx.org/etc/$1", $category);
 #			print "Got '$tmp2'...\n";
 			$tmp .= $tmp2;
 		} elsif (/\[(.*)\]/) {
@@ -353,7 +353,7 @@ sub mailbox_list()
 sub msgcount() 
 {
 	my ($context, $mailbox, $folder) = @_;
-	my $path = "/var/spool/openpbx/voicemail/$context/$mailbox/$folder";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mailbox/$folder";
 	if (opendir(DIR, $path)) {
 		my @msgs = grep(/^msg....\.txt$/, readdir(DIR));
 		closedir(DIR);
@@ -377,7 +377,7 @@ sub msgcountstr()
 sub messages()
 {
 	my ($context, $mailbox, $folder) = @_;
-	my $path = "/var/spool/openpbx/voicemail/$context/$mailbox/$folder";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mailbox/$folder";
 	if (opendir(DIR, $path)) {
 		my @msgs = sort grep(/^msg....\.txt$/, readdir(DIR));
 		closedir(DIR);
@@ -402,7 +402,7 @@ sub getfields()
 {
 	my ($context, $mailbox, $folder, $msg) = @_;
 	my $fields;
-	if (open(MSG, "</var/spool/openpbx/voicemail/$context/$mailbox/$folder/msg${msg}.txt")) {
+	if (open(MSG, "</opt/openpbx.org/var/spool/voicemail/$context/$mailbox/$folder/msg${msg}.txt")) {
 		while(<MSG>) {
 			s/\#.*$//g;
 			if (/^(\w+)\s*\=\s*(.*)$/) {
@@ -555,7 +555,7 @@ sub message_audio()
 	}
 	&untaint($format);
 
-	my $path = "/var/spool/openpbx/voicemail/$context/$mailbox/$folder/msg${msgid}.$format";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mailbox/$folder/msg${msgid}.$format";
 
 	$msgid =~ /^\d\d\d\d$/ || die("Msgid Liar ($msgid)!");
 	grep(/^${format}$/, keys %formats) || die("Format Liar ($format)!");
@@ -776,11 +776,11 @@ sub message_rename()
 		die("Invalid old Message<BR>\n");
 	}
 	
-	my $path = "/var/spool/openpbx/voicemail/$context/$mbox/$newfolder";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mbox/$newfolder";
 	$path =~ /^(.*)$/;
 	$path = $1;
 	mkdir $path, 0770;
-	my $path = "/var/spool/openpbx/voicemail/$context/$mbox/$oldfolder";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -790,7 +790,7 @@ sub message_rename()
 			$tmp = $1;
 			$oldfile = $path . "/$tmp";
 			$tmp =~ s/msg${old}/msg${new}/;
-			$newfile = "/var/spool/openpbx/voicemail/$context/$mbox/$newfolder/$tmp";
+			$newfile = "/opt/openpbx.org/var/spool/voicemail/$context/$mbox/$newfolder/$tmp";
 #			print "Renaming $oldfile to $newfile<BR>\n";
 			rename($oldfile, $newfile);
 		}
@@ -851,15 +851,15 @@ sub message_copy()
 		die("Invalid old Message<BR>\n");
 	}
 	
-	my $path = "/var/spool/openpbx/voicemail/$context/$newmbox";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$newmbox";
 	$path =~ /^(.*)$/;
 	$path = $1;
 	mkdir $path, 0770;
-	my $path = "/var/spool/openpbx/voicemail/$context/$newmbox/INBOX";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$newmbox/INBOX";
 	$path =~ /^(.*)$/;
 	$path = $1;
 	mkdir $path, 0770;
-	my $path = "/var/spool/openpbx/voicemail/$context/$mbox/$oldfolder";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -869,7 +869,7 @@ sub message_copy()
 			$tmp = $1;
 			$oldfile = $path . "/$tmp";
 			$tmp =~ s/msg${old}/msg${new}/;
-			$newfile = "/var/spool/openpbx/voicemail/$context/$newmbox/INBOX/$tmp";
+			$newfile = "/opt/openpbx.org/var/spool/voicemail/$context/$newmbox/INBOX/$tmp";
 #			print "Copying $oldfile to $newfile<BR>\n";
 			&file_copy($oldfile, $newfile);
 		}
@@ -899,7 +899,7 @@ sub message_delete()
 	} else {
 		die("Invalid Message<BR>\n");
 	}
-	my $path = "/var/spool/openpbx/voicemail/$context/$mbox/$folder";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$mbox/$folder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${msg}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -935,7 +935,7 @@ sub message_forward()
 	my $txt;
 	$context = &untaint($context);
 	$newmbox = &untaint($newmbox);
-	my $path = "/var/spool/openpbx/voicemail/$context/$newmbox/INBOX";
+	my $path = "/opt/openpbx.org/var/spool/voicemail/$context/$newmbox/INBOX";
 	if (&lock_path($path) == 0) {
 		$msgcount = &msgcount($context, $newmbox, "INBOX");
 		

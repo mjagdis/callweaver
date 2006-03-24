@@ -5,7 +5,7 @@
 # 
 
 # Directory housing the voicemail spool for openpbx
-$dir = "/var/spool/openpbx/voicemail";
+$dir = "/opt/openpbx.org/var/spool/voicemail";
 
 # Context for which the script should be running
 $context = "default";

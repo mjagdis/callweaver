@@ -46,7 +46,7 @@
 
 %conf-enteringno.gsm%You are entering conference number
 
-%demo-abouttotry.gsm%I am about to attempt an Inter-OpenPBX Exchange connection to a demonstration server located at Digium.  In order for this to work you must already be connected to the Internet.  Please wait a moment while I attempt to make the connection.
+%demo-abouttotry.gsm%I am about to attempt an Inter-OpenPBX Exchange connection to a demonstration server located at OpenPBX.org servers.  In order for this to work you must already be connected to the Internet.  Please wait a moment while I attempt to make the connection.
 
 %demo-congrats.gsm%Congratulations.  You have successfully installed and executed the OpenPBX.  You have also installed a set of sample sounds and configuration files that should help you to get started.  Like a normal PBX you will navigate this demonstration by dialing digits.
 
@@ -58,11 +58,11 @@
 
 %demo-nomatch.gsm%I'm sorry there are no matches for those keywords
 
-%demo-instruct.gsm%If you would like to learn more technical information about OpenPBX dial 2 now.  If you'd like to test out the voice over IP capabilities of OpenPBX you can dial 500 to attempt an Inter-OpenPBX Exchange or IAX connection to a demonstration server at Digium.  In order for this test to work you will need to be connected to the Internet and have at least a 28.8 kilobit modem.  To execute an echo test dial 600.  This test is most useful when you have connected to this OpenPBX server from a remote location.  The sample configuration also has a single user with extension 1234 and password 4242.  That user is configured to ring the console when their extension is dialed.  If you dial 1234 you can try to ring the console.  If the console is busy or unavailable you will be given the option to leave voicemail.  To check voice mail for the user dial extension 8500 to enter the voicemail system.  Finally,  you can press the pound key to disconnect from the PBX.
+%demo-instruct.gsm%If you would like to learn more technical information about OpenPBX dial 2 now.  If you'd like to test out the voice over IP capabilities of OpenPBX you can dial 500 to attempt an Inter-OpenPBX Exchange or IAX connection to a demonstration server at OpenPBX.org servers.  In order for this test to work you will need to be connected to the Internet and have at least a 28.8 kilobit modem.  To execute an echo test dial 600.  This test is most useful when you have connected to this OpenPBX server from a remote location.  The sample configuration also has a single user with extension 1234 and password 4242.  That user is configured to ring the console when their extension is dialed.  If you dial 1234 you can try to ring the console.  If the console is busy or unavailable you will be given the option to leave voicemail.  To check voice mail for the user dial extension 8500 to enter the voicemail system.  Finally,  you can press the pound key to disconnect from the PBX.
 
 %demo-moreinfo.gsm%This message has not yet been written.
 
-%demo-nogo.gsm%I am afraid I was unable to create a connection to the Digium demonstration OpenPBX server.  You may find some helpful debugging information on the OpenPBX console.
+%demo-nogo.gsm%I am afraid I was unable to create a connection to the demonstration OpenPBX server.  You may find some helpful debugging information on the OpenPBX console.
 
 %demo-thanks.gsm%Goodbye.  Thank you for trying out the OpenPBX Open Source PBX.
  
