@@ -8102,7 +8102,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			opbx_copy_string(name, iterator->name, sizeof(name));
 
 		pstatus = peer_status(iterator, status, sizeof(status));
-		if (pstatus) 	
+		if (pstatus && iterator->addr.sin_addr.s_addr) 	
 			peers_online++;
 		else
 			peers_offline++;
