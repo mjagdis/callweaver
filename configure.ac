@@ -745,6 +745,14 @@ AC_ARG_ENABLE([postgresql],
 	[AC_HELP_STRING([--enable-postgresql],[Enable support for PostgreSQL. (default=yes)])],,[enable_postgresql="yes"])
 
 if test "${enable_postgresql}" = "yes"; then
+   if test "${with_pgsql_inc+set}" != set; then
+      if test "${with_pgsql_lib+set}" != set; then
+	 if test "${pg_prefix+set}" != set; then
+	    with_pgsql_inc="/usr/include/postgresql/"
+	    with_pgsql_lib="/usr/lib/"
+	 fi
+      fi
+   fi
    CT_CHECK_POSTGRES_DB
 fi
 
