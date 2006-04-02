@@ -12,6 +12,10 @@ Basic Installation
 
 These are generic installation instructions.
 
+   It is neccessary to run the 'bootstrap.sh' script before beginning
+configuration.  This script checks to make sure all the toolds are
+in order.
+
    The `configure' shell script attempts to guess correct values for
 various system-dependent variables used during compilation.  It uses
 those values to create a `Makefile' in each directory of the package.
@@ -19,7 +23,8 @@ It may also create one or more `.h' files containing system-dependent
 definitions.  Finally, it creates a shell script `config.status' that
 you can run in the future to recreate the current configuration, and a
 file `config.log' containing compiler output (useful mainly for
-debugging `configure').
+debugging `configure').  Use 'configure --help' to see all the options
+available to build.
 
    It can also use an optional file (typically called `config.cache'
 and enabled with `--cache-file=config.cache' or simply `-C') that saves
@@ -41,7 +46,8 @@ a newer version of `autoconf'.
 
 The simplest way to compile this package is:
 
-  1. `cd' to the directory containing the package's source code and type
+  1. `cd' to the directory containing the package's source code then 
+     type './configure.sh' to prepare the tools to configure. Then type
      `./configure' to configure the package for your system.  If you're
      using `csh' on an old version of System V, you might need to type
      `sh ./configure' instead to prevent `csh' from trying to execute

@@ -52,6 +52,11 @@ On many distributions, these files are installed by packages with names like
 
   So let's proceed:
 
+0) Run "./bootstrap.sh"
+
+   The bootstrap script checks the environment and prepares for the 
+configure command.
+
 1) Run "./configure"
 
   The autoconf script "configure" is used to evaluate your local system

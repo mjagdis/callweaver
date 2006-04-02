@@ -15,6 +15,8 @@ Christos Ricudis - for substantial code contributions
 
 Paul Bagyenda, Digital Solutions - for initial Voicetronix driver development
 
+Speakup.nl - For jitterbuffer  http://www.speakup.nl/en/opensource/jitterbuffer/
+
 === WISHLIST CONTRIBUTERS ===
 Jeremy McNamara - SpeeX support
 Nick Seraphin - RDNIS support
@@ -66,6 +68,14 @@ Simon Lockhart - Porting to Solaris (based on work of Logan ???)
 	simon@slimey.org
 Olle Johansson - SIP RFC compliance and testing, testing, testing
 	oej@edvina.net
+Jeffrey C. Ollie - SVN management, automake and bug marshalling
+
+Bartek Kania - numerous improvements and bug fixes
+
+Carlos Mantunes - Generators
+
+Michael Bielicki & co. Intelligent Call Distribution (ICD)
+
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
