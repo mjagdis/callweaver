@@ -488,21 +488,19 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		opbx_stopstream(chan);
 		opbx_generator_deactivate(chan);
 	}
-	if (!opbx_strlen_zero(preflang)) {
-		opbx_copy_string(filename3, filename, sizeof(filename3));
-		endpart = strrchr(filename3, '/');
-		if (endpart) {
-			*endpart = '\0';
-			endpart++;
-			snprintf(filename2, sizeof(filename2), "%s/%s/%s", preflang, filename3, endpart);
-		} else
-			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
-		fmts = opbx_fileexists(filename2, NULL, NULL);
+	if (opbx_strlen_zero(preflang)) {
+		preflang = DEFAULT_LANGUAGE;
 	}
-	if (fmts < 1) {
-		snprintf(filename2, sizeof(filename2), "%s/%s", DEFAULT_LANGUAGE, filename);
-		fmts = opbx_fileexists(filename2, NULL, NULL);
-	}
+
+	opbx_copy_string(filename3, filename, sizeof(filename3));
+	endpart = strrchr(filename3, '/');
+	if (endpart) {
+		*endpart = '\0';
+		endpart++;
+		snprintf(filename2, sizeof(filename2), "%s/%s/%s", preflang, filename3, endpart);
+	} else
+		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
+	fmts = opbx_fileexists(filename2, NULL, NULL);
 
 	/* previous way to check sounds location (to keep backward compability, including voicemail) */
 	if (fmts < 1 && preflang && !opbx_strlen_zero(preflang)) {
