@@ -128,6 +128,7 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 	time_t rstart;
 	FILE *fp;
 	char *stringp=NULL;
+	char inbuf[128];
 
 	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
@@ -265,17 +266,17 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 							return -1;
 						   }
 						tmp[0] = 0;
-						while(fgets(tmp,sizeof(tmp) - 1,fp))
+						while(fgets(inbuf,sizeof(inbuf) - 1,fp))
 						   {
 							char *stringp=NULL,*stringp2;
-							if (!tmp[0]) continue;
-							if (tmp[strlen(tmp) - 1] == '\n') 
-								tmp[strlen(tmp) - 1] = 0;
-							if (!tmp[0]) continue;
+							if (!inbuf[0]) continue;
+							if (inbuf[strlen(inbuf) - 1] == '\n') 
+								inbuf[strlen(inbuf) - 1] = 0;
+							if (!inbuf[0]) continue;
 							  /* skip comments */
-							if (tmp[0] == '#') continue;
-							if (tmp[0] == ';') continue;
-							stringp=tmp;
+							if (inbuf[0] == '#') continue;
+							if (inbuf[0] == ';') continue;
+							stringp=inbuf;
 							strsep(&stringp, "|");
 							stringp2=strsep(&stringp, "|");
 							if (stringp2) {
@@ -289,14 +290,14 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 							opbx_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
 
 							  /* password must be in valid format (numeric) */
-							if (sscanf(tmp,"%d",&j) < 1) continue;
+							if (sscanf(inbuf,"%d",&j) < 1) continue;
 							  /* if we got it */
-							if (!strcmp(exten,tmp)) break;
+							if (!strcmp(exten,inbuf)) break;
 						   }
 						fclose(fp);
 					   }
 					  /* compare the two */
-					if (strcmp(exten,tmp))
+					if (strcmp(exten,inbuf))
 					{
 						opbx_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
