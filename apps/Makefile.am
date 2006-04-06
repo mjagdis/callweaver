@@ -9,6 +9,13 @@ app_adsiprog_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_adsiprog_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_ADSIPROG
 
+if WANT_APP_PIPE
+opbxmod_LTLIBRARIES        += app_pipe.la
+app_pipe_la_SOURCES       = app_pipe.c
+app_pipe_la_LDFLAGS       = -module -avoid-version -no-undefined
+app_pipe_la_LIBADD        = ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_PIPE
+
 if WANT_APP_AUTHENTICATE
 opbxmod_LTLIBRARIES			+= app_authenticate.la
 app_authenticate_la_SOURCES		= app_authenticate.c

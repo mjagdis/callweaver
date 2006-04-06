@@ -20,6 +20,8 @@
  *
  * \brief A machine to gather up arbitrary frames and convert them
  * to raw slinear on demand.
+ *
+ * \author Anthony Minessale <anthmct@yahoo.com>
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -88,12 +90,13 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 	}
 
 	if (sf->trans) {
-		frame = opbx_frdup(opbx_translate(sf->trans, f, 0));
+		frame = opbx_translate(sf->trans, f, 0);
 	} else {
 		frame = opbx_frdup(f);
 	}
 
 	if (frame) {
+		frame->next = NULL;
 		int x = 0;
 		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr=frame_ptr->next) {
 			x++;
@@ -117,7 +120,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes) 
 {
 	struct opbx_frame *frame_ptr;
-	size_t sofar = 0, ineed, remain;
+	int sofar = 0, ineed, remain;
 	short *frame_data, *offset = buf;
 	
 	opbx_mutex_lock(&(sf->lock));
