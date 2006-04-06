@@ -43,10 +43,10 @@ $context=""; # Define here your by default context (so you dont need to put voic
 	}
 );
 
-$astpath = "/_openpbx";
+$opbxpath = "/_openpbx";
 
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
-$footer = "<hr><font size=-1><a href=\"http://www.openpbx.org\">The OpenPBX Open Source PBX</a> Copyright 2004, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
+$footer = "<hr><font size=-1><a href=\"http://www.openpbx.org\">The OpenPBX.org Open Source PBX</a> Copyright 2006</a></a>";
 $stdcontainerend = "</td></tr><tr><td align=right>$footer</td></tr></table>\n";
 
 sub lock_path() {
@@ -111,7 +111,7 @@ $stdcontainerstart
 <FORM METHOD="post">
 <input type=hidden name="action" value="login">
 <table align=center>
-<tr><td valign=top align=center rowspan=6><img align=center src="$astpath/animlogo.gif"></td></tr>
+<tr><td valign=top align=center rowspan=6></td></tr>
 <tr><td align=center colspan=2><font size=+2>Comedian Mail Login</font></td></tr>
 <tr><td align=center colspan=2><font size=+1>$message</font></td></tr>
 <tr><td>Mailbox:</td><td><input type=text name="mailbox"></td></tr>
@@ -670,7 +670,7 @@ foreach $msg (&messages($context, $mbox, $folder)) {
 		$duration = "<i>Unknown</i>";
 	}
 	$hasmsg++;
-	print "<tr><td><input type=checkbox name=\"msgselect\" value=\"$msg\">&nbsp;<b>$msg</b></td><td>$fields->{'callerid'}</td><td>$duration</td><td>$fields->{'origdate'}</td><td><input name='play$msg' alt=\"Play message $msg\" border=0 type=image align=left src=\"$astpath/play.gif\"></td></tr>\n";
+	print "<tr><td><input type=checkbox name=\"msgselect\" value=\"$msg\">&nbsp;<b>$msg</b></td><td>$fields->{'callerid'}</td><td>$duration</td><td>$fields->{'origdate'}</td><td><input name='play$msg' alt=\"Play message $msg\" border=0 type=image align=left src=\"$opbxpath/play.gif\"></td></tr>\n";
 
 }
 if (!$hasmsg) {
