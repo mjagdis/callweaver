@@ -120,7 +120,8 @@ static int pgsql_reconnect(void)
 			opbx_log(LOG_NOTICE, "Existing database connection broken. Trying to reset.\n");
 
 			/* try to reset the connection */
-			PQreset(conn);
+			if (PQstatus(conn) != CONNECTION_BAD)
+				PQreset(conn);
 
 			/* check the connection status again */
 			if (PQstatus(conn) == CONNECTION_OK) {
