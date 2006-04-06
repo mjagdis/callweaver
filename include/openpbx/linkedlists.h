@@ -303,6 +303,7 @@ struct {								\
 	      __list_next = (var) ? (var)->field.next : NULL;				\
 	     (var);									\
 	     __list_prev = __new_prev, (var) = __list_next,				\
+	     __new_prev = (var),							\
 	     __list_next = (var) ? (var)->field.next : NULL				\
 	    )
 
@@ -473,15 +474,18 @@ struct {								\
 #define OPBX_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
 		(head)->first = (elm)->field.next;			\
-		if ((head)->last == (elm))			\
-			(head)->last = NULL;			\
-	} else {								\
+		if ((head)->last == (elm))				\
+			(head)->last = NULL;				\
+	} else {							\
 		typeof(elm) curelm = (head)->first;			\
-		while (curelm->field.next != (elm))			\
+		while (curelm && (curelm->field.next != (elm)))		\
 			curelm = curelm->field.next;			\
 		curelm->field.next = (elm)->field.next;			\
-		if ((head)->last == (elm))				\
-			(head)->last = curelm;				\
+		if (curelm) {						\
+                       curelm->field.next = (elm)->field.next;		\
+                       if ((head)->last == (elm))			\
+                               (head)->last = curelm;			\
+               }							\
 	}								\
 } while (0)
 
