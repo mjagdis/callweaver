@@ -492,10 +492,11 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		preflang = DEFAULT_LANGUAGE;
 	}
 
-	snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
+	/* Verify custom prompt first so it override default one */
+	snprintf(filename2, sizeof(filename2), "%s-custom/%s", preflang, filename);
 	fmts = opbx_fileexists(filename2, NULL, NULL);
 	if (fmts < 1 && preflang && !opbx_strlen_zero(preflang)) {
-		snprintf(filename2, sizeof(filename2), "%s-custom/%s", preflang, filename);
+		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = opbx_fileexists(filename2, NULL, NULL);
 	}
 				
