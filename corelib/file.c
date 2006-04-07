@@ -492,16 +492,14 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		preflang = DEFAULT_LANGUAGE;
 	}
 
-	opbx_copy_string(filename3, filename, sizeof(filename3));
-	endpart = strrchr(filename3, '/');
-	if (endpart) {
-		*endpart = '\0';
-		endpart++;
-		snprintf(filename2, sizeof(filename2), "%s/%s/%s", preflang, filename3, endpart);
-	} else
-		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
+	snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 	fmts = opbx_fileexists(filename2, NULL, NULL);
-
+	if (fmts < 1 && preflang && !opbx_strlen_zero(preflang)) {
+		snprintf(filename2, sizeof(filename2), "%s-custom/%s", preflang, filename);
+		fmts = opbx_fileexists(filename2, NULL, NULL);
+	}
+				
+	
 	/* previous way to check sounds location (to keep backward compability, including voicemail) */
 	if (fmts < 1 && preflang && !opbx_strlen_zero(preflang)) {
 		strncpy(filename3, filename, sizeof(filename3) - 1);
