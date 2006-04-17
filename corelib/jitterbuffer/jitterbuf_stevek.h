@@ -19,6 +19,8 @@
 extern "C" {
 #endif
 
+#include <openpbx/generic_jb.h>
+
 /* configuration constants */
 	/* Number of historical timestamps to use in calculating jitter and drift */
 #define JB_HISTORY_SZ		500	
@@ -57,42 +59,9 @@ typedef struct jb_conf {
 	long max_contig_interp; /* the max interp frames to return in a row */
 } jb_conf;
 
-typedef struct jb_info {
-	jb_conf conf;
-
-	/* statistics */
-	long frames_in;  	/* number of frames input to the jitterbuffer.*/
-	long frames_out;  	/* number of frames output from the jitterbuffer.*/
-	long frames_late; 	/* number of frames which were too late, and dropped.*/
-	long frames_lost; 	/* number of missing frames.*/
-	long frames_dropped; 	/* number of frames dropped (shrinkage) */
-	long frames_ooo; 	/* number of frames received out-of-order */
-	long frames_cur; 	/* number of frames presently in jb, awaiting delivery.*/
-	long jitter; 		/* jitter measured within current history interval*/
-	long min;		/* minimum lateness within current history interval */
-	long current; 		/* the present jitterbuffer adjustment */
-	long target; 		/* the target jitterbuffer adjustment */
-	long losspct; 		/* recent lost frame percentage (* 1000) */
-	long next_voice_ts;	/* the ts of the next frame to be read from the jb - in receiver's time */
-	long lopbx_voice_ms;	/* the duration of the last voice frame */
-	long silence_begin_ts;	/* the time of the last CNG frame, when in silence */
-	long lopbx_adjustment;   /* the time of the last adjustment */
- 	long lopbx_delay;        /* the last now added to history */
- 	long cnt_delay_discont;	/* the count of discontinuous delays */
- 	long resync_offset;     /* the amount to offset ts to support resyncs */
-	long cnt_contig_interp; /* the number of contiguous interp frames returned */
-} jb_info;
-
-typedef struct jb_frame {
-	void *data;		/* the frame data */
-	long ts;	/* the relative delivery time expected */
-	long ms;	/* the time covered by this frame, in sec/8000 */
-	int  type;	/* the type of frame */
-	struct jb_frame *next, *prev;
-} jb_frame;
-
 typedef struct jitterbuf {
-	jb_info info;
+	jb_conf conf;
+	opbx_jb_info info;
 
 	/* history */
 	long history[JB_HISTORY_SZ];   		/* history */
@@ -144,7 +113,7 @@ int jb_getall(jitterbuf *jb, jb_frame *frameout);
 long			jb_next(jitterbuf *jb);
 
 /* get jitterbuf info: only "statistics" may be valid */
-int			jb_getinfo(jitterbuf *jb, jb_info *stats);
+int			jb_getinfo(jitterbuf *jb, opbx_jb_info *stats);
 
 /* set jitterbuf conf */
 int			jb_setconf(jitterbuf *jb, jb_conf *conf);

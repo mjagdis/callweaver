@@ -44,11 +44,10 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.1 $")
 #include "openpbx/options.h"
 #include "openpbx/utils.h"
 
-#ifdef OPBX_GENERIC_JB
-
 #include "openpbx/generic_jb.h"
 #include "jitterbuf_scx.h"
-#include "jitterbuf.h"
+#include "jitterbuf_stevek.h"
+#include "jitterbuf_speakup.h"
 
 
 /* Internal jb flags */
@@ -64,9 +63,9 @@ typedef void * (*jb_create_impl)(struct opbx_jb_conf *general_config, long resyn
 /* Destroy */
 typedef void (*jb_destroy_impl)(void *jb);
 /* Put first frame */
-typedef int (*jb_put_first_impl)(void *jb, struct opbx_frame *fin, long now);
+typedef int (*jb_put_first_impl)(void *jb, struct opbx_frame *fin, long now, int codec);
 /* Put frame */
-typedef int (*jb_put_impl)(void *jb, struct opbx_frame *fin, long now);
+typedef int (*jb_put_impl)(void *jb, struct opbx_frame *fin, long now, int codec);
 /* Get frame for now */
 typedef int (*jb_get_impl)(void *jb, struct opbx_frame **fout, long now, long interpl);
 /* Get next */
@@ -75,7 +74,8 @@ typedef long (*jb_next_impl)(void *jb);
 typedef int (*jb_remove_impl)(void *jb, struct opbx_frame **fout);
 /* Force resynch */
 typedef void (*jb_force_resynch_impl)(void *jb);
-
+/* Get information */
+typedef void (*jb_info_impl)(void *jb, opbx_jb_info *info);
 
 /*!
  * \brief Jitterbuffer implementation private struct.
@@ -91,27 +91,40 @@ struct opbx_jb_impl
 	jb_next_impl next;
 	jb_remove_impl remove;
 	jb_force_resynch_impl force_resync;
+	jb_info_impl info;
 };
 
 /* Implementation functions */
 /* scx */
 static void * jb_create_scx(struct opbx_jb_conf *general_config, long resynch_threshold);
 static void jb_destroy_scx(void *jb);
-static int jb_put_first_scx(void *jb, struct opbx_frame *fin, long now);
-static int jb_put_scx(void *jb, struct opbx_frame *fin, long now);
+static int jb_put_first_scx(void *jb, struct opbx_frame *fin, long now, int codec);
+static int jb_put_scx(void *jb, struct opbx_frame *fin, long now, int codec);
 static int jb_get_scx(void *jb, struct opbx_frame **fout, long now, long interpl);
 static long jb_next_scx(void *jb);
 static int jb_remove_scx(void *jb, struct opbx_frame **fout);
 static void jb_force_resynch_scx(void *jb);
+static void jb_info_scx(void *jb, opbx_jb_info *info);
 /* stevek */
 static void * jb_create_stevek(struct opbx_jb_conf *general_config, long resynch_threshold);
 static void jb_destroy_stevek(void *jb);
-static int jb_put_first_stevek(void *jb, struct opbx_frame *fin, long now);
-static int jb_put_stevek(void *jb, struct opbx_frame *fin, long now);
+static int jb_put_first_stevek(void *jb, struct opbx_frame *fin, long now, int codec);
+static int jb_put_stevek(void *jb, struct opbx_frame *fin, long now, int codec);
 static int jb_get_stevek(void *jb, struct opbx_frame **fout, long now, long interpl);
 static long jb_next_stevek(void *jb);
 static int jb_remove_stevek(void *jb, struct opbx_frame **fout);
 static void jb_force_resynch_stevek(void *jb);
+static void jb_info_stevek(void *jb, opbx_jb_info *info);
+/* SpeakUp */
+static void * jb_create_speakup(struct opbx_jb_conf *general_config, long resynch_threshold);
+static void jb_destroy_speakup(void *jb);
+static int jb_put_first_speakup(void *jb, struct opbx_frame *fin, long now, int codec);
+static int jb_put_speakup(void *jb, struct opbx_frame *fin, long now, int codec);
+static int jb_get_speakup(void *jb, struct opbx_frame **fout, long now, long interpl);
+static long jb_next_speakup(void *jb);
+static int jb_remove_speakup(void *jb, struct opbx_frame **fout);
+static void jb_force_resynch_speakup(void *jb);
+static void jb_info_speakup(void *jb, opbx_jb_info *info);
 
 /* Available jb implementations */
 static struct opbx_jb_impl avail_impl[] = 
@@ -125,7 +138,8 @@ static struct opbx_jb_impl avail_impl[] =
 		.get = jb_get_scx,
 		.next = jb_next_scx,
 		.remove = jb_remove_scx,
-		.force_resync = jb_force_resynch_scx
+		.force_resync = jb_force_resynch_scx,
+		.info = jb_info_scx
 	},
 	{
 		.name = "adaptive",
@@ -136,7 +150,20 @@ static struct opbx_jb_impl avail_impl[] =
 		.get = jb_get_stevek,
 		.next = jb_next_stevek,
 		.remove = jb_remove_stevek,
-		.force_resync = jb_force_resynch_stevek
+		.force_resync = jb_force_resynch_stevek,
+		.info = jb_info_stevek
+	},
+	{
+		.name = "speakup",
+		.create = jb_create_speakup,
+		.destroy = jb_destroy_speakup,
+		.put_first = jb_put_first_speakup,
+		.put = jb_put_speakup,
+		.get = jb_get_speakup,
+		.next = jb_next_speakup,
+		.remove = jb_remove_speakup,
+		.force_resync = jb_force_resynch_speakup,
+		.info = jb_info_speakup
 	}
 };
 
@@ -178,7 +205,7 @@ if(jb->logfile) \
 /* Internal utility functions */
 static void jb_choose_impl(struct opbx_channel *chan);
 static void jb_get_and_deliver(struct opbx_channel *chan);
-static int create_jb(struct opbx_channel *chan, struct opbx_frame *first_frame);
+static int create_jb(struct opbx_channel *chan, struct opbx_frame *first_frame, int codec);
 static long get_now(struct opbx_jb *jb, struct timeval *tv);
 
 
@@ -273,6 +300,7 @@ void opbx_jb_do_usecheck(struct opbx_channel *c0, struct opbx_channel *c1)
 			jb_choose_impl(c1);
 		}
 	}
+
 }
 
 
@@ -321,7 +349,7 @@ int opbx_jb_get_when_to_wakeup(struct opbx_channel *c0, struct opbx_channel *c1,
 }
 
 
-int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f)
+int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec)
 {
 	struct opbx_jb *jb = &chan->jb;
 	struct opbx_jb_impl *jbimpl = jb->impl;
@@ -365,7 +393,7 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f)
 	
 	if(!opbx_test_flag(jb, JB_CREATED))
 	{
-		if(create_jb(chan, frr))
+		if(create_jb(chan, frr, codec))
 		{
 			opbx_frfree(frr);
 			/* Disable the jitterbuffer */
@@ -379,7 +407,7 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f)
 	else
 	{
 		now = get_now(jb, NULL);
-		if(jbimpl->put(jbobj, frr, now) != JB_IMPL_OK)
+		if(jbimpl->put(jbobj, frr, now, codec) != JB_IMPL_OK)
 		{
 			jb_framelog("JB_PUT {now=%ld}: Dropped frame with ts=%ld and len=%ld\n", now, frr->ts, frr->len);
 			opbx_frfree(frr);
@@ -479,9 +507,11 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 			jb_framelog("\tJB_GET {now=%ld}: Interpolated frame with len=%d\n", now, interpolation_len);
 			break;
 		case JB_IMPL_NOFRAME:
-			opbx_log(LOG_WARNING,
+#ifdef DEBUG			
+			opbx_log(LOG_DEBUG,
 				"JB_IMPL_NOFRAME is retuned from the %s jb when now=%ld >= next=%ld, jbnext=%ld!\n",
 				jbimpl->name, now, jb->next, jbimpl->next(jbobj));
+#endif
 			jb_framelog("\tJB_GET {now=%ld}: No frame for now!?\n", now);
 			return;
 		default:
@@ -495,7 +525,7 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 }
 
 
-static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr)
+static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int codec)
 {
 	struct opbx_jb *jb = &chan->jb;
 	struct opbx_jb_conf *jbconf = &jb->conf;
@@ -515,7 +545,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr)
 	}
 	
 	now = get_now(jb, NULL);
-	res = jbimpl->put_first(jbobj, frr, now);
+	res = jbimpl->put_first(jbobj, frr, now, codec);
 	
 	/* The result of putting the first frame should not differ from OK. However, its possible
 	   some implementations (i.e. stevek's when resynch_threshold is specified) to drop it. */
@@ -738,6 +768,23 @@ void opbx_jb_get_config(struct opbx_channel *chan, struct opbx_jb_conf *conf)
 	memcpy(conf, jbconf, sizeof(struct opbx_jb_conf));
 }
 
+void opbx_jb_get_info(struct opbx_channel *chan, opbx_jb_info *info)
+{
+	struct opbx_jb *jb = &chan->jb;
+	struct opbx_jb_impl *jbimpl = jb->impl;
+	void *jbobj = jb->jbobj;
+
+	jbimpl->info(jbobj, info);
+}
+
+int opbx_jb_is_active(struct opbx_channel *chan)
+{
+	struct opbx_jb *jb = &chan->jb;
+	struct opbx_jb_conf *jbconf = &jb->conf;
+
+	return opbx_test_flag(jb, JB_CREATED);
+}
+
 
 /* Implementation functions */
 
@@ -763,7 +810,7 @@ static void jb_destroy_scx(void *jb)
 }
 
 
-static int jb_put_first_scx(void *jb, struct opbx_frame *fin, long now)
+static int jb_put_first_scx(void *jb, struct opbx_frame *fin, long now, int codec)
 {
 	struct scx_jb *scxjb = (struct scx_jb *) jb;
 	int res;
@@ -774,7 +821,7 @@ static int jb_put_first_scx(void *jb, struct opbx_frame *fin, long now)
 }
 
 
-static int jb_put_scx(void *jb, struct opbx_frame *fin, long now)
+static int jb_put_scx(void *jb, struct opbx_frame *fin, long now, int codec)
 {
 	struct scx_jb *scxjb = (struct scx_jb *) jb;
 	int res;
@@ -826,6 +873,12 @@ static void jb_force_resynch_scx(void *jb)
 	scx_jb_set_force_resynch(scxjb);
 }
 
+static void jb_info_scx(void *jb, opbx_jb_info *info)
+{
+	/* Not yet implemented */
+	memset(info, 0, sizeof(opbx_jb_info));
+}
+
 
 /* stevek */
 static void stevek_error_output(const char *fmt, ...)
@@ -857,6 +910,9 @@ static void * jb_create_stevek(struct opbx_jb_conf *general_config, long resynch
 	jb_conf jbconf;
 	jitterbuf *stevekjb;
 
+	/* Clear settings */
+	memset(&jbconf, 0, sizeof(jbconf));
+
 	stevekjb = jb_new();
 	if(stevekjb != NULL)
 	{
@@ -881,13 +937,13 @@ static void jb_destroy_stevek(void *jb)
 }
 
 
-static int jb_put_first_stevek(void *jb, struct opbx_frame *fin, long now)
+static int jb_put_first_stevek(void *jb, struct opbx_frame *fin, long now, int codec)
 {
-	return jb_put_stevek(jb, fin, now);
+	return jb_put_stevek(jb, fin, now, codec);
 }
 
 
-static int jb_put_stevek(void *jb, struct opbx_frame *fin, long now)
+static int jb_put_stevek(void *jb, struct opbx_frame *fin, long now, int codec)
 {
 	jitterbuf *stevekjb = (jitterbuf *) jb;
 	int res;
@@ -938,7 +994,107 @@ static void jb_force_resynch_stevek(void *jb)
 	stevekjb->force_resync = 1;
 }
 
+static void jb_info_stevek(void *jb, opbx_jb_info *info)
+{
+	jitterbuf *stevekjb = (jitterbuf *) jb;
+	jb_getinfo(stevekjb, info);
+}
 
-#endif /* OPBX_GENERIC_JB */
+
+static void * jb_create_speakup(struct opbx_jb_conf *general_config, long resynch_threshold)
+{
+	jb_speakup_settings jbconf;
+	speakup_jitterbuffer *speakupjb;
+
+	/* Clear settings structure */
+	memset(&jbconf, 0, sizeof(jbconf));
+
+	speakupjb = jb_speakup_new();
+	if(speakupjb != NULL)
+	{
+		jbconf.min_jb = general_config->min_size;
+		jbconf.max_jb = general_config->max_size;
+		jbconf.max_successive_interp = 10;
+		jb_speakup_set_settings(speakupjb, &jbconf);
+	}
+
+	jb_speakup_setoutput(stevek_error_output, stevek_warning_output, NULL);
+	
+	return speakupjb;
+}
+
+
+static void jb_destroy_speakup(void *jb)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+	
+	jb_speakup_destroy(speakupjb);
+}
+
+
+static int jb_put_first_speakup(void *jb, struct opbx_frame *fin, long now, int codec)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+
+	return jb_put_speakup(jb, fin, now, codec);
+}
+
+
+static int jb_put_speakup(void *jb, struct opbx_frame *fin, long now, int codec)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+	int res;
+	
+	jb_speakup_put(speakupjb, fin, JB_TYPE_VOICE, fin->len, fin->ts, now,
+		       codec);
+	
+	return JB_IMPL_OK;
+}
+
+
+static int jb_get_speakup(void *jb, struct opbx_frame **fout, long now, long interpl)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+	jb_frame frame;
+	int res;
+	
+	res = jb_speakup_get(speakupjb, (void**)fout, now, interpl);
+
+	speakupjb->next = now + interpl;
+	
+	return stevek_to_abstract_code[res];
+}
+
+
+static long jb_next_speakup(void *jb)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+
+	return speakupjb->next_voice_time + speakupjb->current;
+}
+
+
+static int jb_remove_speakup(void *jb, struct opbx_frame **fout)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+	jb_frame frame;
+	int res;
+	
+	res = jb_speakup_get_all(speakupjb, &frame);
+	*fout = frame.data;
+	
+	return stevek_to_abstract_code[res];
+}
+
+
+static void jb_force_resynch_speakup(void *jb)
+{
+}
+
+static void jb_info_speakup(void *jb, opbx_jb_info *info)
+{
+	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
+	jb_speakup_get_info(speakupjb, info);
+}
 
 

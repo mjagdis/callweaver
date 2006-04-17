@@ -158,7 +158,6 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
 	struct opbx_trans_pvt *p;
 	struct opbx_frame *out;
 	struct timeval delivery;
-#ifdef OPBX_GENERIC_JB
 	int has_timing_info;
 	long ts;
 	long len;
@@ -168,7 +167,6 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
 	ts = f->ts;
 	len = f->len;
 	seqno = f->seqno;
-#endif /* OPBX_GENERIC_JB */
 
 	p = path;
 	/* Feed the first frame into the first translator */
@@ -225,7 +223,6 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
 			if (out->frametype == OPBX_FRAME_CNG)
 				path->nextout = opbx_tv(0, 0);
 
-#ifdef OPBX_GENERIC_JB
 			out->has_timing_info = has_timing_info;
 			if(has_timing_info)
 			{
@@ -234,7 +231,6 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
 				//out->len = opbx_codec_get_samples(out) / 8;
 				out->seqno = seqno;
 			}
-#endif /* OPBX_GENERIC_JB */
 
 			return out;
 		}

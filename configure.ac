@@ -845,16 +845,8 @@ fi
 
 AM_CONDITIONAL([HAVE_LIBPRI], [test -n "${HAVE_LIBPRI}"])
 
-dnl ##########################################################################
-
-AC_ARG_ENABLE([generic-jb],
-	[AC_HELP_STRING([--enable-generic-jb],[Enable the generic jitterbuffer (default=no)])],,[enable_generic_jb="no"])
-
-if test "${enable_generic_jb}" = "yes"; then
-   AC_DEFINE([OPBX_GENERIC_JB],,[Enable the generic jitterbuffer])
-fi
-
 dnl ###########################################################################
+
 dnl ###########################################################################
 dnl ###
 dnl ### Apps
@@ -1910,6 +1902,7 @@ AC_OUTPUT([Makefile
                  channels/sccp/Makefile
                  codecs/Makefile
  		 corelib/Makefile
+ 		 corelib/jitterbuffer/Makefile
                  formats/Makefile
                  funcs/Makefile
                  pbx/Makefile

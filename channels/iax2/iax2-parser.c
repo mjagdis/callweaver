@@ -921,7 +921,7 @@ void iax_frame_wrap(struct iax_frame *fr, struct opbx_frame *f)
 struct iax_frame *iax_frame_new(int direction, int datalen)
 {
 	struct iax_frame *fr;
-	fr = malloc((int)sizeof(struct iax_frame) + datalen);
+	fr = calloc(1, (int)sizeof(struct iax_frame) + datalen);
 	if (fr) {
 		fr->direction = direction;
 		fr->retrans = -1;

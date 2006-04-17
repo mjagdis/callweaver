@@ -756,7 +756,6 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"   Elapsed Time: %s\n"
 		"  Direct Bridge: %s\n"
 		"Indirect Bridge: %s\n"
-#ifdef OPBX_GENERIC_JB
 		" -- Jitterbuffer --\n"
 		" Implementation: %s\n"
 		"    Conf. Flags: 0x%x\n"
@@ -764,7 +763,6 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"  Resync Thresh: %ld\n"
 		"   Timing Comp.: %ld\n"
 		"    State Flags: 0x%x\n"		 
-#endif /* !OPBX_GENERIC_JB */
 		" --   PBX   --\n"
 		"        Context: %s\n"
 		"      Extension: %s\n"
@@ -781,14 +779,12 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 		c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
 		cdrtime, c->_bridge ? c->_bridge->name : "<none>", opbx_bridged_channel(c) ? opbx_bridged_channel(c)->name : "<none>", 
-#ifdef OPBX_GENERIC_JB
 		c->jb.conf.impl,
 		c->jb.conf.flags,
 		c->jb.conf.max_size,
 		c->jb.conf.resync_threshold,
 		c->jb.conf.timing_compensation,
 		c->jb.flags,
-#endif /* !OPBX_GENERIC_JB */
 		c->context, c->exten, c->priority, (int)c->callgroup, 
 		(int)c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 		( c-> data ? (!opbx_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),

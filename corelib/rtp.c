@@ -842,9 +842,6 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	int mark;
 	int ext;
 	/* Remove the variable for the pointless loop */
-#ifndef OPBX_GENERIC_JB
- 	int x;
-#endif /* OPBX_GENERIC_JB */
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
@@ -985,21 +982,6 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
 
-	/* Remove this pointless loop - it will generate unnecessary CPU load
-	 * on a big jump in seqno. */
-#ifndef OPBX_GENERIC_JB
-	if (rtp->rxseqno) {
-		for (x=rtp->rxseqno + 1; x < seqno; x++) {
-			/* Queue empty frames */
-			rtp->f.mallocd = 0;
-			rtp->f.datalen = 0;
-			rtp->f.data = NULL;
-			rtp->f.offset = 0;
-			rtp->f.samples = 0;
-			rtp->f.src = "RTPMissedFrame";
-		}
-	}
-#endif /* OPBX_GENERIC_JB */
 	rtp->rxseqno = seqno;
 
 	if (rtp->dtmfcount) {
@@ -1031,14 +1013,13 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 		if (rtp->f.subclass == OPBX_FORMAT_SLINEAR) 
 			opbx_frame_byteswap_be(&rtp->f);
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
-#ifdef OPBX_GENERIC_JB
+
 		/* Add timing data to let opbx_generic_bridge() put the frame
 		 * into a jitterbuf */
 		rtp->f.has_timing_info = 1;
 		rtp->f.ts = timestamp / 8;
 		rtp->f.len = rtp->f.samples / 8;
 		rtp->f.seqno = seqno;
-#endif /* OPBX_GENERIC_JB */
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
@@ -1643,6 +1624,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 	int mark = 0;
 
 	ms = calc_txstamp(rtp, &f->delivery);
+
 	/* Default prediction */
 	if (f->subclass < OPBX_FORMAT_MAX_AUDIO) {
 		pred = rtp->lastts + f->samples;
@@ -1682,6 +1664,11 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 	*/
 	if (rtp->lastts > rtp->lastdigitts)
 		rtp->lastdigitts = rtp->lastts;
+
+	/* Take the timestamp from the openpbx frame if it has timing */
+	if (f->has_timing_info) {
+		rtp->lastts = f->ts * 8;
+	}
 
 	/* Get a pointer to the header */
 	rtpheader = (unsigned char *)(f->data - hdrlen);

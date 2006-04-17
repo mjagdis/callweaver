@@ -1,3 +1,5 @@
+SUBDIRS=jitterbuffer
+
 opbxlib_LTLIBRARIES = libopenpbx.la
 libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	generator.c translate.c file.c say.c pbx.c cli.c term.c \
@@ -5,13 +7,12 @@ libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	cdr.c acl.c rtp.c manager.c \
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
 	opbxmm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
-	utils.c jitterbuf.c dnsmgr.c devicestate.c \
+	utils.c dnsmgr.c devicestate.c \
 	netsock.c resonator.c slinfactory.c opbx_expr2.c \
 	opbx_expr2f.c strcompat.c loader.c openpbx.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
 	stubfunctions-monitor.c udptl.c udpfromto.c coef_in.h coef_out.h \
-	ecdisa.h aesopt.h jitterbuf.h opbx_expr2.h timer.c \
-	jitterbuf_scx.c generic_jb.c
+	ecdisa.h aesopt.h opbx_expr2.h timer.c jitterbuffer/libopbxjb.la
 
 nodist_libopenpbx_la_SOURCES = defaults.h
 
@@ -26,6 +27,7 @@ libopenpbx_la_LIBADD	= -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 libopenpbx_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 libopenpbx_la_LIBADD 	+= ${top_builddir}/editline/src/libedit.la 
 libopenpbx_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 
+libopenpbx_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libopbxjb.la
 
 if WANT_SRTP
 libopenpbx_la_LIBADD	+= -lsrtp

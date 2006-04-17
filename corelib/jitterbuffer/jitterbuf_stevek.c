@@ -37,7 +37,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "jitterbuf.h"
+#include "jitterbuf_stevek.h"
 
 /* define these here, just for ancient compiler systems */
 #define JB_LONGMAX 2147483647L
@@ -75,12 +75,12 @@ static void decrement_losspct(jitterbuf *jb)
 void jb_reset(jitterbuf *jb) 
 {
 	/* only save settings */
-	jb_conf s = jb->info.conf;
-	memset(jb,0,sizeof(jitterbuf));
-	jb->info.conf = s;
+	jb_conf s = jb->conf;
+	memset(jb, 0, sizeof(jitterbuf));
+	jb->conf = s;
 
 	/* initialize length */
-	jb->info.current = jb->info.target = jb->info.conf.min_jitterbuf;
+	jb->info.current = jb->info.target = jb->conf.min_jitterbuf;
 	jb->info.silence_begin_ts = -1; 
 }
 
@@ -132,7 +132,7 @@ static int longcmp(const void *a, const void *b)
 static void resync(jitterbuf *jb, long ts, long now)
 {
 	long delay = now - (ts - jb->info.resync_offset);
-	long threshold = 2 * jb->info.jitter + jb->info.conf.resync_threshold;
+	long threshold = 2 * jb->info.jitter + jb->conf.resync_threshold;
 
 	/* resync the jitterbuffer */
 	jb->info.cnt_delay_discont = 0;
@@ -148,7 +148,7 @@ static void resync(jitterbuf *jb, long ts, long now)
 static int history_put(jitterbuf *jb, long ts, long now, long ms) 
 {
 	long delay = now - (ts - jb->info.resync_offset);
-	long threshold = 2 * jb->info.jitter + jb->info.conf.resync_threshold;
+	long threshold = 2 * jb->info.jitter + jb->conf.resync_threshold;
 	long kicked;
 
 	/* check if a resync has been requested, or is needed */
@@ -162,7 +162,7 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 		return 0;
 
 	/* check for drastic change in delay */
-	if (jb->info.conf.resync_threshold != -1) {
+	if (jb->conf.resync_threshold != -1) {
 	    if (abs(delay - jb->info.lopbx_delay) > threshold) {
 			jb->info.cnt_delay_discont++;
 			if (jb->info.cnt_delay_discont > 3) {
@@ -576,9 +576,9 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 	jb->info.target = jb->info.jitter + jb->info.min + JB_TARGET_EXTRA; 
 
 	/* if a hard clamp was requested, use it */
-	if ((jb->info.conf.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->info.conf.max_jitterbuf)) {
-		jb_dbg("clamping target from %d to %d\n", (jb->info.target - jb->info.min), jb->info.conf.max_jitterbuf);
-		jb->info.target = jb->info.min + jb->info.conf.max_jitterbuf;
+	if ((jb->conf.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->conf.max_jitterbuf)) {
+		jb_dbg("clamping target from %d to %d\n", (jb->info.target - jb->info.min), jb->conf.max_jitterbuf);
+		jb->info.target = jb->info.min + jb->conf.max_jitterbuf;
 	}
 
 	diff = jb->info.target - jb->info.current;
@@ -600,7 +600,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 			jb->info.lopbx_voice_ms = interpl;
 			jb->info.lopbx_adjustment = now;
 			jb->info.cnt_contig_interp++;
-			if (jb->info.conf.max_contig_interp && jb->info.cnt_contig_interp >= jb->info.conf.max_contig_interp) {
+			if (jb->conf.max_contig_interp && jb->info.cnt_contig_interp >= jb->conf.max_contig_interp) {
 				jb->info.silence_begin_ts = jb->info.next_voice_ts - jb->info.current;
 			}
 			jb_dbg("G");
@@ -713,7 +713,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 			jb->info.next_voice_ts += interpl;
 			jb->info.lopbx_voice_ms = interpl;
 			jb->info.cnt_contig_interp++;
-			if (jb->info.conf.max_contig_interp && jb->info.cnt_contig_interp >= jb->info.conf.max_contig_interp) {
+			if (jb->conf.max_contig_interp && jb->info.cnt_contig_interp >= jb->conf.max_contig_interp) {
 				jb->info.silence_begin_ts = jb->info.next_voice_ts - jb->info.current;
 			}
 			jb_dbg("L");
@@ -828,7 +828,7 @@ int jb_getall(jitterbuf *jb, jb_frame *frameout)
 }
 
 
-int jb_getinfo(jitterbuf *jb, jb_info *stats) 
+int jb_getinfo(jitterbuf *jb, opbx_jb_info *stats) 
 {
 
 	history_get(jb);
@@ -843,14 +843,14 @@ int jb_setconf(jitterbuf *jb, jb_conf *conf)
 	/* take selected settings from the struct */
 
 	if (conf->min_jitterbuf == -1)
-		jb->info.target = jb->info.conf.min_jitterbuf =JB_TARGET_EXTRA;
+		jb->info.target = jb->conf.min_jitterbuf = JB_TARGET_EXTRA;
 	else
-		jb->info.target = jb->info.conf.min_jitterbuf = 
+		jb->info.target = jb->conf.min_jitterbuf = 
 			conf->min_jitterbuf;
 
-	jb->info.conf.max_jitterbuf = conf->max_jitterbuf;
- 	jb->info.conf.resync_threshold = conf->resync_threshold;
-	jb->info.conf.max_contig_interp = conf->max_contig_interp;
+	jb->conf.max_jitterbuf = conf->max_jitterbuf;
+ 	jb->conf.resync_threshold = conf->resync_threshold;
+	jb->conf.max_contig_interp = conf->max_contig_interp;
 
 	jb_reset(jb);
 

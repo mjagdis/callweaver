@@ -300,7 +300,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 		out->offset = fr->offset;
 		out->src = NULL;
 		out->data = fr->data;
-#ifdef OPBX_GENERIC_JB
+
 		/* Copy the timing data */
 		out->has_timing_info = fr->has_timing_info;
 		if(fr->has_timing_info)
@@ -309,7 +309,6 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 			out->len = fr->len;
 			out->seqno = fr->seqno;
 		}
-#endif /* OPBX_GENERIC_JB */
 	} else {
 		out = fr;
 	}
@@ -374,7 +373,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
 	out->prev = NULL;
 	out->next = NULL;
 	memcpy(out->data, f->data, out->datalen);
-#ifdef OPBX_GENERIC_JB
+
 	out->has_timing_info = f->has_timing_info;
 	if(f->has_timing_info)
 	{
@@ -382,7 +381,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
 		out->len = f->len;
 		out->seqno = f->seqno;
 	}
-#endif /* OPBX_GENERIC_JB */
+
 	return out;
 }
 

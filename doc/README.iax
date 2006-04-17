@@ -165,23 +165,6 @@ beyond the initial bandwidth selection on a codec-by-codec basis.
 The recommended configuration is to select "low" bandwidth and then 
 disallow the LPC10 codec just because it doesn't sound very good. 
 
-> jitterbuffer = [yes|no]
-> dropcount = <dropamount>
-> maxjitterbuffer = <max>
-> maxexcessbuffer = <max>
-
-These parameters control the operation of the jitter buffer.  The 
-jitterbuffer should always be enabled unless you expect all your 
-connections to be over a LAN.  
-* drop count is the maximum number of voice packets to allow to drop 
-  (out of 100).  Useful values are 3-10.  
-* maxjitterbuffer is the maximum amount of jitter buffer to permit to be 
-  used.  
-* maxexcessbuffer is the maximum amount of excess jitter buffer 
-  that is permitted before the jitter buffer is slowly shrunk to eliminate 
-  latency.
-* minexcessbuffer is the minimum amout of excess jitter buffer
-
 > accountcode = <code>
 > amaflags = [default|omit|billing|documentation]
 
