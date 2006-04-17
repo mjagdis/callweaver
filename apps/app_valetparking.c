@@ -406,7 +406,7 @@ static void *do_valetparking_thread(void *ignore)
 				pu->old++;
 			}
 			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
-			if(gc < 5 && !pu->chan->generator) {
+			if(gc < 5 && !opbx_generator_is_active(pu->chan)) {
 				gc++;
 				opbx_moh_start(pu->chan, opbx_strlen_zero(pu->chan->musicclass) ? "default" : pu->chan->musicclass);
 			}
