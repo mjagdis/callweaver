@@ -693,15 +693,21 @@ static void *jabber_thread(void *obj)
 	
 	for (;;) {
 		if (jabber_connect(profile) < 0) {
-			break;
+			opbx_log(LOG_NOTICE, "Jabber reconnect attempt\n");
+                       	usleep(2000000);
+                       	sched_yield();
+			continue;
 		}
-		while (opbx_test_flag(profile, JFLAG_RUNNING)) {
+		while (opbx_test_flag(profile, JFLAG_RUNNING) && !opbx_test_flag(profile, JFLAG_ERROR)){
 			
 			g_main_context_iteration(profile->context, FALSE);
 		
 			if (opbx_test_flag(profile, JFLAG_AUTHED)) {
 				check_outbound_message_queue(profile);
-			}
+			}else {
+                               	opbx_log(LOG_ERROR, "Jabber - not authed\n");
+                        }
+
 			if ((node = jabber_message_node_shift(profile, Q_INBOUND))) {
 				if (jabber_message_parse(node, &jmsg)) {
 					opbx_log(LOG_DEBUG, "Message From %s\n", node->jabber_id);

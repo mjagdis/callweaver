@@ -11214,10 +11214,10 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		if (!ignore) {
 			if (p->refer_call) {
 				opbx_log(LOG_DEBUG,"202 Accepted (supervised)\n");
-				attempt_transfer(p, p->refer_call);
 				if (p->refer_call->owner)
 					opbx_mutex_unlock(&p->refer_call->owner->lock);
 				opbx_mutex_unlock(&p->refer_call->lock);
+				attempt_transfer(p, p->refer_call);
 				p->refer_call = NULL;
 				opbx_set_flag(p, SIP_GOTREFER);	
 			} else {

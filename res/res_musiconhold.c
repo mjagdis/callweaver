@@ -228,10 +228,12 @@ static struct opbx_frame *moh_files_readframe(struct opbx_channel *chan)
 {
 	struct opbx_frame *f = NULL;
 	
-	if (!(chan->stream && (f = opbx_readframe(chan->stream)))) {
-		if (!opbx_moh_files_next(chan))
-			f = opbx_readframe(chan->stream);
-	}
+	if (!opbx_test_flag(chan, OPBX_FLAG_ZOMBIE)) {
+		if (!(chan->stream && (f = opbx_readframe(chan->stream)))) {
+			if (!opbx_moh_files_next(chan))
+    				f = opbx_readframe(chan->stream);
+               	}
+        }
 
 	return f;
 }
