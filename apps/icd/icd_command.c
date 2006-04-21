@@ -49,6 +49,8 @@
 #include "openpbx/icd/icd_agent.h"
 #include "openpbx/icd/icd_customer.h"
 #include "openpbx/icd/icd_caller_private.h"
+#include "openpbx/icd/icd_conference.h"
+#include "openpbx/icd/icd_play_dtmf.h"
 
 static int verbosity = 1;
 
@@ -129,6 +131,9 @@ void create_command_hash(void)
 
     icd_command_register("hangup_chan", icd_command_hangup_channel, "hangup channel ",
         "icd hangup <channel name>", "");
+
+    icd_command_register("playback_chan", icd_command_playback_channel, "playback channel ",
+         "icd playback_chan <channel name>", "");
 
     icd_command_register("record", icd_command_record, "Start/stop record of customer ",
         "icd record <start|stop> <customer unique name>", "");
@@ -1239,6 +1244,123 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
       "Command: HangupChannel\r\nResult: OK\r\nChannel : %s\r\n", chan_name);
    return 0;
 }
+
+
+
+int icd_command_playback_channel (int fd, int argc, char **argv)
+{
+   icd_agent * agent; 
+   char * agent_id;
+   icd_conference * conf;
+   int len;
+   int res;
+   unsigned char * data;
+   char * key;
+
+
+   if (argc != 3){
+       opbx_cli(fd, "Function Playback_chan (play_dtmf) failed - bad number of parameters [%d]\n", argc);
+       manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: PlaybackChannel\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+       return -1;
+    }
+
+
+   agent_id = argv[1];
+   agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);
+
+    key = argv[2];
+
+   if (agent == NULL) {
+       opbx_cli(fd, "Function Playback_chan (play_dtmf) failed - agent not found [%s]\n", agent_id);
+       manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: PlaybackChannel\r\nResult: Fail\r\nCause: Channel not found\r\nChannel : %s\r\n", agent_id);
+       return -1;
+   }
+   
+   
+    switch (key[0]){
+        case '0' : 
+            data = zero;
+            len = sizeof(zero);
+            break;
+        case '1' :
+            data = one;
+            len = sizeof(one);
+            break;
+        case '2' :
+            data = two;
+            len = sizeof(two);
+            break;
+        case '3' :
+            data = three;
+            len = sizeof(three);
+            break;
+        case '4' :
+            data = four;
+            len = sizeof(four);
+            break;
+        case '5' :
+            data = five;
+            len = sizeof(five);
+            break;
+        case '6' :
+            data = six;
+            len = sizeof(six);
+            break;
+        case '7' :
+            data = seven;
+            len = sizeof(seven);
+            break;
+        case '8' :
+            data = eight;
+            len = sizeof(eight);
+            break;
+        case '9' :
+            data = nine;
+            len = sizeof(nine);
+            break;
+        case '*' :
+            data = star;
+            len = sizeof(star);
+            break;
+        case '#' :
+            data = hash;
+            len = sizeof(hash);
+            break;
+
+        default:
+            return;
+    }
+
+        conf = ((icd_caller *)agent)->conference;
+
+        if (!conf) {
+            opbx_cli(fd, "Function Playback_chan (play_dtmf) failed - agent conference not found [%s]\n", agent_id);
+            manager_event(EVENT_FLAG_USER, "icd_command",
+                "Command: PlaybackChannel\r\nResult: Fail\r\nCause: Agent conference not found\r\nAgent : %s\r\n", agent_id);
+            return -1;
+        }
+
+
+        while (len) {
+    	    res = write(conf->fd, data, len);
+
+    	    if (res < 1) {      
+                opbx_log(LOG_WARNING, "Failed to write audio data to conference: \n");
+                return 0;
+    	    }
+    	    len -= res;
+    	    data += res;
+        }
+
+    opbx_cli(fd, "Function Playback succeed - agent[%s]\n", agent_id);
+    manager_event(EVENT_FLAG_USER, "icd_command",
+      "Command: PlaybackChannel (play_dtmf)\r\nResult: OK\r\nAgent : %s\r\n", agent_id);
+    return 0;
+}
+
+
 
 
 /*
