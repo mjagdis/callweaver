@@ -2397,13 +2397,16 @@ icd_agent *app_icd__dtmf_login(struct opbx_channel *chan, char *login, char *pas
 int icd_instr(char *bigstr, char *smallstr, char delimit)
 {
     char *val = bigstr, *next;
+    int cmp_str_len;
 
     do {
-        if ((next = strchr(val, delimit)))
-            if (!strncmp(val, smallstr, (next - val)))
+        if ((next = strchr(val, delimit))){
+            cmp_str_len = (strlen(smallstr) > (next - val)) ? strlen(smallstr) : next - val;
+            if (!strncmp(val, smallstr, cmp_str_len))
                 return 1;
             else
                 continue;
+        }
         else
             return !strcmp(smallstr, val);
 
