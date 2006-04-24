@@ -772,6 +772,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
 
 	/* Find the queue in the in-core list (we will create a new one if not found). */
+	opbx_mutex_lock(&qlock);
 	q = queues;
 	prev_q = NULL;
 	while (q) {
@@ -781,7 +782,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
 		q = q->next;
 		prev_q = q;
 	}
-
+	opbx_mutex_unlock(&qlock);
 	/* Static queues override realtime. */
 	if (q) {
 		opbx_mutex_lock(&q->lock);
@@ -790,6 +791,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
 				opbx_mutex_unlock(&q->lock);
 				return NULL;
 			} else {
+				opbx_mutex_unlock(&q->lock);
 				return q;
 			}
 		}
@@ -882,7 +884,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
 		}
 		m = next_m;
 	}
-
+        opbx_mutex_unlock(&q->lock);
 	return q;
 }
 
@@ -1023,16 +1025,17 @@ static int play_file(struct opbx_channel *chan, char *filename)
 {
 	int res;
 
-	opbx_stopstream(chan);
-	res = opbx_streamfile(chan, filename, chan->language);
-
-	if (!res)
-		res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
-	else
-		res = 0;
-
-	opbx_stopstream(chan);
-
+	if (!opbx_strlen_zero(filename)) {
+		opbx_stopstream(chan);
+		res = opbx_streamfile(chan, filename, chan->language);
+	
+		if (!res)
+			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+		else
+			res = 0;
+	
+		opbx_stopstream(chan);
+	}
 	return res;
 }
 
@@ -1320,7 +1323,6 @@ static int compare_weight(struct opbx_call_queue *rq, struct member *member)
 		if (found) 
 			break;
 	}
-	opbx_mutex_unlock(&qlock);
 	return found;
 }
 
