@@ -406,8 +406,11 @@ static void wav_close(struct opbx_filestream *s)
 	/* Pad to even length */
 	if (s->bytes & 0x1)
 		fwrite(&zero, 1, 1, s->f);
-	fclose(s->f);
-	free(s);
+	if(s && s->f) {
+		fclose(s->f);
+		free(s);
+	}
+
 	s = NULL;
 }
 
