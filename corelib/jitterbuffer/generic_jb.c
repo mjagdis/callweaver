@@ -781,8 +781,11 @@ int opbx_jb_is_active(struct opbx_channel *chan)
 {
 	struct opbx_jb *jb = &chan->jb;
 	struct opbx_jb_conf *jbconf = &jb->conf;
-
-	return opbx_test_flag(jb, JB_CREATED);
+	if (chan && jb)
+		return opbx_test_flag(jb, JB_CREATED);
+	else
+		return 0;
+	
 }
 
 
