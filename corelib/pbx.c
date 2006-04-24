@@ -5431,6 +5431,8 @@ static int pbx_builtin_setamaflags(struct opbx_channel *chan, void *data)
 
 static int pbx_builtin_hangup(struct opbx_channel *chan, void *data)
 {
+        if (data && atoi(data) > 0)
+	       chan->hangupcause = atoi(data);
 	/* Just return non-zero and it will hang up */
 	return -1;
 }
