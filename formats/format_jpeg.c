@@ -56,7 +56,7 @@ static struct opbx_frame *jpeg_read_image(int fd, int len)
 	struct opbx_frame fr;
 	int res;
 	char buf[65536];
-	if (len > sizeof(buf)) {
+	if (len > sizeof(buf) || len < 0) {
 		opbx_log(LOG_WARNING, "JPEG image too large to read\n");
 		return NULL;
 	}
