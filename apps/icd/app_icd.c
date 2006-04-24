@@ -773,10 +773,12 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
     cust_uniq_name = input;
     if (chan) if(chan->uniqueid) {
         strncpy(input, chan->uniqueid, sizeof(input));
+        cust_uniq_name = input;
     }
-    if(strlen(input) + 6 < sizeof(input))
-    	sprintf(input + strlen(input), ".%d", icd_caller__get_id((icd_caller *)customer));
-    
+    if (!cust_uniq_name){
+        cust_uniq_name = custname;
+    }
+
     opbx_mutex_lock(&customers_lock);
     icd_fieldset__set_value(customers, cust_uniq_name, customer);
     opbx_mutex_unlock(&customers_lock);
