@@ -252,3 +252,10 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 extern int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
 #endif /* _OPENPBX_UTILS_H */
+
+#ifdef linux
+#define opbx_random random
+#else
+long int opbx_random(void);
+#endif
+

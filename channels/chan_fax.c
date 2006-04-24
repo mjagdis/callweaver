@@ -380,7 +380,7 @@ static struct opbx_channel *channel_new(const char *type, int format, void *data
 			chan->tech_pvt = tech_pvt;	
 			chan->nativeformats = myformat;
 			chan->type = type;
-			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04x", chan->type, (char *)data, rand() & 0xffff);
+			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04x", chan->type, (char *)data, opbx_random() & 0xffff);
 			chan->writeformat = chan->rawwriteformat = chan->readformat = myformat;
 			chan->_state = OPBX_STATE_RINGING;
 			chan->_softhangup = 0;

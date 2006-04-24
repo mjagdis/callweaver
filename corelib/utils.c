@@ -922,3 +922,20 @@ int getloadavg(double *list, int nelem)
 }
 #endif /* linux */
 #endif /* !defined(getloadavg) */
+
+/*! \brief glibc puts a lock inside random(3), so that the results are thread-safe.
+ * BSD libc (and others) do not. */
+#ifndef linux
+
+OPBX_MUTEX_DEFINE_STATIC(randomlock);
+
+long int opbx_random(void)
+{
+	long int res;
+	opbx_mutex_lock(&randomlock);
+	res = random();
+	opbx_mutex_unlock(&randomlock);
+	return res;
+}
+#endif
+

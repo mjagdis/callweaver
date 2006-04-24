@@ -496,7 +496,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 static struct opbx_channel *local_new(struct local_pvt *p, int state)
 {
 	struct opbx_channel *tmp, *tmp2;
-	int randnum = rand() & 0xffff;
+	int randnum = opbx_random() & 0xffff;
 
 	tmp = opbx_channel_alloc(1);
 	tmp2 = opbx_channel_alloc(1);

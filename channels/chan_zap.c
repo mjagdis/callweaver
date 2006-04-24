@@ -5125,7 +5125,7 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 			else
 #endif
 			if (i->channel == CHAN_PSEUDO)
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/pseudo-%d", rand());
+				snprintf(tmp->name, sizeof(tmp->name), "Zap/pseudo-%d", opbx_random());
 			else	
 				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d-%d", i->channel, y);
 			for (x=0;x<3;x++) {

@@ -112,7 +112,7 @@ int opbx_unload_resource(const char *resource_name, int force)
 		ml = m;
 		m = m->next;
 	}
-	modlistver = rand();
+	modlistver = opbx_random();
 	opbx_mutex_unlock(&modlock);
 	opbx_update_use_count();
 	return res;
@@ -342,7 +342,7 @@ static int __load_resource(const char *resource_name, const struct opbx_config *
 		i->next = m;
 	}
 	
-	modlistver = rand();
+	modlistver = opbx_random();
 	opbx_mutex_unlock(&modlock);
 	if ((res = m->load_module())) {
 		opbx_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, res);

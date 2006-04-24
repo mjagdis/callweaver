@@ -1003,12 +1003,12 @@ static const struct opbx_channel_tech sip_tech = {
   This function uses a mutex lock to guarantee that no
   two threads will receive the same random number.
  */
-static int thread_safe_rand(void)
+static int thread_safe_opbx_random(void)
 {
 	int val;
 
 	opbx_mutex_lock(&rand_lock);
-	val = rand();
+	val = opbx_random();
 	opbx_mutex_unlock(&rand_lock);
 	
 	return val;
@@ -2892,7 +2892,7 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	fmt = opbx_best_codec(tmp->nativeformats);
 
 	if (title)
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, thread_safe_rand() & 0xffff);
+		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, thread_safe_opbx_random() & 0xffff);
 	else if (strchr(i->fromdomain,':'))
 		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
 	else
@@ -3194,7 +3194,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 	int x;
 	char iabuf[INET_ADDRSTRLEN];
 	for (x=0; x<4; x++) {
-		val = thread_safe_rand();
+		val = thread_safe_opbx_random();
 		res = snprintf(callid, len, "%08x", val);
 		len -= res;
 		callid += res;
@@ -3208,7 +3208,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 
 static void make_our_tag(char *tagbuf, size_t len)
 {
-	snprintf(tagbuf, len, "as%08x", thread_safe_rand());
+	snprintf(tagbuf, len, "as%08x", thread_safe_opbx_random());
 }
 
 /*! \brief  sip_alloc: Allocate SIP_PVT structure and set defaults */
@@ -3246,7 +3246,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
 
-	p->branch = thread_safe_rand();	
+	p->branch = thread_safe_opbx_random();	
 	make_our_tag(p->tag, sizeof(p->tag));
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
@@ -4406,7 +4406,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	}
 	
 	if (newbranch) {
-		p->branch ^= thread_safe_rand();
+		p->branch ^= thread_safe_opbx_random();
 		build_via(p, p->via, sizeof(p->via));
 	}
 
@@ -5424,7 +5424,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	req.method = sipmethod;
 	if (init) {
 		/* Bump branch even on initial requests */
-		p->branch ^= thread_safe_rand();
+		p->branch ^= thread_safe_opbx_random();
 		build_via(p, p->via, sizeof(p->via));
 		if (init > 1)
 			initreqprep(&req, p, sipmethod);
@@ -6006,7 +6006,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 	opbx_copy_string(p->uri, addr, sizeof(p->uri));
 
-	p->branch ^= thread_safe_rand();
+	p->branch ^= thread_safe_opbx_random();
 
 	memset(&req, 0, sizeof(req));
 	init_req(&req, sipmethod, addr);
@@ -6276,7 +6276,7 @@ static void reg_source_db(struct sip_peer *peer)
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
 		if (peer->pokeexpire > -1)
 			opbx_sched_del(sched, peer->pokeexpire);
-		peer->pokeexpire = opbx_sched_add(sched, thread_safe_rand() % 5000 + 1, sip_poke_peer_s, peer);
+		peer->pokeexpire = opbx_sched_add(sched, thread_safe_opbx_random() % 5000 + 1, sip_poke_peer_s, peer);
 	} else
 		sip_poke_peer(peer);
 	if (peer->expire > -1)
@@ -6737,7 +6737,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			res = 1;
 		}
 	} else if (opbx_strlen_zero(randdata) || opbx_strlen_zero(authtoken)) {
-		snprintf(randdata, randlen, "%08x", thread_safe_rand());
+		snprintf(randdata, randlen, "%08x", thread_safe_opbx_random());
 		transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 15 seconds */
 		sip_scheddestroy(p, 15000);
@@ -6853,7 +6853,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 
 		if (wrongnonce) {
 
-			snprintf(randdata, randlen, "%08x", thread_safe_rand());
+			snprintf(randdata, randlen, "%08x", thread_safe_opbx_random());
 			if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
 				if (sipdebug)
 					opbx_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
@@ -9580,7 +9580,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else
 		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 
-	snprintf(cnonce, sizeof(cnonce), "%08x", thread_safe_rand());
+	snprintf(cnonce, sizeof(cnonce), "%08x", thread_safe_opbx_random());
 
  	/* Check if we have separate auth credentials */
  	if ((auth = find_realm_authentication(authl, p->realm))) {

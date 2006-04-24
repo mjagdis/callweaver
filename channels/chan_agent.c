@@ -954,7 +954,7 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 			tmp->rawreadformat = OPBX_FORMAT_SLINEAR;
 		}
 		if (p->pending)
-			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%d", p->agent, rand() & 0xffff);
+			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%d", p->agent, opbx_random() & 0xffff);
 		else
 			snprintf(tmp->name, sizeof(tmp->name), "Agent/%s", p->agent);
 		tmp->type = channeltype;
