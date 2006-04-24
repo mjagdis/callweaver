@@ -2787,12 +2787,12 @@ int icd_caller__cmp_call_start_time_order(icd_caller * caller1, icd_caller * cal
     Time1 = icd_caller__get_start(caller1);
     Time2 = icd_caller__get_start(caller2);
 
-    if (((Time1 > Time2) ? 1 : ((Time1 < Time2) ? -1 : 0)) == 0) {
+    if (Time1 == Time2) {
         Time1 = caller1->caller_created;
         Time2 = caller2->caller_created;
     }
 
-    return (Time1 > Time2) ? 1 : ((Time1 < Time1) ? -1 : 0);
+    return (Time1 > Time2) ? -1 : ((Time1 < Time1) ? 1 : 0);
 }
 
 int icd_caller__cmp_caller_id_order(icd_caller * caller1, icd_caller * caller2)
