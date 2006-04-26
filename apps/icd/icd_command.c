@@ -141,6 +141,8 @@ void create_command_hash(void)
     icd_command_register("queue", icd_command_join_queue, "join/remove agent to/from queue ",
         "icd queue <agent id> <queue name|all> <R>", "R for remove");
 
+    icd_command_register("control_playback", icd_command_control_playback, "controled playback in ICD", 
+        "icd control_playback <agent id> <key>", "");
 
 }
 
@@ -1586,6 +1588,89 @@ int icd_command_join_queue (int fd, int argc, char **argv)
      return 0;
 	 
 } 
+
+
+int icd_command_control_playback(int fd, int argc, char **argv) {
+
+    icd_agent * agent;
+    icd_caller * associated_caller;
+    char * agent_id;
+    icd_conference * conf;
+    int len;
+    int res;
+    unsigned char * data;
+    char * key;
+    struct opbx_frame write_frame;
+    int count;
+    int i;
+
+    if (argc < 3){
+        opbx_cli(fd, "Function control_playback failed - bad number of parameters [%d]\n", argc);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+            "Command: control_playback\r\nResult: Fail\r\nCause: Wrong parameters number\r\n");
+        return -1;
+    }
+
+
+    agent_id = argv[1];
+    agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);
+
+    key = argv[2];
+    
+    if (argc > 3) {
+        count = atoi(argv[3]);
+    } else {
+        count = 1;
+    }
+
+    if (agent == NULL) {
+        opbx_cli(fd, "Function control_playback failed - agent not found [%s]\n", agent_id);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+            "Command: control_playback\r\nResult: Fail\r\nCause: Agent not found\r\nAgent : %s\r\n", agent_id);
+        return -1;
+    }
+
+    conf = ((icd_caller *)agent)->conference;
+
+    if (!conf) {
+        opbx_cli(fd, "Function control_playback failed - agent conference not found [%s]\n", agent_id);
+        manager_event(EVENT_FLAG_USER, "icd_command",
+            "Command: control_playback\r\nResult: Fail\r\nCause: Agent conference not found\r\nAgent : %s\r\n", agent_id);
+        return -1;
+    }
+
+    associated_caller = (icd_caller *) icd_list__peek((icd_list *) ((icd_caller*)agent)->associations);
+    
+    if (!associated_caller){
+        opbx_cli(fd, "Associated caller not found for agent [%s]\n", agent_id);
+        return -1;
+    }
+
+    if (!associated_caller->chan){
+        opbx_cli(fd, "Associated caller channel not found for agent [%s]\n", agent_id);
+        return -1;
+    }
+
+    memset(&write_frame, 0, sizeof(write_frame));
+    write_frame.frametype = OPBX_FRAME_DTMF;
+    write_frame.subclass = *key;
+    write_frame.datalen = 0;
+    write_frame.samples = 0;
+    write_frame.offset = 76;
+
+    for (i=0; i<count; i++){
+        if (opbx_write(associated_caller->chan, &write_frame) < 0) {
+            opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", "strerror(errno)");
+        }
+    }
+
+    opbx_cli(fd, "Function control_playback succeed - agent[%s]\n", agent_id);
+    manager_event(EVENT_FLAG_USER, "icd_command",
+        "Command: control_playback\r\nResult: OK\r\nAgent : %s\r\n", agent_id);
+    return 0;
+
+}
+
 
 int icd_command_transfer (int fd, int argc, char **argv)
 {
