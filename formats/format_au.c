@@ -267,8 +267,6 @@ static void au_close(struct opbx_filestream *s)
 	localusecnt--;
 	opbx_mutex_unlock(&au_lock);
 	opbx_update_use_count();
-	fclose(s->f);
-	free(s);
 }
 
 static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)

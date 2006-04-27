@@ -417,9 +417,6 @@ static void wav_close(struct opbx_filestream *s)
 	fseek(s->f, 0, SEEK_END);
 	if (ftell(s->f) & 0x1)
 		fwrite(&zero, 1, 1, s->f);
-	fclose(s->f);
-	free(s);
-	s = NULL;
 }
 
 static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)

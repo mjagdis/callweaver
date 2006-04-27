@@ -128,9 +128,6 @@ static void g729_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&g729_lock);
 	opbx_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
 }
 
 static struct opbx_frame *g729_read(struct opbx_filestream *s, int *whennext)
