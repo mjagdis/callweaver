@@ -783,8 +783,10 @@ int opbx_jb_is_active(struct opbx_channel *chan)
 	struct opbx_jb_conf *jbconf = &jb->conf;
 	if (chan && jb)
 		return opbx_test_flag(jb, JB_CREATED);
-	else
+	else {
+		opbx_log(LOG_ERROR, "Trying to retreive flag but structs are freed");	
 		return 0;
+	}
 	
 }
 
