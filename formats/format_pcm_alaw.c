@@ -157,6 +157,9 @@ static void pcm_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&pcm_lock);
 	opbx_update_use_count();
+	fclose(s->f);
+	free(s);
+	s = NULL;
 }
 
 static struct opbx_frame *pcm_read(struct opbx_filestream *s, int *whennext)

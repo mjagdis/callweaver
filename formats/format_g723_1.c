@@ -172,6 +172,9 @@ static void g723_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&g723_lock);
 	opbx_update_use_count();
+	fclose(s->f);
+	free(s);
+	s = NULL;
 }
 
 

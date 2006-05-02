@@ -138,6 +138,8 @@ static void gsm_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&gsm_lock);
 	opbx_update_use_count();
+	fclose(s->f);
+	free(s);
 }
 
 static struct opbx_frame *gsm_read(struct opbx_filestream *s, int *whennext)

@@ -125,6 +125,9 @@ static void slinear_close(struct opbx_filestream *s)
 	glistcnt--;
 	opbx_mutex_unlock(&slinear_lock);
 	opbx_update_use_count();
+	fclose(s->f);
+	free(s);
+	s = NULL;
 }
 
 static struct opbx_frame *slinear_read(struct opbx_filestream *s, int *whennext)
