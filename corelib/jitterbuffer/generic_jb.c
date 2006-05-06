@@ -527,15 +527,24 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 
 static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int codec)
 {
-	struct opbx_jb *jb = &chan->jb;
-	struct opbx_jb_conf *jbconf = &jb->conf;
-	struct opbx_jb_impl *jbimpl = jb->impl;
+	struct opbx_jb *jb;
+	struct opbx_jb_conf *jbconf;
+	struct opbx_jb_impl *jbimpl;
 	void *jbobj;
 	struct opbx_channel *bridged;
 	long now;
 	char logfile_pathname[20 + OPBX_GENERIC_JB_IMPL_NAME_SIZE + 2*OPBX_CHANNEL_NAME + 1];
 	char name1[OPBX_CHANNEL_NAME], name2[OPBX_CHANNEL_NAME], *tmp;
 	int res;
+
+	if (chan) {
+		jb = &chan->jb;	
+		jbimpl = jb->impl;
+	} else {
+		opbx_log(LOG_ERROR, "No channel provided!\n");
+		return 0;
+	}
+
 
 	jbobj = jb->jbobj = jbimpl->create(jbconf, jbconf->resync_threshold);
 	if(jbobj == NULL)
@@ -620,10 +629,19 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 
 void opbx_jb_destroy(struct opbx_channel *chan)
 {
-	struct opbx_jb *jb = &chan->jb;
-	struct opbx_jb_impl *jbimpl = jb->impl;
-	void *jbobj = jb->jbobj;
+	struct opbx_jb *jb;
+	struct opbx_jb_impl *jbimpl;
+	void *jbobj;
 	struct opbx_frame *f;
+
+	if (chan) {
+		jb = &chan->jb;	
+		jbimpl = jb->impl;
+		jbobj = jb->jbobj;
+	} else {
+		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
+		return;
+	}
 
 	if(jb->logfile != NULL)
 	{
@@ -743,51 +761,71 @@ int opbx_jb_read_conf(struct opbx_jb_conf *conf, char *varname, char *value)
 
 void opbx_jb_default_config(struct opbx_jb_conf *conf)
 {
-	conf->flags = 0;
-	conf->min_size = 60;
-	conf->max_size = -1;
-	conf->resync_threshold = -1;
-	conf->timing_compensation = 5;
-	conf->impl[0] = 0;
+	if (conf) {
+		conf->flags = 0;
+		conf->min_size = 60;
+		conf->max_size = -1;
+		conf->resync_threshold = -1;
+		conf->timing_compensation = 5;
+		conf->impl[0] = 0;
+	} else
+		opbx_log(LOG_ERROR, "No jitterbuffer conf struct provided!\n");
 }
 
 void opbx_jb_configure(struct opbx_channel *chan, struct opbx_jb_conf *conf)
 {
-	struct opbx_jb *jb = &chan->jb;
-	struct opbx_jb_conf *jbconf = &jb->conf;
+	struct opbx_jb *jb;
+	struct opbx_jb_conf *jbconf;
 	
-	memcpy(jbconf, conf, sizeof(struct opbx_jb_conf));
+	if (chan) {
+		jb = &chan->jb;	
+		jbconf = &jb->conf;
+		memcpy(jbconf, conf, sizeof(struct opbx_jb_conf));
+	} else 
+		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 }
 
 
 void opbx_jb_get_config(struct opbx_channel *chan, struct opbx_jb_conf *conf)
 {
-	struct opbx_jb *jb = &chan->jb;
-	struct opbx_jb_conf *jbconf = &jb->conf;
-	
-	memcpy(conf, jbconf, sizeof(struct opbx_jb_conf));
+	struct opbx_jb *jb;
+	struct opbx_jb_conf *jbconf;
+
+	if (chan) {
+		jb = &chan->jb;	
+		jbconf = &jb->conf;
+		memcpy(conf, jbconf, sizeof(struct opbx_jb_conf));
+	} else 
+		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 }
 
 void opbx_jb_get_info(struct opbx_channel *chan, opbx_jb_info *info)
 {
-	struct opbx_jb *jb = &chan->jb;
-	struct opbx_jb_impl *jbimpl = jb->impl;
-	void *jbobj = jb->jbobj;
+	struct opbx_jb *jb;
+	struct opbx_jb_impl *jbimpl;
+	void *jbobj;
+
+	if (chan) {
+		jb = &chan->jb;	
+		jbimpl = jb->impl;
+		jbobj = jb->jbobj;
+	} else 
+		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 
 	jbimpl->info(jbobj, info);
 }
 
 int opbx_jb_is_active(struct opbx_channel *chan)
 {
-	struct opbx_jb *jb = &chan->jb;
-	struct opbx_jb_conf *jbconf = &jb->conf;
-	if (chan && jb)
+	struct opbx_jb *jb;
+
+	if (chan) {
+		jb = &chan->jb;
 		return opbx_test_flag(jb, JB_CREATED);
-	else {
+	} else {
 		opbx_log(LOG_ERROR, "Trying to retreive flag but structs are freed");	
 		return 0;
 	}
-	
 }
 
 
@@ -1082,11 +1120,9 @@ static long jb_next_speakup(void *jb)
 static int jb_remove_speakup(void *jb, struct opbx_frame **fout)
 {
 	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
-	jb_frame frame;
 	int res;
 	
-	res = jb_speakup_get_all(speakupjb, &frame);
-	*fout = frame.data;
+	res = jb_speakup_get_all(speakupjb, (void**)fout);
 	
 	return stevek_to_abstract_code[res];
 }
