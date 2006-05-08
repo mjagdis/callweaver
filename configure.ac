@@ -1217,6 +1217,14 @@ AM_CONDITIONAL([WANT_APP_SOFTHANGUP],[test "${with_app_softhangup}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_sql_postgres],
+        [AC_HELP_STRING([--with-app_sql_postgres],[Build and install app_sql_postgres (default=yes)])],,
+        [with_app_sql_postgres="yes"])
+		
+AM_CONDITIONAL([WANT_APP_SQL_POSTGRES],[test "${with_app_sql_postgres}" = "yes"])
+		
+dnl ###########################################################################
+		
 AC_ARG_WITH([app_system],
 	[AC_HELP_STRING([--with-app_system],[Build and install app_system (default=yes)])],,
 	[with_app_system="yes"])

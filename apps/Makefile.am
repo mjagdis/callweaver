@@ -318,6 +318,13 @@ app_softhangup_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_softhangup_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SOFTHANGUP
 
+if WANT_APP_SQL_POSTGRES
+opbxmod_LTLIBRARIES                     += app_sql_postgres.la
+app_sql_postgres_la_SOURCES               = app_sql_postgres.c
+app_sql_postgres_la_LDFLAGS               = -module -avoid-version -no-undefined
+app_sql_postgres_la_LIBADD                = ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_SQL_POSTGRES
+
 if WANT_APP_SYSTEM
 opbxmod_LTLIBRARIES			+= app_system.la
 app_system_la_SOURCES			= app_system.c
