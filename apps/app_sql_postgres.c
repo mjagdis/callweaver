@@ -34,7 +34,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/apps/app_sql_postgres.c $", "$Revision: 1605 $")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/lock.h"
 #include "openpbx/file.h"
