@@ -90,7 +90,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 	}
 
 	if (sf->trans) {
-		frame = opbx_translate(sf->trans, f, 0);
+		frame = opbx_frdup(opbx_translate(sf->trans, f, 0));
 	} else {
 		frame = opbx_frdup(f);
 	}
