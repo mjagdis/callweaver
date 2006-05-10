@@ -3624,7 +3624,8 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 
 				opbx_jb_info jbstats;
 
-				if (opbx_jb_is_active(iaxs[x]->owner)) {
+				if (iaxs[x]->owner && 
+				    opbx_jb_is_active(iaxs[x]->owner)) {
 					opbx_jb_get_info(iaxs[x]->owner, 
 							 &jbstats);
 					jitter = jbstats.jitter;
@@ -3677,7 +3678,8 @@ static int opbx_cli_netstats(int fd, int limit_fmt)
 
 				opbx_jb_info jbstats;
 
-				if (opbx_jb_is_active(iaxs[x]->owner)) {
+				if (iaxs[x]->owner &&
+				    opbx_jb_is_active(iaxs[x]->owner)) {
 					opbx_jb_get_info(iaxs[x]->owner, 
 							 &jbstats);
 					localjitter = jbstats.jitter;
@@ -5307,7 +5309,7 @@ static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep)
 
 	memset(iep, 0, sizeof(*iep));
 
-	if (opbx_jb_is_active(pvt->owner)) {
+	if (pvt->owner && opbx_jb_is_active(pvt->owner)) {
 	    opbx_jb_get_info(pvt->owner, &stats);
 	    	    
 	    iax_ie_append_int(iep,IAX_IE_RR_JITTER, stats.jitter);
