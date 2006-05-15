@@ -70,24 +70,9 @@ static inline unsigned int read_capi_dword(void *m)
 #define cc_mutex_init             opbx_mutex_init
 #define cc_mutex_lock(x)          opbx_mutex_lock(x)
 #define cc_mutex_unlock(x)        opbx_mutex_unlock(x)
-#define cc_copy_string(dst, src, size)  opbx_copy_string(dst, src, size)
 #define cc_log(x...)              opbx_log(x)
 #define cc_pbx_verbose(x...)      opbx_verbose(x)
-
-/*
- * helper for <pbx>_verbose with different verbose settings
- */
-#define cc_verbose(o_v, c_d, text...)					\
-	do { 								\
-		if ((o_v == 0) || (option_verbose > o_v)) {		\
-			if ((!c_d) || ((c_d) && (capidebug))) {		\
-				cc_mutex_lock(&verbose_lock);		\
-				cc_pbx_verbose(text);			\
-				cc_mutex_unlock(&verbose_lock);	\
-			}						\
-		}							\
-	} while(0)
-
+#define cc_copy_string(dst, src, size)  opbx_copy_string(dst, src, size)
 
 #define CC_CHANNEL_PVT(c) (c)->tech_pvt
 
@@ -95,10 +80,9 @@ static inline unsigned int read_capi_dword(void *m)
  * prototypes
  */
 extern unsigned capi_ApplID;
-extern cc_mutex_t verbose_lock;
-extern int capidebug;
 extern MESSAGE_EXCHANGE_ERROR _capi_put_cmsg(_cmsg *CMSG);
 extern _cword get_capi_MessageNumber(void);
+extern void cc_verbose(int o_v, int c_d, char *text, ...);
 
 /*
  * B protocol settings
@@ -204,15 +188,11 @@ struct cc_capi_gains {
 /* ! Private data for a capi device */
 struct capi_pvt {
 	cc_mutex_t lock;
-	int fd;
-	int fd2;
 
 	char name[CAPI_MAX_STRING];
 
 	/*! Channel we belong to, possibly NULL */
 	struct opbx_channel *owner;		
-	/*! Frame */
-	struct opbx_frame fr;			
 	
 	/* capi message number */
 	_cword MessageNumber;	
@@ -367,6 +347,7 @@ struct cc_capi_conf {
 	int echocancel;
 	int ecoption;
 	int ectail;
+	int ecnlp;
 	int ecSelector;
 	int isdnmode;
 	int ntmode;
