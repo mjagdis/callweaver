@@ -51,6 +51,7 @@
 /* shamelessly borrowed from real openpbx and slowly moprhed to our needs*/
 int ok_exit_noagent(icd_caller * caller);
 int ok_exit(icd_caller * caller, char digit);
+int no_agent(icd_caller * caller, icd_queue * queue);    
 static int say_position(icd_caller *that, int override, int waiting);
 
 int icd_bridge_call(icd_caller *bridger, icd_caller *bridgee)
@@ -222,6 +223,13 @@ int icd_bridge__wait_call_customer(icd_caller * that)
              icd_distributor__agents_pending(icd_queue__get_distributor(queue));
              */
 	    /* We take into account only agents that are in queue and logged in  */
+            
+            /* Matchagent special case */
+            if (no_agent(that, queue)){
+                res = 1;
+                break;
+            }
+
             agent_count=icd_queue__agent_active_count(queue);
             if (agent_count == 0) {
                 time(&now);
@@ -849,6 +857,27 @@ int ok_exit(icd_caller * that, char digit)
         } else
             return 0;
     }
+    return 0;
+}
+
+int no_agent(icd_caller * caller, icd_queue * queue){
+
+    char * tmp_str;
+    icd_caller *agent_caller = NULL;
+
+    tmp_str = icd_caller__get_param(caller, "identifier");
+    
+    if (tmp_str != NULL) {
+           
+       if (agent_caller == NULL) {
+            return 1;
+        }
+        if(icd_caller__get_state(agent_caller) == ICD_CALLER_STATE_INITIALIZED
+           || icd_caller__get_state(agent_caller) == ICD_CALLER_STATE_SUSPEND){
+            return 1;
+        }   
+    }
+
     return 0;
 }
 
