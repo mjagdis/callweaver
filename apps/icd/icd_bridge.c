@@ -869,9 +869,9 @@ int no_agent(icd_caller * caller, icd_queue * queue){
     icd_caller *agent_caller = NULL;
 
     tmp_str = icd_caller__get_param(caller, "identifier");
-    agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);
     
     if (tmp_str != NULL) {
+       agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);
            
        if (agent_caller == NULL) {
             return 1;
