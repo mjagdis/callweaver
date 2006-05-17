@@ -48,6 +48,9 @@
 #define  OPBX_FLAG_NONATIVE (1 << 7)
 #endif
 
+
+extern icd_fieldset *agents;
+
 /* shamelessly borrowed from real openpbx and slowly moprhed to our needs*/
 int ok_exit_noagent(icd_caller * caller);
 int ok_exit(icd_caller * caller, char digit);
@@ -866,6 +869,7 @@ int no_agent(icd_caller * caller, icd_queue * queue){
     icd_caller *agent_caller = NULL;
 
     tmp_str = icd_caller__get_param(caller, "identifier");
+    agent_caller = (icd_caller *) icd_fieldset__get_value(agents, tmp_str);
     
     if (tmp_str != NULL) {
            
