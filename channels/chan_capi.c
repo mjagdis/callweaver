@@ -33,7 +33,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 304 $")
 
 #include "openpbx/lock.h"
 #include "openpbx/frame.h" 
@@ -629,12 +629,12 @@ static int local_queue_frame(struct capi_pvt *i, struct opbx_frame *f)
 	}
 
 	if ((capidebug) && (f->frametype != OPBX_FRAME_VOICE)) {
-		ast_frame_dump("CAPI", f, VERBOSE_PREFIX_3 "queue frame:");
+		opbx_frame_dump("CAPI", f, VERBOSE_PREFIX_3 "queue frame:");
 	}
 
 	if ((f->frametype == OPBX_FRAME_CONTROL) &&
 	    (f->subclass == OPBX_CONTROL_HANGUP)) {
-		return (ast_queue_hangup(chan));
+		return (opbx_queue_hangup(chan));
 	}
 
 	if ((f->frametype == OPBX_FRAME_VOICE) &&
