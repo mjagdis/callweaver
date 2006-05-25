@@ -64,6 +64,7 @@ struct sched {
 
 struct sched_context {
 	opbx_mutex_t lock;
+	opbx_mutex_t del_lock;
 	/* Number of events processed */
 	int eventcnt;
 
@@ -126,6 +127,7 @@ static struct sched_context *context_create(void)
 	if (tmp) {
           	memset(tmp, 0, sizeof(struct sched_context));
 		opbx_mutex_init(&tmp->lock);
+		opbx_mutex_init(&tmp->del_lock);
 		tmp->eventcnt = 1;
 		tmp->schedcnt = 0;
 		tmp->schedq = NULL;
@@ -388,6 +390,21 @@ int opbx_sched_del(struct sched_context *con, int id)
 		return 0;
 }
 
+
+int opbx_sched_del_with_lock(struct sched_context *con, int id)
+{
+	int res;	
+	
+	opbx_mutex_lock(&con->del_lock);
+	res = opbx_sched_del(con, id);
+	opbx_mutex_unlock(&con->del_lock);
+
+	return res;
+
+}
+
+
+
 void opbx_sched_dump(const struct sched_context *con)
 {
 	/*
@@ -430,6 +447,9 @@ int opbx_sched_runq(struct sched_context *con)
 	int res;
 	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_runq()\n"));
 		
+
+	opbx_mutex_lock(&con->del_lock);
+
 	opbx_mutex_lock(&con->lock);
 	for(;;) {
 		if (!con->schedq)
@@ -478,6 +498,9 @@ int opbx_sched_runq(struct sched_context *con)
 	}
 
 	opbx_mutex_unlock(&con->lock);
+
+	opbx_mutex_unlock(&con->del_lock);
+
 	return x;
 }
 

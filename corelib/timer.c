@@ -147,7 +147,7 @@ int opbx_oneshot_timer_create(opbx_timer_t *t, unsigned long interval,
 
 void opbx_timer_destroy(opbx_timer_t *t)
 {
-	if (t->active) {
+	if (t->active && t->timer_id) {
 		timer_delete(t->timer_id);
 		opbx_log(LOG_DEBUG, "Destroying timer 0x%lx!\n", 
 			 (unsigned long)t);

@@ -1235,7 +1235,7 @@ static int retrans_pkt(void *data)
  				pkt->timer_a = 2 * pkt->timer_a;
  
  			/* For non-invites, a maximum of 4 secs */
- 			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
+ 			siptimer_a = DEFAULT_RETRANS * pkt->timer_a;	/* Double each time */
  			if (pkt->method != SIP_INVITE && siptimer_a > 4000)
  				siptimer_a = 4000;
  		
@@ -1268,7 +1268,7 @@ static int retrans_pkt(void *data)
 	}
 	append_history(pkt->owner, "MaxRetries", (opbx_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
  		
-	pkt->retransid = -1;
+	//pkt->retransid = -1;
 
 	if (opbx_test_flag(pkt, FLAG_FATAL)) {
 		while(pkt->owner->owner && opbx_mutex_trylock(&pkt->owner->owner->lock)) {
@@ -1305,7 +1305,7 @@ static int retrans_pkt(void *data)
 		pkt = NULL;
 	} else
 		opbx_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
-	if (pkt)
+	if (pkt && pkt->owner)
 		opbx_mutex_unlock(&pkt->owner->lock);
 	return 0;
 }
@@ -1331,11 +1331,14 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
 		opbx_set_flag(pkt, FLAG_FATAL);
-	if (pkt->timer_t1)
-		siptimer_a = pkt->timer_t1 * 2;
+	if (pkt->timer_a)
+		siptimer_a = pkt->timer_a * siptimer_a;
 
 	/* Schedule retransmission */
+
 	pkt->retransid = opbx_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
+
+
 	if (option_debug > 3 && sipdebug)
 		opbx_log(LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 	pkt->next = p->packets;
@@ -1432,8 +1435,9 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			if (cur->retransid > -1) {
 				if (sipdebug && option_debug > 3)
 					opbx_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
-				opbx_sched_del(sched, cur->retransid);
+				opbx_sched_del_with_lock(sched, cur->retransid);
 			}
+			cur->retransid = -1;
 			free(cur);
 			opbx_mutex_unlock(&p->lock);
 			res = 0;
@@ -1487,7 +1491,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			if (cur->retransid > -1) {
 				if (option_debug > 3 && sipdebug)
 					opbx_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
-				opbx_sched_del(sched, cur->retransid);
+				opbx_sched_del_with_lock(sched, cur->retransid);
 			}
 			cur->retransid = -1;
 			res = 0;
@@ -2259,13 +2263,19 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->initid > -1)
 		opbx_sched_del(sched, p->initid);
 
+	opbx_mutex_lock(&p->lock);
+
 	while((cp = p->packets)) {
 		p->packets = p->packets->next;
 		if (cp->retransid > -1) {
-			opbx_sched_del(sched, cp->retransid);
+			opbx_sched_del_with_lock(sched, cp->retransid);
 		}
+		cp->retransid = -1;
 		free(cp);
 	}
+
+	opbx_mutex_unlock(&p->lock);
+
 	if (p->chanvars) {
 		opbx_variables_destroy(p->chanvars);
 		p->chanvars = NULL;
