@@ -34,6 +34,8 @@
 #define CAPI_ISDNMODE_MSN                 0
 #define CAPI_ISDNMODE_DID                 1
 
+#define RTP_HEADER_SIZE                  12
+
 /* some helper functions */
 static inline void write_capi_word(void *m, unsigned short val)
 {
@@ -70,6 +72,7 @@ static inline unsigned int read_capi_dword(void *m)
 #define cc_mutex_init             opbx_mutex_init
 #define cc_mutex_lock(x)          opbx_mutex_lock(x)
 #define cc_mutex_unlock(x)        opbx_mutex_unlock(x)
+#define cc_mutex_destroy(x)       opbx_mutex_destroy(x)
 #define cc_log(x...)              opbx_log(x)
 #define cc_pbx_verbose(x...)      opbx_verbose(x)
 #define cc_copy_string(dst, src, size)  opbx_copy_string(dst, src, size)
@@ -116,7 +119,7 @@ struct fax3proto3 {
 typedef struct fax3proto3 B3_PROTO_FAXG3;
 
 /* duration in ms for sending and detecting dtmfs */
-#define CAPI_DTMF_DURATION              0x40
+#define CAPI_DTMF_DURATION              0x50
 
 #define CAPI_NATIONAL_PREF               "0"
 #define CAPI_INTERNAT_PREF              "00"
@@ -180,6 +183,8 @@ struct cc_capi_gains {
 #define CAPI_ISDN_STATE_B3_UP         0x00000200
 #define CAPI_ISDN_STATE_B3_CHANGE     0x00000400
 #define CAPI_ISDN_STATE_RTP           0x00000800
+#define CAPI_ISDN_STATE_HANGUP        0x00001000
+#define CAPI_ISDN_STATE_EC            0x00002000
 #define CAPI_ISDN_STATE_PBX           0x80000000
 
 #define CAPI_CHANNELTYPE_B            0
@@ -188,6 +193,9 @@ struct cc_capi_gains {
 /* ! Private data for a capi device */
 struct capi_pvt {
 	cc_mutex_t lock;
+
+	opbx_cond_t event_trigger;
+	unsigned int waitevent;
 
 	char name[CAPI_MAX_STRING];
 
@@ -210,7 +218,7 @@ struct capi_pvt {
 	unsigned short send_buffer_handle;
 
 	/* receive buffer */
-	unsigned char rec_buffer[CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET];
+	unsigned char rec_buffer[CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET + RTP_HEADER_SIZE];
 
 	/* current state */
 	int state;

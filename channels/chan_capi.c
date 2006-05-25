@@ -33,7 +33,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 304 $")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 320 $")
 
 #include "openpbx/lock.h"
 #include "openpbx/frame.h" 
@@ -194,7 +194,7 @@ static struct {
 	},
 	{ 0x1f, 0x1f, 0x1f,	/* 2 */
 		(_cstruct) "\x00",
-		(_cstruct) "\x02\x01\x00",
+		(_cstruct) "\x04\x01\x00\x00\x02",
 		(_cstruct) "\x00"
 	}
 };
@@ -308,6 +308,34 @@ MESSAGE_EXCHANGE_ERROR _capi_put_cmsg(_cmsg *CMSG)
 			cc_verbose(7, 1, "%s\n", capi_cmsg2str(CMSG));
 		} else {
 			cc_verbose(4, 1, "%s\n", capi_cmsg2str(CMSG));
+		}
+	}
+
+	return error;
+}
+
+/*
+ * write a capi message and wait for CONF
+ * i->lock must be held
+ */
+MESSAGE_EXCHANGE_ERROR _capi_put_cmsg_wait_conf(struct capi_pvt *i, _cmsg *CMSG)
+{
+	MESSAGE_EXCHANGE_ERROR error;
+	struct timespec abstime;
+
+	error = _capi_put_cmsg(CMSG);
+
+	if (!(error)) {
+		unsigned short wCmd = (CAPI_CONF << 8)|(CMSG->Command);
+		i->waitevent = (unsigned int)wCmd;
+		abstime.tv_sec = time(NULL) + 2;
+		abstime.tv_nsec = 0;
+		cc_verbose(4, 1, "%s: wait for %s\n",
+			i->name, capi_cmd2str(CMSG->Command, CAPI_CONF));
+		if (opbx_cond_timedwait(&i->event_trigger, &i->lock, &abstime) != 0) {
+			error = -1;
+			cc_log(LOG_WARNING, "%s: timed out waiting for %s\n",
+				i->name, capi_cmd2str(CMSG->Command, CAPI_CONF));
 		}
 	}
 
@@ -518,6 +546,14 @@ static void capi_echo_canceller(struct opbx_channel *c, int function)
 	if ((i->isdnstate & CAPI_ISDN_STATE_DISCONNECT))
 		return;
 
+	if (((function == EC_FUNCTION_ENABLE) && (i->isdnstate & CAPI_ISDN_STATE_EC)) ||
+	    ((function != EC_FUNCTION_ENABLE) && (!(i->isdnstate & CAPI_ISDN_STATE_EC)))) {
+		cc_verbose(3, 1, VERBOSE_PREFIX_4 "%s: echo canceller (PLCI=%#x, function=%d) unchanged\n",
+			i->name, i->PLCI, function);
+		/* nothing to do */
+		return;
+	}
+
 	/* If echo cancellation is not requested or supported, don't attempt to enable it */
 	cc_mutex_lock(&contrlock);
 	if (!capi_controllers[i->controller]->echocancel || !i->doEC) {
@@ -547,6 +583,9 @@ static void capi_echo_canceller(struct opbx_channel *c, int function)
 	        write_capi_word(&buf[4], i->ecOption); /* bit field - ignore echo canceller disable tone */
 		write_capi_word(&buf[6], i->ecTail);   /* Tail length, ms */
 		/* buf 8 and 9 are "pre-delay lenght ms" */
+		i->isdnstate |= CAPI_ISDN_STATE_EC;
+	} else {
+		i->isdnstate &= ~CAPI_ISDN_STATE_EC;
 	}
 
 	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)buf;
@@ -571,6 +610,11 @@ static int capi_detect_dtmf(struct opbx_channel *c, int flag)
 	if ((i->isdnstate & CAPI_ISDN_STATE_DISCONNECT))
 		return 0;
 
+	if (tcap_is_digital(c->transfercapability)) {
+		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: No dtmf-detect in digital mode (PLCI=%#x)\n",
+			i->name, i->PLCI);
+		return 0;
+	}
 	memset(buf, 0, sizeof(buf));
 	
 	/* does the controller support dtmf? and do we want to use it? */
@@ -627,6 +671,11 @@ static int local_queue_frame(struct capi_pvt *i, struct opbx_frame *f)
 		   we don't need any frames sent */
 		return -1;
 	}
+	if (i->state == CAPI_STATE_DISCONNECTING) {
+		cc_verbose(3, 1, VERBOSE_PREFIX_4 "%s: no queue_frame in state disconnecting for %d/%d\n",
+			i->name, f->frametype, f->subclass);
+		return 0;
+	}
 
 	if ((capidebug) && (f->frametype != OPBX_FRAME_VOICE)) {
 		opbx_frame_dump("CAPI", f, VERBOSE_PREFIX_3 "queue frame:");
@@ -634,6 +683,7 @@ static int local_queue_frame(struct capi_pvt *i, struct opbx_frame *f)
 
 	if ((f->frametype == OPBX_FRAME_CONTROL) &&
 	    (f->subclass == OPBX_CONTROL_HANGUP)) {
+		i->isdnstate |= CAPI_ISDN_STATE_HANGUP;
 		return (opbx_queue_hangup(chan));
 	}
 
@@ -841,7 +891,7 @@ static void cc_disconnect_b3(struct capi_pvt *i, int wait)
 
 	DISCONNECT_B3_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
 	DISCONNECT_B3_REQ_NCCI(&CMSG) = i->NCCI;
-	_capi_put_cmsg(&CMSG);
+	_capi_put_cmsg_wait_conf(i, &CMSG);
 
 	if (!wait)
 		return;
@@ -958,7 +1008,7 @@ static void capi_activehangup(struct opbx_channel *c)
 	    (state == CAPI_STATE_ANSWERING) || (state == CAPI_STATE_ONHOLD)) {
 		DISCONNECT_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
 		DISCONNECT_REQ_PLCI(&CMSG) = i->PLCI;
-		_capi_put_cmsg(&CMSG);
+		_capi_put_cmsg_wait_conf(i, &CMSG);
 	}
 	return;
 }
@@ -1190,6 +1240,11 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	CONNECT_REQ_HEADER(&CMSG, capi_ApplID, i->MessageNumber, i->controller);
 	CONNECT_REQ_CONTROLLER(&CMSG) = i->controller;
 	CONNECT_REQ_CIPVALUE(&CMSG) = tcap2cip(c->transfercapability);
+	if (tcap_is_digital(c->transfercapability)) {
+		i->bproto = CC_BPROTO_TRANSPARENT;
+		cc_verbose(4, 0, VERBOSE_PREFIX_2 "%s: is digital call, set proto to TRANSPARENT\n",
+			i->name);
+	}
 	if ((i->doOverlap) && (strlen(dest))) {
 		cc_copy_string(i->overlapdigits, dest, sizeof(i->overlapdigits));
 		called[0] = 1;
@@ -1234,7 +1289,7 @@ static int capi_call(struct opbx_channel *c, char *idest, int timeout)
 	bchaninfo[2] = 0x0;
 	CONNECT_REQ_BCHANNELINFORMATION(&CMSG) = (_cstruct)bchaninfo; /* 0 */
 
-        if ((error = _capi_put_cmsg(&CMSG))) {
+        if ((error = _capi_put_cmsg_wait_conf(i, &CMSG))) {
 		interface_cleanup(i);
 		cc_mutex_unlock(&i->lock);
 		return error;
@@ -1258,6 +1313,7 @@ static int capi_send_answer(struct opbx_channel *c, _cstruct b3conf)
 	char buf[CAPI_MAX_STRING];
 	const char *dnid;
 	const char *connectednumber;
+	int waitcount = 10;
     
 	if ((i->isdnmode == CAPI_ISDNMODE_DID) &&
 	    ((strlen(i->incomingmsn) < strlen(i->dnid)) && 
@@ -1300,6 +1356,18 @@ static int capi_send_answer(struct opbx_channel *c, _cstruct b3conf)
 	i->doB3 = CAPI_B3_DONT;
 	i->outgoing = 0;
 
+	/* wait here a little bit for CONNECT_ACTIVE_IND */
+	while(waitcount > 0) {
+		if (i->state != CAPI_STATE_ANSWERING)
+			break;
+		usleep(10000);
+		waitcount--;
+	}
+	if (waitcount) {
+		cc_verbose(4, 0, VERBOSE_PREFIX_4 "%s: no connect in time\n",
+			i->name);
+	}
+
 	return 0;
 }
 
@@ -1311,10 +1379,11 @@ static int capi_answer(struct opbx_channel *c)
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	int ret;
 
+	i->bproto = CC_BPROTO_TRANSPARENT;
+
 	if (i->rtp) {
-		i->bproto = CC_BPROTO_RTP;
-	} else {
-		i->bproto = CC_BPROTO_TRANSPARENT;
+		if (!tcap_is_digital(c->transfercapability))
+			i->bproto = CC_BPROTO_RTP;
 	}
 
 	cc_mutex_lock(&i->lock);
@@ -1948,8 +2017,8 @@ static int capi_receive_fax(struct opbx_channel *c, char *data)
 		cc_mutex_unlock(&i->lock);
 		break;
 	case CAPI_STATE_CONNECTED:
-		cc_mutex_unlock(&i->lock);
 		capi_change_bchan_fax(c, &b3conf);
+		cc_mutex_unlock(&i->lock);
 		break;
 	default:
 		i->FaxState = 0;
@@ -2714,7 +2783,7 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 	int rtpoffset = 0;
 
 	if (i != NULL) {
-		if ((i->isdnstate & CAPI_ISDN_STATE_RTP)) rtpoffset = 12;
+		if ((i->isdnstate & CAPI_ISDN_STATE_RTP)) rtpoffset = RTP_HEADER_SIZE;
 		b3len = DATA_B3_IND_DATALENGTH(CMSG);
 		b3buf = &(i->rec_buffer[OPBX_FRIENDLY_OFFSET - rtpoffset]);
 		memcpy(b3buf, (char *)DATA_B3_IND_DATA(CMSG), b3len);
@@ -2728,12 +2797,6 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 
 	return_on_no_interface("DATA_B3_IND");
 
-	if (((i->isdnstate &
-	    (CAPI_ISDN_STATE_B3_CHANGE | CAPI_ISDN_STATE_LI))) ||
-	    (i->state == CAPI_STATE_DISCONNECTING)) {
-		return;
-	}
-
 	if (i->fFax) {
 		/* we are in fax-receive and have a file open */
 		cc_verbose(6, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND (len=%d) Fax\n",
@@ -2741,6 +2804,13 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 		if (fwrite(b3buf, 1, b3len, i->fFax) != b3len)
 			cc_log(LOG_WARNING, "%s : error writing output file (%s)\n",
 				i->name, strerror(errno));
+		return;
+	}
+
+	if (((i->isdnstate &
+	    (CAPI_ISDN_STATE_B3_CHANGE | CAPI_ISDN_STATE_LI | CAPI_ISDN_STATE_HANGUP))) ||
+	    (i->state == CAPI_STATE_DISCONNECTING)) {
+		/* drop voice frames when we don't want them */
 		return;
 	}
 
@@ -2937,10 +3007,10 @@ static void capi_handle_disconnect_b3_indication(_cmsg *CMSG, unsigned int PLCI,
 
 	return_on_no_interface("DISCONNECT_B3_IND");
 
+	i->isdnstate &= ~(CAPI_ISDN_STATE_B3_UP | CAPI_ISDN_STATE_B3_PEND);
+
 	i->reasonb3 = DISCONNECT_B3_IND_REASON_B3(CMSG);
 	i->NCCI = 0;
-
-	i->isdnstate &= ~(CAPI_ISDN_STATE_B3_UP | CAPI_ISDN_STATE_B3_PEND);
 
 	if ((i->FaxState == 1) && (i->owner)) {
 		char buffer[CAPI_MAX_STRING];
@@ -3126,9 +3196,9 @@ static int capi_call_deflect(struct opbx_channel *c, char *param)
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
 	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 	
-	cc_mutex_unlock(&i->lock);
+	_capi_put_cmsg_wait_conf(i, &CMSG);
 
-	_capi_put_cmsg(&CMSG);
+	cc_mutex_unlock(&i->lock);
 
 	cc_verbose(2, 1, VERBOSE_PREFIX_3 "%s: sent FACILITY_REQ for CD PLCI = %#x\n",
 		i->name, i->PLCI);
@@ -3258,6 +3328,9 @@ static void capi_handle_connect_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 				break;
 			}
  			i->owner->transfercapability = cip2tcap(i->cip);
+			if (tcap_is_digital(i->owner->transfercapability)) {
+				i->bproto = CC_BPROTO_TRANSPARENT;
+			}
 			i->owner->cid.cid_pres = callpres;
 			cc_verbose(3, 0, VERBOSE_PREFIX_2 "%s: Incoming call '%s' -> '%s'\n",
 				i->name, i->cid, i->dnid);
@@ -3548,8 +3621,16 @@ static void capi_handle_msg(_cmsg *CMSG)
 		show_capi_info(wInfo);
 	}
 
-	if (i != NULL)
+	if (i != NULL) {
+		unsigned short capicommand = ((CMSG->Subcommand << 8)|(CMSG->Command));
+		if (i->waitevent == capicommand) {
+			i->waitevent = 0;
+			opbx_cond_signal(&i->event_trigger);
+			cc_verbose(4, 1, "%s: found and signal for %s\n",
+				i->name, capi_cmd2str(CMSG->Command, CMSG->Subcommand));
+		}
 		cc_mutex_unlock(&i->lock);
+	}
 
 	return;
 }
@@ -3685,11 +3766,14 @@ static int capi_ect(struct opbx_channel *c, char *param)
 		return -1;
 	}
 
+	cc_mutex_lock(&i->lock);
+
 	cc_disconnect_b3(i, 1);
 
 	if (i->state != CAPI_STATE_CONNECTED) {
 		cc_log(LOG_WARNING, "%s: destination not connected for ECT\n",
 			i->name);
+		cc_mutex_unlock(&i->lock);
 		return -1;
 	}
 
@@ -3705,12 +3789,14 @@ static int capi_ect(struct opbx_channel *c, char *param)
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
 	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 
-	_capi_put_cmsg(&CMSG);
+	_capi_put_cmsg_wait_conf(i, &CMSG);
 	
 	ii->isdnstate &= ~CAPI_ISDN_STATE_HOLD;
 	ii->isdnstate |= CAPI_ISDN_STATE_ECT;
 	i->isdnstate |= CAPI_ISDN_STATE_ECT;
 	
+	cc_mutex_unlock(&i->lock);
+
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: sent ECT for PLCI=%#x to PLCI=%#x\n",
 		i->name, plci, i->PLCI);
 
@@ -3787,8 +3873,6 @@ static int capi_malicious(struct opbx_channel *c, char *param)
 		return -1;
 	}
 
-	cc_mutex_lock(&i->lock);
-
 	fac[0] = 3;      /* len */
 	fac[1] = 0x0e;   /* MCID */
 	fac[2] = 0x00;
@@ -3799,12 +3883,39 @@ static int capi_malicious(struct opbx_channel *c, char *param)
 	FACILITY_REQ_FACILITYSELECTOR(&CMSG) = FACILITYSELECTOR_SUPPLEMENTARY;
 	FACILITY_REQ_FACILITYREQUESTPARAMETER(&CMSG) = (_cstruct)&fac;
 
-	_capi_put_cmsg(&CMSG);
+	cc_mutex_lock(&i->lock);
+	_capi_put_cmsg_wait_conf(i, &CMSG);
+	cc_mutex_unlock(&i->lock);
 
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: sent MCID for PLCI=%#x\n",
 		i->name, i->PLCI);
 
-	cc_mutex_unlock(&i->lock);
+	return 0;
+}
+
+/*
+ * set echo cancel
+ */
+static int capi_echocancel(struct opbx_channel *c, char *param)
+{
+	struct capi_pvt *i = CC_CHANNEL_PVT(c);
+
+	if (!param) {
+		cc_log(LOG_WARNING, "Parameter for echocancel missing.\n");
+		return -1;
+	}
+	if (opbx_true(param)) {
+		i->doEC = 1;
+		capi_echo_canceller(c, EC_FUNCTION_ENABLE);
+	} else if (opbx_false(param)) {
+		capi_echo_canceller(c, EC_FUNCTION_DISABLE);
+		i->doEC = 0;
+	} else {
+		cc_log(LOG_WARNING, "Parameter for echocancel invalid.\n");
+		return -1;
+	}
+	cc_verbose(2, 0, VERBOSE_PREFIX_4 "%s: echocancel switched %s\n",
+		i->name, i->doEC ? "ON":"OFF");
 	return 0;
 }
 
@@ -3827,7 +3938,7 @@ static int capi_echosquelch(struct opbx_channel *c, char *param)
 		cc_log(LOG_WARNING, "Parameter for echosquelch invalid.\n");
 		return -1;
 	}
-	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: echosquelch switched %s\n",
+	cc_verbose(2, 0, VERBOSE_PREFIX_4 "%s: echosquelch switched %s\n",
 		i->name, i->doES ? "ON":"OFF");
 	return 0;
 }
@@ -3853,8 +3964,8 @@ static int capi_holdtype(struct opbx_channel *c, char *param)
 		cc_log(LOG_WARNING, "Parameter for holdtype invalid.\n");
 		return -1;
 	}
-	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: holdtype switched %s\n",
-		i->name, i->doES ? "ON":"OFF");
+	cc_verbose(2, 0, VERBOSE_PREFIX_4 "%s: holdtype switched to %s\n",
+		i->name, param);
 	return 0;
 }
 
@@ -3897,6 +4008,7 @@ static struct capicommands_s {
 	{ "deflect",      capi_call_deflect,    1 },
 	{ "receivefax",   capi_receive_fax,     1 },
 	{ "echosquelch",  capi_echosquelch,     1 },
+	{ "echocancel",   capi_echocancel,      1 },
 	{ "malicious",    capi_malicious,       1 },
 	{ "hold",         capi_hold,            1 },
 	{ "holdtype",     capi_holdtype,        1 },
@@ -4185,6 +4297,7 @@ int mkif(struct cc_capi_conf *conf)
 		memset(tmp, 0, sizeof(struct capi_pvt));
 		
 		cc_mutex_init(&tmp->lock);
+		opbx_cond_init(&tmp->event_trigger, NULL);
 	
 		if (i == 0) {
 			snprintf(tmp->name, sizeof(tmp->name) - 1, "%s-pseudo-D", conf->name);
@@ -4369,7 +4482,7 @@ static char *show_bproto(int bproto)
 {
 	switch(bproto) {
 	case CC_BPROTO_TRANSPARENT:
-		return "voice";
+		return "trans";
 	case CC_BPROTO_FAXG3:
 		return " fax ";
 	case CC_BPROTO_RTP:
@@ -4679,7 +4792,7 @@ static int cc_init_capi(void)
 #if (CAPI_OS_HINT == 1)
 		if (profile.dwGlobalOptions & CAPI_PROFILE_ECHO_CANCELLATION) {
 #else
-		if (profile.globaloptions2 & 0x01) {
+		if (profile.globaloptions2 & 0x02) {
 #endif
 			cc_verbose(3, 0, VERBOSE_PREFIX_3 "CAPI/contr%d supports echo cancellation\n",
 				controller);
@@ -4749,7 +4862,7 @@ static int cc_post_init_capi(void)
 		}
 	}
 	if (use_rtp) {
-		if (cc_register_capi(CAPI_MAX_B3_BLOCK_SIZE + 12))
+		if (cc_register_capi(CAPI_MAX_B3_BLOCK_SIZE + RTP_HEADER_SIZE))
 			return -1;
 	}
 
@@ -5019,6 +5132,8 @@ int unload_module()
 			cc_log(LOG_WARNING, "On unload, interface still has owner.\n");
 		if (i->smoother)
 			opbx_smoother_free(i->smoother);
+		cc_mutex_destroy(&i->lock);
+		opbx_cond_destroy(&i->event_trigger);
 		itmp = i;
 		i = i->next;
 		free(itmp);

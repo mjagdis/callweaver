@@ -200,9 +200,20 @@ int capi_write_rtp(struct opbx_channel *c, struct opbx_frame *f)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
-	int rtpheaderlen = 12;
+	int rtpheaderlen = RTP_HEADER_SIZE;
 	struct sockaddr_in us;
 	int len;
+
+	if (!(i->rtp)) {
+		cc_log(LOG_ERROR, "rtp struct is NULL\n");
+		return -1;
+	}
+
+	if (f->datalen > (CAPI_MAX_B3_BLOCK_SIZE + rtpheaderlen)) {
+		cc_verbose(4, 0, VERBOSE_PREFIX_4 "%s: rtp write data: frame too big (len = %d).\n",
+			i->name, f->datalen);
+		return -1;
+	}
 
 	i->send_buffer_handle++;
 
@@ -242,6 +253,11 @@ struct opbx_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len
 	if (!(i->owner))
 		return NULL;
 
+	if (!(i->rtp)) {
+		cc_log(LOG_ERROR, "rtp struct is NULL\n");
+		return NULL;
+	}
+
 	opbx_rtp_get_us(i->rtp, &us);
 	opbx_rtp_set_peer(i->rtp, &us);
 
@@ -264,9 +280,8 @@ struct opbx_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len
 			cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND RTP readformat=%d, but subclass=%d\n",
 				i->name, i->owner->readformat, f->subclass);
 /* 			i->owner->nativeformats = i->rtpcodec; */
-/* 			ast_set_read_format(i->owner, i->codec); */
+			opbx_set_read_format(i->owner, i->codec);
 /* 			ast_set_write_format(i->owner, i->codec); */
-/* TODO: we need to change the format here */
 		}
 	}
 	return f;
@@ -343,23 +358,23 @@ void voice_over_ip_profile(struct cc_capi_controller *cp)
 	cc_verbose(3, 0, VERBOSE_PREFIX_4 "RTP codec: ");
 	if (payload1 & 0x00000100) {
 		cp->rtpcodec |= OPBX_FORMAT_ALAW;
-		cc_verbose(3, 0, "G.711 alaw, ");
+		cc_verbose(3, 0, "G.711-alaw ");
 	}
 	if (payload1 & 0x00000001) {
 		cp->rtpcodec |= OPBX_FORMAT_ULAW;
-		cc_verbose(3, 0, "G.711 ulaw, ");
+		cc_verbose(3, 0, "G.711-ulaw ");
 	}
 	if (payload1 & 0x00000008) {
 		cp->rtpcodec |= OPBX_FORMAT_GSM;
-		cc_verbose(3, 0, "GSM, ");
+		cc_verbose(3, 0, "GSM ");
 	}
 	if (payload1 & 0x00000010) {
 		cp->rtpcodec |= OPBX_FORMAT_G723_1;
-		cc_verbose(3, 0, "G.723.1, ");
+		cc_verbose(3, 0, "G.723.1 ");
 	}
 	if (payload1 & 0x00000004) {
 		cp->rtpcodec |= OPBX_FORMAT_G726;
-		cc_verbose(3, 0, "G.726, ");
+		cc_verbose(3, 0, "G.726 ");
 	}
 	if (payload1 & 0x00040000) {
 		cp->rtpcodec |= OPBX_FORMAT_G729A;
