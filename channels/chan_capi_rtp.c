@@ -209,7 +209,7 @@ int capi_write_rtp(struct opbx_channel *c, struct opbx_frame *f)
 		return -1;
 	}
 
-	if (f->datalen > (CAPI_MAX_B3_BLOCK_SIZE + rtpheaderlen)) {
+	if (f->datalen > (2000)) {
 		cc_verbose(4, 0, VERBOSE_PREFIX_4 "%s: rtp write data: frame too big (len = %d).\n",
 			i->name, f->datalen);
 		return -1;
@@ -276,12 +276,12 @@ struct opbx_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len
 		cc_verbose(6, 1, VERBOSE_PREFIX_4 "%s: DATA_B3_IND RTP NCCI=%#x len=%d %s (read/write=%d/%d)\n",
 			i->name, i->NCCI, len, opbx_getformatname(f->subclass),
 			i->owner->readformat, i->owner->writeformat);
-		if (i->owner->readformat != f->subclass) {
-			cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND RTP readformat=%d, but subclass=%d\n",
-				i->name, i->owner->readformat, f->subclass);
-/* 			i->owner->nativeformats = i->rtpcodec; */
-			opbx_set_read_format(i->owner, i->codec);
-/* 			ast_set_write_format(i->owner, i->codec); */
+		if (i->owner->nativeformats != f->subclass) {
+			cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND RTP nativeformats=%d, but subclass=%d\n",
+				i->name, i->owner->nativeformats, f->subclass);
+			i->owner->nativeformats = f->subclass;
+			opbx_set_read_format(i->owner, i->owner->readformat);
+			opbx_set_write_format(i->owner, i->owner->writeformat);
 		}
 	}
 	return f;
