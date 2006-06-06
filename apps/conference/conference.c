@@ -1013,7 +1013,7 @@ int queue_frame_for_listener(
 	//
 
 	short found_flag = 0 ;
-	struct opbx_frame *qf, *oqf;
+	struct opbx_frame *qf = 0, *oqf = 0;
 
 	for ( ; frame != NULL ; frame = frame->next ) 
 	{
