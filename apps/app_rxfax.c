@@ -1,3 +1,4 @@
+#define OLD_SPANDSP_API
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
@@ -66,6 +67,20 @@ LOCAL_USER_DECL;
 
 #define MAX_BLOCK_SIZE 240
 
+static void span_message(int level, const char *msg)
+{
+    int ast_level;
+    
+    if (level == SPAN_LOG_WARNING)
+        ast_level = __LOG_WARNING;
+    else if (level == SPAN_LOG_WARNING)
+        ast_level = __LOG_WARNING;
+    else
+        ast_level = __LOG_DEBUG;
+    ast_log(ast_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
+}
+/*- End of function --------------------------------------------------------*/
+
 static void t30_flush(t30_state_t *s, int which)
 {
     //TODO:
@@ -87,7 +102,11 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", far_ident);
     snprintf(buf, sizeof(buf), "%d", t.pages_transferred);
     pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
+#if defined(OLD_SPANDSP_API)
     snprintf(buf, sizeof(buf), "%d", t.row_resolution);
+#else
+    snprintf(buf, sizeof(buf), "%d", t.y_resolution);
+#endif
     pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", buf);
     snprintf(buf, sizeof(buf), "%d", t.bit_rate);
     pbx_builtin_setvar_helper(chan, "FAXBITRATE", buf);
@@ -100,7 +119,11 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
         opbx_log(LOG_DEBUG, "Remote station id: %s\n", far_ident);
         opbx_log(LOG_DEBUG, "Local station id:  %s\n", local_ident);
         opbx_log(LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
+#if defined(OLD_SPANDSP_API)
         opbx_log(LOG_DEBUG, "Image resolution:  %i x %i\n", t.column_resolution, t.row_resolution);
+#else
+        opbx_log(LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
+#endif
         opbx_log(LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
         manager_event(EVENT_FLAG_CALL,
                       "FaxReceived", "Channel: %s\nExten: %s\nCallerID: %s\nRemoteStationID: %s\nLocalStationID: %s\nPagesTransferred: %i\nResolution: %i\nTransferRate: %i\nFileName: %s\n",
@@ -110,13 +133,17 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
                       far_ident,
                       local_ident,
                       t.pages_transferred,
+#if defined(OLD_SPANDSP_API)
                       t.row_resolution,
+#else
+                      t.y_resolution,
+#endif
                       t.bit_rate,
                       s->rx_file);
     }
     else
     {
-        opbx_log(LOG_DEBUG, "Fax receive not successful - status %d.\n", result);
+        opbx_log(LOG_DEBUG, "Fax receive not successful - result (%d) %s.\n", result, t30_completion_code_to_str(result));
     }
     opbx_log(LOG_DEBUG, "==============================================================================\n");
 }
@@ -133,8 +160,13 @@ static void phase_d_handler(t30_state_t *s, void *user_data, int result)
         t30_get_transfer_statistics(s, &t);
         opbx_log(LOG_DEBUG, "==============================================================================\n");
         opbx_log(LOG_DEBUG, "Pages transferred:  %i\n", t.pages_transferred);
+#if defined(OLD_SPANDSP_API)
         opbx_log(LOG_DEBUG, "Image size:         %i x %i\n", t.columns, t.rows);
         opbx_log(LOG_DEBUG, "Image resolution    %i x %i\n", t.column_resolution, t.row_resolution);
+#else
+        opbx_log(LOG_DEBUG, "Image size:         %i x %i\n", t.width, t.length);
+        opbx_log(LOG_DEBUG, "Image resolution    %i x %i\n", t.x_resolution, t.y_resolution);
+#endif
         opbx_log(LOG_DEBUG, "Transfer Rate:      %i\n", t.bit_rate);
         opbx_log(LOG_DEBUG, "Bad rows            %i\n", t.bad_rows);
         opbx_log(LOG_DEBUG, "Longest bad row run %i\n", t.longest_bad_row_run);
@@ -145,7 +177,11 @@ static void phase_d_handler(t30_state_t *s, void *user_data, int result)
 }
 /*- End of function --------------------------------------------------------*/
 
+#if defined(OLD_SPANDSP_API)
 static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t *buf, int len)
+#else
+static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
+#endif
 {
     struct opbx_frame outf;
     struct opbx_channel *chan;
@@ -159,6 +195,9 @@ static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t 
     outf.samples = 0;
     outf.data = (uint8_t *) buf;
     outf.offset = 0;
+#if !defined(OLD_SPANDSP_API)
+    outf.tx_copies = count;
+#endif
     outf.src = "RxFAX";
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
@@ -179,7 +218,11 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     int len;
     int i;
     fax_state_t fax;
+#if defined(OLD_SPANDSP_API)
     t38_state_t t38;
+#else
+    t38_terminal_state_t t38;
+#endif
     int calling_party;
     int verbose;
     int samples;
@@ -200,6 +243,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         opbx_log(LOG_WARNING, "Fax receive channel is NULL. Giving up.\n");
         return -1;
     }
+
+    span_set_message_handler(span_message);
 
     /* The next few lines of code parse out the filename and header from the input string */
     if (data == NULL)
@@ -324,7 +369,11 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 (t38.current_tx_type == T30_MODEM_DONE)) break;
 
             if (call_is_t38_mode)
+#if defined(OLD_SPANDSP_API)
                 t38_send_timeout(&t38);
+#else
+                t38_send_timeout(&t38, 240);
+#endif
             if (res == 0)
                 continue;
             inf = opbx_read(chan);

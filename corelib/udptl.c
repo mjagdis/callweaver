@@ -3,10 +3,10 @@
  *
  * UDPTL support for T.38
  * 
- * Copyright (C) 2005, Steve Underood, partly based on RTP code which is
+ * Copyright (C) 2005, Steve Underwood, partly based on RTP code which is
  * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Steve Underood <steveu@coppice.org>
+ * Steve Underwood <steveu@coppice.org>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -101,7 +101,6 @@ struct opbx_udptl {
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	int *ioid;
-	uint16_t seqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
@@ -341,6 +340,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 
 					s->f[ifp_no].mallocd = 0;
 					s->f[ifp_no].seq_no = seq_no - i;
+					s->f[ifp_no].tx_copies = 1;
 					s->f[ifp_no].datalen = lengths[i - 1];
 					s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
 					s->f[ifp_no].offset = 0;
@@ -363,6 +363,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			
 			s->f[ifp_no].mallocd = 0;
 			s->f[ifp_no].seq_no = seq_no;
+			s->f[ifp_no].tx_copies = 1;
 			s->f[ifp_no].datalen = ifp_len;
 			s->f[ifp_no].data = (uint8_t *) ifp;
 			s->f[ifp_no].offset = 0;
@@ -464,6 +465,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			
 				s->f[ifp_no].mallocd = 0;
 				s->f[ifp_no].seq_no = j;
+				s->f[ifp_no].tx_copies = 1;
 				s->f[ifp_no].datalen = s->rx[l].buf_len;
 				s->f[ifp_no].data = s->rx[l].buf;
 				s->f[ifp_no].offset = 0;
@@ -482,6 +484,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			
 		s->f[ifp_no].mallocd = 0;
 		s->f[ifp_no].seq_no = j;
+		s->f[ifp_no].tx_copies = 1;
 		s->f[ifp_no].datalen = ifp_len;
 		s->f[ifp_no].data = (uint8_t *) ifp;
 		s->f[ifp_no].offset = 0;
@@ -693,7 +696,7 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 	return &udptl->f[0];
 }
 
-void opbx_udptl_offered_from_local(struct opbx_udptl* udptl, int local)
+void opbx_udptl_offered_from_local(struct opbx_udptl *udptl, int local)
 {
 	if (udptl)
 		udptl->udptl_offered_from_local = local;
@@ -701,7 +704,7 @@ void opbx_udptl_offered_from_local(struct opbx_udptl* udptl, int local)
 		opbx_log(LOG_WARNING, "udptl structure is null\n");
 }
 
-int opbx_udptl_get_error_correction_scheme(struct opbx_udptl* udptl)
+int opbx_udptl_get_error_correction_scheme(struct opbx_udptl *udptl)
 {
     if (udptl)
 	    return udptl->error_correction_scheme;
@@ -711,7 +714,7 @@ int opbx_udptl_get_error_correction_scheme(struct opbx_udptl* udptl)
     }
 }
 
-void opbx_udptl_set_error_correction_scheme(struct opbx_udptl* udptl, int ec)
+void opbx_udptl_set_error_correction_scheme(struct opbx_udptl *udptl, int ec)
 {
     if (udptl) {
 	switch (ec) {
@@ -731,7 +734,7 @@ void opbx_udptl_set_error_correction_scheme(struct opbx_udptl* udptl, int ec)
 	    opbx_log(LOG_WARNING, "udptl structure is null\n");
 }
 
-int opbx_udptl_get_local_max_datagram(struct opbx_udptl* udptl)
+int opbx_udptl_get_local_max_datagram(struct opbx_udptl *udptl)
 {
     if (udptl)
 	    return udptl->local_max_datagram_size;
@@ -741,7 +744,7 @@ int opbx_udptl_get_local_max_datagram(struct opbx_udptl* udptl)
     }
 }
 
-int opbx_udptl_get_far_max_datagram(struct opbx_udptl* udptl)
+int opbx_udptl_get_far_max_datagram(struct opbx_udptl *udptl)
 {
     if (udptl)
 	    return udptl->far_max_datagram_size;
@@ -751,7 +754,7 @@ int opbx_udptl_get_far_max_datagram(struct opbx_udptl* udptl)
     }
 }
 
-void opbx_udptl_set_local_max_datagram(struct opbx_udptl* udptl, int max_datagram)
+void opbx_udptl_set_local_max_datagram(struct opbx_udptl *udptl, int max_datagram)
 {
     if (udptl)
 	    udptl->local_max_datagram_size = max_datagram;
@@ -759,7 +762,7 @@ void opbx_udptl_set_local_max_datagram(struct opbx_udptl* udptl, int max_datagra
 	    opbx_log(LOG_WARNING, "udptl structure is null\n");
 }
 
-void opbx_udptl_set_far_max_datagram(struct opbx_udptl* udptl, int max_datagram)
+void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
 {
     if (udptl)
 	    udptl->far_max_datagram_size = max_datagram;
@@ -798,7 +801,6 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		udptl->tx[i].buf_len = -1;
 	}
 
-	udptl->seqno = rand() & 0xffff;
 	udptl->them.sin_family = AF_INET;
 	udptl->us.sin_family = AF_INET;
 
@@ -848,6 +850,7 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 struct opbx_udptl *opbx_udptl_new(struct sched_context *sched, struct io_context *io, int callbackmode)
 {
 	struct in_addr ia;
+
 	memset(&ia, 0, sizeof(ia));
 	return opbx_udptl_new_with_bindaddr(sched, io, callbackmode, ia);
 }
@@ -898,6 +901,8 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 {
 	int len;
 	int res;
+    int copies;
+    int i;
 	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
 	char iabuf[INET_ADDRSTRLEN];
 
@@ -913,20 +918,22 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 		opbx_log(LOG_WARNING, "UDPTL can only send T.38 data\n");
 		return -1;
 	}
-
 	/* Cook up the UDPTL packet, with the relevant EC info. */
 	len = udptl_build_packet(s, buf, f->data, f->datalen);
 
 	if (len > 0  &&  s->them.sin_port && s->them.sin_addr.s_addr) {
-		if ((res = sendto(s->fd, buf, len, 0, (struct sockaddr *) &s->them, sizeof(s->them))) < 0)
-			opbx_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr), ntohs(s->them.sin_port), strerror(errno));
+		copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
+		for (i = 0;  i < copies;  i++) {
+			if ((res = sendto(s->fd, buf, len, 0, (struct sockaddr *) &s->them, sizeof(s->them))) < 0)
+				opbx_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr), ntohs(s->them.sin_port), strerror(errno));
+		}
 #if 0
 		printf("Sent %d bytes of UDPTL data to %s:%d\n", res, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
 		if (udptl_debug_test_addr(&s->them))
-			opbx_verbose("Sent UDPTL packet to %s:%d (type %d, seq %d, len %d)\n",
+			opbx_verbose("Sent UDPTL packet to %s:%d (seq %d, len %d)\n",
 					opbx_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr),
-					ntohs(s->them.sin_port), 0, s->seqno, len);
+					ntohs(s->them.sin_port), (s->tx_seq_no - 1) & 0xFFFF, len);
 	}
 		
 	return 0;

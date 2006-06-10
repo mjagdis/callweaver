@@ -72,6 +72,8 @@ struct opbx_frame {
 	long len;
 	/*! Sequence number */
 	int seqno;
+	/*! Number of copies to send (for redundant transmission of special data) */
+	int tx_copies;
 };
 
 #define OPBX_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to

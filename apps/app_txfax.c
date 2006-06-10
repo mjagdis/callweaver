@@ -1,3 +1,4 @@
+#define OLD_SPANDSP_API
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
@@ -59,6 +60,20 @@ LOCAL_USER_DECL;
 
 #define MAX_BLOCK_SIZE 240
 
+static void span_message(int level, const char *msg)
+{
+    int ast_level;
+    
+    if (level == SPAN_LOG_WARNING)
+        ast_level = __LOG_WARNING;
+    else if (level == SPAN_LOG_WARNING)
+        ast_level = __LOG_WARNING;
+    else
+        ast_level = __LOG_DEBUG;
+    ast_log(ast_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
+}
+/*- End of function --------------------------------------------------------*/
+
 static void t30_flush(t30_state_t *s, int which)
 {
     //TODO:
@@ -80,12 +95,16 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     if (result == T30_ERR_OK)
         opbx_log(LOG_DEBUG, "Fax successfully sent.\n");
     else
-        opbx_log(LOG_DEBUG, "Fax send not successful - status %d.\n", result);
+        opbx_log(LOG_DEBUG, "Fax send not successful - result (%d) %s.\n", result, t30_completion_code_to_str(result));
     opbx_log(LOG_DEBUG, "==============================================================================\n");
 }
 /*- End of function --------------------------------------------------------*/
 
+#if defined(OLD_SPANDSP_API)
 static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t *buf, int len)
+#else
+static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
+#endif
 {
     struct opbx_frame outf;
     struct opbx_channel *chan;
@@ -99,6 +118,9 @@ static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t 
     outf.samples = 0;
     outf.data = (char *) buf;
     outf.offset = 0;
+#if !defined(OLD_SPANDSP_API)
+    outf.tx_copies = count;
+#endif
     outf.src = "TxFAX";
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
@@ -117,7 +139,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
     int option;
     int len;
     fax_state_t fax;
+#if defined(OLD_SPANDSP_API)
     t38_state_t t38;
+#else
+    t38_terminal_state_t t38;
+#endif
     int calling_party;
     int verbose;
     int samples;
@@ -138,6 +164,8 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         opbx_log(LOG_WARNING, "Fax transmit channel is NULL. Giving up.\n");
         return -1;
     }
+
+    span_set_message_handler(span_message);
 
     /* The next few lines of code parse out the filename and header from the input string */
     if (data == NULL)
@@ -261,7 +289,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                 (t38.current_tx_type == T30_MODEM_DONE)) break;
 
             if (call_is_t38_mode)
+#if defined(OLD_SPANDSP_API)
                 t38_send_timeout(&t38);
+#else
+                t38_send_timeout(&t38, 240);
+#endif
             if (res == 0)
                 continue;
             inf = opbx_read(chan);

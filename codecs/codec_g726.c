@@ -594,7 +594,7 @@ static void update(
 }
 
 /*
- * g726_decode()
+ * g726_decodex()
  *
  * Description:
  *
@@ -602,7 +602,7 @@ static void update(
  * returns the resulting linear PCM, A-law or u-law value.
  * return -1 for unknown out_coding value.
  */
-static int g726_decode(int	i, struct g726_state *state_ptr)
+static int g726_decodex(int	i, struct g726_state *state_ptr)
 {
 	int		sezi, sez, se;	/* ACCUM */
 	int		y;			/* MIX */
@@ -643,12 +643,12 @@ static int g726_decode(int	i, struct g726_state *state_ptr)
 }
 
 /*
- * g726_encode()
+ * g726_encodex()
  *
  * Encodes the input vale of linear PCM, A-law or u-law data sl and returns
  * the resulting code. -1 is returned for unknown input coding value.
  */
-static int g726_encode(int sl, struct g726_state *state_ptr)
+static int g726_encodex(int sl, struct g726_state *state_ptr)
 {
 	int		sezi, se, sez;		/* ACCUM */
 	int		d;			/* SUBTA */
@@ -815,12 +815,12 @@ g726tolin_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 		opbx_log(LOG_WARNING, "Out of buffer space!\n");
 		return -1;
 	}
-	tmp->outbuf[tmp->tail++] = g726_decode((b[x] >> 4) & 0xf, &tmp->g726);
+	tmp->outbuf[tmp->tail++] = g726_decodex((b[x] >> 4) & 0xf, &tmp->g726);
   	if (tmp->tail >= BUFFER_SIZE) {
 		opbx_log(LOG_WARNING, "Out of buffer space!\n");
 		return -1;
 	}
-	tmp->outbuf[tmp->tail++] = g726_decode(b[x] & 0x0f, &tmp->g726);
+	tmp->outbuf[tmp->tail++] = g726_decodex(b[x] & 0x0f, &tmp->g726);
   }
 
   if(useplc) plc_rx(&tmp->plc, tmp->outbuf+tmp->tail-f->datalen*2, f->datalen*2);
@@ -884,10 +884,10 @@ lintog726_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
-		tmp->outbuf[tmp->tail++] = ((tmp->next_flag & 0xf)<< 4) | g726_encode(s[x], &tmp->g726);
+		tmp->outbuf[tmp->tail++] = ((tmp->next_flag & 0xf)<< 4) | g726_encodex(s[x], &tmp->g726);
 		tmp->next_flag = 0;
 	} else {
-		tmp->next_flag = 0x80 | g726_encode(s[x], &tmp->g726);
+		tmp->next_flag = 0x80 | g726_encodex(s[x], &tmp->g726);
 	}
   }
   return 0;
