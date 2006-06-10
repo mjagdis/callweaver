@@ -62,15 +62,15 @@ LOCAL_USER_DECL;
 
 static void span_message(int level, const char *msg)
 {
-    int ast_level;
+    int opbx_level;
     
     if (level == SPAN_LOG_WARNING)
-        ast_level = __LOG_WARNING;
+        opbx_level = __LOG_WARNING;
     else if (level == SPAN_LOG_WARNING)
-        ast_level = __LOG_WARNING;
+        opbx_level = __LOG_WARNING;
     else
-        ast_level = __LOG_DEBUG;
-    ast_log(ast_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
+        opbx_level = __LOG_DEBUG;
+    opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -292,7 +292,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 #if defined(OLD_SPANDSP_API)
                 t38_send_timeout(&t38);
 #else
-                t38_send_timeout(&t38, 240);
+                t38_terminal_send_timeout(&t38, 240);
 #endif
             if (res == 0)
                 continue;
@@ -329,7 +329,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             {
                 //printf("T.38 frame received\n");
                 call_is_t38_mode = TRUE;
+#if defined(OLD_SPANDSP_API)
                 t38_rx_ifp_packet(&t38, inf->seq_no, inf->data, inf->datalen);
+#else
+                t38_core_rx_ifp_packet(&t38, inf->seq_no, inf->data, inf->datalen);
+#endif
             }
             opbx_frfree(inf);
         }
