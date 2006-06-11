@@ -432,6 +432,7 @@ static int restart_monitor(void);
 #define T38FAX_RATE_9600			(1 << 11)	/*!< 9600 bps t38FaxRate */
 #define T38FAX_RATE_12000			(1 << 12)	/*!< 12000 bps t38FaxRate */
 #define T38FAX_RATE_14400			(1 << 13)	/*!< 14400 bps t38FaxRate */
+#define T38FAX_RATE_33600			(1 << 14)	/*!< 33600 bps t38FaxRate */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = OPBX_FORMAT_ULAW | OPBX_FORMAT_ALAW | OPBX_FORMAT_GSM | OPBX_FORMAT_H263;
@@ -3761,13 +3762,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 
 	/* Setup audio port number */
-	sin.sin_port = htons(portno);
-	if (p->rtp && sin.sin_port) {
-		opbx_rtp_set_peer(p->rtp, &sin);
-		if (debug) {
-			opbx_verbose("Peer audio RTP is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-			opbx_log(LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-		}
+    if (portno != -1) {
+    	sin.sin_port = htons(portno);
+	    if (p->rtp && sin.sin_port) {
+		    opbx_rtp_set_peer(p->rtp, &sin);
+    		if (debug) {
+	    		opbx_verbose("Peer audio RTP is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		    	opbx_log(LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		    }
+        }
 	}
 	/* Check for Media-description-level-address for video */
 	if (pedanticsipchecking) {
@@ -3785,23 +3788,27 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		}
 	}
 	/* Setup video port number */
-	sin.sin_port = htons(vportno);
-	if (p->vrtp && sin.sin_port) {
-		opbx_rtp_set_peer(p->vrtp, &sin);
-		if (debug) {
-			opbx_verbose("Peer video RTP is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-			opbx_log(LOG_DEBUG,"Peer video RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-		}
-	}
+    if (vportno != -1) {
+    	sin.sin_port = htons(vportno);
+        	if (p->vrtp && sin.sin_port) {
+    		opbx_rtp_set_peer(p->vrtp, &sin);
+    		if (debug) {
+    			opbx_verbose("Peer video RTP is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+    			opbx_log(LOG_DEBUG,"Peer video RTP is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+    		}
+    	}
+    }
 #if T38_SUPPORT
 	/* Setup UDPTL port number */
-	sin.sin_port = htons(udptlportno);
-	if (p->udptl && t38udptlsupport && sin.sin_port) {
-		opbx_udptl_set_peer(p->udptl, &sin);
-		if (debug) {
-			opbx_verbose("Peer T.38 UDPTL is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-			opbx_log(LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-		}
+    if (udptlportno != -1) {
+	    sin.sin_port = htons(udptlportno);
+    	if (p->udptl && t38udptlsupport && sin.sin_port) {
+    		opbx_udptl_set_peer(p->udptl, &sin);
+    		if (debug) {
+        			opbx_verbose("Peer T.38 UDPTL is at port %s:%d\n", opbx_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+    			opbx_log(LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+    		}
+        }
 	}
 #endif
 	/* Next, scan through each "a=rtpmap:" line, noting each
@@ -3828,7 +3835,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 #if T38_SUPPORT
 	if (udptlportno != -1) {
-		/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
+		/* Scan through the a= lines for T38 attributes and set appropriate fileds */
 		sdpLineNum_iterator_init(&iterator);
 		old = 0;
 		int found = 0;
@@ -3845,6 +3852,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				found = 1;
 				opbx_log(LOG_DEBUG,"T38MaxBitRate: %d\n",x);
 				switch (x) {
+				    case 33600:
+					peert38capability |= T38FAX_RATE_33600 | T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+					break;
 				    case 14400:
 					peert38capability |= T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
 					break;
@@ -4758,7 +4768,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	if (debug){
 		if (p->udptl)
-			opbx_verbose("T.38 UDPTL is at %s port %d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));	
+			opbx_verbose("T.38 UDPTL is at port %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));	
 	}
 
 	/* We break with the "recommendation" and send our IP, in order that our

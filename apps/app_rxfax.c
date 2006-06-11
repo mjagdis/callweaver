@@ -71,12 +71,13 @@ static void span_message(int level, const char *msg)
 {
     int opbx_level;
     
-    if (level == SPAN_LOG_WARNING)
-        opbx_level = __LOG_WARNING;
+    if (level == SPAN_LOG_ERROR)
+        opbx_level = __LOG_ERROR;
     else if (level == SPAN_LOG_WARNING)
         opbx_level = __LOG_WARNING;
     else
         opbx_level = __LOG_DEBUG;
+opbx_level = __LOG_WARNING;
     opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
 }
 /*- End of function --------------------------------------------------------*/
@@ -335,7 +336,10 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         }
         fax_init(&fax, calling_party, NULL);
         if (verbose)
-            fax.t30_state.logging.level = SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW;
+        {
+            span_log_set_level(&fax.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+            span_log_set_level(&fax.t30_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        }
         x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
         if (x  &&  x[0])
             t30_set_local_ident(&fax.t30_state, x);
@@ -349,7 +353,11 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
 
         t38_terminal_init(&t38, calling_party, t38_tx_packet_handler, chan);
         if (verbose)
-            t38.t30_state.logging.level = SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW;
+        {
+            span_log_set_level(&t38.t30_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+            span_log_set_level(&t38.t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+            span_log_set_level(&t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        }
         x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
         if (x  &&  x[0])
             t30_set_local_ident(&t38.t30_state, x);
@@ -364,20 +372,19 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         call_is_t38_mode = FALSE;
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
-            // =hk= end application when T38/T30 has finished
-            if ((t38.current_rx_type == T30_MODEM_DONE) ||
-                (t38.current_tx_type == T30_MODEM_DONE)) break;
-
-            if (call_is_t38_mode)
+            if (call_is_t38_mode) {
 #if defined(OLD_SPANDSP_API)
                 t38_send_timeout(&t38);
 #else
                 t38_terminal_send_timeout(&t38, 240);
 #endif
+                /* End application when T38/T30 has finished */
+                if ((t38.current_rx_type == T30_MODEM_DONE) || (t38.current_tx_type == T30_MODEM_DONE))
+                    break;
+            }
             if (res == 0)
                 continue;
-            inf = opbx_read(chan);
-            if (inf == NULL)
+            if ((inf = opbx_read(chan)) == NULL)
             {
                 res = -1;
                 break;
@@ -387,8 +394,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 if (fax_rx(&fax, inf->data, inf->samples))
                     break;
                 samples = (inf->samples <= MAX_BLOCK_SIZE)  ?  inf->samples  :  MAX_BLOCK_SIZE;
-                len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples);
-                if (len)
+                if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
                 {
                     memset(&outf, 0, sizeof(outf));
                     outf.frametype = OPBX_FRAME_VOICE;
@@ -412,7 +418,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
 #if defined(OLD_SPANDSP_API)
                 t38_rx_ifp_packet(&t38, inf->seq_no, inf->data, inf->datalen);
 #else
-                t38_core_rx_ifp_packet(&t38, inf->seq_no, inf->data, inf->datalen);
+                t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
 #endif
             }
             opbx_frfree(inf);
@@ -424,14 +430,12 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         }
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {
-            res = opbx_set_read_format(chan, original_read_fmt);
-            if (res)
+            if ((res = opbx_set_read_format(chan, original_read_fmt)))
                 opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
         }
         if (original_write_fmt != OPBX_FORMAT_SLINEAR)
         {
-            res = opbx_set_write_format(chan, original_write_fmt);
-            if (res)
+            if ((res = opbx_set_write_format(chan, original_write_fmt)))
                 opbx_log(LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
         }
         fax_release(&fax);
