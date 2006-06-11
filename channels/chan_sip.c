@@ -4928,9 +4928,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 #if T38_SUPPORT
 	if (t38rtpsupport) {
     		/* TODO: Improve this */
-		len = snprintf(a_audio_next, a_audio_left, " %d", 191);
-    		a_audio_next += len;
-    		a_audio_left -= len;
+		len = snprintf(m_audio_next, a_audio_left, " %d", 191);
+    		m_audio_next += len;
+    		m_audio_left -= len;
 		len = snprintf(a_audio_next, a_audio_left, "a=rtpmap:%d %s/8000\r\n", 191, "t38");
     		a_audio_next += len;
     		a_audio_left -= len;
