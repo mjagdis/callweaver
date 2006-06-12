@@ -114,6 +114,10 @@ struct private_object {
     /* If this is true it means we already sent a hangup-statusmessage
      * to our user, so don't bother with it when hanging up */
         int hangup_msg_sent; 
+
+	/* Condition variable for signalling new data */
+	opbx_cond_t data_cond;
+
 };
 
 
@@ -126,6 +130,7 @@ static struct private_object_container {
 static int usecnt = 0;
 OPBX_MUTEX_DEFINE_STATIC(usecnt_lock);
 OPBX_MUTEX_DEFINE_STATIC(control_lock);
+OPBX_MUTEX_DEFINE_STATIC(data_lock);
 
 /********************CHANNEL METHOD PROTOTYPES*******************
  * You may or may not need all of these methods, remove any unnecessary functions/protos/mappings as needed.
@@ -177,7 +182,7 @@ static int tech_queryoption(struct opbx_channel *self, int option, void *data, i
 static struct opbx_channel *tech_bridged_channel(struct opbx_channel *self, struct opbx_channel *bridge);
 static int tech_transfer(struct opbx_channel *self, const char *newdest);
 static int tech_bridge(struct opbx_channel *chan_a, struct opbx_channel *chan_b, int flags, struct opbx_frame **outframe, struct opbx_channel **recent_chan, int timeoutms);
-static int control_handler(struct faxmodem *fm, const char *num);
+static int control_handler(struct faxmodem *fm, int op, const char *num);
 static void *faxmodem_thread(void *obj);
 static void launch_faxmodem_thread(volatile struct faxmodem *fm) ;
 static void activate_fax_modems(void);
@@ -377,10 +382,11 @@ static struct opbx_channel *channel_new(const char *type, int format, void *data
 			free(tech_pvt);
 			opbx_log(LOG_ERROR, "Can't allocate a channel.\n");
 		} else {
+			opbx_cond_init(&tech_pvt->data_cond, 0);
 			chan->tech_pvt = tech_pvt;	
 			chan->nativeformats = myformat;
 			chan->type = type;
-			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04x", chan->type, (char *)data, opbx_random() & 0xffff);
+			snprintf(chan->name, sizeof(chan->name), "%s/%s-%04x", chan->type, (char *)data, rand() & 0xffff);
 			chan->writeformat = chan->rawwriteformat = chan->readformat = myformat;
 			chan->_state = OPBX_STATE_RINGING;
 			chan->_softhangup = 0;
@@ -562,7 +568,8 @@ static int tech_hangup(struct opbx_channel *self)
 		    opbx_cli(tech_pvt->fm->master, "NO CARRIER%s", TERMINATOR);
 
 		tech_pvt->fm->state = FAXMODEM_STATE_ONHOOK;
-		t31_call_event(&tech_pvt->fm->t31_state, T31_CALL_EVENT_HANGUP);
+		t31_call_event((t31_state_t *)&tech_pvt->fm->t31_state, 
+			       AT_CALL_EVENT_HANGUP);
 		tech_pvt->fm->psock = -1;
 		tech_pvt->fm->user_data = NULL;
 		tech_pvt->owner = NULL;
@@ -594,6 +601,7 @@ static void *faxmodem_media_thread(void *obj)
 	char modembuf[DSP_BUFFER_MAXSIZE];
 	char buf[80];
 	time_t noww;
+	struct timespec abstime;
 	int gotlen = 0;
 	short *frame_data = tech_pvt->fdata + OPBX_FRIENDLY_OFFSET;
 	struct pollfd pfds[1];
@@ -619,7 +627,8 @@ static void *faxmodem_media_thread(void *obj)
 		opbx_cli(fm->master, "NAME=%s%s", tech_pvt->cid_name, TERMINATOR);
 		opbx_cli(fm->master, "NMBR=%s%s", tech_pvt->cid_num, TERMINATOR);
 		opbx_cli(fm->master, "NDID=%s%s", fm->digits, TERMINATOR);
-		t31_call_event(&fm->t31_state, T31_CALL_EVENT_ALERTING);
+		t31_call_event((t31_state_t*)&fm->t31_state, 
+			       AT_CALL_EVENT_ALERTING);
 	}
 
 	while (fm->state == FAXMODEM_STATE_RINGING) {
@@ -627,19 +636,22 @@ static void *faxmodem_media_thread(void *obj)
 		ms = opbx_tvdiff_ms(now, last);
 
 		if (ms % 5000 == 0) {
-			t31_call_event(&fm->t31_state, T31_CALL_EVENT_ALERTING);
+			t31_call_event((t31_state_t*)&fm->t31_state,
+				       AT_CALL_EVENT_ALERTING);
 		}
 		
-		usleep(100);
+		usleep(100000);
 		sched_yield();
 	}
 
 	if (tech_pvt->fm->state == FAXMODEM_STATE_ANSWERED) {
-		t31_call_event(&fm->t31_state, T31_CALL_EVENT_ANSWERED);
+		t31_call_event((t31_state_t*)&fm->t31_state, 
+			       AT_CALL_EVENT_ANSWERED);
 		tech_pvt->fm->state = FAXMODEM_STATE_CONNECTED;
 		opbx_setstate(tech_pvt->owner, OPBX_STATE_UP);
 	} else if (tech_pvt->fm->state == FAXMODEM_STATE_CONNECTED) {
-		t31_call_event(&tech_pvt->fm->t31_state, T31_CALL_EVENT_CONNECTED);
+		t31_call_event((t31_state_t*)&tech_pvt->fm->t31_state, 
+			       AT_CALL_EVENT_CONNECTED);
 	} else {
 		return NULL;
 	}
@@ -648,7 +660,8 @@ static void *faxmodem_media_thread(void *obj)
 	while (fm->state == FAXMODEM_STATE_CONNECTED) {
 		tech_pvt->flen = 0;
 		do {
-			gotlen = t31_tx(&fm->t31_state, frame_data + tech_pvt->flen, SAMPLES - tech_pvt->flen);
+			gotlen = t31_tx((t31_state_t*)&fm->t31_state, 
+					frame_data + tech_pvt->flen, SAMPLES - tech_pvt->flen);
 			tech_pvt->flen += gotlen;
 		} while (tech_pvt->flen < SAMPLES && gotlen > 0);
 			
@@ -666,7 +679,14 @@ static void *faxmodem_media_thread(void *obj)
 
 		reference = opbx_tvadd(reference, opbx_tv(0, MS * 1000));
 		while ((ms = opbx_tvdiff_ms(reference, opbx_tvnow())) > 0) {
-			usleep(1);
+			abstime.tv_sec = time(0) + 1;
+			abstime.tv_nsec = 0;
+
+			opbx_mutex_lock(&data_lock);
+			opbx_cond_timedwait(&tech_pvt->data_cond, &data_lock,
+					    &abstime);
+			opbx_mutex_unlock(&data_lock);
+
 			if (opbx_test_flag(tech_pvt, TFLAG_DATA)) {
 				opbx_clear_flag(tech_pvt, TFLAG_DATA);
 				break;
@@ -691,7 +711,8 @@ static void *faxmodem_media_thread(void *obj)
 			do {
 				len = read(fm->psock, modembuf, avail);
 				if (len > 0) {
-					t31_at_rx(&fm->t31_state, modembuf, len);
+					t31_at_rx((t31_state_t*)&fm->t31_state,
+						  modembuf, len);
 					avail -= len;
 				}
 			} while (len > 0 && avail > 0);
@@ -805,8 +826,15 @@ static int tech_write(struct opbx_channel *self, struct opbx_frame *frame)
 	write(tech_pvt->debug[0], frame->data, frame->datalen);
 #endif
 
-	res = t31_rx(&tech_pvt->fm->t31_state, frame->data, frame->samples);
+	res = t31_rx((t31_state_t*)&tech_pvt->fm->t31_state,
+		     frame->data, frame->samples);
+	
+	/* Signal new data to media thread */
+	opbx_mutex_lock(&data_lock);
 	opbx_set_flag(tech_pvt, TFLAG_DATA);
+	opbx_cond_signal(&tech_pvt->data_cond);
+	opbx_mutex_unlock(&data_lock);
+	
 	//write(tech_pvt->pipe[0], IO_PROD, 1);
 
 
@@ -965,7 +993,7 @@ static int tech_bridge(struct opbx_channel *chan_a, struct opbx_channel *chan_b,
 }
 
 
-static int control_handler(struct faxmodem *fm, const char *num)
+static int control_handler(struct faxmodem *fm, int op, const char *num)
 {
 	int res = 0;
 
@@ -1041,7 +1069,7 @@ static int control_handler(struct faxmodem *fm, const char *num)
 				fm->state = FAXMODEM_STATE_ONHOOK;
 			}
 			
-			t31_call_event(&fm->t31_state, T31_CALL_EVENT_HANGUP);
+			t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
 			
 		}
 	} while (0);

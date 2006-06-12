@@ -47,7 +47,7 @@ typedef enum {
 
 struct faxmodem;
 
-typedef int (*faxmodem_control_handler_t)(struct faxmodem *, const char *);
+typedef int (*faxmodem_control_handler_t)(struct faxmodem *, int op, const char *);
 typedef int (*faxmodem_logger_t)(int, const char *, int, const char *, const char *, ...);
 
 #define faxmodem_test_flag(p,flag)    ({ \

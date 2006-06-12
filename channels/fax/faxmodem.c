@@ -46,7 +46,7 @@ static struct faxmodem_state FAXMODEM_STATE[] = {
 	{FAXMODEM_STATE_LAST, "UNKNOWN"}
 };
 
-static int t31_at_tx_handler(t31_state_t *s, void *user_data, const uint8_t *buf, int len)
+static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf, size_t len)
 {
 	struct faxmodem *fm = user_data;
     ssize_t wrote = write(fm->master, buf, len);
@@ -56,13 +56,14 @@ static int t31_at_tx_handler(t31_state_t *s, void *user_data, const uint8_t *buf
     return wrote;
 }
 
-static int t31_call_control_handler(t31_state_t *s, void *user_data, const char *num)
+static int modem_control_handler(at_state_t *s, void *user_data, int op, 
+				 const char *num)
 {
 	struct faxmodem *fm = user_data;
 	int ret = 0;
 
 	if (fm->control_handler) {
-		ret = fm->control_handler(fm, num);
+		ret = fm->control_handler(fm, op, num);
 	} else {
 		do_log(LOGGER.err, "DOH! NO CONTROL HANDLER INSTALLED\n");
 	}
@@ -152,7 +153,8 @@ int faxmodem_init(struct faxmodem *fm, faxmodem_control_handler_t control_handle
         return -1;
     }
 	
-    if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, t31_call_control_handler, fm) < 0) {
+    if (t31_init(&fm->t31_state, t31_at_tx_handler, fm, modem_control_handler,
+		 fm, 0, 0) < 0) {
 		do_log(LOGGER.err, "Cannot initialize the T.31 modem\n");
 		faxmodem_close(fm);
         return -1;

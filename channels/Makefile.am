@@ -2,7 +2,7 @@ AUTOMAKE_OPTS			= gnu
 
 opbxmod_LTLIBRARIES 		=
 
-SUBDIRS				= iax2 sccp
+SUBDIRS				= iax2 sccp fax
 
 if WANT_CHAN_ALSA
 opbxmod_LTLIBRARIES		+= chan_alsa.la
@@ -25,13 +25,6 @@ chan_capi_la_SOURCES 		= chan_capi.c c20msg.c chan_capi_rtp.c
 chan_capi_la_LIBADD  		= -lcapi20 ${top_builddir}/corelib/libopenpbx.la
 chan_capi_la_LDFLAGS 		= -module -avoid-version -no-undefined
 endif WANT_CHAN_CAPI
-
-if WANT_CHAN_FAX
-opbxmod_LTLIBRARIES		+= chan_fax.la
-chan_fax_la_SOURCES		= chan_fax.c faxmodem.c faxmodem.h
-chan_fax_la_LIBADD		= @CHAN_FAX_LIBS@ ${top_builddir}/corelib/libopenpbx.la
-chan_fax_la_LDFLAGS		= -module -avoid-version -no-undefined
-endif WANT_CHAN_FAX
 
 if WANT_CHAN_FEATURES
 opbxmod_LTLIBRARIES		+= chan_features.la
