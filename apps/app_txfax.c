@@ -1,4 +1,3 @@
-#define OLD_SPANDSP_API
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
@@ -101,11 +100,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 }
 /*- End of function --------------------------------------------------------*/
 
-#if defined(OLD_SPANDSP_API)
-static int t38_tx_packet_handler(t38_state_t *s, void *user_data, const uint8_t *buf, int len)
-#else
 static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
-#endif
 {
     struct opbx_frame outf;
     struct opbx_channel *chan;
@@ -119,9 +114,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     outf.samples = 0;
     outf.data = (char *) buf;
     outf.offset = 0;
-#if !defined(OLD_SPANDSP_API)
     outf.tx_copies = count;
-#endif
     outf.src = "TxFAX";
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
@@ -140,11 +133,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
     int option;
     int len;
     fax_state_t fax;
-#if defined(OLD_SPANDSP_API)
-    t38_state_t t38;
-#else
     t38_terminal_state_t t38;
-#endif
     int calling_party;
     int verbose;
     int samples;
@@ -293,11 +282,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
             if (call_is_t38_mode) {
-#if defined(OLD_SPANDSP_API)
-                t38_send_timeout(&t38);
-#else
                 t38_terminal_send_timeout(&t38, 240);
-#endif
                 /* End application when T38/T30 has finished */
                 if ((t38.current_rx_type == T30_MODEM_DONE)  ||  (t38.current_tx_type == T30_MODEM_DONE))
                     break;
@@ -335,11 +320,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             {
                 //printf("T.38 frame received\n");
                 call_is_t38_mode = TRUE;
-#if defined(OLD_SPANDSP_API)
-                t38_rx_ifp_packet(&t38, inf->seq_no, inf->data, inf->datalen);
-#else
                 t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
-#endif
             }
             opbx_frfree(inf);
         }
