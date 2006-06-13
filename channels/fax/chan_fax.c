@@ -998,7 +998,7 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 	int res = 0;
 
 	if (VBLEVEL > 1) {
-		opbx_verbose(VBPREFIX  "Control Handler %s [%s]\n", fm->devlink, num ? num : "NULL");
+		opbx_verbose(VBPREFIX  "Control Handler %s [op = %d]\n", fm->devlink, op);
 	}
 	opbx_mutex_lock(&control_lock);
 	if (fm->state == FAXMODEM_STATE_INIT) {
@@ -1006,74 +1006,72 @@ static int control_handler(struct faxmodem *fm, int op, const char *num)
 	}
 
 	do {
-		if (num) {
-			if (num[0]) {
-				struct opbx_channel *chan = NULL;
-				struct private_object *tech_pvt;
-				int cause;
-
-				if (fm->state != FAXMODEM_STATE_ONHOOK) {
-					opbx_log(LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
-					res = -1;
-					break;
-				}
-				if (!(chan = channel_new(type, OPBX_FORMAT_SLINEAR, (char *) num, &cause))) {
-					opbx_log(LOG_ERROR, "Can't allocate a channel\n");
-					res = -1;
-					break;
-				} else {
-					tech_pvt = chan->tech_pvt;
-					fm->user_data = chan;
-					faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
-					opbx_copy_string(fm->digits, num, sizeof(fm->digits));
-					tech_pvt->fm = fm;
-					opbx_copy_string(chan->context, CONTEXT, sizeof(chan->context));
-					opbx_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
-					opbx_set_flag(tech_pvt, TFLAG_OUTBOUND);
-					tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
-					pipe(tech_pvt->pipe);
-					chan->fds[0] = tech_pvt->pipe[0];
-					fm->psock = tech_pvt->pipe[1];
-					fm->state = FAXMODEM_STATE_CALLING;
-					if (opbx_pbx_start(chan)) {
-					    opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
-					    opbx_hangup(chan);
-					}
+	    if (op == AT_MODEM_CONTROL_CALL) {
+		    struct opbx_channel *chan = NULL;
+		    struct private_object *tech_pvt;
+		    int cause;
+		    
+		    if (fm->state != FAXMODEM_STATE_ONHOOK) {
+			opbx_log(LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+			res = -1;
+			break;
+		    }
+		    if (!(chan = channel_new(type, OPBX_FORMAT_SLINEAR, (char *) num, &cause))) {
+			opbx_log(LOG_ERROR, "Can't allocate a channel\n");
+			res = -1;
+			break;
+		    } else {
+			tech_pvt = chan->tech_pvt;
+			fm->user_data = chan;
+			faxmodem_set_flag(fm, FAXMODEM_FLAG_ATDT);
+			opbx_copy_string(fm->digits, num, sizeof(fm->digits));
+			tech_pvt->fm = fm;
+			opbx_copy_string(chan->context, CONTEXT, sizeof(chan->context));
+			opbx_copy_string(chan->exten, fm->digits, sizeof(chan->exten));
+			opbx_set_flag(tech_pvt, TFLAG_OUTBOUND);
+			tech_pvt->pipe[0] = tech_pvt->pipe[1] = -1;
+			pipe(tech_pvt->pipe);
+			chan->fds[0] = tech_pvt->pipe[0];
+			fm->psock = tech_pvt->pipe[1];
+			fm->state = FAXMODEM_STATE_CALLING;
+			if (opbx_pbx_start(chan)) {
+			    opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
+			    opbx_hangup(chan);
+			}
 #ifdef DOTRACE
-					tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
-					tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
+			tech_pvt->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
+			tech_pvt->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
-					if (VBLEVEL > 1) {
-						opbx_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
-					}
-				}
-			} else { 
-				if (fm->state != FAXMODEM_STATE_RINGING) {
-					opbx_log(LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
-					res = -1;
-					break;
-				}
-				if (VBLEVEL > 1) {
-					opbx_verbose(VBPREFIX  "Answered %s", fm->devlink);
-				}
-				fm->state = FAXMODEM_STATE_ANSWERED;
+			if (VBLEVEL > 1) {
+			    opbx_verbose(VBPREFIX  "Call Started %s %s@%s\n", chan->name, chan->exten, chan->context);
 			}
-		} else {
-			if (fm->psock > -1) {
-				if (fm->user_data) {
-					struct opbx_channel *chan = fm->user_data;
-					opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
-					write(fm->psock, IO_HUP, 1);
-				}
-			} else {
-				fm->state = FAXMODEM_STATE_ONHOOK;
-			}
-			
-			t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
-			
+		    }
+	    } else if (op == AT_MODEM_CONTROL_ANSWER) { 
+		if (fm->state != FAXMODEM_STATE_RINGING) {
+		    opbx_log(LOG_ERROR, "Invalid State! [%s]\n", faxmodem_state2name(fm->state));
+		    res = -1;
+		    break;
 		}
+		if (VBLEVEL > 1) {
+		    opbx_verbose(VBPREFIX  "Answered %s", fm->devlink);
+		}
+		fm->state = FAXMODEM_STATE_ANSWERED;
+	    } else if (op == AT_MODEM_CONTROL_HANGUP) {
+		if (fm->psock > -1) {
+		    if (fm->user_data) {
+			struct opbx_channel *chan = fm->user_data;
+			opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
+			write(fm->psock, IO_HUP, 1);
+		    }
+		} else {
+		    fm->state = FAXMODEM_STATE_ONHOOK;
+		}
+		
+		t31_call_event(&fm->t31_state, AT_CALL_EVENT_HANGUP);
+		
+	    }
 	} while (0);
-
+	
 	opbx_mutex_unlock(&control_lock);
 	return res;
 }
