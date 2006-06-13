@@ -223,10 +223,10 @@ static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
             opbx_log(LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
-        tmp->tail += g726_adpcm_to_linear(&(tmp->g726_state),
-                                          tmp->outbuf + tmp->tail,
-                                          (const uint8_t *) f->data,
-                                          f->datalen);
+        tmp->tail += g726_decode(&(tmp->g726_state),
+                                 tmp->outbuf + tmp->tail,
+                                 (const uint8_t *) f->data,
+                                 f->datalen);
         if (useplc)
             plc_rx(&tmp->plc, tmp->outbuf + tmp->tail - f->datalen*2, f->datalen*2);
     }
@@ -245,7 +245,7 @@ static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  *  None.
  */
 
-static struct opbx_frame *g726tolin_frameout (struct opbx_translator_pvt *pvt)
+static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
 
@@ -284,10 +284,10 @@ static int lintog726_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
         opbx_log(LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
-    tmp->tail += g726_linear_to_adpcm(&(tmp->g726_state),
-                                      tmp->outbuf + tmp->tail,
-                                      f->data,
-                                      f->datalen/sizeof(int16_t));
+    tmp->tail += g726_encode(&(tmp->g726_state),
+                             tmp->outbuf + tmp->tail,
+                             f->data,
+                             f->datalen/sizeof(int16_t));
     return 0;
 }
 
