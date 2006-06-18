@@ -9,5 +9,5 @@ linkedlists.h localtime.h lock.h logger.h manager.h module.h	\
 monitor.h musiconhold.h netsock.h opbxdb.h opbx_expr.h opbxmm.h		\
 options.h pbx.h poll-compat.h privacy.h res_odbc.h resonator.h	\
 rtp.h say.h sched.h slinfactory.h srv.h strings.h term.h time.h	\
-transcap.h translate.h udpfromto.h udptl.h ulaw.h unaligned.h utils.h	\
+transcap.h translate.h udpfromto.h udp.h udptl.h ulaw.h unaligned.h utils.h	\
 vmodem.h xlaw.h

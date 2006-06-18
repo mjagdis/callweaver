@@ -11,7 +11,7 @@ libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	netsock.c resonator.c slinfactory.c opbx_expr2.c \
 	opbx_expr2f.c strcompat.c loader.c openpbx.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
-	stubfunctions-monitor.c udptl.c udpfromto.c coef_in.h coef_out.h \
+	stubfunctions-monitor.c udp.c udptl.c udpfromto.c coef_in.h coef_out.h \
 	ecdisa.h aesopt.h opbx_expr2.h timer.c jitterbuffer/libopbxjb.la
 
 nodist_libopenpbx_la_SOURCES = defaults.h
