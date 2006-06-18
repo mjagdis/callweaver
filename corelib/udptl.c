@@ -48,6 +48,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
+#include "openpbx/udp.h"
 
 #define UDPTL_MTU		1200
 
@@ -91,15 +92,13 @@ typedef struct {
 } udptl_fec_rx_buffer_t;
 
 struct opbx_udptl {
-	int fd;
+    udp_socket_info_t *udptl_sock_info;
 	char resp;
 	struct opbx_frame f[16];
 	unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
 	unsigned int lasteventseqn;
 	int nat;
 	int flags;
-	struct sockaddr_in us;
-	struct sockaddr_in them;
 	int *ioid;
 	struct sched_context *sched;
 	struct io_context *io;
@@ -614,7 +613,7 @@ static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, 
 
 int opbx_udptl_fd(struct opbx_udptl *udptl)
 {
-	return udptl->fd;
+	return udp_socket_fd(udptl->udptl_sock_info);
 }
 
 void opbx_udptl_set_data(struct opbx_udptl *udptl, void *data)
@@ -647,6 +646,7 @@ static int udptlread(int *id, int fd, short events, void *cbdata)
 struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 {
 	int res;
+    int actions;
 	struct sockaddr_in sin;
 	socklen_t len;
 	char iabuf[INET_ADDRSTRLEN];
@@ -656,12 +656,13 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 	len = sizeof(sin);
 	
 	/* Cache where the header will go */
-	res = recvfrom(udptl->fd,
+	res = udp_socket_recvfrom(udptl->udptl_sock_info,
 			udptl->rawdata + OPBX_FRIENDLY_OFFSET,
 			sizeof(udptl->rawdata) - OPBX_FRIENDLY_OFFSET,
 			0,
 			(struct sockaddr *) &sin,
-			&len);
+			&len,
+            &actions);
 	udptlheader = (uint16_t *)(udptl->rawdata + OPBX_FRIENDLY_OFFSET);
 	if (res < 0) {
 		if (errno != EAGAIN)
@@ -671,17 +672,9 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 		return &null_frame;
 	}
 
-	/* Ignore if the other side hasn't been given an address yet. */
-	if (!udptl->them.sin_addr.s_addr || !udptl->them.sin_port)
-		return &null_frame;
-
-	if (udptl->nat) {
-		/* Send to whoever sent to us */
-		if ((udptl->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-			(udptl->them.sin_port != sin.sin_port)) {
-			memcpy(&udptl->them, &sin, sizeof(udptl->them));
-			opbx_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
-		}
+	if ((actions & 1)) {
+		if (option_debug || udptldebug)
+			opbx_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_them(udptl->udptl_sock_info)->sin_port));
 	}
 
 	if (udptl_debug_test_addr(&sin)) {
@@ -773,10 +766,10 @@ void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
 struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct in_addr addr)
 {
 	struct opbx_udptl *udptl;
+    struct sockaddr_in sockaddr;
 	int x;
 	int startplace;
 	int i;
-	long int flags;
 
 	if ((udptl = malloc(sizeof(struct opbx_udptl))) == NULL)
 		return NULL;
@@ -801,39 +794,38 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		udptl->tx[i].buf_len = -1;
 	}
 
-	udptl->them.sin_family = AF_INET;
-	udptl->us.sin_family = AF_INET;
-
-	if ((udptl->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		free(udptl);
-		opbx_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
+	if ((udptl->udptl_sock_info = udp_socket_create(nochecksums)) == NULL) {
+        free(udptl);
 		return NULL;
 	}
-	flags = fcntl(udptl->fd, F_GETFL);
-	fcntl(udptl->fd, F_SETFL, flags | O_NONBLOCK);
-#ifdef SO_NO_CHECK
-	if (nochecksums)
-		setsockopt(udptl->fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
-#endif
+
 	/* Find us a place */
+    /* UDPTL doesn't require us to find an even address to allow the next
+       address to be used for relatd RTCP. However, using only even ports
+       allows RTP and UDPTL streams to be interchanged */
 	x = (rand()%(udptlend - udptlstart)) + udptlstart;
+	x = x & ~1;
 	startplace = x;
 	for (;;) {
-		udptl->us.sin_port = htons(x);
-		udptl->us.sin_addr = addr;
-		if (bind(udptl->fd, (struct sockaddr *) &udptl->us, sizeof(udptl->us)) == 0)
-			break;
+        memset(&sockaddr, 0, sizeof(sockaddr));
+        sockaddr.sin_addr = addr;
+        sockaddr.sin_port = htons(x);
+        if (udp_socket_set_us(udptl->udptl_sock_info, &sockaddr) == 0) {
+            /* Success */
+            break;
+        }
 		if (errno != EADDRINUSE) {
 			opbx_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
-			close(udptl->fd);
+            udp_socket_destroy(udptl->udptl_sock_info);
 			free(udptl);
 			return NULL;
 		}
-		if (++x > udptlend)
+        x += 2;
+		if (x > udptlend)
 			x = udptlstart;
 		if (x == startplace) {
 			opbx_log(LOG_WARNING, "No UDPTL ports remaining\n");
-			close(udptl->fd);
+            udp_socket_destroy(udptl->udptl_sock_info);
 			free(udptl);
 			return NULL;
 		}
@@ -842,7 +834,7 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		/* Operate this one in a callback mode */
 		udptl->sched = sched;
 		udptl->io = io;
-		udptl->ioid = opbx_io_add(udptl->io, udptl->fd, udptlread, OPBX_IO_IN, udptl);
+		udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
 	}
 	return udptl;
 }
@@ -857,43 +849,34 @@ struct opbx_udptl *opbx_udptl_new(struct sched_context *sched, struct io_context
 
 int opbx_udptl_settos(struct opbx_udptl *udptl, int tos)
 {
-	int res;
-
-	if ((res = setsockopt(udptl->fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
-		opbx_log(LOG_WARNING, "UDPTL unable to set TOS to %d\n", tos);
-	return res;
+    return udp_socket_set_tos(udptl->udptl_sock_info, tos);
 }
 
 void opbx_udptl_set_peer(struct opbx_udptl *udptl, struct sockaddr_in *them)
 {
-	udptl->them.sin_port = them->sin_port;
-	udptl->them.sin_addr = them->sin_addr;
+	udp_socket_set_them(udptl->udptl_sock_info, them);
 }
 
 void opbx_udptl_get_peer(struct opbx_udptl *udptl, struct sockaddr_in *them)
 {
-	them->sin_family = AF_INET;
-	them->sin_port = udptl->them.sin_port;
-	them->sin_addr = udptl->them.sin_addr;
+    memcpy(them, udp_socket_get_them(udptl->udptl_sock_info), sizeof(*them));
 }
 
 void opbx_udptl_get_us(struct opbx_udptl *udptl, struct sockaddr_in *us)
 {
-	memcpy(us, &udptl->us, sizeof(udptl->us));
+    memcpy(us, udp_socket_get_us(udptl->udptl_sock_info), sizeof(*us));
 }
 
 void opbx_udptl_stop(struct opbx_udptl *udptl)
 {
-	memset(&udptl->them.sin_addr, 0, sizeof(udptl->them.sin_addr));
-	memset(&udptl->them.sin_port, 0, sizeof(udptl->them.sin_port));
+    udp_socket_restart(udptl->udptl_sock_info);
 }
 
 void opbx_udptl_destroy(struct opbx_udptl *udptl)
 {
 	if (udptl->ioid)
 		opbx_io_remove(udptl->io, udptl->ioid);
-	if (udptl->fd > -1)
-		close(udptl->fd);
+    udp_socket_destroy(udptl->udptl_sock_info);
 	free(udptl);
 }
 
@@ -905,9 +888,12 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
     int i;
 	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
 	char iabuf[INET_ADDRSTRLEN];
+    const struct sockaddr_in *them;
+
+    them = udp_socket_get_them(s->udptl_sock_info);
 
 	/* If we have no peer, return immediately */	
-	if (s->them.sin_addr.s_addr == INADDR_ANY)
+	if (them->sin_addr.s_addr == INADDR_ANY)
 		return 0;
 
 	/* If there is no data length, return immediately */
@@ -921,19 +907,19 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 	/* Cook up the UDPTL packet, with the relevant EC info. */
 	len = udptl_build_packet(s, buf, f->data, f->datalen);
 
-	if (len > 0  &&  s->them.sin_port && s->them.sin_addr.s_addr) {
+	if (len > 0  &&  them->sin_port && them->sin_addr.s_addr) {
 		copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
 		for (i = 0;  i < copies;  i++) {
-			if ((res = sendto(s->fd, buf, len, 0, (struct sockaddr *) &s->them, sizeof(s->them))) < 0)
-				opbx_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr), ntohs(s->them.sin_port), strerror(errno));
+			if ((res = udp_socket_sendto(s->udptl_sock_info, buf, len, 0)) < 0)
+				opbx_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
 		}
 #if 0
 		printf("Sent %d bytes of UDPTL data to %s:%d\n", res, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
-		if (udptl_debug_test_addr(&s->them))
+		if (udptl_debug_test_addr(them))
 			opbx_verbose("Sent UDPTL packet to %s:%d (seq %d, len %d)\n",
-					opbx_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr),
-					ntohs(s->them.sin_port), (s->tx_seq_no - 1) & 0xFFFF, len);
+					opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+					ntohs(them->sin_port), (s->tx_seq_no - 1) & 0xFFFF, len);
 	}
 		
 	return 0;

@@ -60,6 +60,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
+#include "openpbx/udp.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -98,7 +99,8 @@ struct opbx_policy {
 #endif
 
 struct opbx_rtp {
-	int s;
+    udp_socket_info_t *rtp_sock_info;
+    udp_socket_info_t *rtcp_sock_info;
 	char resp;
 	struct opbx_frame f;
 	unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
@@ -118,8 +120,6 @@ struct opbx_rtp {
 	unsigned int flags;
 	int framems;
 	int rtplen;
-	struct sockaddr_in us;
-	struct sockaddr_in them;
 	struct timeval rxcore;
 	struct timeval txcore;
 	struct timeval dtmfmute;
@@ -136,17 +136,10 @@ struct opbx_rtp {
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
-	struct opbx_rtcp *rtcp;
 #ifdef ENABLE_SRTP
 	srtp_t srtp;
 	rtp_generate_key_cb key_cb;
 #endif
-};
-
-struct opbx_rtcp {
-	int s;		/* Socket */
-	struct sockaddr_in us;
-	struct sockaddr_in them;
 };
 
 static struct opbx_rtp_protocol *protos = NULL;
@@ -197,14 +190,12 @@ static struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, in
 
 int opbx_rtp_fd(struct opbx_rtp *rtp)
 {
-	return rtp->s;
+	return udp_socket_fd(rtp->rtp_sock_info);
 }
 
 int opbx_rtcp_fd(struct opbx_rtp *rtp)
 {
-	if (rtp->rtcp)
-		return rtp->rtcp->s;
-	return -1;
+	return udp_socket_fd(rtp->rtcp_sock_info);
 }
 
 void opbx_rtp_set_data(struct opbx_rtp *rtp, void *data)
@@ -220,6 +211,8 @@ void opbx_rtp_set_callback(struct opbx_rtp *rtp, opbx_rtp_callback callback)
 void opbx_rtp_setnat(struct opbx_rtp *rtp, int nat)
 {
 	rtp->nat = nat;
+    udp_socket_set_nat(rtp->rtp_sock_info, nat);
+    udp_socket_set_nat(rtp->rtcp_sock_info, nat);
 }
 
 int opbx_rtp_set_framems(struct opbx_rtp *rtp, int ms) 
@@ -240,16 +233,18 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 {
 	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
 	char iabuf[INET_ADDRSTRLEN];
+    const struct sockaddr_in *them;
 
+    them = udp_socket_get_them(rtp->rtp_sock_info);
 	if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+			opbx_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
 		rtp->resp = 0;
 		rtp->dtmfduration = 0;
 		return &null_frame;
 	}
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		opbx_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
 	if (rtp->resp == 'X') {
 		rtp->f.frametype = OPBX_FRAME_CONTROL;
 		rtp->f.subclass = OPBX_CONTROL_FLASH;
@@ -267,7 +262,7 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 	
 }
 
-static inline int rtp_debug_test_addr(struct sockaddr_in *addr)
+static inline int rtp_debug_test_addr(const struct sockaddr_in *addr)
 {
 	if (rtpdebug == 0)
 		return 0;
@@ -377,7 +372,7 @@ static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *d
 		char iabuf[INET_ADDRSTRLEN];
 
 		opbx_log(LOG_NOTICE, "Comfort noise support incomplete in OpenPBX (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
-			opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr));
 		opbx_set_flag(rtp, FLAG_3389_WARNING);
 	}
 
@@ -533,8 +528,10 @@ int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy)
 
 opbx_policy_t *opbx_policy_alloc()
 {
-	opbx_policy_t *tmp = malloc(sizeof(opbx_policy_t));
+	opbx_policy_t *tmp;
 
+	if ((tmp = malloc(sizeof(opbx_policy_t))) == NULL)
+		return NULL;
 	memset(tmp, 0, sizeof(opbx_policy_t));
 	return tmp;
 }
@@ -694,12 +691,11 @@ int opbx_get_random(unsigned char *key, size_t len)
 #endif	/* ENABLE_SRTP */
 
 static int rtp_recvfrom(struct opbx_rtp *rtp, void *buf, size_t size,
-			int flags, struct sockaddr *sa, socklen_t *salen)
+			int flags, struct sockaddr *sa, socklen_t *salen, int *actions)
 {
 	int len;
 
-	len = recvfrom(rtp->s, buf, size, flags, sa, salen);
-
+	len = udp_socket_recvfrom(rtp->rtp_sock_info, buf, size, flags, sa, salen, actions);
 	if (len < 0)
 		return len;
 
@@ -739,8 +735,7 @@ static int rtp_recvfrom(struct opbx_rtp *rtp, void *buf, size_t size,
 	return len;
 }
 
-static int rtp_sendto(struct opbx_rtp *rtp, void *buf, size_t size,
-		      int flags, struct sockaddr *sa, socklen_t salen)
+static int rtp_sendto(struct opbx_rtp *rtp, void *buf, size_t size, int flags)
 {
 	int len = size;
 
@@ -758,7 +753,7 @@ static int rtp_sendto(struct opbx_rtp *rtp, void *buf, size_t size,
 	}
 #endif	/* ENABLE_SRTP */
 
-	return sendto(rtp->s, buf, len, flags, sa, salen);
+	return udp_socket_sendto(rtp->rtp_sock_info, buf, len, flags);
 }
 
 static int rtpread(int *id, int fd, short events, void *cbdata)
@@ -779,18 +774,16 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 	socklen_t len;
 	int hdrlen = 8;
 	int res;
+    int actions;
 	struct sockaddr_in sin;
 	unsigned int rtcpdata[1024];
 	char iabuf[INET_ADDRSTRLEN];
 	
-	if (!rtp || !rtp->rtcp)
+	if (rtp == NULL)
 		return &null_frame;
 
 	len = sizeof(sin);
-	
-	res = recvfrom(rtp->rtcp->s, rtcpdata, sizeof(rtcpdata),
-					0, (struct sockaddr *)&sin, &len);
-	
+	res = udp_socket_recvfrom(rtp->rtcp_sock_info, rtcpdata, sizeof(rtcpdata), 0, (struct sockaddr *) &sin, &len, &actions);
 	if (res < 0) {
 		if (errno != EAGAIN)
 			opbx_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
@@ -799,20 +792,16 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 		return &null_frame;
 	}
 
+	if ((actions & 1)) {
+		if (option_debug || rtpdebug)
+			opbx_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_them(rtp->rtcp_sock_info)->sin_port));
+	}
+
 	if (res < hdrlen) {
 		opbx_log(LOG_WARNING, "RTP Read too short\n");
 		return &null_frame;
 	}
 
-	if (rtp->nat) {
-		/* Send to whoever sent to us */
-		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
-			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
-			if (option_debug || rtpdebug)
-				opbx_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
-		}
-	}
 	if (option_debug)
 		opbx_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
 	return &null_frame;
@@ -841,6 +830,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	int padding;
 	int mark;
 	int ext;
+    int actions;
 	/* Remove the variable for the pointless loop */
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
@@ -852,8 +842,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	
 	/* Cache where the header will go */
 	res = rtp_recvfrom(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - OPBX_FRIENDLY_OFFSET,
-					0, (struct sockaddr *)&sin, &len);
-
+					0, (struct sockaddr *) &sin, &len, &actions);
 
 	rtpheader = (unsigned int *)(rtp->rawdata + OPBX_FRIENDLY_OFFSET);
 	if (res < 0) {
@@ -870,18 +859,16 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 
 	/* Ignore if the other side hasn't been given an address
 	   yet.  */
-	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
+	if (udp_socket_get_them(rtp->rtp_sock_info)->sin_addr.s_addr == 0 || udp_socket_get_them(rtp->rtp_sock_info)->sin_port == 0)
 		return &null_frame;
 
 	if (rtp->nat) {
-		/* Send to whoever sent to us */
-		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->them.sin_port != sin.sin_port)) {
-			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+		if (actions & 1) {
+			/* The other side changed */
 			rtp->rxseqno = 0;
 			opbx_set_flag(rtp, FLAG_NAT_ACTIVE);
 			if (option_debug || rtpdebug)
-				opbx_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+				opbx_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr), ntohs(udp_socket_get_them(rtp->rtp_sock_info)->sin_port));
 		}
 	}
 
@@ -1279,88 +1266,49 @@ char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, c
 	return buf;
 }
 
-static int rtp_socket(void)
-{
-	int s;
-	long flags;
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s > -1) {
-		flags = fcntl(s, F_GETFL);
-		fcntl(s, F_SETFL, flags | O_NONBLOCK);
-#ifdef SO_NO_CHECK
-		if (nochecksums)
-			setsockopt(s, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
-#endif
-	}
-	return s;
-}
-
-static struct opbx_rtcp *opbx_rtcp_new(void)
-{
-	struct opbx_rtcp *rtcp;
-	rtcp = malloc(sizeof(struct opbx_rtcp));
-	if (!rtcp)
-		return NULL;
-	memset(rtcp, 0, sizeof(struct opbx_rtcp));
-	rtcp->s = rtp_socket();
-	rtcp->us.sin_family = AF_INET;
-	if (rtcp->s < 0) {
-		free(rtcp);
-		opbx_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
-		return NULL;
-	}
-	return rtcp;
-}
-
 struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
 {
 	struct opbx_rtp *rtp;
+    struct sockaddr_in sockaddr;
 	int x;
-	int first;
 	int startplace;
-	rtp = malloc(sizeof(struct opbx_rtp));
-	if (!rtp)
+
+	if ((rtp = malloc(sizeof(*rtp))) == NULL)
 		return NULL;
-	memset(rtp, 0, sizeof(struct opbx_rtp));
-	rtp->them.sin_family = AF_INET;
-	rtp->us.sin_family = AF_INET;
-	rtp->s = rtp_socket();
+    memset(rtp, 0, sizeof(struct opbx_rtp));
 	rtp->ssrc = rand();
 	rtp->seqno = rand() & 0xffff;
-	if (rtp->s < 0) {
-		free(rtp);
-		opbx_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
+
+	if ((rtp->rtp_sock_info = udp_socket_create(nochecksums)) == NULL) {
+        free(rtp);
 		return NULL;
 	}
 	if (sched && rtcpenable) {
 		rtp->sched = sched;
-		rtp->rtcp = opbx_rtcp_new();
+        /* Try to create the RTCP, but don't get overly concerned if this fails */
+		rtp->rtcp_sock_info = udp_socket_create(nochecksums);
 	}
-	/* Find us a place */
+
+	/* Find a port (pair) we can bind to */
 	x = (rand() % (rtpend-rtpstart)) + rtpstart;
 	x = x & ~1;
 	startplace = x;
 	for (;;) {
 		/* Must be an even port number by RTP spec */
-		rtp->us.sin_port = htons(x);
-		rtp->us.sin_addr = addr;
-		if (rtp->rtcp)
-			rtp->rtcp->us.sin_port = htons(x + 1);
-		if (!(first = bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) &&
-			(!rtp->rtcp || !bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us))))
-			break;
-		if (!first) {
-			/* Primary bind succeeded! Gotta recreate it */
-			close(rtp->s);
-			rtp->s = rtp_socket();
-		}
+        memset(&sockaddr, 0, sizeof(sockaddr));
+        sockaddr.sin_addr = addr;
+        sockaddr.sin_port = htons(x);
+        if (udp_socket_set_us(rtp->rtp_sock_info, &sockaddr) == 0) {
+            sockaddr.sin_port = htons(x + 1);
+            if (udp_socket_set_us(rtp->rtcp_sock_info, &sockaddr) == 0) {
+                /* Success */
+                break;
+            }
+        }
 		if (errno != EADDRINUSE) {
 			opbx_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
-			close(rtp->s);
-			if (rtp->rtcp) {
-				close(rtp->rtcp->s);
-				free(rtp->rtcp);
-			}
+            udp_socket_destroy(rtp->rtp_sock_info);
+            udp_socket_destroy(rtp->rtcp_sock_info);
 			free(rtp);
 			return NULL;
 		}
@@ -1369,11 +1317,8 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 			x = (rtpstart + 1) & ~1;
 		if (x == startplace) {
 			opbx_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
-			close(rtp->s);
-			if (rtp->rtcp) {
-				close(rtp->rtcp->s);
-				free(rtp->rtcp);
-			}
+            udp_socket_destroy(rtp->rtp_sock_info);
+            udp_socket_destroy(rtp->rtcp_sock_info);
 			free(rtp);
 			return NULL;
 		}
@@ -1382,7 +1327,7 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 		/* Operate this one in a callback mode */
 		rtp->sched = sched;
 		rtp->io = io;
-		rtp->ioid = opbx_io_add(rtp->io, rtp->s, rtpread, OPBX_IO_IN, rtp);
+		rtp->ioid = opbx_io_add(rtp->io, udp_socket_fd(rtp->rtp_sock_info), rtpread, OPBX_IO_IN, rtp);
 	}
 	opbx_rtp_pt_default(rtp);
 	return rtp;
@@ -1398,44 +1343,35 @@ struct opbx_rtp *opbx_rtp_new(struct sched_context *sched, struct io_context *io
 
 int opbx_rtp_settos(struct opbx_rtp *rtp, int tos)
 {
-	int res;
-
-	if ((res = setsockopt(rtp->s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
-		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-	return res;
+    return udp_socket_set_tos(rtp->rtp_sock_info, tos);
 }
 
 void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 {
-	rtp->them.sin_port = them->sin_port;
-	rtp->them.sin_addr = them->sin_addr;
-	if (rtp->rtcp) {
-		rtp->rtcp->them.sin_port = htons(ntohs(them->sin_port) + 1);
-		rtp->rtcp->them.sin_addr = them->sin_addr;
-	}
+	struct sockaddr_in them_rtcp;
+    
+	udp_socket_set_them(rtp->rtp_sock_info, them);
+    /* We need to cook up the RTCP address */
+	memcpy(&them_rtcp, them, sizeof(them_rtcp));
+	them_rtcp.sin_port = htons(ntohs(them->sin_port) + 1);
+	udp_socket_set_them(rtp->rtcp_sock_info, &them_rtcp);
 	rtp->rxseqno = 0;
 }
 
 void opbx_rtp_get_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 {
-	them->sin_family = AF_INET;
-	them->sin_port = rtp->them.sin_port;
-	them->sin_addr = rtp->them.sin_addr;
+    memcpy(them, udp_socket_get_them(rtp->rtp_sock_info), sizeof(*them));
 }
 
 void opbx_rtp_get_us(struct opbx_rtp *rtp, struct sockaddr_in *us)
 {
-	memcpy(us, &rtp->us, sizeof(rtp->us));
+    memcpy(us, udp_socket_get_us(rtp->rtp_sock_info), sizeof(*us));
 }
 
 void opbx_rtp_stop(struct opbx_rtp *rtp)
 {
-	memset(&rtp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
-	memset(&rtp->them.sin_port, 0, sizeof(rtp->them.sin_port));
-	if (rtp->rtcp) {
-		memset(&rtp->rtcp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
-		memset(&rtp->rtcp->them.sin_port, 0, sizeof(rtp->them.sin_port));
-	}
+    udp_socket_restart(rtp->rtp_sock_info);
+    udp_socket_restart(rtp->rtcp_sock_info);
 }
 
 void opbx_rtp_reset(struct opbx_rtp *rtp)
@@ -1464,17 +1400,11 @@ void opbx_rtp_destroy(struct opbx_rtp *rtp)
 		opbx_smoother_free(rtp->smoother);
 	if (rtp->ioid)
 		opbx_io_remove(rtp->io, rtp->ioid);
-	if (rtp->s > -1)
-		close(rtp->s);
-	if (rtp->rtcp) {
-		close(rtp->rtcp->s);
-		free(rtp->rtcp);
-	}
+    udp_socket_destroy(rtp->rtp_sock_info);
+    udp_socket_destroy(rtp->rtcp_sock_info);
 #ifdef ENABLE_SRTP
-	if (rtp->srtp) {
+	if (rtp->srtp)
 		srtp_dealloc(rtp->srtp);
-		rtp->srtp = NULL;
-	}
 #endif
 	free(rtp);
 }
@@ -1505,6 +1435,9 @@ int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit)
 	int payload;
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
+    const struct sockaddr_in *them;
+
+    them = udp_socket_get_them(rtp->rtp_sock_info);
 
 	if ((digit <= '9') && (digit >= '0'))
 		digit -= '0';
@@ -1523,7 +1456,7 @@ int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit)
 	payload = opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_DTMF);
 
 	/* If we have no peer, return immediately */	
-	if (!rtp->them.sin_addr.s_addr)
+	if (them->sin_addr.s_addr == 0)
 		return 0;
 
 	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
@@ -1535,16 +1468,16 @@ int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit)
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 	for (x = 0; x < 6; x++) {
-		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-			res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+		if (them->sin_port && them->sin_addr.s_addr) {
+			res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 4, 0);
 			if (res < 0) 
 				opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-					opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
-					ntohs(rtp->them.sin_port), strerror(errno));
-			if (rtp_debug_test_addr(&rtp->them))
+					opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+					ntohs(them->sin_port), strerror(errno));
+			if (rtp_debug_test_addr(them))
 				opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
-					    opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
-					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+					    opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+					    ntohs(them->sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
 		/* Sequence number of last two end packets does not get incremented */
 		if (x < 3)
@@ -1586,11 +1519,15 @@ int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
 	int payload;
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
+    const struct sockaddr_in *them;
+
 	level = 127 - (level & 0x7f);
 	payload = opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_CN);
 
+    them = udp_socket_get_them(rtp->rtp_sock_info);
+
 	/* If we have no peer, return immediately */	
-	if (!rtp->them.sin_addr.s_addr)
+	if (them->sin_addr.s_addr == 0)
 		return 0;
 
 	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
@@ -1601,13 +1538,13 @@ int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
 	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	data[12] = level;
-	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-		res = rtp_sendto(rtp, (void *)rtpheader, hdrlen + 1, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
+	if (them->sin_port && them->sin_addr.s_addr) {
+		res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 1, 0);
 		if (res <0) 
-			opbx_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-		if(rtp_debug_test_addr(&rtp->them))
+			opbx_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+		if(rtp_debug_test_addr(them))
 			opbx_verbose("Sent Comfort Noise RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
-					, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
+					, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);
 		   
 	}
 	return 0;
@@ -1622,6 +1559,9 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 	int ms;
 	int pred;
 	int mark = 0;
+    const struct sockaddr_in *them;
+
+    them = udp_socket_get_them(rtp->rtp_sock_info);
 
 	ms = calc_txstamp(rtp, &f->delivery);
 
@@ -1677,22 +1617,22 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 	put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
 	put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
 
-	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-		res = rtp_sendto(rtp, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
+	if (them->sin_port && them->sin_addr.s_addr) {
+		res = rtp_sendto(rtp, (void *) rtpheader, f->datalen + hdrlen, 0);
 		if (res <0) {
 			if (!rtp->nat || (rtp->nat && (opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				opbx_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+				opbx_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
 			} else if ((opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
-					opbx_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+					opbx_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port));
 				opbx_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
 			}
 		}
 				
-		if(rtp_debug_test_addr(&rtp->them))
+		if (rtp_debug_test_addr(them))
 			opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
-					, opbx_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
+					, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 
 	rtp->seqno++;
@@ -1708,14 +1648,14 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
 	int subclass;
 	
 
-	/* If we have no peer, return immediately */	
-	if (!rtp->them.sin_addr.s_addr)
-		return 0;
-
 	/* If there is no data length, return immediately */
 	if (!_f->datalen) 
 		return 0;
 	
+	/* If we have no peer, return immediately */	
+	if (udp_socket_get_them(rtp->rtp_sock_info)->sin_addr.s_addr == 0)
+		return 0;
+
 	/* Make sure we have enough space for RTP header */
 	if ((_f->frametype != OPBX_FRAME_VOICE) && (_f->frametype != OPBX_FRAME_VIDEO)) {
 		opbx_log(LOG_WARNING, "RTP can only send voice\n");
