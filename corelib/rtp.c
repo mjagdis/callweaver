@@ -47,6 +47,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/udp.h"
 #include "openpbx/rtp.h"
 #include "openpbx/frame.h"
 #include "openpbx/logger.h"
@@ -60,7 +61,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
-#include "openpbx/udp.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -196,6 +196,16 @@ int opbx_rtp_fd(struct opbx_rtp *rtp)
 int opbx_rtcp_fd(struct opbx_rtp *rtp)
 {
 	return udp_socket_fd(rtp->rtcp_sock_info);
+}
+
+udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp)
+{
+	return rtp->rtp_sock_info;
+}
+
+udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp)
+{
+	return rtp->rtcp_sock_info;
 }
 
 void opbx_rtp_set_data(struct opbx_rtp *rtp, void *data)
@@ -1331,14 +1341,6 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 	}
 	opbx_rtp_pt_default(rtp);
 	return rtp;
-}
-
-struct opbx_rtp *opbx_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
-{
-	struct in_addr ia;
-
-	memset(&ia, 0, sizeof(ia));
-	return opbx_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
 
 int opbx_rtp_settos(struct opbx_rtp *rtp, int tos)

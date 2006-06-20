@@ -44,9 +44,8 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/rtp.c $", "$Revision: 1600 $")
+OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/udp.c $", "$Revision: 1600 $")
 
-#include "openpbx/rtp.h"
 #include "openpbx/frame.h"
 #include "openpbx/logger.h"
 #include "openpbx/options.h"

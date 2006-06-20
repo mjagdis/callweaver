@@ -64,8 +64,6 @@ struct opbx_rtp;
 
 typedef int (*opbx_rtp_callback)(struct opbx_rtp *rtp, struct opbx_frame *f, void *data);
 
-struct opbx_rtp *opbx_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode);
-
 struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
 
 void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them);
@@ -91,6 +89,10 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp);
 int opbx_rtp_fd(struct opbx_rtp *rtp);
 
 int opbx_rtcp_fd(struct opbx_rtp *rtp);
+
+udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp);
+
+udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp);
 
 int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit);
 

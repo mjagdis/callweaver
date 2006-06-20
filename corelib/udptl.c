@@ -35,6 +35,7 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "openpbx/udp.h"
 #include "openpbx/udptl.h"
 #include "openpbx/frame.h"
 #include "openpbx/logger.h"
@@ -48,7 +49,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
-#include "openpbx/udp.h"
 
 #define UDPTL_MTU		1200
 
@@ -616,6 +616,11 @@ int opbx_udptl_fd(struct opbx_udptl *udptl)
 	return udp_socket_fd(udptl->udptl_sock_info);
 }
 
+udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl)
+{
+	return udptl->udptl_sock_info;
+}
+
 void opbx_udptl_set_data(struct opbx_udptl *udptl, void *data)
 {
 	udptl->data = data;
@@ -837,14 +842,6 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
 	}
 	return udptl;
-}
-
-struct opbx_udptl *opbx_udptl_new(struct sched_context *sched, struct io_context *io, int callbackmode)
-{
-	struct in_addr ia;
-
-	memset(&ia, 0, sizeof(ia));
-	return opbx_udptl_new_with_bindaddr(sched, io, callbackmode, ia);
 }
 
 int opbx_udptl_settos(struct opbx_udptl *udptl, int tos)

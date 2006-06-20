@@ -64,6 +64,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/lock.h"
 #include "openpbx/sched.h"
 #include "openpbx/io.h"
+#include "openpbx/udp.h"
 #include "openpbx/rtp.h"
 #include "openpbx/udptl.h"
 //#include "openpbx/tpkt.h"

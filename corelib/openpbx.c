@@ -105,6 +105,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cdr.h"
 #include "openpbx/pbx.h"
 #include "openpbx/enum.h"
+#include "openpbx/udp.h"
 #include "openpbx/rtp.h"
 #include "openpbx/udptl.h"
 #include "openpbx/app.h"
