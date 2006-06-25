@@ -182,6 +182,26 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 }
 /*- End of function --------------------------------------------------------*/
 
+/* Return a monotonically increasing time, in microseconds */
+static int64_t nowis(void)
+{
+    int64_t now;
+#if 0
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    now = tv.tv_sec*1000000LL + tv.tv_usec;
+#else
+    struct timespec ts;
+    
+    if (clock_gettime(CLOCK_MONOTONIC, &ts))
+        opbx_log(LOG_WARNING, "clock_gettime returned %s\n", strerror(errno));
+    now = ts.tv_sec*1000000LL + ts.tv_nsec/1000;
+#endif
+    return now;
+}
+/*- End of function --------------------------------------------------------*/
+
 static int rxfax_exec(struct opbx_channel *chan, void *data)
 {
     int res = 0;
@@ -207,6 +227,10 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
 
     int original_read_fmt;
     int original_write_fmt;
+    int64_t now;
+    int64_t next;
+    int64_t passage;
+    int delay;
     
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
@@ -344,14 +368,24 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         call_is_t38_mode = FALSE;
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
-            if (call_is_t38_mode) {
-                t38_terminal_send_timeout(&t38, 240);
+            now = nowis();
+            delay = (next < now)  ?  0  :  (next - now + 500)/1000;
+            if ((res = opbx_waitfor(chan, delay)) < 0)
+                break;
+            if (call_is_t38_mode)
+            {
+                now = nowis();
+                t38_terminal_send_timeout(&t38, (now - passage)/125);
+                passage = now;
                 /* End application when T38/T30 has finished */
-                if ((t38.current_rx_type == T30_MODEM_DONE) || (t38.current_tx_type == T30_MODEM_DONE))
+                if ((t38.current_rx_type == T30_MODEM_DONE)  ||  (t38.current_tx_type == T30_MODEM_DONE))
                     break;
             }
             if (res == 0)
+            {
+                next += 30000;
                 continue;
+            }
             if ((inf = opbx_read(chan)) == NULL)
             {
                 res = -1;
@@ -382,7 +416,11 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             else if (inf->frametype == OPBX_FRAME_MODEM  &&  inf->subclass == OPBX_MODEM_T38)
             {
                 printf("T.38 frame received\n");
-                call_is_t38_mode = TRUE;
+                if (!call_is_t38_mode)
+                {
+                    call_is_t38_mode = TRUE;
+                    passage = now;
+                }
                 t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
             }
             opbx_frfree(inf);
