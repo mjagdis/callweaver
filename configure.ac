@@ -533,15 +533,15 @@ AC_ARG_WITH([spandsp-libs],
 	[AC_HELP_STRING([--with-spandsp-libs],[Location of SpanDSP library files.])],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
-AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre21 or newer is required to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre22 or newer is required to compile OpenPBX.org.)])
 
-AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre21 or newer to compile OpenPBX.org.)],
+AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre22 or newer to compile OpenPBX.org.)],
 [#ifdef HAVE_SPANDSP_H
 #include <spandsp.h>
 #endif
 ])
 
-AC_CHECK_LIB([spandsp],[t38_gateway_init],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre21 or newer to comple OpenPBX.org.)],[-ltiff])
+AC_CHECK_LIB([spandsp],[t38_gateway_init],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre22 or newer to comple OpenPBX.org.)],[-ltiff])
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -1221,7 +1221,7 @@ AC_ARG_WITH([app_sql_postgres],
         [AC_HELP_STRING([--with-app_sql_postgres],[Build and install app_sql_postgres (default=yes)])],,
         [with_app_sql_postgres="yes"])
 		
-AM_CONDITIONAL([WANT_APP_SQL_POSTGRES],[test "${with_app_sql_postgres}" = "yes"])
+AM_CONDITIONAL([WANT_APP_SQL_POSTGRES],[test "${enable_postgresql}" = "yes" -a "$with_app_sql_postgres" = "yes"])
 		
 dnl ###########################################################################
 		
