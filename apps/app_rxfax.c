@@ -330,7 +330,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 return -1;
             }
         }
-        fax_init(&fax, calling_party, NULL);
+        fax_init(&fax, calling_party);
         if (verbose)
         {
             span_log_set_level(&fax.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
