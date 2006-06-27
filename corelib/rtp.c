@@ -198,14 +198,26 @@ int opbx_rtcp_fd(struct opbx_rtp *rtp)
 	return udp_socket_fd(rtp->rtcp_sock_info);
 }
 
-udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp)
+udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
+                                       udp_socket_info_t *sock_info)
 {
-	return rtp->rtp_sock_info;
+    udp_socket_info_t *old;
+    
+	old = rtp->rtp_sock_info;
+    if (sock_info)
+        rtp->rtp_sock_info = sock_info;
+    return old;
 }
 
-udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp)
+udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
+                                        udp_socket_info_t *sock_info)
 {
-	return rtp->rtcp_sock_info;
+    udp_socket_info_t *old;
+    
+	old = rtp->rtcp_sock_info;
+    if (sock_info)
+        rtp->rtcp_sock_info = sock_info;
+    return old;
 }
 
 void opbx_rtp_set_data(struct opbx_rtp *rtp, void *data)
@@ -1341,6 +1353,27 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 	}
 	opbx_rtp_pt_default(rtp);
 	return rtp;
+}
+
+int opbx_rtp_set_active(struct opbx_rtp *rtp, int active)
+{
+	if (rtp->sched  &&  rtp->io)
+	{
+	    if (active)
+	    {
+        	if (rtp->ioid == NULL)
+    			rtp->ioid = opbx_io_add(rtp->io, udp_socket_fd(rtp->rtp_sock_info), rtpread, OPBX_IO_IN, rtp);
+        }
+	    else
+	    {
+			if (rtp->ioid)
+			{
+				opbx_io_remove(rtp->io, rtp->ioid);
+				rtp->ioid = NULL;
+			}
+		}
+    }
+    return 0;
 }
 
 int opbx_rtp_settos(struct opbx_rtp *rtp, int tos)

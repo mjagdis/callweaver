@@ -106,6 +106,8 @@ struct opbx_udptl {
 	opbx_udptl_callback callback;
 	int udptl_offered_from_local;
 
+    int created_sock_info;
+    
 	/*! This option indicates the error correction scheme used in transmitted UDPTL
 	    packets. */
 	int error_correction_scheme;
@@ -616,9 +618,15 @@ int opbx_udptl_fd(struct opbx_udptl *udptl)
 	return udp_socket_fd(udptl->udptl_sock_info);
 }
 
-udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl)
+udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl,
+                                         udp_socket_info_t *sock_info)
 {
-	return udptl->udptl_sock_info;
+    udp_socket_info_t *old;
+    
+	old = udptl->udptl_sock_info;
+    if (sock_info)
+        udptl->udptl_sock_info = sock_info;
+    return old;
 }
 
 void opbx_udptl_set_data(struct opbx_udptl *udptl, void *data)
@@ -768,7 +776,52 @@ void opbx_udptl_set_far_max_datagram(struct opbx_udptl *udptl, int max_datagram)
 	    opbx_log(LOG_WARNING, "udptl structure is null\n");
 }
 
-struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct in_addr addr)
+struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
+                                                 struct io_context *io,
+                                                 int callbackmode,
+                                                 udp_socket_info_t *sock_info)
+{
+	struct opbx_udptl *udptl;
+	int i;
+
+	if ((udptl = malloc(sizeof(struct opbx_udptl))) == NULL)
+		return NULL;
+	memset(udptl, 0, sizeof(struct opbx_udptl));
+
+	if (udptlfectype == 2)
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
+	else if (udptlfectype == 1)
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+	else
+		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
+	udptl->error_correction_span = udptlfecspan;
+	udptl->error_correction_entries = udptlfecentries;
+	
+	udptl->far_max_datagram_size = udptlmaxdatagram;
+	udptl->local_max_datagram_size = udptlmaxdatagram;
+
+	memset(&udptl->rx, 0, sizeof(udptl->rx));
+	memset(&udptl->tx, 0, sizeof(udptl->tx));
+	for (i = 0;  i <= UDPTL_BUF_MASK;  i++) {
+		udptl->rx[i].buf_len = -1;
+		udptl->tx[i].buf_len = -1;
+	}
+    /* This sock_info should already be bound to an address */
+    udptl->udptl_sock_info = sock_info;
+	if (io && sched && callbackmode) {
+		/* Operate this one in a callback mode */
+		udptl->sched = sched;
+		udptl->io = io;
+		udptl->ioid = NULL;
+	}
+    udptl->created_sock_info = FALSE;
+	return udptl;
+}
+
+struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
+                                                struct io_context *io,
+                                                int callbackmode,
+                                                struct in_addr addr)
 {
 	struct opbx_udptl *udptl;
     struct sockaddr_in sockaddr;
@@ -841,7 +894,29 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, str
 		udptl->io = io;
 		udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
 	}
+    udptl->created_sock_info = TRUE;
 	return udptl;
+}
+
+int opbx_udptl_set_active(struct opbx_udptl *udptl, int active)
+{
+	if (udptl->sched  &&  udptl->io)
+	{
+	    if (active)
+	    {
+	        if (udptl->ioid == NULL)
+    	        udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
+        }
+	    else
+	    {
+	        if (udptl->ioid)
+	        {
+	       		opbx_io_remove(udptl->io, udptl->ioid);
+	            udptl->ioid = NULL;
+	        }
+        }
+    }
+    return 0;
 }
 
 int opbx_udptl_settos(struct opbx_udptl *udptl, int tos)
@@ -873,7 +948,8 @@ void opbx_udptl_destroy(struct opbx_udptl *udptl)
 {
 	if (udptl->ioid)
 		opbx_io_remove(udptl->io, udptl->ioid);
-    udp_socket_destroy(udptl->udptl_sock_info);
+    if (udptl->created_sock_info)
+        udp_socket_destroy(udptl->udptl_sock_info);
 	free(udptl);
 }
 
