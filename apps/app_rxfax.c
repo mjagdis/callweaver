@@ -228,8 +228,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     int original_read_fmt;
     int original_write_fmt;
     int64_t now;
-    int64_t next;
-    int64_t passage;
+    int64_t next = 0;
+    int64_t passage = 0;
     int delay;
     
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
