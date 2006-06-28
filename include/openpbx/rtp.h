@@ -90,9 +90,11 @@ int opbx_rtp_fd(struct opbx_rtp *rtp);
 
 int opbx_rtcp_fd(struct opbx_rtp *rtp);
 
-udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp);
+udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
+                                       udp_socket_info_t *sock_info);
 
-udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp);
+udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
+                                        udp_socket_info_t *sock_info);
 
 int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit);
 

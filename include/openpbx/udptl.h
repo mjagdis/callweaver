@@ -47,7 +47,17 @@ struct opbx_udptl;
 
 typedef int (*opbx_udptl_callback)(struct opbx_udptl *udptl, struct opbx_frame *f, void *data);
 
-struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct in_addr in);
+struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
+                                                 struct io_context *io,
+                                                 int callbackmode,
+                                                 udp_socket_info_t *sock_info);
+
+struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
+                                                struct io_context *io,
+                                                int callbackmode,
+                                                struct in_addr in);
+
+int opbx_udptl_set_active(struct opbx_udptl *udptl, int active);
 
 void opbx_udptl_set_peer(struct opbx_udptl *udptl, struct sockaddr_in *them);
 
@@ -69,7 +79,8 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl);
 
 int opbx_udptl_fd(struct opbx_udptl *udptl);
 
-udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl);
+udp_socket_info_t *opbx_udptl_udp_socket(struct opbx_udptl *udptl,
+                                         udp_socket_info_t *sock_info);
 
 int opbx_udptl_settos(struct opbx_udptl *udptl, int tos);
 
