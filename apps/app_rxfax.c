@@ -228,8 +228,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     int original_read_fmt;
     int original_write_fmt;
     int64_t now;
-    int64_t next = 0;
-    int64_t passage = 0;
+    int64_t next;
+    int64_t passage;
     int delay;
     
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
@@ -366,6 +366,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         t30_set_phase_e_handler(&t38.t30_state, phase_e_handler, chan);
 
         call_is_t38_mode = FALSE;
+        passage = nowis();
+        next = passage + 30000;
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
             now = nowis();
