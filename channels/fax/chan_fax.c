@@ -1105,10 +1105,13 @@ static void *faxmodem_thread(void *obj)
 		res = read(fm->master, buf, sizeof(buf));
 		t31_at_rx(&fm->t31_state, buf, res);
 		memset(tmp, 0, sizeof(tmp));
+
+		/* Copy the AT command for debugging */
 		if(strstr(buf, "AT") || strstr(buf, "at")) {
 			int x;
-			strncpy(tmp, buf, res);
-			for(x = 0; x < res; x++) {
+			int l = res < (sizeof(tmp)-1) ? res : sizeof(tmp)-1;
+			strncpy(tmp, buf, l);
+			for(x = 0; x < l; x++) {
 				if(tmp[x] == '\r' || tmp[x] == '\n') {
 					tmp[x] = '\0';
 				}
