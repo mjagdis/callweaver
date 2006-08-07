@@ -3100,7 +3100,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 	}
 	/* ... we have hints ... */
-	opbx_cli(fd, "\n    -= Registered OpenPBX Dial Plan Hints =-\n");
+	opbx_cli(fd, "\n    -== Registered OpenPBX Dial Plan Hints ==-\n");
 	if (opbx_mutex_lock(&hintlock)) {
 		opbx_log(LOG_ERROR, "Unable to lock hints\n");
 		return -1;
@@ -3112,7 +3112,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 			watchers++;
 		opbx_cli(fd, "   %-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			opbx_get_extension_name(hint->exten), opbx_get_extension_app(hint->exten),
-			devstate2str(hint->laststate), watchers);
+			opbx_extension_state2str(hint->laststate), watchers);
 		num++;
 		hint = hint->next;
 	}

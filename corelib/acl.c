@@ -209,15 +209,18 @@ int opbx_apply_ha(struct opbx_ha *ha, struct sockaddr_in *sin)
 	while (ha) {
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
-		/* DEBUG */
-		opbx_log(LOG_DEBUG,
-			"##### Testing %s with %s\n",
-			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
-			opbx_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr));
+
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
 			res = ha->sense;
+		/* DEBUG */
+		opbx_log(LOG_DEBUG,
+			"##### Testing %s with %s. Result %d\n",
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
+			opbx_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr),
+			res
+		);
 		ha = ha->next;
 	}
 	return res;

@@ -26,4 +26,12 @@ pbx_realtime_la_LDFLAGS = -module -avoid-version -no-undefined
 pbx_realtime_la_LIBADD  = ${top_builddir}/corelib/libopenpbx.la
 endif WANT_PBX_REALTIME
 
-INCLUDES = -I$(top_srcdir)/include
+if WANT_PBX_AEL
+opbxmod_LTLIBRARIES 	+= pbx_ael.la
+pbx_ael_la_SOURCES = pbx_ael.c ael/ael_lex.c ael/ael.tab.c
+pbx_ael_la_LDFLAGS = -module -avoid-version -no-undefined
+pbx_ael_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_PBX_AEL
+
+
+INCLUDES = -I$(top_srcdir)/include 

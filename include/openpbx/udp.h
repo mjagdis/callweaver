@@ -57,6 +57,15 @@ int udp_socket_recvfrom(udp_socket_info_t *info, void *buf, size_t size,
 
 int udp_socket_sendto(udp_socket_info_t *info, void *buf, size_t size, int flags);
 
+int udp_socket_get_stunstate(udp_socket_info_t *info);
+
+void udp_socket_set_stunstate(udp_socket_info_t *info, int state);
+
+struct sockaddr_in *udp_socket_get_stun(udp_socket_info_t *info);
+
+void udp_socket_set_stun(udp_socket_info_t *info, struct sockaddr_in *stun);
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -129,7 +129,7 @@ static struct progress {
  */
 
 #define DTMF_THRESHOLD		8.0e7
-#define FAX_THRESHOLD		8.0e7
+#define FAX_THRESHOLD		7.0e7
 #define FAX_2ND_HARMONIC	2.0     /* 4dB */
 #define DTMF_NORMAL_TWIST	6.3     /* 8dB */
 #ifdef	RADIO_RELAX

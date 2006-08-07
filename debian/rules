@@ -1,0 +1,58 @@
+#!/usr/bin/make -f
+# Sample debian/rules that uses cdbs.  Originaly written by Robert Millan.
+# This file is public domain.
+  
+
+# Add here any variable or target overrides you need
+
+  
+include /usr/share/cdbs/1/rules/debhelper.mk
+#include /usr/share/cdbs/1/rules/tarball.mk
+#include /usr/share/cdbs/1/rules/simple-patchsys.mk
+include /usr/share/cdbs/1/class/autotools.mk
+
+ENABLE_ODBC			:=yes
+ENABLE_DEBUG			:=yes
+
+DEB_TAR_SRCDIR                  := openpbx-0.2.0
+DEB_AUTO_CLEANUP_RCS            := yes
+
+DEB_CONFIGURE_EXTRA_FLAGS	:= \
+    --with-directory-layout=lsb \
+    --with-pbx_ael=lsb \
+    --enable-t38 \
+    --with-app_sql_postgres=no \
+    --enable-postgresql \
+    --with-cdr_pgsql \
+    --with-app_meetme=no
+
+ifeq ($(ENABLE_ODBC), yes)
+ DEB_CONFIGURE_EXTRA_FLAGS += \
+    --enable-odbc=yes \
+    --with-cdr_odbc=yes \
+    --with-res_config_odbc=yes \
+    --with-res_odbc=yes
+endif
+
+ifeq ($(ENABLE_DEBUG), yes)
+ DEB_CONFIGURE_EXTRA_FLAGS += \
+    --enable-debug \
+    --enable-do-crash \
+    --enable-frame-tracing \
+    --enable-valgrind \
+    --enable-debug \
+    --enable-debug-scheduler \
+    --enable-stack-backtraces \
+    --disable-optimization 
+endif
+
+
+DEB_DH_INSTALL_SOURCEDIR	:= debian/tmp
+
+# dh_install cannot handle rename,
+# so need an explicit rule here.
+common-install-arch::
+	sed -e "s,__OPENPBX_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_openpbx > \
+	        debian/tmp/usr/sbin/safe_openpbx
+
+

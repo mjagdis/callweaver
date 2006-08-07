@@ -10,6 +10,7 @@ SAMPLES = adsi.conf.sample \
 	enum.conf.sample \
 	extconfig.conf.sample \
 	extensions.conf.sample \
+	extensions.ael.sample \
 	indications.conf.sample \
 	logger.conf.sample \
 	manager.conf.sample \

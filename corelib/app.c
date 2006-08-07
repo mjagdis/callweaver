@@ -1165,6 +1165,9 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	time(&start);
 	while (((res = link(fs, s)) < 0) && (errno == EEXIST) && (time(NULL) - start < 5))
 		usleep(1);
+
+	unlink(fs);
+
 	if (res) {
 		opbx_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_TIMEOUT;
@@ -1178,12 +1181,23 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 int opbx_unlock_path(const char *path)
 {
 	char *s;
+	int res;
+
 	s = alloca(strlen(path) + 10);
-	if (!s)
+	if (!s) {
+		opbx_log(LOG_WARNING, "Out of memory!\n");
 		return -1;
+	}
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
 	opbx_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
-	return unlink(s);
+//	return unlink(s);
+
+	if ((res = unlink(s)))
+		opbx_log(LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
+	else
+		opbx_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+
+	return res;
 }
 
 int opbx_record_review(struct opbx_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 

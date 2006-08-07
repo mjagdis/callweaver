@@ -21,6 +21,7 @@ substitute = $(SED) \
 	-e 's,@opbxsocketfile\@,${opbxsocketfile},g' \
 	-e 's,@opbxlogdir\@,${opbxlogdir},g' \
 	-e 's,@opbxspooldir\@,${opbxspooldir},g' \
+	-e 's,@opbxmohdir\@,${opbxmohdir},g' \
 	-e 's,@opbxdatadir\@,${opbxdatadir},g' \
 	-e 's,@opbxdocdir\@,${opbxdocdir},g' \
 	-e 's,@opbxkeydir\@,${opbxkeydir},g' \
@@ -28,7 +29,6 @@ substitute = $(SED) \
 	-e 's,@opbxagidir\@,${opbxagidir},g' \
 	-e 's,@opbxsoundsdir\@,${opbxsoundsdir},g' \
 	-e 's,@opbximagesdir\@,${opbximagesdir},g' \
-	-e 's,@opbxmohdir\@,${opbxmohdir},g' \
 	-e 's,@opbxincludedir\@,${opbxincludedir},g' \
 	-e 's,@opbxrunuser\@,${opbxrunuser},g' \
 	-e 's,@opbxrungroup\@,${opbxrungroup},g'

@@ -65,6 +65,8 @@ void opbx_udptl_get_peer(struct opbx_udptl *udptl, struct sockaddr_in *them);
 
 void opbx_udptl_get_us(struct opbx_udptl *udptl, struct sockaddr_in *us);
 
+int opbx_udptl_get_stunstate(struct opbx_udptl *udptl);
+
 void opbx_udptl_destroy(struct opbx_udptl *udptl);
 
 void opbx_udptl_reset(struct opbx_udptl *udptl);

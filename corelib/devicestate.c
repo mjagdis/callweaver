@@ -47,7 +47,7 @@ static const char *devstatestring[] = {
 	/* 0 OPBX_DEVICE_UNKNOWN */	"Unknown",	/* Valid, but unknown state */
 	/* 1 OPBX_DEVICE_NOT_INUSE */	"Not in use",	/* Not used */
 	/* 2 OPBX_DEVICE IN USE */	"In use",	/* In use */
-	/* 3 OPBX_DEVICE_BUSY */		"Busy",		/* Busy */
+	/* 3 OPBX_DEVICE_BUSY */	"Busy",		/* Busy */
 	/* 4 OPBX_DEVICE_INVALID */	"Invalid",	/* Invalid - not known to OpenPBX */
 	/* 5 OPBX_DEVICE_UNAVAILABLE */	"Unavailable",	/* Unavailable (not registred) */
 	/* 6 OPBX_DEVICE_RINGING */	"Ringing"	/* Ring, ring, ring */

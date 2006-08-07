@@ -108,6 +108,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/udp.h"
 #include "openpbx/rtp.h"
 #include "openpbx/udptl.h"
+#include "openpbx/stun.h"
 #include "openpbx/app.h"
 #include "openpbx/lock.h"
 #include "openpbx/utils.h"
@@ -2312,6 +2313,7 @@ int openpbx_main(int argc, char *argv[])
 	}
 	opbx_rtp_init();
 	opbx_udptl_init();
+	opbx_stun_init();
 	if (opbx_image_init()) {
 		printf(opbx_term_quit());
 		exit(1);

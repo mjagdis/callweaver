@@ -25,4 +25,11 @@ cdr_pgsql_la_LDFLAGS	= -module -avoid-version -no-undefined
 cdr_pgsql_la_LIBADD	= @PQLIBPATH@ -lpq ${top_builddir}/corelib/libopenpbx.la
 endif WANT_CDR_PGSQL
 
+opbxmod_LTLIBRARIES	+= cdr_sqlite3.la
+cdr_sqlite3_la_SOURCES	= cdr_sqlite3.c
+cdr_sqlite3_la_LDFLAGS	= -module -avoid-version -no-undefined
+cdr_sqlite3_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la
+cdr_sqlite3_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
+cdr_sqlite3_la_CFLAGS	= @SQLITE3_THREADSAFE_CFLAGS@ 
+
 INCLUDES = -I$(top_srcdir)/include

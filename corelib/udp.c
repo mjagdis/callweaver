@@ -59,23 +59,26 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/udp.
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
 #include "openpbx/udp.h"
+#include "openpbx/stun.h"
 
 struct udp_socket_info_s {
     int fd;
-	struct sockaddr_in us;
-	struct sockaddr_in them;
+    struct sockaddr_in us;
+    struct sockaddr_in them;
     int nochecksums;
     int nat;
+    struct sockaddr_in stun_me;
+    int stun_state;  // 0 = no action - 1 requested - 2 got response
 };
 
 udp_socket_info_t *udp_socket_create(int nochecksums)
 {
     int fd;
-	long flags;
+    long flags;
     udp_socket_info_t *info;
     
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		opbx_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	opbx_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
         return NULL;
     }
 	flags = fcntl(fd, F_GETFL);
@@ -90,11 +93,12 @@ udp_socket_info_t *udp_socket_create(int nochecksums)
         return NULL;
     }
     memset(info, 0, sizeof(*info));
-	info->them.sin_family = AF_INET;
-	info->us.sin_family = AF_INET;
+    info->them.sin_family = AF_INET;
+    info->us.sin_family = AF_INET;
     info->nochecksums = nochecksums;
     info->fd  = fd;
-	return info;
+    info->stun_state=0;
+    return info;
 }
 
 int udp_socket_set_us(udp_socket_info_t *info, struct sockaddr_in *us)
@@ -121,7 +125,7 @@ int udp_socket_set_us(udp_socket_info_t *info, struct sockaddr_in *us)
     }
 	info->us.sin_port = us->sin_port;
 	info->us.sin_addr.s_addr = us->sin_addr.s_addr;
-	if ((res = bind(info->fd, (struct sockaddr *) &info->us, sizeof(info->us))) < 0) {
+    	if ((res = bind(info->fd, (struct sockaddr *) &info->us, sizeof(info->us))) < 0) {
     	info->us.sin_port = 0;
 	    info->us.sin_addr.s_addr = 0;
     }
@@ -150,6 +154,13 @@ void udp_socket_set_nat(udp_socket_info_t *info, int nat_mode)
     if (info == NULL)
         return;
     info->nat = nat_mode;
+
+    if (nat_mode && info->stun_state==0 && stun_active) {
+	if (stundebug)
+	opbx_log(LOG_WARNING, "Sending stun request on this UDP channel (port %d) cause NAT is on\n",ntohs(info->us.sin_port) );
+	opbx_udp_stun_bindrequest(info->fd, &stunserver_ip, NULL, NULL);
+	info->stun_state=1;
+    }
 }
 
 int udp_socket_destroy(udp_socket_info_t *info)
@@ -205,13 +216,17 @@ int udp_socket_recvfrom(udp_socket_info_t *info, void *buf, size_t size,
     if (info == NULL  ||  info->fd < 0)
         return 0;
 	res = recvfrom(info->fd, buf, size, flags, sa, salen);
-    if (info->nat) {
+
+    if ( 
+	 ( info->nat && !stun_active ) || 
+	 ( info->nat && stun_active && info->stun_state==0 )
+       ) {
         /* Send to whoever sent to us */
 		if (info->them.sin_addr.s_addr != ((struct sockaddr_in *)sa)->sin_addr.s_addr || info->them.sin_port != ((struct sockaddr_in *)sa)->sin_port) {
 			memcpy(&info->them, &sa, sizeof(info->them));
 			*action |= 1;
 		}
-	}
+    }
     return res;
 }
 
@@ -222,4 +237,29 @@ int udp_socket_sendto(udp_socket_info_t *info, void *buf, size_t size, int flags
     if (info->them.sin_port == 0)
         return 0;
 	return sendto(info->fd, buf, size, flags, &info->them, sizeof(info->them));
+}
+
+int udp_socket_get_stunstate(udp_socket_info_t *info)
+{
+    if (info)
+    	return info->stun_state;
+    return 0;
+}
+
+void udp_socket_set_stunstate(udp_socket_info_t *info, int state)
+{
+	info->stun_state = state;
+}
+
+
+struct sockaddr_in *udp_socket_get_stun(udp_socket_info_t *info)
+{
+    if (info)
+    	return &info->stun_me;
+    return NULL;
+}
+
+void udp_socket_set_stun(udp_socket_info_t *info, struct sockaddr_in *stun)
+{
+    memcpy(&info->stun_me,stun,sizeof(struct sockaddr_in) );
 }

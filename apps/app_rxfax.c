@@ -44,12 +44,14 @@ static char *app = "RxFAX";
 static char *synopsis = "Receive a FAX to a file";
 
 static char *descrip = 
-"  RxFAX(filename[|caller][|debug]): Receives a FAX from the channel into the\n"
+"  RxFAX(filename[|caller][|debug][|foip]): Receives a FAX from the channel into the\n"
 "given filename. If the file exists it will be overwritten. The file\n"
 "should be in TIFF/F format.\n"
 "The \"caller\" option makes the application behave as a calling machine,\n"
 "rather than the answering machine. The default behaviour is to behave as\n"
 "an answering machine.\n"
+"The \"foip\" option make this application to enable some workarounds when \n"
+"receiving data from another openpbx.org server over SIP.\n"
 "Uses LOCALSTATIONID to identify itself to the remote end.\n"
 "     LOCALHEADERINFO to generate a header line on each page.\n"
 "Sets REMOTESTATIONID to the sender CSID.\n"
@@ -218,6 +220,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     t38_terminal_state_t t38;
     int calling_party;
     int verbose;
+    int foip;
+    int rxpkt;
     int samples;
     int call_is_t38_mode;
 
@@ -231,6 +235,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     int64_t next;
     int64_t passage;
     int delay;
+
+    time_t begin,thistime;
     
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
@@ -253,6 +259,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     
     calling_party = FALSE;
     verbose = FALSE;
+    foip=FALSE;
     target_file[0] = '\0';
 
     for (option = 0, v = s = data;  v;  option++, s++)
@@ -291,6 +298,10 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         else if (strncmp("debug", t, s - t) == 0)
         {
             verbose = TRUE;
+        }
+        else if (strncmp("foip", t, s - t) == 0)
+        {
+            foip = TRUE;
         }
     }
 
@@ -368,12 +379,24 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         call_is_t38_mode = FALSE;
         passage = nowis();
         next = passage + 30000;
+	rxpkt=0;
+	time(&begin);
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
+	    time(&thistime);
+	    if ( (thistime-begin) >= 20 && (!rxpkt) ) {
+	        opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
+                break;
+	    }
+
+	    if ( (thistime-begin) >= 5 && foip && !rxpkt)
+		call_is_t38_mode=TRUE;
+	    	    	    
             now = nowis();
             delay = (next < now)  ?  0  :  (next - now + 500)/1000;
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
+		
             if (call_is_t38_mode)
             {
                 now = nowis();
@@ -393,6 +416,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 res = -1;
                 break;
             }
+	    rxpkt+=res;
+	    time(&begin);
             if (inf->frametype == OPBX_FRAME_VOICE  &&  !call_is_t38_mode)
             {
                 if (fax_rx(&fax, inf->data, inf->samples))
@@ -417,7 +442,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             }
             else if (inf->frametype == OPBX_FRAME_MODEM  &&  inf->subclass == OPBX_MODEM_T38)
             {
-                printf("T.38 frame received\n");
+                //printf("T.38 frame received\n");
                 if (!call_is_t38_mode)
                 {
                     call_is_t38_mode = TRUE;

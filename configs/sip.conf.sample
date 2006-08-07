@@ -173,6 +173,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; used
 				; You may add multiple local networks.  A reasonable set of defaults
 				; are:
+
+;stunserver_host=your.stun.server.here ; decommenting this and inserting a valid stun server, 
+				; makes openpbx work behind nat without problems.
+				; Please note that if STUN fails, the old externip behaviour is retained so
+				; setting externip could still be valid to have a failover.
+;stunserver_port=3478		; default id 3478
+
+
 ;localnet=192.168.0.0/255.255.0.0; All RFC 1918 addresses are local networks
 ;localnet=10.0.0.0/255.0.0.0	; Also RFC1918
 ;localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation

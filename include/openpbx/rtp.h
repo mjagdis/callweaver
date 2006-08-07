@@ -48,6 +48,8 @@ extern "C" {
 /*! Maximum RTP-specific code */
 #define OPBX_RTP_MAX             OPBX_RTP_CISCO_DTMF
 
+#define MAX_RTP_PT 256
+
 struct opbx_rtp_protocol {
 	/* Get RTP struct, or NULL if unwilling to transfer */
 	struct opbx_rtp *(* const get_rtp_info)(struct opbx_channel *chan);
@@ -60,9 +62,58 @@ struct opbx_rtp_protocol {
 	struct opbx_rtp_protocol *next;
 };
 
-struct opbx_rtp;
-
 typedef int (*opbx_rtp_callback)(struct opbx_rtp *rtp, struct opbx_frame *f, void *data);
+
+/* The value of each payload format mapping: */
+struct rtpPayloadType {
+	int isAstFormat; 	/* whether the following code is an OPBX_FORMAT */
+	int code;
+};
+
+struct opbx_rtp {
+    udp_socket_info_t *rtp_sock_info;
+    udp_socket_info_t *rtcp_sock_info;
+	char resp;
+	struct opbx_frame f;
+	unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
+	unsigned int ssrc;
+	unsigned int lastts;
+	unsigned int lastdigitts;
+	unsigned int lastrxts;
+	unsigned int lastividtimestamp;
+	unsigned int lastovidtimestamp;
+	unsigned int lasteventseqn;
+	unsigned int lasteventendseqn;
+	int lasttxformat;
+	int lastrxformat;
+	int dtmfcount;
+	unsigned int dtmfduration;
+	int nat;
+	unsigned int flags;
+	int framems;
+	int rtplen;
+	struct timeval rxcore;
+	struct timeval txcore;
+	struct timeval dtmfmute;
+	struct opbx_smoother *smoother;
+	int *ioid;
+	unsigned short seqno;
+	unsigned short rxseqno;
+	struct sched_context *sched;
+	struct io_context *io;
+	void *data;
+	opbx_rtp_callback callback;
+	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
+	int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
+	int rtp_lookup_code_cache_code;
+	int rtp_lookup_code_cache_result;
+	int rtp_offered_from_local;
+#ifdef ENABLE_SRTP
+	srtp_t srtp;
+	rtp_generate_key_cb key_cb;
+#endif
+};
+
 
 struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
 
@@ -71,6 +122,8 @@ void opbx_rtp_set_peer(struct opbx_rtp *rtp, struct sockaddr_in *them);
 void opbx_rtp_get_peer(struct opbx_rtp *rtp, struct sockaddr_in *them);
 
 void opbx_rtp_get_us(struct opbx_rtp *rtp, struct sockaddr_in *us);
+
+int opbx_rtp_get_stunstate(struct opbx_rtp *rtp);
 
 void opbx_rtp_destroy(struct opbx_rtp *rtp);
 
@@ -99,6 +152,8 @@ udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
 int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit);
 
 int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level);
+
+int opbx_rtp_set_active(struct opbx_rtp *rtp, int active);
 
 int opbx_rtp_settos(struct opbx_rtp *rtp, int tos);
 

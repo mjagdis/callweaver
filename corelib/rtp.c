@@ -61,6 +61,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
+#include "openpbx/stun.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -79,14 +80,6 @@ static struct sockaddr_in rtpdebugaddr;	/* Debug packets to/from this host */
 static int nochecksums = 0;
 #endif
 
-/* The value of each payload format mapping: */
-struct rtpPayloadType {
-	int isAstFormat; 	/* whether the following code is an OPBX_FORMAT */
-	int code;
-};
-
-#define MAX_RTP_PT 256
-
 #define FLAG_3389_WARNING		(1 << 0)
 #define FLAG_NAT_ACTIVE			(3 << 1)
 #define FLAG_NAT_INACTIVE		(0 << 1)
@@ -98,49 +91,6 @@ struct opbx_policy {
 };
 #endif
 
-struct opbx_rtp {
-    udp_socket_info_t *rtp_sock_info;
-    udp_socket_info_t *rtcp_sock_info;
-	char resp;
-	struct opbx_frame f;
-	unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
-	unsigned int ssrc;
-	unsigned int lastts;
-	unsigned int lastdigitts;
-	unsigned int lastrxts;
-	unsigned int lastividtimestamp;
-	unsigned int lastovidtimestamp;
-	unsigned int lasteventseqn;
-	unsigned int lasteventendseqn;
-	int lasttxformat;
-	int lastrxformat;
-	int dtmfcount;
-	unsigned int dtmfduration;
-	int nat;
-	unsigned int flags;
-	int framems;
-	int rtplen;
-	struct timeval rxcore;
-	struct timeval txcore;
-	struct timeval dtmfmute;
-	struct opbx_smoother *smoother;
-	int *ioid;
-	unsigned short seqno;
-	unsigned short rxseqno;
-	struct sched_context *sched;
-	struct io_context *io;
-	void *data;
-	opbx_rtp_callback callback;
-	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-	int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
-	int rtp_lookup_code_cache_code;
-	int rtp_lookup_code_cache_result;
-	int rtp_offered_from_local;
-#ifdef ENABLE_SRTP
-	srtp_t srtp;
-	rtp_generate_key_cb key_cb;
-#endif
-};
 
 static struct opbx_rtp_protocol *protos = NULL;
 
@@ -203,7 +153,7 @@ udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
 {
     udp_socket_info_t *old;
     
-	old = rtp->rtp_sock_info;
+    old = rtp->rtp_sock_info;
     if (sock_info)
         rtp->rtp_sock_info = sock_info;
     return old;
@@ -214,7 +164,7 @@ udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
 {
     udp_socket_info_t *old;
     
-	old = rtp->rtcp_sock_info;
+    old = rtp->rtcp_sock_info;
     if (sock_info)
         rtp->rtcp_sock_info = sock_info;
     return old;
@@ -233,16 +183,16 @@ void opbx_rtp_set_callback(struct opbx_rtp *rtp, opbx_rtp_callback callback)
 void opbx_rtp_setnat(struct opbx_rtp *rtp, int nat)
 {
 	rtp->nat = nat;
-    udp_socket_set_nat(rtp->rtp_sock_info, nat);
-    udp_socket_set_nat(rtp->rtcp_sock_info, nat);
+        udp_socket_set_nat(rtp->rtp_sock_info, nat);
+	udp_socket_set_nat(rtp->rtcp_sock_info, nat);
 }
 
 int opbx_rtp_set_framems(struct opbx_rtp *rtp, int ms) 
 {
 	if (ms) {
 		if (rtp->smoother) {
-            opbx_smoother_free(rtp->smoother);
-			rtp->smoother = NULL;
+        	    opbx_smoother_free(rtp->smoother);
+		    rtp->smoother = NULL;
 		}
 
 		rtp->framems = ms;
@@ -255,9 +205,9 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 {
 	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
 	char iabuf[INET_ADDRSTRLEN];
-    const struct sockaddr_in *them;
+	const struct sockaddr_in *them;
 
-    them = udp_socket_get_them(rtp->rtp_sock_info);
+	them = udp_socket_get_them(rtp->rtp_sock_info);
 	if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0) {
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
@@ -796,7 +746,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 	socklen_t len;
 	int hdrlen = 8;
 	int res;
-    int actions;
+	int actions;
 	struct sockaddr_in sin;
 	unsigned int rtcpdata[1024];
 	char iabuf[INET_ADDRSTRLEN];
@@ -805,7 +755,9 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 		return &null_frame;
 
 	len = sizeof(sin);
+
 	res = udp_socket_recvfrom(rtp->rtcp_sock_info, rtcpdata, sizeof(rtcpdata), 0, (struct sockaddr *) &sin, &len, &actions);
+    
 	if (res < 0) {
 		if (errno != EAGAIN)
 			opbx_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
@@ -813,6 +765,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 			CRASH;
 		return &null_frame;
 	}
+
 
 	if ((actions & 1)) {
 		if (option_debug || rtpdebug)
@@ -822,6 +775,29 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 	if (res < hdrlen) {
 		opbx_log(LOG_WARNING, "RTP Read too short\n");
 		return &null_frame;
+	}
+
+	if (udp_socket_get_stunstate(rtp->rtcp_sock_info)==1 ) {
+	    if (stundebug) opbx_log(LOG_DEBUG, "Checking if payload it is a stun RESPONSE  on RTCP\n");
+
+	    struct sockaddr_in stun_sin;
+	    struct stun_state stun_me;
+	    memset(&stun_me,0,sizeof(struct stun_state));
+	    stun_handle_packet(udp_socket_get_stunstate(rtp->rtcp_sock_info), &sin, (unsigned char *)&rtcpdata, res, &stun_me);
+	    if (stun_me.msgtype==STUN_BINDRESP) {
+		if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on RTCP channel\n");
+		udp_socket_set_stunstate(rtp->rtcp_sock_info,2);
+
+		if ( stun_addr2sockaddr(&stun_sin,stun_me.mapped_addr) )
+		    udp_socket_set_stun(rtp->rtcp_sock_info,&stun_sin);
+		else
+		    if (stundebug) opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
+
+		stun_remove_request(&stun_me.id);		
+    
+		return &null_frame;
+	    }
+
 	}
 
 	if (option_debug)
@@ -852,7 +828,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	int padding;
 	int mark;
 	int ext;
-    int actions;
+        int actions;
 	/* Remove the variable for the pointless loop */
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
@@ -861,7 +837,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 	struct rtpPayloadType rtpPT;
 	
 	len = sizeof(sin);
-	
+
 	/* Cache where the header will go */
 	res = rtp_recvfrom(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - OPBX_FRIENDLY_OFFSET,
 					0, (struct sockaddr *) &sin, &len, &actions);
@@ -874,10 +850,38 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 			CRASH;
 		return &null_frame;
 	}
+
+	if (udp_socket_get_stunstate(rtp->rtp_sock_info)==1 ) {
+	    if (stundebug) opbx_log(LOG_DEBUG, "Checking if payload it is a stun RESPONSE on RTP\n");
+
+	    struct sockaddr_in stun_sin;
+	    struct stun_state stun_me;
+	    memset(&stun_me,0,sizeof(struct stun_state));
+	    stun_handle_packet(udp_socket_get_stunstate(rtp->rtp_sock_info), &sin, (unsigned char*) rtp->rawdata + OPBX_FRIENDLY_OFFSET, res, &stun_me);
+	    if (stun_me.msgtype==STUN_BINDRESP) {
+		if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on RTP channel\n");
+		udp_socket_set_stunstate(rtp->rtp_sock_info,2);
+
+		if ( stun_addr2sockaddr(&stun_sin,stun_me.mapped_addr) ) {
+		    udp_socket_set_stun(rtp->rtp_sock_info,&stun_sin);
+	    	    //char iabuf[INET_ADDRSTRLEN];
+		    //opbx_verbose("STUN RTP  %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), stun_sin.sin_addr ) );
+		    //opbx_verbose("STUN RTP  %d\n", ntohs(stun_sin.sin_port) );
+		} else
+		    if (stundebug) opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
+
+		stun_remove_request(&stun_me.id);		
+
+		return &null_frame;
+	    }
+
+	}
+
 	if (res < hdrlen) {
 		opbx_log(LOG_WARNING, "RTP Read too short\n");
 		return &null_frame;
 	}
+
 
 	/* Ignore if the other side hasn't been given an address
 	   yet.  */
@@ -1103,6 +1107,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [110] = {1, OPBX_FORMAT_SPEEX},
   [111] = {1, OPBX_FORMAT_G726},
   [121] = {0, OPBX_RTP_CISCO_DTMF}, /* Must be type 121 */
+    /* 122 used by T38 RTP */
 };
 
 void opbx_rtp_pt_clear(struct opbx_rtp* rtp) 
@@ -1291,13 +1296,13 @@ char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, c
 struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
 {
 	struct opbx_rtp *rtp;
-    struct sockaddr_in sockaddr;
+	struct sockaddr_in sockaddr;
 	int x;
 	int startplace;
 
 	if ((rtp = malloc(sizeof(*rtp))) == NULL)
 		return NULL;
-    memset(rtp, 0, sizeof(struct opbx_rtp));
+	memset(rtp, 0, sizeof(struct opbx_rtp));
 	rtp->ssrc = rand();
 	rtp->seqno = rand() & 0xffff;
 
@@ -1329,8 +1334,8 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
         }
 		if (errno != EADDRINUSE) {
 			opbx_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
-            udp_socket_destroy(rtp->rtp_sock_info);
-            udp_socket_destroy(rtp->rtcp_sock_info);
+        		udp_socket_destroy(rtp->rtp_sock_info);
+        		udp_socket_destroy(rtp->rtcp_sock_info);
 			free(rtp);
 			return NULL;
 		}
@@ -1339,8 +1344,8 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 			x = (rtpstart + 1) & ~1;
 		if (x == startplace) {
 			opbx_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
-            udp_socket_destroy(rtp->rtp_sock_info);
-            udp_socket_destroy(rtp->rtcp_sock_info);
+        		udp_socket_destroy(rtp->rtp_sock_info);
+        		udp_socket_destroy(rtp->rtcp_sock_info);
 			free(rtp);
 			return NULL;
 		}
@@ -1363,7 +1368,7 @@ int opbx_rtp_set_active(struct opbx_rtp *rtp, int active)
 	    {
         	if (rtp->ioid == NULL)
     			rtp->ioid = opbx_io_add(rtp->io, udp_socket_fd(rtp->rtp_sock_info), rtpread, OPBX_IO_IN, rtp);
-        }
+    	    }
 	    else
 	    {
 			if (rtp->ioid)
@@ -1371,7 +1376,7 @@ int opbx_rtp_set_active(struct opbx_rtp *rtp, int active)
 				opbx_io_remove(rtp->io, rtp->ioid);
 				rtp->ioid = NULL;
 			}
-		}
+	    }
     }
     return 0;
 }
@@ -1400,7 +1405,17 @@ void opbx_rtp_get_peer(struct opbx_rtp *rtp, struct sockaddr_in *them)
 
 void opbx_rtp_get_us(struct opbx_rtp *rtp, struct sockaddr_in *us)
 {
-    memcpy(us, udp_socket_get_us(rtp->rtp_sock_info), sizeof(*us));
+    if (udp_socket_get_stunstate(rtp->rtp_sock_info)==2)
+	memcpy(us, udp_socket_get_stun(rtp->rtp_sock_info), sizeof(*us));
+    else
+	memcpy(us, udp_socket_get_us(rtp->rtp_sock_info), sizeof(*us));
+}
+
+int opbx_rtp_get_stunstate(struct opbx_rtp *rtp)
+{
+    if (rtp!=NULL)
+	return udp_socket_get_stunstate(rtp->rtp_sock_info);
+    return 0;
 }
 
 void opbx_rtp_stop(struct opbx_rtp *rtp)
@@ -2205,3 +2220,5 @@ void opbx_rtp_init(void)
 	srtp_install_event_handler(srtp_event_cb);
 #endif
 }
+
+

@@ -34,7 +34,7 @@ extern "C" {
 /*! Device is in use */
 #define OPBX_DEVICE_INUSE	2
 /*! Device is busy */
-#define OPBX_DEVICE_BUSY		3
+#define OPBX_DEVICE_BUSY	3
 /*! Device is invalid */
 #define OPBX_DEVICE_INVALID	4
 /*! Device is unavailable */

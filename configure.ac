@@ -1761,6 +1761,14 @@ AC_ARG_WITH([pbx_realtime],
 AM_CONDITIONAL([WANT_PBX_REALTIME],[test "${with_pbx_realtime}" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH([pbx_ael],
+	[AC_HELP_STRING([--with-pbx_ael],[Build and install pbx_ael (Experimental) (default=no)])],,
+	[with_pbx_ael="no"])
+
+AM_CONDITIONAL([WANT_PBX_AEL],[test "${with_pbx_ael}" = "yes"])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Resources

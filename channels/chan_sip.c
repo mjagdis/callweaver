@@ -1,5 +1,4 @@
-/*
- * OpenPBX -- An open source telephony toolkit.
+/* OpenPBX -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -88,6 +87,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/linkedlists.h"
 #include "openpbx/localtime.h"
 #include "openpbx/udpfromto.h"
+#include "openpbx/stun.h"
 
 #ifdef OSP_SUPPORT
 #include "openpbx/astosp.h"
@@ -475,12 +475,34 @@ static struct io_context *io;
 
 #define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES 		64			/*!< Max amount of lines in SIP attachment (like SDP) */
+#define SIP_MAX_LINE_LEN	512
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
 
 static struct opbx_codec_pref prefs;
 
+#define STUN_DEV_DEBUG			0
+
+#define SIP_DL_DONTCARE		0
+#define SIP_DL_HEAD_CONTENTLENGHT	1
+#define SIP_DL_HEAD_CONTACT		2
+#define SIP_DL_HEAD_VIA			3
+#define SIP_DL_HEAD_CALLID		4
+#define SIP_DL_HEAD_FROM		5
+#define SIP_DL_HEAD_TO			6
+
+#define SIP_DL_SDP_O			20
+#define SIP_DL_SDP_C			21
+#define SIP_DL_SDP_M_AUDIO		22
+#define SIP_DL_SDP_M_VIDEO		23
+#define SIP_DL_SDP_M_T38		24
+
+struct sip_data_line {
+	char   		content[SIP_MAX_LINE_LEN];
+	short int	type;
+	struct 		sip_data_line * next;
+};
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
@@ -495,6 +517,9 @@ struct sip_request {
 	char data[SIP_MAX_PACKET];
 	int debug;		/*!< Debug flag for this packet */
 	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
+    /* ******* stun rework of request ******** */
+	struct sip_data_line	*head_lines;
+	struct sip_data_line	*sdp_lines;
 };
 
 struct sip_pkt;
@@ -643,6 +668,7 @@ static struct sip_pvt {
 	int t38capability;			/*!< Our T38 capability */
 	int t38peercapability;			/*!< Peers T38 capability */
 	int t38jointcapability;			/*!< Supported T38 capability at both ends */
+	int t38clienthacks;
 	int t38state;				/*!< T.38 state : 0 not enabled, 1 offered from local - direct, 2 - offered from local - reinvite, 3 - offered from peer - direct, 4 offered from peer - reinvite, 5 negotiated (enabled) */
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
@@ -658,6 +684,7 @@ static struct sip_pvt {
 	int redircodecs;			/*!< Redirect codecs */
 	struct sockaddr_in recv;		/*!< Received as */
 	struct in_addr ourip;			/*!< Our IP */
+	int ourport;				/*!< Our port seen from stun*/
 	struct opbx_channel *owner;		/*!< Who owns us */
 	char exten[OPBX_MAX_EXTENSION];		/*!< Extension where to start */
 	char refer_to[OPBX_MAX_EXTENSION];	/*!< Place to store REFER-TO extension */
@@ -724,6 +751,8 @@ static struct sip_pvt {
 	int dialogver;
 	
 	struct opbx_dsp *vad;			/*!< Voice Activation Detection dsp */
+	struct opbx_dsp *vadtx;			/*!< Voice Activation Detection dsp on TX */
+	int udptl_active;			/*!<  */
 	
 	struct sip_peer *peerpoke;		/*!< If this calls is to poke a peer, which one */
 	struct sip_registry *registry;		/*!< If this is a REGISTER call, to which registry */
@@ -737,7 +766,26 @@ static struct sip_pvt {
 	struct sip_pvt *next;			/*!< Next call in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	struct opbx_jb_conf jbconf;
+
+	int stun_needed;			/*!< Did we request STUN for this call ? */
+	int stun_resreq_id;
+	int stun_retrans_no;
+	stun_trans_id  stun_transid;
 } *iflist = NULL;
+
+#define STUN_WAIT_RETRY_TIME	100		/*!< ms to wait between every sip packet check for transmission*/
+#define STUN_MAX_RETRANSMIT	4*1000/STUN_WAIT_RETRY_TIME	/*!< max retrans for a packet before giving up. RFC says 9.5 secs, we use 4 secs */
+
+/* This structure saves all data we need to retransmit a request after we have received stun response */
+struct sip_reqresp {
+	int type;
+	struct sip_pvt *p;
+	char   callid[80];
+	struct sip_request req;
+	int reliable;
+	int seqno;
+	struct stun_request *streq;
+};
 
 #define FLAG_RESPONSE (1 << 0)
 #define FLAG_FATAL (1 << 1)
@@ -838,7 +886,7 @@ struct sip_peer {
 	
 	struct sockaddr_in defaddr;	/*!<  Default IP address, used until registration */
 	struct opbx_ha *ha;		/*!<  Access control list */
-	struct opbx_variable *chanvars;	/*!<  Variables to set for channel created by user */
+	struct opbx_variable *chanvars;	/*!<  Variables to set for 	channel created by user */
 	int lastmsg;
 };
 
@@ -1133,14 +1181,14 @@ static void build_via(struct sip_pvt *p, char *buf, int len)
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
 	else /* Work around buggy UNIDEN UIP200 firmware */
-		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
 }
 
 /*! \brief  opbx_sip_ouraddrfor: NAT fix - decide which IP address to use for OpenPBX.org server? */
 /* Only used for outbound registrations */
-static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
+static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p)
 {
 	/*
 	 * Using the localaddr structure built up with localnet statements
@@ -1149,8 +1197,11 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	 */
 	struct sockaddr_in theirs;
 	theirs.sin_addr = *them;
-	if (localaddr && externip.sin_addr.s_addr &&
-	   opbx_apply_ha(localaddr, &theirs)) {
+
+	if ( 
+	    (localaddr && opbx_apply_ha(localaddr, &theirs) )
+	    && (stun_active || externip.sin_addr.s_addr )
+	   ) {
 		char iabuf[INET_ADDRSTRLEN];
 		if (externexpire && (time(NULL) >= externexpire)) {
 			struct opbx_hostent ahp;
@@ -1164,7 +1215,13 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		}
 		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
 		opbx_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
-		opbx_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
+		if (!stun_active) {
+		    opbx_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
+		    p->stun_needed=0;
+		} else {
+		    opbx_log(LOG_DEBUG, "Target address %s is not local, substituting externip and enabling stun\n", iabuf);
+		    p->stun_needed=1;
+		}
 	}
 	else if (bindaddr.sin_addr.s_addr)
 		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
@@ -1518,13 +1575,209 @@ static void parse_copy(struct sip_request *dst, struct sip_request *src)
 	parse_request(dst);
 }
 
+/* ************************************************************************ */
+static void build_callid(char *callid, int len, struct in_addr ourip, char *fromdomain);
+static int sip_resend_reqresp(void *data);
+/* ************************************************************************ bbbb */
+
+static void sip_dealloc_headsdp_lines(struct sip_request *req) 
+{
+        struct sip_data_line *tmpsdl,*tmprem;
+    
+	if (req==NULL) return;
+
+	tmpsdl=req->head_lines;
+	while (tmpsdl!=NULL) {
+	    tmprem=tmpsdl;
+	    tmpsdl=tmpsdl->next;
+	    //opbx_verbose("(-) removing header[%d]: %s\n",tmprem->type, tmprem->content);
+	    free(tmprem);
+	}
+	req->head_lines=NULL;
+
+	tmpsdl=req->sdp_lines;
+	while (tmpsdl!=NULL) {
+	    tmprem=tmpsdl;
+	    tmpsdl=tmpsdl->next;
+	    //opbx_verbose("(-) removing line[%d]: %s\n",tmprem->type, tmprem->content);
+	    free(tmprem);
+	}
+	req->sdp_lines=NULL;
+	return;
+}
+/* ************************************************************************ */
+static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int have_stun) {
+	char iabuf[INET_ADDRSTRLEN];
+	char buf[SIP_MAX_LINE_LEN];
+
+	/* First of all, we rebuild the sip message. If SDP il present, it's probably wrong. */
+	memset(req->data,0,SIP_MAX_HEADERS);
+        struct sip_data_line *tmpsdl, *tmpsdlcl;
+	tmpsdl=req->head_lines;
+	while (tmpsdl!=NULL) {
+
+	    if (tmpsdl->type==SIP_DL_HEAD_CONTENTLENGHT) { // Must recalculate content length
+		int sdplen=0;
+		tmpsdlcl=req->sdp_lines;
+		while (tmpsdlcl!=NULL) {
+		    sdplen+=strlen(tmpsdlcl->content)+2;
+		    tmpsdlcl=tmpsdlcl->next;
+		}
+		sprintf(tmpsdl->content, "Content-Length: %d", sdplen);
+	    }
+	    if (p->stun_needed && have_stun) {
+	        if (tmpsdl->type==SIP_DL_HEAD_CONTACT) {
+
+		    snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, opbx_strlen_zero(p->exten) ? "" : "@", 
+			     opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+		    sprintf(tmpsdl->content, "Contact: %s", p->our_contact);
+
+		}
+	        else if (tmpsdl->type==SIP_DL_HEAD_VIA) { 
+		    snprintf(p->via, SIP_MAX_LINE_LEN, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", 
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
+		    sprintf(tmpsdl->content, "Via: %s", p->via);
+		}
+	        else if (tmpsdl->type==SIP_DL_HEAD_CALLID) { 
+		    //NOT Managed yet. Not a problem
+		}
+	        else if (tmpsdl->type==SIP_DL_HEAD_FROM) { 
+		    //NOT Managed yet. Not a problem
+		}
+	    }
+#if STUN_DEV_DEBUG
+	    opbx_verbose("(*) joining header[%d]: %s\n",tmpsdl->type, tmpsdl->content);
+#endif
+	    strcat(req->data,tmpsdl->content);
+	    strcat(req->data,"\r\n");
+	    tmpsdl=tmpsdl->next;
+	}
+
+        // Separator between headers and sdp
+        strcat(req->data,"\r\n");
+        tmpsdl=req->sdp_lines;
+
+#if STUN_DEV_DEBUG
+        opbx_verbose("STUN_NEEDED: %d - HAVE_STUN: %d\n",p->stun_needed, have_stun);
+#endif
+        while (tmpsdl!=NULL) {
+	    if (p->stun_needed && have_stun) {
+
+	        if (tmpsdl->type==SIP_DL_SDP_O) {
+		}
+	        else if (tmpsdl->type==SIP_DL_SDP_C) {
+		}
+	        else if (tmpsdl->type==SIP_DL_SDP_M_AUDIO) {
+		    struct sockaddr_in port;
+		    opbx_rtp_get_us(p->rtp,&port);
+		    snprintf(buf, SIP_MAX_LINE_LEN, 
+			"m=audio %d RTP/AVP %s", ntohs(port.sin_port),
+			 ( strstr(tmpsdl->content,"RTP/AVP ")!=NULL ) ? 
+			    strstr(tmpsdl->content,"RTP/AVP ")+strlen("RTP/AVP ") : NULL
+		    );
+#if STUN_DEV_DEBUG
+		    opbx_verbose("M_AUDIO was: %s\n",tmpsdl->content);
+		    opbx_verbose("M_AUDIO is : %s\n",buf);
+#endif
+		    strncpy(tmpsdl->content,buf,SIP_MAX_LINE_LEN);
+		}
+	        else if (tmpsdl->type==SIP_DL_SDP_M_VIDEO) {
+		    struct sockaddr_in port;
+		    opbx_rtp_get_us(p->vrtp,&port);
+		    snprintf(buf, SIP_MAX_LINE_LEN, 
+			"m=video %d RTP/AVP %s", ntohs(port.sin_port),
+			 ( strstr(tmpsdl->content,"RTP/AVP ")!=NULL ) ? 
+			    strstr(tmpsdl->content,"RTP/AVP ")+strlen("RTP/AVP ") : NULL
+		    );
+		    strncpy(tmpsdl->content,buf,SIP_MAX_LINE_LEN);
+		}
+	        else if (tmpsdl->type==SIP_DL_SDP_M_T38) {
+		    struct sockaddr_in port;
+		    opbx_udptl_get_us(p->udptl,&port);
+		    snprintf(tmpsdl->content, SIP_MAX_LINE_LEN, "m=image %d udptl t38", ntohs(port.sin_port));
+		}
+	    }
+
+#if STUN_DEV_DEBUG
+	    opbx_verbose("(*) joining sdp[%d]: %s\n",tmpsdl->type, tmpsdl->content);
+#endif
+            strcat(req->data,tmpsdl->content);
+    	    strcat(req->data,"\r\n");
+	    tmpsdl=tmpsdl->next;
+	}
+
+	req->len=strlen(req->data);
+
+}
+/* ************************************************************************ */
+
+static int if_callid_exists(char *callid) {
+    struct sip_pvt *cur=NULL;
+    cur = iflist;
+    while(cur) {
+	if (!strcmp(cur->callid, callid)) return 1;
+	cur=cur->next;
+    }
+    return 0;
+}
+
 /*! \brief  send_response: Transmit response on SIP request*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
-	int res;
+	int res=0;
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_request tmp;
 	char tmpmsg[80];
+
+	if (stun_active && p->stun_needed==1) {
+	    opbx_log(LOG_DEBUG,"This call response %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
+
+	    struct sip_reqresp *rr;
+	    rr=malloc(sizeof(struct sip_reqresp));
+	    memset(rr,0,sizeof(struct sip_reqresp));
+	    rr->type=1;
+	    rr->reliable=reliable;
+	    rr->seqno=seqno;
+	    memcpy (&rr->req,req,sizeof(struct sip_request));
+	    memcpy (&rr->callid,p->callid,sizeof(p->callid));
+	    rr->p=p;
+	    rr->p->stun_retrans_no=0;
+	    rr->streq=opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
+
+	    /* ************************************ */
+	    if (p->rtp && !opbx_rtp_get_stunstate(p->rtp)) {
+		    opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+	    }
+	    if (p->vrtp && !opbx_rtp_get_stunstate(p->vrtp)) {
+		    opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+	    }
+#if T38_SUPPORT
+	    if (p->udptl && !opbx_udptl_get_stunstate(p->udptl)) {
+		    opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+    	    }
+#endif
+	    /* ************************************ */
+
+	    if (rr->streq) {
+		if (stundebug)
+		    opbx_verbose("** Sent STUN packet for response %d\n",rr->streq->req_head.id.id[0]);
+		rr->p->stun_resreq_id=opbx_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);	 
+		return 0;   
+	    } else {
+		opbx_log(LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
+	    }
+	} else if (p->stun_needed==2) {
+	    if (stundebug)
+	    opbx_log(LOG_DEBUG,"This transmit response has already a stun %d\n",p->stun_needed);
+	    sip_rebuild_payload(p,req,1);
+	} else {
+	    if (stundebug) opbx_log(LOG_DEBUG,"This transmit response has stun at %d\n",p->stun_needed);
+	    sip_rebuild_payload(p,req,0);
+
+	}
 
 	if (sip_debug_test_pvt(p)) {
 		if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
@@ -1532,6 +1785,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 		else
 			opbx_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
 	}
+
 	if (reliable) {
 		if (recordhistory) {
 			parse_copy(&tmp, req);
@@ -1547,18 +1801,71 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 		}
 		res = __sip_xmit(p, req->data, req->len);
 	}
-	if (res > 0)
-		return 0;
+	p->stun_needed=0;
+	sip_dealloc_headsdp_lines(req);
 	return res;
 }
 
 /*! \brief  send_request: Send SIP Request to the other part of the dialogue */
 static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
-	int res;
+	int res=0;
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_request tmp;
 	char tmpmsg[80];
+
+	sip_rebuild_payload(p,req,0);
+
+	if (stun_active && p->stun_needed==1) {
+	    opbx_log(LOG_DEBUG,"This call request %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
+
+	    struct sip_reqresp *rr;
+	    rr=malloc(sizeof(struct sip_reqresp));
+	    memset(rr,0,sizeof(struct sip_reqresp));
+	    rr->type=2;
+	    rr->reliable=reliable;
+	    rr->seqno=seqno;
+	    memcpy (&rr->req,req,sizeof(struct sip_request));
+	    memcpy (&rr->callid,p->callid,sizeof(p->callid));
+	    rr->p=p;
+	    rr->p->stun_retrans_no=0;
+	    rr->streq=opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
+
+	    /* ************************************ */
+	    if (p->rtp && !opbx_rtp_get_stunstate(p->rtp)) {
+		    opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+	    }
+	    if (p->vrtp && !opbx_rtp_get_stunstate(p->vrtp)) {
+		    opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+	    }
+#if T38_SUPPORT
+	    if (p->udptl && !opbx_udptl_get_stunstate(p->udptl)) {
+		    opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+    	    }
+#endif
+	    /* ************************************ */
+
+	    if (rr->streq) {
+		if (stundebug)
+		    opbx_log(LOG_DEBUG,"** Sent STUN packet for request %d\n",rr->streq->req_head.id.id[0]);
+		rr->p->stun_resreq_id=opbx_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);	 
+		return 0;   
+	    } else {
+		opbx_log(LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
+	    }
+
+/**/
+	} else if (p->stun_needed==2) {
+	    if (stundebug)
+	    opbx_log(LOG_DEBUG,"This transmit request has already a stun %d\n",p->stun_needed);
+	    sip_rebuild_payload(p,req,1);
+	} else  {
+	    if (stundebug) opbx_log(LOG_DEBUG,"This transmit request has stun at %d\n",p->stun_needed);
+	    sip_rebuild_payload(p,req,0);
+	}
 
 	if (sip_debug_test_pvt(p)) {
 		if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
@@ -1581,8 +1888,128 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 		}
 		res = __sip_xmit(p, req->data, req->len);
 	}
+	p->stun_needed=0;
+	sip_dealloc_headsdp_lines(req);
 	return res;
 }
+
+/* ************************************************************************ aaaa */ 
+static int sip_resend_reqresp(void *data) {
+    int res=0;
+    struct sip_reqresp *rr=data;    
+    struct stun_addr *map=NULL;
+    struct sip_pvt *p=rr->p;
+    struct sip_request tmp;
+    struct sockaddr_in msin;
+
+    if (!rr) 
+	return 0;
+
+    if (!if_callid_exists(rr->callid) ) {
+	opbx_log(LOG_WARNING, "REQRESP: callid %s has been destroyed in the meanwhile. \n",rr->callid);	
+        sip_dealloc_headsdp_lines(&rr->req);
+	free(data);
+	return 0;
+    }
+    if (rr->streq) {
+	if (stundebug)
+	    opbx_verbose("** expected stun reqid %d\n",rr->streq->req_head.id.id[0]);
+    } else {
+	if (stundebug)
+	    opbx_verbose("** deleting transmission retrial 'cause stun request is not set\n");
+	rr->p->stun_needed=0;
+	sip_dealloc_headsdp_lines(&rr->req);
+	free(data);
+	return 0;
+    }
+
+    rr->p->stun_retrans_no++;
+    if ( rr->p->stun_retrans_no > STUN_MAX_RETRANSMIT) {
+	if (stundebug)
+	    opbx_verbose("Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n",rr->p->stun_resreq_id);
+	    p->stun_needed=0;
+	sip_dealloc_headsdp_lines(&rr->req);
+	free(data);
+	return 0;
+    };
+
+    if (stundebug)
+    opbx_verbose("** Trying to resend a packet after stun request. "
+		 "Type %d, seqno %d sched %d, callid %s\n",rr->type,rr->seqno,rr->p->stun_resreq_id, rr->callid);
+
+
+    map=opbx_stun_find_request(&rr->streq->req_head.id);
+
+    if (stundebug)
+	    opbx_verbose("** STUN: state - sip: %d - sdp ports: rtp:%d vrtp:%d udptl:%d \n",
+		(!map) ? 1 : 2,
+		opbx_rtp_get_stunstate(p->rtp),
+    		opbx_rtp_get_stunstate(p->vrtp),
+		opbx_udptl_get_stunstate(p->udptl)
+	    );
+
+    if (map
+	&& opbx_rtp_get_stunstate(p->rtp)!=1
+	&& opbx_rtp_get_stunstate(p->vrtp)!=1
+	&& opbx_udptl_get_stunstate(p->udptl)!=1
+       ) {
+	char iabuf[INET_ADDRSTRLEN];
+	stun_addr2sockaddr(&msin,map);
+	memcpy(&p->stun_transid,&rr->streq->req_head.id, sizeof(stun_trans_id) );
+	if (stundebug)
+    	    opbx_verbose("** STUN: Mapped address is %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr ) );
+	if (stundebug)
+    	    opbx_verbose("** STUN: Mapped port is %d\n", ntohs(map->port) );	
+    }
+    else {
+	if (stundebug)
+	    opbx_verbose("** SIP port stun mapped address not found. STUN state on sdp ports is: rtp:%d vrtp:%d udptl:%d \n",
+		opbx_rtp_get_stunstate(p->rtp),
+    		opbx_rtp_get_stunstate(p->vrtp),
+		opbx_udptl_get_stunstate(p->udptl)
+	    );
+	rr->p->stun_resreq_id=opbx_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);
+	return res;
+    }
+
+
+
+    p->ourip=msin.sin_addr;
+    p->ourport=ntohs(map->port);
+
+#if STUN_DEV_DEBUG
+    opbx_verbose("** STUN rebuilding payload before sending reqresp\n");
+#endif
+    sip_rebuild_payload(rr->p,&rr->req,1);
+    parse_copy(&tmp,&rr->req);
+
+    if (rr->type==1) {
+	if (stundebug)
+	opbx_verbose("** STUN Sending response after acquiring STUN\n");
+	/* This is a send_response*/
+	rr->p->stun_needed=2;
+	send_response(rr->p, &rr->req, rr->reliable, rr->seqno);
+    }
+    else if (rr->type==2) {
+	if (stundebug)
+	    opbx_verbose("** STUN Sending request after acquiring STUN\n");
+	/* This is a send_request*/
+	rr->p->stun_needed=2;
+	send_request(rr->p, &rr->req, rr->reliable, rr->seqno);
+    } else {
+	if (stundebug)
+	    opbx_verbose("deleting this request of reqresp %d\n",rr->p->stun_resreq_id);
+    }
+
+    sip_dealloc_headsdp_lines(&rr->req);
+    stun_remove_request(&rr->streq->req_head.id);		
+    free(data);
+
+
+    return res;
+}
+
+/* ************************************************************************ */
 
 /*! \brief  get_in_brackets: Pick out text in brackets from character string */
 /* returns pointer to terminated stripped string. modifies input string. */
@@ -2188,6 +2615,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (dumphistory)
 		sip_dump_history(p);
 
+//	if (p->stun_needed>0) stun_remove_request(&p->stun_transid);
+
 	if (p->options)
 		free(p->options);
 
@@ -2623,10 +3052,11 @@ static int sip_answer(struct opbx_channel *ast)
 }
 
 /*! \brief  sip_write: Send frame to media channel (rtp) */
-static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
+static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int *faxdetect)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;
+
 	switch (frame->frametype) {
 	case OPBX_FRAME_VOICE:
 		if (!(frame->subclass & ast->nativeformats)) {
@@ -2644,6 +3074,18 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
 				}
 				time(&p->lastrtptx);
 				res =  opbx_rtp_write(p->rtp, frame);
+
+			    // Outgoing Fax detection
+                    		    if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vadtx) {
+                            		frame = opbx_dsp_process(p->owner, p->vadtx, frame);
+                            		if (frame && (frame->frametype == OPBX_FRAME_DTMF)) {
+                                    	    if (t38udptlsupport && frame->subclass == 'f')  {
+						opbx_log(LOG_DEBUG, "OUTGOING Fax CNG detected on %s\n", ast->name);
+						*faxdetect = 1;
+					    }
+					}
+				    }
+
 			}
 			opbx_mutex_unlock(&p->lock);
 		}
@@ -2687,6 +3129,35 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
 	}
 
 	return res;
+}
+
+/*! \brief  sip_write: Send frame to media channel (rtp) */
+static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
+{
+    int res=0;
+    struct sip_pvt *p = ast->tech_pvt;
+    int faxdetected = 0;
+
+    res=sip_rtp_write(ast,frame,&faxdetected);
+
+	if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast))) {
+	    opbx_log(LOG_VERBOSE, "Faxdetect set to 1. DSP detected fax tones on TX\n");
+		if (!opbx_test_flag(p, SIP_GOTREFER)) {
+			if (!p->pendinginvite) {
+				if (option_debug > 2)
+					opbx_log(LOG_DEBUG, "Sending reinvite on SIP (%s) for T.38 negotiation.\n",ast->name);
+				p->t38state = 2;
+				transmit_reinvite_with_t38_sdp(p);
+				opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,ast->name);
+			}
+		} else if (!opbx_test_flag(p, SIP_PENDINGBYE)) {
+				if (option_debug > 2)
+					opbx_log(LOG_DEBUG, "Deferring reinvite on SIP (%s) - it will be re-negotiated for T.38\n",ast->name);
+				opbx_set_flag(p, SIP_NEEDREINVITE);
+		}
+	}
+
+    return res;
 }
 
 /*! \brief  sip_fixup: Fix up a channel:  If a channel is consumed, this is called.
@@ -2914,12 +3385,19 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	if (opbx_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
 		i->vad = opbx_dsp_new();
 #if T38_SUPPORT
-		opbx_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+		opbx_dsp_set_features(i->vad,   DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+		i->vadtx = opbx_dsp_new();
+		opbx_dsp_set_features(i->vadtx, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
 #else
 		opbx_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
 #endif
-		if (relaxdtmf)
-			opbx_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+		if (relaxdtmf) {
+			opbx_dsp_digitmode(i->vad  , DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+#if T38_SUPPORT
+			opbx_dsp_digitmode(i->vadtx, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+#endif
+		}
+
 	}
 	if (i->rtp) {
 		tmp->fds[0] = opbx_rtp_fd(i->rtp);
@@ -3108,15 +3586,21 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
 	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
 	struct opbx_frame *f;
 	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
-	
+
 	if (!p->rtp) {
 		/* We have no RTP allocated for this channel */
 		return &null_frame;
 	}
 
+
 	switch(ast->fdno) {
 	case 0:
-		f = opbx_rtp_read(p->rtp);	/* RTP Audio */
+#if T38_SUPPORT
+    		if (p->udptl_active)
+    		    f = opbx_udptl_read( (struct opbx_udptl*) p->rtp );	/* UDPTL for T.38 */
+    		else
+#endif
+    		    f = opbx_rtp_read(p->rtp);	/* RTP Audio */
 		break;
 	case 1:
 		f = opbx_rtcp_read(p->rtp);	/* RTCP Control Channel */
@@ -3186,7 +3670,7 @@ static struct opbx_frame *sip_read(struct opbx_channel *ast)
 					opbx_log(LOG_DEBUG, "Sending reinvite on SIP (%s) for T.38 negotiation.\n",ast->name);
 				p->t38state = 2;
 				transmit_reinvite_with_t38_sdp(p);
-				opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s",p->t38state,ast->name);
+				opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,ast->name);
 			}
 		} else if (!opbx_test_flag(p, SIP_PENDINGBYE)) {
 				if (option_debug > 2)
@@ -3239,6 +3723,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 	p->subscribed = NONE;
 	p->stateid = -1;
 	p->prefs = prefs;
+	p->ourport=ourport;
+
+	p->stun_needed=0;
+	p->stun_resreq_id=0;
+	memset(&p->stun_transid,0,sizeof(stun_trans_id));
+
 	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
 		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
 #ifdef OSP_SUPPORT
@@ -3250,9 +3740,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		if (sout && sout->sin_addr.s_addr)
 			memcpy(&p->ourip, &sout->sin_addr, sizeof(p->ourip));
 		else
-			if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+			if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
 				memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-		if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
 			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
@@ -3267,9 +3757,13 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		p->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (videosupport)
 			p->vrtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+    		p->udptl_active = 0;
 #if T38_SUPPORT
-		if (t38udptlsupport)
+		p->t38clienthacks = 0;
+		if (t38udptlsupport) {
 			p->udptl = opbx_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
+			//p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
+		}
 #endif
 		if (!p->rtp || (videosupport && !p->vrtp)) {
 			opbx_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
@@ -3298,12 +3792,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		opbx_copy_flags(p, &global_flags, SIP_NAT);
 		memcpy(&p->recv, sin, sizeof(p->recv));
 		if (p->rtp)
-			opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE & p->stun_needed));
 		if (p->vrtp)
-			opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE & p->stun_needed));
 #if T38_SUPPORT
 		if (p->udptl)
-			opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE & p->stun_needed));
 #endif
 	}
 
@@ -3657,6 +4151,19 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		opbx_log(LOG_NOTICE, "Content is '%s', not 'application/sdp'\n", get_header(req, "Content-Type"));
 		return -1;
 	}
+
+#if T38_SUPPORT
+	/* Detecting Cisco GW to swap ports when in T38 fax mode */
+	m = get_sdp(req, "o");
+	opbx_log(LOG_DEBUG, "Got this other party (o = '%s')\n",m);
+	if (!strncasecmp(m, "CiscoSystemsSIP-GW-UserAgent", strlen("CiscoSystemsSIP-GW-UserAgent"))) {
+	    opbx_log(LOG_DEBUG, "Other Party is CISCO. Enabling workarounds\n");
+	    p->t38clienthacks=1;
+	} else {
+	    p->t38clienthacks=0;
+	}
+#endif
+
 	m = get_sdp(req, "m");
 	sdpLineNum_iterator_init(&destiterator);
 	c = get_sdp_iterate(&destiterator, req, "c");
@@ -3702,6 +4209,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				opbx_verbose("Got T.38 offer in SDP\n");
 			found = 1;
 			udptlportno = x;
+
+			/* Maybe we could use clienthacks ifwe do not want to use rtp port as udptl in all cases */
+			    opbx_log(LOG_ERROR, "Activating UDPTL on response %s (1)\n", p->callid);
+			    opbx_rtp_set_active(p->rtp, 0);
+			    opbx_udptl_set_active(p->udptl, 1);
+			    p->udptl_active = 1;
 			
 			if (p->owner && p->lastinvite) {
 				p->t38state = 4; /* T38 Offered in re-invite from remote party */
@@ -4052,7 +4565,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief  add_header: Add header to SIP message */
-static int add_header(struct sip_request *req, const char *var, const char *value)
+static int add_header(struct sip_request *req, const char *var, const char *value, short int type)
 {
 	int x = 0;
 
@@ -4079,9 +4592,41 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 				var = aliases[x].shortname;
 	}
 
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
+	if (strlen(var)==0)
+	    snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s\r\n", value);
+	else if (strlen(value)==0)
+	    snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s\r\n", var);
+	else
+	    snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
+
+	struct sip_data_line *line, *pointer;
+	char	content[SIP_MAX_LINE_LEN];
+
+	if (strlen(var)==0)
+	    snprintf(content, sizeof(struct sip_data_line), "%s", value);
+	else if (strlen(value)==0)
+    	    snprintf(content, sizeof(struct sip_data_line), "%s", var);
+	else
+    	    snprintf(content, sizeof(struct sip_data_line), "%s: %s", var, value);
+
+	//opbx_verbose("]*[adding head: %s %s\n",var,value);
+
+	line=malloc( sizeof(struct sip_data_line) );
+	if (line ) {
+	    memset(line,0,sizeof(struct sip_data_line));
+	    memcpy(line,&content,strlen(content));
+	    line->next=NULL;
+	    line->type=type;
+	    pointer=req->head_lines;
+	    if (req->head_lines==NULL) req->head_lines=line;
+	    else {
+		while (pointer->next!=NULL) pointer=pointer->next;
+		pointer->next=line;
+		//req->headers++;
+	    }
+	} else return -1;
 
 	return 0;	
 }
@@ -4092,7 +4637,7 @@ static int add_header_contentLength(struct sip_request *req, int len)
 	char clen[10];
 
 	snprintf(clen, sizeof(clen), "%d", len);
-	return add_header(req, "Content-Length", clen);
+	return add_header(req, "Content-Length", clen, SIP_DL_HEAD_CONTENTLENGHT);
 }
 
 /*! \brief  add_blank_header: Add blank header to SIP message */
@@ -4114,11 +4659,12 @@ static int add_blank_header(struct sip_request *req)
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "\r\n");
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
+
 	return 0;	
 }
 
 /*! \brief  add_line: Add content (not header) to SIP message */
-static int add_line(struct sip_request *req, const char *line)
+static int add_line(struct sip_request *req, const char *dline, short int type)
 {
 	if (req->lines == SIP_MAX_LINES)  {
 		opbx_log(LOG_WARNING, "Out of SIP line space\n");
@@ -4134,9 +4680,33 @@ static int add_line(struct sip_request *req, const char *line)
 		return -1;
 	}
 	req->line[req->lines] = req->data + req->len;
-	snprintf(req->line[req->lines], sizeof(req->data) - req->len, "%s", line);
+	snprintf(req->line[req->lines], sizeof(req->data) - req->len, "%s\r\n", dline);
 	req->len += strlen(req->line[req->lines]);
 	req->lines++;
+
+	struct sip_data_line *line, *pointer;
+	char	content[SIP_MAX_LINE_LEN];
+
+	snprintf(content, sizeof(struct sip_data_line), "%s", dline);
+	//opbx_verbose("]*[adding line: %s\n",content);
+
+	line=malloc( sizeof(struct sip_data_line) );
+	if (line) {
+	    memset(line,0,sizeof(struct sip_data_line));
+	    memcpy(line,&content,sizeof(struct sip_data_line)-1);
+	    line->next=NULL;
+            line->type=type; 
+
+	    pointer=req->sdp_lines;
+	    if (req->sdp_lines==NULL) req->sdp_lines=line;
+	    else {
+		while (pointer->next!=NULL) pointer=pointer->next;
+		pointer->next=line;
+		//req->lines++;
+	    }
+	} else return -1;
+
+
 	return 0;	
 }
 
@@ -4147,7 +4717,7 @@ static int copy_header(struct sip_request *req, struct sip_request *orig, char *
 	tmp = get_header(orig, field);
 	if (!opbx_strlen_zero(tmp)) {
 		/* Add what we're responding to */
-		return add_header(req, field, tmp);
+		return add_header(req, field, tmp, SIP_DL_DONTCARE);
 	}
 	opbx_log(LOG_NOTICE, "No field '%s' present to copy\n", field);
 	return -1;
@@ -4163,7 +4733,7 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 		tmp = __get_header(orig, field, &start);
 		if (!opbx_strlen_zero(tmp)) {
 			/* Add what we're responding to */
-			add_header(req, field, tmp);
+			add_header(req, field, tmp, SIP_DL_DONTCARE);
 			copied++;
 		} else
 			break;
@@ -4219,10 +4789,10 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 					/* We should *always* add a received to the topmost via */
 					snprintf(new, sizeof(new), "%s;received=%s", oh, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
 				}
-				add_header(req, field, new);
+				add_header(req, field, new, SIP_DL_DONTCARE);
 			} else {
 				/* Add the following via headers untouched */
-				add_header(req, field, oh);
+				add_header(req, field, oh, SIP_DL_DONTCARE);
 			}
 			copied++;
 		} else
@@ -4258,7 +4828,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 		route = route->next;
 	}
 	*p = '\0';
-	add_header(req, "Route", r);
+	add_header(req, "Route", r, SIP_DL_DONTCARE);
 }
 
 /*! \brief  set_destination: Set destination from SIP URI */
@@ -4322,6 +4892,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	p->sa.sin_port = htons(port);
 	if (debug)
 		opbx_verbose("set_destination: set destination to %s, port %d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), port);
+
+	opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p);
 }
 
 /*! \brief  init_resp: Initialize SIP response, based on SIP request */
@@ -4334,9 +4906,14 @@ static int init_resp(struct sip_request *req, char *resp, struct sip_request *or
 	}
 	req->method = SIP_RESPONSE;
 	req->header[req->headers] = req->data + req->len;
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "SIP/2.0 %s\r\n", resp);
-	req->len += strlen(req->header[req->headers]);
-	req->headers++;
+	req->head_lines=NULL;
+	req->sdp_lines=NULL;
+//	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "SIP/2.0 %s\r\n", resp);
+//	req->len += strlen(req->header[req->headers]);
+//	req->headers++;
+	char content[256];
+	sprintf(content,"SIP/2.0 %s",resp);
+	add_header(req,content,"", SIP_DL_DONTCARE);
 	return 0;
 }
 
@@ -4348,11 +4925,16 @@ static int init_req(struct sip_request *req, int sipmethod, char *recip)
 		opbx_log(LOG_WARNING, "Request already initialized?!?\n");
 		return -1;
 	}
-	req->header[req->headers] = req->data + req->len;
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
-	req->len += strlen(req->header[req->headers]);
-	req->headers++;
 	req->method = sipmethod;
+	req->header[req->headers] = req->data + req->len;
+	req->head_lines=NULL;
+	req->sdp_lines=NULL;
+//	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
+//	req->len += strlen(req->header[req->headers]);
+//	req->headers++;
+	char content[256];
+	sprintf(content,"%s %s SIP/2.0", sip_methods[sipmethod].text, recip);
+	add_header(req,content,"", SIP_DL_DONTCARE);
 	return 0;
 }
 
@@ -4382,26 +4964,26 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		}
 		ot = newto;
 	}
-	add_header(resp, "To", ot);
+	add_header(resp, "To", ot, SIP_DL_DONTCARE);
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
-	add_header(resp, "User-Agent", default_useragent);
-	add_header(resp, "Allow", ALLOWED_METHODS);
-	add_header(resp, "Max-Forwards", DEFAULT_MAX_FORWARDS);
+	add_header(resp, "User-Agent", default_useragent, SIP_DL_DONTCARE);
+	add_header(resp, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
+	add_header(resp, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
 		   contact info */
 		char tmp[256];
 
 		snprintf(tmp, sizeof(tmp), "%d", p->expiry);
-		add_header(resp, "Expires", tmp);
+		add_header(resp, "Expires", tmp, SIP_DL_DONTCARE);
 		if (p->expiry) {	/* Only add contact if we have an expiry time */
 			char contact[256];
 			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
-			add_header(resp, "Contact", contact);	/* Not when we unregister */
+			add_header(resp, "Contact", contact, SIP_DL_HEAD_CONTACT);	/* Not when we unregister */
 		}
 	} else if (p->our_contact[0]) {
-		add_header(resp, "Contact", p->our_contact);
+		add_header(resp, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
 	}
 	return 0;
 }
@@ -4461,7 +5043,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	snprintf(tmp, sizeof(tmp), "%d %s", seqno, sip_methods[sipmethod].text);
 
-	add_header(req, "Via", p->via);
+	add_header(req, "Via", p->via, SIP_DL_HEAD_VIA);
 	if (p->route) {
 		set_destination(p, p->route->hop);
 		if (is_strict)
@@ -4488,21 +5070,21 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	}
 
 	if (opbx_test_flag(p, SIP_OUTGOING)) {
-		add_header(req, "From", of);
-		add_header(req, "To", ot);
+		add_header(req, "From", of, SIP_DL_DONTCARE);
+		add_header(req, "To", ot, SIP_DL_DONTCARE);
 	} else {
-		add_header(req, "From", ot);
-		add_header(req, "To", of);
+		add_header(req, "From", ot, SIP_DL_DONTCARE);
+		add_header(req, "To", of, SIP_DL_DONTCARE);
 	}
-	add_header(req, "Contact", p->our_contact);
+	add_header(req, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
 	copy_header(req, orig, "Call-ID");
-	add_header(req, "CSeq", tmp);
+	add_header(req, "CSeq", tmp, SIP_DL_DONTCARE);
 
-	add_header(req, "User-Agent", default_useragent);
-	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
+	add_header(req, "User-Agent", default_useragent, SIP_DL_DONTCARE);
+	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
 
 	if (p->rpid)
-		add_header(req, "Remote-Party-ID", p->rpid);
+		add_header(req, "Remote-Party-ID", p->rpid, SIP_DL_DONTCARE);
 
 	return 0;
 }
@@ -4522,7 +5104,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
 	if (p->owner && p->owner->hangupcause) {
-		add_header(&resp, "X-OpenPBX-HangupCause", opbx_cause2str(p->owner->hangupcause));
+		add_header(&resp, "X-OpenPBX-HangupCause", opbx_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
 	}
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
@@ -4540,7 +5122,7 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, stru
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
-	add_header(&resp, "Unsupported", unsupported);
+	add_header(&resp, "Unsupported", unsupported, SIP_DL_DONTCARE);
 	return send_response(p, &resp, 0, 0);
 }
 
@@ -4560,7 +5142,7 @@ static void append_date(struct sip_request *req)
 	time(&t);
 	gmtime_r(&t, &tm);
 	strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T GMT", &tm);
-	add_header(req, "Date", tmpdat);
+	add_header(req, "Date", tmpdat, SIP_DL_DONTCARE);
 }
 
 /*! \brief  transmit_response_with_date: Append date and content length before transmitting response */
@@ -4579,7 +5161,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
-	add_header(&resp, "Accept", "application/sdp");
+	add_header(&resp, "Accept", "application/sdp", SIP_DL_DONTCARE);
 	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, 0);
@@ -4600,7 +5182,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 	   based it on an old challenge (nonce) */
 	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
-	add_header(&resp, header, tmp);
+	add_header(&resp, header, tmp, SIP_DL_DONTCARE);
 	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
@@ -4610,9 +5192,9 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 static int add_text(struct sip_request *req, const char *text)
 {
 	/* XXX Convert \n's to \r\n's XXX */
-	add_header(req, "Content-Type", "text/plain");
+	add_header(req, "Content-Type", "text/plain", SIP_DL_DONTCARE);
 	add_header_contentLength(req, strlen(text));
-	add_line(req, text);
+	add_line(req, text, SIP_DL_DONTCARE);
 	return 0;
 }
 
@@ -4622,10 +5204,12 @@ static int add_digit(struct sip_request *req, char digit)
 {
 	char tmp[256];
 
-	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=250\r\n", digit);
-	add_header(req, "Content-Type", "application/dtmf-relay");
+	add_header(req, "Content-Type", "application/dtmf-relay", SIP_DL_DONTCARE);
 	add_header_contentLength(req, strlen(tmp));
-	add_line(req, tmp);
+	snprintf(tmp, sizeof(tmp), "Signal=%c", digit);
+	add_line(req, tmp, SIP_DL_DONTCARE);
+	snprintf(tmp, sizeof(tmp), "Duration=250");
+	add_line(req, tmp, SIP_DL_DONTCARE);
 	return 0;
 }
 
@@ -4642,51 +5226,57 @@ static int add_vidupdate(struct sip_request *req)
 		"    </picture_fopbx_update>\r\n"
 		"   </to_encoder>\r\n"
 		"  </vc_primitive>\r\n"
-		" </media_control>\r\n";
-	add_header(req, "Content-Type", "application/media_control+xml");
+		" </media_control>";
+	add_header(req, "Content-Type", "application/media_control+xml", SIP_DL_DONTCARE);
 	add_header_contentLength(req, strlen(xml_is_a_huge_waste_of_space));
-	add_line(req, xml_is_a_huge_waste_of_space);
+	add_line(req, xml_is_a_huge_waste_of_space, SIP_DL_DONTCARE);
 	return 0;
 }
 
-static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
-			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
-			     int debug)
+static void add_codec_to_sdp(const struct sip_pvt *p, struct sip_request *resp, 
+			     int codec, int sample_rate, int debug)
 {
 	int rtp_code;
+	char line[256];
 
 	if (debug)
 		opbx_verbose("Adding codec 0x%x (%s) to SDP\n", codec, opbx_getformatname(codec));
 	if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 1, codec)) == -1)
 		return;
 
-	opbx_build_string(m_buf, m_size, " %d", rtp_code);
-	opbx_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	sprintf(line, "a=rtpmap:%d %s/%d", rtp_code,
 			 opbx_rtp_lookup_mime_subtype(1, codec),
 			 sample_rate);
-	if (codec == OPBX_FORMAT_G729A)
-		/* Indicate that we don't support VAD (G.729 annex B) */
-		opbx_build_string(a_buf, a_size, "a=fmtp:%d annexb=no\r\n", rtp_code);
+	add_line(resp,line, SIP_DL_DONTCARE);
+
+	if (codec == OPBX_FORMAT_G729A) {
+	    /* Indicate that we don't support VAD (G.729 annex B) */
+	    sprintf(line, "a=fmtp:%d annexb=no", rtp_code);
+	    add_line(resp,line, SIP_DL_DONTCARE);
+	}
 }
 
-static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
-				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
-				int debug)
+static void add_noncodec_to_sdp(const struct sip_pvt *p, struct sip_request *resp,
+				int format, int sample_rate, int debug)
 {
 	int rtp_code;
+	char line[256];
 
 	if (debug)
 		opbx_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, opbx_rtp_lookup_mime_subtype(0, format));
 	if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 0, format)) == -1)
 		return;
 
-	opbx_build_string(m_buf, m_size, " %d", rtp_code);
-	opbx_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	sprintf(line, "a=rtpmap:%d %s/%d", rtp_code,
 			 opbx_rtp_lookup_mime_subtype(0, format),
 			 sample_rate);
-	if (format == OPBX_RTP_DTMF)
-		/* Indicate we support DTMF and FLASH... */
-		opbx_build_string(a_buf, a_size, "a=fmtp:%d 0-16\r\n", rtp_code);
+	add_line(resp,line, SIP_DL_DONTCARE);
+
+	if (format == OPBX_RTP_DTMF) {
+	    /* Indicate we support DTMF and FLASH... */
+	    sprintf(line, "a=fmtp:%d 0-16", rtp_code);
+	    add_line(resp,line, SIP_DL_DONTCARE);
+	}
 }
 
 #if T38_SUPPORT
@@ -4731,10 +5321,6 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char t[256] = "";
 	char m_modem[256];
 	char a_modem[1024];
-	char *m_modem_next = m_modem;
-	size_t m_modem_left = sizeof(m_modem);
-	char *a_modem_next = a_modem;
-	size_t a_modem_left = sizeof(a_modem);
 	char iabuf[INET_ADDRSTRLEN];
 	struct sockaddr_in udptldest = { 0, };
 	int debug;
@@ -4781,40 +5367,52 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 			p->t38peercapability,
 			p->t38jointcapability);	
 	}
-	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
-	snprintf(s, sizeof(s), "s=session\r\n");
-	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
-	snprintf(t, sizeof(t), "t=0 0\r\n");
-	opbx_build_string(&m_modem_next, &m_modem_left, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
 
-	if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0)
-		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:0\r\n");
-	if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_1)
-		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:1\r\n");
-	if ((x = t38_get_rate(p->t38jointcapability))) 
-		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38MaxBitRate:%d\r\n",x);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxFillBitRemoval:%d\r\n", (p->t38jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingMMR:%d\r\n", (p->t38jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingJBIG:%d\r\n", (p->t38jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxRateManagement:%s\r\n", (p->t38jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
-	x = opbx_udptl_get_local_max_datagram(p->udptl);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxBuffer:%d\r\n",x);
-	opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxDatagram:%d\r\n",x);
-	if (p->t38jointcapability != T38FAX_UDP_EC_NONE)
-		opbx_build_string(&a_modem_next, &a_modem_left, "a=T38FaxUdpEC:%s\r\n", (p->t38jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
-
-	len = strlen(v) + strlen(o) + strlen(s) + strlen(c) + strlen(t) + strlen(m_modem) + strlen(a_modem);
-
-	add_header(resp, "Content-Type", "application/sdp");
+	add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
 	add_header_contentLength(resp, len);
-	add_line(resp, v);
-	add_line(resp, o);
-	add_line(resp, s);
-	add_line(resp, c);
-	add_line(resp, t);
-	add_line(resp, m_modem);
-	add_line(resp, a_modem);
+
+	snprintf(v, sizeof(v), "v=0");
+	add_line(resp, v, SIP_DL_DONTCARE);
+	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s", p->sessionid, p->sessionversion, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
+	add_line(resp, o, SIP_DL_SDP_O);
+	snprintf(s, sizeof(s), "s=session");
+	add_line(resp, s, SIP_DL_DONTCARE);
+	snprintf(c, sizeof(c), "c=IN IP4 %s", opbx_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
+	add_line(resp, c, SIP_DL_SDP_C);
+	snprintf(t, sizeof(t), "t=0 0");
+	add_line(resp, t, SIP_DL_DONTCARE);
+	snprintf(m_modem, sizeof(m_modem), "m=image %d udptl t38", ntohs(udptldest.sin_port));
+	add_line(resp, m_modem, SIP_DL_SDP_M_T38);
+
+	if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0) {
+	    snprintf(a_modem, sizeof(a_modem), "a=T38FaxVersion:0");
+	    add_line(resp, a_modem, SIP_DL_DONTCARE);
+	}
+	if ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_1) {
+	    snprintf(a_modem, sizeof(a_modem), "a=T38FaxVersion:1");
+	    add_line(resp, a_modem, SIP_DL_DONTCARE);
+	}
+	if ((x = t38_get_rate(p->t38jointcapability))) {
+	    snprintf(a_modem, sizeof(a_modem), "a=T38MaxBitRate:%d",x);
+	    add_line(resp, a_modem, SIP_DL_DONTCARE);
+	}
+	snprintf(a_modem, sizeof(a_modem), "a=T38FaxFillBitRemoval:%d", (p->t38jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
+	snprintf(a_modem, sizeof(a_modem), "a=T38FaxTranscodingMMR:%d", (p->t38jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
+	snprintf(a_modem, sizeof(a_modem), "a=T38FaxTranscodingJBIG:%d", (p->t38jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
+	snprintf(a_modem, sizeof(a_modem), "a=T38FaxRateManagement:%s", (p->t38jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
+
+	x = opbx_udptl_get_local_max_datagram(p->udptl);
+	snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxBuffer:%d",x);
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
+	snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxDatagram:%d",x);
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
+	if (p->t38jointcapability != T38FAX_UDP_EC_NONE)
+		snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
+	add_line(resp, a_modem, SIP_DL_DONTCARE);
 	
 	/* Update lastrtprx when we send our SDP */
 	time(&p->lastrtprx);
@@ -4837,20 +5435,14 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char o[256];
 	char c[256];
 	char t[256];
+	char tmpstr[256];
 	char m_audio[256];
 	char m_video[256];
-	char a_audio[1024];
+	//char a_audio[1024];
 	char a_video[1024];
-	char *m_audio_next = m_audio;
-	char *m_video_next = m_video;
-	size_t m_audio_left = sizeof(m_audio);
-	size_t m_video_left = sizeof(m_video);
-	char *a_audio_next = a_audio;
-	char *a_video_next = a_video;
-	size_t a_audio_left = sizeof(a_audio);
-	size_t a_video_left = sizeof(a_video);
 	char iabuf[INET_ADDRSTRLEN];
 	int x;
+	int rtp_code;
 	int capability;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
@@ -4902,41 +5494,99 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	/* We break with the "recommendation" and send our IP, in order that our
 	   peer doesn't have to opbx_gethostbyname() us */
+	add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
+	add_header_contentLength(resp, len);
 
-	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, opbx_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
-	snprintf(s, sizeof(s), "s=session\r\n");
-	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
-	snprintf(t, sizeof(t), "t=0 0\r\n");
 
-	opbx_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-	opbx_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+	snprintf(v, sizeof(v), "v=0");
+	add_line(resp, v, SIP_DL_DONTCARE);
+	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s", p->sessionid, p->sessionversion, opbx_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
+	add_line(resp, o, SIP_DL_SDP_O);
+	snprintf(s, sizeof(s), "s=session");
+	add_line(resp, s, SIP_DL_DONTCARE);
+	snprintf(c, sizeof(c), "c=IN IP4 %s", opbx_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
+	add_line(resp, c, SIP_DL_SDP_C);
+	snprintf(t, sizeof(t), "t=0 0");
+	add_line(resp, t, SIP_DL_DONTCARE);
+
+	snprintf(m_audio, sizeof(m_audio), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+	snprintf(m_video, sizeof(m_video), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
+	    if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 1, p->prefcodec)) != -1) {
+		sprintf(tmpstr," %d",rtp_code);
 		if (p->prefcodec <= OPBX_FORMAT_MAX_AUDIO)
-			add_codec_to_sdp(p, p->prefcodec, 8000,
-					 &m_audio_next, &m_audio_left,
-					 &a_audio_next, &a_audio_left,
+		    strcat(m_audio,tmpstr);
+		else
+		    strcat(m_video,tmpstr);
+	    }
+	    alreadysent |= p->prefcodec;
+	}
+
+	/* Start by sending our preferred codecs */
+	for (x = 0; x < 32; x++) {
+		if (!(pref_codec = opbx_codec_pref_index(&p->prefs, x)))
+			break; 
+		if (!(capability & pref_codec))
+			continue;
+		if (alreadysent & pref_codec)
+			continue;
+		if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 1, pref_codec)) != -1) {
+		    sprintf(tmpstr," %d",rtp_code);
+		    if (pref_codec <= OPBX_FORMAT_MAX_AUDIO)
+			strcat(m_audio,tmpstr);
+		    else
+			strcat(m_video,tmpstr);
+		}
+		alreadysent |= pref_codec;
+	}
+
+#if T38_SUPPORT
+	if (t38rtpsupport) {
+		sprintf(tmpstr," %d",122);
+		strcat(m_audio,tmpstr);
+	}
+#endif
+
+	/* Now send any other common codecs, and non-codec formats: */
+	for (x = 1; x <= ((videosupport && p->vrtp) ? OPBX_FORMAT_MAX_VIDEO : OPBX_FORMAT_MAX_AUDIO); x <<= 1) {
+		if (!(capability & x))
+			continue;
+		if (alreadysent & x)
+			continue;
+		if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 1, x)) != -1) {
+		    sprintf(tmpstr," %d",rtp_code);
+		    if (x <= OPBX_FORMAT_MAX_AUDIO)
+			strcat(m_audio,tmpstr);
+		    else
+			strcat(m_video,tmpstr);
+		}
+	}
+
+	for (x = 1; x <= OPBX_RTP_MAX; x <<= 1) {
+		if (!(p->noncodeccapability & x))
+			continue;
+		if ((rtp_code = opbx_rtp_lookup_code(p->rtp, 0, x)) != -1) {
+		    sprintf(tmpstr," %d",rtp_code);
+	    	    strcat(m_audio,tmpstr);
+		}
+	}
+
+	add_line(resp, m_audio, SIP_DL_SDP_M_AUDIO);
+	alreadysent=0;
+	/* **************************************************************************** */
+	/* Prefer the codec we were requested to use, first, no matter what */
+	if (capability & p->prefcodec) {
+		if (p->prefcodec <= OPBX_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, resp, p->prefcodec, 8000,
 					 debug);
 		else
-			add_codec_to_sdp(p, p->prefcodec, 90000,
-					 &m_video_next, &m_video_left,
-					 &a_video_next, &a_video_left,
+			add_codec_to_sdp(p, resp, p->prefcodec, 90000,
 					 debug);
 		alreadysent |= p->prefcodec;
 	}
-#if T38_SUPPORT
-	if (t38rtpsupport) {
-    		/* TODO: Improve this */
-		len = snprintf(m_audio_next, a_audio_left, " %d", 191);
-    		m_audio_next += len;
-    		m_audio_left -= len;
-		len = snprintf(a_audio_next, a_audio_left, "a=rtpmap:%d %s/8000\r\n", 191, "t38");
-    		a_audio_next += len;
-    		a_audio_left -= len;
-	}
-#endif
+
 	/* Start by sending our preferred codecs */
 	for (x = 0; x < 32; x++) {
 		if (!(pref_codec = opbx_codec_pref_index(&p->prefs, x)))
@@ -4949,17 +5599,21 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			continue;
 
 		if (pref_codec <= OPBX_FORMAT_MAX_AUDIO)
-			add_codec_to_sdp(p, pref_codec, 8000,
-					 &m_audio_next, &m_audio_left,
-					 &a_audio_next, &a_audio_left,
+			add_codec_to_sdp(p, resp, pref_codec, 8000,
 					 debug);
 		else
-			add_codec_to_sdp(p, pref_codec, 90000,
-					 &m_video_next, &m_video_left,
-					 &a_video_next, &a_video_left,
+			add_codec_to_sdp(p, resp, pref_codec, 90000,
 					 debug);
 		alreadysent |= pref_codec;
 	}
+
+#if T38_SUPPORT
+	if (t38rtpsupport) {
+    		/* TODO: Improve this */
+		sprintf(tmpstr, "a=rtpmap:%d %s/8000", 122, "t38");
+		add_line(resp, tmpstr, SIP_DL_DONTCARE);
+	}
+#endif
 
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= ((videosupport && p->vrtp) ? OPBX_FORMAT_MAX_VIDEO : OPBX_FORMAT_MAX_AUDIO); x <<= 1) {
@@ -4970,14 +5624,10 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			continue;
 
 		if (x <= OPBX_FORMAT_MAX_AUDIO)
-			add_codec_to_sdp(p, x, 8000,
-					 &m_audio_next, &m_audio_left,
-					 &a_audio_next, &a_audio_left,
+			add_codec_to_sdp(p, resp, x, 8000,
 					 debug);
 		else
-			add_codec_to_sdp(p, x, 90000,
-					 &m_video_next, &m_video_left,
-					 &a_video_next, &a_video_left,
+			add_codec_to_sdp(p, resp, x, 90000,
 					 debug);
 	}
 
@@ -4985,36 +5635,16 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (!(p->noncodeccapability & x))
 			continue;
 
-		add_noncodec_to_sdp(p, x, 8000,
-				    &m_audio_next, &m_audio_left,
-				    &a_audio_next, &a_audio_left,
+		add_noncodec_to_sdp(p, resp, x, 8000,
 				    debug);
 	}
 
-	opbx_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
+	sprintf(tmpstr, "a=silenceSupp:off - - - -");
+	add_line(resp, tmpstr, SIP_DL_DONTCARE);
 
-	if ((m_audio_left < 2) || (m_video_left < 2) || (a_audio_left == 0) || (a_video_left == 0))
-		opbx_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
-
-	opbx_build_string(&m_audio_next, &m_audio_left, "\r\n");
-	opbx_build_string(&m_video_next, &m_video_left, "\r\n");
-
-	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_audio) + strlen(a_audio);
-	if ((p->vrtp) && (!opbx_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
-		len += strlen(m_video) + strlen(a_video);
-
-	add_header(resp, "Content-Type", "application/sdp");
-	add_header_contentLength(resp, len);
-	add_line(resp, v);
-	add_line(resp, o);
-	add_line(resp, s);
-	add_line(resp, c);
-	add_line(resp, t);
-	add_line(resp, m_audio);
-	add_line(resp, a_audio);
 	if ((p->vrtp) && (!opbx_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
-		add_line(resp, m_video);
-		add_line(resp, a_video);
+		add_line(resp, m_video, SIP_DL_SDP_M_VIDEO);
+		add_line(resp, a_video, SIP_DL_DONTCARE);
 	}
 
 	/* Update lastrtprx when we send our SDP */
@@ -5143,9 +5773,9 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	else 
 		reqprep(&req, p, SIP_INVITE, 0, 1);
 	
-	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 	if (sipdebug)
-		add_header(&req, "X-openpbx-info", "SIP re-invite (RTP bridge)");
+		add_header(&req, "X-openpbx-info", "SIP re-invite (RTP bridge)", SIP_DL_DONTCARE);
 	opbx_rtp_offered_from_local(p->rtp, 1);
 	add_sdp(&req, p);
 	/* Use this as the basis */
@@ -5155,6 +5785,12 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		opbx_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	p->lastinvite = p->ocseq;
 	opbx_set_flag(p, SIP_OUTGOING);
+
+	    opbx_log(LOG_ERROR, "Activating UDPTL on reinvite %s (b)\n", p->callid);
+	    opbx_rtp_set_active(p->rtp, 0);
+	    opbx_udptl_set_active(p->udptl, 1);
+	    p->udptl_active = 1;
+
 	return send_request(p, &req, 1, p->ocseq);
 }
 
@@ -5173,9 +5809,9 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 	else 
 		reqprep(&req, p, SIP_INVITE, 0, 1);
 	
-	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 	if (sipdebug)
-		add_header(&req, "X-openpbx-info", "SIP re-invite (T38 switchover)");
+		add_header(&req, "X-openpbx-info", "SIP re-invite (T38 switchover)", SIP_DL_DONTCARE);
 	opbx_udptl_offered_from_local(p->udptl, 1);
 	add_t38_sdp(&req, p);
 	/* Use this as the basis */
@@ -5209,10 +5845,16 @@ static void build_contact(struct sip_pvt *p)
 	char iabuf[INET_ADDRSTRLEN];
 
 	/* Construct Contact: header */
-	if (ourport != 5060)	/* Needs to be 5060, according to the RFC */
-		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, opbx_strlen_zero(p->exten) ? "" : "@", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
-	else
+	if (p->stun_needed)
+		// If we are using stun, let's preserve the port information.
+		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, opbx_strlen_zero(p->exten) ? "" : "@", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+
+	else {
+	    if (p->ourport != 5060)	// Needs to be 5060, according to the RFC
+		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, opbx_strlen_zero(p->exten) ? "" : "@", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+	    else
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, opbx_strlen_zero(p->exten) ? "" : "@", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+	}
 }
 
 /*! \brief  build_rpid: Build the Remote Party-ID & From using callingpres options */
@@ -5373,8 +6015,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp2;
 	}
 
-	if ((ourport != 5060) && opbx_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
+	if ((p->ourport != 5060) && opbx_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, opbx_strlen_zero(p->fromdomain) ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
@@ -5415,26 +6057,26 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	init_req(req, sipmethod, p->uri);
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
 
-	add_header(req, "Via", p->via);
+	add_header(req, "Via", p->via, SIP_DL_HEAD_VIA);
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	/* Build Remote Party-ID and From */
 	if (opbx_test_flag(p, SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
 		build_rpid(p);
-		add_header(req, "From", p->rpid_from);
+		add_header(req, "From", p->rpid_from, SIP_DL_DONTCARE);
 	} else {
-		add_header(req, "From", from);
+		add_header(req, "From", from, SIP_DL_HEAD_FROM);
 	}
-	add_header(req, "To", to);
+	add_header(req, "To", to, SIP_DL_DONTCARE);
 	opbx_copy_string(p->exten, l, sizeof(p->exten));
 	build_contact(p);
-	add_header(req, "Contact", p->our_contact);
-	add_header(req, "Call-ID", p->callid);
-	add_header(req, "CSeq", tmp);
-	add_header(req, "User-Agent", default_useragent);
-	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
+	add_header(req, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
+	add_header(req, "Call-ID", p->callid, SIP_DL_HEAD_CALLID);
+	add_header(req, "CSeq", tmp, SIP_DL_DONTCARE);
+	add_header(req, "User-Agent", default_useragent, SIP_DL_DONTCARE);
+	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
 	if (p->rpid)
-		add_header(req, "Remote-Party-ID", p->rpid);
+		add_header(req, "Remote-Party-ID", p->rpid, SIP_DL_DONTCARE);
 }
 
 /*! \brief  transmit_invite: Build REFER/INVITE/OPTIONS message and transmit it */
@@ -5455,25 +6097,25 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		reqprep(&req, p, sipmethod, 0, 1);
 		
 	if (p->options && p->options->auth)
-		add_header(&req, p->options->authheader, p->options->auth);
+		add_header(&req, p->options->authheader, p->options->auth, SIP_DL_DONTCARE);
 	append_date(&req);
 	if (sipmethod == SIP_REFER) {	/* Call transfer */
 		if (!opbx_strlen_zero(p->refer_to))
-			add_header(&req, "Refer-To", p->refer_to);
+			add_header(&req, "Refer-To", p->refer_to, SIP_DL_DONTCARE);
 		if (!opbx_strlen_zero(p->referred_by))
-			add_header(&req, "Referred-By", p->referred_by);
+			add_header(&req, "Referred-By", p->referred_by, SIP_DL_DONTCARE);
 	}
 #ifdef OSP_SUPPORT
 	if ((req.method != SIP_OPTIONS) && p->options && !opbx_strlen_zero(p->options->osptoken)) {
 		opbx_log(LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
-		add_header(&req, "P-OSP-Auth-Token", p->options->osptoken);
+		add_header(&req, "P-OSP-Auth-Token", p->options->osptoken, SIP_DL_DONTCARE);
 	}
 #endif
 	if (p->options && !opbx_strlen_zero(p->options->distinctive_ring))
 	{
-		add_header(&req, "Alert-Info", p->options->distinctive_ring);
+		add_header(&req, "Alert-Info", p->options->distinctive_ring, SIP_DL_DONTCARE);
 	}
-	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 	if (p->options && p->options->addsipheaders ) {
 		struct opbx_channel *ast;
 		char *header = (char *) NULL;
@@ -5508,7 +6150,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 							if (*end == '"')
 								*end = '\0';
 						
-							add_header(&req, headdup, content);
+							add_header(&req, headdup, content, SIP_DL_DONTCARE);
 							if (sipdebug)
 								opbx_log(LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
 						}
@@ -5637,26 +6279,26 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 
 	
-	add_header(&req, "Event", subscriptiontype->event);
-	add_header(&req, "Content-Type", subscriptiontype->mediatype);
+	add_header(&req, "Event", subscriptiontype->event, SIP_DL_DONTCARE);
+	add_header(&req, "Content-Type", subscriptiontype->mediatype, SIP_DL_DONTCARE);
 	switch(state) {
 	case OPBX_EXTENSION_DEACTIVATED:
 		if (p->subscribed == TIMEOUT)
-			add_header(&req, "Subscription-State", "terminated;reason=timeout");
+			add_header(&req, "Subscription-State", "terminated;reason=timeout", SIP_DL_DONTCARE);
 		else {
-			add_header(&req, "Subscription-State", "terminated;reason=probation");
-			add_header(&req, "Retry-After", "60");
+			add_header(&req, "Subscription-State", "terminated;reason=probation", SIP_DL_DONTCARE);
+			add_header(&req, "Retry-After", "60", SIP_DL_DONTCARE);
 		}
 		break;
 	case OPBX_EXTENSION_REMOVED:
-		add_header(&req, "Subscription-State", "terminated;reason=noresource");
+		add_header(&req, "Subscription-State", "terminated;reason=noresource", SIP_DL_DONTCARE);
 		break;
 		break;
 	default:
 		if (p->expiry)
-			add_header(&req, "Subscription-State", "active");
+			add_header(&req, "Subscription-State", "active", SIP_DL_DONTCARE);
 		else	/* Expired */
-			add_header(&req, "Subscription-State", "terminated;reason=timeout");
+			add_header(&req, "Subscription-State", "terminated;reason=timeout", SIP_DL_DONTCARE);
 	}
 	switch (p->subscribed) {
 	case XPIDF_XML:
@@ -5706,7 +6348,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		opbx_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
 	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_line(&req, tmp, SIP_DL_DONTCARE);
 
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -5725,18 +6367,17 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	size_t maxbytes = sizeof(tmp);
 
 	initreqprep(&req, p, SIP_NOTIFY);
-	add_header(&req, "Event", "message-summary");
-	add_header(&req, "Content-Type", default_notifymime);
-
-	opbx_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	opbx_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !opbx_strlen_zero(vmexten) ? vmexten : global_vmexten, p->fromdomain);
-	opbx_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
-
-	if (t > tmp + sizeof(tmp))
-		opbx_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
+	add_header(&req, "Event", "message-summary", SIP_DL_DONTCARE);
+	add_header(&req, "Content-Type", default_notifymime, SIP_DL_DONTCARE);
 
 	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+
+	snprintf(t, maxbytes, "Messages-Waiting: %s", newmsgs ? "yes" : "no");
+	add_line(&req, tmp, SIP_DL_DONTCARE);
+	snprintf(t, maxbytes, "Message-Account: sip:%s@%s\r\n", !opbx_strlen_zero(vmexten) ? vmexten : global_vmexten, p->fromdomain);
+	add_line(&req, tmp, SIP_DL_DONTCARE);
+	snprintf(t, maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
+	add_line(&req, tmp, SIP_DL_DONTCARE);
 
 	if (!p->initreq.headers) { /* Use this as the basis */
 		copy_request(&p->initreq, &req);
@@ -5775,13 +6416,13 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	char tmp[20];
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
-	add_header(&req, "Event", tmp);
-	add_header(&req, "Subscription-state", "terminated;reason=noresource");
-	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
+	add_header(&req, "Event", tmp, SIP_DL_DONTCARE);
+	add_header(&req, "Subscription-state", "terminated;reason=noresource", SIP_DL_DONTCARE);
+	add_header(&req, "Content-Type", "message/sipfrag;version=2.0", SIP_DL_DONTCARE);
 
 	strcpy(tmp, "SIP/2.0 200 OK");
 	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_line(&req, tmp, SIP_DL_DONTCARE);
 
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
@@ -5990,7 +6631,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		  based on whether the remote host is on the external or
 		  internal network so we can register through nat
 		 */
-		if (opbx_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
+		if (opbx_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
 			memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
 		build_contact(p);
 	}
@@ -6037,17 +6678,17 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	p->ocseq = r->ocseq;
 
 	build_via(p, via, sizeof(via));
-	add_header(&req, "Via", via);
-	add_header(&req, "From", from);
-	add_header(&req, "To", to);
-	add_header(&req, "Call-ID", p->callid);
-	add_header(&req, "CSeq", tmp);
-	add_header(&req, "User-Agent", default_useragent);
-	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
+	add_header(&req, "Via", via, SIP_DL_HEAD_VIA);
+	add_header(&req, "From", from, SIP_DL_DONTCARE);
+	add_header(&req, "To", to, SIP_DL_DONTCARE);
+	add_header(&req, "Call-ID", p->callid, SIP_DL_HEAD_CALLID);
+	add_header(&req, "CSeq", tmp, SIP_DL_DONTCARE);
+	add_header(&req, "User-Agent", default_useragent, SIP_DL_DONTCARE);
+	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
 
 	
 	if (auth) 	/* Add auth header */
-		add_header(&req, authheader, auth);
+		add_header(&req, authheader, auth, SIP_DL_DONTCARE);
 	else if (!opbx_strlen_zero(r->nonce)) {
 		char digest[1024];
 
@@ -6063,16 +6704,16 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 
 		memset(digest,0,sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
-			add_header(&req, "Authorization", digest);
+			add_header(&req, "Authorization", digest, SIP_DL_DONTCARE);
 		else
 			opbx_log(LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
 	
 	}
 
 	snprintf(tmp, sizeof(tmp), "%d", default_expiry);
-	add_header(&req, "Expires", tmp);
-	add_header(&req, "Contact", p->our_contact);
-	add_header(&req, "Event", "registration");
+	add_header(&req, "Expires", tmp, SIP_DL_DONTCARE);
+	add_header(&req, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
+	add_header(&req, "Event", "registration", SIP_DL_DONTCARE);
 	add_header_contentLength(&req, 0);
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
@@ -6134,9 +6775,9 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	opbx_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
 
 	reqprep(&req, p, SIP_REFER, 0, 1);
-	add_header(&req, "Refer-To", referto);
+	add_header(&req, "Refer-To", referto, SIP_DL_DONTCARE);
 	if (!opbx_strlen_zero(p->our_contact))
-		add_header(&req, "Referred-By", p->our_contact);
+		add_header(&req, "Referred-By", p->our_contact, SIP_DL_DONTCARE);
 	add_blank_header(&req);
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -6182,11 +6823,11 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		memset(digest, 0, sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest))) {
 			if (p->options && p->options->auth_type == PROXY_AUTH)
-				add_header(&resp, "Proxy-Authorization", digest);
+				add_header(&resp, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
 			else if (p->options && p->options->auth_type == WWW_AUTH)
-				add_header(&resp, "Authorization", digest);
+				add_header(&resp, "Authorization", digest, SIP_DL_DONTCARE);
 			else	/* Default, to be backwards compatible (maybe being too careful, but leaving it for now) */
-				add_header(&resp, "Proxy-Authorization", digest);
+				add_header(&resp, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
 		} else
 			opbx_log(LOG_WARNING, "No authentication available for call %s\n", p->callid);
 	}
@@ -6194,7 +6835,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		debugging easier. */
 	if (sipmethod == SIP_BYE) {
 		if (p->owner && p->owner->hangupcause)	{
-			add_header(&resp, "X-OpenPBX-HangupCause", opbx_cause2str(p->owner->hangupcause));
+			add_header(&resp, "X-OpenPBX-HangupCause", opbx_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
 		}
 	}
 
@@ -6981,6 +7622,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	opbx_copy_string(p->exten, name, sizeof(p->exten));
 	build_contact(p);
 	peer = find_peer(name, NULL, 1);
+
 	if (!(peer && opbx_apply_ha(peer->ha, sin))) {
 		if (peer)
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
@@ -7446,6 +8088,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 			c = (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? "NAT" : "non-NAT";
 			opbx_verbose("Sending to %s : %d (%s)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), c);
 		}
+
 	}
 	return 0;
 }
@@ -7593,6 +8236,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		user = find_user(of, 1);
 
 	/* Find user based on user name in the from header */
+
 	if (user && opbx_apply_ha(user->ha, sin)) {
 		opbx_copy_flags(p, user, SIP_FLAGS_TO_COPY);
 		/* copy channel vars */
@@ -9396,11 +10040,11 @@ static int sip_notify(int fd, int argc, char *argv[])
 		initreqprep(&req, p, SIP_NOTIFY);
 
 		for (var = varlist; var; var = var->next)
-			add_header(&req, var->name, var->value);
+			add_header(&req, var->name, var->value, SIP_DL_DONTCARE);
 
 		add_blank_header(&req);
 		/* Recalculate our side, and recalculate Call ID */
-		if (opbx_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
+		if (opbx_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
 			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 		build_via(p, p->via, sizeof(p->via));
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
@@ -11628,6 +12272,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Response to our request -- Do some sanity checks */	
 		if (!p->initreq.headers) {
 			opbx_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
+			if (stun_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
 			opbx_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		} else if (p->ocseq && (p->ocseq < seqno)) {
@@ -11811,6 +12456,31 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
+
+	/* ANALYZE Packet payload to discover stun responses */
+	if (req.method==SIP_UNKNOWN) {
+		static struct stun_state stun_me;
+		memset(&stun_me,0,sizeof(struct stun_state));
+		if ( stun_handle_packet(sipsock,&sin,(unsigned char*)req.data,res,&stun_me) == STUN_ACCEPT);
+		if (stun_me.msgtype==STUN_BINDRESP) {
+		    if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
+		    struct in_addr empty;
+		    struct sockaddr_in msin;
+		    stun_addr2sockaddr(&msin,stun_me.mapped_addr);
+
+		    memset(&empty,0,sizeof(empty));
+		    if ( !memcmp(&externip.sin_addr,&empty,sizeof(externip.sin_addr)) ) {
+			opbx_log(LOG_NOTICE,"STUN: externip not set. Setting it to stun mapped address %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
+			externip=msin;
+		    } else if ( memcmp(&externip.sin_addr,&msin.sin_addr,sizeof(externip.sin_addr))  ) {
+			opbx_log(LOG_NOTICE,"STUN: externip changed. Setting it to stun mapped address %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr) );
+			externip=msin;
+		    }
+
+		    return 1;
+		}
+	}
+
 	if (opbx_test_flag(&req, SIP_PKT_DEBUG)) {
 		opbx_verbose("--- (%d headers %d lines)", req.headers, req.lines);
 		if (req.headers + req.lines == 0) 
@@ -11891,7 +12561,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	/* Recalculate our side, and recalculate Call ID */
-	if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	build_via(p, p->via, sizeof(p->via));
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
@@ -11938,8 +12608,32 @@ restartsearch:
 		time(&t);
 		sip = iflist;
 		while(sip) {
+
+
 			opbx_mutex_lock(&sip->lock);
 			if (sip->rtp && sip->owner && (sip->owner->_state == OPBX_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
+			    //opbx_verbose("\n t %d \n t38 %d \n sip->lastrtptx %d\n sip->lastrtprx %d\n sip->rtptimeout %d\n sip->rtpholdtimeout %d\n app %s \n",
+	    		    //		   (int)t,sip->t38state,(int)sip->lastrtptx,(int)sip->lastrtprx,sip->rtptimeout,sip->rtpholdtimeout,sip->owner->appl);
+
+			    if ( !sip->rtptimeout && !sip->rtpholdtimeout && 
+				(t-sip->lastrtptx>4) && (t-sip->lastrtprx>4) && 
+				!sip->t38state && t38udptlsupport
+				&& !strncmp(sip->owner->appl,"TxFAX", sizeof("TxFAX") ) 
+			       ) {
+				    opbx_log(LOG_DEBUG, "We are on a TxFAX session sending to another RxFAX instance over RTP. Should reinvite with T38. %s\n",sip->callid);
+
+				    if ( 
+					!(opbx_bridged_channel(sip->owner)) &&
+					!(opbx_test_flag(sip, SIP_GOTREFER)) &&
+					!sip->pendinginvite
+    				      ) {
+					sip->t38state = 4;
+					transmit_reinvite_with_t38_sdp(sip);
+					opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",sip->t38state,sip->owner->name);
+				    }
+
+			    }
+
 				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
 					/* Need to send an empty RTP packet */
 					time(&sip->lastrtptx);
@@ -11969,10 +12663,14 @@ restartsearch:
 					}
 				}
 			}
+
 			if (opbx_test_flag(sip, SIP_NEEDDESTROY) && !sip->packets && !sip->owner) {
+			    if (sip->stun_needed==0 || sip->stun_needed==3) {
 				opbx_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
+			    } else
+				opbx_log(LOG_NOTICE, "Delaying call destroy (stun active) on call '%s'\n", sip->callid);
 			}
 			opbx_mutex_unlock(&sip->lock);
 			sip = sip->next;
@@ -12121,7 +12819,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		opbx_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
 
 	/* Recalculate our side, and recalculate Call ID */
-	if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	build_via(p, p->via, sizeof(p->via));
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
@@ -12218,6 +12916,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
 	char tmp[256];
 	char *dest = data;
 
+
 	oldformat = format;
 	format &= ((OPBX_FORMAT_MAX_AUDIO << 1) - 1);
 	if (!format) {
@@ -12261,8 +12960,9 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
 	}
 	if (opbx_strlen_zero(p->peername) && ext)
 		opbx_copy_string(p->peername, ext, sizeof(p->peername));
+
 	/* Recalculate our side, and recalculate Call ID */
-	if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (opbx_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	build_via(p, p->via, sizeof(p->via));
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
@@ -12275,7 +12975,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
 		opbx_copy_string(p->username, ext, sizeof(p->username));
 		p->fullcontact[0] = 0;	
 	}
-#if 0
+#if 1
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
 	p->prefcodec = format;
@@ -12997,6 +13697,10 @@ static int reload_config(void)
 	memset(&prefs, 0 , sizeof(prefs));
 	sipdebug &= ~SIP_DEBUG_CONFIG;
 
+	memset(&stunserver_ip, 0, sizeof(stunserver_ip));
+	stunserver_portno=3478;
+	stun_active=0;
+
 	/* Initialize some reasonable defaults at SIP reload */
 	opbx_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
 	default_subscribecontext[0] = '\0';
@@ -13205,6 +13909,24 @@ static int reload_config(void)
 				opbx_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
 				externrefresh = 10;
 			}
+		} else if (!strcasecmp(v->name, "stunserver_host")) {
+			opbx_copy_string(stunserver_host, v->value, sizeof(stunserver_host));
+			if (!(hp = opbx_gethostbyname(stunserver_host, &ahp))) 
+				opbx_log(LOG_NOTICE, "Invalid address for stunserver_host keyword: %s\n", stunserver_host);
+			else {
+				memcpy(&stunserver_ip.sin_addr, hp->h_addr, sizeof(stunserver_ip.sin_addr));
+				opbx_log(LOG_NOTICE, "STUN: stunserver_host is: %s\n", stunserver_host);
+				stun_active=1;
+			}
+		} else if (!strcasecmp(v->name, "stunserver_port")) {
+			if (sscanf(v->value, "%d", &stunserver_portno) == 1) {
+	    		    stunserver_ip.sin_port = htons(stunserver_portno);
+			    if (stundebug) 
+				opbx_log(LOG_WARNING, "STUN: stunserver_portno is: %d\n", stunserver_portno);
+			} else {
+			    if (stundebug) 
+				opbx_log(LOG_WARNING, "Invalid stun port number '%s' at line %d of %s\n", v->value, v->lineno, config);
+			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			opbx_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
@@ -13253,6 +13975,13 @@ static int reload_config(void)
 		 *	opbx_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		 */
 		 v = v->next;
+	}
+
+
+	if (stun_active) {
+	    if (stundebug)
+	    opbx_verbose("Sending initial STUN discovery packet\n");
+	    opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
 	}
 
 	if (!allow_external_domains && OPBX_LIST_EMPTY(&domain_list)) {
@@ -13360,6 +14089,8 @@ static int reload_config(void)
 		}
 
 		/* Our extern IP address, if configured */
+
+//ASD add stun ip to domains if needed
 		if (externip.sin_addr.s_addr) {
 			opbx_inet_ntoa(temp, sizeof(temp), externip.sin_addr);
 			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);

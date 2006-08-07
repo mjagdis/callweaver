@@ -49,6 +49,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/unaligned.h"
 #include "openpbx/utils.h"
+#include "openpbx/stun.h"
 
 #define UDPTL_MTU		1200
 
@@ -642,6 +643,7 @@ void opbx_udptl_set_callback(struct opbx_udptl *udptl, opbx_udptl_callback callb
 void opbx_udptl_setnat(struct opbx_udptl *udptl, int nat)
 {
 	udptl->nat = nat;
+        udp_socket_set_nat(udptl->udptl_sock_info, nat);
 }
 
 static int udptlread(int *id, int fd, short events, void *cbdata)
@@ -659,7 +661,7 @@ static int udptlread(int *id, int fd, short events, void *cbdata)
 struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 {
 	int res;
-    int actions;
+	int actions;
 	struct sockaddr_in sin;
 	socklen_t len;
 	char iabuf[INET_ADDRSTRLEN];
@@ -683,6 +685,29 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 		if (errno == EBADF)
 			CRASH;
 		return &null_frame;
+	}
+
+	if (udp_socket_get_stunstate(udptl->udptl_sock_info)==1 ) {
+	    if (stundebug) opbx_log(LOG_DEBUG, "Checking if payload it is a stun RESPONSE  on UDPTL\n");
+
+	    struct sockaddr_in stun_sin;
+	    struct stun_state stun_me;
+	    memset(&stun_me,0,sizeof(struct stun_state));
+	    stun_handle_packet(udp_socket_get_stunstate(udptl->udptl_sock_info), &sin, (unsigned char *)udptl->rawdata + OPBX_FRIENDLY_OFFSET, res, &stun_me);
+	    if (stun_me.msgtype==STUN_BINDRESP) {
+		if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on UDPTL channel\n");
+		udp_socket_set_stunstate(udptl->udptl_sock_info,2);
+
+		if ( stun_addr2sockaddr(&stun_sin,stun_me.mapped_addr) ) {
+		    udp_socket_set_stun(udptl->udptl_sock_info,&stun_sin);
+		} else
+		    if (stundebug) opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
+
+		stun_remove_request(&stun_me.id);		
+
+		return &null_frame;
+	    }
+
 	}
 
 	if ((actions & 1)) {
@@ -906,7 +931,7 @@ int opbx_udptl_set_active(struct opbx_udptl *udptl, int active)
 	    {
 	        if (udptl->ioid == NULL)
     	        udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
-        }
+    	    }
 	    else
 	    {
 	        if (udptl->ioid)
@@ -914,7 +939,7 @@ int opbx_udptl_set_active(struct opbx_udptl *udptl, int active)
 	       		opbx_io_remove(udptl->io, udptl->ioid);
 	            udptl->ioid = NULL;
 	        }
-        }
+    	    }
     }
     return 0;
 }
@@ -936,7 +961,17 @@ void opbx_udptl_get_peer(struct opbx_udptl *udptl, struct sockaddr_in *them)
 
 void opbx_udptl_get_us(struct opbx_udptl *udptl, struct sockaddr_in *us)
 {
-    memcpy(us, udp_socket_get_us(udptl->udptl_sock_info), sizeof(*us));
+    if (udp_socket_get_stunstate(udptl->udptl_sock_info)==2)
+	memcpy(us, udp_socket_get_stun(udptl->udptl_sock_info), sizeof(*us));
+    else
+	memcpy(us, udp_socket_get_us(udptl->udptl_sock_info), sizeof(*us));
+}
+
+int opbx_udptl_get_stunstate(struct opbx_udptl *udptl)
+{
+    if (udptl!=NULL)
+	return udp_socket_get_stunstate(udptl->udptl_sock_info);
+    return 0;
 }
 
 void opbx_udptl_stop(struct opbx_udptl *udptl)

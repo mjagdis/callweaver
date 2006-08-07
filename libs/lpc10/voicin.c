@@ -57,21 +57,21 @@ extern struct {
 /* 	VOICIN Version 52 */
 
 /* $Log: voicin.c,v $
-/* Revision 1.16  2004/06/26 03:50:14  markster
-/* Merge source cleanups (bug #1911)
-/*
-/* Revision 1.15  2003/11/23 22:14:32  markster
-/* Various warning cleanups
-/*
-/* Revision 1.14  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.2  2000/01/05 08:20:40  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
+ *
+ * Revision 1.15  2003/11/23 22:14:32  markster
+ * Various warning cleanups
+ *
+ * Revision 1.14  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.2  2000/01/05 08:20:40  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.2  1996/08/20  20:45:00  jaf
  * Removed all static local variables that were SAVE'd in the Fortran
  * code, and put them in struct lpc10_encoder_state that is passed as an
@@ -83,6 +83,7 @@ extern struct {
  * Revision 1.1  1996/08/19  22:30:14  jaf
  * Initial revision
  * */
+
 /* Revision 1.10  1996/03/29  17:59:14  jaf */
 /* Avoided using VALUE(9), although it shouldn't affect the function of */
 /* the code at all, because it was always multiplied by VDC(9,SNRL), */
@@ -308,21 +309,21 @@ s*/
 /* 	Global Variables: */
 /*       Arguments */
 /* $Log: voicin.c,v $
-/* Revision 1.16  2004/06/26 03:50:14  markster
-/* Merge source cleanups (bug #1911)
-/*
-/* Revision 1.15  2003/11/23 22:14:32  markster
-/* Various warning cleanups
-/*
-/* Revision 1.14  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.2  2000/01/05 08:20:40  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
+ *
+ * Revision 1.15  2003/11/23 22:14:32  markster
+ * Various warning cleanups
+ *
+ * Revision 1.14  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.2  2000/01/05 08:20:40  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.2  1996/08/20  20:45:00  jaf
  * Removed all static local variables that were SAVE'd in the Fortran
  * code, and put them in struct lpc10_encoder_state that is passed as an

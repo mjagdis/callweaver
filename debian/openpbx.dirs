@@ -1,0 +1,8 @@
+var/spool/openpbx.org/meetme
+var/spool/openpbx.org/outgoing
+var/spool/openpbx.org/voicemail
+var/run/openpbx.org
+var/log/openpbx.org/cdr-csv
+var/log/openpbx.org/cdr-custom
+var/lib/openpbx.org
+var/lib/openpbx.org/keys
