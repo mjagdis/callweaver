@@ -63,15 +63,6 @@ res_config_pgsql_la_CFLAGS    = $(AM_CFLAGS) @PQINCPATH@
 res_config_pgsql_la_LIBADD    = @PQLIBPATH@ -lpq ${top_builddir}/corelib/libopenpbx.la  
 endif WANT_RES_CONFIG_PGSQL
 
-if WANT_RES_CONFIG_ODBC
-opbxmod_LTLIBRARIES		+= res_config_odbc.la
-res_config_odbc_la_SOURCES	= res_config_odbc.c
-res_config_odbc_la_LDFLAGS	= -module -avoid-version -no-undefined
-res_config_odbc_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
-res_config_odbc_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la  
-res_config_odbc_la_DEPENDNCIES	= res_odbc.la
-endif WANT_RES_CONFIG_ODBC  
-
 if WANT_RES_ODBC
 opbxmod_LTLIBRARIES 		+= res_odbc.la
 res_odbc_la_SOURCES		= res_odbc.c
@@ -79,6 +70,15 @@ res_odbc_la_LDFLAGS		= -module -avoid-version -no-undefined
 res_odbc_la_CFLAGS		= $(AM_CFLAGS) @ODBC_CFLAGS@
 res_odbc_la_LIBADD		= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la  
 endif WANT_RES_ODBC
+
+if WANT_RES_CONFIG_ODBC
+opbxmod_LTLIBRARIES		+= res_config_odbc.la
+res_config_odbc_la_SOURCES	= res_config_odbc.c
+res_config_odbc_la_LDFLAGS	= -module -avoid-version -no-undefined
+res_config_odbc_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
+res_config_odbc_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la res_odbc.la
+res_config_odbc_la_DEPENDNCIES	= res_odbc.la
+endif WANT_RES_CONFIG_ODBC  
 
 if WANT_OSP
 opbxmod_LTLIBRARIES	+= res_osp.la

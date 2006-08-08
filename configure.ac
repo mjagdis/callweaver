@@ -1777,9 +1777,9 @@ dnl ###########################################################################
 dnl ###########################################################################
 
 AC_ARG_WITH([res_config_odbc],
-        [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no) (requires --enable-odbc)])],,[with_res_config_odbc="no"])
+        [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no) (requires --enable-odbc and --with-res_odbc)])],,[with_res_config_odbc="no"])
 
-AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_config_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
+AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_config_odbc}" = "yes" -a "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
 
 dnl ###########################################################################
 
