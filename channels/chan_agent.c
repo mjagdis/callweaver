@@ -659,18 +659,7 @@ static int agent_call(struct opbx_channel *ast, char *dest, int timeout)
 		/* Call on this agent */
 		if (option_verbose > 2)
 			opbx_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
-		if (p->chan->cid.cid_num)
-			free(p->chan->cid.cid_num);
-		if (ast->cid.cid_num)
-			p->chan->cid.cid_num = strdup(ast->cid.cid_num);
-		else
-			p->chan->cid.cid_num = NULL;
-		if (p->chan->cid.cid_name)
-			free(p->chan->cid.cid_name);
-		if (ast->cid.cid_name)
-			p->chan->cid.cid_name = strdup(ast->cid.cid_name);
-		else
-			p->chan->cid.cid_name = NULL;
+		opbx_set_callerid(p->chan, ast->cid.cid_num, ast->cid.cid_name, NULL);
 		opbx_channel_inherit_variables(ast, p->chan);
 		res = opbx_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);
@@ -793,21 +782,26 @@ static int agent_hangup(struct opbx_channel *ast)
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				opbx_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
 				set_agentbycallerid(p->logincallerid, NULL);
+				opbx_device_state_changed("Agent/%s", p->agent);
 				p->loginchan[0] = '\0';
 				p->logincallerid[0] = '\0';
+				if (persistent_agents)
+					dump_agents();
 			}
 		} else if (p->dead) {
 			opbx_mutex_lock(&p->chan->lock);
 			opbx_softhangup(p->chan, OPBX_SOFTHANGUP_EXPLICIT);
 			opbx_mutex_unlock(&p->chan->lock);
-		} else {
+		} else if (p->loginstart) {
 			opbx_mutex_lock(&p->chan->lock);
 			opbx_moh_start(p->chan, p->moh);
 			opbx_mutex_unlock(&p->chan->lock);
 		}
 	}
 	opbx_mutex_unlock(&p->lock);
-	opbx_device_state_changed("Agent/%s", p->agent);
+	/* Only register a device state change if the agent is still logged in */
+	if (p->loginstart)
+		opbx_device_state_changed("Agent/%s", p->agent);
 
 	if (p->pending) {
 		opbx_mutex_lock(&agentlock);
@@ -908,15 +902,17 @@ static int agent_ack_sleep( void *data )
 
 static struct opbx_channel *agent_bridgedchannel(struct opbx_channel *chan, struct opbx_channel *bridge)
 {
-	struct agent_pvt *p;
+	struct agent_pvt *p = bridge->tech_pvt;
 	struct opbx_channel *ret=NULL;
 	
 
-	p = bridge->tech_pvt;
-	if (chan == p->chan)
-		ret = bridge->_bridge;
-	else if (chan == bridge->_bridge)
-		ret = p->chan;
+	if(p) {
+		if (chan == p->chan)
+			ret = bridge->_bridge;
+		else if (chan == bridge->_bridge)
+			ret = p->chan;
+	}
+
 	if (option_debug)
 		opbx_log(LOG_DEBUG, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
 	return ret;
@@ -1414,7 +1410,7 @@ static int action_agents(struct mansession *s, struct message *m)
 		/* Set a default status. It 'should' get changed. */
 		status = "AGENT_UNKNOWN";
 
-		if (!opbx_strlen_zero(p->loginchan)) {
+		if (!opbx_strlen_zero(p->loginchan) && !p->chan) {
 			loginChan = p->loginchan;
 			talkingtoChan = "n/a";
 			status = "AGENT_IDLE";
@@ -1446,7 +1442,7 @@ static int action_agents(struct mansession *s, struct message *m)
 			"TalkingTo: %s\r\n"
 			"%s"
 			"\r\n",
-			p->agent, username, status, loginChan, p->loginstart, talkingtoChan, idText);
+			p->agent, username, status, loginChan, (long int)p->loginstart, talkingtoChan, idText);
 		opbx_mutex_unlock(&p->lock);
 		p = p->next;
 	}
@@ -1607,7 +1603,10 @@ static int agents_show(int fd, int argc, char **argv)
 				}
 				online_agents++;
 			} else if (!opbx_strlen_zero(p->loginchan)) {
-				snprintf(location, sizeof(location) - 20, "available at '%s'", p->loginchan);
+				if (opbx_tvdiff_ms(opbx_tvnow(), p->lastdisc) > 0 || !(p->lastdisc.tv_sec))
+					snprintf(location, sizeof(location) - 20, "available at '%s'", p->loginchan);
+				else
+					snprintf(location, sizeof(location) - 20, "wrapping up at '%s'", p->loginchan);
 				talkingto[0] = '\0';
 				online_agents++;
 				if (p->acknowledged)
@@ -1737,11 +1736,10 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	}
 
 	opts = args.options;
-	while (!opbx_strlen_zero(opts)) {
-		if (*opts == 's') {
+	if (!opbx_strlen_zero(opts)) {
+		if (strchr(opts, 's')) {
 			play_announcement = 0;
 		}
-		opts++;
 	}
 
 	if (chan->_state != OPBX_STATE_UP)
@@ -2205,6 +2203,8 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 		opbx_device_state_changed("Agent/%s", p->agent);
 		opbx_mutex_unlock(&p->lock);
 		p = p->next;
+		if (persistent_agents)
+			dump_agents();
 	}
 	opbx_mutex_unlock(&agentlock);
 

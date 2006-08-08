@@ -603,6 +603,7 @@ struct opbx_sw *opbx_walk_context_switches(struct opbx_context *con, struct opbx
 
 int pbx_builtin_serialize_variables(struct opbx_channel *chan, char *buf, size_t size);
 extern char *pbx_builtin_getvar_helper(struct opbx_channel *chan, const char *name);
+extern void pbx_builtin_pushvar_helper(struct opbx_channel *chan, const char *name, const char *value);
 extern void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, const char *value);
 extern void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
 extern void pbx_builtin_clear_globals(void);

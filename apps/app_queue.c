@@ -301,6 +301,7 @@ struct member {
 	int paused;			/*!< Are we paused (not accepting calls)? */
 	time_t lastcall;		/*!< When last successful call was hungup */
 	int dead;			/*!< Used to detect members deleted in realtime */
+	time_t added;		/* used to track when member was added */
 	struct member *next;		/*!< Next member */
 };
 
@@ -541,6 +542,7 @@ static struct member *create_queue_member(char *interface, int penalty, int paus
 		if (!strchr(cur->interface, '/'))
 			opbx_log(LOG_WARNING, "No location at interface '%s'\n", interface);
 		cur->status = opbx_device_state(interface);
+		cur->added = time(NULL);
 	}
 
 	return cur;
@@ -1884,6 +1886,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no agents, if enabled */
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 			*reason = QUEUE_LEAVEEMPTY;
+			opbx_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
 			leave_queue(qe);
 			break;
 		}
@@ -1891,6 +1894,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no reachable agents, if enabled */
 		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
+			opbx_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
 			leave_queue(qe);
 			break;
 		}
@@ -2356,7 +2360,7 @@ static void dump_queue_members(struct opbx_call_queue *pm_queue)
 		opbx_db_del(pm_family, pm_queue->name);
 }
 
-static int remove_from_queue(char *queuename, char *interface)
+static int remove_from_queue(char *queuename, char *interface, time_t *added)
 {
 	struct opbx_call_queue *q;
 	struct member *lopbx_member, *look;
@@ -2383,6 +2387,8 @@ static int remove_from_queue(char *queuename, char *interface)
 						"Queue: %s\r\n"
 						"Location: %s\r\n",
 					q->name, lopbx_member->interface);
+				if (added != NULL)
+					*added = lopbx_member->added;
 				free(lopbx_member);
 
 				if (queue_persistent_members)
@@ -2700,6 +2706,7 @@ static int rqm_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	char *parse, *temppos = NULL;
 	int priority_jump = 0;
+	time_t added = 0;
 	OPBX_DECLARE_APP_ARGS(args,
 		OPBX_APP_ARG(queuename);
 		OPBX_APP_ARG(interface);
@@ -2733,9 +2740,10 @@ static int rqm_exec(struct opbx_channel *chan, void *data)
 			priority_jump = 1;
 	}
 
-	switch (remove_from_queue(args.queuename, args.interface)) {
+	switch (remove_from_queue(args.queuename, args.interface, &added)) {
 	case RES_OKAY:
 		opbx_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
+		opbx_queue_log("NONE", chan->uniqueid, args.interface, "AGENTCALLBACKLOGOFF", "%s|%ld", args.interface, time(NULL) - added);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
 		res = 0;
 		break;
@@ -2811,6 +2819,7 @@ static int aqm_exec(struct opbx_channel *chan, void *data)
 	switch (add_to_queue(args.queuename, args.interface, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
 		opbx_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", args.interface, args.queuename);
+		opbx_queue_log("NONE", chan->uniqueid, args.interface, "AGENTCALLBACKLOGIN", "%s", args.interface);
 		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "ADDED");
 		res = 0;
 		break;
@@ -3073,6 +3082,7 @@ check_turns:
 			opbx_stopstream(chan);
 		}
 		leave_queue(&qe);
+		opbx_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe.pos);
 		if (reason != QUEUE_UNKNOWN)
 			set_queue_result(chan, reason);
 	} else {
@@ -3536,7 +3546,7 @@ static int manager_remove_queue_member(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	switch (remove_from_queue(queuename, interface)) {
+	switch (remove_from_queue(queuename, interface, NULL)) {
 	case RES_OKAY:
 		astman_send_ack(s, m, "Removed interface from queue");
 		break;
@@ -3677,7 +3687,7 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
 	queuename = argv[5];
 	interface = argv[3];
 
-	switch (remove_from_queue(queuename, interface)) {
+	switch (remove_from_queue(queuename, interface, NULL)) {
 	case RES_OKAY:
 		opbx_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
 		return RESULT_SUCCESS;

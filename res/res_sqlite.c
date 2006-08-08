@@ -31,6 +31,7 @@
 #include "openpbx/module.h"
 #include "openpbx/utils.h"
 #include "openpbx/config.h"
+#include "openpbx.h"
 
 /* When you change the DATE_FORMAT, be sure to change the CHAR(19) below to something else */
 #define DATE_FORMAT "%Y-%m-%d %T"
@@ -127,8 +128,7 @@ struct switch_config {
 };
 
 static char *desc = "SQLite Resource Module";
-static char *default_dbdir = "/usr/local/openpbx/sqlite";
-static char *default_dbfile = "/usr/local/openpbx/sqlite/openpbx.db";
+static char default_dbfile[ARRAY_SIZE] = {"/usr/local/openpbx/sqlite/openpbx.db"};
 static char clidb[ARRAY_SIZE] = {"/usr/local/openpbx/sqlite/openpbx.db"};
 
 static Hash extens;
@@ -148,7 +148,7 @@ static void pick_path(char *dbname,char *buf, size_t size) {
 		strncpy(buf,dbname,size);
 	}
 	else {
-		snprintf(buf,size,"%s/%s.db",default_dbdir,dbname);
+		snprintf(buf,size,"%s/%s.db",opbx_config_OPBX_DB_DIR,dbname);
 	}
 }
 
@@ -1078,6 +1078,13 @@ static int load_config(int hard) {
 			}
 		}
 		
+		for (v = opbx_variable_browse (config, "default"); v; v = v->next) {
+			if (!strcmp (v->name, "dbfile")) {
+				pick_path(v->value,default_dbfile,ARRAY_SIZE);
+				has_cli++;
+			}
+		}
+
 		opbx_config_destroy (config);
 	}
 

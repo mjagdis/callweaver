@@ -65,6 +65,13 @@ app_db_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_db_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_DB
 
+if WANT_APP_DEVSTATE
+opbxmod_LTLIBRARIES			+= app_devstate.la
+app_devstate_la_SOURCES			= app_devstate.c
+app_devstate_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_devstate_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_DEVSTATE
+
 if WANT_APP_DIAL
 opbxmod_LTLIBRARIES			+= app_dial.la
 app_dial_la_SOURCES			= app_dial.c
@@ -324,6 +331,13 @@ app_sql_postgres_la_SOURCES               = app_sql_postgres.c
 app_sql_postgres_la_LDFLAGS               = -module -avoid-version -no-undefined
 app_sql_postgres_la_LIBADD                = ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SQL_POSTGRES
+
+if WANT_APP_STACK
+opbxmod_LTLIBRARIES			+= app_stack.la
+app_stack_la_SOURCES			= app_stack.c
+app_stack_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_stack_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_STACK
 
 if WANT_APP_SYSTEM
 opbxmod_LTLIBRARIES			+= app_system.la

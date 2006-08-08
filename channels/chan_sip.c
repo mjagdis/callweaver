@@ -7994,6 +7994,8 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			opbx_copy_string(sip_pvt->refer_contact, h_contact, sizeof(sip_pvt->refer_contact));
 		}
 		sip_pvt->refer_call = NULL;
+		pbx_builtin_setvar_helper(peer, "SIPREFERTO", get_header(req, "Refer-To"));
+		pbx_builtin_setvar_helper(chan, "SIPREFERTO", get_header(req, "Refer-To"));
 		if ((chan = sip_pvt->owner) && (peer = opbx_bridged_channel(sip_pvt->owner))) {
 			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);

@@ -141,7 +141,7 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 		}
 
 		snprintf(path, len, "%s/%s", base, filein);
-		fs = opbx_writefile(path, "raw", NULL, O_CREAT|O_APPEND, 0, 0700);
+		fs = opbx_writefile(path, "wav", NULL, O_CREAT|O_APPEND, 0, 0700);
 		mode = DMODE_PLAY;
 		memset(&flags, 0, sizeof(flags));
 		opbx_set_flag(&flags, DFLAG_PAUSE);
@@ -298,7 +298,7 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 						} else {
 							oflags |= O_APPEND;
 						}
-						fs = opbx_writefile(path, "raw", NULL, oflags, 0, 0700);
+						fs = opbx_writefile(path, "wav", NULL, oflags, 0, 0700);
 						if (opbx_test_flag(&flags, DFLAG_TRUNC)) {
 							opbx_seekstream(fs, 0, SEEK_SET);
 							opbx_clear_flag(&flags, DFLAG_TRUNC);
