@@ -280,6 +280,7 @@ struct queue_ent {
 	char context[OPBX_MAX_CONTEXT];	/*!< Context when user exits queue */
 	char digits[OPBX_MAX_EXTENSION];	/*!< Digits entered while in queue */
 	int pos;			/*!< Where we are in the queue */
+        int trying_agent;		/*!< Are we trying to reach an agent */
 	int prio;			/*!< Our priority */
 	int lopbx_pos_said;              /*!< Last position we told the user */
 	time_t lopbx_periodic_announce_time;	/*!< The last time we played a periodic anouncement */
@@ -348,6 +349,9 @@ struct opbx_call_queue {
 	char sound_thanks[80];          /*!< Sound file: "Thank you for your patience." (def. queue-thankyou) */
 	char sound_reporthold[80];	/*!< Sound file: "Hold time" (def. queue-reporthold) */
 	char sound_periodicannounce[80];/*!< Sound file: Custom announce, no default */
+
+        int report_maxpos;              /*!< How many position queue are we reporting (ex: if set to 5, 6 and more will not have pos report) */
+        unsigned int reportpos_first:1; /*!< Are we reporting the "you are the next" to the next caller */
 
 	int count;			/*!< How many entries */
 	int maxlen;			/*!< Max number of entries */
@@ -576,6 +580,9 @@ static void init_queue(struct opbx_call_queue *q)
 	q->context[0] = '\0';
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
+        q->report_maxpos = -1;
+        q->reportpos_first = opbx_true("yes");
+
 	opbx_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
 	opbx_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
 	opbx_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
@@ -638,6 +645,10 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
 		opbx_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
 	} else if (!strcasecmp(param, "queue-reporthold")) {
 		opbx_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
+        } else if (!strcasecmp(param, "reportmaxpos")) {
+                q->report_maxpos = atoi(val);
+        } else if (!strcasecmp(param, "reportpos-first")) {
+                q->reportpos_first = opbx_true(val);
 	} else if (!strcasecmp(param, "announce-frequency")) {
 		q->announcefrequency = atoi(val);
 	} else if (!strcasecmp(param, "announce-round-seconds")) {
@@ -1089,21 +1100,29 @@ static int say_position(struct queue_ent *qe)
 	opbx_moh_stop(qe->chan);
 	/* Say we're next, if we are */
 	if (qe->pos == 1) {
-		res = play_file(qe->chan, qe->parent->sound_next);
-		if (res && valid_exit(qe, res))
+                if (qe->parent->reportpos_first) {
+     			res = play_file(qe->chan, qe->parent->sound_next);
+			if (res && valid_exit(qe, res))
+				goto playout;
+			else
+				goto posout;
+		}
+		else 
 			goto playout;
-		else
-			goto posout;
 	} else {
-		res = play_file(qe->chan, qe->parent->sound_thereare);
-		if (res && valid_exit(qe, res))
+		if (qe->pos <= qe->parent->report_maxpos) {
+  			res = play_file(qe->chan, qe->parent->sound_thereare);
+			if (res && valid_exit(qe, res))
+				goto playout;
+			res = opbx_say_number(qe->chan, qe->pos, OPBX_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
+			if (res && valid_exit(qe, res))
+				goto playout;
+			res = play_file(qe->chan, qe->parent->sound_calls);
+			if (res && valid_exit(qe, res))
+				goto playout;
+		} else {
 			goto playout;
-		res = opbx_say_number(qe->chan, qe->pos, OPBX_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
-		if (res && valid_exit(qe, res))
-			goto playout;
-		res = play_file(qe->chan, qe->parent->sound_calls);
-		if (res && valid_exit(qe, res))
-			goto playout;
+                }
 	}
 	/* Round hold time to nearest minute */
 	avgholdmins = abs(( (qe->parent->holdtime + 30) - (now - qe->start) ) / 60);
@@ -1162,7 +1181,8 @@ static int say_position(struct queue_ent *qe)
 	if (option_verbose > 2)
 		opbx_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
 			    qe->chan->name, qe->parent->name, qe->pos);
-	res = play_file(qe->chan, qe->parent->sound_thanks);
+	if (!opbx_strlen_zero(qe->parent->sound_thanks))
+		res = play_file(qe->chan, qe->parent->sound_thanks);	
 
  playout:
 	/* Set our lopbx_pos indicators */
@@ -1641,6 +1661,8 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 		if (found < 0) {
 			if (numlines == (numbusies + numnochan)) {
 				opbx_log(LOG_DEBUG, "Everyone is busy at this time\n");
+                                /* Make sure it doesn't loop too fast */
+				usleep(1000000);
 			} else {
 				opbx_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
 			}
@@ -1847,19 +1869,62 @@ static int is_our_turn(struct queue_ent *qe)
 {
 	struct queue_ent *ch;
 	int res;
+        struct member *cur;
+        struct queue_ent *cur_qe;
+        int found;
 
-	/* Atomically read the parent head -- does not need a lock */
+        /* Check if we have some agent available */
+	found=0;
+        opbx_mutex_lock(&qe->parent->lock);
+	cur = qe->parent->members;
+	while(cur) {
+            if (cur->status == 1 && cur->paused ==0) {
+                found=1;
+                break;
+            }
+	    cur = cur->next;
+	}
+        opbx_mutex_unlock(&qe->parent->lock);
+
+        if (found !=1) {
+                if (option_debug)
+                        opbx_log(LOG_DEBUG, "Not any available agent .\n");
+                return 0;
+	}
+
+	/* Atomically read the parent head */
+	opbx_mutex_lock(&qe->parent->lock);
 	ch = qe->parent->head;
 	/* If we are now at the top of the head, break out */
-	if (ch == qe) {
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
-		res = 1;
-	} else {
-		if (option_debug)
-			opbx_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
-		res = 0;
-	}
+        if (ch == qe) {
+	        qe->trying_agent = 1;
+                res = 1;
+                        if (option_debug)
+                                opbx_log(LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
+        } else {
+		/* Are we next? */
+                cur_qe = qe->parent->head;
+                while(cur_qe) {
+			if (cur_qe->trying_agent != 1)
+				break;
+			cur_qe = cur_qe->next;
+                }
+
+                if (ch->trying_agent == 1 && cur_qe && qe == cur_qe) {
+                	qe->trying_agent = 1;
+	        	if (option_debug)
+	            		opbx_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+			res = 1;
+                } else {
+                	qe->trying_agent = 0;
+	            	if (option_debug)
+	            		opbx_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+		        res = 0;
+                }
+        }
+               
+	opbx_mutex_unlock(&qe->parent->lock); 
+
 	return res;
 }
 
@@ -2920,6 +2985,7 @@ static int queue_exec(struct opbx_channel *chan, void *data)
 	qe.prio = (int)prio;
 	qe.lopbx_pos_said = 0;
 	qe.lopbx_pos = 0;
+        qe.trying_agent=0;
 	qe.lopbx_periodic_announce_time = time(NULL);
 	if (!join_queue(queuename, &qe, &reason)) {
 		opbx_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "",
@@ -3034,6 +3100,7 @@ check_turns:
 
 				/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 				res = wait_a_bit(&qe);
+                                
 				if (res < 0) {
 					record_abandoned(&qe);
 					opbx_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
@@ -3063,6 +3130,7 @@ check_turns:
 				 * it is not sure that we are still at the head
 				 * of the queue, go and check for our turn again.
 				 */
+                                qe.trying_agent =0;
 				if (!is_our_turn(&qe)) {
 					if (option_debug)
 						opbx_log(LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",

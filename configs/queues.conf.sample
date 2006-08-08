@@ -94,6 +94,14 @@ persistentmembers = yes
 ;announce-holdtime = yes|no|once
 
 ;
+; User will be announces of his possition when he is under this number
+;
+; reportmaxpos = 5 
+;
+; Report if the user is the first in the queue
+;
+;reportpos-first = yes
+;
 ; What's the rounding time for the seconds?
 ; If this is non-zero, then we announce the seconds as well as the minutes
 ; rounded to this value.
