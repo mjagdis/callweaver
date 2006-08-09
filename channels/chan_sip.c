@@ -709,6 +709,7 @@ static struct sip_pvt {
 	char peername[256];			/*!< [peer] name, not set if [user] */
 	char authname[256];			/*!< Who we use for authentication */
 	char uri[256];				/*!< Original requested URI */
+	char ruri[256];				/*!< REAL Original requested URI */
 	char okcontacturi[256];			/*!< URI from the 200 OK on INVITE */
 	char peersecret[256];			/*!< Password */
 	char peermd5secret[256];
@@ -3449,6 +3450,9 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	tmp->priority = 1;
 	if (!opbx_strlen_zero(i->uri)) {
 		pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
+	}
+	if (!opbx_strlen_zero(i->uri)) {
+		pbx_builtin_setvar_helper(tmp, "SIPRURI", i->ruri);
 	}
 	if (!opbx_strlen_zero(i->domain)) {
 		pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
@@ -11561,6 +11565,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			
 		}
 	}
+	/* save the Request line */
+	opbx_copy_string(p->ruri, e, sizeof(p->ruri));
 
 	/* Check if this is a loop */
 	/* This happens since we do not properly support SIP domain
