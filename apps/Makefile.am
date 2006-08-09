@@ -437,4 +437,11 @@ app_ldap_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_ldap_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_LDAP
 
+if WANT_APP_GETDEVSTATE
+opbxmod_LTLIBRARIES			+= app_getdevstate.la
+app_getdevstate_la_SOURCES		= app_getdevstate.c
+app_getdevstate_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_getdevstate_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_GETDEVSTATE
+
 INCLUDES = -I$(top_srcdir)/include

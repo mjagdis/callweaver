@@ -1358,6 +1358,30 @@ if test "${with_app_ldap}" = "yes"; then
 fi
 
 dnl ###########################################################################
+
+AC_ARG_WITH([app_devstate],
+	[AC_HELP_STRING([--with-app_devstate],[Build and install app_devstate (default=yes)])],,
+	[with_app_devstate="yes"])
+
+AM_CONDITIONAL([WANT_APP_DEVSTATE],[test "${with_app_devstate}" = "yes"])
+
+dnl ###########################################################################
+
+AC_ARG_WITH([app_stack],
+	[AC_HELP_STRING([--with-app_stack],[Build and install app_stack (default=yes)])],,
+	[with_app_stack="yes"])
+
+AM_CONDITIONAL([WANT_APP_STACK],[test "${with_app_stack}" = "yes"])
+
+dnl ###########################################################################
+
+AC_ARG_WITH([app_getdevstate],
+	[AC_HELP_STRING([--with-app_getdevstate],[Build and install app_getdevstate (default=yes)])],,
+	[with_app_getdevstate="yes"])
+
+AM_CONDITIONAL([WANT_APP_GETDEVSTATE],[test "${with_app_getdevstate}" = "yes"])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Channels
