@@ -118,6 +118,7 @@ static char *descrip =
 "      'g' -- goes on in context if the destination channel hangs up\n"
 "      'G(context^exten^pri)' -- If the call is answered transfer both parties to the specified exten.\n"
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
+"      'R' -- wait for # to be pressed before bridging the call\n"
 "      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
 "      'D([called][:calling])'  -- Send DTMF strings *after* called party has answered, but before the\n"
 "             call gets bridged. The 'called' DTMF string is sent to the called party, and the\n"
@@ -642,6 +643,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	char privcid[256];
 	char privintro[1024];
 	char  announcemsg[256] = "", *ann;
+	int inputkey;
 	struct localuser *outgoing=NULL, *tmp;
 	struct opbx_channel *peer;
 	int to;
@@ -652,6 +654,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	int no_screen_callerid = 0;
 	int announce=0;
 	int resetcdr=0;
+	int waitpound=0;
 	int numbusy = 0;
 	int numcongestion = 0;
 	int numnochan = 0;
@@ -842,6 +845,11 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			}
 		}
 		
+		/* XXX # REQUEST ANNOUNCE SUPPORT */
+		if (strchr(transfer, 'R')) {
+			waitpound = 1;
+		}		
+
 		/* XXX ANNOUNCE SUPPORT */
 		if ((ann = strstr(transfer, "A("))) {
 			announce = 1;
@@ -1589,7 +1597,15 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 				}
 			}
 		}
-
+		if (waitpound) {
+			opbx_indicate(chan, OPBX_CONTROL_RINGING);
+			inputkey = opbx_waitfordigit(peer, 6000);
+			if (inputkey != '#') {
+				strncpy(status, "NOANSWER", sizeof(status) - 1);
+				opbx_hangup(peer);
+				return 0;
+			}
+		}		
 		if (!res) {
 			if (calldurationlimit > 0) {
 				time(&now);
