@@ -76,7 +76,8 @@ opbxmod_LTLIBRARIES		+= res_config_odbc.la
 res_config_odbc_la_SOURCES	= res_config_odbc.c
 res_config_odbc_la_LDFLAGS	= -module -avoid-version -no-undefined
 res_config_odbc_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
-res_config_odbc_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la res_odbc.la
+res_config_odbc_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la
+#res_config_odbc_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la res_odbc.la
 endif WANT_RES_CONFIG_ODBC  
 
 if WANT_OSP
