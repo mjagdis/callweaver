@@ -47,6 +47,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/apps/app_get
 #include "openpbx/opbxdb.h"
 #include "openpbx/lock.h"
 #include "openpbx/devicestate.h"
+#include "openpbx/cli.h"	//Needed to have RESULT_SUCCESS and RESULT_FAILURE
 
 static char *tdesc = "Gets device state (show hints)";
 
@@ -54,7 +55,7 @@ static char *g_app = "GetDevState";
 
 static char *g_descrip =
 	"  GetDevState(device): \n"
-	"Get the device state and returns it. Return values are:\n"
+	"Get the device state and saves it in DEVSTATE variable. Valid values are:\n"
 	"0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing"
 	"Example: GetDevState(SIP/715)\n";
 
@@ -68,15 +69,17 @@ static int get_devstate(struct opbx_channel *chan, void *data)
 {
 	char *argv;
 	struct localuser *u;
-	int res=0;
-
+	int res=-1;
+	char resc[8]="-1";
+	
 	LOCAL_USER_ADD(u);
 
 	argv = opbx_strdupa(data);
 	if (!argv) {
 		opbx_log(LOG_ERROR, "Memory allocation failed\n");
 		LOCAL_USER_REMOVE(u);
-		return res;
+		pbx_builtin_setvar_helper(chan, "DEVSTATE", resc );	
+		return RESULT_FAILURE;
 	}
 
 	if ( strlen(argv) )
@@ -86,12 +89,14 @@ static int get_devstate(struct opbx_channel *chan, void *data)
 		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
-        opbx_log(LOG_DEBUG, "app_getdevstate returning state %d for device %s \n",
+        opbx_log(LOG_DEBUG, "app_getdevstate setting DEVSTATE to %d for device %s \n",
                res, argv);
+	snprintf(resc,sizeof(resc),"%d",res);
+	pbx_builtin_setvar_helper(chan, "DEVSTATE", resc );	
 
 	LOCAL_USER_REMOVE(u);
 
-	return res;
+	return RESULT_SUCCESS;
 }
 
 int unload_module(void)

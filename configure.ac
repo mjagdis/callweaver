@@ -1382,6 +1382,14 @@ AC_ARG_WITH([app_getdevstate],
 AM_CONDITIONAL([WANT_APP_GETDEVSTATE],[test "${with_app_getdevstate}" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH([app_getextstate],
+	[AC_HELP_STRING([--with-app_getextstate],[Build and install app_getextstate (default=yes)])],,
+	[with_app_getextstate="yes"])
+
+AM_CONDITIONAL([WANT_APP_GETEXTSTATE],[test "${with_app_getextstate}" = "yes"])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Channels
