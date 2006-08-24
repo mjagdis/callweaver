@@ -269,6 +269,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         memset(&t38, 0, sizeof(t38));
 
         fax_init(&fax, calling_party);
+	fax_set_transmit_on_idle(&fax,TRUE);
         if (verbose)
         {
             span_log_set_level(&fax.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
@@ -313,7 +314,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
             if (call_is_t38_mode)
-			{
+	    {
                 now = nowis();
                 t38_terminal_send_timeout(&t38, (now - passage)/125);
                 passage = now;
@@ -323,8 +324,29 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             }
             if (res == 0)
             {
-                next += 30000;
-                continue;
+
+		if (!call_is_t38_mode) {
+            	    samples = 1;
+            	    if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples))) {
+                	memset(&outf, 0, sizeof(outf));
+                	outf.frametype = OPBX_FRAME_VOICE;
+                	outf.subclass = OPBX_FORMAT_SLINEAR;
+                	outf.datalen = len*sizeof(int16_t);
+                	outf.samples = len;
+                	outf.data = &buf[OPBX_FRIENDLY_OFFSET];
+                	outf.offset = OPBX_FRIENDLY_OFFSET;
+                	outf.src = "TxFAX";
+                	if (opbx_write(chan, &outf) < 0) {
+                    	    opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                    	    break;
+                	}
+			passage = now;
+            		next += 20000; // If I remember well, spandsp generates 1 frame every 20ms
+		    }
+		} else 
+
+            	    next += 30000;
+            	continue;
             }
             if ((inf = opbx_read(chan)) == NULL)
             {
@@ -357,11 +379,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             {
                 //printf("T.38 frame received\n");
                 if (!call_is_t38_mode)
-        		{
+        	{
             		call_is_t38_mode = TRUE;
-		            passage = now;
+		    	passage = now;
                 }
-        		t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
+        	t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
             }
             opbx_frfree(inf);
         }

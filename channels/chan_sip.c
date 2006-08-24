@@ -12619,10 +12619,11 @@ restartsearch:
 
 
 			opbx_mutex_lock(&sip->lock);
+
 			if (sip->rtp && sip->owner && (sip->owner->_state == OPBX_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
 			    //opbx_verbose("\n t %d \n t38 %d \n sip->lastrtptx %d\n sip->lastrtprx %d\n sip->rtptimeout %d\n sip->rtpholdtimeout %d\n app %s \n",
 	    		    //		   (int)t,sip->t38state,(int)sip->lastrtptx,(int)sip->lastrtprx,sip->rtptimeout,sip->rtpholdtimeout,sip->owner->appl);
-
+/*
 			    if ( !sip->rtptimeout && !sip->rtpholdtimeout && 
 				(t-sip->lastrtptx>4) && (t-sip->lastrtprx>4) && 
 				!sip->t38state && t38udptlsupport
@@ -12641,7 +12642,7 @@ restartsearch:
 				    }
 
 			    }
-
+*/
 				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
 					/* Need to send an empty RTP packet */
 					time(&sip->lastrtptx);

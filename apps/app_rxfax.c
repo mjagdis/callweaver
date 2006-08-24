@@ -449,7 +449,16 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                     passage = now;
                 }
                 t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
-            }
+            } else if ( inf->frametype == 0 && !call_is_t38_mode ) {
+		// We received unknown frametype.
+		// This happens when a T38 switchover has been performed and
+		// we consider RTP frames as UDPTL. Let's switch to t38 mode.
+                call_is_t38_mode = TRUE;
+                passage = now;
+	    } else {
+		opbx_log(LOG_WARNING," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
+		    inf->frametype, inf->subclass, call_is_t38_mode );
+	    }
             opbx_frfree(inf);
         }
         if (inf == NULL)
