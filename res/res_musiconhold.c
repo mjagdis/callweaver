@@ -971,8 +971,14 @@ static void opbx_moh_destroy(void)
 	moh = mohclasses;
 
 	while (moh) {
+/*
+		// This Seems to kill openpbx Whenever a reload is done.
+		// Someone should look into it. In the meanwhile, it's better to
+		// comment it out to prevent malfunctions.
+
 		if (moh->thread) 
 			pthread_kill(moh->thread, SIGKILL); 
+*/
 		if (moh->pid) {
 			opbx_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
