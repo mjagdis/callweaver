@@ -438,8 +438,9 @@ static int restart_monitor(void);
 /*! \brief Codecs that we support by default: */
 static int global_capability = OPBX_FORMAT_ULAW | OPBX_FORMAT_ALAW | OPBX_FORMAT_GSM | OPBX_FORMAT_H263;
 static int noncodeccapability = OPBX_RTP_DTMF;
+#if T38_SUPPORT
 static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600; /* This is default: NO MMR and JBIG trancoding, NO fill bit removal, transfered TCF, UDP FEC, Version 0 and 9600 max fax rate */
-
+#endif
 static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
 static int ourport;
@@ -974,16 +975,18 @@ static struct sip_auth *authl;          /*!< Authentication list */
 
 
 static struct opbx_frame  *sip_read(struct opbx_channel *ast);
-static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
-static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
-static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
-static int transmit_reinvite_with_sdp(struct sip_pvt *p);
+static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
+static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
+static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
+#ifdef T38_SUPPORT
+static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p);
+#endif
+static int transmit_reinvite_with_sdp(struct sip_pvt *p);
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
@@ -1023,8 +1026,9 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms); /* Function to bridge to SIP channels if T38 support enabled */
+#ifdef T38_SUPPORT
 static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pvt, int reinvite); /* T38 negotiation helper function */
-
+#endif
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct opbx_channel_tech sip_tech = {
 	.type = channeltype,
@@ -3136,11 +3140,12 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
 static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
 {
     int res=0;
-    struct sip_pvt *p = ast->tech_pvt;
     int faxdetected = 0;
 
     res=sip_rtp_write(ast,frame,&faxdetected);
 
+#if T38_SUPPORT
+    struct sip_pvt *p = ast->tech_pvt;
 	if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast))) {
 	    opbx_log(LOG_VERBOSE, "Faxdetect set to 1. DSP detected fax tones on TX\n");
 		if (!opbx_test_flag(p, SIP_GOTREFER)) {
@@ -3157,7 +3162,7 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
 				opbx_set_flag(p, SIP_NEEDREINVITE);
 		}
 	}
-
+#endif
     return res;
 }
 
@@ -4123,10 +4128,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int len = -1;
 	int portno = -1;
 	int vportno = -1;
-	int udptlportno = -1;
-	int peert38capability = 0;
-	char s[256];
-	int old = 0;
 	int peercapability, peernoncodeccapability;
 	int vpeercapability=0, vpeernoncodeccapability=0;
 	struct sockaddr_in sin;
@@ -4157,6 +4158,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 #if T38_SUPPORT
+	int udptlportno = -1;
+	int peert38capability = 0;
+	char s[256];
+	int old = 0;
+
 	/* Detecting Cisco GW to swap ports when in T38 fax mode */
 	m = get_sdp(req, "o");
 	opbx_log(LOG_DEBUG, "Got this other party (o = '%s')\n",m);
