@@ -38,6 +38,10 @@ noload => chan_alsa.so
 ; woomera Server running will be confusing.
 noload => chan_woomera.so
 
+; Don't load chan_capi by default.  Loading it without having
+; configured prevents openpbx from working.
+noload => chan_capi.so
+
 ;
 ; Module names listed in "global" section will have symbols globally
 ; exported to modules loaded after them.
