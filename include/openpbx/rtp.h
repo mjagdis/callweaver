@@ -31,6 +31,7 @@
 #include "openpbx/io.h"
 #include "openpbx/sched.h"
 #include "openpbx/channel.h"
+#include "openpbx/udp.h"
 
 #include <netinet/in.h>
 

@@ -24,7 +24,9 @@ DEB_CONFIGURE_EXTRA_FLAGS	:= \
     --with-app_sql_postgres=no \
     --enable-postgresql \
     --with-cdr_pgsql \
-    --with-app_meetme=no
+    --with-app_meetme=no \
+    --with-chan-capi \
+    --with-chan-fax 
 
 ifeq ($(ENABLE_ODBC), yes)
  DEB_CONFIGURE_EXTRA_FLAGS += \
