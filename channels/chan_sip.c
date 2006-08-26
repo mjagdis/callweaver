@@ -1161,7 +1161,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
-
+	gettimeofday(&p->peerpoke->ps, NULL); // We set ping time here to make pokepeer calculations correct. Stun introduces lag.
 	if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 		res=opbx_sendfromto(sipsock, data, len, 0, NULL, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
 	else {
