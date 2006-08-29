@@ -44,14 +44,13 @@ static char *app = "RxFAX";
 static char *synopsis = "Receive a FAX to a file";
 
 static char *descrip = 
-"  RxFAX(filename[|caller][|debug][|foip]): Receives a FAX from the channel into the\n"
+"  RxFAX(filename[|caller][|debug][|ecm]): Receives a FAX from the channel into the\n"
 "given filename. If the file exists it will be overwritten. The file\n"
 "should be in TIFF/F format.\n"
 "The \"caller\" option makes the application behave as a calling machine,\n"
 "rather than the answering machine. The default behaviour is to behave as\n"
 "an answering machine.\n"
-"The \"foip\" option make this application to enable some workarounds when \n"
-"receiving data from another openpbx.org server over SIP.\n"
+"The \"ecm\" option enables ECM.\n"
 "Uses LOCALSTATIONID to identify itself to the remote end.\n"
 "     LOCALHEADERINFO to generate a header line on each page.\n"
 "Sets REMOTESTATIONID to the sender CSID.\n"
@@ -82,11 +81,12 @@ opbx_level = __LOG_WARNING;
     opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
 }
 /*- End of function --------------------------------------------------------*/
-
+/* remove compiler warnings
 static void t30_flush(t30_state_t *s, int which)
 {
     //TODO:
 }
+*/
 /*- End of function --------------------------------------------------------*/
 
 static void phase_e_handler(t30_state_t *s, void *user_data, int result)
@@ -220,7 +220,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     t38_terminal_state_t t38;
     int calling_party;
     int verbose;
-    int foip;
+    int ecm = FALSE;
     int rxpkt;
     int samples;
     int call_is_t38_mode;
@@ -259,7 +259,6 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     
     calling_party = FALSE;
     verbose = FALSE;
-    foip=FALSE;
     target_file[0] = '\0';
 
     for (option = 0, v = s = data;  v;  option++, s++)
@@ -299,9 +298,9 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         {
             verbose = TRUE;
         }
-        else if (strncmp("foip", t, s - t) == 0)
+        else if (strncmp("ecm", t, s - t) == 0)
         {
-            foip = TRUE;
+            ecm = TRUE;
         }
     }
 
@@ -375,7 +374,11 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         //t30_set_phase_b_handler(&t38.t30_state, phase_b_handler, chan);
         //t30_set_phase_d_handler(&t38.t30_state, phase_d_handler, chan);
         t30_set_phase_e_handler(&t38.t30_state, phase_e_handler, chan);
-
+	if (ecm) {
+	    t30_set_ecm_capability(&t38.t30_state, TRUE);
+	    t30_set_supported_compressions(&t38.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+	}
+	
         call_is_t38_mode = FALSE;
         passage = nowis();
         next = passage + 30000;
@@ -389,9 +392,6 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 break;
 	    }
 
-	    if ( (thistime-begin) >= 5 && foip && !rxpkt)
-		call_is_t38_mode=TRUE;
-	    	    	    
             now = nowis();
             delay = (next < now)  ?  0  :  (next - now + 500)/1000;
             if ((res = opbx_waitfor(chan, delay)) < 0)
@@ -466,6 +466,13 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             opbx_log(LOG_DEBUG, "Got hangup\n");
             res = -1;
         }
+	
+        //opbx_log(LOG_WARNING, "Terminating fax\n");
+        if (!call_is_t38_mode)
+	    t30_terminate(&fax.t30_state);
+	else
+	    t30_terminate(&t38.t30_state);
+	
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {
             if ((res = opbx_set_read_format(chan, original_read_fmt)))
