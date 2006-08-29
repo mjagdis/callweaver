@@ -77,7 +77,7 @@ static void span_message(int level, const char *msg)
         opbx_level = __LOG_WARNING;
     else
         opbx_level = __LOG_DEBUG;
-opbx_level = __LOG_WARNING;
+    //opbx_level = __LOG_WARNING;
     opbx_log(opbx_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, msg);
 }
 /*- End of function --------------------------------------------------------*/
