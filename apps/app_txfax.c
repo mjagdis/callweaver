@@ -314,6 +314,9 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 	if (ecm) {
     	    t30_set_ecm_capability(&fax.t30_state, TRUE);
 	    t30_set_supported_compressions(&fax.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+    	    t30_set_ecm_capability(&t38.t30_state, TRUE);
+	    t30_set_supported_compressions(&t38.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+	    opbx_log(LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
 	}
 	
         call_is_t38_mode = FALSE;
