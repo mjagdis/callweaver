@@ -35,6 +35,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/pbx.h"
 #include "openpbx/module.h"
 #include "openpbx/translate.h"
+#include "openpbx/manager.h"
 
 static char *tdesc = "Trivial FAX Transmit Application";
 
@@ -86,17 +87,45 @@ static void t30_flush(t30_state_t *s, int which)
 static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 {
     struct opbx_channel *chan;
+    char local_ident[21];
     char far_ident[21];
     char buf[11];
+    t30_stats_t t;
+
+    t30_get_transfer_statistics(s, &t);
     
     chan = (struct opbx_channel *) user_data;
+    t30_get_local_ident(s, local_ident);
     t30_get_far_ident(s, far_ident);
     pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", far_ident);
+    snprintf(buf, sizeof(buf), "%d", t.pages_transferred);
+    pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
+    snprintf(buf, sizeof(buf), "%d", t.y_resolution);
+    pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", buf);
+    snprintf(buf, sizeof(buf), "%d", t.bit_rate);
+    pbx_builtin_setvar_helper(chan, "FAXBITRATE", buf);
     snprintf(buf, sizeof(buf), "%d", result);
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", buf);
     opbx_log(LOG_DEBUG, "==============================================================================\n");
-    if (result == T30_ERR_OK)
+    if (result == T30_ERR_OK) {
         opbx_log(LOG_DEBUG, "Fax successfully sent.\n");
+        opbx_log(LOG_DEBUG, "Remote station id: %s\n", far_ident);
+        opbx_log(LOG_DEBUG, "Local station id:  %s\n", local_ident);
+        opbx_log(LOG_DEBUG, "Pages transferred: %i\n", t.pages_transferred);
+        opbx_log(LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
+        opbx_log(LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
+        manager_event(EVENT_FLAG_CALL,
+                      "FaxSent", "Channel: %s\nExten: %s\nCallerID: %s\nRemoteStationID: %s\nLocalStationID: %s\nPagesTransferred: %i\nResolution: %i\nTransferRate: %i\nFileName: %s\n",
+                      chan->name,
+                      chan->exten,
+                      (chan->cid.cid_num)  ?  chan->cid.cid_num  :  "",
+                      far_ident,
+                      local_ident,
+                      t.pages_transferred,
+                      t.y_resolution,
+                      t.bit_rate,
+                      s->rx_file);
+    }
     else
         opbx_log(LOG_DEBUG, "Fax send not successful - result (%d) %s.\n", result, t30_completion_code_to_str(result));
     opbx_log(LOG_DEBUG, "==============================================================================\n");
