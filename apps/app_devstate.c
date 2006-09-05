@@ -34,14 +34,14 @@
 static char type[] = "DS";
 static char tdesc[] = "Application for sending device state messages";
 
-static char app[] = "Devstate";
+static char app[] = "DevState";
 
 static char synopsis[] = "Generate a device state change event given the input parameters";
 
-static char descrip[] = " Devstate(device|state):  Generate a device state change event given the input parameters. Returns 0. State values match the openpbx device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
+static char descrip[] = " DevState(device|state):  Generate a device state change event given the input parameters. Returns 0. State values match the openpbx device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
 
 static char devstate_cli_usage[] = 
-"Usage: devstate device state\n" 
+"Usage: DevState device state\n" 
 "       Generate a device state change event given the input parameters.\n Mainly used for lighting the LEDs on the snoms.\n";
 
 static int devstate_cli(int fd, int argc, char *argv[]);

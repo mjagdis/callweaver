@@ -61,13 +61,13 @@ static char *d_descrip =
 	"returns 0.\n";
 
 static char *dt_descrip =
-	"  DBdeltree(family[/keytree]): Deletes a family or keytree from the OpenPBX\n"
+	"  DBdelTree(family[/keytree]): Deletes a family or keytree from the OpenPBX\n"
 	"database.  Always returns 0.\n";
 
 static char *g_app = "DBget";
 static char *p_app = "DBput";
 static char *d_app = "DBdel";
-static char *dt_app = "DBdeltree";
+static char *dt_app = "DBdelTree";
 
 static char *g_synopsis = "Retrieve a value from the database";
 static char *p_synopsis = "Store a value in the database";
