@@ -14384,27 +14384,25 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
 }
 #endif
 
-static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
-static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
-static char *app_dtmfmode = "SIPDtmfMode";
+static char *synopsis_dtmfmode = "Change the DTMF mode for a SIP call";
+static char *descrip_dtmfmode = "SipDTMFMode(inband|info|rfc2833): Changes the DTMF mode for a SIP call\n";
+static char *app_dtmfmode = "SipDTMFMode";
 
-static char *app_sipaddheader = "SIPAddHeader";
+static char *app_sipaddheader = "SipAddHeader";
 static char *synopsis_sipaddheader = "Add a SIP header to the outbound call";
-
-
 static char *descrip_sipaddheader = ""
-"  SIPAddHeader(Header: Content)\n"
+"  SipAddHeader(Header: Content)\n"
 "Adds a header to a SIP call placed with DIAL.\n"
 "Remember to user the X-header if you are adding non-standard SIP\n"
 "headers, like \"X-OpenPBX-Accountcode:\". Use this with care.\n"
 "Adding the wrong headers may jeopardize the SIP dialog.\n"
 "Always returns 0\n";
 
-static char *app_sipgetheader = "SIPGetHeader";
+static char *app_sipgetheader = "SipGetHeader";
 static char *synopsis_sipgetheader = "Get a SIP header from an incoming call";
  
 static char *descrip_sipgetheader = ""
-"  SIPGetHeader(var=headername): \n"
+"  SipGetHeader(var=headername): \n"
 "Sets a channel variable to the content of a SIP header\n"
 "Skips to priority+101 if header does not exist\n"
 "Otherwise returns 0\n";
