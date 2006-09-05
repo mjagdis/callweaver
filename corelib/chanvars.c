@@ -35,11 +35,35 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/chanvars.h"
 #include "openpbx/logger.h"
 #include "openpbx/strings.h"
+#include "openpbx/opbx_hash.h"
+
+/*!
+ * \note I M P O R T A N T :
+ *
+ *		This file has been modified to accommodate the new hash code based system
+ * to recognise identifiers, which increases the efficiency of dialplan execution.
+ *
+ *		As a result of the change to the hash code based system, variable names
+ * are no longer case insensitive. If the old behaviour is desired, this file
+ * should be compiled with the following macro defined:
+ *
+ *		o  OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+ *
+ */
+
+
+#ifdef OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+#define opbx_hash_var_name(x)	opbx_hash_string_toupper(x)
+#else
+#define opbx_hash_var_name(x)	opbx_hash_string(x)
+#endif
+
 
 struct opbx_var_t *opbx_var_assign(const char *name, const char *value)
 {
 	int i;
 	struct opbx_var_t *var;
+	unsigned int hash = opbx_hash_var_name(name);
 	
 	var = calloc(sizeof(struct opbx_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
 
@@ -48,6 +72,7 @@ struct opbx_var_t *opbx_var_assign(const char *name, const char *value)
 		return NULL;
 	}
 
+	var->hash = hash;
 	i = strlen(name) + 1;
 	opbx_copy_string(var->name, name, i);
 	var->value = var->name + i;
@@ -92,3 +117,4 @@ char *opbx_var_value(struct opbx_var_t *var)
 }
 
 
+// END OF FILE

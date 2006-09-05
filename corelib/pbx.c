@@ -59,6 +59,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/musiconhold.h"
 #include "openpbx/app.h"
 #include "openpbx/devicestate.h"
+#include "openpbx/opbx_hash.h"
+#include "openpbx/opbx_keywords.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -69,6 +71,38 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
  * of priorities, but a constant search time here would be great ;-) 
  *
  */
+
+/*!
+ * \note I M P O R T A N T  V . 2 :
+ *
+ *		This file has been converted towards a hash code based system to
+ * recognise identifiers, which is precisely what the original author should
+ * have done to address their concern stated in the above IMPORTANT note.
+ *
+ *		As a result of the change to the hash code based system, application
+ * and variable names are no longer case insensitive. If the old behaviour is
+ * desired, this file should be compiled with the following macros defined:
+ *
+ *		o  OPBX_USE_CASE_INSENSITIVE_APP_NAMES
+ *		o  OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+ *
+ */
+
+#ifdef OPBX_USE_CASE_INSENSITIVE_APP_NAMES
+#define opbx_hash_app_name(x)	opbx_hash_string_toupper(x)
+#define OPBX_CASE_INFO_STRING_FOR_APP_NAMES	"insensitive"
+#else
+#define opbx_hash_app_name(x)	opbx_hash_string(x)
+#define OPBX_CASE_INFO_STRING_FOR_APP_NAMES	"sensitive"
+#endif
+
+#ifdef OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+#define opbx_hash_var_name(x)	opbx_hash_string_toupper(x)
+#define OPBX_CASE_INFO_STRING_FOR_VAR_NAMES	"insensitive"
+#else
+#define opbx_hash_var_name(x)	opbx_hash_string(x)
+#define OPBX_CASE_INFO_STRING_FOR_VAR_NAMES	"sensitive"
+#endif
 
 #ifdef LOW_MEMORY
 #define EXT_DATA_SIZE 256
@@ -106,39 +140,40 @@ struct opbx_context;
 
 /* opbx_exten: An extension */
 struct opbx_exten {
-	char *exten;			/* Extension name */
-	int matchcid;			/* Match caller id ? */
-	char *cidmatch;			/* Caller id to match for this extension */
-	int priority;			/* Priority */
-	char *label;			/* Label */
+	char *exten;				/* Extension name -- shouldn't this be called "ident" ? */
+	unsigned int hash;			/* Hashed identifier */
+	int matchcid;				/* Match caller id ? */
+	char *cidmatch;				/* Caller id to match for this extension */
+	int priority;				/* Priority */
+	char *label;				/* Label */
 	struct opbx_context *parent;	/* The context this extension belongs to  */
-	char *app; 			/* Application to execute */
-	void *data;			/* Data to use (arguments) */
+	char *app;					/* Application to execute */
+	void *data;					/* Data to use (arguments) */
 	void (*datad)(void *);		/* Data destructor */
-	struct opbx_exten *peer;		/* Next higher priority with our extension */
+	struct opbx_exten *peer;	/* Next higher priority with our extension */
 	const char *registrar;		/* Registrar */
-	struct opbx_exten *next;		/* Extension with a greater ID */
+	struct opbx_exten *next;	/* Extension with a greater ID */
 	char stuff[0];
 };
 
 /* opbx_include: include= support in extensions.conf */
 struct opbx_include {
 	char *name;		
-	char *rname;		/* Context to include */
-	const char *registrar;			/* Registrar */
+	char *rname;				/* Context to include */
+	const char *registrar;		/* Registrar */
 	int hastime;				/* If time construct exists */
-	struct opbx_timing timing;               /* time construct */
-	struct opbx_include *next;		/* Link them together */
+	struct opbx_timing timing;	/* time construct */
+	struct opbx_include *next;	/* Link them together */
 	char stuff[0];
 };
 
 /* opbx_sw: Switch statement in extensions.conf */
 struct opbx_sw {
 	char *name;
-	const char *registrar;			/* Registrar */
-	char *data;				/* Data load */
+	const char *registrar;		/* Registrar */
+	char *data;					/* Data load */
 	int eval;
-	struct opbx_sw *next;			/* Link them together */
+	struct opbx_sw *next;		/* Link them together */
 	char *tmpdata;
 	char stuff[0];
 };
@@ -152,12 +187,13 @@ struct opbx_ignorepat {
 /* opbx_context: An extension context */
 struct opbx_context {
 	opbx_mutex_t lock; 			/* A lock to prevent multiple threads from clobbering the context */
-	struct opbx_exten *root;			/* The root of the list of extensions */
-	struct opbx_context *next;		/* Link them together */
-	struct opbx_include *includes;		/* Include other contexts */
+	unsigned int hash;			/* Hashed context name */
+	struct opbx_exten *root;	/* The root of the list of extensions */
+	struct opbx_context *next;	/* Link them together */
+	struct opbx_include *includes;	/* Include other contexts */
 	struct opbx_ignorepat *ignorepats;	/* Patterns for which to continue playing dialtone */
-	const char *registrar;			/* Registrar */
-	struct opbx_sw *alts;			/* Alternative switches */
+	const char *registrar;		/* Registrar */
+	struct opbx_sw *alts;		/* Alternative switches */
 	char name[0];				/* Name of the context */
 };
 
@@ -165,9 +201,10 @@ struct opbx_context {
 /* opbx_app: An application */
 struct opbx_app {
 	int (*execute)(struct opbx_channel *chan, void *data);
-	const char *synopsis;			/* Synopsis text for 'show applications' */
-	const char *description;		/* Description (help text) for 'show application <name>' */
-	struct opbx_app *next;			/* Next app in list */
+	unsigned int hash;			/* Hashed application name */
+	const char *synopsis;		/* Synopsis text for 'show applications' */
+	const char *description;	/* Description (help text) for 'show application <name>' */
+	struct opbx_app *next;		/* Next app in list */
 	char name[0];				/* Name of the application */
 };
 
@@ -182,7 +219,7 @@ struct opbx_state_cb {
 /* Hints are pointers from an extension in the dialplan to one or more devices (tech/name) */
 struct opbx_hint {
 	struct opbx_exten *exten;	/* Extension */
-	int laststate; 			/* Last known state */
+	int laststate;				/* Last known state */
 	struct opbx_state_cb *callbacks;	/* Callback list for this extension */
 	struct opbx_hint *next;		/* Pointer to next hint in list */
 };
@@ -257,7 +294,7 @@ static struct pbx_builtin {
 	"become ready. Returns 0 unless it tries to answer the channel and fails.\n"   
 	},
 
-	{ "BackGround", pbx_builtin_background,
+	{ "Background", pbx_builtin_background,
 	"Play a file while awaiting extension",
 	"  Background(filename1[&filename2...][|options[|langoverride][|context]]):\n"
 	"Plays given files, while simultaneously waiting for the user to begin typing\n"
@@ -588,6 +625,7 @@ int pbx_exec(struct opbx_channel *c, 		/* Channel */
 struct opbx_app *pbx_findapp(const char *app) 
 {
 	struct opbx_app *tmp;
+	unsigned int hash = opbx_hash_app_name(app);
 
 	if (opbx_mutex_lock(&applock)) {
 		opbx_log(LOG_WARNING, "Unable to obtain application lock\n");
@@ -595,7 +633,7 @@ struct opbx_app *pbx_findapp(const char *app)
 	}
 	tmp = apps;
 	while(tmp) {
-		if (!strcasecmp(tmp->name, app))
+		if (hash == tmp->hash)
 			break;
 		tmp = tmp->next;
 	}
@@ -748,11 +786,13 @@ int opbx_extension_close(const char *pattern, const char *data, int needmore)
 struct opbx_context *opbx_context_find(const char *name)
 {
 	struct opbx_context *tmp;
+	unsigned int hash = opbx_hash_string(name);
+	
 	opbx_mutex_lock(&conlock);
 	if (name) {
 		tmp = contexts;
 		while(tmp) {
-			if (!strcasecmp(name, tmp->name))
+			if (hash == tmp->hash)
 				break;
 			tmp = tmp->next;
 		}
@@ -794,6 +834,7 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 	struct opbx_include *i;
 	struct opbx_sw *sw;
 	struct opbx_switch *asw;
+	unsigned int hash = opbx_hash_string(context);
 
 	/* Initialize status if appropriate */
 	if (!*stacklen) {
@@ -817,7 +858,7 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 		tmp = contexts;
 	while(tmp) {
 		/* Match context */
-		if (bypass || !strcmp(tmp->name, context)) {
+		if (bypass || (hash == tmp->hash)) {
 			struct opbx_exten *earlymatch = NULL;
 
 			if (*status < STATUS_NO_EXTENSION)
@@ -916,17 +957,24 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
   ---*/
 void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
-	char *first,*second;
+	char *first, *second;
 	char tmpvar[80];
 	time_t thistime;
 	struct tm brokentime;
-	int offset,offset2;
+	int offset, offset2;
 	struct opbx_var_t *variables;
+	int no_match = 0;
+	unsigned int hash = opbx_hash_var_name(var);
 
-	if (c) 
-		headp=&c->varshead;
+	if /* channel exists */ (c) 
+		headp = &c->varshead;
+	
 	*ret=NULL;
-	if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
+	
+	// check for slicing modifier
+	if /* sliced */ ((first=strchr(var,':'))) {
+		
+		// remove characters counting from end or start of string */
 		opbx_copy_string(tmpvar, var, sizeof(tmpvar));
 		first = strchr(tmpvar, ':');
 		if (!first)
@@ -946,194 +994,249 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 			offset2 = strlen(*ret)-offset;	/* Rest of string */
 		} else {
 			offset2 = abs(offset);
-		}
+		} // end if
 
 		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
 			if (offset >= 0) 
 				offset = strlen(*ret);
 			else 
-				offset =- strlen(*ret);	
-		}
+				offset =- strlen(*ret);
+		} // end if
+
 		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
 			if (offset >= 0) 
 				offset2 = strlen(*ret)-offset;
 			else 
 				offset2 = strlen(*ret)+offset;
-		}
+		} // end if
+
 		if (offset >= 0)
 			*ret += offset;
 		else
 			*ret += strlen(*ret)+offset;
 		(*ret)[offset2] = '\0';		/* Cut at offset2 position */
-	} else if (c && !strncmp(var, "CALL", 4)) {
-		if (!strncmp(var + 4, "ER", 2)) {
-			if (!strncmp(var + 6, "ID", 2)) {
-				if (!var[8]) { 			/* CALLERID */
-					if (c->cid.cid_num) {
-						if (c->cid.cid_name) {
-							snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
-						} else {
-							opbx_copy_string(workspace, c->cid.cid_num, workspacelen);
-						}
-						*ret = workspace;
-					} else if (c->cid.cid_name) {
-						opbx_copy_string(workspace, c->cid.cid_name, workspacelen);
-						*ret = workspace;
-					} else
-						*ret = NULL;
-				} else if (!strcmp(var + 8, "NUM")) {
-					/* CALLERIDNUM */
-					if (c->cid.cid_num) {
-						opbx_copy_string(workspace, c->cid.cid_num, workspacelen);
-						*ret = workspace;
-					} else
-						*ret = NULL;
-				} else if (!strcmp(var + 8, "NAME")) {
-					/* CALLERIDNAME */
+	}
+	else /* not sliced */ {
+		
+		if /* channel exists */ (c) {
+			
+			// search builtin channel variables
+						
+			if /* CALLERID */(hash == OPBX_KEYWORD_CALLERID) {
+				if (c->cid.cid_num) {
 					if (c->cid.cid_name) {
-						opbx_copy_string(workspace, c->cid.cid_name, workspacelen);
-						*ret = workspace;
-					} else
-						*ret = NULL;
-				}
-			} else if (!strcmp(var + 6, "ANI")) {
-				/* CALLERANI */
+						snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
+					} else {
+						opbx_copy_string(workspace, c->cid.cid_num, workspacelen);
+					}
+					*ret = workspace;
+				} else if (c->cid.cid_name) {
+					opbx_copy_string(workspace, c->cid.cid_name, workspacelen);
+					*ret = workspace;
+				} else
+					*ret = NULL;
+			} // end if CALLERID
+			
+			else if /* CALLERIDNUM */ (hash == OPBX_KEYWORD_CALLERIDNUM) {
+				if (c->cid.cid_num) {
+					opbx_copy_string(workspace, c->cid.cid_num, workspacelen);
+					*ret = workspace;
+				} else
+					*ret = NULL;
+			} // end if CALLERIDNUM
+			
+			else if /* CALLERIDNAME */ (hash == OPBX_KEYWORD_CALLERIDNAME) {
+				if (c->cid.cid_name) {
+					opbx_copy_string(workspace, c->cid.cid_name, workspacelen);
+					*ret = workspace;
+				} else
+					*ret = NULL;
+			} // end if CALLERIDNAME
+			
+			else if /* CALLERANI */ (hash == OPBX_KEYWORD_CALLERANI) {
 				if (c->cid.cid_ani) {
 					opbx_copy_string(workspace, c->cid.cid_ani, workspacelen);
 					*ret = workspace;
 				} else
 					*ret = NULL;
-			} else
-				goto icky;
-		} else if (!strncmp(var + 4, "ING", 3)) {
-			if (!strcmp(var + 7, "PRES")) {
-				/* CALLINGPRES */
+			} // end if CALLERANI
+			
+			else if /* CALLINGPRES */ (hash == OPBX_KEYWORD_CALLINGPRES) {
 				snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
 				*ret = workspace;
-			} else if (!strcmp(var + 7, "ANI2")) {
-				/* CALLINGANI2 */
+			} // end if CALLINGPRES
+			
+			else if /* CALLINGANI2 */ (hash == OPBX_KEYWORD_CALLINGANI2) {
 				snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
 				*ret = workspace;
-			} else if (!strcmp(var + 7, "TON")) {
-				/* CALLINGTON */
+			} // end if CALLINGANI2
+			
+			else if /* CALLINGTON */ (hash == OPBX_KEYWORD_CALLINGTON) {
 				snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
 				*ret = workspace;
-			} else if (!strcmp(var + 7, "TNS")) {
-				/* CALLINGTNS */
+			} // end if CALLINGTON
+			
+			else if /* CALLINGTNS */ (hash == OPBX_KEYWORD_CALLINGTNS) {
 				snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
 				*ret = workspace;
-			} else
-				goto icky;
-		} else
-			goto icky;
-	} else if (c && !strcmp(var, "DNID")) {
-		if (c->cid.cid_dnid) {
-			opbx_copy_string(workspace, c->cid.cid_dnid, workspacelen);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-	} else if (c && !strcmp(var, "HINT")) {
-		if (!opbx_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
-			*ret = NULL;
-		else
-			*ret = workspace;
-	} else if (c && !strcmp(var, "HINTNAME")) {
-		if (!opbx_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten))
-			*ret = NULL;
-		else
-			*ret = workspace;
-	} else if (c && !strcmp(var, "EXTEN")) {
-		opbx_copy_string(workspace, c->exten, workspacelen);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "RDNIS")) {
-		if (c->cid.cid_rdnis) {
-			opbx_copy_string(workspace, c->cid.cid_rdnis, workspacelen);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-	} else if (c && !strcmp(var, "CONTEXT")) {
-		opbx_copy_string(workspace, c->context, workspacelen);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "PRIORITY")) {
-		snprintf(workspace, workspacelen, "%d", c->priority);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "CHANNEL")) {
-		opbx_copy_string(workspace, c->name, workspacelen);
-		*ret = workspace;
-	} else if (!strcmp(var, "EPOCH")) {
-		snprintf(workspace, workspacelen, "%u",(int)time(NULL));
-		*ret = workspace;
-	} else if (!strcmp(var, "DATETIME")) {
-		thistime=time(NULL);
-		localtime_r(&thistime, &brokentime);
-		snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
-			brokentime.tm_mday,
-			brokentime.tm_mon+1,
-			brokentime.tm_year+1900,
-			brokentime.tm_hour,
-			brokentime.tm_min,
-			brokentime.tm_sec
-		);
-		*ret = workspace;
-	} else if (!strcmp(var, "TIMESTAMP")) {
-		thistime=time(NULL);
-		localtime_r(&thistime, &brokentime);
-		/* 20031130-150612 */
-		snprintf(workspace, workspacelen, "%04d%02d%02d-%02d%02d%02d",
-			brokentime.tm_year+1900,
-			brokentime.tm_mon+1,
-			brokentime.tm_mday,
-			brokentime.tm_hour,
-			brokentime.tm_min,
-			brokentime.tm_sec
-		);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "UNIQUEID")) {
-		snprintf(workspace, workspacelen, "%s", c->uniqueid);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "HANGUPCAUSE")) {
-		snprintf(workspace, workspacelen, "%d", c->hangupcause);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
-		opbx_copy_string(workspace, c->accountcode, workspacelen);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "LANGUAGE")) {
-		opbx_copy_string(workspace, c->language, workspacelen);
-		*ret = workspace;
-	} else {
-icky:
-		if (headp) {
-			OPBX_LIST_TRAVERSE(headp,variables,entries) {
+			} // end if CALLINGTNS
+			
+			else if /* DNID */ (hash == OPBX_KEYWORD_DNID) {
+				if (c->cid.cid_dnid) {
+					opbx_copy_string(workspace, c->cid.cid_dnid, workspacelen);
+					*ret = workspace;
+				} else
+					*ret = NULL;
+			} // end if DNID
+			
+			else if /* HINT */ (hash == OPBX_KEYWORD_HINT) {
+				if (!opbx_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
+					*ret = NULL;
+				else
+					*ret = workspace;
+			} // end if HINT
+			
+			else if /* HINTNAME */ (hash == OPBX_KEYWORD_HINTNAME) {
+				if (!opbx_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten))
+					*ret = NULL;
+				else
+					*ret = workspace;
+			} // end if HINTNAME
+			
+			else if /* EXTEN */ (hash == OPBX_KEYWORD_EXTEN) {
+				opbx_copy_string(workspace, c->exten, workspacelen);
+				*ret = workspace;
+			} // end if EXTEN
+			
+			else if /* RDNIS */ (hash == OPBX_KEYWORD_RDNIS) {
+				if (c->cid.cid_rdnis) {
+					opbx_copy_string(workspace, c->cid.cid_rdnis, workspacelen);
+					*ret = workspace;
+				} else
+					*ret = NULL;
+			} // end if RDNIS
+			
+			else if /* CONTEXT */ (hash == OPBX_KEYWORD_CONTEXT) {
+				opbx_copy_string(workspace, c->context, workspacelen);
+				*ret = workspace;
+			} // end if CONTEXT
+			
+			else if /* PRIORITY */ (hash == OPBX_KEYWORD_PRIORITY) {
+				snprintf(workspace, workspacelen, "%d", c->priority);
+				*ret = workspace;
+			} // end if PRIORITY
+			
+			else if /* CHANNEL */ (hash == OPBX_KEYWORD_CHANNEL) {
+				opbx_copy_string(workspace, c->name, workspacelen);
+				*ret = workspace;
+			} // end if CHANNEL
+			
+			else if /* UNIQUEID */ (hash == OPBX_KEYWORD_UNIQUEID) {
+				snprintf(workspace, workspacelen, "%s", c->uniqueid);
+				*ret = workspace;
+			} // end if UNIQUEID
+			
+			else if /* HANGUPCAUSE */ (hash == OPBX_KEYWORD_HANGUPCAUSE) {
+				snprintf(workspace, workspacelen, "%d", c->hangupcause);
+				*ret = workspace;
+			} // end if HANGUPCAUSE
+			
+			else if /* ACCOUNTCODE */ (hash == OPBX_KEYWORD_ACCOUNTCODE) {
+				opbx_copy_string(workspace, c->accountcode, workspacelen);
+				*ret = workspace;
+			} // end if ACCOUNTCODE
+			
+			else if /* LANGUAGE */ (hash == OPBX_KEYWORD_LANGUAGE) {
+				opbx_copy_string(workspace, c->language, workspacelen);
+				*ret = workspace;
+			} // end if LANGUAGE
+			
+			else if /* user defined channel variables exist */ (headp) {
+				
+				// search user defined channel variables
+				
+				OPBX_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
-				opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,opbx_var_name(variables));
+					opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,opbx_var_name(variables));
 #endif
-				if (strcasecmp(opbx_var_name(variables),var)==0) {
-					*ret=opbx_var_value(variables);
-					if (*ret) {
-						opbx_copy_string(workspace, *ret, workspacelen);
-						*ret = workspace;
-					}
-					break;
-				}
-			}
-		}
-		if (!(*ret)) {
-			/* Try globals */
-			OPBX_LIST_TRAVERSE(&globals,variables,entries) {
+					if (strcasecmp(opbx_var_name(variables),var)==0) {
+						*ret=opbx_var_value(variables);
+						if (*ret) {
+							opbx_copy_string(workspace, *ret, workspacelen);
+							*ret = workspace;
+						} // end if
+						break;
+					} // end if
+				} // end OPBX_LIST_TRAVERSE
+				no_match = 1;
+			} // end if user defined chanvars exist
+			
+			else /* not a channel variable */ {
+				no_match = 1;
+			} // end search chanvars
+		
+		} // end if channel exists
+		
+		if /* no match yet */ (no_match) {
+			
+			// search builtin globals
+		
+			if /* EPOCH */ (hash == OPBX_KEYWORD_EPOCH) {
+				snprintf(workspace, workspacelen, "%u",(int)time(NULL));
+				*ret = workspace;
+			} // end if EPOCH
+			
+			else if /* DATETIME */ (hash == OPBX_KEYWORD_DATETIME) {
+				thistime=time(NULL);
+				localtime_r(&thistime, &brokentime);
+				snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
+						 brokentime.tm_mday,
+						 brokentime.tm_mon+1,
+						 brokentime.tm_year+1900,
+						 brokentime.tm_hour,
+						 brokentime.tm_min,
+						 brokentime.tm_sec
+						 );
+				*ret = workspace;
+			} // end if DATETIME
+			
+			else if /* TIMESTAMP */ (hash == OPBX_KEYWORD_TIMESTAMP) {
+				thistime=time(NULL);
+				localtime_r(&thistime, &brokentime);
+				/* 20031130-150612 */
+				snprintf(workspace, workspacelen, "%04d%02d%02d-%02d%02d%02d",
+						 brokentime.tm_year+1900,
+						 brokentime.tm_mon+1,
+						 brokentime.tm_mday,
+						 brokentime.tm_hour,
+						 brokentime.tm_min,
+						 brokentime.tm_sec
+						 );
+				*ret = workspace;
+			} // end if TIMESTAMP
+			
+			else if (!(*ret)) {
+				
+				// search user defined globals
+				
+				OPBX_LIST_TRAVERSE(&globals,variables,entries) {
 #if 0
-				opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,opbx_var_name(variables));
+					opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,opbx_var_name(variables));
 #endif
-				if (strcasecmp(opbx_var_name(variables),var)==0) {
-					*ret = opbx_var_value(variables);
-					if (*ret) {
-						opbx_copy_string(workspace, *ret, workspacelen);
-						*ret = workspace;
-					}
-				}
-			}
-		}
-	}
-}
+					if (hash == opbx_var_hash(variables)) {
+						*ret = opbx_var_value(variables);
+						if (*ret) {
+							opbx_copy_string(workspace, *ret, workspacelen);
+							*ret = workspace;
+						} // end if
+					} // end if
+				} // end OPBX_LIST_TRAVERSE
+			} // end search builtin globals
+		} // end if no match
+
+	} // end if variable sliced
+
+} // end pbx_retrieve_variable
 
 static int handle_show_functions(int fd, int argc, char *argv[])
 {
@@ -2207,6 +2310,7 @@ static int __opbx_pbx_run(struct opbx_channel *c)
 	int waittime;
 	int res=0;
 	int autoloopflag;
+	unsigned int hash;
 
 	/* A little initial setup here */
 	if (c->pbx)
@@ -2388,17 +2492,26 @@ static int __opbx_pbx_run(struct opbx_channel *c)
 			} else {
 				char *status;
 
+				// this should really use c->hangupcause instead of dialstatus
+				// let's go along with it for now but we should revisit it later
+				
 				status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
-				if (!status)
+				if (!status) {
+					hash = 0;
 					status = "UNKNOWN";
+				}
+				else
+					hash = opbx_hash_var_name(status);
+
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
-				if (!strcasecmp(status, "CONGESTION"))
-					res = pbx_builtin_congestion(c, "10");
-				else if (!strcasecmp(status, "CHANUNAVAIL"))
-					res = pbx_builtin_congestion(c, "10");
-				else if (!strcasecmp(status, "BUSY"))
+
+				if (hash == OPBX_KEYWORD_BUSY)
 					res = pbx_builtin_busy(c, "10");
+				else if (hash == OPBX_KEYWORD_CHANUNAVAIL)
+					res = pbx_builtin_congestion(c, "10");
+				else if (hash == OPBX_KEYWORD_CONGESTION)
+					res = pbx_builtin_congestion(c, "10");
 				goto out;
 			}
 		}
@@ -2544,6 +2657,7 @@ int pbx_set_autofallthrough(int newval)
 int opbx_context_remove_include(const char *context, const char *include, const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(context);
 
 	if (opbx_lock_contexts()) return -1;
 
@@ -2551,7 +2665,7 @@ int opbx_context_remove_include(const char *context, const char *include, const 
 	c = opbx_walk_contexts(NULL);
 	while (c) {
 		/* we found one ... */
-		if (!strcmp(opbx_get_context_name(c), context)) {
+		if (hash == c->hash) {
 			int ret;
 			/* remove include from this context ... */	
 			ret = opbx_context_remove_include2(c, include, registrar);
@@ -2616,6 +2730,7 @@ int opbx_context_remove_include2(struct opbx_context *con, const char *include, 
 int opbx_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(context);
 
 	if (opbx_lock_contexts()) return -1;
 
@@ -2623,7 +2738,7 @@ int opbx_context_remove_switch(const char *context, const char *sw, const char *
 	c = opbx_walk_contexts(NULL);
 	while (c) {
 		/* we found one ... */
-		if (!strcmp(opbx_get_context_name(c), context)) {
+		if (hash == c->hash) {
 			int ret;
 			/* remove switch from this context ... */	
 			ret = opbx_context_remove_switch2(c, sw, data, registrar);
@@ -2655,7 +2770,7 @@ int opbx_context_remove_switch2(struct opbx_context *con, const char *sw, const 
 
 	if (opbx_mutex_lock(&con->lock)) return -1;
 
-	/* walk switchs */
+	/* walk switches */
 	i = con->alts;
 	while (i) {
 		/* find our switch */
@@ -2688,6 +2803,7 @@ int opbx_context_remove_switch2(struct opbx_context *con, const char *sw, const 
 int opbx_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(context);
 
 	if (opbx_lock_contexts()) return -1;
 
@@ -2695,7 +2811,7 @@ int opbx_context_remove_extension(const char *context, const char *extension, in
 	c = opbx_walk_contexts(NULL);
 	while (c) {
 		/* ... search for the right one ... */
-		if (!strcmp(opbx_get_context_name(c), context)) {
+		if (hash == c->hash) {
 			/* ... remove extension ... */
 			int ret = opbx_context_remove_extension2(c, extension, priority,
 				registrar);
@@ -2830,6 +2946,8 @@ int opbx_register_application(const char *app, int (*execute)(struct opbx_channe
 	struct opbx_app *tmp, *prev, *cur;
 	char tmps[80];
 	int length;
+	unsigned int hash = opbx_hash_app_name(app);
+	
 	length = sizeof(struct opbx_app);
 	length += strlen(app) + 1;
 	if (opbx_mutex_lock(&applock)) {
@@ -2838,8 +2956,8 @@ int opbx_register_application(const char *app, int (*execute)(struct opbx_channe
 	}
 	tmp = apps;
 	while(tmp) {
-		if (!strcasecmp(app, tmp->name)) {
-			opbx_log(LOG_WARNING, "Already have an application '%s'\n", app);
+		if (hash == tmp->hash) {
+			opbx_log(LOG_WARNING, "Application '%s' already exists\n", app);
 			opbx_mutex_unlock(&applock);
 			return -1;
 		}
@@ -2848,16 +2966,29 @@ int opbx_register_application(const char *app, int (*execute)(struct opbx_channe
 	tmp = malloc(length);
 	if (tmp) {
 		memset(tmp, 0, length);
+		tmp->hash = hash;
 		strcpy(tmp->name, app);
 		tmp->execute = execute;
 		tmp->synopsis = synopsis;
 		tmp->description = description;
+		
 		/* Store in alphabetical order */
+		
+		// One more reason why the CLI should be removed from the daemon
+		// and moved instead into a separate standalone command line utility
+		// Alphabetic order is only needed for CLI output and this slows down
+		// the daemon's performance unneccessarily, need to revisit later
+		
 		cur = apps;
 		prev = NULL;
 		while(cur) {
+#ifdef OPBX_USE_CASE_INSENSITIVE_APP_NAMES
 			if (strcasecmp(tmp->name, cur->name) < 0)
 				break;
+#else
+			if (strcmp(tmp->name, cur->name) < 0)
+				break;
+#endif
 			prev = cur;
 			cur = cur->next;
 		}
@@ -3184,7 +3315,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 
 	/* ... go through all applications ... */
 	for (a = apps; a; a = a->next) {
-		/* ... show informations about applications ... */
+		/* ... show information about applications ... */
 		int printapp=0;
 		total_apps++;
 		if (like) {
@@ -3210,13 +3341,14 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		}
 
 		if (printapp) {
-			opbx_cli(fd,"  %20s: %s\n", a->name, a->synopsis ? a->synopsis : "<Synopsis not available>");
+			opbx_cli(fd,"  %20s (%#x): %s\n", a->name, a->hash,
+					 a->synopsis ? a->synopsis : "<Synopsis not available>");
 		}
 	}
 	if ((!like) && (!describing)) {
-		opbx_cli(fd, "    -= %d Applications Registered =-\n",total_apps);
+		opbx_cli(fd, "    -= %d Applications Registered =-\n", total_apps);
 	} else {
-		opbx_cli(fd, "    -= %d Applications Matching =-\n",total_match);
+		opbx_cli(fd, "    -= %d Applications Matching =-\n", total_match);
 	}
 	
 	/* ... unlock and return */
@@ -3333,8 +3465,8 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 				 */
 				if (!exten) {
 					dpc->total_context++;
-					opbx_cli(fd, "[ Context '%s' created by '%s' ]\n",
-						opbx_get_context_name(c), opbx_get_context_registrar(c));
+					opbx_cli(fd, "[ Context '%s' (%#x) created by '%s' ]\n",
+						opbx_get_context_name(c), c->hash, opbx_get_context_registrar(c));
 					context_info_printed = 1;
 				}
 
@@ -3359,12 +3491,12 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 						dpc->total_context++;
 						if (rinclude) {
 							/* TODO Print more info about rinclude */
-							opbx_cli(fd, "[ Included context '%s' created by '%s' ]\n",
-								opbx_get_context_name(c),
+							opbx_cli(fd, "[ Included context '%s' (%#x) created by '%s' ]\n",
+								opbx_get_context_name(c), c->hash,
 								opbx_get_context_registrar(c));
 						} else {
-							opbx_cli(fd, "[ Context '%s' created by '%s' ]\n",
-								opbx_get_context_name(c),
+							opbx_cli(fd, "[ Context '%s' (%#x) created by '%s' ]\n",
+								opbx_get_context_name(c), c->hash,
 								opbx_get_context_registrar(c));
 						}
 						context_info_printed = 1;
@@ -3439,9 +3571,11 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 							}
 							if (!dupe) {
 								includes[includecount] = (char *)opbx_get_include_name(i);
-								show_dialplan_helper(fd, (char *)opbx_get_include_name(i), exten, dpc, i, includecount + 1, includes);
+								show_dialplan_helper(fd, (char *)opbx_get_include_name(i),
+													exten, dpc, i, includecount + 1, includes);
 							} else {
-								opbx_log(LOG_WARNING, "Avoiding circular include of %s within %s\n", opbx_get_include_name(i), context);
+								opbx_log(LOG_WARNING, "Avoiding circular include of %s within %s (%#x)\n",
+										 opbx_get_include_name(i), context, c->hash);
 							}
 						}
 					} else {
@@ -3528,17 +3662,17 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 	/* check for input failure and throw some error messages */
 	if (context && !counters.context_existence) {
-		opbx_cli(fd, "There is no existence of '%s' context\n", context);
+		opbx_cli(fd, "No such context '%s'\n", context);
 		return RESULT_FAILURE;
 	}
 
 	if (exten && !counters.extension_existence) {
 		if (context)
-			opbx_cli(fd, "There is no existence of %s@%s extension\n",
+			opbx_cli(fd, "No such extension %s in context %s\n",
 				exten, context);
 		else
 			opbx_cli(fd,
-				"There is no existence of '%s' extension in all contexts\n",
+				"No such extension '%s' extension in any context\n",
 				exten);
 		return RESULT_FAILURE;
 	}
@@ -3575,19 +3709,21 @@ static struct opbx_cli_entry pbx_cli[] = {
 int opbx_unregister_application(const char *app) 
 {
 	struct opbx_app *tmp, *tmpl = NULL;
+	unsigned int hash = opbx_hash_app_name(app);
+	
 	if (opbx_mutex_lock(&applock)) {
 		opbx_log(LOG_ERROR, "Unable to lock application list\n");
 		return -1;
 	}
 	tmp = apps;
 	while(tmp) {
-		if (!strcasecmp(app, tmp->name)) {
+		if (hash == tmp->hash) {
 			if (tmpl)
 				tmpl->next = tmp->next;
 			else
 				apps = tmp->next;
 			if (option_verbose > 1)
-				opbx_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
+				opbx_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s' (%#x)\n", tmp->name, tmp->hash);
 			free(tmp);
 			opbx_mutex_unlock(&applock);
 			return 0;
@@ -3602,7 +3738,9 @@ int opbx_unregister_application(const char *app)
 struct opbx_context *opbx_context_create(struct opbx_context **extcontexts, const char *name, const char *registrar)
 {
 	struct opbx_context *tmp, **local_contexts;
+	unsigned int hash = opbx_hash_string(name);
 	int length;
+	
 	length = sizeof(struct opbx_context);
 	length += strlen(name) + 1;
 	if (!extcontexts) {
@@ -3613,9 +3751,9 @@ struct opbx_context *opbx_context_create(struct opbx_context **extcontexts, cons
 
 	tmp = *local_contexts;
 	while(tmp) {
-		if (!strcasecmp(tmp->name, name)) {
+		if (hash == tmp->hash) {
 			opbx_mutex_unlock(&conlock);
-			opbx_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
+			opbx_log(LOG_WARNING, "Failed to register context '%s' because it is already in use\n", name);
 			if (!extcontexts)
 				opbx_mutex_unlock(&conlock);
 			return NULL;
@@ -3626,6 +3764,7 @@ struct opbx_context *opbx_context_create(struct opbx_context **extcontexts, cons
 	if (tmp) {
 		memset(tmp, 0, length);
 		opbx_mutex_init(&tmp->lock);
+		tmp->hash = hash;
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
 		tmp->registrar = registrar;
@@ -3634,9 +3773,9 @@ struct opbx_context *opbx_context_create(struct opbx_context **extcontexts, cons
 		tmp->ignorepats = NULL;
 		*local_contexts = tmp;
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
+			opbx_log(LOG_DEBUG, "Registered context '%s' (%#x)\n", tmp->name, tmp->hash);
 		else if (option_verbose > 2)
-			opbx_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
+			opbx_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s' (%#x)\n", tmp->name, tmp->hash);
 	} else
 		opbx_log(LOG_ERROR, "Out of memory\n");
 	
@@ -3711,7 +3850,7 @@ void opbx_merge_contexts_and_delete(struct opbx_context **extcontexts, const cha
 		contexts = *extcontexts;
 		*extcontexts = NULL;
 	} else 
-		opbx_log(LOG_WARNING, "Requested contexts didn't get merged\n");
+		opbx_log(LOG_WARNING, "Requested contexts could not be merged\n");
 	opbx_mutex_unlock(&conlock);
 
 	/* restore the watchers for hints that can be found; notify those that
@@ -3758,6 +3897,7 @@ void opbx_merge_contexts_and_delete(struct opbx_context **extcontexts, const cha
 int opbx_context_add_include(const char *context, const char *include, const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(context);
 
 	if (opbx_lock_contexts()) {
 		errno = EBUSY;
@@ -3768,7 +3908,7 @@ int opbx_context_add_include(const char *context, const char *include, const cha
 	c = opbx_walk_contexts(NULL);
 	while (c) {
 		/* ... search for the right one ... */
-		if (!strcmp(opbx_get_context_name(c), context)) {
+		if (hash == c->hash) {
 			int ret = opbx_context_add_include2(c, include, registrar);
 			/* ... unlock contexts list and return */
 			opbx_unlock_contexts();
@@ -4199,7 +4339,8 @@ int opbx_context_add_include2(struct opbx_context *con, const char *value,
 int opbx_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar)
 {
 	struct opbx_context *c;
-
+	unsigned int hash = opbx_hash_string(context);
+	
 	if (opbx_lock_contexts()) {
 		errno = EBUSY;
 		return -1;
@@ -4209,7 +4350,7 @@ int opbx_context_add_switch(const char *context, const char *sw, const char *dat
 	c = opbx_walk_contexts(NULL);
 	while (c) {
 		/* ... search for the right one ... */
-		if (!strcmp(opbx_get_context_name(c), context)) {
+		if (hash == c->hash) {
 			int ret = opbx_context_add_switch2(c, sw, data, eval, registrar);
 			/* ... unlock contexts list and return */
 			opbx_unlock_contexts();
@@ -4316,6 +4457,7 @@ int opbx_context_add_switch2(struct opbx_context *con, const char *value,
 int opbx_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(context);
 
 	if (opbx_lock_contexts()) {
 		errno = EBUSY;
@@ -4324,7 +4466,7 @@ int opbx_context_remove_ignorepat(const char *context, const char *ignorepat, co
 
 	c = opbx_walk_contexts(NULL);
 	while (c) {
-		if (!strcmp(opbx_get_context_name(c), context)) {
+		if (hash == c->hash) {
 			int ret = opbx_context_remove_ignorepat2(c, ignorepat, registrar);
 			opbx_unlock_contexts();
 			return ret;
@@ -4375,6 +4517,7 @@ int opbx_context_remove_ignorepat2(struct opbx_context *con, const char *ignorep
 int opbx_context_add_ignorepat(const char *con, const char *value, const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(con);
 
 	if (opbx_lock_contexts()) {
 		errno = EBUSY;
@@ -4383,7 +4526,7 @@ int opbx_context_add_ignorepat(const char *con, const char *value, const char *r
 
 	c = opbx_walk_contexts(NULL);
 	while (c) {
-		if (!strcmp(opbx_get_context_name(c), con)) {
+		if (hash == c->hash) {
 			int ret = opbx_context_add_ignorepat2(c, value, registrar);
 			opbx_unlock_contexts();
 			return ret;
@@ -4459,6 +4602,7 @@ int opbx_add_extension(const char *context, int replace, const char *extension, 
 	const char *application, void *data, void (*datad)(void *), const char *registrar)
 {
 	struct opbx_context *c;
+	unsigned int hash = opbx_hash_string(context);
 
 	if (opbx_lock_contexts()) {
 		errno = EBUSY;
@@ -4467,7 +4611,7 @@ int opbx_add_extension(const char *context, int replace, const char *extension, 
 
 	c = opbx_walk_contexts(NULL);
 	while (c) {
-		if (!strcmp(context, opbx_get_context_name(c))) {
+		if (hash == c->hash) {
 			int ret = opbx_add_extension2(c, replace, extension, priority, label, callerid,
 				application, data, datad, registrar);
 			opbx_unlock_contexts();
@@ -4624,6 +4768,8 @@ int opbx_add_extension2(struct opbx_context *con,
 	int res;
 	int length;
 	char *p;
+	unsigned int hash = opbx_hash_string(extension);
+
 	length = sizeof(struct opbx_exten);
 	length += strlen(extension) + 1;
 	length += strlen(application) + 1;
@@ -4640,6 +4786,7 @@ int opbx_add_extension2(struct opbx_context *con,
 	tmp = malloc(length);
 	if (tmp) {
 		memset(tmp, 0, length);
+		tmp->hash = hash;
 		p = tmp->stuff;
 		if (label) {
 			tmp->label = p;
@@ -4675,7 +4822,7 @@ int opbx_add_extension2(struct opbx_context *con,
 		free(tmp);
 		/* And properly destroy the data */
 		datad(data);
-		opbx_log(LOG_WARNING, "Failed to lock context '%s'\n", con->name);
+		opbx_log(LOG_WARNING, "Failed to lock context '%s' (%#x)\n", con->name, con->hash);
 		errno = EBUSY;
 		return -1;
 	}
@@ -4733,7 +4880,8 @@ int opbx_add_extension2(struct opbx_context *con,
 						LOG;
 						return 0;
 					} else {
-						opbx_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s', already in use\n", tmp->exten, tmp->priority, con->name);
+						opbx_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s' (%#x), already in use\n",
+								 tmp->exten, tmp->priority, con->name, con->hash);
 						tmp->datad(tmp->data);
 						free(tmp);
 						opbx_mutex_unlock(&con->lock);
@@ -5247,7 +5395,7 @@ void __opbx_context_destroy(struct opbx_context *con, const char *registrar)
 	opbx_mutex_lock(&conlock);
 	tmp = contexts;
 	while(tmp) {
-		if (((tmp->name && con && con->name && !strcasecmp(tmp->name, con->name)) || !con) &&
+		if (((con && (tmp->hash == con->hash)) || !con) &&
 		    (!registrar || !strcasecmp(registrar, tmp->registrar))) {
 			/* Okay, let's lock the structure to be sure nobody else
 			   is searching through it. */
@@ -5643,6 +5791,7 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
 	char *lang = NULL;
 	char *context = NULL;
 	struct opbx_flags flags = {0};
+	unsigned int hash=0;
 
 	parse = opbx_strdupa(data);
 
@@ -5654,6 +5803,7 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
 			lang = argv[2];
 		case 2:
 			options = argv[1];
+			hash = opbx_hash_app_name(options);
 		case 1:
 			filename = argv[0];
 			break;
@@ -5670,9 +5820,9 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
 		context = chan->context;
 
 	if (options) {
-		if (!strcasecmp(options, "skip"))
+		if (hash == OPBX_KEYWORD_SKIP)
 			flags.flags = BACKGROUND_SKIP;
-		else if (!strcasecmp(options, "noanswer"))
+		else if (hash == OPBX_KEYWORD_NOANSWER)
 			flags.flags = BACKGROUND_NOANSWER;
 		else
 			opbx_parseoptions(background_opts, &flags, NULL, options);
@@ -5825,22 +5975,23 @@ char *pbx_builtin_getvar_helper(struct opbx_channel *chan, const char *name)
 {
 	struct opbx_var_t *variables;
 	struct varshead *headp;
+	unsigned int hash = opbx_hash_var_name(name);
 
 	if (chan)
-		headp=&chan->varshead;
+		headp = &chan->varshead;
 	else
-		headp=&globals;
+		headp = &globals;
 
 	if (name) {
 		OPBX_LIST_TRAVERSE(headp,variables,entries) {
-			if (!strcmp(name, opbx_var_name(variables)))
+			if (hash == opbx_var_hash(variables))
 				return opbx_var_value(variables);
 		}
 		if (headp != &globals) {
 			/* Check global variables if we haven't already */
 			headp = &globals;
 			OPBX_LIST_TRAVERSE(headp,variables,entries) {
-				if (!strcmp(name, opbx_var_name(variables)))
+				if (hash == opbx_var_hash(variables))
 					return opbx_var_value(variables);
 			}
 		}
@@ -5874,6 +6025,7 @@ void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, cons
 	struct opbx_var_t *newvariable;
 	struct varshead *headp;
 	const char *nametail = name;
+	unsigned int hash;
 
 	if (name[strlen(name)-1] == ')')
 		return opbx_func_write(chan, name, value);
@@ -5886,9 +6038,11 @@ void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, cons
 		if (*nametail == '_') 
 			nametail++;
 	}
+	
+	hash = opbx_hash_var_name(nametail);
 
 	OPBX_LIST_TRAVERSE (headp, newvariable, entries) {
-		if (strcasecmp(opbx_var_name(newvariable), nametail) == 0) {
+		if (hash == opbx_var_hash(newvariable)) {
 			/* there is already such a variable, delete it */
 			OPBX_LIST_REMOVE(headp, newvariable, entries);
 			opbx_var_delete(newvariable);
@@ -6065,7 +6219,7 @@ static int pbx_builtin_gotoif(struct opbx_channel *chan, void *data)
 		return(0);
 	}
 	
-	rc=pbx_builtin_goto(chan,branch);
+	rc = pbx_builtin_goto(chan, branch);
 
 	return(rc);
 }           
@@ -6328,8 +6482,8 @@ int opbx_context_verify_includes(struct opbx_context *con)
 	for (inc = opbx_walk_context_includes(con, NULL); inc; inc = opbx_walk_context_includes(con, inc))
 		if (!opbx_context_find(inc->rname)) {
 			res = -1;
-			opbx_log(LOG_WARNING, "Context '%s' tries includes nonexistent context '%s'\n",
-					opbx_get_context_name(con), inc->rname);
+			opbx_log(LOG_WARNING, "Attempt to include nonexistent context '%s' in context '%s' (%#x)\n",
+			    opbx_get_context_name(con), inc->rname, con->hash);
 		}
 	return res;
 }
@@ -6360,54 +6514,103 @@ int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *ex
 	return __opbx_goto_if_exists(chan, context, exten, priority, 1);
 }
 
+#define GOTO_MAX_ARGS 3
+
 int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string) 
 {
-	char *s;
-	char *exten, *pri, *context;
-	char *stringp=NULL;
-	int ipri;
-	int mode = 0;
+	int argc = 0;
+	char *argv = NULL;
+	char *arg[GOTO_MAX_ARGS - 1];
+	char *context = NULL, *exten = NULL, *prio = NULL;
+	int ipri, mode = 0;
+	unsigned int hash = 0;
 
 	if (opbx_strlen_zero(goto_string)) {
-		opbx_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
+		opbx_log(LOG_WARNING, "Goto requires an argument, usage is Goto([[context|]extension|]priority)\n");
 		return -1;
-	}
-	s = opbx_strdupa(goto_string);
-	stringp=s;
-	context = strsep(&stringp, "|");
-	exten = strsep(&stringp, "|");
-	if (!exten) {
-		/* Only a priority in this one */
-		pri = context;
-		exten = NULL;
-		context = NULL;
-	} else {
-		pri = strsep(&stringp, "|");
-		if (!pri) {
-			/* Only an extension and priority in this one */
-			pri = exten;
-			exten = context;
-			context = NULL;
+	} // end if
+	
+	argv = opbx_strdupa(goto_string);
+	
+	// parse argument string and obtain all its arguments
+	
+	while ((*argv != 0) && (argc < GOTO_MAX_ARGS)) {
+				
+		// skip over any leading spaces
+		while (*argv == 32)
+			argv++;
+		
+		// remember start of this substring
+		arg[argc] = argv;
+		
+		// find end of this substring
+		while ((*argv != 32) && (*argv != '|') && (*argv != 0))
+			argv++;
+		
+		if (*argv == '|') {
+			// terminate this substring
+			*argv = 0;
+			// move past this delimiter
+			argv++;
 		}
-	}
-	if (*pri == '+') {
-		mode = 1;
-		pri++;
-	} else if (*pri == '-') {
-		mode = -1;
-		pri++;
-	}
-	if (sscanf(pri, "%d", &ipri) != 1) {
-		if ((ipri = opbx_findlabel_extension(chan, context ? context : chan->context, (exten && strcasecmp(exten, "BYEXTENSION")) ? exten : chan->exten, 
-			pri, chan->cid.cid_num)) < 1) {
-			opbx_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
+		else if (*argv == 32) {
+			// terminate this substring
+			*argv = 0;
+			// skip over any trailing spaces and following characters
+			// until next delimiter or end of string has been reached
+			while ((*argv != '|') && (*argv != 0))
+				argv++;
+			if (*argv == '|')
+				argv++;
+		} // end if
+				
+		// increase argument counter
+		argc++;
+		
+	} // end while
+	
+	switch(argc) {
+		case 1 :
+			prio = arg[0];
+			break;
+		case 2 :
+			exten = arg[0];
+			prio = arg[1];
+			hash = opbx_hash_app_name(exten);
+			break;
+		case 3 :
+			context = arg[0];
+			exten = arg[1];
+			prio = arg[2];
+			hash = opbx_hash_app_name(exten);
+		default :
+			opbx_log(LOG_WARNING, "invalid number of arguments in Goto statement\n");
 			return -1;
-		} else
+	} // end switch
+	
+	if (*prio == '+') {
+		mode = 1;
+		prio++;
+	}
+	else if (*prio == '-') {
+		mode = -1;
+		prio++;
+	} // end if
+	
+	if (sscanf(prio, "%d", &ipri) != 1) {
+		if ((ipri = opbx_findlabel_extension(chan, context ? context : chan->context,
+						(exten && (hash != OPBX_KEYWORD_BYEXTENSION)) ? exten : chan->exten,
+						prio, chan->cid.cid_num)) < 1) {
+			opbx_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", prio);
+			return -1;
+		}
+		else
 			mode = 0;
-	} 
+	} // end if
+	
 	/* At this point we have a priority and maybe an extension and a context */
 
-	if (exten && !strcasecmp(exten, "BYEXTENSION"))
+	if (exten && (hash == OPBX_KEYWORD_BYEXTENSION))
 		exten = NULL;
 
 	if (mode) 
@@ -6415,6 +6618,10 @@ int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string)
 
 	opbx_explicit_goto(chan, context, exten, ipri);
 	opbx_cdr_update(chan);
+
 	return 0;
 
-}
+} // end opbx_parseable_goto
+
+
+// END OF FILE
