@@ -27,6 +27,8 @@
 
 struct opbx_var_t {
 	OPBX_LIST_ENTRY(opbx_var_t) entries;
+	// added 'hash' to accommodate hash based system to recognise identifiers
+	unsigned int hash;
 	char *value;
 	char name[0];
 };
@@ -38,5 +40,6 @@ void opbx_var_delete(struct opbx_var_t *var);
 char *opbx_var_name(struct opbx_var_t *var);
 char *opbx_var_full_name(struct opbx_var_t *var);
 char *opbx_var_value(struct opbx_var_t *var);
+#define opbx_var_hash(v) (v ? v->hash : 0)
 
 #endif /* _OPENPBX_CHANVARS_H */

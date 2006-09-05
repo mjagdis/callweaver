@@ -10,5 +10,5 @@ monitor.h musiconhold.h netsock.h opbxdb.h opbx_expr.h opbxmm.h		\
 options.h pbx.h poll-compat.h privacy.h res_odbc.h resonator.h	\
 rtp.h say.h sched.h slinfactory.h srv.h strings.h term.h time.h	\
 transcap.h translate.h udpfromto.h udp.h udptl.h stun.h ulaw.h unaligned.h utils.h	\
-vmodem.h xlaw.h generator.h generic_jb.h \
+vmodem.h xlaw.h generator.h generic_jb.h opbx_hash.h opbx_keywords.h \
 ast_expr.h ast_expr2.h
