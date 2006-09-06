@@ -21,4 +21,4 @@ RUNOPENPBX=yes
 #
 # RUNOPBXSAFE: run safe_openpbx rather than openpbx (will auto-restart upon
 #             crash)
-#RUNOPBXSAFE"=yes
+#RUNOPBXSAFE=yes
