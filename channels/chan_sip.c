@@ -3799,14 +3799,17 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 	if (useglobal_nat && sin) {
 		/* Setup NAT structure according to global settings if we have an address */
 		opbx_copy_flags(p, &global_flags, SIP_NAT);
+
+		int natflags=0;
+		natflags=(opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) | p->stun_needed;
 		memcpy(&p->recv, sin, sizeof(p->recv));
 		if (p->rtp)
-			opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE & p->stun_needed));
+			opbx_rtp_setnat(p->rtp, natflags);
 		if (p->vrtp)
-			opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE & p->stun_needed));
+			opbx_rtp_setnat(p->vrtp, natflags);
 #if T38_SUPPORT
 		if (p->udptl)
-			opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE & p->stun_needed));
+			opbx_udptl_setnat(p->udptl, natflags);
 #endif
 	}
 

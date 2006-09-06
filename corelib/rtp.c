@@ -894,7 +894,11 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 			rtp->rxseqno = 0;
 			opbx_set_flag(rtp, FLAG_NAT_ACTIVE);
 			if (option_debug || rtpdebug)
-				opbx_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr), ntohs(udp_socket_get_them(rtp->rtp_sock_info)->sin_port));
+				opbx_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", 
+					opbx_inet_ntoa(iabuf, sizeof(iabuf), 
+					    udp_socket_get_them(rtp->rtp_sock_info)->sin_addr), 
+					ntohs(udp_socket_get_them(rtp->rtp_sock_info)->sin_port)
+				    );
 		}
 	}
 
@@ -1671,7 +1675,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
 		res = rtp_sendto(rtp, (void *) rtpheader, f->datalen + hdrlen, 0);
 		if (res <0) {
 			if (!rtp->nat || (rtp->nat && (opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				opbx_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+				opbx_log(LOG_WARNING, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
 			} else if ((opbx_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)

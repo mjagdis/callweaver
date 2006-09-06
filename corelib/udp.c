@@ -222,8 +222,11 @@ int udp_socket_recvfrom(udp_socket_info_t *info, void *buf, size_t size,
 	 ( info->nat && stun_active && info->stun_state==0 )
        ) {
         /* Send to whoever sent to us */
-		if (info->them.sin_addr.s_addr != ((struct sockaddr_in *)sa)->sin_addr.s_addr || info->them.sin_port != ((struct sockaddr_in *)sa)->sin_port) {
-			memcpy(&info->them, &sa, sizeof(info->them));
+		if  (	
+		    info->them.sin_addr.s_addr != ((struct sockaddr_in *)sa)->sin_addr.s_addr || 
+		    info->them.sin_port != ((struct sockaddr_in *)sa)->sin_port
+		    ) {
+			memcpy(&info->them, sa, sizeof(info->them));
 			*action |= 1;
 		}
     }

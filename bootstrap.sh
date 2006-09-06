@@ -48,3 +48,5 @@ popd
 #aclocal
 #autoconf --force
 #popd
+
+chmod ug+x debian/rules
