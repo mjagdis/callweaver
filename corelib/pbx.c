@@ -6583,6 +6583,7 @@ int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string)
 			exten = arg[1];
 			prio = arg[2];
 			hash = opbx_hash_app_name(exten);
+			break;
 		default :
 			opbx_log(LOG_WARNING, "invalid number of arguments in Goto statement\n");
 			return -1;
