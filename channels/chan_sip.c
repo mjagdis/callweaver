@@ -1942,6 +1942,14 @@ static int sip_resend_reqresp(void *data) {
     opbx_verbose("** Trying to resend a packet after stun request. "
 		 "Type %d, seqno %d sched %d, callid %s\n",rr->type,rr->seqno,rr->p->stun_resreq_id, rr->callid);
 
+    if (p->rtp && opbx_rtp_get_stunstate(p->rtp)==1)
+	opbx_rtp_read(p->rtp);				/* RTP Stun search */
+
+    if (p->vrtp && opbx_rtp_get_stunstate(p->vrtp)==1)
+	opbx_rtp_read(p->vrtp);				/* VRTP Stun search */
+
+    if (p->udptl && opbx_udptl_get_stunstate(p->udptl)==1)
+	opbx_udptl_read(p->udptl);				/* RTP Stun search */
 
     map=opbx_stun_find_request(&rr->streq->req_head.id);
 
