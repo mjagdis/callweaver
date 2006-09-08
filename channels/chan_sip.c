@@ -1949,7 +1949,7 @@ static int sip_resend_reqresp(void *data) {
 	opbx_rtp_read(p->vrtp);				/* VRTP Stun search */
 
     if (p->udptl && opbx_udptl_get_stunstate(p->udptl)==1)
-	opbx_udptl_read(p->udptl);				/* RTP Stun search */
+	opbx_udptl_read(p->udptl);			/* UDPTL Stun search */
 
     map=opbx_stun_find_request(&rr->streq->req_head.id);
 
@@ -7993,8 +7993,11 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			if (sip_pvt->refer_call == sip_pvt) {
 				opbx_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);
 				sip_pvt->refer_call = NULL;
-			} else
+			} else {
+				opbx_mutex_unlock(&sip_pvt_ptr->lock);
 				return 0;
+			}
+			opbx_mutex_unlock(&sip_pvt_ptr->lock);
 		} else {
 			opbx_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on OpenPBX box to transfer at this time.\n", replace_callid);
 			/* XXX The refer_to could contain a call on an entirely different machine, requiring an 
