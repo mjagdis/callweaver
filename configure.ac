@@ -1553,6 +1553,20 @@ AM_CONDITIONAL([WANT_CHAN_WOOMERA], [test "${with_chan_woomera}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([chan_bluetooth],
+	[AC_HELP_STRING([--with-chan_bluetooth],[Build and install chan_bluetoot (default=no)])],,
+	[with_chan_bluetooth="no"])
+
+if test "${with_chan_bluetooth}" = "yes" ; then
+	AC_CHECK_HEADERS([bluetooth/bluetooth.h], [HAVE_BLUETOOTH_H=1])
+	AC_CHECK_LIB([bluetooth], [main], [HAVE_LIBBLUETOOTH=1])
+fi
+
+
+AM_CONDITIONAL([WANT_CHAN_BLUETOOTH], [test "${with_chan_bluetooth}" = "yes" -a -n "${HAVE_BLUETOOTH_H}" -a -n "${HAVE_LIBBLUETOOTH}"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([chan_zap],
 	[AC_HELP_STRING([--with-chan_zap],[Build and install chan_zap (default=yes) (requires --enable-zaptel)])],,
 	[with_chan_zap="yes"])

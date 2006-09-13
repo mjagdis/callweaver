@@ -39,6 +39,7 @@ role2str(blt_role_t role)
     case BLT_ROLE_NONE:
       return "??";
   }
+  return ""; // fix compiler stupid warning.
 }
 
 /*! Bluetooth: convert status enum into ascii string 
@@ -1716,7 +1717,7 @@ rfcomm_connect(bdaddr_t * src, bdaddr_t * dst, int channel, int nbio)
 
   if (nbio) {
     if (fcntl(s, F_SETFL, O_RDWR|O_NONBLOCK) != 0)
-      pobx_log(LOG_ERROR, "Can't set RFCOMM socket to NBIO\n");
+      opbx_log(LOG_ERROR, "Can't set RFCOMM socket to NBIO\n");
   }
 
   if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) < 0 && (nbio != 1 || (errno != EAGAIN))) {
@@ -2282,7 +2283,7 @@ do_monitor(void * data)
 
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, dev->sco_pipe) != 0) {
       opbx_log(LOG_ERROR, "Failed to create socket pair: %s (errno %d)\n", strerror(errno), errno);
-      pobx_mutex_unlock(&iface_lock);
+      opbx_mutex_unlock(&iface_lock);
       return NULL;
     }
 
