@@ -42,6 +42,7 @@ libjpeg-dev
 libtiff-dev 
 ncurses-dev 
 libspeex-dev 
+spandsp
 
 Most other distributions also have these packages, but possibly with different names.  Complete distributions like Fedora Core 4 will have most of the dependencies already.
 
@@ -55,7 +56,6 @@ Make sure you have subversion installed
 The outline for download is here:
 	speex
 	libtiff
-	spandsp
 	libpri
 	zaptel
 Use subversion to download OpenPBX.org, openpbx sounds, and music for music on hold.

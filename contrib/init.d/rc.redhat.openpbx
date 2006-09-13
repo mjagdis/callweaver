@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: openpbx,v 1.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
+# $Id: openpbx,v 0.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
 #
 # openpbx    Starts, Stops and Reloads OpenPBX.
 #
@@ -9,7 +9,7 @@
 # pidfile: /var/run/openpbx.pid
 #
 # Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
-# - Updated Version to 1.2
+# - Updated Version to 0.2
 # - Added test for safe_openpbx
 # - Verified SIGTERM issued by "killproc" ensures "stop gracefully"
 # - Added support for -U and -G command line options

@@ -1,10 +1,10 @@
 #! /bin/sh
-# $Id: openpbx,v 1.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
+# $Id: openpbx,v 0.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
 #
 # openpbx	start the openpbx PBX
 #
 # Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
-# - Updated Version to 1.2
+# - Updated Version to 0.2
 # - Added test for safe_openpbx
 # - Changed "stop gracefully" to "stop now"
 # - Added support for -U and -G command line options
