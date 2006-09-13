@@ -96,7 +96,7 @@ persistentmembers = yes
 ;
 ; User will be announces of his possition when he is under this number
 ;
-; reportmaxpos = 5 
+;reportmaxpos = 5 
 ;
 ; Report if the user is the first in the queue
 ;
@@ -106,7 +106,7 @@ persistentmembers = yes
 ; If this is non-zero, then we announce the seconds as well as the minutes
 ; rounded to this value.
 ;
-; announce-round-seconds = 10
+;announce-round-seconds = 10
 ;
 ; Use these sound files in making position/holdtime announcements.  The
 ; defaults are as listed below -- change only if you need to.
@@ -133,12 +133,12 @@ persistentmembers = yes
 ;    Set(MONITOR_FILENAME=foo)
 ; Otherwise it will use MONITOR_FILENAME=${UNIQUEID}
 ;
-; monitor-format = gsm|wav|wav49
+;monitor-format = gsm|wav|wav49
 ;
 ; If you wish to have the two files joined together when the call ends, set this
 ; to yes.
 ;
-; monitor-join = yes
+;monitor-join = yes
 ;
 ; This setting controls whether callers can join a queue with no members. There
 ; are three choices:
@@ -148,43 +148,43 @@ persistentmembers = yes
 ; strict - callers cannot join a queue with no members or only unavailable
 ;          members
 ;
-; joinempty = yes
+;joinempty = yes
 ;
 ; If you wish to remove callers from the queue when new callers cannot join,
 ; set this setting to one of the same choices for 'joinempty'
 ;
-; leavewhenempty = yes
+;leavewhenempty = yes
 ;
 ;
 ; If this is set to yes, the following manager events will be generated:
 ; AgentCalled, AgentDump, AgentConnect, AgentComplete
 ; (may generate some extra manager events, but probably ones you want)
 ;
-; eventwhencalled = yes
+;eventwhencalled = yes
 ;
 ; If this is set to no, the following manager events will be generated:
 ; QueueMemberStatus
 ; (may generate a WHOLE LOT of extra manager events)
 ;
-; eventmemberstatusoff = no
+;eventmemberstatusoff = no
 ;
 ; If you wish to report the caller's hold time to the member before they are
 ; connected to the caller, set this to yes.
 ;
-; reportholdtime = no
+;reportholdtime = no
 ;
 ;
 ; If you wish to have a delay before the member is connected to the caller (or
 ; before the member hears any announcement messages), set this to the number of
 ; seconds to delay.
 ;
-; memberdelay = 0
+;memberdelay = 0
 ;
 ; If timeoutrestart is set to yes, then the timeout for an agent to answer is
 ; reset if a BUSY or CONGESTION is received.  This can be useful if agents
 ; are able to cancel a call with reject or similar.
 ;
-; timeoutrestart = no
+;timeoutrestart = no
 ;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
