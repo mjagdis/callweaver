@@ -2866,5 +2866,5 @@ usecount()
 
 char *description()
 {
-	return (char *) desc;
+	return (char *) BLT_DESCRIPTION;
 }
