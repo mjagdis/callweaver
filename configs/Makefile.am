@@ -115,6 +115,10 @@ if WANT_RES_SQLITE
 SAMPLES += res_sqlite.conf.sample
 endif WANT_RES_SQLITE
 
+if WANT_CHAN_BLUETOOTH
+SAMPLES += chan_bluetooth.conf.sample
+endif WANT_CHAN_BLUETOOTH
+
 noinst_DATA = $(SAMPLES)
 
 @substitute@
