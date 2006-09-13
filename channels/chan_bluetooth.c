@@ -28,6 +28,7 @@
  * @param role role enum
  * @return role as ascii text (string)
  */
+
 static const char *
 role2str(blt_role_t role)
 {
@@ -2763,7 +2764,9 @@ load_module()
   dd  = hci_open_dev(hcidev_id);
   if (dd == -1) {
     opbx_log(LOG_ERROR, "Unable to open interface hci%d: %s.\n", hcidev_id, strerror(errno));
-    return -1;
+    //let's make openpb.x.org accept wrong configurations without dying
+    unload_module();
+    return 0;
   }
 
   hci_read_voice_setting(dd, &vs, 1000);
@@ -2861,3 +2864,7 @@ usecount()
   return res;
 }
 
+char *description()
+{
+	return (char *) desc;
+}

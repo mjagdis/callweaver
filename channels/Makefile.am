@@ -78,7 +78,7 @@ endif WANT_CHAN_WOOMERA
 if WANT_CHAN_BLUETOOTH
 opbxmod_LTLIBRARIES		+= chan_bluetooth.la
 chan_bluetooth_la_SOURCES	= chan_bluetooth.c
-chan_bluetooth_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la
+chan_bluetooth_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la -lbluetooth
 chan_bluetooth_la_LDFLAGS	= -module -avoid-version -no-undefined
 endif WANT_CHAN_BLUETOOTH
 
