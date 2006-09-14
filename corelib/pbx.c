@@ -6514,13 +6514,20 @@ int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *ex
 	return __opbx_goto_if_exists(chan, context, exten, priority, 1);
 }
 
-#define GOTO_MAX_ARGS 3
+
+// this function parses the arguments of a Goto(), it removes leading and
+// trailing spaces for each argument and it ignores any arguments after the
+// maximum number of arguments (GOTO_MAX_ARGS). If no arguments were passed
+// to the Goto(), it will return -1 which will lead to a dialplan execution
+// error.
+
+#define GOTO_MAX_ARGS 3 /* maximum number of arguments for Goto() */
 
 int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string) 
 {
 	int argc = 0;
 	char *argv = NULL;
-	char *arg[GOTO_MAX_ARGS - 1];
+	char *arg[GOTO_MAX_ARGS];
 	char *context = NULL, *exten = NULL, *prio = NULL;
 	int ipri, mode = 0;
 	unsigned int hash = 0;
@@ -6535,7 +6542,7 @@ int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string)
 	// parse argument string and obtain all its arguments
 	
 	while ((*argv != 0) && (argc < GOTO_MAX_ARGS)) {
-				
+		
 		// skip over any leading spaces
 		while (*argv == 32)
 			argv++;
