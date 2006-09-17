@@ -110,7 +110,7 @@ static integer c__10 = 10;
 /* reinitialize its state for any other reason, call the ENTRY */
 /* INITLPCDEC. */
 
-/* Subroutine */ int lpc10_decode(integer *bits, real *speech,
+/* Subroutine */ int lpc10_decode_internal(integer *bits, real *speech,
 				  struct lpc10_decoder_state *st)
 {
     integer irms, voice[2], pitch, ipitv;

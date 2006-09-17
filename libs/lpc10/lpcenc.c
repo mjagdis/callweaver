@@ -105,7 +105,7 @@ static integer c__10 = 10;
 /* reinitialize its state for any other reason, call the ENTRY */
 /* INITLPCENC. */
 
-/* Subroutine */ int lpc10_encode(real *speech, integer *bits,
+/* Subroutine */ int lpc10_encode_internal(real *speech, integer *bits,
 				  struct lpc10_encoder_state *st)
 {
     integer irms, voice[2], pitch, ipitv;
