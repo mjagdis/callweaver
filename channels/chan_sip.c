@@ -1651,7 +1651,8 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 		}
 	    }
 #if STUN_DEV_DEBUG
-	    opbx_verbose("(*) joining header[%d]: %s\n",tmpsdl->type, tmpsdl->content);
+	    if (stundebug)
+		opbx_log(LOG_DEBUG,"(*) joining header[%d]: %s\n",tmpsdl->type, tmpsdl->content);
 #endif
 	    strcat(req->data,tmpsdl->content);
 	    strcat(req->data,"\r\n");
@@ -1663,7 +1664,8 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
         tmpsdl=req->sdp_lines;
 
 #if STUN_DEV_DEBUG
-        opbx_verbose("STUN_NEEDED: %d - HAVE_STUN: %d\n",p->stun_needed, have_stun);
+	if (stundebug)
+    	    opbx_log(LOG_DEBUG,"STUN_NEEDED: %d - HAVE_STUN: %d\n",p->stun_needed, have_stun);
 #endif
         while (tmpsdl!=NULL) {
 	    if (p->stun_needed && have_stun) {
@@ -1681,8 +1683,10 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 			    strstr(tmpsdl->content,"RTP/AVP ")+strlen("RTP/AVP ") : NULL
 		    );
 #if STUN_DEV_DEBUG
-		    opbx_verbose("M_AUDIO was: %s\n",tmpsdl->content);
-		    opbx_verbose("M_AUDIO is : %s\n",buf);
+		if (stundebug){
+		    opbx_log(LOG_DEBUG,"M_AUDIO was: %s\n",tmpsdl->content);
+		    opbx_log(LOG_DEBUG,"M_AUDIO is : %s\n",buf);
+		}
 #endif
 		    strncpy(tmpsdl->content,buf,SIP_MAX_LINE_LEN);
 		}
@@ -1704,7 +1708,8 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
 	    }
 
 #if STUN_DEV_DEBUG
-	    opbx_verbose("(*) joining sdp[%d]: %s\n",tmpsdl->type, tmpsdl->content);
+	    if (stundebug)
+		opbx_log(LOG_DEBUG,"(*) joining sdp[%d]: %s\n",tmpsdl->type, tmpsdl->content);
 #endif
             strcat(req->data,tmpsdl->content);
     	    strcat(req->data,"\r\n");
@@ -1768,7 +1773,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 
 	    if (rr->streq) {
 		if (stundebug)
-		    opbx_verbose("** Sent STUN packet for response %d\n",rr->streq->req_head.id.id[0]);
+		    opbx_log(LOG_DEBUG,"** Sent STUN packet for response %d\n",rr->streq->req_head.id.id[0]);
 		rr->p->stun_resreq_id=opbx_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);	 
 		return 0;   
 	    } else {
@@ -1918,10 +1923,10 @@ static int sip_resend_reqresp(void *data) {
     }
     if (rr->streq) {
 	if (stundebug)
-	    opbx_verbose("** expected stun reqid %d\n",rr->streq->req_head.id.id[0]);
+	    opbx_log(LOG_DEBUG,"** expected stun reqid %d\n",rr->streq->req_head.id.id[0]);
     } else {
 	if (stundebug)
-	    opbx_verbose("** deleting transmission retrial 'cause stun request is not set\n");
+	    opbx_log(LOG_DEBUG,"** deleting transmission retrial 'cause stun request is not set\n");
 	rr->p->stun_needed=0;
 	sip_dealloc_headsdp_lines(&rr->req);
 	free(data);
@@ -1931,7 +1936,7 @@ static int sip_resend_reqresp(void *data) {
     rr->p->stun_retrans_no++;
     if ( rr->p->stun_retrans_no > STUN_MAX_RETRANSMIT) {
 	if (stundebug)
-	    opbx_verbose("Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n",rr->p->stun_resreq_id);
+	    opbx_log(LOG_DEBUG,"Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n",rr->p->stun_resreq_id);
 	    p->stun_needed=0;
 	sip_dealloc_headsdp_lines(&rr->req);
 	free(data);
@@ -1939,7 +1944,7 @@ static int sip_resend_reqresp(void *data) {
     };
 
     if (stundebug)
-    opbx_verbose("** Trying to resend a packet after stun request. "
+	opbx_log(LOG_DEBUG,"** Trying to resend a packet after stun request. "
 		 "Type %d, seqno %d sched %d, callid %s\n",rr->type,rr->seqno,rr->p->stun_resreq_id, rr->callid);
 
     if (p->rtp && opbx_rtp_get_stunstate(p->rtp)==1)
@@ -1954,7 +1959,7 @@ static int sip_resend_reqresp(void *data) {
     map=opbx_stun_find_request(&rr->streq->req_head.id);
 
     if (stundebug)
-	    opbx_verbose("** STUN: state - sip: %d - sdp ports: rtp:%d vrtp:%d udptl:%d \n",
+	    opbx_log(LOG_DEBUG,"** STUN: state - sip: %d - sdp ports: rtp:%d vrtp:%d udptl:%d \n",
 		(!map) ? 1 : 2,
 		opbx_rtp_get_stunstate(p->rtp),
     		opbx_rtp_get_stunstate(p->vrtp),
@@ -1970,13 +1975,11 @@ static int sip_resend_reqresp(void *data) {
 	stun_addr2sockaddr(&msin,map);
 	memcpy(&p->stun_transid,&rr->streq->req_head.id, sizeof(stun_trans_id) );
 	if (stundebug)
-    	    opbx_verbose("** STUN: Mapped address is %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr ) );
-	if (stundebug)
-    	    opbx_verbose("** STUN: Mapped port is %d\n", ntohs(map->port) );	
+    	    opbx_log(LOG_DEBUG,"** STUN: Mapped address is %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr ), ntohs(map->port) );
     }
     else {
 	if (stundebug)
-	    opbx_verbose("** SIP port stun mapped address not found. STUN state on sdp ports is: rtp:%d vrtp:%d udptl:%d \n",
+	    opbx_log(LOG_DEBUG,"** SIP port stun mapped address not found. STUN state on sdp ports is: rtp:%d vrtp:%d udptl:%d \n",
 		opbx_rtp_get_stunstate(p->rtp),
     		opbx_rtp_get_stunstate(p->vrtp),
 		opbx_udptl_get_stunstate(p->udptl)
@@ -1991,27 +1994,28 @@ static int sip_resend_reqresp(void *data) {
     p->ourport=ntohs(map->port);
 
 #if STUN_DEV_DEBUG
-    opbx_verbose("** STUN rebuilding payload before sending reqresp\n");
+    if (stundebug)
+	opbx_log(LOG_DEBUG,"** STUN rebuilding payload before sending reqresp\n");
 #endif
     sip_rebuild_payload(rr->p,&rr->req,1);
     parse_copy(&tmp,&rr->req);
 
     if (rr->type==1) {
 	if (stundebug)
-	opbx_verbose("** STUN Sending response after acquiring STUN\n");
+	opbx_log(LOG_DEBUG,"** STUN Sending response after acquiring STUN\n");
 	/* This is a send_response*/
 	rr->p->stun_needed=2;
 	send_response(rr->p, &rr->req, rr->reliable, rr->seqno);
     }
     else if (rr->type==2) {
 	if (stundebug)
-	    opbx_verbose("** STUN Sending request after acquiring STUN\n");
+	    opbx_log(LOG_DEBUG,"** STUN Sending request after acquiring STUN\n");
 	/* This is a send_request*/
 	rr->p->stun_needed=2;
 	send_request(rr->p, &rr->req, rr->reliable, rr->seqno);
     } else {
 	if (stundebug)
-	    opbx_verbose("deleting this request of reqresp %d\n",rr->p->stun_resreq_id);
+	    opbx_log(LOG_DEBUG,"deleting this request of reqresp %d\n",rr->p->stun_resreq_id);
     }
 
     sip_dealloc_headsdp_lines(&rr->req);
@@ -12491,7 +12495,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		memset(&stun_me,0,sizeof(struct stun_state));
 		if ( stun_handle_packet(sipsock,&sin,(unsigned char*)req.data,res,&stun_me) == STUN_ACCEPT);
 		if (stun_me.msgtype==STUN_BINDRESP) {
-		    if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
+		    if (stundebug) 
+			opbx_log(LOG_DEBUG, "Got STUN bind response on SIP channel.\n");
 		    struct in_addr empty;
 		    struct sockaddr_in msin;
 		    stun_addr2sockaddr(&msin,stun_me.mapped_addr);
@@ -14009,7 +14014,7 @@ static int reload_config(void)
 
 	if (stun_active) {
 	    if (stundebug)
-	    opbx_verbose("Sending initial STUN discovery packet\n");
+		opbx_log(LOG_DEBUG,"Sending initial STUN discovery packet\n");
 	    opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
 	}
 

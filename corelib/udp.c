@@ -157,7 +157,7 @@ void udp_socket_set_nat(udp_socket_info_t *info, int nat_mode)
 
     if (nat_mode && info->stun_state==0 && stun_active) {
 	if (stundebug)
-	opbx_log(LOG_WARNING, "Sending stun request on this UDP channel (port %d) cause NAT is on\n",ntohs(info->us.sin_port) );
+	opbx_log(LOG_DEBUG, "Sending stun request on this UDP channel (port %d) cause NAT is on\n",ntohs(info->us.sin_port) );
 	opbx_udp_stun_bindrequest(info->fd, &stunserver_ip, NULL, NULL);
 	info->stun_state=1;
     }
