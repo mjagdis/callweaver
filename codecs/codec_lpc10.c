@@ -240,7 +240,7 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
 		if (tmp->tail + LPC10_SAMPLES_PER_FRAME < sizeof(tmp->buf)/2) {
 			sd = tmp->buf + tmp->tail;
 			extract_bits(bits, f->data + len);
-			if (lpc10_decode(bits, tmpbuf, tmp->lpc10.dec)) {
+			if (lpc10_decode_internal(bits, tmpbuf, tmp->lpc10.dec)) {
 				opbx_log(LOG_WARNING, "Invalid lpc10 data\n");
 				return -1;
 			}
@@ -306,7 +306,7 @@ static struct opbx_frame *lintolpc10_frameout(struct opbx_translator_pvt *tmp)
 		for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++) {
 			tmpbuf[x] = (float)tmp->buf[x+consumed] / 32768.0;
 		}
-		lpc10_encode(tmpbuf, bits, tmp->lpc10.enc);
+		lpc10_encode_internal(tmpbuf, bits, tmp->lpc10.enc);
 		build_bits(((unsigned char *)tmp->outbuf) + tmp->f.datalen, bits);
 		tmp->f.datalen += LPC10_BYTES_IN_COMPRESSED_FRAME;
 		tmp->f.samples += LPC10_SAMPLES_PER_FRAME;
