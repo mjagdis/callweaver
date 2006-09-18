@@ -1200,6 +1200,7 @@ static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct 
 	 * apply it to their address to see if we need to substitute our
 	 * externip or can get away with our internal bindaddr
 	 */
+
 	struct sockaddr_in theirs;
 	theirs.sin_addr = *them;
 
@@ -1756,17 +1757,17 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 
 	    /* ************************************ */
 	    if (p->rtp && !opbx_rtp_get_stunstate(p->rtp)) {
-		    opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-		    opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+		    opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 	    }
 	    if (p->vrtp && !opbx_rtp_get_stunstate(p->vrtp)) {
-		    opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-		    opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+		    opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 	    }
 #if T38_SUPPORT
 	    if (p->udptl && !opbx_udptl_get_stunstate(p->udptl)) {
-		    opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-		    opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+		    opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
     	    }
 #endif
 	    /* ************************************ */
@@ -1843,17 +1844,17 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 
 	    /* ************************************ */
 	    if (p->rtp && !opbx_rtp_get_stunstate(p->rtp)) {
-		    opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-		    opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+		    opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 	    }
 	    if (p->vrtp && !opbx_rtp_get_stunstate(p->vrtp)) {
-		    opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-		    opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+		    opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 	    }
 #if T38_SUPPORT
 	    if (p->udptl && !opbx_udptl_get_stunstate(p->udptl)) {
-		    opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-		    opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		    opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+		    opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
     	    }
 #endif
 	    /* ************************************ */
@@ -2377,17 +2378,17 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->t38jointcapability = r->t38capability;
 #endif
 	if (r->rtp) {
-		opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-		opbx_rtp_setnat(r->rtp, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE) && r->stun_needed );
+		opbx_rtp_setnat(r->rtp, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE) && r->stun_needed );
 	}
 	if (r->vrtp) {
-		opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-		opbx_rtp_setnat(r->vrtp, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE) && r->stun_needed );
+		opbx_rtp_setnat(r->vrtp, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE) && r->stun_needed );
 	}
 #if T38_SUPPORT
 	if (r->udptl) {
-		opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-		opbx_udptl_setnat(r->udptl, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE) && r->stun_needed );
+		opbx_udptl_setnat(r->udptl, (opbx_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE) && r->stun_needed );
 	}
 #endif
 	opbx_copy_string(r->peername, peer->username, sizeof(r->peername));
@@ -3813,7 +3814,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		opbx_copy_flags(p, &global_flags, SIP_NAT);
 
 		int natflags=0;
-		natflags=(opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) | p->stun_needed;
+		natflags=(opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed;
 		memcpy(&p->recv, sin, sizeof(p->recv));
 		if (p->rtp)
 			opbx_rtp_setnat(p->rtp, natflags);
@@ -8115,7 +8116,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		if (c && (c[6] != '='))	/* rport query, not answer */
 			opbx_set_flag(p, SIP_NAT_ROUTE);
 		if (sip_debug_test_pvt(p)) {
-			c = (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? "NAT" : "non-NAT";
+			c = (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed ? "NAT" : "non-NAT";
 			opbx_verbose("Sending to %s : %d (%s)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), c);
 		}
 
@@ -8286,17 +8287,17 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		}
 
 		if (p->rtp) {
-			opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-			opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+			opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 		}
 		if (p->vrtp) {
-			opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-			opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+			opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 		}
 #if T38_SUPPORT
 		if (p->udptl) {
-			opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-			opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+			opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 		}
 #endif
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
@@ -8382,17 +8383,17 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				opbx_shrink_phone_number(p->cid_num);
 			}
 			if (p->rtp) {
-				opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-				opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+				opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+				opbx_rtp_setnat(p->rtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 			}
 			if (p->vrtp) {
-				opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-				opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+				opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+				opbx_rtp_setnat(p->vrtp, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 			}
 #if T38_SUPPORT
 			if (p->udptl) {
-				opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
-				opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+				opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
+				opbx_udptl_setnat(p->udptl, (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
 			}
 #endif
 			opbx_copy_string(p->peersecret, peer->secret, sizeof(p->peersecret));
@@ -11630,6 +11631,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 	} else if (debug)
 		opbx_verbose("Ignoring this INVITE request\n");
+
 	if (!p->lastinvite && !ignore && !p->owner) {
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);

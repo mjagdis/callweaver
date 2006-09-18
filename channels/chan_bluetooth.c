@@ -1817,7 +1817,7 @@ try_connect(blt_dev_t * dev)
       close(dev->rd);
       dev->rd = -1;
       dev->status = BLT_STATUS_DOWN;
-      dev->outgoing_id = opbx_sched_add(sched, 10000, OPBX_SCHED_CB(try_connect), dev);
+      dev->outgoing_id = opbx_sched_add(sched, 1000, OPBX_SCHED_CB(try_connect), dev);
       opbx_mutex_unlock(&(dev->lock));
       return 0;
     }
