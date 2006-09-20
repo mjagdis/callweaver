@@ -533,15 +533,16 @@ AC_ARG_WITH([spandsp-libs],
 	[AC_HELP_STRING([--with-spandsp-libs],[Location of SpanDSP library files.])],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
-AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre22 or newer is required to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre23 or newer is required to compile OpenPBX.org.)])
 
-AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre22 or newer to compile OpenPBX.org.)],
+AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre23 or newer to compile OpenPBX.org.)],
 [#ifdef HAVE_SPANDSP_H
 #include <spandsp.h>
 #endif
 ])
 
-AC_CHECK_LIB([spandsp],[t38_gateway_init],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre22 or newer to comple OpenPBX.org.)],[-ltiff])
+AC_CHECK_LIB([spandsp],[fax_set_transmit_on_idle],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre23 or newer to comple OpenPBX.org.)],[-ltiff])
+
 
 dnl ###########################################################################
 dnl ###########################################################################
