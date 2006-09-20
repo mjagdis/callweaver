@@ -18,17 +18,18 @@ ENABLE_MISC			:=yes
 DEB_TAR_SRCDIR                  := openpbx-0.2.0
 DEB_AUTO_CLEANUP_RCS            := yes
 
+
 DEB_CONFIGURE_EXTRA_FLAGS	:= \
     --with-directory-layout=lsb \
     --with-pbx_ael=lsb \
     --with-app_sql_postgres=no \
-    --enable-postgresql \
-    --with-cdr_pgsql \
+    --enable-postgresql=yes \
+    --with-cdr_pgsql=yes \
     --with-app_meetme=no \
-    --with-chan-capi \
-    --with-chan-fax \
+    --with-chan-capi=yes \
+    --with-chan-fax=yes \
     --enable-iax-trunking=yes \
-    --enable-t38
+    --enable-t38=yes
 
 ifeq ($(ENABLE_ODBC), yes)
  DEB_CONFIGURE_EXTRA_FLAGS += \
@@ -39,15 +40,16 @@ ifeq ($(ENABLE_ODBC), yes)
 endif
 
 ifeq ($(ENABLE_DEBUG), yes)
+ CFLAGS= -ggdb3 -O0 -DDO_CRASH -DDEBUG_SCHEDULER -DSTACK_BACKTRACES -DDETECT_DEADLOCKS
  DEB_CONFIGURE_EXTRA_FLAGS += \
-    --enable-debug \
-    --enable-do-crash \
-    --enable-frame-tracing \
-    --enable-valgrind \
-    --enable-debug \
-    --enable-debug-scheduler \
-    --enable-stack-backtraces \
-    --disable-optimization 
+    --enable-debug=yes \
+    --enable-do-crash=yes \
+    --enable-frame-tracing=yes \
+    --enable-valgrind=yes \
+    --enable-debug=yes \
+    --enable-debug-scheduler=yes \
+    --enable-stack-backtraces=yes \
+    --disable-optimization
 endif
 
 ifeq ($(ENABLE_MISC), yes)
