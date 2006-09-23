@@ -1754,6 +1754,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 	    rr->p=p;
 	    rr->p->stun_retrans_no=0;
 	    rr->streq=opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
+	    memcpy(&rr->p->stun_transid,&rr->streq->req_head.id,sizeof(stun_trans_id) );
 
 	    /* ************************************ */
 	    if (p->rtp && !opbx_rtp_get_stunstate(p->rtp)) {
@@ -1841,6 +1842,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	    rr->p=p;
 	    rr->p->stun_retrans_no=0;
 	    rr->streq=opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
+	    memcpy(&rr->p->stun_transid,&rr->streq->req_head.id,sizeof(stun_trans_id) );
 
 	    /* ************************************ */
 	    if (p->rtp && !opbx_rtp_get_stunstate(p->rtp)) {
@@ -12701,12 +12703,16 @@ restartsearch:
 			}
 
 			if (opbx_test_flag(sip, SIP_NEEDDESTROY) && !sip->packets && !sip->owner) {
-			    if (sip->stun_needed==0 || sip->stun_needed==3) {
+
+			    if (
+				 sip->stun_needed==0 || sip->stun_needed==3
+				 || ( sip->stun_needed==1 && ( opbx_stun_find_request(&sip->stun_transid)==NULL ))
+			       ) {
 				opbx_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
 			    } else
-				opbx_log(LOG_NOTICE, "Delaying call destroy (stun active) on call '%s'\n", sip->callid);
+				opbx_log(LOG_NOTICE, "Delaying call destroy (stun active) on call '%s' [%d]\n", sip->callid,sip->stun_needed);
 			}
 			opbx_mutex_unlock(&sip->lock);
 			sip = sip->next;
