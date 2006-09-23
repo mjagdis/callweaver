@@ -67,6 +67,10 @@ LOCAL_USER_DECL;
 
 #define MAX_BLOCK_SIZE 240
 
+//#define NEW_SPANDSP_CAPABILITIES  // this needsthe latest snapshot of spandsp.
+				  // uncomment this if you are using latest snapshot instead of 
+				  // the latest -preXX version
+
 static void span_message(int level, const char *msg)
 {
     int opbx_level;
@@ -374,6 +378,19 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         //t30_set_phase_b_handler(&t38.t30_state, phase_b_handler, chan);
         //t30_set_phase_d_handler(&t38.t30_state, phase_d_handler, chan);
         t30_set_phase_e_handler(&t38.t30_state, phase_e_handler, chan);
+
+#ifdef NEW_SPANDSP_CAPABILITIES
+	/* Support for different image sizes && resolutions*/
+        t30_set_supported_image_sizes(&fax.t30_state, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
+                                                        | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
+        t30_set_supported_resolutions(&fax.t30_state, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
+                                                        | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
+        t30_set_supported_image_sizes(&t38.t30_state, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
+                                                        | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
+        t30_set_supported_resolutions(&t38.t30_state, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
+                                                        | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
+#endif
+
 	if (ecm) {
 	    t30_set_ecm_capability(&fax.t30_state, TRUE);
 	    t30_set_supported_compressions(&fax.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
