@@ -33,10 +33,10 @@ add this to your /etc/festival.scm or /usr/share/festival/festival/scm:
 module by James Golovich <james@gnuinter.net>, from 
 either CPAN, or his site: http://openpbx.gnuinter.net,
 as this contains a good example of how variable text
-can be tts'd via openpbx, namely the examples/tts-*.agi
+can be tts'd via openpbx, namely the examples/tts-*.ogi
 files there. It has been noted that the current expression
 evaluation capabilities of openpbx are not best suited
-for the generation and manipulation of text. AGI scripting
+for the generation and manipulation of text. OGI scripting
 can be ideal for these sorts of needs. For simpler usage,
 fixed, pre-recorded messages may be more amenable for your
 purposes.

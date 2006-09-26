@@ -90,8 +90,8 @@ ln -sf /var/spool/openpbx/vm /var/lib/openpbx/sounds/vm
 %attr(0644,root,root)      /var/lib/openpbx/images/*
 %attr(0755,root,root) %dir /var/lib/openpbx/keys
 %attr(0644,root,root)      /var/lib/openpbx/keys/*
-%attr(0755,root,root) %dir /var/lib/openpbx/agi-bin
-%attr(0755,root,root) %dir /var/lib/openpbx/agi-bin/*
+%attr(0755,root,root) %dir /var/lib/openpbx/ogi-bin
+%attr(0755,root,root) %dir /var/lib/openpbx/ogi-bin/*
 #
 # Man page
 #

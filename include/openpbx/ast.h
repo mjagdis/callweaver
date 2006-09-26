@@ -130,7 +130,7 @@
 #define ast_codec_pref_index opbx_codec_pref_index
 #define ast_codec_pref_remove opbx_codec_pref_remove
 #define ast_codec_pref_string opbx_codec_pref_string
-#define ast_config_AST_AGI_DIR opbx_config_AST_AGI_DIR
+#define ast_config_AST_AGI_DIR opbx_config_AST_OGI_DIR
 #define ast_config_AST_CONFIG_DIR opbx_config_AST_CONFIG_DIR
 #define ast_config_AST_CONFIG_FILE opbx_config_AST_CONFIG_FILE
 #define ast_config_AST_CTL_GROUP opbx_config_AST_CTL_GROUP

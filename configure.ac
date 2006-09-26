@@ -341,10 +341,10 @@ if test -z "${opbxsqlitedir}"; then
 fi
 AC_SUBST([opbxsqlitedir])
 
-if test -z "${opbxagidir}"; then
-	opbxagidir='${opbxdatadir}/agi'
+if test -z "${opbxogidir}"; then
+	opbxogidir='${opbxdatadir}/ogi'
 fi
-AC_SUBST([opbxagidir])
+AC_SUBST([opbxogidir])
 
 if test -z "${opbxsoundsdir}"; then
 	opbxsoundsdir='${opbxdatadir}/sounds'
@@ -1958,7 +1958,7 @@ AC_OUTPUT([Makefile
                  libs/gsm/Makefile
                  libs/ilbc/Makefile
                  libs/lpc10/Makefile
-                 agi/Makefile
+                 ogi/Makefile
                  apps/Makefile
                  apps/icd/Makefile
 		 apps/conference/Makefile
@@ -1978,8 +1978,8 @@ AC_OUTPUT([Makefile
                  utils/Makefile
 		 configs/musiconhold.conf.sample
 		 configs/Makefile
- 		 agi/agi-test.agi
-		 agi/fastagi-test
+ 		 ogi/ogi-test.ogi
+		 ogi/fastogi-test
 		 sqlite3-embedded/Makefile
 		 sqlite3-embedded/mkopcodec.awk
 		 sqlite3-embedded/mkopcodeh.awk
@@ -2042,7 +2042,7 @@ echo "opbxdatadir:      ${opbxdatadir}"
 echo "opbxdocdir:       ${opbxdocdir}"
 echo "opbxkeydir:       ${opbxkeydir}"
 echo "opbxsqlitedir:    ${opbxsqlitedir}"
-echo "opbxagidir:       ${opbxagidir}"
+echo "opbxogidir:       ${opbxogidir}"
 echo "opbxsoundsdir:    ${opbxsoundsdir}"
 echo "opbximagesdir:    ${opbximagesdir}"
 echo "opbxmohdir:       ${opbxmohdir}"

@@ -34,7 +34,7 @@ man_MANS = openpbx.8
 EXTRA_DIST = openpbx.sgml $(man_MANS) substitute.mak
 
 SUBDIRS =   libltdl libs editline stdtime sqlite3-embedded include corelib . pbx funcs
-SUBDIRS +=  cdr apps codecs formats channels agi utils res configs
+SUBDIRS +=  cdr apps codecs formats channels ogi utils res configs
 
 INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)		\
 $(opbxkeydir) $(opbxlogdir) $(opbxlogdir)/cdr-custom			\

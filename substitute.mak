@@ -26,7 +26,7 @@ substitute = $(SED) \
 	-e 's,@opbxdocdir\@,${opbxdocdir},g' \
 	-e 's,@opbxkeydir\@,${opbxkeydir},g' \
 	-e 's,@opbxsqlitedir\@,${opbxsqlitedir},g' \
-	-e 's,@opbxagidir\@,${opbxagidir},g' \
+	-e 's,@opbxogidir\@,${opbxogidir},g' \
 	-e 's,@opbxsoundsdir\@,${opbxsoundsdir},g' \
 	-e 's,@opbximagesdir\@,${opbximagesdir},g' \
 	-e 's,@opbxincludedir\@,${opbxincludedir},g' \

@@ -15,7 +15,7 @@ sub usage($) {
 
   print "varnames of interest:
 ===============================================================================
-'INCLUDES' 'ASTLIBDIR' 'AGI_DIR' 'ASTVARRUNDIR' 'CC' 'ASTETCDIR' 'EXTOBJ'
+'INCLUDES' 'ASTLIBDIR' 'OGI_DIR' 'ASTVARRUNDIR' 'CC' 'ASTETCDIR' 'EXTOBJ'
 'ASTSPOOLDIR' 'ASTLOGDIR' 'MODULES_DIR' 'ASTSBINDIR' 'ASTHEADERDIR' 'LDFLAGS'
 'ASTVARLIBDIR' 'ASTBINDIR' 'INSTALL_PREFIX' 'ASTCONFPATH' 'ASTSRC' 'CFLAGS'
 ===============================================================================

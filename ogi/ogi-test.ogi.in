@@ -4,19 +4,19 @@ use strict;
 $|=1;
 
 # Setup some variables
-my %AGI; my $tests = 0; my $fail = 0; my $pass = 0;
+my %OGI; my $tests = 0; my $fail = 0; my $pass = 0;
 
 while(<STDIN>) {
 	chomp;
 	last unless length($_);
-	if (/^agi_(\w+)\:\s+(.*)$/) {
-		$AGI{$1} = $2;
+	if (/^ogi_(\w+)\:\s+(.*)$/) {
+		$OGI{$1} = $2;
 	}
 }
 
-print STDERR "AGI Environment Dump:\n";
-foreach my $i (sort keys %AGI) {
-	print STDERR " -- $i = $AGI{$i}\n";
+print STDERR "OGI Environment Dump:\n";
+foreach my $i (sort keys %OGI) {
+	print STDERR " -- $i = $OGI{$i}\n";
 }
 
 sub checkresult {
@@ -65,12 +65,12 @@ my $result = <STDIN>;
 &checkresult($result);
 
 print STDERR "6.  Testing 'record'...";
-print "RECORD FILE testagi gsm 1234 3000\n";
+print "RECORD FILE testogi gsm 1234 3000\n";
 my $result = <STDIN>;
 &checkresult($result);
 
 print STDERR "6a.  Testing 'record' playback...";
-print "STREAM FILE testagi \"\"\n";
+print "STREAM FILE testogi \"\"\n";
 my $result = <STDIN>;
 &checkresult($result);
 

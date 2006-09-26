@@ -7,7 +7,7 @@ my $debug = 0;
 
 my $cid_cache = "/tmp/.cid";
 
-my %AGI;
+my %OGI;
 $|=1;
 sub url_decode {
     my @args = @_;
@@ -19,14 +19,14 @@ sub url_decode {
 while(<STDIN>) {
     chomp;
     last unless length($_);
-    if (/^agi_(\w+)\:\s+(.*)$/) {
-	$AGI{$1} = $2;
+    if (/^ogi_(\w+)\:\s+(.*)$/) {
+	$OGI{$1} = $2;
     }
 }
 
 alarm(2);
 my %cid;
-my $number = $AGI{'callerid'};
+my $number = $OGI{'callerid'};
 $number =~ /(\d+)/;
 $number = $1;
 die("You must specify a number") unless $number;

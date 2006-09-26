@@ -9,7 +9,7 @@ my $port = 4573;
 $|=1;
 
 # Setup some variables
-my %AGI; my $tests = 0; my $fail = 0; my $pass = 0;
+my %OGI; my $tests = 0; my $fail = 0; my $pass = 0;
 
 sub checkresult {
 	my ($res) = @_;
@@ -43,13 +43,13 @@ for(;;) {
 	while(<CLIENT>) {
 		chomp;
 		last unless length($_);
-		if (/^agi_(\w+)\:\s+(.*)$/) {
-			$AGI{$1} = $2;
+		if (/^ogi_(\w+)\:\s+(.*)$/) {
+			$OGI{$1} = $2;
 		}
 	}
-	print STDERR "AGI Environment Dump from $s:$p --\n";
-	foreach my $i (sort keys %AGI) {
-		print STDERR " -- $i = $AGI{$i}\n";
+	print STDERR "OGI Environment Dump from $s:$p --\n";
+	foreach my $i (sort keys %OGI) {
+		print STDERR " -- $i = $OGI{$i}\n";
 	}
 
 	print STDERR "1.  Testing 'sendfile'...";
@@ -78,12 +78,12 @@ for(;;) {
 	&checkresult($result);
 
 	print STDERR "6.  Testing 'record'...";
-	print CLIENT "RECORD FILE testagi gsm 1234 3000\n";
+	print CLIENT "RECORD FILE testogi gsm 1234 3000\n";
 	my $result = <CLIENT>;
 	&checkresult($result);
 
 	print STDERR "6a.  Testing 'record' playback...";
-	print CLIENT "STREAM FILE testagi \"\"\n";
+	print CLIENT "STREAM FILE testogi \"\"\n";
 	my $result = <CLIENT>;
 	&checkresult($result);
 	close(CLIENT);

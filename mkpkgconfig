@@ -19,7 +19,7 @@ LOCAL_CFLAGS=`echo $CFLAGS | $(SED) -e 's/\s*-pipe\s*//g' | $(SED) -e 's/-[Wmp]\
   $(SED) -r -e 's/-I(include|\.\.\/include) //g' | \
   $(SED) -e 's/-DINSTALL_PREFIX=\S* //g' | \
   $(SED) -r -e 's/-DOPENPBX_VERSION=\S* //g' | \
-  $(SED) -r -e 's/-DOPBXT(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
+  $(SED) -r -e 's/-DOPBXT(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|OGIDIR)=\S* //g'`
 
 
 cat <<EOF > $PPATH/openpbx.pc
@@ -33,7 +33,7 @@ spooldir=$OPBXSPOOLDIR
 logdir=$OPBXLOGDIR
 confpath=$OPBXCONFPATH
 moddir=$MODULES_DIR
-agidir=$AGI_DIR
+ogidir=$OGI_DIR
 
 Name: openpbx
 Description: Open Source PBX and telephony toolkit

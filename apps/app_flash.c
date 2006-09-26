@@ -57,7 +57,7 @@ static char *synopsis = "Flashes a Zap Trunk";
 
 static char *descrip = 
 "  Flash(): Sends a flash on a zap trunk.  This is only a hack for\n"
-"people who want to perform transfers and such via AGI and is generally\n"
+"people who want to perform transfers and such via OGI and is generally\n"
 "quite useless otherwise.  Returns 0 on success or -1 if this is not\n"
 "a zap trunk\n";
 

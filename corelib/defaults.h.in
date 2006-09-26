@@ -17,6 +17,6 @@
 #define opbxdocdir_default       "@opbxdocdir@"
 #define opbxkeydir_default       "@opbxkeydir@"
 #define opbxsqlitedir_default    "@opbxsqlitedir@"
-#define opbxagidir_default       "@opbxagidir@"
+#define opbxogidir_default       "@opbxogidir@"
 #define opbxsoundsdir_default    "@opbxsoundsdir@"
 #define opbximagesdir_default    "@opbximagesdir@"

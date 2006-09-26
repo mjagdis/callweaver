@@ -406,7 +406,7 @@ static int wait_file(struct opbx_channel *chan, const char *ints, const char *fi
 }
 
 /*! \brief  opbx_say_number_full: call language-specific functions */
-/* Called from AGI */
+/* Called from OGI */
 int opbx_say_number_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	if (!strcasecmp(language,"en") ) {	/* English syntax */
@@ -2266,7 +2266,7 @@ static int opbx_say_number_full_ru(struct opbx_channel *chan, int num, const cha
 
 
 /*! \brief  opbx_say_enumeration_full: call language-specific functions */
-/* Called from AGI */
+/* Called from OGI */
 int opbx_say_enumeration_full(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	if (!strcasecmp(language,"en") ) {	/* English syntax */

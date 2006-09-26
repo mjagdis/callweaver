@@ -1031,12 +1031,12 @@ zapretry:
 	}
 	conf_flush(fd);
 	opbx_mutex_unlock(&conflock);
-	if (confflags & CONFFLAG_AGI) {
+	if (confflags & CONFFLAG_OGI) {
 
-		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
+		/* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
 		  or use default filename of conf-background.ogi */
 
-		ogifile = pbx_builtin_getvar_helper(chan,"MEETME_AGI_BACKGROUND");
+		ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
 		if (!ogifile)
 			ogifile = ogifiledefault;
 
