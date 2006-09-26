@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief AGI - the OpenPBX Gateway Interface
+ * \brief OGI - the OpenPBX Gateway Interface
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -44,7 +44,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/res/res_ogi.c $", "$Revision: 1547 $")
 
 #include "openpbx/file.h"
 #include "openpbx/logger.h"
@@ -65,39 +65,39 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/utils.h"
 #include "openpbx/lock.h"
 #include "openpbx/strings.h"
-#include "openpbx/agi.h"
+#include "openpbx/ogi.h"
 
 #define MAX_ARGS 128
 #define MAX_COMMANDS 128
 
 /* Recycle some stuff from the CLI interface */
-#define fdprintf agi_debug_cli
+#define fdprintf ogi_debug_cli
 
-static char *tdesc = "OpenPBX Gateway Interface (AGI)";
+static char *tdesc = "OpenPBX Gateway Interface (OGI)";
 
-static char *app = "AGI";
+static char *app = "OGI";
 
-static char *eapp = "EAGI";
+static char *eapp = "EOGI";
 
-static char *deadapp = "DeadAGI";
+static char *deadapp = "DeadOGI";
 
-static char *synopsis = "Executes an AGI compliant application";
-static char *esynopsis = "Executes an EAGI compliant application";
-static char *deadsynopsis = "Executes AGI on a hungup channel";
+static char *synopsis = "Executes an OGI compliant application";
+static char *esynopsis = "Executes an EOGI compliant application";
+static char *deadsynopsis = "Executes OGI on a hungup channel";
 
 static char *descrip =
-"  [E|Dead]AGI(command|args): Executes an OpenPBX Gateway Interface compliant\n"
-"program on a channel. AGI allows OpenPBX to launch external programs\n"
+"  [E|Dead]OGI(command|args): Executes an OpenPBX Gateway Interface compliant\n"
+"program on a channel. OGI allows OpenPBX to launch external programs\n"
 "written in any language to control a telephony channel, play audio,\n"
-"read DTMF digits, etc. by communicating with the AGI protocol on stdin\n"
+"read DTMF digits, etc. by communicating with the OGI protocol on stdin\n"
 "and stdout.\n"
-"Returns -1 on hangup (except for DeadAGI) or if application requested\n"
+"Returns -1 on hangup (except for DeadOGI) or if application requested\n"
 " hangup, or 0 on non-hangup exit. \n"
-"Using 'EAGI' provides enhanced AGI, with incoming audio available out of band"
+"Using 'EOGI' provides enhanced OGI, with incoming audio available out of band"
 "on file descriptor 3\n\n"
-"Use the CLI command 'show agi' to list available agi commands\n";
+"Use the CLI command 'show ogi' to list available ogi commands\n";
 
-static int agidebug = 0;
+static int ogidebug = 0;
 
 STANDARD_LOCAL_USER;
 
@@ -106,12 +106,12 @@ LOCAL_USER_DECL;
 
 #define TONE_BLOCK_SIZE 200
 
-/* Max time to connect to an AGI remote host */
-#define MAX_AGI_CONNECT 2000
+/* Max time to connect to an OGI remote host */
+#define MAX_OGI_CONNECT 2000
 
-#define AGI_PORT 4573
+#define OGI_PORT 4573
 
-static void agi_debug_cli(int fd, char *fmt, ...)
+static void ogi_debug_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
 	int res = 0;
@@ -123,28 +123,28 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 	if (res == -1) {
 		opbx_log(LOG_ERROR, "Out of memory\n");
 	} else {
-		if (agidebug)
-			opbx_verbose("AGI Tx >> %s", stuff);
+		if (ogidebug)
+			opbx_verbose("OGI Tx >> %s", stuff);
 		opbx_carefulwrite(fd, stuff, strlen(stuff), 100);
 		free(stuff);
 	}
 }
 
-/* launch_netscript: The fastagi handler.
-	FastAGI defaults to port 4573 */
-static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
+/* launch_netscript: The fastogi handler.
+	FastOGI defaults to port 4573 */
+static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int *opid)
 {
 	int s;
 	int flags;
 	struct pollfd pfds[1];
 	char *host;
-	char *c; int port = AGI_PORT;
+	char *c; int port = OGI_PORT;
 	char *script="";
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct opbx_hostent ahp;
 
-	host = opbx_strdupa(agiurl + 6);	/* Remove agi:// */
+	host = opbx_strdupa(ogiurl + 6);	/* Remove ogi:// */
 	if (!host)
 		return -1;
 	/* Strip off any script name */
@@ -159,7 +159,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		port = atoi(c);
 	}
 	if (efd) {
-		opbx_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
+		opbx_log(LOG_WARNING, "OGI URI's don't support Enhanced OGI yet\n");
 		return -1;
 	}
 	hp = opbx_gethostbyname(host, &ahp);
@@ -194,20 +194,20 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	}
 	pfds[0].fd = s;
 	pfds[0].events = POLLOUT;
-	if (poll(pfds, 1, MAX_AGI_CONNECT) != 1) {
-		opbx_log(LOG_WARNING, "Connect to '%s' failed!\n", agiurl);
+	if (poll(pfds, 1, MAX_OGI_CONNECT) != 1) {
+		opbx_log(LOG_WARNING, "Connect to '%s' failed!\n", ogiurl);
 		close(s);
 		return -1;
 	}
-	if (write(s, "agi_network: yes\n", strlen("agi_network: yes\n")) < 0) {
-		opbx_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+	if (write(s, "ogi_network: yes\n", strlen("ogi_network: yes\n")) < 0) {
+		opbx_log(LOG_WARNING, "Connect to '%s' failed: %s\n", ogiurl, strerror(errno));
 		close(s);
 		return -1;
 	}
 
-	/* If we have a script parameter, relay it to the fastagi server */
+	/* If we have a script parameter, relay it to the fastogi server */
 	if (!opbx_strlen_zero(script))
-		fdprintf(s, "agi_network_script: %s\n", script);
+		fdprintf(s, "ogi_network_script: %s\n", script);
 
 	if (option_debug > 3)
 		opbx_log(LOG_DEBUG, "Wow, connected!\n");
@@ -228,11 +228,11 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	int res;
 	sigset_t signal_set;
 	
-	if (!strncasecmp(script, "agi://", 6))
+	if (!strncasecmp(script, "ogi://", 6))
 		return launch_netscript(script, argv, fds, efd, opid);
 	
 	if (script[0] != '/') {
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_AGI_DIR, script);
+		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_OGI_DIR, script);
 		script = tmp;
 	}
 	if (pipe(toast)) {
@@ -274,7 +274,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		return -1;
 	}
 	if (!pid) {
-		/* Don't run AGI scripts with realtime priority -- it causes audio stutter */
+		/* Don't run OGI scripts with realtime priority -- it causes audio stutter */
 		opbx_set_priority(0);
 
 		/* Redirect stdin and out, provide enhanced audio channel if desired */
@@ -288,7 +288,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		
 		/* unblock important signal handlers */
 		if (sigfillset(&signal_set) || pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
-			opbx_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
+			opbx_log(LOG_WARNING, "unable to unblock signals for OGI script: %s\n", strerror(errno));
 			exit(1);
 		}
 
@@ -303,7 +303,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		exit(1);
 	}
 	if (option_verbose > 2) 
-		opbx_verbose(VERBOSE_PREFIX_3 "Launched AGI Script %s\n", script);
+		opbx_verbose(VERBOSE_PREFIX_3 "Launched OGI Script %s\n", script);
 	fds[0] = toast[0];
 	fds[1] = fromast[1];
 	if (efd) {
@@ -325,38 +325,38 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 
 static void setup_env(struct opbx_channel *chan, char *request, int fd, int enhanced)
 {
-	/* Print initial environment, with agi_request always being the first
+	/* Print initial environment, with ogi_request always being the first
 	   thing */
-	fdprintf(fd, "agi_request: %s\n", request);
-	fdprintf(fd, "agi_channel: %s\n", chan->name);
-	fdprintf(fd, "agi_language: %s\n", chan->language);
-	fdprintf(fd, "agi_type: %s\n", chan->type);
-	fdprintf(fd, "agi_uniqueid: %s\n", chan->uniqueid);
+	fdprintf(fd, "ogi_request: %s\n", request);
+	fdprintf(fd, "ogi_channel: %s\n", chan->name);
+	fdprintf(fd, "ogi_language: %s\n", chan->language);
+	fdprintf(fd, "ogi_type: %s\n", chan->type);
+	fdprintf(fd, "ogi_uniqueid: %s\n", chan->uniqueid);
 
 	/* ANI/DNIS */
-	fdprintf(fd, "agi_callerid: %s\n", chan->cid.cid_num ? chan->cid.cid_num : "unknown");
-	fdprintf(fd, "agi_calleridname: %s\n", chan->cid.cid_name ? chan->cid.cid_name : "unknown");
-	fdprintf(fd, "agi_callingpres: %d\n", chan->cid.cid_pres);
-	fdprintf(fd, "agi_callingani2: %d\n", chan->cid.cid_ani2);
-	fdprintf(fd, "agi_callington: %d\n", chan->cid.cid_ton);
-	fdprintf(fd, "agi_callingtns: %d\n", chan->cid.cid_tns);
-	fdprintf(fd, "agi_dnid: %s\n", chan->cid.cid_dnid ? chan->cid.cid_dnid : "unknown");
-	fdprintf(fd, "agi_rdnis: %s\n", chan->cid.cid_rdnis ? chan->cid.cid_rdnis : "unknown");
+	fdprintf(fd, "ogi_callerid: %s\n", chan->cid.cid_num ? chan->cid.cid_num : "unknown");
+	fdprintf(fd, "ogi_calleridname: %s\n", chan->cid.cid_name ? chan->cid.cid_name : "unknown");
+	fdprintf(fd, "ogi_callingpres: %d\n", chan->cid.cid_pres);
+	fdprintf(fd, "ogi_callingani2: %d\n", chan->cid.cid_ani2);
+	fdprintf(fd, "ogi_callington: %d\n", chan->cid.cid_ton);
+	fdprintf(fd, "ogi_callingtns: %d\n", chan->cid.cid_tns);
+	fdprintf(fd, "ogi_dnid: %s\n", chan->cid.cid_dnid ? chan->cid.cid_dnid : "unknown");
+	fdprintf(fd, "ogi_rdnis: %s\n", chan->cid.cid_rdnis ? chan->cid.cid_rdnis : "unknown");
 
 	/* Context information */
-	fdprintf(fd, "agi_context: %s\n", chan->context);
-	fdprintf(fd, "agi_extension: %s\n", chan->exten);
-	fdprintf(fd, "agi_priority: %d\n", chan->priority);
-	fdprintf(fd, "agi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
+	fdprintf(fd, "ogi_context: %s\n", chan->context);
+	fdprintf(fd, "ogi_extension: %s\n", chan->exten);
+	fdprintf(fd, "ogi_priority: %d\n", chan->priority);
+	fdprintf(fd, "ogi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
 
 	/* User information */
-	fdprintf(fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
+	fdprintf(fd, "ogi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
     
 	/* End with empty return */
 	fdprintf(fd, "\n");
 }
 
-static int handle_answer(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_answer(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	res = 0;
@@ -364,14 +364,14 @@ static int handle_answer(struct opbx_channel *chan, AGI *agi, int argc, char *ar
 		/* Answer the chan */
 		res = opbx_answer(chan);
 	}
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_waitfordigit(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_waitfordigit(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	int to;
@@ -379,15 +379,15 @@ static int handle_waitfordigit(struct opbx_channel *chan, AGI *agi, int argc, ch
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[3], "%d", &to) != 1)
 		return RESULT_SHOWUSAGE;
-	res = opbx_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	res = opbx_waitfordigit_full(chan, to, ogi->audio, ogi->ctrl);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_sendtext(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_sendtext(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	if (argc != 3)
@@ -400,34 +400,34 @@ static int handle_sendtext(struct opbx_channel *chan, AGI *agi, int argc, char *
 	   parsing, then here, add a newline at the end of the string
 	   before sending it to opbx_sendtext --DUDE */
 	res = opbx_sendtext(chan, argv[2]);
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_recvchar(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_recvchar(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	res = opbx_recvchar(chan,atoi(argv[2]));
 	if (res == 0) {
-		fdprintf(agi->fd, "200 result=%d (timeout)\n", res);
+		fdprintf(ogi->fd, "200 result=%d (timeout)\n", res);
 		return RESULT_SUCCESS;
 	}
 	if (res > 0) {
-		fdprintf(agi->fd, "200 result=%d\n", res);
+		fdprintf(ogi->fd, "200 result=%d\n", res);
 		return RESULT_SUCCESS;
 	}
 	else {
-		fdprintf(agi->fd, "200 result=%d (hangup)\n", res);
+		fdprintf(ogi->fd, "200 result=%d (hangup)\n", res);
 		return RESULT_FAILURE;
 	}
 }
 
-static int handle_recvtext(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_recvtext(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	char *buf;
 	
@@ -435,15 +435,15 @@ static int handle_recvtext(struct opbx_channel *chan, AGI *agi, int argc, char *
 		return RESULT_SHOWUSAGE;
 	buf = opbx_recvtext(chan,atoi(argv[2]));
 	if (buf) {
-		fdprintf(agi->fd, "200 result=1 (%s)\n", buf);
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", buf);
 		free(buf);
 	} else {	
-		fdprintf(agi->fd, "200 result=-1\n");
+		fdprintf(ogi->fd, "200 result=-1\n");
 	}
 	return RESULT_SUCCESS;
 }
 
-static int handle_tddmode(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_tddmode(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res,x;
 	if (argc != 3)
@@ -458,13 +458,13 @@ static int handle_tddmode(struct opbx_channel *chan, AGI *agi, int argc, char *a
 		x = 1;
 	res = opbx_channel_setoption(chan, OPBX_OPTION_TDD, &x, sizeof(char), 0);
 	if (res != RESULT_SUCCESS)
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 	else
-		fdprintf(agi->fd, "200 result=1\n");
+		fdprintf(ogi->fd, "200 result=1\n");
 	return RESULT_SUCCESS;
 }
 
-static int handle_sendimage(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_sendimage(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	if (argc != 3)
@@ -472,14 +472,14 @@ static int handle_sendimage(struct opbx_channel *chan, AGI *agi, int argc, char 
 	res = opbx_send_image(chan, argv[2]);
 	if (!opbx_check_hangup(chan))
 		res = 0;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_controlstreamfile(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_controlstreamfile(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res = 0;
 	int skipms = 3000;
@@ -516,7 +516,7 @@ static int handle_controlstreamfile(struct opbx_channel *chan, AGI *agi, int arg
 	
 	res = opbx_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms);
 	
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -524,7 +524,7 @@ static int handle_controlstreamfile(struct opbx_channel *chan, AGI *agi, int arg
 		return RESULT_FAILURE;
 }
 
-static int handle_streamfile(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_streamfile(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	struct opbx_filestream *fs;
@@ -540,7 +540,7 @@ static int handle_streamfile(struct opbx_channel *chan, AGI *agi, int argc, char
 	
 	fs = opbx_openstream(chan, argv[2], chan->language);
 	if (!fs){
-		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
+		fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
 	}
 	opbx_seekstream(fs, 0, SEEK_END);
@@ -549,13 +549,13 @@ static int handle_streamfile(struct opbx_channel *chan, AGI *agi, int argc, char
 	res = opbx_applystream(chan, fs);
 	res = opbx_playstream(fs);
 	if (res) {
-		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+		fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
 		if (res >= 0)
 			return RESULT_SHOWUSAGE;
 		else
 			return RESULT_FAILURE;
 	}
-	res = opbx_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
+	res = opbx_waitstream_full(chan, argv[3], ogi->audio, ogi->ctrl);
 	/* this is to check for if opbx_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
 	sample_offset = (chan->stream) ? opbx_tellstream(fs) : max_length;
@@ -564,7 +564,7 @@ static int handle_streamfile(struct opbx_channel *chan, AGI *agi, int argc, char
 		/* Stop this command, don't print a result line, as there is a new command */
 		return RESULT_SUCCESS;
 	}
-	fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+	fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
@@ -572,7 +572,7 @@ static int handle_streamfile(struct opbx_channel *chan, AGI *agi, int argc, char
 }
 
 /* get option - really similar to the handle_streamfile, but with a timeout */
-static int handle_getoption(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_getoption(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
         int res;
         struct opbx_filestream *fs;
@@ -596,7 +596,7 @@ static int handle_getoption(struct opbx_channel *chan, AGI *agi, int argc, char 
 
         fs = opbx_openstream(chan, argv[2], chan->language);
         if (!fs){
-                fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
+                fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
                 opbx_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
 		return RESULT_SUCCESS;
         }
@@ -609,13 +609,13 @@ static int handle_getoption(struct opbx_channel *chan, AGI *agi, int argc, char 
         res = opbx_applystream(chan, fs);
         res = opbx_playstream(fs);
         if (res) {
-                fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+                fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
                 if (res >= 0)
                         return RESULT_SHOWUSAGE;
                 else
                         return RESULT_FAILURE;
         }
-        res = opbx_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
+        res = opbx_waitstream_full(chan, argv[3], ogi->audio, ogi->ctrl);
         /* this is to check for if opbx_waitstream closed the stream, we probably are at
          * the end of the stream, return that amount, else check for the amount */
         sample_offset = (chan->stream)?opbx_tellstream(fs):max_length;
@@ -627,13 +627,13 @@ static int handle_getoption(struct opbx_channel *chan, AGI *agi, int argc, char 
 
 	/* If the user didnt press a key, wait for digitTimeout*/
 	if (res == 0 ) {
-		res = opbx_waitfordigit_full(chan, timeout, agi->audio, agi->ctrl);
+		res = opbx_waitfordigit_full(chan, timeout, ogi->audio, ogi->ctrl);
 		/* Make sure the new result is in the escape digits of the GET OPTION */
 		if ( !strchr(edigits,res) )
                 	res=0;
 	}
 
-        fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+        fdprintf(ogi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
         if (res >= 0)
                 return RESULT_SUCCESS;
         else
@@ -646,7 +646,7 @@ static int handle_getoption(struct opbx_channel *chan, AGI *agi, int argc, char 
 /*--- handle_saynumber: Say number in various language syntaxes ---*/
 /* Need to add option for gender here as well. Coders wanted */
 /* While waiting, we're sending a (char *) NULL.  */
-static int handle_saynumber(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_saynumber(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	int num;
@@ -654,17 +654,17 @@ static int handle_saynumber(struct opbx_channel *chan, AGI *agi, int argc, char 
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = opbx_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, agi->audio, agi->ctrl);
+	res = opbx_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, ogi->audio, ogi->ctrl);
 	if (res == 1)
 		return RESULT_SUCCESS;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_saydigits(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_saydigits(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	int num;
@@ -674,34 +674,34 @@ static int handle_saydigits(struct opbx_channel *chan, AGI *agi, int argc, char 
 	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 
-	res = opbx_say_digit_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	res = opbx_say_digit_str_full(chan, argv[2], argv[3], chan->language, ogi->audio, ogi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_sayalpha(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_sayalpha(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	res = opbx_say_character_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	res = opbx_say_character_str_full(chan, argv[2], argv[3], chan->language, ogi->audio, ogi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_saydate(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_saydate(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	int num;
@@ -712,14 +712,14 @@ static int handle_saydate(struct opbx_channel *chan, AGI *agi, int argc, char *a
 	res = opbx_say_date(chan, num, argv[3], chan->language);
 	if (res == 1)
 		return RESULT_SUCCESS;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_saytime(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_saytime(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	int num;
@@ -730,14 +730,14 @@ static int handle_saytime(struct opbx_channel *chan, AGI *agi, int argc, char *a
 	res = opbx_say_time(chan, num, argv[3], chan->language);
 	if (res == 1)
 		return RESULT_SUCCESS;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_saydatetime(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_saydatetime(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res=0;
 	long unixtime;
@@ -766,7 +766,7 @@ static int handle_saydatetime(struct opbx_channel *chan, AGI *agi, int argc, cha
 	if (res == 1)
 		return RESULT_SUCCESS;
 
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -774,24 +774,24 @@ static int handle_saydatetime(struct opbx_channel *chan, AGI *agi, int argc, cha
 		return RESULT_FAILURE;
 }
 
-static int handle_sayphonetic(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_sayphonetic(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	res = opbx_say_phonetic_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	res = opbx_say_phonetic_str_full(chan, argv[2], argv[3], chan->language, ogi->audio, ogi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
 }
 
-static int handle_getdata(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_getdata(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
 	char data[1024];
@@ -808,38 +808,38 @@ static int handle_getdata(struct opbx_channel *chan, AGI *agi, int argc, char *a
 		max = atoi(argv[4]); 
 	else
 		max = 1024;
-	res = opbx_app_getdata_full(chan, argv[2], data, max, timeout, agi->audio, agi->ctrl);
+	res = opbx_app_getdata_full(chan, argv[2], data, max, timeout, ogi->audio, ogi->ctrl);
 	if (res == 2)			/* New command */
 		return RESULT_SUCCESS;
 	else if (res == 1)
-		fdprintf(agi->fd, "200 result=%s (timeout)\n", data);
+		fdprintf(ogi->fd, "200 result=%s (timeout)\n", data);
 	else if (res < 0 )
-		fdprintf(agi->fd, "200 result=-1\n");
+		fdprintf(ogi->fd, "200 result=-1\n");
 	else
-		fdprintf(agi->fd, "200 result=%s\n", data);
+		fdprintf(ogi->fd, "200 result=%s\n", data);
 	return RESULT_SUCCESS;
 }
 
-static int handle_setcontext(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_setcontext(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	opbx_copy_string(chan->context, argv[2], sizeof(chan->context));
-	fdprintf(agi->fd, "200 result=0\n");
+	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 	
-static int handle_setextension(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_setextension(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	opbx_copy_string(chan->exten, argv[2], sizeof(chan->exten));
-	fdprintf(agi->fd, "200 result=0\n");
+	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 
-static int handle_setpriority(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_setpriority(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int pri;
 	if (argc != 3)
@@ -851,11 +851,11 @@ static int handle_setpriority(struct opbx_channel *chan, AGI *agi, int argc, cha
 	}
 
 	opbx_explicit_goto(chan, NULL, NULL, pri);
-	fdprintf(agi->fd, "200 result=0\n");
+	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 		
-static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	struct opbx_filestream *fs;
 	struct opbx_frame *f;
@@ -873,7 +873,7 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
         int rfmt=0;
 
 
-	/* XXX EAGI FIXME XXX */
+	/* XXX EOGI FIXME XXX */
 
 	if (argc < 6)
 		return RESULT_SHOWUSAGE;
@@ -927,12 +927,12 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
 	if (!res)
 		res = opbx_waitstream(chan, argv[4]);
 	if (res) {
-		fdprintf(agi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
+		fdprintf(ogi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 	} else {
 		fs = opbx_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, 0644);
 		if (!fs) {
 			res = -1;
-			fdprintf(agi->fd, "200 result=%d (writefile)\n", res);
+			fdprintf(ogi->fd, "200 result=%d (writefile)\n", res);
 			if (sildet)
 				opbx_dsp_free(sildet);
 			return RESULT_FAILURE;
@@ -949,14 +949,14 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
 			res = opbx_waitfor(chan, -1);
 			if (res < 0) {
 				opbx_closestream(fs);
-				fdprintf(agi->fd, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
+				fdprintf(ogi->fd, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
 				if (sildet)
 					opbx_dsp_free(sildet);
 				return RESULT_FAILURE;
 			}
 			f = opbx_read(chan);
 			if (!f) {
-				fdprintf(agi->fd, "200 result=%d (hangup) endpos=%ld\n", 0, sample_offset);
+				fdprintf(ogi->fd, "200 result=%d (hangup) endpos=%ld\n", 0, sample_offset);
 				opbx_closestream(fs);
 				if (sildet)
 					opbx_dsp_free(sildet);
@@ -971,7 +971,7 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
 					opbx_stream_rewind(fs, 200);
 					opbx_truncstream(fs);
 					sample_offset = opbx_tellstream(fs);
-					fdprintf(agi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
+					fdprintf(ogi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					opbx_closestream(fs);
 					opbx_frfree(f);
 					if (sildet)
@@ -1012,7 +1012,7 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
                 	opbx_truncstream(fs);
 			sample_offset = opbx_tellstream(fs);
 		}		
-		fdprintf(agi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
+		fdprintf(ogi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		opbx_closestream(fs);
 	}
 
@@ -1025,7 +1025,7 @@ static int handle_recordfile(struct opbx_channel *chan, AGI *agi, int argc, char
 	return RESULT_SUCCESS;
 }
 
-static int handle_autohangup(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_autohangup(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int timeout;
 
@@ -1039,17 +1039,17 @@ static int handle_autohangup(struct opbx_channel *chan, AGI *agi, int argc, char
 		chan->whentohangup = time(NULL) + timeout;
 	else
 		chan->whentohangup = 0;
-	fdprintf(agi->fd, "200 result=0\n");
+	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 
-static int handle_hangup(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_hangup(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	struct opbx_channel *c;
 	if (argc == 1) {
 		/* no argument: hangup the current channel */
 		opbx_softhangup(chan,OPBX_SOFTHANGUP_EXPLICIT);
-		fdprintf(agi->fd, "200 result=1\n");
+		fdprintf(ogi->fd, "200 result=1\n");
 		return RESULT_SUCCESS;
 	} else if (argc == 2) {
 		/* one argument: look for info on the specified channel */
@@ -1057,19 +1057,19 @@ static int handle_hangup(struct opbx_channel *chan, AGI *agi, int argc, char **a
 		if (c) {
 			/* we have a matching channel */
 			opbx_softhangup(c,OPBX_SOFTHANGUP_EXPLICIT);
-			fdprintf(agi->fd, "200 result=1\n");
+			fdprintf(ogi->fd, "200 result=1\n");
 			opbx_mutex_unlock(&c->lock);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
-		fdprintf(agi->fd, "200 result=-1\n");
+		fdprintf(ogi->fd, "200 result=-1\n");
 		return RESULT_SUCCESS;
 	} else {
 		return RESULT_SHOWUSAGE;
 	}
 }
 
-static int handle_exec(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_exec(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
 	struct opbx_app *app;
@@ -1078,7 +1078,7 @@ static int handle_exec(struct opbx_channel *chan, AGI *agi, int argc, char **arg
 		return RESULT_SHOWUSAGE;
 
 	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
+		opbx_verbose(VERBOSE_PREFIX_3 "OGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
 
 	app = pbx_findapp(argv[1]);
 
@@ -1088,12 +1088,12 @@ static int handle_exec(struct opbx_channel *chan, AGI *agi, int argc, char **arg
 		opbx_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
 		res = -2;
 	}
-	fdprintf(agi->fd, "200 result=%d\n", res);
+	fdprintf(ogi->fd, "200 result=%d\n", res);
 
 	return res;
 }
 
-static int handle_setcallerid(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_setcallerid(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	char tmp[256]="";
 	char *l = NULL, *n = NULL;
@@ -1110,43 +1110,43 @@ static int handle_setcallerid(struct opbx_channel *chan, AGI *agi, int argc, cha
 		opbx_set_callerid(chan, l, n, NULL);
 	}
 
-	fdprintf(agi->fd, "200 result=1\n");
+	fdprintf(ogi->fd, "200 result=1\n");
 	return RESULT_SUCCESS;
 }
 
-static int handle_channelstatus(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_channelstatus(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	struct opbx_channel *c;
 	if (argc == 2) {
 		/* no argument: supply info on the current channel */
-		fdprintf(agi->fd, "200 result=%d\n", chan->_state);
+		fdprintf(ogi->fd, "200 result=%d\n", chan->_state);
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
 		c = opbx_get_channel_by_name_locked(argv[2]);
 		if (c) {
-			fdprintf(agi->fd, "200 result=%d\n", c->_state);
+			fdprintf(ogi->fd, "200 result=%d\n", c->_state);
 			opbx_mutex_unlock(&c->lock);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
-		fdprintf(agi->fd, "200 result=-1\n");
+		fdprintf(ogi->fd, "200 result=-1\n");
 		return RESULT_SUCCESS;
 	} else {
 		return RESULT_SHOWUSAGE;
 	}
 }
 
-static int handle_setvariable(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_setvariable(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	if (argv[3])
 		pbx_builtin_setvar_helper(chan, argv[2], argv[3]);
 
-	fdprintf(agi->fd, "200 result=1\n");
+	fdprintf(ogi->fd, "200 result=1\n");
 	return RESULT_SUCCESS;
 }
 
-static int handle_getvariable(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_getvariable(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	char *ret;
 	char tempstr[1024];
@@ -1162,14 +1162,14 @@ static int handle_getvariable(struct opbx_channel *chan, AGI *agi, int argc, cha
 	}
 
 	if (ret)
-		fdprintf(agi->fd, "200 result=1 (%s)\n", ret);
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", ret);
 	else
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 
 	return RESULT_SUCCESS;
 }
 
-static int handle_getvariablefull(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_getvariablefull(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	char tmp[4096];
 	struct opbx_channel *chan2=NULL;
@@ -1183,16 +1183,16 @@ static int handle_getvariablefull(struct opbx_channel *chan, AGI *agi, int argc,
 	}
 	if (chan) { /* XXX isn't this chan2 ? */
 		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
-		fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
 	} else {
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 	}
 	if (chan2 && (chan2 != chan))
 		opbx_mutex_unlock(&chan2->lock);
 	return RESULT_SUCCESS;
 }
 
-static int handle_verbose(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_verbose(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int level = 0;
 	char *prefix;
@@ -1222,12 +1222,12 @@ static int handle_verbose(struct opbx_channel *chan, AGI *agi, int argc, char **
 	if (level <= option_verbose)
 		opbx_verbose("%s %s: %s\n", prefix, chan->data, argv[1]);
 	
-	fdprintf(agi->fd, "200 result=1\n");
+	fdprintf(ogi->fd, "200 result=1\n");
 	
 	return RESULT_SUCCESS;
 }
 
-static int handle_dbget(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_dbget(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
 	char tmp[256];
@@ -1236,14 +1236,14 @@ static int handle_dbget(struct opbx_channel *chan, AGI *agi, int argc, char **ar
 		return RESULT_SHOWUSAGE;
 	res = opbx_db_get(argv[2], argv[3], tmp, sizeof(tmp));
 	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 	else
-		fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
 
 	return RESULT_SUCCESS;
 }
 
-static int handle_dbput(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_dbput(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
 
@@ -1251,14 +1251,14 @@ static int handle_dbput(struct opbx_channel *chan, AGI *agi, int argc, char **ar
 		return RESULT_SHOWUSAGE;
 	res = opbx_db_put(argv[2], argv[3], argv[4]);
 	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 	else
-		fdprintf(agi->fd, "200 result=1\n");
+		fdprintf(ogi->fd, "200 result=1\n");
 
 	return RESULT_SUCCESS;
 }
 
-static int handle_dbdel(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_dbdel(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
 
@@ -1266,14 +1266,14 @@ static int handle_dbdel(struct opbx_channel *chan, AGI *agi, int argc, char **ar
 		return RESULT_SHOWUSAGE;
 	res = opbx_db_del(argv[2], argv[3]);
 	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 	else
-		fdprintf(agi->fd, "200 result=1\n");
+		fdprintf(ogi->fd, "200 result=1\n");
 
 	return RESULT_SUCCESS;
 }
 
-static int handle_dbdeltree(struct opbx_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_dbdeltree(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
 	if ((argc < 3) || (argc > 4))
@@ -1284,51 +1284,51 @@ static int handle_dbdeltree(struct opbx_channel *chan, AGI *agi, int argc, char 
 		res = opbx_db_deltree(argv[2], NULL);
 
 	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(ogi->fd, "200 result=0\n");
 	else
-		fdprintf(agi->fd, "200 result=1\n");
+		fdprintf(ogi->fd, "200 result=1\n");
 	return RESULT_SUCCESS;
 }
 
 static char debug_usage[] = 
-"Usage: agi debug\n"
-"       Enables dumping of AGI transactions for debugging purposes\n";
+"Usage: ogi debug\n"
+"       Enables dumping of OGI transactions for debugging purposes\n";
 
 static char no_debug_usage[] = 
-"Usage: agi no debug\n"
-"       Disables dumping of AGI transactions for debugging purposes\n";
+"Usage: ogi no debug\n"
+"       Disables dumping of OGI transactions for debugging purposes\n";
 
-static int agi_do_debug(int fd, int argc, char *argv[])
+static int ogi_do_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	agidebug = 1;
-	opbx_cli(fd, "AGI Debugging Enabled\n");
+	ogidebug = 1;
+	opbx_cli(fd, "OGI Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int agi_no_debug(int fd, int argc, char *argv[])
+static int ogi_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	agidebug = 0;
-	opbx_cli(fd, "AGI Debugging Disabled\n");
+	ogidebug = 0;
+	opbx_cli(fd, "OGI Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
 static struct opbx_cli_entry  cli_debug =
-	{ { "agi", "debug", NULL }, agi_do_debug, "Enable AGI debugging", debug_usage };
+	{ { "ogi", "debug", NULL }, ogi_do_debug, "Enable OGI debugging", debug_usage };
 
 static struct opbx_cli_entry  cli_no_debug =
-	{ { "agi", "no", "debug", NULL }, agi_no_debug, "Disable AGI debugging", no_debug_usage };
+	{ { "ogi", "no", "debug", NULL }, ogi_no_debug, "Disable OGI debugging", no_debug_usage };
 
-static int handle_noop(struct opbx_channel *chan, AGI *agi, int arg, char *argv[])
+static int handle_noop(struct opbx_channel *chan, OGI *ogi, int arg, char *argv[])
 {
-	fdprintf(agi->fd, "200 result=0\n");
+	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 
-static int handle_setmusic(struct opbx_channel *chan, AGI *agi, int argc, char *argv[])
+static int handle_setmusic(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	if (!strncasecmp(argv[2],"on",2)) {
 		if (argc > 3)
@@ -1339,7 +1339,7 @@ static int handle_setmusic(struct opbx_channel *chan, AGI *agi, int argc, char *
 	if (!strncasecmp(argv[2],"off",3)) {
 		opbx_moh_stop(chan);
 	}
-	fdprintf(agi->fd, "200 result=0\n");
+	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 
@@ -1590,7 +1590,7 @@ static char usage_noop[] =
 " Usage: NoOp\n"
 "	Does nothing.\n";
 
-static agi_command commands[MAX_COMMANDS] = {
+static ogi_command commands[MAX_COMMANDS] = {
 	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer },
 	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
 	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel },
@@ -1651,7 +1651,7 @@ static int help_workhorse(int fd, char *match[])
 	char fullcmd[80];
 	char matchstr[80];
 	int x;
-	struct agi_command *e;
+	struct ogi_command *e;
 	if (match)
 		join(matchstr, sizeof(matchstr), match);
 	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
@@ -1672,18 +1672,18 @@ static int help_workhorse(int fd, char *match[])
 	return 0;
 }
 
-int agi_register(agi_command *agi)
+int ogi_register(ogi_command *ogi)
 {
 	int x;
 	for (x=0; x<MAX_COMMANDS - 1; x++) {
-		if (commands[x].cmda[0] == agi->cmda[0]) {
+		if (commands[x].cmda[0] == ogi->cmda[0]) {
 			opbx_log(LOG_WARNING, "Command already registered!\n");
 			return -1;
 		}
 	}
 	for (x=0; x<MAX_COMMANDS - 1; x++) {
 		if (!commands[x].cmda[0]) {
-			commands[x] = *agi;
+			commands[x] = *ogi;
 			return 0;
 		}
 	}
@@ -1691,17 +1691,17 @@ int agi_register(agi_command *agi)
 	return -1;
 }
 
-void agi_unregister(agi_command *agi)
+void ogi_unregister(ogi_command *ogi)
 {
 	int x;
 	for (x=0; x<MAX_COMMANDS - 1; x++) {
-		if (commands[x].cmda[0] == agi->cmda[0]) {
-			memset(&commands[x], 0, sizeof(agi_command));
+		if (commands[x].cmda[0] == ogi->cmda[0]) {
+			memset(&commands[x], 0, sizeof(ogi_command));
 		}
 	}
 }
 
-static agi_command *find_command(char *cmds[], int exact)
+static ogi_command *find_command(char *cmds[], int exact)
 {
 	int x;
 	int y;
@@ -1801,12 +1801,12 @@ normal:
 	return 0;
 }
 
-static int agi_handle_command(struct opbx_channel *chan, AGI *agi, char *buf)
+static int ogi_handle_command(struct opbx_channel *chan, OGI *ogi, char *buf)
 {
 	char *argv[MAX_ARGS];
 	int argc = 0;
 	int res;
-	agi_command *c;
+	ogi_command *c;
 	argc = MAX_ARGS;
 
 	parse_args(buf, &argc, argv);
@@ -1817,12 +1817,12 @@ static int agi_handle_command(struct opbx_channel *chan, AGI *agi, char *buf)
 #endif
 	c = find_command(argv, 0);
 	if (c) {
-		res = c->handler(chan, agi, argc, argv);
+		res = c->handler(chan, ogi, argc, argv);
 		switch(res) {
 		case RESULT_SHOWUSAGE:
-			fdprintf(agi->fd, "520-Invalid command syntax.  Proper usage follows:\n");
-			fdprintf(agi->fd, c->usage);
-			fdprintf(agi->fd, "520 End of proper usage.\n");
+			fdprintf(ogi->fd, "520-Invalid command syntax.  Proper usage follows:\n");
+			fdprintf(ogi->fd, c->usage);
+			fdprintf(ogi->fd, "520 End of proper usage.\n");
 			break;
 		case OPBX_PBX_KEEPALIVE:
 			/* We've been asked to keep alive, so do so */
@@ -1834,12 +1834,12 @@ static int agi_handle_command(struct opbx_channel *chan, AGI *agi, char *buf)
 			return -1;
 		}
 	} else {
-		fdprintf(agi->fd, "510 Invalid or unknown command\n");
+		fdprintf(ogi->fd, "510 Invalid or unknown command\n");
 	}
 	return 0;
 }
 #define RETRY	3
-static int run_agi(struct opbx_channel *chan, char *request, AGI *agi, int pid, int dead)
+static int run_ogi(struct opbx_channel *chan, char *request, OGI *ogi, int pid, int dead)
 {
 	struct opbx_channel *c;
 	int outfd;
@@ -1852,18 +1852,18 @@ static int run_agi(struct opbx_channel *chan, char *request, AGI *agi, int pid, 
 	  channel or file descriptor in case select is interrupted by a system call (EINTR) */
 	int retry = RETRY;
 
-	if (!(readf = fdopen(agi->ctrl, "r"))) {
+	if (!(readf = fdopen(ogi->ctrl, "r"))) {
 		opbx_log(LOG_WARNING, "Unable to fdopen file descriptor\n");
 		if (pid > -1)
 			kill(pid, SIGHUP);
-		close(agi->ctrl);
+		close(ogi->ctrl);
 		return -1;
 	}
 	setlinebuf(readf);
-	setup_env(chan, request, agi->fd, (agi->audio > -1));
+	setup_env(chan, request, ogi->fd, (ogi->audio > -1));
 	for (;;) {
 		ms = -1;
-		c = opbx_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
+		c = opbx_waitfor_nandfds(&chan, dead ? 0 : 1, &ogi->ctrl, 1, NULL, &outfd, &ms);
 		if (c) {
 			retry = RETRY;
 			/* Idle the channel until we get a command */
@@ -1874,9 +1874,9 @@ static int run_agi(struct opbx_channel *chan, char *request, AGI *agi, int pid, 
 				break;
 			} else {
 				/* If it's voice, write it to the audio pipe */
-				if ((agi->audio > -1) && (f->frametype == OPBX_FRAME_VOICE)) {
+				if ((ogi->audio > -1) && (f->frametype == OPBX_FRAME_VOICE)) {
 					/* Write, ignoring errors */
-					write(agi->audio, f->data, f->datalen);
+					write(ogi->audio, f->data, f->datalen);
 				}
 				opbx_frfree(f);
 			}
@@ -1887,7 +1887,7 @@ static int run_agi(struct opbx_channel *chan, char *request, AGI *agi, int pid, 
 				if (returnstatus)
 					returnstatus = -1;
 				if (option_verbose > 2) 
-					opbx_verbose(VERBOSE_PREFIX_3 "AGI Script %s completed, returning %d\n", request, returnstatus);
+					opbx_verbose(VERBOSE_PREFIX_3 "OGI Script %s completed, returning %d\n", request, returnstatus);
 				/* No need to kill the pid anymore, since they closed us */
 				pid = -1;
 				break;
@@ -1895,9 +1895,9 @@ static int run_agi(struct opbx_channel *chan, char *request, AGI *agi, int pid, 
 			/* get rid of trailing newline, if any */
 			if (*buf && buf[strlen(buf) - 1] == '\n')
 				buf[strlen(buf) - 1] = 0;
-			if (agidebug)
-				opbx_verbose("AGI Rx << %s\n", buf);
-			returnstatus |= agi_handle_command(chan, agi, buf);
+			if (ogidebug)
+				opbx_verbose("OGI Rx << %s\n", buf);
+			returnstatus |= ogi_handle_command(chan, ogi, buf);
 			/* If the handle_command returns -1, we need to stop */
 			if ((returnstatus < 0) || (returnstatus == OPBX_PBX_KEEPALIVE)) {
 				break;
@@ -1913,14 +1913,14 @@ static int run_agi(struct opbx_channel *chan, char *request, AGI *agi, int pid, 
 	/* Notify process */
 	if (pid > -1) {
 		if (kill(pid, SIGHUP))
-			opbx_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
+			opbx_log(LOG_WARNING, "unable to send SIGHUP to OGI process %d: %s\n", pid, strerror(errno));
 	}
 	fclose(readf);
 	return returnstatus;
 }
 
-static int handle_showagi(int fd, int argc, char *argv[]) {
-	struct agi_command *e;
+static int handle_showogi(int fd, int argc, char *argv[]) {
+	struct ogi_command *e;
 	char fullcmd[80];
 	if ((argc < 2))
 		return RESULT_SHOWUSAGE;
@@ -1942,8 +1942,8 @@ static int handle_showagi(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
-	struct agi_command *e;
+static int handle_dumpogihtml(int fd, int argc, char *argv[]) {
+	struct ogi_command *e;
 	char fullcmd[80];
 	char *tempstr;
 	int x;
@@ -1957,8 +1957,8 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 		return RESULT_SHOWUSAGE;
 	}
 
-	fprintf(htmlfile, "<HTML>\n<HEAD>\n<TITLE>AGI Commands</TITLE>\n</HEAD>\n");
-	fprintf(htmlfile, "<BODY>\n<CENTER><B><H1>AGI Commands</H1></B></CENTER>\n\n");
+	fprintf(htmlfile, "<HTML>\n<HEAD>\n<TITLE>OGI Commands</TITLE>\n</HEAD>\n");
+	fprintf(htmlfile, "<BODY>\n<CENTER><B><H1>OGI Commands</H1></B></CENTER>\n\n");
 
 
 	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
@@ -1994,11 +1994,11 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 
 	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");
 	fclose(htmlfile);
-	opbx_cli(fd, "AGI HTML Commands Dumped to: %s\n", argv[2]);
+	opbx_cli(fd, "OGI HTML Commands Dumped to: %s\n", argv[2]);
 	return RESULT_SUCCESS;
 }
 
-static int agi_exec_full(struct opbx_channel *chan, void *data, int enhanced, int dead)
+static int ogi_exec_full(struct opbx_channel *chan, void *data, int enhanced, int dead)
 {
 	int res=0;
 	struct localuser *u;
@@ -2010,15 +2010,15 @@ static int agi_exec_full(struct opbx_channel *chan, void *data, int enhanced, in
 	int efd = -1;
 	int pid;
         char *stringp;
-	AGI agi;
+	OGI ogi;
 
 	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "AGI requires an argument (script)\n");
+		opbx_log(LOG_WARNING, "OGI requires an argument (script)\n");
 		return -1;
 	}
 	opbx_copy_string(buf, data, sizeof(buf));
 
-	memset(&agi, 0, sizeof(agi));
+	memset(&ogi, 0, sizeof(ogi));
         while ((stringp = strsep(&tmp, "|"))) {
 		argv[argc++] = stringp;
         }
@@ -2036,10 +2036,10 @@ static int agi_exec_full(struct opbx_channel *chan, void *data, int enhanced, in
 #endif
 	res = launch_script(argv[0], argv, fds, enhanced ? &efd : NULL, &pid);
 	if (!res) {
-		agi.fd = fds[1];
-		agi.ctrl = fds[0];
-		agi.audio = efd;
-		res = run_agi(chan, argv[0], &agi, pid, dead);
+		ogi.fd = fds[1];
+		ogi.ctrl = fds[0];
+		ogi.audio = efd;
+		res = run_ogi(chan, argv[0], &ogi, pid, dead);
 		close(fds[1]);
 		if (efd > -1)
 			close(efd);
@@ -2048,26 +2048,26 @@ static int agi_exec_full(struct opbx_channel *chan, void *data, int enhanced, in
 	return res;
 }
 
-static int agi_exec(struct opbx_channel *chan, void *data)
+static int ogi_exec(struct opbx_channel *chan, void *data)
 {
 	if (chan->_softhangup)
-		opbx_log(LOG_WARNING, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
-	return agi_exec_full(chan, data, 0, 0);
+		opbx_log(LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
+	return ogi_exec_full(chan, data, 0, 0);
 }
 
-static int eagi_exec(struct opbx_channel *chan, void *data)
+static int eogi_exec(struct opbx_channel *chan, void *data)
 {
 	int readformat;
 	int res;
 
 	if (chan->_softhangup)
-		opbx_log(LOG_WARNING, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
+		opbx_log(LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
 	readformat = chan->readformat;
 	if (opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) {
 		opbx_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
 		return -1;
 	}
-	res = agi_exec_full(chan, data, 1, 0);
+	res = ogi_exec_full(chan, data, 1, 0);
 	if (!res) {
 		if (opbx_set_read_format(chan, readformat)) {
 			opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(readformat));
@@ -2076,33 +2076,33 @@ static int eagi_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static int deadagi_exec(struct opbx_channel *chan, void *data)
+static int deadogi_exec(struct opbx_channel *chan, void *data)
 {
-	return agi_exec_full(chan, data, 0, 1);
+	return ogi_exec_full(chan, data, 0, 1);
 }
 
-static char showagi_help[] =
-"Usage: show agi [topic]\n"
+static char showogi_help[] =
+"Usage: show ogi [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
 "       information on the given command.  If called without a\n"
-"       topic, it provides a list of AGI commands.\n";
+"       topic, it provides a list of OGI commands.\n";
 
 
-static char dumpagihtml_help[] =
-"Usage: dump agihtml <filename>\n"
-"	Dumps the agi command list in html format to given filename\n";
+static char dumpogihtml_help[] =
+"Usage: dump ogihtml <filename>\n"
+"	Dumps the ogi command list in html format to given filename\n";
 
-static struct opbx_cli_entry showagi = 
-{ { "show", "agi", NULL }, handle_showagi, "Show AGI commands or specific help", showagi_help };
+static struct opbx_cli_entry showogi = 
+{ { "show", "ogi", NULL }, handle_showogi, "Show OGI commands or specific help", showogi_help };
 
-static struct opbx_cli_entry dumpagihtml = 
-{ { "dump", "agihtml", NULL }, handle_dumpagihtml, "Dumps a list of agi command in html format", dumpagihtml_help };
+static struct opbx_cli_entry dumpogihtml = 
+{ { "dump", "ogihtml", NULL }, handle_dumpogihtml, "Dumps a list of ogi command in html format", dumpogihtml_help };
 
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
-	opbx_cli_unregister(&showagi);
-	opbx_cli_unregister(&dumpagihtml);
+	opbx_cli_unregister(&showogi);
+	opbx_cli_unregister(&dumpogihtml);
 	opbx_cli_unregister(&cli_debug);
 	opbx_cli_unregister(&cli_no_debug);
 	opbx_unregister_application(eapp);
@@ -2112,13 +2112,13 @@ int unload_module(void)
 
 int load_module(void)
 {
-	opbx_cli_register(&showagi);
-	opbx_cli_register(&dumpagihtml);
+	opbx_cli_register(&showogi);
+	opbx_cli_register(&dumpogihtml);
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_no_debug);
-	opbx_register_application(deadapp, deadagi_exec, deadsynopsis, descrip);
-	opbx_register_application(eapp, eagi_exec, esynopsis, descrip);
-	return opbx_register_application(app, agi_exec, synopsis, descrip);
+	opbx_register_application(deadapp, deadogi_exec, deadsynopsis, descrip);
+	opbx_register_application(eapp, eogi_exec, esynopsis, descrip);
+	return opbx_register_application(app, ogi_exec, synopsis, descrip);
 }
 
 char *description(void)

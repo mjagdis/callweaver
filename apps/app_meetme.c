@@ -96,8 +96,8 @@ static char *descrip =
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'w' -- wait until the marked user enters the conference\n"
-"      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
-"         Default: conf-background.agi\n"
+"      'b' -- run OGI script specified in ${MEETME_OGI_BACKGROUND}\n"
+"         Default: conf-background.ogi\n"
 "        (Note: This does not work with non-Zap channels in the same conference)\n"
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      'a' -- set admin mode\n"
@@ -205,7 +205,7 @@ static void *recordthread(void *args);
 #define CONFFLAG_TALKER (1 << 5)	/* If set the use can only send audio to the conference */
 #define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
-#define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
+#define CONFFLAG_OGI (1 << 8)		/* Set to run OGI Script in Background */
 #define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when user is alone in conference */
 #define CONFFLAG_MARKEDEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
 #define CONFFLAG_WAITMARKED (1 << 11)	/* If set, the MeetMe will wait until a marked user enters */
@@ -236,7 +236,7 @@ OPBX_DECLARE_OPTIONS(meetme_opts,{
 	['x'] = { CONFFLAG_MARKEDEXIT },
 	['X'] = { CONFFLAG_EXIT_CONTEXT },
 	['A'] = { CONFFLAG_MARKEDUSER },
-	['b'] = { CONFFLAG_AGI },
+	['b'] = { CONFFLAG_OGI },
 	['w'] = { CONFFLAG_WAITMARKED },
 	['r'] = { CONFFLAG_RECORDCONF },
 	['d'] = { CONFFLAG_DYNAMIC },
@@ -775,8 +775,8 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
 	struct opbx_dsp *dsp=NULL;
 
 	struct opbx_app *app;
-	char *agifile;
-	char *agifiledefault = "conf-background.agi";
+	char *ogifile;
+	char *ogifiledefault = "conf-background.ogi";
 	char meetmesecs[30] = "";
 	char exitcontext[OPBX_MAX_CONTEXT] = "";
 	char recordingtmp[OPBX_MAX_EXTENSION] = "";
@@ -852,8 +852,8 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
 	opbx_mutex_unlock(&conflock);
 	origquiet = confflags & CONFFLAG_QUIET;
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
-		if ((agifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
-			opbx_copy_string(exitcontext, agifile, sizeof(exitcontext));
+		if ((ogifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
+			opbx_copy_string(exitcontext, ogifile, sizeof(exitcontext));
 		else if (!opbx_strlen_zero(chan->macrocontext)) 
 			opbx_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
 		else
@@ -1034,23 +1034,23 @@ zapretry:
 	if (confflags & CONFFLAG_AGI) {
 
 		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
-		  or use default filename of conf-background.agi */
+		  or use default filename of conf-background.ogi */
 
-		agifile = pbx_builtin_getvar_helper(chan,"MEETME_AGI_BACKGROUND");
-		if (!agifile)
-			agifile = agifiledefault;
+		ogifile = pbx_builtin_getvar_helper(chan,"MEETME_AGI_BACKGROUND");
+		if (!ogifile)
+			ogifile = ogifiledefault;
 
 		if (user->zapchannel) {
 			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
 			x = 1;
 			opbx_channel_setoption(chan,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}
-		/* Find a pointer to the agi app and execute the script */
-		app = pbx_findapp("agi");
+		/* Find a pointer to the ogi app and execute the script */
+		app = pbx_findapp("ogi");
 		if (app) {
-			ret = pbx_exec(chan, app, agifile, 1);
+			ret = pbx_exec(chan, app, ogifile, 1);
 		} else {
-			opbx_log(LOG_WARNING, "Could not find application (agi)\n");
+			opbx_log(LOG_WARNING, "Could not find application (ogi)\n");
 			ret = -2;
 		}
 		if (user->zapchannel) {

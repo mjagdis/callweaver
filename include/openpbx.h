@@ -37,7 +37,7 @@ extern char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_LOG_DIR[OPBX_CONFIG_MAX_PATH];
-extern char opbx_config_OPBX_AGI_DIR[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_OGI_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_DB[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_DB_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_KEY_DIR[OPBX_CONFIG_MAX_PATH];

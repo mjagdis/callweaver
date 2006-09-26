@@ -266,7 +266,7 @@ exten => fax,1,Goto(handle_fax,s,1)
 [handle_fax]
 exten => s,1,capicommand(receivefax|/tmp/${UNIQUEID}[|<stationid>|<headline>])
 exten => s,2,Hangup()
-exten => h,1,deadagi,fax.php // Run sfftobmp and mail it.
+exten => h,1,deadogi,fax.php // Run sfftobmp and mail it.
 
 The output of capicommand(receivefax|...) is a SFF file.
 Use sfftobmp to convert it.

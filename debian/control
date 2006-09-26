@@ -2,7 +2,7 @@ Source: openpbx
 Section: unknown
 Priority: optional
 Maintainer: Massimo Cetra <devel@navynet.it>
-Build-Depends: cdbs, debhelper (>= 4.1.0), libspandsp-dev (>= 0.0.3pre5), libssl-dev, libncurses-dev, zaptel-source, libpq-dev | postgresql-dev, libspeex-dev, unixodbc-dev, libcapi20-dev
+Build-Depends: cdbs, debhelper (>= 4.1.0), libspandsp-dev (>= 0.0.3pre23), libssl-dev, libncurses-dev, zaptel-source, libpq-dev | postgresql-dev, libspeex-dev, unixodbc-dev, libcapi20-dev
 Standards-Version: 3.6.2
 
 Package: openpbx

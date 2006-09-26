@@ -17,40 +17,40 @@
  */
 
 /*! \file
- * \brief AGI Extension interfaces - OpenPBX Gateway Interface
+ * \brief OGI Extension interfaces - OpenPBX Gateway Interface
  */
 
-#ifndef _OPENPBX_AGI_H
-#define _OPENPBX_AGI_H
+#ifndef _OPENPBX_OGI_H
+#define _OPENPBX_OGI_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-typedef struct agi_state {
+typedef struct ogi_state {
 	int fd;		/* FD for general output */
 	int audio;	/* FD for audio output */
 	int ctrl;	/* FD for input control */
-} AGI;
+} OGI;
 
-typedef struct agi_command {
+typedef struct ogi_command {
 	/* Null terminated list of the words of the command */
 	char *cmda[OPBX_MAX_CMD_LEN];
-	/* Handler for the command (channel, AGI state, # of arguments, argument list). 
+	/* Handler for the command (channel, OGI state, # of arguments, argument list). 
 	    Returns RESULT_SHOWUSAGE for improper arguments */
-	int (*handler)(struct opbx_channel *chan, AGI *agi, int argc, char *argv[]);
+	int (*handler)(struct opbx_channel *chan, OGI *ogi, int argc, char *argv[]);
 	/* Summary of the command (< 60 characters) */
 	char *summary;
 	/* Detailed usage information */
 	char *usage;
-	struct agi_command *next;
-} agi_command;
+	struct ogi_command *next;
+} ogi_command;
 
-int agi_register(agi_command *cmd);
-void agi_unregister(agi_command *cmd);
+int ogi_register(ogi_command *cmd);
+void ogi_unregister(ogi_command *cmd);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 
-#endif /* _OPENPBX_AGI_H */
+#endif /* _OPENPBX_OGI_H */

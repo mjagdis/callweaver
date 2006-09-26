@@ -197,7 +197,7 @@ char opbx_config_OPBX_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_MONITOR_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_VAR_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_LOG_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_AGI_DIR[OPBX_CONFIG_MAX_PATH];
+char opbx_config_OPBX_OGI_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_DB[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_DB_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_KEY_DIR[OPBX_CONFIG_MAX_PATH];
@@ -1772,7 +1772,7 @@ static void opbx_readconfig(void) {
  	snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", opbx_config_OPBX_SPOOL_DIR);
 	opbx_copy_string(opbx_config_OPBX_VAR_DIR, opbxvardir_default, sizeof(opbx_config_OPBX_VAR_DIR));
 	opbx_copy_string(opbx_config_OPBX_LOG_DIR, opbxlogdir_default, sizeof(opbx_config_OPBX_LOG_DIR));
-	opbx_copy_string(opbx_config_OPBX_AGI_DIR, opbxagidir_default, sizeof(opbx_config_OPBX_AGI_DIR));
+	opbx_copy_string(opbx_config_OPBX_OGI_DIR, opbxagidir_default, sizeof(opbx_config_OPBX_OGI_DIR));
 	opbx_copy_string(opbx_config_OPBX_DB, opbxdbfile_default, sizeof(opbx_config_OPBX_DB));
 	opbx_copy_string(opbx_config_OPBX_DB_DIR, opbxdbdir_default, sizeof(opbx_config_OPBX_DB_DIR));
 	opbx_copy_string(opbx_config_OPBX_KEY_DIR, opbxkeydir_default, sizeof(opbx_config_OPBX_KEY_DIR));
@@ -1823,7 +1823,7 @@ static void opbx_readconfig(void) {
 		} else if (!strcasecmp(v->name, "opbxlogdir")) {
 			opbx_copy_string(opbx_config_OPBX_LOG_DIR, v->value, sizeof(opbx_config_OPBX_LOG_DIR));
 		} else if (!strcasecmp(v->name, "opbxagidir")) {
-			opbx_copy_string(opbx_config_OPBX_AGI_DIR, v->value, sizeof(opbx_config_OPBX_AGI_DIR));
+			opbx_copy_string(opbx_config_OPBX_OGI_DIR, v->value, sizeof(opbx_config_OPBX_OGI_DIR));
 		} else if (!strcasecmp(v->name, "opbxsoundsdir")) {
 			opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, v->value, sizeof(opbx_config_OPBX_SOUNDS_DIR));
 		} else if (!strcasecmp(v->name, "opbxrundir")) {

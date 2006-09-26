@@ -366,7 +366,7 @@ WARNING
 ---------------------------
 
 If you need to do complicated things with strings, openpbx expressions
-is most likely NOT the best way to go about it. AGI scripts are an
+is most likely NOT the best way to go about it. OGI scripts are an
 excellent option to this need, and make available the full power of
 whatever language you desire, be it Perl, C, C++, Cobol, RPG, Java,
 Snobol, PL/I, Scheme, Common Lisp, Shell scripts, Tcl, Forth, Modula,
@@ -591,7 +591,7 @@ ${MEETME_RECORDINGFILE} 	Name of file for recording a conference with
 				the "r" option
 ${MEETME_RECORDINGFORMAT} 	Format of file to be recorded
 ${MEETME_EXIT_CONTEXT} 		Context for exit out of meetme meeting
-${MEETME_AGI_BACKGROUND} 	AGI script for Meetme (zap only)
+${MEETME_OGI_BACKGROUND} 	OGI script for Meetme (zap only)
 ${MEETMESECS} 			* Number of seconds a user participated in a MeetMe conference
 
 The VoiceMail() application uses the following variables:

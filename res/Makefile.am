@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS 			= gnu
 opbxmod_LTLIBRARIES		= res_crypto.la res_musiconhold.la \
-				  res_indications.la res_agi.la  res_monitor.la \
+				  res_indications.la res_ogi.la  res_monitor.la \
 				  res_features.la res_adsi.la
 
 res_adsi_la_SOURCES             = res_adsi.c
@@ -28,9 +28,9 @@ res_monitor_la_SOURCES 		= res_monitor.c
 res_monitor_la_LDFLAGS 		= -module -avoid-version -no-undefined
 res_monitor_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la  
 
-res_agi_la_SOURCES 		= res_agi.c
-res_agi_la_LDFLAGS 		= -module -avoid-version -no-undefined
-res_agi_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la  
+res_ogi_la_SOURCES 		= res_ogi.c
+res_ogi_la_LDFLAGS 		= -module -avoid-version -no-undefined
+res_ogi_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la  
 
 if WANT_RES_NOISE
 opbxmod_LTLIBRARIES		+= res_noise.la

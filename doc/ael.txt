@@ -32,7 +32,7 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
       extension language is what you see in extensions.conf, and AEL
       compiles the higher level AEL language into extensions and
       priorities, and passes them via function calls into
-      Asterisk. Embedded in this language is the Application/AGI
+      Asterisk. Embedded in this language is the Application/OGI
       commands, of which one application call per step, or priority
       can be made. You can think of this as a "macro assembler"
       language, that AEL will compile into.
@@ -1250,7 +1250,7 @@ available through AEL, via:
       facilities, arithmetic expressions, etc. 
 
     * Application Gateway Interface: Asterisk can fork external
-      processes that communicate via pipe. AGI applications can be
+      processes that communicate via pipe. OGI applications can be
       written in any language. Very powerful applications can be added
       this way. 
 

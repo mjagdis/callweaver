@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS = gnu
 
-opbxinclude_HEADERS = acl.h adsi.h aes.h agi.h alaw.h app.h astobj.h	\
+opbxinclude_HEADERS = acl.h adsi.h aes.h ogi.h alaw.h app.h astobj.h	\
 astosp.h phone_no_utils.h causes.h cdr.h chan_capi20.h chan_capi.h channel.h	\
 chanvars.h cli.h compiler.h config.h crypto.h devicestate.h		\
 dlfcn-compat.h dns.h dnsmgr.h dsp.h dundi.h enum.h features.h file.h	\

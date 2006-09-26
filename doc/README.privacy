@@ -276,7 +276,7 @@ local mod I made to the System command. It forces a 0 result code to
 be returned, whether the play command successfully completed or
 not. Therefore, I don't have to ensure that the file exists or
 not. While I've turned this mod into the developers, it hasn't been
-incorporated yet. You might want to write an AGI or shell script to
+incorporated yet. You might want to write an OGI or shell script to
 handle it a little more intelligently)
 
 And one other thing. You can easily supply your callers with an option
