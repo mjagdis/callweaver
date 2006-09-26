@@ -743,7 +743,7 @@ AC_SUBST([ODBC_LIBS])
 dnl ###########################################################################
 
 AC_ARG_ENABLE([postgresql],
-	[AC_HELP_STRING([--enable-postgresql],[Enable support for PostgreSQL. (default=yes)])],,[enable_postgresql="yes"])
+	[AC_HELP_STRING([--enable-postgresql],[Enable support for PostgreSQL. (default=no)])],,[enable_postgresql="no"])
 
 if test "${enable_postgresql}" = "yes"; then
    if test "${with_pgsql_inc+set}" != set; then
