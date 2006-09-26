@@ -1,4 +1,4 @@
-openpbx (0.2.0-trunk-1870) opo; urgency=low
+openpbx (0.2.0-trunk-1872) opo; urgency=low
 
   * Added ODBC support
   * Added chan_bluetooth support
