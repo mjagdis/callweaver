@@ -64,9 +64,7 @@ static int udptlstart = 0;
 static int udptlend = 0;
 static int udptldebug = 0;		        /* Are we debugging? */
 static struct sockaddr_in udptldebugaddr;	/* Debug packets to/from this host */
-#ifdef SO_NO_CHECK
 static int nochecksums = 0;
-#endif
 static int udptlfectype = 0;
 static int udptlfecentries = 0;
 static int udptlfecspan = 0;

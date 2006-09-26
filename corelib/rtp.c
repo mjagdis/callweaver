@@ -76,9 +76,7 @@ static int rtpstart = 0;
 static int rtpend = 0;
 static int rtpdebug = 0;		/* Are we debugging? */
 static struct sockaddr_in rtpdebugaddr;	/* Debug packets to/from this host */
-#ifdef SO_NO_CHECK
 static int nochecksums = 0;
-#endif
 
 #define FLAG_3389_WARNING		(1 << 0)
 #define FLAG_NAT_ACTIVE			(3 << 1)
