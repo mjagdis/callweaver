@@ -1,8 +1,5 @@
 usr/include/openpbx
 usr/lib/openpbx.org/libo*.so
-usr/lib/openpbx.org/libopbxgsm.la
-usr/lib/openpbx.org/libopbxilbc.la
-usr/lib/openpbx.org/libopbxjb.la
-usr/lib/openpbx.org/libopbxlpc10.la
-usr/lib/openpbx.org/libopbxsqlite3.la
-usr/lib/openpbx.org/libopenpbx.la
+usr/lib/openpbx.org/lib*.la
+usr/lib/lib*.la
+usr/lib/openpbx.org/modules/*.la
