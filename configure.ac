@@ -1955,9 +1955,7 @@ AC_OUTPUT([Makefile
 		 include/Makefile
 		 include/openpbx/Makefile
 		 libs/Makefile
-                 libs/gsm/Makefile
                  libs/ilbc/Makefile
-                 libs/lpc10/Makefile
                  ogi/Makefile
                  apps/Makefile
                  apps/icd/Makefile

@@ -21,7 +21,7 @@ format_g729_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 
 format_gsm_la_SOURCES 		= format_gsm.c
 format_gsm_la_LDFLAGS           = -module -avoid-version -no-undefined
-format_gsm_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la ${top_builddir}/libs/gsm/libopbxgsm.la 
+format_gsm_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la 
 
 format_h263_la_SOURCES 		= format_h263.c
 format_h263_la_LDFLAGS          = -module -avoid-version -no-undefined

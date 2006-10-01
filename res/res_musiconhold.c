@@ -1103,7 +1103,7 @@ int load_module(void)
 		res = opbx_register_application(app4, moh4_exec, synopsis4, descrip4);
 
 	if (!init_classes()) { 	/* No music classes configured, so skip it */
-		opbx_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
+		opbx_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
 	} else {
 		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
 	}

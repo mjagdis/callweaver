@@ -21,7 +21,7 @@
 
 /*! \file
  *
- * \brief Translate between signed linear and Global System for Mobile Communications (GSM)
+ * \brief Translate between signed linear and GSM 06.10
  *
  */
 #ifdef HAVE_CONFIG_H
@@ -48,7 +48,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/channel.h"
 
-#include "gsm.h"
 #include "../formats/msgsm.h"
 
 /* Sample frame data */
@@ -58,19 +57,19 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
-static char *tdesc = "GSM/PCM16 (signed linear) Codec Translator";
+static char *tdesc = "GSM06.10/PCM16 (signed linear) Codec Translator";
 
 static int useplc = 0;
 
 struct opbx_translator_pvt {
-	gsm gsm;
+	gsm0610_state_t *gsm;
 	struct opbx_frame f;
 	/* Space to build offset */
 	char offset[OPBX_FRIENDLY_OFFSET];
 	/* Buffer for our outgoing frame */
-	short outbuf[8000];
+	int16_t outbuf[8000];
 	/* Enough to store a full second */
-	short buf[8000];
+	int16_t buf[8000];
 	int tail;
 	plc_state_t plc;
 };
@@ -80,9 +79,9 @@ struct opbx_translator_pvt {
 static struct opbx_translator_pvt *gsm_new(void)
 {
 	struct gsm_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct gsm_coder_pvt));
-	if (tmp) {
-		if (!(tmp->gsm = gsm_create())) {
+
+	if ((tmp = malloc(sizeof(struct gsm_coder_pvt)))) {
+		if ((tmp->gsm = gsm0610_init(NULL, GSM0610_PACKING_VOIP)) == NULL) {
 			free(tmp);
 			tmp = NULL;
 		}
@@ -131,7 +130,7 @@ static struct opbx_frame *gsmtolin_frameout(struct opbx_translator_pvt *tmp)
 	   we have in the buffer in one lump sum */
 	tmp->f.frametype = OPBX_FRAME_VOICE;
 	tmp->f.subclass = OPBX_FORMAT_SLINEAR;
-	tmp->f.datalen = tmp->tail * 2;
+	tmp->f.datalen = tmp->tail*sizeof(int16_t);
 	/* Assume 8000 Hz */
 	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
@@ -149,8 +148,8 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
 	int x;
-	unsigned char data[66];
-	int msgsm=0;
+	uint8_t data[66];
+	int msgsm = 0;
 	
 	if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
 	      if((tmp->tail + 160) > sizeof(tmp->buf) / 2) {
@@ -164,7 +163,7 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
 	      return 0;
 	}
 
-	if ((f->datalen % 33) && (f->datalen % 65)) {
+	if ((f->datalen % 33)  &&  (f->datalen % 65)) {
 		opbx_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;
 	}
@@ -172,32 +171,32 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
 	if (f->datalen % 65 == 0) 
 		msgsm = 1;
 		
-	for (x=0;x<f->datalen;x+=(msgsm ? 65 : 33)) {
+	for (x = 0;  x < f->datalen;  x += (msgsm  ?  65  :  33)) {
 		if (msgsm) {
 			/* Translate MSGSM format to Real GSM format before feeding in */
 			conv65(f->data + x, data);
 			if (tmp->tail + 320 < sizeof(tmp->buf)/2) {	
-				if (gsm_decode(tmp->gsm, data, tmp->buf + tmp->tail)) {
+				if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, data, 1) != 160) {
 					opbx_log(LOG_WARNING, "Invalid GSM data (1)\n");
 					return -1;
 				}
-				tmp->tail+=160;
-				if (gsm_decode(tmp->gsm, data + 33, tmp->buf + tmp->tail)) {
+				tmp->tail += 160;
+				if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, data + 33, 1) != 160) {
 					opbx_log(LOG_WARNING, "Invalid GSM data (2)\n");
 					return -1;
 				}
-				tmp->tail+=160;
+				tmp->tail += 160;
 			} else {
 				opbx_log(LOG_WARNING, "Out of (MS) buffer space\n");
 				return -1;
 			}
 		} else {
-			if (tmp->tail + 160 < sizeof(tmp->buf)/2) {	
-				if (gsm_decode(tmp->gsm, f->data + x, tmp->buf + tmp->tail)) {
+			if (tmp->tail + 160 < sizeof(tmp->buf)/sizeof(int16_t)) {	
+				if (gsm0610_decode(tmp->gsm, tmp->buf + tmp->tail, f->data + x, 1) != 160) {
 					opbx_log(LOG_WARNING, "Invalid GSM data\n");
 					return -1;
 				}
-				tmp->tail+=160;
+				tmp->tail += 160;
 			} else {
 				opbx_log(LOG_WARNING, "Out of buffer space\n");
 				return -1;
@@ -229,7 +228,8 @@ static int lintogsm_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
 
 static struct opbx_frame *lintogsm_frameout(struct opbx_translator_pvt *tmp)
 {
-	int x=0;
+	int x = 0;
+
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < 160)
 		return NULL;
@@ -239,53 +239,56 @@ static struct opbx_frame *lintogsm_frameout(struct opbx_translator_pvt *tmp)
 	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
-	while(tmp->tail >= 160) {
-		if ((x+1) * 33 >= sizeof(tmp->outbuf)) {
+	while (tmp->tail >= 160) {
+		if ((x + 1)*33 >= sizeof(tmp->outbuf)) {
 			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			break;
 		}
 		/* Encode a frame of data */
-		gsm_encode(tmp->gsm, tmp->buf, ((gsm_byte *) tmp->outbuf) + (x * 33));
+		gsm0610_encode(tmp->gsm, ((uint8_t *) tmp->outbuf) + (x * 33), tmp->buf, 1);
 		/* Assume 8000 Hz -- 20 ms */
 		tmp->tail -= 160;
 		/* Move the data at the end of the buffer to the front */
 		if (tmp->tail)
-			memmove(tmp->buf, tmp->buf + 160, tmp->tail * 2);
+			memmove(tmp->buf, tmp->buf + 160, tmp->tail*sizeof(int16_t));
 		x++;
 	}
-	tmp->f.datalen = x * 33;
-	tmp->f.samples = x * 160;
+	tmp->f.datalen = x*33;
+	tmp->f.samples = x*160;
 	return &tmp->f;	
 }
 
 static void gsm_destroy_stuff(struct opbx_translator_pvt *pvt)
 {
 	if (pvt->gsm)
-		gsm_destroy(pvt->gsm);
+		gsm0610_release(pvt->gsm);
 	free(pvt);
 	localusecnt--;
 }
 
 static struct opbx_translator gsmtolin =
-	{ "gsmtolin", 
-	   OPBX_FORMAT_GSM, OPBX_FORMAT_SLINEAR,
-	   gsm_new,
-	   gsmtolin_framein,
-	   gsmtolin_frameout,
-	   gsm_destroy_stuff,
-	   gsmtolin_sample
-	   };
+{
+	"gsmtolin", 
+	OPBX_FORMAT_GSM,
+    OPBX_FORMAT_SLINEAR,
+	gsm_new,
+	gsmtolin_framein,
+	gsmtolin_frameout,
+	gsm_destroy_stuff,
+	gsmtolin_sample
+};
 
 static struct opbx_translator lintogsm =
-	{ "lintogsm", 
-	   OPBX_FORMAT_SLINEAR, OPBX_FORMAT_GSM,
-	   gsm_new,
-	   lintogsm_framein,
-	   lintogsm_frameout,
-	   gsm_destroy_stuff,
-	   lintogsm_sample
-	   };
-
+{
+    "lintogsm", 
+	OPBX_FORMAT_SLINEAR,
+    OPBX_FORMAT_GSM,
+	gsm_new,
+	lintogsm_framein,
+	lintogsm_frameout,
+	gsm_destroy_stuff,
+	lintogsm_sample
+};
 
 static void parse_config(void)
 {
@@ -348,5 +351,3 @@ int usecount(void)
 	STANDARD_USECOUNT(res);
 	return res;
 }
-
-

@@ -2,5 +2,5 @@
 
 AUTOMAKE_OPTS = gnu foreign
 
-SUBDIRS = gsm ilbc lpc10
+SUBDIRS = ilbc
 

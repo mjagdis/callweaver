@@ -5,12 +5,12 @@ opbxmod_LTLIBRARIES	= codec_lpc10.la codec_adpcm.la \
 			  codec_g726.la codec_gsm.la codec_ilbc.la 
 
 codec_gsm_la_SOURCES	= codec_gsm.c slin_gsm_ex.h gsm_slin_ex.h
-codec_gsm_la_CFLAGS     = $(AM_CFLAGS) -I${top_srcdir}/libs/gsm/inc
-codec_gsm_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/libs/gsm/libopbxgsm.la ${top_builddir}/corelib/libopenpbx.la
+codec_gsm_la_CFLAGS     = $(AM_CFLAGS)
+codec_gsm_la_LIBADD		= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 codec_gsm_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_lpc10_la_SOURCES	= codec_lpc10.c slin_lpc10_ex.h lpc10_slin_ex.h
 codec_lpc10_la_CFLAGS   = $(AM_CFLAGS) -I${top_srcdir}/libs/lpc10
-codec_lpc10_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/libs/lpc10/libopbxlpc10.la ${top_builddir}/corelib/libopenpbx.la -lm
+codec_lpc10_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la -lm
 codec_lpc10_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_adpcm_la_SOURCES	= codec_adpcm.c slin_adpcm_ex.h adpcm_slin_ex.h
 codec_adpcm_la_LDFLAGS	= -module -avoid-version -no-undefined
