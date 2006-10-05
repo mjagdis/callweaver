@@ -970,7 +970,7 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 		headp = &c->varshead;
 	
 	*ret=NULL;
-	
+
 	// check for slicing modifier
 	if /* sliced */ ((first=strchr(var,':'))) {
 		
@@ -1150,8 +1150,10 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 				opbx_copy_string(workspace, c->language, workspacelen);
 				*ret = workspace;
 			} // end if LANGUAGE
+
+		} // end if channel exists
 			
-			else if /* user defined channel variables exist */ (headp) {
+		else if /* user defined channel variables exist */ (headp) {
 				
 				// search user defined channel variables
 				
@@ -1169,13 +1171,11 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 					} // end if
 				} // end OPBX_LIST_TRAVERSE
 				no_match = 1;
-			} // end if user defined chanvars exist
+		} // end if user defined chanvars exist
 			
-			else /* not a channel variable */ {
-				no_match = 1;
-			} // end search chanvars
-		
-		} // end if channel exists
+		else /* not a channel variable */ {
+			no_match = 1;
+		} // end search chanvars
 		
 		if /* no match yet */ (no_match) {
 			
@@ -1498,7 +1498,7 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
 	char *nextvar, *nextexp, *nextthing;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
-	
+
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
 	whereweare=tmp=cp1;
@@ -1546,6 +1546,7 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
 			while(brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
+                                } else if (vare[0] == '{') {
 					brackets++;
 				} else if (vare[0] == '}') {
 					brackets--;
