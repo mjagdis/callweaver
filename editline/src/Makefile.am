@@ -28,7 +28,7 @@ help.c: Makefile $(ASRC)
 
 CLEANFILES = $(BUILT_SOURCES)
 
-lib_LTLIBRARIES    = libedit.la
+opbxlib_LTLIBRARIES    = libedit.la
 libedit_la_SOURCES = chared.c common.c el.c emacs.c hist.c key.c map.c parse.c \
 							prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c \
 							fgetln.c strlcat.c strlcpy.c unvis.c vis.c tokenizer.c \
@@ -38,7 +38,7 @@ libedit_la_SOURCES = chared.c common.c el.c emacs.c hist.c key.c map.c parse.c \
 							editline/readline.h
 
 EXTRA_DIST = makelist shlib_version
-nobase_include_HEADERS = histedit.h editline/readline.h
+#nobase_include_HEADERS = histedit.h editline/readline.h
 
 nodist_libedit_la_SOURCES = $(BUILT_SOURCES)
 

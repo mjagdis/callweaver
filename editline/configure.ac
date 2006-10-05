@@ -28,6 +28,34 @@ AC_DEFINE([ac_ct_AR],$(AR),[hmmm why don't gnu tools recognize gar ??? stupid st
 AC_SUBST(RANLIB)        
 EL_MANTYPE
 
+
+
+
+AC_ARG_WITH([directory-layout],     
+	[AC_HELP_STRING([--with-directory-layout],[Choose installation directory layout: singledir, lsb, fhs (default=singledir).])],,[with_directory_layout="singledir"])
+
+if test -z "${opbxlibdir}"; then
+   case "${with_directory_layout}" in
+	singledir)
+	   opbxlibdir='${libdir}'
+	   ;;
+	lsb)
+	   opbxlibdir='${libdir}/openpbx.org'
+	   ;;
+        fhs)
+           opbxlibdir='${libdir}'
+           ;;
+   esac
+fi
+
+AC_SUBST([opbxlibdir])
+
+
+
+
+
+
+
 AC_CHECK_LIB(curses, tgetent,,
    [AC_CHECK_LIB(ncurses, tgetent,,
       [AC_MSG_ERROR([libtermcap, libcurses or libncurses are required!])] )] )
