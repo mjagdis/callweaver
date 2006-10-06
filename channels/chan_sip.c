@@ -4232,7 +4232,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			}
 		}
 #if T38_SUPPORT
-		if (p->udptl && t38udptlsupport && (sscanf(m, "image %d udptl t38 %n", &x, &len) == 1)) {
+		if (
+			p->udptl && t38udptlsupport && 
+			(
+			    (sscanf(m, "image %d udptl t38 %n", &x, &len) == 1) ||
+			    (sscanf(m, "image %d UDPTL t38 %n", &x, &len) == 1)
+			)
+		   ) {
 			if (debug)
 				opbx_verbose("Got T.38 offer in SDP\n");
 			found = 1;
