@@ -955,6 +955,31 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
  /*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
       functions in the dialplan
   ---*/
+
+// There are 5 different scenarios to be covered:
+// 
+// 1) built-in variables living in channel c's variable list
+// 2) user defined variables living in channel c's variable list
+// 3) user defined variables not living in channel c's variable list
+// 4) built-in global variables, that is globally visible, not bound to any channel
+// 5) user defined variables living in the global dialplan variable list (&globals)
+//
+// This function is safeguarded against the following cases:
+//
+// 1) if channel c doesn't exist (is NULL), scenario #1 and #2 searches are skipped
+// 2) if channel c's variable list doesn't exist (is NULL), scenario #2 search is skipped
+// 3) if NULL is passed in for parameter headp, scenario #3 search is skipped
+// 4) global dialplan variable list doesn't exist (&globals is NULL), scenario #5 search is skipped
+//
+// This function is known NOT to be safeguarded against the following cases:
+//
+// 1) ret is NULL
+// 2) workspace is NULL
+// 3) workspacelen is larger than the actual buffer size of workspace
+// 4) workspacelen is larger than VAR_BUF_SIZE
+//
+// NOTE: There may be further unsafeguarded cases not yet documented here!
+
 void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	char *first, *second;
@@ -963,14 +988,31 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 	struct tm brokentime;
 	int offset, offset2;
 	struct opbx_var_t *variables;
-	int no_match = 0;
+	int no_match_yet = 0; // start optimistic
 	unsigned int hash = opbx_hash_var_name(var);
 
+	// warnings for (potentially) unsafe pre-conditions
+	// TODO: these cases really ought to be safeguarded against
+	
+	if (*ret == NULL)
+		opbx_log(LOG_WARNING, "NULL passed in parameter 'ret' in function 'pbx_retrieve_variable'\n");
+	
+	if (workspace == NULL)
+		opbx_log(LOG_WARNING, "NULL passed in parameter 'workspace' in function 'pbx_retrieve_variable'\n");
+	
+	if (workspacelen == 0)
+		opbx_log(LOG_WARNING, "Zero passed in parameter 'workspacelen' in function 'pbx_retrieve_variable'\n");
+
+	if (workspacelen > VAR_BUF_SIZE)
+		opbx_log(LOG_WARNING, "VAR_BUF_SIZE exceeded by parameter 'workspacelen' in function 'pbx_retrieve_variable'\n");
+
+	// actual work starts here
+	
 	if /* channel exists */ (c) 
 		headp = &c->varshead;
 	
 	*ret=NULL;
-
+	
 	// check for slicing modifier
 	if /* sliced */ ((first=strchr(var,':'))) {
 		
@@ -1020,7 +1062,9 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 		
 		if /* channel exists */ (c) {
 			
-			// search builtin channel variables
+			// ----------------------------------------------
+			// search builtin channel variables (scenario #1)
+			// ----------------------------------------------
 						
 			if /* CALLERID */(hash == OPBX_KEYWORD_CALLERID) {
 				if (c->cid.cid_num) {
@@ -1150,14 +1194,46 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 				opbx_copy_string(workspace, c->language, workspacelen);
 				*ret = workspace;
 			} // end if LANGUAGE
-
-		} // end if channel exists
 			
-		else if /* user defined channel variables exist */ (headp) {
+			else if /* user defined channel variables exist */ (&c->varshead) {
+				no_match_yet = 1;
 				
-				// search user defined channel variables
+				// ---------------------------------------------------
+				// search user defined channel variables (scenario #2)
+				// ---------------------------------------------------
 				
-				OPBX_LIST_TRAVERSE(headp,variables,entries) {
+				OPBX_LIST_TRAVERSE(&c->varshead, variables, entries) {
+#if 0
+					opbx_log(LOG_WARNING, "Comparing variable '%s' with '%s' in channel '%s'\n",
+							 var, opbx_var_name(variables), c->name);
+#endif
+					if (strcasecmp(opbx_var_name(variables),var)==0) {
+						*ret=opbx_var_value(variables);
+						if (*ret) {
+							opbx_copy_string(workspace, *ret, workspacelen);
+							*ret = workspace;
+						} // end if
+						no_match_yet = 0; // remember that we found a match
+						break;
+					} // end if
+				} // end OPBX_LIST_TRAVERSE
+			} // end if user defined chanvars exist
+			
+			else /* not a channel variable, neither built-in nor user-defined */ {
+				no_match_yet = 1;
+			} // end search chanvars
+		
+		}
+		else /* channel does not exist */ {
+			no_match_yet = 1;
+			
+			// -------------------------------------------------------------------------
+			// search for user defined variables not bound to this channel (scenario #3)
+			// -------------------------------------------------------------------------
+			
+			if /* parameter headp points to an address other than NULL */ (headp) {
+			
+				OPBX_LIST_TRAVERSE(headp, variables, entries) {
 #if 0
 					opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,opbx_var_name(variables));
 #endif
@@ -1167,19 +1243,19 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 							opbx_copy_string(workspace, *ret, workspacelen);
 							*ret = workspace;
 						} // end if
+						no_match_yet = 0; // remember that we found a match
 						break;
 					} // end if
 				} // end OPBX_LIST_TRAVERSE
-				no_match = 1;
-		} // end if user defined chanvars exist
+			} // end if headp not NULL
 			
-		else /* not a channel variable */ {
-			no_match = 1;
-		} // end search chanvars
+		} // end if channel exists
 		
-		if /* no match yet */ (no_match) {
+		if /* no match yet */ (no_match_yet) {
 			
-			// search builtin globals
+			// ------------------------------------
+			// search builtin globals (scenario #4)
+			// ------------------------------------
 		
 			if /* EPOCH */ (hash == OPBX_KEYWORD_EPOCH) {
 				snprintf(workspace, workspacelen, "%u",(int)time(NULL));
@@ -1217,20 +1293,26 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 			
 			else if (!(*ret)) {
 				
-				// search user defined globals
+				// -----------------------------------------
+				// search user defined globals (scenario #5)
+				// -----------------------------------------
 				
-				OPBX_LIST_TRAVERSE(&globals,variables,entries) {
+				if /* globals variable list exists, not NULL */ (&globals) {
+					
+					OPBX_LIST_TRAVERSE(&globals, variables, entries) {
 #if 0
-					opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,opbx_var_name(variables));
+						opbx_log(LOG_WARNING,"Comparing variable '%s' with '%s' in globals\n",
+								 var, opbx_var_name(variables));
 #endif
-					if (hash == opbx_var_hash(variables)) {
-						*ret = opbx_var_value(variables);
-						if (*ret) {
-							opbx_copy_string(workspace, *ret, workspacelen);
-							*ret = workspace;
+						if (hash == opbx_var_hash(variables)) {
+							*ret = opbx_var_value(variables);
+							if (*ret) {
+								opbx_copy_string(workspace, *ret, workspacelen);
+								*ret = workspace;
+							} // end if
 						} // end if
-					} // end if
-				} // end OPBX_LIST_TRAVERSE
+					} // end OPBX_LIST_TRAVERSE
+				} // end if globals exists
 			} // end search builtin globals
 		} // end if no match
 
@@ -1498,7 +1580,7 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
 	char *nextvar, *nextexp, *nextthing;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
-
+	
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
 	whereweare=tmp=cp1;
@@ -1546,7 +1628,7 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
 			while(brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
-                                } else if (vare[0] == '{') {
+				} else if (vare[0] == '{') {
 					brackets++;
 				} else if (vare[0] == '}') {
 					brackets--;
