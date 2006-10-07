@@ -81,11 +81,15 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 		nano = (t->interval % 1000000) * 1000;
 		sec = t->interval / 1000000;
 		if (sec < 1 && nano > 0 && nano < res.tv_nsec) {
-			opbx_log(LOG_WARNING, "Requested a timer with %ld "
-				 "nanosecond interval, but system timer "
-				 "reports a resolution of %ld nanosec. "
-				 "Timing may be unreliable!\n", nano, 
-				 res.tv_nsec);
+			static long complained = 1000000000L;
+			if (nano < complained) {
+				complained = nano;
+				opbx_log(LOG_WARNING, "Requested a timer with %ld "
+					 "nanosecond interval, but system timer "
+					 "reports a resolution of %ld nanosec. "
+					 "Timing may be unreliable!\n", nano, 
+					 res.tv_nsec);
+			}
 			
 			/* Reset the interval to a sane value */
 			t->interval = (res.tv_nsec / 1000) + 1;
