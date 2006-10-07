@@ -77,56 +77,6 @@ static int __adsi_data_mode(unsigned char *);
 static int __adsi_voice_mode(unsigned char *, int);
 static int __adsi_download_disconnect(unsigned char *);
 
-static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, int codec)
-{
-	int sum;
-	int x;	
-	int bytes=0;
-	/* Initial carrier (imaginary) */
-	float cr = 1.0;
-	float ci = 0.0;
-	float scont = 0.0;
-
-	if (msglen > 255)
-		msglen = 255;
-
-	/* If first message, Send 150ms of MARK's */
-	if (msgnum == 1) {
-		for (x=0;x<150;x++)	/* was 150 */
-			PUT_CLID_MARKMS;
-	}
-	/* Put message type */
-	PUT_CLID(msgtype);
-	sum = msgtype;
-
-	/* Put message length (plus one  for the message number) */
-	PUT_CLID(msglen + 1);
-	sum += msglen + 1;
-
-	/* Put message number */
-	PUT_CLID(msgnum);
-	sum += msgnum;
-
-	/* Put actual message */
-	for (x=0;x<msglen;x++) {
-		PUT_CLID(msg[x]);
-		sum += msg[x];
-	}
-
-	/* Put 2's compliment of sum */
-	PUT_CLID(256-(sum & 0xff));
-
-#if 0
-	if (last) {
-		/* Put trailing marks */
-		for (x=0;x<50;x++)
-			PUT_CLID_MARKMS;
-	}
-#endif
-	return bytes;
-
-}
-
 static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int len, int *remainder)
 {
 	/* Sends carefully on a full duplex channel by using reading for

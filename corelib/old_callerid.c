@@ -154,6 +154,61 @@ static double coef_out[NBW][8]={
 };
 
 
+extern float cid_dr[4];
+extern float cid_di[4];
+extern float clidsb;
+
+static inline float callerid_getcarrier(float *cr, float *ci, int bit)
+{
+	/* Move along.  There's nothing to see here... */
+	float t;
+	t = *cr * cid_dr[bit] - *ci * cid_di[bit];
+	*ci = *cr * cid_di[bit] + *ci * cid_dr[bit];
+	*cr = t;
+	
+	t = 2.0 - (*cr * *cr + *ci * *ci);
+	*cr *= t;
+	*ci *= t;
+	return *cr;
+}	
+
+#define PUT_BYTE(a) do { \
+	*(buf++) = (a); \
+	bytes++; \
+} while(0)
+
+#define PUT_AUDIO_SAMPLE(y) do { \
+	int index = (short)(rint(8192.0 * (y))); \
+	*(buf++) = OPBX_LIN2X(index); \
+	bytes++; \
+} while(0)
+	
+#define PUT_CLID_MARKMS do { \
+	int x; \
+	for (x=0;x<8;x++) \
+		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, 1)); \
+} while(0)
+
+#define PUT_CLID_BAUD(bit) do { \
+	while(scont < clidsb) { \
+		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, bit)); \
+		scont += 1.0; \
+	} \
+	scont -= clidsb; \
+} while(0)
+
+
+#define PUT_CLID(byte) do { \
+	int z; \
+	unsigned char b = (byte); \
+	PUT_CLID_BAUD(0); 	/* Start bit */ \
+	for (z=0;z<8;z++) { \
+		PUT_CLID_BAUD(b & 1); \
+		b >>= 1; \
+	} \
+	PUT_CLID_BAUD(1);	/* Stop bit */ \
+} while(0);	
+
 /* Filtro pasa-banda para frecuencia de MARCA */
 static inline float filtroM(fsk_data *fskd,float in)
 {
@@ -1101,7 +1156,78 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 	return (ptr - msg);
 }
 
-int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
+int mate_generate(uint8_t *buf, char *msg, int codec)
+{
+    int x;
+    int bytes;
+	float cr = 1.0;
+	float ci = 0.0;
+	float scont = 0.0;
+
+	for (x = 0;  x < HEADER_MS;  x++) {	/* 50 ms of Mark */
+		PUT_CLID_MARKMS;
+	}
+	/* Put actual message */
+	for (x = 0;  msg[x];  x++)  {
+		PUT_CLID(msg[x]);
+	}
+	for (x = 0;  x < TRAILER_MS;  x++) {	/* 5 ms of Mark */
+		PUT_CLID_MARKMS;
+	}
+	return bytes;
+}
+
+int adsi_generate(uint8_t *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, int codec)
+{
+	int sum;
+	int x;	
+	int bytes=0;
+	/* Initial carrier (imaginary) */
+	float cr = 1.0;
+	float ci = 0.0;
+	float scont = 0.0;
+
+	if (msglen > 255)
+		msglen = 255;
+
+	/* If first message, Send 150ms of MARK's */
+	if (msgnum == 1) {
+		for (x=0;x<150;x++)	/* was 150 */
+			PUT_CLID_MARKMS;
+	}
+	/* Put message type */
+	PUT_CLID(msgtype);
+	sum = msgtype;
+
+	/* Put message length (plus one  for the message number) */
+	PUT_CLID(msglen + 1);
+	sum += msglen + 1;
+
+	/* Put message number */
+	PUT_CLID(msgnum);
+	sum += msgnum;
+
+	/* Put actual message */
+	for (x=0;x<msglen;x++) {
+		PUT_CLID(msg[x]);
+		sum += msg[x];
+	}
+
+	/* Put 2's compliment of sum */
+	PUT_CLID(256-(sum & 0xff));
+
+#if 0
+	if (last) {
+		/* Put trailing marks */
+		for (x=0;x<50;x++)
+			PUT_CLID_MARKMS;
+	}
+#endif
+	return bytes;
+
+}
+
+int vmwi_generate(uint8_t *buf, int active, int mdmf, int codec)
 {
 	unsigned char msg[256];
 	int len=0;
@@ -1163,7 +1289,7 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 	return bytes;
 }
 
-int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting, int codec)
+int callerid_generate(uint8_t *buf, char *number, char *name, int flags, int callwaiting, int codec)
 {
 	int bytes=0;
 	int x, sum;
@@ -1224,7 +1350,7 @@ int opbx_callerid_callwaiting_generate(unsigned char *buf, char *name, char *num
 	return __opbx_callerid_generate(buf, name, number, 1, codec);
 }
 
-int opbx_tdd_gen_ecdisa(uint8_t *outbuf, int len)
+int opbx_tdd_gen_ecdisa(int codec, uint8_t *outbuf, int len)
 {
     uint32_t phase_acc;
     int32_t phase_rate;
@@ -1237,7 +1363,7 @@ int opbx_tdd_gen_ecdisa(uint8_t *outbuf, int len)
 	return 0;
 }
 
-int tdd_generate(struct tdd_state *tdd, uint8_t *buf, const char *str)
+int tdd_generate(struct tdd_state *tdd, int codec, uint8_t *buf, const char *str)
 {
     int16_t amp[160];
     uint8_t adsi_msg[256 + 42];
@@ -1266,7 +1392,7 @@ static void put_tdd_msg(void *user_data, const uint8_t *msg, int len)
         memcpy(tdd->rx_msg, msg, len);
 }
 
-int tdd_feed(struct tdd_state *tdd, uint8_t *ubuf, int len)
+int tdd_feed(struct tdd_state *tdd, int codec, uint8_t *ubuf, int len)
 {
     int16_t bufit[160];
     int c;

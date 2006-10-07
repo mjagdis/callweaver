@@ -70,6 +70,11 @@ typedef struct {
 #define OPBX_LIN2X(a) ((codec == OPBX_FORMAT_ALAW) ? (OPBX_LIN2A(a)) : (OPBX_LIN2MU(a)))
 #define OPBX_XLAW(a) ((codec == OPBX_FORMAT_ALAW) ? (OPBX_ALAW(a)) : (OPBX_MULAW(a)))
 
+#define	END_SILENCE_LEN 400
+#define	HEADER_MS 50
+#define	TRAILER_MS 5
+#define	HEADER_LEN ((HEADER_MS + TRAILER_MS) * 8)
+#define	ASCII_BYTES_PER_CHAR 80
 
 struct callerid_state;
 typedef struct callerid_state CIDSTATE;
@@ -153,16 +158,20 @@ extern void callerid_free(struct callerid_state *cid);
  *
  * Acts like callerid_generate except uses an openpbx format callerid string.
  */
-extern int opbx_callerid_generate(unsigned char *buf, char *name, char *number, int codec);
+extern int opbx_callerid_generate(uint8_t *buf, char *name, char *number, int codec);
 
 /*! Generate message waiting indicator  */
-extern int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
+extern int vmwi_generate(uint8_t *buf, int active, int mdmf, int codec);
+
+extern int adsi_generate(uint8_t *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, int codec);
+
+extern int mate_generate(uint8_t *buf, char *msg, int codec);
 
 /*! Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm) */
 /*!
  * See opbx_callerid_generate for other details
  */
-extern int opbx_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
+extern int opbx_callerid_callwaiting_generate(uint8_t *buf, char *name, char *number, int codec);
 
 /*! Generate a CAS (CPE Alert Signal) tone for 'n' samples */
 /*!
@@ -179,70 +188,15 @@ extern int opbx_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
  * routines (used by ADSI for example)
  */
 
-extern float cid_dr[4];
-extern float cid_di[4];
-extern float clidsb;
-
-static inline float callerid_getcarrier(float *cr, float *ci, int bit)
-{
-	/* Move along.  There's nothing to see here... */
-	float t;
-	t = *cr * cid_dr[bit] - *ci * cid_di[bit];
-	*ci = *cr * cid_di[bit] + *ci * cid_dr[bit];
-	*cr = t;
-	
-	t = 2.0 - (*cr * *cr + *ci * *ci);
-	*cr *= t;
-	*ci *= t;
-	return *cr;
-}	
-
-#define PUT_BYTE(a) do { \
-	*(buf++) = (a); \
-	bytes++; \
-} while(0)
-
-#define PUT_AUDIO_SAMPLE(y) do { \
-	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = OPBX_LIN2X(index); \
-	bytes++; \
-} while(0)
-	
-#define PUT_CLID_MARKMS do { \
-	int x; \
-	for (x=0;x<8;x++) \
-		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, 1)); \
-} while(0)
-
-#define PUT_CLID_BAUD(bit) do { \
-	while(scont < clidsb) { \
-		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, bit)); \
-		scont += 1.0; \
-	} \
-	scont -= clidsb; \
-} while(0)
-
-
-#define PUT_CLID(byte) do { \
-	int z; \
-	unsigned char b = (byte); \
-	PUT_CLID_BAUD(0); 	/* Start bit */ \
-	for (z=0;z<8;z++) { \
-		PUT_CLID_BAUD(b & 1); \
-		b >>= 1; \
-	} \
-	PUT_CLID_BAUD(1);	/* Stop bit */ \
-} while(0);	
-
 #define	TDD_SAMPLES_PER_CHAR	2700
 
 struct tdd_state;
 
-int opbx_tdd_gen_ecdisa(uint8_t *outbuf, int len);
+int opbx_tdd_gen_ecdisa(int codec, uint8_t *outbuf, int len);
 
-int tdd_generate(struct tdd_state *tdd, uint8_t *buf, const char *str);
+int tdd_generate(struct tdd_state *tdd, int codec, uint8_t *buf, const char *str);
 
-int tdd_feed(struct tdd_state *tdd, uint8_t *ubuf, int len);
+int tdd_feed(struct tdd_state *tdd, int codec, uint8_t *ubuf, int len);
 
 struct tdd_state *tdd_new(void);
 

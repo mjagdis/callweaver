@@ -2730,7 +2730,7 @@ static int zt_setoption(struct opbx_channel *chan, int option, void *data, int d
 
 			buf = mybuf;
 			memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
-			opbx_tdd_gen_ecdisa(buf + 16000, 16000);  /* put in tone */
+			opbx_tdd_gen_ecdisa(OPBX_LAW(p), buf + 16000, 16000);  /* put in tone */
 			len = 40000;
 			index = zt_get_index(chan, p, 0);
 			if (index < 0) {
@@ -4372,7 +4372,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		int c;
 
 		/* if in TDD mode, see if we receive that */
-		c = tdd_feed(p->tdd,readbuf,READ_SIZE);
+		c = tdd_feed(p->tdd, OPBX_LAW(p), readbuf, READ_SIZE);
 		if (c < 0) {
 			opbx_log(LOG_DEBUG,"tdd_feed failed\n");
 			opbx_mutex_unlock(&p->lock);
@@ -10555,21 +10555,11 @@ int load_module(void)
 
 static int zt_sendtext(struct opbx_channel *c, const char *text)
 {
-#define	END_SILENCE_LEN 400
-#define	HEADER_MS 50
-#define	TRAILER_MS 5
-#define	HEADER_LEN ((HEADER_MS + TRAILER_MS) * 8)
-#define	ASCII_BYTES_PER_CHAR 80
-
 	unsigned char *buf,*mybuf;
 	struct zt_pvt *p = c->tech_pvt;
 	struct pollfd fds[1];
 	int size,res,fd,len,x;
 	int bytes=0;
-	/* Initial carrier (imaginary) */
-	float cr = 1.0;
-	float ci = 0.0;
-	float scont = 0.0;
 	int index;
 
 	index = zt_get_index(c, p, 0);
@@ -10590,22 +10580,11 @@ static int zt_sendtext(struct opbx_channel *c, const char *text)
 	}
 	mybuf = buf;
 	if (p->mate) {
-		int codec = OPBX_LAW(p);
-		for (x=0;x<HEADER_MS;x++) {	/* 50 ms of Mark */
-			PUT_CLID_MARKMS;
-			}
-		/* Put actual message */
-		for (x=0;text[x];x++)  {
-			PUT_CLID(text[x]);
-			}
-		for (x=0;x<TRAILER_MS;x++) {	/* 5 ms of Mark */
-			PUT_CLID_MARKMS;
-			}
-		len = bytes;
+        len = mate_generate(mybuf, text, OPBX_LAW(p));
 		buf = mybuf;
 	}
 	else {
-		len = tdd_generate(p->tdd, buf, text);
+		len = tdd_generate(p->tdd, OPBX_LAW(p), buf, text);
 		if (len < 1) {
 			opbx_log(LOG_ERROR, "TDD generate (len %d) failed!!\n",(int)strlen(text));
 			free(mybuf);
