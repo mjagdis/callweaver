@@ -7,11 +7,11 @@ rfchannel_ag = 3
 interface = 0
 
 ;; A HBH-500 Handsfree Kit
-[00:0A:D9:A1:AA:D2]
+;[00:0A:D9:A1:AA:D2]
 ; Any name to use, this is what we use to send calls to (BLT/<name>).
-name        = HBH-500
+;name        = HBH-500
 ; IS this a HS or AG?
-type        = HS
+;type        = HS
 ;
 ;
 ; RFCOMM channel to connect to.  For a HandsSet:
@@ -21,13 +21,13 @@ type        = HS
 ;
 ; Find the 'channel' value under RFCOMM.
 ;
-channel     = 2
+;channel     = 2
 ; Automatically conenct?
-autoconnect = yes
+;autoconnect = yes
 
 ;; A Nokia 6310i
-[00:60:57:1C:00:99]
-name        = Neil
-type        = AG
-channel     = 13
-autoconnect = yes
+;[00:60:57:1C:00:99]
+;name        = Neil
+;type        = AG
+;channel     = 13
+;autoconnect = yes
