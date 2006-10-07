@@ -96,11 +96,11 @@ static struct progress {
 
 #define DEFAULT_THRESHOLD	512
 
-#define BUSY_PERCENT		10	/* The percentage difference between the two last silence periods */
-#define BUSY_PAT_PERCENT	7	/* The percentage difference between measured and actual pattern */
-#define BUSY_THRESHOLD		100	/* Max number of ms difference between max and min times in busy */
-#define BUSY_MIN		75	/* Busy must be at least 80 ms in half-cadence */
-#define BUSY_MAX		3100	/* Busy can't be longer than 3100 ms in half-cadence */
+#define BUSY_PERCENT		10      /* The percentage difference between the two last silence periods */
+#define BUSY_PAT_PERCENT	7       /* The percentage difference between measured and actual pattern */
+#define BUSY_THRESHOLD		100     /* Max number of ms difference between max and min times in busy */
+#define BUSY_MIN            75      /* Busy must be at least 80 ms in half-cadence */
+#define BUSY_MAX            3100    /* Busy can't be longer than 3100 ms in half-cadence */
 
 /* Remember last 15 units */
 #define DSP_HISTORY 		15
@@ -380,9 +380,6 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 		if (!hit && (fax_energy >= FAX_THRESHOLD) && 
 			(fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy) &&
 			(faxdetect)) {
-#if 0
-			printf("Fax energy/Second Harmonic: %f\n", fax_energy);
-#endif					
 			/* XXX Probably need better checking than just this the energy XXX */
 			hit = 'f';
 			s->fax_hits++;
@@ -1041,9 +1038,8 @@ struct opbx_dsp *opbx_dsp_new(void)
 {
 	struct opbx_dsp *dsp;
 
-	dsp = malloc(sizeof(struct opbx_dsp));
-	if (dsp) {
-		memset(dsp, 0, sizeof(struct opbx_dsp));
+	if ((dsp = malloc(sizeof(struct opbx_dsp)))) {
+		memset(dsp, 0, sizeof(*dsp));
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
@@ -1102,7 +1098,7 @@ void opbx_dsp_digitreset(struct opbx_dsp *dsp)
 			goertzel_reset(&dsp->td.dtmf.col_out[i]);
 		}
 #ifdef FAX_DETECT
-		goertzel_reset (&dsp->td.dtmf.fax_tone);
+		goertzel_reset(&dsp->td.dtmf.fax_tone);
 #endif
 		dsp->td.dtmf.hits[2] = dsp->td.dtmf.hits[1] = dsp->td.dtmf.hits[0] =  dsp->td.dtmf.mhit = 0;
 		dsp->td.dtmf.energy = 0.0;

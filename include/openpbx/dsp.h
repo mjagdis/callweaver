@@ -55,7 +55,9 @@
 struct opbx_dsp;
 
 struct opbx_dsp *opbx_dsp_new(void);
+
 void opbx_dsp_free(struct opbx_dsp *dsp);
+
 /*! \brief Set threshold value for silence */
 void opbx_dsp_set_threshold(struct opbx_dsp *dsp, int threshold);
 

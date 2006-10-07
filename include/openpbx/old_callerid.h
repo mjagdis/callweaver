@@ -24,6 +24,8 @@
 #ifndef _OPENPBX_OLD_CALLERID_H
 #define _OPENPBX_OLD_CALLERID_H
 
+#include "openpbx/fskmodem.h"
+
 #define MAX_CALLERID_SIZE 32000
 
 #define CID_PRIVATE_NAME 		(1 << 0)
@@ -205,5 +207,51 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 	} \
 	PUT_CLID_BAUD(1);	/* Stop bit */ \
 } while(0);	
+#define	TDD_BYTES_PER_CHAR	2700
+
+struct tdd_state {
+	fsk_data fskd;
+	char rawdata[256];
+	short oldstuff[4096];
+	int oldlen;
+	int pos;
+	int modo;
+	int mode;
+};
+
+static float dr[4], di[4];
+static float tddsb = 176.0;  /* 45.5 baud */
+
+#define TDD_SPACE	1800.0		/* 1800 hz for "0" */
+#define TDD_MARK	1400.0		/* 1400 hz for "1" */
+
+/* covert baudot into ASCII */
+int tdd_decode_baudot(struct tdd_state *tdd,unsigned char data);
+
+static __inline__ float tdd_getcarrier(float *cr, float *ci, int bit)
+{
+	/* Move along.  There's nothing to see here... */
+	float t;
+	t = *cr * dr[bit] - *ci * di[bit];
+	*ci = *cr * di[bit] + *ci * dr[bit];
+	*cr = t;
+	
+	t = 2.0 - (*cr * *cr + *ci * *ci);
+	*cr *= t;
+	*ci *= t;
+	return *cr;
+}	
+
+int opbx_tdd_gen_ecdisa(unsigned char *outbuf, int len);
+
+int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str);
+
+int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len);
+
+struct tdd_state *tdd_new(void);
+
+void tdd_free(struct tdd_state *tdd);
+
+void tdd_init(void);
 
 #endif /* _OPENPBX_OLD_CALLERID_H */
