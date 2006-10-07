@@ -1,4 +1,4 @@
-%define snap 1900
+%define snap 1901
 
 %bcond_without	fedora
 
@@ -54,11 +54,9 @@ Requires:	%{name} = %{version}-%{release}
 This package contains modules for OpenPBX which make use of PostgreSQL.
 
 %prep
-exit 0
 %setup -q -n openpbx
 
 %build
-exit 0
 ./bootstrap.sh
 
 %configure --with-directory-layout=lsb --with-chan_bluetooth --with-res_sqlite \
@@ -77,8 +75,8 @@ rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.la
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
 install contrib/redhat/openpbx $RPM_BUILD_ROOT%{_initrddir}/openpbx
 
-#%clean
-#rm -rf $RPM_BUILD_ROOT
+%clean
+rm -rf $RPM_BUILD_ROOT
 
 %pre
 %__fe_groupadd 30 -r openpbx &>/dev/null || :
