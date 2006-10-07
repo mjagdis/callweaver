@@ -48,6 +48,12 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/call
 #include "openpbx/utils.h"
 #include "openpbx/old_callerid.h"
 
+struct tdd_state {
+    adsi_rx_state_t rx;
+    adsi_tx_state_t tx;
+    char rx_msg[256];
+};
+
 #define PARITY_NONE		0
 #define PARITY_EVEN		1
 #define PARITY_ODD		2
@@ -61,9 +67,10 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/call
 	 1: An output byte was received and stored in outbyte
 	 -1: An error occured in the transmission
    He must be called with at least 80 bytes of buffer. */
-extern int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte);
+static int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte);
 
 struct callerid_state {
+    adsi_rx_state_t rx;
 	fsk_data fskd;
 	char rawdata[256];
 	short oldstuff[160];
@@ -252,7 +259,7 @@ static int get_bit_raw(fsk_data *fskd, short *buffer, int *len)
 	return(f);
 }
 
-int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte)
+static int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 {
 	int a;
 	int i,j,n1,r;
@@ -907,261 +914,86 @@ int opbx_callerid_callwaiting_generate(unsigned char *buf, char *name, char *num
 	return __opbx_callerid_generate(buf, name, number, 1, codec);
 }
 
-int tdd_decode_baudot(struct tdd_state *tdd,unsigned char data)	/* covert baudot into ASCII */
+int opbx_tdd_gen_ecdisa(uint8_t *outbuf, int len)
 {
-	static char ltrs[32]={'<','E','\n','A',' ','S','I','U',
-				'\n','D','R','J','N','F','C','K',
-				'T','Z','L','W','H','Y','P','Q',
-				'O','B','G','^','M','X','V','^'};
-	static char figs[32]={'<','3','\n','-',' ',',','8','7',
-				'\n','$','4','\'',',','·',':','(',
-				'5','+',')','2','·','6','0','1',
-				'9','7','·','^','.','/','=','^'};
-	int d;
-	d=0;  /* return 0 if not decodeable */
-	switch (data) {
-	case 0x1f :	tdd->modo=0; break;
-	case 0x1b : tdd->modo=1; break;
-	default:	if (tdd->modo==0) d=ltrs[data]; else d=figs[data]; break;
-	}
-	return d;
+    uint32_t phase_acc;
+    int32_t phase_rate;
+    int i;
+    
+    phase_rate = dds_phase_rate(2100.0f);
+    phase_acc = 0;
+    for (i = 0;  i < len;  i++)
+        outbuf[i] = OPBX_LIN2MU(dds(&phase_acc, phase_rate) >> 3);
+	return 0;
+}
+
+int tdd_generate(struct tdd_state *tdd, uint8_t *buf, const char *str)
+{
+    int16_t amp[160];
+    uint8_t adsi_msg[256 + 42];
+    int adsi_msg_len;
+    int total_len;
+    int j;
+    int len;
+
+    adsi_msg_len = adsi_add_field(&tdd->tx, adsi_msg, -1, 0, (uint8_t *) str, strlen(str));
+    adsi_put_message(&tdd->tx, adsi_msg, adsi_msg_len);
+    total_len = 0;
+    while ((len = adsi_tx(&tdd->tx, amp, 160)) > 0)
+    {
+        for (j = 0;  j < len;  j++)
+            buf[total_len++] = OPBX_LIN2MU(amp[j]);
+    }
+	return total_len;
+}
+
+static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
+{
+    struct tdd_state *tdd;
+    
+    tdd = (struct tdd_state *) user_data;
+    if (len < 256)
+        memcpy(tdd->rx_msg, msg, len);
+}
+
+int tdd_feed(struct tdd_state *tdd, uint8_t *ubuf, int len)
+{
+    int16_t bufit[160];
+    int c;
+    int i;
+    int j;
+    int max;
+
+    for (i = 0;  i < len;  i += 160)
+    {
+        max = (i + 160 > len)  ?  (len - i)  :  160;
+        for (j = 0;  j < max;  j++)
+    		bufit[j] = OPBX_MULAW(ubuf[160*i + j]);
+        adsi_rx(&tdd->rx, bufit, max);
+    }
+    if (tdd->rx_msg[0])
+    {
+        c = tdd->rx_msg[0];
+        tdd->rx_msg[0] = '\0';
+        return c;
+    }
+    return 0;
 }
 
 struct tdd_state *tdd_new(void)
 {
 	struct tdd_state *tdd;
-	tdd = malloc(sizeof(struct tdd_state));
-	if (tdd) {
+
+	if ((tdd = malloc(sizeof(struct tdd_state)))) {
 		memset(tdd, 0, sizeof(struct tdd_state));
-		tdd->fskd.spb = 176;		/* 45.5 baud */
-		tdd->fskd.hdlc = 0;		/* Async */
-		tdd->fskd.nbit = 5;		/* 5 bits */
-		tdd->fskd.nstop = 1.5;	/* 1.5 stop bits */
-		tdd->fskd.paridad = 0;	/* No parity */
-		tdd->fskd.bw=0;			/* Filter 75 Hz */
-		tdd->fskd.f_mark_idx =  0;	/* 1400 Hz */
-		tdd->fskd.f_space_idx = 1;	/* 1800 Hz */
-		tdd->fskd.pcola = 0;		/* No clue */
-		tdd->fskd.cont = 0;			/* Digital PLL reset */
-		tdd->fskd.x0 = 0.0;
-		tdd->fskd.state = 0;
-		tdd->pos = 0;
-		tdd->mode = 2;
+		adsi_tx_init(&tdd->tx, ADSI_STANDARD_TDD);
+		adsi_rx_init(&tdd->rx, ADSI_STANDARD_TDD, put_adsi_msg, tdd);
 	} else
 		opbx_log(LOG_WARNING, "Out of memory\n");
 	return tdd;
 }
 
-int opbx_tdd_gen_ecdisa(unsigned char *outbuf, int len)
-{
-    /* Generated from frequency 2100 by gentone.  80 samples  */
-    static const unsigned char ecdisa[80] = {
-    	255, 143,  58,  16, 171, 146,  34,  20, 
-    	156, 151,  25,  26, 149, 159,  19,  38, 
-    	145, 177,  16,  73, 143,  73,  16, 177, 
-    	145,  38,  19, 159, 149,  26,  25, 151, 
-    	156,  20,  34, 146, 171,  16,  58, 143, 
-    	255,  15, 186, 144,  43,  18, 162, 148, 
-    	 28,  23, 153, 154,  21,  31, 147, 166, 
-    	 17,  49, 144, 201,  15, 201, 144,  49, 
-    	 17, 166, 147,  31,  21, 154, 153,  23, 
-    	 28, 148, 162,  18,  43, 144, 186,  15, 	
-    };
-	int pos = 0;
-	int cnt;
-
-	while(len) {
-		cnt = len;
-		if (cnt > sizeof(ecdisa))
-			cnt = sizeof(ecdisa);
-		memcpy(outbuf + pos, ecdisa, cnt);
-		pos += cnt;
-		len -= cnt;
-	}
-	return 0;
-}
-
-#define PUT_BYTE(a) do { \
-	*(buf++) = (a); \
-	bytes++; \
-} while(0)
-
-#define PUT_TDD_AUDIO_SAMPLE(y) do { \
-	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = OPBX_LIN2MU(index); \
-	bytes++; \
-} while(0)
-	
-#define PUT_TDD_MARKMS do { \
-	int x; \
-	for (x=0;x<8;x++) \
-		PUT_TDD_AUDIO_SAMPLE(tdd_getcarrier(&cr, &ci, 1)); \
-} while(0)
-
-#define PUT_TDD_BAUD(bit) do { \
-	while(scont < tddsb) { \
-		PUT_TDD_AUDIO_SAMPLE(tdd_getcarrier(&cr, &ci, bit)); \
-		scont += 1.0; \
-	} \
-	scont -= tddsb; \
-} while(0)
-
-#define PUT_TDD_STOP do { \
-	while(scont < (tddsb * 1.5)) { \
-		PUT_TDD_AUDIO_SAMPLE(tdd_getcarrier(&cr, &ci, 1)); \
-		scont += 1.0; \
-	} \
-	scont -= (tddsb * 1.5); \
-} while(0)
-
-
-#define PUT_TDD(byte) do { \
-	int z; \
-	unsigned char b = (byte); \
-	PUT_TDD_BAUD(0); 	/* Start bit */ \
-	for (z=0;z<5;z++) { \
-		PUT_TDD_BAUD(b & 1); \
-		b >>= 1; \
-	} \
-	PUT_TDD_STOP;	/* Stop bit */ \
-} while(0);	
-
-int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
-{
-	int bytes=0;
-	int i,x;
-	char	c;
-	static unsigned char lstr[31] = "\000E\nA SIU\rDRJNFCKTZLWHYPQOBG\000MXV";
-	static unsigned char fstr[31] = "\0003\n- \00787\r$4',!:(5\")2\0006019?&\000./;";
-	/* Initial carriers (real/imaginary) */
-	float cr = 1.0;
-	float ci = 0.0;
-	float scont = 0.0;
-
-	for(x = 0; str[x]; x++) {
-		c = toupper(str[x]);
-#if	0
-		printf("%c",c); fflush(stdout);
-#endif
-		if (c == 0) /* send null */
-		   {
-			PUT_TDD(0);
-			continue;
-		   }
-		if (c == '\r') /* send c/r */
-		   {
-			PUT_TDD(8);
-			continue;
-		   }
-		if (c == '\n') /* send c/r and l/f */
-		   {
-			PUT_TDD(8);
-			PUT_TDD(2);
-			continue;
-		   }
-		if (c == ' ') /* send space */
-		   {
-			PUT_TDD(4);
-			continue;
-		   }
-		for(i = 0; i < 31; i++)
-		   {
-			if (lstr[i] == c) break;
-		   }
-		if (i < 31) /* if we found it */
-		   {
-			if (tdd->mode)  /* if in figs mode, change it */
-			   { 
-				PUT_TDD(31); /* Send LTRS */
-				tdd->mode = 0;
-			   }
-			PUT_TDD(i);
-			continue;
-		   }
-		for(i = 0; i < 31; i++)
-		   {
-			if (fstr[i] == c) break;
-		   }
-		if (i < 31) /* if we found it */
-		   {
-			if (tdd->mode != 1)  /* if in ltrs mode, change it */
-			   {
-				PUT_TDD(27); /* send FIGS */
-				tdd->mode = 1;
-			   }
-			PUT_TDD(i);  /* send byte */
-			continue;
-		   }
-	   }
-	return bytes;
-}
-
-int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
-{
-	int mylen = len;
-	int olen;
-	int b = 'X';
-	int res;
-	int c,x;
-	short *buf = malloc(2 * len + tdd->oldlen);
-	short *obuf = buf;
-	if (!buf) {
-		opbx_log(LOG_WARNING, "Out of memory\n");
-		return -1;
-	}
-	memset(buf, 0, 2 * len + tdd->oldlen);
-	memcpy(buf, tdd->oldstuff, tdd->oldlen);
-	mylen += tdd->oldlen/2;
-	for (x=0;x<len;x++) 
-		buf[x+tdd->oldlen/2] = OPBX_MULAW(ubuf[x]);
-	c = res = 0;
-	while(mylen >= 1320) { /* has to have enough to work on */
-		olen = mylen;
-		res = fsk_serie(&tdd->fskd, buf, &mylen, &b);
-		if (mylen < 0) {
-			opbx_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d) (olen was %d)\n", mylen,olen);
-			free(obuf);
-			return -1;
-		}
-		buf += (olen - mylen);
-		if (res < 0) {
-			opbx_log(LOG_NOTICE, "fsk_serie failed\n");
-			free(obuf);
-			return -1;
-		}
-		if (res == 1) {
-			/* Ignore invalid bytes */
-			if (b > 0x7f)
-				continue;
-			c = tdd_decode_baudot(tdd,b);
-			if ((c < 1) || (c > 126)) continue; /* if not valid */
-			break;
-		}
-	}
-	if (mylen) {
-		memcpy(tdd->oldstuff, buf, mylen * 2);
-		tdd->oldlen = mylen * 2;
-	} else
-		tdd->oldlen = 0;
-	free(obuf);
-	if (res)  {
-		tdd->mode = 2; /* put it in mode where it
-			reliably puts teleprinter in correct shift mode */
-		return(c);
-	}
-	return 0;
-}
-
 void tdd_free(struct tdd_state *tdd)
 {
 	free(tdd);
-}
-
-void tdd_init(void)
-{
-	/* Initialize stuff for inverse FFT */
-	dr[0] = cos(TDD_SPACE*2.0*M_PI/8000.0);
-	di[0] = sin(TDD_SPACE*2.0*M_PI/8000.0);
-	dr[1] = cos(TDD_MARK*2.0*M_PI/8000.0);
-	di[1] = sin(TDD_MARK*2.0*M_PI/8000.0);
 }

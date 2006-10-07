@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <inttypes.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 

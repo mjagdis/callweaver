@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #ifdef __NetBSD__
 #include <pthread.h>
 #include <signal.h>
@@ -38,6 +39,9 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <spandsp.h>
+
+
 #ifdef __linux__
 #include <linux/zaptel.h>
 #else
@@ -2503,8 +2507,8 @@ static int zt_hangup(struct opbx_channel *ast)
 		if (p->sig)
 			zt_disable_ec(p);
 		x = 0;
-		opbx_channel_setoption(ast,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-		opbx_channel_setoption(ast,OPBX_OPTION_TDD,&x,sizeof(char),0);
+		opbx_channel_setoption(ast, OPBX_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
+		opbx_channel_setoption(ast, OPBX_OPTION_TDD, &x, sizeof(char), 0);
 		p->didtdd = FALSE;
 		p->cidspill = NULL;
 		p->callwaitcas = 0;
@@ -2718,8 +2722,9 @@ static int zt_setoption(struct opbx_channel *chan, int option, void *data, int d
 		zt_disable_ec(p);
 		/* otherwise, turn it on */
 		if (!p->didtdd) {
-			/* if havent done it yet */
-			unsigned char mybuf[41000],*buf;
+			/* if haven't done it yet */
+			uint8_t mybuf[41000];
+            uint8_t *buf;
 			int size,res,fd,len;
 			struct pollfd fds[1];
 
@@ -10538,13 +10543,12 @@ int load_module(void)
 	opbx_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	
 	memset(round_robin, 0, sizeof(round_robin));
-	opbx_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
-	opbx_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
-	opbx_manager_register( "ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
-	opbx_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
-	opbx_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
+	opbx_manager_register("ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
+	opbx_manager_register("ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
+	opbx_manager_register("ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
+	opbx_manager_register("ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
+	opbx_manager_register("ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	opbx_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
-	tdd_init();
 
 	return res;
 }
@@ -10579,7 +10583,7 @@ static int zt_sendtext(struct opbx_channel *c, const char *text)
 	if (p->mate) 
 		buf = malloc(((strlen(text) + 1) * ASCII_BYTES_PER_CHAR) + END_SILENCE_LEN + HEADER_LEN);
 	else
-		buf = malloc(((strlen(text) + 1) * TDD_BYTES_PER_CHAR) + END_SILENCE_LEN);
+		buf = malloc(((strlen(text) + 1) * TDD_SAMPLES_PER_CHAR) + END_SILENCE_LEN);
 	if (!buf) {
 		opbx_log(LOG_ERROR, "MALLOC FAILED\n");
 		return -1;

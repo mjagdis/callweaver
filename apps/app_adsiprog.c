@@ -28,11 +28,13 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 

@@ -30,12 +30,14 @@
 #include <pthread.h>
 #include <errno.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 

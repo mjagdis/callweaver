@@ -13,7 +13,8 @@
  * at the top of the source tree.
  */
 
-#include <openpbx/adsi.h>
+//#include <openpbx/adsi.h>
+#include "openpbx/channel.h"
 
 
 static int stub_adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)

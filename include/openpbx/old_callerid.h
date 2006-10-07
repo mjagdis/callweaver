@@ -233,51 +233,19 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 	} \
 	PUT_CLID_BAUD(1);	/* Stop bit */ \
 } while(0);	
-#define	TDD_BYTES_PER_CHAR	2700
 
-struct tdd_state {
-	fsk_data fskd;
-	char rawdata[256];
-	short oldstuff[4096];
-	int oldlen;
-	int pos;
-	int modo;
-	int mode;
-};
+#define	TDD_SAMPLES_PER_CHAR	2700
 
-static float dr[4], di[4];
-static float tddsb = 176.0;  /* 45.5 baud */
+struct tdd_state;
 
-#define TDD_SPACE	1800.0		/* 1800 hz for "0" */
-#define TDD_MARK	1400.0		/* 1400 hz for "1" */
+int opbx_tdd_gen_ecdisa(uint8_t *outbuf, int len);
 
-/* covert baudot into ASCII */
-int tdd_decode_baudot(struct tdd_state *tdd,unsigned char data);
+int tdd_generate(struct tdd_state *tdd, uint8_t *buf, const char *str);
 
-static __inline__ float tdd_getcarrier(float *cr, float *ci, int bit)
-{
-	/* Move along.  There's nothing to see here... */
-	float t;
-	t = *cr * dr[bit] - *ci * di[bit];
-	*ci = *cr * di[bit] + *ci * dr[bit];
-	*cr = t;
-	
-	t = 2.0 - (*cr * *cr + *ci * *ci);
-	*cr *= t;
-	*ci *= t;
-	return *cr;
-}	
-
-int opbx_tdd_gen_ecdisa(unsigned char *outbuf, int len);
-
-int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str);
-
-int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len);
+int tdd_feed(struct tdd_state *tdd, uint8_t *ubuf, int len);
 
 struct tdd_state *tdd_new(void);
 
 void tdd_free(struct tdd_state *tdd);
-
-void tdd_init(void);
 
 #endif /* _OPENPBX_OLD_CALLERID_H */

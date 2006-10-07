@@ -42,12 +42,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 

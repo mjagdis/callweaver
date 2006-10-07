@@ -74,6 +74,7 @@
 #include <sys/stat.h>
 #include <sys/prctl.h>
 #include <regex.h>
+#include <spandsp.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
