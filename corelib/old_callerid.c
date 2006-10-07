@@ -71,6 +71,8 @@ static int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte);
 
 struct callerid_state {
     adsi_rx_state_t rx;
+    int current_standard;
+
 	fsk_data fskd;
 	char rawdata[256];
 	short oldstuff[160];
@@ -88,8 +90,6 @@ struct callerid_state {
 
 float cid_dr[4], cid_di[4];
 float clidsb = 8000.0 / 1200.0;
-float sasdr, sasdi;
-float casdr1, casdi1, casdr2, casdi2;
 
 #define CALLERID_SPACE	2200.0		/* 2200 hz for "0" */
 #define CALLERID_MARK	1200.0		/* 1200 hz for "1" */
@@ -420,22 +420,29 @@ static inline void gen_tone(unsigned char *buf, int len, int codec, float ddr1, 
 
 int opbx_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
 {
+    uint32_t phase_acc1;
+    int32_t phase_rate1;
+    uint32_t phase_acc2;
+    int32_t phase_rate2;
+    int i;
 	int pos = 0;
-	int saslen=2400;
-	float cr1 = 1.0;
-	float ci1 = 0.0;
-	float cr2 = 1.0;
-	float ci2 = 0.0;
+	int saslen = 2400;
+
 	if (sendsas) {
 		if (len < saslen)
 			return -1;
-		gen_tone(outbuf, saslen, codec, sasdr, sasdi, &cr1, &ci1);
-		len -= saslen;
+        phase_rate1 = dds_phase_rate(SAS_FREQ);
+        phase_acc1 = 0;
+        for (i = 0;  i < saslen;  i++)
+            outbuf[i] = OPBX_LIN2X(dds(&phase_acc1, phase_rate1) >> 3);
 		pos += saslen;
-		cr2 = cr1;
-		ci2 = ci1;
 	}
-	gen_tones(outbuf + pos, len, codec, casdr1, casdi1, casdr2, casdi2, &cr1, &ci1, &cr2, &ci2);
+    phase_rate1 = dds_phase_rate(CAS_FREQ1);
+    phase_acc1 = 0;
+    phase_rate2 = dds_phase_rate(CAS_FREQ2);
+    phase_acc2 = 0;
+    for (i = pos;  i < len;  i++)
+        outbuf[i] = OPBX_LIN2X((dds(&phase_acc1, phase_rate1) >> 3) + (dds(&phase_acc2, phase_rate2) >> 3));
 	return 0;
 }
 
@@ -446,12 +453,309 @@ void callerid_init(void)
 	cid_di[0] = sin(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
 	cid_dr[1] = cos(CALLERID_MARK * 2.0 * M_PI / 8000.0);
 	cid_di[1] = sin(CALLERID_MARK * 2.0 * M_PI / 8000.0);
-	sasdr = cos(SAS_FREQ * 2.0 * M_PI / 8000.0);
-	sasdi = sin(SAS_FREQ * 2.0 * M_PI / 8000.0);
-	casdr1 = cos(CAS_FREQ1 * 2.0 * M_PI / 8000.0);
-	casdi1 = sin(CAS_FREQ1 * 2.0 * M_PI / 8000.0);
-	casdr2 = cos(CAS_FREQ2 * 2.0 * M_PI / 8000.0);
-	casdi2 = sin(CAS_FREQ2 * 2.0 * M_PI / 8000.0);
+}
+
+static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
+{
+    struct callerid_state *cid;
+    int l;
+    uint8_t field_type;
+    const uint8_t *field_body;
+    int field_len;
+    int message_type;
+    uint8_t body[256];
+    
+    cid = (struct callerid_state *) user_data;
+    l = -1;
+    message_type = -1;
+    do
+    {
+        l = adsi_next_field(&cid->rx, msg, len, l, &field_type, &field_body, &field_len);
+        if (l > 0)
+        {
+            if (field_body)
+            {
+                memcpy(body, field_body, field_len);
+                body[field_len] = '\0';
+                printf("Field type 0x%x, len %d, '%s' - ", field_type, field_len, body);
+                switch (cid->current_standard)
+                {
+                case ADSI_STANDARD_CLASS:
+                    switch (message_type)
+                    {
+                    case CLASS_SDMF_CALLERID:
+                        break;
+                    case CLASS_MDMF_CALLERID:
+                        switch (field_type)
+                        {
+                        case MCLASS_DATETIME:
+                            printf("Date and time (MMDDHHMM)");
+                            break;
+                        case MCLASS_CALLER_NUMBER:
+                            printf("Caller's number");
+                            break;
+                        case MCLASS_DIALED_NUMBER:
+                            printf("Dialed number");
+                            break;
+                        case MCLASS_ABSENCE1:
+                            printf("Caller's number absent: 'O' or 'P'");
+                            break;
+                        case MCLASS_REDIRECT:
+                            printf("Call forward: universal ('0'), on busy ('1'), or on unanswered ('2')");
+                            break;
+                        case MCLASS_QUALIFIER:
+                            printf("Long distance: 'L'");
+                            break;
+                        case MCLASS_CALLER_NAME:
+                            printf("Caller's name");
+                            break;
+                        case MCLASS_ABSENCE2:
+                            printf("Caller's name absent: 'O' or 'P'");
+                            break;
+                        }
+                        break;
+                    case CLASS_SDMF_MSG_WAITING:
+                        break;
+                    case CLASS_MDMF_MSG_WAITING:
+                        switch (field_type)
+                        {
+                        case MCLASS_VISUAL_INDICATOR:
+                            printf("Message waiting/not waiting");
+                            break;
+                        }
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_CLIP:
+                    switch (message_type)
+                    {
+                    case CLIP_MDMF_CALLERID:
+                    case CLIP_MDMF_MSG_WAITING:
+                    case CLIP_MDMF_CHARGE_INFO:
+                    case CLIP_MDMF_SMS:
+                        switch (field_type)
+                        {
+                        case CLIP_DATETIME:
+                            printf("Date and time (MMDDHHMM)");
+                            break;
+                        case CLIP_CALLER_NUMBER:
+                            printf("Caller's number");
+                            break;
+                        case CLIP_DIALED_NUMBER:
+                            printf("Dialed number");
+                            break;
+                        case CLIP_ABSENCE1:
+                            printf("Caller's number absent");
+                            break;
+                        case CLIP_CALLER_NAME:
+                            printf("Caller's name");
+                            break;
+                        case CLIP_ABSENCE2:
+                            printf("Caller's name absent");
+                            break;
+                        case CLIP_VISUAL_INDICATOR:
+                            printf("Visual indicator");
+                            break;
+                        case CLIP_MESSAGE_ID:
+                            printf("Message ID");
+                            break;
+                        case CLIP_CALLTYPE:
+                            printf("Voice call, ring-back-when-free call, or msg waiting call");
+                            break;
+                        case CLIP_NUM_MSG:
+                            printf("Number of messages");
+                            break;
+#if 0
+                        case CLIP_REDIR_NUMBER:
+                            printf("Redirecting number");
+                            break;
+#endif
+                        case CLIP_CHARGE:
+                            printf("Charge");
+                            break;
+                        case CLIP_DURATION:
+                            printf("Duration of the call");
+                            break;
+                        case CLIP_ADD_CHARGE:
+                            printf("Additional charge");
+                            break;
+                        case CLIP_DISPLAY_INFO:
+                            printf("Display information");
+                            break;
+                        case CLIP_SERVICE_INFO:
+                            printf("Service information");
+                            break;
+                        }
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_ACLIP:
+                    switch (message_type)
+                    {
+                    case ACLIP_SDMF_CALLERID:
+                        break;
+                    case ACLIP_MDMF_CALLERID:
+                        switch (field_type)
+                        {
+                        case ACLIP_DATETIME:
+                            printf("Date and time (MMDDHHMM)");
+                            break;
+                        case ACLIP_CALLER_NUMBER:
+                            printf("Caller's number");
+                            break;
+                        case ACLIP_DIALED_NUMBER:
+                            printf("Dialed number");
+                            break;
+                        case ACLIP_ABSENCE1:
+                            printf("Caller's number absent: 'O' or 'P'");
+                            break;
+                        case ACLIP_REDIRECT:
+                            printf("Call forward: universal, on busy, or on unanswered");
+                            break;
+                        case ACLIP_QUALIFIER:
+                            printf("Long distance call: 'L'");
+                            break;
+                        case ACLIP_CALLER_NAME:
+                            printf("Caller's name");
+                            break;
+                        case ACLIP_ABSENCE2:
+                            printf("Caller's name absent: 'O' or 'P'");
+                            break;
+                        }
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_JCLIP:
+                    switch (message_type)
+                    {
+                    case JCLIP_MDMF_CALLERID:
+                        switch (field_type)
+                        {
+                        case JCLIP_CALLER_NUMBER:
+                            printf("Caller's number");
+                            break;
+                        case JCLIP_CALLER_NUM_DES:
+                            printf("Caller's number data extension signal");
+                            break;
+                        case JCLIP_DIALED_NUMBER:
+                            printf("Dialed number");
+                            break;
+                        case JCLIP_DIALED_NUM_DES:
+                            printf("Dialed number data extension signal");
+                            break;
+                        case JCLIP_ABSENCE:
+                            printf("Caller's number absent: 'C', 'O', 'P' or 'S'");
+                            break;
+                        }
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_CLIP_DTMF:
+                    switch (message_type)
+                    {
+                    case CLIP_DTMF_CALLER_NUMBER:
+                        printf("Caller's number");
+                        break;
+                    case CLIP_DTMF_ABSENCE1:
+                        printf("Caller's number absent: private (1), overseas (2) or not available (3)");
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_TDD:
+                    break;
+                }
+            }
+            else
+            {
+                printf("Message type 0x%x - ", field_type);
+                message_type = field_type;
+                switch (cid->current_standard)
+                {
+                case ADSI_STANDARD_CLASS:
+                    switch (message_type)
+                    {
+                    case CLASS_SDMF_CALLERID:
+                        printf("Single data message caller ID");
+                        break;
+                    case CLASS_MDMF_CALLERID:
+                        printf("Multiple data message caller ID");
+                        break;
+                    case CLASS_SDMF_MSG_WAITING:
+                        printf("Single data message message waiting");
+                        break;
+                    case CLASS_MDMF_MSG_WAITING:
+                        printf("Multiple data message message waiting");
+                        break;
+                    default:
+                        printf("Unknown");
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_CLIP:
+                    switch (message_type)
+                    {
+                    case CLIP_MDMF_CALLERID:
+                        printf("Multiple data message caller ID");
+                        break;
+                    case CLIP_MDMF_MSG_WAITING:
+                        printf("Multiple data message message waiting");
+                        break;
+                    case CLIP_MDMF_CHARGE_INFO:
+                        printf("Multiple data message charge info");
+                        break;
+                    case CLIP_MDMF_SMS:
+                        printf("Multiple data message SMS");
+                        break;
+                    default:
+                        printf("Unknown");
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_ACLIP:
+                    switch (message_type)
+                    {
+                    case ACLIP_SDMF_CALLERID:
+                        printf("Single data message caller ID frame");
+                        break;
+                    case ACLIP_MDMF_CALLERID:
+                        printf("Multiple data message caller ID frame");
+                        break;
+                    default:
+                        printf("Unknown");
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_JCLIP:
+                    switch (message_type)
+                    {
+                    case JCLIP_MDMF_CALLERID:
+                        printf("Multiple data message caller ID frame");
+                        break;
+                    default:
+                        printf("Unknown");
+                        break;
+                    }
+                    break;
+                case ADSI_STANDARD_CLIP_DTMF:
+                    switch (message_type)
+                    {
+                    case CLIP_DTMF_CALLER_NUMBER:
+                        printf("Caller's number");
+                        break;
+                    case CLIP_DTMF_ABSENCE1:
+                        printf("Caller's number absent");
+                        break;
+                    default:
+                        printf("Unknown");
+                        break;
+                    }
+                    break;
+                }
+            }
+            printf("\n");
+        }
+    }
+    while (l > 0);
 }
 
 struct callerid_state *callerid_new(int cid_signalling)
@@ -460,6 +764,15 @@ struct callerid_state *callerid_new(int cid_signalling)
 	cid = malloc(sizeof(struct callerid_state));
 	if (cid) {
 		memset(cid, 0, sizeof(struct callerid_state));
+		if (cid_signalling == 2)
+            cid->current_standard = ADSI_STANDARD_CLIP;
+        else
+            cid->current_standard = ADSI_STANDARD_CLASS;
+        adsi_rx_init(&cid->rx, cid->current_standard, put_adsi_msg, cid);
+		memset(cid->name, 0, sizeof(cid->name));
+		memset(cid->number, 0, sizeof(cid->number));
+		cid->flags = CID_UNKNOWN_NAME | CID_UNKNOWN_NUMBER;
+
 		cid->fskd.spb = 7;		/* 1200 baud */
 		cid->fskd.hdlc = 0;		/* Async */
 		cid->fskd.nbit = 8;		/* 8 bits */
@@ -477,9 +790,7 @@ struct callerid_state *callerid_new(int cid_signalling)
 		cid->fskd.cont = 0;			/* Digital PLL reset */
 		cid->fskd.x0 = 0.0;
 		cid->fskd.state = 0;
-		memset(cid->name, 0, sizeof(cid->name));
-		memset(cid->number, 0, sizeof(cid->number));
-		cid->flags = CID_UNKNOWN_NAME | CID_UNKNOWN_NUMBER;
+
 		cid->pos = 0;
 	} else
 		opbx_log(LOG_WARNING, "Out of memory\n");
@@ -788,7 +1099,6 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 		size -= i;
 	}
 	return (ptr - msg);
-	
 }
 
 int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
@@ -947,7 +1257,7 @@ int tdd_generate(struct tdd_state *tdd, uint8_t *buf, const char *str)
 	return total_len;
 }
 
-static void put_adsi_msg(void *user_data, const uint8_t *msg, int len)
+static void put_tdd_msg(void *user_data, const uint8_t *msg, int len)
 {
     struct tdd_state *tdd;
     
@@ -987,7 +1297,7 @@ struct tdd_state *tdd_new(void)
 	if ((tdd = malloc(sizeof(struct tdd_state)))) {
 		memset(tdd, 0, sizeof(struct tdd_state));
 		adsi_tx_init(&tdd->tx, ADSI_STANDARD_TDD);
-		adsi_rx_init(&tdd->rx, ADSI_STANDARD_TDD, put_adsi_msg, tdd);
+		adsi_rx_init(&tdd->rx, ADSI_STANDARD_TDD, put_tdd_msg, tdd);
 	} else
 		opbx_log(LOG_WARNING, "Out of memory\n");
 	return tdd;
