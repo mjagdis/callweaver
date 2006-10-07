@@ -11,23 +11,28 @@ RETVAL=0
 
 case "$1" in
   start)
-	echo -n "Starting OpenPBX: "
-	daemon /opt/openpbx.org/sbin/openpbx
+	echo -n $"Starting OpenPBX: "
+	daemon /usr/sbin/openpbx
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/openpbx
 	;;
   stop)
-	echo -n "Shutting OpenPBX: "
+	echo -n $"Stopping OpenPBX: "
 	killproc openpbx
 	RETVAL=$?
 
 	echo
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/openpbx
 	;;
-  restart|reload)
+  restart)
 	$0 stop
 	$0 start
+	RETVAL=$?
+	;;
+  reload)
+	killproc openpbx -HUP
+	status openpbx
 	RETVAL=$?
 	;;
   status)
