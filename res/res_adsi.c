@@ -45,7 +45,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/alaw.h"
 #include "openpbx/phone_no_utils.h"
 #include "openpbx/logger.h"
-#include "openpbx/fskmodem.h"
 #include "openpbx/channel.h"
 #include "openpbx/adsi.h"
 #include "openpbx/module.h"

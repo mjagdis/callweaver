@@ -45,7 +45,6 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/phon
 #include "openpbx/channel.h"
 #include "openpbx/phone_no_utils.h"
 #include "openpbx/logger.h"
-#include "openpbx/fskmodem.h"
 #include "openpbx/utils.h"
 
 static struct {

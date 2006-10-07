@@ -3,7 +3,7 @@ SUBDIRS=jitterbuffer
 opbxlib_LTLIBRARIES = libopenpbx.la
 libopenpbx_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	generator.c translate.c file.c say.c pbx.c cli.c term.c \
-	ulaw.c alaw.c phone_no_utils.c old_callerid.c fskmodem.c image.c app.c \
+	ulaw.c alaw.c phone_no_utils.c old_callerid.c image.c app.c \
 	cdr.c acl.c rtp.c manager.c opbx_hash.c\
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
 	opbxmm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \

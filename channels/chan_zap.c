@@ -83,9 +83,9 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/term.h"
 #include "openpbx/utils.h"
 #include "openpbx/transcap.h"
-#include "openpbx/fskmodem.h"
 
 #include "openpbx/generic_jb.h"
+
 static struct opbx_jb_conf global_jbconf;
 
 #if !defined(FALSE)
@@ -96,7 +96,7 @@ static struct opbx_jb_conf global_jbconf;
 #endif
 
 #ifndef ZT_SIG_EM_E1
-#error "Your zaptel is too old.  please cvs update"
+#error "Your zaptel is too old.  please update"
 #endif
 
 #ifndef ZT_TONEDETECT
