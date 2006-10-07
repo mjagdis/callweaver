@@ -163,6 +163,11 @@ int opbx_timer_start(opbx_timer_t *t)
 	struct itimerspec spec;
 	long nano, sec;
 
+	if (!t->timer_id) {
+		opbx_log(LOG_ERROR, "Attempted to start nonexistent timer!\n");
+		return -1;
+	}
+
 	/* Calculate the time in seconds and nanoseconds 
 	 * since the value we got is in microseconds */
 	nano = (t->interval % 1000000) * 1000;
