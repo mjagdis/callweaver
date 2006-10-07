@@ -1,4 +1,4 @@
-%define snap 1901
+%define snap 1902
 
 %bcond_without	fedora
 
@@ -73,7 +73,7 @@ rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/modules/*.la
 rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.a
 rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.la
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
-install contrib/redhat/openpbx $RPM_BUILD_ROOT%{_initrddir}/openpbx
+install contrib/fedora/openpbx $RPM_BUILD_ROOT%{_initrddir}/openpbx
 
 %clean
 rm -rf $RPM_BUILD_ROOT
