@@ -1161,7 +1161,8 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
-	gettimeofday(&p->peerpoke->ps, NULL); // We set ping time here to make pokepeer calculations correct. Stun introduces lag.
+	if (p->peerpoke)
+		gettimeofday(&p->peerpoke->ps, NULL); // We set ping time here to make pokepeer calculations correct. Stun introduces lag.
 	if (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 		res=opbx_sendfromto(sipsock, data, len, 0, NULL, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
 	else {
@@ -4636,7 +4637,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	req->headers++;
 
 	struct sip_data_line *line, *pointer;
-	char	content[SIP_MAX_LINE_LEN];
+	char	content[sizeof(struct sip_data_line)+1];
 
 	if (strlen(var)==0)
 	    snprintf(content, sizeof(struct sip_data_line), "%s", value);
@@ -4719,7 +4720,7 @@ static int add_line(struct sip_request *req, const char *dline, short int type)
 	req->lines++;
 
 	struct sip_data_line *line, *pointer;
-	char	content[SIP_MAX_LINE_LEN];
+	char	content[sizeof(struct sip_data_line)+1];
 
 	snprintf(content, sizeof(struct sip_data_line), "%s", dline);
 	//opbx_verbose("]*[adding line: %s\n",content);
