@@ -371,10 +371,15 @@ AC_SUBST([opbxincludedir])
 # Check for headers, structures, typedefs, libs etc that are not realted to specific add on packages
 #
 ######
+AC_ARG_ENABLE([builtin-sqlite3],
+        [AC_HELP_STRING([--enable-builtin-sqlite3],[Enables the builtin thread-safe copy of SQLite library (default=yes)])],[builtin_sqlite3="$enableval"],[builtin_sqlite3="yes"])
+
 
 dnl check for required libraries (also for addons)
 dnl needed to move check for sqlite threadsafe here since it needs to check if we have a threadsafe sqlite3 BEFORE we check for libpthread)
-#AC_CHECK_SQLITE3_THREADSAFE
+if test "${builtin_sqlite3}" = "no"; then
+	AC_CHECK_SQLITE3_THREADSAFE
+fi
 AC_CHECK_LIB([c], [main])
 AC_CHECK_LIB([db], [main])
 dnl # AC_CHECK_LIB([expat], [main]) # why would we need this one ?
@@ -498,19 +503,23 @@ AC_DEFINE([__BIG_ENDIAN],4321,[for the places where it is not defined])
 
 dnl ###########################################################################
 
-SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
-SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
-case "${host}" in
-  *cygwin*)
-	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_WIN"
-        ;;
-  *)
-	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_UNIX"
-        ;;
-esac  
-AC_SUBST([SQLITE3_THREADSAFE_LIBS])
-AC_SUBST([SQLITE3_THREADSAFE_CFLAGS])
+if test "${builtin_sqlite3}" = "yes"; then
+	SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
+	SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
+	case "${host}" in
+	  *cygwin*)
+	  	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_WIN"
+		;;
+	  *)
+	  	SQLITE3_THREADSAFE_CFLAGS="${SQLITE3_THREADSAFE_CFLAGS} -DOS_UNIX"
+		;;
+	esac
+	AC_SUBST([SQLITE3_THREADSAFE_LIBS])
+	AC_SUBST([SQLITE3_THREADSAFE_CFLAGS])
+	SQLITE3_SUBDIR=sqlite3-embedded
+fi
 
+AC_SUBST([SQLITE3_SUBDIR])
 
 dnl ###########################################################################
 
@@ -1978,11 +1987,14 @@ AC_OUTPUT([Makefile
 		 configs/Makefile
  		 ogi/ogi-test.ogi
 		 ogi/fastogi-test
-		 sqlite3-embedded/Makefile
-		 sqlite3-embedded/mkopcodec.awk
-		 sqlite3-embedded/mkopcodeh.awk
 ])
 
+if test "${builtin_sqlite3}" = "yes"; then
+	AC_OUTPUT([	 sqlite3-embedded/Makefile
+			 sqlite3-embedded/mkopcodec.awk
+			 sqlite3-embedded/mkopcodeh.awk
+	])
+fi
 
 
 echo ""
