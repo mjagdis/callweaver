@@ -11,6 +11,7 @@ RETVAL=0
 
 case "$1" in
   start)
+	mkdir -p /dev/fax &>/dev/null && chown openpbx.openpbx /dev/fax
 	echo -n $"Starting OpenPBX: "
 	daemon /usr/sbin/openpbx
 	RETVAL=$?
