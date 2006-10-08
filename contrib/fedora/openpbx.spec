@@ -1,4 +1,4 @@
-%define snap 1909
+%define snap 1912
 
 %bcond_without	fedora
 
@@ -18,7 +18,7 @@ BuildRequires:	spandsp-devel >= 0.0.3-1.pre24
 BuildRequires:	libtool automake autoconf
 BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
-BuildRequires:	unixODBC-devel openssl-devel zlib-devel
+BuildRequires:	unixODBC-devel openssl-devel zlib-devel speex-devel
 
 Requires:	fedora-usermgmt /sbin/chkconfig
 
@@ -87,6 +87,32 @@ Requires:	%{name} = %{version}-%{release}
 %description jabber
 This package contains Jabber protocol support for OpenPBX.
 
+%package javascript
+Group:		Applications/Internet
+Summary:	Jabber support for OpenPBX
+Requires:	%{name} = %{version}-%{release}
+
+%description javascript
+This package contains JavaScript support for OpenPBX.
+
+%package alsa
+Group:		Applications/Internet
+Summary:	ALSA channel driver for OpenPBX
+Requires:	%{name} = %{version}-%{release}
+
+%description alsa
+This package contains an ALSA console driver for OpenPBX, which allows
+the local sound devices to be used for making and receiving calls.
+
+%package ogi
+Group:		Applications/Internet
+Summary:	OpenPBX Gateway Interface
+Requires:	%{name} = %{version}-%{release}
+
+%description ogi
+This package contains files support for the OpenPBX Gateway Interface; a
+convenient interface between OpenPBX and external scripts or programs.
+
 
 %prep
 %setup -q -n openpbx
@@ -111,7 +137,7 @@ sed -i 's/^CC="gcc"/CC="gcc -Wl,--as-needed"/' libtool
 # Poxy fscking autocrap isn't much better
 sed -i 's:^/usr/bin/perl:#! /usr/bin/perl:' ogi/fastogi-test ogi/ogi-test.ogi
 
-make %{?_smp_mflags}
+make %{?_smp_mflags} CCLD="gcc -Wl,--as-needed"
 
 
 %install
@@ -145,7 +171,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %defattr(-,root,root,-)
 %doc COPYING CREDITS LICENSE BUGS AUTHORS SECURITY README HARDWARE
 %{_initrddir}/openpbx
-%{_sbindir}/*
+%{_sbindir}/openpbx
 %{_bindir}/streamplayer
 %dir %{_libdir}/openpbx.org
 %{_libdir}/openpbx.org/lib*.so.*
@@ -153,8 +179,6 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %{_libdir}/openpbx.org/modules/*.so
 %{_mandir}/man8/openpbx.8.gz
 %dir %{_datadir}/openpbx.org
-%dir %attr(0755,root,root) %{_datadir}/openpbx.org/ogi
-%{_datadir}/openpbx.org/ogi/*
 %dir %attr(0755,openpbx,openpbx) %{_sysconfdir}/openpbx.org
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/*
 %attr(0755,openpbx,openpbx) %{_localstatedir}/spool/openpbx.org
@@ -169,10 +193,14 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_libdir}/openpbx.org/modules/cdr_odbc.so
 %exclude %{_libdir}/openpbx.org/modules/chan_bluetooth.so
 %exclude %{_libdir}/openpbx.org/modules/res_jabber.so
+%exclude %{_libdir}/openpbx.org/modules/res_js.so
+%exclude %{_libdir}/openpbx.org/modules/chan_alsa.so
+%exclude %{_libdir}/openpbx.org/modules/res_ogi.so
 %exclude %{_sysconfdir}/openpbx.org/cdr_pgsql.conf
 %exclude %{_sysconfdir}/openpbx.org/cdr_odbc.conf
 %exclude %{_sysconfdir}/openpbx.org/chan_bluetooth.conf
 %exclude %{_sysconfdir}/openpbx.org/res_jabber.conf
+%exclude %{_sysconfdir}/openpbx.org/alsa.conf
 
 %files devel
 %defattr(-,root,root,-)
@@ -199,6 +227,19 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files jabber
 %{_libdir}/openpbx.org/modules/res_jabber.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/res_jabber.conf
+
+%files javascript
+%{_libdir}/openpbx.org/modules/res_js.so
+
+%files alsa
+%{_libdir}/openpbx.org/modules/chan_alsa.so
+%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/alsa.conf
+
+%files ogi
+%{_libdir}/openpbx.org/modules/res_ogi.so
+%dir %attr(0755,root,root) %{_datadir}/openpbx.org/ogi
+%{_datadir}/openpbx.org/ogi/*
+%{_sbindir}/eogi*
 
 %changelog
 * Thu Oct  5 2006 David Woodhouse <dwmw2@infradead.org>
