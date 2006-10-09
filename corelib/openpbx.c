@@ -72,7 +72,9 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
-#include <sys/prctl.h>
+#ifndef __FreeBSD__
+# include <sys/prctl.h>
+#endif
 #include <regex.h>
 #include <spandsp.h>
 
@@ -82,9 +84,11 @@
 
 #undef _POSIX_SOURCE
 #ifdef __linux__
-#include <linux/capability.h>
+# include <linux/capability.h>
 #else
-#include <sys/capability.h>
+# ifndef __FreeBSD__
+#  include <sys/capability.h>
+# endif
 #endif
 
 #include "openpbx.h"
@@ -2058,6 +2062,7 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
+#ifndef __FreeBSD__
 #ifndef __CYGWIN__
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
@@ -2173,7 +2178,7 @@ int openpbx_main(int argc, char *argv[])
 #endif
 	}
 
-#endif
+#endif /* __CYGWIN__ */
 
 	/* after set*id() the dumpable flag is deleted,
 	   so we set it again to get core dumps */
@@ -2182,6 +2187,7 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
+#endif /* __FreeBSD__ */
 
 	opbx_term_init();
 	printf(opbx_term_end());
