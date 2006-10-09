@@ -1,4 +1,4 @@
-%define snap 1912
+%define snap 1914
 
 %bcond_without	fedora
 
@@ -19,6 +19,7 @@ BuildRequires:	libtool automake autoconf
 BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
 BuildRequires:	unixODBC-devel openssl-devel zlib-devel speex-devel
+BuildRequires:	isdn4k-utils-devel
 
 Requires:	fedora-usermgmt /sbin/chkconfig
 
@@ -78,6 +79,15 @@ Requires:	%{name} = %{version}-%{release}
 %description bluetooth
 This package contains a Bluetooth channel driver for OpenPBX, which
 allows Bluetooth headsets and telephones to be used for communication.
+
+%package capi
+Group:		Applications/Internet
+Summary:	CAPI channel driver for OpenPBX
+Requires:	%{name} = %{version}-%{release}
+
+%description capi
+This package contains a CAPI (Common ISDN API) channel driver for
+OpenPBX, allowing CAPI devices to be used for making and receiving calls.
 
 %package jabber
 Group:		Applications/Internet
@@ -196,11 +206,13 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_libdir}/openpbx.org/modules/res_js.so
 %exclude %{_libdir}/openpbx.org/modules/chan_alsa.so
 %exclude %{_libdir}/openpbx.org/modules/res_ogi.so
+%exclude %{_libdir}/openpbx.org/modules/chan_capi.so
 %exclude %{_sysconfdir}/openpbx.org/cdr_pgsql.conf
 %exclude %{_sysconfdir}/openpbx.org/cdr_odbc.conf
 %exclude %{_sysconfdir}/openpbx.org/chan_bluetooth.conf
 %exclude %{_sysconfdir}/openpbx.org/res_jabber.conf
 %exclude %{_sysconfdir}/openpbx.org/alsa.conf
+%exclude %{_sysconfdir}/openpbx.org/capi.conf
 
 %files devel
 %defattr(-,root,root,-)
@@ -223,6 +235,10 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files bluetooth
 %{_libdir}/openpbx.org/modules/chan_bluetooth.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/chan_bluetooth.conf
+
+%files capi
+%{_libdir}/openpbx.org/modules/chan_capi.so
+%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/capi.conf
 
 %files jabber
 %{_libdir}/openpbx.org/modules/res_jabber.so
