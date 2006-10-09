@@ -34,6 +34,15 @@
 #include <openpbx/timer.h>
 #include <openpbx/logger.h>
 
+#ifdef __FreeBSD__
+
+#ifndef SIGEV_THREAD
+# define SIGEV_THREAD 2
+#endif /* SIGEV_THREAD */
+
+#endif /* __FreeBSD__ */
+
+
 /* The sighandler is called when the clock is fired */
 static void sighandler(sigval_t sigval)
 {
