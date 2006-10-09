@@ -3,6 +3,17 @@
 # Yes, I realise this is only for developers, but this should be 
 # documented and warned
 
+# ***************   NOTICE  ****************
+# FreeBSD is buggy. Please use this 
+# workaround if you  want to bootstrap 
+# on FreeBSD.
+#
+# cd /usr/local/share/aclocal19
+# ln -s ../aclocal/libtool15.m4 .
+# ln -s ../aclocal/ltdl15.m4 .
+#
+#*******************************************
+
 # Check for required version and die if unhappy
 libtoolize --version | grep 1.5.20 > /dev/null || 
   (
