@@ -417,7 +417,13 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
 		
-            if (call_is_t38_mode)
+            if (!call_is_t38_mode) {
+		if (chan->t38mode_enabled==1) {
+		    call_is_t38_mode=TRUE;
+	    	    opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
+		}
+	    }
+	    else
             {
                 now = nowis();
                 t38_terminal_send_timeout(&t38, (now - passage)/125);

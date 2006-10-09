@@ -3063,6 +3063,8 @@ static int sip_answer(struct opbx_channel *ast)
 		if (p->t38state == 3) {
 			p->t38state=5;
 			opbx_log(LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
+			ast->t38mode_enabled=1;
+			opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", ast->name);
 			res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
 		} else
 #endif
@@ -10815,6 +10817,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			/* If there was T38 reinvite and we are supposed to answer with 200 OK than this should set us to T38 negotiated mode */
 			p->t38state = 5;
 			opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, p->owner ? p->owner->name : "<none>");
+//ASD
+			p->owner->t38mode_enabled=1;
+			opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
 		}		
 #endif		
 		if (!ignore && p->owner) {
@@ -11848,6 +11853,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_with_t38_sdp(p, "200 OK", req, 1);
 				p->t38state = 5;
 				opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+//ASD
+				p->owner->t38mode_enabled=1;
+				opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
 			    }
 			} else if (p->t38state == 0) { /* Channel doesn't have T38 offered or enabled */
 					/* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
@@ -14409,6 +14417,8 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
 		p->t38state = 5;
 		opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
 		opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
+		chan->t38mode_enabled=1;
+		opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
 		transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
 		time(&p->lastrtprx);
 		time(&p->lastrtptx);

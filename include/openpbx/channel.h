@@ -346,6 +346,9 @@ struct opbx_channel {
 
 	/*! The jitterbuffer state  */
 	struct opbx_jb jb;
+
+	/*! T38 mode enabled for this channel  */
+	int t38mode_enabled;
 };
 
 /* Channel tech properties: */

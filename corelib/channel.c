@@ -597,6 +597,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	opbx_copy_string(tmp->accountcode, opbx_default_accountcode, sizeof(tmp->accountcode));
 
 	tmp->tech = &null_tech;
+	tmp->t38mode_enabled=0;
 
 	opbx_mutex_lock(&chlock);
 	tmp->next = channels;
