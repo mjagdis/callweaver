@@ -83,12 +83,8 @@
 #endif
 
 #undef _POSIX_SOURCE
-#ifdef __linux__
-# include <linux/capability.h>
-#else
-# ifndef __FreeBSD__
-#  include <sys/capability.h>
-# endif
+#ifndef __FreeBSD__
+# include <sys/capability.h>
 #endif
 
 #include "openpbx.h"
