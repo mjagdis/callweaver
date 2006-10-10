@@ -1,4 +1,4 @@
-%define snap 1921
+%define snap 1923
 
 %bcond_without	fedora
 
@@ -162,6 +162,12 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -m0644 contrib/fedora/openpbx.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/openpbx
 
 mv $RPM_BUILD_ROOT/%{_datadir}/openpbx.org/ogi/eogi-*test $RPM_BUILD_ROOT/%{_sbindir}
+
+# More autocrap insanity. We can't just move confdefs.h into the openpbx/ subdir
+# because then autocrap will add that subdir to the compiler's include path and
+# many things break. So let's just clean up after it.
+sed -i 's:"confdefs.h":<openpbx/confdefs.h>:' $RPM_BUILD_ROOT/%{_includedir}/openpbx/*.h
+install -m0644 include/confdefs.h $RPM_BUILD_ROOT/%{_includedir}/openpbx/confdefs.h
 
 %clean
 rm -rf $RPM_BUILD_ROOT
