@@ -1,4 +1,4 @@
-%define snap 1914
+%define snap 1920
 
 %bcond_without	fedora
 
@@ -19,10 +19,10 @@ BuildRequires:	libtool automake autoconf
 BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
 BuildRequires:	unixODBC-devel openssl-devel zlib-devel speex-devel
-BuildRequires:	isdn4k-utils-devel
+BuildRequires:	isdn4k-utils-devel libcap-devel alsa-lib-devel sqlite-devel
+BuildRequires:	postgresql-devel
 
-Requires:	fedora-usermgmt /sbin/chkconfig
-
+Requires:	/sbin/chkconfig
 %{?FE_USERADD_REQ}
 
 %description
