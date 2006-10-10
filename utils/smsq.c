@@ -666,6 +666,9 @@ main (int argc, const char *argv[])
       return 1;
    }
 
+   /* Spooldir is setgid openpbx; allow created files to be group-writable */
+   umask(0002);
+
    if (oa || da)
    {                            /* send message */
       char temp[100],
