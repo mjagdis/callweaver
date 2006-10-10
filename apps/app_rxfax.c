@@ -423,7 +423,8 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
 	    	    opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
 		}
 	    }
-	    else
+
+            if (call_is_t38_mode)
             {
                 now = nowis();
                 t38_terminal_send_timeout(&t38, (now - passage)/125);
