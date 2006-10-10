@@ -1,13 +1,13 @@
 /*
- * Asterisk -- An open source telephony toolkit.
+ * OpenPBX -- An open source telephony toolkit.
  *
  * Copyright (C) 2004 - 2005
  *
- * SMS queuing application for use with asterisk app_sms
+ * SMS queuing application for use with OpenPBX app_sms
  * by Adrian Kennard
  *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
+ * See http://www.openpbx.org/ for more information about
+ * the OpenPBX project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
