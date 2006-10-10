@@ -71,6 +71,10 @@ if WANT_CHAN_MGCP
 SAMPLES += mgcp.conf.sample
 endif WANT_CHAN_MGCP
 
+if WANT_CHAN_MISDN
+SAMPLES += misdn.conf.sample
+endif WANT_CHAN_MISDN
+
 if WANT_CHAN_SIP
 SAMPLES += sip.conf.sample sip_notify.conf.sample
 endif WANT_CHAN_SIP

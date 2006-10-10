@@ -1441,6 +1441,27 @@ AC_ARG_WITH([chan_agent],
 AM_CONDITIONAL([WANT_CHAN_AGENT],[test "${with_chan_agent}" = "yes"])
 
 dnl ###########################################################################
+
+MISDN_CFLAGS=-I/usr/include/mISDNuser
+MISDN_LDFLAGS=
+
+AC_ARG_WITH([misdn-includes],
+	[AC_HELP_STRING([--with-misdn-includes],[Location of mISDN include files.])],
+	[MISDN_CFLAGS="-I${withval}"])
+
+AC_ARG_WITH([misdn-libs],
+	[AC_HELP_STRING([--with-misdn-libs],[Location of mISDN library files.])],
+	[MISDN_LDFLAGS="-L${withval}"])
+
+AC_SUBST(MISDN_CFLAGS)
+AC_SUBST(MISDN_LDFLAGS)
+
+AC_ARG_WITH([chan_misdn],
+	[AC_HELP_STRING([--with-chan_misdn],[Build and install chan_misdn (default=no)])],,[with_chan_misdn="yes"])
+
+AM_CONDITIONAL([WANT_CHAN_MISDN],[test "${with_chan_misdn}" = "yes"])
+
+dnl ###########################################################################
 	
 AC_ARG_WITH([chan_capi],
 	[AC_HELP_STRING([--with-chan_capi],[Build and install chan_capi (default=no)])],,[with_chan_capi="no"])
@@ -1988,6 +2009,7 @@ AC_OUTPUT([Makefile
                  channels/iax2/Makefile
                  channels/sccp/Makefile
                  channels/fax/Makefile
+                 channels/misdn/Makefile
                  codecs/Makefile
  		 corelib/Makefile
  		 corelib/jitterbuffer/Makefile
