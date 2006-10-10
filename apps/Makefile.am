@@ -452,4 +452,11 @@ app_getextstate_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_getextstate_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_GETEXTSTATE
 
+if WANT_APP_SMS
+opbxmod_LTLIBRARIES			+= app_sms.la
+app_sms_la_SOURCES			= app_sms.c
+app_sms_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_sms_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_SMS
+
 INCLUDES = -I$(top_srcdir)/include
