@@ -1,4 +1,4 @@
-%define snap 1920
+%define snap 1921
 
 %bcond_without	fedora
 
@@ -157,7 +157,10 @@ rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/modules/*.la
 rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.a
 rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.la
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
-install contrib/fedora/openpbx $RPM_BUILD_ROOT%{_initrddir}/openpbx
+install -m0755 contrib/fedora/openpbx $RPM_BUILD_ROOT%{_initrddir}/openpbx
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
+install -m0644 contrib/fedora/openpbx.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/openpbx
+
 mv $RPM_BUILD_ROOT/%{_datadir}/openpbx.org/ogi/eogi-*test $RPM_BUILD_ROOT/%{_sbindir}
 
 %clean
@@ -180,6 +183,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files
 %defattr(-,root,root,-)
 %doc COPYING CREDITS LICENSE BUGS AUTHORS SECURITY README HARDWARE
+%config(noreplace) %{_sysconfdir}/logrotate.d/openpbx
 %{_initrddir}/openpbx
 %{_sbindir}/openpbx
 %{_bindir}/streamplayer
