@@ -1457,7 +1457,7 @@ AC_SUBST(MISDN_CFLAGS)
 AC_SUBST(MISDN_LDFLAGS)
 
 AC_ARG_WITH([chan_misdn],
-	[AC_HELP_STRING([--with-chan_misdn],[Build and install chan_misdn (default=no)])],,[with_chan_misdn="yes"])
+	[AC_HELP_STRING([--with-chan_misdn],[Build and install chan_misdn (default=no)])],,[with_chan_misdn="no"])
 
 AM_CONDITIONAL([WANT_CHAN_MISDN],[test "${with_chan_misdn}" = "yes"])
 
