@@ -4268,9 +4268,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		struct opbx_channel *ast=ch->ast;
 		void *tmp;
 		int res;
-		int (*generate)(struct opbx_channel *chan, void *tmp, int datalen, int samples);
+		int (*generate)(struct opbx_channel *chan, void *tmp, int samples);
 
-		chan_misdn_log(9,bc->port,"TONE_GEN: len:%d\n");
+		chan_misdn_log(9,bc->port,"TONE_GEN: len:%d\n",tone_len);
 
 		if (!ast) break;
 
@@ -4287,7 +4287,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			tone_len=128;
 		}
 
-		res = generate(ast, tmp, tone_len, tone_len);
+		res = generate(ast, tmp, tone_len);
 		ast->gcd.gen_data = tmp;
 		
 		if (res) {
