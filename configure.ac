@@ -878,6 +878,12 @@ AC_ARG_WITH([app_sms],
 	[AC_HELP_STRING([--with-app_sms],[Build and install app_sms (default=yes)])],,
 	[with_app_sms="yes"])
 
+if test "${with_app_sms}"; then
+   AC_CHECK_HEADERS([popt.h], [HAVE_POPT_H=1])
+   AC_CHECK_LIB([popt], [poptStrerror], [HAVE_LIBPOPT=1])
+fi
+
+AM_CONDITIONAL([WANT_SMSQ],[test -n "${HAVE_POPT_H}" -a -n "${HAVE_LIBPOPT}"])
 AM_CONDITIONAL([WANT_APP_SMS],[test "${with_app_sms}" = "yes"])
 
 dnl ###########################################################################
