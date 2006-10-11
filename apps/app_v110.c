@@ -122,7 +122,32 @@ void v110_fill_outframe_x1(struct v110_state *vs, int);
 
 int loginpty(char *);
 
-static int echo_v110(struct opbx_channel *chan, void *data)
+static void *v110_gen_alloc (struct opbx_channel *chan, void *params)
+{
+	return params;
+}
+
+static void v110_gen_release (struct opbx_channel *chan, void *data)
+{
+	return;
+}
+
+static int v110_generate(struct opbx_channel *chan, void *data, int want)
+{
+	struct v110_state *vs = data;
+
+	vs->fill_outframe(vs, want);
+	return opbx_write(chan, &vs->f);
+}
+
+static struct opbx_generator v110_gen = {
+	.alloc = v110_gen_alloc,
+	.release = v110_gen_release,
+	.generate = v110_generate,
+};
+
+
+static int login_v110(struct opbx_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
@@ -174,7 +199,7 @@ static int echo_v110(struct opbx_channel *chan, void *data)
 	case URATE_9600:
 		vs->input_frame = v110_input_frame_x4;
 		vs->fill_outframe = v110_fill_outframe_x4;
-		primelen = 200;
+		primelen = 400;
 		break;
 
 	case URATE_12000:
@@ -182,14 +207,14 @@ static int echo_v110(struct opbx_channel *chan, void *data)
 	case URATE_19200:
 		vs->input_frame = v110_input_frame_x2;
 		vs->fill_outframe = v110_fill_outframe_x2;
-		primelen = 200;
+		primelen = 400;
 		break;
 
 	case URATE_14400: /* NB. isdn4linux 38400 */
 	case URATE_32000:
 		vs->input_frame = v110_input_frame_x1;
 		vs->fill_outframe = v110_fill_outframe_x1;
-		primelen = 200;
+		primelen = 400;
 		break;
 
 	default:
@@ -232,8 +257,13 @@ static int echo_v110(struct opbx_channel *chan, void *data)
 	vs->f.subclass = chan->readformat;
 	vs->f.frametype = OPBX_FRAME_VOICE;
 
-	vs->fill_outframe(vs, primelen);
-	opbx_write(chan, &vs->f);
+	v110_generate(chan, vs, primelen);
+
+	if (opbx_generator_activate(chan, &v110_gen, vs) < 0) {
+		opbx_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	while(opbx_waitfor(chan, -1) > -1) {
 		f = opbx_read(chan);
@@ -245,34 +275,6 @@ static int echo_v110(struct opbx_channel *chan, void *data)
 			int r, want;
 
 			vs->input_frame(vs, f);
-//#define LOOPBACK_HACK
-#ifndef LOOPBACK_HACK
-			want = f->datalen;
-			while (want > 4096) {
-				vs->fill_outframe(vs, 4096);
-				if (opbx_write(chan, &vs->f))
-					goto out;
-				want -= 4096;
-			}
-
-			vs->fill_outframe(vs, f->datalen);
-
-			if (opbx_write(chan, &vs->f)) 
-#else
-			if (f->datalen >= 8)
-				opbx_log(LOG_NOTICE, "Received frame: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-					((unsigned char *)f->data)[0],
-					((unsigned char *)f->data)[1],
-					((unsigned char *)f->data)[2],
-					((unsigned char *)f->data)[3],
-					((unsigned char *)f->data)[4],
-					((unsigned char *)f->data)[5],
-					((unsigned char *)f->data)[6],
-					((unsigned char *)f->data)[7]);
-
-			if (opbx_write(chan, f))
-#endif
-				break;
 
 			/* Flush v.110 incoming buffer (to pty) */
 			if (vs->ibufend > vs->ibufstart)
@@ -287,6 +289,7 @@ static int echo_v110(struct opbx_channel *chan, void *data)
 					r = 0;
 				if (r < 0) {
 					opbx_log(LOG_NOTICE, "Error writing to pty: %s\n", strerror(errno));
+					vs->sbit = 0x80;
 					opbx_softhangup(chan, OPBX_SOFTHANGUP_SHUTDOWN);
 					goto out;
 				}
@@ -319,6 +322,7 @@ static int echo_v110(struct opbx_channel *chan, void *data)
 				if (r < 0) {
 					/* It's expected that we get -EIO when the user logs out */
 					opbx_log(LOG_DEBUG, "Error reading from pty: %s\n", strerror(errno));
+					vs->sbit = 0x80;
 					opbx_softhangup(chan, OPBX_SOFTHANGUP_SHUTDOWN);
 					goto out;
 				}
@@ -470,15 +474,6 @@ void v110_input_frame_x4(struct v110_state *vs, struct opbx_frame *f)
 {
 	int datalen = f->datalen;
 	unsigned char *frame_data = f->data;
-
-	{
-		FILE *fp=fopen("/tmp/in","a");
-		int i;
-		for (i=0;i<f->datalen;i++) {
-			fprintf(fp,"%x ",frame_data[i]);
-		}
-		fclose(fp);
-	}
 
 	while (datalen) {
 		if (vs->vframe_in_len < 4) {
@@ -646,7 +641,7 @@ unsigned char v110_getline(struct v110_state *vs)
 
 	/* 'place' is the location within the octet to start the new
 	   data byte. It'll be 2 unless we've already got the tail of
-	   a previous data byte in this octet. If you're starting at it
+	   a previous data byte in this octet. If you're staring at it
 	   and think there's an off-by-one error, remember the start bit
 	   which is zero, and in bit (place-1). */
 	octet &= (vs->obuf[vs->obufstart] << place) | helper2[place-2];
@@ -658,16 +653,6 @@ unsigned char v110_getline(struct v110_state *vs)
 void v110_fill_outframe_x4(struct v110_state *vs, int datalen)
 {
 	unsigned char *pos = vs->f.data;
-	{
-		FILE *fp=fopen("/tmp/out","a");
-
-		int i;
-		for (i=0;i<datalen;i++) {
-			fprintf(fp,"%x ",pos[i]);
-		}
-		fclose(fp);
-	}
-
 
 	if (datalen & 3)
 		datalen = (datalen + 3) & ~3;
@@ -783,6 +768,8 @@ int loginpty(char *source)
 	if (pid)
 		exit(1);
 
+	sleep(2);
+
 	/* We are the grandchild. Close everything, start a new session, and
 	   open our shiny new controlling tty */
 	closeall(0);
@@ -817,7 +804,7 @@ int loginpty(char *source)
 
 int load_module(void)
 {
-	return opbx_register_application(app, echo_v110, synopsis, descrip);
+	return opbx_register_application(app, login_v110, synopsis, descrip);
 }
 
 char *description(void)
