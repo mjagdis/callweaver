@@ -408,14 +408,16 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         {
 	    time(&thistime);
 	    if ( (thistime-begin) >= 20 && (!rxpkt) ) {
-	        opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
-                break;
+	    	opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
+        	break;
 	    }
 
             now = nowis();
             delay = (next < now)  ?  0  :  (next - now + 500)/1000;
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
+	    // increment received packet count.
+	    rxpkt+=res;
 		
             if (!call_is_t38_mode) {
 		if (chan->t38mode_enabled==1) {
@@ -443,7 +445,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 res = -1;
                 break;
             }
-	    rxpkt+=res;
+
 	    time(&begin);
             if (inf->frametype == OPBX_FRAME_VOICE  &&  !call_is_t38_mode)
             {
