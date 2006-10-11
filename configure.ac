@@ -896,6 +896,14 @@ AM_CONDITIONAL([WANT_APP_PIPE],[test "${with_app_pipe}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_v110],
+   [AC_HELP_STRING([--with-app_v110],[Build and install app_v110 (default=yes)])],,
+   [with_app_v110="yes"])
+
+AM_CONDITIONAL([WANT_APP_V110],[test "${with_app_v110}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_authenticate],
 	[AC_HELP_STRING([--with-app_authenticate],[Build and install app_authenticate (default=yes)])],,
 	[with_app_authenticate="yes"])
