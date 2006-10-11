@@ -326,7 +326,7 @@ static int do_reload(int loading)
 
 	/* if this reload enabled the manager, create the background thread
 	   if it does not exist 
-	   This no longer uses a thread since the scheduler has it's own
+	   This no longer uses a thread since the scheduler has its own
 	   timers now */
 	if (enabled && !was_enabled && (refresh_thread == OPBX_PTHREADT_NULL)) {
 		opbx_cli_register(&cli_refresh);

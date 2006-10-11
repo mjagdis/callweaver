@@ -91,7 +91,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 		}
 
 		/* In case the generator thread hasn't yet processed a
-		 * previous activation request, we need to release it's data */
+		 * previous activation request, we need to release its data */
 		if (pgcd->gen_req == gen_req_activate)
 			pgcd->gen_free(chan, pgcd->gen_data);
 		
@@ -125,7 +125,7 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 		 chan->name);
 
 	/* In case the generator thread hasn't yet processed a
-	 * previous activation request, we need to release it's data */
+	 * previous activation request, we need to release its data */
 	opbx_mutex_lock(&pgcd->lock);
 	if (pgcd->gen_req == gen_req_activate)
 		pgcd->gen_free(chan, pgcd->gen_data);
