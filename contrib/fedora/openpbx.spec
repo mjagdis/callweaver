@@ -1,5 +1,6 @@
-%define snap 1948
+%define snap 1950
 %define build_misdn 0
+%define build_zap 0
 
 %bcond_without	fedora
 
@@ -24,6 +25,9 @@ BuildRequires:	isdn4k-utils-devel libcap-devel alsa-lib-devel sqlite-devel
 BuildRequires:	postgresql-devel popt
 %if %build_misdn
 BuildRequires:	mISDN
+%endif
+%if %build_zap
+BuildRequires:	zaptel-devel libpri-devel
 %endif
 
 Requires:	/sbin/chkconfig
@@ -103,6 +107,15 @@ This package contains the mISDN channel driver for OpenPBX. mISDN is
 the replacement modular ISDN stack for Linux, intended to be merged
 into the 2.6 kernel.
 
+%package zaptel
+Group:		Applications/Internet
+Summary:	Zaptel modules for OpenPBX
+Requires:	%{name} = %{version}-%{release}
+
+%description zaptel
+This package contains the Zap channel driver and MeetMe application
+for OpenPBX. Zaptel is Digium's telephony driver package.
+
 %package jabber
 Group:		Applications/Internet
 Summary:	Jabber support for OpenPBX
@@ -156,6 +169,9 @@ convenient interface between OpenPBX and external scripts or programs.
 %if %build_misdn
 	   --with-chan_misdn \
 %endif
+%if %build_zap
+	   --enable-zaptel \
+%endif
 	   --enable-jabber --with-res_jabber # --with-res_sqlite
 
 # Poxy fscking libtool is _such_ a pile of crap...
@@ -166,6 +182,8 @@ sed -i 's:^/usr/bin/perl:#! /usr/bin/perl:' ogi/fastogi-test ogi/ogi-test.ogi
 
 make %{?_smp_mflags} CCLD="gcc -Wl,--as-needed"
 
+mkdir doc2
+mv doc/README.{misdn,chan_capi,res_jabber,odbcstorage} doc2
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -206,6 +224,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files
 %defattr(-,root,root,-)
 %doc COPYING CREDITS LICENSE BUGS AUTHORS SECURITY README HARDWARE
+%doc doc/README.* doc/*.txt doc/*.html
 %config(noreplace) %{_sysconfdir}/logrotate.d/openpbx
 %{_initrddir}/openpbx
 %{_sbindir}/openpbx
@@ -245,6 +264,12 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_libdir}/openpbx.org/modules/chan_misdn.so
 %exclude %{_sysconfdir}/openpbx.org/misdn.conf
 %endif
+%if %build_zap
+%exclude %{_libdir}/openpbx.org/modules/chan_zap.so
+%exclude %{_libdir}/openpbx.org/modules/app_meetme.so
+%exclude %{_sysconfdir}/openpbx.org/zapata.conf
+%exclude %{_sysconfdir}/openpbx.org/meetme.conf
+%endif
 
 %files devel
 %defattr(-,root,root,-)
@@ -260,6 +285,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files odbc
 %{_libdir}/openpbx.org/modules/cdr_odbc.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/cdr_odbc.conf
+%doc doc2/README.odbcstorage
 
 %files ldap
 %{_libdir}/openpbx.org/modules/app_ldap.so
@@ -271,16 +297,27 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files capi
 %{_libdir}/openpbx.org/modules/chan_capi.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/capi.conf
+%doc doc2/README.chan_capi
 
 %if %build_misdn
 %files misdn
 %{_libdir}/openpbx.org/modules/chan_misdn.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/misdn.conf
+%doc doc2/README.misdn
+%endif
+
+%if %build_zap
+%files zaptel
+%{_libdir}/openpbx.org/modules/chan_zap.so
+%{_libdir}/openpbx.org/modules/app_meetme.so
+%config(noreplace) %{_sysconfdir}/openpbx.org/zapata.conf
+%config(noreplace) %{_sysconfdir}/openpbx.org/meetme.conf
 %endif
 
 %files jabber
 %{_libdir}/openpbx.org/modules/res_jabber.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/res_jabber.conf
+%doc doc2/README.res_jabber
 
 %files javascript
 %{_libdir}/openpbx.org/modules/res_js.so
