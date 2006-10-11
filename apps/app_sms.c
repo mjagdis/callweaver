@@ -30,6 +30,7 @@ OPENPBX_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <errno.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -45,9 +46,6 @@ OPENPBX_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 #include "openpbx/module.h"
 #include "openpbx/alaw.h"
 #include "openpbx/callerid.h"
-
-/* output using Alaw rather than linear */
-#define OUTALAW
 
 /* ToDo */
 /* Add full VP support */
@@ -92,11 +90,6 @@ static signed short wave[] = {
 	-4985, -4938, -4862,
 	-4755, -4619, -4455, -4263, -4045, -3802, -3536, -3247, -2939, -2612, -2270, -1913, -1545, -1167, -782, -392
 };
-
-#ifdef OUTALAW
-static unsigned char wavea[80];
-#endif
-
 
 /* SMS 7 bit character mapping to UCS-2 */
 static const unsigned short defaultalphabet[] = {
@@ -611,7 +604,7 @@ static unsigned char unpackaddress (char *o, unsigned char *i)
 }
 
 /*! \brief store an address at o, and return number of bytes used */
-static unsigned char packaddress (unsigned char *o, char *i)
+static unsigned char packaddress(unsigned char *o, char *i)
 {
 	unsigned char p = 2;
 	o[0] = 0;
@@ -636,7 +629,7 @@ static unsigned char packaddress (unsigned char *o, char *i)
 }
 
 /*! \brief Log the output, and remove file */
-static void sms_log (sms_t * h, char status)
+static void sms_log(sms_t * h, char status)
 {
 	if (*h->oa || *h->da) {
 		int o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, 0666);
@@ -857,7 +850,7 @@ static void sms_readfile (sms_t * h, char *fn)
 }
 
 /*! \brief white a received text message to a file */
-static void sms_writefile (sms_t * h)
+static void sms_writefile(sms_t * h)
 {
 	char fn[200] = "", fn2[200] = "";
 	FILE *o;
@@ -944,7 +937,7 @@ static void sms_writefile (sms_t * h)
 }
 
 /*! \brief read dir skipping dot files... */
-static struct dirent *readdirqueue (DIR * d, char *queue)
+static struct dirent *readdirqueue(DIR * d, char *queue)
 {
    struct dirent *f;
    do {
@@ -954,7 +947,7 @@ static struct dirent *readdirqueue (DIR * d, char *queue)
 }
 
 /*! \brief handle the incoming message */
-static unsigned char sms_handleincoming (sms_t * h)
+static unsigned char sms_handleincoming(sms_t * h)
 {
 	unsigned char p = 3;
 	if (h->smsc) {									 /* SMSC */
@@ -1025,7 +1018,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 #endif
 
 /*! \brief find and fill in next message, or send a REL if none waiting */
-static void sms_nextoutgoing (sms_t * h)
+static void sms_nextoutgoing(sms_t * h)
 {          
 	char fn[100 + NAME_MAX] = "";
 	DIR *d;
@@ -1175,16 +1168,12 @@ static void sms_messagetx(sms_t * h)
 	h->obyten = h->omsg[1] + 3;
 }
 
-static int sms_generate (struct opbx_channel *chan, void *data, int samples)
+static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	int len;
 	struct opbx_frame f = { 0 };
 #define MAXSAMPLES (800)
-#ifdef OUTALAW
-	unsigned char *buf;
-#else
-	short *buf;
-#endif
+	int16_t *buf;
 #define SAMPLE2LEN sizeof(*buf)
 	sms_t *h = data;
 	int i;
@@ -1198,11 +1187,7 @@ static int sms_generate (struct opbx_channel *chan, void *data, int samples)
 	buf = alloca(len);
 
 	f.frametype = OPBX_FRAME_VOICE;
-#ifdef OUTALAW
-	f.subclass = OPBX_FORMAT_ALAW;
-#else
 	f.subclass = OPBX_FORMAT_SLINEAR;
-#endif
 	f.datalen = len;
 	f.offset = OPBX_FRIENDLY_OFFSET;
 	f.mallocd = 0;
@@ -1211,19 +1196,11 @@ static int sms_generate (struct opbx_channel *chan, void *data, int samples)
 	f.src = "app_sms";
 	/* create a buffer containing the digital sms pattern */
 	for (i = 0; i < samples; i++) {
-#ifdef OUTALAW
-		buf[i] = wavea[0];
-#else
 		buf[i] = wave[0];
-#endif
 		if (h->opause)
 			h->opause--;
 		else if (h->obyten || h->osync) {								 /* sending data */
-#ifdef OUTALAW
-			buf[i] = wavea[h->ophase];
-#else
 			buf[i] = wave[h->ophase];
-#endif
 			if ((h->ophase += ((h->obyte & 1) ? 13 : 21)) >= 80)
 				h->ophase -= 80;
 			if ((h->ophasep += 12) >= 80) {							 /* next bit */
@@ -1259,7 +1236,7 @@ static int sms_generate (struct opbx_channel *chan, void *data, int samples)
 #undef MAXSAMPLES
 }
 
-static void sms_process (sms_t * h, int samples, signed short *data)
+static void sms_process(sms_t *h, int samples, signed short *data)
 {
 	if (h->obyten || h->osync)
 		return;						 /* sending */
@@ -1359,11 +1336,13 @@ static struct opbx_generator smsgen = {
 	generate:sms_generate,
 };
 
-static int sms_exec (struct opbx_channel *chan, void *data)
+static int sms_exec(struct opbx_channel *chan, void *data)
 {
 	int res = -1;
 	struct localuser *u;
 	struct opbx_frame *f;
+    int original_read_fmt;
+    int original_write_fmt;
 	sms_t h = { 0 };
 	
 	LOCAL_USER_ADD(u);
@@ -1382,7 +1361,8 @@ static int sms_exec (struct opbx_channel *chan, void *data)
 	{
 		unsigned char *p;
 		unsigned char *d = data,
-			answer = 0;
+
+		answer = 0;
 		if (!*d || *d == '|') {
 			opbx_log (LOG_ERROR, "Requires queue name\n");
 			LOCAL_USER_REMOVE(u);
@@ -1441,9 +1421,9 @@ static int sms_exec (struct opbx_channel *chan, void *data)
 				return 0;
 			}
 			if (h.smsc) {
-				opbx_copy_string (h.oa, (char *)d, sizeof (h.oa));
+				opbx_copy_string (h.oa, (char *) d, sizeof(h.oa));
 			} else {
-				opbx_copy_string (h.da, (char *)d, sizeof (h.da));
+				opbx_copy_string (h.da, (char *) d, sizeof(h.da));
 			}
 			if (!h.smsc)
 				opbx_copy_string (h.oa, h.cli, sizeof (h.oa));
@@ -1475,13 +1455,27 @@ static int sms_exec (struct opbx_channel *chan, void *data)
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer (chan);
 
-#ifdef OUTALAW
-	res = opbx_set_write_format (chan, OPBX_FORMAT_ALAW);
-#else
-	res = opbx_set_write_format (chan, OPBX_FORMAT_SLINEAR);
-#endif
-	if (res >= 0)
-		res = opbx_set_read_format (chan, OPBX_FORMAT_SLINEAR);
+     original_read_fmt = chan->readformat;
+     if (original_read_fmt != OPBX_FORMAT_SLINEAR)
+     {
+        if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) < 0)
+        {
+            opbx_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+            return -1;
+        }
+    }
+    original_write_fmt = chan->writeformat;
+    if (original_write_fmt != OPBX_FORMAT_SLINEAR)
+    {
+        if ((res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) < 0)
+        {
+            opbx_log(LOG_WARNING, "Unable to set to linear write mode, giving up\n");
+            if ((res = opbx_set_read_format(chan, original_read_fmt)))
+                opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+            return -1;
+        }
+    }
+
 	if (res < 0) {
 		opbx_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
 		LOCAL_USER_REMOVE(u);
@@ -1495,9 +1489,9 @@ static int sms_exec (struct opbx_channel *chan, void *data)
 	}
 
 	/* Do our thing here */
-	while (opbx_waitfor (chan, -1) > -1 && !h.hangup)
+	while (opbx_waitfor(chan, -1) > -1 && !h.hangup)
 	{
-		f = opbx_read (chan);
+		f = opbx_read(chan);
 		if (!f)
 			break;
 		if (f->frametype == OPBX_FRAME_VOICE) {
@@ -1506,6 +1500,16 @@ static int sms_exec (struct opbx_channel *chan, void *data)
 
 		opbx_frfree (f);
 	}
+    if (original_read_fmt != OPBX_FORMAT_SLINEAR)
+    {
+        if ((res = opbx_set_read_format(chan, original_read_fmt)))
+            opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+    }
+    if (original_write_fmt != OPBX_FORMAT_SLINEAR)
+    {
+        if ((res = opbx_set_write_format(chan, original_write_fmt)))
+            opbx_log(LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
+    }
 
 	sms_log (&h, '?');			  /* log incomplete message */
 
@@ -1516,7 +1520,8 @@ static int sms_exec (struct opbx_channel *chan, void *data)
 int unload_module(void)
 {
 	int res;
-        STANDARD_HANGUP_LOCALUSERS;
+    
+    STANDARD_HANGUP_LOCALUSERS;
 
 	res = opbx_unregister_application (app);
 	return res;	
@@ -1524,13 +1529,6 @@ int unload_module(void)
 
 int load_module(void)
 {
-#ifdef OUTALAW
-	{
-		int p;
-		for (p = 0; p < 80; p++)
-			wavea[p] = OPBX_LIN2A (wave[p]);
-	}
-#endif
 	snprintf (log_file, sizeof (log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
 	snprintf (spool_dir, sizeof (spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
 	return opbx_register_application (app, sms_exec, synopsis, descrip);
@@ -1538,13 +1536,12 @@ int load_module(void)
 
 char *description(void)
 {
-        return synopsis;
+    return synopsis;
 }
 
 int usecount(void)
 {
-        int res;
-        STANDARD_USECOUNT(res);
-        return res;
+    int res;
+    STANDARD_USECOUNT(res);
+    return res;
 }
-
