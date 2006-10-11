@@ -214,7 +214,7 @@ static char * isodate (time_t t)
 /*! \brief reads next UCS character from null terminated UTF-8 string and advanced pointer */
 /* for non valid UTF-8 sequences, returns character as is */
 /* Does not advance pointer for null termination */
-static long utf8decode (unsigned char **pp)
+static long utf8decode(unsigned char **pp)
 {
 	unsigned char *p = *pp;
 	if (!*p)
@@ -261,7 +261,7 @@ static long utf8decode (unsigned char **pp)
 /* The return value is the number of septets packed in to o, which is internally limited to SMSLEN */
 /* o can be null, in which case this is used to validate or count only */
 /* if the input contains invalid characters then the return value is -1 */
-static int packsms7 (unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms7(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	 unsigned char p = 0, b = 0, n = 0;
 
@@ -331,7 +331,7 @@ static int packsms7 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 /* The return value is the number of bytes packed in to o, which is internally limited to 140 */
 /* o can be null, in which case this is used to validate or count only */
 /* if the input contains invalid characters then the return value is -1 */
-static int packsms8 (unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms8(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	unsigned char p = 0;
 
@@ -367,7 +367,7 @@ static int packsms8 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 	o can be null, in which case this is used to validate or count 
 	only if the input contains invalid characters then 
 	the return value is -1 */
-static int packsms16 (unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms16(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	unsigned char p = 0;
 	/* header - no encoding */
@@ -398,7 +398,7 @@ static int packsms16 (unsigned char *o, int udhl, unsigned char *udh, int udl, u
 
 /*! \brief general pack, with length and data, 
 	returns number of bytes of target used */
-static int packsms (unsigned char dcs, unsigned char *base, unsigned int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	unsigned char *p = base;
 	if (udl) {
@@ -429,7 +429,7 @@ static int packsms (unsigned char dcs, unsigned char *base, unsigned int udhl, u
 
 
 /*! \brief pack a date and return */
-static void packdate (unsigned char *o, time_t w)
+static void packdate(unsigned char *o, time_t w)
 {
 	struct tm *t = localtime (&w);
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
@@ -450,7 +450,7 @@ static void packdate (unsigned char *o, time_t w)
 }
 
 /*! \brief unpack a date and return */
-static time_t unpackdate (unsigned char *i)
+static time_t unpackdate(unsigned char *i)
 {
 	struct tm t;
 	t.tm_year = 100 + (i[0] & 0xF) * 10 + (i[0] >> 4);
@@ -470,10 +470,11 @@ static time_t unpackdate (unsigned char *i)
 /*! \brief unpacks bytes (7 bit encoding) at i, len l septets, 
 	and places in udh and ud setting udhl and udl. udh not used 
 	if udhi not set */
-static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned char b = 0, p = 0;
 	unsigned short *o = ud;
+
 	*udhl = 0;
 	if (udhi && l) {		 /* header */
 		int h = i[p];
@@ -521,7 +522,7 @@ static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, i
 /*! \brief unpacks bytes (8 bit encoding) at i, len l septets, 
       and places in udh and ud setting udhl and udl. udh not used 
       if udhi not set */
-static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned short *o = ud;
 	*udhl = 0;
@@ -546,7 +547,7 @@ static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, i
 /*! \brief unpacks bytes (16 bit encoding) at i, len l septets,
 	 and places in udh and ud setting udhl and udl. 
 	udh not used if udhi not set */
-static void unpacksms16 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned short *o = ud;
 	*udhl = 0;
@@ -573,7 +574,7 @@ static void unpacksms16 (unsigned char *i, unsigned char l, unsigned char *udh, 
 }
 
 /*! \brief general unpack - starts with length byte (octet or septet) and returns number of bytes used, inc length */
-static int unpacksms (unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static int unpacksms(unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	int l = *i++;
 	if (is7bit (dcs)) {
@@ -587,10 +588,11 @@ static int unpacksms (unsigned char dcs, unsigned char *i, unsigned char *udh, i
 }
 
 /*! \brief unpack an address from i, return byte length, unpack to o */
-static unsigned char unpackaddress (char *o, unsigned char *i)
+static unsigned char unpackaddress(char *o, unsigned char *i)
 {
-	unsigned char l = i[0],
-		p;
+	unsigned char l = i[0];
+	unsigned char p;
+
 	if (i[1] == 0x91)
 		*o++ = '+';
 	for (p = 0; p < l; p++) {
@@ -659,15 +661,15 @@ static void sms_log(sms_t * h, char status)
 					*p++ = h->ud[n];
 			*p++ = '\n';
 			*p = 0;
-			write (o, line, strlen (line));
-			close (o);
+			write(o, line, strlen (line));
+			close(o);
 		}
 		*h->oa = *h->da = h->udl = 0;
 	}
 }
 
 /*! \brief parse and delete a file */
-static void sms_readfile (sms_t * h, char *fn)
+static void sms_readfile(sms_t * h, char *fn)
 {
 	char line[1000];
 	FILE *s;
@@ -852,16 +854,18 @@ static void sms_readfile (sms_t * h, char *fn)
 /*! \brief white a received text message to a file */
 static void sms_writefile(sms_t * h)
 {
-	char fn[200] = "", fn2[200] = "";
+	char fn[200] = "";
+	char fn2[200] = "";
 	FILE *o;
-	opbx_copy_string (fn, spool_dir, sizeof (fn));
-	mkdir (fn, 0777);			/* ensure it exists */
-	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
-	mkdir (fn, 0777);			/* ensure it exists */
-	opbx_copy_string (fn2, fn, sizeof (fn2));
-	snprintf (fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate (h->scts), seq++);
-	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
-	o = fopen (fn, "w");
+
+	opbx_copy_string(fn, spool_dir, sizeof (fn));
+	mkdir(fn, 0777);			/* ensure it exists */
+	snprintf(fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
+	mkdir(fn, 0777);			/* ensure it exists */
+	opbx_copy_string(fn2, fn, sizeof (fn2));
+	snprintf(fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate (h->scts), seq++);
+	snprintf(fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
+	o = fopen(fn, "w");
 	if (o) {
 		if (*h->oa)
 			fprintf (o, "oa=%s\n", h->oa);
@@ -885,16 +889,16 @@ static void sms_writefile(sms_t * h)
 				if (v < 32)
 					fputc (191, o);
 				else if (v < 0x80)
-					fputc (v, o);
+					fputc(v, o);
 				else if (v < 0x800)
 				{
-					fputc (0xC0 + (v >> 6), o);
-					fputc (0x80 + (v & 0x3F), o);
+					fputc(0xC0 + (v >> 6), o);
+					fputc(0x80 + (v & 0x3F), o);
 				} else
 				{
-					fputc (0xE0 + (v >> 12), o);
-					fputc (0x80 + ((v >> 6) & 0x3F), o);
-					fputc (0x80 + (v & 0x3F), o);
+					fputc(0xE0 + (v >> 12), o);
+					fputc(0x80 + ((v >> 6) & 0x3F), o);
+					fputc(0x80 + (v & 0x3F), o);
 				}
 			}
 			fprintf (o, "\n");
@@ -950,6 +954,7 @@ static struct dirent *readdirqueue(DIR * d, char *queue)
 static unsigned char sms_handleincoming(sms_t * h)
 {
 	unsigned char p = 3;
+
 	if (h->smsc) {									 /* SMSC */
 		if ((h->imsg[2] & 3) == 1) {				/* SMS-SUBMIT */
 			h->udhl = h->udl = 0;
@@ -977,7 +982,7 @@ static unsigned char sms_handleincoming(sms_t * h)
 				p += 7;				 /* ignore enhanced / absolute VP */
 			p += unpacksms (h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
 			h->rx = 1;				 /* received message */
-			sms_writefile (h);	  /* write the file */
+			sms_writefile(h);	  /* write the file */
 			if (p != h->imsg[1] + 2) {
 				opbx_log (LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
 				return 0xFF;		  /* duh! */
@@ -996,11 +1001,11 @@ static unsigned char sms_handleincoming(sms_t * h)
 			p += unpackaddress (h->oa, h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
-			h->scts = unpackdate (h->imsg + p);
+			h->scts = unpackdate(h->imsg + p);
 			p += 7;
 			p += unpacksms (h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
 			h->rx = 1;				 /* received message */
-			sms_writefile (h);	  /* write the file */
+			sms_writefile(h);	  /* write the file */
 			if (p != h->imsg[1] + 2) {
 				opbx_log (LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
 				return 0xFF;		  /* duh! */
@@ -1023,6 +1028,7 @@ static void sms_nextoutgoing(sms_t * h)
 	char fn[100 + NAME_MAX] = "";
 	DIR *d;
 	char more = 0;
+
 	opbx_copy_string (fn, spool_dir, sizeof (fn));
 	mkdir (fn, 0777);				/* ensure it exists */
 	h->rx = 0;						 /* outgoing message */
@@ -1084,10 +1090,11 @@ static void sms_nextoutgoing(sms_t * h)
 
 static void sms_debug (char *dir, unsigned char *msg)
 {
-	char txt[259 * 3 + 1],
-	 *p = txt;						 /* always long enough */
-	int n = msg[1] + 3,
-		q = 0;
+	char txt[259 * 3 + 1];
+    char *p = txt;						 /* always long enough */
+	int n = msg[1] + 3;
+    int	q = 0;
+
 	while (q < n && q < 30) {
 		sprintf (p, " %02X", msg[q++]);
 		p += 3;
@@ -1100,7 +1107,7 @@ static void sms_debug (char *dir, unsigned char *msg)
 
 static void sms_messagerx(sms_t * h)
 {
-	sms_debug ("RX", h->imsg);
+	sms_debug("RX", h->imsg);
 	/* testing */
 	switch (h->imsg[0]) {
 	case 0x91:						/* SMS_DATA */
@@ -1154,6 +1161,7 @@ static void sms_messagerx(sms_t * h)
 static void sms_messagetx(sms_t * h)
 {
 	unsigned char c = 0, p;
+
 	for (p = 0; p < h->omsg[1] + 2; p++)
 		c += h->omsg[p];
 	h->omsg[h->omsg[1] + 2] = 0 - c;
@@ -1170,11 +1178,10 @@ static void sms_messagetx(sms_t * h)
 
 static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 {
+#define MAXSAMPLES (800)
 	int len;
 	struct opbx_frame f = { 0 };
-#define MAXSAMPLES (800)
 	int16_t *buf;
-#define SAMPLE2LEN sizeof(*buf)
 	sms_t *h = data;
 	int i;
 
@@ -1183,19 +1190,20 @@ static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 			 MAXSAMPLES, samples);
 		samples = MAXSAMPLES;
 	}
-	len = samples * SAMPLE2LEN + OPBX_FRIENDLY_OFFSET;
+	len = samples*sizeof(int16_t) + OPBX_FRIENDLY_OFFSET;
 	buf = alloca(len);
 
 	f.frametype = OPBX_FRAME_VOICE;
 	f.subclass = OPBX_FORMAT_SLINEAR;
-	f.datalen = len;
+	f.datalen = samples*sizeof(int16_t);
 	f.offset = OPBX_FRIENDLY_OFFSET;
 	f.mallocd = 0;
-	f.data = buf;
+	f.data = &buf[OPBX_FRIENDLY_OFFSET];
 	f.samples = samples;
 	f.src = "app_sms";
-	/* create a buffer containing the digital sms pattern */
-	for (i = 0; i < samples; i++) {
+
+	/* Create a buffer containing the digital sms pattern */
+	for (i = 0;  i < samples;  i++) {
 		buf[i] = wave[0];
 		if (h->opause)
 			h->opause--;
@@ -1227,7 +1235,7 @@ static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 			}
 		}
 	}
-	if (opbx_write (chan, &f) < 0) {
+	if (opbx_write(chan, &f) < 0) {
 		opbx_log (LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror (errno));
 		return -1;
 	}
@@ -1238,7 +1246,7 @@ static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 
 static void sms_process(sms_t *h, int samples, signed short *data)
 {
-	if (h->obyten || h->osync)
+	if (h->obyten  ||  h->osync)
 		return;						 /* sending */
 	while (samples--) {
 		unsigned long long m0, m1;
@@ -1368,7 +1376,7 @@ static int sms_exec(struct opbx_channel *chan, void *data)
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
-		for (p = d; *p && *p != '|'; p++);
+		for (p = d;  *p  &&  *p != '|';  p++);
 		if (p - d >= sizeof (h.queue)) {
 			opbx_log (LOG_ERROR, "Queue name too long\n");
 			LOCAL_USER_REMOVE(u);
