@@ -10817,9 +10817,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			/* If there was T38 reinvite and we are supposed to answer with 200 OK than this should set us to T38 negotiated mode */
 			p->t38state = 5;
 			opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, p->owner ? p->owner->name : "<none>");
-//ASD
-			p->owner->t38mode_enabled=1;
-			opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+			if (p->owner) {
+			    p->owner->t38mode_enabled=1;
+			    opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+			}
 		}		
 #endif		
 		if (!ignore && p->owner) {
@@ -11853,9 +11854,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_with_t38_sdp(p, "200 OK", req, 1);
 				p->t38state = 5;
 				opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-//ASD
-				p->owner->t38mode_enabled=1;
-				opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+				if (p->owner) {
+				    p->owner->t38mode_enabled=1;
+				    opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+				}
 			    }
 			} else if (p->t38state == 0) { /* Channel doesn't have T38 offered or enabled */
 					/* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
@@ -14147,7 +14149,7 @@ static int reload_config(void)
 
 		/* Our extern IP address, if configured */
 
-//ASD add stun ip to domains if needed
+//TODO add stun ip to domains if needed
 		if (externip.sin_addr.s_addr) {
 			opbx_inet_ntoa(temp, sizeof(temp), externip.sin_addr);
 			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);
