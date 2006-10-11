@@ -1,4 +1,5 @@
-%define snap 1923
+%define snap 1948
+%define build_misdn 0
 
 %bcond_without	fedora
 
@@ -20,7 +21,10 @@ BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
 BuildRequires:	unixODBC-devel openssl-devel zlib-devel speex-devel
 BuildRequires:	isdn4k-utils-devel libcap-devel alsa-lib-devel sqlite-devel
-BuildRequires:	postgresql-devel
+BuildRequires:	postgresql-devel popt
+%if %build_misdn
+BuildRequires:	mISDN
+%endif
 
 Requires:	/sbin/chkconfig
 %{?FE_USERADD_REQ}
@@ -35,7 +39,7 @@ web browser using CGI and a web server.
 OpenPBX talks to a variety of telephony hardware including BRI, PRI,
 POTS, Bluetooth headsets and IP telephony clients using SIP and IAX
 protocols protocol (e.g. ekiga or kphone).  For more information and a
-current list of supported hardware, see www.openpbx.com.
+current list of supported hardware, see www.openpbx.org.
 
 
 %package devel
@@ -89,6 +93,16 @@ Requires:	%{name} = %{version}-%{release}
 This package contains a CAPI (Common ISDN API) channel driver for
 OpenPBX, allowing CAPI devices to be used for making and receiving calls.
 
+%package misdn
+Group:		Applications/Internet
+Summary:	mISDN channel driver for OpenPBX
+Requires:	%{name} = %{version}-%{release}
+
+%description misdn
+This package contains the mISDN channel driver for OpenPBX. mISDN is
+the replacement modular ISDN stack for Linux, intended to be merged
+into the 2.6 kernel.
+
 %package jabber
 Group:		Applications/Internet
 Summary:	Jabber support for OpenPBX
@@ -99,7 +113,7 @@ This package contains Jabber protocol support for OpenPBX.
 
 %package javascript
 Group:		Applications/Internet
-Summary:	Jabber support for OpenPBX
+Summary:	JavaScript support for OpenPBX
 Requires:	%{name} = %{version}-%{release}
 
 %description javascript
@@ -139,6 +153,9 @@ convenient interface between OpenPBX and external scripts or programs.
 	   --with-res_config_pqsql --with-cdr-odbc --with-res_config_odbc \
 	   --with-perl-shebang='#! /usr/bin/perl' --disable-builtin-sqlite3 \
 	   --enable-javascript --with-res_js --enable-fast-install \
+%if %build_misdn
+	   --with-chan_misdn \
+%endif
 	   --enable-jabber --with-res_jabber # --with-res_sqlite
 
 # Poxy fscking libtool is _such_ a pile of crap...
@@ -192,6 +209,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %config(noreplace) %{_sysconfdir}/logrotate.d/openpbx
 %{_initrddir}/openpbx
 %{_sbindir}/openpbx
+%{_bindir}/smsq
 %{_bindir}/streamplayer
 %dir %{_libdir}/openpbx.org
 %{_libdir}/openpbx.org/lib*.so.*
@@ -201,7 +219,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %dir %{_datadir}/openpbx.org
 %dir %attr(0755,openpbx,openpbx) %{_sysconfdir}/openpbx.org
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/*
-%attr(0755,openpbx,openpbx) %{_localstatedir}/spool/openpbx.org
+%attr(2755,openpbx,openpbx) %{_localstatedir}/spool/openpbx.org
 %attr(0755,openpbx,openpbx) %{_localstatedir}/log/openpbx.org
 %attr(0755,openpbx,openpbx) %{_localstatedir}/run/openpbx.org
 # Unneeded
@@ -223,6 +241,10 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_sysconfdir}/openpbx.org/res_jabber.conf
 %exclude %{_sysconfdir}/openpbx.org/alsa.conf
 %exclude %{_sysconfdir}/openpbx.org/capi.conf
+%if %build_misdn
+%exclude %{_libdir}/openpbx.org/modules/chan_misdn.so
+%exclude %{_sysconfdir}/openpbx.org/misdn.conf
+%endif
 
 %files devel
 %defattr(-,root,root,-)
@@ -249,6 +271,12 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files capi
 %{_libdir}/openpbx.org/modules/chan_capi.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/capi.conf
+
+%if %build_misdn
+%files misdn
+%{_libdir}/openpbx.org/modules/chan_misdn.so
+%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/misdn.conf
+%endif
 
 %files jabber
 %{_libdir}/openpbx.org/modules/res_jabber.so
