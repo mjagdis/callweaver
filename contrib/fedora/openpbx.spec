@@ -1,6 +1,7 @@
-%define snap 1950
-%define build_misdn 0
-%define build_zap 0
+%define snap 1948
+
+%bcond_with misdn
+%bcond_with zaptel
 
 %bcond_without	fedora
 
@@ -22,13 +23,8 @@ BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
 BuildRequires:	unixODBC-devel openssl-devel zlib-devel speex-devel
 BuildRequires:	isdn4k-utils-devel libcap-devel alsa-lib-devel sqlite-devel
-BuildRequires:	postgresql-devel popt
-%if %build_misdn
-BuildRequires:	mISDN
-%endif
-%if %build_zap
-BuildRequires:	zaptel-devel libpri-devel
-%endif
+BuildRequires:	postgresql-devel popt %{?with_misdn:mISDN}
+BuildRequires:	popt %{?with_zaptel:zaptel-devel libpri-devel}
 
 Requires:	/sbin/chkconfig
 %{?FE_USERADD_REQ}
@@ -166,12 +162,8 @@ convenient interface between OpenPBX and external scripts or programs.
 	   --with-res_config_pqsql --with-cdr-odbc --with-res_config_odbc \
 	   --with-perl-shebang='#! /usr/bin/perl' --disable-builtin-sqlite3 \
 	   --enable-javascript --with-res_js --enable-fast-install \
-%if %build_misdn
-	   --with-chan_misdn \
-%endif
-%if %build_zap
-	   --enable-zaptel \
-%endif
+	   %{?with_misdn:--with-chan_misdn} \
+	   %{?with_zaptel:--enable-zaptel} \
 	   --enable-jabber --with-res_jabber # --with-res_sqlite
 
 # Poxy fscking libtool is _such_ a pile of crap...
@@ -260,11 +252,11 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_sysconfdir}/openpbx.org/res_jabber.conf
 %exclude %{_sysconfdir}/openpbx.org/alsa.conf
 %exclude %{_sysconfdir}/openpbx.org/capi.conf
-%if %build_misdn
+%if 0%{?with_misdn:1}
 %exclude %{_libdir}/openpbx.org/modules/chan_misdn.so
 %exclude %{_sysconfdir}/openpbx.org/misdn.conf
 %endif
-%if %build_zap
+%if 0%{?with_zaptel:1}
 %exclude %{_libdir}/openpbx.org/modules/chan_zap.so
 %exclude %{_libdir}/openpbx.org/modules/app_meetme.so
 %exclude %{_sysconfdir}/openpbx.org/zapata.conf
@@ -299,19 +291,19 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/capi.conf
 %doc doc2/README.chan_capi
 
-%if %build_misdn
+%if 0%{?with_misdn:1}
 %files misdn
 %{_libdir}/openpbx.org/modules/chan_misdn.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/misdn.conf
 %doc doc2/README.misdn
 %endif
 
-%if %build_zap
+%if 0%{?with_zaptel:1}
 %files zaptel
 %{_libdir}/openpbx.org/modules/chan_zap.so
 %{_libdir}/openpbx.org/modules/app_meetme.so
-%config(noreplace) %{_sysconfdir}/openpbx.org/zapata.conf
-%config(noreplace) %{_sysconfdir}/openpbx.org/meetme.conf
+%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/zapata.conf
+%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/meetme.conf
 %endif
 
 %files jabber
