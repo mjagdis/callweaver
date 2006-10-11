@@ -4248,7 +4248,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			udptlportno = x;
 
 			/* Maybe we could use clienthacks ifwe do not want to use rtp port as udptl in all cases */
-			    opbx_log(LOG_ERROR, "Activating UDPTL on response %s (1)\n", p->callid);
+			    opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
 			    opbx_rtp_set_active(p->rtp, 0);
 			    opbx_udptl_set_active(p->udptl, 1);
 			    p->udptl_active = 1;
