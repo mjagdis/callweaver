@@ -1032,6 +1032,14 @@ AM_CONDITIONAL([WANT_APP_EXEC],[test "${with_app_exec}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_faxdetect],
+	[AC_HELP_STRING([--with-app_faxdetect],[Build and install app_faxdetect (default=yes)])],,
+	[with_app_faxdetect="yes"])
+
+AM_CONDITIONAL([WANT_APP_FAXDETECT], [test "${with_app_faxdetect}" = "yes" "])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_flash],
 	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
 	[with_app_flash="yes"])

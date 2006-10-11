@@ -459,4 +459,11 @@ app_sms_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_sms_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SMS
 
+if WANT_APP_FAXDETECT
+opbxmod_LTLIBRARIES			+= app_faxdetect.la
+app_faxdetect_la_SOURCES		= app_faxdetect.c
+app_faxdetect_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_faxdetect_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_FAXDETECT
+
 INCLUDES = -I$(top_srcdir)/include
