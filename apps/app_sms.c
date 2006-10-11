@@ -47,6 +47,8 @@ OPENPBX_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 #include "openpbx/alaw.h"
 #include "openpbx/callerid.h"
 
+#include "dll_sms.h"
+
 /* ToDo */
 /* Add full VP support */
 /* Handle status report messages (generation and reception) */
@@ -593,7 +595,7 @@ static unsigned char unpackaddress(char *o, unsigned char *i)
 	unsigned char l = i[0];
 	unsigned char p;
 
-	if (i[1] == 0x91)
+	if (i[1] == (0x80 | DLL_SMS_P1_DATA))
 		*o++ = '+';
 	for (p = 0; p < l; p++) {
 		if (p & 1)
@@ -609,10 +611,11 @@ static unsigned char unpackaddress(char *o, unsigned char *i)
 static unsigned char packaddress(unsigned char *o, char *i)
 {
 	unsigned char p = 2;
+
 	o[0] = 0;
 	if (*i == '+') {
 		i++;
-		o[1] = 0x91;
+		o[1] = 0x80 | DLL_SMS_P1_DATA;
 	} else
 		o[1] = 0x81;
 	while (*i)
@@ -1047,7 +1050,7 @@ static void sms_nextoutgoing(sms_t * h)
 	}
 	if (*h->da || *h->oa) {									 /* message to send */
 		unsigned char p = 2;
-		h->omsg[0] = 0x91;		  /* SMS_DATA */
+		h->omsg[0] = 0x80 | DLL_SMS_P1_DATA;
 		if (h->smsc) {			 /* deliver */
 			h->omsg[p++] = (more ? 4 : 0);
 			p += packaddress (h->omsg + p, h->oa);
@@ -1082,13 +1085,13 @@ static void sms_nextoutgoing(sms_t * h)
 		h->omsg[1] = p - 2;
 		sms_messagetx (h);
 	} else {				 /* no message */
-		h->omsg[0] = 0x94;		  /* SMS_REL */
+		h->omsg[0] = 0x80 | DLL_SMS_P1_REL;
 		h->omsg[1] = 0;
 		sms_messagetx (h);
 	}
 }
 
-static void sms_debug (char *dir, unsigned char *msg)
+static void sms_debug(char *dir, unsigned char *msg)
 {
 	char txt[259 * 3 + 1];
     char *p = txt;						 /* always long enough */
@@ -1110,18 +1113,18 @@ static void sms_messagerx(sms_t * h)
 	sms_debug("RX", h->imsg);
 	/* testing */
 	switch (h->imsg[0]) {
-	case 0x91:						/* SMS_DATA */
+	case 0x80 | DLL_SMS_P1_DATA:
 		{
 			unsigned char cause = sms_handleincoming (h);
 			if (!cause) {
 				sms_log (h, 'Y');
-				h->omsg[0] = 0x95;  /* SMS_ACK */
+				h->omsg[0] = 0x80 | DLL_SMS_P1_ACK;
 				h->omsg[1] = 0x02;
 				h->omsg[2] = 0x00;  /* deliver report */
 				h->omsg[3] = 0x00;  /* no parameters */
 			} else {							 /* NACK */
 				sms_log (h, 'N');
-				h->omsg[0] = 0x96;  /* SMS_NACK */
+				h->omsg[0] = 0x80 | DLL_SMS_P1_NACK;
 				h->omsg[1] = 3;
 				h->omsg[2] = 0;	  /* delivery report */
 				h->omsg[3] = cause; /* cause */
@@ -1130,29 +1133,29 @@ static void sms_messagerx(sms_t * h)
 			sms_messagetx (h);
 		}
 		break;
-	case 0x92:						/* SMS_ERROR */
+	case 0x80 | DLL_SMS_P1_ERROR:
 		h->err = 1;
 		sms_messagetx (h);		  /* send whatever we sent again */
 		break;
-	case 0x93:						/* SMS_EST */
+	case 0x80 | DLL_SMS_P1_EST:
 		sms_nextoutgoing (h);
 		break;
-	case 0x94:						/* SMS_REL */
+	case 0x80 | DLL_SMS_P1_REL:
 		h->hangup = 1;				/* hangup */
 		break;
-	case 0x95:						/* SMS_ACK */
+	case 0x80 | DLL_SMS_P1_ACK:
 		sms_log (h, 'Y');
 		sms_nextoutgoing (h);
 		break;
-	case 0x96:						/* SMS_NACK */
+	case 0x80 | DLL_SMS_P1_NACK:
 		h->err = 1;
 		sms_log (h, 'N');
 		sms_nextoutgoing (h);
 		break;
 	default:						  /* Unknown */
-		h->omsg[0] = 0x92;		  /* SMS_ERROR */
+		h->omsg[0] = 0x80 | DLL_SMS_P1_ERROR;
 		h->omsg[1] = 1;
-		h->omsg[2] = 3;			  /* unknown message type; */
+		h->omsg[2] = DLL_SMS_ERROR_UNKNOWN_MESSAGE_TYPE;
 		sms_messagetx (h);
 		break;
 	}
@@ -1168,7 +1171,7 @@ static void sms_messagetx(sms_t * h)
 	sms_debug ("TX", h->omsg);
 	h->obyte = 1;
 	h->opause = 200;
-	if (h->omsg[0] == 0x93)
+	if (h->omsg[0] == (0x80 | DLL_SMS_P1_EST))
 		h->opause = 2400;			/* initial message delay 300ms (for BT) */
 	h->obytep = 0;
 	h->obitp = 0;
@@ -1290,7 +1293,10 @@ static void sms_process(sms_t *h, int samples, signed short *data)
 					h->iphasep = 0;
 				}
 				if (bit && h->ibitc == 200) {						 /* sync, restart message */
-					h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
+					h->ierr =
+                    h->ibitn =
+                    h->ibytep =
+                    h->ibytec = 0;
 				}
 				if (h->ibitn) {
 					h->iphasep += 12;
@@ -1298,19 +1304,19 @@ static void sms_process(sms_t *h, int samples, signed short *data)
 						h->iphasep -= 80;
 						if (h->ibitn++ == 9) {				 /* end of byte */
 							if (!bit)  /* bad stop bit */
-								h->ierr = 0xFF; /* unknown error */
+								h->ierr = DLL_SMS_ERROR_UNSPECIFIED_ERROR;
 							else {
 								if (h->ibytep < sizeof (h->imsg)) {
 									h->imsg[h->ibytep] = h->ibytev;
 									h->ibytec += h->ibytev;
 									h->ibytep++;
 								} else if (h->ibytep == sizeof (h->imsg))
-									h->ierr = 2; /* bad message length */
+									h->ierr = DLL_SMS_ERROR_WRONG_MESSAGE_LEN;
 								if (h->ibytep > 1 && h->ibytep == 3 + h->imsg[1] && !h->ierr) {
 									if (!h->ibytec)
-										sms_messagerx (h);
+										sms_messagerx(h);
 									else
-										h->ierr = 1;		/* bad checksum */
+										h->ierr = DLL_SMS_ERROR_WRONG_CHECKSUM;
 								}
 							}
 							h->ibitn = 0;
@@ -1326,13 +1332,16 @@ static void sms_process(sms_t *h, int samples, signed short *data)
 				h->err = 1;
 			}
 			if (h->ierr) {							 /* error */
-				h->err = 1;
-				h->omsg[0] = 0x92;  /* error */
+				h->err = DLL_SMS_ERROR_WRONG_CHECKSUM;
+				h->omsg[0] = 0x80 | DLL_SMS_P1_ERROR;
 				h->omsg[1] = 1;
 				h->omsg[2] = h->ierr;
-				sms_messagetx (h);  /* send error */
+				sms_messagetx(h);  /* send error */
 			}
-			h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
+			h->ierr =
+            h->ibitn =
+            h->ibytep =
+            h->ibytec = 0;
 		}
 		data++;
 	}
@@ -1454,7 +1463,7 @@ static int sms_exec(struct opbx_channel *chan, void *data)
 
 		if (answer) {
 			/* set up SMS_EST initial message */
-			h.omsg[0] = 0x93;
+			h.omsg[0] = 0x80 | DLL_SMS_P1_EST;
 			h.omsg[1] = 0;
 			sms_messagetx (&h);
 		}
@@ -1496,16 +1505,12 @@ static int sms_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	/* Do our thing here */
 	while (opbx_waitfor(chan, -1) > -1 && !h.hangup)
 	{
-		f = opbx_read(chan);
-		if (!f)
+		if ((f = opbx_read(chan)) == NULL)
 			break;
-		if (f->frametype == OPBX_FRAME_VOICE) {
-			sms_process (&h, f->samples, f->data);
-		}
-
+		if (f->frametype == OPBX_FRAME_VOICE)
+			sms_process(&h, f->samples, f->data);
 		opbx_frfree (f);
 	}
     if (original_read_fmt != OPBX_FORMAT_SLINEAR)
@@ -1519,7 +1524,7 @@ static int sms_exec(struct opbx_channel *chan, void *data)
             opbx_log(LOG_WARNING, "Unable to restore write format on '%s'\n", chan->name);
     }
 
-	sms_log (&h, '?');			  /* log incomplete message */
+	sms_log(&h, '?');			  /* log incomplete message */
 
 	LOCAL_USER_REMOVE(u);
 	return (h.err);
@@ -1531,15 +1536,15 @@ int unload_module(void)
     
     STANDARD_HANGUP_LOCALUSERS;
 
-	res = opbx_unregister_application (app);
+	res = opbx_unregister_application(app);
 	return res;	
 }
 
 int load_module(void)
 {
-	snprintf (log_file, sizeof (log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
-	snprintf (spool_dir, sizeof (spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
-	return opbx_register_application (app, sms_exec, synopsis, descrip);
+	snprintf(log_file, sizeof (log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
+	snprintf(spool_dir, sizeof (spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
+	return opbx_register_application(app, sms_exec, synopsis, descrip);
 }
 
 char *description(void)
@@ -1550,6 +1555,7 @@ char *description(void)
 int usecount(void)
 {
     int res;
+
     STANDARD_USECOUNT(res);
     return res;
 }
