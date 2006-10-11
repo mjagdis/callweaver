@@ -101,6 +101,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	char *maxstr = NULL;
 	struct opbx_frame *fr = NULL;
 	struct opbx_frame *fr2 = NULL;
+	struct opbx_frame *fr3 = NULL;
 	int notsilent = 0;
 	struct timeval start = {0, 0}, end = {0, 0};
 	int waitdur = 4;
@@ -114,6 +115,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	int ignoretalk = 0;
 	int x = 0;
 	int origrformat = 0;
+	int origwformat = 0;
 	int features = 0;
 	time_t timeout = 0;
 	struct opbx_dsp *dsp = NULL;
@@ -180,6 +182,9 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 		origrformat = chan->readformat;
 		if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR))) 
 			opbx_log(LOG_WARNING, "Unable to set read format to linear!\n");
+		origwformat = chan->writeformat;
+		if ((res = opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))) 
+			opbx_log(LOG_WARNING, "Unable to set write format to linear!\n");
 	}
 	if (!(dsp = opbx_dsp_new())) {
 		opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
@@ -288,6 +293,17 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 			} else if ((fr->frametype == OPBX_FRAME_VOICE) && (fr->subclass == OPBX_FORMAT_SLINEAR) && !ignoretalk) {
 				int totalsilence;
 				int ms;
+
+				//The following piece of code enables this application
+				//to send empty frames. This solves fax detection problem
+				//When a fax gets in with RTP. 
+				//The CNG is detected, faxdetect gotos to fax extension
+				//and if we are on a SIP channel the T38 switchover is done.
+    				fr3=opbx_frdup(fr);
+				memset(fr3->data,0,fr3->datalen);
+				opbx_write(chan,fr3);
+				opbx_frfree(fr3);
+
 				res = opbx_dsp_silence(dsp, fr, &totalsilence);
 				if (res && (totalsilence > sildur)) {
 					/* We've been quiet a little while */
@@ -339,6 +355,10 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 		if (origrformat && opbx_set_read_format(chan, origrformat)) {
 			opbx_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
 				chan->name, opbx_getformatname(origrformat));
+		}
+		if (origwformat && opbx_set_write_format(chan, origwformat)) {
+			opbx_log(LOG_WARNING, "Failed to restore write format for %s to %s\n", 
+				chan->name, opbx_getformatname(origwformat));
 		}
 	}
 	
