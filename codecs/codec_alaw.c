@@ -151,7 +151,7 @@ static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
 
     if (f->datalen == 0) {
         /* perform PLC with nominal framesize of 20ms/160 samples */
-        if ((tmp->tail + 160)  * 2 > sizeof(tmp->outbuf)) {
+        if ((tmp->tail + 160)*sizeof(int16_t) > sizeof(tmp->outbuf)) {
             opbx_log(LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
@@ -162,7 +162,7 @@ static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
         return 0;
     }
 
-    if ((tmp->tail + f->datalen) * 2 > sizeof(tmp->outbuf)) {
+    if ((tmp->tail + f->datalen)*sizeof(int16_t) > sizeof(tmp->outbuf)) {
         opbx_log(LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
@@ -199,7 +199,7 @@ static struct opbx_frame *alawtolin_frameout(struct opbx_translator_pvt *pvt)
 
     tmp->f.frametype = OPBX_FRAME_VOICE;
     tmp->f.subclass = OPBX_FORMAT_SLINEAR;
-    tmp->f.datalen = tmp->tail *2;
+    tmp->f.datalen = tmp->tail*sizeof(int16_t);
     tmp->f.samples = tmp->tail;
     tmp->f.mallocd = 0;
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
@@ -225,15 +225,15 @@ static int lintoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
     int x;
     short *s;
   
-    if (tmp->tail + f->datalen/2 >= sizeof(tmp->outbuf))
+    if (tmp->tail + f->datalen/sizeof(int16_t) >= sizeof(tmp->outbuf))
     {
         opbx_log (LOG_WARNING, "Out of buffer space\n");
         return -1;
     }
     s = f->data;
-    for (x = 0;  x < f->datalen/2;  x++) 
+    for (x = 0;  x < f->datalen/sizeof(int16_t);  x++) 
         tmp->outbuf[x + tmp->tail] = OPBX_LIN2A(s[x]);
-    tmp->tail += f->datalen/2;
+    tmp->tail += f->datalen/sizeof(int16_t);
     return 0;
 }
 
@@ -296,7 +296,7 @@ static struct opbx_frame *lintoalaw_sample(void)
     f.subclass = OPBX_FORMAT_SLINEAR;
     f.datalen = sizeof(slin_ulaw_ex);
     /* Assume 8000 Hz */
-    f.samples = sizeof(slin_ulaw_ex)/2;
+    f.samples = sizeof(slin_ulaw_ex)/sizeof(int16_t);
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
