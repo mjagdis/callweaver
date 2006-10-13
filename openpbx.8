@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "OPENPBX.ORG" "8" "30 September 2006" "Openpbx.org 0.3" ""
+.TH "OPENPBX" "8" "12 October 2006" "openpbx 1.2-RC1" ""
 
 .SH NAME
 openpbx \- All-purpose telephony server.
@@ -23,10 +23,10 @@ Conferencing, and a plethora of other telephony applications to a broad
 range of telephony devices including packet voice (SIP, IAX, MGCP, Skinny,
 H.323) devices (both endpoints and proxies), as well as traditional TDM
 hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart,
-ISDN BRI, and many more.
+ISDN BRI, T38, and many more.
 .PP
 OpenPBX reads most of its configuration files from configuration files
-located in /etc/openpbx.  Virtually all aspects of the operation of
+located in /opt/openpbx.org/etc.  Virtually all aspects of the operation of
 openpbx's configuration files can be found in the sample configuration
 files.  The format for those files is generally beyond the scope of this
 man page.
@@ -40,7 +40,7 @@ currently loaded into the system.
 .TP
 \fB-C \fIfile\fB\fR
 Use \fIfile\fR as master configuration file
-instead of the default, /etc/openpbx/openpbx.conf
+instead of the default, ex: /opt/openpbx.org/etc/openpbx.conf
 .TP
 \fB-c\fR
 Provide a control console on the calling terminal.
@@ -147,7 +147,7 @@ supplied.
 \fBopenpbx -rx "show channels"\fR - Display channels on running server
 .SH "BUGS"
 .PP
-Bug reports and feature requests may be filed at http://bugs.digium.com
+Bug reports and feature requests may be filed at http://trac.openpbx.org
 .SH "SEE ALSO"
 .PP
 *CLI> \fBhelp\fR - Help on OpenPBX CLI
@@ -156,15 +156,9 @@ Bug reports and feature requests may be filed at http://bugs.digium.com
 .PP
 http://www.openpbx.org - The OpenPBX Home Page
 .PP
-http://www.openpbxdocs.org - The OpenPBX Documentation Project
-.PP
-http://www.voip-info.org/wiki-OpenPBX - The OpenPBX Wiki
-.PP
-http://www.digium.com/ - OpenPBX sponsor and hardware supplier
-.PP
-http://www.markocam.com/ - OpenPBX author's web cam
+http://wiki.openpbx.org - The OpenPBX.org Wiki
 .SH "AUTHOR"
 .PP
-Mark Spencer <markster@digium.com>
+OpenPBX Community www.openpbx.org
 .PP
-Countless other contributers, see CREDITS with distribution for more information
+Countless number of contributers, see CREDITS with distribution for more information

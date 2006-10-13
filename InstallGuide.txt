@@ -35,7 +35,6 @@ automake 1.9
 libtool 
 bison 
 linux headers for the kernel you intend to build and use OpenPBX with.
-PostgresSQL
 OpenSSL 
 Libssl-dev 
 libjpeg-dev 
@@ -62,7 +61,6 @@ Use subversion to download OpenPBX.org, openpbx sounds, and music for music on h
 
 
 
-
 Installing SpanDSP.
 Libtiff is required by SpanDSP so it must be installed first. Download it from it's home at http://www.remotesensing.org/libtiff/
 
@@ -75,8 +73,8 @@ make install
 
 Once Libtiff is installed SpanDSP may be installed. SpanDSP can be downloaded from www.soft-switch.org. SpanDSP does Digital Signal Processing in software and is written by Steve Underwood.
 
-wget http://www.soft-switch.org/downloads/spandsp/spandsp-0.0.3pre6.tgz
-tar xfvz spandsp-0.0.3pre6.tgz
+wget http://www.soft-switch.org/downloads/spandsp/spandsp-0.0.3pre24.tgz
+tar xfvz spandsp-0.0.3pre24.tgz
 cd spandsp-0.0.3
 ./configure
 make

@@ -1724,7 +1724,7 @@ static int show_version(void)
 }
 
 static int show_cli_help(void) {
-	printf( PACKAGE_STRING " SVN-" SVN_VERSION  ", Copyright (C) 2000 - 2005, Digium.\n");
+	printf( PACKAGE_STRING " SVN-" SVN_VERSION  "\n");
 	printf("Usage: openpbx [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");

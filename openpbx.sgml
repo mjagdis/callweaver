@@ -1,14 +1,14 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <refentry>
 <refentryinfo>
-	<date>2005-09-22</date>
+	<date>2006-10-12</date>
 </refentryinfo>
 <refmeta>
 	<refentrytitle>
 		<application>openpbx</application>
 	</refentrytitle>
-	<manvolnum>1</manvolnum>
-	<refmiscinfo>openpbx 0.2</refmiscinfo>
+	<manvolnum>8</manvolnum>
+	<refmiscinfo>openpbx 1.2-RC1</refmiscinfo>
 </refmeta>
 <refnamediv>
 	<refname>
@@ -37,7 +37,7 @@
 </refsynopsisdiv>
 <refsect1>
 	<refsect1info>
-		<date>2005-09-22</date>
+		<date>2006-10-12</date>
 	</refsect1info>
 	<title>DESCRIPTION</title>
 	<para>
@@ -48,11 +48,11 @@
 	range of telephony devices including packet voice (SIP, IAX, MGCP, Skinny,
 	H.323) devices (both endpoints and proxies), as well as traditional TDM
 	hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart,
-	ISDN BRI, and many more.
+	ISDN BRI, T38, and many more.
 	</para>
 	<para>
 	OpenPBX reads most of its configuration files from configuration files
-	located in /etc/openpbx.  Virtually all aspects of the operation of
+	located in /opt/openpbx.org/etc.  Virtually all aspects of the operation of
 	openpbx's configuration files can be found in the sample configuration
 	files.  The format for those files is generally beyond the scope of this
 	man page.
@@ -73,7 +73,7 @@
 		<listitem>
 			<para>
 			Use <filename>file</filename> as master configuration file
-			instead of the default, /etc/openpbx/openpbx.conf
+			instead of the default, ex: /opt/openpbx.org/etc/openpbx.conf
 			</para>
 		</listitem>
 	</varlistentry>
@@ -291,7 +291,7 @@
 <refsect1>
 	<title>BUGS</title>
 	<para>
-	Bug reports and feature requests may be filed at http://bugs.openpbx.org
+	Bug reports and feature requests may be filed at http://trac.openpbx.org
 	</para>
 </refsect1>
 <refsect1>
@@ -306,7 +306,7 @@
 	http://www.openpbx.org - The OpenPBX Home Page
 	</para>
 	<para>
-	http://www.voip-info.org/wiki-OpenPBX.org - The OpenPBX.org Wiki
+	http://wiki.openpbx.org - The OpenPBX.org Wiki
 	</para>
 </refsect1>
 <refsect1>
@@ -318,7 +318,7 @@
 	</para>
 	<para>
 	<author>
-		<firstname>Countless other contributers, see CREDITS with distribution for more information</firstname> 
+		<firstname>Countless number of contributers, see CREDITS with distribution for more information</firstname> 
 	</author>
 	</para>
 </refsect1>
