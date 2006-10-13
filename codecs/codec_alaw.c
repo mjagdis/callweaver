@@ -46,7 +46,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/channel.h"
 #include "openpbx/alaw.h"
 
-#define BUFFER_SIZE   8096	/* size for the translation buffers */
+#define BUFFER_SIZE   8096    /* size for the translation buffers */
 
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
@@ -55,7 +55,7 @@ static char *tdesc = "A-law Coder/Decoder";
 
 static int useplc = 0;
 
-/* Sample frame data (Mu data is okay) */
+/* Sample frame data (re-using the Mu data is okay) */
 
 #include "slin_ulaw_ex.h"
 #include "ulaw_slin_ex.h"
@@ -65,10 +65,10 @@ static int useplc = 0;
  */
 struct alaw_encoder_pvt
 {
-  struct opbx_frame f;
-  char offset[OPBX_FRIENDLY_OFFSET];   /*!< Space to build offset */
-  unsigned char outbuf[BUFFER_SIZE];  /*!< Encoded alaw, two nibbles to a word */
-  int tail;
+    struct opbx_frame f;
+    char offset[OPBX_FRIENDLY_OFFSET];   /*!< Space to build offset */
+    unsigned char outbuf[BUFFER_SIZE];  /*!< Encoded alaw, two nibbles to a word */
+    int tail;
 };
 
 /*!
@@ -76,15 +76,15 @@ struct alaw_encoder_pvt
  */
 struct alaw_decoder_pvt
 {
-  struct opbx_frame f;
-  char offset[OPBX_FRIENDLY_OFFSET];	/* Space to build offset */
-  short outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
-  int tail;
-  plc_state_t plc;
+    struct opbx_frame f;
+    char offset[OPBX_FRIENDLY_OFFSET];    /*!< Space to build offset */
+    short outbuf[BUFFER_SIZE];    /*!< Decoded signed linear values */
+    int tail;
+    plc_state_t plc;
 };
 
 /*!
- * \brief alawToLin_New
+ * \brief alawtolin_new
  *  Create a new instance of alaw_decoder_pvt.
  *
  * Results:
@@ -93,24 +93,23 @@ struct alaw_decoder_pvt
  * Side effects:
  *  None.
  */
-
-static struct opbx_translator_pvt * alawtolin_new (void)
+static struct opbx_translator_pvt *alawtolin_new(void)
 {
-  struct alaw_decoder_pvt *tmp;
-  tmp = malloc (sizeof (struct alaw_decoder_pvt));
-  if (tmp)
+    struct alaw_decoder_pvt *tmp;
+  
+    if ((tmp = malloc(sizeof(struct alaw_decoder_pvt))))
     {
-	  memset(tmp, 0, sizeof(*tmp));
-      tmp->tail = 0;
-      plc_init(&tmp->plc);
-      localusecnt++;
-      opbx_update_use_count ();
+        memset(tmp, 0, sizeof(*tmp));
+        tmp->tail = 0;
+        plc_init(&tmp->plc);
+        localusecnt++;
+        opbx_update_use_count();
     }
-  return (struct opbx_translator_pvt *) tmp;
+    return (struct opbx_translator_pvt *) tmp;
 }
 
 /*!
- * \brief LinToalaw_New
+ * \brief lintoalaw_new
  *  Create a new instance of alaw_encoder_pvt.
  *
  * Results:
@@ -119,23 +118,22 @@ static struct opbx_translator_pvt * alawtolin_new (void)
  * Side effects:
  *  None.
  */
-
-static struct opbx_translator_pvt * lintoalaw_new (void)
+static struct opbx_translator_pvt *lintoalaw_new(void)
 {
-  struct alaw_encoder_pvt *tmp;
-  tmp = malloc (sizeof (struct alaw_encoder_pvt));
-  if (tmp)
+    struct alaw_encoder_pvt *tmp;
+  
+    if ((tmp = malloc(sizeof(struct alaw_encoder_pvt))))
     {
-	  memset(tmp, 0, sizeof(*tmp));
-      localusecnt++;
-      opbx_update_use_count ();
-      tmp->tail = 0;
+        memset(tmp, 0, sizeof(*tmp));
+        localusecnt++;
+        opbx_update_use_count();
+        tmp->tail = 0;
     }
-  return (struct opbx_translator_pvt *) tmp;
+    return (struct opbx_translator_pvt *) tmp;
 }
 
 /*!
- * \brief alawToLin_FrameIn
+ * \brief alawtolin_framein
  *  Fill an input buffer with packed 4-bit alaw values if there is room
  *  left.
  *
@@ -145,44 +143,44 @@ static struct opbx_translator_pvt * lintoalaw_new (void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-
-static int
-alawtolin_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int alawtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
-  struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
-  int x;
-  unsigned char *b;
+    struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
+    int x;
+    unsigned char *b;
 
-  if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
-        if((tmp->tail + 160)  * 2 > sizeof(tmp->outbuf)) {
+    if (f->datalen == 0) {
+        /* perform PLC with nominal framesize of 20ms/160 samples */
+        if ((tmp->tail + 160)  * 2 > sizeof(tmp->outbuf)) {
             opbx_log(LOG_WARNING, "Out of buffer space\n");
             return -1;
         }
-        if(useplc) {
-	    plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
-	    tmp->tail += 160;
-	}
+        if (useplc) {
+            plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
+            tmp->tail += 160;
+        }
         return 0;
-  }
+    }
 
-  if ((tmp->tail + f->datalen) * 2 > sizeof(tmp->outbuf)) {
-  	opbx_log(LOG_WARNING, "Out of buffer space\n");
-	return -1;
-  }
+    if ((tmp->tail + f->datalen) * 2 > sizeof(tmp->outbuf)) {
+        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        return -1;
+    }
 
-  /* Reset ssindex and signal to frame's specified values */
-  b = f->data;
-  for (x=0;x<f->datalen;x++)
-  	tmp->outbuf[tmp->tail + x] = OPBX_ALAW(b[x]);
+    /* Reset ssindex and signal to frame's specified values */
+    b = f->data;
+    for (x = 0;  x < f->datalen;  x++)
+        tmp->outbuf[tmp->tail + x] = OPBX_ALAW(b[x]);
 
-  if(useplc) plc_rx(&tmp->plc, tmp->outbuf+tmp->tail, f->datalen);
+    if (useplc)
+        plc_rx(&tmp->plc, tmp->outbuf+tmp->tail, f->datalen);
 
-  tmp->tail += f->datalen;
-  return 0;
+    tmp->tail += f->datalen;
+    return 0;
 }
 
 /*!
- * \brief alawToLin_FrameOut
+ * \brief alawtolin_frameout
  *  Convert 4-bit alaw encoded signals to 16-bit signed linear.
  *
  * Results:
@@ -192,28 +190,27 @@ alawtolin_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
  * Side effects:
  *  None.
  */
-
-static struct opbx_frame * alawtolin_frameout (struct opbx_translator_pvt *pvt)
+static struct opbx_frame *alawtolin_frameout(struct opbx_translator_pvt *pvt)
 {
-  struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
+    struct alaw_decoder_pvt *tmp = (struct alaw_decoder_pvt *) pvt;
 
-  if (!tmp->tail)
-    return NULL;
+    if (!tmp->tail)
+        return NULL;
 
-  tmp->f.frametype = OPBX_FRAME_VOICE;
-  tmp->f.subclass = OPBX_FORMAT_SLINEAR;
-  tmp->f.datalen = tmp->tail *2;
-  tmp->f.samples = tmp->tail;
-  tmp->f.mallocd = 0;
-  tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-  tmp->f.src = __PRETTY_FUNCTION__;
-  tmp->f.data = tmp->outbuf;
-  tmp->tail = 0;
-  return &tmp->f;
+    tmp->f.frametype = OPBX_FRAME_VOICE;
+    tmp->f.subclass = OPBX_FORMAT_SLINEAR;
+    tmp->f.datalen = tmp->tail *2;
+    tmp->f.samples = tmp->tail;
+    tmp->f.mallocd = 0;
+    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+    tmp->f.src = __PRETTY_FUNCTION__;
+    tmp->f.data = tmp->outbuf;
+    tmp->tail = 0;
+    return &tmp->f;
 }
 
 /*!
- * \brief LinToalaw_FrameIn
+ * \brief lintoalaw_framein
  *  Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
@@ -222,26 +219,26 @@ static struct opbx_frame * alawtolin_frameout (struct opbx_translator_pvt *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-
-static int lintoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame *f)
+static int lintoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
-  struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
-  int x;
-  short *s;
-  if (tmp->tail + f->datalen/2 >= sizeof(tmp->outbuf))
+    struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
+    int x;
+    short *s;
+  
+    if (tmp->tail + f->datalen/2 >= sizeof(tmp->outbuf))
     {
-      opbx_log (LOG_WARNING, "Out of buffer space\n");
-      return -1;
+        opbx_log (LOG_WARNING, "Out of buffer space\n");
+        return -1;
     }
-  s = f->data;
-  for (x=0;x<f->datalen/2;x++) 
-  	tmp->outbuf[x+tmp->tail] = OPBX_LIN2A(s[x]);
-  tmp->tail += f->datalen/2;
-  return 0;
+    s = f->data;
+    for (x = 0;  x < f->datalen/2;  x++) 
+        tmp->outbuf[x + tmp->tail] = OPBX_LIN2A(s[x]);
+    tmp->tail += f->datalen/2;
+    return 0;
 }
 
 /*!
- * \brief LinToalaw_FrameOut
+ * \brief lintoalaw_frameout
  *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
  *  of 4-bit alaw packed two to a byte (Big Endian).
  *
@@ -251,65 +248,64 @@ static int lintoalaw_framein (struct opbx_translator_pvt *pvt, struct opbx_frame
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-
-static struct opbx_frame * lintoalaw_frameout (struct opbx_translator_pvt *pvt)
+static struct opbx_frame *lintoalaw_frameout(struct opbx_translator_pvt *pvt)
 {
-  struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
+    struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
-  if (tmp->tail) {
-	  tmp->f.frametype = OPBX_FRAME_VOICE;
-	  tmp->f.subclass = OPBX_FORMAT_ALAW;
-	  tmp->f.samples = tmp->tail;
-	  tmp->f.mallocd = 0;
-	  tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	  tmp->f.src = __PRETTY_FUNCTION__;
-	  tmp->f.data = tmp->outbuf;
-	  tmp->f.datalen = tmp->tail;
-	  tmp->tail = 0;
-	  return &tmp->f;
-   } else return NULL;
+    if (tmp->tail) {
+        tmp->f.frametype = OPBX_FRAME_VOICE;
+        tmp->f.subclass = OPBX_FORMAT_ALAW;
+        tmp->f.samples = tmp->tail;
+        tmp->f.mallocd = 0;
+        tmp->f.offset = OPBX_FRIENDLY_OFFSET;
+        tmp->f.src = __PRETTY_FUNCTION__;
+        tmp->f.data = tmp->outbuf;
+        tmp->f.datalen = tmp->tail;
+        tmp->tail = 0;
+        return &tmp->f;
+    }
+    return NULL;
 }
 
-
 /*!
- * \brief alawToLin_Sample
+ * \brief alawtolin_sample
  */
-
-static struct opbx_frame * alawtolin_sample (void)
+static struct opbx_frame *alawtolin_sample(void)
 {
-  static struct opbx_frame f;
-  f.frametype = OPBX_FRAME_VOICE;
-  f.subclass = OPBX_FORMAT_ALAW;
-  f.datalen = sizeof (ulaw_slin_ex);
-  f.samples = sizeof(ulaw_slin_ex);
-  f.mallocd = 0;
-  f.offset = 0;
-  f.src = __PRETTY_FUNCTION__;
-  f.data = ulaw_slin_ex;
-  return &f;
+    static struct opbx_frame f;
+  
+    f.frametype = OPBX_FRAME_VOICE;
+    f.subclass = OPBX_FORMAT_ALAW;
+    f.datalen = sizeof (ulaw_slin_ex);
+    f.samples = sizeof(ulaw_slin_ex);
+    f.mallocd = 0;
+    f.offset = 0;
+    f.src = __PRETTY_FUNCTION__;
+    f.data = ulaw_slin_ex;
+    return &f;
 }
 
 /*!
- * \brief LinToalaw_Sample
+ * \brief lintoalaw_sample
  */
-
-static struct opbx_frame * lintoalaw_sample (void)
+static struct opbx_frame *lintoalaw_sample(void)
 {
-  static struct opbx_frame f;
-  f.frametype = OPBX_FRAME_VOICE;
-  f.subclass = OPBX_FORMAT_SLINEAR;
-  f.datalen = sizeof (slin_ulaw_ex);
-  /* Assume 8000 Hz */
-  f.samples = sizeof (slin_ulaw_ex) / 2;
-  f.mallocd = 0;
-  f.offset = 0;
-  f.src = __PRETTY_FUNCTION__;
-  f.data = slin_ulaw_ex;
-  return &f;
+    static struct opbx_frame f;
+  
+    f.frametype = OPBX_FRAME_VOICE;
+    f.subclass = OPBX_FORMAT_SLINEAR;
+    f.datalen = sizeof(slin_ulaw_ex);
+    /* Assume 8000 Hz */
+    f.samples = sizeof(slin_ulaw_ex)/2;
+    f.mallocd = 0;
+    f.offset = 0;
+    f.src = __PRETTY_FUNCTION__;
+    f.data = slin_ulaw_ex;
+    return &f;
 }
 
 /*!
- * \brief alaw_Destroy
+ * \brief alaw_destroy
  *  Destroys a private workspace.
  *
  * Results:
@@ -318,109 +314,108 @@ static struct opbx_frame * lintoalaw_sample (void)
  * Side effects:
  *  None.
  */
-
-static void alaw_destroy (struct opbx_translator_pvt *pvt)
+static void alaw_destroy(struct opbx_translator_pvt *pvt)
 {
-  free (pvt);
-  localusecnt--;
-  opbx_update_use_count ();
+    free(pvt);
+    localusecnt--;
+    opbx_update_use_count();
 }
 
 /*!
- * \brief The complete translator for alawToLin.
+ * \brief The complete translator for alawtolin.
  */
-
 static struct opbx_translator alawtolin = {
-  "alawtolin",
-  OPBX_FORMAT_ALAW,
-  OPBX_FORMAT_SLINEAR,
-  alawtolin_new,
-  alawtolin_framein,
-  alawtolin_frameout,
-  alaw_destroy,
-  /* NULL */
-  alawtolin_sample
+    "alawtolin",
+    OPBX_FORMAT_ALAW,
+    OPBX_FORMAT_SLINEAR,
+    alawtolin_new,
+    alawtolin_framein,
+    alawtolin_frameout,
+    alaw_destroy,
+    /* NULL */
+    alawtolin_sample
 };
 
 /*!
- * \brief The complete translator for LinToalaw.
+ * \brief The complete translator for lintoalaw.
  */
-
 static struct opbx_translator lintoalaw = {
-  "lintoalaw",
-  OPBX_FORMAT_SLINEAR,
-  OPBX_FORMAT_ALAW,
-  lintoalaw_new,
-  lintoalaw_framein,
-  lintoalaw_frameout,
-  alaw_destroy,
-  /* NULL */
-  lintoalaw_sample
+    "lintoalaw",
+    OPBX_FORMAT_SLINEAR,
+    OPBX_FORMAT_ALAW,
+    lintoalaw_new,
+    lintoalaw_framein,
+    lintoalaw_frameout,
+    alaw_destroy,
+    /* NULL */
+    lintoalaw_sample
 };
 
 static void parse_config(void)
 {
-  struct opbx_config *cfg;
-  struct opbx_variable *var;
+    struct opbx_config *cfg;
+    struct opbx_variable *var;
 
-  if ((cfg = opbx_config_load("codecs.conf"))) {
-    if ((var = opbx_variable_browse(cfg, "plc"))) {
-      while (var) {
-       if (!strcasecmp(var->name, "genericplc")) {
-         useplc = opbx_true(var->value) ? 1 : 0;
-         if (option_verbose > 2)
-           opbx_verbose(VERBOSE_PREFIX_3 "codec_alaw: %susing generic PLC\n", useplc ? "" : "not ");
-       }
-       var = var->next;
-      }
+    if ((cfg = opbx_config_load("codecs.conf"))) {
+        if ((var = opbx_variable_browse(cfg, "plc"))) {
+            while (var) {
+                if (!strcasecmp(var->name, "genericplc")) {
+                    useplc = opbx_true(var->value) ? 1 : 0;
+                    if (option_verbose > 2)
+                        opbx_verbose(VERBOSE_PREFIX_3 "codec_alaw: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+                }
+                var = var->next;
+            }
+        }
+        opbx_config_destroy(cfg);
     }
-    opbx_config_destroy(cfg);
-  }
 }
 
 int reload(void)
 {
-  parse_config();
-  return 0;
+    parse_config();
+    return 0;
 }
 
-int unload_module (void)
+int unload_module(void)
 {
-  int res;
-  opbx_mutex_lock (&localuser_lock);
-  res = opbx_unregister_translator (&lintoalaw);
-  if (!res)
-    res = opbx_unregister_translator (&alawtolin);
-  if (localusecnt)
-    res = -1;
-  opbx_mutex_unlock (&localuser_lock);
-  return res;
+    int res;
+
+    opbx_mutex_lock(&localuser_lock);
+    res = opbx_unregister_translator(&lintoalaw);
+    if (!res)
+        res = opbx_unregister_translator(&alawtolin);
+    if (localusecnt)
+        res = -1;
+    opbx_mutex_unlock(&localuser_lock);
+    return res;
 }
 
-int load_module (void)
+int load_module(void)
 {
-  int res;
-  parse_config();
-  res = opbx_register_translator (&alawtolin);
-  if (!res)
-    res = opbx_register_translator (&lintoalaw);
-  else
-    opbx_unregister_translator (&alawtolin);
-  return res;
+    int res;
+
+    parse_config();
+    res = opbx_register_translator(&alawtolin);
+    if (!res)
+        res = opbx_register_translator(&lintoalaw);
+    else
+        opbx_unregister_translator(&alawtolin);
+    return res;
 }
 
 /*
  * Return a description of this module.
  */
-
-char * description (void)
+char *description(void)
 {
-  return tdesc;
+    return tdesc;
 }
 
-int usecount (void)
+int usecount(void)
 {
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
+    int res;
+  
+    STANDARD_USECOUNT(res);
+    return res;
 }
