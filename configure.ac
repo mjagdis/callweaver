@@ -847,8 +847,22 @@ AC_ARG_ENABLE([zaptel],
 	[AC_HELP_STRING([--enable-zaptel],[Enable support for Zaptel (default=yes)])],,[enable_zaptel="yes"])
 
 if test "${enable_zaptel}" = "yes"; then
-   AC_CHECK_HEADERS([zaptel.h], [HAVE_ZAPTEL_H=1])
-   AC_CHECK_HEADERS([linux/zaptel.h], [HAVE_LINUX_ZAPTEL_H=1])
+   AC_CHECK_HEADERS([zaptel/zaptel.h], [ZAPTEL_H="<zaptel/zaptel.h>"])
+   if test -z "${ZAPTEL_H}"; then
+      AC_CHECK_HEADERS([zaptel.h], [ZAPTEL_H="<zaptel.h>"])
+   fi
+   if test -z "${ZAPTEL_H}"; then
+      AC_CHECK_HEADERS([linux/zaptel.h], [ZAPTEL_H="<linux/zaptel.h>"])
+   fi
+
+   AC_CHECK_HEADERS([zaptel/tonezone.h], [TONEZONE_H="<zaptel/tonezone.h>"])
+   if test -z "${TONEZONE_H}"; then
+      AC_CHECK_HEADERS([tonezone.h], [TONEZONE_H="<tonezone.h>"])
+   fi
+
+   AC_DEFINE_UNQUOTED([ZAPTEL_H], [${ZAPTEL_H}], [Location of zaptel.h header file])
+   AC_DEFINE_UNQUOTED([TONEZONE_H], [${TONEZONE_H}], [Location of tonezone.h header file])
+
    AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
    AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
 fi
@@ -1052,7 +1066,7 @@ AC_ARG_WITH([app_flash],
 	[AC_HELP_STRING([--with-app_flash],[Build and install app_flash (default=yes)])],,
 	[with_app_flash="yes"])
 
-AM_CONDITIONAL([WANT_APP_FLASH], [test "${enable_zaptel}" = "yes" -a "${with_app_flash}" = "yes" -a \( -n "${HAVE_ZAPTEL_H}" -o -n "${HAVE_LINUX_ZAPTEL_H}" \)])
+AM_CONDITIONAL([WANT_APP_FLASH], [test "${enable_zaptel}" = "yes" -a "${with_app_flash}" = "yes" -a -n "${ZAPTEL_H}"])
 
 dnl ###########################################################################
 
@@ -1116,7 +1130,7 @@ AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
 	[with_app_meetme="yes"])
 
-AM_CONDITIONAL([WANT_APP_MEETME], [test "${enable_zaptel}" = "yes" -a "${with_app_meetme}" = "yes" -a \( -n "${HAVE_ZAPTEL_H}" -o -n "${HAVE_LINUX_ZAPTEL_H}" \)])
+AM_CONDITIONAL([WANT_APP_MEETME], [test "${enable_zaptel}" = "yes" -a "${with_app_meetme}" = "yes" -a -n "${ZAPTEL_H}"])
 
 dnl ###########################################################################
 

@@ -29,11 +29,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
+#include ZAPTEL_H
 
 #include "openpbx.h"
 
