@@ -383,11 +383,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                 if ((t38.current_rx_type == T30_MODEM_DONE)  ||  (t38.current_tx_type == T30_MODEM_DONE))
                     break;
             }
+
             if (res == 0)
             {
-
 		if (!call_is_t38_mode) {
-            	    samples = 1;
+            	    samples = 160;
             	    if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples))) {
                 	memset(&outf, 0, sizeof(outf));
                 	outf.frametype = OPBX_FRAME_VOICE;
@@ -409,11 +409,14 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             	    next += 30000;
             	continue;
             }
+
             if ((inf = opbx_read(chan)) == NULL)
             {
                 res = -1;
                 break;
             }
+
+
             if (inf->frametype == OPBX_FRAME_VOICE  &&  !call_is_t38_mode)
             {
                 if (fax_rx(&fax, inf->data, inf->samples))
