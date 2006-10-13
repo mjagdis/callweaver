@@ -124,7 +124,8 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "FAXEXTEN", "");
 	pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "");
 	pbx_builtin_setvar_helper(chan, "TALK_DETECTED", "");
-	
+        pbx_builtin_setvar_helper(chan, "TALK_DTMF_DID", "");
+
 	if (data || !opbx_strlen_zero((char *)data)) {
 		strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	}	

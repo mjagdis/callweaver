@@ -2015,7 +2015,6 @@ AC_OUTPUT([Makefile
 		 include/Makefile
 		 include/openpbx/Makefile
 		 libs/Makefile
-                 libs/ilbc/Makefile
                  ogi/Makefile
                  apps/Makefile
                  apps/icd/Makefile

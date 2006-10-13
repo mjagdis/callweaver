@@ -2,7 +2,7 @@ AUTOMAKE_OPTS		= gnu foreign
 
 opbxmod_LTLIBRARIES	= codec_lpc10.la codec_adpcm.la \
 			  codec_ulaw.la codec_alaw.la codec_a_mu.la \
-			  codec_g726.la codec_gsm.la codec_ilbc.la 
+			  codec_g726.la codec_gsm.la
 
 codec_gsm_la_SOURCES	= codec_gsm.c slin_gsm_ex.h gsm_slin_ex.h
 codec_gsm_la_CFLAGS     = $(AM_CFLAGS)
@@ -27,10 +27,6 @@ codec_a_mu_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 codec_g726_la_SOURCES   = codec_g726.c g726_slin_ex.h slin_g726_ex.h log2comp.h
 codec_g726_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_g726_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
-codec_ilbc_la_SOURCES	= codec_ilbc.c ilbc_slin_ex.h slin_ilbc_ex.h
-codec_ilbc_la_CFLAGS    = $(AM_CFLAGS) -I${top_srcdir}/libs/ilbc
-codec_ilbc_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_ilbc_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/libs/ilbc/libopbxilbc.la ${top_builddir}/corelib/libopenpbx.la
 
 if WANT_CODEC_SPEEX
 opbxmod_LTLIBRARIES	+= codec_speex.la
