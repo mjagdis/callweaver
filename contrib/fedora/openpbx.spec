@@ -1,4 +1,4 @@
-%define snap 1966
+%define snap 1968
 
 %bcond_with misdn
 %bcond_with zaptel
@@ -23,7 +23,7 @@ BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
 BuildRequires:	unixODBC-devel openssl-devel speex-devel alsa-lib-devel
 BuildRequires:	isdn4k-utils-devel libcap-devel sqlite-devel
-BuildRequires:	postgresql-devel %{?with_misdn:mISDN}
+BuildRequires:	postgresql-devel libedit-devel %{?with_misdn:mISDN}
 BuildRequires:	popt %{?with_zaptel:zaptel-devel libpri-devel}
 
 Requires:	/sbin/chkconfig
