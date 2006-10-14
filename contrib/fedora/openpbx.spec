@@ -1,4 +1,4 @@
-%define snap 1948
+%define snap 1966
 
 %bcond_with misdn
 %bcond_with zaptel
@@ -18,12 +18,12 @@ Source0:	openpbx-r%{snap}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:	spandsp-devel >= 0.0.3-1.pre24
-BuildRequires:	libtool automake autoconf
+BuildRequires:	%{?snap:libtool automake autoconf} zlib-devel
 BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
-BuildRequires:	unixODBC-devel openssl-devel zlib-devel speex-devel
-BuildRequires:	isdn4k-utils-devel libcap-devel alsa-lib-devel sqlite-devel
-BuildRequires:	postgresql-devel popt %{?with_misdn:mISDN}
+BuildRequires:	unixODBC-devel openssl-devel speex-devel alsa-lib-devel
+BuildRequires:	isdn4k-utils-devel libcap-devel sqlite-devel
+BuildRequires:	postgresql-devel %{?with_misdn:mISDN}
 BuildRequires:	popt %{?with_zaptel:zaptel-devel libpri-devel}
 
 Requires:	/sbin/chkconfig
@@ -107,6 +107,7 @@ into the 2.6 kernel.
 Group:		Applications/Internet
 Summary:	Zaptel modules for OpenPBX
 Requires:	%{name} = %{version}-%{release}
+Requires:	zaptel >= 1.4.0-1
 
 %description zaptel
 This package contains the Zap channel driver and MeetMe application
@@ -151,8 +152,9 @@ convenient interface between OpenPBX and external scripts or programs.
 %setup -q -n openpbx
 
 %build
+%if 0%{?snap}
 ./bootstrap.sh
-
+%endif
 # res_sqlite seems to use internal functions of sqlite3 which don't 
 # even _exist_ in current versions. Disable it until it's fixed.
 
@@ -213,10 +215,14 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %__fe_userdel  openpbx &>/dev/null || :
 %__fe_groupdel openpbx &>/dev/null || :
 
+%pre zaptel
+%{_sbindir}/usermod -G `id -G openpbx | tr " " , `,zaptel openpbx
+
 %files
 %defattr(-,root,root,-)
 %doc COPYING CREDITS LICENSE BUGS AUTHORS SECURITY README HARDWARE
-%doc doc/README.* doc/*.txt doc/*.html
+%doc doc/README.* doc/*.txt doc/*.html sample.call ChangeLog
+%doc BUGS InstallGuide.txt
 %config(noreplace) %{_sysconfdir}/logrotate.d/openpbx
 %{_initrddir}/openpbx
 %{_sbindir}/openpbx
@@ -259,6 +265,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %if 0%{?with_zaptel:1}
 %exclude %{_libdir}/openpbx.org/modules/chan_zap.so
 %exclude %{_libdir}/openpbx.org/modules/app_meetme.so
+%exclude %{_libdir}/openpbx.org/modules/app_flash.so
 %exclude %{_sysconfdir}/openpbx.org/zapata.conf
 %exclude %{_sysconfdir}/openpbx.org/meetme.conf
 %endif
@@ -302,6 +309,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %files zaptel
 %{_libdir}/openpbx.org/modules/chan_zap.so
 %{_libdir}/openpbx.org/modules/app_meetme.so
+%{_libdir}/openpbx.org/modules/app_flash.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/zapata.conf
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/meetme.conf
 %endif
