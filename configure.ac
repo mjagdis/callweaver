@@ -554,6 +554,18 @@ AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanD
 
 AC_CHECK_LIB([spandsp],[fax_set_transmit_on_idle],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre24 or newer to comple OpenPBX.org.)],[-ltiff])
 
+dnl ###########################################################################
+
+AC_ARG_WITH([editline-includes],
+	[AC_HELP_STRING([--with-editline-includes],[Location of editline include files.])],
+	[CFLAGS="$CFLAGS -I${withval}"])
+
+AC_ARG_WITH([tiff-libs],
+	[AC_HELP_STRING([--with-editline-libs],[Location of editline library files.])],
+	[LDFLAGS="$LDFLAGS -L${withval}"])
+
+AC_CHECK_HEADERS([editline/readline.h histedit.h],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/)])
+AC_CHECK_LIB([edit],[el_init],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/)])
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -2026,7 +2038,7 @@ AM_CONFIG_HEADER(include/confdefs.h)
 # Define in which subdirectories we have to run configure as well
 #
 ######
-AC_CONFIG_SUBDIRS(editline libltdl)    
+AC_CONFIG_SUBDIRS(libltdl)    
 AC_OUTPUT([Makefile
 		 include/Makefile
 		 include/openpbx/Makefile

@@ -24,7 +24,7 @@ SVN = @SVN@
 sbin_PROGRAMS = openpbx 
 
 openpbx_SOURCES 	= main.c
-openpbx_LDADD		= ${top_builddir}/corelib/libopenpbx.la ${top_builddir}/editline/src/libedit.la $(LIBLTDL)
+openpbx_LDADD		= ${top_builddir}/corelib/libopenpbx.la -ledit $(LIBLTDL)
 
 openpbx_CFLAGS 	=  -fomit-frame-pointer -Wall -Wstrict-prototypes 
 openpbx_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
@@ -33,7 +33,7 @@ man_MANS = openpbx.8
 
 EXTRA_DIST = openpbx.sgml $(man_MANS) substitute.mak
 
-SUBDIRS =   libltdl libs editline stdtime @SQLITE3_SUBDIR@ include corelib . pbx funcs
+SUBDIRS =   libltdl libs stdtime @SQLITE3_SUBDIR@ include corelib . pbx funcs
 SUBDIRS +=  cdr apps codecs formats channels ogi utils res configs
 
 INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)		\
