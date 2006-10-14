@@ -46,7 +46,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/utils.h"
 #include "openpbx/lock.h"
 /* For rl_filename_completion */
-#include "editline/readline/readline.h"
+#include <editline/readline.h>
 extern unsigned long global_fin, global_fout;
 void opbx_cli(int fd, char *fmt, ...)
 {

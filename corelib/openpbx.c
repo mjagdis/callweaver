@@ -116,7 +116,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/file.h"
 #include "openpbx/io.h"
 #include "openpbx/lock.h"
-#include "editline/src/histedit.h"
+#include <histedit.h>
 #include "openpbx/config.h"
 #include "openpbx/linkedlists.h"
 #include "openpbx/devicestate.h"

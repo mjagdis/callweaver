@@ -24,9 +24,8 @@ libopenpbx_la_CFLAGS 	=  -fomit-frame-pointer -D_REENTRANT -Wall -Wstrict-protot
 endif
 libopenpbx_la_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
 libopenpbx_la_CFLAGS	+= @SSL_CFLAGS@
-libopenpbx_la_LIBADD	= -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
+libopenpbx_la_LIBADD	= -ledit -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 libopenpbx_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
-libopenpbx_la_LIBADD 	+= ${top_builddir}/editline/src/libedit.la 
 libopenpbx_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 
 libopenpbx_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libopbxjb.la
 
