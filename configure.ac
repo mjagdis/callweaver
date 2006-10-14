@@ -534,6 +534,8 @@ AC_ARG_WITH([tiff-libs],
 AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
 AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
 
+dnl ###########################################################################
+
 AC_ARG_WITH([spandsp-includes],
 	[AC_HELP_STRING([--with-spandsp-includes],[Location of SpanDSP include files.])],
 	[CFLAGS="$CFLAGS -I${withval}"])
@@ -847,17 +849,17 @@ AC_ARG_ENABLE([zaptel],
 	[AC_HELP_STRING([--enable-zaptel],[Enable support for Zaptel (default=yes)])],,[enable_zaptel="yes"])
 
 if test "${enable_zaptel}" = "yes"; then
-   AC_CHECK_HEADERS([zaptel/zaptel.h], [ZAPTEL_H="<zaptel/zaptel.h>"])
+   AC_CHECK_HEADERS([zaptel/zaptel.h], [ZAPTEL_H="\"zaptel/zaptel.h\""])
    if test -z "${ZAPTEL_H}"; then
-      AC_CHECK_HEADERS([zaptel.h], [ZAPTEL_H="<zaptel.h>"])
+      AC_CHECK_HEADERS([zaptel.h], [ZAPTEL_H="\"zaptel.h\""])
    fi
    if test -z "${ZAPTEL_H}"; then
-      AC_CHECK_HEADERS([linux/zaptel.h], [ZAPTEL_H="<linux/zaptel.h>"])
+      AC_CHECK_HEADERS([linux/zaptel.h], [ZAPTEL_H="\"linux/zaptel.h\""])
    fi
 
-   AC_CHECK_HEADERS([zaptel/tonezone.h], [TONEZONE_H="<zaptel/tonezone.h>"])
+   AC_CHECK_HEADERS([zaptel/tonezone.h], [TONEZONE_H="\"zaptel/tonezone.h\""])
    if test -z "${TONEZONE_H}"; then
-      AC_CHECK_HEADERS([tonezone.h], [TONEZONE_H="<tonezone.h>"])
+      AC_CHECK_HEADERS([tonezone.h], [TONEZONE_H="\"tonezone.h\""])
    fi
 
    AC_DEFINE_UNQUOTED([ZAPTEL_H], [${ZAPTEL_H}], [Location of zaptel.h header file])
