@@ -45,6 +45,7 @@
 #include <openpbx/module.h>
 #include <openpbx/translate.h>
 #include <openpbx/dsp.h>
+#include <openpbx/indications.h>
 #include <openpbx/utils.h>
 
 static char *tdesc = "Fax detection application";
@@ -54,10 +55,12 @@ static char *app = "FaxDetect";
 static char *synopsis = "Detects fax sounds on all channel types (IAX and SIP too)";
 
 static char *descrip = 
-"  FaxDetect([waitdur[|options[|sildur[|mindur[|maxdur]]]]]):\n"
+"  FaxDetect([waitdur[|tonestr[|options[|sildur[|mindur[|maxdur]]]]]]):\n"
 "This application listens for fax tones (on IAX and SIP channels too)\n"
-"for waitdur seconds of time. In addition, it can be interrupted by digits,\n"
-"or non-silence. Audio is only monitored in the receive direction. If\n"
+"for waitdur seconds of time(default is 4 seconds. In addition, \n"
+"it can play optional ringtone indicated by tonestr \n"
+"and it can be interrupted by digits or non-silence. \n"
+"Audio is only monitored in the receive direction. If\n"
 "digits interrupt, they must be the start of a valid extension unless the\n"
 "option is included to ignore. If fax is detected, it will jump to the\n"
 "'fax' extension. If a period of non-silence greater than 'mindur' ms,\n"
@@ -95,6 +98,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	char dtmf_did[256] = "\0";
 	char *p = NULL;
 	char *waitstr = NULL;
+	char *tonestr = NULL;
 	char *options = NULL;
 	char *silstr = NULL;
 	char *minstr = NULL;
@@ -133,6 +137,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	p = tmp;
 	
 	waitstr = strsep(&p, "|");
+	tonestr = strsep(&p, "|");
 	options = strsep(&p, "|");
 	silstr = strsep(&p, "|");
 	minstr = strsep(&p, "|");	
@@ -203,6 +208,17 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 		opbx_dsp_set_threshold(dsp, 256); 
 		opbx_dsp_set_features(dsp, features | DSP_DIGITMODE_RELAXDTMF);
 		opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF);
+	}
+
+	if (tonestr) {
+	    struct tone_zone_sound *ts;
+	    ts = opbx_get_indication_tone(chan->zone, tonestr);
+	    if (ts && ts->data[0])
+		res = opbx_playtones_start(chan, 0, ts->data, 0);
+	    else
+		res = opbx_playtones_start(chan, 0, tonestr, 0);
+	    if (res)
+		opbx_log(LOG_NOTICE,"Unable to start playtones\n");
 	}
 
 	if (!res) {
@@ -295,15 +311,17 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 				int totalsilence;
 				int ms;
 
-				//The following piece of code enables this application
-				//to send empty frames. This solves fax detection problem
-				//When a fax gets in with RTP. 
-				//The CNG is detected, faxdetect gotos to fax extension
-				//and if we are on a SIP channel the T38 switchover is done.
-    				fr3=opbx_frdup(fr);
-				memset(fr3->data,0,fr3->datalen);
-				opbx_write(chan,fr3);
-				opbx_frfree(fr3);
+				if (!tonestr) {
+    				    //The following piece of code enables this application
+				    //to send empty frames. This solves fax detection problem
+				    //When a fax gets in with RTP. 
+				    //The CNG is detected, faxdetect gotos to fax extension
+				    //and if we are on a SIP channel the T38 switchover is done.
+    				    fr3=opbx_frdup(fr);
+				    memset(fr3->data,0,fr3->datalen);
+				    opbx_write(chan,fr3);
+				    opbx_frfree(fr3);
+				}
 
 				res = opbx_dsp_silence(dsp, fr, &totalsilence);
 				if (res && (totalsilence > sildur)) {
@@ -365,6 +383,9 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	
 	if (dsp)
 		opbx_dsp_free(dsp);
+
+	if (tonestr)
+	    opbx_playtones_stop(chan);
 	
 	LOCAL_USER_REMOVE(u);
 	
