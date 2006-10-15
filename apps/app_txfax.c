@@ -289,6 +289,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             if (res < 0)
             {
                 opbx_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+		LOCAL_USER_REMOVE(u);
                 return -1;
             }
         }
@@ -302,6 +303,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                 res = opbx_set_read_format(chan, original_read_fmt);
                 if (res)
                     opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+		LOCAL_USER_REMOVE(u);
                 return -1;
             }
         }

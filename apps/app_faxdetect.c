@@ -223,7 +223,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 			}
 
 			/* Check for a T38 switchover */
-			if (chan->t38mode_enabled==1) {
+			if (chan->t38mode_enabled==1 && !ignorefax) {
 			    opbx_log(LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
 			    if (strcmp(chan->exten, "fax")) {
 				opbx_log(LOG_NOTICE, "Redirecting %s to fax extension\n", chan->name);
