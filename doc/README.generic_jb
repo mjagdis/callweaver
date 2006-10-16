@@ -91,8 +91,8 @@ Steve Kann
 
 
 The new jitterbuffer, PLC, and the IAX2-integration of the new jitterbuffer 
-have been integrated into OpenPBX. The jitterbuffer is generic and work is 
-going on to implement it in SIP/RTP as well.
+have been integrated into OpenPBX. The jitterbuffer is generic and work has 
+been implemented in SIP/RTP as well.
 
 Also, we've added a feature called "trunktimestamps", which adds individual 
 timestamps to trunked frames within a trunk frame.
@@ -128,12 +128,12 @@ The other side must also support this functionality, or else, well, bad things w
 If you don't use trunktimestamps, there's lots of ways the jitterbuffer can get confused because 
 timestamps aren't necessarily sent through the trunk correctly.
 
-4) Communication with OpenPBX v1.0.x systems
+4) Communication with Asterisk v1.0.x systems
 ---------------------------------------------
 You can set up communication with v1.0.x systems with the new jitterbuffer, but
 you can't use trunks with trunktimestamps in this communication.
 
-If you are connecting to an OpenPBX server with earlier versions of the software (1.0.x),
+If you are connecting to an Asterisk server with earlier versions of the software (1.0.x),
 do not enable both jitterbuffer and trunking for the involved peers/users 
 in order to be able  to communicate. Earlier systems will not support trunktimestamps.
 
