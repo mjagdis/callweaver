@@ -386,7 +386,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 				    ms_silence += (now.tv_usec - start_silence.tv_usec) / 1000;
 
 				    //opbx_log(LOG_WARNING,"[%5d,%5d,%5d] MS_TALK: %6d MS_SILENCE %6d\n", 
-					mindur,maxdur,sildur, ms_talk, ms_silence);
+				    //	mindur,maxdur,sildur, ms_talk, ms_silence);
 				    speaking=0;
 
 				    if (ms_silence>=sildur) {
