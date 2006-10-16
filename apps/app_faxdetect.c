@@ -167,7 +167,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 			waitdur = x;
 	}
 
-	if (!strlen(tonestr)) 
+	if ( (tonestr != NULL) && !strlen(tonestr)) 
 	    tonestr=NULL;
 	
 	if (options) {
@@ -402,6 +402,8 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 						    chan->priority = 0;
 						} else
 						    opbx_log(LOG_WARNING, "Talk detected, but no talk extension\n");
+					    } else {
+						opbx_log(LOG_NOTICE, "Talk detected.\n");
 					    }
 					    res = 0;
 					    opbx_frfree(fr);
@@ -410,11 +412,12 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 				    }
 
 				} else {
-				    opbx_log(LOG_DEBUG,"Start of voice token\n");
 				    if (!talkdetection_started)
 					talkdetection_started=1;
-				    if (!speaking)
+				    if (!speaking) {
 					gettimeofday(&start_talk, NULL);
+					opbx_log(LOG_DEBUG,"Start of voice token\n");
+				    }
 				    speaking=1;
 				}
 
