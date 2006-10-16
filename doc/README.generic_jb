@@ -91,7 +91,7 @@ Steve Kann
 
 
 The new jitterbuffer, PLC, and the IAX2-integration of the new jitterbuffer 
-have been integrated into OpenPBX. The jitterbuffer is generic and work has 
+have been integrated into OpenPBX. The jitterbuffer is generic and has 
 been implemented in SIP/RTP as well.
 
 Also, we've added a feature called "trunktimestamps", which adds individual 
