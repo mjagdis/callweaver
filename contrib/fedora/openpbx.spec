@@ -1,19 +1,20 @@
-%define snap 1968
+%define snap 1983
 
 %bcond_with misdn
-%bcond_with zaptel
+%bcond_without zaptel
 
 %bcond_without	fedora
 
 Name:		openpbx
-Version:	0
-Release:	1.svn%{snap}%{?dist}
+Version:	1.2
+Release:	1.rc1.svn%{snap}%{?dist}
 Summary:	The Truly Open Source PBX
 
 Group:		Applications/Internet
 License:	GPL
 URL:		http://www.openpbx.org/
-# svn://svn.openpbx.org/openpbx/trunk
+# svn co -r %{snap} svn://svn.openpbx.org/openpbx/trunk openpbx
+# tar cvfz openpbx-r%{snap}.tar.gz openpbx
 Source0:	openpbx-r%{snap}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -22,8 +23,8 @@ BuildRequires:	%{?snap:libtool automake autoconf} zlib-devel
 BuildRequires:	fedora-usermgmt-devel bluez-libs-devel openldap-devel
 BuildRequires:	libjpeg-devel loudmouth-devel nspr-devel js-devel ncurses-devel
 BuildRequires:	unixODBC-devel openssl-devel speex-devel alsa-lib-devel
-BuildRequires:	isdn4k-utils-devel libcap-devel sqlite-devel
-BuildRequires:	postgresql-devel libedit-devel %{?with_misdn:mISDN}
+BuildRequires:	isdn4k-utils-devel libcap-devel sqlite-devel mysql-devel
+BuildRequires:	postgresql-devel libedit-devel %{?with_misdn:mISDN-devel}
 BuildRequires:	popt %{?with_zaptel:zaptel-devel libpri-devel}
 
 Requires:	/sbin/chkconfig
@@ -58,6 +59,14 @@ Requires:	%{name} = %{version}-%{release}
 
 %description postgresql
 This package contains modules for OpenPBX which make use of PostgreSQL.
+
+%package mysql
+Group:		Applications/Internet
+Summary:	MySQL support for OpenPBX
+Requires:	%{name} = %{version}-%{release}
+
+%description mysql
+This package contains modules for OpenPBX which make use of MySQL.
 
 %package odbc
 Group:		Applications/Internet
@@ -166,7 +175,9 @@ convenient interface between OpenPBX and external scripts or programs.
 	   --enable-javascript --with-res_js --enable-fast-install \
 	   %{?with_misdn:--with-chan_misdn} \
 	   %{?with_zaptel:--enable-zaptel} \
-	   --enable-jabber --with-res_jabber # --with-res_sqlite
+	   --enable-jabber --with-res_jabber \
+	   --enable-mysql --with-res_config_mysql --with-cdr_mysql
+	   
 
 # Poxy fscking libtool is _such_ a pile of crap...
 sed -i 's/^CC="gcc"/CC="gcc -Wl,--as-needed"/' libtool
@@ -218,6 +229,9 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %pre zaptel
 %{_sbindir}/usermod -G `id -G openpbx | tr " " , `,zaptel openpbx
 
+%pre misdn
+%{_sbindir}/usermod -G `id -G openpbx | tr " " , `,misdn openpbx
+
 %files
 %defattr(-,root,root,-)
 %doc COPYING CREDITS LICENSE BUGS AUTHORS SECURITY README HARDWARE
@@ -243,6 +257,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_sysconfdir}/openpbx.org/cdr_tds.conf
 # Separately packaged
 %exclude %{_libdir}/openpbx.org/modules/*pgsql.so
+%exclude %{_libdir}/openpbx.org/modules/*mysql.so
 %exclude %{_libdir}/openpbx.org/modules/app_sql_postgres.so
 %exclude %{_libdir}/openpbx.org/modules/app_ldap.so
 %exclude %{_libdir}/openpbx.org/modules/cdr_odbc.so
@@ -253,6 +268,7 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %exclude %{_libdir}/openpbx.org/modules/res_ogi.so
 %exclude %{_libdir}/openpbx.org/modules/chan_capi.so
 %exclude %{_sysconfdir}/openpbx.org/cdr_pgsql.conf
+%exclude %{_sysconfdir}/openpbx.org/*mysql.conf
 %exclude %{_sysconfdir}/openpbx.org/cdr_odbc.conf
 %exclude %{_sysconfdir}/openpbx.org/chan_bluetooth.conf
 %exclude %{_sysconfdir}/openpbx.org/res_jabber.conf
@@ -280,6 +296,10 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %{_libdir}/openpbx.org/modules/*pgsql.so
 %{_libdir}/openpbx.org/modules/app_sql_postgres.so
 %config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/cdr_pgsql.conf
+
+%files mysql
+%{_libdir}/openpbx.org/modules/*mysql.so
+%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/*mysql.conf
 
 %files odbc
 %{_libdir}/openpbx.org/modules/cdr_odbc.so
@@ -333,5 +353,5 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %{_sbindir}/eogi*
 
 %changelog
-* Thu Oct  5 2006 David Woodhouse <dwmw2@infradead.org>
+* Thu Oct  5 2006 David Woodhouse <dwmw2@infradead.org> 1.2-1.rc1.svn1979
 - Initial build
