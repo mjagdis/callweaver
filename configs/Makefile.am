@@ -35,6 +35,10 @@ if WANT_APP_VOICEMAIL
 SAMPLES += voicemail.conf.sample
 endif WANT_APP_VOICEMAIL
 
+if WANT_CDR_MYSQL
+SAMPLES	+= cdr_mysql.conf.sample
+endif WANT_CDR_MYSQL
+
 if WANT_CDR_ODBC
 SAMPLES	+= cdr_odbc.conf.sample
 endif WANT_CDR_ODBC
@@ -110,6 +114,10 @@ endif WANT_RES_JABBER
 if WANT_RES_ODBC
 SAMPLES += res_odbc.conf.sample
 endif WANT_RES_ODBC
+
+if WANT_RES_CONFIG_MYSQL
+SAMPLES += res_mysql.conf.sample
+endif WANT_RES_CONFIG_MYSQL
 
 if WANT_RES_CONFIG_PGSQL
 SAMPLES += res_pgsql.conf.sample
