@@ -536,6 +536,10 @@ AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is r
 
 dnl ###########################################################################
 
+AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile OpenPBX.org.)])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([spandsp-includes],
 	[AC_HELP_STRING([--with-spandsp-includes],[Location of SpanDSP include files.])],
 	[CFLAGS="$CFLAGS -I${withval}"])
