@@ -1,13 +1,13 @@
-%define snap 1983
+%define snap 1984
 
-%bcond_with misdn
+%bcond_without misdn
 %bcond_without zaptel
 
 %bcond_without	fedora
 
 Name:		openpbx
 Version:	1.2
-Release:	1.rc1.svn%{snap}%{?dist}
+Release:	2.rc1.svn%{snap}%{?dist}
 Summary:	The Truly Open Source PBX
 
 Group:		Applications/Internet
@@ -353,5 +353,8 @@ test "$1" != 0 || /sbin/chkconfig --del openpbx
 %{_sbindir}/eogi*
 
 %changelog
+* Wed Oct 18 2006 David Woodhouse <dwmw2@infradead.org> 1.2-2.rc1.svn1984
+- Build with mISDN and MySQL support
+
 * Thu Oct  5 2006 David Woodhouse <dwmw2@infradead.org> 1.2-1.rc1.svn1979
 - Initial build
