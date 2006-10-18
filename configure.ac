@@ -786,6 +786,24 @@ fi
 
 dnl ###########################################################################
 
+AC_ARG_ENABLE([mysql],
+	[AC_HELP_STRING([--enable-mysql],[Enable support for MySQL. (default=no)])],,[enable_mysql="no"])
+
+if test "${enable_mysql}" = "yes"; then
+   AC_PATH_PROG(MYSQL_CONFIG, mysql_config, no, $PATH)
+   if test "$MYSQL_CONFIG" = "no"; then
+      enable_mysql="no"
+   else
+      MYSQL_LIBS=`$MYSQL_CONFIG --libs`
+      MYSQL_CFLAGS=`$MYSQL_CONFIG --include`
+
+      AC_SUBST([MYSQL_LIBS])
+      AC_SUBST([MYSQL_CFLAGS])
+   fi
+fi
+
+dnl ###########################################################################
+
 AC_ARG_ENABLE([srtp],
 	[AC_HELP_STRING([--enable-srtp],[Enable support for SRTP.])],,[enable_srtp="no"])
 
@@ -1289,6 +1307,14 @@ AM_CONDITIONAL([WANT_APP_SOFTHANGUP],[test "${with_app_softhangup}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_sql_mysql],
+        [AC_HELP_STRING([--with-app_sql_mysql],[Build and install app_sql_mysql (default=yes)])],,
+        [with_app_sql_mysql="yes"])
+		
+AM_CONDITIONAL([WANT_APP_SQL_MYSQL],[test "${enable_mysql}" = "yes" -a "$with_app_sql_mysql" = "yes"])
+		
+dnl ###########################################################################
+
 AC_ARG_WITH([app_sql_postgres],
         [AC_HELP_STRING([--with-app_sql_postgres],[Build and install app_sql_postgres (default=yes)])],,
         [with_app_sql_postgres="yes"])
@@ -1688,6 +1714,13 @@ AM_CONDITIONAL([WANT_CDR_ODBC],[test "${enable_odbc}" = "yes" -a "${with_cdr_odb
 
 dnl ###########################################################################
 
+AC_ARG_WITH(cdr_mysql,
+	[AC_HELP_STRING([--with-cdr_mysql],[Build and install cdr_mysql (default=no) (requires --enable-mysql])],,[with_cdr_mysql="no"])
+
+AM_CONDITIONAL([WANT_CDR_MYSQL],[test "${enable_mysql}" = "yes" -a "$with_cdr_mysql" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH(cdr_pgsql,
 	[AC_HELP_STRING([--with-cdr_pgsql],[Build and install cdr_pgsql (default=no) (requires --enable-postgresql])],,[with_cdr_pgsql="no"])
 
@@ -1922,6 +1955,13 @@ AC_ARG_WITH([res_config_odbc],
         [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no) (requires --enable-odbc and --with-res_odbc)])],,[with_res_config_odbc="no"])
 
 AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_config_odbc}" = "yes" -a "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
+
+dnl ###########################################################################
+
+AC_ARG_WITH(res_config_mysql,
+	[AC_HELP_STRING([--with-res_config_mysql],[Build and install res_config_mysql (default=no) (requires --enable-mysql])],,[with_res_config_mysql="no"])
+
+AM_CONDITIONAL([WANT_RES_CONFIG_MYSQL],[test "${enable_mysql}" = "yes" -a "${with_res_config_mysql}" = "yes"])
 
 dnl ###########################################################################
 

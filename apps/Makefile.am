@@ -325,6 +325,14 @@ app_softhangup_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_softhangup_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SOFTHANGUP
 
+if WANT_APP_SQL_MYSQL
+opbxmod_LTLIBRARIES                     += app_sql_mysql.la
+app_sql_mysql_la_SOURCES		= app_sql_mysql.c
+app_sql_mysql_la_CFLAGS			= $(AM_CFLAGS) @MYSQL_CFLAGS@ 
+app_sql_mysql_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_sql_mysql_la_LIBADD			= @MYSQL_LIBS@ ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_SQL_MYSQL
+
 if WANT_APP_SQL_POSTGRES
 opbxmod_LTLIBRARIES                     += app_sql_postgres.la
 app_sql_postgres_la_SOURCES             = app_sql_postgres.c

@@ -55,6 +55,14 @@ res_jabber_la_CFLAGS   	= $(AM_CFLAGS) @LOUDMOUTH_CFLAGS@
 res_jabber_la_LIBADD   	= @LOUDMOUTH_LIBS@ ${top_builddir}/corelib/libopenpbx.la  
 endif WANT_RES_JABBER
 
+if WANT_RES_CONFIG_MYSQL
+opbxmod_LTLIBRARIES     	+= res_config_mysql.la
+res_config_mysql_la_SOURCES   = res_config_mysql.c
+res_config_mysql_la_LDFLAGS   = -module -avoid-version -no-undefined
+res_config_mysql_la_CFLAGS    = $(AM_CFLAGS) @MYSQL_CFLAGS@
+res_config_mysql_la_LIBADD    = @MYSQL_LIBS@ ${top_builddir}/corelib/libopenpbx.la  
+endif WANT_RES_CONFIG_MYSQL
+
 if WANT_RES_CONFIG_PGSQL
 opbxmod_LTLIBRARIES     	+= res_config_pgsql.la
 res_config_pgsql_la_SOURCES   = res_config_pgsql.c

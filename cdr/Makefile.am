@@ -17,6 +17,14 @@ cdr_odbc_la_LDFLAGS	= -module -avoid-version -no-undefined
 cdr_odbc_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la
 endif WANT_CDR_ODBC
 
+if WANT_CDR_MYSQL
+opbxmod_LTLIBRARIES	+= cdr_mysql.la
+cdr_mysql_la_SOURCES	= cdr_mysql.c
+cdr_mysql_la_CFLAGS	= $(AM_CFLAGS) @MYSQL_CFLAGS@ 
+cdr_mysql_la_LDFLAGS	= -module -avoid-version -no-undefined
+cdr_mysql_la_LIBADD	= @MYSQL_LIBS@ ${top_builddir}/corelib/libopenpbx.la
+endif WANT_CDR_MYSQL
+
 if WANT_CDR_PGSQL
 opbxmod_LTLIBRARIES	+= cdr_pgsql.la
 cdr_pgsql_la_SOURCES	= cdr_pgsql.c
