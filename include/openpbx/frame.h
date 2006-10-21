@@ -174,6 +174,8 @@ struct opbx_frame {
 #define OPBX_FORMAT_H263		(1 << 19)
 /*! H.263+ Video */
 #define OPBX_FORMAT_H263_PLUS	(1 << 20)
+/*! H.264 Video */
+#define OPBX_FORMAT_H264                (1 << 21)
 /*! Maximum video format */
 #define OPBX_FORMAT_MAX_VIDEO	(1 << 24)
 

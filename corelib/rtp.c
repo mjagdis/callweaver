@@ -1077,6 +1077,7 @@ static struct {
   {{1, OPBX_FORMAT_H261}, "video", "H261"},
   {{1, OPBX_FORMAT_H263}, "video", "H263"},
   {{1, OPBX_FORMAT_H263_PLUS}, "video", "h263-1998"},
+  {{1, OPBX_FORMAT_H264}, "video", "H264"},
 };
 
 /* Static (i.e., well-known) RTP payload types for our "OPBX_FORMAT..."s:
@@ -1105,6 +1106,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [34] = {1, OPBX_FORMAT_H263},
   [103] = {1, OPBX_FORMAT_H263_PLUS},
   [97] = {1, OPBX_FORMAT_ILBC},
+  [99] = {1, OPBX_FORMAT_H264},
   [101] = {0, OPBX_RTP_DTMF},
   [110] = {1, OPBX_FORMAT_SPEEX},
   [111] = {1, OPBX_FORMAT_G726},

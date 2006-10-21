@@ -501,6 +501,7 @@ static struct opbx_format_list OPBX_FORMAT_LIST[] = {
 	{ 1, OPBX_FORMAT_H261, "h261", "H.261 Video" },
 	{ 1, OPBX_FORMAT_H263, "h263", "H.263 Video" },
 	{ 1, OPBX_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },
+	{ 1, OPBX_FORMAT_H264, "h264", "H.264 Video" },  	/*!< Passthrough support, see format_h263.c */
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
@@ -642,7 +643,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 
 	if ((argc == 2) || (!strcasecmp(argv[1],"video"))) {
 		found = 1;
-		for (i=18;i<21;i++) {
+		for (i=18;i<22;i++) {
 			snprintf(hex,25,"(0x%x)",1<<i);
 			opbx_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n",1 << i,i,hex,opbx_getformatname(1<<i),opbx_codec2str(1<<i));
 		}
