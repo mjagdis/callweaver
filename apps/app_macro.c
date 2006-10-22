@@ -121,6 +121,8 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
+	opbx_log(LOG_WARNING,"This application is deprecated. Use Proc instead.\n");
+
 	/* Count how many levels deep the rabbit hole goes */
 	tmp = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
 	if (tmp) {
@@ -316,6 +318,8 @@ static int macroif_exec(struct opbx_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
+	opbx_log(LOG_WARNING,"This application is deprecated. Use ProcIf instead.\n");
+
 	expr = opbx_strdupa(data);
 	if (!expr) {
 		opbx_log(LOG_ERROR, "Out of Memory!\n");
@@ -344,6 +348,7 @@ static int macroif_exec(struct opbx_channel *chan, void *data)
 			
 static int macro_exit_exec(struct opbx_channel *chan, void *data)
 {
+	opbx_log(LOG_WARNING,"This application is deprecated. Use ProcExit instead.\n");
 	return MACRO_EXIT_RESULT;
 }
 
