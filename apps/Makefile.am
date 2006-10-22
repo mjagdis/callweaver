@@ -198,6 +198,13 @@ app_macro_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_macro_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_MACRO
 
+if WANT_APP_PROC
+opbxmod_LTLIBRARIES			+= app_proc.la
+app_proc_la_SOURCES			= app_proc.c
+app_proc_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_proc_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_PROC
+
 if WANT_APP_MILLIWATT
 opbxmod_LTLIBRARIES			+= app_milliwatt.la
 app_milliwatt_la_SOURCES		= app_milliwatt.c

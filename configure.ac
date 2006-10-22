@@ -1162,6 +1162,14 @@ AM_CONDITIONAL([WANT_APP_MACRO],[test "${with_app_macro}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_proc],
+	[AC_HELP_STRING([--with-app_proc],[Build and install app_proc (default=yes)])],,
+	[with_app_proc="yes"])
+
+AM_CONDITIONAL([WANT_APP_PROC],[test "${with_app_proc}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
 	[with_app_meetme="yes"])
