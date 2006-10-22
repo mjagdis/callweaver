@@ -90,10 +90,10 @@ void opbx_smoother_reset(struct opbx_smoother *s, int size)
 struct opbx_smoother *opbx_smoother_new(int size)
 {
 	struct opbx_smoother *s;
+
 	if (size < 1)
 		return NULL;
-	s = malloc(sizeof(struct opbx_smoother));
-	if (s)
+	if ((s = malloc(sizeof(struct opbx_smoother))))
 		opbx_smoother_reset(s, size);
 	return s;
 }
@@ -227,8 +227,8 @@ void opbx_smoother_free(struct opbx_smoother *s)
 static struct opbx_frame *opbx_frame_header_new(void)
 {
 	struct opbx_frame *f;
-	f = malloc(sizeof(struct opbx_frame));
-	if (f)
+
+	if ((f = malloc(sizeof(struct opbx_frame))))
 		memset(f, 0, sizeof(struct opbx_frame));
 #ifdef TRACE_FRAMES
 	if (f) {
@@ -350,8 +350,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
 		srclen = strlen(f->src);
 	if (srclen > 0)
 		len += srclen + 1;
-	buf = malloc(len);
-	if (!buf)
+	if ((buf = malloc(len)) == NULL)
 		return NULL;
 	out = buf;
 	/* Set us as having malloc'd header only, so it will eventually
@@ -375,7 +374,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
 	memcpy(out->data, f->data, out->datalen);
 
 	out->has_timing_info = f->has_timing_info;
-	if(f->has_timing_info)
+	if (f->has_timing_info)
 	{
 		out->ts = f->ts;
 		out->len = f->len;
@@ -485,7 +484,7 @@ static struct opbx_format_list OPBX_FORMAT_LIST[] = {
 	{ 1, OPBX_FORMAT_ULAW, "ulaw", "G.711 u-law" },
 	{ 1, OPBX_FORMAT_ALAW, "alaw", "G.711 A-law" },
 	{ 1, OPBX_FORMAT_G726, "g726", "G.726" },
-	{ 1, OPBX_FORMAT_ADPCM, "adpcm" , "ADPCM"},
+	{ 1, OPBX_FORMAT_DVI_ADPCM, "adpcm" , "ADPCM"},
 	{ 1, OPBX_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},
 	{ 1, OPBX_FORMAT_LPC10, "lpc10", "LPC10" },
 	{ 1, OPBX_FORMAT_G729A, "g729", "G.729A" },
@@ -1243,7 +1242,7 @@ int opbx_codec_get_samples(struct opbx_frame *f)
 	case OPBX_FORMAT_ALAW:
 		samples = f->datalen;
 		break;
-	case OPBX_FORMAT_ADPCM:
+	case OPBX_FORMAT_DVI_ADPCM:
 	case OPBX_FORMAT_G726:
 		samples = f->datalen * 2;
 		break;
@@ -1275,7 +1274,7 @@ int opbx_codec_get_len(int format, int samples)
 	case OPBX_FORMAT_ALAW:
 		len = samples;
 		break;
-	case OPBX_FORMAT_ADPCM:
+	case OPBX_FORMAT_DVI_ADPCM:
 	case OPBX_FORMAT_G726:
 		len = samples / 2;
 		break;

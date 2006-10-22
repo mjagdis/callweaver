@@ -151,16 +151,17 @@ static int gsmtolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame *
 	uint8_t data[66];
 	int msgsm = 0;
 	
-	if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
-	      if((tmp->tail + 160) > sizeof(tmp->buf) / 2) {
-		  opbx_log(LOG_WARNING, "Out of buffer space\n");
-		  return -1;
-	      }
-	      if(useplc) {
-		  plc_fillin(&tmp->plc, tmp->buf+tmp->tail, 160);
-		  tmp->tail += 160;
-	      }
-	      return 0;
+	if (f->datalen == 0) {
+        /* perform PLC with nominal framesize of 20ms/160 samples */
+	    if((tmp->tail + 160) > sizeof(tmp->buf) / 2) {
+		    opbx_log(LOG_WARNING, "Out of buffer space\n");
+		    return -1;
+	    }
+	    if(useplc) {
+		    plc_fillin(&tmp->plc, tmp->buf+tmp->tail, 160);
+		    tmp->tail += 160;
+	    }
+	    return 0;
 	}
 
 	if ((f->datalen % 33)  &&  (f->datalen % 65)) {

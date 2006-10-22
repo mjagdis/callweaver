@@ -89,7 +89,6 @@ struct opbx_policy {
 };
 #endif
 
-
 static struct opbx_rtp_protocol *protos = NULL;
 
 struct rtp_codec_table {
@@ -117,22 +116,20 @@ static struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, in
 	struct rtp_codec_table *ent = NULL;
 
 	*len = 0;
-	for(x = 0 ; RTP_CODEC_TABLE[x].format ; x++) {
-		if (RTP_CODEC_TABLE[x].format == format) {
+	for (x = 0;  RTP_CODEC_TABLE[x].format ;  x++)
+    {
+		if (RTP_CODEC_TABLE[x].format == format)
+        {
 			ent = &RTP_CODEC_TABLE[x];
-			if (! *ms) {
+			if (*ms == 0)
 				*ms = ent->defaultms;
-			}
-			while((res = (*ms % ent->increment))) {
+			while ((res = (*ms%ent->increment)))
 				(*ms)++;
-			}
-			while((*len = (*ms / ent->increment) * ent->len) > RTP_MTU) {
+			while ((*len = (*ms/ent->increment)*ent->len) > RTP_MTU)
 				*ms -= ent->increment;
-			}
 			break;
 		}
 	}
-
 	return ent;
 }
 
@@ -206,7 +203,8 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 	const struct sockaddr_in *them;
 
 	them = udp_socket_get_them(rtp->rtp_sock_info);
-	if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0) {
+	if (opbx_tvcmp(opbx_tvnow(), rtp->dtmfmute) < 0)
+    {
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
 		rtp->resp = 0;
@@ -215,10 +213,13 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 	}
 	if (option_debug)
 		opbx_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
-	if (rtp->resp == 'X') {
+	if (rtp->resp == 'X')
+    {
 		rtp->f.frametype = OPBX_FRAME_CONTROL;
 		rtp->f.subclass = OPBX_CONTROL_FLASH;
-	} else {
+	}
+    else
+    {
 		rtp->f.frametype = OPBX_FRAME_DTMF;
 		rtp->f.subclass = rtp->resp;
 	}
@@ -228,19 +229,21 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
 	rtp->f.src = "RTP";
 	rtp->resp = 0;
 	rtp->dtmfduration = 0;
-	return &rtp->f;
-	
+	return  &rtp->f;
 }
 
 static inline int rtp_debug_test_addr(const struct sockaddr_in *addr)
 {
 	if (rtpdebug == 0)
 		return 0;
-	if (rtpdebugaddr.sin_addr.s_addr) {
-		if (((ntohs(rtpdebugaddr.sin_port) != 0)
-			&& (rtpdebugaddr.sin_port != addr->sin_port))
-			|| (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-		return 0;
+	if (rtpdebugaddr.sin_addr.s_addr)
+    {
+		if (((ntohs(rtpdebugaddr.sin_port) != 0)  &&  (rtpdebugaddr.sin_port != addr->sin_port))
+		    ||
+            (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+        {
+            return 0;
+        }
 	}
 	return 1;
 }
@@ -250,25 +253,24 @@ static struct opbx_frame *process_cisco_dtmf(struct opbx_rtp *rtp, unsigned char
 	unsigned int event;
 	char resp = 0;
 	struct opbx_frame *f = NULL;
+
 	event = ntohl(*((unsigned int *)(data)));
 	event &= 0x001F;
 #if 0
 	printf("Cisco Digit: %08x (len = %d)\n", event, len);
 #endif	
-	if (event < 10) {
+	if (event < 10)
 		resp = '0' + event;
-	} else if (event < 11) {
+	else if (event < 11)
 		resp = '*';
-	} else if (event < 12) {
+	else if (event < 12)
 		resp = '#';
-	} else if (event < 16) {
+	else if (event < 16)
 		resp = 'A' + (event - 12);
-	} else if (event < 17) {
+	else if (event < 17)
 		resp = 'X';
-	}
-	if (rtp->resp && (rtp->resp != resp)) {
+	if (rtp->resp && (rtp->resp != resp))
 		f = send_dtmf(rtp);
-	}
 	rtp->resp = resp;
 	rtp->dtmfcount = dtmftimeout;
 	return f;
@@ -284,6 +286,7 @@ static struct opbx_frame *process_rfc2833(struct opbx_rtp *rtp, unsigned char *d
 	unsigned int duration;
 	char resp = 0;
 	struct opbx_frame *f = NULL;
+
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
 	event_end = ntohl(*((unsigned int *)(data)));
@@ -293,22 +296,26 @@ static struct opbx_frame *process_rfc2833(struct opbx_rtp *rtp, unsigned char *d
 	duration &= 0xFFFF;
 	if (rtpdebug)
 		opbx_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
-	if (event < 10) {
+	if (event < 10)
 		resp = '0' + event;
-	} else if (event < 11) {
+	else if (event < 11)
 		resp = '*';
-	} else if (event < 12) {
+	else if (event < 12)
 		resp = '#';
-	} else if (event < 16) {
+	else if (event < 16)
 		resp = 'A' + (event - 12);
-	} else if (event < 17) {	/* Event 16: Hook flash */
-		resp = 'X';	
-	}
-	if (rtp->resp && (rtp->resp != resp)) {
+	else if (event < 17)	/* Event 16: Hook flash */
+		resp = 'X';
+	if (rtp->resp && (rtp->resp != resp))
+    {
 		f = send_dtmf(rtp);
-	} else if(event_end & 0x80) {
-		if (rtp->resp) {
-			if(rtp->lasteventendseqn != seqno) {
+	}
+    else if (event_end & 0x80)
+    {
+		if (rtp->resp)
+        {
+			if (rtp->lasteventendseqn != seqno)
+            {
 				f = send_dtmf(rtp);
 				rtp->lasteventendseqn = seqno;
 			}
@@ -316,7 +323,9 @@ static struct opbx_frame *process_rfc2833(struct opbx_rtp *rtp, unsigned char *d
 		}
 		resp = 0;
 		duration = 0;
-	} else if(rtp->dtmfduration && (duration < rtp->dtmfduration)) {
+	}
+    else if (rtp->dtmfduration && (duration < rtp->dtmfduration))
+    {
 		f = send_dtmf(rtp);
 	}
 	if (!(event_end & 0x80))
@@ -1063,7 +1072,7 @@ static struct {
   {{1, OPBX_FORMAT_ULAW}, "audio", "PCMU"},
   {{1, OPBX_FORMAT_ALAW}, "audio", "PCMA"},
   {{1, OPBX_FORMAT_G726}, "audio", "G726-32"},
-  {{1, OPBX_FORMAT_ADPCM}, "audio", "DVI4"},
+  {{1, OPBX_FORMAT_DVI_ADPCM}, "audio", "DVI4"},
   {{1, OPBX_FORMAT_SLINEAR}, "audio", "L16"},
   {{1, OPBX_FORMAT_LPC10}, "audio", "LPC"},
   {{1, OPBX_FORMAT_G729A}, "audio", "G729"},
@@ -1090,15 +1099,15 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 #endif
   [3] = {1, OPBX_FORMAT_GSM},
   [4] = {1, OPBX_FORMAT_G723_1},
-  [5] = {1, OPBX_FORMAT_ADPCM}, /* 8 kHz */
-  [6] = {1, OPBX_FORMAT_ADPCM}, /* 16 kHz */
+  [5] = {1, OPBX_FORMAT_DVI_ADPCM}, /* 8 kHz */
+  [6] = {1, OPBX_FORMAT_DVI_ADPCM}, /* 16 kHz */
   [7] = {1, OPBX_FORMAT_LPC10},
   [8] = {1, OPBX_FORMAT_ALAW},
   [10] = {1, OPBX_FORMAT_SLINEAR}, /* 2 channels */
   [11] = {1, OPBX_FORMAT_SLINEAR}, /* 1 channel */
   [13] = {0, OPBX_RTP_CN},
-  [16] = {1, OPBX_FORMAT_ADPCM}, /* 11.025 kHz */
-  [17] = {1, OPBX_FORMAT_ADPCM}, /* 22.050 kHz */
+  [16] = {1, OPBX_FORMAT_DVI_ADPCM}, /* 11.025 kHz */
+  [17] = {1, OPBX_FORMAT_DVI_ADPCM}, /* 22.050 kHz */
   [18] = {1, OPBX_FORMAT_G729A},
   [19] = {0, OPBX_RTP_CN},		/* Also used for CN */
   [26] = {1, OPBX_FORMAT_JPEG},
@@ -1853,7 +1862,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
 	char iabuf[INET_ADDRSTRLEN];
 	
 	void *pvt0, *pvt1;
-	int codec0,codec1, oldcodec0, oldcodec1;
+	int codec0, codec1, oldcodec0, oldcodec1;
 	
 	memset(&vt0, 0, sizeof(vt0));
 	memset(&vt1, 0, sizeof(vt1));
@@ -2097,13 +2106,13 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	arg = argv[3];
 	p = strstr(arg, ":");
-	if (p) {
+	if (p)
+    {
 		*p = '\0';
 		p++;
 		port = atoi(p);
 	}
-	hp = opbx_gethostbyname(arg, &ahp);
-	if (hp == NULL)
+	if ((hp = opbx_gethostbyname(arg, &ahp)) == NULL)
 		return RESULT_SHOWUSAGE;
 	rtpdebugaddr.sin_family = AF_INET;
 	memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
@@ -2118,20 +2127,21 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 
 static int rtp_do_debug(int fd, int argc, char *argv[])
 {
-	if(argc != 2) {
-		if(argc != 4)
+	if (argc != 2)
+    {
+		if (argc != 4)
 			return RESULT_SHOWUSAGE;
 		return rtp_do_debug_ip(fd, argc, argv);
 	}
 	rtpdebug = 1;
-	memset(&rtpdebugaddr,0,sizeof(rtpdebugaddr));
+	memset(&rtpdebugaddr, 0, sizeof(rtpdebugaddr));
 	opbx_cli(fd, "RTP Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
    
 static int rtp_no_debug(int fd, int argc, char *argv[])
 {
-	if(argc !=3)
+	if (argc !=3)
 		return RESULT_SHOWUSAGE;
 	rtpdebug = 0;
 	opbx_cli(fd,"RTP Debugging Disabled\n");
@@ -2166,15 +2176,18 @@ void opbx_rtp_reload(void)
 	dtmftimeout = DEFAULT_DTMFTIMEOUT;
 
 	cfg = opbx_config_load("rtp.conf");
-	if (cfg) {
-		if ((s = opbx_variable_retrieve(cfg, "general", "rtpstart"))) {
+	if (cfg)
+    {
+		if ((s = opbx_variable_retrieve(cfg, "general", "rtpstart")))
+        {
 			rtpstart = atoi(s);
 			if (rtpstart < 1024)
 				rtpstart = 1024;
 			if (rtpstart > 65535)
 				rtpstart = 65535;
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "rtpend"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "rtpend")))
+        {
 			rtpend = atoi(s);
 			if (rtpend < 1024)
 				rtpend = 1024;
@@ -2201,14 +2214,14 @@ void opbx_rtp_reload(void)
 		}
 		opbx_config_destroy(cfg);
 	}
-	if (rtpstart >= rtpend) {
+	if (rtpstart >= rtpend)
+    {
 		opbx_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
 		rtpstart = 5000;
 		rtpend = 31000;
 	}
 	if (option_verbose > 1)
 		opbx_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
-	
 }
 
 /*--- opbx_rtp_init: Initialize the RTP system in OpenPBX */
@@ -2224,5 +2237,3 @@ void opbx_rtp_init(void)
 	srtp_install_event_handler(srtp_event_cb);
 #endif
 }
-
-

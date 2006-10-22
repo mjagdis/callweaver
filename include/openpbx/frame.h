@@ -92,9 +92,9 @@ struct opbx_frame {
 /*! A DTMF digit, subclass is the digit */
 #define OPBX_FRAME_DTMF		1
 /*! Voice data, subclass is OPBX_FORMAT_* */
-#define OPBX_FRAME_VOICE		2
+#define OPBX_FRAME_VOICE	2
 /*! Video frame, maybe?? :) */
-#define OPBX_FRAME_VIDEO		3
+#define OPBX_FRAME_VIDEO	3
 /*! A control frame, subclass is OPBX_CONTROL_* */
 #define OPBX_FRAME_CONTROL	4
 /*! An empty, useless frame */
@@ -104,13 +104,13 @@ struct opbx_frame {
 /*! Text messages */
 #define OPBX_FRAME_TEXT		7
 /*! Image Frames */
-#define OPBX_FRAME_IMAGE		8
+#define OPBX_FRAME_IMAGE	8
 /*! HTML Frame */
 #define OPBX_FRAME_HTML		9
-/*! Comfort Noise frame (subclass is level of CNG in -dBov), 
-    body may include zero or more 8-bit quantization coefficients */
+/*! Comfort noise frame (subclass is level of CNG in -dBov), 
+    body may include zero or more 8-bit reflection coefficients */
 #define OPBX_FRAME_CNG		10
-/*! T.38 Fax-over-IP data stream */
+/*! T.38, V.150 or other modem-over-IP data stream */
 #define OPBX_FRAME_MODEM	11
 
 /* MODEM subclasses */
@@ -148,10 +148,10 @@ struct opbx_frame {
 #define OPBX_FORMAT_ULAW		(1 << 2)
 /*! Raw A-law data (G.711) */
 #define OPBX_FORMAT_ALAW		(1 << 3)
-/*! ADPCM (G.726, 32kbps) */
+/*! G.726 ADPCM at 32kbps) */
 #define OPBX_FORMAT_G726		(1 << 4)
-/*! ADPCM (IMA) */
-#define OPBX_FORMAT_ADPCM	(1 << 5)
+/*! IMA/DVI/Intel ADPCM */
+#define OPBX_FORMAT_DVI_ADPCM	(1 << 5)
 /*! Raw 16-bit Signed Linear (8000 Hz) PCM */
 #define OPBX_FORMAT_SLINEAR	(1 << 6)
 /*! LPC10, 180 samples/frame */
@@ -162,6 +162,8 @@ struct opbx_frame {
 #define OPBX_FORMAT_SPEEX	(1 << 9)
 /*! iLBC Free Compression */
 #define OPBX_FORMAT_ILBC		(1 << 10)
+/*! Oki ADPCM */
+#define OPBX_FORMAT_OKI_ADPCM	(1 << 11)
 /*! Maximum audio format */
 #define OPBX_FORMAT_MAX_AUDIO	(1 << 15)
 /*! JPEG Images */
@@ -221,12 +223,12 @@ struct opbx_frame {
 #define OPBX_SMOOTHER_FLAG_BE		(1 << 1)
 
 /* Option identifiers and flags */
-#define OPBX_OPTION_FLAG_REQUEST		0
-#define OPBX_OPTION_FLAG_ACCEPT		1
-#define OPBX_OPTION_FLAG_REJECT		2
-#define OPBX_OPTION_FLAG_QUERY		4
-#define OPBX_OPTION_FLAG_ANSWER		5
-#define OPBX_OPTION_FLAG_WTF		6
+#define OPBX_OPTION_FLAG_REQUEST    0
+#define OPBX_OPTION_FLAG_ACCEPT     1
+#define OPBX_OPTION_FLAG_REJECT     2
+#define OPBX_OPTION_FLAG_QUERY      4
+#define OPBX_OPTION_FLAG_ANSWER     5
+#define OPBX_OPTION_FLAG_WTF        6
 
 /* Verify touchtones by muting audio transmission 
 	(and reception) and verify the tone is still present */

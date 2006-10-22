@@ -45,19 +45,20 @@ void opbx_slinfactory_init(struct opbx_slinfactory *sf)
 	sf->offset = sf->hold;
 	sf->queue = NULL;
 	opbx_mutex_init(&(sf->lock));
-
 }
 
 void opbx_slinfactory_destroy(struct opbx_slinfactory *sf) 
 {
 	struct opbx_frame *f;
 
-	if (sf->trans) {
+	if (sf->trans)
+    {
 		opbx_translator_free_path(sf->trans);
 		sf->trans = NULL;
 	}
 
-	while((f = sf->queue)) {
+	while ((f = sf->queue))
+    {
 		sf->queue = f->next;
 		opbx_frfree(f);
 	}
@@ -69,43 +70,44 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 {
 	struct opbx_frame *frame, *frame_ptr;
 
-	if (!f) {
+	if (!f)
 		return 0;
-	}
 	opbx_mutex_lock(&(sf->lock));
-	if (f->subclass != OPBX_FORMAT_SLINEAR) {
-		if (sf->trans && f->subclass != sf->format) {
+	if (f->subclass != OPBX_FORMAT_SLINEAR)
+    {
+		if (sf->trans  &&  f->subclass != sf->format)
+        {
 			opbx_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
-		if (!sf->trans) {
-			if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, f->subclass)) == NULL) {
+		if (!sf->trans)
+        {
+			if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, f->subclass)) == NULL)
+            {
 				opbx_log(LOG_WARNING, "Cannot build a path from %s to slin\n", opbx_getformatname(f->subclass));
 				opbx_mutex_unlock(&(sf->lock));
 				return 0;
-			} else {
-				sf->format = f->subclass;
 			}
+			sf->format = f->subclass;
 		}
 	}
 
-	if (sf->trans) {
+	if (sf->trans)
 		frame = opbx_frdup(opbx_translate(sf->trans, f, 0));
-	} else {
+	else
 		frame = opbx_frdup(f);
-	}
-
-	if (frame) {
-		frame->next = NULL;
+	if (frame)
+    {
 		int x = 0;
-		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr=frame_ptr->next) {
+
+		frame->next = NULL;
+
+		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr=frame_ptr->next)
 			x++;
-		}
-		if (frame_ptr) {
+		if (frame_ptr)
 			frame_ptr->next = frame;
-		} else {
+		else
 			sf->queue = frame;
-		}
 		frame->next = NULL;
 		sf->size += frame->datalen;
 		opbx_mutex_unlock(&(sf->lock));
@@ -114,7 +116,6 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 	opbx_mutex_unlock(&(sf->lock));
 
 	return 0;
-	
 }
 
 int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes) 
@@ -125,17 +126,22 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 	
 	opbx_mutex_lock(&(sf->lock));
 
-	while (sofar < bytes) {
+	while (sofar < bytes)
+    {
 		ineed = bytes - sofar;
 
-		if (sf->holdlen) {
-			if ((sf->holdlen) <= ineed) {
+		if (sf->holdlen)
+        {
+			if ((sf->holdlen) <= ineed)
+            {
 				memcpy(offset, sf->hold, sf->holdlen);
 				sofar += sf->holdlen;
-				offset += (sf->holdlen / sizeof(short));
+				offset += (sf->holdlen/sizeof(short));
 				sf->holdlen = 0;
 				sf->offset = sf->hold;
-			} else {
+			}
+            else
+            {
 				remain = sf->holdlen - ineed;
 				memcpy(offset, sf->offset, ineed);
 				sofar += ineed;
@@ -145,15 +151,19 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 			continue;
 		}
 		
-		if (sofar < bytes && (frame_ptr = sf->queue)) {
+		if (sofar < bytes  &&  (frame_ptr = sf->queue))
+        {
 			sf->queue = frame_ptr->next;
 			frame_data = frame_ptr->data;
 			
-			if ((frame_ptr->datalen) <= ineed) {
+			if ((frame_ptr->datalen) <= ineed)
+            {
 				memcpy(offset, frame_data, frame_ptr->datalen);
 				sofar += frame_ptr->datalen;
-				offset += (frame_ptr->datalen / sizeof(short));
-			} else {
+				offset += (frame_ptr->datalen/sizeof(short));
+			}
+            else
+            {
 				remain = frame_ptr->datalen - ineed;
 
 				memcpy(offset, frame_data, ineed);
@@ -163,7 +173,9 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 				sf->holdlen = remain;
 			}
 			opbx_frfree(frame_ptr);
-		} else {
+		}
+        else
+        {
 			break;
 		}
 	}
@@ -172,7 +184,3 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 	opbx_mutex_unlock(&(sf->lock));
 	return sofar;
 }
-
-
-
-

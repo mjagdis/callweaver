@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS		= gnu foreign
 
-opbxmod_LTLIBRARIES	= codec_lpc10.la codec_adpcm.la \
+opbxmod_LTLIBRARIES	= codec_lpc10.la codec_dvi_adpcm.la codec_oki_adpcm.la \
 			  codec_ulaw.la codec_alaw.la codec_a_mu.la \
 			  codec_g726.la codec_gsm.la
 
@@ -12,9 +12,12 @@ codec_lpc10_la_SOURCES	= codec_lpc10.c slin_lpc10_ex.h lpc10_slin_ex.h
 codec_lpc10_la_CFLAGS   = $(AM_CFLAGS) -I${top_srcdir}/libs/lpc10
 codec_lpc10_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la -lm
 codec_lpc10_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_adpcm_la_SOURCES	= codec_adpcm.c slin_adpcm_ex.h adpcm_slin_ex.h
-codec_adpcm_la_LDFLAGS	= -module -avoid-version -no-undefined
-codec_adpcm_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la 
+codec_dvi_adpcm_la_SOURCES	= codec_dvi_adpcm.c slin_adpcm_ex.h adpcm_slin_ex.h
+codec_dvi_adpcm_la_LDFLAGS	= -module -avoid-version -no-undefined
+codec_dvi_adpcm_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la 
+codec_oki_adpcm_la_SOURCES	= codec_oki_adpcm.c slin_adpcm_ex.h adpcm_slin_ex.h
+codec_oki_adpcm_la_LDFLAGS	= -module -avoid-version -no-undefined
+codec_oki_adpcm_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la 
 codec_ulaw_la_SOURCES	= codec_ulaw.c slin_ulaw_ex.h ulaw_slin_ex.h
 codec_ulaw_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_ulaw_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la 

@@ -89,7 +89,7 @@ struct callerid_state {
 
 
 float cid_dr[4], cid_di[4];
-float clidsb = 8000.0 / 1200.0;
+float clidsb = 8000.0/1200.0;
 
 #define CALLERID_SPACE	2200.0		/* 2200 hz for "0" */
 #define CALLERID_MARK	1200.0		/* 1200 hz for "1" */
@@ -1094,7 +1094,9 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 	struct tm tm;
 	char *ptr;
 	int res;
-	int i,x;
+	int i;
+	int x;
+
 	/* Get the time */
 	time(&t);
 	localtime_r(&t,&tm);
@@ -1123,7 +1125,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 		res = snprintf(ptr, size, "\002%c", i);
 		size -= res;
 		ptr += res;
-		for (x=0;x<i;x++)
+		for (x = 0;  x < i;  x++)
 			ptr[x] = number[x];
 		ptr[i] = '\0';
 		ptr += i;
@@ -1299,6 +1301,7 @@ int callerid_generate(uint8_t *buf, char *number, char *name, int flags, int cal
 	float ci = 0.0;
 	float scont = 0.0;
 	char msg[256];
+
 	len = callerid_genmsg(msg, sizeof(msg), number, name, flags);
 	if (!callwaiting) {
 		/* Wait a half a second */

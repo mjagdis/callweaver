@@ -52,19 +52,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define WANT_ASM
 #include "log2comp.h"
 
-/* define NOT_BLI to use a faster but not bit-level identical version */
-/* #define NOT_BLI */
-
-#if defined(NOT_BLI)
-#	if defined(_MSC_VER)
-typedef __int64 sint64;
-#	elif defined(__GNUC__)
-typedef long long sint64;
-#	else
-#		error 64-bit integer type is not defined for your compiler/platform
-#	endif
-#endif
-
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 #define BUF_SHIFT	5
 

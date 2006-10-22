@@ -172,7 +172,7 @@ int (*iax2_regfunk)(char *username, int onoff) = NULL;
 /* A modem */
 #define IAX_CAPABILITY_LOWBANDWIDTH		(IAX_CAPABILITY_MEDBANDWIDTH & 	\
 							~OPBX_FORMAT_G726 & 	\
-							~OPBX_FORMAT_ADPCM)
+							~OPBX_FORMAT_DVI_ADPCM)
 
 #define IAX_CAPABILITY_LOWFREE		(IAX_CAPABILITY_LOWBANDWIDTH & 		\
 							 ~OPBX_FORMAT_G723_1)
