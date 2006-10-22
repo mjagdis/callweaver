@@ -121,8 +121,6 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	opbx_log(LOG_WARNING,"This application is deprecated. Use Proc instead.");
-
 	/* Count how many levels deep the rabbit hole goes */
 	tmp = pbx_builtin_getvar_helper(chan, "PROC_DEPTH");
 	if (tmp) {
@@ -310,15 +308,13 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static int macroif_exec(struct opbx_channel *chan, void *data) 
+static int procif_exec(struct opbx_channel *chan, void *data) 
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
 	struct localuser *u;
 
 	LOCAL_USER_ADD(u);
-
-	opbx_log(LOG_WARNING,"This application is deprecated. Use ProcIf instead.");
 
 	expr = opbx_strdupa(data);
 	if (!expr) {
@@ -335,9 +331,9 @@ static int macroif_exec(struct opbx_channel *chan, void *data)
 			label_b++;
 		}
 		if (opbx_true(expr))
-			macro_exec(chan, label_a);
+			proc_exec(chan, label_a);
 		else if (label_b) 
-			macro_exec(chan, label_b);
+			proc_exec(chan, label_b);
 	} else
 		opbx_log(LOG_WARNING, "Invalid Syntax.\n");
 
@@ -346,9 +342,8 @@ static int macroif_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 			
-static int macro_exit_exec(struct opbx_channel *chan, void *data)
+static int proc_exit_exec(struct opbx_channel *chan, void *data)
 {
-	opbx_log(LOG_WARNING,"This application is deprecated. Use ProcExit instead.");
 	return MACRO_EXIT_RESULT;
 }
 
@@ -362,9 +357,9 @@ int unload_module(void)
 
 int load_module(void)
 {
-	opbx_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
-	opbx_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
-	return opbx_register_application(app, macro_exec, synopsis, descrip);
+	opbx_register_application(exit_app, proc_exit_exec, exit_synopsis, exit_descrip);
+	opbx_register_application(if_app, procif_exec, if_synopsis, if_descrip);
+	return opbx_register_application(app, proc_exec, synopsis, descrip);
 }
 
 char *description(void)
