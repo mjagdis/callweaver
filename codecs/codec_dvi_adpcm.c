@@ -108,7 +108,7 @@ static struct opbx_translator_pvt *dviadpcmtolin_new(void)
     if ((tmp = malloc(sizeof(*tmp))))
     {
 	    memset(tmp, 0, sizeof(*tmp));
-        dvi_adpcm_init(&tmp->dvi_state, 32000);
+        ima_adpcm_init(&tmp->dvi_state, 32000);
         tmp->tail = 0;
         plc_init(&tmp->plc);
         localusecnt++;
@@ -134,7 +134,7 @@ static struct opbx_translator_pvt *lintodviadpcm_new(void)
     if ((tmp = malloc(sizeof(*tmp))))
     {
 	    memset(tmp, 0, sizeof(*tmp));
-        dvi_adpcm_init(&tmp->dvi_state, 32000);
+        ima_adpcm_init(&tmp->dvi_state, 32000);
         tmp->tail = 0;
         localusecnt++;
         opbx_update_use_count ();
