@@ -3145,8 +3145,10 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct opbx_iax2_full_hdr *fh, un
 
 static int decrypt_frame(int callno, struct opbx_iax2_full_hdr *fh, struct opbx_frame *f, int *datalen)
 {
-	int res=-1;
-	if (!opbx_test_flag(iaxs[callno], IAX_KEYPOPULATED)) {
+	int res = -1;
+	
+    if (!opbx_test_flag(iaxs[callno], IAX_KEYPOPULATED))
+    {
 		/* Search for possible keys, given secrets */
 		unsigned char md_value[OPBX_MAX_BINARY_MD_SIZE];
 		int md_len;
@@ -3154,10 +3156,13 @@ static int decrypt_frame(int callno, struct opbx_iax2_full_hdr *fh, struct opbx_
 		
 		tmppw = opbx_strdupa(iaxs[callno]->secret);
 		stringp = tmppw;
-		while((tmppw = strsep(&stringp, ";"))) {
+		while((tmppw = strsep(&stringp, ";")))
+        {
 			md_len = opbx_md5_hash_two_bin(md_value,
-						       iaxs[callno]->challenge, strlen(iaxs[callno]->challenge),
-						       tmppw, strlen(tmppw));
+						       (uint8_t *) iaxs[callno]->challenge,
+                               strlen(iaxs[callno]->challenge),
+						       (uint8_t *) tmppw,
+                               strlen(tmppw));
 			build_enc_keys(md_value, &iaxs[callno]->ecx, &iaxs[callno]->dcx);
 			res = decode_frame(&iaxs[callno]->dcx, fh, f, datalen);
 			if (!res) {
@@ -4334,8 +4339,10 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 			int md_len;
 			char digres[OPBX_MAX_HEX_MD_SIZE];
 			md_len = opbx_md5_hash_two_bin(md_value,
-						       challenge, strlen(challenge), 
-						       secret, strlen(secret));
+						       (uint8_t *) challenge,
+                               strlen(challenge), 
+						       (uint8_t *) secret,
+                               strlen(secret));
 			/* If they support md5, authenticate with it.  */
 			opbx_hash_to_hex(digres, md_value, md_len);
 			if (ecx && dcx)
