@@ -49,16 +49,43 @@ static char *app = "BackgroundDetect";
 static char *synopsis = "Background a file with Talk and Fax detect";
 
 static char *descrip = 
-" BackgroundDetect(filename[|options[|sil[|min|[max]]]]): Plays back a given\n"
-"filename, waiting for interruption from a given digit (the digit must\n"
-"start the beginning of a valid extension, or it will be ignored).\n"
+" BackgroundDetect(filename[|options[|sil[|min|[max]]]]): \n"
+"Parameters:\n"
+"      filename: File to play in the background.\n"
+"      options:\n"
+"        'n':     Attempt on-hook if unanswered (default=no)\n"
+"        'x':     DTMF digits terminate without extension (default=no)\n"
+"        'd':     Ignore DTMF digit detection (default=no)\n"
+"        'D':     DTMF digit detection and (default=no)\n"
+"                 jump do the dialled extension after pressing #\n"
+"                 Disables single digit jumps#\n"
+"        'f':     Ignore fax detection (default=no)\n"
+"        't':     Ignore talk detection (default=no)\n"
+"        'j':     To be used in OGI scripts. Does not jump to any extension.\n"
+"        sildur:  Silence ms after mindur/maxdur before aborting (default=1000)\n"
+"        mindur:  Minimum non-silence ms needed (default=100)\n"
+"        maxdur:  Maximum non-silence ms allowed (default=0/forever)\n"
+"\n"
+"Plays back a given filename, waiting for interruption from a given digit \n"
+"(the digit must start the beginning of a valid extension, or it will be ignored).\n"
+"If D option is specified (overrides d), the application will wait for\n"
+"the user to enter digits terminated by a # and jump to the corresponding\n"
+"extension, if it exists.\n"
 "During the playback of the file, audio is monitored in the receive\n"
 "direction, and if a period of non-silence which is greater than 'min' ms\n"
 "yet less than 'max' ms is followed by silence for at least 'sil' ms then\n"
 "the audio playback is aborted and processing jumps to the 'talk' extension\n"
 "if available.  If unspecified, sil, min, and max default to 1000, 100, and\n"
-"infinity respectively.  Returns -1 on hangup, and 0 on successful playback\n"
-"completion with no exit conditions.\n";
+"infinity respectively.\n"
+"If all undetected, control will continue at the next priority.\n"
+"The application, upon exit, will set the folloging channel variables: \n"
+"   - DTMF_DETECTED : set to 1 when a DTMF digit would have caused a jump.\n"
+"   - TALK_DETECTED : set to 1 when talk has been detected.\n"
+"   - FAX_DETECTED  : set to 1 when fax tones detected.\n"
+"   - FAXEXTEN      : original dialplan extension of this application\n"
+"   - DTMF_DID      : digits dialled beforeexit (#excluded)\n"
+"Returns -1 on hangup, and 0 on successful completion with no exit conditions.\n"
+"\n";
 
 #define CALLERID_FIELD cid.cid_num
 
@@ -72,6 +99,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	char *tmp;
 	char *options;
+	char *parms;
 	char *stringp;
 	struct opbx_frame *fr=NULL, *fr2=NULL;
 	int notsilent=0;
@@ -82,6 +110,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 	int x;
 	int origrformat=0;
 	struct opbx_dsp *dsp;
+	int skipanswer = 0;
 	int ignoredtmf = 0;
 	int ignorefax = 0;
 	int ignoretalk = 0;
@@ -111,19 +140,41 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}	
 
+
 	stringp=tmp;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
+	parms   = strsep(&stringp, "|");
+
 	if (options) {
-		if ((sscanf(options, "%d", &x) == 1) && (x > 0))
+		if (strchr(options, 'n'))
+			skipanswer = 1;
+		if (strchr(options, 'x'))
+			noextneeded = 1;
+		if (strchr(options, 'd'))
+			ignoredtmf = 1;
+		if (strchr(options, 'D')) {
+			longdtmf = 1;
+			ignoredtmf = 0;
+		}
+		if (strchr(options, 'f'))
+			ignorefax = 1;
+		if (strchr(options, 't'))
+			ignoretalk = 1;
+		if (strchr(options, 'j'))
+			ignorejump = 1;
+	}
+
+	if (parms) {
+		if ((sscanf(parms, "%d", &x) == 1) && (x > 0))
 			sil = x;
-		options = strsep(&stringp, "|");
-		if (options) {
-			if ((sscanf(options, "%d", &x) == 1) && (x > 0))
+		parms = strsep(&stringp, "|");
+		if (parms) {
+			if ((sscanf(parms, "%d", &x) == 1) && (x > 0))
 				min = x;
-			options = strsep(&stringp, "|");
-			if (options) {
-				if ((sscanf(options, "%d", &x) == 1) && (x > 0))
+			parms = strsep(&stringp, "|");
+			if (parms) {
+				if ((sscanf(parms, "%d", &x) == 1) && (x > 0))
 					max = x;
 			}
 		}
@@ -131,8 +182,8 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 
 	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", 
 						tmp, sil, min, max);
-	if (chan->_state != OPBX_STATE_UP) {
-		/* Otherwise answer unless we're supposed to send this while on-hook */
+	if (chan->_state != OPBX_STATE_UP && !skipanswer) {
+		// Otherwise answer unless we're supposed to send this while on-hook 
 		res = opbx_answer(chan);
 	}
 	if (!res) {
@@ -147,7 +198,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 
 	if (dsp) {
 		if (!ignoretalk)
-			; /* features |= DSP_FEATURE_SILENCE_SUPPRESS; */
+			; // features |= DSP_FEATURE_SILENCE_SUPPRESS; 
 		if (!ignorefax)
 			features |= DSP_FEATURE_FAX_DETECT;
 		//if (!ignoredtmf)
