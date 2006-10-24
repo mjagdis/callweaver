@@ -185,7 +185,8 @@ static float fax_freq = 1100.0;
 
 static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 
-struct opbx_dsp {
+struct opbx_dsp
+{
 	struct opbx_frame f;
 	int threshold;
 	int totalsilence;
@@ -207,7 +208,8 @@ struct opbx_dsp {
 	int digitmode;
 	int thinkdigit;
 	float genergy;
-	union {
+	union
+    {
 		dtmf_detect_state_t dtmf;
 		bell_mf_rx_state_t bell_mf;
 	} td;
@@ -219,7 +221,8 @@ static void opbx_dtmf_detect_init(dtmf_detect_state_t *s)
     goertzel_descriptor_t desc;
 
 	s->hits[0] = s->hits[1] = s->hits[2] = 0;
-	for (i = 0;  i < 4;  i++) {
+	for (i = 0;  i < 4;  i++)
+    {
 		make_goertzel_descriptor(&desc, dtmf_row[i], 102);
 		goertzel_init(&s->row_out[i], &desc);
 		make_goertzel_descriptor(&desc, dtmf_col[i], 102);
@@ -258,7 +261,8 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 	int limit;
 
 	hit = 0;
-	for (sample = 0;  sample < samples;  sample = limit) {
+	for (sample = 0;  sample < samples;  sample = limit)
+    {
 		/* 102 is optimised to meet the DTMF specs. */
 		if ((samples - sample) >= (102 - s->current_sample))
 			limit = sample + (102 - s->current_sample);
@@ -266,7 +270,8 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 			limit = samples;
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
 		   time of a rolled loop on the machine on which it was developed */
-		for (j=sample;j<limit;j++) {
+		for (j = sample;  j < limit;  j++)
+        {
 			famp = amp[j];
 			s->energy += famp*famp;
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
@@ -303,11 +308,13 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 #endif /* FAX_DETECT */
 		}
 		s->current_sample += (limit - sample);
-		if (s->current_sample < 102) {
-			if (hit && !((digitmode & DSP_DIGITMODE_NOQUELCH))) {
+		if (s->current_sample < 102)
+        {
+			if (hit && !((digitmode & DSP_DIGITMODE_NOQUELCH)))
+            {
 				/* If we had a hit last time, go ahead and clear this out since likely it
 				   will be another hit */
-				for (i=sample;i<limit;i++) 
+				for (i = sample;  i < limit;  i++) 
 					amp[i] = 0;
 				*writeback = 1;
 			}
@@ -337,22 +344,28 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 		    col_energy[best_col] < row_energy[best_row]*DTMF_REVERSE_TWIST &&
 		    col_energy[best_col]*DTMF_NORMAL_TWIST > row_energy[best_row]) {
 			/* Relative peak test */
-			for (i = 0;  i < 4;  i++) {
-				if ((i != best_col &&
+			for (i = 0;  i < 4;  i++)
+            {
+				if ((i != best_col
+                    &&
 				    col_energy[i]*DTMF_RELATIVE_PEAK_COL > col_energy[best_col]) ||
 				    (i != best_row 
-				     && row_energy[i]*DTMF_RELATIVE_PEAK_ROW > row_energy[best_row])) {
+				     && row_energy[i]*DTMF_RELATIVE_PEAK_ROW > row_energy[best_row]))
+                {
 					break;
 				}
 			}
 			/* ... and fraction of total energy test */
-			if (i >= 4 &&
-			    (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY*s->energy) {
+			if (i >= 4
+                &&
+			    (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY*s->energy)
+            {
 				/* Got a hit */
 				hit = dtmf_positions[(best_row << 2) + best_col];
-				if (!(digitmode & DSP_DIGITMODE_NOQUELCH)) {
+				if (!(digitmode & DSP_DIGITMODE_NOQUELCH))
+                {
 					/* Zero out frame data if this is part DTMF */
-					for (i=sample;i<limit;i++) 
+					for (i = sample;  i < limit;  i++) 
 						amp[i] = 0;
 					*writeback = 1;
 				}
@@ -363,14 +376,18 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 				   back to back differing digits. More importantly, it
 				   can work with nasty phones that give a very wobbly start
 				   to a digit */
-				if (hit == s->hits[2]  &&  hit != s->hits[1]  &&  hit != s->hits[0]) {
+				if (hit == s->hits[2]  &&  hit != s->hits[1]  &&  hit != s->hits[0])
+                {
 					s->mhit = hit;
 					s->digit_hits[(best_row << 2) + best_col]++;
 					s->detected_digits++;
-					if (s->current_digits < MAX_DTMF_DIGITS) {
+					if (s->current_digits < MAX_DTMF_DIGITS)
+                    {
 						s->digits[s->current_digits++] = hit;
 						s->digits[s->current_digits] = '\0';
-					} else {
+					}
+                    else
+                    {
 						s->lost_digits++;
 					}
 				}
@@ -379,19 +396,26 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 #ifdef FAX_DETECT
 		if (!hit && (fax_energy >= FAX_THRESHOLD) && 
 			(fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy) &&
-			(faxdetect)) {
+			(faxdetect))
+        {
 			/* XXX Probably need better checking than just this the energy XXX */
 			hit = 'f';
 			s->fax_hits++;
-		} else {
-			if (s->fax_hits > 5) {
+		}
+        else
+        {
+			if (s->fax_hits > 5)
+            {
 				hit = 'f';
 				s->mhit = 'f';
 				s->detected_digits++;
-				if (s->current_digits < MAX_DTMF_DIGITS) {
+				if (s->current_digits < MAX_DTMF_DIGITS)
+                {
 					s->digits[s->current_digits++] = hit;
 					s->digits[s->current_digits] = '\0';
-				} else {
+				}
+                else
+                {
 					s->lost_digits++;
 				}
 			}
@@ -402,7 +426,8 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 		s->hits[1] = s->hits[2];
 		s->hits[2] = hit;
 		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 4;  i++) {
+		for (i = 0;  i < 4;  i++)
+        {
 			goertzel_reset(&s->row_out[i]);
 			goertzel_reset(&s->col_out[i]);
 		}
@@ -412,11 +437,12 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
 		s->energy = 0.0;
 		s->current_sample = 0;
 	}
-	if ((!s->mhit) || (s->mhit != hit)) {
+	if ((!s->mhit) || (s->mhit != hit))
+    {
 		s->mhit = 0;
-		return(0);
+		return  0;
 	}
-	return (hit);
+	return hit;
 }
 
 static int __opbx_dsp_digitdetect(struct opbx_dsp *dsp, int16_t amp[], int len, int *writeback)
@@ -424,17 +450,20 @@ static int __opbx_dsp_digitdetect(struct opbx_dsp *dsp, int16_t amp[], int len, 
 	int res;
     char buf[2];
 	
-	if (dsp->digitmode & DSP_DIGITMODE_MF) {
+	if (dsp->digitmode & DSP_DIGITMODE_MF)
+    {
         /* This is kinda dirty, since it assumes a maximum of one digit detected per block. In
            practice this should be OK. */
 		bell_mf_rx(&dsp->td.bell_mf, amp, len);
 		bell_mf_rx_get(&dsp->td.bell_mf, buf, 1);
 		res = buf[0];
-        
-	} else {
+	}
+    else
+    {
 		res = dtmf_detect(&dsp->td.dtmf, amp, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback, dsp->features & DSP_FEATURE_FAX_DETECT);
 	}
-	if (res) {
+	if (res)
+    {
 		memset(amp, 0, sizeof(int16_t)*len);
         *writeback = TRUE;
 	}
@@ -447,11 +476,13 @@ int opbx_dsp_digitdetect(struct opbx_dsp *dsp, struct opbx_frame *inf)
 	int len;
 	int ign=0;
 
-	if (inf->frametype != OPBX_FRAME_VOICE) {
+	if (inf->frametype != OPBX_FRAME_VOICE)
+    {
 		opbx_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (inf->subclass != OPBX_FORMAT_SLINEAR) {
+	if (inf->subclass != OPBX_FORMAT_SLINEAR)
+    {
 		opbx_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
@@ -486,7 +517,8 @@ int opbx_dsp_getdigits(struct opbx_dsp *dsp, char *buf, int max)
 		return bell_mf_rx_get(&dsp->td.bell_mf, buf, max);
 	if (max > dsp->td.dtmf.current_digits)
 		max = dsp->td.dtmf.current_digits;
-	if (max > 0) {
+	if (max > 0)
+    {
 		memcpy (buf, dsp->td.dtmf.digits, max);
 		memmove (dsp->td.dtmf.digits, dsp->td.dtmf.digits + max, dsp->td.dtmf.current_digits - max);
 		dsp->td.dtmf.current_digits -= max;
@@ -503,90 +535,126 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
 	int newstate = DSP_TONE_STATE_SILENCE;
 	int res = 0;
 	int thresh = (dsp->progmode == PROG_MODE_UK) ? UK_HANGUP_THRESH : COUNT_THRESH;
-	while(len) {
+
+	while (len)
+    {
 		/* Take the lesser of the number of samples we need and what we have */
 		pass = len;
 		if (pass > dsp->gsamp_size - dsp->gsamps) 
 			pass = dsp->gsamp_size - dsp->gsamps;
-		for (x=0;x<pass;x++) {
-			for (y=0;y<dsp->freqcount;y++) 
+		for (x = 0;  x < pass;  x++)
+        {
+			for (y = 0;  y < dsp->freqcount;  y++) 
 				goertzel_sample(&dsp->freqs[y], s[x]);
 			dsp->genergy += s[x] * s[x];
 		}
 		s += pass;
 		dsp->gsamps += pass;
 		len -= pass;
-		if (dsp->gsamps == dsp->gsamp_size) {
+		if (dsp->gsamps == dsp->gsamp_size)
+        {
 			float hz[7];
-			for (y=0;y<7;y++)
+			for (y = 0;  y < 7;  y++)
 				hz[y] = goertzel_result(&dsp->freqs[y]);
 #if 0
 			printf("\n350:     425:     440:     480:     620:     950:     1400:    1800:    Energy:   \n");
 			printf("%.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e\n", 
 				hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
 #endif
-			switch(dsp->progmode) {
+			switch (dsp->progmode)
+            {
 			case PROG_MODE_NA:
-				if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy)) {
+				if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy))
+                {
 					newstate = DSP_TONE_STATE_BUSY;
-				} else if (pair_there(hz[HZ_440], hz[HZ_480], hz[HZ_350], hz[HZ_620], dsp->genergy)) {
+				}
+                else if (pair_there(hz[HZ_440], hz[HZ_480], hz[HZ_350], hz[HZ_620], dsp->genergy))
+                {
 					newstate = DSP_TONE_STATE_RINGING;
-				} else if (pair_there(hz[HZ_350], hz[HZ_440], hz[HZ_480], hz[HZ_620], dsp->genergy)) {
+				}
+                else if (pair_there(hz[HZ_350], hz[HZ_440], hz[HZ_480], hz[HZ_620], dsp->genergy))
+                {
 					newstate = DSP_TONE_STATE_DIALTONE;
-				} else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH) {
+				}
+                else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH)
+                {
 					newstate = DSP_TONE_STATE_SPECIAL1;
-				} else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH) {
+				}
+                else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH)
+                {
 					if (dsp->tstate == DSP_TONE_STATE_SPECIAL1)
 						newstate = DSP_TONE_STATE_SPECIAL2;
-				} else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH) {
+				}
+                else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH)
+                {
 					if (dsp->tstate == DSP_TONE_STATE_SPECIAL2)
 						newstate = DSP_TONE_STATE_SPECIAL3;
-				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
+				}
+                else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH)
+                {
 					newstate = DSP_TONE_STATE_TALKING;
-				} else
+				}
+                else
 					newstate = DSP_TONE_STATE_SILENCE;
 				break;
 			case PROG_MODE_CR:
-				if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH) {
+				if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH)
 					newstate = DSP_TONE_STATE_RINGING;
-				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
+				else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH)
 					newstate = DSP_TONE_STATE_TALKING;
-				} else
+				else
 					newstate = DSP_TONE_STATE_SILENCE;
 				break;
 			case PROG_MODE_UK:
-				if (hz[HZ_400] > TONE_MIN_THRESH * TONE_THRESH) {
+				if (hz[HZ_400] > TONE_MIN_THRESH * TONE_THRESH)
 					newstate = DSP_TONE_STATE_HUNGUP;
-				}
 				break;
 			default:
 				opbx_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
 			}
-			if (newstate == dsp->tstate) {
+			if (newstate == dsp->tstate)
+            {
 				dsp->tcount++;
-				if (dsp->tcount == thresh) {
-					if ((dsp->features & DSP_PROGRESS_BUSY) && 
-					    dsp->tstate == DSP_TONE_STATE_BUSY) {
+				if (dsp->tcount == thresh)
+                {
+					if ((dsp->features & DSP_PROGRESS_BUSY)
+                            && 
+					    dsp->tstate == DSP_TONE_STATE_BUSY)
+                    {
 						res = OPBX_CONTROL_BUSY;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_PROGRESS_TALK) && 
-						   dsp->tstate == DSP_TONE_STATE_TALKING) {
+					}
+                    else if ((dsp->features & DSP_PROGRESS_TALK)
+                             && 
+						     dsp->tstate == DSP_TONE_STATE_TALKING)
+                    {
 						res = OPBX_CONTROL_ANSWER;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_PROGRESS_RINGING) && 
-						   dsp->tstate == DSP_TONE_STATE_RINGING)
-						res = OPBX_CONTROL_RINGING;
-					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && 
-						 dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
+					}
+                    else if ((dsp->features & DSP_PROGRESS_RINGING)
+                             && 
+						     dsp->tstate == DSP_TONE_STATE_RINGING)
+					{
+                    	res = OPBX_CONTROL_RINGING;
+					}
+                    else if ((dsp->features & DSP_PROGRESS_CONGESTION)
+                             && 
+						     dsp->tstate == DSP_TONE_STATE_SPECIAL3)
+                    {
 						res = OPBX_CONTROL_CONGESTION;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
-						dsp->tstate == DSP_TONE_STATE_HUNGUP) {
+					}
+                    else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)
+                             &&
+					         dsp->tstate == DSP_TONE_STATE_HUNGUP)
+                    {
 						res = OPBX_CONTROL_HANGUP;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					}
 				}
-			} else {
+			}
+            else
+            {
 #if 0
 				printf("Newstate: %d\n", newstate);
 #endif
@@ -610,11 +678,13 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
 
 int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf)
 {
-	if (inf->frametype != OPBX_FRAME_VOICE) {
+	if (inf->frametype != OPBX_FRAME_VOICE)
+    {
 		opbx_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (inf->subclass != OPBX_FORMAT_SLINEAR) {
+	if (inf->subclass != OPBX_FORMAT_SLINEAR)
+    {
 		opbx_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
@@ -630,13 +700,15 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *tota
 	if (!len)
 		return 0;
 	accum = 0;
-	for (x=0;x<len; x++) 
+	for (x = 0;  x < len;  x++) 
 		accum += abs(s[x]);
 	accum /= len;
-	if (accum < dsp->threshold) {
+	if (accum < dsp->threshold)
+    {
 		/* Silent */
 		dsp->totalsilence += len/8;
-		if (dsp->totalnoise) {
+		if (dsp->totalnoise)
+        {
 			/* Move and save history */
 			memmove(dsp->historicnoise + DSP_HISTORY - dsp->busycount, dsp->historicnoise + DSP_HISTORY - dsp->busycount +1, dsp->busycount*sizeof(dsp->historicnoise[0]));
 			dsp->historicnoise[DSP_HISTORY - 1] = dsp->totalnoise;
@@ -647,22 +719,28 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *tota
 		}
 		dsp->totalnoise = 0;
 		res = 1;
-	} else {
+	}
+    else
+    {
 		/* Not silent */
 		dsp->totalnoise += len/8;
-		if (dsp->totalsilence) {
+		if (dsp->totalsilence)
+        {
 			int silence1 = dsp->historicsilence[DSP_HISTORY - 1];
 			int silence2 = dsp->historicsilence[DSP_HISTORY - 2];
 			/* Move and save history */
 			memmove(dsp->historicsilence + DSP_HISTORY - dsp->busycount, dsp->historicsilence + DSP_HISTORY - dsp->busycount + 1, dsp->busycount*sizeof(dsp->historicsilence[0]));
 			dsp->historicsilence[DSP_HISTORY - 1] = dsp->totalsilence;
 			/* check if the previous sample differs only by BUSY_PERCENT from the one before it */
-			if (silence1 < silence2) {
+			if (silence1 < silence2)
+            {
 				if (silence1 + silence1*BUSY_PERCENT/100 >= silence2)
 					dsp->busymaybe = 1;
 				else 
 					dsp->busymaybe = 0;
-			} else {
+			}
+            else
+            {
 				if (silence1 - silence1*BUSY_PERCENT/100 <= silence2)
 					dsp->busymaybe = 1;
 				else 
@@ -684,9 +762,11 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 	int avgsilence = 0, hitsilence = 0;
 #endif
 	int avgtone = 0, hittone = 0;
+
 	if (!dsp->busymaybe)
 		return res;
-	for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
+	for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
+    {
 #ifndef BUSYDETECT_TONEONLY
 		avgsilence += dsp->historicsilence[x];
 #endif
@@ -696,20 +776,27 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 	avgsilence /= dsp->busycount;
 #endif
 	avgtone /= dsp->busycount;
-	for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
+	for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
+    {
 #ifndef BUSYDETECT_TONEONLY
-		if (avgsilence > dsp->historicsilence[x]) {
+		if (avgsilence > dsp->historicsilence[x])
+        {
 			if (avgsilence - (avgsilence*BUSY_PERCENT/100) <= dsp->historicsilence[x])
 				hitsilence++;
-		} else {
+		}
+        else
+        {
 			if (avgsilence + (avgsilence*BUSY_PERCENT/100) >= dsp->historicsilence[x])
 				hitsilence++;
 		}
 #endif
-		if (avgtone > dsp->historicnoise[x]) {
+		if (avgtone > dsp->historicnoise[x])
+        {
 			if (avgtone - (avgtone*BUSY_PERCENT/100) <= dsp->historicnoise[x])
 				hittone++;
-		} else {
+		}
+        else
+        {
 			if (avgtone + (avgtone*BUSY_PERCENT/100) >= dsp->historicnoise[x])
 				hittone++;
 		}
@@ -717,18 +804,23 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 #ifndef BUSYDETECT_TONEONLY
 	if ((hittone >= dsp->busycount - 1) && (hitsilence >= dsp->busycount - 1) && 
 	    (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX) && 
-	    (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX)) {
+	    (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX))
+    {
 #else
-	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX)) {
+	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX))
+    {
 #endif
 #ifdef BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #ifdef BUSYDETECT_TONEONLY
 #error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #endif
-		if (avgtone > avgsilence) {
+		if (avgtone > avgsilence)
+        {
 			if (avgtone - avgtone*BUSY_PERCENT/100 <= avgsilence)
 				res = 1;
-		} else {
+		}
+        else
+        {
 			if (avgtone + avgtone*BUSY_PERCENT/100 >= avgsilence)
 				res = 1;
 		}
@@ -737,8 +829,10 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 #endif
 	}
 	/* If we know the expected busy tone length, check we are in the range */
-	if (res && (dsp->busy_tonelength > 0)) {
-		if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100)) {
+	if (res && (dsp->busy_tonelength > 0))
+    {
+		if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100))
+        {
 #if 0
 			opbx_log(LOG_NOTICE, "busy detector: avgtone of %d not close enough to desired %d\n",
 						avgtone, dsp->busy_tonelength);
@@ -747,8 +841,10 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 		}
 	}
 	/* If we know the expected busy tone silent-period length, check we are in the range */
-	if (res && (dsp->busy_quietlength > 0)) {
-		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100)) {
+	if (res && (dsp->busy_quietlength > 0))
+    {
+		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100))
+        {
 #if 0
 			opbx_log(LOG_NOTICE, "busy detector: avgsilence of %d not close enough to desired %d\n",
 						avgsilence, dsp->busy_quietlength);
@@ -775,14 +871,16 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 	if (dsp->busy_hits > 5);
 	return 0;
 #endif
-	if (dsp->busymaybe) {
+	if (dsp->busymaybe)
+    {
 #if 0
 		printf("Maybe busy!\n");
 #endif		
 		dsp->busymaybe = 0;
 		min = 9999;
 		max = 0;
-		for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
+		for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
+        {
 #if 0
 			printf("Silence: %d, Noise: %d\n", dsp->historicsilence[x], dsp->historicnoise[x]);
 #endif			
@@ -795,7 +893,8 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 			if (dsp->historicnoise[x] > max)
 				max = dsp->historicnoise[x];
 		}
-		if ((max - min < BUSY_THRESHOLD) && (max < BUSY_MAX) && (min > BUSY_MIN)) {
+		if ((max - min < BUSY_THRESHOLD) && (max < BUSY_MAX) && (min > BUSY_MIN))
+        {
 #if 0
 			printf("Busy!\n");
 #endif			
@@ -814,11 +913,13 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
 	short *s;
 	int len;
 	
-	if (f->frametype != OPBX_FRAME_VOICE) {
+	if (f->frametype != OPBX_FRAME_VOICE)
+    {
 		opbx_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
 		return 0;
 	}
-	if (f->subclass != OPBX_FORMAT_SLINEAR) {
+	if (f->subclass != OPBX_FORMAT_SLINEAR)
+    {
 		opbx_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
 		return 0;
 	}
@@ -863,27 +964,29 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 	odata = af->data;
 	len = af->datalen;
 	/* Make sure we have short data */
-	switch(af->subclass) {
+	switch (af->subclass)
+    {
 	case OPBX_FORMAT_SLINEAR:
 		shortdata = af->data;
 		len = af->datalen / 2;
 		break;
 	case OPBX_FORMAT_ULAW:
-		shortdata = alloca(af->datalen * 2);
+		shortdata = alloca(af->datalen*sizeof(int16_t));
 		if (!shortdata) {
 			opbx_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
 			return af;
 		}
-		for (x=0;x<len;x++) 
+		for (x = 0;  x < len;  x++) 
 			shortdata[x] = OPBX_MULAW(odata[x]);
 		break;
 	case OPBX_FORMAT_ALAW:
-		shortdata = alloca(af->datalen * 2);
-		if (!shortdata) {
+		shortdata = alloca(af->datalen*sizeof(int16_t));
+		if (!shortdata)
+        {
 			opbx_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
 			return af;
 		}
-		for (x=0;x<len;x++) 
+		for (x = 0;  x < len;  x++) 
 			shortdata[x] = OPBX_ALAW(odata[x]);
 		break;
 	default:
@@ -891,12 +994,14 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 		return af;
 	}
 	silence = __opbx_dsp_silence(dsp, shortdata, len, NULL);
-	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence) {
+	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence)
+    {
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = OPBX_FRAME_NULL;
 		return &dsp->f;
 	}
-	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && opbx_dsp_busydetect(dsp)) {
+	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && opbx_dsp_busydetect(dsp))
+    {
 		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = OPBX_FRAME_CONTROL;
@@ -904,11 +1009,15 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 		opbx_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
-	if ((dsp->features & DSP_FEATURE_DTMF_DETECT)) {
+	if ((dsp->features & DSP_FEATURE_DTMF_DETECT))
+    {
 		digit = __opbx_dsp_digitdetect(dsp, shortdata, len, &writeback);
-		if (dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)) {
-			if (!dsp->thinkdigit) {
-				if (digit) {
+		if (dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX))
+        {
+			if (!dsp->thinkdigit)
+            {
+				if (digit)
+                {
 					/* Looks like we might have something.  
 					 * Request a conference mute for the moment */
 					memset(&dsp->f, 0, sizeof(dsp->f));
@@ -921,11 +1030,16 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 					opbx_frfree(af);
 					return &dsp->f;
 				}
-			} else {
-				if (digit) {
+			}
+            else
+            {
+				if (digit)
+                {
 					/* Thought we saw one last time.  Pretty sure we really have now */
-					if (dsp->thinkdigit) {
-						if ((dsp->thinkdigit != 'x') && (dsp->thinkdigit != digit)) {
+					if (dsp->thinkdigit)
+                    {
+						if ((dsp->thinkdigit != 'x') && (dsp->thinkdigit != digit))
+                        {
 							/* If we found a digit, and we're changing digits, go
 							   ahead and send this one, but DON'T stop confmute because
 							   we're detecting something else, too... */
@@ -941,15 +1055,21 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 						return &dsp->f;
 					}
 					dsp->thinkdigit = digit;
-				} else {
-					if (dsp->thinkdigit) {
+				}
+                else
+                {
+					if (dsp->thinkdigit)
+                    {
 						memset(&dsp->f, 0, sizeof(dsp->f));
-						if (dsp->thinkdigit != 'x') {
+						if (dsp->thinkdigit != 'x')
+                        {
 							/* If we found a digit, send it now */
 							dsp->f.frametype = OPBX_FRAME_DTMF;
 							dsp->f.subclass = dsp->thinkdigit;
 							dsp->thinkdigit = 0;
-						} else {
+						}
+                        else
+                        {
 							dsp->f.frametype = OPBX_FRAME_DTMF;
 							dsp->f.subclass = 'u';
 							dsp->thinkdigit = 0;
@@ -962,10 +1082,14 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 					}
 				}
 			}
-		} else if (!digit) {
+		}
+        else if (!digit)
+        {
 			/* Only check when there is *not* a hit... */
-			if (dsp->digitmode & DSP_DIGITMODE_MF) {
-                if (bell_mf_rx_get(&dsp->td.bell_mf, digit_buf, 1)) {
+			if (dsp->digitmode & DSP_DIGITMODE_MF)
+            {
+                if (bell_mf_rx_get(&dsp->td.bell_mf, digit_buf, 1))
+                {
 					memset(&dsp->f, 0, sizeof(dsp->f));
 					dsp->f.frametype = OPBX_FRAME_DTMF;
 					dsp->f.subclass = digit_buf[0];
@@ -975,8 +1099,11 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 					opbx_frfree(af);
 					return &dsp->f;
 				}
-			} else {
-				if (dsp->td.dtmf.current_digits) {
+			}
+            else
+            {
+				if (dsp->td.dtmf.current_digits)
+                {
 					memset(&dsp->f, 0, sizeof(dsp->f));
 					dsp->f.frametype = OPBX_FRAME_DTMF;
 					dsp->f.subclass = dsp->td.dtmf.digits[0];
@@ -991,10 +1118,13 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 			}
 		}
 	}
-	if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)) {
+	if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
+    {
 		res = __opbx_dsp_call_progress(dsp, shortdata, len);
-		if (res) {
-			switch(res) {
+		if (res)
+        {
+			switch (res)
+            {
 			case OPBX_CONTROL_ANSWER:
 			case OPBX_CONTROL_BUSY:
 			case OPBX_CONTROL_RINGING:
@@ -1009,6 +1139,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 				break;
 			default:
 				opbx_log(LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
+                break;
 			}
 		}
 	}
@@ -1024,8 +1155,10 @@ static void opbx_dsp_prog_reset(struct opbx_dsp *dsp)
 	
 	dsp->gsamp_size = modes[dsp->progmode].size;
 	dsp->gsamps = 0;
-	for (x = 0;  x < sizeof(modes[dsp->progmode].freqs)/sizeof(modes[dsp->progmode].freqs[0]);  x++) {
-		if (modes[dsp->progmode].freqs[x]) {
+	for (x = 0;  x < sizeof(modes[dsp->progmode].freqs)/sizeof(modes[dsp->progmode].freqs[0]);  x++)
+    {
+		if (modes[dsp->progmode].freqs[x])
+        {
 			make_goertzel_descriptor(&desc, (float) modes[dsp->progmode].freqs[x], dsp->gsamp_size);
 			goertzel_init(&dsp->freqs[x], &desc);
 			max = x + 1;
@@ -1038,7 +1171,8 @@ struct opbx_dsp *opbx_dsp_new(void)
 {
 	struct opbx_dsp *dsp;
 
-	if ((dsp = malloc(sizeof(struct opbx_dsp)))) {
+	if ((dsp = malloc(sizeof(struct opbx_dsp))))
+    {
 		memset(dsp, 0, sizeof(*dsp));
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
@@ -1087,13 +1221,17 @@ void opbx_dsp_digitreset(struct opbx_dsp *dsp)
 	int i;
 	
 	dsp->thinkdigit = 0;
-	if (dsp->digitmode & DSP_DIGITMODE_MF) {
+	if (dsp->digitmode & DSP_DIGITMODE_MF)
+    {
 		bell_mf_rx_init(&dsp->td.bell_mf, NULL, NULL);
-	} else {
+	}
+    else
+    {
 		memset(dsp->td.dtmf.digits, 0, sizeof(dsp->td.dtmf.digits));
 		dsp->td.dtmf.current_digits = 0;
 		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 4;  i++) {
+		for (i = 0;  i < 4;  i++)
+        {
 			goertzel_reset(&dsp->td.dtmf.row_out[i]);
 			goertzel_reset(&dsp->td.dtmf.col_out[i]);
 		}
@@ -1125,7 +1263,8 @@ int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode)
 	
 	old = dsp->digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
 	new = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
-	if (old != new) {
+	if (old != new)
+    {
 		/* Must initialize structures if switching from MF to DTMF or vice-versa */
 		if (new & DSP_DIGITMODE_MF)
 			bell_mf_rx_init(&dsp->td.bell_mf, NULL, NULL);
@@ -1140,8 +1279,10 @@ int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
 {
 	int x;
 	
-	for (x = 0;  x < sizeof(aliases)/sizeof(aliases[0]);  x++) {
-		if (!strcasecmp(aliases[x].name, zone)) {
+	for (x = 0;  x < sizeof(aliases)/sizeof(aliases[0]);  x++)
+    {
+		if (!strcasecmp(aliases[x].name, zone))
+        {
 			dsp->progmode = aliases[x].mode;
 			opbx_dsp_prog_reset(dsp);
 			return 0;
