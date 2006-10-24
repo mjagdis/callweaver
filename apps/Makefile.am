@@ -362,12 +362,12 @@ app_system_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_system_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SYSTEM
 
-if WANT_APP_TALKDETECT
-opbxmod_LTLIBRARIES			+= app_talkdetect.la
-app_talkdetect_la_SOURCES		= app_talkdetect.c
-app_talkdetect_la_LDFLAGS		= -module -avoid-version -no-undefined
-app_talkdetect_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
-endif WANT_APP_TALKDETECT
+if WANT_APP_BACKGROUNDDETECT
+opbxmod_LTLIBRARIES			+= app_backgrounddetect.la
+app_backgrounddetect_la_SOURCES		= app_backgrounddetect.c
+app_backgrounddetect_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_backgrounddetect_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_BACKGROUNDDETECT
 
 if WANT_APP_TRANSFER
 opbxmod_LTLIBRARIES			+= app_transfer.la

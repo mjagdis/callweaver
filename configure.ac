@@ -1339,11 +1339,11 @@ AM_CONDITIONAL([WANT_APP_SYSTEM],[test "${with_app_system}" = "yes"])
 
 dnl ###########################################################################
 
-AC_ARG_WITH([app_talkdetect],
-	[AC_HELP_STRING([--with-app_talkdetect],[Build and install app_talkdetect (default=yes)])],,
-	[with_app_talkdetect="yes"])
+AC_ARG_WITH([app_backgrounddetect],
+	[AC_HELP_STRING([--with-app_backgrounddetect],[Build and install app_backgrounddetect (default=yes)])],,
+	[with_app_backgrounddetect="yes"])
 
-AM_CONDITIONAL([WANT_APP_TALKDETECT],[test "${with_app_talkdetect}" = "yes"])
+AM_CONDITIONAL([WANT_APP_BACKGROUNDDETECT],[test "${with_app_backgrounddetect}" = "yes"])
 
 dnl ###########################################################################
 
