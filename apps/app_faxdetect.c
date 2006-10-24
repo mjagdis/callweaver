@@ -96,9 +96,7 @@ static char *descrip =
 "Returns -1 on hangup, and 0 on successful completion with no exit conditions.\n"
 "\n";
 
-// Use the second one for recent Asterisk releases
 #define CALLERID_FIELD cid.cid_num
-//#define CALLERID_FIELD callerid
 
 STANDARD_LOCAL_USER;
 
@@ -299,7 +297,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 
 			if (fr2->frametype == OPBX_FRAME_DTMF) {
 				if (fr2->subclass == 'f' && !ignorefax) {
-					/* Fax tone -- Handle and return NULL */
+					// Fax tone -- Handle and return NULL 
 					opbx_log(LOG_DEBUG, "Fax detected on %s\n", chan->name);
 					pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
 					pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
@@ -307,13 +305,13 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 					    if (strcmp(chan->exten, "fax")) {
 						opbx_log(LOG_NOTICE, "Redirecting %s to fax extension [DTMF]\n", chan->name);
 						    if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
-							    /* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-							    strncpy(chan->exten, "fax", sizeof(chan->exten)-1);
-							    chan->priority = 0;									
+							// Save the DID/DNIS when we transfer the fax call to a "fax" extension
+							strncpy(chan->exten, "fax", sizeof(chan->exten)-1);
+							chan->priority = 0;
 						    } else
-							    opbx_log(LOG_WARNING, "Fax detected, but no fax extension\n");
+						    opbx_log(LOG_WARNING, "Fax detected, but no fax extension\n");
 					    } else
-						    opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
+						opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
 					}
 					res = 0;
 					opbx_frfree(fr);
@@ -323,12 +321,12 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 					t[0] = fr2->subclass;
 					t[1] = '\0';
 					opbx_log(LOG_DEBUG, "DTMF detected on %s: %s\n", chan->name,t);
-					pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
 					if (
 						( noextneeded || opbx_canmatch_extension(chan, chan->context, t, 1, chan->CALLERID_FIELD) )
 						&& !longdtmf
 					   ) {
-						/* They entered a valid extension, or might be anyhow */
+						// They entered a valid extension, or might be anyhow 
+						pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
 						if (noextneeded) {
 							opbx_log(LOG_NOTICE, "DTMF received (not matching to exten)\n");
 							res = 0;
@@ -342,6 +340,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 						if (strcmp(t,"#") || !longdtmf) {
 						    strncat(dtmf_did,t,sizeof(dtmf_did)-strlen(dtmf_did)-1 );
 						} else {
+						    pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
 						    pbx_builtin_setvar_helper(chan, "DTMF_DID", dtmf_did);
 						    if (!ignorejump && opbx_canmatch_extension(chan, chan->context, dtmf_did, 1, chan->CALLERID_FIELD) ) {
 							strncpy(chan->exten, dtmf_did, sizeof(chan->exten)-1);

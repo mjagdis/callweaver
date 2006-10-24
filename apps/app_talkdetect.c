@@ -42,14 +42,14 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/utils.h"
 #include "openpbx/dsp.h"
 
-static char *tdesc = "Playback with Talk Detection";
+static char *tdesc = "Playback with Talk and Fax Detection";
 
 static char *app = "BackgroundDetect";
 
-static char *synopsis = "Background a file with talk detect";
+static char *synopsis = "Background a file with Talk and Fax detect";
 
 static char *descrip = 
-"  BackgroundDetect(filename[|sil[|min|[max]]]):  Plays  back  a  given\n"
+" BackgroundDetect(filename[|options[|sil[|min|[max]]]]): Plays back a given\n"
 "filename, waiting for interruption from a given digit (the digit must\n"
 "start the beginning of a valid extension, or it will be ignored).\n"
 "During the playback of the file, audio is monitored in the receive\n"
@@ -59,6 +59,8 @@ static char *descrip =
 "if available.  If unspecified, sil, min, and max default to 1000, 100, and\n"
 "infinity respectively.  Returns -1 on hangup, and 0 on successful playback\n"
 "completion with no exit conditions.\n";
+
+#define CALLERID_FIELD cid.cid_num
 
 STANDARD_LOCAL_USER;
 
@@ -71,7 +73,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 	char *tmp;
 	char *options;
 	char *stringp;
-	struct opbx_frame *fr;
+	struct opbx_frame *fr=NULL, *fr2=NULL;
 	int notsilent=0;
 	struct timeval start = { 0, 0};
 	int sil = 1000;
@@ -80,6 +82,20 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 	int x;
 	int origrformat=0;
 	struct opbx_dsp *dsp;
+	int ignoredtmf = 0;
+	int ignorefax = 0;
+	int ignoretalk = 0;
+	int ignorejump = 0;
+	int features = 0;
+	int noextneeded=0;
+	int longdtmf = 1;
+	char dtmf_did[256] = "\0";
+
+	pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "0");
+	pbx_builtin_setvar_helper(chan, "FAXEXTEN", "unknown");
+	pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "0");
+	pbx_builtin_setvar_helper(chan, "TALK_DETECTED", "0");
+	pbx_builtin_setvar_helper(chan, "DTMF_DID", "");
 	
 	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
@@ -112,6 +128,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 			}
 		}
 	}
+
 	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", 
 						tmp, sil, min, max);
 	if (chan->_state != OPBX_STATE_UP) {
@@ -127,6 +144,20 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 		opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
 		res = -1;
 	}
+
+	if (dsp) {
+		if (!ignoretalk)
+			; /* features |= DSP_FEATURE_SILENCE_SUPPRESS; */
+		if (!ignorefax)
+			features |= DSP_FEATURE_FAX_DETECT;
+		//if (!ignoredtmf)
+			features |= DSP_FEATURE_DTMF_DETECT;
+
+		opbx_dsp_set_threshold(dsp, 256);
+		opbx_dsp_set_features(dsp, features | DSP_DIGITMODE_RELAXDTMF);
+		opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF);
+	}
+
 	if (!res) {
 		opbx_stopstream(chan);
 		res = opbx_streamfile(chan, tmp, chan->language);
@@ -137,25 +168,107 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 					res = 0;
 					break;
 				}
+
+				/* Check for a T38 switchover */
+				if (chan->t38mode_enabled==1 && !ignorefax) {
+				    opbx_log(LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
+				    pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
+				    pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
+				    if (!ignorejump) {
+					if (strcmp(chan->exten, "fax")) {
+					    opbx_log(LOG_NOTICE, "Redirecting %s to fax extension [T38]\n", chan->name);
+					    if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
+						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+						strncpy(chan->exten, "fax", sizeof(chan->exten)-1);
+						chan->priority = 0;									
+					    } else
+						opbx_log(LOG_WARNING, "Fax detected, but no fax extension\n");
+					} else
+			    		    opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
+				    }
+				    res = 0;
+				    opbx_frfree(fr);
+				    break;
+				}
+
+				// NOW let's check for incoming RTP audio
 				res = opbx_waitfor(chan, res);
+
 				if (res < 0) {
 					opbx_log(LOG_WARNING, "Waitfor failed on %s\n", chan->name);
 					break;
 				} else if (res > 0) {
 					fr = opbx_read(chan);
 					if (!fr) {
+						opbx_log(LOG_DEBUG, "Got hangup\n");
 						res = -1;
 						break;
-					} else if (fr->frametype == OPBX_FRAME_DTMF) {
+					}
+
+					fr2 = opbx_dsp_process(chan, dsp, fr);
+					if (!fr2) {
+						opbx_log(LOG_WARNING, "Bad DSP received (what happened?)\n");
+						fr2 = fr;
+					}
+
+					if (fr2->frametype == OPBX_FRAME_DTMF) {
+					    if (fr2->subclass == 'f' && !ignorefax) {
+						// Fax tone -- Handle and return NULL
+						opbx_log(LOG_DEBUG, "Fax detected on %s\n", chan->name);
+						pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
+						pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
+						if (!ignorejump) {
+						    if (strcmp(chan->exten, "fax")) {
+							opbx_log(LOG_NOTICE, "Redirecting %s to fax extension [DTMF]\n", chan->name);
+							if (opbx_exists_extension(chan, chan->context, "fax", 1, chan->CALLERID_FIELD)) {
+							    // Save the DID/DNIS when we transfer the fax call to a "fax" extension 
+							    strncpy(chan->exten, "fax", sizeof(chan->exten)-1);
+							    chan->priority = 0;
+							} else
+							    opbx_log(LOG_WARNING, "Fax detected, but no fax extension\n");
+						    } else
+							opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
+						}
+						res = 0;
+						opbx_frfree(fr);
+						break;
+					    } else if (!ignoredtmf) {
 						char t[2];
-						t[0] = fr->subclass;
+						t[0] = fr2->subclass;
 						t[1] = '\0';
-						if (opbx_canmatch_extension(chan, chan->context, t, 1, chan->cid.cid_num)) {
-							/* They entered a valid  extension, or might be anyhow */
-							res = fr->subclass;
+						opbx_log(LOG_DEBUG, "DTMF detected on %s: %s\n", chan->name,t);
+						if (
+						    ( noextneeded || opbx_canmatch_extension(chan, chan->context, t, 1, chan->CALLERID_FIELD) )
+							&& !longdtmf
+						    ) {
+						    // They entered a valid extension, or might be anyhow 
+						    if (noextneeded) {
+							opbx_log(LOG_NOTICE, "DTMF received (not matching to exten)\n");
+							res = 0;
+						    } else {
+							opbx_log(LOG_NOTICE, "DTMF received (matching to exten)\n");
+							res = fr2->subclass;
+						    }
+						    pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
+						    opbx_frfree(fr);
+						    break;
+						} else {
+						    if (strcmp(t,"#") || !longdtmf) {
+							strncat(dtmf_did,t,sizeof(dtmf_did)-strlen(dtmf_did)-1 );
+						    } else {
+							pbx_builtin_setvar_helper(chan, "DTMF_DID", dtmf_did);
+							pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
+							if (!ignorejump && opbx_canmatch_extension(chan, chan->context, dtmf_did, 1, chan->CALLERID_FIELD) ) {
+							    strncpy(chan->exten, dtmf_did, sizeof(chan->exten)-1);
+							    chan->priority = 0;
+							}
+							res=0;
 							opbx_frfree(fr);
 							break;
+						    }
+						    opbx_log(LOG_DEBUG, "Valid extension requested and DTMF did not match [%s]\n",t);
 						}
+					    }
 					} else if ((fr->frametype == OPBX_FRAME_VOICE) && (fr->subclass == OPBX_FORMAT_SLINEAR)) {
 						int totalsilence;
 						int ms;
@@ -196,6 +309,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 					}
 					opbx_frfree(fr);
 				}
+				opbx_sched_runq(chan->sched);
 			}
 			opbx_stopstream(chan);
 		} else {
