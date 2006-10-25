@@ -76,12 +76,14 @@ static int udptlmaxdatagram = 0;
 
 #define UDPTL_BUF_MASK              15
 
-typedef struct {
+typedef struct
+{
 	int buf_len;
 	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
 } udptl_fec_tx_buffer_t;
 
-typedef struct {
+typedef struct
+{
 	int buf_len;
 	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
 	int fec_len[MAX_FEC_ENTRIES];
@@ -90,7 +92,8 @@ typedef struct {
 	int fec_entries;
 } udptl_fec_rx_buffer_t;
 
-struct opbx_udptl {
+struct opbx_udptl
+{
     udp_socket_info_t *udptl_sock_info;
 	char resp;
 	struct opbx_frame f[16];
@@ -144,29 +147,34 @@ static struct opbx_udptl_protocol *protos = NULL;
 static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len);
 static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len);
 
-static inline int udptl_debug_test_addr(struct sockaddr_in *addr)
+static inline int udptl_debug_test_addr(const struct sockaddr_in *addr)
 {
 	if (udptldebug == 0)
 		return 0;
-	if (udptldebugaddr.sin_addr.s_addr) {
-		if (((ntohs(udptldebugaddr.sin_port) != 0)
-			&& (udptldebugaddr.sin_port != addr->sin_port))
-			|| (udptldebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-		return 0;
+	if (udptldebugaddr.sin_addr.s_addr)
+    {
+		if (((ntohs(udptldebugaddr.sin_port) != 0)  &&  (udptldebugaddr.sin_port != addr->sin_port))
+			||
+            (udptldebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+		{
+            return 0;
+        }
 	}
 	return 1;
 }
 
 static int decode_length(uint8_t *buf, int limit, int *len, int *pvalue)
 {
-	if ((buf[*len] & 0x80) == 0) {
+	if ((buf[*len] & 0x80) == 0)
+    {
 		if (*len >= limit)
 			return -1;
 		*pvalue = buf[*len];
 		(*len)++;
 		return 0;
 	}
-	if ((buf[*len] & 0x40) == 0) {
+	if ((buf[*len] & 0x40) == 0)
+    {
 		if (*len >= limit - 1)
 			return -1;
 		*pvalue = (buf[*len] & 0x3F) << 8;
@@ -192,10 +200,12 @@ static int decode_open_type(uint8_t *buf, int limit, int *len, const uint8_t **p
 	int i;
 	const uint8_t **pbuf;
 
-	for (octet_idx = 0, *p_num_octets = 0;  ;  octet_idx += octet_cnt) {
+	for (octet_idx = 0, *p_num_octets = 0;  ;  octet_idx += octet_cnt)
+    {
 		if ((stat = decode_length(buf, limit, len, &octet_cnt)) < 0)
 			return -1;
-		if (octet_cnt > 0) {
+		if (octet_cnt > 0)
+        {
 			*p_num_octets += octet_cnt;
 
 			pbuf = &p_object[octet_idx];
@@ -218,13 +228,15 @@ static int encode_length(uint8_t *buf, int *len, int value)
 {
 	int multiplier;
 
-	if (value < 0x80) {
+	if (value < 0x80)
+    {
 		/* 1 octet */
 		buf[*len] = value;
 		(*len)++;
 		return value;
 	}
-	if (value < 0x4000) {
+	if (value < 0x4000)
+    {
 		/* 2 octets */
 		/* Set the first bit of the first octet */
 		buf[*len] = ((0x8000 | value) >> 8) & 0xFF;
@@ -249,16 +261,19 @@ static int encode_open_type(uint8_t *buf, int *len, const uint8_t *data, int num
 	uint8_t zero_byte;
 
 	/* If open type is of zero length, add a single zero byte (10.1) */
-	if (num_octets == 0) {
+	if (num_octets == 0)
+    {
 		zero_byte = 0;
 		data = &zero_byte;
 		num_octets = 1;
 	}
 	/* Encode the open type */
-	for (octet_idx = 0;  ;  num_octets -= enclen, octet_idx += enclen) {
+	for (octet_idx = 0;  ;  num_octets -= enclen, octet_idx += enclen)
+    {
 		if ((enclen = encode_length(buf, len, num_octets)) < 0)
 			return -1;
-		if (enclen > 0) {
+		if (enclen > 0)
+        {
 			memcpy(&buf[*len], &data[octet_idx], enclen);
 			*len += enclen;
 		}
@@ -313,16 +328,20 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 	/* Decode error_recovery */
 	if (ptr + 1 > len)
 		return -1;
-	if ((buf[ptr++] & 0x80) == 0) {
+	if ((buf[ptr++] & 0x80) == 0)
+    {
 		/* Secondary packet mode for error recovery */
-		if (seq_no > s->rx_seq_no) {
+		if (seq_no > s->rx_seq_no)
+        {
 			/* We received a later packet than we expected, so we need to check if we can fill in the gap from the
 			   secondary packets. */
 			total_count = 0;
-			do {
+			do
+            {
 				if ((stat2 = decode_length(buf, len, &ptr, &count)) < 0)
 					return -1;
-				for (i = 0;  i < count;  i++) {
+				for (i = 0;  i < count;  i++)
+                {
 					if ((stat = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
 						return -1;
 				}
@@ -330,8 +349,10 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			}
 			while (stat2 > 0);
 			/* Step through in reverse order, so we go oldest to newest */
-			for (i = total_count;  i > 0;  i--) {
-				if (seq_no - i >= s->rx_seq_no) {
+			for (i = total_count;  i > 0;  i--)
+            {
+				if (seq_no - i >= s->rx_seq_no)
+                {
 					/* This one wasn't seen before */
 					/* Decode the secondary IFP packet */
 					//fprintf(stderr, "Secondary %d, len %d\n", seq_no - i, lengths[i - 1]);
@@ -345,7 +366,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 					s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
 					s->f[ifp_no].offset = 0;
 					s->f[ifp_no].src = "UDPTL";
-					if (ifp_no > 0) {
+					if (ifp_no > 0)
+                    {
 						s->f[ifp_no].prev = &s->f[ifp_no - 1];
 						s->f[ifp_no - 1].next = &s->f[ifp_no];
 					}
@@ -356,7 +378,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 		}
 		/* If packets are received out of sequence, we may have already processed this packet from the error
 		   recovery information in a packet already received. */
-		if (seq_no >= s->rx_seq_no) {
+		if (seq_no >= s->rx_seq_no)
+        {
 			/* Decode the primary IFP packet */
 			s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
 			s->f[ifp_no].subclass = OPBX_MODEM_T38;
@@ -368,7 +391,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			s->f[ifp_no].data = (uint8_t *) ifp;
 			s->f[ifp_no].offset = 0;
 			s->f[ifp_no].src = "UDPTL";
-			if (ifp_no > 0) {
+			if (ifp_no > 0)
+            {
 				s->f[ifp_no].prev = &s->f[ifp_no - 1];
 				s->f[ifp_no - 1].next = &s->f[ifp_no];
 			}
@@ -382,7 +406,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 		if (ifp_len > LOCAL_FAX_MAX_DATAGRAM)
 			return -1;
 		/* Update any missed slots in the buffer */
-		for (  ;  seq_no > s->rx_seq_no;  s->rx_seq_no++) {
+		for (  ;  seq_no > s->rx_seq_no;  s->rx_seq_no++)
+        {
 			x = s->rx_seq_no & UDPTL_BUF_MASK;
 			s->rx[x].buf_len = -1;
 			s->rx[x].fec_len[0] = 0;
@@ -417,7 +442,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 		s->rx[x].fec_entries = entries;
 
 		/* Decode the elements */
-		for (i = 0;  i < entries;  i++) {
+		for (i = 0;  i < entries;  i++)
+        {
 			if ((stat = decode_open_type(buf, len, &ptr, &data, &s->rx[x].fec_len[i])) != 0)
 				return -1;
 			if (s->rx[x].fec_len[i] > LOCAL_FAX_MAX_DATAGRAM)
@@ -435,18 +461,23 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 
 		/* See if we can reconstruct anything which is missing */
 		/* TODO: this does not comprehensively hunt back and repair everything that is possible */
-		for (l = x;  l != ((x - (16 - span*entries)) & UDPTL_BUF_MASK);  l = (l - 1) & UDPTL_BUF_MASK) {
+		for (l = x;  l != ((x - (16 - span*entries)) & UDPTL_BUF_MASK);  l = (l - 1) & UDPTL_BUF_MASK)
+        {
 			if (s->rx[l].fec_len[0] <= 0)
 				continue;
-			for (m = 0;  m < s->rx[l].fec_entries;  m++) {
+			for (m = 0;  m < s->rx[l].fec_entries;  m++)
+            {
 				limit = (l + m) & UDPTL_BUF_MASK;
-				for (which = -1, k = (limit - s->rx[l].fec_span*s->rx[l].fec_entries) & UDPTL_BUF_MASK;  k != limit;  k = (k + s->rx[l].fec_entries) & UDPTL_BUF_MASK) {
+				for (which = -1, k = (limit - s->rx[l].fec_span*s->rx[l].fec_entries) & UDPTL_BUF_MASK;  k != limit;  k = (k + s->rx[l].fec_entries) & UDPTL_BUF_MASK)
+                {
 					if (s->rx[k].buf_len <= 0)
 						which = (which == -1)  ?  k  :  -2;
 				}
-				if (which >= 0) {
+				if (which >= 0)
+                {
 					/* Repairable */
-					for (j = 0;  j < s->rx[l].fec_len[m];  j++) {
+					for (j = 0;  j < s->rx[l].fec_len[m];  j++)
+                    {
 						s->rx[which].buf[j] = s->rx[l].fec[m][j];
 						for (k = (limit - s->rx[l].fec_span*s->rx[l].fec_entries) & UDPTL_BUF_MASK;  k != limit;  k = (k + s->rx[l].fec_entries) & UDPTL_BUF_MASK)
 							s->rx[which].buf[j] ^= (s->rx[k].buf_len > j)  ?  s->rx[k].buf[j]  :  0;
@@ -457,8 +488,10 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 			}
 		}
 		/* Now play any new packets forwards in time */
-		for (l = (x + 1) & UDPTL_BUF_MASK, j = seq_no - UDPTL_BUF_MASK;  l != x;  l = (l + 1) & UDPTL_BUF_MASK, j++) {
-			if (repaired[l]) {
+		for (l = (x + 1) & UDPTL_BUF_MASK, j = seq_no - UDPTL_BUF_MASK;  l != x;  l = (l + 1) & UDPTL_BUF_MASK, j++)
+        {
+			if (repaired[l])
+            {
 				//fprintf(stderr, "Fixed packet %d, len %d\n", j, l);
 				s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
 				s->f[ifp_no].subclass = OPBX_MODEM_T38;
@@ -470,7 +503,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 				s->f[ifp_no].data = s->rx[l].buf;
 				s->f[ifp_no].offset = 0;
 				s->f[ifp_no].src = "UDPTL";
-				if (ifp_no > 0) {
+				if (ifp_no > 0)
+                {
 					s->f[ifp_no].prev = &s->f[ifp_no - 1];
 					s->f[ifp_no - 1].next = &s->f[ifp_no];
 				}
@@ -489,7 +523,8 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 		s->f[ifp_no].data = (uint8_t *) ifp;
 		s->f[ifp_no].offset = 0;
 		s->f[ifp_no].src = "UDPTL";
-		if (ifp_no > 0) {
+		if (ifp_no > 0)
+        {
 			s->f[ifp_no].prev = &s->f[ifp_no - 1];
 			s->f[ifp_no - 1].next = &s->f[ifp_no];
 		}
@@ -559,7 +594,8 @@ static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, 
 		if (encode_length(buf, &len, entries) < 0)
 			return -1;
 		/* Encode the elements */
-		for (i = 0;  i < entries;  i++) {
+		for (i = 0;  i < entries;  i++)
+        {
 			j = (entry - i - 1) & UDPTL_BUF_MASK;
 			if (encode_open_type(buf, &len, s->tx[j].buf, s->tx[j].buf_len) < 0)
 				return -1;
@@ -568,7 +604,8 @@ static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, 
 	case UDPTL_ERROR_CORRECTION_FEC:
 		span = s->error_correction_span;
 		entries = s->error_correction_entries;
-		if (seq < s->error_correction_span*s->error_correction_entries) {
+		if (seq < s->error_correction_span*s->error_correction_entries)
+        {
 			/* In the initial stages, wind up the FEC smoothly */
 			entries = seq/s->error_correction_span;
 			if (seq < s->error_correction_span)
@@ -583,18 +620,23 @@ static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, 
 		/* The number of entries is defined as a length, but will only ever be a small
 		   value. Treat it as such. */
 		buf[len++] = entries;
-		for (m = 0;  m < entries;  m++) {
+		for (m = 0;  m < entries;  m++)
+        {
 			/* Make an XOR'ed entry the maximum length */
 			limit = (entry + m) & UDPTL_BUF_MASK;
 			high_tide = 0;
-			for (i = (limit - span*entries) & UDPTL_BUF_MASK;  i != limit;  i = (i + entries) & UDPTL_BUF_MASK) {
-				if (high_tide < s->tx[i].buf_len) {
+			for (i = (limit - span*entries) & UDPTL_BUF_MASK;  i != limit;  i = (i + entries) & UDPTL_BUF_MASK)
+            {
+				if (high_tide < s->tx[i].buf_len)
+                {
 					for (j = 0;  j < high_tide;  j++)
 						fec[j] ^= s->tx[i].buf[j];
 					for (  ;  j < s->tx[i].buf_len;  j++)
 						fec[j] = s->tx[i].buf[j];
 					high_tide = s->tx[i].buf_len;
-				} else {
+				}
+                else
+                {
 					for (j = 0;  j < s->tx[i].buf_len;  j++)
 						fec[j] ^= s->tx[i].buf[j];
 				}
@@ -649,7 +691,8 @@ static int udptlread(int *id, int fd, short events, void *cbdata)
 	struct opbx_udptl *udptl = cbdata;
 	struct opbx_frame *f;
 
-	if ((f = opbx_udptl_read(udptl))) {
+	if ((f = opbx_udptl_read(udptl)))
+    {
 		if (udptl->callback)
 			udptl->callback(udptl, f, udptl->data);
 	}
@@ -677,7 +720,8 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 			&len,
             &actions);
 	udptlheader = (uint16_t *)(udptl->rawdata + OPBX_FRIENDLY_OFFSET);
-	if (res < 0) {
+	if (res < 0)
+    {
 		if (errno != EAGAIN)
 			opbx_log(LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
 		if (errno == EBADF)
@@ -685,35 +729,42 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
 		return &null_frame;
 	}
 
-	if (udp_socket_get_stunstate(udptl->udptl_sock_info)==1 ) {
+	if (udp_socket_get_stunstate(udptl->udptl_sock_info) == 1)
+    {
 	    if (stundebug) opbx_log(LOG_DEBUG, "Checking if payload it is a stun RESPONSE  on UDPTL\n");
 
 	    struct sockaddr_in stun_sin;
 	    struct stun_state stun_me;
 	    memset(&stun_me,0,sizeof(struct stun_state));
 	    stun_handle_packet(udp_socket_get_stunstate(udptl->udptl_sock_info), &sin, (unsigned char *)udptl->rawdata + OPBX_FRIENDLY_OFFSET, res, &stun_me);
-	    if (stun_me.msgtype==STUN_BINDRESP) {
-		if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on UDPTL channel\n");
-		udp_socket_set_stunstate(udptl->udptl_sock_info,2);
+	    if (stun_me.msgtype == STUN_BINDRESP)
+        {
+            if (stundebug) opbx_log(LOG_DEBUG, "Got STUN bind response on UDPTL channel\n");
+            	udp_socket_set_stunstate(udptl->udptl_sock_info, 2);
 
-		if ( stun_addr2sockaddr(&stun_sin,stun_me.mapped_addr) ) {
-		    udp_socket_set_stun(udptl->udptl_sock_info,&stun_sin);
-		} else
-		    if (stundebug) opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
+		    if (stun_addr2sockaddr(&stun_sin,stun_me.mapped_addr))
+            {
+		        udp_socket_set_stun(udptl->udptl_sock_info,&stun_sin);
+		    }
+            else
+            {
+		        if (stundebug)
+                    opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
+            }
+		    stun_remove_request(&stun_me.id);		
 
-		stun_remove_request(&stun_me.id);		
-
-		return &null_frame;
+		    return &null_frame;
 	    }
-
 	}
 
-	if ((actions & 1)) {
+	if ((actions & 1))
+    {
 		if (option_debug || udptldebug)
 			opbx_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_them(udptl->udptl_sock_info)->sin_port));
 	}
 
-	if (udptl_debug_test_addr(&sin)) {
+	if (udptl_debug_test_addr(&sin))
+    {
 		opbx_verbose("Got UDPTL packet from %s:%d (len %d)\n",
 			opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 	}
@@ -737,50 +788,50 @@ int opbx_udptl_get_error_correction_scheme(struct opbx_udptl *udptl)
 {
     if (udptl)
 	    return udptl->error_correction_scheme;
-    else {
-	    opbx_log(LOG_WARNING, "udptl structure is null\n");
-	    return -1;
-    }
+    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    return -1;
 }
 
 void opbx_udptl_set_error_correction_scheme(struct opbx_udptl *udptl, int ec)
 {
-    if (udptl) {
-	switch (ec) {
+    if (udptl)
+    {
+	    switch (ec)
+        {
 	    case UDPTL_ERROR_CORRECTION_FEC:
-		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
-		break;
+		    udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
+		    break;
 	    case UDPTL_ERROR_CORRECTION_REDUNDANCY:
-		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_REDUNDANCY;
-		break;
+		    udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+		    break;
 	    case UDPTL_ERROR_CORRECTION_NONE:
-		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
-		break;
+		    udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
+		    break;
 	    default:
-		opbx_log(LOG_WARNING, "error correction parameter invalid");
-	};
-    } else
+		    opbx_log(LOG_WARNING, "error correction parameter invalid");
+            break;
+	    }
+    }
+    else
+    {
 	    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    }
 }
 
 int opbx_udptl_get_local_max_datagram(struct opbx_udptl *udptl)
 {
     if (udptl)
 	    return udptl->local_max_datagram_size;
-    else {
-	    opbx_log(LOG_WARNING, "udptl structure is null\n");
-	    return -1;
-    }
+    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    return -1;
 }
 
 int opbx_udptl_get_far_max_datagram(struct opbx_udptl *udptl)
 {
     if (udptl)
 	    return udptl->far_max_datagram_size;
-    else {
-	    opbx_log(LOG_WARNING, "udptl structure is null\n");
-	    return -1;
-    }
+    opbx_log(LOG_WARNING, "udptl structure is null\n");
+    return -1;
 }
 
 void opbx_udptl_set_local_max_datagram(struct opbx_udptl *udptl, int max_datagram)
@@ -825,13 +876,15 @@ struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
 
 	memset(&udptl->rx, 0, sizeof(udptl->rx));
 	memset(&udptl->tx, 0, sizeof(udptl->tx));
-	for (i = 0;  i <= UDPTL_BUF_MASK;  i++) {
+	for (i = 0;  i <= UDPTL_BUF_MASK;  i++)
+    {
 		udptl->rx[i].buf_len = -1;
 		udptl->tx[i].buf_len = -1;
 	}
     /* This sock_info should already be bound to an address */
     udptl->udptl_sock_info = sock_info;
-	if (io && sched && callbackmode) {
+	if (io  &&  sched  &&  callbackmode)
+    {
 		/* Operate this one in a callback mode */
 		udptl->sched = sched;
 		udptl->io = io;
@@ -870,12 +923,14 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
 
 	memset(&udptl->rx, 0, sizeof(udptl->rx));
 	memset(&udptl->tx, 0, sizeof(udptl->tx));
-	for (i = 0;  i <= UDPTL_BUF_MASK;  i++) {
+	for (i = 0;  i <= UDPTL_BUF_MASK;  i++)
+    {
 		udptl->rx[i].buf_len = -1;
 		udptl->tx[i].buf_len = -1;
 	}
 
-	if ((udptl->udptl_sock_info = udp_socket_create(nochecksums)) == NULL) {
+	if ((udptl->udptl_sock_info = udp_socket_create(nochecksums)) == NULL)
+    {
         free(udptl);
 		return NULL;
 	}
@@ -887,15 +942,18 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
 	x = (rand()%(udptlend - udptlstart)) + udptlstart;
 	x = x & ~1;
 	startplace = x;
-	for (;;) {
+	for (;;)
+    {
         memset(&sockaddr, 0, sizeof(sockaddr));
         sockaddr.sin_addr = addr;
         sockaddr.sin_port = htons(x);
-        if (udp_socket_set_us(udptl->udptl_sock_info, &sockaddr) == 0) {
+        if (udp_socket_set_us(udptl->udptl_sock_info, &sockaddr) == 0)
+        {
             /* Success */
             break;
         }
-		if (errno != EADDRINUSE) {
+		if (errno != EADDRINUSE)
+        {
 			opbx_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
             udp_socket_destroy(udptl->udptl_sock_info);
 			free(udptl);
@@ -904,14 +962,16 @@ struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
         x += 2;
 		if (x > udptlend)
 			x = udptlstart;
-		if (x == startplace) {
+		if (x == startplace)
+        {
 			opbx_log(LOG_WARNING, "No UDPTL ports remaining\n");
             udp_socket_destroy(udptl->udptl_sock_info);
 			free(udptl);
 			return NULL;
 		}
 	}
-	if (io && sched && callbackmode) {
+	if (io  &&  sched  &&  callbackmode)
+    {
 		/* Operate this one in a callback mode */
 		udptl->sched = sched;
 		udptl->io = io;
@@ -929,7 +989,7 @@ int opbx_udptl_set_active(struct opbx_udptl *udptl, int active)
 	    {
 	        if (udptl->ioid == NULL)
     	        udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
-    	    }
+        }
 	    else
 	    {
 	        if (udptl->ioid)
@@ -937,7 +997,7 @@ int opbx_udptl_set_active(struct opbx_udptl *udptl, int active)
 	       		opbx_io_remove(udptl->io, udptl->ioid);
 	            udptl->ioid = NULL;
 	        }
-    	    }
+        }
     }
     return 0;
 }
@@ -960,15 +1020,15 @@ void opbx_udptl_get_peer(struct opbx_udptl *udptl, struct sockaddr_in *them)
 void opbx_udptl_get_us(struct opbx_udptl *udptl, struct sockaddr_in *us)
 {
     if (udp_socket_get_stunstate(udptl->udptl_sock_info)==2)
-	memcpy(us, udp_socket_get_stun(udptl->udptl_sock_info), sizeof(*us));
+        memcpy(us, udp_socket_get_stun(udptl->udptl_sock_info), sizeof(*us));
     else
-	memcpy(us, udp_socket_get_us(udptl->udptl_sock_info), sizeof(*us));
+        memcpy(us, udp_socket_get_us(udptl->udptl_sock_info), sizeof(*us));
 }
 
 int opbx_udptl_get_stunstate(struct opbx_udptl *udptl)
 {
-    if (udptl!=NULL)
-	return udp_socket_get_stunstate(udptl->udptl_sock_info);
+    if (udptl)
+        return udp_socket_get_stunstate(udptl->udptl_sock_info);
     return 0;
 }
 
@@ -1006,16 +1066,19 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 	if (f->datalen == 0)
 		return 0;
 	
-	if (f->frametype != OPBX_FRAME_MODEM) {
+	if (f->frametype != OPBX_FRAME_MODEM)
+    {
 		opbx_log(LOG_WARNING, "UDPTL can only send T.38 data\n");
 		return -1;
 	}
 	/* Cook up the UDPTL packet, with the relevant EC info. */
 	len = udptl_build_packet(s, buf, f->data, f->datalen);
 
-	if (len > 0  &&  them->sin_port && them->sin_addr.s_addr) {
+	if (len > 0  &&  them->sin_port && them->sin_addr.s_addr)
+    {
 		copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
-		for (i = 0;  i < copies;  i++) {
+		for (i = 0;  i < copies;  i++)
+        {
 			if ((res = udp_socket_sendto(s->udptl_sock_info, buf, len, 0)) < 0)
 				opbx_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
 		}
@@ -1027,7 +1090,6 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 					opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
 					ntohs(them->sin_port), (s->tx_seq_no - 1) & 0xFFFF, len);
 	}
-		
 	return 0;
 }
 
@@ -1036,18 +1098,16 @@ void opbx_udptl_proto_unregister(struct opbx_udptl_protocol *proto)
 	struct opbx_udptl_protocol *cur;
 	struct opbx_udptl_protocol *prev;
 
-	cur = protos;
-	prev = NULL;
-	while(cur) {
-		if (cur == proto) {
+	for (cur = protos, 	prev = NULL;  cur;  prev = cur, cur = cur->next)
+    {
+		if (cur == proto)
+        {
 			if (prev)
 				prev->next = proto->next;
 			else
 				protos = proto->next;
 			return;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
 }
 
@@ -1056,8 +1116,10 @@ int opbx_udptl_proto_register(struct opbx_udptl_protocol *proto)
 	struct opbx_udptl_protocol *cur;
 
 	cur = protos;
-	while(cur) {
-		if (cur->type == proto->type) {
+	while (cur)
+    {
+		if (cur->type == proto->type)
+        {
 			opbx_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
 			return -1;
 		}
@@ -1073,7 +1135,8 @@ static struct opbx_udptl_protocol *get_proto(struct opbx_channel *chan)
 	struct opbx_udptl_protocol *cur;
 
 	cur = protos;
-	while (cur) {
+	while (cur)
+    {
 		if (cur->type == chan->type)
 			return cur;
 		cur = cur->next;
@@ -1100,20 +1163,23 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
 	int to;
 	
 	opbx_mutex_lock(&c0->lock);
-	while (opbx_mutex_trylock(&c1->lock)) {
+	while (opbx_mutex_trylock(&c1->lock))
+    {
 		opbx_mutex_unlock(&c0->lock);
 		usleep(1);
 		opbx_mutex_lock(&c0->lock);
 	}
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
-	if (!pr0) {
+	if (!pr0)
+    {
 		opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
 		return OPBX_BRIDGE_FAILED;
 	}
-	if (!pr1) {
+	if (!pr1)
+    {
 		opbx_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
@@ -1123,21 +1189,28 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
 	pvt1 = c1->tech_pvt;
 	p0 = pr0->get_udptl_info(c0);
 	p1 = pr1->get_udptl_info(c1);
-	if (!p0 || !p1) {
+	if (!p0  ||  !p1)
+    {
 		/* Somebody doesn't want to play... */
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
 		return OPBX_BRIDGE_FAILED_NOWARN;
 	}
-	if (pr0->set_udptl_peer(c0, p1)) {
+	if (pr0->set_udptl_peer(c0, p1))
+    {
 		opbx_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
-	} else {
+	}
+    else
+    {
 		/* Store UDPTL peer */
 		opbx_udptl_get_peer(p1, &ac1);
 	}
 	if (pr1->set_udptl_peer(c1, p0))
+    {
 		opbx_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
-	else {
+	}
+    else
+    {
 		/* Store UDPTL peer */
 		opbx_udptl_get_peer(p0, &ac0);
 	}
@@ -1146,57 +1219,62 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
-	for (;;) {
-		if ((c0->tech_pvt != pvt0)  ||
-			(c1->tech_pvt != pvt1) ||
-			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-				opbx_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
-				/* Tell it to try again later */
-				return OPBX_BRIDGE_RETRY;
+	for (;;)
+    {
+		if ((c0->tech_pvt != pvt0)
+            ||
+			(c1->tech_pvt != pvt1)
+            ||
+			(c0->masq  ||  c0->masqr  ||  c1->masq  ||  c1->masqr))
+        {
+            opbx_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+            /* Tell it to try again later */
+            return OPBX_BRIDGE_RETRY;
 		}
 		to = -1;
 		opbx_udptl_get_peer(p1, &t1);
 		opbx_udptl_get_peer(p0, &t0);
-		if (inaddrcmp(&t1, &ac1)) {
+		if (inaddrcmp(&t1, &ac1))
+        {
 			opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
 				c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
 			opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
 				c1->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
 			memcpy(&ac1, &t1, sizeof(ac1));
 		}
-		if (inaddrcmp(&t0, &ac0)) {
+		if (inaddrcmp(&t0, &ac0))
+        {
 			opbx_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
 				c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
 			opbx_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
 				c0->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
 			memcpy(&ac0, &t0, sizeof(ac0));
 		}
-		who = opbx_waitfor_n(cs, 2, &to);
-		if (!who) {
+		if ((who = opbx_waitfor_n(cs, 2, &to)) == 0)
+        {
 			opbx_log(LOG_DEBUG, "Ooh, empty read...\n");
 			/* check for hangup / whentohangup */
 			if (opbx_check_hangup(c0) || opbx_check_hangup(c1))
 				break;
 			continue;
 		}
-		f = opbx_read(who);
-		if (!f) {
+		if ((f = opbx_read(who)) == 0)
+		{
 			*fo = f;
 			*rc = who;
-			opbx_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
+			opbx_log(LOG_DEBUG, "Oooh, got a %s\n", (f)  ?  "digit"  :  "hangup");
 			/* That's all we needed */
 			return OPBX_BRIDGE_COMPLETE;
-		} else {
-			if (f->frametype == OPBX_FRAME_MODEM) {
-				/* Forward T.38 frames if they happen upon us */
-				if (who == c0) {
-					opbx_write(c1, f);
-				} else if (who == c1) {
-					opbx_write(c0, f);
-				}
-			}
-			opbx_frfree(f);
+        }
+		if (f->frametype == OPBX_FRAME_MODEM)
+        {
+			/* Forward T.38 frames if they happen upon us */
+			if (who == c0)
+				opbx_write(c1, f);
+            else if (who == c1)
+				opbx_write(c0, f);
 		}
+		opbx_frfree(f);
 		/* Swap priority. Not that it's a big deal at this point */
 		cs[2] = cs[0];
 		cs[0] = cs[1];
@@ -1219,7 +1297,8 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	arg = argv[3];
 	p = strstr(arg, ":");
-	if (p) {
+	if (p)
+    {
 		*p = '\0';
 		p++;
 		port = atoi(p);
@@ -1240,7 +1319,8 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 
 static int udptl_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2) {
+	if (argc != 2)
+    {
 		if (argc != 4)
 			return RESULT_SHOWUSAGE;
 		return udptl_do_debug_ip(fd, argc, argv);
@@ -1289,22 +1369,26 @@ void opbx_udptl_reload(void)
 	udptlfecspan = 0;
 	udptlmaxdatagram = 0;
 
-	if ((cfg = opbx_config_load("udptl.conf"))) {
-		if ((s = opbx_variable_retrieve(cfg, "general", "udptlstart"))) {
+	if ((cfg = opbx_config_load("udptl.conf")))
+    {
+		if ((s = opbx_variable_retrieve(cfg, "general", "udptlstart")))
+        {
 			udptlstart = atoi(s);
 			if (udptlstart < 1024)
 				udptlstart = 1024;
 			if (udptlstart > 65535)
 				udptlstart = 65535;
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "udptlend"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "udptlend")))
+        {
 			udptlend = atoi(s);
 			if (udptlend < 1024)
 				udptlend = 1024;
 			if (udptlend > 65535)
 				udptlend = 65535;
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "udptlchecksums"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "udptlchecksums")))
+        {
 #ifdef SO_NO_CHECK
 			if (opbx_false(s))
 				nochecksums = 1;
@@ -1315,27 +1399,31 @@ void opbx_udptl_reload(void)
 				opbx_log(LOG_WARNING, "Disabling UDPTL checksums is not supported on this operating system!\n");
 #endif
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxUdpEC"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxUdpEC")))
+        {
 			if (strcmp(s, "t38UDPFEC") == 0)
 				udptlfectype = 2;
 			else if (strcmp(s, "t38UDPRedundancy") == 0)
 				udptlfectype = 1;
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxMaxDatagram"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "T38FaxMaxDatagram")))
+        {
 			udptlmaxdatagram = atoi(s);
 			if (udptlmaxdatagram < 0)
 				udptlmaxdatagram = 0;
 			if (udptlmaxdatagram > LOCAL_FAX_MAX_DATAGRAM)
 				udptlmaxdatagram = LOCAL_FAX_MAX_DATAGRAM;
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECentries"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECentries")))
+        {
 			udptlfecentries = atoi(s);
 			if (udptlfecentries < 0)
 				udptlfecentries = 0;
 			if (udptlfecentries > MAX_FEC_ENTRIES)
 				udptlfecentries = MAX_FEC_ENTRIES;
 		}
-		if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECspan"))) {
+		if ((s = opbx_variable_retrieve(cfg, "general", "UDPTLFECspan")))
+        {
 			udptlfecspan = atoi(s);
 			if (udptlfecspan < 0)
 				udptlfecspan = 0;
@@ -1344,7 +1432,8 @@ void opbx_udptl_reload(void)
 		}
 		opbx_config_destroy(cfg);
 	}
-	if (udptlstart >= udptlend) {
+	if (udptlstart >= udptlend)
+    {
 		opbx_log(LOG_WARNING, "Unreasonable values for UDPTL start/end\n");
 		udptlstart = 4500;
 		udptlend = 4999;
