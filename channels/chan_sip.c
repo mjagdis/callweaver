@@ -5823,7 +5823,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	p->lastinvite = p->ocseq;
 	opbx_set_flag(p, SIP_OUTGOING);
 
-	    opbx_log(LOG_ERROR, "Activating UDPTL on reinvite %s (b)\n", p->callid);
+	    opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
 	    opbx_rtp_set_active(p->rtp, 0);
 	    opbx_udptl_set_active(p->udptl, 1);
 	    p->udptl_active = 1;
