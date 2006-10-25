@@ -125,7 +125,7 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 	struct timeval start_talk = {0, 0}, start_silence = {0, 0}, now = {0, 0};
 	int waitdur = 4;
 	int sildur = 1000;
-	int mindur = 150;
+	int mindur = 100;
 	int maxdur = -1;
 	int skipanswer = 0;
 	int noextneeded = 0;
