@@ -354,25 +354,29 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 				if (seq_no - i >= s->rx_seq_no)
                 {
 					/* This one wasn't seen before */
-					/* Decode the secondary IFP packet */
+					/* Process the secondary IFP packet */
 					//fprintf(stderr, "Secondary %d, len %d\n", seq_no - i, lengths[i - 1]);
-					s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-					s->f[ifp_no].subclass = OPBX_MODEM_T38;
-
-					s->f[ifp_no].mallocd = 0;
-					s->f[ifp_no].seq_no = seq_no - i;
-					s->f[ifp_no].tx_copies = 1;
-					s->f[ifp_no].datalen = lengths[i - 1];
-					s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
-					s->f[ifp_no].offset = 0;
-					s->f[ifp_no].src = "UDPTL";
-					if (ifp_no > 0)
+                    /* Ignore obviously silly packets */
+                    if (lengths[i - 1] > 0)
                     {
-						s->f[ifp_no].prev = &s->f[ifp_no - 1];
-						s->f[ifp_no - 1].next = &s->f[ifp_no];
-					}
-					s->f[ifp_no].next = NULL;
-					ifp_no++;
+        				s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
+		       			s->f[ifp_no].subclass = OPBX_MODEM_T38;
+
+        				s->f[ifp_no].mallocd = 0;
+			        	s->f[ifp_no].seq_no = seq_no - i;
+		       			s->f[ifp_no].tx_copies = 1;
+    					s->f[ifp_no].datalen = lengths[i - 1];
+	    				s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
+		            	s->f[ifp_no].offset = 0;
+                        s->f[ifp_no].src = "UDPTL";
+					    if (ifp_no > 0)
+                        {
+						    s->f[ifp_no].prev = &s->f[ifp_no - 1];
+						    s->f[ifp_no - 1].next = &s->f[ifp_no];
+					    }
+					    s->f[ifp_no].next = NULL;
+					    ifp_no++;
+                    }
 				}
 			}
 		}
@@ -380,23 +384,28 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 		   recovery information in a packet already received. */
 		if (seq_no >= s->rx_seq_no)
         {
-			/* Decode the primary IFP packet */
-			s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-			s->f[ifp_no].subclass = OPBX_MODEM_T38;
-			
-			s->f[ifp_no].mallocd = 0;
-			s->f[ifp_no].seq_no = seq_no;
-			s->f[ifp_no].tx_copies = 1;
-			s->f[ifp_no].datalen = ifp_len;
-			s->f[ifp_no].data = (uint8_t *) ifp;
-			s->f[ifp_no].offset = 0;
-			s->f[ifp_no].src = "UDPTL";
-			if (ifp_no > 0)
+			/* Process the primary IFP packet */
+	        //fprintf(stderr, "Primary %d, len %d\n", seq_no, ifp_len);
+            /* Ignore obviously silly packets */
+            if (ifp_len > 0)
             {
-				s->f[ifp_no].prev = &s->f[ifp_no - 1];
-				s->f[ifp_no - 1].next = &s->f[ifp_no];
-			}
-			s->f[ifp_no].next = NULL;
+			    s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
+    			s->f[ifp_no].subclass = OPBX_MODEM_T38;
+			
+    			s->f[ifp_no].mallocd = 0;
+    			s->f[ifp_no].seq_no = seq_no;
+    			s->f[ifp_no].tx_copies = 1;
+    			s->f[ifp_no].datalen = ifp_len;
+    			s->f[ifp_no].data = (uint8_t *) ifp;
+    			s->f[ifp_no].offset = 0;
+    			s->f[ifp_no].src = "UDPTL";
+    			if (ifp_no > 0)
+                {
+    				s->f[ifp_no].prev = &s->f[ifp_no - 1];
+    				s->f[ifp_no - 1].next = &s->f[ifp_no];
+    			}
+    			s->f[ifp_no].next = NULL;
+            }
 		}
 	}
 	else
@@ -492,43 +501,53 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
         {
 			if (repaired[l])
             {
+                /* Process the repaired packet */
 				//fprintf(stderr, "Fixed packet %d, len %d\n", j, l);
-				s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-				s->f[ifp_no].subclass = OPBX_MODEM_T38;
-			
-				s->f[ifp_no].mallocd = 0;
-				s->f[ifp_no].seq_no = j;
-				s->f[ifp_no].tx_copies = 1;
-				s->f[ifp_no].datalen = s->rx[l].buf_len;
-				s->f[ifp_no].data = s->rx[l].buf;
-				s->f[ifp_no].offset = 0;
-				s->f[ifp_no].src = "UDPTL";
-				if (ifp_no > 0)
+                /* Ignore obviously silly packets */
+                if (lengths[i - 1] > 0)
                 {
-					s->f[ifp_no].prev = &s->f[ifp_no - 1];
-					s->f[ifp_no - 1].next = &s->f[ifp_no];
-				}
-				s->f[ifp_no].next = NULL;
-				ifp_no++;
+    				s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
+	    			s->f[ifp_no].subclass = OPBX_MODEM_T38;
+			
+    				s->f[ifp_no].mallocd = 0;
+	    			s->f[ifp_no].seq_no = j;
+		    		s->f[ifp_no].tx_copies = 1;
+			    	s->f[ifp_no].datalen = s->rx[l].buf_len;
+    				s->f[ifp_no].data = s->rx[l].buf;
+	    			s->f[ifp_no].offset = 0;
+		    		s->f[ifp_no].src = "UDPTL";
+    				if (ifp_no > 0)
+                    {
+		    			s->f[ifp_no].prev = &s->f[ifp_no - 1];
+			    		s->f[ifp_no - 1].next = &s->f[ifp_no];
+				    }
+    				s->f[ifp_no].next = NULL;
+	    			ifp_no++;
+                }
 			}
 		}
-		/* Decode the primary IFP packet */
-		s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-		s->f[ifp_no].subclass = OPBX_MODEM_T38;
-			
-		s->f[ifp_no].mallocd = 0;
-		s->f[ifp_no].seq_no = j;
-		s->f[ifp_no].tx_copies = 1;
-		s->f[ifp_no].datalen = ifp_len;
-		s->f[ifp_no].data = (uint8_t *) ifp;
-		s->f[ifp_no].offset = 0;
-		s->f[ifp_no].src = "UDPTL";
-		if (ifp_no > 0)
+		/* Process the primary IFP packet */
+        //fprintf(stderr, "Primary %d, len %d\n", seq_no, ifp_len);
+        /* Ignore obviously silly packets */
+        if (lengths[i - 1] > 0)
         {
-			s->f[ifp_no].prev = &s->f[ifp_no - 1];
-			s->f[ifp_no - 1].next = &s->f[ifp_no];
-		}
-		s->f[ifp_no].next = NULL;
+    		s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
+    		s->f[ifp_no].subclass = OPBX_MODEM_T38;
+			
+    		s->f[ifp_no].mallocd = 0;
+    		s->f[ifp_no].seq_no = j;
+    		s->f[ifp_no].tx_copies = 1;
+    		s->f[ifp_no].datalen = ifp_len;
+    		s->f[ifp_no].data = (uint8_t *) ifp;
+    		s->f[ifp_no].offset = 0;
+    		s->f[ifp_no].src = "UDPTL";
+    		if (ifp_no > 0)
+            {
+    			s->f[ifp_no].prev = &s->f[ifp_no - 1];
+    			s->f[ifp_no - 1].next = &s->f[ifp_no];
+    		}
+    		s->f[ifp_no].next = NULL;
+        }
 	}
 
 	s->rx_seq_no = seq_no + 1;
@@ -1074,7 +1093,7 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 	/* Cook up the UDPTL packet, with the relevant EC info. */
 	len = udptl_build_packet(s, buf, f->data, f->datalen);
 
-	if (len > 0  &&  them->sin_port && them->sin_addr.s_addr)
+	if (len > 0  &&  them->sin_port  &&  them->sin_addr.s_addr)
     {
 		copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
 		for (i = 0;  i < copies;  i++)
