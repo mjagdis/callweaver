@@ -332,23 +332,30 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
     if ((buf[ptr++] & 0x80) == 0)
     {
         /* Secondary packet mode for error recovery */
+        /* We might have the packet we want, but we need to check through
+           the redundant stuff, and verify the integrity of the UDPTL.
+           This greatly reduces our chances of accepting garbage. */
+        total_count = 0;
+        do
+        {
+            if ((stat2 = decode_length(buf, len, &ptr, &count)) < 0)
+                return -1;
+            for (i = 0;  i < count;  i++)
+            {
+                if ((stat = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
+                    return -1;
+            }
+            total_count += count;
+        }
+        while (stat2 > 0);
+        /* We should now be exactly at the end of the packet. If not, this
+           is a fault. */
+        if (ptr != len)
+            return -1;
         if (seq_no > s->rx_seq_no)
         {
             /* We received a later packet than we expected, so we need to check if we can fill in the gap from the
                secondary packets. */
-            total_count = 0;
-            do
-            {
-                if ((stat2 = decode_length(buf, len, &ptr, &count)) < 0)
-                    return -1;
-                for (i = 0;  i < count;  i++)
-                {
-                    if ((stat = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
-                        return -1;
-                }
-                total_count += count;
-            }
-            while (stat2 > 0);
             /* Step through in reverse order, so we go oldest to newest */
             for (i = total_count;  i > 0;  i--)
             {
@@ -461,8 +468,11 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
                 fprintf(stderr, "%02X ", data[j]);
             fprintf(stderr, "\n");
 #endif
-       }
-
+        }
+        /* We should now be exactly at the end of the packet. If not, this
+           is a fault. */
+        if (ptr != len)
+            return -1;
         /* See if we can reconstruct anything which is missing */
         /* TODO: this does not comprehensively hunt back and repair everything that is possible */
         for (l = x;  l != ((x - (16 - span*entries)) & UDPTL_BUF_MASK);  l = (l - 1) & UDPTL_BUF_MASK)
