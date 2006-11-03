@@ -513,7 +513,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
         s->f[msg_no].subclass = OPBX_MODEM_T38;
             
         s->f[msg_no].mallocd = 0;
-        s->f[msg_no].seq_no = j;
+        s->f[msg_no].seq_no = seq_no;
         s->f[msg_no].tx_copies = 1;
         s->f[msg_no].datalen = msg_len;
         s->f[msg_no].data = (uint8_t *) msg;
