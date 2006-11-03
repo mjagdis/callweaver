@@ -145,7 +145,7 @@ struct opbx_udptl
 static struct opbx_udptl_protocol *protos = NULL;
 
 static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len);
-static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len);
+static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *msg, int msg_len);
 
 static inline int udptl_debug_test_addr(const struct sockaddr_in *addr)
 {
@@ -164,7 +164,7 @@ static inline int udptl_debug_test_addr(const struct sockaddr_in *addr)
 }
 /*- End of function --------------------------------------------------------*/
 
-static int decode_length(uint8_t *buf, int limit, int *len, int *pvalue)
+static int decode_length(const uint8_t *buf, int limit, int *len, int *pvalue)
 {
     if ((buf[*len] & 0x80) == 0)
     {
@@ -193,7 +193,7 @@ static int decode_length(uint8_t *buf, int limit, int *len, int *pvalue)
 }
 /*- End of function --------------------------------------------------------*/
 
-static int decode_open_type(uint8_t *buf, int limit, int *len, const uint8_t **p_object, int *p_num_octets)
+static int decode_open_type(const uint8_t *buf, int limit, int *len, const uint8_t **p_object, int *p_num_octets)
 {
     int octet_cnt;
     int octet_idx;
@@ -302,18 +302,18 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
     int count;
     int total_count;
     int seq_no;
-    const uint8_t *ifp;
+    const uint8_t *msg;
     const uint8_t *data;
-    int ifp_len;
+    int msg_len;
     int repaired[16];
     const uint8_t *bufs[16];
     int lengths[16];
     int span;
     int entries;
-    int ifp_no;
+    int msg_no;
 
     ptr = 0;
-    ifp_no = 0;
+    msg_no = 0;
     s->f[0].prev = NULL;
     s->f[0].next = NULL;
 
@@ -324,7 +324,7 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
     ptr += 2;
 
     /* Break out the primary packet */
-    if ((stat = decode_open_type(buf, len, &ptr, &ifp, &ifp_len)) != 0)
+    if ((stat = decode_open_type(buf, len, &ptr, &msg, &msg_len)) != 0)
         return -1;
     /* Decode error_recovery */
     if (ptr + 1 > len)
@@ -362,59 +362,34 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
                 if (seq_no - i >= s->rx_seq_no)
                 {
                     /* This one wasn't seen before */
-                    /* Process the secondary IFP packet */
+                    /* Process the secondary packet */
                     //fprintf(stderr, "Secondary %d, len %d\n", seq_no - i, lengths[i - 1]);
-                    /* Ignore obviously silly packets */
-                    s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-                    s->f[ifp_no].subclass = OPBX_MODEM_T38;
+                    s->f[msg_no].frametype = OPBX_FRAME_MODEM;
+                    s->f[msg_no].subclass = OPBX_MODEM_T38;
 
-                    s->f[ifp_no].mallocd = 0;
-                    s->f[ifp_no].seq_no = seq_no - i;
-                    s->f[ifp_no].tx_copies = 1;
-                    s->f[ifp_no].datalen = lengths[i - 1];
-                    s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
-                    s->f[ifp_no].offset = 0;
-                    s->f[ifp_no].src = "UDPTL";
-                    if (ifp_no > 0)
+                    s->f[msg_no].mallocd = 0;
+                    s->f[msg_no].seq_no = seq_no - i;
+                    s->f[msg_no].tx_copies = 1;
+                    s->f[msg_no].datalen = lengths[i - 1];
+                    s->f[msg_no].data = (uint8_t *) bufs[i - 1];
+                    s->f[msg_no].offset = 0;
+                    s->f[msg_no].src = "UDPTL";
+                    if (msg_no > 0)
                     {
-                        s->f[ifp_no].prev = &s->f[ifp_no - 1];
-                        s->f[ifp_no - 1].next = &s->f[ifp_no];
+                        s->f[msg_no].prev = &s->f[msg_no - 1];
+                        s->f[msg_no - 1].next = &s->f[msg_no];
                     }
-                    s->f[ifp_no].next = NULL;
-                    ifp_no++;
+                    s->f[msg_no].next = NULL;
+                    msg_no++;
                 }
             }
-        }
-        /* If packets are received out of sequence, we may have already processed this packet from the error
-           recovery information in a packet already received. */
-        if (seq_no >= s->rx_seq_no)
-        {
-            /* Process the primary IFP packet */
-            //fprintf(stderr, "Primary %d, len %d\n", seq_no, ifp_len);
-            /* Ignore obviously silly packets */
-            s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-            s->f[ifp_no].subclass = OPBX_MODEM_T38;
-            
-            s->f[ifp_no].mallocd = 0;
-            s->f[ifp_no].seq_no = seq_no;
-            s->f[ifp_no].tx_copies = 1;
-            s->f[ifp_no].datalen = ifp_len;
-            s->f[ifp_no].data = (uint8_t *) ifp;
-            s->f[ifp_no].offset = 0;
-            s->f[ifp_no].src = "UDPTL";
-            if (ifp_no > 0)
-            {
-                s->f[ifp_no].prev = &s->f[ifp_no - 1];
-                s->f[ifp_no - 1].next = &s->f[ifp_no];
-            }
-            s->f[ifp_no].next = NULL;
         }
     }
     else
     {
         /* FEC mode for error recovery */
-        /* Our buffers cannot tolerate overlength IFP packets in FEC mode */
-        if (ifp_len > LOCAL_FAX_MAX_DATAGRAM)
+        /* Our buffers cannot tolerate overlength packets in FEC mode */
+        if (msg_len > LOCAL_FAX_MAX_DATAGRAM)
             return -1;
         /* Update any missed slots in the buffer */
         for (  ;  seq_no > s->rx_seq_no;  s->rx_seq_no++)
@@ -430,9 +405,9 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
 
         memset(repaired, 0, sizeof(repaired));
 
-        /* Save the new IFP packet */
-        memcpy(s->rx[x].buf, ifp, ifp_len);
-        s->rx[x].buf_len = ifp_len;
+        /* Save the new packet */
+        memcpy(s->rx[x].buf, msg, msg_len);
+        s->rx[x].buf_len = msg_len;
         repaired[x] = TRUE;
 
         /* Decode the FEC packets */
@@ -508,51 +483,55 @@ static int udptl_rx_packet(struct opbx_udptl *s, uint8_t *buf, int len)
             {
                 /* Process the repaired packet */
                 //fprintf(stderr, "Fixed packet %d, len %d\n", j, l);
-                s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-                s->f[ifp_no].subclass = OPBX_MODEM_T38;
+                s->f[msg_no].frametype = OPBX_FRAME_MODEM;
+                s->f[msg_no].subclass = OPBX_MODEM_T38;
             
-                s->f[ifp_no].mallocd = 0;
-                s->f[ifp_no].seq_no = j;
-                s->f[ifp_no].tx_copies = 1;
-                s->f[ifp_no].datalen = s->rx[l].buf_len;
-                s->f[ifp_no].data = s->rx[l].buf;
-                s->f[ifp_no].offset = 0;
-                s->f[ifp_no].src = "UDPTL";
-                if (ifp_no > 0)
+                s->f[msg_no].mallocd = 0;
+                s->f[msg_no].seq_no = j;
+                s->f[msg_no].tx_copies = 1;
+                s->f[msg_no].datalen = s->rx[l].buf_len;
+                s->f[msg_no].data = s->rx[l].buf;
+                s->f[msg_no].offset = 0;
+                s->f[msg_no].src = "UDPTL";
+                if (msg_no > 0)
                 {
-                    s->f[ifp_no].prev = &s->f[ifp_no - 1];
-                    s->f[ifp_no - 1].next = &s->f[ifp_no];
+                    s->f[msg_no].prev = &s->f[msg_no - 1];
+                    s->f[msg_no - 1].next = &s->f[msg_no];
                 }
-                s->f[ifp_no].next = NULL;
-                ifp_no++;
+                s->f[msg_no].next = NULL;
+                msg_no++;
             }
         }
-        /* Process the primary IFP packet */
-        //fprintf(stderr, "Primary %d, len %d\n", seq_no, ifp_len);
-        s->f[ifp_no].frametype = OPBX_FRAME_MODEM;
-        s->f[ifp_no].subclass = OPBX_MODEM_T38;
-            
-        s->f[ifp_no].mallocd = 0;
-        s->f[ifp_no].seq_no = j;
-        s->f[ifp_no].tx_copies = 1;
-        s->f[ifp_no].datalen = ifp_len;
-        s->f[ifp_no].data = (uint8_t *) ifp;
-        s->f[ifp_no].offset = 0;
-        s->f[ifp_no].src = "UDPTL";
-        if (ifp_no > 0)
-        {
-            s->f[ifp_no].prev = &s->f[ifp_no - 1];
-            s->f[ifp_no - 1].next = &s->f[ifp_no];
-        }
-        s->f[ifp_no].next = NULL;
     }
-
+    /* If packets are received out of sequence, we may have already processed this packet
+       from the error recovery information in a packet already received. */
+    if (seq_no >= s->rx_seq_no)
+    {
+        /* Process the primary packet */
+        //fprintf(stderr, "Primary %d, len %d\n", seq_no, msg_len);
+        s->f[msg_no].frametype = OPBX_FRAME_MODEM;
+        s->f[msg_no].subclass = OPBX_MODEM_T38;
+            
+        s->f[msg_no].mallocd = 0;
+        s->f[msg_no].seq_no = j;
+        s->f[msg_no].tx_copies = 1;
+        s->f[msg_no].datalen = msg_len;
+        s->f[msg_no].data = (uint8_t *) msg;
+        s->f[msg_no].offset = 0;
+        s->f[msg_no].src = "UDPTL";
+        if (msg_no > 0)
+        {
+            s->f[msg_no].prev = &s->f[msg_no - 1];
+            s->f[msg_no - 1].next = &s->f[msg_no];
+        }
+        s->f[msg_no].next = NULL;
+    }
     s->rx_seq_no = seq_no + 1;
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
 
-static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len)
+static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *msg, int msg_len)
 {
     uint8_t fec[LOCAL_FAX_MAX_DATAGRAM];
     int i;
@@ -573,8 +552,8 @@ static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, 
 
     /* We save the message in a circular buffer, for generating FEC or
        redundancy sets later on. */
-    s->tx[entry].buf_len = ifp_len;
-    memcpy(s->tx[entry].buf, ifp, ifp_len);
+    s->tx[entry].buf_len = msg_len;
+    memcpy(s->tx[entry].buf, msg, msg_len);
     
     /* Build the UDPTLPacket */
 
@@ -583,8 +562,8 @@ static int udptl_build_packet(struct opbx_udptl *s, uint8_t *buf, uint8_t *ifp, 
     buf[len++] = (seq >> 8) & 0xFF;
     buf[len++] = seq & 0xFF;
 
-    /* Encode the primary IFP packet */
-    if (encode_open_type(buf, &len, ifp, ifp_len) < 0)
+    /* Encode the primary packet */
+    if (encode_open_type(buf, &len, msg, msg_len) < 0)
         return -1;
 
     /* Encode the appropriate type of error recovery information */
