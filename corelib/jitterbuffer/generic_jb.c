@@ -540,6 +540,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 	if (chan) {
 		jb = &chan->jb;	
 		jbimpl = jb->impl;
+		jbconf = &jb->conf;
 	} else {
 		opbx_log(LOG_ERROR, "No channel provided!\n");
 		return 0;
