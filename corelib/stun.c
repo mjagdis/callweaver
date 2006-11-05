@@ -31,7 +31,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/stun.c $", "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "openpbx/udp.h"
 #include "openpbx/rtp.h"
@@ -48,7 +48,7 @@ int stunserver_portno;
 int stun_active = 0;
 int stundebug = 0;
 
-struct stun_request    *stun_req_queue;
+struct stun_request *stun_req_queue;
 
 static const char *stun_msg2str(int msg)
 {
