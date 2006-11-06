@@ -150,6 +150,8 @@ struct opbx_netsock *opbx_netsock_bindaddr(struct opbx_netsock_list *list, struc
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
+	opbx_enable_packet_fragmentation(netsocket);
+
 	ns = malloc(sizeof(struct opbx_netsock));
 	if (ns) {
 		/* Establish I/O callback for socket read */

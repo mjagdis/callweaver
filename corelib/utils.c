@@ -353,9 +353,7 @@ int opbx_base64decode(unsigned char *dst, const char *src, int max)
 		byte <<= 6;
 		byte |= (b2a[(int)(*src)]) & 0x3f;
 		bits += 6;
-#if 0
-		printf("Add: %c %s\n", *src, binary(b2a[(int)(*src)] & 0x3f, 6));
-#endif
+
 		src++;
 		incnt++;
 		/* If we have at least 8 bits left over, take that character 
@@ -363,9 +361,7 @@ int opbx_base64decode(unsigned char *dst, const char *src, int max)
 		if (bits >= 8)  {
 			bits -= 8;
 			*dst = (byte >> bits) & 0xff;
-#if 0
-			printf("Remove: %02x %s\n", *dst, binary(*dst, 8));
-#endif
+
 			dst++;
 			cnt++;
 		}
@@ -392,9 +388,7 @@ int opbx_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 	max--;
 	while((cntin < srclen) && (cnt < max)) {
 		byte <<= 8;
-#if 0
-		printf("Add: %02x %s\n", *src, binary(*src, 8));
-#endif
+
 		byte |= *(src++);
 		bits += 8;
 		cntin++;
@@ -403,9 +397,7 @@ int opbx_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 			/* We want only the top */
 			index = (byte >> bits) & 0x3f;
 			*dst = base64[index];
-#if 0
-			printf("Remove: %c %s\n", *dst, binary(index, 6));
-#endif
+
 			dst++;
 			cnt++;
 		}
@@ -444,14 +436,6 @@ static void base64_init(void)
 	base64[63] = '/';
 	b2a[(int)'+'] = 62;
 	b2a[(int)'/'] = 63;
-#if 0
-	for (x=0;x<64;x++) {
-		if (b2a[(int)base64[x]] != x) {
-			fprintf(stderr, "!!! %d failed\n", x);
-		} else
-			fprintf(stderr, "--- %d passed\n", x);
-	}
-#endif
 }
 
 /*! \brief  opbx_uri_encode: Turn text string to URI-encoded %XX version ---*/
@@ -938,4 +922,14 @@ long int opbx_random(void)
 	return res;
 }
 #endif
+
+void opbx_enable_packet_fragmentation(int sock)
+{
+#ifdef __linux__
+	int val = IP_PMTUDISC_DONT;
+	
+	if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val)))
+		opbx_log(LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
+#endif
+}
 

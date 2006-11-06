@@ -384,7 +384,7 @@ static int show_translation(int fd, int argc, char *argv[])
 	int x;
 	int y;
 	int z;
-	char line[80];
+	char line[120]; /* Assume 120 character wide screen */
 
 	if (argc > 4) 
 		return RESULT_SHOWUSAGE;
@@ -452,17 +452,17 @@ static struct opbx_cli_entry show_trans =
 
 int opbx_register_translator(struct opbx_translator *t)
 {
-	char tmp[80];
+	char tmp[120]; /* Assume 120 character wide screen */
 
 	t->srcfmt = bottom_bit(t->srcfmt);
 	t->dstfmt = bottom_bit(t->dstfmt);
 	if (t->srcfmt >= MAX_FORMAT)
-    {
+	{
 		opbx_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->srcfmt));
 		return -1;
 	}
 	if (t->dstfmt >= MAX_FORMAT)
-    {
+	{
 		opbx_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->dstfmt));
 		return -1;
 	}
@@ -471,7 +471,7 @@ int opbx_register_translator(struct opbx_translator *t)
 		opbx_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->srcfmt), opbx_getformatname(1 << t->dstfmt), t->cost);
 	opbx_mutex_lock(&list_lock);
 	if (!added_cli)
-    {
+	{
 		opbx_cli_register(&show_trans);
 		added_cli++;
 	}
@@ -484,7 +484,7 @@ int opbx_register_translator(struct opbx_translator *t)
 
 int opbx_unregister_translator(struct opbx_translator *t)
 {
-	char tmp[80];
+	char tmp[120]; /* Assume 120 character wide screen */
 	struct opbx_translator *u;
 	struct opbx_translator *ul = NULL;
 	

@@ -187,11 +187,18 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 		return;
 	if (!p->chan || !p->owner)
 		return;
-	if (isoutbound&& p->chan->_bridge /* Not opbx_bridged_channel!  Only go one step! */ && !p->owner->readq) {
+
+	/* only do the masquerade if we are being called on the outbound channel,
+	   if it has been bridged to another channel and if there are no pending
+	   frames on the owner channel (because they would be transferred to the
+	   outbound channel during the masquerade)
+	*/
+	if (isoutbound && p->chan->_bridge /* Not opbx_bridged_channel!  Only go one step! */ && !p->owner->readq) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
 		   chance in just a little bit */
+
 		if (!opbx_mutex_trylock(&(p->chan->_bridge)->lock)) {
 			if (!p->chan->_bridge->_softhangup) {
 				if (!opbx_mutex_trylock(&p->owner->lock)) {
@@ -204,6 +211,11 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 				opbx_mutex_unlock(&(p->chan->_bridge)->lock);
 			}
 		}
+	/* We only allow masquerading in one 'direction'... it's important to preserve the state
+	   (group variables, etc.) that live on p->chan->_bridge (and were put there by the dialplan)
+	   when the local channels go away.
+	*/
+#if 0
 	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->readq) {
 		/* Masquerade bridged channel into chan */
 		if (!opbx_mutex_trylock(&(p->owner->_bridge)->lock)) {
@@ -218,6 +230,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 			}
 			opbx_mutex_unlock(&(p->owner->_bridge)->lock);
 		}
+#endif
 	}
 }
 
@@ -496,6 +509,7 @@ static struct opbx_channel *local_new(struct local_pvt *p, int state)
 {
 	struct opbx_channel *tmp, *tmp2;
 	int randnum = opbx_random() & 0xffff;
+	int fmt=0;
 
 	tmp = opbx_channel_alloc(1);
 	tmp2 = opbx_channel_alloc(1);
@@ -517,14 +531,17 @@ static struct opbx_channel *local_new(struct local_pvt *p, int state)
 	tmp2->type = type;
 	opbx_setstate(tmp, state);
 	opbx_setstate(tmp2, OPBX_STATE_RING);
-	tmp->writeformat = p->reqformat;
-	tmp2->writeformat = p->reqformat;
-	tmp->rawwriteformat = p->reqformat;
-	tmp2->rawwriteformat = p->reqformat;
-	tmp->readformat = p->reqformat;
-	tmp2->readformat = p->reqformat;
-	tmp->rawreadformat = p->reqformat;
-	tmp2->rawreadformat = p->reqformat;
+
+	fmt = opbx_best_codec(p->reqformat);
+	tmp->writeformat = fmt;
+	tmp2->writeformat = fmt;
+	tmp->rawwriteformat = fmt;
+	tmp2->rawwriteformat = fmt;
+	tmp->readformat = fmt;
+	tmp2->readformat = fmt;
+	tmp->rawreadformat = fmt;
+	tmp2->rawreadformat = fmt;
+
 	tmp->tech_pvt = p;
 	tmp2->tech_pvt = p;
 	p->owner = tmp;

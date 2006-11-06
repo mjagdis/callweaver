@@ -3,8 +3,8 @@
 ; Global settings for call queues
 ;
 ; Persistent Members
-;    Store each dynamic agent in each queue in the opbxdb so that
-;    when openpbx is restarted, each agent will be automatically
+;    Store each dynamic member in each queue in the opbxdb so that
+;    when openpbx is restarted, each member will be automatically
 ;    readded into their recorded queues. Default is 'yes'.
 ;
 persistentmembers = yes
@@ -162,7 +162,7 @@ persistentmembers = yes
 ;
 ;eventwhencalled = yes
 ;
-; If this is set to no, the following manager events will be generated:
+; If this is set to yes, the following manager events will be generated:
 ; QueueMemberStatus
 ; (may generate a WHOLE LOT of extra manager events)
 ;

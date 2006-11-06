@@ -224,14 +224,14 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 			case OPBX_PBX_KEEPALIVE:
 				if (option_debug)
 					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in proc %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
-				else if (option_verbose > 1)
+				if (option_verbose > 1)
 					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in proc '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
 				goto out;
 				break;
 			default:
 				if (option_debug)
 					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
-				else if (option_verbose > 1)
+				if (option_verbose > 1)
 					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				goto out;
 			}

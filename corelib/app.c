@@ -1156,7 +1156,7 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, opbx_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		fprintf(stderr, "Unable to create lock file '%s': %s\n", path, strerror(errno));
+		opbx_log(LOG_ERROR,"Unable to create lock file '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
@@ -1172,7 +1172,6 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 		opbx_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_TIMEOUT;
 	} else {
-		unlink(fs);
 		opbx_log(LOG_DEBUG, "Locked path '%s'\n", path);
 		return OPBX_LOCK_SUCCESS;
 	}

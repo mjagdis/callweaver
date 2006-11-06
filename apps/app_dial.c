@@ -1054,7 +1054,19 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 				   "At the tone, please say your name:"
 
 				*/
-				opbx_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
+
+				res = opbx_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to */
+															/* 4 sec don't think we'll need a lock removed, we 
+															   took care of conflicts by naming the privintro file */
+				if (res == -1) {
+					/* Delete the file regardless since they hung up during recording */
+                                        opbx_filedelete(privintro, NULL);
+                                        if( opbx_fileexists(privintro,NULL,NULL ) > 0 )
+                                                opbx_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
+                                        else if (option_verbose > 2)
+                                                opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+					goto out;
+				}
 															/* don't think we'll need a lock removed, we took care of
 															   conflicts by naming the privintro file */
 			}
@@ -1220,7 +1232,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			/* Again, keep going even if there's an error */
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
-			else if (option_verbose > 2)
+			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			opbx_hangup(tmp->chan);
 			tmp->chan = NULL;

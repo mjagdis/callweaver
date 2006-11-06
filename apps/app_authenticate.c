@@ -191,7 +191,7 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 		if (!res)
 			res = opbx_waitstream(chan, "");
 	} else {
-		if (jump && opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
+		if (jump && opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0 ) {
 			res = 0;
 		} else {
 			if (!opbx_streamfile(chan, "vm-goodbye", chan->language))

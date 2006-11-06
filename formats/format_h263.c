@@ -60,7 +60,7 @@ struct opbx_filestream {
 	struct opbx_frame fr;				/* Frame information */
 	char waste[OPBX_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	unsigned char h263[4096];				/* Two Real h263 Frames */
+	unsigned char h263[16384];				/* Four Real h263 Frames */
 };
 
 
@@ -163,6 +163,7 @@ static struct opbx_frame *h263_read(struct opbx_filestream *s, int *whennext)
 	len &= 0x7fff;
 	if (len > sizeof(s->h263)) {
 		opbx_log(LOG_WARNING, "Length %d is too long\n", len);
+		return NULL;
 	}
 	if ((res = fread(s->h263, 1, len, s->f)) != len) {
 		if (res)

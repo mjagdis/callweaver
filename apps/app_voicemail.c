@@ -5046,8 +5046,11 @@ static int vm_execmain(struct opbx_channel *chan, void *data)
 
 		if (!opbx_strlen_zero(vms.username) && (vmu = find_user(&vmus, context ,vms.username)))
 			skipuser++;
-		else
+		else {
+			if (!opbx_strlen_zero(vms.username))
+				opbx_log(LOG_NOTICE, "Specified user '%s%s%s' not found (check voicemail.conf and/or realtime config).  Falling back to authentication mode.\n", vms.username, context ? "@" : "", context ? context : "");
 			valid = 0;
+		}
 	}
 
 	if (!valid)

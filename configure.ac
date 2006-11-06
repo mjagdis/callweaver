@@ -1625,7 +1625,7 @@ AC_ARG_WITH([chan_sip],
 AM_CONDITIONAL([WANT_CHAN_SIP],[test "${with_chan_sip}" = "yes"])
 
 AC_ARG_ENABLE([t38],
-	[AC_HELP_STRING([--enable-t38],[Enable T.38 support (default=no)])],,[enable_t38="no"])
+	[AC_HELP_STRING([--enable-t38],[Enable T.38 support (default=yes)])],,[enable_t38="yes"])
 
 if test "x${enable_t38}" != "xno"; then
 	AC_DEFINE([T38_SUPPORT],[1],[chan_sip T.38 support])
@@ -1963,6 +1963,13 @@ AC_ARG_WITH([res_config_odbc],
         [AC_HELP_STRING([--with-res_config_odbc],[Build and install res_config_odbc (default=no) (requires --enable-odbc and --with-res_odbc)])],,[with_res_config_odbc="no"])
 
 AM_CONDITIONAL([WANT_RES_CONFIG_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_config_odbc}" = "yes" -a "${with_res_odbc}" = "yes" -a -n "${HAVE_LIBODBC}"])
+
+dnl ###########################################################################
+
+AC_ARG_WITH([res_config_curl],
+        [AC_HELP_STRING([--with-res_config_curl],[Build and install res_config_curl (default=no)])],,[with_res_config_curl="no"])
+
+AM_CONDITIONAL([WANT_RES_CONFIG_CURL],[test "${with_res_config_curl}" = "yes"])
 
 dnl ###########################################################################
 

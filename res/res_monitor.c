@@ -308,7 +308,7 @@ static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fn
 {
 	char tmp[256];
 	if ((!fname_base) || (opbx_strlen_zero(fname_base))) {
-		opbx_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null", chan->name);
+		opbx_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
 		return -1;
 	}
 	

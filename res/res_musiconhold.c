@@ -195,6 +195,8 @@ static int opbx_moh_files_next(struct opbx_channel *chan)
 			if (opbx_test_flag(state->class, MOH_RANDOMIZE))
 				state->pos = rand();
 
+			state->pos %= state->class->total_files;
+
 			/* check to see if this file's format can be opened */
 			if (opbx_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)
 				break;
@@ -203,11 +205,12 @@ static int opbx_moh_files_next(struct opbx_channel *chan)
 	}
 
 	state->pos = state->pos % state->class->total_files;
-	
+/* Check it	
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
 		opbx_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
 		return -1;
 	}
+*/
 	if (!opbx_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
 		opbx_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
@@ -282,7 +285,7 @@ static void *moh_files_alloc(struct opbx_channel *chan, void *params)
 		}
 
 		state->origwfmt = chan->writeformat;
-
+/*
 		if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
 			opbx_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
 			free(chan->music_state);
@@ -291,6 +294,10 @@ static void *moh_files_alloc(struct opbx_channel *chan, void *params)
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
 		}
+*/
+		if (option_verbose > 2)
+			opbx_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
+
 	}
 	
 	return chan->music_state;
@@ -676,7 +683,7 @@ static int moh_scan_files(struct mohclass *class) {
 	
 	files_DIR = opendir(class->dir);
 	if (!files_DIR) {
-		opbx_log(LOG_WARNING, "Cannot open dir %s or dir does not exist", class->dir);
+		opbx_log(LOG_WARNING, "Cannot open dir %s or dir does not exist\n", class->dir);
 		return -1;
 	}
 

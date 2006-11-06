@@ -406,7 +406,8 @@ static int agent_cleanup(struct agent_pvt *p)
 	chan->tech_pvt = NULL;
 	p->app_sleep_cond = 1;
 	/* Release ownership of the agent to other threads (presumably running the login app). */
-	opbx_mutex_unlock(&p->app_lock);
+	if (opbx_strlen_zero(p->loginchan))
+	    opbx_mutex_unlock(&p->app_lock);
 	if (chan)
 		opbx_channel_free(chan);
 	if (p->dead) {
@@ -949,7 +950,7 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 			tmp->rawreadformat = OPBX_FORMAT_SLINEAR;
 		}
 		if (p->pending)
-			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%d", p->agent, opbx_random() & 0xffff);
+			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%ld", p->agent, opbx_random() & 0xffff);
 		else
 			snprintf(tmp->name, sizeof(tmp->name), "Agent/%s", p->agent);
 		tmp->type = channeltype;
@@ -970,7 +971,7 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 		 * implemented in the kernel for this.
 		 */
 		p->app_sleep_cond = 0;
-		if( opbx_mutex_trylock(&p->app_lock) )
+		if( opbx_strlen_zero(p->loginchan) && opbx_mutex_trylock(&p->app_lock) )
 		{
 			if (p->chan) {
 				opbx_queue_frame(p->chan, &null_frame);
@@ -989,6 +990,18 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 				opbx_mutex_unlock(&p->app_lock);
 				return NULL;
 			}
+		} else if (!opbx_strlen_zero(p->loginchan)) {
+			if (p->chan)
+				opbx_queue_frame(p->chan, &null_frame);
+			if (!p->chan) {
+				opbx_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
+				p->owner = NULL;
+				tmp->tech_pvt = NULL;
+				p->app_sleep_cond = 1;
+				opbx_channel_free( tmp );
+				opbx_mutex_unlock(&p->lock);     /* For other thread to read the condition. */
+                                return NULL;
+			}	
 		}
 		p->owning_app = pthread_self();
 		/* After the above step, there should not be any blockers. */

@@ -41,6 +41,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/translate.h"
 #include "openpbx/dsp.h"
 #include "openpbx/utils.h"
+#include "openpbx/app.h"
 
 static char *tdesc = "Trivial Record Application";
 
@@ -180,8 +181,42 @@ static int record_exec(struct opbx_channel *chan, void *data)
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
 	  create a new file with the inputed name scheme */
 	if (percentflag) {
+
+		OPBX_DECLARE_APP_ARGS(fname, 
+		    OPBX_APP_ARG(piece)[100];
+		);
+		char *tmp2 = opbx_strdupa(filename);
+		char countstring[15];
+		int i;
+
+		/* Separate each piece out by the format specifier */
+		/* OPBX_NONSTANDARD_APP_ARGS(fname, tmp2, '%'); */
+		fname.argc = opbx_separate_app_args(tmp2, '%', fname.argv, 
+				    (sizeof(fname) - sizeof(fname.argc)) / sizeof(fname.argv[0]));
+
 		do {
-			snprintf(tmp, sizeof(tmp), filename, count);
+//			snprintf(tmp, sizeof(tmp), filename, count);
+
+			int tmplen;
+			/* First piece has no leading percent, so it's copied verbatim */
+			opbx_copy_string(tmp, fname.piece[0], sizeof(tmp));
+			tmplen = strlen(tmp);
+			for (i = 1; i < fname.argc; i++) {
+				if (fname.piece[i][0] == 'd') {
+					/* Substitute the count */
+					snprintf(countstring, sizeof(countstring), "%d", count);
+					opbx_copy_string(tmp + tmplen, countstring, sizeof(tmp) - tmplen);
+					tmplen += strlen(countstring);
+				} else if (tmplen + 2 < sizeof(tmp)) {
+					/* Unknown format specifier - just copy it verbatim */
+					tmp[tmplen++] = '%';
+					tmp[tmplen++] = fname.piece[i][0];
+				}
+				/* Copy the remaining portion of the piece */
+				opbx_copy_string(tmp + tmplen, &(fname.piece[i][1]), sizeof(tmp) - tmplen);
+			}
+
+
 			count++;
 		} while ( opbx_fileexists(tmp, ext, chan->language) != -1 );
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);

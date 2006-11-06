@@ -1,4 +1,4 @@
-/*
+    /*
  * OpenPBX -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
@@ -46,7 +46,7 @@ static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd,
 	time_t myt;
 
 	if (!data) {
-		opbx_log(LOG_ERROR, "Must specify type of timeout to get.");
+		opbx_log(LOG_ERROR, "Must specify type of timeout to get.\n");
                 return NULL;
 	}
 	
@@ -76,7 +76,7 @@ static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd,
 		break;
 
 	default:
-		opbx_log(LOG_ERROR, "Unknown timeout type specified.");
+		opbx_log(LOG_ERROR, "Unknown timeout type specified.\n");
 		break;
 	}
 

@@ -29,6 +29,7 @@ DEB_CONFIGURE_EXTRA_FLAGS	:= \
     --with-chan-capi=yes \
     --with-chan-fax=yes \
     --enable-iax-trunking=yes \
+    --with-res_config_curl=yes \
     --enable-t38=yes
 
 ifeq ($(ENABLE_ODBC), yes)

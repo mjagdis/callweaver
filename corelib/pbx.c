@@ -2457,14 +2457,14 @@ static int __opbx_pbx_run(struct opbx_channel *c)
 				case OPBX_PBX_KEEPALIVE:
 					if (option_debug)
 						opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-					else if (option_verbose > 1)
+					if (option_verbose > 1)
 						opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					goto out;
 					break;
 				default:
 					if (option_debug)
 						opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-					else if (option_verbose > 1)
+					if (option_verbose > 1)
 						opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 					if (c->_softhangup == OPBX_SOFTHANGUP_ASYNCGOTO) {
 						c->_softhangup =0;
@@ -2611,7 +2611,7 @@ out:
 				/* Something bad happened, or a hangup has been requested. */
 				if (option_debug)
 					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				else if (option_verbose > 1)
+				if (option_verbose > 1)
 					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				break;
 			}
@@ -5580,7 +5580,8 @@ static int pbx_builtin_ringing(struct opbx_channel *chan, void *data)
 static int pbx_builtin_busy(struct opbx_channel *chan, void *data)
 {
 	opbx_indicate(chan, OPBX_CONTROL_BUSY);		
-	opbx_setstate(chan, OPBX_STATE_BUSY);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_setstate(chan, OPBX_STATE_BUSY);
 	wait_for_hangup(chan, data);
 	return -1;
 }
@@ -5588,7 +5589,8 @@ static int pbx_builtin_busy(struct opbx_channel *chan, void *data)
 static int pbx_builtin_congestion(struct opbx_channel *chan, void *data)
 {
 	opbx_indicate(chan, OPBX_CONTROL_CONGESTION);
-	opbx_setstate(chan, OPBX_STATE_BUSY);
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_setstate(chan, OPBX_STATE_BUSY);
 	wait_for_hangup(chan, data);
 	return -1;
 }
@@ -5892,7 +5894,7 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
 			break;
 		default:
 			opbx_log(LOG_WARNING, "Background requires an argument (filename)\n");
-			break;
+			return -1;
 		}
 	}
 
@@ -6039,9 +6041,13 @@ int pbx_builtin_serialize_variables(struct opbx_channel *chan, char *buf, size_t
 	memset(buf, 0, size);
 
 	OPBX_LIST_TRAVERSE(&chan->varshead, variables, entries) {
-		if(variables &&
-		   (var=opbx_var_name(variables)) && (val=opbx_var_value(variables)) &&
-		   !opbx_strlen_zero(var) && !opbx_strlen_zero(val)) {
+//TODO: TO BE REMOVED LATER
+//		if(variables &&
+//		   (var=opbx_var_name(variables)) && (val=opbx_var_value(variables)) &&
+//		   !opbx_strlen_zero(var) && !opbx_strlen_zero(val)) {
+		if(
+		   (var=opbx_var_name(variables)) && (val=opbx_var_value(variables))
+		  ) {
 			if (opbx_build_string(&buf, &size, "%s=%s\n", var, val)) {
 				opbx_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;

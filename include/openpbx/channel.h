@@ -210,8 +210,9 @@ struct opbx_channel {
 	/*! Comfort noise level to generate in dBov's */
 	int comfortnoiselevel;
 
-	/*! Who are we bridged to, if we're bridged  Do not access directly,
-	    use opbx_bridged_channel(chan) */
+	/*! Who are we bridged to, if we're bridged. Who is proxying for us,
+	  if we are proxied (i.e. chan_agent).
+	  Do not access directly, use ast_bridged_channel(chan) */
 	struct opbx_channel *_bridge;
 	/*! Channel that will masquerade as us */
 	struct opbx_channel *masq;		

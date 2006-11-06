@@ -590,14 +590,14 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		if (!(f = fopen(fn, "r"))) {
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "No file to parse: %s\n", fn);
-			else if (option_verbose > 1)
+			if (option_verbose > 1)
 				opbx_verbose( "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Parsing %s\n", fn);
-		else if (option_verbose > 1)
+		if (option_verbose > 1)
 			opbx_verbose("Found\n");
 		while(!feof(f)) {
 			lineno++;

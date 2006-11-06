@@ -874,6 +874,7 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 	char *fn, *orig_fn = NULL;
 	char *buf = NULL;
 	size_t size = 0;
+	int format_found = 0;
 
 	if (opbx_mutex_lock(&formatlock)) {
 		opbx_log(LOG_WARNING, "Unable to lock format list\n");
@@ -893,6 +894,8 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 	for (f = formats; f && !fs; f = f->next) {
 		if (!exts_compare(f->exts, type))
 			continue;
+		else
+			format_found = 1;
 
 		fn = build_filename(filename, type);
 		fd = open(fn, flags | myflags, mode);
@@ -971,7 +974,7 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 	}
 
 	opbx_mutex_unlock(&formatlock);
-	if (!fs)
+	if (!format_found)
 		opbx_log(LOG_WARNING, "No such format '%s'\n", type);
 
 	return fs;
@@ -1013,6 +1016,8 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 			case OPBX_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case OPBX_CONTROL_HANGUP:
+                                case OPBX_CONTROL_BUSY:
+                                case OPBX_CONTROL_CONGESTION:
 					opbx_frfree(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
@@ -1078,7 +1083,9 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 				break;
 			case OPBX_FRAME_CONTROL:
 				switch(fr->subclass) {
-				case OPBX_CONTROL_HANGUP:
+			    	case OPBX_CONTROL_HANGUP:
+                                case OPBX_CONTROL_BUSY:
+                                case OPBX_CONTROL_CONGESTION:
 					opbx_frfree(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
@@ -1146,6 +1153,8 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 			case OPBX_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case OPBX_CONTROL_HANGUP:
+                                case OPBX_CONTROL_BUSY:
+                                case OPBX_CONTROL_CONGESTION:
 					opbx_frfree(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
@@ -1209,6 +1218,8 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 			case OPBX_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case OPBX_CONTROL_HANGUP:
+                                case OPBX_CONTROL_BUSY:
+                                case OPBX_CONTROL_CONGESTION:
 					opbx_frfree(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:

@@ -1013,9 +1013,12 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	}
 
 	/* fireout general info */
-	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\n\n",
+	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\npriorityjumping=%s\n\n",
 		static_config ? "yes" : "no",
-		write_protect_config ? "yes" : "no");
+		write_protect_config ? "yes" : "no",
+		autofallthrough_config ? "yes" : "no",
+		clearglobalvars_config ? "yes" : "no",
+		option_priority_jumping ? "yes" : "no");
 
 	if ((v = opbx_variable_browse(cfg, "globals"))) {
 		fprintf(output, "[globals]\n");
@@ -1070,37 +1073,44 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						}
 
 						if (opbx_get_extension_priority(p)!=PRIORITY_HINT) {
-							char *tempdata = NULL, *startdata;
-							tempdata = strdup((char *)opbx_get_extension_app_data(p));
-							if (tempdata) {
-								startdata = tempdata;
-								while (*tempdata) {
-									if (*tempdata == '|')
-										*tempdata = ',';
-									tempdata++;
-								}
-								tempdata = startdata;
+							char *tempdata, *startdata;
+							const char *el = opbx_get_extension_label(p);
+							char label[128] = "";
+
+							tempdata = opbx_strdupa(opbx_get_extension_app_data(p));
+
+							startdata = tempdata;
+							while (*tempdata) {
+								if (*tempdata == '|')
+									*tempdata = ',';
+								tempdata++;
 							}
-							if (opbx_get_extension_matchcid(p))
-								fprintf(output, "exten => %s/%s,%d,%s(%s)\n",
+							tempdata = startdata;
+							
+							if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
+								incomplete = 1; // error encountered or label is > 125 chars
+
+							if (opbx_get_extension_matchcid(p)) {
+								fprintf(output, "exten => %s/%s,%d%s,%s(%s)\n",
 								    opbx_get_extension_name(p),
 								    opbx_get_extension_cidmatch(p),
 								    opbx_get_extension_priority(p),
+								    label,
 								    opbx_get_extension_app(p),
 								    tempdata);
-							else
-								fprintf(output, "exten => %s,%d,%s(%s)\n",
+							} else {
+								fprintf(output, "exten => %s,%d%s,%s(%s)\n",
 								    opbx_get_extension_name(p),
 								    opbx_get_extension_priority(p),
+								    label,
 								    opbx_get_extension_app(p),
 								    tempdata);
-							if (tempdata)
-								free(tempdata);
-						} else
+							}
+						} else {
 							fprintf(output, "exten => %s,hint,%s\n",
 							    opbx_get_extension_name(p),
 							    opbx_get_extension_app(p));
-						
+						}
 					}
 					p = opbx_walk_extension_priorities(e, p);
 				}
@@ -1773,7 +1783,8 @@ static int pbx_load_module(void)
 								}
 							}
 							free(tc);
-						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+						} else 
+						    opbx_log(LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
 						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);

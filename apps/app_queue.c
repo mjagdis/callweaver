@@ -431,11 +431,12 @@ enum queue_member_status {
 	QUEUE_NORMAL
 };
 
-static enum queue_member_status get_member_status(const struct opbx_call_queue *q)
+static enum queue_member_status get_member_status(struct opbx_call_queue *q)
 {
 	struct member *member;
 	enum queue_member_status result = QUEUE_NO_MEMBERS;
 
+        opbx_mutex_lock(&q->lock);
 	for (member = q->members; member; member = member->next) {
 		switch (member->status) {
 		case OPBX_DEVICE_INVALID:
@@ -445,10 +446,11 @@ static enum queue_member_status get_member_status(const struct opbx_call_queue *
 			result = QUEUE_NO_REACHABLE_MEMBERS;
 			break;
 		default:
+                        opbx_mutex_unlock(&q->lock);
 			return QUEUE_NORMAL;
 		}
 	}
-	
+	opbx_mutex_unlock(&q->lock);
 	return result;
 }
 
@@ -677,7 +679,7 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
 		q->periodicannouncefrequency = atoi(val);
 	} else if (!strcasecmp(param, "retry")) {
 		q->retry = atoi(val);
-		if (q->retry < 0)
+		if (q->retry <= 0)
 			q->retry = DEFAULT_RETRY;
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
@@ -1036,7 +1038,7 @@ static void destroy_queue(struct opbx_call_queue *q)
 
 static int play_file(struct opbx_channel *chan, char *filename)
 {
-	int res;
+	int res=0;
 
 	if (!opbx_strlen_zero(filename)) {
 		opbx_stopstream(chan);
@@ -1398,6 +1400,11 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 			opbx_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
 		update_dial_status(qe->parent, tmp->member, status);
+
+		opbx_mutex_lock(&qe->parent->lock);
+		qe->parent->rrpos++;
+		opbx_mutex_unlock(&qe->parent->lock);
+
 		(*busies)++;
 		return 0;
 	} else if (status != tmp->oldstatus) 
@@ -1705,6 +1712,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						o->stillgoing = 0;
 						numnochan++;
 					} else {
+						opbx_channel_inherit_variables(in, o->chan);
 						if (o->chan->cid.cid_num)
 							free(o->chan->cid.cid_num);
 						o->chan->cid.cid_num = NULL;
@@ -2293,7 +2301,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			else {
 				/* Last ditch effort -- no CDR, make up something */
 				char tmpid[256];
-				snprintf(tmpid, sizeof(tmpid), "chan-%x", opbx_random());
+				snprintf(tmpid, sizeof(tmpid), "chan-%ld", opbx_random());
 				opbx_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
 			}
 			if (qe->parent->monjoin)

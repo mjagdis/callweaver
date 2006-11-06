@@ -2061,7 +2061,7 @@ static int load_config(void)
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
-				opbx_log(LOG_ERROR, "res_features: strdup failed");
+				opbx_log(LOG_ERROR, "res_features: strdup failed\n");
 				continue;
 			}
 			

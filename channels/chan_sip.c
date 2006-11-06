@@ -216,23 +216,24 @@ static const struct  cfsip_methods {
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
+	int can_create;
 } sip_methods[] = {
-	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-" },
-	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0" },
-	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
- 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
-	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY" },
-	{ SIP_INVITE,	 RTP,    "INVITE" },
-	{ SIP_ACK,	 NO_RTP, "ACK" },
-	{ SIP_PRACK,	 NO_RTP, "PRACK" },
-	{ SIP_BYE,	 NO_RTP, "BYE" },
-	{ SIP_REFER,	 NO_RTP, "REFER" },
-	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE" },
-	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE" },
-	{ SIP_UPDATE,	 NO_RTP, "UPDATE" },
-	{ SIP_INFO,	 NO_RTP, "INFO" },
-	{ SIP_CANCEL,	 NO_RTP, "CANCEL" },
-	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH" }
+	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 0 },
+	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0", 0 },
+	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 1 },
+ 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 1 },
+	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 0 },
+	{ SIP_INVITE,	 RTP,    "INVITE", 1 },
+	{ SIP_ACK,	 NO_RTP, "ACK", 0 },
+	{ SIP_PRACK,	 NO_RTP, "PRACK", 0 },
+	{ SIP_BYE,	 NO_RTP, "BYE", 0 },
+	{ SIP_REFER,	 NO_RTP, "REFER", 0 },
+	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 1 },
+	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 1 },
+	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 0 },
+	{ SIP_INFO,	 NO_RTP, "INFO", 0 },
+	{ SIP_CANCEL,	 NO_RTP, "CANCEL", 0 },
+	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH", 1 }
 };
 
 /*! \brief Structure for conversion between compressed SIP and "normal" SIP */
@@ -473,6 +474,7 @@ static int expiry = DEFAULT_EXPIRY;
 
 static struct sched_context *sched;
 static struct io_context *io;
+static int *sipsock_read_id;
 
 #define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES 		64			/*!< Max amount of lines in SIP attachment (like SDP) */
@@ -975,6 +977,7 @@ static struct sip_auth *authl;          /*!< Authentication list */
 
 
 static struct opbx_frame  *sip_read(struct opbx_channel *ast);
+static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
@@ -1072,7 +1075,7 @@ static int thread_safe_opbx_random(void)
 /*! \brief  find_sip_method: Find SIP method from header
  * Strictly speaking, SIP methods are case SENSITIVE, but we don't check 
  * following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
-int find_sip_method(char *msg)
+static int find_sip_method(char *msg)
 {
 	int i, res = 0;
 	
@@ -1087,7 +1090,7 @@ int find_sip_method(char *msg)
 }
 
 /*! \brief  parse_sip_options: Parse supported header in incoming packet */
-unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
+static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 {
 	char *next = NULL;
 	char *sep = NULL;
@@ -1247,7 +1250,7 @@ static int append_history(struct sip_pvt *p, const char *event, const char *data
 	if (!recordhistory || !p)
 		return 0;
 	if(!(hist = malloc(sizeof(struct sip_history)))) {
-		opbx_log(LOG_WARNING, "Can't allocate memory for history");
+		opbx_log(LOG_WARNING, "Can't allocate memory for history\n");
 		return 0;
 	}
 	memset(hist, 0, sizeof(struct sip_history));
@@ -3623,7 +3626,8 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
 	switch(ast->fdno) {
 	case 0:
 #if T38_SUPPORT
-    		if (p->udptl_active && (p->t38clienthacks==1) )
+    		if (p->udptl_active )
+//    		if (p->udptl_active && (p->t38clienthacks==1) )
     		    f = opbx_udptl_read( (struct opbx_udptl*) p->rtp );	/* UDPTL for T.38 */
     		else
 #endif
@@ -3876,7 +3880,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 /*               Called by handle_request, sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout, const int intended_method)
 {
-	struct sip_pvt *p;
+	struct sip_pvt *p=NULL;
 	char *callid;
 	char *tag = "";
 	char totag[128];
@@ -3942,9 +3946,22 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		p = p->next;
 	}
 	opbx_mutex_unlock(&iflock);
+/*
 	p = sip_alloc(callid, sin, sout, 1, intended_method);
 	if (p)
 		opbx_mutex_lock(&p->lock);
+*/
+
+	/* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
+	if (!sip_methods[intended_method].can_create) {
+		if (intended_method != SIP_RESPONSE)
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+	} else {
+		p = sip_alloc(callid, sin, sout, 1, intended_method);
+		if (p)
+			opbx_mutex_lock(&p->lock);
+	}
+
 	return p;
 }
 
@@ -5019,7 +5036,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 			add_header(resp, "Contact", contact, SIP_DL_HEAD_CONTACT);	/* Not when we unregister */
 		}
-	} else if (p->our_contact[0]) {
+	} else if (msg[0] != '4' && p->our_contact[0]) {
 		add_header(resp, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
 	}
 	return 0;
@@ -5125,7 +5142,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	return 0;
 }
-
 /*! \brief  __transmit_response: Base transmit response function */
 static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
 {
@@ -5146,6 +5162,40 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
 }
+
+//TODO
+/*! \brief  transmit_response_using_temp: Transmit response, no retransmits, using temporary pvt */
+static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg)
+{
+	struct sip_pvt *p = alloca(sizeof(*p));
+
+	memset(p, 0, sizeof(*p));
+
+	p->method = intended_method;
+	if (sin) {
+		p->sa = *sin;
+		if (opbx_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
+			p->ourip = __ourip;
+	} else
+		p->ourip = __ourip;
+	p->branch = opbx_random();
+	make_our_tag(p->tag, sizeof(p->tag));
+	p->ocseq = 101;
+
+	if (useglobal_nat && sin) {
+		opbx_copy_flags(p, &global_flags, SIP_NAT);
+		memcpy(&p->recv, sin, sizeof(p->recv));
+	}
+
+	opbx_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
+	build_via(p, p->via, sizeof(p->via));
+	opbx_copy_string(p->callid, callid, sizeof(p->callid));
+
+	__transmit_response(p, msg, req, 0);
+
+	return 0;
+}
+
 
 /*! \brief  transmit_response: Transmit response, no retransmits */
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req) 
@@ -5208,7 +5258,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable, char *header, int stale)
 {
 	struct sip_request resp;
-	char tmp[256];
+	char tmp[512];
 	int seqno = 0;
 
 	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
@@ -5217,7 +5267,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 	}
 	/* Stale means that they sent us correct authentication, but 
 	   based it on an old challenge (nonce) */
-	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
+	snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp, SIP_DL_DONTCARE);
 	add_header_contentLength(&resp, 0);
@@ -7603,7 +7653,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	}
 	transmit_state_notify(p, state, 1, 1);
 
-	if (option_debug > 1)
+	if (option_verbose > 1)
 		opbx_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, opbx_extension_state2str(state), p->username);
 	return 0;
 }
@@ -7907,7 +7957,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 }
 
 /*! \brief  get_refer_info: Call transfer support (the REFER method) */
-static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
+static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req, char **transfercontext)
 {
 
 	char *p_refer_to = NULL, *p_referred_by = NULL, *h_refer_to = NULL, *h_referred_by = NULL, *h_contact = NULL;
@@ -7990,9 +8040,13 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		if ((ptr = strchr(referred_by, ';'))) 
 			*ptr = '\0';
 	}
-	
+
+	*transfercontext = pbx_builtin_getvar_helper(sip_pvt->owner, "TRANSFER_CONTEXT");
+	if (opbx_strlen_zero(*transfercontext))
+		*transfercontext = sip_pvt->context;
+
 	if (sip_debug_test_pvt(sip_pvt)) {
-		opbx_verbose("Transfer to %s in %s\n", refer_to, sip_pvt->context);
+		opbx_verbose("Transfer to %s in %s\n", refer_to, *transfercontext);
 		if (referred_by)
 			opbx_verbose("Transfer from %s in %s\n", referred_by, sip_pvt->context);
 	}
@@ -8020,7 +8074,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	    		  INVITE with a replaces header -anthm XXX */
 			/* The only way to find out is to use the dialplan - oej */
 		}
-	} else if (opbx_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, opbx_parking_ext())) {
+	} else if (opbx_exists_extension(NULL, *transfercontext, refer_to, 1, NULL) || !strcmp(refer_to, opbx_parking_ext())) {
 		/* This is an unsupervised transfer (blind transfer) */
 		
 		opbx_log(LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
@@ -8041,7 +8095,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		}
 		return 0;
-	} else if (opbx_canmatch_extension(NULL, sip_pvt->context, refer_to, 1, NULL)) {
+	} else if (opbx_canmatch_extension(NULL, *transfercontext, refer_to, 1, NULL)) {
 		return 1;
 	}
 
@@ -10524,7 +10578,7 @@ static char *function_sippeer(struct opbx_channel *chan, char *cmd, char *data, 
 	if (!strcasecmp(colname, "ip")) {
 		opbx_copy_string(buf, peer->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
 	} else  if (!strcasecmp(colname, "status")) {
-		peer_status(peer, buf, sizeof(buf));
+		peer_status(peer, buf, len);
 	} else  if (!strcasecmp(colname, "language")) {
 		opbx_copy_string(buf, peer->language, len);
 	} else  if (!strcasecmp(colname, "regexten")) {
@@ -10734,10 +10788,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	switch (resp) {
 	case 100:	/* Trying */
-		sip_cancel_destroy(p);
+                if (!ignore)
+		    sip_cancel_destroy(p);
 		break;
 	case 180:	/* 180 Ringing */
-		sip_cancel_destroy(p);
+		if (!ignore) sip_cancel_destroy(p);
 		if (!ignore && p->owner) {
 			opbx_queue_control(p->owner, OPBX_CONTROL_RINGING);
 			if (p->owner->_state != OPBX_STATE_UP)
@@ -10752,7 +10807,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		break;
 	case 183:	/* Session progress */
-		sip_cancel_destroy(p);
+		if (!ignore) sip_cancel_destroy(p);
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
 		}
@@ -10762,7 +10817,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		sip_cancel_destroy(p);
+		if (!ignore) sip_cancel_destroy(p);
 		p->authtries = 0;
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
@@ -11271,7 +11326,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					opbx_set_flag(p, SIP_NEEDDESTROY);	
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
-					sip_cancel_destroy(p);
+					if (!ignore) sip_cancel_destroy(p);
 					if (!opbx_strlen_zero(get_header(req, "Content-Type")))
 						process_sdp(p, req);
 					if (p->owner) {
@@ -11331,7 +11386,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
-				if (sipmethod == SIP_INVITE) {	/* re-invite */
+				if (sipmethod == SIP_INVITE && !ignore) {	/* re-invite */
 					sip_cancel_destroy(p);
 				}
 			}
@@ -11344,7 +11399,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 500: /* Server error */
 				case 503: /* Service Unavailable */
 
-					if (sipmethod == SIP_INVITE) {	/* re-invite failed */
+					if (sipmethod == SIP_INVITE && !ignore) {	/* re-invite failed */
 						sip_cancel_destroy(p);
 					}
 					break;
@@ -11917,16 +11972,20 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	struct opbx_channel *c=NULL;
 	int res;
 	struct opbx_channel *transfer_to;
+	char *transfercontext = NULL;
 
 	if (option_debug > 2)
 		opbx_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
+	res = get_refer_info(p, req, &transfercontext);
 	if (opbx_strlen_zero(p->context))
 		strcpy(p->context, default_context);
-	res = get_refer_info(p, req);
+	res = get_refer_info(p, req, &transfercontext);
+	if (opbx_strlen_zero(transfercontext))
+		transfercontext = p->context;
 	if (res < 0)
-		transmit_response_with_allow(p, "404 Not Found", req, 1);
+		transmit_response(p, "603 Declined", req);
 	else if (res > 0)
-		transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
+		transmit_response(p, "484 Address Incomplete", req);
 	else {
 		int nobye = 0;
 		if (!ignore) {
@@ -11958,7 +12017,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 							    be accessible after the transfer! */
 							*nounlock = 1;
 							opbx_mutex_unlock(&c->lock);
-							opbx_async_goto(transfer_to,p->context, p->refer_to,1);
+							opbx_async_goto(transfer_to,transfercontext, p->refer_to,1);
 						}
 					} else {
 						opbx_log(LOG_DEBUG, "Got SIP blind transfer but nothing to transfer to.\n");
@@ -12160,7 +12219,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
  				/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
- 				if (strstr(accept, "application/pidf+xml")) {
+				/* Polycom phones only handle xpidf+xml, even if they say they can
+				   handle pidf+xml as well
+				*/
+				if (strstr(p->useragent, "Polycom")) {
+					p->subscribed = XPIDF_XML;
+ 				} else if (strstr(accept, "application/pidf+xml")) {
  					p->subscribed = PIDF_XML;         /* RFC 3863 format */
  				} else if (strstr(accept, "application/dialog-info+xml")) {
  					p->subscribed = DIALOG_INFO_XML;
@@ -12169,8 +12233,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
  					p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
  				} else if (strstr(accept, "application/xpidf+xml")) {
  					p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
- 				} else if (strstr(p->useragent, "Polycom")) {
- 					p->subscribed = XPIDF_XML;        /*  Polycoms subscribe for "event: dialog" but don't include an "accept:" header */
 				} else {
  					/* Can't find a format for events that we know about */
  					transmit_response(p, "489 Bad Event", req);
@@ -12536,10 +12598,13 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 
 	if (opbx_test_flag(&req, SIP_PKT_DEBUG)) {
+		/*
 		opbx_verbose("--- (%d headers %d lines)", req.headers, req.lines);
 		if (req.headers + req.lines == 0) 
 			opbx_verbose(" Nat keepalive ");
 		opbx_verbose("---\n");
+		*/
+		opbx_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
 	}
 
 	if (req.headers < 2) {
@@ -12640,8 +12705,8 @@ static void *do_monitor(void *data)
 
 	/* Add an I/O event to our UDP socket */
 	if (sipsock > -1) 
-		opbx_io_add(io, sipsock, sipsock_read, OPBX_IO_IN, NULL);
-	
+		sipsock_read_id = opbx_io_add(io, sipsock, sipsock_read, OPBX_IO_IN, NULL);
+
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
@@ -12655,6 +12720,10 @@ static void *do_monitor(void *data)
 			if (option_verbose > 0)
 				opbx_verbose(VERBOSE_PREFIX_1 "Reloading SIP\n");
 			sip_do_reload();
+
+			/* Change the I/O fd of our UDP socket */
+			if (sipsock > -1)
+				sipsock_read_id = opbx_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
 		}
 		/* Check for interfaces needing to be killed */
 		opbx_mutex_lock(&iflock);
@@ -14107,6 +14176,8 @@ static int reload_config(void)
 			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
 				   (const char*)&reuseFlag,
 				   sizeof reuseFlag);
+
+			opbx_enable_packet_fragmentation(sipsock);
 
 			if (opbx_udpfromto_init(sipsock) < 0) {
 				opbx_log(LOG_ERROR, "Failed to set socket parameters");

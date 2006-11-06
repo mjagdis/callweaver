@@ -385,7 +385,8 @@ struct {								\
   \param head This is a pointer to the list head structure
 
   This macro initializes a list head structure by setting the head
-  entry to \a NULL (empty list) and recreating the embedded lock.
+  entry to \a NULL (empty list). There is no embedded lock handling
+  with this macro.
 */
 #define OPBX_LIST_HEAD_INIT_NOLOCK(head) {				\
 	(head)->first = NULL;						\
@@ -440,6 +441,23 @@ struct {								\
       } else {								\
 		(head)->last->field.next = (elm);			\
 		(head)->last = (elm);					\
+      }									\
+} while (0)
+
+/*!
+  \brief Appends a whole list to the tail of a list.
+  \param head This is a pointer to the list head structure
+  \param list This is a pointer to the list to be appended.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+ */
+#define OPBX_LIST_APPEND_LIST(head, list, field) do {			\
+      if (!(head)->first) {						\
+		(head)->first = (list)->first;				\
+		(head)->last = (list)->last;				\
+      } else {								\
+		(head)->last->field.next = (list)->first;		\
+		(head)->last = (list)->last;				\
       }									\
 } while (0)
 

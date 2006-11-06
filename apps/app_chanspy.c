@@ -426,9 +426,12 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
 {
 	struct chanspy_translation_helper csth;
 	int running = 1, res = 0, x = 0;
-	char inp[24];
+	char inp[24] = "";
 	char *name=NULL;
-	struct opbx_frame *f;
+	struct opbx_frame *f = NULL;
+
+	if ((chan && opbx_check_hangup(chan)) || (spyee && opbx_check_hangup(spyee)))
+		return 0;
 
 	if (chan && !opbx_check_hangup(chan) && spyee && !opbx_check_hangup(spyee)) {
 		memset(inp, 0, sizeof(inp));

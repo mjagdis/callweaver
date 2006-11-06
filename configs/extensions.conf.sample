@@ -214,7 +214,7 @@ include => dundi-e164-lookup
 exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 
 ;
-; The SWITCH statement permits a server to share the dialplain with
+; The SWITCH statement permits a server to share the dialplan with
 ; another server. Use with care: Reciprocal switch statements are not
 ; allowed (e.g. both A -> B and B -> A), and the switched server needs
 ; to be on-line or else dialing can be severly delayed.

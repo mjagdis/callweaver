@@ -56,7 +56,9 @@ static char *descrip =
 "off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
 "be answered before the sound is played. Not all channels support playing\n"
 "messages while still hook. Returns -1 if the channel was hung up.  If the\n"
-"file does not exist, will jump to priority n+101 if present.\n";
+"file does not exist, will jump to priority n+101 if present."
+"The channel variable PLAYBACKSTATUS is set to SUCCESS or FAILED on termination."
+"\n";
 
 STANDARD_LOCAL_USER;
 
@@ -64,7 +66,7 @@ LOCAL_USER_DECL;
 
 static int playback_exec(struct opbx_channel *chan, void *data)
 {
-	int res = 0;
+	int res = 0, mres=0;
 	struct localuser *u;
 	char *tmp = NULL;
 	char *options = NULL;
@@ -79,6 +81,8 @@ static int playback_exec(struct opbx_channel *chan, void *data)
 	}
 
 	LOCAL_USER_ADD(u);
+
+        pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "");
 
 	tmp = opbx_strdupa(data);
 	if (!tmp) {
@@ -98,6 +102,7 @@ static int playback_exec(struct opbx_channel *chan, void *data)
 	if (chan->_state != OPBX_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
+                        pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "SUCCESS");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		} else if (!option_noanswer)
@@ -120,10 +125,15 @@ static int playback_exec(struct opbx_channel *chan, void *data)
 				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, (char *)data);
 				opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 				res = 0;
+				mres=1;
 			}
 			front = back;
 		}
 	}
+	if (mres)
+		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "FAILED");
+	else
+		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "SUCCESS");
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

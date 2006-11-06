@@ -18,21 +18,21 @@
 libtoolize --version | grep 1.5.20 > /dev/null || 
   (
 	echo You have the wrong, or missing version of libtool.  
-	echo The required  version is 1.5.20 and is available from:
+	echo The minumum required version is 1.5.20 and is available from:
 	echo http://www.gnu.org/software/libtool/
   ) 
 
 automake --version | grep 1.9.6 > /dev/null ||
   (
 	echo You have the wrong, or missing version of automake.  
-	echo The required version is 1.9.6 and is available from:
+	echo The minumum required version is 1.9.6 and is available from:
 	echo http://www.gnu.org/software/automake/
   )
 
 autoconf --version | grep 2.59 > /dev/null ||
   (
 	echo You have the wrong, or missing version of autoconf. 
-	echo The required version is 2.59 and is available from:
+	echo The minumum required version is 2.59 and is available from:
 	echo http://www.gnu.org/software/autoconf/
   )
 

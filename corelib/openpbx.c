@@ -573,6 +573,7 @@ static void *listener(void *unused)
 			return NULL;
 		fds[0].fd = opbx_socket;
 		fds[0].events= POLLIN;
+		pthread_testcancel();
 		s = poll(fds, 1, -1);
 		if (s < 0) {
 			if (errno != EINTR)
@@ -711,15 +712,9 @@ static int opbx_tryconnect(void)
  Called by soft_hangup to interrupt the poll, read, or other
  system call.  We don't actually need to do anything though.  
  Remember: Cannot EVER opbx_log from within a signal handler 
- SLD: seems to be some pthread activity relating to the printf anyway:
- which is leading to a deadlock? 
  */
 static void urg_handler(int num)
 {
-#if 0
-	if (option_debug > 2) 
-		printf("-- OpenPBX Urgent handler\n");
-#endif
 	signal(num, urg_handler);
 	return;
 }
@@ -879,17 +874,19 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	/* Called on exit */
 	if (option_verbose && option_console)
 		opbx_verbose("OpenPBX %s ending (%d).\n", opbx_active_channels() ? "uncleanly" : "cleanly", num);
-	else if (option_debug)
+	if (option_debug)
 		opbx_log(LOG_DEBUG, "OpenPBX ending (%d).\n", num);
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", opbx_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (opbx_socket > -1) {
+		pthread_cancel(lthread);
 		close(opbx_socket);
 		opbx_socket = -1;
+		unlink(opbx_config_OPBX_SOCKET);
 	}
 	if (opbx_consock > -1)
 		close(opbx_consock);
-	if (opbx_socket > -1)
-		unlink((char *)opbx_config_OPBX_SOCKET);
+	//if (opbx_socket > -1)
+	//	unlink((char *)opbx_config_OPBX_SOCKET);
 	if (!option_remote) unlink((char *)opbx_config_OPBX_PID);
 	printf(opbx_term_quit());
 	if (restart) {
@@ -2333,11 +2330,11 @@ int openpbx_main(int argc, char *argv[])
 		printf(opbx_term_quit());
 		exit(1);
 	}
-	if (load_modules(0)) {
+	if (init_framer()) {
 		printf(opbx_term_quit());
 		exit(1);
 	}
-	if (init_framer()) {
+	if (load_modules(0)) {
 		printf(opbx_term_quit());
 		exit(1);
 	}

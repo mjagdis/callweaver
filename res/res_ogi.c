@@ -1810,11 +1810,6 @@ static int ogi_handle_command(struct opbx_channel *chan, OGI *ogi, char *buf)
 	argc = MAX_ARGS;
 
 	parse_args(buf, &argc, argv);
-#if	0
-	{ int x;
-	for (x=0; x<argc; x++) 
-		fprintf(stderr, "Got Arg%d: %s\n", x, argv[x]); }
-#endif
 	c = find_command(argv, 0);
 	if (c) {
 		res = c->handler(chan, ogi, argc, argv);
@@ -2040,7 +2035,8 @@ static int ogi_exec_full(struct opbx_channel *chan, void *data, int enhanced, in
 		ogi.ctrl = fds[0];
 		ogi.audio = efd;
 		res = run_ogi(chan, argv[0], &ogi, pid, dead);
-		close(fds[1]);
+		if (fds[1] != fds[0])
+			close(fds[1]);
 		if (efd > -1)
 			close(efd);
 	}

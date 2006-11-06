@@ -177,7 +177,7 @@ struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s)
 	/* IF we have an optimization frame, send it */
 	if (s->opt) {
 		if (s->opt->offset < OPBX_FRIENDLY_OFFSET)
-			opbx_log(LOG_WARNING, "Returning a frame of inappropriate offset (%d).",
+			opbx_log(LOG_WARNING, "Returning a frame of inappropriate offset (%d).\n",
 							s->opt->offset);
 		opt = s->opt;
 		s->opt = NULL;
@@ -313,8 +313,15 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 		out = fr;
 	}
 	if (!(fr->mallocd & OPBX_MALLOCD_SRC)) {
-		if (fr->src)
+		if (fr->src) {
 			out->src = strdup(fr->src);
+			if (!out->src) {
+				if (out != fr)
+					free(out);
+				opbx_log(LOG_WARNING, "Out of memory\n");
+				return NULL;
+			}
+		}
 	} else
 		out->src = fr->src;
 	if (!(fr->mallocd & OPBX_MALLOCD_DATA))  {
@@ -322,6 +329,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 		out->data = malloc(fr->datalen + OPBX_FRIENDLY_OFFSET);
 		if (!out->data) {
 			free(out);
+
 			opbx_log(LOG_WARNING, "Out of memory\n");
 			return NULL;
 		}

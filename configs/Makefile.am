@@ -123,6 +123,10 @@ if WANT_RES_CONFIG_PGSQL
 SAMPLES += res_pgsql.conf.sample
 endif WANT_RES_CONFIG_PGSQL
 
+if WANT_RES_CONFIG_CURL
+SAMPLES += curl.conf.sample
+endif WANT_RES_CONFIG_CURL
+
 if WANT_RES_SQLITE
 SAMPLES += res_sqlite.conf.sample
 endif WANT_RES_SQLITE

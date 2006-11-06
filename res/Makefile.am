@@ -104,4 +104,12 @@ res_js_la_LIBADD	= @JS_LDFLAGS@ @NSPR_LDFLAGS@
 res_js_la_LDFLAGS	= -module -avoid-version -no-undefined
 endif WANT_RES_JS
 
+if WANT_RES_CONFIG_CURL
+opbxmod_LTLIBRARIES		+= res_config_curl.la
+res_config_curl_la_SOURCES	= res_config_curl.c
+res_config_curl_la_LDFLAGS	= -module -avoid-version -no-undefined
+res_config_curl_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
+res_config_curl_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libopenpbx.la
+endif WANT_RES_CONFIG_CURL
+
 INCLUDES = -I$(top_srcdir)/include

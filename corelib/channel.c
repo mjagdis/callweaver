@@ -2148,6 +2148,13 @@ static int set_format(struct opbx_channel *chan, int fmt, int *rawformat, int *f
 	
 	/* Now we have a good choice for both. */
 	opbx_mutex_lock(&chan->lock);
+
+	if ((*rawformat == native) && (*format == fmt)) {
+		/* the channel is already in these formats, so nothing to do */
+		opbx_mutex_unlock(&chan->lock);
+		return 0;
+	}
+
 	*rawformat = native;
 	/* User perspective is fmt */
 	*format = fmt;
@@ -2602,33 +2609,44 @@ int opbx_channel_make_compatible(struct opbx_channel *chan, struct opbx_channel 
 
 int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *clone)
 {
-	struct opbx_frame null = { OPBX_FRAME_NULL, };
-	int res = -1;
+    struct opbx_frame null = { OPBX_FRAME_NULL, };
+    int res = -1;
 
-	if (original == clone)
+	/* each of these channels may be sitting behind a channel proxy (i.e. chan_agent)
+	   and if so, we don't really want to masquerade it, but its proxy */
+	if (original->_bridge && (original->_bridge != opbx_bridged_channel(original)))
+		original = original->_bridge;
+
+	if (clone->_bridge && (clone->_bridge != opbx_bridged_channel(clone)))
+		clone = clone->_bridge;
+
+
+    if (original == clone)
     {
 		opbx_log(LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
 		return -1;
-	}
-	opbx_mutex_lock(&original->lock);
-	while (opbx_mutex_trylock(&clone->lock))
+    }
+
+    opbx_mutex_lock(&original->lock);
+    while (opbx_mutex_trylock(&clone->lock))
     {
 		opbx_mutex_unlock(&original->lock);
 		usleep(1);
 		opbx_mutex_lock(&original->lock);
-	}
-	opbx_log(LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
-		clone->name, original->name);
-	if (original->masq)
+    }
+    opbx_log(LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
+    	clone->name, original->name);
+
+    if (original->masq)
     {
-		opbx_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
-			original->masq->name, original->name);
-	}
+	opbx_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
+    	original->masq->name, original->name);
+    }
     else if (clone->masqr)
     {
 		opbx_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
 			clone->name, clone->masqr->name);
-	}
+    }
     else
     {
 		original->masq = clone;
@@ -2637,10 +2655,10 @@ int opbx_channel_masquerade(struct opbx_channel *original, struct opbx_channel *
 		opbx_queue_frame(clone, &null);
 		opbx_log(LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
 		res = 0;
-	}
-	opbx_mutex_unlock(&clone->lock);
-	opbx_mutex_unlock(&original->lock);
-	return res;
+    }
+    opbx_mutex_unlock(&clone->lock);
+    opbx_mutex_unlock(&original->lock);
+    return res;
 }
 
 void opbx_change_name(struct opbx_channel *chan, char *newname)
