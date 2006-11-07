@@ -10865,7 +10865,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 						opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
 				}
 			} else {
-				opbx_log(LOG_ERROR, "Channel Bridge information is non-existant.  Should never happend\n");
+				opbx_log(LOG_DEBUG, "Channel Bridge information is non-existant. T38 Termination requested.\n");
 			}
 		}
 		if ((p->t38state == 2) || (p->t38state == 1)) {
