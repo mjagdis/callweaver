@@ -179,7 +179,7 @@ void opbx_devstate_del(opbx_devstate_cb_type callback, void *data)
 }
 
 /*--- do_state_change: Notify callback watchers of change, and notify PBX core for hint updates */
-static void do_state_change(const char *device)
+static inline void do_state_change(const char *device)
 {
 	int state;
 	struct devstate_cb *devcb;
