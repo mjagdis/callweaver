@@ -439,7 +439,7 @@ static int restart_monitor(void);
 static int global_capability = OPBX_FORMAT_ULAW | OPBX_FORMAT_ALAW | OPBX_FORMAT_GSM | OPBX_FORMAT_H263;
 static int noncodeccapability = OPBX_RTP_DTMF;
 #if T38_SUPPORT
-static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600; /* This is default: NO MMR and JBIG trancoding, NO fill bit removal, transfered TCF, UDP FEC, Version 0 and 9600 max fax rate */
+static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600 | T38FAX_RATE_14400; /* This is default: NO MMR and JBIG trancoding, NO fill bit removal, transfered TCF, UDP FEC, Version 0 and 9600 max fax rate */
 #endif
 static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
@@ -10810,6 +10810,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
             opbx_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
             opbx_cli(fd, "  Promiscuous Redir:      %s\n", opbx_test_flag(cur, SIP_PROMISCREDIR) ? "Yes" : "No");
             opbx_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
+            opbx_cli(fd, "  T38 State:              %d\n", cur->t38state);
             opbx_cli(fd, "  DTMF Mode:              %s\n", dtmfmode2str(opbx_test_flag(cur, SIP_DTMF)));
             opbx_cli(fd, "  SIP Options:            ");
             if (cur->sipoptions)
