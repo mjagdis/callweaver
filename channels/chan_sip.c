@@ -3609,35 +3609,31 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
 	struct opbx_frame *f;
 	static struct opbx_frame null_frame = { OPBX_FRAME_NULL, };
 
-	if (!p->rtp) {
-		/* We have no RTP allocated for this channel */
-		return &null_frame;
-	}
+    if (!p->rtp)
+    {
+        /* We have no RTP allocated for this channel */
+        return &null_frame;
+    }
 
-
-	switch(ast->fdno) {
+	switch (ast->fdno)
+    {
 	case 0:
 #if T38_SUPPORT
-    		if (p->udptl_active)
-    		    f = opbx_udptl_read( (struct opbx_udptl*) p->rtp );	/* UDPTL for T.38 */
-    		else
+   	    if (p->udptl_active)
+   	        f = opbx_udptl_read(p->udptl);  /* UDPTL for T.38 */
+        else
 #endif
-    		    f = opbx_rtp_read(p->rtp);	/* RTP Audio */
-		break;
+            f = opbx_rtp_read(p->rtp);	    /* RTP Audio */
+        break;
 	case 1:
-		f = opbx_rtcp_read(p->rtp);	/* RTCP Control Channel */
+		f = opbx_rtcp_read(p->rtp);	        /* RTCP Control Channel */
 		break;
 	case 2:
-		f = opbx_rtp_read(p->vrtp);	/* RTP Video */
+		f = opbx_rtp_read(p->vrtp);         /* RTP Video */
 		break;
 	case 3:
-		f = opbx_rtcp_read(p->vrtp);	/* RTCP Control Channel for video */
+		f = opbx_rtcp_read(p->vrtp);        /* RTCP Control Channel for video */
 		break;
-#if T38_SUPPORT
-	case 4:
-		f = opbx_udptl_read(p->udptl);	/* UDPTL for T.38 */
-		break;
-#endif
 	default:
 		f = &null_frame;
 	}
