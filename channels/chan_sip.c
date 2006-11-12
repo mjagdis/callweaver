@@ -420,7 +420,6 @@ static int restart_monitor(void);
 #define T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF	(0 << 3)
 #define T38FAX_RATE_MANAGEMENT_LOCAL_TCF	(1 << 3)	/*!< Unset for transferedTCF (UDPTL), set for localTCF (TPKT) */
 /* UDP Error correction */
-#define T38FAX_UDP_EC_NONE			(0 << 4)	/*!< two bits, if unset NO t38UDPEC field in T38 SDP*/
 #define T38FAX_UDP_EC_FEC			(1 << 4)	/*!< Set for t38UDPFEC */
 #define T38FAX_UDP_EC_REDUNDANCY		(2 << 4)	/*!< Set for t38UDPRedundancy */
 /* T38 Spec version */
@@ -2370,13 +2369,12 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->prefs = peer->prefs;
 #if T38_SUPPORT
 	r->t38capability = global_t38_capability;
-	if (r->udptl) {
-		if ( opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_FEC )
+	if (r->udptl)
+    {
+		if (opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_FEC)
 			r->t38capability |= T38FAX_UDP_EC_FEC;
-		else if ( opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY )
+		else if (opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
 			r->t38capability |= T38FAX_UDP_EC_REDUNDANCY;			
-		else if (  opbx_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_NONE )
-			r->t38capability |= T38FAX_UDP_EC_NONE;
 		r->t38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 		opbx_log(LOG_DEBUG,"Our T38 capability (%d)\n", r->t38capability);
 	}
@@ -3843,12 +3841,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 #if T38_SUPPORT
 	if (p->udptl) {
 	    p->t38capability = global_t38_capability;
-	    if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
-		    p->t38capability |= T38FAX_UDP_EC_REDUNDANCY;
-	    else if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC)
+	    if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC)
 		    p->t38capability |= T38FAX_UDP_EC_FEC;
-	    else if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_NONE)
-		    p->t38capability |= T38FAX_UDP_EC_NONE;
+	    else if (opbx_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY)
+		    p->t38capability |= T38FAX_UDP_EC_REDUNDANCY;
 	    p->t38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 	    p->t38jointcapability = p->t38capability;
 	}	
@@ -4475,17 +4471,22 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				else if (!strcasecmp(s, "transferredTCF"))
 					peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 			}
-			if ((sscanf(a, "T38FaxUdpEC:%s", s) == 1)) {
+			if ((sscanf(a, "T38FaxUdpEC:%s", s) == 1))
+            {
 				found = 1;
 				opbx_log(LOG_DEBUG,"UDP EC: %s\n", s);
-				if (!strcasecmp(s, "t38UDPRedundancy")) {
-					peert38capability |= T38FAX_UDP_EC_REDUNDANCY;
-					opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
-				} else if (!strcasecmp(s, "t38UDPFEC")) {
+                if (strcasecmp(s, "t38UDPFEC") == 0)
+                {
 					peert38capability |= T38FAX_UDP_EC_FEC;
 					opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
-				} else {
-					peert38capability |= T38FAX_UDP_EC_NONE;
+				}
+				else if (strcasecmp(s, "t38UDPRedundancy") == 0)
+                {
+					peert38capability |= T38FAX_UDP_EC_REDUNDANCY;
+					opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+				}
+                else
+                {
 					opbx_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 				}
 			}
@@ -5489,8 +5490,8 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
         add_line(resp, a_modem, SIP_DL_DONTCARE);
 	snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxDatagram:%d",x);
         add_line(resp, a_modem, SIP_DL_DONTCARE);
-	if (p->t38jointcapability != T38FAX_UDP_EC_NONE)
-		snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
+	if ((p->t38jointcapability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY)))
+		snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38jointcapability & T38FAX_UDP_EC_FEC)  ?  "t38UDPFEC"  :  "t38UDPRedundancy");
 	add_line(resp, a_modem, SIP_DL_DONTCARE);
 	
 	/* Update lastrtprx when we send our SDP */
