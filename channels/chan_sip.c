@@ -3781,13 +3781,13 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		p->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (videosupport)
 			p->vrtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		opbx_rtp_set_active(p->rtp, 1);
-		opbx_udptl_set_active(p->udptl, 0);
-		p->udptl_active = 0;
 #if T38_SUPPORT
 		if (t38udptlsupport)
 			p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
 #endif
+		opbx_rtp_set_active(p->rtp, 1);
+		opbx_udptl_set_active(p->udptl, 0);
+		p->udptl_active = 0;
 		if (!p->rtp || (videosupport && !p->vrtp)) {
 			opbx_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
 			opbx_mutex_destroy(&p->lock);
