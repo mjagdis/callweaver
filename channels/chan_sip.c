@@ -6002,10 +6002,10 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
         add_line(resp, a_modem, SIP_DL_DONTCARE);
     snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxDatagram:%d",x);
         add_line(resp, a_modem, SIP_DL_DONTCARE);
-    if ((p->t38jointcapability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY)))
+    if ((p->t38jointcapability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY))) {
         snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38jointcapability & T38FAX_UDP_EC_FEC)  ?  "t38UDPFEC"  :  "t38UDPRedundancy");
-    add_line(resp, a_modem, SIP_DL_DONTCARE);
-    
+	add_line(resp, a_modem, SIP_DL_DONTCARE);
+    }
     /* Update lastrtprx when we send our SDP */
     time(&p->lastrtprx);
     time(&p->lastrtptx);
