@@ -1343,7 +1343,7 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
     if (sched  &&  rtcpenable)
     {
         rtp->sched = sched;
-        rtp->rtp_sock_info = udp_socket_find_group_element(rtp->rtp_sock_info, 1);
+        rtp->rtcp_sock_info = udp_socket_find_group_element(rtp->rtp_sock_info, 1);
     }
     if (io  &&  sched  &&  callbackmode)
     {
