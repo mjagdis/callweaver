@@ -109,7 +109,7 @@ PIDFILE=/var/run/openpbx/openpbx.pid
 
 # Source LSB init functions
 # providing start_daemon, killproc, pidofproc, 
-# log_success_msg, log_failure_msg and log_warning_msg.
+# log_success_msg, log_failure_msg and log_warning_msg
 # This is currently not used by UnitedLinux based distributions and
 # not needed for init scripts for UnitedLinux only. If it is used,
 # the functions from rc.status should not be sourced or used.
