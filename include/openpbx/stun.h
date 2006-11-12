@@ -12,8 +12,15 @@
  * at the top of the source tree.
  */
 
-#define STUN_IGNORE		        (0)
-#define STUN_ACCEPT		        (1)
+enum
+{
+    STUN_STATE_IDLE = 0,
+    STUN_STATE_REQUEST_PENDING,
+    STUN_STATE_RESPONSE_RECEIVED
+};
+ 
+#define STUN_IGNORE                (0)
+#define STUN_ACCEPT                (1)
 
 #define STUN_BINDREQ            0x0001
 #define STUN_BINDRESP           0x0101
@@ -37,8 +44,8 @@
 extern char stunserver_host[MAXHOSTNAMELEN];
 extern struct sockaddr_in stunserver_ip;
 extern int stunserver_portno;
-extern int stun_active;			/*!< Is STUN globally enabled ?*/
-extern int stundebug;			/*!< Are we debugging stun? */
+extern int stun_active;            /*!< Is STUN globally enabled ?*/
+extern int stundebug;            /*!< Are we debugging stun? */
 
 typedef struct
 {
@@ -47,56 +54,56 @@ typedef struct
 
 struct stun_header
 {
-	unsigned short msgtype;
-	unsigned short msglen;
-	stun_trans_id  id;
-	unsigned char ies[0];
+    unsigned short msgtype;
+    unsigned short msglen;
+    stun_trans_id  id;
+    unsigned char ies[0];
 } __attribute__((packed));
 
 
 struct stun_attr
 {
-	unsigned short attr;
-	unsigned short len;
-	unsigned char value[0];
+    unsigned short attr;
+    unsigned short len;
+    unsigned char value[0];
 } __attribute__((packed));
 
 struct stun_addr
 {
-	unsigned char unused;
-	unsigned char family;
-	unsigned short port;
-	unsigned int addr;
+    unsigned char unused;
+    unsigned char family;
+    unsigned short port;
+    unsigned int addr;
 } __attribute__((packed));
 
 struct stun_request
 {
-	struct stun_header    	req_head;
-	struct stun_request 	*next;
-	time_t 		      	whendone;
-	int    			got_response;
-	struct stun_addr	mapped_addr;
+    struct stun_header req_head;
+    struct stun_request *next;
+    time_t whendone;
+    int got_response;
+    struct stun_addr mapped_addr;
 };
 
 struct stun_state
 {
-	unsigned short msgtype;
-	stun_trans_id  id;
-	unsigned char *username;
-	unsigned char *password;
-	struct stun_addr *mapped_addr;
-	struct stun_addr *response_addr;
-	struct stun_addr *source_addr;
+    unsigned short msgtype;
+    stun_trans_id  id;
+    unsigned char *username;
+    unsigned char *password;
+    struct stun_addr *mapped_addr;
+    struct stun_addr *response_addr;
+    struct stun_addr *source_addr;
 };
 
 int stun_addr2sockaddr (struct sockaddr_in *sin, struct stun_addr *addr);
 
 struct stun_addr *opbx_stun_find_request(stun_trans_id *st);
 
-struct stun_request *opbx_udp_stun_bindrequest(
-	int fdus,
-	struct sockaddr_in *suggestion, 
-	const char *username, const char *password);
+struct stun_request *opbx_udp_stun_bindrequest(int fdus,
+                                               struct sockaddr_in *suggestion, 
+                                               const char *username,
+                                               const char *password);
 
 int stun_remove_request(stun_trans_id *st);
 

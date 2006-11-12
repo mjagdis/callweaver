@@ -14,6 +14,9 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
+ *
+ * $HeadURL$
+ * $Revision$
  */
 
 /*
@@ -51,7 +54,8 @@ extern "C" {
 
 #define MAX_RTP_PT 256
 
-struct opbx_rtp_protocol {
+struct opbx_rtp_protocol
+{
 	/* Get RTP struct, or NULL if unwilling to transfer */
 	struct opbx_rtp *(* const get_rtp_info)(struct opbx_channel *chan);
 	/* Get RTP struct, or NULL if unwilling to transfer */
@@ -66,25 +70,27 @@ struct opbx_rtp_protocol {
 typedef int (*opbx_rtp_callback)(struct opbx_rtp *rtp, struct opbx_frame *f, void *data);
 
 /* The value of each payload format mapping: */
-struct rtpPayloadType {
-	int isAstFormat; 	/* whether the following code is an OPBX_FORMAT */
+struct rtpPayloadType
+{
+	int is_opbx_format; 	/* whether the following code is an OPBX_FORMAT */
 	int code;
 };
 
-struct opbx_rtp {
+struct opbx_rtp
+{
     udp_socket_info_t *rtp_sock_info;
     udp_socket_info_t *rtcp_sock_info;
 	char resp;
 	struct opbx_frame f;
-	unsigned char rawdata[8192 + OPBX_FRIENDLY_OFFSET];
-	unsigned int ssrc;
-	unsigned int lastts;
-	unsigned int lastdigitts;
-	unsigned int lastrxts;
-	unsigned int lastividtimestamp;
-	unsigned int lastovidtimestamp;
-	unsigned int lasteventseqn;
-	unsigned int lasteventendseqn;
+	uint8_t rawdata[8192 + OPBX_FRIENDLY_OFFSET];
+	uint32_t ssrc;
+	uint32_t lastts;
+	uint32_t lastdigitts;
+	uint32_t lastrxts;
+	uint32_t lastividtimestamp;
+	uint32_t lastovidtimestamp;
+	uint32_t lasteventseqn;
+	uint32_t lasteventendseqn;
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
@@ -98,14 +104,14 @@ struct opbx_rtp {
 	struct timeval dtmfmute;
 	struct opbx_smoother *smoother;
 	int *ioid;
-	unsigned short seqno;
-	unsigned short rxseqno;
+	uint16_t seqno;
+	uint16_t rxseqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
 	opbx_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-	int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
+	int rtp_lookup_code_cache_is_opbx_format;	/* a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
@@ -168,17 +174,17 @@ void opbx_rtp_set_rtpmap_type(struct opbx_rtp* rtp, int pt,
 
 /*  Mapping between RTP payload format codes and OpenPBX codes: */
 struct rtpPayloadType opbx_rtp_lookup_pt(struct opbx_rtp* rtp, int pt);
-int opbx_rtp_lookup_code(struct opbx_rtp* rtp, int isAstFormat, int code);
+int opbx_rtp_lookup_code(struct opbx_rtp* rtp, int is_opbx_format, int code);
 void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local);
 
 void opbx_rtp_get_current_formats(struct opbx_rtp* rtp,
 			     int* astFormats, int* nonAstFormats);
 
 /*  Mapping an OpenPBX code into a MIME subtype (string): */
-char* opbx_rtp_lookup_mime_subtype(int isAstFormat, int code);
+char* opbx_rtp_lookup_mime_subtype(int is_opbx_format, int code);
 
 /* Build a string of MIME subtype names from a capability list */
-char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat);
+char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_opbx_format);
 
 void opbx_rtp_setnat(struct opbx_rtp *rtp, int nat);
 

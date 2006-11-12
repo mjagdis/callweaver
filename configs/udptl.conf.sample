@@ -3,11 +3,6 @@
 ;
 [general]
 ;
-; UDPTL start and UDPTL end configure start and end addresses
-;
-udptlstart=4000
-udptlend=4999
-;
 ; Whether to enable or disable UDP checksums on UDPTL traffic
 ;
 ;udptlchecksums=no

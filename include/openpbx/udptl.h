@@ -8,9 +8,18 @@
  *
  * Steve Underood <steveu@coppice.org>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ * $HeadURL$
+ * $Revision$
  */
 
 #ifndef _OPENPBX_UDPTL_H
@@ -34,7 +43,8 @@ enum
 extern "C" {
 #endif
 
-struct opbx_udptl_protocol {
+struct opbx_udptl_protocol
+{
 	/* Get UDPTL struct, or NULL if unwilling to transfer */
 	struct opbx_udptl *(*get_udptl_info)(struct opbx_channel *chan);
 	/* Set UDPTL peer */
@@ -51,11 +61,6 @@ struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
                                                  struct io_context *io,
                                                  int callbackmode,
                                                  udp_socket_info_t *sock_info);
-
-struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
-                                                struct io_context *io,
-                                                int callbackmode,
-                                                struct in_addr in);
 
 int opbx_udptl_set_active(struct opbx_udptl *udptl, int active);
 

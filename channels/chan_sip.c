@@ -671,7 +671,6 @@ static struct sip_pvt {
 	int t38capability;			/*!< Our T38 capability */
 	int t38peercapability;			/*!< Peers T38 capability */
 	int t38jointcapability;			/*!< Supported T38 capability at both ends */
-	int t38clienthacks;
 	int t38state;				/*!< T.38 state : 0 not enabled, 1 offered from local - direct, 2 - offered from local - reinvite, 3 - offered from peer - direct, 4 offered from peer - reinvite, 5 negotiated (enabled) */
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
@@ -3434,11 +3433,6 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->fds[2] = opbx_rtp_fd(i->vrtp);
 		tmp->fds[3] = opbx_rtcp_fd(i->vrtp);
 	}
-#if T38_SUPPORT
-	if (i->udptl) {
-		tmp->fds[4] = opbx_udptl_fd(i->udptl);
-	}
-#endif
 	if (state == OPBX_STATE_RING)
 		tmp->rings = 1;
 	tmp->adsicpe = OPBX_ADSI_UNAVAILABLE;
@@ -3626,8 +3620,7 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
 	switch(ast->fdno) {
 	case 0:
 #if T38_SUPPORT
-    		if (p->udptl_active )
-//    		if (p->udptl_active && (p->t38clienthacks==1) )
+    		if (p->udptl_active)
     		    f = opbx_udptl_read( (struct opbx_udptl*) p->rtp );	/* UDPTL for T.38 */
     		else
 #endif
@@ -3788,13 +3781,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
 		p->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (videosupport)
 			p->vrtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-    		p->udptl_active = 0;
+		opbx_rtp_set_active(p->rtp, 1);
+		opbx_udptl_set_active(p->udptl, 0);
+		p->udptl_active = 0;
 #if T38_SUPPORT
-		p->t38clienthacks = 0;
-		if (t38udptlsupport) {
-			p->udptl = opbx_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
-			//p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
-		}
+		if (t38udptlsupport)
+			p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
 #endif
 		if (!p->rtp || (videosupport && !p->vrtp)) {
 			opbx_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
@@ -4204,12 +4196,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Detecting Cisco GW to swap ports when in T38 fax mode */
 	m = get_sdp(req, "o");
 	opbx_log(LOG_DEBUG, "Got this other party (o = '%s')\n",m);
-	if (!strncasecmp(m, "CiscoSystemsSIP-GW-UserAgent", strlen("CiscoSystemsSIP-GW-UserAgent"))) {
-	    opbx_log(LOG_DEBUG, "Other Party is CISCO. Enabling workarounds\n");
-	    p->t38clienthacks=1;
-	} else {
-	    p->t38clienthacks=0;
-	}
 #endif
 
 	m = get_sdp(req, "m");
@@ -4264,11 +4250,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			found = 1;
 			udptlportno = x;
 
-			/* Maybe we could use clienthacks ifwe do not want to use rtp port as udptl in all cases */
-			    opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
-//			    opbx_rtp_set_active(p->rtp, 0);
-			    opbx_udptl_set_active(p->udptl, 1);
-			    p->udptl_active = 1;
+			opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
+		    opbx_rtp_set_active(p->rtp, 0);
+		    opbx_udptl_set_active(p->udptl, 1);
+		    p->udptl_active = 1;
 			
 			if (p->owner && p->lastinvite) {
 				p->t38state = 4; /* T38 Offered in re-invite from remote party */
@@ -4277,6 +4262,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				p->t38state = 3; /* T38 Offered directly from peer in first invite */
 				opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
 			}				
+		}
+		else
+		{
+			opbx_log(LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
+			opbx_rtp_set_active(p->rtp, 1);
+			opbx_udptl_set_active(p->udptl, 0);
+			p->udptl_active = 0;
 		}
 #endif
 		if (p->vrtp)
@@ -5873,10 +5865,10 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	p->lastinvite = p->ocseq;
 	opbx_set_flag(p, SIP_OUTGOING);
 
-	    opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
-	    opbx_rtp_set_active(p->rtp, 0);
-	    opbx_udptl_set_active(p->udptl, 1);
-	    p->udptl_active = 1;
+    opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
+    opbx_rtp_set_active(p->rtp, 0);
+    opbx_udptl_set_active(p->udptl, 1);
+    p->udptl_active = 1;
 
 	return send_request(p, &req, 1, p->ocseq);
 }

@@ -100,12 +100,13 @@ static const char *stun_attr2str(int msg)
     return "Non-RFC3489 Attribute";
 }
 
-int stun_addr2sockaddr (struct sockaddr_in *sin, struct stun_addr *addr)
+int stun_addr2sockaddr(struct sockaddr_in *sin, struct stun_addr *addr)
 {
     if (addr)
     {
-        sin->sin_addr.s_addr=addr->addr;
-        sin->sin_port=addr->port;
+        sin->sin_family = AF_INET;
+        sin->sin_addr.s_addr = addr->addr;
+        sin->sin_port = addr->port;
         return 1;
     }
     return 0;
@@ -213,12 +214,12 @@ static void stun_req_id(struct stun_header *req)
 struct stun_addr *opbx_stun_find_request(stun_trans_id *st)
 {
     struct stun_request *req_queue;
-    struct stun_addr *a=NULL;
+    struct stun_addr *a = NULL;
 
     req_queue=stun_req_queue;
 
     if (stundebug)
-        opbx_verbose("** Trying to lookup stun response for this sip packet %d\n",st->id[0]);
+        opbx_verbose("** Trying to lookup stun response for this sip packet %d\n", st->id[0]);
     while (req_queue != NULL)
     {
         //opbx_verbose("** STUN FIND REQUEST compare trans_id %d\n",req_queue->req_head.id.id[0]);
@@ -267,7 +268,7 @@ int stun_remove_request(stun_trans_id *st)
             found = 1;
             delqueue = req_queue;
             if (stundebug)
-                opbx_verbose("** Found: request in removal stun queue %d\n",st->id[0]);
+                opbx_verbose("** Found: request in removal stun queue %d\n", st->id[0]);
             if (req_queue_prev != NULL)
             {
                 req_queue_prev->next = req_queue->next;
@@ -280,12 +281,12 @@ int stun_remove_request(stun_trans_id *st)
             }
             free(delqueue);
         }
-        req_queue_prev=req_queue;
+        req_queue_prev = req_queue;
         if (req_queue != NULL)
             req_queue = req_queue->next;
     }
     if (!found)
-        opbx_verbose("** Not Found: request in removal stun queue %d\n",st->id[0]);
+        opbx_verbose("** Not Found: request in removal stun queue %d\n", st->id[0]);
 
     /* Removing old requests, caused by "sip reload" whose requests are not linked to any transmission */
     req_queue = stun_req_queue;
@@ -309,7 +310,7 @@ int stun_remove_request(stun_trans_id *st)
             }
             free(delqueue);
         }
-        req_queue_prev=req_queue;
+        req_queue_prev = req_queue;
         if (req_queue)
             req_queue = req_queue->next;
     }
@@ -385,7 +386,7 @@ int stun_handle_packet(int s,
     struct stun_request *req_queue_prev;
 
     memset(st, 0, sizeof(st));
-    memcpy(&st->id,&hdr->id,sizeof(stun_trans_id));
+    memcpy(&st->id, &hdr->id, sizeof(stun_trans_id));
 
     if (len < sizeof(struct stun_header))
     {
@@ -449,8 +450,10 @@ int stun_handle_packet(int s,
         {
         case STUN_BINDREQ:
             if (stundebug)
+            {
                 opbx_verbose("STUN Bind Request, username: %s\n", 
                              st->username  ?  (const char *) st->username  :  "<none>");
+            }
             if (st->username)
                 append_attr_string(&attr, STUN_USERNAME, (const char *)st->username, &resplen, &respleft);
             append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
@@ -468,16 +471,12 @@ int stun_handle_packet(int s,
             {
                 if (!req_queue->got_response
                     && 
-                    !memcmp((void *) &req_queue->req_head.id, (void *) &st->id, sizeof(stun_trans_id))) 
+                    memcmp((void *) &req_queue->req_head.id, (void *) &st->id, sizeof(stun_trans_id)) == 0)
                 {
                     if (stundebug)
                         opbx_verbose("** Found response in request queue. ID: %d done at: %ld gotresponse: %d\n",req_queue->req_head.id.id[0],(long int)req_queue->whendone,req_queue->got_response);
-                    req_queue->got_response=1;
-                    memcpy(&req_queue->mapped_addr,st->mapped_addr,sizeof(struct stun_addr));
-
-                    struct sockaddr_in sin;
-                    stun_addr2sockaddr(&sin, &req_queue->mapped_addr);
-                    stun_addr2sockaddr(&sin, st->mapped_addr);
+                    req_queue->got_response = 1;
+                    memcpy(&req_queue->mapped_addr, st->mapped_addr, sizeof(struct stun_addr));
                 }
                 else
                 {

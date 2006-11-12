@@ -8,8 +8,15 @@
  *
  * Steve Underwood <steveu@coppice.org>
  *
+ * See http://www.openpbx.org for more information about
+ * the OpenPBX project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  *
  */
 
@@ -60,8 +67,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define TRUE (!FALSE)
 #endif
 
-static int udptlstart = 0;
-static int udptlend = 0;
 static int udptldebug = 0;                /* Are we debugging? */
 static struct sockaddr_in udptldebugaddr;    /* Debug packets to/from this host */
 static int nochecksums = 0;
@@ -678,7 +683,7 @@ void opbx_udptl_set_callback(struct opbx_udptl *udptl, opbx_udptl_callback callb
 void opbx_udptl_setnat(struct opbx_udptl *udptl, int nat)
 {
     udptl->nat = nat;
-        udp_socket_set_nat(udptl->udptl_sock_info, nat);
+    udp_socket_set_nat(udptl->udptl_sock_info, nat);
 }
 
 static int udptlread(int *id, int fd, short events, void *cbdata)
@@ -708,12 +713,12 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
     
     /* Cache where the header will go */
     res = udp_socket_recvfrom(udptl->udptl_sock_info,
-            udptl->rawdata + OPBX_FRIENDLY_OFFSET,
-            sizeof(udptl->rawdata) - OPBX_FRIENDLY_OFFSET,
-            0,
-            (struct sockaddr *) &sin,
-            &len,
-            &actions);
+                              udptl->rawdata + OPBX_FRIENDLY_OFFSET,
+                              sizeof(udptl->rawdata) - OPBX_FRIENDLY_OFFSET,
+                              0,
+                              (struct sockaddr *) &sin,
+                              &len,
+                              &actions);
     udptlheader = (uint16_t *)(udptl->rawdata + OPBX_FRIENDLY_OFFSET);
     if (res < 0)
     {
@@ -723,38 +728,6 @@ struct opbx_frame *opbx_udptl_read(struct opbx_udptl *udptl)
             CRASH;
         return &null_frame;
     }
-
-    if (udp_socket_get_stunstate(udptl->udptl_sock_info) == 1)
-    {
-        struct sockaddr_in stun_sin;
-        struct stun_state stun_me;
-
-        if (stundebug)
-            opbx_log(LOG_DEBUG, "Checking if payload it is a stun RESPONSE  on UDPTL\n");
-
-        memset(&stun_me,0,sizeof(struct stun_state));
-        stun_handle_packet(udp_socket_get_stunstate(udptl->udptl_sock_info), &sin, (unsigned char *)udptl->rawdata + OPBX_FRIENDLY_OFFSET, res, &stun_me);
-        if (stun_me.msgtype == STUN_BINDRESP)
-        {
-            if (stundebug)
-                opbx_log(LOG_DEBUG, "Got STUN bind response on UDPTL channel\n");
-            udp_socket_set_stunstate(udptl->udptl_sock_info, 2);
-
-            if (stun_addr2sockaddr(&stun_sin,stun_me.mapped_addr))
-            {
-                udp_socket_set_stun(udptl->udptl_sock_info,&stun_sin);
-            }
-            else
-            {
-                if (stundebug)
-                    opbx_log(LOG_DEBUG, "Stun response did not contain mapped address\n");
-            }
-            stun_remove_request(&stun_me.id);        
-
-            return &null_frame;
-        }
-    }
-
     if ((actions & 1))
     {
         if (option_debug || udptldebug)
@@ -892,93 +865,6 @@ struct opbx_udptl *opbx_udptl_new_with_sock_info(struct sched_context *sched,
     return udptl;
 }
 
-struct opbx_udptl *opbx_udptl_new_with_bindaddr(struct sched_context *sched,
-                                                struct io_context *io,
-                                                int callbackmode,
-                                                struct in_addr addr)
-{
-    struct opbx_udptl *udptl;
-    struct sockaddr_in sockaddr;
-    int x;
-    int startplace;
-    int i;
-
-    if ((udptl = malloc(sizeof(struct opbx_udptl))) == NULL)
-        return NULL;
-    memset(udptl, 0, sizeof(struct opbx_udptl));
-
-    if (udptlfectype == 2)
-        udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
-    else if (udptlfectype == 1)
-        udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_REDUNDANCY;
-    else
-        udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
-    udptl->error_correction_span = udptlfecspan;
-    udptl->error_correction_entries = udptlfecentries;
-    
-    udptl->far_max_datagram_size = udptlmaxdatagram;
-    udptl->local_max_datagram_size = udptlmaxdatagram;
-
-    memset(&udptl->rx, 0, sizeof(udptl->rx));
-    memset(&udptl->tx, 0, sizeof(udptl->tx));
-    for (i = 0;  i <= UDPTL_BUF_MASK;  i++)
-    {
-        udptl->rx[i].buf_len = -1;
-        udptl->tx[i].buf_len = -1;
-    }
-
-    if ((udptl->udptl_sock_info = udp_socket_create(nochecksums)) == NULL)
-    {
-        free(udptl);
-        return NULL;
-    }
-
-    /* Find us a place */
-    /* UDPTL doesn't require us to find an even address to allow the next
-       address to be used for relatd RTCP. However, using only even ports
-       allows RTP and UDPTL streams to be interchanged */
-    x = (rand()%(udptlend - udptlstart)) + udptlstart;
-    x = x & ~1;
-    startplace = x;
-    for (;;)
-    {
-        memset(&sockaddr, 0, sizeof(sockaddr));
-        sockaddr.sin_addr = addr;
-        sockaddr.sin_port = htons(x);
-        if (udp_socket_set_us(udptl->udptl_sock_info, &sockaddr) == 0)
-        {
-            /* Success */
-            break;
-        }
-        if (errno != EADDRINUSE)
-        {
-            opbx_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
-            udp_socket_destroy(udptl->udptl_sock_info);
-            free(udptl);
-            return NULL;
-        }
-        x += 2;
-        if (x > udptlend)
-            x = udptlstart;
-        if (x == startplace)
-        {
-            opbx_log(LOG_WARNING, "No UDPTL ports remaining\n");
-            udp_socket_destroy(udptl->udptl_sock_info);
-            free(udptl);
-            return NULL;
-        }
-    }
-    if (io  &&  sched  &&  callbackmode)
-    {
-        /* Operate this one in a callback mode */
-        udptl->sched = sched;
-        udptl->io = io;
-        udptl->ioid = opbx_io_add(udptl->io, udp_socket_fd(udptl->udptl_sock_info), udptlread, OPBX_IO_IN, udptl);
-    }
-    udptl->created_sock_info = TRUE;
-    return udptl;
-}
-
 int opbx_udptl_set_active(struct opbx_udptl *udptl, int active)
 {
     if (udptl->sched  &&  udptl->io)
@@ -1017,10 +903,7 @@ void opbx_udptl_get_peer(struct opbx_udptl *udptl, struct sockaddr_in *them)
 
 void opbx_udptl_get_us(struct opbx_udptl *udptl, struct sockaddr_in *us)
 {
-    if (udp_socket_get_stunstate(udptl->udptl_sock_info) == 2)
-        memcpy(us, udp_socket_get_stun(udptl->udptl_sock_info), sizeof(*us));
-    else
-        memcpy(us, udp_socket_get_us(udptl->udptl_sock_info), sizeof(*us));
+    memcpy(us, udp_socket_get_apparent_us(udptl->udptl_sock_info), sizeof(*us));
 }
 
 int opbx_udptl_get_stunstate(struct opbx_udptl *udptl)
@@ -1039,8 +922,8 @@ void opbx_udptl_destroy(struct opbx_udptl *udptl)
 {
     if (udptl->ioid)
         opbx_io_remove(udptl->io, udptl->ioid);
-    if (udptl->created_sock_info)
-        udp_socket_destroy(udptl->udptl_sock_info);
+    //if (udptl->created_sock_info)
+    //    udp_socket_destroy_group(udptl->udptl_sock_info);
     free(udptl);
 }
 
@@ -1356,8 +1239,6 @@ void opbx_udptl_reload(void)
     struct opbx_config *cfg;
     char *s;
 
-    udptlstart = 4500;
-    udptlend = 4999;
     udptlfectype = 0;
     udptlfecentries = 0;
     udptlfecspan = 0;
@@ -1365,22 +1246,6 @@ void opbx_udptl_reload(void)
 
     if ((cfg = opbx_config_load("udptl.conf")))
     {
-        if ((s = opbx_variable_retrieve(cfg, "general", "udptlstart")))
-        {
-            udptlstart = atoi(s);
-            if (udptlstart < 1024)
-                udptlstart = 1024;
-            if (udptlstart > 65535)
-                udptlstart = 65535;
-        }
-        if ((s = opbx_variable_retrieve(cfg, "general", "udptlend")))
-        {
-            udptlend = atoi(s);
-            if (udptlend < 1024)
-                udptlend = 1024;
-            if (udptlend > 65535)
-                udptlend = 65535;
-        }
         if ((s = opbx_variable_retrieve(cfg, "general", "udptlchecksums")))
         {
 #ifdef SO_NO_CHECK
@@ -1426,14 +1291,6 @@ void opbx_udptl_reload(void)
         }
         opbx_config_destroy(cfg);
     }
-    if (udptlstart >= udptlend)
-    {
-        opbx_log(LOG_WARNING, "Unreasonable values for UDPTL start/end\n");
-        udptlstart = 4500;
-        udptlend = 4999;
-    }
-    if (option_verbose > 1)
-        opbx_verbose(VERBOSE_PREFIX_2 "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
 }
 
 void opbx_udptl_init(void)
