@@ -4825,7 +4825,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1))
             {
                 found = 1;
-                opbx_log(LOG_DEBUG,"FaxVerison: %d\n",x);
+                opbx_log(LOG_DEBUG,"FaxVersion: %d\n",x);
                 if (x == 0)
                     peert38capability |= T38FAX_VERSION_0;
                 else if (x == 1)
