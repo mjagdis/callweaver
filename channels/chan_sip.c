@@ -4087,7 +4087,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
             p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
 #endif
         opbx_rtp_set_active(p->rtp, 1);
-        opbx_udptl_set_active(p->udptl, 0);
+#if T38_SUPPORT
+        if (t38udptlsupport && p->udptl)
+    	    opbx_udptl_set_active(p->udptl, 0);
+#endif
         p->udptl_active = 0;
         if (!p->rtp || (videosupport && !p->vrtp))
         {
@@ -4603,7 +4606,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
             opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 0);
-            opbx_udptl_set_active(p->udptl, 1);
+    	    if (t38udptlsupport && p->udptl)
+        	opbx_udptl_set_active(p->udptl, 1);
             p->udptl_active = 1;
             
             if (p->owner  &&  p->lastinvite)
@@ -4621,7 +4625,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             opbx_log(LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 1);
-            opbx_udptl_set_active(p->udptl, 0);
+    	    if (t38udptlsupport &&p->udptl)
+        	opbx_udptl_set_active(p->udptl, 0);
             p->udptl_active = 0;
         }
 #endif
@@ -6417,8 +6422,11 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 
     opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
     opbx_rtp_set_active(p->rtp, 0);
-    opbx_udptl_set_active(p->udptl, 1);
+#if T38_SUPPORT
+    if (t38udptlsupport && p->udptl)
+	opbx_udptl_set_active(p->udptl, 1);
     p->udptl_active = 1;
+#endif
 
     return send_request(p, &req, 1, p->ocseq);
 }
