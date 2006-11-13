@@ -207,6 +207,8 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
     int64_t next;
     int64_t passage;
     int delay;
+
+    time_t begin, thistime;
     
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
@@ -370,12 +372,29 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         call_is_t38_mode = FALSE;
         passage = nowis();
         next = passage + 30000;
+        time(&begin);
         while (1)
         {
             now = nowis();
             delay = (next < now)  ?  0  :  (next - now + 500)/1000;
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
+
+	    // Let's timeout if we have no input packets for at least 60 secs.
+	    time(&thistime);
+	    if ( (thistime-begin) >= 60 ) {
+	    	opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
+        	break;
+	    }
+
+	    // Let's help T38 switchover (don't wait for udptl packets but trust channel state).
+            if (!call_is_t38_mode) {
+		if (chan->t38mode_enabled==1) {
+		    call_is_t38_mode=TRUE;
+	    	    opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
+		}
+	    }
+
             if (call_is_t38_mode)
 	    {
                 now = nowis();
@@ -407,10 +426,16 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             		next += 20000; // If I remember well, spandsp generates 1 frame every 20ms
 		    }
 		} else 
-
             	    next += 30000;
             	continue;
-            }
+            } 
+	    else
+	    {
+		// TxFax receives 1 fake packet every 3-4 secs. 
+		// This check is used to verify autenticity of RTP packets.
+		if ( thistime-begin <=2 )
+		    time(&begin);
+	    }
 
             if ((inf = opbx_read(chan)) == NULL)
             {
@@ -450,7 +475,13 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 		    	passage = now;
                 }
         	t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
-            }
+	    } 
+	    else 
+	    {
+		if (verbose)
+		    opbx_log(LOG_DEBUG," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
+			inf->frametype, inf->subclass, call_is_t38_mode );
+	    }
             opbx_frfree(inf);
         }
         if (inf == NULL)
