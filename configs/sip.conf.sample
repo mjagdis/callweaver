@@ -67,8 +67,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 						; defaults to "openpbx"
 ;videosupport=yes		; Turn on support for SIP video
 ;t38udptlsupport=yes		; Turn on support for T.38 UDPTL
-;t38rtpsupport=yes		; Turn on support for T.38 RTP
-;t38tcpsupport=yes		; Turn on support for T.38 TCP
+;t38rtpsupport=yes		; Turn on support for T.38 RTP	- *** NOT YET IMPLEMENTED ***
+;t38tcpsupport=yes		; Turn on support for T.38 TCP	- *** NOT YET IMPLEMENTED ***
 ;recordhistory=yes		; Record SIP history by default 
 				; (see sip history / sip no history)
 
