@@ -110,14 +110,24 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
    "ludicrous time" (essentially never times out) */
 int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout)
 {
-	int res,to,fto;
+	int res,to,fto,result;
 	/* XXX Merge with full version? XXX */
 	if (maxlen)
 		s[0] = '\0';
 	if (prompt) {
-		res = opbx_streamfile(c, prompt, c->language);
-		if (res < 0)
-			return res;
+		char *front;
+		char *temp = opbx_strdupa(prompt);
+		while (!res && (front = strsep(&temp, "&"))) {
+			if (res = opbx_streamfile(c, front, c->language)) {
+				res = 0;
+				break;
+			}
+			if (!res && !result)
+				result = opbx_waitstream(c, OPBX_DIGIT_ANY);
+			if (result)
+				break;
+			opbx_stopstream(c);
+		}
 	}
 	fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
 	to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
@@ -127,6 +137,11 @@ int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, 
 	if (timeout < 0) 
 		fto = to = 1000000000;
 	res = opbx_readstring(c, s, maxlen, to, fto, "#");
+	if (result) {
+		char tmp[256];
+		snprintf(tmp, sizeof(tmp), "%c%s", result, s);
+		snprintf(s, sizeof(tmp), "%s", tmp);
+	}
 	return res;
 }
 
@@ -1156,7 +1171,7 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, opbx_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		opbx_log(LOG_ERROR,"Unable to create lock file '%s': %s\n", path, strerror(errno));
+		fprintf(stderr, "Unable to create lock file '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
@@ -1172,6 +1187,7 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 		opbx_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
 		return OPBX_LOCK_TIMEOUT;
 	} else {
+		unlink(fs);
 		opbx_log(LOG_DEBUG, "Locked path '%s'\n", path);
 		return OPBX_LOCK_SUCCESS;
 	}
