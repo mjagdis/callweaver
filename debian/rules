@@ -27,13 +27,15 @@ DEB_CONFIGURE_EXTRA_FLAGS	:= \
     --with-cdr_pgsql=yes \
     --with-app_meetme=no \
     --with-chan-capi=yes \
-    --with-chan-fax=yes \
     --enable-iax-trunking=yes \
     --with-res_config_curl=yes \
     --enable-t38=yes
 
 ifeq ($(ENABLE_ODBC), yes)
  DEB_CONFIGURE_EXTRA_FLAGS += \
+    --with-chan-fax=yes \
+    --enable-jabber=yes \
+    --with-res_jabber=yes \
     --enable-odbc=yes \
     --with-cdr_odbc=yes \
     --with-res_config_odbc=yes \

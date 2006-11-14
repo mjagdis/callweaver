@@ -16,7 +16,7 @@ Architecture: any
 Description: Development files
 
 Package: openpbx-doc
-Architecture: any
+Architecture: all
 Description: Private branch exchange
  Documentation
 
