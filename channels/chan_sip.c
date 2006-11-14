@@ -11975,7 +11975,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                         }
                         else if (p->t38state == 0 && bridgepeer && (bridgepvt->t38state == 5))
                         { /* This is case of RTP re-invite after T38 session */
-                            opbx_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
+                            opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
                             opbx_set_flag(p, SIP_NEEDDESTROY);
                         }
@@ -13249,7 +13249,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
                         if (bridgepvt->t38state == 5)
                         {
-                            opbx_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
+                            opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
                             if (ignore)
                                 transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
