@@ -30,6 +30,9 @@ debian:/tmp# ls -l /tmp/core.*
 -rw-------  1 root root  8331264 Aug 13 00:32 /tmp/core.26647
 debian:/tmp#
 
+Note chat if you run openpbx like: # openpbx -cvvv -g 
+your core file will be dumped in the current working directory.
+
 Now that we've verified the core file has been written to disk, the final part is to extract 'bt' from the core file.
 Core files are pretty big, don't be scared, it's normal.
 
