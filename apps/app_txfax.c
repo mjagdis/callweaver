@@ -382,7 +382,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 
 	    // Let's timeout if we have no input packets for at least 60 secs.
 	    time(&thistime);
-	    if ( (thistime-begin) >= 60 ) {
+	    if ( ((thistime-begin) >= 60) && !call_is_t38_mode ) {
 	    	opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
         	break;
 	    }
