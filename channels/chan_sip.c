@@ -3909,7 +3909,7 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
     {
     case 0:
 #if T38_SUPPORT
-           if (p->udptl_active)
+           if (p->udptl_active && p->udptl)
                f = opbx_udptl_read(p->udptl);  /* UDPTL for T.38 */
         else
 #endif
