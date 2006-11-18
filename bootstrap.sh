@@ -95,13 +95,13 @@ automake --copy --add-missing
 autoheader --force
 autoconf --force
 popd
-#pushd editline
-#libtoolize --copy --force
-#aclocal
-#autoheader --force
-#automake --copy --add-missing
-#autoconf --force
-#popd
+pushd editline
+libtoolize --copy --force
+aclocal
+autoheader --force
+automake --copy --add-missing
+autoconf --force
+popd
 #pushd sqlite3-embedded
 #libtoolize --copy --force
 #aclocal

@@ -1,10 +1,12 @@
-# vim:ft=txt:tw=80
 
+***********************************************************************************
 INSTALLING OPENPBX ON FREEBSD
+***********************************************************************************
 
-By Roy Sigurd Karlsbakk <roy@karlsbakk.net>
 
-BOOTSTRAPPING
+-----------------------------------------------------------------------------------
+BOOTSTRAPPING - thanks to Roy Sigurd Karlsbakk <roy@karlsbakk.net>
+-----------------------------------------------------------------------------------
 
 Due to a bug in aclocal, some files are placed under the wrong directory, so to
 ./bootstrap.sh on FreeBSD, the following needs to be done as root:
@@ -24,4 +26,15 @@ to have spandsp and openpbx find libtiff.
 now make install, and it'll quite possibly end up with a compile error since
 the porting process isn't quite finished... :)
 
-roy
+
+
+-----------------------------------------------------------------------------------
+COMPILING 
+-----------------------------------------------------------------------------------
+
+libedit is required to compile openpbx.
+The libedit library included in FreeBSD ports is commonly named libeditline and
+is not suitable for our use.
+
+Please add --enable-internal_libedit=yes flag when configuring.
+

@@ -24,7 +24,13 @@ SVN = @SVN@
 sbin_PROGRAMS = openpbx 
 
 openpbx_SOURCES 	= main.c
-openpbx_LDADD		= ${top_builddir}/corelib/libopenpbx.la -ledit $(LIBLTDL)
+openpbx_LDADD		= ${top_builddir}/corelib/libopenpbx.la $(LIBLTDL)
+
+if WANT_INTERNAL_LIBEDIT
+openpbx_LDADD		+= ${top_builddir}/editline/src/libedit.la
+else
+openpbx_LDADD		+= -ledit
+endif
 
 openpbx_CFLAGS 	=  -fomit-frame-pointer -Wall -Wstrict-prototypes 
 openpbx_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
@@ -35,6 +41,9 @@ EXTRA_DIST = openpbx.sgml $(man_MANS) substitute.mak
 
 SUBDIRS =   libltdl libs stdtime @SQLITE3_SUBDIR@ include corelib . pbx funcs
 SUBDIRS +=  cdr apps codecs formats channels ogi utils res configs
+if WANT_INTERNAL_LIBEDIT
+SUBDIRS +=  editline
+endif
 
 INSTALL_DIRS = $(opbxdbdir) $(opbxdocdir) $(opbximagesdir)		\
 $(opbxkeydir) $(opbxlogdir) $(opbxlogdir)/cdr-custom			\

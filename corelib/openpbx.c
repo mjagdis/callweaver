@@ -116,10 +116,15 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/file.h"
 #include "openpbx/io.h"
 #include "openpbx/lock.h"
-#include <histedit.h>
 #include "openpbx/config.h"
 #include "openpbx/linkedlists.h"
 #include "openpbx/devicestate.h"
+
+#ifdef USE_INTERNAL_LIBEDIT
+#include "editline/src/histedit.h"
+#else
+#include <histedit.h>
+#endif
 
 /* defines various compile-time defaults */
 #include "defaults.h"

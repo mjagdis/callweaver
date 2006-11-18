@@ -562,6 +562,18 @@ AC_CHECK_LIB([spandsp],[fax_set_transmit_on_idle],[HAVE_LIBSPANDSP=1],[AC_MSG_ER
 
 dnl ###########################################################################
 
+dnl Enable internal libedit
+AC_ARG_ENABLE(internal_libedit,
+	[AC_HELP_STRING([--enable-internal_libedit],[build with internal libedit (default=no)])],,[enable_internal_libedit="no"])
+
+if test "${enable_internal_libedit}" != "no"; then
+   AC_DEFINE([USE_INTERNAL_LIBEDIT],[],[Build with internal libedit.])
+fi
+
+AM_CONDITIONAL([WANT_INTERNAL_LIBEDIT],[test "${enable_internal_libedit}" != "no"])
+
+if test "${enable_internal_libedit}" = "no"; then
+
 AC_ARG_WITH([editline-includes],
 	[AC_HELP_STRING([--with-editline-includes],[Location of editline include files.])],
 	[CFLAGS="$CFLAGS -I${withval}"])
@@ -571,7 +583,9 @@ AC_ARG_WITH([tiff-libs],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
 AC_CHECK_HEADERS([editline/readline.h histedit.h],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/)])
-AC_CHECK_LIB([edit],[el_init],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/)])
+AC_CHECK_LIB([edit],[el_init],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/ or use --enable-internal-libedit)])
+
+fi
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -2099,7 +2113,12 @@ AM_CONFIG_HEADER(include/confdefs.h)
 # Define in which subdirectories we have to run configure as well
 #
 ######
-AC_CONFIG_SUBDIRS(libltdl)    
+AC_CONFIG_SUBDIRS(libltdl)
+
+if test "${enable_internal_libedit}" = "yes"; then
+AC_CONFIG_SUBDIRS(editline)
+fi
+
 AC_OUTPUT([Makefile
 		 include/Makefile
 		 include/openpbx/Makefile
