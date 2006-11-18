@@ -40,6 +40,8 @@
 # define SIGEV_THREAD 2
 #endif /* SIGEV_THREAD */
 
+typedef union sigval sigval_t;
+
 #endif /* __FreeBSD__ */
 
 
@@ -137,7 +139,7 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 			 "CLOCK_REALTIME\n");
 		if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
 			opbx_log(LOG_ERROR, "Error creating monotonic timer: "
-				 "%s\n", strerror_r(errno, buf, 128));
+				 "%s\n", strerror_r(errno, buf, 128) );
 			return -1;
 		}
 	}
@@ -199,8 +201,8 @@ int opbx_timer_start(opbx_timer_t *t)
 
 	opbx_log(LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
 		 "%ld.%ld\n", (unsigned long)t,
-		 spec.it_value.tv_sec, spec.it_value.tv_nsec, 
-		 spec.it_interval.tv_sec, spec.it_interval.tv_nsec);
+		 (long int) spec.it_value.tv_sec, spec.it_value.tv_nsec, 
+		 (long int) spec.it_interval.tv_sec, spec.it_interval.tv_nsec);
 
 	/* Actually start the timer */
 	if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
