@@ -36,7 +36,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 #ifdef STACK_BACKTRACES
+#if defined(__linux__)
 #include <execinfo.h>
+#endif
 #endif
 
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
@@ -824,7 +826,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 
 void opbx_backtrace(int levels)
 {
-#ifdef STACK_BACKTRACES
+#if defined(STACK_BACKTRACES) && defined(__linux__)
 	int count=0, i=0;
 	void **addresses;
 	char **strings;
