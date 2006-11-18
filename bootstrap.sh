@@ -1,18 +1,25 @@
 #!/usr/bin/env sh 
 
-# Yes, I realise this is only for developers, but this should be 
-# documented and warned
+UNAME=`uname`
 
-# ***************   NOTICE  ****************
-# FreeBSD is buggy. Please use this 
-# workaround if you  want to bootstrap 
-# on FreeBSD.
-#
-# cd /usr/local/share/aclocal19
-# ln -s ../aclocal/libtool15.m4 .
-# ln -s ../aclocal/ltdl15.m4 .
-#
-#*******************************************
+if [ "x$UNAME" = "xFreeBSD" ]; then
+    echo ""
+    echo ""
+    echo "******************************************"
+    echo "***              NOTICE                ***"
+    echo "******************************************"
+    echo "                                          "
+    echo "FreeBSD is buggy. Please use this         "
+    echo "workaround if you  want to bootstrap      "
+    echo "on FreeBSD.                               "
+    echo "                                          "
+    echo "cd /usr/local/share/aclocal19             "
+    echo "ln -s ../aclocal/libtool15.m4 .           "
+    echo "ln -s ../aclocal/ltdl15.m4 .              "
+    echo "				      "
+    echo "******************************************"
+    echo ""
+fi
 
 debug ()
 {
@@ -80,7 +87,6 @@ version_compare()
 }
 
 # Check for required version and die if unhappy
-UNAME=`uname`
 
 if [ "x$UNAME" = "xFreeBSD" ]; then
 version_compare libtoolize 1 5 20 || exit 1
@@ -105,19 +111,22 @@ $ACLOCAL -I acmacros
 $AUTOHEADER --force
 $AUTOMAKE --copy --add-missing
 $AUTOCONF --force
-pushd libltdl
+
+cd libltdl
 $ACLOCAL
 $AUTOMAKE --copy --add-missing
 $AUTOHEADER --force
 $AUTOCONF --force
-popd
-pushd editline
+cd ..
+
+cd editline
 libtoolize --copy --force
 $ACLOCAL
 $AUTOHEADER --force
 $AUTOMAKE --copy --add-missing
 $AUTOCONF --force
-popd
+cd ..
+
 #pushd sqlite3-embedded
 #libtoolize --copy --force
 #$ACLOCAL
