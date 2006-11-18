@@ -90,6 +90,7 @@ case "${host}" in
         AC_SUBST(__Darwin__)
         ;;
   *-*-freebsd*)
+	no_libcap=yes
         ;;
   *-aix*)
     AC_DEFINE(AIX,,[Define if AIX])
@@ -536,8 +537,9 @@ AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is r
 
 dnl ###########################################################################
 
+if test "${no_libcap}" != "yes"; then
 AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile OpenPBX.org.)])
-
+fi
 dnl ###########################################################################
 
 AC_ARG_WITH([spandsp-includes],
