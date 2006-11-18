@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/usr/bin/env sh 
 
 # Yes, I realise this is only for developers, but this should be 
 # documented and warned
@@ -37,7 +37,7 @@ version_compare()
 	WHICH_PATH=`whereis which | cut -f2 -d' '`
 	COMMAND=`$WHICH_PATH $PROGRAM`
 	if [ -z $COMMAND ]; then
-		echo "$PROGRAM is required and was not found."
+		echo "$PROGRAM-$MAJOR.$MINOR.$MICRO is required and was not found."
 		return 1
 	else
 		debug "Found $COMMAND"
@@ -80,32 +80,48 @@ version_compare()
 }
 
 # Check for required version and die if unhappy
+UNAME=`uname`
+
+if [ "x$UNAME" = "xFreeBSD" ]; then
+version_compare libtoolize 1 5 20 || exit 1
+version_compare automake19 1 9 6 || exit 1
+version_compare autoconf259 2 59 || exit 1
+ACLOCAL=aclocal19
+AUTOHEADER=autoheader259
+AUTOMAKE=automake19
+AUTOCONF=autoconf259
+else
 version_compare libtoolize 1 5 20 || exit 1
 version_compare automake 1 9 6 || exit 1
 version_compare autoconf 2 59 || exit 1
+ACLOCAL=aclocal
+AUTOHEADER=autoheader
+AUTOMAKE=automake
+AUTOCONF=autoconf
+fi
 
 libtoolize --copy --force --ltdl
-aclocal -I acmacros
-autoheader --force
-automake --copy --add-missing
-autoconf --force
+$ACLOCAL -I acmacros
+$AUTOHEADER --force
+$AUTOMAKE --copy --add-missing
+$AUTOCONF --force
 pushd libltdl
-aclocal
-automake --copy --add-missing
-autoheader --force
-autoconf --force
+$ACLOCAL
+$AUTOMAKE --copy --add-missing
+$AUTOHEADER --force
+$AUTOCONF --force
 popd
 pushd editline
 libtoolize --copy --force
-aclocal
-autoheader --force
-automake --copy --add-missing
-autoconf --force
+$ACLOCAL
+$AUTOHEADER --force
+$AUTOMAKE --copy --add-missing
+$AUTOCONF --force
 popd
 #pushd sqlite3-embedded
 #libtoolize --copy --force
-#aclocal
-#autoconf --force
+#$ACLOCAL
+#$AUTOCONF --force
 #popd
 
 chmod ug+x debian/rules
