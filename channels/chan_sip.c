@@ -531,6 +531,9 @@ struct sip_invite_param {
     char *distinctive_ring;    /*!< Distinctive ring header */
     char *osptoken;        /*!< OSP token for this call */
     int addsipheaders;    /*!< Add extra SIP headers */
+#if T38_SUPPORT
+    int t38txdetection;    /*!< Detect outgoing fax CNG */
+#endif
     char *uri_options;    /*!< URI options to add to the URI */
     char *vxml_url;        /*!< VXML url for Cisco phones */
     char *auth;        /*!< Authentication */
@@ -2751,6 +2754,11 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
             p->options->addsipheaders = 1;
         }
 #if T38_SUPPORT
+        else if (!p->options->t38txdetection && !strncasecmp(opbx_var_name(current), "T38TXDETECT", strlen("T38TXDETECT")))
+        {
+            /* Check whether there is a variable with a name starting with SIPADDHEADER */
+            p->options->t38txdetection = 1;
+        }
         else if (!strncasecmp(opbx_var_name(current), "T38CALL", strlen("T38CALL")))
         {
             /* Check whether there is a variable with a name starting with T38CALL */
@@ -3342,7 +3350,9 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                 res =  opbx_rtp_write(p->rtp, frame);
 
                 // Outgoing Fax detection
-                if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vadtx)
+                if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && 
+        	    p->options->t38txdetection &&
+		    p->vadtx)
                 {
                     frame = opbx_dsp_process(p->owner, p->vadtx, frame);
                     if (frame  &&  (frame->frametype == OPBX_FRAME_DTMF))
