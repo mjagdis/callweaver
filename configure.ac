@@ -116,6 +116,7 @@ case "${host}" in
 	AC_DEFINE([__CYGWIN__],[1],[make sure __CYGWIN__ is defined ...])
         ;;
   *-*-netbsd*)
+	no_libcap=yes
         ;;
   *-*-solaris2*)
         AC_DEFINE([SOLARIS],[1],[needed for optional declarations to be visible])
