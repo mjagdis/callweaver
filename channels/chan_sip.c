@@ -15492,6 +15492,7 @@ static int reload_config(void)
     sipdebug &= ~SIP_DEBUG_CONFIG;
 
     memset(&stunserver_ip, 0, sizeof(stunserver_ip));
+    stunserver_ip.sin_family = AF_INET;
     stunserver_portno=3478;
     stun_active=0;
 
