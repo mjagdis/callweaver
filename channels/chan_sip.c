@@ -1841,7 +1841,8 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
         rr->p = p;
         rr->p->stun_retrans_no = 0;
         rr->streq = opbx_udp_stun_bindrequest(sipsock, &stunserver_ip, NULL, NULL);
-        memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(stun_trans_id));
+	if (rr->streq) 
+    	    memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(stun_trans_id));
 
         if (p->rtp  &&  !opbx_rtp_get_stunstate(p->rtp))
         {
@@ -1945,7 +1946,9 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
         rr->p = p;
         rr->p->stun_retrans_no = 0;
         rr->streq = opbx_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
-        memcpy(&rr->p->stun_transid,&rr->streq->req_head.id,sizeof(stun_trans_id) );
+	if (rr->streq) 
+    	    memcpy(&rr->p->stun_transid,&rr->streq->req_head.id,sizeof(stun_trans_id) );
+
         if (p->rtp  &&  opbx_rtp_get_stunstate(p->rtp) == 0)
         {
             opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) && p->stun_needed );
