@@ -973,9 +973,10 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 //
 // This function is known NOT to be safeguarded against the following cases:
 //
-// 1) workspace is NULL
-// 2) workspacelen is larger than the actual buffer size of workspace
-// 3) workspacelen is larger than VAR_BUF_SIZE
+// 1) ret is NULL
+// 2) workspace is NULL
+// 3) workspacelen is larger than the actual buffer size of workspace
+// 4) workspacelen is larger than VAR_BUF_SIZE
 //
 // NOTE: There may be further unsafeguarded cases not yet documented here!
 
@@ -992,7 +993,10 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 
 	// warnings for (potentially) unsafe pre-conditions
 	// TODO: these cases really ought to be safeguarded against
-	
+		
+	if (ret == NULL)
+		opbx_log(LOG_WARNING, "NULL passed in parameter 'ret' in function 'pbx_retrieve_variable'\n");
+
 	if (workspace == NULL)
 		opbx_log(LOG_WARNING, "NULL passed in parameter 'workspace' in function 'pbx_retrieve_variable'\n");
 	
