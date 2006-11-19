@@ -41,6 +41,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/cli.h"
 #include "openpbx/utils.h"
 #include "openpbx/options.h"
+#include "openpbx/udpfromto.h"
 
 char stunserver_host[MAXHOSTNAMELEN] = "";
 struct sockaddr_in stunserver_ip;
@@ -199,7 +200,18 @@ static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
                   0,
                   (struct sockaddr *) dst,
                   sizeof(*dst));
+/*
+    // Alternative way to send STUN PACKETS using OpenPBX library functions.
+    return opbx_sendfromto(
+	s,
+	resp,ntohs(resp->msglen) + sizeof(*resp),0,
+	NULL,0,
+        (struct sockaddr *) dst,
+        sizeof( struct sockaddr_in ) 
+	);
+*/
 }
+
 
 static void stun_req_id(struct stun_header *req)
 {
