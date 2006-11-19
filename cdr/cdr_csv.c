@@ -45,8 +45,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-#define CSV_LOGUNIQUEID 1
-#define CSV_LOGUSERFIELD 1
+/* #define CSV_LOGUNIQUEID 1 */
+/* #define CSV_LOGUSERFIELD 1 */
 
 #include <stdio.h>
 #include <string.h>
