@@ -967,7 +967,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	}
 	if (resetcdr && chan->cdr)
 		opbx_cdr_reset(chan->cdr, 0);
-	if (opbx_strlen_zero(privdb) && privacy) {
+	if (privacy && opbx_strlen_zero(privdb)) {
 		/* If privdb is not specified and we are using privacy, copy from extension */
 		opbx_copy_string(privdb, chan->exten, sizeof(privdb));
 	}

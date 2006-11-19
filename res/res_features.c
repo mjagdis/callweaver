@@ -1969,8 +1969,8 @@ static int load_config(void)
 	struct opbx_context *con = NULL;
 	struct opbx_config *cfg = NULL;
 	struct opbx_variable *var = NULL;
-	char old_parking_ext[OPBX_MAX_EXTENSION];
-	char old_parking_con[OPBX_MAX_EXTENSION];
+	char old_parking_ext[OPBX_MAX_EXTENSION] = "";
+	char old_parking_con[OPBX_MAX_EXTENSION] = "";
 
 	if (!opbx_strlen_zero(parking_con)) {
 		strcpy(old_parking_ext, parking_ext);

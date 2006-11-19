@@ -418,7 +418,7 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec)
 		}
 		
 		jb->next = jbimpl->next(jbobj);
-		
+
 		jb_framelog("JB_PUT {now=%ld}: Queued frame with ts=%ld and len=%ld\n", now, frr->ts, frr->len);
 		
 		return 0;
@@ -493,6 +493,7 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 		case JB_IMPL_INTERP:
 			/* interpolate a frame */
 			f = &finterp;
+			memset(f, 0, sizeof(finterp));
 			f->frametype = OPBX_FRAME_VOICE;
 			f->subclass = jb->last_format;
 			f->datalen  = 0;
