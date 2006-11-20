@@ -72,7 +72,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
-#ifndef __FreeBSD__
+#ifdef __linux__
 # include <sys/prctl.h>
 #endif
 #include <regex.h>
@@ -83,7 +83,7 @@
 #endif
 
 #undef _POSIX_SOURCE
-#ifndef __FreeBSD__
+#ifdef __linux__
 # include <sys/capability.h>
 #endif
 
@@ -2060,7 +2060,7 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#ifndef __FreeBSD__
+#if  !defined( __FreeBSD__) & !defined(__NetBSD__)
 #ifndef __CYGWIN__
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);

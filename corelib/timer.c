@@ -138,8 +138,13 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 		opbx_log(LOG_DEBUG, "CLOCK_MONOTONIC didn't work, trying "
 			 "CLOCK_REALTIME\n");
 		if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
+#if defined(HAVE_STRERROR)
 			opbx_log(LOG_ERROR, "Error creating monotonic timer: "
 				 "%s\n", strerror_r(errno, buf, 128) );
+#else
+			opbx_log(LOG_ERROR, "Error creating monotonic timer"
+				 "\n");
+#endif
 			return -1;
 		}
 	}
@@ -206,8 +211,12 @@ int opbx_timer_start(opbx_timer_t *t)
 
 	/* Actually start the timer */
 	if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
+#if defined(HAVE_STRERROR)
 		opbx_log(LOG_ERROR, "Error starting timer: %s\n",
 			 strerror_r(errno, buf, 128));
+#else
+		opbx_log(LOG_ERROR, "Error starting timer\n");
+#endif
 		return -1;
 	}	
 
@@ -224,8 +233,12 @@ int opbx_timer_stop(opbx_timer_t *t)
 
 	/* Actually stop the timer */
 	if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
+#if defined(HAVE_STRERROR)
 		opbx_log(LOG_ERROR, "Error stopping timer: %s\n",
 			 strerror_r(errno, buf, 128));
+#else
+		opbx_log(LOG_ERROR, "Error stopping timer\n");
+#endif
 		return -1;
 	}	
 	return 0;
