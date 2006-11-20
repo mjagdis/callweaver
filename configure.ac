@@ -394,7 +394,7 @@ AC_CHECK_LIB([nsl], [main])
 AC_CHECK_LIB([ossaudio], [main])
 AC_CHECK_LIB([pthread], [main])
 AC_CHECK_LIB([resolv], [main])
-AC_CHECK_LIB([rt], [main],[AC_DEFINE([HAVE_POSIX_TIMERS],["yes"],[yes there are real time libraries])],[AC_DEFINE([USE_GENERIC_TIMERS],["yes"],[forcing generic timers.])])
+AC_CHECK_LIB([rt], [main])
 AC_CHECK_LIB([socket], [main])
 AC_CHECK_LIB([t], [main])
 # AC_CHECK_LIB([termcap], [main])
@@ -421,7 +421,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf])  
+AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strerror_r strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf])  
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
@@ -535,6 +535,10 @@ AC_ARG_WITH([tiff-libs],
 
 AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
 AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
+
+dnl ###########################################################################
+
+AC_CHECK_LIB([rt], [timer_create],[AC_DEFINE([HAVE_POSIX_TIMERS],[1],[yes there are real time libraries])],[AC_DEFINE([USE_GENERIC_TIMERS],[1],[forcing generic timers.])])
 
 dnl ###########################################################################
 
