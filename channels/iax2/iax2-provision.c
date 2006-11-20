@@ -29,7 +29,7 @@
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include <netinet/in.h>
-#ifndef __FreeBSD__
+#if defined(__linux__)
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #endif
