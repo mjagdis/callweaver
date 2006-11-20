@@ -3351,7 +3351,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
 
                 // Outgoing Fax detection
                 if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && 
-        	    p->options->t38txdetection &&
+        	    p->options && p->options->t38txdetection &&
 		    p->vadtx)
                 {
                     frame = opbx_dsp_process(p->owner, p->vadtx, frame);
