@@ -490,6 +490,7 @@ static inline int __opbx_cond_timedwait(const char *filename, int lineno, const 
 	return res;
 }
 
+
 #define opbx_mutex_init(pmutex) __opbx_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 #define opbx_mutex_destroy(a) __opbx_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define opbx_mutex_lock(a) __opbx_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
@@ -624,6 +625,53 @@ static inline int opbx_cond_timedwait(opbx_cond_t *cond, opbx_mutex_t *t, const 
 }
 
 #endif /* !DEBUG_THREADS */
+
+//Maybe it's needed even by other OSs
+#if defined(__NetBSD__)
+
+#ifdef pthread_mutex_t
+#undef pthread_mutex_t
+#endif
+#ifdef pthread_mutex_lock
+#undef pthread_mutex_lock
+#endif
+#ifdef pthread_mutex_unlock
+#undef pthread_mutex_unlock
+#endif
+#ifdef pthread_mutex_trylock
+#undef pthread_mutex_trylock
+#endif
+#ifdef pthread_mutex_init
+#undef pthread_mutex_init
+#endif
+#ifdef pthread_mutex_destroy
+#undef pthread_mutex_destroy
+#endif
+
+#ifdef pthread_cond_t
+#undef pthread_cond_t
+#endif
+#ifdef pthread_cond_init
+#undef pthread_cond_init
+#endif
+#ifdef pthread_cond_destroy
+#undef pthread_cond_destroy
+#endif
+#ifdef pthread_cond_signal
+#undef pthread_cond_signal
+#endif
+#ifdef pthread_cond_broadcast
+#undef pthread_cond_broadcast
+#endif
+#ifdef pthread_cond_wait
+#undef pthread_cond_wait
+#endif
+#ifdef pthread_cond_timedwait
+#undef pthread_cond_timedwait
+#endif
+
+#endif
+
 
 #define pthread_mutex_t use_opbx_mutex_t_instead_of_pthread_mutex_t
 #define pthread_mutex_lock use_opbx_mutex_lock_instead_of_pthread_mutex_lock
