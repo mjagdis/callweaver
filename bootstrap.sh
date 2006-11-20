@@ -107,6 +107,9 @@ AUTOCONF=autoconf
 fi
 
 libtoolize --copy --force --ltdl
+#NetBSD seems to need this file writable
+chmod u+w libltdl/configure
+
 $ACLOCAL -I acmacros
 $AUTOHEADER --force
 $AUTOMAKE --copy --add-missing
