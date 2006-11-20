@@ -134,3 +134,11 @@ cd ..
 #popd
 
 chmod ug+x debian/rules
+
+
+
+if [ "x$UNAME" = "xNetBSD" ]; then
+echo ""
+echo "Please remember to run gmake instead of make on NetBSD"
+echo ""
+fi

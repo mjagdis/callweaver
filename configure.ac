@@ -41,6 +41,7 @@ AC_PATH_PROGS(UNAME,uname,[echo uname not found so no version info will be avail
 AC_PROG_CXX
 AC_PROG_YACC
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_PROG_CPP
 AM_PROG_LEX
 AX_SYS_PERLSHARPBANG
