@@ -133,7 +133,13 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	/* Current generator, if any, gets deactivated by signaling
 	 * new request with request code being req_deactivate */
 	pgcd->gen_req = gen_req_deactivate;
-	opbx_cond_signal(&pgcd->gen_req_cond);
+
+
+        opbx_cond_t genz;
+        memset(&genz,0,sizeof(opbx_cond_t));
+	if ( memcmp(&genz,&pgcd->gen_req_cond,sizeof(opbx_cond_t)) )
+    	    opbx_cond_signal(&pgcd->gen_req_cond);
+
 	opbx_mutex_unlock(&pgcd->lock);
 
 	/* Wait for the generator to deactivate */
