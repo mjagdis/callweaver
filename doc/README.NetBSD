@@ -35,5 +35,14 @@ NetBSD has posix timers with 10ms resolution.
 If you know how to improve, please drop a note on the ML so that
 we can add some more informations.
 
+Attitional notice #2:
+if you experience something like:
+ openpbx: Error detected by libpthread: Invalid condition variable.
+
+Try to set the env variable PTHREAD_DIAGASSERT=A
+and run openpbx.
+We are intrested in a backtrace of the fault.
+
+
 Massimo "CtRiX" Cetra
 
