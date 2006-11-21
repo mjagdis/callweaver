@@ -97,17 +97,21 @@ case "${host}" in
   *-aix*)
     AC_DEFINE(AIX,,[Define if AIX])
      broken_types=yes
+	no_libcap=yes
     ;;
   *-osf4*)
     AC_DEFINE(OSF1,,[Define if OSF1])
     tru64_types=yes
+	no_libcap=yes
     ;;
   *-osf5.1*)
     AC_DEFINE(OSF1)
+	no_libcap=yes
     ;;
   *-tru64*)
     AC_DEFINE(OSF1)
     tru64_types=yes
+	no_libcap=yes
     ;;
   *-*-linux* )
         ;;
@@ -122,6 +126,7 @@ case "${host}" in
         ;;
   *-*-solaris2*)
         AC_DEFINE([SOLARIS],[1],[needed for optional declarations to be visible])
+	no_libcap=yes
         ;;
   *)
         AC_MSG_RESULT(Unsupported operating system: ${host})
