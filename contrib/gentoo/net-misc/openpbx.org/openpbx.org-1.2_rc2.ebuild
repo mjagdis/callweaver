@@ -23,7 +23,7 @@ RDEPEND="virtual/libc
 	sys-libs/zlib
 	sys-libs/libcap
 	dev-libs/libedit
-	>=media-libs/spandsp-0.0.3_pre24
+	>=media-libs/spandsp-0.0.3_pre25
 	osp? ( net-libs/osptoolkit )
 	pri? ( net-libs/libpri )
 	zap? ( net-misc/zaptel )
