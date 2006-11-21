@@ -17,6 +17,8 @@
 #ifndef _OPENPBX_H
 #define _OPENPBX_H
 
+// #define RELEASE_TARBALL 1
+
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
@@ -25,8 +27,14 @@
 
 #define OPBX_CONFIG_MAX_PATH 255
 
+#ifndef RELEASE_TARBALL
 #define OPBX_VERSION_INFO PACKAGE_STRING " SVN-" SVN_VERSION " built on " BUILD_HOSTNAME \
         ",  a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
+#else
+#define OPBX_VERSION_INFO PACKAGE_STRING " built on " BUILD_HOSTNAME \
+        ",  a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
+#endif
+
 
 /* provided in openpbx.c */
 extern int openpbx_main(int argc, char *argv[]);

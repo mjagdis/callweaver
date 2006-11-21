@@ -137,8 +137,14 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define OPBX_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
+#ifndef RELEASE_TARBALL
 #define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " SVN-" SVN_VERSION " http://www.openpbx.org - The True Open Source PBX\n"); \
 		opbx_verbose( "=========================================================================\n")
+#else
+#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " http://www.openpbx.org - The True Open Source PBX\n"); \
+               opbx_verbose( "=========================================================================\n")
+#endif
+
 
 int option_verbose=0;
 int option_debug=0;
@@ -517,7 +523,11 @@ static void *netconsole(void *vconsole)
 	
 	if (gethostname(hostname, sizeof(hostname)-1))
 		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
+	#ifndef RELEASE_TARBALL	
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
+	#else
+	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
+	#endif
 	fdprint(con->fd, tmp);
 	for(;;) {
 		fds[0].fd = con->fd;
@@ -1721,12 +1731,21 @@ static void opbx_remotecontrol(char * data)
 
 static int show_version(void)
 {
+	#ifndef RELEASE_TARBALL
 	printf( PACKAGE_STRING " SVN-" SVN_VERSION "\n");
+	#else
+	printf( PACKAGE_STRING "\n");
+	#endif
+
 	return 0;
 }
 
 static int show_cli_help(void) {
+	#ifndef RELEASE_TARBALL
 	printf( PACKAGE_STRING " SVN-" SVN_VERSION  "\n");
+	#else
+	printf( PACKAGE_STRING "\n");
+	#endif
 	printf("Usage: openpbx [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");
