@@ -89,6 +89,7 @@ case "${host}" in
   *-*-darwin*)
         AC_DEFINE([__Darwin__],,[Define if Darwin])
         AC_SUBST(__Darwin__)
+	no_libcap=yes
         ;;
   *-*-freebsd*)
 	no_libcap=yes
