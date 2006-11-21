@@ -778,7 +778,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
     if (res < 0)
     {
         if (errno != EAGAIN)
-            opbx_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
+            opbx_log(LOG_DEBUG, "RTP Read error: %s\n", strerror(errno));
         if (errno == EBADF)
             CRASH;
         return &null_frame;
@@ -791,7 +791,7 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
 
     if (res < hdrlen)
     {
-        opbx_log(LOG_WARNING, "RTP Read too short\n");
+        opbx_log(LOG_DEBUG, "RTP Read too short\n");
         return &null_frame;
     }
     if (option_debug)
@@ -850,7 +850,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 
     if (res < hdrlen)
     {
-        opbx_log(LOG_WARNING, "RTP Read too short\n");
+        opbx_log(LOG_DEBUG, "RTP Read too short\n");
         return &null_frame;
     }
 
@@ -904,7 +904,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
 
     if (res < hdrlen)
     {
-        opbx_log(LOG_WARNING, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
+        opbx_log(LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
         return &null_frame;
     }
 
