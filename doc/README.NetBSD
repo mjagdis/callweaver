@@ -41,7 +41,7 @@ if you experience something like:
 
 Try to set the env variable PTHREAD_DIAGASSERT=AE
 and run openpbx.
-We are intrested in a backtrace of the fault and still digging around to solve this.
+We are interested in a backtrace of the fault and still digging around to solve this.
 
 
 Massimo "CtRiX" Cetra
