@@ -134,17 +134,15 @@ void opbx_generator_deactivate(struct opbx_channel *chan)
 	 * new request with request code being req_deactivate */
 	pgcd->gen_req = gen_req_deactivate;
 
-
-        opbx_cond_t genz;
-        memset(&genz,0,sizeof(opbx_cond_t));
-	if ( memcmp(&genz,&pgcd->gen_req_cond,sizeof(opbx_cond_t)) )
+	/* Only signal the condition if we actually have a thread */
+	if ( pgcd->pgenerator_thread )
     	    opbx_cond_signal(&pgcd->gen_req_cond);
 
 	opbx_mutex_unlock(&pgcd->lock);
 
 	/* Wait for the generator to deactivate */
-	sched_yield();
 	for (i = 0; i < GENERATOR_WAIT_ITERATIONS; i++) {
+	    sched_yield();
 	    if (!pgcd->gen_is_active)
 		break;
 	    usleep(10000);
