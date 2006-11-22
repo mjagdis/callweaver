@@ -163,7 +163,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 static int64_t nowis(void)
 {
     int64_t now;
-#if 0
+#ifndef HAVE_POSIX_TIMERS
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
