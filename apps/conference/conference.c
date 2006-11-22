@@ -606,7 +606,7 @@ struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member
 	// acquire conference mutexes
 	opbx_mutex_lock( &conf->lock ) ;
 	
-	if ( pthread_create( &conf->conference_thread, NULL, (void*)conference_exec, conf ) == 0 ) 
+	if ( opbx_pthread_create( &conf->conference_thread, NULL, (void*)conference_exec, conf ) == 0 ) 
 	{
 		// detach the thread so it doesn't leak
 		pthread_detach( conf->conference_thread ) ;
