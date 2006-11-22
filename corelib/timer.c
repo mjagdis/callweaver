@@ -31,6 +31,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 #include <openpbx/timer.h>
 #include <openpbx/logger.h>
 
@@ -79,6 +80,7 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 	else 
 		t->interval = interval;
 
+#ifndef __Darwin__
 	/* Check if the timer has a good enough resolution */
 	st = clock_getres(CLOCK_MONOTONIC, &res);
 	if (st == -1)
@@ -87,6 +89,7 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 		opbx_log(LOG_WARNING, "Couldn't get resolution of "
 			 "timer. Timer could be unreliable!\n");
 	} else {
+#endif // __Darwin__
 		/* Calculate the time in seconds and nanoseconds 
 		 * since the value we got is in microseconds */
 		nano = (t->interval % 1000000) * 1000;
@@ -105,7 +108,10 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 			/* Reset the interval to a sane value */
 			t->interval = (res.tv_nsec / 1000) + 1;
 		}
+
+#ifndef __Darwin__
 	}
+#endif //__Darwin__
 }
 
 static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type, 

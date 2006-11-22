@@ -2079,7 +2079,7 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#if  !defined( __FreeBSD__) & !defined(__NetBSD__)
+#if  defined(__linux__)
 #ifndef __CYGWIN__
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);

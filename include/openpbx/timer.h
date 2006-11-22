@@ -22,6 +22,8 @@
 #ifndef _OPENPBX_TIMER_H
 #define _OPENPBX_TIMER_H
 
+#include "confdefs.h"
+
 #ifdef __linux__
 #include <time.h>
 #else
