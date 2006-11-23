@@ -32,5 +32,5 @@ curl.conf => curl,http://my.box.com/test_res_config.cgi
 whatever => curl,http://my.box.com/test_res_config.cgi
 
 The return from the url should look like the example above, please note, it must begin with ;OK;
-The rest of the contents should match the format of regular asterisk config files.
+The rest of the contents should match the format of regular openpbx config files.
 On realtime, this should begin with [realtime].
