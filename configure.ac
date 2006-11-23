@@ -975,10 +975,10 @@ AM_CONDITIONAL([WANT_APP_PIPE],[test "${with_app_pipe}" = "yes"])
 dnl ###########################################################################
 
 AC_ARG_WITH([app_v110],
-   [AC_HELP_STRING([--with-app_v110],[Build and install app_v110 (default=yes)])],,
-   [with_app_v110="yes"])
+   [AC_HELP_STRING([--with-app_v110],[Build and install app_v110 [Requires chan_misdn] (default=no)])],,
+   [with_app_v110="no"])
 
-AM_CONDITIONAL([WANT_APP_V110],[test "${with_app_v110}" = "yes"])
+AM_CONDITIONAL([WANT_APP_V110],[test "${with_app_v110}" = "yes" -a test "${with_chan_misdn}" = "yes"])
 
 dnl ###########################################################################
 
@@ -1223,8 +1223,8 @@ AM_CONDITIONAL([WANT_APP_MUXMON],[test "${with_app_muxmon}" = "yes"])
 dnl ###########################################################################
 
 AC_ARG_WITH([app_osplookup],
-	[AC_HELP_STRING([--with-app_osplookup],[Build and install app_osplookup (default=yes)])],,
-	[with_app_osplookup="yes"])
+	[AC_HELP_STRING([--with-app_osplookup],[Build and install app_osplookup (default=no)])],,
+	[with_app_osplookup="no"])
 
 AM_CONDITIONAL([WANT_APP_OSPLOOKUP],[test "${with_app_osplookup}" = "yes"])
 
