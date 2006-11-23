@@ -85,6 +85,11 @@ struct opbx_smoother
     int len;
 };
 
+
+int opbx_frame_codec_rate(struct opbx_frame *f);
+
+
+
 void opbx_smoother_reset(struct opbx_smoother *s, int size)
 {
     memset(s, 0, sizeof(struct opbx_smoother));
