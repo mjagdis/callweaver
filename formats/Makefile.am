@@ -31,7 +31,7 @@ if WANT_FORMAT_JPEG
 opbxmod_LTLIBRARIES		+= format_jpeg.la
 format_jpeg_la_SOURCES 		= format_jpeg.c
 format_jpeg_la_LDFLAGS          = -module -avoid-version -no-undefined
-format_jpeg_la_LIBADD           = -ljpeg ${top_builddir}/corelib/libopenpbx.la  
+format_jpeg_la_LIBADD           = ${top_builddir}/corelib/libopenpbx.la  
 endif WANT_FORMAT_JPEG
 
 if WANT_FORMAT_OGGVORBIS
