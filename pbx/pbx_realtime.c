@@ -207,9 +207,9 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
                 if (option_verbose > 2)
 					opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
-								 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
-								 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								 term_color(tmp3, (!opbx_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
+					    opbx_term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
+					    opbx_term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+					    opbx_term_color(tmp3, (!opbx_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
                 manager_event(EVENT_FLAG_CALL, "Newexten",
 							  "Channel: %s\r\n"
 							  "Context: %s\r\n"

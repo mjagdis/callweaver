@@ -254,7 +254,7 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 
 static void *attempt_thread(void *data)
 {
-	struct outgoing *o = data;
+	struct outgoing *o = (struct outgoing *) data;
 	int res, reason;
 	if (!opbx_strlen_zero(o->app)) {
 		if (option_verbose > 2)
