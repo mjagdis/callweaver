@@ -44,7 +44,8 @@ extern "C" {
 #define PRIORITY_HINT	-1
 
 /*! Extension states */
-enum opbx_extension_states {
+enum opbx_extension_states
+{
 	/*! Extension removed */
 	OPBX_EXTENSION_REMOVED = -2,
 	/*! Extension hint removed */
@@ -61,6 +62,19 @@ enum opbx_extension_states {
 	OPBX_EXTENSION_RINGING = 1 << 3,
 };
 
+enum opbx_extension_match_conditions
+{
+    /*! The extension did not match. */
+    EXTENSION_MATCH_FAILURE = 0,
+    /*! The extension is an exact match for the pattern. */
+    EXTENSION_MATCH_EXACT = 1,
+    /*! The extension starts with an exact match for the pattern, but is longer than the pattern. */
+    EXTENSION_MATCH_OVERLENGTH = 2,
+    /*! The extension could match the pattern if more digits were added to the end, but is currently incomplete. */
+    EXTENSION_MATCH_INCOMPLETE = 3,
+    /*! The extension is an 'optional' match for the pattern. i.e. the pattern has a '!' at the end. */
+    EXTENSION_MATCH_POSSIBLE = 4
+};
 
 static const struct cfextension_states {
 	int extension_state;
@@ -392,7 +406,11 @@ int opbx_matchmore_extension(struct opbx_channel *c, const char *context, const 
  * Returns 1 on match, 0 on failure
  */
 int opbx_extension_match(const char *pattern, const char *extension);
+
 int opbx_extension_close(const char *pattern, const char *data, int needmore);
+
+int opbx_extension_pattern_match(const char *destination, const char *pattern);
+
 /*! Launch a new extension (i.e. new stack) */
 /*!
  * \param c not important

@@ -672,6 +672,154 @@ static void pbx_destroy(struct opbx_pbx *p)
 	free(p);
 }
 
+const char *opbx_extension_match_to_str(int match)
+{
+    switch (match)
+    {
+    case EXTENSION_MATCH_FAILURE:
+        return "Failure";
+    case EXTENSION_MATCH_EXACT:
+        return "Exact";
+    case EXTENSION_MATCH_OVERLENGTH:
+        return "Overlength";
+    case EXTENSION_MATCH_INCOMPLETE:
+        return "Incomplete";
+    case EXTENSION_MATCH_POSSIBLE:
+        return "Possible";
+    }
+    return "???";
+}
+
+int opbx_extension_pattern_match(const char *destination, const char *pattern)
+{
+    unsigned int pattern_len;
+    unsigned int destination_len;
+    int i;
+    int limit;
+    char *where;
+    const char *d;
+    const char *p;
+
+    /* If there is nothing to match, we consider the match incomplete */
+    if (destination[0] == '\0')
+    {
+        /* A blank pattern is an odd thing to have, but let's be comprehensive and
+           allow for it. */
+        if (pattern[0] == '\0')
+            return EXTENSION_MATCH_EXACT;
+        return EXTENSION_MATCH_INCOMPLETE;
+    }
+    /* All patterns begin with _ */
+    if (pattern[0] != '_')
+    {
+        /* Its not really a pattern. We need a solid partial/full match. */
+        pattern_len = strlen(pattern);
+        destination_len = strlen(destination);
+        if (pattern_len > destination_len)
+        {
+            if (memcmp(pattern, destination, destination_len))
+                return EXTENSION_MATCH_FAILURE;
+            return EXTENSION_MATCH_INCOMPLETE;
+        }
+        else
+        {
+            if (memcmp(pattern, destination, pattern_len))
+                return EXTENSION_MATCH_FAILURE;
+            if (pattern_len == destination_len)
+                return EXTENSION_MATCH_EXACT;
+            return EXTENSION_MATCH_OVERLENGTH;
+        }
+        return EXTENSION_MATCH_INCOMPLETE;
+    }
+
+    d = destination;
+    p = pattern;
+    /* Skip the initial '_' */
+    p++;
+    while (*d == '-')
+        d++;
+    if (*d == '\0')
+        return EXTENSION_MATCH_INCOMPLETE;
+    while (*d  &&  *p  &&  *p != '/')
+    {
+        while (*d == '-')
+            d++;
+        if (*d == '\0')
+            break;
+        switch (toupper(*p))
+        {
+        case '[':
+            if ((where = strchr(++p, ']')) == NULL)
+            {
+                //opbx_log(LOG_WARNING, "Bad usage of [] in extension pattern '%s'", pattern);
+                return EXTENSION_MATCH_FAILURE;
+            }
+            limit = (int) (where - p);
+            for (i = 0;  i < limit;  i++)
+            {
+                if (i < limit - 2)
+                {
+                    if (p[i + 1] == '-')
+                    {
+                        if (*d >= p[i]  &&  *d <= p[i + 2])
+                            break;
+                        i += 2;
+                        continue;
+                    }
+                }
+                if (*d == p[i])
+                    break;
+            }
+            if (i >= limit)
+                return EXTENSION_MATCH_FAILURE;
+            p += limit;
+            break;
+        case 'X':
+            if (*d < '0'  ||  *d > '9')
+                return EXTENSION_MATCH_FAILURE;
+            break;
+        case 'Z':
+            if (*d < '1'  ||  *d > '9')
+                return EXTENSION_MATCH_FAILURE;
+            break;
+        case 'N':
+            if (*d < '2'  ||  *d > '9')
+                return EXTENSION_MATCH_FAILURE;
+            break;
+        case '.':
+        case '~':
+            /* A hard match - can be relied upon. */
+            return EXTENSION_MATCH_EXACT;
+        case '!':
+            /* A soft match - acceptable, might there might be a better match. */
+            return EXTENSION_MATCH_POSSIBLE;
+        case ' ':
+        case '-':
+            /* Ignore these characters */
+            d--;
+            break;
+        default:
+            if (*d != *p)
+                return EXTENSION_MATCH_FAILURE;
+            break;
+        }
+        d++;
+        p++;
+    }
+    /* If we ran off the end of the destination and the pattern ends in '!', match */
+    if (*d == '\0')
+    {
+        if (*p == '!')
+            return EXTENSION_MATCH_POSSIBLE;
+        if (*p == '\0'  ||  *p == '/')
+            return EXTENSION_MATCH_EXACT;
+        return EXTENSION_MATCH_INCOMPLETE;
+    }
+    if (*p == '\0'  ||  *p == '/')
+        return EXTENSION_MATCH_OVERLENGTH;
+    return EXTENSION_MATCH_FAILURE;
+}
+
 #define EXTENSION_MATCH_CORE(data,pattern,match) {\
 	/* All patterns begin with _ */\
 	if (pattern[0] != '_') \
@@ -727,6 +875,7 @@ static void pbx_destroy(struct opbx_pbx *p)
 				match = 0;\
 			break;\
 		case '.':\
+		case '~':\
 			/* Must match */\
 			return 1;\
 		case '!':\

@@ -140,6 +140,8 @@ struct opbx_frame {
 #define OPBX_HTML_LINKREJECT	20
 
 /* Data formats for capabilities and frames alike */
+#define OPBX_AUDIO_CODEC_MASK   0xFFFF
+
 /*! G.723.1 compression */
 #define OPBX_FORMAT_G723_1	(1 << 0)
 /*! GSM compression */
@@ -395,6 +397,9 @@ extern void opbx_smoother_free(struct opbx_smoother *s);
 extern void opbx_smoother_reset(struct opbx_smoother *s, int bytes);
 extern int __opbx_smoother_feed(struct opbx_smoother *s, struct opbx_frame *f, int swap);
 extern struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s);
+
+extern int opbx_codec_sample_rate(struct opbx_frame *f);
+
 #define opbx_smoother_feed(s,f) __opbx_smoother_feed(s, f, 0)
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define opbx_smoother_feed_be(s,f) __opbx_smoother_feed(s, f, 1)
