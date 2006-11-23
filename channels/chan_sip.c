@@ -2039,7 +2039,7 @@ static int sip_resend_reqresp(void *data)
 
     if (!if_callid_exists(rr->callid))
     {
-        opbx_log(LOG_WARNING, "REQRESP: callid %s has been destroyed in the meanwhile. \n",rr->callid);    
+        opbx_log(LOG_DEBUG, "REQRESP: callid %s has been destroyed in the meanwhile. \n",rr->callid);    
             sip_dealloc_headsdp_lines(&rr->req);
         free(data);
         return 0;
