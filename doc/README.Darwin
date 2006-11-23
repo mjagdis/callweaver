@@ -1,6 +1,6 @@
 ******************************************************************************** 
-    HOW TO BUILD OPENPBX.ORG ON MAC OSX 
-    Tested with 1.4 on iMac PPC 800
+             HOW TO BUILD OPENPBX.ORG ON MAC OSX 
+    Tested with Openpbx.og 1.2 (rel.2119) on iMac PPC 800
 ********************************************************************************
 
 # open a terminal (i prefer iTerm rather than terminal)
@@ -113,4 +113,4 @@ $ ./openpbx -rvvv
 ******************************************************************
 
 Written by Massimo "CtRiX" Cetra
-Thanks to Navynet SRL
+Thanks to Navynet SRL - http://www.navynet.it
