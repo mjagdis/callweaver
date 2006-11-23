@@ -63,9 +63,12 @@ extern "C"
 #undef AES_VAR     /* define if a variable key size is needed      */
 
 /* The following must also be set in assembler files if being used  */
-
+#ifndef AES_ENCRYPT
 #define AES_ENCRYPT /* if support for encryption is needed          */
+#endif
+#ifndef AES_DECRYPT
 #define AES_DECRYPT /* if support for decryption is needed          */
+#endif
 #define AES_ERR_CHK /* for parameter checks & error return codes    */
 
 #if UCHAR_MAX == 0xff                   /* an unsigned 8 bit type   */

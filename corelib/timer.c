@@ -22,12 +22,14 @@
  * Currently only a repeating timer is implemented.
  */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 #include <time.h>
 #else
 #include <sys/time.h>
 #endif
+
 #include <signal.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <errno.h>
 #include <string.h>
@@ -36,16 +38,18 @@
 #include <openpbx/logger.h>
 
 #ifdef __FreeBSD__
-
-#ifndef SIGEV_THREAD
-# define SIGEV_THREAD 2
-#endif /* SIGEV_THREAD */
-
+#ifdef HAVE_POSIX_TIMERS
 typedef union sigval sigval_t;
-
+#endif /* HAVE_POSIX_TIMERS */
 #endif /* __FreeBSD__ */
 
 
+#ifdef USE_GENERIC_TIMERS
+void * _timer_thread(void *parg);
+#endif /* USE_GENERIC_TIMERS */
+
+
+#ifdef HAVE_POSIX_TIMERS
 /* The sighandler is called when the clock is fired */
 static void sighandler(sigval_t sigval)
 {
@@ -67,6 +71,7 @@ static void sighandler_and_destroyer(sigval_t sigval)
 	/* Destroy timer */
 	opbx_timer_destroy(t);
 }
+#endif /* HAVE_POSIX_TIMERS */
 
 static void _set_interval(opbx_timer_t *t, unsigned long interval)
 {
@@ -76,12 +81,23 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 
 	/* Set the interval */
 	if (!interval)
+#ifdef HAVE_POSIX_TIMERS
 		t->interval = 1000000;  /* default 1s */
 	else 
 		t->interval = interval;
+#endif /* HAVE_POSIX_TIMERS */
 
-#ifndef __Darwin__
+#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
+	interval = 1000;  /* default 1ms */
+
+	struct __opbx_timer_t *ot = (struct __opbx_timer_t *) t->impl_data;
+	
+	ot->ts.tv_nsec = (interval % 1000000) * 1000;
+	ot->ts.tv_sec = interval / 1000000;
+#endif /* USE_GENERIC_TIMERS */
+
 	/* Check if the timer has a good enough resolution */
+#ifdef HAVE_CLOCK_GETRES
 	st = clock_getres(CLOCK_MONOTONIC, &res);
 	if (st == -1)
 		st = clock_getres(CLOCK_REALTIME, &res);
@@ -89,11 +105,18 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 		opbx_log(LOG_WARNING, "Couldn't get resolution of "
 			 "timer. Timer could be unreliable!\n");
 	} else {
-#endif // __Darwin__
+#endif // HAVE_CLOCK_GETRES
 		/* Calculate the time in seconds and nanoseconds 
 		 * since the value we got is in microseconds */
+#ifdef HAVE_POSIX_TIMERS
 		nano = (t->interval % 1000000) * 1000;
 		sec = t->interval / 1000000;
+#endif /* HAVE_POSIX_TIMERS */
+
+#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
+		nano = (interval % 1000000) * 1000;
+		sec = interval / 1000000;
+#endif /* USE_GENERIC_TIMERS */
 		if (sec < 1 && nano > 0 && nano < res.tv_nsec) {
 			static long complained = 1000000000L;
 			if (nano < complained) {
@@ -106,32 +129,63 @@ static void _set_interval(opbx_timer_t *t, unsigned long interval)
 			}
 			
 			/* Reset the interval to a sane value */
+#ifdef HAVE_POSIX_TIMERS
 			t->interval = (res.tv_nsec / 1000) + 1;
+#endif /* HAVE_POSIX_TIMERS */
+
+#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
+		    interval = (res.tv_nsec / 1000) + 1;
+		    ot->ts.tv_nsec = (interval % 1000000) * 1000;
+		    ot->ts.tv_sec = interval / 1000000;
+#endif /* USE_GENERIC_TIMERS */
 		}
 
-#ifndef __Darwin__
+#ifdef HAVE_CLOCK_GETRES
 	}
-#endif //__Darwin__
+#endif // HAVE_CLOCK_GETRES
 }
 
+#ifdef HAVE_POSIX_TIMERS
 static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type, 
 			 unsigned long interval, opbx_timer_func *func, 
 			 void *user_data, void (*hdlr)(sigval_t))
+#endif /* HAVE_POSIX_TIMERS */
+#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
+static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type, 
+			 unsigned long interval, opbx_timer_func *func, 
+			 void *user_data)
+#endif /* USE_GENERIC_TIMERS*/
 {
+#ifdef HAVE_POSIX_TIMERS
 	char buf[128];
 	struct sigevent evp;
+#endif /* HAVE_POSIX_TIMERS */
 
 	/* Set timer data */
 	memset(t, 0, sizeof(opbx_timer_t));
+
+#ifdef HAVE_POSIX_TIMERS
 	t->type = type;
 	t->interval = interval;
+	t->active = 1;
+#endif /* HAVE_POSIX_TIMERS */
 	t->func = func;
 	t->user_data = user_data;
-	t->active = 1;
+#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
+	/* Set impl timer data */
+	t->impl_data = malloc (sizeof(struct __opbx_timer_t));
+	memset(t->impl_data, 0, sizeof(struct __opbx_timer_t));
+
+	struct __opbx_timer_t *ot = (struct __opbx_timer_t *)t->impl_data;
+
+	ot->type = type;
+	ot->active = 0;
+#endif /* USE_GENERIC_TIMERS */
 
 	/* Set the interval */
 	_set_interval(t, interval);
 
+#ifdef HAVE_POSIX_TIMERS
 	/* Call our handler function when the timer fires */
 	memset(&evp, 0, sizeof(evp));
 	evp.sigev_notify = SIGEV_THREAD;
@@ -146,7 +200,7 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 		if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
 #if defined(HAVE_STRERROR_R)
 			opbx_log(LOG_ERROR, "Error creating monotonic timer: "
-				 "%s\n", strerror_r(errno, buf, 128) );
+				 "%s\n", strerror_r(errno, buf, 128));
 #else
 			opbx_log(LOG_ERROR, "Error creating monotonic timer"
 				 "\n");
@@ -154,46 +208,80 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 			return -1;
 		}
 	}
+#endif /* HAVE_POSIX_TIMERS */
 
+	opbx_log(LOG_DEBUG, "Created timer 0x%lx\n", 
+		 (unsigned long)t);
+		 
 	return 0;
 }
 
 int opbx_repeating_timer_create(opbx_timer_t *t, unsigned long interval, 
 				opbx_timer_func *func, void *user_data)
 {
+#ifdef HAVE_POSIX_TIMERS
 	return _timer_create(t, OPBX_TIMER_REPEATING, interval, func, 
 			    user_data, sighandler);
+#endif /* HAVE_POSIX_TIMERS */
+#ifdef USE_GENERIC_TIMERS
+	return _timer_create(t, OPBX_TIMER_REPEATING, interval, func, user_data);
+#endif /* USE_GENERIC_TIMERS */
 }
 int opbx_oneshot_timer_create(opbx_timer_t *t, unsigned long interval, 
 			      opbx_timer_func *func, void *user_data)
 {
+#ifdef HAVE_POSIX_TIMERS
 	return _timer_create(t, OPBX_TIMER_ONESHOT, interval, func, 
 			    user_data, sighandler);
+#endif /* HAVE_POSIX_TIMERS */
+#ifdef USE_GENERIC_TIMERS
+	return _timer_create(t, OPBX_TIMER_ONESHOT, interval, func, user_data);
+#endif /* USE_GENERIC_TIMERS */
 }
 
 void opbx_timer_destroy(opbx_timer_t *t)
 {
+#ifdef HAVE_POSIX_TIMERS
 	if (t->active && t->timer_id) {
-		timer_delete(t->timer_id);
+	    timer_delete(t->timer_id);
+#endif /* HAVE_POSIX_TIMERS */
+
+#ifdef USE_GENERIC_TIMERS
+	struct __opbx_timer_t *ot = (struct __opbx_timer_t *)t->impl_data;
+	
+	if(ot->active) {
+	    pthread_cancel(ot->opbx_timer_thread);
+	    free(ot);
+#endif /* USE_GENERIC_TIMERS */
 		opbx_log(LOG_DEBUG, "Destroying timer 0x%lx!\n", 
 			 (unsigned long)t);
 	} else
 		opbx_log(LOG_DEBUG, "Attempted to destroy inactive timer "
 			 "0x%lx!\n", (unsigned long)t);
+#ifdef HAVE_POSIX_TIMERS
 	t->active = 0;
+#endif /* HAVE_POSIX_TIMERS */
 }
+
 
 int opbx_timer_start(opbx_timer_t *t)
 {
+#ifdef HAVE_POSIX_TIMERS
 	char buf[128];
 	struct itimerspec spec;
 	long nano, sec;
-
+	
 	if (!t->timer_id) {
+#endif /* HAVE_POSIX_TIMERS */
+
+#ifdef USE_GENERIC_TIMERS
+	if(!t->impl_data) {
+#endif /* USE_GENERIC_TIMERS */
 		opbx_log(LOG_ERROR, "Attempted to start nonexistent timer!\n");
 		return -1;
 	}
-
+	
+#ifdef HAVE_POSIX_TIMERS
 	/* Calculate the time in seconds and nanoseconds 
 	 * since the value we got is in microseconds */
 	nano = (t->interval % 1000000) * 1000;
@@ -212,8 +300,8 @@ int opbx_timer_start(opbx_timer_t *t)
 
 	opbx_log(LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
 		 "%ld.%ld\n", (unsigned long)t,
-		 (long int) spec.it_value.tv_sec, spec.it_value.tv_nsec, 
-		 (long int) spec.it_interval.tv_sec, spec.it_interval.tv_nsec);
+		 spec.it_value.tv_sec, spec.it_value.tv_nsec, 
+		 spec.it_interval.tv_sec, spec.it_interval.tv_nsec);
 
 	/* Actually start the timer */
 	if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
@@ -225,12 +313,41 @@ int opbx_timer_start(opbx_timer_t *t)
 #endif
 		return -1;
 	}	
+#endif /* HAVE_POSIX_TIMERS */
 
+#ifdef USE_GENERIC_TIMERS
+	pthread_attr_t attr;
+	struct __opbx_timer_t *ot = (struct __opbx_timer_t *) t->impl_data;
+	
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	
+	if (pthread_create(&ot->opbx_timer_thread, &attr, _timer_thread, t)) {
+	    opbx_log(LOG_WARNING, "Failed to create timer thread!\n");
+	    free(ot);
+	    return -1;
+	}
+	
+	/* Set timer active */
+	ot->active = 1;	
+													
+	if(ot->type == OPBX_TIMER_REPEATING) {
+    	    opbx_log(LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
+        	"%ld.%ld\n", (unsigned long)t,
+        	(long int)ot->ts.tv_sec, ot->ts.tv_nsec,
+        	(long int)ot->ts.tv_sec, ot->ts.tv_nsec);
+	} else {
+	     opbx_log(LOG_DEBUG, "Timer 0x%lx set to %ld.%ld repeat "
+        	"0.0\n", (unsigned long)t,
+        	(long int)ot->ts.tv_sec, ot->ts.tv_nsec);
+	}
+#endif /* USE_GENERIC_TIMERS */
 	return 0;
 }
 
 int opbx_timer_stop(opbx_timer_t *t)
 {
+#ifdef HAVE_POSIX_TIMERS
 	char buf[128];
 	struct itimerspec spec;
 
@@ -246,7 +363,17 @@ int opbx_timer_stop(opbx_timer_t *t)
 		opbx_log(LOG_ERROR, "Error stopping timer\n");
 #endif
 		return -1;
-	}	
+	}
+#endif /* HAVE_POSIX_TIMERS */
+#ifdef USE_GENERIC_TIMERS
+	struct __opbx_timer_t *ot = (struct __opbx_timer_t *) t->impl_data;
+	
+	/* Disable timer */
+	opbx_log(LOG_DEBUG, "Timer 0x%lx set to inactive\n", 
+		 (unsigned long)t);
+	
+	ot->active = 0;
+#endif /* USE_GENERIC_TIMERS */
 	return 0;
 }
 
@@ -260,9 +387,14 @@ int opbx_simple_timer(opbx_timer_t *t, unsigned long interval,
 		opbx_log(LOG_DEBUG, "Not creating 0-interval timer\n");
 		return -1;
 	}
-
+#ifdef HAVE_POSIX_TIMERS
 	res = _timer_create(t, OPBX_TIMER_ONESHOT, interval, func, user_data,
 			   sighandler_and_destroyer);
+#endif /* HAVE_POSIX_TIMERS */
+
+#ifdef USE_GENERIC_TIMERS
+	res = _timer_create(t, OPBX_TIMER_SIMPLE, interval, func, user_data);
+#endif /* USE_GENERIC_TIMERS */
 	if (!res)
 		res = opbx_timer_start(t);
 
@@ -274,3 +406,61 @@ int opbx_timer_newtime(opbx_timer_t *t, unsigned long interval)
 	_set_interval(t, interval);
 	return opbx_timer_start(t);
 }
+
+#ifdef USE_GENERIC_TIMERS
+void * _timer_thread(void *parg) 
+{
+	opbx_timer_t *t = (opbx_timer_t *) parg;
+	struct __opbx_timer_t *ot = (struct __opbx_timer_t *)t->impl_data;
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	if(ot->type == OPBX_TIMER_ONESHOT || ot->type == OPBX_TIMER_SIMPLE ) {
+	    
+	    if (nanosleep(&ot->ts,&ot->ts)) {
+		if(errno != EINTR )
+		    opbx_log(LOG_WARNING, "Requested a timer with %ld "
+			 "nanosecond interval, but system timer "
+			 "couldn't handled!\n"
+			 "Timing may be unreliable!\n", 
+			 ot->ts.tv_nsec);
+			 
+		return 0;
+	    }
+	    
+	    if(t->func)
+		t->func(t, t->user_data);
+	    
+	    if(ot->type == OPBX_TIMER_SIMPLE) 
+		free(ot);
+	    
+	    opbx_log(LOG_DEBUG, "** Timer 0x%lx (%d) took %ld.%ld \n",
+					 (unsigned long)t, 
+					 ot->type, 
+					 (long int)ot->ts.tv_sec, ot->ts.tv_nsec);
+	    return 0;
+	    
+	} else {
+	    while(1) {
+		pthread_testcancel();
+		if(ot->active) {
+			nanosleep(&ot->ts, NULL);
+			if (t->func) {
+				t->func(t, t->user_data);
+			}
+			opbx_log(LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld \n",
+					 (unsigned long)t, 
+					 ot->type, 
+					 (long int)ot->ts.tv_sec, ot->ts.tv_nsec);
+		} else {
+#ifdef __Darwin__
+			pthread_yield_np();
+#else
+			pthread_yield();
+#endif
+		}
+	    }
+	}
+	return 0;
+}
+#endif /* USE_GENERIC_TIMERS */
+
