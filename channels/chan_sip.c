@@ -16400,6 +16400,71 @@ static char *descrip_sipgetheader = ""
 "Skips to priority+101 if header does not exist\n"
 "Otherwise returns 0\n";
 
+
+static char *app_sipt38switchover = "SipT38SwitchOver";
+static char *synopsis_sipt38switchover = "Forces a T38 switchover on a non-bridged channel.";
+static char *descrip_sipt38switchover = ""
+"  SipT38SwitchOver()\n"
+"Forces a T38 switchover on a non-bridged channel.\n"
+"\n";
+
+
+/*! \brief  app_sipt38switchover: forces a T38 Switchover on a sip channel. */
+static int sip_t38switchover(struct opbx_channel *chan, void *data) 
+{
+    struct sip_pvt *p;
+
+    if (!data)
+    {
+        opbx_log(LOG_WARNING, "This function requires a header name.\n");
+        return 0;
+    }
+
+    opbx_mutex_lock(&chan->lock);
+    if (chan->type != channeltype)
+    {
+        opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+        opbx_mutex_unlock(&chan->lock);
+        return 0;
+    }
+
+    p = chan->tech_pvt;
+
+    /* If there is no private structure, this channel is no longer alive */
+    if (!p)
+    {
+        opbx_mutex_unlock(&chan->lock);
+        return 0;
+    }
+//ASD
+    if (t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(chan)))
+    {
+        if (!opbx_test_flag(p, SIP_GOTREFER))
+        {
+            if (!p->pendinginvite)
+            {
+                if (option_debug > 2)
+                    opbx_log(LOG_DEBUG, "Forcing reinvite on SIP (%s) for T.38 negotiation.\n",chan->name);
+                p->t38state = 2;
+                transmit_reinvite_with_t38_sdp(p);
+                opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,chan->name);
+            }
+        }
+        else if (!opbx_test_flag(p, SIP_PENDINGBYE))
+        {
+            if (option_debug > 2)
+                opbx_log(LOG_DEBUG, "Deferring forced reinvite on SIP (%s) - it will be re-negotiated for T.38\n",chan->name);
+            opbx_set_flag(p, SIP_NEEDREINVITE);
+        }
+    }
+
+    opbx_mutex_unlock(&chan->lock);
+
+    return 0;
+}
+
+
+
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) */
 static int sip_dtmfmode(struct opbx_channel *chan, void *data)
 {
@@ -16824,6 +16889,7 @@ int load_module(void)
 #endif
 
     /* Register dialplan applications */
+    opbx_register_application(app_sipt38switchover, sip_t38switchover, synopsis_sipt38switchover, descrip_sipt38switchover);
     opbx_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 
     /* These will be removed soon */
@@ -16863,6 +16929,7 @@ int unload_module(void)
     opbx_custom_function_unregister(&sip_header_function);
     opbx_custom_function_unregister(&checksipdomain_function);
 
+    opbx_unregister_application(app_sipt38switchover);
     opbx_unregister_application(app_dtmfmode);
     opbx_unregister_application(app_sipaddheader);
     opbx_unregister_application(app_sipgetheader);
