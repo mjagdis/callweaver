@@ -52,7 +52,11 @@ static char *descrip =
 "Uses LOCALSTATIONID to identify itself to the remote end.\n"
 "     LOCALHEADERINFO to generate a header line on each page.\n"
 "Sets REMOTESTATIONID to the receiver CSID.\n"
+"     FAXPAGES to the number of pages received.\n"
+"     FAXBITRATE to the transmition rate.\n"
+"     FAXRESOLUTION to the resolution.\n"
 "     PHASEESTATUS to the phase E result status.\n"
+"     PHASEESTRING to the phase E result string.\n"
 "Returns -1 when the user hangs up, or if the file does not exist.\n"
 "Returns 0 otherwise.\n";
 
@@ -111,6 +115,10 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     pbx_builtin_setvar_helper(chan, "FAXBITRATE", buf);
     snprintf(buf, sizeof(buf), "%d", result);
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", buf);
+    snprintf(buf, sizeof(buf), "%s", t30_completion_code_to_str(result));
+    pbx_builtin_setvar_helper(chan, "PHASEESTRING", buf);
+
+
     opbx_log(LOG_DEBUG, "==============================================================================\n");
     if (result == T30_ERR_OK) {
         opbx_log(LOG_DEBUG, "Fax successfully sent.\n");
@@ -210,6 +218,13 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 
     time_t begin, thistime;
     
+    pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", "");
+    pbx_builtin_setvar_helper(chan, "FAXPAGES", "");
+    pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", "");
+    pbx_builtin_setvar_helper(chan, "FAXBITRATE", "");
+    pbx_builtin_setvar_helper(chan, "PHASEESTATUS", "");
+    pbx_builtin_setvar_helper(chan, "PHASEESTRING", "");
+
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
