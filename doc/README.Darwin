@@ -1,11 +1,17 @@
 ******************************************************************************** 
              HOW TO BUILD OPENPBX.ORG ON MAC OSX 
-    Tested with Openpbx.og 1.2 (rel.2119) on iMac PPC 800
+    Tested with Openpbx.org 1.2 (rel.2119) on iMac PPC 800 and OSX 10.4
 ********************************************************************************
 
 # open a terminal (i prefer iTerm rather than terminal)
 # or enable ssh and login from a remote host.
 # You don't need Aqua to do this!!
+
+# PLEASE FILL FREE TO MODIFY /opt/openpbx.org WITH WHATEVER 
+# DIRECTORY YOU LIKE. IF YOU ARE BSDish, THEN 
+# USE /usr/local/ .
+# IF YOU ARE WINDOWSish, then use /C/Windows :-)
+# IT'S AS SIMPLE TO CHANGE THAT:
 
 ************************************************************************** BEGIN
 
