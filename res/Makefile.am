@@ -32,13 +32,6 @@ res_ogi_la_SOURCES 		= res_ogi.c
 res_ogi_la_LDFLAGS 		= -module -avoid-version -no-undefined
 res_ogi_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la  
 
-if WANT_RES_NOISE
-opbxmod_LTLIBRARIES		+= res_noise.la
-res_noise_la_SOURCES 		= res_noise.c
-res_noise_la_LDFLAGS 		= -module -avoid-version -no-undefined
-res_noise_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la  
-endif WANT_RES_NOISE
-
 if WANT_RES_SQLITE
 opbxmod_LTLIBRARIES	+= res_sqlite.la
 res_sqlite_la_SOURCES	= res_sqlite.c

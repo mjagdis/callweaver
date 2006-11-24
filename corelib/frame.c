@@ -85,11 +85,6 @@ struct opbx_smoother
     int len;
 };
 
-
-int opbx_frame_codec_rate(struct opbx_frame *f);
-
-
-
 void opbx_smoother_reset(struct opbx_smoother *s, int size)
 {
     memset(s, 0, sizeof(struct opbx_smoother));
@@ -124,32 +119,45 @@ int opbx_smoother_test_flag(struct opbx_smoother *s, int flag)
 
 int __opbx_smoother_feed(struct opbx_smoother *s, struct opbx_frame *f, int swap)
 {
-    if (f->frametype != OPBX_FRAME_VOICE) {
+    if (f->frametype != OPBX_FRAME_VOICE)
+    {
         opbx_log(LOG_WARNING, "Huh?  Can't smooth a non-voice frame!\n");
         return -1;
     }
-    if (!s->format) {
+    if (!s->format)
+    {
         s->format = f->subclass;
-        s->samplesperbyte = (float)f->samples / (float)f->datalen;
-    } else if (s->format != f->subclass) {
+        s->samplesperbyte = (float) f->samples/(float) f->datalen;
+    }
+    else if (s->format != f->subclass)
+    {
         opbx_log(LOG_WARNING, "Smoother was working on %d format frames, now trying to feed %d?\n", s->format, f->subclass);
         return -1;
     }
-    if (s->len + f->datalen > SMOOTHER_SIZE) {
+    if (s->len + f->datalen > SMOOTHER_SIZE)
+    {
         opbx_log(LOG_WARNING, "Out of smoother space\n");
         return -1;
     }
     if (((f->datalen == s->size) || ((f->datalen < 10) && (s->flags & OPBX_SMOOTHER_FLAG_G729)))
-                 && !s->opt && (f->offset >= OPBX_MIN_OFFSET)) {
-        if (!s->len) {
+        &&
+        !s->opt
+        &&
+        (f->offset >= OPBX_MIN_OFFSET))
+    {
+        if (!s->len)
+        {
             /* Optimize by sending the frame we just got
                on the next read, thus eliminating the douple
                copy */
             s->opt = f;
             return 0;
-        } else {
+        }
+        else
+        {
             s->optimizablestream++;
-            if (s->optimizablestream > 10) {
+            if (s->optimizablestream > 10)
+            {
                 /* For the past 10 rounds, we have input and output
                    frames of the correct size for this smoother, yet
                    we were unable to optimize because there was still
@@ -160,10 +168,15 @@ int __opbx_smoother_feed(struct opbx_smoother *s, struct opbx_frame *f, int swap
                 return 0;
             }
         }
-    } else 
+    }
+    else 
+    {
         s->optimizablestream = 0;
-    if (s->flags & OPBX_SMOOTHER_FLAG_G729) {
-        if (s->len % 10) {
+    }
+    if (s->flags & OPBX_SMOOTHER_FLAG_G729)
+    {
+        if (s->len % 10)
+        {
             opbx_log(LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
             return 0;
         }
@@ -188,8 +201,10 @@ struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s)
     if (s->opt)
     {
         if (s->opt->offset < OPBX_FRIENDLY_OFFSET)
+        {
             opbx_log(LOG_WARNING, "Returning a frame of inappropriate offset (%d).\n",
-                            s->opt->offset);
+                     s->opt->offset);
+        }
         opt = s->opt;
         s->opt = NULL;
         return opt;
@@ -226,7 +241,7 @@ struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s)
         if (!opbx_tvzero(s->delivery))
         {
             /* If we have delivery time, increment it, otherwise, leave it at 0 */
-            s->delivery = opbx_tvadd(s->delivery, opbx_samp2tv(s->f.samples, opbx_frame_codec_rate(&s->f)));
+            s->delivery = opbx_tvadd(s->delivery, opbx_samp2tv(s->f.samples, opbx_codec_sample_rate(&s->f)));
         }
     }
     /* Return frame */
@@ -520,14 +535,15 @@ int opbx_fr_fdhangup(int fd)
 }
 
 #endif /* unused functions */
+
 void opbx_swapcopy_samples(void *dst, const void *src, int samples)
 {
     int i;
-    unsigned short *dst_s = dst;
-    const unsigned short *src_s = src;
+    int16_t *dst_s = dst;
+    const int16_t *src_s = src;
 
-    for (i=0; i<samples; i++)
-        dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);
+    for (i = 0;  i < samples;  i++)
+        dst_s[i] = (src_s[i] << 8) | (src_s[i] >> 8);
 }
 
 static struct opbx_format_list OPBX_FORMAT_LIST[] =
@@ -561,7 +577,7 @@ static struct opbx_format_list OPBX_FORMAT_LIST[] =
     { 0, OPBX_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format", 90000},
 };
 
-int opbx_frame_codec_rate(struct opbx_frame *f)
+int opbx_codec_sample_rate(struct opbx_frame *f)
 {
 	int codec;
 

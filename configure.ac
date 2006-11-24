@@ -2089,13 +2089,6 @@ AM_CONDITIONAL([WANT_OSP],[test -n "${TRANSNEXUS_OSP}"])
 
 dnl ###########################################################################
 
-AC_ARG_WITH(res_noise,
-	[AC_HELP_STRING([--with-res_noise],[Build and install res_noise (default=no).])],,[with_res_noise="yes"])
-
-AM_CONDITIONAL([WANT_RES_NOISE],[test "${with_res_noise}" = "yes"])
-
-dnl ###########################################################################
-
 AC_ARG_WITH(res_sqlite,
         [AC_HELP_STRING([--with-res_sqlite],[Build and install res_sqlite (default=no)])],,[with_res_sqlite="no"])
 
