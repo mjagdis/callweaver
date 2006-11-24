@@ -38,11 +38,13 @@ we can add some more informations.
 Attitional notice #2:
 if you experience something like:
  openpbx: Error detected by libpthread: Invalid condition variable.
+and a following crash, ee are interested in a backtrace of 
+the fault in order to dig around to find the cause.
 
-Try to set the env variable PTHREAD_DIAGASSERT=AE
-and run openpbx.
-We are interested in a backtrace of the fault and still digging around to solve this.
+To solve the problem (temporarily), try to set the env 
+variable PTHREAD_DIAGASSERT=AE and run openpbx.
 
 
-Massimo "CtRiX" Cetra
+Written by Massimo "CtRiX" Cetra
+Thanks to Navynet SRL - http://www.navynet.it
 
