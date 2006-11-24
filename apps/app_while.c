@@ -135,29 +135,56 @@ static struct opbx_exten *find_matching_priority(struct opbx_context *c, const c
 	struct opbx_exten *e;
 	struct opbx_include *i;
 	struct opbx_context *c2;
+	struct opbx_exten *p;
+    int hit;
 
-	for (e=opbx_walk_context_extensions(c, NULL); e; e=opbx_walk_context_extensions(c, e)) {
-		if (opbx_extension_match(opbx_get_extension_name(e), exten)) {
-			int needmatch = opbx_get_extension_matchcid(e);
-			if ((needmatch && opbx_extension_match(opbx_get_extension_cidmatch(e), callerid)) ||
-				(!needmatch)) {
+	for (e = opbx_walk_context_extensions(c, NULL);  e;  e = opbx_walk_context_extensions(c, e))
+    {
+        switch (opbx_extension_pattern_match(exten, opbx_get_extension_name(e)))
+        {
+        case EXTENSION_MATCH_EXACT:
+        case EXTENSION_MATCH_STRETCHABLE:
+        case EXTENSION_MATCH_POSSIBLE:
+			if (opbx_get_extension_matchcid(e))
+            {
+                switch (opbx_extension_pattern_match(callerid, opbx_get_extension_cidmatch(e)))
+                {
+                case EXTENSION_MATCH_EXACT:
+                case EXTENSION_MATCH_STRETCHABLE:
+                case EXTENSION_MATCH_POSSIBLE:
+                    hit = 1;
+                    break;
+                default:
+                    hit = 0;
+                    break;
+                }
+            }
+            else
+            {
+                hit = 1;
+            }
+			if (hit)
+            {
 				/* This is the matching extension we want */
-				struct opbx_exten *p;
-				for (p=opbx_walk_extension_priorities(e, NULL); p; p=opbx_walk_extension_priorities(e, p)) {
+				for (p = opbx_walk_extension_priorities(e, NULL);  p;  p = opbx_walk_extension_priorities(e, p))
+                {
 					if (priority != opbx_get_extension_priority(p))
 						continue;
 					return p;
 				}
 			}
+            break;
 		}
 	}
 
 	/* No match; run through includes */
-	for (i=opbx_walk_context_includes(c, NULL); i; i=opbx_walk_context_includes(c, i)) {
-		for (c2=opbx_walk_contexts(NULL); c2; c2=opbx_walk_contexts(c2)) {
-			if (!strcmp(opbx_get_context_name(c2), opbx_get_include_name(i))) {
-				e = find_matching_priority(c2, exten, priority, callerid);
-				if (e)
+	for (i = opbx_walk_context_includes(c, NULL);  i;  i = opbx_walk_context_includes(c, i))
+    {
+		for (c2 = opbx_walk_contexts(NULL);  c2;  c2 = opbx_walk_contexts(c2))
+        {
+			if (!strcmp(opbx_get_context_name(c2), opbx_get_include_name(i)))
+            {
+				if ((e = find_matching_priority(c2, exten, priority, callerid)))
 					return e;
 			}
 		}
@@ -168,9 +195,10 @@ static struct opbx_exten *find_matching_priority(struct opbx_context *c, const c
 static int find_matching_endwhile(struct opbx_channel *chan)
 {
 	struct opbx_context *c;
-	int res=-1;
+	int res = -1;
 
-	if (opbx_lock_contexts()) {
+	if (opbx_lock_contexts())
+    {
 		opbx_log(LOG_ERROR, "Failed to lock contexts list\n");
 		return -1;
 	}

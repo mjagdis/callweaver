@@ -116,8 +116,10 @@ static struct opbx_variable *realtime_switch_common(const char *table, const cha
 	char *ematch;
 	char rexten[OPBX_MAX_EXTENSION + 20]="";
 	int match;
+
 	snprintf(pri, sizeof(pri), "%d", priority);
-	switch(mode) {
+	switch (mode)
+    {
 	case MODE_MATCHMORE:
 		ematch = "exten LIKE";
 		snprintf(rexten, sizeof(rexten), "%s_%%", exten);
@@ -132,24 +134,30 @@ static struct opbx_variable *realtime_switch_common(const char *table, const cha
 		strncpy(rexten, exten, sizeof(rexten) - 1);
 	}
 	var = opbx_load_realtime(table, ematch, rexten, "context", context, "priority", pri, NULL);
-	if (!var) {
+	if (!var)
+    {
 		cfg = opbx_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, NULL);	
-		if (cfg) {
+		if (cfg)
+        {
 			char *cat = opbx_category_browse(cfg, NULL);
 
-			while(cat) {
-				switch(mode) {
+			while (cat)
+            {
+                match = opbx_extension_pattern_match(exten, cat);
+				switch (mode)
+                {
 				case MODE_MATCHMORE:
-					match = opbx_extension_close(cat, exten, 1);
+                    match = (match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE  ||  match == EXTENSION_MATCH_POSSIBLE);
 					break;
 				case MODE_CANMATCH:
-					match = opbx_extension_close(cat, exten, 0);
+                    match = (match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE  ||  match == EXTENSION_MATCH_POSSIBLE);
 					break;
 				case MODE_MATCH:
 				default:
-					match = opbx_extension_match(cat, exten);
+                    match = (match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_POSSIBLE);
 				}
-				if (match) {
+				if (match)
+                {
 					var = opbx_category_detach_variables(opbx_category_get(cfg, cat));
 					break;
 				}

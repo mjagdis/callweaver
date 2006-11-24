@@ -236,8 +236,6 @@
 #define ast_expand_codec_alias opbx_expand_codec_alias
 #define ast_explicit_goto opbx_explicit_goto
 #define ast_expr opbx_expr
-#define ast_extension_close opbx_extension_close
-#define ast_extension_match opbx_extension_match
 #define ast_extension_state2 opbx_extension_state2
 #define ast_extension_state2str opbx_extension_state2str
 #define ast_extension_state_add opbx_extension_state_add

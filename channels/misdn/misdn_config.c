@@ -617,7 +617,8 @@ int misdn_cfg_is_msn_valid (int port, char* msn)
 	int re = 0;
 	struct msn_list *iter;
 
-	if (!misdn_cfg_is_port_valid(port)) {
+	if (!misdn_cfg_is_port_valid(port))
+    {
 		opbx_log(LOG_WARNING, "Invalid call to misdn_cfg_is_msn_valid! Port number %d is not valid.\n", port);
 		return 0;
 	}
@@ -627,12 +628,27 @@ int misdn_cfg_is_msn_valid (int port, char* msn)
 		iter = port_cfg[port][map[MISDN_CFG_MSNS]].ml;
 	else
 		iter = port_cfg[0][map[MISDN_CFG_MSNS]].ml;
-	for (; iter; iter = iter->next) 
-		if (*(iter->msn) == '*' || opbx_extension_match(iter->msn, msn)) {
+	for (  ;  iter;  iter = iter->next)
+    {
+		if (*(iter->msn) == '*')
+        {
 			re = 1;
-			break;
 		}
-	misdn_cfg_unlock();
+        else
+        {
+            switch (opbx_extension_pattern_match(msn, iter->msn))
+            {
+            case EXTENSION_MATCH_EXACT:
+            case EXTENSION_MATCH_STRETCHABLE:
+            case EXTENSION_MATCH_POSSIBLE:
+    			re = 1;
+    			break;
+            }
+        }
+        if (re)
+            break;
+	}
+    misdn_cfg_unlock();
 
 	return re;
 }

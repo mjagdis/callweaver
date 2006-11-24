@@ -133,39 +133,87 @@ static void loopback_subst(char **newexten, char **newcontext, int *priority, ch
 static int loopback_exists(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
+
 	res = opbx_exists_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern && !opbx_extension_match(newpattern, exten))
-		res = 0;
-	return res;
+	if (newpattern)
+    {
+        switch (opbx_extension_pattern_match(exten, newpattern))
+        {
+        case EXTENSION_MATCH_EXACT:
+        case EXTENSION_MATCH_STRETCHABLE:
+        case EXTENSION_MATCH_POSSIBLE:
+            break;
+        default:
+            res = 0;
+            break;
+        }
+	}
+    return res;
 }
 
 static int loopback_canmatch(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
+
 	res = opbx_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern && !opbx_extension_match(newpattern, exten))
-		res = 0;
+	if (newpattern)
+    {
+        switch (opbx_extension_pattern_match(exten, newpattern))
+        {
+        case EXTENSION_MATCH_EXACT:
+        case EXTENSION_MATCH_STRETCHABLE:
+        case EXTENSION_MATCH_POSSIBLE:
+            break;
+        default:
+            res = 0;
+            break;
+        }
+	}
 	return res;
 }
 
 static int loopback_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
 	LOOPBACK_COMMON;
+
 	if (newstack)
 		res = opbx_spawn_extension(chan, newcontext, newexten, newpriority, callerid);
 	else
 		res = opbx_exec_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern && !opbx_extension_match(newpattern, exten))
-		res = -1;
+	if (newpattern)
+    {
+        switch (opbx_extension_pattern_match(exten, newpattern))
+        {
+        case EXTENSION_MATCH_EXACT:
+        case EXTENSION_MATCH_STRETCHABLE:
+        case EXTENSION_MATCH_POSSIBLE:
+            break;
+        default:
+            res = -1;
+            break;
+        }
+	}
 	return res;
 }
 
 static int loopback_matchmore(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
+
 	res = opbx_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern && !opbx_extension_match(newpattern, exten))
-		res = 0;
+	if (newpattern)
+    {
+        switch (opbx_extension_pattern_match(exten, newpattern))
+        {
+        case EXTENSION_MATCH_EXACT:
+        case EXTENSION_MATCH_STRETCHABLE:
+        case EXTENSION_MATCH_POSSIBLE:
+            break;
+        default:
+            res = 0;
+            break;
+        }
+	}
 	return res;
 }
 

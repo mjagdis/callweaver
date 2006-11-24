@@ -139,7 +139,8 @@ OPBX_DECLARE_OPTIONS(waitexten_opts,{
 struct opbx_context;
 
 /* opbx_exten: An extension */
-struct opbx_exten {
+struct opbx_exten
+{
 	char *exten;				/* Extension name -- shouldn't this be called "ident" ? */
 	unsigned int hash;			/* Hashed identifier */
 	int matchcid;				/* Match caller id ? */
@@ -157,7 +158,8 @@ struct opbx_exten {
 };
 
 /* opbx_include: include= support in extensions.conf */
-struct opbx_include {
+struct opbx_include
+{
 	char *name;		
 	char *rname;				/* Context to include */
 	const char *registrar;		/* Registrar */
@@ -168,7 +170,8 @@ struct opbx_include {
 };
 
 /* opbx_sw: Switch statement in extensions.conf */
-struct opbx_sw {
+struct opbx_sw
+{
 	char *name;
 	const char *registrar;		/* Registrar */
 	char *data;					/* Data load */
@@ -178,14 +181,16 @@ struct opbx_sw {
 	char stuff[0];
 };
 
-struct opbx_ignorepat {
+struct opbx_ignorepat
+{
 	const char *registrar;
 	struct opbx_ignorepat *next;
 	char pattern[0];
 };
 
 /* opbx_context: An extension context */
-struct opbx_context {
+struct opbx_context
+{
 	opbx_mutex_t lock; 			/* A lock to prevent multiple threads from clobbering the context */
 	unsigned int hash;			/* Hashed context name */
 	struct opbx_exten *root;	/* The root of the list of extensions */
@@ -197,9 +202,9 @@ struct opbx_context {
 	char name[0];				/* Name of the context */
 };
 
-
 /* opbx_app: An application */
-struct opbx_app {
+struct opbx_app
+{
 	int (*execute)(struct opbx_channel *chan, void *data);
 	unsigned int hash;			/* Hashed application name */
 	const char *synopsis;		/* Synopsis text for 'show applications' */
@@ -209,7 +214,8 @@ struct opbx_app {
 };
 
 /* opbx_state_cb: An extension state notify */
-struct opbx_state_cb {
+struct opbx_state_cb
+{
 	int id;
 	void *data;
 	opbx_state_cb_type callback;
@@ -217,7 +223,8 @@ struct opbx_state_cb {
 };
 	    
 /* Hints are pointers from an extension in the dialplan to one or more devices (tech/name) */
-struct opbx_hint {
+struct opbx_hint
+{
 	struct opbx_exten *exten;	/* Extension */
 	int laststate;				/* Last known state */
 	struct opbx_state_cb *callbacks;	/* Callback list for this extension */
@@ -591,7 +598,8 @@ int pbx_exec(struct opbx_channel *c, 		/* Channel */
 	
 	int (*execute)(struct opbx_channel *chan, void *data) = app->execute; 
 
-	if (newstack) {
+	if (newstack)
+    {
 		if (c->cdr)
 			opbx_cdr_setapp(c->cdr, app->name, data);
 
@@ -606,9 +614,12 @@ int pbx_exec(struct opbx_channel *c, 		/* Channel */
 		c->appl= saved_c_appl;
 		c->data= saved_c_data;
 		return res;
-	} else
-		opbx_log(LOG_WARNING, "You really didn't want to call this function with newstack set to 0\n");
-	return -1;
+	}
+    else
+	{
+    	opbx_log(LOG_WARNING, "You really didn't want to call this function with newstack set to 0\n");
+	}
+    return -1;
 }
 
 
@@ -627,12 +638,14 @@ struct opbx_app *pbx_findapp(const char *app)
 	struct opbx_app *tmp;
 	unsigned int hash = opbx_hash_app_name(app);
 
-	if (opbx_mutex_lock(&applock)) {
+	if (opbx_mutex_lock(&applock))
+    {
 		opbx_log(LOG_WARNING, "Unable to obtain application lock\n");
 		return NULL;
 	}
 	tmp = apps;
-	while(tmp) {
+	while (tmp)
+    {
 		if (hash == tmp->hash)
 			break;
 		tmp = tmp->next;
@@ -645,12 +658,14 @@ static struct opbx_switch *pbx_findswitch(const char *sw)
 {
 	struct opbx_switch *asw;
 
-	if (opbx_mutex_lock(&switchlock)) {
+	if (opbx_mutex_lock(&switchlock))
+    {
 		opbx_log(LOG_WARNING, "Unable to obtain application lock\n");
 		return NULL;
 	}
 	asw = switches;
-	while(asw) {
+	while (asw)
+    {
 		if (!strcasecmp(asw->name, sw))
 			break;
 		asw = asw->next;
@@ -684,6 +699,8 @@ const char *opbx_extension_match_to_str(int match)
         return "Overlength";
     case EXTENSION_MATCH_INCOMPLETE:
         return "Incomplete";
+    case EXTENSION_MATCH_STRETCHABLE:
+        return "Stretchable";
     case EXTENSION_MATCH_POSSIBLE:
         return "Possible";
     }
@@ -751,7 +768,7 @@ int opbx_extension_pattern_match(const char *destination, const char *pattern)
         case '[':
             if ((where = strchr(++p, ']')) == NULL)
             {
-                //opbx_log(LOG_WARNING, "Bad usage of [] in extension pattern '%s'", pattern);
+                opbx_log(LOG_WARNING, "Bad usage of [] in extension pattern '%s'", pattern);
                 return EXTENSION_MATCH_FAILURE;
             }
             limit = (int) (where - p);
@@ -789,7 +806,7 @@ int opbx_extension_pattern_match(const char *destination, const char *pattern)
         case '.':
         case '~':
             /* A hard match - can be relied upon. */
-            return EXTENSION_MATCH_EXACT;
+            return EXTENSION_MATCH_STRETCHABLE;
         case '!':
             /* A soft match - acceptable, might there might be a better match. */
             return EXTENSION_MATCH_POSSIBLE;
@@ -820,116 +837,26 @@ int opbx_extension_pattern_match(const char *destination, const char *pattern)
     return EXTENSION_MATCH_FAILURE;
 }
 
-#define EXTENSION_MATCH_CORE(data,pattern,match) {\
-	/* All patterns begin with _ */\
-	if (pattern[0] != '_') \
-		return 0;\
-	/* Start optimistic */\
-	match=1;\
-	pattern++;\
-	while(match && *data && *pattern && (*pattern != '/')) {\
-		while (*data == '-' && (*(data+1) != '\0')) data++;\
-		switch(toupper(*pattern)) {\
-		case '[': \
-		{\
-			int i,border=0;\
-			char *where;\
-			match=0;\
-			pattern++;\
-			where=strchr(pattern,']');\
-			if (where)\
-				border=(int)(where-pattern);\
-			if (!where || border > strlen(pattern)) {\
-				opbx_log(LOG_WARNING, "Wrong usage of [] in the extension\n");\
-				return match;\
-			}\
-			for (i=0; i<border; i++) {\
-				int res=0;\
-				if (i+2<border)\
-					if (pattern[i+1]=='-') {\
-						if (*data >= pattern[i] && *data <= pattern[i+2]) {\
-							res=1;\
-						} else {\
-							i+=2;\
-							continue;\
-						}\
-					}\
-				if (res==1 || *data==pattern[i]) {\
-					match = 1;\
-					break;\
-				}\
-			}\
-			pattern+=border;\
-			break;\
-		}\
-		case 'N':\
-			if ((*data < '2') || (*data > '9'))\
-				match=0;\
-			break;\
-		case 'X':\
-			if ((*data < '0') || (*data > '9'))\
-				match = 0;\
-			break;\
-		case 'Z':\
-			if ((*data < '1') || (*data > '9'))\
-				match = 0;\
-			break;\
-		case '.':\
-		case '~':\
-			/* Must match */\
-			return 1;\
-		case '!':\
-			/* Early match */\
-			return 2;\
-		case ' ':\
-		case '-':\
-			/* Ignore these characters */\
-			data--;\
-			break;\
-		default:\
-			if (*data != *pattern)\
-				match =0;\
-		}\
-		data++;\
-		pattern++;\
-	}\
-	/* If we ran off the end of the data and the pattern ends in '!', match */\
-	if (match && !*data && (*pattern == '!'))\
-		return 2;\
-}
-
-int opbx_extension_match(const char *pattern, const char *data)
+static int opbx_extension_match(const char *pattern, const char *data)
 {
 	int match;
-	/* If they're the same return */
-	if (!strcmp(pattern, data))
-		return 1;
-	EXTENSION_MATCH_CORE(data,pattern,match);
-	/* Must be at the end of both */
-	if (*data || (*pattern && (*pattern != '/')))
-		match = 0;
-	return match;
+
+    match = opbx_extension_pattern_match(data, pattern);
+    if (match == EXTENSION_MATCH_POSSIBLE)
+        return 2;
+    return (match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE)  ?  1  :  0;
 }
 
-int opbx_extension_close(const char *pattern, const char *data, int needmore)
+static int opbx_extension_close(const char *pattern, const char *data, int needmore)
 {
 	int match;
-	/* If "data" is longer, it can'be a subset of pattern unless
-	   pattern is a pattern match */
-	if ((strlen(pattern) < strlen(data)) && (pattern[0] != '_'))
-		return 0;
-	
-	if ((opbx_strlen_zero((char *)data) || !strncasecmp(pattern, data, strlen(data))) && 
-		(!needmore || (strlen(pattern) > strlen(data)))) {
-		return 1;
-	}
-	EXTENSION_MATCH_CORE(data,pattern,match);
-	/* If there's more or we don't care about more, or if it's a possible early match, 
-	   return non-zero; otherwise it's a miss */
-	if (!needmore || *pattern || match == 2) {
-		return match;
-	} else
-		return 0;
+
+    match = opbx_extension_pattern_match(data, pattern);
+    if (match == EXTENSION_MATCH_POSSIBLE)
+        return 2;
+    if (needmore)
+        return (match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE)  ?  1  :  0;
+    return (match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE)  ?  1  :  0;
 }
 
 struct opbx_context *opbx_context_find(const char *name)
@@ -964,15 +891,17 @@ static int matchcid(const char *cidpattern, const char *callerid)
 	/* If the Caller*ID pattern is empty, then we're matching NO Caller*ID, so
 	   failing to get a number should count as a match, otherwise not */
 
-	if (!opbx_strlen_zero(cidpattern))
-		failresult = 0;
-	else
-		failresult = 1;
+	if (callerid == NULL)
+		return (cidpattern[0])  ?  0  :  1;
 
-	if (!callerid)
-		return failresult;
-
-	return opbx_extension_match(cidpattern, callerid);
+    switch (opbx_extension_pattern_match(callerid, cidpattern))
+    {
+    case EXTENSION_MATCH_EXACT:
+    case EXTENSION_MATCH_STRETCHABLE:
+    case EXTENSION_MATCH_POSSIBLE:
+	    return 1;
+    }
+    return 0;
 }
 
 static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct opbx_context *bypass, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action, char *incstack[], int *stacklen, int *status, struct opbx_switch **swo, char **data, const char **foundcontext)
@@ -986,18 +915,21 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 	unsigned int hash = opbx_hash_string(context);
 
 	/* Initialize status if appropriate */
-	if (!*stacklen) {
+	if (!*stacklen)
+    {
 		*status = STATUS_NO_CONTEXT;
 		*swo = NULL;
 		*data = NULL;
 	}
 	/* Check for stack overflow */
-	if (*stacklen >= OPBX_PBX_MAX_STACK) {
+	if (*stacklen >= OPBX_PBX_MAX_STACK)
+    {
 		opbx_log(LOG_WARNING, "Maximum PBX stack exceeded\n");
 		return NULL;
 	}
 	/* Check first to see if we've already been checked */
-	for (x=0; x<*stacklen; x++) {
+	for (x = 0;  x < *stacklen;  x++)
+    {
 		if (!strcasecmp(incstack[x], context))
 			return NULL;
 	}
@@ -1005,40 +937,55 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 		tmp = bypass;
 	else
 		tmp = contexts;
-	while(tmp) {
+	while (tmp)
+    {
 		/* Match context */
-		if (bypass || (hash == tmp->hash)) {
+		if (bypass || (hash == tmp->hash))
+        {
 			struct opbx_exten *earlymatch = NULL;
 
 			if (*status < STATUS_NO_EXTENSION)
 				*status = STATUS_NO_EXTENSION;
-			for (eroot = tmp->root; eroot; eroot=eroot->next) {
+			for (eroot = tmp->root;  eroot;  eroot = eroot->next)
+            {
 				int match = 0;
 				/* Match extension */
-				if ((((action != HELPER_MATCHMORE) && opbx_extension_match(eroot->exten, exten)) ||
-				     ((action == HELPER_CANMATCH) && (opbx_extension_close(eroot->exten, exten, 0))) ||
-				     ((action == HELPER_MATCHMORE) && (match = opbx_extension_close(eroot->exten, exten, 1)))) &&
-				    (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
+				if ((((action != HELPER_MATCHMORE) && opbx_extension_match(eroot->exten, exten))
+                    ||
+				    ((action == HELPER_CANMATCH) && (opbx_extension_close(eroot->exten, exten, 0)))
+                    ||
+    				   ((action == HELPER_MATCHMORE) && (match = opbx_extension_close(eroot->exten, exten, 1))))
+                        &&
+				        (!eroot->matchcid  ||  matchcid(eroot->cidmatch, callerid)))
+                {
 
-					if (action == HELPER_MATCHMORE && match == 2 && !earlymatch) {
+					if (action == HELPER_MATCHMORE  &&  match == 2  &&  !earlymatch)
+                    {
 						/* It matched an extension ending in a '!' wildcard
 						   So ignore it for now, unless there's a better match */
 						earlymatch = eroot;
-					} else {
+					}
+                    else
+                    {
 						e = eroot;
 						if (*status < STATUS_NO_PRIORITY)
 							*status = STATUS_NO_PRIORITY;
-						while(e) {
+						while (e)
+                        {
 							/* Match priority */
-							if (action == HELPER_FINDLABEL) {
+							if (action == HELPER_FINDLABEL)
+                            {
 								if (*status < STATUS_NO_LABEL)
 									*status = STATUS_NO_LABEL;
-							 	if (label && e->label && !strcmp(label, e->label)) {
+							 	if (label && e->label && !strcmp(label, e->label))
+                                {
 									*status = STATUS_SUCCESS;
 									*foundcontext = context;
 									return e;
 								}
-							} else if (e->priority == priority) {
+							}
+                            else if (e->priority == priority)
+                            {
 								*status = STATUS_SUCCESS;
 								*foundcontext = context;
 								return e;
@@ -1048,7 +995,8 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 					}
 				}
 			}
-			if (earlymatch) {
+			if (earlymatch)
+            {
 				/* Bizarre logic for HELPER_MATCHMORE. We return zero to break out 
 				   of the loop waiting for more digits, and _then_ match (normally)
 				   the extension we ended up with. We got an early-matching wildcard
@@ -1057,8 +1005,10 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 			}
 			/* Check alternative switches */
 			sw = tmp->alts;
-			while(sw) {
-				if ((asw = pbx_findswitch(sw->name))) {
+			while (sw)
+            {
+				if ((asw = pbx_findswitch(sw->name)))
+                {
 					/* Substitute variables now */
 					if (sw->eval) 
 						pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
@@ -1068,14 +1018,17 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 						res = asw->matchmore ? asw->matchmore(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
 					else
 						res = asw->exists ? asw->exists(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-					if (res) {
+					if (res)
+                    {
 						/* Got a match */
 						*swo = asw;
 						*data = sw->eval ? sw->tmpdata : sw->data;
 						*foundcontext = context;
 						return NULL;
 					}
-				} else {
+				}
+                else
+                {
 					opbx_log(LOG_WARNING, "No such switch '%s'\n", sw->name);
 				}
 				sw = sw->next;
@@ -1085,8 +1038,10 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 			(*stacklen)++;
 			/* Now try any includes we have in this context */
 			i = tmp->includes;
-			while(i) {
-				if (include_valid(i)) {
+			while (i)
+            {
+				if (include_valid(i))
+                {
 					if ((e = pbx_find_extension(chan, bypass, i->rname, exten, priority, label, callerid, action, incstack, stacklen, status, swo, data, foundcontext))) 
 						return e;
 					if (*swo) 
@@ -1101,7 +1056,7 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
 	return NULL;
 }
 
- /*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
+/*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
       functions in the dialplan
   ---*/
 
@@ -3708,7 +3663,8 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 					int prio;
 
 					/* looking for extension? is this our extension? */
-					if (exten &&
+					if (exten
+                        &&
 						!opbx_extension_match(opbx_get_extension_name(e), exten))
 					{
 						/* we are looking for extension and it's not our
@@ -3817,18 +3773,23 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 				}
 
 				/* walk ignore patterns and write info ... */
-				for (ip=opbx_walk_context_ignorepats(c, NULL); ip; ip=opbx_walk_context_ignorepats(c, ip)) {
+				for (ip = opbx_walk_context_ignorepats(c, NULL);  ip;  ip = opbx_walk_context_ignorepats(c, ip))
+                {
 					const char *ipname = opbx_get_ignorepat_name(ip);
 					char ignorepat[OPBX_MAX_EXTENSION];
+
 					snprintf(buf, sizeof(buf), "'%s'", ipname);
 					snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
-					if ((!exten) || opbx_extension_match(ignorepat, exten)) {
+					if ((!exten)  ||  opbx_extension_match(ignorepat, exten))
+                    {
 						opbx_cli(fd, "  Ignore pattern => %-45s [%s]\n",
 							buf, opbx_get_ignorepat_registrar(ip));
 					}
 				}
-				if (!rinclude) {
-					for (sw = opbx_walk_context_switches(c, NULL); sw; sw = opbx_walk_context_switches(c, sw)) {
+				if (!rinclude)
+                {
+					for (sw = opbx_walk_context_switches(c, NULL);  sw;  sw = opbx_walk_context_switches(c, sw))
+                    {
 						snprintf(buf, sizeof(buf), "'%s/%s'",
 							opbx_get_switch_name(sw),
 							opbx_get_switch_data(sw));
@@ -3846,12 +3807,12 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 	}
 	opbx_unlock_contexts();
 
-	if (dpc->total_exten == old_total_exten) {
+	if (dpc->total_exten == old_total_exten)
+    {
 		/* Nothing new under the sun */
 		return -1;
-	} else {
-		return res;
 	}
+    return res;
 }
 
 static int handle_show_dialplan(int fd, int argc, char *argv[])
@@ -4814,11 +4775,18 @@ int opbx_ignore_pattern(const char *context, const char *pattern)
 	struct opbx_ignorepat *pat;
 
 	con = opbx_context_find(context);
-	if (con) {
+	if (con)
+    {
 		pat = con->ignorepats;
-		while (pat) {
-			if (opbx_extension_match(pat->pattern, pattern))
+		while (pat)
+        {
+            switch (opbx_extension_pattern_match(pattern, pat->pattern))
+            {
+            case EXTENSION_MATCH_EXACT:
+            case EXTENSION_MATCH_STRETCHABLE:
+            case EXTENSION_MATCH_POSSIBLE:
 				return 1;
+            }
 			pat = pat->next;
 		}
 	} 
@@ -4942,8 +4910,10 @@ static int ext_strncpy(char *dst, const char *src, int len)
 {
 	int count=0;
 
-	while(*src && (count < len - 1)) {
-		switch(*src) {
+	while (*src  &&  (count < len - 1))
+    {
+		switch (*src)
+        {
 		case ' ':
 			/*	otherwise exten => [a-b],1,... doesn't work */
 			/*		case '-': */
@@ -4957,7 +4927,6 @@ static int ext_strncpy(char *dst, const char *src, int len)
 		count++;
 	}
 	*dst = '\0';
-
 	return count;
 }
 

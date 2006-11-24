@@ -72,11 +72,14 @@ enum opbx_extension_match_conditions
     EXTENSION_MATCH_OVERLENGTH = 2,
     /*! The extension could match the pattern if more digits were added to the end, but is currently incomplete. */
     EXTENSION_MATCH_INCOMPLETE = 3,
+    /*! The extension matches, but may be extended further as it matched a '.' or '~'. */
+    EXTENSION_MATCH_STRETCHABLE = 4,
     /*! The extension is an 'optional' match for the pattern. i.e. the pattern has a '!' at the end. */
-    EXTENSION_MATCH_POSSIBLE = 4
+    EXTENSION_MATCH_POSSIBLE = 5
 };
 
-static const struct cfextension_states {
+static const struct cfextension_states
+{
 	int extension_state;
 	const char * const text;
 } extension_states[] = {
@@ -108,7 +111,8 @@ struct opbx_custom_function {
 };
 
 /*! Data structure associated with an openpbx switch */
-struct opbx_switch {
+struct opbx_switch
+{
 	/*! NULL */
 	struct opbx_switch *next;	
 	/*! Name of the switch */
@@ -125,7 +129,8 @@ struct opbx_switch {
 	int (*matchmore)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 };
 
-struct opbx_timing {
+struct opbx_timing
+{
 	int hastime;				/* If time construct exists */
 	unsigned int monthmask;			/* Mask for month */
 	unsigned int daymask;			/* Mask for date */
@@ -136,7 +141,8 @@ struct opbx_timing {
 extern int opbx_build_timing(struct opbx_timing *i, char *info);
 extern int opbx_check_timing(struct opbx_timing *i);
 
-struct opbx_pbx {
+struct opbx_pbx
+{
         int dtimeout;                                   /* Timeout between digits (seconds) */
         int rtimeout;                                   /* Timeout for response
 							   (seconds) */
@@ -220,7 +226,8 @@ void opbx_context_destroy(struct opbx_context *con, const char *registrar);
  */
 struct opbx_context *opbx_context_find(const char *name);
 
-enum opbx_pbx_result {
+enum opbx_pbx_result
+{
 	OPBX_PBX_SUCCESS = 0,
 	OPBX_PBX_FAILED = -1,
 	OPBX_PBX_CALL_LIMIT = -2,
@@ -398,17 +405,15 @@ int opbx_canmatch_extension(struct opbx_channel *c, const char *context, const c
 */
 int opbx_matchmore_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-/*! Determine if a given extension matches a given pattern (in NXX format) */
+const char *opbx_extension_match_to_str(int match);
+
+/*! Determine how well a given extension matches a given pattern (in NXX format) */
 /*!
+ * \param destinationm extension to check against the pattern.
  * \param pattern pattern to match
- * \param extension extension to check against the pattern.
- * Checks whether or not the given extension matches the given pattern.
- * Returns 1 on match, 0 on failure
+ * Checks the extent to which the given extension matches the given pattern.
+ * \return one of the enum opbx_extension_match_conditions values
  */
-int opbx_extension_match(const char *pattern, const char *extension);
-
-int opbx_extension_close(const char *pattern, const char *data, int needmore);
-
 int opbx_extension_pattern_match(const char *destination, const char *pattern);
 
 /*! Launch a new extension (i.e. new stack) */
