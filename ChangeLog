@@ -1,3 +1,6 @@
+Release 1.2-RC2
+    * initial support for *BSD (NetNSD, FreeBSD 6.2 and7, OSX)
+    * lot's of bug fixes
 Release 1.2-RC1
     * Built-in STUN support for SIP NAT traversal
     * Full fax and T.38 fax over IP support
