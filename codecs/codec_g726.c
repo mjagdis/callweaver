@@ -49,9 +49,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/translate.h"
 #include "openpbx/channel.h"
 
-#define WANT_ASM
-#include "log2comp.h"
-
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 #define BUF_SHIFT	5
 
