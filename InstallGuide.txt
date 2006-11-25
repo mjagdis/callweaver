@@ -73,8 +73,8 @@ make install
 
 Once Libtiff is installed SpanDSP may be installed. SpanDSP can be downloaded from www.soft-switch.org. SpanDSP does Digital Signal Processing in software and is written by Steve Underwood.
 
-wget http://www.soft-switch.org/downloads/spandsp/spandsp-0.0.3pre24.tgz
-tar xfvz spandsp-0.0.3pre24.tgz
+wget http://www.soft-switch.org/downloads/spandsp/spandsp-0.0.3pre25.tgz
+tar xfvz spandsp-0.0.3pre25.tgz
 cd spandsp-0.0.3
 ./configure
 make
