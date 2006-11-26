@@ -59,10 +59,30 @@ static char *tdesc = "DVI/IMA/Intel 32kbps ADPCM encoder/decoder";
 
 static int useplc = 0;
 
-/* Sample frame data */
+/* Sample 10ms of linear frame data */
+static int16_t slin_ex[] =
+{
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
+};
 
-#include "slin_adpcm_ex.h"
-#include "adpcm_slin_ex.h"
+/* Sample 10ms of ADPCM frame data */
+static uint8_t adpcm_ex[] =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 /*
  * Private workspace for translating signed linear signals to ADPCM.
@@ -219,7 +239,7 @@ static struct opbx_frame *dviadpcmtolin_frameout(struct opbx_translator_pvt *pvt
 }
 
 /*
- * LinToAdpcm_FrameIn
+ * lintoadpcm_framein
  *  Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
@@ -247,7 +267,7 @@ static int lintodviadpcm_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
 }
 
 /*
- * LinToAdpcm_FrameOut
+ * lintoadpcm_frameout
  *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
  *  of 4-bit ADPCM packed two to a byte (Big Endian).
  *
@@ -294,9 +314,8 @@ static struct opbx_frame *lintodviadpcm_frameout(struct opbx_translator_pvt *pvt
     return &tmp->f;
 }
 
-
 /*
- * AdpcmToLin_Sample
+ * adpcmtolin_sample
  */
 static struct opbx_frame *dviadpcmtolin_sample(void)
 {
@@ -304,17 +323,17 @@ static struct opbx_frame *dviadpcmtolin_sample(void)
   
     f.frametype = OPBX_FRAME_VOICE;
     f.subclass = OPBX_FORMAT_DVI_ADPCM;
-    f.datalen = sizeof (adpcm_slin_ex);
-    f.samples = sizeof(adpcm_slin_ex)*sizeof(int16_t);
+    f.datalen = sizeof (adpcm_ex);
+    f.samples = sizeof(adpcm_ex)*2;
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
-    f.data = adpcm_slin_ex;
+    f.data = adpcm_ex;
     return &f;
 }
 
 /*
- * LinToAdpcm_Sample
+ * lintoadpcm_sample
  */
 static struct opbx_frame *lintodviadpcm_sample(void)
 {
@@ -322,13 +341,13 @@ static struct opbx_frame *lintodviadpcm_sample(void)
   
     f.frametype = OPBX_FRAME_VOICE;
     f.subclass = OPBX_FORMAT_SLINEAR;
-    f.datalen = sizeof (slin_adpcm_ex);
+    f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
-    f.samples = sizeof (slin_adpcm_ex)/2;
+    f.samples = sizeof (slin_ex)/sizeof(int16_t);
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
-    f.data = slin_adpcm_ex;
+    f.data = slin_ex;
     return &f;
 }
 

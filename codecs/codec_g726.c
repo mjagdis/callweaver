@@ -19,7 +19,6 @@
  * at the top of the source tree.
  */
 
-
 /*! \file
  *
  * \brief codec_g726.c - translate between signed linear and ITU G.726-32kbps
@@ -61,8 +60,8 @@ static int useplc = 0;
 
 /* Sample frame data */
 
-/* 10ms of linear silence, at 8k samples/second */
-static const int16_t slin_g726_ex[] =
+/* Sample 10ms of linear frame data */
+static const int16_t slin_ex[] =
 {
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -76,14 +75,9 @@ static const int16_t slin_g726_ex[] =
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
-/* 20ms of G.726 at 32kbps */
-static const uint8_t g726_slin_ex[] =
+/* 10ms of G.726 at 32kbps */
+static const uint8_t g726_ex[] =
 {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -317,18 +311,14 @@ static struct opbx_frame *g726tolin_sample(void)
  
     f.frametype = OPBX_FRAME_VOICE;
     f.subclass = OPBX_FORMAT_G726;
-    f.datalen = sizeof (g726_slin_ex);
-    f.samples = sizeof(g726_slin_ex) * 2;
+    f.datalen = sizeof (g726_ex);
+    f.samples = sizeof(g726_ex)*2;
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
-    f.data = (uint8_t *) g726_slin_ex;
+    f.data = (uint8_t *) g726_ex;
     return &f;
 }
-
-/*
- * LinToG726_Sample
- */
 
 static struct opbx_frame *lintog726_sample(void)
 {
@@ -336,18 +326,17 @@ static struct opbx_frame *lintog726_sample(void)
   
     f.frametype = OPBX_FRAME_VOICE;
     f.subclass = OPBX_FORMAT_SLINEAR;
-    f.datalen = sizeof (slin_g726_ex);
+    f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
-    f.samples = sizeof (slin_g726_ex) / 2;
+    f.samples = sizeof (slin_ex)/sizeof(int16_t);
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
-    f.data = (int16_t *) slin_g726_ex;
+    f.data = (int16_t *) slin_ex;
     return &f;
 }
 
 /*
- * G726_Destroy
  *  Destroys a private workspace.
  *
  * Results:
@@ -356,7 +345,6 @@ static struct opbx_frame *lintog726_sample(void)
  * Side effects:
  *  None.
  */
-
 static void g726_destroy(struct opbx_translator_pvt *pvt)
 {
     free(pvt);
@@ -365,9 +353,8 @@ static void g726_destroy(struct opbx_translator_pvt *pvt)
 }
 
 /*
- * The complete translator for G726ToLin.
+ * The complete translator for g726tolin.
  */
-
 static struct opbx_translator g726tolin =
 {
     "g726tolin",
@@ -382,9 +369,8 @@ static struct opbx_translator g726tolin =
 };
 
 /*
- * The complete translator for LinToG726.
+ * The complete translator for lintog726.
  */
-
 static struct opbx_translator lintog726 =
 {
     "lintog726",

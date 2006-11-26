@@ -49,14 +49,40 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "A-law and Mulaw direct Coder/Decoder";
+static char *tdesc = "A-law and Mulaw direct coder/decoder";
 
 static unsigned char mu2a[256];
 static unsigned char a2mu[256];
 
-/* Sample frame data (Mu data is okay) */
+/* Sample 10ms of frame data */
+static uint8_t ulaw_ex[] =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
-#include "ulaw_slin_ex.h"
+/* Sample 10ms of frame data */
+static uint8_t alaw_ex[] =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 /*
  * Private workspace for translating signed linear signals to alaw.
@@ -169,9 +195,9 @@ static int ulawtoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame
 }
 
 /*
- * LinToalaw_FrameOut
- *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
- *  of 4-bit alaw packed two to a byte (Big Endian).
+ * ulawtoalaw_frameout
+ *  Convert a buffer of 8-bit u-law data to a buffer
+ *  of 8-bit alaw.
  *
  * Results:
  *  Foo
@@ -201,7 +227,7 @@ static struct opbx_frame *ulawtoalaw_frameout(struct opbx_translator_pvt *pvt)
 }
 
 /*
- * alawToLin_Sample
+ * alawtoulaw_sample
  */
 
 static struct opbx_frame *alawtoulaw_sample(void)
@@ -209,12 +235,12 @@ static struct opbx_frame *alawtoulaw_sample(void)
     static struct opbx_frame f;
     f.frametype = OPBX_FRAME_VOICE;
     f.subclass = OPBX_FORMAT_ALAW;
-    f.datalen = sizeof (ulaw_slin_ex);
-    f.samples = sizeof(ulaw_slin_ex);
+    f.datalen = sizeof (ulaw_ex);
+    f.samples = sizeof(ulaw_ex);
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
-    f.data = ulaw_slin_ex;
+    f.data = ulaw_ex;
     return &f;
 }
 
@@ -224,18 +250,17 @@ static struct opbx_frame *ulawtoalaw_sample(void)
   
     f.frametype = OPBX_FRAME_VOICE;
     f.subclass = OPBX_FORMAT_ULAW;
-    f.datalen = sizeof (ulaw_slin_ex);
-    f.samples = sizeof(ulaw_slin_ex);
+    f.datalen = sizeof (alaw_ex);
+    f.samples = sizeof(alaw_ex);
     f.mallocd = 0;
     f.offset = 0;
     f.src = __PRETTY_FUNCTION__;
-    f.data = ulaw_slin_ex;
+    f.data = alaw_ex;
     return &f;
 }
 
-
 /*
- * alaw_Destroy
+ * alawtoulaw_destroy
  *  Destroys a private workspace.
  *
  * Results:
@@ -245,7 +270,7 @@ static struct opbx_frame *ulawtoalaw_sample(void)
  *  None.
  */
 
-static void alaw_destroy(struct opbx_translator_pvt *pvt)
+static void alawtoulaw_destroy(struct opbx_translator_pvt *pvt)
 {
     free(pvt);
     localusecnt--;
@@ -253,7 +278,7 @@ static void alaw_destroy(struct opbx_translator_pvt *pvt)
 }
 
 /*
- * The complete translator for alawToLin.
+ * The complete translator for alawtoulaw.
  */
 
 static struct opbx_translator alawtoulaw =
@@ -264,13 +289,13 @@ static struct opbx_translator alawtoulaw =
     alawtoulaw_new,
     alawtoulaw_framein,
     alawtoulaw_frameout,
-    alaw_destroy,
+    alawtoulaw_destroy,
     /* NULL */
     alawtoulaw_sample
 };
 
 /*
- * The complete translator for LinToalaw.
+ * The complete translator for ulawtoalaw.
  */
 
 static struct opbx_translator ulawtoalaw =
@@ -281,7 +306,7 @@ static struct opbx_translator ulawtoalaw =
     ulawtoalaw_new,
     ulawtoalaw_framein,
     ulawtoalaw_frameout,
-    alaw_destroy,
+    alawtoulaw_destroy,
     /* NULL */
     ulawtoalaw_sample
 };
