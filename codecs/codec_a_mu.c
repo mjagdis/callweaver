@@ -49,7 +49,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "A-law and Mulaw direct coder/decoder";
+static char *tdesc = "A-law and Mulaw direct codec translator";
 
 static unsigned char mu2a[256];
 static unsigned char a2mu[256];
