@@ -21,7 +21,7 @@ DEB_AUTO_CLEANUP_RCS            := yes
 
 DEB_CONFIGURE_EXTRA_FLAGS	:= \
     --with-directory-layout=lsb \
-    --with-pbx_ael=no \
+    --with-pbx_ael=yes \
     --with-app_sql_postgres=no \
     --enable-postgresql=yes \
     --with-cdr_pgsql=yes \

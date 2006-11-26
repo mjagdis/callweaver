@@ -15,8 +15,7 @@
  */
 
 /* Definitions for the land line SMS protocols in ETSI ES 201 912
-
-/* Protocol 1 */
+ * Protocol 1 */
 
 #define DLL_SMS_P1_DATA         0x11
 #define DLL_SMS_P1_ERROR        0x12

@@ -110,15 +110,17 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
    "ludicrous time" (essentially never times out) */
 int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout)
 {
-	int res,to,fto,result;
+	int res=0;
+	int to,fto;
+	int result=0;
 	/* XXX Merge with full version? XXX */
 	if (maxlen)
 		s[0] = '\0';
 	if (prompt) {
 		char *front;
 		char *temp = opbx_strdupa(prompt);
-		while (!res && (front = strsep(&temp, "&"))) {
-			if (res = opbx_streamfile(c, front, c->language)) {
+		while ( (!res) && (front = strsep(&temp, "&")) ) {
+			if ( (res = opbx_streamfile(c, front, c->language)) ) {
 				res = 0;
 				break;
 			}

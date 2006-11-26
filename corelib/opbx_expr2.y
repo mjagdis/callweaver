@@ -30,7 +30,7 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "openpbx/ast_expr.h"
+#include "openpbx/opbx_expr.h"
 #include "openpbx/logger.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
@@ -54,7 +54,7 @@ extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
 } ;
 
 #ifdef STANDALONE
@@ -114,8 +114,8 @@ typedef struct yyltype
   int first_line;
   int first_column;
 
-  int last_line;
-  int last_column;
+  int lopbx_line;
+  int lopbx_column;
 } yyltype;
 
 # define YYLTYPE yyltype
@@ -124,20 +124,20 @@ typedef struct yyltype
 /* we will get warning about no prototype for yylex! But we can't
    define it here, we have no definition yet for YYSTYPE. */
 
-int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
+int		opbx_yyerror(const char *,YYLTYPE *, struct parse_io *);
  
 /* I wanted to add args to the yyerror routine, so I could print out
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
-#define ast_yyerror(x) ast_yyerror(x,&yyloc,parseio)
-#define DESTROY(x) {if((x)->type == AST_EXPR_numeric_string || (x)->type == AST_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
+#define opbx_yyerror(x) opbx_yyerror(x,&yyloc,parseio)
+#define DESTROY(x) {if((x)->type == OPBX_EXPR_numeric_string || (x)->type == OPBX_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
 %}
  
 %pure-parser
 %locations
 /* %debug  for when you are having big problems */
 
-/* %name-prefix="ast_yy" */
+/* %name-prefix="opbx_yy" */
 
 %union
 {
@@ -145,7 +145,7 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 }
 
 %{
-extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
+extern int		opbx_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %}
 %left <val> TOK_COND TOK_COLONCOLON
 %left <val> TOK_OR
@@ -170,14 +170,14 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = $1->type;
-              if( $1->type == AST_EXPR_integer )
+              if( $1->type == OPBX_EXPR_integer )
 				  ((struct parse_io *)parseio)->val->u.i = $1->u.i;
               else
 				  ((struct parse_io *)parseio)->val->u.s = $1->u.s; 
 			  free($1);
 			}
 	| {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
-              ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
+              ((struct parse_io *)parseio)->val->type = OPBX_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
 			}
 
@@ -185,82 +185,82 @@ start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(st
 
 expr:	TOKEN   { $$= $1;}
 	| TOK_LP expr TOK_RP { $$ = $2; 
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;
+	                       @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						   @$.first_line=0; @$.lopbx_line=0;
 							DESTROY($1); DESTROY($3); }
 	| expr TOK_OR expr { $$ = op_or ($1, $3);
 						DESTROY($2);	
-                         @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						 @$.first_line=0; @$.last_line=0;}
+                         @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						 @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_AND expr { $$ = op_and ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-                          @$.first_line=0; @$.last_line=0;}
+	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+                          @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_EQ expr { $$ = op_eq ($1, $3);
 						DESTROY($2);	
-	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
-						 @$.first_line=0; @$.last_line=0;}
+	                     @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column;
+						 @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_GT expr { $$ = op_gt ($1, $3);
 						DESTROY($2);	
-                         @$.first_column = @1.first_column; @$.last_column = @3.last_column;
-						 @$.first_line=0; @$.last_line=0;}
+                         @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column;
+						 @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_LT expr { $$ = op_lt ($1, $3); 
 						DESTROY($2);	
-	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						 @$.first_line=0; @$.last_line=0;}
+	                     @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						 @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_GE expr  { $$ = op_ge ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
+	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						  @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_LE expr  { $$ = op_le ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
+	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						  @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_NE expr  { $$ = op_ne ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
+	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						  @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_PLUS expr { $$ = op_plus ($1, $3); 
 						DESTROY($2);	
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;}
+	                       @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						   @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_MINUS expr { $$ = op_minus ($1, $3); 
 						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+							@$.first_line=0; @$.lopbx_line=0;}
 	| TOK_MINUS expr %prec TOK_COMPL { $$ = op_negate ($2); 
 						DESTROY($1);	
-	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	                        @$.first_column = @1.first_column; @$.lopbx_column = @2.lopbx_column; 
+							@$.first_line=0; @$.lopbx_line=0;}
 	| TOK_COMPL expr   { $$ = op_compl ($2); 
 						DESTROY($1);	
-	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	                        @$.first_column = @1.first_column; @$.lopbx_column = @2.lopbx_column; 
+							@$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_MULT expr { $$ = op_times ($1, $3); 
 						DESTROY($2);	
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;}
+	                       @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						   @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_DIV expr { $$ = op_div ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
+	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						  @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_MOD expr { $$ = op_rem ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
+	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+						  @$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_COLON expr { $$ = op_colon ($1, $3); 
 						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+							@$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_EQTILDE expr { $$ = op_eqtilde ($1, $3); 
 						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+							@$.first_line=0; @$.lopbx_line=0;}
 	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5); 
 						DESTROY($2);	
 						DESTROY($4);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
+							@$.first_line=0; @$.lopbx_line=0;}
 	;
 
 %%
@@ -276,7 +276,7 @@ make_integer (quad_t i)
 		return(NULL);
 	}
 
-	vp->type = AST_EXPR_integer;
+	vp->type = OPBX_EXPR_integer;
 	vp->u.i  = i;
 	return vp; 
 }
@@ -303,9 +303,9 @@ make_str (const char *s)
 	}
 
 	if (isint)
-		vp->type = AST_EXPR_numeric_string;
+		vp->type = OPBX_EXPR_numeric_string;
 	else	
-		vp->type = AST_EXPR_string;
+		vp->type = OPBX_EXPR_string;
 
 	return vp;
 }
@@ -317,7 +317,7 @@ free_value (struct val *vp)
 	if (vp==NULL) {
 		return;
 	}
-	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
+	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
 		free (vp->u.s);	
 	free(vp);
 }
@@ -333,13 +333,13 @@ to_integer (struct val *vp)
 		return(0);
 	}
 
-	if (vp->type == AST_EXPR_integer)
+	if (vp->type == OPBX_EXPR_integer)
 		return 1;
 
-	if (vp->type == AST_EXPR_string)
+	if (vp->type == OPBX_EXPR_string)
 		return 0;
 
-	/* vp->type == AST_EXPR_numeric_string, make it numeric */
+	/* vp->type == OPBX_EXPR_numeric_string, make it numeric */
 	errno = 0;
 	i  = strtoll(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
@@ -350,14 +350,14 @@ to_integer (struct val *vp)
 	}
 	free (vp->u.s);
 	vp->u.i = i;
-	vp->type = AST_EXPR_integer;
+	vp->type = OPBX_EXPR_integer;
 	return 1;
 }
 
 static void
 strip_quotes(struct val *vp)
 {
-	if (vp->type != AST_EXPR_string && vp->type != AST_EXPR_numeric_string)
+	if (vp->type != OPBX_EXPR_string && vp->type != OPBX_EXPR_numeric_string)
 		return;
 	
 	if( vp->u.s[0] == '"' && vp->u.s[strlen(vp->u.s)-1] == '"' )
@@ -382,7 +382,7 @@ to_string (struct val *vp)
 {
 	char *tmp;
 
-	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
+	if (vp->type == OPBX_EXPR_string || vp->type == OPBX_EXPR_numeric_string)
 		return;
 
 	tmp = malloc ((size_t)25);
@@ -392,7 +392,7 @@ to_string (struct val *vp)
 	}
 
 	sprintf(tmp, "%ld", (long int) vp->u.i);
-	vp->type = AST_EXPR_string;
+	vp->type = OPBX_EXPR_string;
 	vp->u.s  = tmp;
 }
 
@@ -401,14 +401,14 @@ static int
 isstring (struct val *vp)
 {
 	/* only TRUE if this string is not a valid integer */
-	return (vp->type == AST_EXPR_string);
+	return (vp->type == OPBX_EXPR_string);
 }
 
 
 static int
 is_zero_or_null (struct val *vp)
 {
-	if (vp->type == AST_EXPR_integer) {
+	if (vp->type == OPBX_EXPR_integer) {
 		return (vp->u.i == 0);
 	} else {
 		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
@@ -454,7 +454,7 @@ int main(int argc,char **argv) {
 			if( s[strlen(s)-1] == '\n' )
 				s[strlen(s)-1] = 0;
 			
-			ret = ast_expr(s, out, sizeof(out));
+			ret = opbx_expr(s, out, sizeof(out));
 			printf("Expression: %s    Result: [%d] '%s'\n",
 				   s, ret, out);
 		}
@@ -462,7 +462,7 @@ int main(int argc,char **argv) {
 	}
 	else
 	{
-		if (ast_expr(argv[1], s, sizeof(s)))
+		if (opbx_expr(argv[1], s, sizeof(s)))
 			printf("=====%s======\n",s);
 		else
 			printf("No result\n");
@@ -471,10 +471,10 @@ int main(int argc,char **argv) {
 
 #endif
 
-#undef ast_yyerror
-#define ast_yyerror(x) ast_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
+#undef opbx_yyerror
+#define opbx_yyerror(x) opbx_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
 
-/* I put the ast_yyerror func in the flex input file,
+/* I put the opbx_yyerror func in the flex input file,
    because it refers to the buffer state. Best to
    let it access the BUFFER stuff there and not trying
    define all the structs, macros etc. in this file! */
@@ -796,12 +796,12 @@ op_compl (struct val *a)
 	{
 		switch( a->type )
 		{
-		case AST_EXPR_integer:
+		case OPBX_EXPR_integer:
 			if( a->u.i == 0 )
 				v1 = 0;
 			break;
 			
-		case AST_EXPR_string:
+		case OPBX_EXPR_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
@@ -813,7 +813,7 @@ op_compl (struct val *a)
 			}
 			break;
 			
-		case AST_EXPR_numeric_string:
+		case OPBX_EXPR_numeric_string:
 			if( a->u.s == 0 )
 				v1 = 0;
 			else
