@@ -817,18 +817,18 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     int res;
     struct sockaddr_in sin;
     socklen_t len;
-    unsigned int seqno;
+    uint32_t seqno;
+    uint32_t csrc_count;
     int version;
     int payloadtype;
-    int hdrlen = 12;
-    int padding;
+    int hdrlen = 3*sizeof(uint32_t);
     int mark;
-    int ext;
     int actions;
     /* Remove the variable for the pointless loop */
     char iabuf[INET_ADDRSTRLEN];
-    unsigned int timestamp;
-    unsigned int *rtpheader;
+    uint32_t timestamp;
+    uint32_t ssrc;
+    uint32_t *rtpheader;
     static struct opbx_frame *f, null_frame = { OPBX_FRAME_NULL, };
     struct rtpPayloadType rtpPT;
     
@@ -838,7 +838,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     res = rtp_recvfrom(rtp, rtp->rawdata + OPBX_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - OPBX_FRIENDLY_OFFSET,
                        0, (struct sockaddr *) &sin, &len, &actions);
 
-    rtpheader = (unsigned int *)(rtp->rawdata + OPBX_FRIENDLY_OFFSET);
+    rtpheader = (uint32_t *)(rtp->rawdata + OPBX_FRIENDLY_OFFSET);
     if (res < 0)
     {
         if (errno != EAGAIN)
@@ -848,8 +848,9 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
         return &null_frame;
     }
 
-    if (res < hdrlen)
+    if (res < 3*sizeof(uint32_t))
     {
+        /* Too short for an RTP packet. */
         opbx_log(LOG_DEBUG, "RTP Read too short\n");
         return &null_frame;
     }
@@ -878,35 +879,42 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     seqno = ntohl(rtpheader[0]);
 
     /* Check RTP version */
-    version = (seqno & 0xC0000000) >> 30;
-    if (version != 2)
+    if ((version = (seqno & 0xC0000000) >> 30) != 2)
         return &null_frame;
     
-    payloadtype = (seqno & 0x7f0000) >> 16;
-    padding = seqno & (1 << 29);
-    mark = seqno & (1 << 23);
-    ext = seqno & (1 << 28);
-    seqno &= 0xffff;
-    timestamp = ntohl(rtpheader[1]);
-    
-    if (padding)
+    if ((seqno & (1 << 29)))
     {
-        /* Remove padding bytes */
+        /* There are some padding bytes. Remove them. */
         res -= rtp->rawdata[OPBX_FRIENDLY_OFFSET + res - 1];
     }
-    
-    if (ext)
+    if ((csrc_count = (seqno >> 24) & 0x0F))
     {
-        /* RTP Extension present */
-        hdrlen += 4;
-        hdrlen += (ntohl(rtpheader[3]) & 0xffff) << 2;
+        /* Allow for the contributing sources, but don't attempt to
+           process them. */
+        hdrlen += (csrc_count << 2);
+        if (res < hdrlen)
+        {
+            /* Too short for an RTP packet. */
+            return &null_frame;
+        }
     }
-
-    if (res < hdrlen)
+    if ((seqno & (1 << 28)))
     {
-        opbx_log(LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
-        return &null_frame;
+        /* RTP extension present. Skip over it. */
+        hdrlen += sizeof(uint32_t);
+        if (len >= hdrlen)
+            hdrlen += ((ntohl(rtpheader[hdrlen >> 2]) & 0xFFFF)*sizeof(uint32_t));
+        if (len < hdrlen)
+        {
+            opbx_log(LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
+            return &null_frame;
+        }
     }
+    mark = (seqno >> 23) & 1;
+    payloadtype = (seqno >> 16) & 0x7F;
+    seqno &= 0xFFFF;
+    timestamp = ntohl(rtpheader[1]);
+    ssrc = ntohl(rtpheader[2]);
 
     if (rtp_debug_test_addr(&sin))
     {
