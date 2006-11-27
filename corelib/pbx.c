@@ -392,7 +392,8 @@ static struct pbx_builtin {
 
     { "NoOp", pbx_builtin_noop,
     "No operation",
-    "  NoOp(): No-operation; Does nothing." 
+    "  NoOp(): No-operation; Does nothing except relaxing the dialplan and \n"
+    "re-scheduling over threads. It's necessary and very useful in tight loops." 
     },
 
     { "Prefix", pbx_builtin_prefix, 
@@ -6771,16 +6772,6 @@ static int pbx_builtin_goto(struct opbx_channel *chan, void *data)
     res = opbx_parseable_goto(chan, (const char *) data);
     if (!res && (option_verbose > 2))
         opbx_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
-
-    //OSX users don't want this even for testing.
-#ifndef __Darwin
-    // The following usleep is added to relax dialplan execution.
-    // When doing small loops with lots of iteration, this usleep
-    // allows theother threads to execute smoothly.
-    // This will for sure dramatically slow down benchmarks but
-    // will improve performance under load or in particular circumstances.
-    usleep(1);
-#endif
     return res;
 }
 
@@ -7032,6 +7023,14 @@ static int pbx_builtin_setglobalvar(struct opbx_channel *chan, void *data)
 
 static int pbx_builtin_noop(struct opbx_channel *chan, void *data)
 {
+    // The following is added to relax dialplan execution.
+    // When doing small loops with lots of iteration, this
+    // allows other threads to re-schedule smoothly.
+    // This will for sure dramatically slow down benchmarks but
+    // will improve performance under load or in particular circumstances.
+
+    // sched_yield(); // This doesn't seem to have the effect we want.
+    usleep(1);
     return 0;
 }
 

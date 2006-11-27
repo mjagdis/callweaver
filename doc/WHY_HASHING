@@ -174,12 +174,12 @@ benjk, August 2006
 
 In pbx.c file, exactly in function
 
-static int pbx_builtin_goto(struct opbx_channel *chan, void *data)
+static int pbx_builtin_noop(struct opbx_channel *chan, void *data)
 
 we have added a call to usleep(1);
 
-This means that every time that a Goto, GotoIf ot similar command is 
-executed in the dialplan, a microsecond sleep is added to the execution time.
+This means that every time that a NoOp() application is executed in 
+the dialplan, a microsecond sleep is added to the execution time.
 
 This wouldn't be a major performance problem and surely it isn't.
 
@@ -197,6 +197,7 @@ exten => s,n,Set(time1=${EPOCH})
 
 exten => s,n(iterate),GotoIf($[ ${i}<${iterations} ]?next:last)
 exten => s,n(next),Set(i=$[ ${i}+1 ])
+;exten => s,n,NoOp()
 exten => s,n,Goto(iterate)
 
 exten => s,n(last),Set(time2=${EPOCH})
@@ -207,20 +208,22 @@ exten => s,n,Wait(1)
 exten => s,n,SayNumber($[ 4 * ${iterations} / (${time2} - ${time1}) ] )
 exten => s,n,Hangup
 
-Without the usleep() call, it would execute on my PC at about 60k iterations per second.
+Without the NoOp() call, it would execute on my PC at about 60k iterations per second.
 The drawback is that the playtone isn't played at all because all the CPU is dedicated to
 the dialplan loop.
 
-Adding the call to the usleep() performance tests would fall down to about 1000 ips.
+Adding the call to the NoOp(), performance tests would fall down to about 2000 ips.
 This is dued to the fact that when usleep is called, the other threads are allowed 
 to wake up and execute and it's likely to take more than 1 microsecond.
 
 Fortunately, under load, the usleep() call will allow all the threads to run smoothly 
 without any particular issue.
+We are more interested in smooth RTP streams than dialplan performance. 
 
-Please note that this big performance reduction is so evident only in this case because 
-the call to Goto() or GotoIf() is called 2 times in a 3 line loop.
+Please note that this big performance reduction, so if you want to
+compare the dialplan execution, don't use NoOp() or comment out the usleep() in it;
 
-Under normal circumstances, the use of goto is far less important.
+With this small mod, we have managed to find a useful way to use NoOp which should
+be inserted in tight loops. 
 
 CtRiX, November 2006
