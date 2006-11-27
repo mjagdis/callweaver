@@ -2570,12 +2570,12 @@ int opbx_channel_make_compatible(struct opbx_channel *chan, struct opbx_channel 
 	   to use SLINEAR between channels */
 	if ((src != dst) && option_transcode_slin)
 		dst = OPBX_FORMAT_SLINEAR;
-	if (opbx_set_read_format(chan, dst) < 0)
+	if (opbx_set_read_format(chan, src) < 0)
     {
 		opbx_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
-	if (opbx_set_write_format(peer, dst) < 0)
+	if (opbx_set_write_format(peer, src) < 0)
     {
 		opbx_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, dst);
 		return -1;

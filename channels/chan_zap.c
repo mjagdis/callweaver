@@ -684,7 +684,7 @@ static int zt_setoption(struct opbx_channel *chan, int option, void *data, int d
 static const struct opbx_channel_tech zap_tech = {
 	.type = type,
 	.description = tdesc,
-	.capabilities = OPBX_FORMAT_SLINEAR | OPBX_FORMAT_ULAW,
+	.capabilities = OPBX_FORMAT_SLINEAR,
 	.requester = zt_request,
 	.send_digit = zt_digit,
 	.send_text = zt_sendtext,
@@ -4833,6 +4833,7 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 			else
 				deflaw = OPBX_FORMAT_ULAW;
 		}
+		deflaw = OPBX_FORMAT_SLINEAR;
 		y = 1;
 		do {
 #ifdef ZAPATA_PRI
