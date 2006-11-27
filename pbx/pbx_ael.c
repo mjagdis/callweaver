@@ -50,10 +50,10 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision: 37925 $")
 
 static char expr_output[2096];
 
-/* these functions are in ../ast_expr2.fl */
+/* these functions are in ../opbx_expr2.fl */
 
 	
-#ifdef __AST_DEBUG_MALLOC
+#ifdef __OPBX_DEBUG_MALLOC
 static void FREE(void *ptr)
 {
 	free(ptr);
@@ -99,9 +99,9 @@ int check_app_args(pval *appcall, pval *arglist, struct argapp *app);
 void check_pval(pval *item, struct argapp *apps, int in_globals);
 void check_pval_item(pval *item, struct argapp *apps, int in_globals);
 void check_switch_expr(pval *item, struct argapp *apps);
-void ast_expr_register_extra_error_info(char *errmsg);
-void ast_expr_clear_extra_error_info(void);
-int  ast_expr(char *expr, char *buf, int length);
+void opbx_expr_register_extra_error_info(char *errmsg);
+void opbx_expr_clear_extra_error_info(void);
+int  opbx_expr(char *expr, char *buf, int length);
 struct pval *find_macro(char *name);
 struct pval *find_context(char *name);
 struct pval *find_context(char *name);
@@ -114,7 +114,7 @@ void linkexten(struct ael_extension *exten, struct ael_extension *add);
 void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten );
 void set_priorities(struct ael_extension *exten);
 void add_extensions(struct ael_extension *exten, struct opbx_context *context);
-void ast_compile_ael2(struct opbx_context **local_contexts, struct pval *root);
+void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root);
 void destroy_pval(pval *item);
 void destroy_pval_item(pval *item);
 int is_float(char *arg );
@@ -2192,9 +2192,9 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		/* the RHS of a vardec is encapsulated in a $[] expr. Is it legal? */
 		if( !in_globals ) { /* don't check stuff inside the globals context; no wrapping in $[ ] there... */
 			snprintf(errmsg,sizeof(errmsg), "file %s, line %d, columns %d-%d, variable declaration expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.val);
-			ast_expr_register_extra_error_info(errmsg);
-			ast_expr(item->u2.val, expr_output, sizeof(expr_output));
-			ast_expr_clear_extra_error_info();
+			opbx_expr_register_extra_error_info(errmsg);
+			opbx_expr(item->u2.val, expr_output, sizeof(expr_output));
+			opbx_expr_clear_extra_error_info();
 			if ( strpbrk(item->u2.val,"~!-+<>=*/&^") && !strstr(item->u2.val,"${") ) {
 				opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 						item->filename, item->startline, item->endline, item->u2.val);
@@ -2233,16 +2233,16 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 				   item->u4.for_statements == a pval list of statements in the for ()
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, for test expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.for_test);
-		ast_expr_register_extra_error_info(errmsg);
+		opbx_expr_register_extra_error_info(errmsg);
 
 		strp = strchr(item->u1.for_init, '=');
 		if (strp) {
-			ast_expr(strp+1, expr_output, sizeof(expr_output));
+			opbx_expr(strp+1, expr_output, sizeof(expr_output));
 		}
-		ast_expr(item->u2.for_test, expr_output, sizeof(expr_output));
+		opbx_expr(item->u2.for_test, expr_output, sizeof(expr_output));
 		strp = strchr(item->u3.for_inc, '=');
 		if (strp) {
-			ast_expr(strp+1, expr_output, sizeof(expr_output));
+			opbx_expr(strp+1, expr_output, sizeof(expr_output));
 		}
 		if ( strpbrk(item->u2.for_test,"~!-+<>=*/&^") && !strstr(item->u2.for_test,"${") ) {
 			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
@@ -2257,7 +2257,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		check_expr2_input(item,item->u2.for_test);
 		check_expr2_input(item,item->u3.for_inc);
 		
-		ast_expr_clear_extra_error_info();
+		opbx_expr_clear_extra_error_info();
 		check_pval(item->u4.for_statements, apps,in_globals);
 		break;
 			
@@ -2267,9 +2267,9 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 				   item->u2.statements == a pval list of statements in the while ()
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, while expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
-		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u1.str, expr_output, sizeof(expr_output));
-		ast_expr_clear_extra_error_info();
+		opbx_expr_register_extra_error_info(errmsg);
+		opbx_expr(item->u1.str, expr_output, sizeof(expr_output));
+		opbx_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
@@ -2302,9 +2302,9 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 											   (could be zero)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, random expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
-		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u1.str, expr_output, sizeof(expr_output));
-		ast_expr_clear_extra_error_info();
+		opbx_expr_register_extra_error_info(errmsg);
+		opbx_expr(item->u1.str, expr_output, sizeof(expr_output));
+		opbx_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: random expression '%s' has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
@@ -2345,9 +2345,9 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 											   (could be zero)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, if expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
-		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u1.str, expr_output, sizeof(expr_output));
-		ast_expr_clear_extra_error_info();
+		opbx_expr_register_extra_error_info(errmsg);
+		opbx_expr(item->u1.str, expr_output, sizeof(expr_output));
+		opbx_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression '%s' has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
@@ -2430,8 +2430,8 @@ static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *
 	struct argapp *apps=0;
 
 #ifdef AAL_ARGCHECK
-	rfilename = alloca(10 + strlen(ast_config_AST_VAR_DIR));
-	sprintf(rfilename, "%s/applist", ast_config_AST_VAR_DIR);
+	rfilename = alloca(10 + strlen(opbx_config_OPBX_VAR_DIR));
+	sprintf(rfilename, "%s/applist", opbx_config_OPBX_VAR_DIR);
 	
 	apps = argdesc_parse(rfilename, &argapp_errs); /* giveth */
 #endif
@@ -3282,7 +3282,7 @@ void add_extensions(struct ael_extension *exten, struct opbx_context *context)
 }
 
 
-void ast_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
+void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 {
 	pval *p,*p2;
 	struct opbx_context *context;
@@ -3466,7 +3466,7 @@ static int pbx_load_module(void)
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
 	if (errs == 0 && sem_err == 0) {
 		opbx_log(LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
-		ast_compile_ael2(&local_contexts, parse_tree);
+		opbx_compile_ael2(&local_contexts, parse_tree);
 		opbx_log(LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
 		
 		opbx_merge_contexts_and_delete(&local_contexts, registrar);
