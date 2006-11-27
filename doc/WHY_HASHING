@@ -163,3 +163,64 @@ table from where they can be retrieved much faster than the current method
 using linear searches on linked lists and arrays.
 
 benjk, August 2006
+
+
+
+
+
+***************************************************************************
+         PERFORMANCE NOTICE - PLEASE READ WHEN BENCHMARKING
+***************************************************************************
+
+In pbx.c file, exactly in function
+
+static int pbx_builtin_goto(struct opbx_channel *chan, void *data)
+
+we have added a call to usleep(1);
+
+This means that every time that a Goto, GotoIf ot similar command is 
+executed in the dialplan, a microsecond sleep is added to the execution time.
+
+This wouldn't be a major performance problem and surely it isn't.
+
+Let's take a sample dialplan for doing tests (thanks to Royk):
+
+[proc-speedtest]
+exten => s,1,Answer
+exten => s,n,PlayTones(ring)
+exten => s,n,Wait(1)
+exten => s,n,Set(iterations=$[ 100000 ])
+exten => s,n,Set(i=1)
+exten => s,n,Verbose(Begin-of-speedtest)
+exten => s,n,Wait(2)
+exten => s,n,Set(time1=${EPOCH})
+
+exten => s,n(iterate),GotoIf($[ ${i}<${iterations} ]?next:last)
+exten => s,n(next),Set(i=$[ ${i}+1 ])
+exten => s,n,Goto(iterate)
+
+exten => s,n(last),Set(time2=${EPOCH})
+exten => s,n,Verbose(Finish-of-speedtest)
+exten => s,n,Verbose(The time diff is $[${time2} - ${time1} ] seconds)
+exten => s,n,Verbose(Which means that the priorities/sec = $[ 4 * ${iterations} / (${time2} - ${time1}) ] )
+exten => s,n,Wait(1)
+exten => s,n,SayNumber($[ 4 * ${iterations} / (${time2} - ${time1}) ] )
+exten => s,n,Hangup
+
+Without the usleep() call, it would execute on my PC at about 60k iterations per second.
+The drawback is that the playtone isn't played at all because all the CPU is dedicated to
+the dialplan loop.
+
+Adding the call to the usleep() performance tests would fall down to about 1000 ips.
+This is dued to the fact that when usleep is called, the other threads are allowed 
+to wake up and execute and it's likely to take more than 1 microsecond.
+
+Fortunately, under load, the usleep() call will allow all the threads to run smoothly 
+without any particular issue.
+
+Please note that this big performance reduction is so evident only in this case because 
+the call to Goto() or GotoIf() is called 2 times in a 3 line loop.
+
+Under normal circumstances, the use of goto is far less important.
+
+CtRiX, November 2006

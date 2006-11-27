@@ -6771,6 +6771,12 @@ static int pbx_builtin_goto(struct opbx_channel *chan, void *data)
     res = opbx_parseable_goto(chan, (const char *) data);
     if (!res && (option_verbose > 2))
         opbx_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
+    // The following usleep is added to relax dialplan execution.
+    // When doing small loops with lots of iteration, this usleep
+    // allows theother threads to execute smoothly.
+    // This will for sure dramatically slow down benchmarks but
+    // will improve performance under load or in particular circumstances.
+    usleep(1);
     return res;
 }
 
