@@ -8,7 +8,7 @@ IUSE="alsa debug fax jabber odbc osp oss mgr2 mysql postgres pri profile speex t
 
 DESCRIPTION="open Source Private Branch Exchange System"
 HOMEPAGE="http://www.openpbx.org/"
-SRC_URI="http://www.openpbx.org/releases/openpbx.org-1.2_rc2.tar.gz"
+SRC_URI="http://www.openpbx.org/openpbx.org-1.2_rc2.tar.gz"
 
 
 #S=${WORKDIR}/${PN}
