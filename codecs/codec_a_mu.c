@@ -344,7 +344,6 @@ int load_module(void)
 /*
  * Return a description of this module.
  */
-
 char *description(void)
 {
     return tdesc;
@@ -353,6 +352,7 @@ char *description(void)
 int usecount(void)
 {
     int res;
-    STANDARD_USECOUNT (res);
+    
+    STANDARD_USECOUNT(res);
     return res;
 }
