@@ -16,6 +16,9 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H 
+#include "confdefs.h" 
+#endif 
 #include <stdio.h>
 #include "app_conference.h"
 #include "common.h"
