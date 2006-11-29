@@ -13,6 +13,7 @@
  * at the top of the source tree.
  */
 
+#include <stdio.h>
 #include <openpbx/features.h>
 
 
