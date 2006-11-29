@@ -11,7 +11,44 @@ use strict;
 my $def_applications = "applications.txt";
 my $def_extensions = "extensions.conf";
 my (@inc_list, %inc_list);
+my $validation_option = 1;
+## ---------------------------------------------------------------------------
+## Sub do_usage
+## ---------------------------------------------------------------------------
+##
+sub do_usage {
+	print "Usage: $0 [modify|validate]
+Options:
+	modify: Modifies your $def_extensions and all the included files
+		Your original files are renamed to .bak
+		WARNING: If you run this script it will overwrite your existing .bak files
+	validate: Validates your $def_extensions and all the included files
+		It will generate a logfile called validation.log
+		WARNING: If you run this script it will overwrite your existing validation.log file
+";
+	exit 1;
+}
 
+## ---------------------------------------------------------------------------
+## Sub parse_args
+## ---------------------------------------------------------------------------
+##
+sub parse_args {
+	if (defined $ARGV[0]) {
+		if ($ARGV[0] eq 'modify') {
+			$validation_option = 0;
+		}
+		elsif ($ARGV[0] eq 'validate') {
+			unlink("validation.log");
+		}
+		else {
+			do_usage();
+		}
+	}
+	else {
+		do_usage();
+	}
+}
 ## ---------------------------------------------------------------------------
 ## Sub build_applist
 ## ---------------------------------------------------------------------------
@@ -24,7 +61,8 @@ sub build_applist {
 		if ($app) {
 			if ($app =~ /^([^=]+)=(.+)/) {
 				$app_list{lc($1)} = $2;
-			} else {
+			} 
+			else {
 				$app_list{lc($app)} = $app;
 			}
 		}
@@ -34,11 +72,10 @@ sub build_applist {
 }
 
 ## ---------------------------------------------------------------------------
-## Sub parse_args
+## Sub parse_ext_args
 ## ---------------------------------------------------------------------------
 ##
-sub parse_args
-{
+sub parse_ext_args {
 	my ($exten, $prio, $newcmd, $origargs) = @_;
 
 	$newcmd =~ s/\<EXTEN\>/$exten/g;
@@ -59,7 +96,8 @@ sub parse_extlist {
 	unless (open(EXTS, $filename)) {
 		if ($filename eq $def_extensions) {
 			die "Unable to open default file: $filename";
-		} else {
+		} 
+		else {
 			if ($validate) {
 				print OUTPUT "ERROR: Unable to open file $filename included at $inc_list{$filename}\n";
 				close(OUTPUT);
@@ -93,43 +131,50 @@ sub parse_extlist {
 					$args =~ s/^([^\)]+)\.agi/$1.ogi/;
 				}
 				if ($ref_app_list->{$cmd} =~ /\</) {
-					$linecmd = parse_args($exten, $prio, $ref_app_list->{$cmd}, $args);
+					$linecmd = parse_ext_args($exten, $prio, $ref_app_list->{$cmd}, $args);
 					$new_line = sprintf("exten => %s,%s,%s", $exten, $prio, $linecmd);
-				} else {
+				} 
+				else {
 					$cmd = $ref_app_list->{$cmd};
 					$linecmd = $cmd if ($3 ne $cmd);
 					$new_line = sprintf("exten => %s,%s,%s(%s)", $exten, $prio, $cmd, $args);
 				}
-			} else {
+			} 
+			else {
 				$unknown = $cmd = $3;
 				print STDERR "Unknown command: $cmd\n" unless (defined $invcommands{$cmd});
 				$invcommands{$cmd} = 1;
 				$new_line = sprintf("exten => %s,%s,%s(%s)", $exten, $prio, $cmd, $args);
 			}
 			$new_line .= $space if (defined $space);
-		} elsif ($ext_line =~ /^\s*\[(\S+)\]/) {
+		} 
+		elsif ($ext_line =~ /^\s*\[(\S+)\]/) {
 			my $context = $ext_line;
 			if ($context =~ s/^\[(proc|macro)-([^\]]+)\]/\[proc-$2\]/i) {
 				$linecmd = "[proc-$2]" if ($1 ne 'proc');
 			}
 			$new_line = $context;
-		} elsif ($ext_line =~ /^\#include (.*)$/i) {
+		} 
+		elsif ($ext_line =~ /^\#include (.*)$/i) {
 			unless (defined $inc_list{$1}) {
 				$inc_list{$1} = "$filename:$linenum";
 				push(@inc_list, $1);
 				$new_line = $ext_line;
 			}
-		} else {
+		} 
+		else {
 			$new_line = $ext_line;
 		}
 		$new_line .= $comment;
 		if ($validate) {
 			if ($unknown) {
 				print OUTPUT "$filename:$linenum: '$orig_line' has unknown command $unknown\n"
-			} elsif (defined $linecmd) {
+			} 
+			elsif (defined $linecmd) {
 				print OUTPUT "$filename:$linenum: '$orig_line' should be $linecmd\n"
 			}
-		} else {
+		} 
+		else {
 			print OUTPUT $new_line . "\n" ;
 		}
 	}
@@ -138,32 +183,7 @@ sub parse_extlist {
 	return 1;
 }
 
-sub do_usage
-{
-	print "Usage: $0 [modify|validate]
-Options: 
-        modify: Modifies your $def_extensions and all the included files
-                Your original files are renamed to .bak
-                WARNING: If you run this script it will overwrite your existing .bak files
-        validate: Validates your $def_extensions and all the included files
-                It will generate a logfile called validation.log
-                WARNING: If you run this script it will overwrite your existing validation.log file
-";
-	exit 1;
-}
-my $validation_option = 1;
-if (defined $ARGV[0]) {
-	if ($ARGV[0] eq 'modify') {
-		$validation_option = 0;
-	} elsif ($ARGV[0] eq 'validate') {
-		unlink("validation.log");
-	} else {
-		do_usage();
-	}
-} else {
-	do_usage();
-}
-
+parse_args();
 my $inc_off = 0;
 my $applist = build_applist();
 push @inc_list, $def_extensions;
