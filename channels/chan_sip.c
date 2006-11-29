@@ -7328,8 +7328,10 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
         }
         /* Copy back Call-ID in case create_addr changed it */
         opbx_copy_string(r->callid, p->callid, sizeof(r->callid));
-        if (r->portno)
+        if (r->portno) {
             p->sa.sin_port = htons(r->portno);
+            p->recv.sin_port = htons(r->portno);
+	}
         opbx_set_flag(p, SIP_OUTGOING);    /* Registration is outgoing call */
         r->call=p;            /* Save pointer to SIP packet */
         p->registry=ASTOBJ_REF(r);    /* Add pointer to registry in packet */
