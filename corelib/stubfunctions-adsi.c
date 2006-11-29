@@ -14,7 +14,9 @@
  */
 
 //#include <openpbx/adsi.h>
+#include <stdio.h>
 #include "openpbx/channel.h"
+
 
 
 static int stub_adsi_begin_download(struct opbx_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
