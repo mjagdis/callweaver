@@ -122,14 +122,6 @@ $AUTOHEADER --force
 $AUTOCONF --force
 cd ..
 
-cd editline
-libtoolize --copy --force
-$ACLOCAL
-$AUTOHEADER --force
-$AUTOMAKE --copy --add-missing
-$AUTOCONF --force
-cd ..
-
 #pushd sqlite3-embedded
 #libtoolize --copy --force
 #$ACLOCAL
