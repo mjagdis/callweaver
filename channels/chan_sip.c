@@ -3623,32 +3623,34 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     int res1=0;
     int res2=0;
      
+#if T38_SUPPORT
     opbx_mutex_lock(&c0->lock);
     if (c0->tech->bridge == sip_bridge)
     {
         res1 = opbx_test_flag((struct sip_pvt*)(c0->tech_pvt), SIP_T38ENABLED);
-        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c0->name ,res1 ? "enabled\n" : "not enabled\n" );
+        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c0->name, res1  ?  "enabled\n"  :  "not enabled\n");
     }
     opbx_mutex_unlock(&c0->lock);
     opbx_mutex_lock(&c1->lock);
     if (c1->tech->bridge == sip_bridge)
     {
         res2 = opbx_test_flag((struct sip_pvt*)(c1->tech_pvt), SIP_T38ENABLED);
-        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c1->name ,res2 ? "enabled\n" : "not enabled\n" );
+        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c1->name, res2  ?  "enabled\n"  :  "not enabled\n");
     }
     opbx_mutex_unlock(&c1->lock);
-    
-    if (res1 && res2)
-        return opbx_udptl_bridge(c0,c1,flag,fo,rc);
 
-    if (res1 || res2)
+    /* If they are both in T.38 mode try a native UDPTL bridge */
+    if (res1  &&  res2)
+        return opbx_udptl_bridge(c0, c1, flag, fo, rc);
+
+    /* If they are in mixed modes, don't try any bridging */
+    if (res1  ||  res2)
         return OPBX_BRIDGE_FAILED_NOWARN;
 
-#if T38_SUPPORT
     /* Because attempt to do a native RTP bridge between peers happens before T38 re-invites
        and that one time only, and at that moment niether peers have T38 enabled so this will
        lead to the native RTP bridge always. This is not good for T38 bridging
-       so we disable native bridging if t38 support is enabled - not good enough, and no native T38 bridges, but working. 
+       so we disable native bridging if T38_SUPPORT is enabled - not good enough, and no native T38 bridges, but working. 
     */
     if (t38udptlsupport)
     {
@@ -3656,7 +3658,7 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
         return OPBX_BRIDGE_FAILED_NOWARN;
     } 
 #endif
-    return opbx_rtp_bridge(c0,c1,flag,fo,rc, 0);
+    return opbx_rtp_bridge(c0, c1, flag, fo, rc, 0);
 }
 
 /*! \brief  sip_new: Initiate a call in the SIP channel */
