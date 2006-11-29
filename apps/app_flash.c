@@ -24,7 +24,8 @@
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
- 
+
+#include <stdio.h> 
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
