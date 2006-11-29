@@ -19,6 +19,7 @@
 #include "confdefs.h"
 #endif  
 
+#include <stdio.h>
 #include <openpbx/crypto.h>
 
 
