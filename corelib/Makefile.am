@@ -27,12 +27,7 @@ libopenpbx_la_LIBADD	=  -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 libopenpbx_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 libopenpbx_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 
 libopenpbx_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libopbxjb.la
-
-if WANT_INTERNAL_LIBEDIT
-libopenpbx_la_LIBADD 	+= ${top_builddir}/editline/src/libedit.la 
-else
-libopenpbx_la_LIBADD	+= -ledit
-endif
+libopenpbx_la_LIBADD	+= -lreadline
 
 if WANT_SRTP
 libopenpbx_la_LIBADD	+= -lsrtp

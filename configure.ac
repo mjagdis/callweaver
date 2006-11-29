@@ -573,31 +573,16 @@ AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanD
 AC_CHECK_LIB([spandsp],[fax_set_transmit_on_idle],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre26 or newer to comple OpenPBX.org.)],[-ltiff])
 
 dnl ###########################################################################
+dnl ###########################################################################
+dnl ###
+dnl ### Readline
+dnl ###
+dnl ###########################################################################
+dnl ###########################################################################
 
-dnl Enable internal libedit
-AC_ARG_ENABLE(internal_libedit,
-	[AC_HELP_STRING([--enable-internal_libedit],[build with internal libedit (default=no)])],,[enable_internal_libedit="no"])
+AC_CHECK_HEADERS([readline/readline.h readline/history.h],,[AC_MSG_ERROR(readline is required to compile OpenPBX.org.)])
+AC_CHECK_LIB([readline],[main],,[AC_MSG_ERROR(readline is required to compile OpenPBX.org.)])
 
-if test "${enable_internal_libedit}" != "no"; then
-   AC_DEFINE([USE_INTERNAL_LIBEDIT],[],[Build with internal libedit.])
-fi
-
-AM_CONDITIONAL([WANT_INTERNAL_LIBEDIT],[test "${enable_internal_libedit}" != "no"])
-
-if test "${enable_internal_libedit}" = "no"; then
-
-AC_ARG_WITH([editline-includes],
-	[AC_HELP_STRING([--with-editline-includes],[Location of editline include files.])],
-	[CFLAGS="$CFLAGS -I${withval}"])
-
-AC_ARG_WITH([tiff-libs],
-	[AC_HELP_STRING([--with-editline-libs],[Location of editline library files.])],
-	[LDFLAGS="$LDFLAGS -L${withval}"])
-
-AC_CHECK_HEADERS([editline/readline.h histedit.h],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/)])
-AC_CHECK_LIB([edit],[el_init],,[AC_MSG_ERROR(libedit is required to compile OpenPBX.org. See http://www.thrysoee.dk/editline/ or use --enable-internal-libedit)])
-
-fi
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -2119,10 +2104,6 @@ AM_CONFIG_HEADER(include/confdefs.h)
 #
 ######
 AC_CONFIG_SUBDIRS(libltdl)
-
-if test "${enable_internal_libedit}" = "yes"; then
-AC_CONFIG_SUBDIRS(editline)
-fi
 
 AC_OUTPUT([Makefile
 		 include/Makefile

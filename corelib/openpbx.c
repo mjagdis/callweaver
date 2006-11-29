@@ -120,11 +120,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/linkedlists.h"
 #include "openpbx/devicestate.h"
 
-#ifdef USE_INTERNAL_LIBEDIT
-#include "editline/src/histedit.h"
-#else
-#include <histedit.h>
-#endif
+#include <readline/readline.h>
+#include <readline/history.h>
 
 /* defines various compile-time defaults */
 #include "defaults.h"
@@ -190,17 +187,15 @@ OPBX_MUTEX_DEFINE_STATIC(atexitslock);
 time_t opbx_startuptime;
 time_t opbx_lastreloadtime;
 
-static History *el_hist = NULL;
-static EditLine *el = NULL;
 static char *remotehostname;
 
 struct console consoles[OPBX_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
-static int opbx_el_add_history(char *);
-static int opbx_el_read_history(char *);
-static int opbx_el_write_history(char *);
+static int opbx_rl_add_history(char *);
+static int opbx_rl_read_history(char *);
+static int opbx_rl_write_history(char *);
 
 char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
@@ -877,11 +872,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
 		if (!opbx_strlen_zero(filename))
-			opbx_el_write_history(filename);
-		if (el != NULL)
-			el_end(el);
-		if (el_hist != NULL)
-			history_end(el_hist);
+			opbx_rl_write_history(filename);
 	}
 	if (option_verbose)
 		opbx_verbose("Executing last minute cleanups\n");
@@ -991,7 +982,7 @@ static void consolehandler(char *s)
 	fflush(stdout);
 	/* Called when readline data is available */
 	if (s && !opbx_all_zeros(s))
-		opbx_el_add_history(s);
+		opbx_rl_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
 		/* The real handler for bang */
@@ -1011,7 +1002,7 @@ static int remoteconsolehandler(char *s)
 	int ret = 0;
 	/* Called when readline data is available */
 	if (s && !opbx_all_zeros(s))
-		opbx_el_add_history(s);
+	    opbx_rl_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
 		/* The real handler for bang */
@@ -1168,7 +1159,7 @@ static struct opbx_cli_entry core_cli[] = {
 #endif /* ! LOW_MEMORY */
 };
 
-static int opbx_el_read_char(EditLine *el, char *cp)
+static int opbx_rl_read_char(FILE *cp)
 {
 	int num_read=0;
 	int lastpos=0;
@@ -1195,7 +1186,7 @@ static int opbx_el_read_char(EditLine *el, char *cp)
 		}
 
 		if (!option_exec && fds[1].revents) {
-			num_read = read(STDIN_FILENO, cp, 1);
+			num_read = rl_getc(cp);
 			if (num_read < 1) {
 				break;
 			} else 
@@ -1212,7 +1203,7 @@ static int opbx_el_read_char(EditLine *el, char *cp)
 					int tries;
 					int reconnects_per_second = 20;
 					fprintf(stderr, "Attempting to reconnect for 30 seconds\n");
-					for (tries=0;tries<30 * reconnects_per_second;tries++) {
+					for (tries = 0; tries < 30 * reconnects_per_second;tries++) {
 						if (opbx_tryconnect()) {
 							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 							printf(opbx_term_quit());
@@ -1235,19 +1226,18 @@ static int opbx_el_read_char(EditLine *el, char *cp)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
 			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
-				*cp = CC_REFRESH;
+				rl_forced_update_display();
 				return(1);
 			} else {
 				lastpos = 1;
 			}
 		}
 	}
-
-	*cp = '\0';
+	rl_line_buffer = '\0';
 	return (0);
 }
 
-static char *cli_prompt(EditLine *el)
+static char *cli_prompt()
 {
 	static char prompt[200];
 	char *pfmt;
@@ -1389,10 +1379,10 @@ static char *cli_prompt(EditLine *el)
 	else
 		snprintf(prompt, sizeof(prompt), OPENPBX_PROMPT);
 
-	return(prompt);	
+	return (prompt);	
 }
 
-static char **opbx_el_strtoarr(char *buf)
+static char **opbx_rl_strtoarr(char *buf)
 {
 	char **match_list = NULL, *retstr;
 	size_t match_list_len;
@@ -1422,175 +1412,72 @@ static char **opbx_el_strtoarr(char *buf)
 	return match_list;
 }
 
-static int opbx_el_sort_compare(const void *i1, const void *i2)
+static char *dummy_completer(char *text, int state)
 {
-	char *s1, *s2;
-
-	s1 = ((char **)i1)[0];
-	s2 = ((char **)i2)[0];
-
-	return strcasecmp(s1, s2);
+    return (char*)NULL;
 }
 
-static int opbx_cli_display_match_list(char **matches, int len, int max)
+static char **cli_completion(const char *text, int start, int end)
 {
-	int i, idx, limit, count;
-	int screenwidth = 0;
-	int numoutput = 0, numoutputline = 0;
-
-	screenwidth = opbx_get_termcols(STDOUT_FILENO);
-
-	/* find out how many entries can be put on one line, with two spaces between strings */
-	limit = screenwidth / (max + 2);
-	if (limit == 0)
-		limit = 1;
-
-	/* how many lines of output */
-	count = len / limit;
-	if (count * limit < len)
-		count++;
-
-	idx = 1;
-
-	qsort(&matches[0], (size_t)(len + 1), sizeof(char *), opbx_el_sort_compare);
-
-	for (; count > 0; count--) {
-		numoutputline = 0;
-		for (i=0; i < limit && matches[idx]; i++, idx++) {
-
-			/* Don't print dupes */
-			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
-				i--;
-				free(matches[idx]);
-				matches[idx] = NULL;
-				continue;
-			}
-
-			numoutput++;
-			numoutputline++;
-			fprintf(stdout, "%-*s  ", max, matches[idx]);
-			free(matches[idx]);
-			matches[idx] = NULL;
+    int nummatches = 0;
+    char buf[2048];
+    char **matches;
+    int res;
+        
+    matches = (char**)NULL;
+    
+    if(option_remote) {
+	snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text); 
+	fdprint(opbx_consock, buf);
+	res = read(opbx_consock, buf, sizeof(buf));
+	buf[res] = '\0';
+	nummatches = atoi(buf);
+	
+	if (nummatches > 0) {
+	    char *mbuf;
+	    int mlen = 0, maxmbuf = 2048;
+	    /* Start with a 2048 byte buffer */
+	    mbuf = malloc(maxmbuf);
+	    if (!mbuf)
+		return (matches);
+		
+	    snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text); 
+	    fdprint(opbx_consock, buf);
+	    res = 0;
+	    mbuf[0] = '\0';
+	    while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1) {
+		if (mlen + 1024 > maxmbuf) {
+		/* Every step increment buffer 1024 bytes */
+		maxmbuf += 1024;
+		mbuf = realloc(mbuf, maxmbuf);
+		if (!mbuf)
+		    return (matches);
 		}
-		if (numoutputline > 0)
-			fprintf(stdout, "\n");
-	}
-
-	return numoutput;
-}
-
-
-static char *cli_complete(EditLine *el, int ch)
-{
-	int len=0;
-	char *ptr;
-	int nummatches = 0;
-	char **matches;
-	int retval = CC_ERROR;
-	char buf[2048];
-	int res;
-
-	LineInfo *lf = (LineInfo *)el_line(el);
-
-	*(char *)lf->cursor = '\0';
-	ptr = (char *)lf->cursor;
-	if (ptr) {
-		while (ptr > lf->buffer) {
-			if (isspace(*ptr)) {
-				ptr++;
-				break;
-			}
-			ptr--;
+		/* Only read 1024 bytes at a time */
+		res = read(opbx_consock, mbuf + mlen, 1024);
+		if (res > 0)
+		    mlen += res;
 		}
-	}
-
-	len = lf->cursor - ptr;
-
-	if (option_remote) {
-		snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
-		fdprint(opbx_consock, buf);
-		res = read(opbx_consock, buf, sizeof(buf));
-		buf[res] = '\0';
-		nummatches = atoi(buf);
-
-		if (nummatches > 0) {
-			char *mbuf;
-			int mlen = 0, maxmbuf = 2048;
-			/* Start with a 2048 byte buffer */
-			mbuf = malloc(maxmbuf);
-			if (!mbuf)
-				return (char *)(CC_ERROR);
-			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
-			fdprint(opbx_consock, buf);
-			res = 0;
-			mbuf[0] = '\0';
-			while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1) {
-				if (mlen + 1024 > maxmbuf) {
-					/* Every step increment buffer 1024 bytes */
-					maxmbuf += 1024;
-					mbuf = realloc(mbuf, maxmbuf);
-					if (!mbuf)
-						return (char *)(CC_ERROR);
-				}
-				/* Only read 1024 bytes at a time */
-				res = read(opbx_consock, mbuf + mlen, 1024);
-				if (res > 0)
-					mlen += res;
-			}
-			mbuf[mlen] = '\0';
-
-			matches = opbx_el_strtoarr(mbuf);
-			free(mbuf);
-		} else
-			matches = (char **) NULL;
-
-
+		mbuf[mlen] = '\0';
+		matches = opbx_rl_strtoarr(mbuf);
+		free(mbuf);
 	} else {
-
-		nummatches = opbx_cli_generatornummatches((char *)lf->buffer,ptr);
-		matches = opbx_cli_completion_matches((char *)lf->buffer,ptr);
+	    return (matches);
 	}
-
-	if (matches) {
-		int i;
-		int matches_num, maxlen, match_len;
-
-		if (matches[0][0] != '\0') {
-			el_deletestr(el, (int) len);
-			el_insertstr(el, matches[0]);
-			retval = CC_REFRESH;
-		}
-
-		if (nummatches == 1) {
-			/* Found an exact match */
-			el_insertstr(el, " ");
-			retval = CC_REFRESH;
-		} else {
-			/* Must be more than one match */
-			for (i=1, maxlen=0; matches[i]; i++) {
-				match_len = strlen(matches[i]);
-				if (match_len > maxlen)
-					maxlen = match_len;
-			}
-			matches_num = i - 1;
-			if (matches_num >1) {
-				fprintf(stdout, "\n");
-				opbx_cli_display_match_list(matches, nummatches, maxlen);
-				retval = CC_REDISPLAY;
-			} else { 
-				el_insertstr(el," ");
-				retval = CC_REFRESH;
-			}
-		}
-	free(matches);
-	}
-
-	return (char *)(long)retval;
+    } else {
+	nummatches = opbx_cli_generatornummatches((char *)rl_line_buffer, (char*)text);
+	
+	if(nummatches > 0 )
+	    matches = opbx_cli_completion_matches((char*)rl_line_buffer, (char*)text);
+	else
+	    return (matches);
+    }
+    return (matches);
 }
 
-static int opbx_el_initialize(void)
+static int opbx_rl_initialize(void)
 {
-	HistEvent ev;
+	/*HistEvent ev;
 	char *editor = getenv("OPBX_EDITOR");
 
 	if (el != NULL)
@@ -1606,52 +1493,53 @@ static int opbx_el_initialize(void)
 	el_hist = history_init();
 	if (!el || !el_hist)
 		return -1;
-
+	*/
+	rl_initialize ();
+	
+	using_history();
+	
+	rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
+	rl_attempted_completion_function = cli_completion;
+	
 	/* setup history with 100 entries */
-	history(el_hist, &ev, H_SETSIZE, 100);
+	//history(el_hist, &ev, H_SETSIZE, 100);
 
-	el_set(el, EL_HIST, history, el_hist);
+	//el_set(el, EL_HIST, history, el_hist);
 
-	el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
+	//el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
 	/* Bind <tab> to command completion */
-	el_set(el, EL_BIND, "^I", "ed-complete", NULL);
+	//el_set(el, EL_BIND, "^I", "ed-complete", NULL);
 	/* Bind ? to command completion */
-	el_set(el, EL_BIND, "?", "ed-complete", NULL);
+	//el_set(el, EL_BIND, "?", "ed-complete", NULL);
 	/* Bind ^D to redisplay */
-	el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
-
+	//el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
+//	rl_bind_key("?", cli_complete);
 	return 0;
 }
 
-static int opbx_el_add_history(char *buf)
+static int opbx_rl_add_history(char *buf)
 {
-	HistEvent ev;
-
-	if (el_hist == NULL || el == NULL)
-		opbx_el_initialize();
-	if (strlen(buf) > 256)
-		return 0;
-	return (history(el_hist, &ev, H_ENTER, buf));
+    HIST_ENTRY *last;
+    
+    if (strlen(buf) > 256)
+	return 0;
+		
+    last = previous_history();
+    if (!last || strcmp (last->line, buf) != 0) {
+	add_history (buf);
+	return 1;
+    }	
+    return 0;
 }
 
-static int opbx_el_write_history(char *filename)
+static int opbx_rl_write_history(char *filename)
 {
-	HistEvent ev;
-
-	if (el_hist == NULL || el == NULL)
-		opbx_el_initialize();
-
-	return (history(el_hist, &ev, H_SAVE, filename));
+    return write_history(filename);
 }
 
-static int opbx_el_read_history(char *filename)
+static int opbx_rl_read_history(char *filename)
 {
-	HistEvent ev;
-
-	if (el_hist == NULL || el == NULL)
-		opbx_el_initialize();
-
-	return (history(el_hist, &ev, H_LOAD, filename));
+    return read_history(filename);
 }
 
 static void opbx_remotecontrol(char * data)
@@ -1664,10 +1552,9 @@ static void opbx_remotecontrol(char * data)
 	char *version;
 	int pid;
 	char tmp[80];
-	char *stringp=NULL;
+	char *stringp = NULL;
 
-	char *ebuf;
-	int num = 0;
+	char *ebuf = NULL;
 
 	read(opbx_consock, buf, sizeof(buf));
 	if (data)
@@ -1692,29 +1579,32 @@ static void opbx_remotecontrol(char * data)
 	remotehostname = hostname;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
-	if (el_hist == NULL || el == NULL)
-		opbx_el_initialize();
+		
+	opbx_rl_initialize();
 
-	el_set(el, EL_GETCFN, opbx_el_read_char);
+	rl_getc_function = opbx_rl_read_char;	
 
 	if (!opbx_strlen_zero(filename))
-		opbx_el_read_history(filename);
+		opbx_rl_read_history(filename);
 
 	if (option_exec && data) {  /* hack to print output then exit if openpbx -rx is used */
-		char tempchar;
+		FILE tempchar;
 		struct pollfd fds[0];
 		fds[0].fd = opbx_consock;
 		fds[0].events = POLLIN;
 		fds[0].revents = 0;
 		while(poll(fds, 1, 100) > 0) {
-			opbx_el_read_char(el, &tempchar);
+			opbx_rl_read_char(&tempchar);
 		}
 		return;
 	}
 	for(;;) {
-		ebuf = (char *)el_gets(el, &num);
-
-		if (!opbx_strlen_zero(ebuf)) {
+		if (ebuf) {
+		    free (ebuf);
+		    ebuf = (char *)NULL;
+		}		
+		ebuf = readline(cli_prompt());
+		if (ebuf) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
@@ -1726,7 +1616,10 @@ static void opbx_remotecontrol(char * data)
 			}
 		}
 	}
-	printf("\nDisconnected from OpenPBX server\n");
+	if(ebuf) {
+	    free (ebuf);
+	}
+	printf("\nDisconnected from OpenPBX server\n");	
 }
 
 static int show_version(void)
@@ -1937,10 +1830,9 @@ int openpbx_main(int argc, char *argv[])
 	int x;
 	FILE *f;
 	sigset_t sigs;
-	int num;
 	int is_child_of_nonroot=0;
-	char *buf;
-	static char *runuser=NULL, *rungroup=NULL;  
+	char *buf = NULL;
+	static char *runuser = NULL, *rungroup = NULL;  
 
 
 	/* init with default */
@@ -2180,7 +2072,7 @@ int openpbx_main(int argc, char *argv[])
 			/* this allows us to e.g. set all TOS bits */
 			if (capset(cap_header, cap_data) == -1) {
 				opbx_log(LOG_WARNING, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
-				}
+			}
 		}
 	}
 
@@ -2218,11 +2110,10 @@ int openpbx_main(int argc, char *argv[])
 	
 
 	if (option_console) {
-		if (el_hist == NULL || el == NULL)
-			opbx_el_initialize();
+		opbx_rl_initialize();
 
 		if (!opbx_strlen_zero(filename))
-			opbx_el_read_history(filename);
+			opbx_rl_read_history(filename);
 	}
 
 	if (opbx_tryconnect()) {
@@ -2400,12 +2291,17 @@ int openpbx_main(int argc, char *argv[])
 		set_title(title);
 
 		for (;;) {
-			buf = (char *)el_gets(el, &num);
 			if (buf) {
+			    free (buf);
+			    buf = (char *)NULL;
+			}
+			buf = readline(cli_prompt());
+			
+			if(buf) {
 				if (buf[strlen(buf)-1] == '\n')
 					buf[strlen(buf)-1] = '\0';
-
-				consolehandler((char *)buf);
+					
+				consolehandler(buf);
 			} else {
 				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the openpbx console\n",
 								  strlen("\nUse EXIT or QUIT to exit the openpbx console\n")) < 0) {
@@ -2421,7 +2317,9 @@ int openpbx_main(int argc, char *argv[])
 				}
 			}
 		}
-
+		if (buf) {
+		    free (buf);
+		}
 	}
 	/* Do nothing */
 	for(;;)  {	/* apparently needed for the MACos */
