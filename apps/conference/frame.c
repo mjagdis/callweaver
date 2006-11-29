@@ -16,6 +16,7 @@
  *
  */
 
+#include <stdio.h>
 #include "frame.h"
 
 conf_frame* mix_frames( conf_frame* frames_in, int speaker_count, int listener_count )

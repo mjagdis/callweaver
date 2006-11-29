@@ -16,6 +16,7 @@
  *
  */
 
+#include <stdio.h>
 #include "app_conference.h"
 #include "common.h"
 
