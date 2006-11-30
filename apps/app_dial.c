@@ -102,8 +102,8 @@ static char *descrip =
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
 "                      with the specified class.\n"
-"      'M(x[^arg])' -- Executes the macro (x with ^ delim arg list) upon connect of the call.\n"
-"                      Also, the macro can set the MACRO_RESULT variable to do the following:\n"
+"      'M(x[^arg])' -- Executes the Proc (x with ^ delim arg list) upon connect of the call.\n"
+"                      Also, the Proc can set the Proc_RESULT variable to do the following:\n"
 "                     -- ABORT - Hangup both legs of the call.\n"
 "                     -- CONGESTION - Behave as if line congestion was encountered.\n"
 "                     -- BUSY - Behave as if a busy signal was encountered. (n+101)\n"
@@ -1550,17 +1550,17 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 				res = -1;
 			}
 
-			app = pbx_findapp("Macro");
+			app = pbx_findapp("Proc");
 
 			if (app && !res) {
 				for (res = 0; res<strlen(macroname); res++)
 					if (macroname[res] == '^')
 						macroname[res] = '|';
 				res = pbx_exec(peer, app, macroname, 1);
-				opbx_log(LOG_DEBUG, "Macro exited with status %d\n", res);
+				opbx_log(LOG_DEBUG, "Proc exited with status %d\n", res);
 				res = 0;
 			} else {
-				opbx_log(LOG_ERROR, "Could not find application Macro\n");
+				opbx_log(LOG_ERROR, "Could not find application Proc\n");
 				res = -1;
 			}
 
