@@ -174,7 +174,7 @@ static int dns_parse_answer(void *context,
 	return 0;
 }
 
-#if defined(res_ninit)
+#if (defined(res_ninit) && !defined(__UCLIBC__))
 #define HAS_RES_NINIT
 #else
 OPBX_MUTEX_DEFINE_STATIC(res_lock);
