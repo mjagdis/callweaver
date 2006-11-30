@@ -45,8 +45,25 @@ to send back to the user.
 static char *tdesc = "Channel Independent Conference Application" ;
 static char *app = "Conference" ;
 static char *synopsis = "Channel Independent Conference" ;
-static char *descrip = "  Conference():  returns 0\n"
-"if the user exits with the '#' key, or -1 if the user hangs up.\n" ;
+static char *descrip = 
+"Usage: Conference(ConferenceName/Flags/Priority[/VADSTART/VADCONTINUE])\n"
+"\n"
+"    * ConferenceName: Whatever you want to name the conference\n"
+"    * Flags one of more of the following:\n"
+"          o M: Moderator (presently same as speaker)\n"
+"          o S: Speaker\n"
+"          o L: Listener\n"
+"          o T: \"Telephone caller\" (just for stats?).\n"
+"          o V: Do VAD on this caller\n"
+"          o D: Use Denoise filter on this caller.\n"
+"          o d: Send manager events when DTMF is received.\n"
+"    * Priority: Currently ignored; was to be a \"speaking priority\" so a\n"
+"        higher priority caller could \"override\" others.\n"
+"    * VADSTART: Optional: \"probability\" to use to detect start of speech.\n"
+"    * VADCONTINUE: Optional: \"probability\" to use to detect continuation\n"
+"        of speech.\n"
+"\n"
+"returns 0 if the user exits with the '#' key, or -1 if the user hangs up.\n" ;
 
 //
 // functions defined in asterisk/module.h
