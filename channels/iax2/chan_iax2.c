@@ -7663,7 +7663,7 @@ static void set_timing(void)
 
 	/* If the timer is running, destroy it */
 	if (timerrunning)
-		opbx_timer_destroy(&trunktimer);
+	    opbx_timer_destroy(&trunktimer);
 	
 	/* Create a 1ms timer */
 	timerrunning = 1;
@@ -7910,11 +7910,11 @@ static int set_config(char *config_file, int reload)
 				opbx_log(LOG_WARNING, "Section '%s' lacks type\n", cat);
 		}
 		cat = opbx_category_browse(cfg, cat);
-	}
-	opbx_config_destroy(cfg);
-	set_timing();
-	return capability;
-	}
+    }
+    opbx_config_destroy(cfg);
+    set_timing();
+    return capability;
+}
 
 static int reload_config(void)
 {

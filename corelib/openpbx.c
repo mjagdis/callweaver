@@ -193,6 +193,7 @@ struct console consoles[OPBX_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
+static int rl_init = 0;
 static int opbx_rl_add_history(char *);
 static int opbx_rl_read_history(char *);
 static int opbx_rl_write_history(char *);
@@ -1233,7 +1234,7 @@ static int opbx_rl_read_char(FILE *cp)
 			}
 		}
 	}
-	rl_line_buffer = '\0';
+	//rl_forced_update_display();
 	return (0);
 }
 
@@ -1514,6 +1515,8 @@ static int opbx_rl_initialize(void)
 	/* Bind ^D to redisplay */
 	//el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
 //	rl_bind_key("?", cli_complete);
+
+	rl_init = 1;
 	return 0;
 }
 
@@ -1523,7 +1526,10 @@ static int opbx_rl_add_history(char *buf)
     
     if (strlen(buf) > 256)
 	return 0;
-		
+    
+    if(!rl_init)
+	opbx_rl_initialize();
+			
     last = previous_history();
     if (!last || strcmp (last->line, buf) != 0) {
 	add_history (buf);
@@ -1534,11 +1540,17 @@ static int opbx_rl_add_history(char *buf)
 
 static int opbx_rl_write_history(char *filename)
 {
+    if(!rl_init)
+	opbx_rl_initialize();
+	
     return write_history(filename);
 }
 
 static int opbx_rl_read_history(char *filename)
 {
+    if(!rl_init)
+	opbx_rl_initialize();
+	
     return read_history(filename);
 }
 
@@ -1579,8 +1591,9 @@ static void opbx_remotecontrol(char * data)
 	remotehostname = hostname;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
-		
-	opbx_rl_initialize();
+	
+	if(!rl_init)	
+	    opbx_rl_initialize();
 
 	rl_getc_function = opbx_rl_read_char;	
 
@@ -1604,7 +1617,7 @@ static void opbx_remotecontrol(char * data)
 		    ebuf = (char *)NULL;
 		}		
 		ebuf = readline(cli_prompt());
-		if (ebuf) {
+		if (!opbx_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
@@ -1617,7 +1630,8 @@ static void opbx_remotecontrol(char * data)
 		}
 	}
 	if(ebuf) {
-	    free (ebuf);
+	    free(ebuf);
+	    ebuf = (char *)NULL;
 	}
 	printf("\nDisconnected from OpenPBX server\n");	
 }
@@ -1971,7 +1985,7 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#if  defined(__linux__)
+#if defined(__linux__)
 #ifndef __CYGWIN__
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
@@ -2016,7 +2030,7 @@ int openpbx_main(int argc, char *argv[])
 		if (setgid(gr->gr_gid)) {
 #else
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
-#endif
+#endif /* __Darwin__
 			opbx_log(LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
 			exit(1);
 		}
@@ -2084,7 +2098,7 @@ int openpbx_main(int argc, char *argv[])
 #else
 
 		opbx_log(LOG_ERROR, "Running as root has been enabled\n");
-#endif
+#endif /* VERY_SECURE */
 	}
 
 #endif /* __CYGWIN__ */
@@ -2096,7 +2110,7 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
-#endif /* __FreeBSD__ */
+#endif /* __linux__ */
 
 	opbx_term_init();
 	printf(opbx_term_end());
@@ -2110,10 +2124,12 @@ int openpbx_main(int argc, char *argv[])
 	
 
 	if (option_console) {
+	    
+	    if(!rl_init)
 		opbx_rl_initialize();
 
-		if (!opbx_strlen_zero(filename))
-			opbx_rl_read_history(filename);
+	    if (!opbx_strlen_zero(filename))
+		opbx_rl_read_history(filename);
 	}
 
 	if (opbx_tryconnect()) {
@@ -2317,8 +2333,9 @@ int openpbx_main(int argc, char *argv[])
 				}
 			}
 		}
-		if (buf) {
-		    free (buf);
+		if(buf) {
+		    free(buf);
+		    buf = (char *)NULL;
 		}
 	}
 	/* Do nothing */
