@@ -252,7 +252,7 @@ void opbx_timer_destroy(opbx_timer_t *t)
 	
 	if(ot->active) {
 	    ot->active = 0;
-	    pthread_cancel(ot->opbx_timer_thread);
+	    usleep(1);
 	    free(t->impl_data);
 	    t->impl_data = NULL;
 #endif /* USE_GENERIC_TIMERS */
@@ -425,7 +425,6 @@ void * _timer_thread(void *parg)
 {
 	opbx_timer_t *t = (opbx_timer_t *) parg;
 	struct __opbx_timer_t *ot = (struct __opbx_timer_t *)t->impl_data;
-	//pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	if(ot->type == OPBX_TIMER_ONESHOT || ot->type == OPBX_TIMER_SIMPLE ) {	    
 	    if (nanosleep(&ot->ts,&ot->ts)) {
@@ -456,35 +455,25 @@ void * _timer_thread(void *parg)
 	    return 0;
 	    
 	} else {
-	    while(1) {
-		pthread_testcancel();
-		if(ot->active) {
-			if(nanosleep(&ot->ts, &ot->ts)) {
-			    if(errno != EINTR )
-				opbx_log(LOG_WARNING, "Requested a timer with %ld "
-				    "nanosecond interval, but system timer "
-				    "couldn't handled!\n"
-				    "Timing may be unreliable!\n", 
-				     ot->ts.tv_nsec);
-			    return 0;
-			}
-			if (t->func) {
-				t->func(t, t->user_data);
-			}
-#ifdef TIMER_DEBUG
-			opbx_log(LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld \n",
-					 (unsigned long)t, 
-					 ot->type, 
-					 (long int)ot->ts.tv_sec, ot->ts.tv_nsec);
-#endif /* TIMER_DEBUG */
-
-		} else {
-#ifdef __Darwin__
-			pthread_yield_np();
-#else
-			sched_yield();
-#endif
+	    while(ot->active) {
+		if(nanosleep(&ot->ts, &ot->ts)) {
+		    if(errno != EINTR )
+			opbx_log(LOG_WARNING, "Requested a timer with %ld "
+			    "nanosecond interval, but system timer "
+			    "couldn't handled!\n"
+			    "Timing may be unreliable!\n", 
+			     ot->ts.tv_nsec);
+		    return 0;
 		}
+		if (t->func) {
+			t->func(t, t->user_data);
+		}
+#ifdef TIMER_DEBUG
+		opbx_log(LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld \n",
+				 (unsigned long)t, 
+				 ot->type, 
+				 (long int)ot->ts.tv_sec, ot->ts.tv_nsec);
+#endif /* TIMER_DEBUG */
 	    }
 	}
 	return 0;
