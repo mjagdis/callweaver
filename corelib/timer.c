@@ -482,7 +482,7 @@ void * _timer_thread(void *parg)
 #ifdef __Darwin__
 			pthread_yield_np();
 #else
-			pthread_yield();
+			sched_yield();
 #endif
 		}
 	    }
