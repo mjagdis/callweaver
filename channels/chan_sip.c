@@ -3375,9 +3375,8 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                         }
                     }
                 }
-
-            }
 #endif
+            }
             opbx_mutex_unlock(&p->lock);
         }
         break;
