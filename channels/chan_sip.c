@@ -3359,6 +3359,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                 time(&p->lastrtptx);
                 res =  opbx_rtp_write(p->rtp, frame);
 
+#if T38_SUPPORT
                 // Outgoing Fax detection
                 if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && 
         	    p->options && p->options->t38txdetection &&
@@ -3376,6 +3377,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                 }
 
             }
+#endif
             opbx_mutex_unlock(&p->lock);
         }
         break;
