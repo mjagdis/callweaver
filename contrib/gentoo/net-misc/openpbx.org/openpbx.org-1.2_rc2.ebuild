@@ -23,6 +23,7 @@ RDEPEND="virtual/libc
 	sys-libs/zlib
 	sys-libs/libcap
 	dev-libs/libedit
+	dev-libs/openssl
 	>=media-libs/spandsp-0.0.3_pre25
 	osp? ( net-libs/osptoolkit )
 	pri? ( net-libs/libpri )
