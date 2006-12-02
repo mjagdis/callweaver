@@ -130,6 +130,7 @@ case "${host}" in
         ;;
   *)
         AC_MSG_RESULT(Unsupported operating system: ${host})
+	no_libcap=yes
         ;;
 esac  
 
