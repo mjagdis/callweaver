@@ -345,7 +345,7 @@ opbxmod_LTLIBRARIES                     += app_sql_postgres.la
 app_sql_postgres_la_SOURCES             = app_sql_postgres.c
 app_sql_postgres_la_CFLAGS		= $(AM_CFLAGS) @PQINCPATH@ 
 app_sql_postgres_la_LDFLAGS             = -module -avoid-version -no-undefined
-app_sql_postgres_la_LIBADD              = ${top_builddir}/corelib/libopenpbx.la
+app_sql_postgres_la_LIBADD              = @PQLIBPATH@ -lpq ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SQL_POSTGRES
 
 if WANT_APP_STACK
