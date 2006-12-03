@@ -976,6 +976,14 @@ AM_CONDITIONAL([WANT_APP_AUTHENTICATE],[test "${with_app_authenticate}" = "yes"]
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_backgrounddetect],
+	[AC_HELP_STRING([--with-app_backgrounddetect],[Build and install app_backgrounddetect (default=yes)])],,
+	[with_app_backgrounddetect="yes"])
+
+AM_CONDITIONAL([WANT_APP_BACKGROUNDDETECT],[test "${with_app_backgrounddetect}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_cdr],
 	[AC_HELP_STRING([--with-app_cdr],[Build and install app_cdr (default=yes)])],,
 	[with_app_cdr="yes"])
@@ -1353,11 +1361,12 @@ AM_CONDITIONAL([WANT_APP_SYSTEM],[test "${with_app_system}" = "yes"])
 
 dnl ###########################################################################
 
-AC_ARG_WITH([app_backgrounddetect],
-	[AC_HELP_STRING([--with-app_backgrounddetect],[Build and install app_backgrounddetect (default=yes)])],,
-	[with_app_backgrounddetect="yes"])
+AC_ARG_WITH([app_t38gateway],
+	[AC_HELP_STRING([--with-app_t38gateway],[Build and install app_t38gateway (default=yes)])],,
+	[with_app_t38gateway="yes"])
 
-AM_CONDITIONAL([WANT_APP_BACKGROUNDDETECT],[test "${with_app_backgrounddetect}" = "yes"])
+AM_CONDITIONAL([WANT_APP_T38GATEWAY],
+	[test "${with_app_t38gateway}" = "yes"])
 
 dnl ###########################################################################
 

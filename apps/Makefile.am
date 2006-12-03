@@ -369,6 +369,13 @@ app_backgrounddetect_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_backgrounddetect_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_BACKGROUNDDETECT
 
+if WANT_APP_T38GATEWAY
+opbxmod_LTLIBRARIES			+= app_t38gateway.la
+app_t38gateway_la_SOURCES	= app_t38gateway.c
+app_t38gateway_la_LDFLAGS	= -module -avoid-version -no-undefined
+app_t38gateway_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_T38GATEWAY
+
 if WANT_APP_TRANSFER
 opbxmod_LTLIBRARIES			+= app_transfer.la
 app_transfer_la_SOURCES			= app_transfer.c
