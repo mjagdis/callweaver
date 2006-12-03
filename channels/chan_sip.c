@@ -438,9 +438,7 @@ static int restart_monitor(void);
 /*! \brief Codecs that we support by default: */
 static int global_capability = OPBX_FORMAT_ULAW | OPBX_FORMAT_ALAW | OPBX_FORMAT_GSM | OPBX_FORMAT_H263;
 static int noncodeccapability = OPBX_RTP_DTMF;
-#if T38_SUPPORT
 static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600 | T38FAX_RATE_14400; /* This is default: NO MMR and JBIG trancoding, NO fill bit removal, transfered TCF, UDP FEC, Version 0 and 9600 max fax rate */
-#endif
 static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
 static int ourport;
@@ -531,9 +529,7 @@ struct sip_invite_param {
     char *distinctive_ring;    /*!< Distinctive ring header */
     char *osptoken;        /*!< OSP token for this call */
     int addsipheaders;    /*!< Add extra SIP headers */
-#if T38_SUPPORT
     int t38txdetection;    /*!< Detect outgoing fax CNG */
-#endif
     char *uri_options;    /*!< URI options to add to the URI */
     char *vxml_url;        /*!< VXML url for Cisco phones */
     char *auth;        /*!< Authentication */
@@ -985,10 +981,8 @@ static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *r
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
-#ifdef T38_SUPPORT
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p);
-#endif
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
@@ -1030,9 +1024,7 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms); /* Function to bridge to SIP channels if T38 support enabled */
-#ifdef T38_SUPPORT
 static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pvt, int reinvite); /* T38 negotiation helper function */
-#endif
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct opbx_channel_tech sip_tech =
@@ -1801,8 +1793,11 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
             {
                 struct sockaddr_in port;
     
-                opbx_udptl_get_us(p->udptl, &port);
-                snprintf(tmpsdl->content, SIP_MAX_LINE_LEN, "m=image %d udptl t38", ntohs(port.sin_port));
+                if (t38udptlsupport)
+                {
+                    opbx_udptl_get_us(p->udptl, &port);
+                    snprintf(tmpsdl->content, SIP_MAX_LINE_LEN, "m=image %d udptl t38", ntohs(port.sin_port));
+                }
             }
         }
 
@@ -1867,13 +1862,11 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
             opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
-#if T38_SUPPORT
         if (p->udptl  &&  !opbx_udptl_get_stunstate(p->udptl))
         {
             opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
-#endif
         if (rr->streq)
         {
             if (stundebug)
@@ -1972,13 +1965,11 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
             opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
-#if T38_SUPPORT
         if (p->udptl  &&  opbx_udptl_get_stunstate(p->udptl) == 0)
         {
             opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
-#endif
         if (rr->streq)
         {
             if (stundebug)
@@ -2549,7 +2540,6 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
     opbx_copy_flags(r, peer, SIP_FLAGS_TO_COPY);
     r->capability = peer->capability;
     r->prefs = peer->prefs;
-#if T38_SUPPORT
     r->t38capability = global_t38_capability;
     if (r->udptl)
     {
@@ -2561,7 +2551,6 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
         opbx_log(LOG_DEBUG,"Our T38 capability (%d)\n", r->t38capability);
     }
     r->t38jointcapability = r->t38capability;
-#endif
     if (r->rtp)
     {
         opbx_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(r)  );
@@ -2572,13 +2561,11 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
         opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(r)  );
         opbx_rtp_setnat(r->vrtp, sip_is_nat_needed(r) );
     }
-#if T38_SUPPORT
     if (r->udptl)
     {
         opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(r) );
         opbx_udptl_setnat(r->udptl, sip_is_nat_needed(r) );
     }
-#endif
     opbx_copy_string(r->peername, peer->username, sizeof(r->peername));
     opbx_copy_string(r->authname, peer->username, sizeof(r->authname));
     opbx_copy_string(r->username, peer->username, sizeof(r->username));
@@ -2753,18 +2740,17 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
                {
                        p->options->uri_options = opbx_var_value(current);
         }
-        else if (!p->options->distinctive_ring && !strcasecmp(opbx_var_name(current), "ALERT_INFO"))
+        else if (!p->options->distinctive_ring  &&  !strcasecmp(opbx_var_name(current), "ALERT_INFO"))
         {
             /* Check whether there is a ALERT_INFO variable */
             p->options->distinctive_ring = opbx_var_value(current);
         }
-        else if (!p->options->addsipheaders && !strncasecmp(opbx_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER")))
+        else if (!p->options->addsipheaders  &&  !strncasecmp(opbx_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER")))
         {
             /* Check whether there is a variable with a name starting with SIPADDHEADER */
             p->options->addsipheaders = 1;
         }
-#if T38_SUPPORT
-        else if (!p->options->t38txdetection && !strncasecmp(opbx_var_name(current), "T38TXDETECT", strlen("T38TXDETECT")))
+        else if (!p->options->t38txdetection  &&  !strncasecmp(opbx_var_name(current), "T38TXDETECT", strlen("T38TXDETECT")))
         {
             /* Check whether there is a variable with a name starting with SIPADDHEADER */
             p->options->t38txdetection = 1;
@@ -2775,7 +2761,6 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
             p->t38state = 1;
             opbx_log(LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
         }
-#endif
         
 #ifdef OSP_SUPPORT
         else if (!p->options->osptoken && !strcasecmp(opbx_var_name(current), "OSPTOKEN"))
@@ -2807,10 +2792,8 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
     {
         p->callingpres = ast->cid.cid_pres;
         p->jointcapability = p->capability;
-#if T38_SUPPORT
         p->t38jointcapability = p->t38capability;
         opbx_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38capability, p->t38jointcapability);
-#endif
         transmit_invite(p, SIP_INVITE, 1, 2);
         if (p->maxtime)
         {
@@ -2871,13 +2854,11 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
         opbx_rtp_destroy(p->rtp);
     if (p->vrtp)
         opbx_rtp_destroy(p->vrtp);
-#if T38_SUPPORT
     if (p->udptl)
         opbx_udptl_destroy(p->udptl);
 #if 0
     if (p->tpkt)
         opbx_tpkt_destroy(p->tpkt);
-#endif
 #endif
     if (p->route)
     {
@@ -3313,7 +3294,6 @@ static int sip_answer(struct opbx_channel *ast)
         opbx_setstate(ast, OPBX_STATE_UP);
         if (option_debug)
             opbx_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
-#if T38_SUPPORT
         if (p->t38state == 3)
         {
             p->t38state = 5;
@@ -3323,8 +3303,9 @@ static int sip_answer(struct opbx_channel *ast)
             res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
         }
         else
-#endif
+        {
             res = transmit_response_with_sdp(p, "200 OK", &p->initreq, 1);
+        }
     }
     opbx_mutex_unlock(&p->lock);
     return res;
@@ -3358,12 +3339,9 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                 }
                 time(&p->lastrtptx);
                 res =  opbx_rtp_write(p->rtp, frame);
-
-#if T38_SUPPORT
                 // Outgoing Fax detection
                 if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && 
-        	    p->options && p->options->t38txdetection &&
-		    p->vadtx)
+        	        p->options  &&  p->options->t38txdetection  &&  p->vadtx)
                 {
                     frame = opbx_dsp_process(p->owner, p->vadtx, frame);
                     if (frame  &&  (frame->frametype == OPBX_FRAME_DTMF))
@@ -3375,7 +3353,6 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                         }
                     }
                 }
-#endif
             }
             opbx_mutex_unlock(&p->lock);
         }
@@ -3401,7 +3378,6 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
     case OPBX_FRAME_IMAGE:
         return 0;
         break;
-#if T38_SUPPORT
     case OPBX_FRAME_MODEM:
         if (p)
         {
@@ -3418,7 +3394,6 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
             opbx_mutex_unlock(&p->lock);
         }
         break;
-#endif
     default: 
         opbx_log(LOG_WARNING, "Can't send %d type frames with SIP write\n", frame->frametype);
         return 0;
@@ -3432,10 +3407,9 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
 {
     int res=0;
     int faxdetected = 0;
+    struct sip_pvt *p = ast->tech_pvt;
 
     res = sip_rtp_write(ast,frame,&faxdetected);
-#if T38_SUPPORT
-    struct sip_pvt *p = ast->tech_pvt;
     if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast)))
     {
         opbx_log(LOG_VERBOSE, "Faxdetect set to 1. DSP detected fax tones on TX\n");
@@ -3457,7 +3431,6 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
             opbx_set_flag(p, SIP_NEEDREINVITE);
         }
     }
-#endif
     return res;
 }
 
@@ -3624,7 +3597,6 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     int res1=0;
     int res2=0;
      
-#if T38_SUPPORT
     opbx_mutex_lock(&c0->lock);
     if (c0->tech->bridge == sip_bridge)
     {
@@ -3651,14 +3623,13 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     /* Because attempt to do a native RTP bridge between peers happens before T38 re-invites
        and that one time only, and at that moment niether peers have T38 enabled so this will
        lead to the native RTP bridge always. This is not good for T38 bridging
-       so we disable native bridging if T38_SUPPORT is enabled - not good enough, and no native T38 bridges, but working. 
+       so we disable native bridging - not good enough, and no native T38 bridges, but working. 
     */
     if (t38udptlsupport)
     {
         opbx_log(LOG_WARNING, "T38 support is enabled - DISABLING native RTP bridging !\n" );
         return OPBX_BRIDGE_FAILED_NOWARN;
     } 
-#endif
     return opbx_rtp_bridge(c0, c1, flag, fo, rc, 0);
 }
 
@@ -3707,19 +3678,13 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     if (opbx_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND)
     {
         i->vad = opbx_dsp_new();
-#if T38_SUPPORT
         opbx_dsp_set_features(i->vad,   DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
         i->vadtx = opbx_dsp_new();
         opbx_dsp_set_features(i->vadtx, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
-#else
-        opbx_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
-#endif
         if (relaxdtmf)
         {
             opbx_dsp_digitmode(i->vad  , DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
-#if T38_SUPPORT
             opbx_dsp_digitmode(i->vadtx, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
-#endif
         }
 
     }
@@ -3934,21 +3899,19 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
     switch (ast->fdno)
     {
     case 0:
-#if T38_SUPPORT
-           if (p->udptl_active && p->udptl)
-               f = opbx_udptl_read(p->udptl);  /* UDPTL for T.38 */
+        if (p->udptl_active  &&  p->udptl)
+            f = opbx_udptl_read(p->udptl);      /* UDPTL for T.38 */
         else
-#endif
-            f = opbx_rtp_read(p->rtp);        /* RTP Audio */
+            f = opbx_rtp_read(p->rtp);          /* RTP Audio */
         break;
     case 1:
-        f = opbx_rtcp_read(p->rtp);            /* RTCP Control Channel */
+        f = opbx_rtcp_read(p->rtp);             /* RTCP Control Channel */
         break;
     case 2:
-        f = opbx_rtp_read(p->vrtp);         /* RTP Video */
+        f = opbx_rtp_read(p->vrtp);             /* RTP Video */
         break;
     case 3:
-        f = opbx_rtcp_read(p->vrtp);        /* RTCP Control Channel for video */
+        f = opbx_rtcp_read(p->vrtp);            /* RTCP Control Channel for video */
         break;
     default:
         f = &null_frame;
@@ -3973,14 +3936,12 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
                 f = opbx_dsp_process(p->owner, p->vad, f);
                 if (f && (f->frametype == OPBX_FRAME_DTMF))
                 {
-#if T38_SUPPORT
                     if (t38udptlsupport && f->subclass == 'f')
                     {
                         /* Fax tone */
                         opbx_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
                         *faxdetect = 1;
                     }
-#endif
                     opbx_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
                 }
             }
@@ -4000,7 +3961,6 @@ static struct opbx_frame *sip_read(struct opbx_channel *ast)
     fr = sip_rtp_read(ast, p, &faxdetected);
     time(&p->lastrtprx);
     opbx_mutex_unlock(&p->lock);
-#if T38_SUPPORT
     /* If we are NOT bridged to another channel, and we have detected fax tone we issue T38 re-invite to a peer */
     /* If we are bridged than it is responsibility of the SIP device to issue T38 re-invite if it detects CNG or fax preabmle */
     if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast)))
@@ -4023,7 +3983,6 @@ static struct opbx_frame *sip_read(struct opbx_channel *ast)
                 opbx_set_flag(p, SIP_NEEDREINVITE);
             }    
     }
-#endif
     return fr;
 }
 
@@ -4108,17 +4067,13 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
         p->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
         if (videosupport)
             p->vrtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-#if T38_SUPPORT
         if (t38udptlsupport)
             p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
-#endif
         opbx_rtp_set_active(p->rtp, 1);
-#if T38_SUPPORT
-        if (t38udptlsupport && p->udptl)
+        if (t38udptlsupport  &&  p->udptl)
     	    opbx_udptl_set_active(p->udptl, 0);
-#endif
         p->udptl_active = 0;
-        if (!p->rtp || (videosupport && !p->vrtp))
+        if (!p->rtp  ||  (videosupport  &&  !p->vrtp))
         {
             opbx_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
             opbx_mutex_destroy(&p->lock);
@@ -4133,10 +4088,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
         opbx_rtp_settos(p->rtp, tos);
         if (p->vrtp)
             opbx_rtp_settos(p->vrtp, tos);
-#if T38_SUPPORT
         if (p->udptl)
             opbx_udptl_settos(p->udptl, tos);
-#endif
         p->rtptimeout = global_rtptimeout;
         p->rtpholdtimeout = global_rtpholdtimeout;
         p->rtpkeepalive = global_rtpkeepalive;
@@ -4154,10 +4107,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
             opbx_rtp_setnat(p->rtp, natflags);
         if (p->vrtp)
             opbx_rtp_setnat(p->vrtp, natflags);
-#if T38_SUPPORT
         if (p->udptl)
             opbx_udptl_setnat(p->udptl, natflags);
-#endif
     }
 
     if (p->method != SIP_REGISTER)
@@ -4173,7 +4124,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
     p->capability = global_capability;
     if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)  ||  (opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
         p->noncodeccapability |= OPBX_RTP_DTMF;
-#if T38_SUPPORT
     if (p->udptl)
     {
         p->t38capability = global_t38_capability;
@@ -4184,7 +4134,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
         p->t38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
         p->t38jointcapability = p->t38capability;
     }    
-#endif
     strcpy(p->context, default_context);
 
     /* Assign default jb conf to the new sip_pvt */
@@ -4542,6 +4491,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     int x,y;
     int debug=sip_debug_test_pvt(p);
     struct opbx_channel *bridgepeer = NULL;
+    int udptlportno = -1;
+    int peert38capability = 0;
+    char s[256];
+    int old = 0;
+
 
     if (!p->rtp)
     {
@@ -4560,16 +4514,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         return -1;
     }
 
-#if T38_SUPPORT
-    int udptlportno = -1;
-    int peert38capability = 0;
-    char s[256];
-    int old = 0;
-
     /* Detecting Cisco GW to swap ports when in T38 fax mode */
     m = get_sdp(req, "o");
     opbx_log(LOG_DEBUG, "Got this other party (o = '%s')\n",m);
-#endif
 
     m = get_sdp(req, "m");
     sdpLineNum_iterator_init(&destiterator);
@@ -4618,7 +4565,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 codecs = opbx_skip_blanks(codecs + len);
             }
         }
-#if T38_SUPPORT
         if (p->udptl && t38udptlsupport
             && 
                 ((sscanf(m, "image %d udptl t38 %n", &x, &len) == 1)
@@ -4655,7 +4601,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         	opbx_udptl_set_active(p->udptl, 0);
             p->udptl_active = 0;
         }
-#endif
         if (p->vrtp)
             opbx_rtp_pt_clear(p->vrtp);  /* Must be cleared in case no m=video line exists */
 
@@ -4682,11 +4627,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         if (!found )
             opbx_log(LOG_WARNING, "Unknown SDP media type in offer: %s\n", m);
     }
-#if T38_SUPPORT
     if (portno == -1  &&  vportno == -1  &&  udptlportno == -1)
-#else
-    if (portno == -1  &&  vportno == -1)
-#endif
     {
         /* No acceptable offer found in SDP */
         return -2;
@@ -4759,7 +4700,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
     }
-#if T38_SUPPORT
     /* Setup UDPTL port number */
     if (udptlportno != -1)
     {
@@ -4774,7 +4714,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
     }
-#endif
     /* Next, scan through each "a=rtpmap:" line, noting each
      * specified RTP payload type (with corresponding MIME subtype):
      */
@@ -4800,7 +4739,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             opbx_rtp_set_rtpmap_type(p->vrtp, codec, "video", mimeSubtype);
     }
 
-#if T38_SUPPORT
     if (udptlportno != -1)
     {
         /* Scan through the a= lines for T38 attributes and set appropriate fileds */
@@ -4933,7 +4871,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         p->t38state = 0;
         opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
     }
-#endif
     /* Now gather all of the codecs that were asked for: */
     opbx_rtp_get_current_formats(p->rtp,
                 &peercapability, &peernoncodeccapability);
@@ -5875,7 +5812,6 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, struct sip_request *res
     }
 }
 
-#if T38_SUPPORT
 /*! \brief  t38_get_rate: Get Max T.38 Transmision rate from T38 capabilities */
 int t38_get_rate(int t38cap)
 {
@@ -6043,7 +5979,6 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     return 0;
 }
-#endif
 
 /*! \brief  add_sdp: Add Session Description Protocol message */
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
@@ -6179,13 +6114,11 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
         alreadysent |= pref_codec;
     }
 
-#if T38_SUPPORT
     if (t38rtpsupport)
     {
         sprintf(tmpstr," %d",122);
         strcat(m_audio,tmpstr);
     }
-#endif
 
     /* Now send any other common codecs, and non-codec formats: */
     for (x = 1; x <= ((videosupport && p->vrtp) ? OPBX_FORMAT_MAX_VIDEO : OPBX_FORMAT_MAX_AUDIO); x <<= 1)
@@ -6251,14 +6184,12 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
         alreadysent |= pref_codec;
     }
 
-#if T38_SUPPORT
     if (t38rtpsupport)
     {
-            /* TODO: Improve this */
+        /* TODO: Improve this */
         sprintf(tmpstr, "a=rtpmap:%d %s/8000", 122, "t38");
         add_line(resp, tmpstr, SIP_DL_DONTCARE);
     }
-#endif
 
     /* Now send any other common codecs, and non-codec formats: */
     for (x = 1;  x <= ((videosupport && p->vrtp)  ?  OPBX_FORMAT_MAX_VIDEO  :  OPBX_FORMAT_MAX_AUDIO);  x <<= 1)
@@ -6338,7 +6269,6 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
     return send_response(p, &resp, retrans, seqno);
 }
 
-#if T38_SUPPORT
 /*! \brief  transmit_response_with_t38_sdp: Used for 200 OK and 183 early media */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
 {
@@ -6362,7 +6292,6 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
     }
     return send_response(p, &resp, retrans, seqno);
 }
-#endif
 
 /*! \brief  determine_firstline_parts: parse first line of incoming SIP request */
 static int determine_firstline_parts( struct sip_request *req ) 
@@ -6447,17 +6376,16 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
     opbx_set_flag(p, SIP_OUTGOING);
 
     opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
-    opbx_rtp_set_active(p->rtp, 0);
-#if T38_SUPPORT
-    if (t38udptlsupport && p->udptl)
-	opbx_udptl_set_active(p->udptl, 1);
-    p->udptl_active = 1;
-#endif
+    if (t38udptlsupport  &&  p->udptl)
+    {
+        opbx_rtp_set_active(p->rtp, 0);
+    	opbx_udptl_set_active(p->udptl, 1);
+        p->udptl_active = 1;
+    }
 
     return send_request(p, &req, 1, p->ocseq);
 }
 
-#if T38_SUPPORT
 /*! \brief  transmit_reinvite_with_t38_sdp: Transmit reinvite with T38 SDP */
 /*     A re-invite is basically a new INVITE with the same CALL-ID and TAG as the
     INVITE that opened the SIP dialogue 
@@ -6486,7 +6414,6 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
     opbx_set_flag(p, SIP_OUTGOING);
     return send_request(p, &req, 1, p->ocseq);
 }
-#endif
 
 /*! \brief  extract_uri: Check Contact: URI of SIP message */
 static void extract_uri(struct sip_pvt *p, struct sip_request *req)
@@ -6851,17 +6778,13 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
             }
         }
     }
-#if T38_SUPPORT
-    if (sdp && (p->udptl) && (p->t38state == 1))
+    if (sdp  &&  p->udptl  &&  (p->t38state == 1))
     {
         opbx_udptl_offered_from_local(p->udptl, 1);
         opbx_log(LOG_DEBUG, "T38 is in state %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
         add_t38_sdp(&req, p);
     }
-    else if (sdp && p->rtp)
-#else
-    if (sdp && p->rtp)
-#endif
+    else if (sdp  &&  p->rtp)
     {
         opbx_rtp_offered_from_local(p->rtp, 1);
         add_sdp(&req, p);
@@ -9222,14 +9145,12 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
             opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
             opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
         }
-#if T38_SUPPORT
         if (p->udptl)
         {
             opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
-	    //To be checked.
+    	    //To be checked.
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
-#endif
         if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore)))
         {
             sip_cancel_destroy(p);
@@ -9269,10 +9190,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
                 p->noncodeccapability |= OPBX_RTP_DTMF;
             else
                 p->noncodeccapability &= ~OPBX_RTP_DTMF;
-#if T38_SUPPORT
             if (p->t38peercapability)
                 p->t38jointcapability &= p->t38peercapability;
-#endif
         }
         if (user && debug)
             opbx_verbose("Found user '%s'\n", user->name);
@@ -9330,13 +9249,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
                 opbx_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
                 opbx_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
             }
-#if T38_SUPPORT
             if (p->udptl)
             {
                 opbx_log(LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
                 opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
             }
-#endif
             opbx_copy_string(p->peersecret, peer->secret, sizeof(p->peersecret));
             p->peersecret[sizeof(p->peersecret)-1] = '\0';
             opbx_copy_string(p->subscribecontext, peer->subscribecontext, sizeof(p->subscribecontext));
@@ -9402,10 +9319,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
                     p->noncodeccapability |= OPBX_RTP_DTMF;
                 else
                     p->noncodeccapability &= ~OPBX_RTP_DTMF;
-#if T38_SUPPORT
                 if (p->t38peercapability)
                     p->t38jointcapability &= p->t38peercapability;
-#endif
             }
             ASTOBJ_UNREF(peer,sip_destroy_peer);
         }
@@ -11983,7 +11898,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             /* Save Record-Route for any later requests we make on this dialogue */
             build_route(p, req, 1);
         }
-#if T38_SUPPORT
         if (p->owner && (p->owner->_state == OPBX_STATE_UP))
         {
             /* if this is a re-invite */ 
@@ -12033,7 +11947,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 opbx_log(LOG_DEBUG, "Channel Bridge information is non-existant. T38 Termination requested.\n");
             }
         }
-        if ((p->t38state == 2) || (p->t38state == 1))
+        if ((p->t38state == 2)  ||  (p->t38state == 1))
         {
             /* If there was T38 reinvite and we are supposed to answer with 200 OK than this should set us to T38 negotiated mode */
             p->t38state = 5;
@@ -12044,7 +11958,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
             }
         }        
-#endif        
         if (!ignore && p->owner)
         {
             if (p->owner->_state != OPBX_STATE_UP)
@@ -12516,13 +12429,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
                     /* Immediately stop VRTP */
                     opbx_rtp_stop(p->vrtp);
                 }
-#if T38_SUPPORT
                 if (p->udptl)
                 {
                     /* Immediately stop T.38 UDPTL */
                     opbx_udptl_stop(p->udptl);
                 }
-#endif
                 /* XXX Locking issues?? XXX */
                 switch (resp)
                 {
@@ -13198,7 +13109,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             transmit_response(p, "180 Ringing", req);
             break;
         case OPBX_STATE_UP:
-#if T38_SUPPORT
             if (p->t38state == 4)
             {
                 struct opbx_channel *bridgepeer = NULL;
@@ -13294,9 +13204,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     }
                 }
             } 
-#else
-            transmit_response_with_sdp(p, "200 OK", req, 1);
-#endif
             break;
         default:
             opbx_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
@@ -13430,13 +13337,11 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
         /* Immediately stop VRTP */
         opbx_rtp_stop(p->vrtp);
     }
-#if T38_SUPPORT
     if (p->udptl)
     {
         /* Immediately stop T.38 UDPTL */
         opbx_udptl_stop(p->udptl);
     }
-#endif
     if (p->owner)
         opbx_queue_hangup(p->owner);
     else
@@ -13479,13 +13384,11 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
         /* Immediately stop VRTP */
         opbx_rtp_stop(p->vrtp);
     }
-#if T38_SUPPORT
     if (p->udptl)
     {
         /* Immediately stop T.38 UDPTL */
         opbx_udptl_stop(p->udptl);
     }
-#endif
     if (!opbx_strlen_zero(get_header(req, "Also")))
     {
         opbx_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
@@ -16177,7 +16080,6 @@ static int sip_set_rtp_peer(struct opbx_channel *chan, struct opbx_rtp *rtp, str
     return 0;
 }
 
-#if T38_SUPPORT
 static struct opbx_udptl *sip_get_udptl_peer(struct opbx_channel *chan)
 {
     struct sip_pvt *p;
@@ -16391,7 +16293,6 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
         return 0;
     }
 }
-#endif
 
 static char *synopsis_dtmfmode = "Change the DTMF mode for a SIP call";
 static char *descrip_dtmfmode = "SipDTMFMode(inband|info|rfc2833): Changes the DTMF mode for a SIP call\n";
@@ -16743,7 +16644,6 @@ static struct opbx_rtp_protocol sip_rtp =
     get_codec: sip_get_codec,
 };
 
-#if T38_SUPPORT
 /*! \brief  sip_udptl: Interface structure with callbacks used to connect to UDPTL module */
 static struct opbx_udptl_protocol sip_udptl =
 {
@@ -16758,7 +16658,6 @@ static struct opbx_tpkt_protocol sip_tpkt =
     get_tpkt_info: sip_get_tpkt_peer,
     set_tpkt_peer: sip_set_tpkt_peer,
 };
-#endif
 #endif
 
 /*! \brief  sip_poke_all_peers: Send a poke to all known peers */
@@ -16896,13 +16795,11 @@ int load_module(void)
     /* Tell the RTP subdriver that we're here */
     opbx_rtp_proto_register(&sip_rtp);
 
-#if T38_SUPPORT
     /* Tell the UDPTL subdriver that we're here */
     opbx_udptl_proto_register(&sip_udptl);
 
     /* Tell the TPKT subdriver that we're here */
     //opbx_tpkt_proto_register(&sip_tpkt);
-#endif
 
     /* Register dialplan applications */
     opbx_register_application(app_sipt38switchover, sip_t38switchover, synopsis_sipt38switchover, descrip_sipt38switchover);
