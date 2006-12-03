@@ -1366,6 +1366,9 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 
 int opbx_rtp_set_active(struct opbx_rtp *rtp, int active)
 {
+    if (!rtp)
+       return 0;
+
     if (rtp->sched  &&  rtp->io)
     {
         if (active)
