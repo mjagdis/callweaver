@@ -28,8 +28,7 @@ DEB_CONFIGURE_EXTRA_FLAGS	:= \
     --with-app_meetme=no \
     --with-chan-capi=yes \
     --enable-iax-trunking=yes \
-    --with-res_config_curl=yes \
-    --enable-t38=yes
+    --with-res_config_curl=yes
 
 ifeq ($(ENABLE_ODBC), yes)
  DEB_CONFIGURE_EXTRA_FLAGS += \
