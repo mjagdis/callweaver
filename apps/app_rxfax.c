@@ -98,7 +98,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
     t30_stats_t t;
     char local_ident[21];
     char far_ident[21];
-    char buf[11];
+    char buf[128];
     
     chan = (struct opbx_channel *) user_data;
     t30_get_transfer_statistics(s, &t);
