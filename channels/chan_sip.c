@@ -3945,7 +3945,7 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
                 opbx_set_read_format(p->owner, p->owner->readformat);
                 opbx_set_write_format(p->owner, p->owner->writeformat);
             }
-            if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad)
+            if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad && !(opbx_bridged_channel(ast)) )
             {
                 f = opbx_dsp_process(p->owner, p->vad, f);
                 if (f && (f->frametype == OPBX_FRAME_DTMF))
@@ -4081,12 +4081,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
         p->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
         if (videosupport)
             p->vrtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-        if (t38udptlsupport)
-            p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
-        opbx_rtp_set_active(p->rtp, 1);
-        if (t38udptlsupport  &&  p->udptl)
-    	    opbx_udptl_set_active(p->udptl, 0);
-        p->udptl_active = 0;
+
         if (!p->rtp  ||  (videosupport  &&  !p->vrtp))
         {
             opbx_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
@@ -4099,6 +4094,14 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, struct s
             free(p);
             return NULL;
         }
+
+        if (t38udptlsupport)
+            p->udptl = opbx_udptl_new_with_sock_info(sched, io, 0, opbx_rtp_udp_socket(p->rtp, NULL));
+        opbx_rtp_set_active(p->rtp, 1);
+        if (t38udptlsupport  &&  p->udptl)
+    	    opbx_udptl_set_active(p->udptl, 0);
+        p->udptl_active = 0;
+
         opbx_rtp_settos(p->rtp, tos);
         if (p->vrtp)
             opbx_rtp_settos(p->vrtp, tos);
