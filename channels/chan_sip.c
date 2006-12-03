@@ -1160,9 +1160,23 @@ static inline int sip_debug_test_addr(struct sockaddr_in *addr)
 /*! \brief  sip_is_nat_needed: Check if we need NAT or STUN */
 static inline int sip_is_nat_needed(struct sip_pvt *p) 
 {
-    return (
-    		( (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ) || (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ALWAYS)
-	);
+    int ret=0;
+    int globalnat_set;
+
+    globalnat_set=(opbx_test_flag(&global_flags, SIP_NAT) & SIP_NAT_ALWAYS)==SIP_NAT_ALWAYS;
+
+    // If nat=route, then id stun is needed, apply nat to RTP
+    if        (  (opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE  ) && p->stun_needed )
+    {
+        ret=1;
+    }
+    // If nat=yes AND global nat is not set as yes/always
+    else if ( (  opbx_test_flag(p, SIP_NAT) & SIP_NAT_ALWAYS ) && !globalnat_set )
+    {
+        ret=1;
+    }
+
+    return ret;
 }
 
 /*! \brief  sip_debug_test_pvt: Test PVT for debugging output */
