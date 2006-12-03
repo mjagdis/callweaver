@@ -134,7 +134,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     return 0;
 }
 
-static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer)
+static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer, int verbose)
 {
 	struct opbx_channel *active = NULL;
     struct opbx_channel *inactive = NULL;
@@ -190,6 +190,13 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     {
         opbx_log(LOG_WARNING, "Unable to start the T.38 gateway\n");
         return -1;
+    }
+    span_log_set_message_handler(&t38_state.logging, span_message);
+    span_log_set_message_handler(&t38_state.t38.logging, span_message);
+    if (verbose)
+    {
+        span_log_set_level(&t38_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        span_log_set_level(&t38_state.t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
     t38_set_t38_version(&t38_state.t38, 0);
     t38_gateway_ecm_control(&t38_state, 1);
@@ -256,6 +263,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     }
 	return running;
 }
+
 static int t38gateway_exec(struct opbx_channel *chan, void *data)
 {
 	int res = 0;
@@ -269,6 +277,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
     int timeout = 60000;
     int format = chan->nativeformats;
 	struct opbx_frame *f;
+    int verbose;
 	
 	if (!data)
     {
@@ -276,6 +285,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
+    verbose = FALSE;
 	tech = opbx_strdupa((char *) data);
 	if ((to = strchr(tech, '|')))
     {
@@ -358,7 +368,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
 				/* This is what we are hoping for */
 				state = f->subclass;
 				opbx_frfree(f);
-				ready=1;
+				ready = 1;
 				break;
 			} 
 			/* else who cares */
@@ -390,7 +400,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
             {
                 /* Different on each side, so gateway */
                 opbx_log(LOG_WARNING, "Doing T.38 gateway\n");
-			    res = opbx_t38_gateway(chan, peer);
+			    res = opbx_t38_gateway(chan, peer, verbose);
             }
 		}
         else

@@ -229,8 +229,6 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         return -1;
     }
 
-    span_set_message_handler(span_message);
-
     /* The next few lines of code parse out the filename and header from the input string */
     if (data == NULL)
     {
@@ -324,7 +322,9 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         memset(&t38, 0, sizeof(t38));
 
         fax_init(&fax, calling_party);
-	fax_set_transmit_on_idle(&fax,TRUE);
+        fax_set_transmit_on_idle(&fax,TRUE);
+        span_log_set_message_handler(&fax.logging, span_message);
+        span_log_set_message_handler(&fax.t30_state.logging, span_message);
         if (verbose)
         {
             span_log_set_level(&fax.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
@@ -342,11 +342,14 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         t30_set_phase_e_handler(&fax.t30_state, phase_e_handler, chan);
 
         t38_terminal_init(&t38, calling_party, t38_tx_packet_handler, chan);
+        span_log_set_message_handler(&t38.logging, span_message);
+        span_log_set_message_handler(&t38.t30_state.logging, span_message);
+        span_log_set_message_handler(&t38.t38.logging, span_message);
         if (verbose)
         {
+            span_log_set_level(&t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
             span_log_set_level(&t38.t30_state.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
             span_log_set_level(&t38.t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-            span_log_set_level(&t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
         }
         x = pbx_builtin_getvar_helper(chan, "LOCALSTATIONID");
         if (x  &&  x[0])
