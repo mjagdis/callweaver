@@ -83,34 +83,34 @@ static void span_message(int level, const char *msg)
 
 static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *peer)
 {
-	struct opbx_channel *active = NULL;
+    struct opbx_channel *active = NULL;
     struct opbx_channel *inactive = NULL;
-	struct opbx_channel *channels[2];
-	struct opbx_frame *f;
-	int timeout = -1;
+    struct opbx_channel *channels[2];
+    struct opbx_frame *f;
+    int timeout = -1;
     int running = 1;
 
-	channels[0] = chan;
-	channels[1] = peer;
-	while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
+    channels[0] = chan;
+    channels[1] = peer;
+    while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
-		if ((active = opbx_waitfor_n(channels, 2, &timeout)))
+        if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
-			inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
-			if ((f = opbx_read(active)))
+            inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
+            if ((f = opbx_read(active)))
             {
-				opbx_write(inactive, f);
-				clean_frame(f);
-				channels[0] = inactive;
-				channels[1] = active;
-			}
+                opbx_write(inactive, f);
+                clean_frame(f);
+                channels[0] = inactive;
+                channels[1] = active;
+            }
             else
             {
-				running = DONE;
+                running = DONE;
             }
-		}
-	}
-	return running;
+        }
+    }
+    return running;
 }
 
 static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uint8_t *buf, int len, int count)
@@ -136,12 +136,12 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 
 static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer, int verbose)
 {
-	struct opbx_channel *active = NULL;
+    struct opbx_channel *active = NULL;
     struct opbx_channel *inactive = NULL;
-	struct opbx_channel *channels[2];
-	struct opbx_frame *f;
+    struct opbx_channel *channels[2];
+    struct opbx_frame *f;
     struct opbx_frame outf;
-	int timeout = -1;
+    int timeout = -1;
     int running = 1;
     int original_read_fmt;
     int original_write_fmt;
@@ -154,17 +154,17 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
 
     if (chan->t38mode_enabled)
     {
-    	channels[0] = chan;
-    	channels[1] = peer;
+        channels[0] = chan;
+        channels[1] = peer;
     }
     else
     {
-    	channels[0] = peer;
-    	channels[1] = chan;
+        channels[0] = peer;
+        channels[1] = chan;
     }
     original_read_fmt = channels[1]->readformat;
     original_write_fmt = channels[1]->writeformat;
- 	if (!channels[1]->t38mode_enabled)
+     if (!channels[1]->t38mode_enabled)
     {
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {
@@ -200,25 +200,25 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     t38_set_t38_version(&t38_state.t38, 0);
     t38_gateway_ecm_control(&t38_state, 1);
 
-	while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
+    while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
-		if ((active = opbx_waitfor_n(channels, 2, &timeout)))
+        if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
             if (active == channels[0])
             {
-    			if ((f = opbx_read(active)))
+                if ((f = opbx_read(active)))
                 {
                     t38_core_rx_ifp_packet(&t38_state.t38, f->seq_no, f->data, f->datalen);
-    				clean_frame(f);
-    			}
+                    clean_frame(f);
+                }
                 else
                 {
-    				running = DONE;
+                    running = DONE;
                 }
             }
             else
             {
-    			if ((f = opbx_read(active)))
+                if ((f = opbx_read(active)))
                 {
                     if (t38_gateway_rx(&t38_state, f->data, f->samples))
                         break;
@@ -239,16 +239,16 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                             break;
                         }
                     }
-			    	clean_frame(f);
-	    		}
+                    clean_frame(f);
+                }
                 else
                 {
-	    			running = DONE;
+                    running = DONE;
                 }
-    			inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
+                inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
             }
-		}
-	}
+        }
+    }
 
     if (original_read_fmt != OPBX_FORMAT_SLINEAR)
     {
@@ -260,185 +260,185 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         if ((res = opbx_set_write_format(channels[1], original_write_fmt)))
             opbx_log(LOG_WARNING, "Unable to restore write format on '%s'\n", channels[1]->name);
     }
-	return running;
+    return running;
 }
 
 static int t38gateway_exec(struct opbx_channel *chan, void *data)
 {
-	int res = 0;
-	struct localuser *u;
-	char *tech = NULL;
-	char *dest = NULL;
+    int res = 0;
+    struct localuser *u;
+    char *tech = NULL;
+    char *dest = NULL;
     char *to = NULL;
     char *flags = "";
-	struct opbx_channel *peer;
-	int state = 0, ready = 0;
+    struct opbx_channel *peer;
+    int state = 0, ready = 0;
     int timeout = 60000;
     int format = chan->nativeformats;
-	struct opbx_frame *f;
+    struct opbx_frame *f;
     int verbose;
-	
-	if (!data)
+    
+    if (!data)
     {
-		opbx_log(LOG_WARNING, "t38gateway requires an argument\n");
-		return -1;
-	}
-	LOCAL_USER_ADD(u);
+        opbx_log(LOG_WARNING, "t38gateway requires an argument\n");
+        return -1;
+    }
+    LOCAL_USER_ADD(u);
     verbose = FALSE;
-	tech = opbx_strdupa((char *) data);
-	if ((to = strchr(tech, '|')))
+    tech = opbx_strdupa((char *) data);
+    if ((to = strchr(tech, '|')))
     {
-		*to = '\0';
-		to++;
+        *to = '\0';
+        to++;
 
-		if ((flags = strchr(to, '|')))
+        if ((flags = strchr(to, '|')))
         {
-			*flags = '\0';
-			flags++;
-		}
+            *flags = '\0';
+            flags++;
+        }
 
-		if ((timeout = atoi(to)))
-			timeout *= 1000;
-		else
-			timeout = 60000;
-	}
-	if ((dest = strchr(tech, '/')))
+        if ((timeout = atoi(to)))
+            timeout *= 1000;
+        else
+            timeout = 60000;
+    }
+    if ((dest = strchr(tech, '/')))
     {
-		int cause = 0;
-		*dest = '\0';
-		dest++;
+        int cause = 0;
+        *dest = '\0';
+        dest++;
 
-		if (!(peer = opbx_request(tech, format, dest, &cause)))
+        if (!(peer = opbx_request(tech, format, dest, &cause)))
         {
-			opbx_log(LOG_ERROR,"Error creating channel %s/%s\n", tech, dest);
-			ALL_DONE(u, 0);
-		}
-		if (flags  &&  strchr(flags, 'r'))
-			opbx_indicate(chan, OPBX_CONTROL_RINGING);
-	}
+            opbx_log(LOG_ERROR,"Error creating channel %s/%s\n", tech, dest);
+            ALL_DONE(u, 0);
+        }
+        if (flags  &&  strchr(flags, 'r'))
+            opbx_indicate(chan, OPBX_CONTROL_RINGING);
+    }
     else
     {
-		opbx_log(LOG_ERROR,"Error creating channel. invalid name %s\n", tech);
-		ALL_DONE(u, 0);
-	}
+        opbx_log(LOG_ERROR,"Error creating channel. invalid name %s\n", tech);
+        ALL_DONE(u, 0);
+    }
 
-	if ((res = opbx_call(peer, dest, 0)) < 0)
-		ALL_DONE(u, -1); 
-	
-	/* While we haven't timed out and we still have no channel up */
-	while (timeout  &&  (peer->_state != OPBX_STATE_UP))
+    if ((res = opbx_call(peer, dest, 0)) < 0)
+        ALL_DONE(u, -1); 
+    
+    /* While we haven't timed out and we still have no channel up */
+    while (timeout  &&  (peer->_state != OPBX_STATE_UP))
     {
-		res = opbx_waitfor(peer, timeout);
-		/* Something is not cool */
-		if (res < 0)
-			break;
-		/* Timed out, so we are done trying */
-		if (res == 0)
-			break;
-		/* -1 means go forever */
-		if (timeout > -1)
+        res = opbx_waitfor(peer, timeout);
+        /* Something is not cool */
+        if (res < 0)
+            break;
+        /* Timed out, so we are done trying */
+        if (res == 0)
+            break;
+        /* -1 means go forever */
+        if (timeout > -1)
         {
-			/* res holds the number of milliseconds remaining */
-			timeout = res;
-			if (timeout < 0)
-				timeout = 0;
-		}
-		f = opbx_read(peer);
-		if (f == NULL)
+            /* res holds the number of milliseconds remaining */
+            timeout = res;
+            if (timeout < 0)
+                timeout = 0;
+        }
+        f = opbx_read(peer);
+        if (f == NULL)
         {
-			state = OPBX_CONTROL_HANGUP;
-			res = 0;
-			break;
-		}
-		if (f->frametype == OPBX_FRAME_CONTROL)
+            state = OPBX_CONTROL_HANGUP;
+            res = 0;
+            break;
+        }
+        if (f->frametype == OPBX_FRAME_CONTROL)
         {
-			if (f->subclass == OPBX_CONTROL_RINGING)
+            if (f->subclass == OPBX_CONTROL_RINGING)
             {
-				state = f->subclass;
-			}
+                state = f->subclass;
+            }
             else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
             {
-				state = f->subclass;
-				opbx_frfree(f);
-				break;
-			}
+                state = f->subclass;
+                opbx_frfree(f);
+                break;
+            }
             else if (f->subclass == OPBX_CONTROL_ANSWER)
             {
-				/* This is what we are hoping for */
-				state = f->subclass;
-				opbx_frfree(f);
-				ready = 1;
-				break;
-			} 
-			/* else who cares */
-		}
-		opbx_frfree(f);
-	}
-	
-	res = 1;
-	if (ready  &&  ready_to_talk(chan, peer))
+                /* This is what we are hoping for */
+                state = f->subclass;
+                opbx_frfree(f);
+                ready = 1;
+                break;
+            } 
+            /* else who cares */
+        }
+        opbx_frfree(f);
+    }
+    
+    res = 1;
+    if (ready  &&  ready_to_talk(chan, peer))
     {
-		if (!opbx_channel_make_compatible(chan, peer))
+        if (!opbx_channel_make_compatible(chan, peer))
         {
-			opbx_answer(chan);
-			peer->appl = app;
-			peer->data = opbx_strdupa(chan->name);
-			if (flags  &&  strchr(flags, 'r'))
-				opbx_indicate(chan, -1);
+            opbx_answer(chan);
+            peer->appl = app;
+            peer->data = opbx_strdupa(chan->name);
+            if (flags  &&  strchr(flags, 'r'))
+                opbx_indicate(chan, -1);
 
-			opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
-    		if ((chan->t38mode_enabled  &&  peer->t38mode_enabled)
+            opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
+            if ((chan->t38mode_enabled  &&  peer->t38mode_enabled)
                 ||
                 (!chan->t38mode_enabled  &&  !peer->t38mode_enabled))
             {
                 /* Same on both sides, so just bridge */
                 opbx_log(LOG_WARNING, "Bridging frames\n");
-			    res = opbx_bridge_frames(chan, peer);
+                res = opbx_bridge_frames(chan, peer);
             }
             else
             {
                 /* Different on each side, so gateway */
                 opbx_log(LOG_WARNING, "Doing T.38 gateway\n");
-			    res = opbx_t38_gateway(chan, peer, verbose);
+                res = opbx_t38_gateway(chan, peer, verbose);
             }
-		}
+        }
         else
         {
-			opbx_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", tech, dest);
-		}
-	}
+            opbx_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", tech, dest);
+        }
+    }
     else
     {
-		opbx_log(LOG_ERROR, "failed to get remote_channel %s/%s\n", tech, dest);
-	}
+        opbx_log(LOG_ERROR, "failed to get remote_channel %s/%s\n", tech, dest);
+    }
 
-	if (peer)
-		opbx_hangup(peer);
+    if (peer)
+        opbx_hangup(peer);
 
-	/* Hangup if the call worked and you spec the h flag */
-	ALL_DONE(u, (!res  &&  (flags  &&  strchr(flags, 'h')))  ?  -1  :  0);
+    /* Hangup if the call worked and you spec the h flag */
+    ALL_DONE(u, (!res  &&  (flags  &&  strchr(flags, 'h')))  ?  -1  :  0);
 }
 
 int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+    STANDARD_HANGUP_LOCALUSERS;
+    return opbx_unregister_application(app);
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, t38gateway_exec, synopsis, tdesc);
+    return opbx_register_application(app, t38gateway_exec, synopsis, tdesc);
 }
 
 char *description(void)
 {
-	return desc;
+    return desc;
 }
 
 int usecount(void)
 {
-	int res;
+    int res;
 
-	STANDARD_USECOUNT(res);
-	return res;
+    STANDARD_USECOUNT(res);
+    return res;
 }
