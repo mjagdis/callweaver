@@ -284,7 +284,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
         return -1;
     }
     LOCAL_USER_ADD(u);
-    verbose = FALSE;
+    verbose = TRUE;
     tech = opbx_strdupa((char *) data);
     if ((to = strchr(tech, '|')))
     {
