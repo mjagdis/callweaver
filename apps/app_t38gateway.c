@@ -145,7 +145,6 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     int running = 1;
     int original_read_fmt;
     int original_write_fmt;
-    int i;
     int res;
     int samples;
     int len;
@@ -163,8 +162,8 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     	channels[0] = peer;
     	channels[1] = chan;
     }
-    original_read_fmt = channels[i]->readformat;
-    original_write_fmt = channels[i]->writeformat;
+    original_read_fmt = channels[1]->readformat;
+    original_write_fmt = channels[1]->writeformat;
  	if (!channels[1]->t38mode_enabled)
     {
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
