@@ -114,7 +114,7 @@ static struct opbx_filestream *g726_40_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->rate = RATE_40;
-        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name40);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name40);
 		tmp->fr.data = tmp->g726;
 		/* datalen will vary for each frame */
 		glistcnt++;
@@ -142,7 +142,7 @@ static struct opbx_filestream *g726_32_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->rate = RATE_32;
-        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name32);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name32);
 		tmp->fr.data = tmp->g726;
 		/* datalen will vary for each frame */
 		glistcnt++;
@@ -170,7 +170,7 @@ static struct opbx_filestream *g726_24_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->rate = RATE_24;
-        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name24);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name24);
 		tmp->fr.data = tmp->g726;
 		/* datalen will vary for each frame */
 		glistcnt++;
@@ -197,7 +197,7 @@ static struct opbx_filestream *g726_16_open(FILE *f)
 			return NULL;
 		}
 		tmp->f = f;
-        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name16);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name16);
 		tmp->rate = RATE_16;
 		tmp->fr.data = tmp->g726;
 		/* datalen will vary for each frame */
@@ -339,7 +339,7 @@ static struct opbx_frame *g726_read(struct opbx_filestream *s, int *whennext)
 	int res;
 
 	/* Send a frame from the file to the appropriate channel */
-    opbx_fram_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, NULL);
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.samples = 8*FRAME_TIME;
 	s->fr.datalen = frame_size[s->rate];

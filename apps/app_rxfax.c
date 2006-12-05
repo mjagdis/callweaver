@@ -174,16 +174,10 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     struct opbx_channel *chan;
 
     chan = (struct opbx_channel *) user_data;
-    memset(&outf, 0, sizeof(outf));
-    outf.frametype = OPBX_FRAME_MODEM;
-    outf.subclass = OPBX_MODEM_T38;
-    outf.mallocd = 0;
+    opbx_fr_init_ex(&outf, OPBX_FRAME_MODEM, OPBX_MODEM_T38, "RxFAX");
     outf.datalen = len;
-    outf.samples = 0;
     outf.data = (uint8_t *) buf;
-    outf.offset = 0;
     outf.tx_copies = count;
-    outf.src = "RxFAX";
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
     return 0;
@@ -470,15 +464,11 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 samples = (inf->samples <= MAX_BLOCK_SIZE)  ?  inf->samples  :  MAX_BLOCK_SIZE;
                 if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
                 {
-                    memset(&outf, 0, sizeof(outf));
-                    outf.frametype = OPBX_FRAME_VOICE;
-                    outf.subclass = OPBX_FORMAT_SLINEAR;
+                    opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
                     outf.datalen = len*sizeof(int16_t);
                     outf.samples = len;
                     outf.data = &buf[OPBX_FRIENDLY_OFFSET];
                     outf.offset = OPBX_FRIENDLY_OFFSET;
-                    outf.tx_copies = 1;
-                    outf.src = "RxFAX";
                     if (opbx_write(chan, &outf) < 0)
                     {
                         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));

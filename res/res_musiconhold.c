@@ -645,7 +645,7 @@ static int moh_generate(struct opbx_channel *chan, void *data, int samples)
 	if (res <= 0)
 		return 0;
 
-    opbx_fr_init_ex(&fr, OPBX_FRAME_VOICE, moh->parent->format, NULL);
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, moh->parent->format, NULL);
 	f.datalen = res;
 	f.data = buf + OPBX_FRIENDLY_OFFSET/2;
 	f.offset = OPBX_FRIENDLY_OFFSET;

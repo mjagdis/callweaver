@@ -95,7 +95,7 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 			amt = *remainder;
 		else
 			*remainder = *remainder - amt;
-        opbx_fram_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
+        opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 		outf.data = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
@@ -131,7 +131,7 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 				amt = inf->datalen;
 			else if (remainder)
 				*remainder = inf->datalen - amt;
-            opbx_fram_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
+            opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 			outf.data = buf;
 			outf.datalen = amt;
 			outf.samples = amt;

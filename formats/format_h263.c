@@ -92,7 +92,7 @@ static struct opbx_filestream *h263_open(FILE *f)
 			return NULL;
 		}
         tmp->f = f;
-        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, name);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, name);
 		tmp->fr.data = tmp->h263;
 		/* datalen will vary for each frame */
 		glistcnt++;

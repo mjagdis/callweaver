@@ -124,17 +124,11 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     struct opbx_channel *chan;
 
     chan = (struct opbx_channel *) user_data;
-    memset(&outf, 0, sizeof(outf));
-    outf.frametype = OPBX_FRAME_MODEM;
-    outf.subclass = OPBX_MODEM_T38;
-    outf.mallocd = 0;
+    opbx_fr_init_ex(&outf, OPBX_FRAME_MODEM, OPBX_MODEM_T38, "T38Gateway");
     outf.datalen = len;
-    outf.samples = 0;
     outf.data = (uint8_t *) buf;
-    outf.offset = 0;
 opbx_log(LOG_WARNING, "t38_tx_packet_handler: Sending %d copies fo frame\n", count);
     outf.tx_copies = count;
-    outf.src = "T38Gateway";
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
     return 0;
@@ -231,15 +225,11 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                     samples = (f->samples <= MAX_BLOCK_SIZE)  ?  f->samples  :  MAX_BLOCK_SIZE;
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
                     {
-                        memset(&outf, 0, sizeof(outf));
-                        outf.frametype = OPBX_FRAME_VOICE;
-                        outf.subclass = OPBX_FORMAT_SLINEAR;
+                        opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "T38Gateway");
                         outf.datalen = len*sizeof(int16_t);
                         outf.samples = len;
                         outf.data = &buf[OPBX_FRIENDLY_OFFSET];
                         outf.offset = OPBX_FRIENDLY_OFFSET;
-                        outf.tx_copies = 1;
-                        outf.src = "T38Gateway";
                         if (opbx_write(channels[1], &outf) < 0)
                         {
                             opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));

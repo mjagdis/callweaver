@@ -220,7 +220,7 @@ static struct opbx_filestream *au_open(FILE *f)
 		return NULL;
 	}
 	tmp->f = f;
-    opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
+    opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 	tmp->fr.data = tmp->buf;
 	/* datalen will vary for each frame */
 	tmp->fr.src = name;
@@ -276,7 +276,7 @@ static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)
 	int delay;
 	/* Send a frame from the file to the appropriate channel */
 
-    opbx_fram_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.data = s->buf;
 	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
