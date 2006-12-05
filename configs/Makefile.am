@@ -17,6 +17,7 @@ SAMPLES = adsi.conf.sample \
 	meetme.conf.sample \
 	modem.conf.sample \
 	modules.conf.sample \
+	musiconhold.conf.sample \
 	muted.conf.sample \
 	openpbx.adsi.sample \
 	openpbx.conf.sample \
@@ -138,7 +139,7 @@ noinst_DATA = $(SAMPLES)
 
 @substitute@
 
-EXTRA_DIST = $(SAMPLES) openpbx.conf.sample.in logger.conf.sample.in musiconhold.conf.sample.in
+EXTRA_DIST = $(SAMPLES) openpbx.conf.sample.in logger.conf.sample.in
 CLEANFILES = openpbx.conf.sample logger.conf.sample musiconhold.conf.sample
 
 openpbx.conf.sample: openpbx.conf.sample.in Makefile
