@@ -221,8 +221,7 @@ struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s)
     if (len > s->len)
         len = s->len;
     /* Make frame */
-    s->f.frametype = OPBX_FRAME_VOICE;
-    s->f.subclass = s->format;
+    opbx_fr_init_ex(&s->f, OPBX_FRAME_VOICE, s->format, NULL);
     s->f.data = s->framedata + OPBX_FRIENDLY_OFFSET;
     s->f.offset = OPBX_FRIENDLY_OFFSET;
     s->f.datalen = len;
@@ -373,12 +372,10 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
             opbx_log(LOG_WARNING, "Out of memory\n");
             return NULL;
         }
-        out->frametype = fr->frametype;
-        out->subclass = fr->subclass;
+        opbx_fr_init_ex(&out, fr->frametype, fr->subclass, NULL);
         out->datalen = fr->datalen;
         out->samples = fr->samples;
         out->offset = fr->offset;
-        out->src = NULL;
         out->data = fr->data;
 
         /* Copy the timing data */
@@ -414,9 +411,8 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
     }
     if (!(fr->mallocd & OPBX_MALLOCD_DATA))
     {
-            tmp = fr->data;
-        out->data = malloc(fr->datalen + OPBX_FRIENDLY_OFFSET);
-        if (!out->data)
+        tmp = fr->data;
+        if ((out->data = malloc(fr->datalen + OPBX_FRIENDLY_OFFSET)) == NULL)
         {
             free(out);
 
@@ -454,8 +450,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     out = buf;
     /* Set us as having malloc'd header only, so it will eventually
        get freed. */
-    out->frametype = f->frametype;
-    out->subclass = f->subclass;
+    opbx_fr_init_ex(&out, f->frametype, f->subclass, NULL);
     out->datalen = f->datalen;
     out->samples = f->samples;
     out->delivery = f->delivery;

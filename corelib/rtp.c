@@ -216,6 +216,7 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
     }
     if (option_debug)
         opbx_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+    opbx_fr_init(&rtp->f);
     if (rtp->resp == 'X')
     {
         rtp->f.frametype = OPBX_FRAME_CONTROL;
@@ -226,12 +227,6 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
         rtp->f.frametype = OPBX_FRAME_DTMF;
         rtp->f.subclass = rtp->resp;
     }
-    rtp->f.datalen = 0;
-    rtp->f.samples = 0;
-    rtp->f.mallocd = 0;
-	rtp->f.delivery = opbx_tv(0,0);
-    rtp->f.seq_no = 0;
-	rtp->f.tx_copies = 0;
     rtp->f.src = "RTP";
     rtp->resp = 0;
     rtp->dtmfduration = 0;
@@ -377,12 +372,10 @@ static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *d
         rtp->f.offset = 0;
         rtp->f.datalen = 0;
     }
+    opbx_fr_init(&rtp->f);
     rtp->f.frametype = OPBX_FRAME_CNG;
     rtp->f.subclass = data[0] & 0x7F;
     rtp->f.datalen = len - 1;
-    rtp->f.samples = 0;
-    rtp->f.delivery.tv_usec =
-    rtp->f.delivery.tv_sec = 0;
     f = &rtp->f;
     return f;
 }

@@ -247,17 +247,13 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 				if (ms <= 0) {
 					res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 					if (res > 0) {
-						myf.f.frametype = OPBX_FRAME_VOICE;
-						myf.f.subclass = OPBX_FORMAT_SLINEAR;
+                        opbx_fr_init_ex(&myf.f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 						myf.f.datalen = res;
-						myf.f.samples = res / 2;
-						myf.f.mallocd = 0;
+						myf.f.samples = res/sizeof(int16_t);
 						myf.f.offset = OPBX_FRIENDLY_OFFSET;
-						myf.f.src = __PRETTY_FUNCTION__;
-						myf.f.delivery.tv_sec = 0;
-						myf.f.delivery.tv_usec = 0;
 						myf.f.data = myf.frdata;
-						if (opbx_write(chan, &myf.f) < 0) {
+						if (opbx_write(chan, &myf.f) < 0)
+                        {
 							res = -1;
 							break;
 						}

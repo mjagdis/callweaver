@@ -202,9 +202,8 @@ static void *muxmon_thread(void *obj)
 	
 	name = opbx_strdupa(muxmon->chan->name);
 
-	framelen = 320;
-	frame.frametype = OPBX_FRAME_VOICE;
-	frame.subclass = OPBX_FORMAT_SLINEAR;
+	framelen = 160*sizeof(int16_t);
+    opbx_fr_init_ex(&frame, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	frame.data = buf;
 	opbx_set_flag(muxmon, MUXFLAG_RUNNING);
 	oflags = O_CREAT|O_WRONLY;
