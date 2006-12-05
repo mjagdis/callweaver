@@ -363,12 +363,9 @@ static struct opbx_filestream *wav_open(FILE *f)
 			return NULL;
 		}
 		tmp->f = f;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, name);
 		tmp->fr.data = tmp->gsm;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_GSM;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
 		tmp->secondhalf = 0;
 		glistcnt++;
 		opbx_mutex_unlock(&wav_lock);
@@ -428,17 +425,19 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 	char msdata[66];
 	/* Send a frame from the file to the appropriate channel */
 
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_GSM;
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.samples = 160;
 	s->fr.datalen = 33;
-	s->fr.mallocd = 0;
-	if (s->secondhalf) {
+	if (s->secondhalf)
+    {
 		/* Just return a frame based on the second GSM frame */
 		s->fr.data = s->gsm + 33;
-	} else {
-		if ((res = fread(msdata, 1, 65, s->f)) != 65) {
+	}
+    else
+    {
+		if ((res = fread(msdata, 1, 65, s->f)) != 65)
+        {
 			if (res && (res != 1))
 				opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 			return NULL;

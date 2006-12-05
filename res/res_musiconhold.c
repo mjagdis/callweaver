@@ -645,17 +645,14 @@ static int moh_generate(struct opbx_channel *chan, void *data, int samples)
 	if (res <= 0)
 		return 0;
 
-	memset(&f, 0, sizeof(f));
-	
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = moh->parent->format;
-	f.mallocd = 0;
+    opbx_fr_init_ex(&fr, OPBX_FRAME_VOICE, moh->parent->format, NULL);
 	f.datalen = res;
-	f.data = buf + OPBX_FRIENDLY_OFFSET / 2;
+	f.data = buf + OPBX_FRIENDLY_OFFSET/2;
 	f.offset = OPBX_FRIENDLY_OFFSET;
 	f.samples = opbx_codec_get_samples(&f);
 
-	if (opbx_write(chan, &f) < 0) {
+	if (opbx_write(chan, &f) < 0)
+    {
 		opbx_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 		return -1;
 	}

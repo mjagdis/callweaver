@@ -108,11 +108,8 @@ static struct opbx_filestream *pcm_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_ALAW;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, name);
 		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
 #ifdef REALTIME_WRITE
 		tmp->start_time = get_time();
 #endif
@@ -167,12 +164,11 @@ static struct opbx_frame *pcm_read(struct opbx_filestream *s, int *whennext)
 	int res;
 	/* Send a frame from the file to the appropriate channel */
 
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_ALAW;
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
-	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
+    {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
