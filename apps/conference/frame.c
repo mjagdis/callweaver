@@ -522,7 +522,7 @@ struct opbx_frame* create_slinear_frame(char *data)
 		return NULL;
 	}
 	
-    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+    opbx_fr_init_ex(f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	f->samples = OPBX_CONF_BLOCK_SAMPLES;
 	f->offset = OPBX_FRIENDLY_OFFSET;
 	f->mallocd = OPBX_MALLOCD_HDR | OPBX_MALLOCD_DATA;
