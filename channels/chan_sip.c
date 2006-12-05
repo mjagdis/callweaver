@@ -4602,6 +4602,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (p->owner  &&  p->lastinvite)
             {
                 p->t38state = 4; /* T38 Offered in re-invite from remote party */
+		//p->owner->t38mode_enabled = 1;
                 opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>" );
             }
             else
@@ -11931,6 +11932,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                         { 
                             /* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
                             /* Send response with T38 SDP to the other side of the bridge */
+			    p->owner->t38mode_enabled = 1;
                             sip_handle_t38_reinvite(bridgepeer,p,0);
                         }
                         else if (p->t38state == 0 && bridgepeer && (bridgepvt->t38state == 5))
@@ -16370,7 +16372,7 @@ static int sip_t38switchover(struct opbx_channel *chan, void *data)
         opbx_mutex_unlock(&chan->lock);
         return 0;
     }
-//ASD
+
     if (t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(chan)))
     {
         if (!opbx_test_flag(p, SIP_GOTREFER))
