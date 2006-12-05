@@ -288,7 +288,7 @@ void opbx_fr_init(struct opbx_frame *fr)
 	fr->mallocd = 0;
 	fr->offset = 0;
 	fr->src = "";
-    fr->data = NULL;
+	fr->data = NULL;
 	fr->delivery = opbx_tv(0,0);
 	fr->seq_no = 0;
 	fr->prev = NULL;
@@ -312,7 +312,7 @@ void opbx_fr_init_ex(struct opbx_frame *fr,
 	fr->mallocd = 0;
 	fr->offset = 0;
 	fr->src = (src)  ?  src  :  "";
-    fr->data = NULL;
+	fr->data = NULL;
 	fr->delivery = opbx_tv(0,0);
 	fr->seq_no = 0;
 	fr->prev = NULL;
@@ -372,7 +372,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
             opbx_log(LOG_WARNING, "Out of memory\n");
             return NULL;
         }
-        opbx_fr_init_ex(&out, fr->frametype, fr->subclass, NULL);
+        opbx_fr_init_ex(out, fr->frametype, fr->subclass, NULL);
         out->datalen = fr->datalen;
         out->samples = fr->samples;
         out->offset = fr->offset;
@@ -450,7 +450,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     out = buf;
     /* Set us as having malloc'd header only, so it will eventually
        get freed. */
-    opbx_fr_init_ex(&out, f->frametype, f->subclass, NULL);
+    opbx_fr_init_ex(out, f->frametype, f->subclass, NULL);
     out->datalen = f->datalen;
     out->samples = f->samples;
     out->delivery = f->delivery;
