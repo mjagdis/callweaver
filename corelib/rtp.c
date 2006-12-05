@@ -229,6 +229,8 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
     rtp->f.datalen = 0;
     rtp->f.samples = 0;
     rtp->f.mallocd = 0;
+	rtp->f.delivery = opbx_tv(0,0);
+    rtp->f.seqno = 0;
 	rtp->f.tx_copies = 0;
     rtp->f.src = "RTP";
     rtp->resp = 0;
@@ -1042,7 +1044,6 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
         rtp->f.has_timing_info = 1;
         rtp->f.ts = timestamp / 8;
         rtp->f.len = rtp->f.samples / 8;
-        rtp->f.seqno = seqno;
     }
     else
     {
@@ -1056,6 +1057,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
         if (mark)
             rtp->f.subclass |= 0x1;
     }
+    rtp->f.seqno = seqno;
 	rtp->f.tx_copies = 0;
     rtp->f.src = "RTP";
     return &rtp->f;
