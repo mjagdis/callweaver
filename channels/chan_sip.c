@@ -4602,7 +4602,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             if (p->owner  &&  p->lastinvite)
             {
                 p->t38state = 4; /* T38 Offered in re-invite from remote party */
-		//p->owner->t38mode_enabled = 1;
+		p->owner->t38mode_enabled = 1;
                 opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>" );
             }
             else
