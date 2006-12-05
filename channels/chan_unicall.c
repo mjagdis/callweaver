@@ -2024,6 +2024,7 @@ struct opbx_frame *unicall_exception(struct opbx_channel *ast)
     p->subs[index].f.mallocd = 0;
     p->subs[index].f.offset = 0;
     p->subs[index].f.subclass = 0;
+	p->subs[index].f.tx_copies = 0;
     p->subs[index].f.src = "unicall_exception";
     p->subs[index].f.data = NULL;
     
@@ -2124,6 +2125,7 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
     p->subs[index].f.mallocd = 0;
     p->subs[index].f.offset = 0;
     p->subs[index].f.subclass = 0;
+	p->subs[index].f.tx_copies = 0;
     p->subs[index].f.src = "unicall_read";
     p->subs[index].f.data = NULL;
     
