@@ -1,6 +1,3 @@
-
-// $Id: member.c,v 1.9 2005/12/16 21:30:50 stevek Exp $
-
 /*
  * app_conference
  *
@@ -14,6 +11,7 @@
  * This program may be modified and distributed under the 
  * terms of the GNU Public License.
  *
+ * $Id: member.c,v 1.9 2005/12/16 21:30:50 stevek Exp $
  */
 
 #ifdef HAVE_CONFIG_H 
@@ -21,9 +19,6 @@
 #endif 
 #include <stdio.h>
 #include "member.h"
-
-
-
 
 // process an incoming frame.  Returns 0 normally, 1 if hangup was received.
 static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f) 
@@ -1712,15 +1707,13 @@ struct opbx_frame *opbx_packer_read(struct opbx_packer *s)
 	}
 
 	/* Make sure we have enough data */
-	if (s->samples < s->framesize ){
-			return NULL;
-	}
+	if (s->samples < s->framesize )
+		return NULL;
 	len = s->len_queue[0];
 	if (len > s->len)
 		len = s->len;
 	/* Make frame */
-	s->f.frametype = OPBX_FRAME_VOICE;
-	s->f.subclass = s->format;
+    opbx_fr_init_ex(&s->f, OPBX_FRAME_VOICE, s->format, NULL);
 	s->f.data = s->framedata + OPBX_FRIENDLY_OFFSET;
 	s->f.offset = OPBX_FRIENDLY_OFFSET;
 	s->f.datalen = len;

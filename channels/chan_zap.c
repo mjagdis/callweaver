@@ -3365,16 +3365,8 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	index = zt_get_index(ast, p, 0);
-	p->subs[index].f.frametype = OPBX_FRAME_NULL;
-	p->subs[index].f.datalen = 0;
-	p->subs[index].f.samples = 0;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = 0;
-	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seq_no = 0;
-	p->subs[index].f.tx_copies = 0;
+    opbx_fr_init(&p->subs[index].f);
 	p->subs[index].f.src = "zt_handle_event";
-	p->subs[index].f.data = NULL;
 	if (index < 0)
 		return &p->subs[index].f;
 	if (p->fake_event) {
@@ -4098,18 +4090,8 @@ static struct opbx_frame *__zt_exception(struct opbx_channel *ast)
 
 	index = zt_get_index(ast, p, 1);
 	
-	p->subs[index].f.frametype = OPBX_FRAME_NULL;
-	p->subs[index].f.datalen = 0;
-	p->subs[index].f.samples = 0;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = 0;
-	p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seq_no = 0;
-	p->subs[index].f.tx_copies = 0;
+    opbx_fr_init(&p->subs[index].f);
 	p->subs[index].f.src = "zt_exception";
-	p->subs[index].f.data = NULL;
-	
 	
 	if ((!p->owner) && (!p->radio)) {
 		/* If nobody owns us, absorb the event appropriately, otherwise
@@ -4223,19 +4205,11 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		return NULL;
 	}
 	
-	if (p->radio && p->inalarm) return NULL;
+	if (p->radio  &&  p->inalarm)
+        return NULL;
 
-	p->subs[index].f.frametype = OPBX_FRAME_NULL;
-	p->subs[index].f.datalen = 0;
-	p->subs[index].f.samples = 0;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = 0;
-	p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seq_no = 0;
-	p->subs[index].f.tx_copies = 0;
+    opbx_fr_init(&p->subs[index].f);
 	p->subs[index].f.src = "zt_read";
-	p->subs[index].f.data = NULL;
 	
 	/* make sure it sends initial key state as first frame */
 	if (p->radio && (!p->firstradio))

@@ -2018,17 +2018,8 @@ struct opbx_frame *unicall_exception(struct opbx_channel *ast)
         return  NULL;
     /*endif*/
     
-    p->subs[index].f.frametype = OPBX_FRAME_NULL;
-    p->subs[index].f.datalen = 0;
-    p->subs[index].f.samples = 0;
-    p->subs[index].f.mallocd = 0;
-    p->subs[index].f.offset = 0;
-    p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seqno = 0;
-	p->subs[index].f.tx_copies = 0;
+    opbx_fr_init(&p->subs[index].f);
     p->subs[index].f.src = "unicall_exception";
-    p->subs[index].f.data = NULL;
     
     if (p->owner == NULL  &&  !p->radio)
     {
@@ -2121,17 +2112,8 @@ struct opbx_frame *unicall_read(struct opbx_channel *ast)
     }
     /*endif*/
     
-    p->subs[index].f.frametype = OPBX_FRAME_NULL;
-    p->subs[index].f.datalen = 0;
-    p->subs[index].f.samples = 0;
-    p->subs[index].f.mallocd = 0;
-    p->subs[index].f.offset = 0;
-    p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seqno = 0;
-	p->subs[index].f.tx_copies = 0;
+    opbx_fr_init(&p->subs[index].f);
     p->subs[index].f.src = "unicall_read";
-    p->subs[index].f.data = NULL;
     
     /* Make sure it sends initial key state as first frame */
     if (p->radio  &&  !p->firstradio)

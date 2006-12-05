@@ -512,29 +512,24 @@ conf_frame* copy_conf_frame( conf_frame* src )
 // slinear frame functions
 //
 
-struct opbx_frame* create_slinear_frame( char* data )
+struct opbx_frame* create_slinear_frame(char *data)
 {
-	struct opbx_frame* f ;
+	struct opbx_frame *f;
 
-	f = calloc( 1, sizeof( struct opbx_frame ) ) ;
-	if ( f == NULL ) 
+	if ((f = calloc(1, sizeof(struct opbx_frame))) == NULL)
 	{
-		opbx_log( LOG_ERROR, "unable to allocate memory for slinear frame\n" ) ;
-		return NULL ;
+		opbx_log(LOG_ERROR, "unable to allocate memory for slinear frame\n");
+		return NULL;
 	}
 	
-	f->frametype = OPBX_FRAME_VOICE ;
-	f->subclass = OPBX_FORMAT_SLINEAR ;
-	f->samples = OPBX_CONF_BLOCK_SAMPLES ;
-	f->offset = OPBX_FRIENDLY_OFFSET ;
-	f->mallocd = OPBX_MALLOCD_HDR | OPBX_MALLOCD_DATA ;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+	f->samples = OPBX_CONF_BLOCK_SAMPLES;
+	f->offset = OPBX_FRIENDLY_OFFSET;
+	f->mallocd = OPBX_MALLOCD_HDR | OPBX_MALLOCD_DATA;
+	f->datalen = OPBX_CONF_FRAME_DATA_SIZE;
+	f->data = data;
 
-	f->datalen = OPBX_CONF_FRAME_DATA_SIZE ;
-	f->data = data ;
-
-	f->src = NULL ;
-
-	return f ;
+	return f;
 }
 
 void mix_slinear_frames( char *dst, const char *src, int samples ) 

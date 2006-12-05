@@ -322,21 +322,15 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len)
 		}
 	}
 		
-	memset(&frame, 0, sizeof(frame));
-	frame.frametype = OPBX_FRAME_VOICE;
-	frame.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&frame, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	frame.data = buf;
 	frame.samples = x;
-	frame.datalen = x * 2;
+	frame.datalen = x*sizeof(int16_t);
 
-	if (opbx_write(chan, &frame)) {
+	if (opbx_write(chan, &frame))
 		return -1;
-	}
-
-	if (csth->fd) {
+	if (csth->fd)
 		write(csth->fd, buf1, len1);
-	}
-
 	return 0;
 }
 
