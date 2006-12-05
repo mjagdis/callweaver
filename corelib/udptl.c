@@ -957,6 +957,9 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
 
     if (len > 0  &&  them->sin_port  &&  them->sin_addr.s_addr)
     {
+#if 0
+        printf("Sending %d copies of %d bytes of UDPTL data to %s:%d\n", f->tx_copies, len, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+#endif
         copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
         for (i = 0;  i < copies;  i++)
         {
@@ -967,9 +970,11 @@ int opbx_udptl_write(struct opbx_udptl *s, struct opbx_frame *f)
         printf("Sent %d bytes of UDPTL data to %s:%d\n", res, opbx_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
         if (udptl_debug_test_addr(them))
+        {
             opbx_verbose("Sent UDPTL packet to %s:%d (seq %d, len %d)\n",
                     opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
                     ntohs(them->sin_port), (s->tx_seq_no - 1) & 0xFFFF, len);
+        }
     }
     return 0;
 }

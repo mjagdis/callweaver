@@ -335,7 +335,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             if (res < 0)
             {
                 opbx_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
-		LOCAL_USER_REMOVE(u);
+                LOCAL_USER_REMOVE(u);
                 return -1;
             }
         }
@@ -349,7 +349,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 res = opbx_set_read_format(chan, original_read_fmt);
                 if (res)
                     opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
-		LOCAL_USER_REMOVE(u);
+                LOCAL_USER_REMOVE(u);
                 return -1;
             }
         }
@@ -403,40 +403,44 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         t30_set_supported_resolutions(&t38.t30_state, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
                                                         | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
 
-	if (ecm) {
-	    t30_set_ecm_capability(&fax.t30_state, TRUE);
-	    t30_set_supported_compressions(&fax.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-	    t30_set_ecm_capability(&t38.t30_state, TRUE);
-	    t30_set_supported_compressions(&t38.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-	    opbx_log(LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
-	}
-	
+        if (ecm)
+        {
+            t30_set_ecm_capability(&fax.t30_state, TRUE);
+            t30_set_supported_compressions(&fax.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+            t30_set_ecm_capability(&t38.t30_state, TRUE);
+            t30_set_supported_compressions(&t38.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+            opbx_log(LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
+        }
+        
         call_is_t38_mode = FALSE;
         passage = nowis();
         next = passage + 30000;
-	rxpkt = 0;
-	time(&begin);
+        rxpkt = 0;
+        time(&begin);
         while ((res = opbx_waitfor(chan, 30)) > -1)
         {
-	    time(&thistime);
-	    if ( (thistime-begin) >= 20 && (!rxpkt) ) {
-	    	opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
-        	break;
-	    }
+            time(&thistime);
+            if ((thistime - begin) >= 20  &&  (!rxpkt))
+            {
+                opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int) thistime - begin);
+                break;
+            }
 
             now = nowis();
             delay = (next < now)  ?  0  :  (next - now + 500)/1000;
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
-	    // increment received packet count.
-	    rxpkt+=res;
-		
-            if (!call_is_t38_mode) {
-		if (chan->t38mode_enabled==1) {
-		    call_is_t38_mode=TRUE;
-	    	    opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
-		}
-	    }
+            // increment received packet count.
+            rxpkt += res;
+                
+            if (!call_is_t38_mode)
+            {
+                if (chan->t38mode_enabled == 1)
+                {
+                    call_is_t38_mode = TRUE;
+                    opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
+                }
+            }
 
             if (call_is_t38_mode)
             {
@@ -458,7 +462,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 break;
             }
 
-	    time(&begin);
+            time(&begin);
             if (inf->frametype == OPBX_FRAME_VOICE  &&  !call_is_t38_mode)
             {
                 if (fax_rx(&fax, inf->data, inf->samples))
@@ -473,6 +477,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                     outf.samples = len;
                     outf.data = &buf[OPBX_FRIENDLY_OFFSET];
                     outf.offset = OPBX_FRIENDLY_OFFSET;
+                    outf.tx_copies = 1;
                     outf.src = "RxFAX";
                     if (opbx_write(chan, &outf) < 0)
                     {
@@ -490,23 +495,33 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                     passage = now;
                 }
                 t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
-            } else if ( inf->frametype == 5 ) {
-		// DTMF packet
-            } else if ( inf->frametype == OPBX_FRAME_VOICE && call_is_t38_mode ) {
-		// VOICE While in T38 mode packet
-            } else if ( inf->frametype == OPBX_FRAME_NULL ) {
-		// NULL PACKET
-	    } else if ( inf->frametype == 0 && !call_is_t38_mode ) {
-		// We received unknown frametype.
-		// This happens when a T38 switchover has been performed and
-		// we consider RTP frames as UDPTL. Let's switch to t38 mode.
+            }
+            else if (inf->frametype == 5)
+            {
+                // DTMF packet
+            }
+            else if (inf->frametype == OPBX_FRAME_VOICE && call_is_t38_mode)
+            {
+                // VOICE While in T38 mode packet
+            }
+            else if ( inf->frametype == OPBX_FRAME_NULL)
+            {
+                // NULL PACKET
+            }
+            else if (inf->frametype == 0  &&  !call_is_t38_mode)
+            {
+                // We received unknown frametype.
+                // This happens when a T38 switchover has been performed and
+                // we consider RTP frames as UDPTL. Let's switch to t38 mode.
                 call_is_t38_mode = TRUE;
                 passage = now;
-	    } else {
-		if (verbose)
-		    opbx_log(LOG_DEBUG," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
-			inf->frametype, inf->subclass, call_is_t38_mode );
-	    }
+            }
+            else
+            {
+                if (verbose)
+                    opbx_log(LOG_DEBUG," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
+                        inf->frametype, inf->subclass, call_is_t38_mode );
+            }
             opbx_frfree(inf);
         }
         if (inf == NULL)
@@ -514,13 +529,13 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             opbx_log(LOG_DEBUG, "Got hangup\n");
             res = -1;
         }
-	
+        
         //opbx_log(LOG_WARNING, "Terminating fax\n");
         if (!call_is_t38_mode)
-	    t30_terminate(&fax.t30_state);
-	else
-	    t30_terminate(&t38.t30_state);
-	
+            t30_terminate(&fax.t30_state);
+        else
+            t30_terminate(&t38.t30_state);
+
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {
             if ((res = opbx_set_read_format(chan, original_read_fmt)))

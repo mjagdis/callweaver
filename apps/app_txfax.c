@@ -299,7 +299,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             if (res < 0)
             {
                 opbx_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
-		LOCAL_USER_REMOVE(u);
+                LOCAL_USER_REMOVE(u);
                 return -1;
             }
         }
@@ -313,7 +313,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                 res = opbx_set_read_format(chan, original_read_fmt);
                 if (res)
                     opbx_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
-		LOCAL_USER_REMOVE(u);
+                LOCAL_USER_REMOVE(u);
                 return -1;
             }
         }
@@ -371,14 +371,14 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                                                         | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
         t30_set_supported_resolutions(&t38.t30_state, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
                                                         | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
-	if (ecm) {
-    	    t30_set_ecm_capability(&fax.t30_state, TRUE);
-	    t30_set_supported_compressions(&fax.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-    	    t30_set_ecm_capability(&t38.t30_state, TRUE);
-	    t30_set_supported_compressions(&t38.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-	    opbx_log(LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
-	}
-	
+        if (ecm) {
+                t30_set_ecm_capability(&fax.t30_state, TRUE);
+            t30_set_supported_compressions(&fax.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+                t30_set_ecm_capability(&t38.t30_state, TRUE);
+            t30_set_supported_compressions(&t38.t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
+            opbx_log(LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
+        }
+        
         call_is_t38_mode = FALSE;
         passage = nowis();
         next = passage + 30000;
@@ -390,23 +390,23 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             if ((res = opbx_waitfor(chan, delay)) < 0)
                 break;
 
-	    // Let's timeout if we have no input packets for at least 60 secs.
-	    time(&thistime);
-	    if ( ((thistime-begin) >= 60) && !call_is_t38_mode ) {
-	    	opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
-        	break;
-	    }
+            // Let's timeout if we have no input packets for at least 60 secs.
+            time(&thistime);
+            if ( ((thistime-begin) >= 60) && !call_is_t38_mode ) {
+                    opbx_log(LOG_DEBUG, "No data received for %ld seconds. Hanging up.\n", (int)thistime-begin  );
+                break;
+            }
 
-	    // Let's help T38 switchover (don't wait for udptl packets but trust channel state).
+            // Let's help T38 switchover (don't wait for udptl packets but trust channel state).
             if (!call_is_t38_mode) {
-		if (chan->t38mode_enabled==1) {
-		    call_is_t38_mode=TRUE;
-	    	    opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
-		}
-	    }
+                if (chan->t38mode_enabled==1) {
+                    call_is_t38_mode=TRUE;
+                        opbx_log(LOG_DEBUG, "T38 switchover detected\n" );
+                }
+            }
 
             if (call_is_t38_mode)
-	    {
+            {
                 now = nowis();
                 t38_terminal_send_timeout(&t38, (now - passage)/125);
                 passage = now;
@@ -417,35 +417,40 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 
             if (res == 0)
             {
-		if (!call_is_t38_mode) {
-            	    samples = 160;
-            	    if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples))) {
-                	memset(&outf, 0, sizeof(outf));
-                	outf.frametype = OPBX_FRAME_VOICE;
-                	outf.subclass = OPBX_FORMAT_SLINEAR;
-                	outf.datalen = len*sizeof(int16_t);
-                	outf.samples = len;
-                	outf.data = &buf[OPBX_FRIENDLY_OFFSET];
-                	outf.offset = OPBX_FRIENDLY_OFFSET;
-                	outf.src = "TxFAX";
-                	if (opbx_write(chan, &outf) < 0) {
-                    	    opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-                    	    break;
-                	}
-			passage = now;
-            		next += 20000; // If I remember well, spandsp generates 1 frame every 20ms
-		    }
-		} else 
-            	    next += 30000;
-            	continue;
+                if (!call_is_t38_mode)
+                {
+                    samples = 160;
+                    if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
+                    {
+                        memset(&outf, 0, sizeof(outf));
+                        outf.frametype = OPBX_FRAME_VOICE;
+                        outf.subclass = OPBX_FORMAT_SLINEAR;
+                        outf.datalen = len*sizeof(int16_t);
+                        outf.samples = len;
+                        outf.data = &buf[OPBX_FRIENDLY_OFFSET];
+                        outf.offset = OPBX_FRIENDLY_OFFSET;
+                        outf.tx_copies = 1;
+                        outf.src = "TxFAX";
+                        if (opbx_write(chan, &outf) < 0)
+                        {
+                            opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                            break;
+                        }
+                        passage = now;
+                            next += 20000; // If I remember well, spandsp generates 1 frame every 20ms
+                    }
+                }
+                else 
+                    next += 30000;
+                continue;
             } 
-	    else
-	    {
-		// TxFax receives 1 fake packet every 3-4 secs. 
-		// This check is used to verify autenticity of RTP packets.
-		if ( thistime-begin <=2 )
-		    time(&begin);
-	    }
+            else
+            {
+                // TxFax receives 1 fake packet every 3-4 secs. 
+                // This check is used to verify autenticity of RTP packets.
+                if ( thistime-begin <=2 )
+                    time(&begin);
+            }
 
             if ((inf = opbx_read(chan)) == NULL)
             {
@@ -468,6 +473,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                     outf.samples = len;
                     outf.data = &buf[OPBX_FRIENDLY_OFFSET];
                     outf.offset = OPBX_FRIENDLY_OFFSET;
+                    outf.tx_copies = 1;
                     outf.src = "TxFAX";
                     if (opbx_write(chan, &outf) < 0)
                     {
@@ -480,18 +486,18 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
             {
                 //printf("T.38 frame received\n");
                 if (!call_is_t38_mode)
-        	{
-            		call_is_t38_mode = TRUE;
-		    	passage = now;
+                {
+                            call_is_t38_mode = TRUE;
+                            passage = now;
                 }
-        	t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
-	    } 
-	    else 
-	    {
-		if (verbose)
-		    opbx_log(LOG_DEBUG," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
-			inf->frametype, inf->subclass, call_is_t38_mode );
-	    }
+                t38_core_rx_ifp_packet(&t38.t38, inf->seq_no, inf->data, inf->datalen);
+            } 
+            else 
+            {
+                if (verbose)
+                    opbx_log(LOG_DEBUG," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
+                        inf->frametype, inf->subclass, call_is_t38_mode );
+            }
             opbx_frfree(inf);
         }
         if (inf == NULL)
@@ -501,9 +507,9 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         }
 
         if (!call_is_t38_mode)
-	    t30_terminate(&fax.t30_state);
-	else
-	    t30_terminate(&t38.t30_state);
+            t30_terminate(&fax.t30_state);
+        else
+            t30_terminate(&t38.t30_state);
 
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {

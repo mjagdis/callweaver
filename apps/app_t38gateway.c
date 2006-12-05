@@ -88,7 +88,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     struct opbx_channel *channels[2];
     struct opbx_frame *f;
     int timeout = -1;
-    int running = 1;
+    int running = RUNNING;
 
     channels[0] = chan;
     channels[1] = peer;
@@ -99,6 +99,8 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
             if ((f = opbx_read(active)))
             {
+                /* TODO: this is only needed because no everthing sets the tx_copies field properly */
+                f->tx_copies = 1;
                 opbx_write(inactive, f);
                 clean_frame(f);
                 channels[0] = inactive;
@@ -109,6 +111,9 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                 running = DONE;
             }
         }
+        /* Check if we need to change to gateway operation */
+        if (chan->t38mode_enabled != peer->t38mode_enabled)
+            break;
     }
     return running;
 }
@@ -127,6 +132,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     outf.samples = 0;
     outf.data = (uint8_t *) buf;
     outf.offset = 0;
+opbx_log(LOG_WARNING, "t38_tx_packet_handler: Sending %d copies fo frame\n", count);
     outf.tx_copies = count;
     outf.src = "T38Gateway";
     if (opbx_write(chan, &outf) < 0)
@@ -142,7 +148,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     struct opbx_frame *f;
     struct opbx_frame outf;
     int timeout = -1;
-    int running = 1;
+    int running = RUNNING;
     int original_read_fmt;
     int original_write_fmt;
     int res;
@@ -164,7 +170,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     }
     original_read_fmt = channels[1]->readformat;
     original_write_fmt = channels[1]->writeformat;
-     if (!channels[1]->t38mode_enabled)
+    if (!channels[1]->t38mode_enabled)
     {
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {
@@ -232,6 +238,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                         outf.samples = len;
                         outf.data = &buf[OPBX_FRIENDLY_OFFSET];
                         outf.offset = OPBX_FRIENDLY_OFFSET;
+                        outf.tx_copies = 1;
                         outf.src = "T38Gateway";
                         if (opbx_write(channels[1], &outf) < 0)
                         {
@@ -387,15 +394,13 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
                 opbx_indicate(chan, -1);
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
-            if ((chan->t38mode_enabled  &&  peer->t38mode_enabled)
-                ||
-                (!chan->t38mode_enabled  &&  !peer->t38mode_enabled))
+            if (res  &&  chan->t38mode_enabled == peer->t38mode_enabled)
             {
                 /* Same on both sides, so just bridge */
                 opbx_log(LOG_WARNING, "Bridging frames\n");
                 res = opbx_bridge_frames(chan, peer);
             }
-            else
+            if (res  &&  chan->t38mode_enabled != peer->t38mode_enabled)
             {
                 /* Different on each side, so gateway */
                 opbx_log(LOG_WARNING, "Doing T.38 gateway\n");
