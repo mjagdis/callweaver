@@ -395,7 +395,7 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec)
 	{
 		if(create_jb(chan, frr, codec))
 		{
-			opbx_frfree(frr);
+			opbx_fr_free(frr);
 			/* Disable the jitterbuffer */
 			opbx_clear_flag(jb, JB_USE);
 			return -1;
@@ -410,7 +410,7 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec)
 		if(jbimpl->put(jbobj, frr, now, codec) != JB_IMPL_OK)
 		{
 			jb_framelog("JB_PUT {now=%ld}: Dropped frame with ts=%ld and len=%ld\n", now, frr->ts, frr->len);
-			opbx_frfree(frr);
+			opbx_fr_free(frr);
 			/*return -1;*/
 			/* TODO: Check this fix - should return 0 here, because the dropped frame shouldn't 
 			   be delivered at all */
@@ -488,7 +488,7 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 				    now, jb->next, jb_get_actions[res], 
 				    f->ts, f->len);
 			jb->last_format = f->subclass;
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			break;
 		case JB_IMPL_INTERP:
 			/* interpolate a frame */
@@ -622,7 +622,7 @@ static int create_jb(struct opbx_channel *chan, struct opbx_frame *frr, int code
 	/* Free the frame if it has not been queued in the jb */
 	if(res != JB_IMPL_OK)
 	{
-	    opbx_frfree(frr);
+	    opbx_fr_free(frr);
 	}
 	
 	return 0;
@@ -656,7 +656,7 @@ void opbx_jb_destroy(struct opbx_channel *chan)
 		/* Remove and free all frames still queued in jb */
 		while(jbimpl->remove(jbobj, &f) == JB_IMPL_OK)
 		{
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 		
 		jbimpl->destroy(jbobj);

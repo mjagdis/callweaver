@@ -60,7 +60,7 @@ void opbx_slinfactory_destroy(struct opbx_slinfactory *sf)
 	while ((f = sf->queue))
     {
 		sf->queue = f->next;
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	opbx_mutex_destroy(&(sf->lock));
 
@@ -172,7 +172,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 				memcpy(sf->hold, frame_data, remain);
 				sf->holdlen = remain;
 			}
-			opbx_frfree(frame_ptr);
+			opbx_fr_free(frame_ptr);
 		}
         else
         {

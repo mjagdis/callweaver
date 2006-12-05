@@ -239,7 +239,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 			    		    opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
 				    }
 				    res = 0;
-				    opbx_frfree(fr);
+				    opbx_fr_free(fr);
 				    break;
 				}
 
@@ -282,7 +282,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 							opbx_log(LOG_WARNING, "Already in a fax extension, not redirecting\n");
 						}
 						res = 0;
-						opbx_frfree(fr);
+						opbx_fr_free(fr);
 						break;
 					    } else if (!ignoredtmf) {
 						char t[2];
@@ -302,7 +302,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 							res = fr2->subclass;
 						    }
 						    pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "1");
-						    opbx_frfree(fr);
+						    opbx_fr_free(fr);
 						    break;
 						} else {
 						    if (strcmp(t,"#") || !longdtmf) {
@@ -315,7 +315,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 							    chan->priority = 0;
 							}
 							res=0;
-							opbx_frfree(fr);
+							opbx_fr_free(fr);
 							break;
 						    }
 						    opbx_log(LOG_DEBUG, "Valid extension requested and DTMF did not match [%s]\n",t);
@@ -343,7 +343,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 									
 									opbx_goto_if_exists(chan, chan->context, "talk", 1);
 									res = 0;
-									opbx_frfree(fr);
+									opbx_fr_free(fr);
 									break;
 								} else
 									opbx_log(LOG_DEBUG, "Found unqualified token of %d ms\n", ms);
@@ -359,7 +359,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 						}
 						
 					}
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 				}
 				opbx_sched_runq(chan->sched);
 			}

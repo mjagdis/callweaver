@@ -45,7 +45,7 @@ static int opbx_check_hangup_locked(struct opbx_channel *chan)
     return res;
 }
 
-#define clean_frame(f) if(f) {opbx_frfree(f); f = NULL;}
+#define clean_frame(f) if(f) {opbx_fr_free(f); f = NULL;}
 #define ALL_DONE(u,ret) {opbx_indicate(chan, -1); LOCAL_USER_REMOVE(u) ; return ret;}
 
 #define ready_to_talk(chan,peer) ((!chan  ||  !peer  ||  opbx_check_hangup_locked(chan)  ||  opbx_check_hangup_locked(peer))  ?  0  :  1)
@@ -366,20 +366,20 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
             else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
             {
                 state = f->subclass;
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 break;
             }
             else if (f->subclass == OPBX_CONTROL_ANSWER)
             {
                 /* This is what we are hoping for */
                 state = f->subclass;
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 ready = 1;
                 break;
             } 
             /* else who cares */
         }
-        opbx_frfree(f);
+        opbx_fr_free(f);
     }
     
     res = 1;

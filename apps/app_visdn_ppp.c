@@ -173,7 +173,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 			break;
 		}
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 
 		int status;
 		res = wait4(pid, &status, WNOHANG, NULL);

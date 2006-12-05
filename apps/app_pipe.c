@@ -224,7 +224,7 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 					}
 					if (f->frametype == OPBX_FRAME_DTMF) {
 						opbx_log(LOG_DEBUG, "User pressed a key\n");
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						res = 0;
 						break;
 					}
@@ -238,7 +238,7 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 							}
 						}
 					}
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				} /* END WRITE TO FD */
 			}
 			if (stdinout == 1) {
@@ -283,11 +283,11 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 						}
 						if (f->frametype == OPBX_FRAME_DTMF) {
 							opbx_log(LOG_DEBUG, "User pressed a key\n");
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							res = 0;
 							break;
 						}
-						opbx_frfree(f);
+						opbx_fr_free(f);
 					}
 				}
 				/* END WRITE CHANNEL */

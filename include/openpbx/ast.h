@@ -257,7 +257,7 @@
 #define ast_frame_header_new opbx_frame_header_new
 #define ast_frdup opbx_frdup
 #define ast_free_ha opbx_free_ha
-#define ast_frfree opbx_frfree
+#define ast_frfree opbx_fr_free
 #define ast_frisolate opbx_frisolate
 #define ast_func_read opbx_func_read
 #define ast_func_write opbx_func_write

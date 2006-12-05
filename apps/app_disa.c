@@ -226,23 +226,23 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 		if ((f->frametype == OPBX_FRAME_CONTROL) &&
 		    (f->subclass == OPBX_CONTROL_HANGUP))
 		{
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		if (f->frametype == OPBX_FRAME_VOICE) {
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			continue;
 		}
 		  /* if not DTMF, just do it again */
 		if (f->frametype != OPBX_FRAME_DTMF) 
 		{
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			continue;
 		}
 
 		j = f->subclass;  /* save digit */
-		opbx_frfree(f);
+		opbx_fr_free(f);
 		if (i == 0) 
 		{
 			k|=2; /* We have the first digit */ 
@@ -381,7 +381,7 @@ reorder:
 		f = opbx_read(chan);
 		if (!f)
 			break;
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	opbx_playtones_stop(chan);
 	LOCAL_USER_REMOVE(u);

@@ -627,7 +627,7 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	while(cur) {
 		if ((cur->frametype == OPBX_FRAME_CONTROL) && (cur->subclass == OPBX_CONTROL_HANGUP)) {
 			/* Don't bother actually queueing anything after a hangup */
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
 			return 0;
 		}
@@ -642,7 +642,7 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 			CRASH;
 		} else {
 			opbx_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
 			return 0;
 		}
@@ -828,7 +828,7 @@ int opbx_safe_sleep_conditional(	struct opbx_channel *chan, int ms,
 			f = opbx_read(chan);
 			if (!f)
 				return -1;
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	return 0;
@@ -846,7 +846,7 @@ int opbx_safe_sleep(struct opbx_channel *chan, int ms)
 			f = opbx_read(chan);
 			if (!f)
 				return -1;
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	return 0;
@@ -938,7 +938,7 @@ void opbx_channel_free(struct opbx_channel *chan)
     {
 		fp = f;
 		f = f->next;
-		opbx_frfree(fp);
+		opbx_fr_free(fp);
 	}
 	
 	/* loop over the variables list, freeing all data and deleting list items */
@@ -1024,7 +1024,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
         {
 			freef = tmpf;
 			tmpf = tmpf->next;
-			opbx_frfree(freef);
+			opbx_fr_free(freef);
 		}
 		opbx_mutex_unlock(&spy->lock);
 		return;
@@ -1456,7 +1456,7 @@ int opbx_waitfordigit(struct opbx_channel *c, int ms)
             {
 				if (f->frametype == OPBX_FRAME_DTMF) 
 					result = f->subclass;
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			}
             else
             {
@@ -1502,13 +1502,13 @@ int opbx_waitfordigit_full(struct opbx_channel *c, int ms, int audiofd, int cmdf
             {
 			case OPBX_FRAME_DTMF:
 				res = f->subclass;
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				return res;
 			case OPBX_FRAME_CONTROL:
 				switch(f->subclass)
                 {
 				case OPBX_CONTROL_HANGUP:
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					return -1;
 				case OPBX_CONTROL_RINGING:
 				case OPBX_CONTROL_ANSWER:
@@ -1523,7 +1523,7 @@ int opbx_waitfordigit_full(struct opbx_channel *c, int ms, int audiofd, int cmdf
 					write(audiofd, f->data, f->datalen);
 			}
 			/* Ignore */
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	return 0; /* Time is up */
@@ -1588,7 +1588,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		/* Interpret hangup and return NULL */
 		if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_HANGUP))
         {
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			f = NULL;
 		}
 	}
@@ -1624,7 +1624,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 			/* This frame can't be from the current native formats -- drop it on the
 			   floor */
 			opbx_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, opbx_getformatname(f->subclass), opbx_getformatname(chan->nativeformats));
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			f = &null_frame;
 		}
         else
@@ -1837,7 +1837,7 @@ char *opbx_recvtext(struct opbx_channel *chan, int timeout)
 			buf = strndup((char *) f->data, f->datalen);	/* dup and break */
 			done = 1;
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	return buf;
 }
@@ -2108,7 +2108,7 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 		opbx_log(LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
 
 	if (f && (f != fr))
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	opbx_clear_flag(chan, OPBX_FLAG_BLOCKING);
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
@@ -2236,13 +2236,13 @@ struct opbx_channel *__opbx_request_and_dial(const char *type, int format, void 
 					else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
                     {
 						state = f->subclass;
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						break;
 					}
                     else if (f->subclass == OPBX_CONTROL_ANSWER)
                     {
 						state = f->subclass;
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						break;
 					}
                     else if (f->subclass == OPBX_CONTROL_PROGRESS)
@@ -2258,7 +2258,7 @@ struct opbx_channel *__opbx_request_and_dial(const char *type, int format, void 
 						opbx_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
 					}
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			}
 		}
         else
@@ -3251,7 +3251,7 @@ tackygoto:
 				opbx_jb_get_and_deliver(c0, c1);
 			}
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 
 		/* Swap who gets priority */
 		cs[2] = cs[0];

@@ -45,13 +45,13 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
 			f->subclass
 		) ;
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 		f = NULL;
 	}
 	else if ( member->type == 'L' )
 	{
 		// this is a listen-only user, ignore the frame
-		opbx_frfree( f ) ;
+		opbx_fr_free( f ) ;
 		f = NULL ;
 	}
 	else if ( f->frametype == OPBX_FRAME_VOICE ) 
@@ -157,7 +157,7 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
 		}
 
 		// free the original frame
-		opbx_frfree( f ) ;
+		opbx_fr_free( f ) ;
 		f = NULL ;
 	}
 	else if ( 
@@ -168,7 +168,7 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
 		// hangup received
 		
 		// free the frame 
-		opbx_frfree( f ) ;
+		opbx_fr_free( f ) ;
 		f = NULL ;
 		
 		// break out of the while ( 42 == 42 )
@@ -177,7 +177,7 @@ static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *
 	else
 	{
 		// undesirables
-		opbx_frfree( f ) ;
+		opbx_fr_free( f ) ;
 		f = NULL ;
 	}
 	return 0;

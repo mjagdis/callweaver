@@ -3165,7 +3165,7 @@ static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_ch
 				goto return_from_bridge;
 			}
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 		
 		/* Swap who gets priority */
 		priority = !priority;
@@ -3371,7 +3371,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seqno = 0;
+	p->subs[index].f.seq_no = 0;
 	p->subs[index].f.tx_copies = 0;
 	p->subs[index].f.src = "zt_handle_event";
 	p->subs[index].f.data = NULL;
@@ -4105,7 +4105,7 @@ static struct opbx_frame *__zt_exception(struct opbx_channel *ast)
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.subclass = 0;
 	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seqno = 0;
+	p->subs[index].f.seq_no = 0;
 	p->subs[index].f.tx_copies = 0;
 	p->subs[index].f.src = "zt_exception";
 	p->subs[index].f.data = NULL;
@@ -4232,7 +4232,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.subclass = 0;
 	p->subs[index].f.delivery = opbx_tv(0,0);
-	p->subs[index].f.seqno = 0;
+	p->subs[index].f.seq_no = 0;
 	p->subs[index].f.tx_copies = 0;
 	p->subs[index].f.src = "zt_read";
 	p->subs[index].f.data = NULL;
@@ -5638,7 +5638,7 @@ static void *ss_thread(void *data)
 						res = 1;
 					} else
 						res = 0;
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					if (res) {
 						opbx_log(LOG_DEBUG, "Got ring!\n");
 						res = 0;
@@ -5675,7 +5675,7 @@ static void *ss_thread(void *data)
 						opbx_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass);
 						res = 2000;
 					}
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					if (chan->_state == OPBX_STATE_RING ||
 					    chan->_state == OPBX_STATE_RINGING) 
 						break; /* Got ring */
@@ -5760,7 +5760,7 @@ static void *ss_thread(void *data)
 							return NULL;
 						} 
 						f = opbx_read(chan);
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						if (chan->_state == OPBX_STATE_RING ||
 						    chan->_state == OPBX_STATE_RINGING) 
 							break; /* Got ring */
@@ -7598,7 +7598,7 @@ static void *do_idle_thread(void *vchan)
 				break;
 			};
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 		ms = newms;
 	}
 	/* Hangup the channel since nothing happend */

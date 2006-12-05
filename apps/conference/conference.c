@@ -965,7 +965,7 @@ int queue_frame_for_speaker(
 				queue_outgoing_frame( member, qf, conf->delivery_time ) ;
 				
 				// free frame ( the translator's copy )
-				opbx_frfree( qf ) ;
+				opbx_fr_free( qf ) ;
 			}
 			else
 			{
@@ -1041,7 +1041,7 @@ int queue_frame_for_listener(
 		if ( qf != NULL && (member->smooth_size_out > 0)) {
 			if (qf->datalen != member->smooth_size_out ) {
 //ast_log (AST_CONF_DEBUG, "ignoring and freeing previously stored frame, with datalen=>%d != smooth_size_out=>%d\n",qf->datalen,member->smooth_size_out);
-				opbx_frfree( qf ) ;
+				opbx_fr_free( qf ) ;
 				qf = NULL ;
 			}
 		}
@@ -1080,7 +1080,7 @@ int queue_frame_for_listener(
 			if ( queue_outgoing_frame( member, qf, conf->delivery_time ) != 0 )
 			{
 				// free the new frame if it couldn't be queue'd
-				opbx_frfree( qf ) ;
+				opbx_fr_free( qf ) ;
 				qf = NULL ;
 			}
 		}

@@ -1819,7 +1819,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							opbx_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
 					}
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				} else {
 					o->stillgoing = 0;
 					opbx_hangup(o->chan);
@@ -1845,14 +1845,14 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 				/* Got hung up */
 				*to=-1;
 				if (f)
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				return NULL;
 			}
 			if ((f->frametype == OPBX_FRAME_DTMF) && caller_disconnect && (f->subclass == '*')) {
 				if (option_verbose > 3)
 					opbx_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				return NULL;
 			}
 			if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass)) {
@@ -1860,10 +1860,10 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					opbx_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
 				*to=0;
 				*digit=f->subclass;
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				return NULL;
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 		if (!*to && (option_verbose > 2))
 			opbx_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);

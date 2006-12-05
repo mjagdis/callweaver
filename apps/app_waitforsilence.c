@@ -131,16 +131,16 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 				gotsilence = 1;
 				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
 				opbx_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				break;
 			} else if ( difftime(time(&now),start) >= maxsilence/1000 ) {
 				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
 				opbx_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				break;
 			}
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	if (rfmt && opbx_set_read_format(chan, rfmt)) {
 		opbx_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", opbx_getformatname(rfmt), chan->name);

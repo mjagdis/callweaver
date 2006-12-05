@@ -168,12 +168,12 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
     int has_timing_info;
     long ts;
     long len;
-    int seqno;
+    int seq_no;
     
     has_timing_info = f->has_timing_info;
     ts = f->ts;
     len = f->len;
-    seqno = f->seqno;
+    seq_no = f->seq_no;
 
     p = path;
     /* Feed the first frame into the first translator */
@@ -207,7 +207,7 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
     }
     delivery = f->delivery;
     if (consume)
-        opbx_frfree(f);
+        opbx_fr_free(f);
     while (p)
     {
         out = p->step->frameout(p->state);
@@ -249,7 +249,7 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
                 out->ts = ts;
                 out->len = len;
                 //out->len = opbx_codec_get_samples(out)/8;
-                out->seqno = seqno;
+                out->seq_no = seq_no;
             }
 
             return out;
@@ -296,11 +296,11 @@ static void calc_cost(struct opbx_translator *t,int samples)
             return;
         }
         t->framein(pvt, f);
-        opbx_frfree(f);
+        opbx_fr_free(f);
         while ((out = t->frameout(pvt)))
         {
             sofar += out->samples;
-            opbx_frfree(out);
+            opbx_fr_free(out);
         }
     }
     cost = opbx_tvdiff_ms(opbx_tvnow(), start);

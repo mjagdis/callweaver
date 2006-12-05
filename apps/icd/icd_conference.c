@@ -78,7 +78,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 		while (tmpf) {
 			freef = tmpf;
 			tmpf = tmpf->next;
-			opbx_frfree(freef);
+			opbx_fr_free(freef);
 		}
 		opbx_mutex_unlock(&spy->lock);
 		return;
@@ -586,7 +586,7 @@ icd_status icd_conference__join(icd_caller * that)
                             read_frame->subclass);
                 }
             }
-            opbx_frfree(read_frame);
+            opbx_fr_free(read_frame);
             read_frame = NULL;
         } else if (outfd > -1) {
             res = read(outfd, buf, CONF_SIZE);
@@ -608,7 +608,7 @@ icd_status icd_conference__join(icd_caller * that)
 
     }
     if (read_frame) {
-        opbx_frfree(read_frame);
+        opbx_fr_free(read_frame);
         read_frame = NULL;
     }
 

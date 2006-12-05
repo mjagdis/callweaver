@@ -410,7 +410,7 @@ conf_frame* delete_conf_frame( conf_frame* cf )
 
 	if ( cf->fr != NULL ) 
 	{
-		opbx_frfree( cf->fr ) ;
+		opbx_fr_free( cf->fr ) ;
 		cf->fr = NULL ;
 	}
 		
@@ -420,7 +420,7 @@ conf_frame* delete_conf_frame( conf_frame* cf )
 	{
 		if ( cf->converted[ c ] != NULL )
 		{
-			opbx_frfree( cf->converted[ c ] ) ;
+			opbx_fr_free( cf->converted[ c ] ) ;
 			cf->converted[ c ] = NULL ;
 		}
 	}

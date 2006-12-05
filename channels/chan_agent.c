@@ -504,13 +504,13 @@ static struct opbx_frame *agent_read(struct opbx_channel *ast)
  					if (option_verbose > 2)
  						opbx_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
  					/* Don't pass answer along */
- 					opbx_frfree(f);
+ 					opbx_fr_free(f);
  					f = &null_frame;
  				} else {
  					p->acknowledged = 1;
  					/* Use the builtin answer frame for the 
 					   recording start check below. */
- 					opbx_frfree(f);
+ 					opbx_fr_free(f);
  					f = &answer_frame;
  				}
  			}
@@ -520,18 +520,18 @@ static struct opbx_frame *agent_read(struct opbx_channel *ast)
  				if (option_verbose > 2)
  					opbx_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
  				p->acknowledged = 1;
- 				opbx_frfree(f);
+ 				opbx_fr_free(f);
  				f = &answer_frame;
  			} else if (f->subclass == '*') {
  				/* terminates call */
- 				opbx_frfree(f);
+ 				opbx_fr_free(f);
  				f = NULL;
  			}
  			break;
  		case OPBX_FRAME_VOICE:
  			/* don't pass voice until the call is acknowledged */
  			if (!p->acknowledged) {
- 				opbx_frfree(f);
+ 				opbx_fr_free(f);
  				f = &null_frame;
  			}
  			break;
@@ -882,7 +882,7 @@ static int agent_ack_sleep( void *data )
 				res = f->subclass;
 			else
 				res = 0;
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			opbx_mutex_lock(&p->lock);
 			if (!p->app_sleep_cond) {
 				opbx_mutex_unlock(&p->lock);

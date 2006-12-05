@@ -1714,7 +1714,7 @@ static enum opbx_bridge_result capi_bridge(struct opbx_channel *c0,
 		} else {
 			opbx_write(c0, f);
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 
 		/* Swap who gets priority */
 		priority = !priority;

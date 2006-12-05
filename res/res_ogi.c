@@ -973,7 +973,7 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
 					sample_offset = opbx_tellstream(fs);
 					fdprintf(ogi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					opbx_closestream(fs);
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					if (sildet)
 						opbx_dsp_free(sildet);
 					return RESULT_SUCCESS;
@@ -995,14 +995,14 @@ static int handle_recordfile(struct opbx_channel *chan, OGI *ogi, int argc, char
                                         }
                                         if (totalsilence > silence) {
                                              /* Ended happily with silence */
-                                        	opbx_frfree(f);
+                                        	opbx_fr_free(f);
                                                 gotsilence = 1;
                                                 break;
                                         }
                             	}
 				break;
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			if (gotsilence)
 				break;
         	}
@@ -1873,7 +1873,7 @@ static int run_ogi(struct opbx_channel *chan, char *request, OGI *ogi, int pid, 
 					/* Write, ignoring errors */
 					write(ogi->audio, f->data, f->datalen);
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			}
 		} else if (outfd > -1) {
 			retry = RETRY;

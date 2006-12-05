@@ -584,7 +584,7 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
            state = OPBX_CONTROL_HANGUP;
            result = 0;
            if (f != NULL) {
-           opbx_frfree(f);
+           opbx_fr_free(f);
            }
            break;
            }             */
@@ -610,18 +610,18 @@ int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int tim
                 state = f->subclass;
             } else if ((f->subclass == OPBX_CONTROL_BUSY) || (f->subclass == OPBX_CONTROL_CONGESTION)) {
                 state = f->subclass;
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 break;
             } else if (f->subclass == OPBX_CONTROL_ANSWER) {
                 /* This is what we are hoping for */
                 state = f->subclass;
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 break;
             }
             /* else who cares */
 
         }
-        opbx_frfree(f);
+        opbx_fr_free(f);
     }
 
     /* write the call detail records, if the caller hangs up while were dialing them */
@@ -686,7 +686,7 @@ void icd_bridge__remasq(icd_caller * caller)
     opbx_channel_masquerade(newchan, oldchan);
     f = opbx_read(newchan);
     if (f)
-        opbx_frfree(f);
+        opbx_fr_free(f);
 
     if (oldchan) {
         opbx_stopstream(oldchan);
@@ -798,7 +798,7 @@ void icd_bridge__safe_hangup(icd_caller * caller)
        if (!opbx_channel_masquerade(newchan, oldchan)) {
            f = opbx_read(newchan);
            if (f)
-             opbx_frfree(f);
+             opbx_fr_free(f);
        }
 
        opbx_softhangup(newchan,  OPBX_SOFTHANGUP_EXPLICIT);
@@ -1016,7 +1016,7 @@ int icd_safe_sleep(struct opbx_channel *chan, int ms)
             f = opbx_read(chan);
             if (!f)
                 return -1;
-            opbx_frfree(f);
+            opbx_fr_free(f);
         }
     }
     return 0;

@@ -143,7 +143,7 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 			buf += amt;
 			len -= amt;
 		}
-		opbx_frfree(inf);
+		opbx_fr_free(inf);
 	}
 	return 0;
 }
@@ -214,7 +214,7 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 						return -1;
 					}
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			}
 
 			opbx_log(LOG_DEBUG, "ADSI Compatible CPE Detected\n");

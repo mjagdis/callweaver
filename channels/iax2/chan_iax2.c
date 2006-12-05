@@ -1737,14 +1737,17 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
 
-        if (fr->af.frametype == OPBX_FRAME_VOICE) {
-		fr->af.has_timing_info = 1;
-		fr->af.ts = fr->ts;
-		fr->af.seqno = fr->iseqno;
-		fr->af.len = opbx_codec_get_samples(&fr->af) / 8;
-        } else
-		fr->af.has_timing_info = 0;
-
+    if (fr->af.frametype == OPBX_FRAME_VOICE)
+    {
+        fr->af.has_timing_info = 1;
+        fr->af.ts = fr->ts;
+        fr->af.seq_no = fr->iseqno;
+        fr->af.len = opbx_codec_get_samples(&fr->af) / 8;
+    }
+    else
+    {
+        fr->af.has_timing_info = 0;
+    }
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
 	if ( !fromtrunk && !opbx_tvzero(iaxs[fr->callno]->rxcore))
@@ -2577,9 +2580,9 @@ tackygoto:
 				else 
 					opbx_write(c0, f);
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		} else
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		/* Swap who gets priority */
 		cs[2] = cs[0];
 		cs[0] = cs[1];
@@ -3289,7 +3292,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 	fr->callno = pvt->callno;
 	fr->transfer = transfer;
 	fr->final = final;
-	if (!sendmini) {
+	if (!sendmini)
+    {
 		/* We need a full frame */
 		if (seqno > -1)
 			fr->oseqno = seqno;
@@ -3333,28 +3337,37 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 			pvt->svoiceformat = f->subclass;
 		else if (f->frametype == OPBX_FRAME_VIDEO)
 			pvt->svideoformat = f->subclass & ~0x1;
-		if (opbx_test_flag(pvt, IAX_ENCRYPTED)) {
-			if (opbx_test_flag(pvt, IAX_KEYPOPULATED)) {
-				if (iaxdebug) {
+		if (opbx_test_flag(pvt, IAX_ENCRYPTED))
+        {
+			if (opbx_test_flag(pvt, IAX_KEYPOPULATED))
+            {
+				if (iaxdebug)
+                {
 					if (fr->transfer)
 						iax_showframe(fr, NULL, 2, &pvt->transfer, fr->datalen - sizeof(struct opbx_iax2_full_hdr));
 					else
 						iax_showframe(fr, NULL, 2, &pvt->addr, fr->datalen - sizeof(struct opbx_iax2_full_hdr));
 				}
 				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
-			} else
+			}
+            else
 				opbx_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
 		}
 	
-		if (now) {
+		if (now)
 			res = send_packet(fr);
-		} else
+		else
 			res = iax2_transmit(fr);
-	} else {
-		if (opbx_test_flag(pvt, IAX_TRUNK)) {
+	}
+    else
+    {
+		if (opbx_test_flag(pvt, IAX_TRUNK))
+        {
 			iax2_trunk_queue(pvt, fr);
 			res = 0;
-		} else if (fr->af.frametype == OPBX_FRAME_VIDEO) {
+		}
+        else if (fr->af.frametype == OPBX_FRAME_VIDEO)
+        {
 			/* Video frame have no sequence number */
 			fr->oseqno = -1;
 			fr->iseqno = -1;
@@ -3366,7 +3379,9 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 			fr->data = vh;
 			fr->retries = -1;
 			res = send_packet(fr);			
-		} else {
+		}
+        else
+        {
 			/* Mini-frames have no sequence number */
 			fr->oseqno = -1;
 			fr->iseqno = -1;
@@ -3377,10 +3392,11 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 			fr->datalen = fr->af.datalen + sizeof(struct opbx_iax2_mini_hdr);
 			fr->data = mh;
 			fr->retries = -1;
-			if (opbx_test_flag(pvt, IAX_ENCRYPTED)) {
-				if (opbx_test_flag(pvt, IAX_KEYPOPULATED)) {
+			if (opbx_test_flag(pvt, IAX_ENCRYPTED))
+            {
+				if (opbx_test_flag(pvt, IAX_KEYPOPULATED))
 					encrypt_frame(&pvt->ecx, (struct opbx_iax2_full_hdr *)mh, pvt->semirand, &fr->datalen);
-				} else
+				else
 					opbx_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
 			}
 			res = send_packet(fr);
@@ -3388,8 +3404,6 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct opbx_frame *f, unsigned i
 	}
 	return res;
 }
-
-
 
 static int iax2_show_users(int fd, int argc, char *argv[])
 {
@@ -5356,7 +5370,7 @@ static void *iax_park_thread(void *stuff)
 	free(d);
 	f = opbx_read(chan1);
 	if (f)
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	res = opbx_park_call(chan1, chan2, 0, &ext);
 	opbx_hangup(chan2);
 	opbx_log(LOG_NOTICE, "Parked on extension '%d'\n", ext);
@@ -8125,7 +8139,7 @@ static struct iax2_dpcache *find_cache(struct opbx_channel *chan, const char *da
 			if (c) {
 				f = opbx_read(c);
 				if (f)
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				else {
 					/* Got hung up on, abort! */
 					break;

@@ -196,7 +196,7 @@ static void opbx_flush_spy_queue(struct opbx_channel_spy *spy)
 	for(x=0;x<2;x++) {
 		f = NULL;
 		while((f = spy_queue_shift(spy, x))) 
-			opbx_frfree(f);
+			opbx_fr_free(f);
 	}
 	opbx_mutex_unlock(&spy->lock);
 }
@@ -213,7 +213,7 @@ static int extract_audio(short *buf, size_t len, struct opbx_trans_pvt *trans, s
 			size = (f->datalen > len) ? len : f->datalen;
 			memcpy(buf, f->data, size);
 			retlen = f->datalen;
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		} else {
 			/* your guess is as good as mine why this will happen but it seems to only happen on iax and appears harmless */
 			opbx_log(LOG_DEBUG, "Failed to translate frame from %s\n", opbx_getformatname(fr->subclass));
@@ -266,14 +266,14 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len)
 	while((f = csth->spy.queue[0])) {
 		csth->spy.queue[0] = f->next;
 		opbx_slinfactory_feed(&csth->slinfactory[0], f);
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	opbx_mutex_unlock(&csth->spy.lock);
 	opbx_mutex_lock(&csth->spy.lock);
 	while((f = csth->spy.queue[1])) {
 		csth->spy.queue[1] = f->next;
 		opbx_slinfactory_feed(&csth->slinfactory[1], f);
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	opbx_mutex_unlock(&csth->spy.lock);
 		
@@ -463,7 +463,7 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
 				if (f->frametype == OPBX_FRAME_DTMF) {
 					res = f->subclass;
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				if (!res) {
 					continue;
 				}

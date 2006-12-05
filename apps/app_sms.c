@@ -1511,7 +1511,7 @@ static int sms_exec(struct opbx_channel *chan, void *data)
 			break;
 		if (f->frametype == OPBX_FRAME_VOICE)
 			sms_process(&h, f->samples, f->data);
-		opbx_frfree (f);
+		opbx_fr_free(f);
 	}
     if (original_read_fmt != OPBX_FORMAT_SLINEAR)
     {

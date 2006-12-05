@@ -84,7 +84,7 @@ static int echo_exec(struct opbx_channel *chan, void *data)
 				if (opbx_write(chan, f))
 					break;
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;

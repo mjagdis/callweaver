@@ -369,7 +369,7 @@ static int opbx_masq_valetpark_call(struct opbx_channel *rchan,int timeout, int 
 		chan->priority = rchan->priority;
 		/* Make the masq execute */
 		if((f = opbx_read(chan)))
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		opbx_valetpark_call(chan, timeout, extout, lotname);
 	} else {
 		opbx_log(LOG_WARNING, "Unable to create Valet Parked channel\n");
@@ -456,7 +456,7 @@ static void *do_valetparking_thread(void *ignore)
 							break;
 						} else {
 							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
 						}
 					}

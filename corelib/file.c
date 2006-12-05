@@ -1009,7 +1009,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 			case OPBX_FRAME_DTMF:
 				res = fr->subclass;
 				if (strchr(breakon, res)) {
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return res;
 				}
 				break;
@@ -1018,7 +1018,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 				case OPBX_CONTROL_HANGUP:
                                 case OPBX_CONTROL_BUSY:
                                 case OPBX_CONTROL_CONGESTION:
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
 				case OPBX_CONTROL_ANSWER:
@@ -1030,7 +1030,7 @@ int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 				}
 			}
 			/* Ignore */
-			opbx_frfree(fr);
+			opbx_fr_free(fr);
 		}
 		opbx_sched_runq(c->sched);
 	}
@@ -1077,7 +1077,7 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 				} else if (strchr(rewind,res)) {
 					opbx_stream_rewind(c->stream, ms);
 				} else if (strchr(breakon, res)) {
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return res;
 				}					
 				break;
@@ -1086,7 +1086,7 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 			    	case OPBX_CONTROL_HANGUP:
                                 case OPBX_CONTROL_BUSY:
                                 case OPBX_CONTROL_CONGESTION:
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
 				case OPBX_CONTROL_ANSWER:
@@ -1097,7 +1097,7 @@ int opbx_waitstream_fr(struct opbx_channel *c, const char *breakon, const char *
 				}
 			}
 			/* Ignore */
-			opbx_frfree(fr);
+			opbx_fr_free(fr);
 		} else
 			opbx_sched_runq(c->sched);
 	
@@ -1146,7 +1146,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 			case OPBX_FRAME_DTMF:
 				res = fr->subclass;
 				if (strchr(breakon, res)) {
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return res;
 				}
 				break;
@@ -1155,7 +1155,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 				case OPBX_CONTROL_HANGUP:
                                 case OPBX_CONTROL_BUSY:
                                 case OPBX_CONTROL_CONGESTION:
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
 				case OPBX_CONTROL_ANSWER:
@@ -1170,7 +1170,7 @@ int opbx_waitstream_full(struct opbx_channel *c, const char *breakon, int audiof
 					write(audiofd, fr->data, fr->datalen);
 			}
 			/* Ignore */
-			opbx_frfree(fr);
+			opbx_fr_free(fr);
 		}
 		opbx_sched_runq(c->sched);
 	}
@@ -1211,7 +1211,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 				res = fr->subclass;
 				snprintf(exten, sizeof(exten), "%c", res);
 				if (opbx_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return res;
 				}
 				break;
@@ -1220,7 +1220,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 				case OPBX_CONTROL_HANGUP:
                                 case OPBX_CONTROL_BUSY:
                                 case OPBX_CONTROL_CONGESTION:
-					opbx_frfree(fr);
+					opbx_fr_free(fr);
 					return -1;
 				case OPBX_CONTROL_RINGING:
 				case OPBX_CONTROL_ANSWER:
@@ -1231,7 +1231,7 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 				}
 			}
 			/* Ignore */
-			opbx_frfree(fr);
+			opbx_fr_free(fr);
 		}
 		opbx_sched_runq(c->sched);
 	}

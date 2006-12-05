@@ -900,7 +900,7 @@ static void * sccp_channel_park_thread(void *stuff) {
 	free(dual);
 	f = opbx_read(chan1);
 	if (f)
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	res = opbx_park_call(chan1, chan2, 0, &ext);
 	if (!res) {
 		extstr[0] = 128;

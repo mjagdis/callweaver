@@ -498,7 +498,7 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
                     opbx_log(LOG_DEBUG," Unknown pkt received: frametype: %d subclass: %d t38_mode: %d\n",
                         inf->frametype, inf->subclass, call_is_t38_mode );
             }
-            opbx_frfree(inf);
+            opbx_fr_free(inf);
         }
         if (inf == NULL)
         {

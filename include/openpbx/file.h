@@ -196,7 +196,7 @@ struct opbx_filestream *opbx_writefile(const char *filename, const char *type, c
 /*! 
  * \param fs filestream to write to
  * \param f frame to write to the filestream
- * Send a frame to a filestream -- note: does NOT free the frame, call opbx_frfree manually
+ * Send a frame to a filestream -- note: does NOT free the frame, call opbx_fr_free manually
  * Returns 0 on success, -1 on failure.
  */
 int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f);

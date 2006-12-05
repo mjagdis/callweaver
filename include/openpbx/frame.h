@@ -32,28 +32,28 @@ extern "C" {
 #include <inttypes.h>
 #include "confdefs.h"
 
-struct opbx_codec_pref {
+struct opbx_codec_pref
+{
 	char order[32];
 };
 
 /*! Data structure associated with a single frame of data */
 /* A frame of data read used to communicate between 
    between channels and applications */
-struct opbx_frame {
+typedef struct opbx_frame
+{
 	/*! Kind of frame */
 	int frametype;				
 	/*! Subclass, frame dependent */
 	int subclass;				
 	/*! Length of data */
 	int datalen;				
-	/*! Number of 8khz samples in this frame */
+	/*! Number of samples in this frame */
 	int samples;				
 	/*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
 	int mallocd;				
 	/*! How many bytes exist _before_ "data" that can be used if needed */
 	int offset;				
-	/*! Next expected frame number */
-	uint16_t seq_no;
 	/*! Optional source of frame for debugging */
 	const char *src;				
 	/*! Pointer to actual data */
@@ -71,10 +71,10 @@ struct opbx_frame {
 	/*! Length in milliseconds */
 	long len;
 	/*! Sequence number */
-	int seqno;
+	int seq_no;
 	/*! Number of copies to send (for redundant transmission of special data) */
 	int tx_copies;
-};
+} opvx_frame_t;
 
 #define OPBX_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
 						  have this number of bytes for additional
@@ -287,13 +287,21 @@ struct opbx_option_header {
 struct opbx_frame *opbx_fralloc(char *source, int len);
 #endif
 
+/*! Initialises a frame */
+/*! 
+ * \param fr Frame to initialise
+ * Initialise the contenst of a frame to sane values.
+ * no return.
+ */
+void opbx_fr_init(struct opbx_frame *fr);
+
 /*! Frees a frame */
 /*! 
  * \param fr Frame to free
  * Free a frame, and the memory it used if applicable
  * no return.
  */
-void opbx_frfree(struct opbx_frame *fr);
+void opbx_fr_free(struct opbx_frame *fr);
 
 /*! Copies a frame */
 /*! 

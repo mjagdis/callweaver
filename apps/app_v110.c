@@ -337,12 +337,12 @@ static int login_v110(struct opbx_channel *chan, void *data)
 			}
 
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
  out:
 	/* In the error case we can get here with a frame to free */
 	if (f)
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	close(vs->ptyfd);
 	LOCAL_USER_REMOVE(u);
 	return res;

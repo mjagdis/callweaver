@@ -1450,7 +1450,7 @@ zapretry:
 				} else if (option_debug) {
 					opbx_log(LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			} else if (outfd > -1) {
 				res = read(outfd, buf, CONF_SIZE);
 				if (res > 0) {
@@ -2094,7 +2094,7 @@ static void *recordthread(void *args)
 				if (res) 
 					break;
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			if (cnf->recording == MEETME_RECORD_TERMINATE) {
 				opbx_mutex_lock(&conflock);
 				opbx_mutex_unlock(&conflock);

@@ -173,14 +173,14 @@ static int spy_queue_translate(struct opbx_channel_spy *spy,
 	while((f = spy->queue[0])) {
 		spy->queue[0] = f->next;
 		opbx_slinfactory_feed(slinfactory0, f);
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	opbx_mutex_unlock(&spy->lock);
 	opbx_mutex_lock(&spy->lock);
 	while((f = spy->queue[1])) {
 		spy->queue[1] = f->next;
 		opbx_slinfactory_feed(slinfactory1, f);
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	opbx_mutex_unlock(&spy->lock);
 	return res;

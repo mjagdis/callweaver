@@ -558,7 +558,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 					} else if (single && (f->frametype == OPBX_FRAME_HTML) && !opbx_test_flag(outgoing, DIAL_NOFORWARDHTML))
 						opbx_channel_sendhtml(in, f->subclass, f->data, f->datalen);
 
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				} else {
 					in->hangupcause = o->chan->hangupcause;
 					opbx_hangup(o->chan);
@@ -581,7 +581,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 				*to=-1;
 				strcpy(status, "CANCEL");
 				if (f)
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				return NULL;
 			}
 
@@ -594,7 +594,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 						*to=0;
 						*result = f->subclass;
 						strcpy(status, "CANCEL");
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						return NULL;
 					}
 				}
@@ -605,7 +605,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 						opbx_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 					*to=0;
 					strcpy(status, "CANCEL");
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					return NULL;
 				}
 			}
@@ -624,7 +624,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 					opbx_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", in->name,outgoing->chan->name);
 				opbx_indicate(outgoing->chan, OPBX_CONTROL_VIDUPDATE);
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 		if (!*to && (option_verbose > 2))
 			opbx_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);

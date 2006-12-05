@@ -230,7 +230,7 @@ static struct opbx_frame *send_dtmf(struct opbx_rtp *rtp)
     rtp->f.samples = 0;
     rtp->f.mallocd = 0;
 	rtp->f.delivery = opbx_tv(0,0);
-    rtp->f.seqno = 0;
+    rtp->f.seq_no = 0;
 	rtp->f.tx_copies = 0;
     rtp->f.src = "RTP";
     rtp->resp = 0;
@@ -1057,7 +1057,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
         if (mark)
             rtp->f.subclass |= 0x1;
     }
-    rtp->f.seqno = seqno;
+    rtp->f.seq_no = seqno;
 	rtp->f.tx_copies = 0;
     rtp->f.src = "RTP";
     return &rtp->f;
@@ -2146,7 +2146,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
                 (f->subclass == OPBX_CONTROL_VIDUPDATE))
             {
                 opbx_indicate((who == c0)  ?  c1  :  c0, f->subclass);
-                opbx_frfree(f);
+                opbx_fr_free(f);
             }
             else
             {
@@ -2170,7 +2170,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
                 else if (who == c1)
                     opbx_write(c0, f);
             }
-            opbx_frfree(f);
+            opbx_fr_free(f);
         }
         /* Swap priority not that it's a big deal at this point */
         cs[2] = cs[0];

@@ -109,7 +109,7 @@ static int changrab_exec(struct opbx_channel *chan, void *data)
 	newchan->writeformat = oldchan->writeformat;
 	opbx_channel_masquerade(newchan, oldchan);
 	if((f = opbx_read(newchan))) {
-		opbx_frfree(f);
+		opbx_fr_free(f);
 		memset(&config,0,sizeof(struct opbx_bridge_config));
 		opbx_set_flag(&(config.features_callee), OPBX_FEATURE_REDIRECT);
 		opbx_set_flag(&(config.features_caller), OPBX_FEATURE_REDIRECT);
@@ -272,7 +272,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 			newchan_1->writeformat = xferchan_1->writeformat;
 			opbx_channel_masquerade(newchan_1, xferchan_1);
 			if ((f = opbx_read(newchan_1))) {
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			} else {
 				opbx_hangup(newchan_1);
 				return -1;
@@ -304,7 +304,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 			opbx_channel_masquerade(newchan_2, xferchan_2);
 
 			if ((f = opbx_read(newchan_2))) {
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			} else {
 				opbx_hangup(newchan_1);
 				opbx_hangup(newchan_2);

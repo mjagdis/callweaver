@@ -54,11 +54,11 @@ OPBX_MUTEX_DEFINE_STATIC(framelock);
 
 #define SMOOTHER_SIZE 8000
 
-#define TYPE_HIGH     0x0
-#define TYPE_LOW     0x1
-#define TYPE_SILENCE     0x2
-#define TYPE_DONTSEND     0x3
-#define TYPE_MASK     0x3
+#define TYPE_HIGH       0x0
+#define TYPE_LOW        0x1
+#define TYPE_SILENCE    0x2
+#define TYPE_DONTSEND   0x3
+#define TYPE_MASK       0x3
 
 struct opbx_format_list
 {
@@ -280,7 +280,28 @@ static struct opbx_frame *opbx_frame_header_new(void)
  * most definitely be cached
  */
 
-void opbx_frfree(struct opbx_frame *fr)
+void opbx_fr_init(struct opbx_frame *fr)
+{
+	fr->frametype = OPBX_FRAME_NULL;
+	fr->subclass = 0;
+	fr->datalen = 0;
+	fr->samples = 0;
+	fr->mallocd = 0;
+	fr->offset = 0;
+	fr->src = "";
+    fr->data = NULL;
+	fr->delivery = opbx_tv(0,0);
+	fr->seq_no = 0;
+	fr->prev = NULL;
+	fr->next = NULL;
+	fr->has_timing_info = 0;
+	fr->ts = 0;
+	fr->len = 0;
+	fr->seq_no = 0;
+	fr->tx_copies = 1;
+}
+
+void opbx_fr_free(struct opbx_frame *fr)
 {
     if (fr->mallocd & OPBX_MALLOCD_DATA)
     {
@@ -342,7 +363,7 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
         {
             out->ts = fr->ts;
             out->len = fr->len;
-            out->seqno = fr->seqno;
+            out->seq_no = fr->seq_no;
         }
     }
     else
@@ -436,7 +457,7 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     {
         out->ts = f->ts;
         out->len = f->len;
-        out->seqno = f->seqno;
+        out->seq_no = f->seq_no;
     }
 
     return out;
@@ -988,7 +1009,7 @@ static struct opbx_cli_entry my_clis[] = {
 
 int init_framer(void)
 {
-    opbx_cli_register_multiple(my_clis, sizeof(my_clis)/sizeof(my_clis[0]) );
+    opbx_cli_register_multiple(my_clis, sizeof(my_clis)/sizeof(my_clis[0]));
     return 0;    
 }
 

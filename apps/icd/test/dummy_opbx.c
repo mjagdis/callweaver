@@ -158,7 +158,7 @@ int opbx_cdr_update(struct opbx_channel *chan) {
     return 0;
 }
 
-void opbx_frfree(struct opbx_frame *fr) {
+void opbx_fr_free(struct opbx_frame *fr) {
 }
 
 struct opbx_cdr *ast_cdr_alloc(void) {

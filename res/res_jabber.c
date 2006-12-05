@@ -1353,7 +1353,7 @@ static void *jabber_pbx_session(void *obj)
 		if (chan->stream) {
 			if ((sf = opbx_readframe(chan->stream))) {
 				opbx_write(chan, sf);
-				opbx_frfree(sf);
+				opbx_fr_free(sf);
 			} else {
 				opbx_stopstream(chan);
 				chan->stream = NULL;
@@ -1481,7 +1481,7 @@ static void *jabber_pbx_session(void *obj)
 						if (!chan->stream) { /* for now we'll ignore voice while a file plays */
 							opbx_write(chan, f);
 						}
-						opbx_frfree(f);
+						opbx_fr_free(f);
 					}
 				}
 
@@ -1506,7 +1506,7 @@ static void *jabber_pbx_session(void *obj)
 
 		}
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 		res = 0;
 		g_main_context_iteration(profile->context, FALSE);
 		

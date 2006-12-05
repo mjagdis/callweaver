@@ -1608,7 +1608,7 @@ static int visdn_bridge(
 				opbx_write(c0, f);
 		}
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 
 		// Braindead anyone?
 		struct opbx_channel *t;
@@ -3780,13 +3780,13 @@ static int visdn_exec_overlap_dial(struct opbx_channel *chan, void *data)
 				strncpy(chan->exten, called_number,
 						sizeof(chan->exten));
 
-				opbx_frfree(f);
+				opbx_fr_free(f);
 
 				return 0;
 			}
 		}
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 
 	LOCAL_USER_REMOVE(u);

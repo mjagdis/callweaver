@@ -1962,7 +1962,7 @@ static int unicall_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int 
             /*endif*/
         }
         /*endif*/
-        opbx_frfree(f);
+        opbx_fr_free(f);
 
         /* Swap who gets priority */
         cs[2] = cs[0];

@@ -1156,7 +1156,7 @@ enum opbx_bridge_result opbx_udptl_bridge(struct opbx_channel *c0, struct opbx_c
             else if (who == c1)
                 opbx_write(c0, f);
         }
-        opbx_frfree(f);
+        opbx_fr_free(f);
         /* Swap priority. Not that it's a big deal at this point */
         cs[2] = cs[0];
         cs[0] = cs[1];

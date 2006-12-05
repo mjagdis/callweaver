@@ -271,7 +271,7 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 							if ((fr = opbx_readframe(fs))) {
 								opbx_write(chan, fr);
 								samples += fr->samples;
-								opbx_frfree(fr);
+								opbx_fr_free(fr);
 								fr = NULL;
 							} else {
 								samples = 0;
@@ -312,10 +312,8 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 					}
 					break;
 				}
-				
 			}
-
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	if (oldr) {

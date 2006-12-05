@@ -1027,7 +1027,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 					FIX_INF(af);
 					if (chan)
 						opbx_queue_frame(chan, af);
-					opbx_frfree(af);
+					opbx_fr_free(af);
 					return &dsp->f;
 				}
 			}
@@ -1049,7 +1049,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 							FIX_INF(af);
 							if (chan)
 								opbx_queue_frame(chan, af);
-							opbx_frfree(af);
+							opbx_fr_free(af);
 						}
 						dsp->thinkdigit = digit;
 						return &dsp->f;
@@ -1077,7 +1077,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 						FIX_INF(af);
 						if (chan)
 							opbx_queue_frame(chan, af);
-						opbx_frfree(af);
+						opbx_fr_free(af);
 						return &dsp->f;
 					}
 				}
@@ -1096,7 +1096,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 					FIX_INF(af);
 					if (chan)
 						opbx_queue_frame(chan, af);
-					opbx_frfree(af);
+					opbx_fr_free(af);
 					return &dsp->f;
 				}
 			}
@@ -1112,7 +1112,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 					FIX_INF(af);
 					if (chan)
 						opbx_queue_frame(chan, af);
-					opbx_frfree(af);
+					opbx_fr_free(af);
 					return &dsp->f;
 				}
 			}

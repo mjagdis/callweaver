@@ -178,11 +178,12 @@ int opbx_send_image(struct opbx_channel *chan, char *filename)
 {
 	struct opbx_frame *f;
 	int res = -1;
+
 	if (chan->tech->send_image) {
 		f = opbx_read_image(filename, chan->language, -1);
 		if (f) {
 			res = chan->tech->send_image(chan, f);
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	return res;

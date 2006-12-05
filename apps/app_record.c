@@ -315,7 +315,7 @@ static int record_exec(struct opbx_channel *chan, void *data)
 						}
 						if (totalsilence > silence) {
 							/* Ended happily with silence */
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							gotsilence = 1;
 							break;
 						}
@@ -331,10 +331,10 @@ static int record_exec(struct opbx_channel *chan, void *data)
 				}
 				if ((f->frametype == OPBX_FRAME_DTMF) &&
 					(f->subclass == terminator)) {
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			}
 			if (!f) {
 				opbx_log(LOG_DEBUG, "Got hangup\n");

@@ -90,7 +90,7 @@ static int waitforring_exec(struct opbx_channel *chan, void *data)
 				if (option_verbose > 2)
 					opbx_verbose(VERBOSE_PREFIX_3 "Got a ring but still waiting for timeout\n");
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	/* Now we're really ready for the ring */
@@ -111,10 +111,10 @@ static int waitforring_exec(struct opbx_channel *chan, void *data)
 				if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_RING)) {
 					if (option_verbose > 2)
 						opbx_verbose(VERBOSE_PREFIX_3 "Got a ring after the timeout\n");
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
-				opbx_frfree(f);
+				opbx_fr_free(f);
 			}
 		}
 	}

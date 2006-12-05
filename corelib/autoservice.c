@@ -96,7 +96,7 @@ static void *autoservice_run(void *ign)
 			/* Read and ignore anything that occurs */
 			f = opbx_read(chan);
 			if (f)
-				opbx_frfree(f);
+				opbx_fr_free(f);
 		}
 	}
 	asthread = OPBX_PTHREADT_NULL;

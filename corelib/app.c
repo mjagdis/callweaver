@@ -214,31 +214,31 @@ int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *pr
 			}
 			if ((f->frametype == OPBX_FRAME_DTMF) && (f->subclass == '#')) {
 				/* Ended happily with DTMF */
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				break;
 			} else if (f->frametype == OPBX_FRAME_VOICE) {
 				opbx_dsp_silence(sildet, f, &total); 
 				if (total > silence) {
 					/* Ended happily with silence */
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 				totalms += f->samples / 8;
 				if (totalms > maxsec * 1000) {
 					/* Ended happily with too much stuff */
 					opbx_log(LOG_NOTICE, "Constraining voice on '%s' to %d seconds\n", c->name, maxsec);
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 				res = opbx_writestream(writer, f);
 				if (res < 0) {
 					opbx_log(LOG_WARNING, "Failed to write to stream at %s!\n", dest);
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	res = opbx_set_read_format(c, rfmt);
@@ -698,7 +698,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 						/* Ended happily with silence */
 						if (option_verbose > 2)
 							opbx_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						gotsilence = 1;
 						outmsg=2;
 						break;
@@ -707,7 +707,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 				/* Exit on any error */
 				if (res) {
 					opbx_log(LOG_WARNING, "Error writing frame\n");
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 			} else if (f->frametype == OPBX_FRAME_VIDEO) {
@@ -719,7 +719,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 						opbx_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 					res = '#';
 					outmsg = 2;
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 				if (f->subclass == '0') {
@@ -728,7 +728,7 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 						opbx_verbose(VERBOSE_PREFIX_3 "User cancelled by pressing %c\n", f->subclass);
 					res = '0';
 					outmsg = 0;
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 			}
@@ -739,11 +739,11 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 						opbx_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
 					outmsg = 2;
 					res = 't';
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 		if (end == start) time(&end);
 		if (!f) {
@@ -917,7 +917,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 					/* Ended happily with silence */
 					if (option_verbose > 2) 
 						opbx_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					gotsilence = 1;
 					outmsg=2;
 					break;
@@ -926,7 +926,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 				/* Exit on any error */
 				if (res) {
 					opbx_log(LOG_WARNING, "Error writing frame\n");
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 			} else if (f->frametype == OPBX_FRAME_VIDEO) {
@@ -938,7 +938,7 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 					opbx_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 				res = 't';
 				outmsg = 2;
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				break;
 			}
 			if (maxtime) {
@@ -948,13 +948,14 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 						opbx_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
 					res = 't';
 					outmsg=2;
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
-		if (end == start) time(&end);
+		if (end == start)
+            time(&end);
 		if (!f) {
 			if (option_verbose > 2) 
 				opbx_verbose( VERBOSE_PREFIX_3 "User hung up\n");

@@ -219,7 +219,7 @@ static void check_goto_on_transfer(struct opbx_channel *chan)
 		opbx_clear_flag(xferchan, OPBX_FLAGS_ALL);	
 		xferchan->_softhangup = 0;
 		if ((f = opbx_read(xferchan))) {
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			f = NULL;
 			opbx_pbx_start(xferchan);
 		} else {
@@ -438,7 +438,7 @@ static int __opbx_masq_park_call(struct opbx_channel *rchan, struct opbx_channel
 		/* Make the masq execute */
 		f = opbx_read(chan);
 		if (f)
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		__opbx_park_call(chan, peer, timeout, extout);
 	} else {
 		opbx_log(LOG_WARNING, "Unable to create parked channel\n");
@@ -753,7 +753,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 				if (newchan->_softhangup || newchan->_state != OPBX_STATE_UP || !transferer->_softhangup) {
 					opbx_hangup(newchan);
 					if (f) {
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						f = NULL;
 					}
 					if (!opbx_strlen_zero(xfersound) && !opbx_streamfile(transferer, xfersound, transferer->language)) {
@@ -800,7 +800,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 					xferchan->_softhangup = 0;
 
 					if ((f = opbx_read(xferchan))) {
-						opbx_frfree(f);
+						opbx_fr_free(f);
 						f = NULL;
 					}
 					
@@ -1158,13 +1158,13 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 							opbx_indicate(caller, OPBX_CONTROL_RINGING);
 						} else if ((f->subclass == OPBX_CONTROL_BUSY) || (f->subclass == OPBX_CONTROL_CONGESTION)) {
 							state = f->subclass;
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							f = NULL;
 							break;
 						} else if (f->subclass == OPBX_CONTROL_ANSWER) {
 							/* This is what we are hoping for */
 							state = f->subclass;
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							f = NULL;
 							ready=1;
 							break;
@@ -1199,14 +1199,14 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 						if (*dialed_code && !strcmp(dialed_code, disconnect_code)) {
 							/* Caller Canceled the call */
 							state = OPBX_CONTROL_UNHOLD;
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							f = NULL;
 							break;
 						}
 					}
 				}
 				if (f) {
-					opbx_frfree(f);
+					opbx_fr_free(f);
 				}
 			}
 		} else
@@ -1345,7 +1345,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 					config->feature_timer = 0;
 					who = chan;
 					if (f)
-						opbx_frfree(f);
+						opbx_fr_free(f);
 					f = NULL;
 					res = 0;
 				} else if (config->feature_timer <= 0) {
@@ -1361,7 +1361,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 						memset(chan_featurecode, 0, sizeof(chan_featurecode));
 					}
 					if (f)
-						opbx_frfree(f);
+						opbx_fr_free(f);
 					hasfeatures = !opbx_strlen_zero(chan_featurecode) || !opbx_strlen_zero(peer_featurecode);
 					if (!hasfeatures) {
 						/* Restore original (possibly time modified) bridge config */
@@ -1378,7 +1378,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 					config->feature_timer = 0;
 					who = chan;
 					if (f)
-						opbx_frfree(f);
+						opbx_fr_free(f);
 					f = NULL;
 					res = 0;
 				}
@@ -1453,7 +1453,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 			if (res >= FEATURE_RETURN_PASSDIGITS) {
 				res = 0;
 			} else {
-				opbx_frfree(f);
+				opbx_fr_free(f);
 				break;
 			}
 			hasfeatures = !opbx_strlen_zero(chan_featurecode) || !opbx_strlen_zero(peer_featurecode);
@@ -1480,7 +1480,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 			}
 		}
 		if (f)
-			opbx_frfree(f);
+			opbx_fr_free(f);
 	}
 	return res;
 }
@@ -1626,7 +1626,7 @@ static void *do_parking_thread(void *ignore)
 							break;
 						} else {
 							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
-							opbx_frfree(f);
+							opbx_fr_free(f);
 							if (pu->moh_trys < 3 && !opbx_generator_is_active(pu->chan)) {
 								opbx_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
 								opbx_moh_start(pu->chan, NULL);

@@ -5686,7 +5686,7 @@ static void *async_wait(void *data)
                 break;
             }
         }
-        opbx_frfree(f);
+        opbx_fr_free(f);
     }
     if (chan->_state == OPBX_STATE_UP)
     {
@@ -6261,7 +6261,7 @@ static void wait_for_hangup(struct opbx_channel *chan, void *data)
                 return;
             f = opbx_read(chan);
             if (f)
-                opbx_frfree(f);
+                opbx_fr_free(f);
         }
         while(f);
     }

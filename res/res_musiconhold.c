@@ -254,7 +254,7 @@ static int moh_files_generator(struct opbx_channel *chan, void *data, int sample
 			state->samples += f->samples;
 			res = opbx_write(chan, f);
 			state->sample_queue -= f->samples;
-			opbx_frfree(f);
+			opbx_fr_free(f);
 			if (res < 0) {
 				return -1;
 			}
