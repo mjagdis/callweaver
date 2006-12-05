@@ -295,6 +295,11 @@ struct opbx_frame *opbx_fralloc(char *source, int len);
  */
 void opbx_fr_init(struct opbx_frame *fr);
 
+void opbx_fr_init_ex(struct opbx_frame *fr,
+                     int frame_type,
+                     int sub_type,
+                     const char *src);
+
 /*! Frees a frame */
 /*! 
  * \param fr Frame to free

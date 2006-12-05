@@ -220,12 +220,11 @@ static struct opbx_filestream *au_open(FILE *f)
 		return NULL;
 	}
 	tmp->f = f;
+    opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 	tmp->fr.data = tmp->buf;
-	tmp->fr.frametype = OPBX_FRAME_VOICE;
-	tmp->fr.subclass = OPBX_FORMAT_ULAW;
 	/* datalen will vary for each frame */
 	tmp->fr.src = name;
-	tmp->fr.mallocd = 0;
+
 	localusecnt++;
 	opbx_mutex_unlock(&au_lock);
 	opbx_update_use_count();
@@ -277,12 +276,11 @@ static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)
 	int delay;
 	/* Send a frame from the file to the appropriate channel */
 
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_ULAW;
+    opbx_fram_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
-	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
+    {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;

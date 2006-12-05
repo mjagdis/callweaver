@@ -95,12 +95,12 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 			amt = *remainder;
 		else
 			*remainder = *remainder - amt;
-		outf.frametype = OPBX_FRAME_VOICE;
-		outf.subclass = OPBX_FORMAT_ULAW;
+        opbx_fram_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 		outf.data = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
-		if (opbx_write(chan, &outf)) {
+		if (opbx_write(chan, &outf))
+        {
 			opbx_log(LOG_WARNING, "Failed to carefully write frame\n");
 			return -1;
 		}
@@ -119,7 +119,8 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 		/* Detect hangup */
 		if (!inf)
 			return -1;
-		if (inf->frametype == OPBX_FRAME_VOICE) {
+		if (inf->frametype == OPBX_FRAME_VOICE)
+        {
 			/* Read a voice frame */
 			if (inf->subclass != OPBX_FORMAT_ULAW) {
 				opbx_log(LOG_WARNING, "Channel not in ulaw?\n");
@@ -130,12 +131,12 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 				amt = inf->datalen;
 			else if (remainder)
 				*remainder = inf->datalen - amt;
-			outf.frametype = OPBX_FRAME_VOICE;
-			outf.subclass = OPBX_FORMAT_ULAW;
+            opbx_fram_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
 			outf.data = buf;
 			outf.datalen = amt;
 			outf.samples = amt;
-			if (opbx_write(chan, &outf)) {
+			if (opbx_write(chan, &outf))
+            {
 				opbx_log(LOG_WARNING, "Failed to carefully write frame\n");
 				return -1;
 			}
@@ -197,7 +198,8 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 					opbx_log(LOG_DEBUG, "Hangup in ADSI\n");
 					return -1;
 				}
-				if (f->frametype == OPBX_FRAME_DTMF) {
+				if (f->frametype == OPBX_FRAME_DTMF)
+                {
 					if (f->subclass == 'A') {
 						/* Okay, this is an ADSI CPE.  Note this for future reference, too */
 						if (!chan->adsicpe)

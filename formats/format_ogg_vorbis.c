@@ -376,20 +376,20 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
 	float **buffer;
 	short *data;
 
-	if(!s->writing) {
+	if (!s->writing) {
 		opbx_log(LOG_ERROR, "This stream is not set up for writing!\n");
 		return -1;
 	}
 
-	if(f->frametype != OPBX_FRAME_VOICE) {
+	if (f->frametype != OPBX_FRAME_VOICE) {
 		opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if(f->subclass != OPBX_FORMAT_SLINEAR) {
+	if (f->subclass != OPBX_FORMAT_SLINEAR) {
 		opbx_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if(!f->datalen)
+	if (!f->datalen)
 		return -1;
 
 	data = (short *) f->data;
@@ -575,7 +575,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
 			s->buffer[samples_out + j] = val;
 		}
 			
-		if(clipflag)
+		if (clipflag)
 			opbx_log(LOG_WARNING, "Clipping in frame %ld\n", (long)(s->vd.sequence));
 		
 		/* Tell the Vorbis decoder how many samples we actually used. */
@@ -583,14 +583,12 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
 		samples_out += samples_in;
 	}
 
-	if(samples_out > 0) {
-		s->fr.frametype = OPBX_FRAME_VOICE;
-		s->fr.subclass = OPBX_FORMAT_SLINEAR;
+	if (samples_out > 0)
+    {
+        opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, name);
 		s->fr.offset = OPBX_FRIENDLY_OFFSET;
-		s->fr.datalen = samples_out * 2;
+		s->fr.datalen = samples_out*sizeof(int16_t);
 		s->fr.data = s->buffer;
-		s->fr.src = name;
-		s->fr.mallocd = 0;
 		s->fr.samples = samples_out;
 		*whennext = samples_out;
 		

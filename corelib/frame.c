@@ -301,6 +301,30 @@ void opbx_fr_init(struct opbx_frame *fr)
 	fr->tx_copies = 1;
 }
 
+void opbx_fr_init_ex(struct opbx_frame *fr,
+                     int frame_type,
+                     int sub_type,
+                     const char *src)
+{
+	fr->frametype = frame_type;
+	fr->subclass = sub_type;
+	fr->datalen = 0;
+	fr->samples = 0;
+	fr->mallocd = 0;
+	fr->offset = 0;
+	fr->src = (src)  ?  src  :  "";
+    fr->data = NULL;
+	fr->delivery = opbx_tv(0,0);
+	fr->seq_no = 0;
+	fr->prev = NULL;
+	fr->next = NULL;
+	fr->has_timing_info = 0;
+	fr->ts = 0;
+	fr->len = 0;
+	fr->seq_no = 0;
+	fr->tx_copies = 1;
+}
+
 void opbx_fr_free(struct opbx_frame *fr)
 {
     if (fr->mallocd & OPBX_MALLOCD_DATA)

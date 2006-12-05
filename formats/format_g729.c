@@ -44,13 +44,13 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/logger.h"
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
-#include "confdefs.h"
 
 /* Some Ideas for this code came from makeg729e.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-struct opbx_filestream {
+struct opbx_filestream
+{
 	void *reserved[OPBX_RESERVED_POINTERS];
 	/* Believe it or not, we must decode/recode to account for the
 	   weird MS format */
@@ -76,20 +76,21 @@ static struct opbx_filestream *g729_open(FILE *f)
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
 	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
+	
+    if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    {
 		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g729_lock)) {
+		if (opbx_mutex_lock(&g729_lock))
+        {
 			opbx_log(LOG_WARNING, "Unable to lock g729 list\n");
 			free(tmp);
 			return NULL;
 		}
 		tmp->f = f;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G729A, NULL);
 		tmp->fr.data = tmp->g729;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G729A;
 		/* datalen will vary for each frame */
 		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		opbx_mutex_unlock(&g729_lock);
 		opbx_update_use_count();
@@ -136,15 +137,16 @@ static void g729_close(struct opbx_filestream *s)
 static struct opbx_frame *g729_read(struct opbx_filestream *s, int *whennext)
 {
 	int res;
+
 	/* Send a frame from the file to the appropriate channel */
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_G729A;
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G729A, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.samples = 160;
 	s->fr.datalen = 20;
-	s->fr.mallocd = 0;
 	s->fr.data = s->g729;
-	if ((res = fread(s->g729, 1, 20, s->f)) != 20) {
+
+	if ((res = fread(s->g729, 1, 20, s->f)) != 20)
+    {
 		if (res && (res != 10))
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;

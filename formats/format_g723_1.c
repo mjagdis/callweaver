@@ -45,8 +45,6 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/sched.h"
 #include "openpbx/module.h"
 
-
-
 #define G723_MAX_SIZE 1024
 
 struct opbx_filestream {
@@ -74,21 +72,21 @@ static struct opbx_filestream *g723_open(FILE *f)
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
 	struct opbx_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
+
+	if ((tmp = malloc(sizeof(struct opbx_filestream))))
+    {
 		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&g723_lock)) {
+		if (opbx_mutex_lock(&g723_lock))
+        {
 			opbx_log(LOG_WARNING, "Unable to lock g723 list\n");
 			free(tmp);
 			return NULL;
 		}
 		tmp->f = f;
-		tmp->fr = (struct opbx_frame *)tmp->buf;
+		tmp->fr = (struct opbx_frame *) tmp->buf;
+        opbx_fr_init_ex(tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G723_1, name);
 		tmp->fr->data = tmp->buf + sizeof(struct opbx_frame);
-		tmp->fr->frametype = OPBX_FRAME_VOICE;
-		tmp->fr->subclass = OPBX_FORMAT_G723_1;
 		/* datalen will vary for each frame */
-		tmp->fr->src = name;
-		tmp->fr->mallocd = 0;
 		glistcnt++;
 		opbx_mutex_unlock(&g723_lock);
 		opbx_update_use_count();
@@ -183,6 +181,7 @@ static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
 	u_int32_t delay;
 	u_int16_t size;
 	int res;
+
 	if (fs->fr) {
 		opbx_log(LOG_WARNING, "Asked to write on a read stream??\n");
 		return -1;
@@ -269,6 +268,3 @@ char *description()
 {
 	return desc;
 }
-
-
-

@@ -91,13 +91,10 @@ static struct opbx_filestream *h263_open(FILE *f)
 			free(tmp);
 			return NULL;
 		}
-		tmp->f = f;
+        tmp->f = f;
+        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, name);
 		tmp->fr.data = tmp->h263;
-		tmp->fr.frametype = OPBX_FRAME_VIDEO;
-		tmp->fr.subclass = OPBX_FORMAT_H263;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		opbx_mutex_unlock(&h263_lock);
 		opbx_update_use_count();
@@ -147,25 +144,28 @@ static struct opbx_frame *h263_read(struct opbx_filestream *s, int *whennext)
 	int mark=0;
 	unsigned short len;
 	unsigned int ts;
+
 	/* Send a frame from the file to the appropriate channel */
-	s->fr.frametype = OPBX_FRAME_VIDEO;
-	s->fr.subclass = OPBX_FORMAT_H263;
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
-	s->fr.mallocd = 0;
 	s->fr.data = s->h263;
-	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1) {
+	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
+    {
 		return NULL;
 	}
 	len = ntohs(len);
-	if (len & 0x8000) {
+	if (len & 0x8000)
+    {
 		mark = 1;
 	}
 	len &= 0x7fff;
-	if (len > sizeof(s->h263)) {
+	if (len > sizeof(s->h263))
+    {
 		opbx_log(LOG_WARNING, "Length %d is too long\n", len);
 		return NULL;
 	}
-	if ((res = fread(s->h263, 1, len, s->f)) != len) {
+	if ((res = fread(s->h263, 1, len, s->f)) != len)
+    {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -175,7 +175,8 @@ static struct opbx_frame *h263_read(struct opbx_filestream *s, int *whennext)
 	s->fr.subclass |= mark;
 	s->fr.delivery.tv_sec = 0;
 	s->fr.delivery.tv_usec = 0;
-	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
+	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts))
+    {
 		s->lastts = ntohl(ts);
 		*whennext = s->lastts * 4/45;
 	} else

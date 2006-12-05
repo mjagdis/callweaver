@@ -56,19 +56,18 @@ static struct opbx_frame *jpeg_read_image(int fd, int len)
 	struct opbx_frame fr;
 	int res;
 	char buf[65536];
-	if (len > sizeof(buf) || len < 0) {
+	
+    if (len > sizeof(buf) || len < 0)
+    {
 		opbx_log(LOG_WARNING, "JPEG image too large to read\n");
 		return NULL;
 	}
-	res = read(fd, buf, len);
-	if (res < len) {
+	if ((res = read(fd, buf, len)) < len)
+    {
 		opbx_log(LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
 	}
-	memset(&fr, 0, sizeof(fr));
-	fr.frametype = OPBX_FRAME_IMAGE;
-	fr.subclass = OPBX_FORMAT_JPEG;
+    opbx_fr_init_ex(&fr, OPBX_FRAME_IMAGE, OPBX_FORMAT_JPEG, "JPEG Read");
 	fr.data = buf;
-	fr.src = "JPEG Read";
 	fr.datalen = len;
 	return opbx_frisolate(&fr);
 }
@@ -88,6 +87,7 @@ static int jpeg_identify(int fd)
 static int jpeg_write_image(int fd, struct opbx_frame *fr)
 {
 	int res=0;
+
 	if (fr->frametype != OPBX_FRAME_IMAGE) {
 		opbx_log(LOG_WARNING, "Not an image\n");
 		return -1;

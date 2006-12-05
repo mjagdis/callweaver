@@ -62,14 +62,16 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define	FRAME_TIME	10	/* 10 ms size */
 
 /* Frame sizes in bytes */
-static int frame_size[4] = { 
-		FRAME_TIME * 5,
-		FRAME_TIME * 4,
-		FRAME_TIME * 3,
-		FRAME_TIME * 2
+static int frame_size[4] =
+{ 
+	FRAME_TIME * 5,
+	FRAME_TIME * 4,
+	FRAME_TIME * 3,
+	FRAME_TIME * 2
 };
 
-struct opbx_filestream {
+struct opbx_filestream
+{
 	/* Do not place anything before "reserved" */
 	void *reserved[OPBX_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
@@ -112,12 +114,9 @@ static struct opbx_filestream *g726_40_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->rate = RATE_40;
+        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name40);
 		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name40;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
@@ -143,12 +142,9 @@ static struct opbx_filestream *g726_32_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->rate = RATE_32;
+        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name32);
 		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name32;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
@@ -174,12 +170,9 @@ static struct opbx_filestream *g726_24_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->rate = RATE_24;
+        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name24);
 		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name24;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
@@ -204,13 +197,10 @@ static struct opbx_filestream *g726_16_open(FILE *f)
 			return NULL;
 		}
 		tmp->f = f;
+        opbx_fram_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, name16);
 		tmp->rate = RATE_16;
 		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_G726;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name16;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
@@ -347,15 +337,15 @@ static void g726_close(struct opbx_filestream *s)
 static struct opbx_frame *g726_read(struct opbx_filestream *s, int *whennext)
 {
 	int res;
+
 	/* Send a frame from the file to the appropriate channel */
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_G726;
+    opbx_fram_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
-	s->fr.samples = 8 * FRAME_TIME;
+	s->fr.samples = 8*FRAME_TIME;
 	s->fr.datalen = frame_size[s->rate];
-	s->fr.mallocd = 0;
 	s->fr.data = s->g726;
-	if ((res = fread(s->g726, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+	if ((res = fread(s->g726, 1, s->fr.datalen, s->f)) != s->fr.datalen)
+    {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;

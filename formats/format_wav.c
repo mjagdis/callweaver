@@ -353,12 +353,10 @@ static struct opbx_filestream *wav_open(FILE *f)
 		}
 		tmp->f = f;
 		tmp->needsgain = 1;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_SLINEAR;
 		/* datalen will vary for each frame */
 		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
 		tmp->bytes = 0;
 		glistcnt++;
 		opbx_mutex_unlock(&wav_lock);
@@ -430,40 +428,48 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 		bytes = 0;
 /* 	opbx_log(LOG_DEBUG, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	
-	if ( (res = fread(tmp, 1, bytes, s->f)) <= 0 ) {
-		if (res) {
+	if ((res = fread(tmp, 1, bytes, s->f)) <= 0)
+    {
+		if (res)
+        {
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		}
 		return NULL;
 	}
 
 #if __BYTE_ORDER == __BIG_ENDIAN
-	for( x = 0; x < sizeof(tmp)/2; x++) tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
+	for (x = 0;  x < sizeof(tmp)/sizeof(int16_t);  x++)
+        tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
 #endif
 
-	if (s->needsgain) {
-		for (x=0;x<sizeof(tmp)/2;x++)
-			if (tmp[x] & ((1 << GAIN) - 1)) {
+	if (s->needsgain)
+    {
+		for (x = 0;  x < sizeof(tmp)/sizeof(int16_t);  x++)
+        {
+			if (tmp[x] & ((1 << GAIN) - 1))
+            {
 				/* If it has data down low, then it's not something we've artificially increased gain
 				   on, so we don't need to gain adjust it */
 				s->needsgain = 0;
 			}
+        }
 	}
-	if (s->needsgain) {
-		for (x=0;x<sizeof(tmp)/2;x++) {
+	if (s->needsgain)
+    {
+		for (x = 0;  x < sizeof(tmp)/sizeof(int16_t);  x++)
 			s->buf[x] = tmp[x] >> GAIN;
-		}
-	} else {
+	}
+    else
+    {
 		memcpy(s->buf, tmp, sizeof(s->buf));
 	}
 			
-	delay = res / 2;
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_SLINEAR;
+	delay = res/sizeof(int16_t);
+
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.datalen = res;
 	s->fr.data = s->buf;
-	s->fr.mallocd = 0;
 	s->fr.samples = delay;
 	*whennext = delay;
 	return &s->fr;

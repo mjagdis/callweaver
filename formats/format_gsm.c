@@ -94,12 +94,9 @@ static struct opbx_filestream *gsm_open(FILE *f)
 			return NULL;
 		}
 		tmp->f = f;
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, name);
 		tmp->fr.data = tmp->gsm;
-		tmp->fr.frametype = OPBX_FRAME_VOICE;
-		tmp->fr.subclass = OPBX_FORMAT_GSM;
 		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
 		glistcnt++;
 		opbx_mutex_unlock(&gsm_lock);
 		opbx_update_use_count();
@@ -145,14 +142,14 @@ static void gsm_close(struct opbx_filestream *s)
 static struct opbx_frame *gsm_read(struct opbx_filestream *s, int *whennext)
 {
 	int res;
-	s->fr.frametype = OPBX_FRAME_VOICE;
-	s->fr.subclass = OPBX_FORMAT_GSM;
+
+    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.samples = 160;
 	s->fr.datalen = 33;
-	s->fr.mallocd = 0;
 	s->fr.data = s->gsm;
-	if ((res = fread(s->gsm, 1, 33, s->f)) != 33) {
+	if ((res = fread(s->gsm, 1, 33, s->f)) != 33)
+    {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -164,34 +161,45 @@ static struct opbx_frame *gsm_read(struct opbx_filestream *s, int *whennext)
 static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
 	int res;
-	unsigned char gsm[66];
-	if (f->frametype != OPBX_FRAME_VOICE) {
+	uint8_t gsm[66];
+	
+    if (f->frametype != OPBX_FRAME_VOICE)
+    {
 		opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != OPBX_FORMAT_GSM) {
+	if (f->subclass != OPBX_FORMAT_GSM)
+    {
 		opbx_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (!(f->datalen % 65)) {
+	if (!(f->datalen % 65))
+    {
 		/* This is in MSGSM format, need to be converted */
 		int len=0;
-		while(len < f->datalen) {
+
+		while (len < f->datalen)
+        {
 			conv65(f->data + len, gsm);
-			if ((res = fwrite(gsm, 1, 66, fs->f)) != 66) {
+			if ((res = fwrite(gsm, 1, 66, fs->f)) != 66)
+            {
 				opbx_log(LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
 				return -1;
 			}
 			len += 65;
 		}
-	} else {
-		if (f->datalen % 33) {
+	}
+    else
+    {
+		if (f->datalen % 33)
+        {
 			opbx_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
 			return -1;
 		}
-		if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-				opbx_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
-				return -1;
+		if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen)
+        {
+			opbx_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
+			return -1;
 		}
 	}
 	return 0;
@@ -199,7 +207,11 @@ static int gsm_write(struct opbx_filestream *fs, struct opbx_frame *f)
 
 static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 {
-	off_t offset=0,min,cur,max,distance;
+	off_t offset = 0;
+    off_t min;
+    off_t cur;
+    off_t max;
+    off_t distance;
 	
 	min = 0;
 	cur = ftell(fs->f);
