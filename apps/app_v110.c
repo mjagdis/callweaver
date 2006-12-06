@@ -251,11 +251,9 @@ static int login_v110(struct opbx_channel *chan, void *data)
 	opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));
 	opbx_set_read_format(chan, opbx_best_codec(chan->nativeformats));
 
-	memset(&vs->f, 0, sizeof(vs->f));
+    opbx_fr_init_ex(&vs->f, OPBX_FRAME_VOICE, chan->readformat, NULL);
 	vs->f.data = vs->fdata;
 	vs->f.offset = OPBX_FRIENDLY_OFFSET;
-	vs->f.subclass = chan->readformat;
-	vs->f.frametype = OPBX_FRAME_VOICE;
 
 	v110_generate(chan, vs, primelen);
 

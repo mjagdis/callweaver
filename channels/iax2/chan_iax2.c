@@ -1368,10 +1368,10 @@ static int attempt_transmit(void *data)
 							opbx_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
 						iaxs[f->callno]->error = ETIMEDOUT;
 						if (iaxs[f->callno]->owner) {
-							struct opbx_frame fr = { 0, };
+							struct opbx_frame fr;
+                            
 							/* Hangup the fd */
-							fr.frametype = OPBX_FRAME_CONTROL;
-							fr.subclass = OPBX_CONTROL_HANGUP;
+                            opbx_fr_init_ex(&fr, OPBX_FRAME_CONTROL, OPBX_CONTROL_HANGUP, NULL);
 							iax2_queue_frame(f->callno, &fr);
 							/* Remember, owner could disappear */
 							if (iaxs[f->callno]->owner)
@@ -3109,11 +3109,13 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct opbx_iax2_full_hdr *fh, str
 {
 	int padding;
 	unsigned char *workspace;
+
 	workspace = alloca(*datalen);
 	if (!workspace)
 		return -1;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct opbx_iax2_full_enc_hdr *efh = (struct opbx_iax2_full_enc_hdr *)fh;
+
 		if (*datalen < 16 + sizeof(struct opbx_iax2_full_hdr))
 			return -1;
 		/* Decrypt */
@@ -3867,14 +3869,10 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 		int now, int transfer, int final)
 {
 	struct opbx_frame f;
-	f.frametype = type;
-	f.subclass = command;
+
+    opbx_fr_init_ex(&f, type, command, __FUNCTION__);
 	f.datalen = datalen;
-	f.samples = 0;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = (char *)__FUNCTION__;
-	f.data = (char *)data;
+	f.data = (char *) data;
 	return iax2_send(i, &f, ts, seqno, now, transfer, final);
 }
 
@@ -5600,6 +5598,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					/* If it's a valid call, deliver the contents.  If not, we
 					   drop it, since we don't have a scallno to use for an INVAL */
 					/* Process as a mini frame */
+                    opbx_fr_init(&f);
 					f.frametype = OPBX_FRAME_VOICE;
 					if (iaxs[fr.callno]) {
 						if (iaxs[fr.callno]->voiceformat > 0) {
@@ -6200,9 +6199,7 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_REJECT:
-				memset(&f, 0, sizeof(f));
-				f.frametype = OPBX_FRAME_CONTROL;
-				f.subclass = OPBX_CONTROL_CONGESTION;
+                opbx_fr_init_ex(&f, OPBX_FRAME_CONTROL, OPBX_CONTROL_CONGESTION, NULL);
 
 				/* Set hangup cause according to remote */
 				if (ies.causecode && iaxs[fr.callno]->owner)

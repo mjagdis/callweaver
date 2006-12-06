@@ -1567,8 +1567,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	if (!opbx_test_flag(chan, OPBX_FLAG_DEFER_DTMF) && !opbx_strlen_zero(chan->dtmfq))
     {
 		/* We have DTMF that has been deferred.  Return it now */
-		chan->dtmff.frametype = OPBX_FRAME_DTMF;
-		chan->dtmff.subclass = chan->dtmfq[0];
+        opbx_fr_init_ex(&chan->dtmff, OPBX_FRAME_DTMF, chan->dtmfq[0], NULL);
 		/* Drop first digit */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
 		opbx_mutex_unlock(&chan->lock);
@@ -3582,15 +3581,15 @@ static int tonepair_generate(struct opbx_channel *chan, void *data, int samples)
 				sin((ts->freq2 * 2.0 * M_PI / 8000.0) * (ts->pos + x))
 			);
 	}
-	ts->f.frametype = OPBX_FRAME_VOICE;
-	ts->f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&ts->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	ts->f.datalen = len;
 	ts->f.samples = samples;
 	ts->f.offset = OPBX_FRIENDLY_OFFSET;
 	ts->f.data = ts->data;
 	opbx_write(chan, &ts->f);
 	ts->pos += x;
-	if (ts->duration > 0) {
+	if (ts->duration > 0)
+    {
 		if (ts->pos >= ts->duration * 8)
 			return -1;
 	}

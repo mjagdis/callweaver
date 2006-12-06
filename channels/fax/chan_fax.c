@@ -391,10 +391,11 @@ static struct opbx_channel *channel_new(const char *type, int format, void *data
 			chan->_state = OPBX_STATE_RINGING;
 			chan->_softhangup = 0;
 			chan->tech = &technology;
-			tech_pvt->frame.frametype = OPBX_FRAME_VOICE;
-			tech_pvt->frame.subclass = myformat;
+
+            opbx_fr_init_ex(&tech_pvt->frame, OPBX_FRAME_VOICE, myformat, NULL);
 			tech_pvt->frame.offset = OPBX_FRIENDLY_OFFSET;
 			tech_pvt->frame.data = tech_pvt->fdata + OPBX_FRIENDLY_OFFSET;
+
 			tech_pvt->owner = chan;
 			ASTOBJ_CONTAINER_LINK(&private_object_list, tech_pvt);
 			opbx_mutex_lock(&usecnt_lock);

@@ -1196,17 +1196,15 @@ static int sms_generate(struct opbx_channel *chan, void *data, int samples)
 	len = samples*sizeof(int16_t) + OPBX_FRIENDLY_OFFSET;
 	buf = alloca(len);
 
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "app_sms");
 	f.datalen = samples*sizeof(int16_t);
 	f.offset = OPBX_FRIENDLY_OFFSET;
-	f.mallocd = 0;
 	f.data = ((char *) buf) + OPBX_FRIENDLY_OFFSET;
 	f.samples = samples;
-	f.src = "app_sms";
 
 	/* Create a buffer containing the digital sms pattern */
-	for (i = 0;  i < samples;  i++) {
+	for (i = 0;  i < samples;  i++)
+    {
 		buf[i + OPBX_FRIENDLY_OFFSET/2] = wave[0];
 		if (h->opause)
 			h->opause--;
