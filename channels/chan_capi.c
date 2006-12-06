@@ -2311,9 +2311,9 @@ static void handle_did_digits(_cmsg *CMSG, unsigned int PLCI, unsigned int NCCI,
 	
 	if (i->owner->pbx != NULL) {
 		/* we are already in pbx, so we send the digits as dtmf */
-		for (a = 0; a < strlen(did); a++) {
-			fr.frametype = OPBX_FRAME_DTMF;
-			fr.subclass = did[a];
+		for (a = 0;  a < strlen(did);  a++)
+        {
+            opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, did[a], "CAPI");
 			local_queue_frame(i, &fr);
 		} 
 		return;
@@ -2562,15 +2562,13 @@ static void capi_handle_info_indication(_cmsg *CMSG, unsigned int PLCI, unsigned
 		cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: info element ALERTING\n",
 			i->name);
 		send_progress(i);
-		fr.frametype = OPBX_FRAME_CONTROL;
-		fr.subclass = OPBX_CONTROL_RINGING;
+        opbx_fr_init_ex(&fr, OPBX_FRAME_CONTROL, OPBX_CONTROL_RINGING, "CAPI");
 		local_queue_frame(i, &fr);
 		break;
 	case 0x8002:	/* CALL PROCEEDING */
 		cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: info element CALL PROCEEDING\n",
 			i->name);
-		fr.frametype = OPBX_FRAME_CONTROL;
-		fr.subclass = OPBX_CONTROL_PROCEEDING;
+        opbx_fr_init_ex(&fr, OPBX_FRAME_CONTROL, OPBX_CONTROL_PROCEEDING, "CAPI");
 		local_queue_frame(i, &fr);
 		break;
 	case 0x8003:	/* PROGRESS */
@@ -2708,8 +2706,7 @@ static void capi_handle_facility_indication(_cmsg *CMSG, unsigned int PLCI, unsi
 				if ((dtmf == 'X') || (dtmf == 'Y')) {
 					capi_handle_dtmf_fax(i->owner);
 				} else {
-					fr.frametype = OPBX_FRAME_DTMF;
-					fr.subclass = dtmf;
+                    opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, dtmf, "CAPI");
 					local_queue_frame(i, &fr);
 				}
 			}
@@ -2867,16 +2864,11 @@ static void capi_handle_data_b3_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 		}
 	}
 
-	fr.frametype = OPBX_FRAME_VOICE;
-	fr.subclass = capi_capability;
+    opbx_fr_init_ex(&fr, OPBX_FRAME_VOICE, capi_capability, NULL);
 	fr.data = b3buf;
 	fr.datalen = b3len;
 	fr.samples = b3len;
 	fr.offset = OPBX_FRIENDLY_OFFSET;
-	fr.mallocd = 0;
-	fr.delivery.tv_sec = 0;
-	fr.delivery.tv_usec = 0;
-	fr.src = NULL;
 	cc_verbose(8, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND (len=%d) fr.datalen=%d fr.subclass=%d\n",
 		i->name, b3len, fr.datalen, fr.subclass);
 	local_queue_frame(i, &fr);

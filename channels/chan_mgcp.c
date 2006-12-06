@@ -3230,18 +3230,20 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					transmit_notify_request(sub, "L/vmwi(-)");
 				}
 			}
-		} else if ((strlen(ev) == 1) && 
+		}
+        else if ((strlen(ev) == 1) && 
 				(((ev[0] >= '0') && (ev[0] <= '9')) ||
 				 ((ev[0] >= 'A') && (ev[0] <= 'D')) ||
-				  (ev[0] == '*') || (ev[0] == '#'))) {
-			f.frametype = OPBX_FRAME_DTMF;
-			f.subclass = ev[0];
-			f.src = "mgcp";
-			if (sub->owner) {
+				  (ev[0] == '*') || (ev[0] == '#')))
+        {
+            opbx_fr_init_ex(&f, OPBX_FRAME_DTMF, ev[0], "mgcp");
+			if (sub->owner)
+            {
 				/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
 				mgcp_queue_frame(sub, &f);
 				opbx_mutex_lock(&sub->next->lock);
-				if (sub->next->owner) {
+				if (sub->next->owner)
+                {
 					mgcp_queue_frame(sub->next, &f);
 				}
 				opbx_mutex_unlock(&sub->next->lock);

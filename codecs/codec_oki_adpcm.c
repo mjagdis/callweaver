@@ -226,14 +226,12 @@ static struct opbx_frame *okiadpcmtolin_frameout(struct opbx_translator_pvt *pvt
 
     if (tmp->tail == 0)
         return NULL;
-    tmp->f.frametype = OPBX_FRAME_VOICE;
-    tmp->f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     tmp->f.samples = tmp->tail;
-    tmp->f.mallocd = 0;
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-    tmp->f.src = __PRETTY_FUNCTION__;
     tmp->f.data = tmp->outbuf;
+
     tmp->tail = 0;
     return &tmp->f;
 }
@@ -289,12 +287,9 @@ static struct opbx_frame *lintookiadpcm_frameout(struct opbx_translator_pvt *pvt
 
     i_max = tmp->tail & ~1; /* atomic size is 2 samples */
     oki_adpcm_encode(&tmp->oki_state, tmp->outbuf, tmp->inbuf, i_max);
-    tmp->f.frametype = OPBX_FRAME_VOICE;
-    tmp->f.subclass = OPBX_FORMAT_OKI_ADPCM;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_OKI_ADPCM, __PRETTY_FUNCTION__);
     tmp->f.samples = i_max;
-    tmp->f.mallocd = 0;
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-    tmp->f.src = __PRETTY_FUNCTION__;
     tmp->f.data = tmp->outbuf;
     tmp->f.datalen = i_max/2;
 
@@ -321,13 +316,9 @@ static struct opbx_frame *okiadpcmtolin_sample(void)
 {
     static struct opbx_frame f;
   
-    f.frametype = OPBX_FRAME_VOICE;
-    f.subclass = OPBX_FORMAT_OKI_ADPCM;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_OKI_ADPCM, __PRETTY_FUNCTION__);
     f.datalen = sizeof (adpcm_ex);
     f.samples = sizeof(adpcm_ex)*2;
-    f.mallocd = 0;
-    f.offset = 0;
-    f.src = __PRETTY_FUNCTION__;
     f.data = adpcm_ex;
     return &f;
 }
@@ -335,19 +326,14 @@ static struct opbx_frame *okiadpcmtolin_sample(void)
 /*
  * lintookiadpcm_sample
  */
-
 static struct opbx_frame *lintookiadpcm_sample(void)
 {
     static struct opbx_frame f;
   
-    f.frametype = OPBX_FRAME_VOICE;
-    f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof (slin_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof (slin_ex)/sizeof(int16_t);
-    f.mallocd = 0;
-    f.offset = 0;
-    f.src = __PRETTY_FUNCTION__;
     f.data = slin_ex;
     return &f;
 }

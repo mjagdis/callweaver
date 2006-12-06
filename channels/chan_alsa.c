@@ -678,16 +678,7 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 
 	opbx_mutex_lock(&alsalock);
 	/* Acknowledge any pending cmd */	
-	f.frametype = OPBX_FRAME_NULL;
-	f.subclass = 0;
-	f.samples = 0;
-	f.datalen = 0;
-	f.data = NULL;
-	f.offset = 0;
-	f.src = type;
-	f.mallocd = 0;
-	f.delivery.tv_sec = 0;
-	f.delivery.tv_usec = 0;
+    opbx_fr_init(&f);
 
 	state = snd_pcm_state(alsa.icard);
 	if ((state != SND_PCM_STATE_PREPARED) && 
@@ -724,14 +715,11 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 			opbx_mutex_unlock(&alsalock);
 			return &f;
 		}
-		f.frametype = OPBX_FRAME_VOICE;
-		f.subclass = OPBX_FORMAT_SLINEAR;
+        opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, type);
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
 		f.data = buf;
 		f.offset = OPBX_FRIENDLY_OFFSET;
-		f.src = type;
-		f.mallocd = 0;
 #ifdef ALSA_MONITOR
 		alsa_monitor_read((char *)buf, FRAME_SIZE * 2);
 #endif		
@@ -936,7 +924,8 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		f.data = text2send;
 		f.datalen = strlen(text2send) + 1;
 		grab_owner();
-		if (alsa.owner) {
+		if (alsa.owner)
+        {
 			opbx_queue_frame(alsa.owner, &f);
 			f.frametype = OPBX_FRAME_CONTROL;
 			f.subclass = OPBX_CONTROL_ANSWER;

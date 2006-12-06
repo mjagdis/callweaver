@@ -996,16 +996,14 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 	silence = __opbx_dsp_silence(dsp, shortdata, len, NULL);
 	if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence)
     {
-		memset(&dsp->f, 0, sizeof(dsp->f));
+        opbx_fr_init(&dsp->f);
 		dsp->f.frametype = OPBX_FRAME_NULL;
 		return &dsp->f;
 	}
 	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && opbx_dsp_busydetect(dsp))
     {
 		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
-		memset(&dsp->f, 0, sizeof(dsp->f));
-		dsp->f.frametype = OPBX_FRAME_CONTROL;
-		dsp->f.subclass = OPBX_CONTROL_BUSY;
+        opbx_fr_init_ex(&dsp->f, OPBX_FRAME_CONTROL, OPBX_CONTROL_BUSY, NULL);
 		opbx_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
@@ -1020,10 +1018,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                 {
 					/* Looks like we might have something.  
 					 * Request a conference mute for the moment */
-					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = OPBX_FRAME_DTMF;
-					dsp->f.subclass = 'm';
-					dsp->thinkdigit = 'x';
+                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
 					FIX_INF(af);
 					if (chan)
 						opbx_queue_frame(chan, af);
@@ -1043,9 +1038,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 							/* If we found a digit, and we're changing digits, go
 							   ahead and send this one, but DON'T stop confmute because
 							   we're detecting something else, too... */
-							memset(&dsp->f, 0, sizeof(dsp->f));
-							dsp->f.frametype = OPBX_FRAME_DTMF;
-							dsp->f.subclass = dsp->thinkdigit;
+                            opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, dsp->thinkdigit, NULL);
 							FIX_INF(af);
 							if (chan)
 								opbx_queue_frame(chan, af);
@@ -1060,7 +1053,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                 {
 					if (dsp->thinkdigit)
                     {
-						memset(&dsp->f, 0, sizeof(dsp->f));
+                        opbx_fr_init(&dsp->f);
 						if (dsp->thinkdigit != 'x')
                         {
 							/* If we found a digit, send it now */
@@ -1090,9 +1083,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             {
                 if (bell_mf_rx_get(&dsp->td.bell_mf, digit_buf, 1))
                 {
-					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = OPBX_FRAME_DTMF;
-					dsp->f.subclass = digit_buf[0];
+                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, digit_buf[0], NULL);
 					FIX_INF(af);
 					if (chan)
 						opbx_queue_frame(chan, af);
@@ -1104,9 +1095,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             {
 				if (dsp->td.dtmf.current_digits)
                 {
-					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = OPBX_FRAME_DTMF;
-					dsp->f.subclass = dsp->td.dtmf.digits[0];
+                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, dsp->td.dtmf.digits[0], NULL);
 					memmove(dsp->td.dtmf.digits, dsp->td.dtmf.digits + 1, dsp->td.dtmf.current_digits);
 					dsp->td.dtmf.current_digits--;
 					FIX_INF(af);
@@ -1130,10 +1119,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 			case OPBX_CONTROL_RINGING:
 			case OPBX_CONTROL_CONGESTION:
 			case OPBX_CONTROL_HANGUP:
-				memset(&dsp->f, 0, sizeof(dsp->f));
-				dsp->f.frametype = OPBX_FRAME_CONTROL;
-				dsp->f.subclass = res;
-				dsp->f.src = "dsp_progress";
+                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_CONTROL, res, "dsp_progress");
 				if (chan) 
 					opbx_queue_frame(chan, &dsp->f);
 				break;

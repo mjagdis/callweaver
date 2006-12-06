@@ -223,14 +223,12 @@ static struct opbx_frame *ulawtolin_frameout(struct opbx_translator_pvt *pvt)
     if (!tmp->tail)
         return NULL;
 
-    tmp->f.frametype = OPBX_FRAME_VOICE;
-    tmp->f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail*sizeof(int16_t);
     tmp->f.samples = tmp->tail;
-    tmp->f.mallocd = 0;
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-    tmp->f.src = __PRETTY_FUNCTION__;
     tmp->f.data = tmp->outbuf;
+
     tmp->tail = 0;
     return &tmp->f;
 }
@@ -278,15 +276,14 @@ static struct opbx_frame *lintoulaw_frameout(struct opbx_translator_pvt *pvt)
 {
     struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
   
-    if (tmp->tail) {
-        tmp->f.frametype = OPBX_FRAME_VOICE;
-        tmp->f.subclass = OPBX_FORMAT_ULAW;
+    if (tmp->tail)
+    {
+        opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
         tmp->f.samples = tmp->tail;
-        tmp->f.mallocd = 0;
         tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-        tmp->f.src = __PRETTY_FUNCTION__;
         tmp->f.data = tmp->outbuf;
         tmp->f.datalen = tmp->tail;
+
         tmp->tail = 0;
         return &tmp->f;
     }
@@ -300,13 +297,9 @@ static struct opbx_frame *ulawtolin_sample(void)
 {
     static struct opbx_frame f;
   
-    f.frametype = OPBX_FRAME_VOICE;
-    f.subclass = OPBX_FORMAT_ULAW;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
     f.datalen = sizeof (ulaw_slin_ex);
     f.samples = sizeof(ulaw_slin_ex);
-    f.mallocd = 0;
-    f.offset = 0;
-    f.src = __PRETTY_FUNCTION__;
     f.data = ulaw_slin_ex;
     return &f;
 }
@@ -318,14 +311,10 @@ static struct opbx_frame *lintoulaw_sample(void)
 {
     static struct opbx_frame f;
   
-    f.frametype = OPBX_FRAME_VOICE;
-    f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
     f.datalen = sizeof(slin_ulaw_ex);
     /* Assume 8000 Hz */
     f.samples = sizeof(slin_ulaw_ex)/sizeof(int16_t);
-    f.mallocd = 0;
-    f.offset = 0;
-    f.src = __PRETTY_FUNCTION__;
     f.data = slin_ulaw_ex;
     return &f;
 }

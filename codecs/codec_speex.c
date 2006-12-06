@@ -454,14 +454,11 @@ static struct opbx_translator_pvt *speextolin_new(void)
 static struct opbx_frame *lintospeex_sample(void)
 {
 	static struct opbx_frame f;
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_SLINEAR;
+
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(slin_ex);
 	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_ex)/sizeof(int16_t);
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
 	f.data = slin_ex;
 	return &f;
 }
@@ -469,14 +466,11 @@ static struct opbx_frame *lintospeex_sample(void)
 static struct opbx_frame *speextolin_sample(void)
 {
 	static struct opbx_frame f;
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_SPEEX;
+
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SPEEX, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(speex_ex);
 	/* All frames are 20 ms long */
 	f.samples = 160;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
 	f.data = speex_ex;
 	return &f;
 }
@@ -487,15 +481,13 @@ static struct opbx_frame *speextolin_frameout(struct opbx_translator_pvt *tmp)
 		return NULL;
 	/* Signed linear is no particular frame size, so just send whatever
 	   we have in the buffer in one lump sum */
-	tmp->f.frametype = OPBX_FRAME_VOICE;
-	tmp->f.subclass = OPBX_FORMAT_SLINEAR;
-	tmp->f.datalen = tmp->tail * 2;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+	tmp->f.datalen = tmp->tail*sizeof(int16_t);
 	/* Assume 8000 Hz */
 	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
 	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->buf;
+
 	/* Reset tail pointer */
 	tmp->tail = 0;
 	return &tmp->f;	
@@ -583,17 +575,16 @@ static struct opbx_frame *lintospeex_frameout(struct opbx_translator_pvt *tmp)
 	int len;
 	int y=0;
 	int is_speech=1;
-	/* We can't work on anything less than a frame in size */
+	
+    /* We can't work on anything less than a frame in size */
 	if (tmp->tail < tmp->framesize)
 		return NULL;
-	tmp->f.frametype = OPBX_FRAME_VOICE;
-	tmp->f.subclass = OPBX_FORMAT_SPEEX;
-	tmp->f.mallocd = 0;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SPEEX, __PRETTY_FUNCTION__);
 	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
 	speex_bits_reset(&tmp->bits);
-	while(tmp->tail >= tmp->framesize) {
+	while(tmp->tail >= tmp->framesize)
+    {
 #ifdef _SPEEX_TYPES_H
 		/* Preprocess audio */
 		if(preproc)

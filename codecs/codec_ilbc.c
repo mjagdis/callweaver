@@ -106,14 +106,11 @@ static struct opbx_translator_pvt *ilbctolin_new(void)
 static struct opbx_frame *lintoilbc_sample(void)
 {
 	static struct opbx_frame f;
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_SLINEAR;
+
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(slin_ilbc_ex);
 	/* Assume 8000 Hz */
-	f.samples = sizeof(slin_ilbc_ex)/2;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
+	f.samples = sizeof(slin_ilbc_ex)/sizeof(int16_t);
 	f.data = slin_ilbc_ex;
 	return &f;
 }
@@ -121,14 +118,11 @@ static struct opbx_frame *lintoilbc_sample(void)
 static struct opbx_frame *ilbctolin_sample(void)
 {
 	static struct opbx_frame f;
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_ILBC;
+
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ILBC, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(ilbc_slin_ex);
 	/* All frames are 30 ms long */
 	f.samples = 240;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
 	f.data = ilbc_slin_ex;
 	return &f;
 }
@@ -139,15 +133,13 @@ static struct opbx_frame *ilbctolin_frameout(struct opbx_translator_pvt *tmp)
 		return NULL;
 	/* Signed linear is no particular frame size, so just send whatever
 	   we have in the buffer in one lump sum */
-	tmp->f.frametype = OPBX_FRAME_VOICE;
-	tmp->f.subclass = OPBX_FORMAT_SLINEAR;
-	tmp->f.datalen = tmp->tail * 2;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+	tmp->f.datalen = tmp->tail*2;
 	/* Assume 8000 Hz */
 	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
 	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->buf;
+
 	/* Reset tail pointer */
 	tmp->tail = 0;
 
@@ -210,19 +202,20 @@ static int lintoilbc_framein(struct opbx_translator_pvt *tmp, struct opbx_frame 
 
 static struct opbx_frame *lintoilbc_frameout(struct opbx_translator_pvt *tmp)
 {
-	int x=0,i;
+	int x = 0;
+    int i;
 	float tmpf[240];
+
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < 240)
 		return NULL;
-	tmp->f.frametype = OPBX_FRAME_VOICE;
-	tmp->f.subclass = OPBX_FORMAT_ILBC;
-	tmp->f.mallocd = 0;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ILBC, __PRETTY_FUNCTION__);
 	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
-	while(tmp->tail >= 240) {
-		if ((x+1) * 50 >= sizeof(tmp->outbuf)) {
+	while (tmp->tail >= 240)
+    {
+		if ((x+1) * 50 >= sizeof(tmp->outbuf))
+        {
 			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			break;
 		}

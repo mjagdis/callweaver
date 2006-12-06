@@ -148,14 +148,10 @@ static struct opbx_frame *lintolpc10_sample(void)
 {
 	static struct opbx_frame f;
 
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(slin_ex);
 	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_ex)/sizeof(int16_t);
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
 	f.data = slin_ex;
 	return &f;
 }
@@ -163,15 +159,12 @@ static struct opbx_frame *lintolpc10_sample(void)
 static struct opbx_frame *lpc10tolin_sample(void)
 {
 	static struct opbx_frame f;
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_LPC10;
+
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_LPC10, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(lpc10_ex);
 	/* All frames are 22 ms long (maybe a little more -- why did he choose
 	   LPC10_SAMPLES_PER_FRAME sample frames anyway?? */
 	f.samples = LPC10_SAMPLES_PER_FRAME;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
 	f.data = lpc10_ex;
 	return &f;
 }
@@ -182,14 +175,11 @@ static struct opbx_frame *lpc10tolin_frameout(struct opbx_translator_pvt *tmp)
 		return NULL;
 	/* Signed linear is no particular frame size, so just send whatever
 	   we have in the buffer in one lump sum */
-	tmp->f.frametype = OPBX_FRAME_VOICE;
-	tmp->f.subclass = OPBX_FORMAT_SLINEAR;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 	tmp->f.datalen = tmp->tail*sizeof(int16_t);
 	/* Assume 8000 Hz */
 	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
 	tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->buf;
 	/* Reset tail pointer */
 	tmp->tail = 0;
@@ -267,12 +257,11 @@ static struct opbx_frame *lintolpc10_frameout(struct opbx_translator_pvt *tmp)
 	if (tmp->tail < LPC10_SAMPLES_PER_FRAME)
 		return NULL;
 	/* Start with an empty frame */
-	tmp->f.samples = 0;
-	tmp->f.datalen = 0;
-	tmp->f.frametype = OPBX_FRAME_VOICE;
-	tmp->f.subclass = OPBX_FORMAT_LPC10;
-	while (tmp->tail >=  LPC10_SAMPLES_PER_FRAME) {
-		if (tmp->f.datalen + LPC10_BYTES_IN_COMPRESSED_FRAME > sizeof(tmp->outbuf)) {
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_LPC10, __PRETTY_FUNCTION__);
+	while (tmp->tail >=  LPC10_SAMPLES_PER_FRAME)
+    {
+		if (tmp->f.datalen + LPC10_BYTES_IN_COMPRESSED_FRAME > sizeof(tmp->outbuf))
+        {
 			opbx_log(LOG_WARNING, "Out of buffer space\n");
 			return NULL;
 		}

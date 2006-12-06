@@ -318,13 +318,14 @@ int opbx_dtmf_stream(struct opbx_channel *chan,struct opbx_channel *peer,char *d
 						break;
 					continue;
 				}
-				memset(&f, 0, sizeof(f));
-				f.frametype = OPBX_FRAME_DTMF;
-				f.subclass = *ptr;
+                opbx_fr_init_ex(&f, OPBX_FRAME_DTMF, *ptr, NULL);
 				f.src = "opbx_dtmf_stream";
-				if (strchr("0123456789*#abcdABCD",*ptr)==NULL) {
+				if (strchr("0123456789*#abcdABCD",*ptr) == NULL)
+                {
 					opbx_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
-				} else {
+				}
+                else
+                {
 					res = opbx_write(chan, &f);
 					if (res) 
 						break;
@@ -351,7 +352,9 @@ struct linear_state {
 static void linear_release(struct opbx_channel *chan, void *params)
 {
 	struct linear_state *ls = params;
-	if (ls->origwfmt && opbx_set_write_format(chan, ls->origwfmt)) {
+	
+    if (ls->origwfmt && opbx_set_write_format(chan, ls->origwfmt))
+    {
 		opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
 	}
 	if (ls->autoclose)
@@ -366,19 +369,20 @@ static int linear_generator(struct opbx_channel *chan, void *data, int samples)
 	struct linear_state *ls = data;
 	int res, len;
 
-	len = samples * 2;
-	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET) {
+	len = samples*sizeof(int16_t);
+	if (len > sizeof(buf) - OPBX_FRIENDLY_OFFSET)
+    {
 		opbx_log(LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
 		len = sizeof(buf) - OPBX_FRIENDLY_OFFSET;
 	}
 	memset(&f, 0, sizeof(f));
 	res = read(ls->fd, buf + OPBX_FRIENDLY_OFFSET/2, len);
-	if (res > 0) {
-		f.frametype = OPBX_FRAME_VOICE;
-		f.subclass = OPBX_FORMAT_SLINEAR;
-		f.data = buf + OPBX_FRIENDLY_OFFSET/2;
+	if (res > 0)
+    {
+        opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+		f.data = buf + OPBX_FRIENDLY_OFFSET/sizeof(int16_t);
 		f.datalen = res;
-		f.samples = res / 2;
+		f.samples = res/sizeof(int16_t);
 		f.offset = OPBX_FRIENDLY_OFFSET;
 		opbx_write(chan, &f);
 		if (res == len)

@@ -164,14 +164,12 @@ static struct opbx_frame *alawtoulaw_frameout(struct opbx_translator_pvt *pvt)
     if (!tmp->tail)
         return NULL;
 
-    tmp->f.frametype = OPBX_FRAME_VOICE;
-    tmp->f.subclass = OPBX_FORMAT_ULAW;
+    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
     tmp->f.datalen = tmp->tail;
     tmp->f.samples = tmp->tail;
-    tmp->f.mallocd = 0;
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-    tmp->f.src = __PRETTY_FUNCTION__;
     tmp->f.data = tmp->outbuf;
+
     tmp->tail = 0;
     return &tmp->f;
 }
@@ -205,21 +203,18 @@ static int ulawtoalaw_framein(struct opbx_translator_pvt *pvt, struct opbx_frame
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-
 static struct opbx_frame *ulawtoalaw_frameout(struct opbx_translator_pvt *pvt)
 {
     struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
   
     if (tmp->tail)
     {
-	    tmp->f.frametype = OPBX_FRAME_VOICE;
-	    tmp->f.subclass = OPBX_FORMAT_ALAW;
+        opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, __PRETTY_FUNCTION__);
 	    tmp->f.samples = tmp->tail;
-	    tmp->f.mallocd = 0;
 	    tmp->f.offset = OPBX_FRIENDLY_OFFSET;
-	    tmp->f.src = __PRETTY_FUNCTION__;
 	    tmp->f.data = tmp->outbuf;
 	    tmp->f.datalen = tmp->tail;
+
 	    tmp->tail = 0;
 	    return &tmp->f;
     }
@@ -229,17 +224,13 @@ static struct opbx_frame *ulawtoalaw_frameout(struct opbx_translator_pvt *pvt)
 /*
  * alawtoulaw_sample
  */
-
 static struct opbx_frame *alawtoulaw_sample(void)
 {
     static struct opbx_frame f;
-    f.frametype = OPBX_FRAME_VOICE;
-    f.subclass = OPBX_FORMAT_ALAW;
+
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, __PRETTY_FUNCTION__);
     f.datalen = sizeof (ulaw_ex);
     f.samples = sizeof(ulaw_ex);
-    f.mallocd = 0;
-    f.offset = 0;
-    f.src = __PRETTY_FUNCTION__;
     f.data = ulaw_ex;
     return &f;
 }
@@ -248,13 +239,9 @@ static struct opbx_frame *ulawtoalaw_sample(void)
 {
     static struct opbx_frame f;
   
-    f.frametype = OPBX_FRAME_VOICE;
-    f.subclass = OPBX_FORMAT_ULAW;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, __PRETTY_FUNCTION__);
     f.datalen = sizeof (alaw_ex);
     f.samples = sizeof(alaw_ex);
-    f.mallocd = 0;
-    f.offset = 0;
-    f.src = __PRETTY_FUNCTION__;
     f.data = alaw_ex;
     return &f;
 }
@@ -269,7 +256,6 @@ static struct opbx_frame *ulawtoalaw_sample(void)
  * Side effects:
  *  None.
  */
-
 static void alawtoulaw_destroy(struct opbx_translator_pvt *pvt)
 {
     free(pvt);
@@ -280,7 +266,6 @@ static void alawtoulaw_destroy(struct opbx_translator_pvt *pvt)
 /*
  * The complete translator for alawtoulaw.
  */
-
 static struct opbx_translator alawtoulaw =
 {
     "alawtoulaw",
@@ -297,7 +282,6 @@ static struct opbx_translator alawtoulaw =
 /*
  * The complete translator for ulawtoalaw.
  */
-
 static struct opbx_translator ulawtoalaw =
 {
     "ulawtoalaw",
