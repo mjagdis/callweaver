@@ -717,11 +717,11 @@ static struct opbx_frame *alsa_read(struct opbx_channel *chan)
 		}
         opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, type);
 		f.samples = FRAME_SIZE;
-		f.datalen = FRAME_SIZE * 2;
+		f.datalen = FRAME_SIZE*sizeof(int16_t);
 		f.data = buf;
 		f.offset = OPBX_FRIENDLY_OFFSET;
 #ifdef ALSA_MONITOR
-		alsa_monitor_read((char *)buf, FRAME_SIZE * 2);
+		alsa_monitor_read((char *) buf, FRAME_SIZE*sizeof(int16_t));
 #endif		
 
 	}

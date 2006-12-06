@@ -1651,14 +1651,11 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
         return -1;
     }
 
-    memset(&write_frame, 0, sizeof(write_frame));
-    write_frame.frametype = OPBX_FRAME_DTMF;
-    write_frame.subclass = *key;
-    write_frame.datalen = 0;
-    write_frame.samples = 0;
+    opbx_fr_init_ex(&write_frame, OPBX_FRAME_DTMF, *key, NULL);
     write_frame.offset = 76;
 
-    for (i=0; i<count; i++){
+    for (i = 0;  i < count;  i++)
+    {
         if (opbx_write(associated_caller->chan, &write_frame) < 0) {
             opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", "strerror(errno)");
         }

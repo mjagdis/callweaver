@@ -1453,17 +1453,17 @@ zapretry:
 				opbx_fr_free(f);
 			} else if (outfd > -1) {
 				res = read(outfd, buf, CONF_SIZE);
-				if (res > 0) {
-					memset(&fr, 0, sizeof(fr));
-					fr.frametype = OPBX_FRAME_VOICE;
-					fr.subclass = OPBX_FORMAT_SLINEAR;
+				if (res > 0)
+                {
+					opbx_fr_init_ex(&fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 					fr.datalen = res;
 					fr.samples = res/2;
 					fr.data = buf;
 					fr.offset = OPBX_FRIENDLY_OFFSET;
 					if (user->listen.actual)
 						opbx_frame_adjust_volume(&fr, user->listen.actual);
-					if (opbx_write(chan, &fr) < 0) {
+					if (opbx_write(chan, &fr) < 0)
+                    {
 						opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
 						/* break; */
 					}

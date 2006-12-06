@@ -590,20 +590,23 @@ icd_status icd_conference__join(icd_caller * that)
             read_frame = NULL;
         } else if (outfd > -1) {
             res = read(outfd, buf, CONF_SIZE);
-            if (res > 0) {
-                memset(&write_frame, 0, sizeof(write_frame));
-                write_frame.frametype = OPBX_FRAME_VOICE;
-                write_frame.subclass = icd_conf_format;
+            if (res > 0)
+            {
+                opbx_fr_init_ex(&write_frame, OPBX_FRAME_VOICE, icd_conf_format, NULL);
                 write_frame.datalen = res;
                 write_frame.samples = res;
                 write_frame.data = buf;
                 write_frame.offset = OPBX_FRIENDLY_OFFSET;
-                if (opbx_write(chan, &write_frame) < 0) {
+                if (opbx_write(chan, &write_frame) < 0)
+                {
                     opbx_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
                     /* break; */
                 }
-            } else
+            }
+            else
+            {
                 opbx_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
+            }
         }
 
     }

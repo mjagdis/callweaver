@@ -217,15 +217,11 @@ static int playtones_generator(struct opbx_channel *chan, void *data, int sample
 	pi = &ps->items[ps->npos];
 
 	/* Assemble frame */
-	memset(&ps->f, 0, sizeof(ps->f));
-	ps->f.frametype = OPBX_FRAME_VOICE;
-	ps->f.subclass = OPBX_FORMAT_SLINEAR;
+	opbx_fr_init_ex(&ps->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	ps->f.datalen = len;
 	ps->f.samples = samples;
 	ps->f.offset = OPBX_FRIENDLY_OFFSET;
 	ps->f.data = ps->data;
-	ps->f.delivery.tv_sec = 0;
-	ps->f.delivery.tv_usec = 0;
 	opbx_write(chan, &ps->f);
 
 	ps->pos += x;

@@ -493,14 +493,8 @@ static void jb_get_and_deliver(struct opbx_channel *chan)
 		case JB_IMPL_INTERP:
 			/* interpolate a frame */
 			f = &finterp;
-			memset(f, 0, sizeof(finterp));
-			f->frametype = OPBX_FRAME_VOICE;
-			f->subclass = jb->last_format;
-			f->datalen  = 0;
-			f->samples  = interpolation_len * 8;
-			f->mallocd  = 0;
-			f->src  = "JB interpolation";
-			f->data  = NULL;
+			opbx_fr_init_ex(f, OPBX_FRAME_VOICE, jb->last_format, "JB interpolation");
+			f->samples = interpolation_len * 8;
 			f->delivery = opbx_tvadd(jb->timebase, opbx_samp2tv(jb->next, 1000));
 			f->offset=OPBX_FRIENDLY_OFFSET;
 			/* deliver the interpolated frame */
