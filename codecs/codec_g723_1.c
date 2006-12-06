@@ -309,16 +309,13 @@ static int lintog723_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
 	   get artifacts of earlier talk that do not belong */
 	struct g723_encoder_pvt *tmp = (struct g723_encoder_pvt *)pvt;
 
-	if (tmp->tail + f->datalen/2 < sizeof(tmp->buf) / 2)
-    {
-		memcpy(&tmp->buf[tmp->tail], f->data, f->datalen);
-		tmp->tail += f->datalen/2;
-	}
-    else
+	if (tmp->tail + f->datalen/2 >= sizeof(tmp->buf)/sizeof(int16_t))
     {
 		opbx_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
+    memcpy(&tmp->buf[tmp->tail], f->data, f->datalen);
+    tmp->tail += f->datalen/2;
 	return 0;
 }
 

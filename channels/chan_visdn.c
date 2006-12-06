@@ -2013,14 +2013,9 @@ static struct opbx_frame *visdn_read(struct opbx_channel *opbx_chan)
 	f.delivery.tv_sec = 0;
 	f.delivery.tv_usec = 0;
 
-	if (visdn_chan->channel_fd < 0) {
-		f.frametype = OPBX_FRAME_NULL;
-		f.subclass = 0;
-		f.samples = 0;
-		f.datalen = 0;
-		f.data = NULL;
-		f.offset = 0;
-
+	if (visdn_chan->channel_fd < 0)
+    {
+        opbx_fr_init(&f);
 		return &f;
 	}
 
@@ -2039,19 +2034,15 @@ opbx_verbose(VERBOSE_PREFIX_3 "R %.3f %d\n",
 	visdn_chan->channel_fd);
 #endif
 
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_ALAW;
+    opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, "");
 	f.samples = nread;
 	f.datalen = nread;
 	f.data = buf;
-	f.offset = 0;
-
 	return &f;
 }
 
-static int visdn_write(
-	struct opbx_channel *opbx_chan,
-	struct opbx_frame *frame)
+static int visdn_write(struct opbx_channel *opbx_chan,
+                       struct opbx_frame *frame)
 {
 	struct visdn_chan *visdn_chan = opbx_chan->tech_pvt;
 

@@ -1504,10 +1504,10 @@ static struct opbx_channel *woomera_new(const char *type, int format, void *data
 		chan->tech_pvt = tech_pvt;
 		chan->tech = &technology;
 		opbx_clear_flag(chan, OPBX_FLAGS_ALL);
-		memset(&tech_pvt->frame, 0, sizeof(tech_pvt->frame));
-		tech_pvt->frame.frametype = OPBX_FRAME_VOICE;
-		tech_pvt->frame.subclass = WFORMAT;
+
+        opbx_fr_init_ex(&tech_pvt->frame, OPBX_FRAME_VOICE, WFORMAT, "");
 		tech_pvt->frame.offset = OPBX_FRIENDLY_OFFSET;
+
 		tech_pvt->owner = chan;
 
 		ASTOBJ_CONTAINER_LINK(&private_object_list, tech_pvt);

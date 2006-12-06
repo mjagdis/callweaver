@@ -3453,14 +3453,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
   
   
 	while (!opbx_strlen_zero(p) ) {
-		fr.frametype = OPBX_FRAME_DTMF;
-		fr.subclass = *p ;
-		fr.src=NULL;
-		fr.data = NULL ;
-		fr.datalen = 0;
-		fr.samples = 0 ;
-		fr.mallocd =0 ;
-		fr.offset= 0 ;
+        opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, *p, "");
 
 		if (ch->ast && MISDN_ASTERISK_PVT(ch->ast) && MISDN_ASTERISK_TECH_PVT(ch->ast)) {
 			opbx_queue_frame(ch->ast, &fr);
@@ -3696,16 +3689,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	{
 		/*  sending INFOS as DTMF-Frames :) */
 		struct opbx_frame fr;
-		memset(&fr, 0 , sizeof(fr));
-		fr.frametype = OPBX_FRAME_DTMF;
-		fr.subclass = bc->dtmf ;
-		fr.src=NULL;
-		fr.data = NULL ;
-		fr.datalen = 0;
-		fr.samples = 0 ;
-		fr.mallocd =0 ;
-		fr.offset= 0 ;
-		
+
+        opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, bc->dtmf, "");
 		if (!ch->ignore_dtmf) {
 			chan_misdn_log(2, bc->port, " --> DTMF:%c\n", bc->dtmf);
 			opbx_queue_frame(ch->ast, &fr);
@@ -3799,17 +3784,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		} else {
 			/*  sending INFOS as DTMF-Frames :) */
 			struct opbx_frame fr;
-			fr.frametype = OPBX_FRAME_DTMF;
-			fr.subclass = bc->info_dad[0] ;
-			fr.src=NULL;
-			fr.data = NULL ;
-			fr.datalen = 0;
-			fr.samples = 0 ;
-			fr.mallocd =0 ;
-			fr.offset= 0 ;
-
-			
 			int digits;
+
+            opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, bc->info_dad[0], "");
+			
 			misdn_cfg_get( 0, MISDN_GEN_APPEND_DIGITS2EXTEN, &digits, sizeof(int));
 			if (ch->state != MISDN_CONNECTED ) {
 				if (digits) {

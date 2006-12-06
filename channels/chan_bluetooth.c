@@ -603,24 +603,21 @@ blt_read(struct opbx_channel *chan)
   static int fish = 0;
 
   /* Some nice norms */
-  dev->fr.datalen = 0;
-  dev->fr.samples = 0;
-  dev->fr.data =  NULL;
-  dev->fr.src = BLT_CHAN_NAME;
-  dev->fr.offset = 0;
+  opbx_fr_init_ex(&dev->fr, OPBX_FRAME_VOICE, BLUETOOTH_FORMAT, BLT_CHAN_NAME);
   dev->fr.mallocd = OPBX_MALLOCD_DATA;
-  dev->fr.delivery.tv_sec = 0;
-  dev->fr.delivery.tv_usec = 0;
 
   read(dev->sco_pipe[0], &c, 1);
   opbx_mutex_lock(&(dev->sco_lock));
   dev->sco_sending = 1;
 
   /* Buffer wrapped? */
-  if (dev->sco_pos_inrcv < dev->sco_pos_in) {
+  if (dev->sco_pos_inrcv < dev->sco_pos_in)
+  {
     /* Yep. Read only till the end */
     len = BUFLEN - dev->sco_pos_in + dev->sco_pos_inrcv;
-  } else {
+  }
+  else
+  {
     len = dev->sco_pos_inrcv - dev->sco_pos_in;
   }
   dev->fr.data = malloc(OPBX_FRIENDLY_OFFSET+len) + OPBX_FRIENDLY_OFFSET;
@@ -635,10 +632,8 @@ blt_read(struct opbx_channel *chan)
     fish--;
   }
 
-  dev->fr.samples = len / 2;
+  dev->fr.samples = len/2;
   dev->fr.datalen = len;
-  dev->fr.frametype = OPBX_FRAME_VOICE;
-  dev->fr.subclass = BLUETOOTH_FORMAT;
   dev->fr.offset = OPBX_FRIENDLY_OFFSET;
   return &dev->fr;
 }
