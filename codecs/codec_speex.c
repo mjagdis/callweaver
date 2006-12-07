@@ -455,7 +455,7 @@ static struct opbx_frame *lintospeex_sample(void)
 {
 	static struct opbx_frame f;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
+	opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(slin_ex);
 	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_ex)/sizeof(int16_t);
@@ -467,7 +467,7 @@ static struct opbx_frame *speextolin_sample(void)
 {
 	static struct opbx_frame f;
 
-    opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SPEEX, __PRETTY_FUNCTION__);
+	opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_SPEEX, __PRETTY_FUNCTION__);
 	f.datalen = sizeof(speex_ex);
 	/* All frames are 20 ms long */
 	f.samples = 160;
