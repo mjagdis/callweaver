@@ -483,9 +483,9 @@ static void opbx_network_puts(const char *string)
  */
 void opbx_console_puts(const char *string)
 {
-	fputs(string, stdout);
-	fflush(stdout);
-	opbx_network_puts(string);
+    fputs(string, stdout);
+    fflush(stdout);
+    opbx_network_puts(string);
 }
 
 static void network_verboser(const char *s, int pos, int replace, int complete)
@@ -993,7 +993,7 @@ static void consolehandler(char *s)
 			else
 				opbx_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		} else 
-		opbx_cli_command(STDOUT_FILENO, s);
+		    opbx_cli_command(STDOUT_FILENO, s);
 	} else
 		fprintf(stdout, "\nUse \"quit\" to exit\n");
 }
@@ -1188,10 +1188,10 @@ static int opbx_rl_read_char(FILE *cp)
 
 		if (!option_exec && fds[1].revents) {
 			num_read = rl_getc(cp);
-			if (num_read < 1) {
-				break;
-			} else 
-				return (num_read);
+			if (num_read < 1)
+			    break;
+			else 
+			    return (num_read);
 		}
 		if (fds[0].revents) {
 			res = read(opbx_consock, buf, sizeof(buf) - 1);
@@ -1228,13 +1228,13 @@ static int opbx_rl_read_char(FILE *cp)
 			write(STDOUT_FILENO, buf, res);
 			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
 				rl_forced_update_display();
-				return(1);
+				return (0);
 			} else {
 				lastpos = 1;
 			}
 		}
 	}
-	//rl_forced_update_display();
+	rl_forced_update_display();
 	return (0);
 }
 
@@ -1462,16 +1462,12 @@ static char **cli_completion(const char *text, int start, int end)
 		mbuf[mlen] = '\0';
 		matches = opbx_rl_strtoarr(mbuf);
 		free(mbuf);
-	} else {
-	    return (matches);
 	}
     } else {
 	nummatches = opbx_cli_generatornummatches((char *)rl_line_buffer, (char*)text);
 	
 	if(nummatches > 0 )
 	    matches = opbx_cli_completion_matches((char*)rl_line_buffer, (char*)text);
-	else
-	    return (matches);
     }
     return (matches);
 }
