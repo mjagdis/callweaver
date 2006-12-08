@@ -1175,6 +1175,7 @@ static inline int sip_is_nat_needed(struct sip_pvt *p)
     {
         ret=1;
     }
+    //opbx_log(LOG_WARNING,"is_nat_needed ret: %d *** globalnat_set: %d \n",globalnat_set);
 
     return ret;
 }
@@ -7857,7 +7858,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         port = DEFAULT_SIP_PORT;
     }
     memcpy(&oldsin, &p->addr, sizeof(oldsin));
-    if (!(opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE))
+//    if (!(opbx_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE))
+    if (!sip_is_nat_needed(pvt) )
     {
         /* XXX This could block for a long time XXX */
         if ((hp = opbx_gethostbyname(n, &ahp)) == NULL)
