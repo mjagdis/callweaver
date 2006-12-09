@@ -4942,11 +4942,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
     if (!(p->owner->nativeformats & p->jointcapability))
     {
-        const unsigned slen=512;
-        char s1[slen], s2[slen];
+        const unsigned slen = 512;
+        char s1[slen];
+        char s2[slen];
+
         opbx_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
-                opbx_getformatname_multiple(s1, slen, p->jointcapability),
-                opbx_getformatname_multiple(s2, slen, p->owner->nativeformats));
+                 opbx_getformatname_multiple(s1, slen, p->jointcapability),
+                 opbx_getformatname_multiple(s2, slen, p->owner->nativeformats));
         p->owner->nativeformats = opbx_codec_choose(&p->prefs, p->jointcapability, 1);
         opbx_set_read_format(p->owner, p->owner->readformat);
         opbx_set_write_format(p->owner, p->owner->writeformat);
@@ -11923,21 +11925,22 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             /* if this is a re-invite */ 
             struct opbx_channel *bridgepeer = NULL;
             struct sip_pvt *bridgepvt = NULL;
-            if ((bridgepeer=opbx_bridged_channel(p->owner)))
+
+            if ((bridgepeer = opbx_bridged_channel(p->owner)))
             {
-                if (!strcasecmp(bridgepeer->type,"SIP"))
+                if (!strcasecmp(bridgepeer->type, "SIP"))
                 {
-                    bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
+                    bridgepvt = (struct sip_pvt *)(bridgepeer->tech_pvt);
                     if (bridgepvt->udptl)
                     {
                         if (p->t38state == 4)
                         { 
                             /* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
                             /* Send response with T38 SDP to the other side of the bridge */
-			    p->owner->t38mode_enabled = 1;
-                            sip_handle_t38_reinvite(bridgepeer,p,0);
+                            p->owner->t38mode_enabled = 1;
+                            sip_handle_t38_reinvite(bridgepeer, p, 0);
                         }
-                        else if (p->t38state == 0 && bridgepeer && (bridgepvt->t38state == 5))
+                        else if (p->t38state == 0  &&  bridgepeer  &&  (bridgepvt->t38state == 5))
                         { /* This is case of RTP re-invite after T38 session */
                             opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
@@ -11950,9 +11953,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                             opbx_mutex_lock(&bridgepvt->lock);
                             bridgepvt->t38state = 0;
                             opbx_mutex_unlock(&bridgepvt->lock);
-                            opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+                            opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
                             p->t38state = 0;
-                            opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                            opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                     }
                 }
                 else
@@ -11960,7 +11963,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                         /* Other side is not a SIP channel */ 
                         opbx_log(LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
                         p->t38state = 0;
-                        opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+                        opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                 }
             }
             else
@@ -11976,10 +11979,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             if (p->owner)
             {
                 p->owner->t38mode_enabled=1;
-                opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+                opbx_log(LOG_DEBUG, "T38mode enabled for channel %s\n", p->owner->name);
             }
         }        
-        if (!ignore && p->owner)
+        if (!ignore  &&  p->owner)
         {
             if (p->owner->_state != OPBX_STATE_UP)
             {

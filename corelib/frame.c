@@ -289,14 +289,15 @@ void opbx_fr_init(struct opbx_frame *fr)
 	fr->offset = 0;
 	fr->src = "";
 	fr->data = NULL;
-	fr->delivery = opbx_tv(0,0);
+	fr->delivery.tv_sec = 0;
+	fr->delivery.tv_usec = 0;
 	fr->seq_no = 0;
 	fr->prev = NULL;
 	fr->next = NULL;
 	fr->has_timing_info = 0;
 	fr->ts = 0;
 	fr->len = 0;
-	fr->seq_no = 0;
+	fr->seq_no = -1;
 	fr->tx_copies = 1;
 }
 

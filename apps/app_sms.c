@@ -84,7 +84,8 @@ static char *descrip =
 	"smsq (a separate software) is a command to generate message\n"
 	"queues and send messages.\n";
 
-static signed short wave[] = {
+static signed short wave[] =
+{
 	0, 392, 782, 1167, 1545, 1913, 2270, 2612, 2939, 3247, 3536, 3802, 4045, 4263, 4455, 4619, 4755, 4862, 4938, 4985,
 	5000, 4985, 4938, 4862, 4755, 4619, 4455, 4263, 4045, 3802, 3536, 3247, 2939, 2612, 2270, 1913, 1545, 1167, 782, 392,
 	0, -392, -782, -1167,
@@ -94,7 +95,8 @@ static signed short wave[] = {
 };
 
 /* SMS 7 bit character mapping to UCS-2 */
-static const unsigned short defaultalphabet[] = {
+static const unsigned short defaultalphabet[] =
+{
 	0x0040, 0x00A3, 0x0024, 0x00A5, 0x00E8, 0x00E9, 0x00F9, 0x00EC,
 	0x00F2, 0x00E7, 0x000A, 0x00D8, 0x00F8, 0x000D, 0x00C5, 0x00E5,
 	0x0394, 0x005F, 0x03A6, 0x0393, 0x039B, 0x03A9, 0x03A0, 0x03A8,
@@ -107,7 +109,8 @@ static const unsigned short defaultalphabet[] = {
 	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 228, 246, 241, 252, 224,
 };
 
-static const unsigned short escapes[] = {
+static const unsigned short escapes[] =
+{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x000C, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0x005E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0x007B, 0x007D, 0, 0, 0, 0, 0, 0x005C,
