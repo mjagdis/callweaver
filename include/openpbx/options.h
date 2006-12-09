@@ -37,6 +37,7 @@ extern int option_quiet;
 extern int option_console;
 extern int option_initcrypto;
 extern int option_nocolor;
+extern int option_remote;
 extern int fully_booted;
 extern int option_exec_includes;
 extern int option_cache_record_files;
