@@ -84,7 +84,8 @@ int opbx_term_init(void)
 
 	if (!term)
 		return 0;
-	if (!option_console || option_nocolor || !option_nofork)
+
+	if ( option_nocolor )
 		return 0;
 
 	for (i=0 ;; i++) {

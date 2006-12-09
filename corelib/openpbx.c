@@ -153,7 +153,7 @@ int option_highpriority=0;
 int option_remote=0;
 int option_exec=0;
 int option_initcrypto=0;
-int option_nocolor;
+int option_nocolor = 0;
 int option_dumpcore = 0;
 int option_cache_record_files = 0;
 int option_timestamp = 0;
@@ -1661,7 +1661,7 @@ static int show_cli_help(void) {
 	printf("   -g              Dump core in case of a crash\n");
 	printf("   -h              This help screen\n");
 	printf("   -i              Initialize crypto keys at startup\n");
-	printf("   -n              Disable console colorization\n");
+	printf("   -n              Disable console colorization at startup or console (not remote)\n");
 	printf("   -p              Run as pseudo-realtime thread\n");
 	printf("   -q              Quiet mode (suppress output)\n");
 	printf("   -r              Connect to OpenPBX on this machine\n");
