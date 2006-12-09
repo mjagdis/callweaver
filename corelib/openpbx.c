@@ -2026,7 +2026,7 @@ int openpbx_main(int argc, char *argv[])
 		if (setgid(gr->gr_gid)) {
 #else
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
-#endif /* __Darwin__
+#endif // __Darwin__
 			opbx_log(LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
 			exit(1);
 		}
