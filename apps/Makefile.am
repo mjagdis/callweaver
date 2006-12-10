@@ -481,6 +481,13 @@ app_sms_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_sms_la_LIBADD			= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SMS
 
+if WANT_APP_DTMFTOTEXT
+opbxmod_LTLIBRARIES			+= app_dtmftotext.la
+app_dtmftotext_la_SOURCES	= app_dtmftotext.c
+app_dtmftotext_la_LDFLAGS	= -module -avoid-version -no-undefined
+app_dtmftotext_la_LIBADD	= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_DTMFTOTEXT
+
 if WANT_APP_V110
 opbxmod_LTLIBRARIES			+= app_v110.la
 app_v110_la_SOURCES			= app_v110.c

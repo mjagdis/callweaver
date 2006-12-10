@@ -952,6 +952,14 @@ AM_CONDITIONAL([WANT_APP_SMS],[test "${with_app_sms}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_dtmftotext],
+   [AC_HELP_STRING([--with-app_dtmftotext],[Build and install app_dtmftotext (default=no)])],,
+   [with_app_dtmftotext="no"])
+
+AM_CONDITIONAL([WANT_APP_DTMFTOTEXT],[test "${with_app_dtmftotext}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_pipe],
    [AC_HELP_STRING([--with-app_pipe],[Build and install app_pipe (default=yes)])],,
    [with_app_pipe="yes"])
