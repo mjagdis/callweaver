@@ -16599,7 +16599,16 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     /* we'll issue the redirect message here */
     if (!host)
     {
+
         char *localtmp;
+        char data[256];
+	char *scan;
+
+      if (!opbx_db_get("SIP/Registry", extension, data, sizeof(data))) {
+	    scan = data;
+	    host = strsep(&scan, ":");
+    	    port = strsep(&scan, ":");
+      } else {
 
         opbx_copy_string(tmp, get_header(&p->initreq, "To"), sizeof(tmp));
         if (!strlen(tmp))
@@ -16638,6 +16647,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
                 }
             }
         }
+      } // else If the device is not registered
     }
 
     snprintf(p->our_contact, sizeof(p->our_contact), "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
