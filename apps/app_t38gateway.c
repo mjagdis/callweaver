@@ -11,6 +11,14 @@
  * the GNU General Public License
  */
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include <openpbx/file.h>
 #include <openpbx/logger.h>
 #include <openpbx/channel.h>
@@ -19,9 +27,7 @@
 #include <openpbx/lock.h>
 #include <inttypes.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <tiffio.h>
 #include <spandsp.h>
 
