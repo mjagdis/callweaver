@@ -28,12 +28,12 @@
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include <netinet/in.h>
 #if defined(__linux__)
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#endif
 #include <sys/socket.h>
+#endif
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
