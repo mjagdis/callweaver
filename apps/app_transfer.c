@@ -58,6 +58,8 @@ static const char *descrip =
 "an incoming call with the same channel technology will be transfered.\n"
 "Note that for SIP, if you transfer before call is setup, a 302 redirect\n"
 "SIP message will be returned to the caller.\n"
+"When using with SIP, if the host:port is not specified, it will"
+"try to lookup the registry address of 'dest' and use that information.\n"
 "\nThe result of the application will be reported in the TRANSFERSTATUS\n"
 "channel variable:\n"
 "       SUCCESS       Transfer succeeded\n"
