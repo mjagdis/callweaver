@@ -174,11 +174,6 @@ static float dtmf_col[] =
 	1209.0, 1336.0, 1477.0, 1633.0
 };
 
-static float mf_tones[] =
-{
-	700.0, 900.0, 1100.0, 1300.0, 1500.0, 1700.0
-};
-
 #ifdef FAX_DETECT
 static float fax_freq = 1100.0;
 #endif
@@ -1276,3 +1271,4 @@ int opbx_dsp_set_call_progress_zone(struct opbx_dsp *dsp, char *zone)
 	}
 	return -1;
 }
+
