@@ -2310,7 +2310,7 @@ int openpbx_main(int argc, char *argv[])
 			buf = readline(cli_prompt());
 			
 			if(buf) {
-				if (buf[strlen(buf)-1] == '\n')
+				if ( (strlen(buf)>0) && buf[strlen(buf)-1] == '\n')
 					buf[strlen(buf)-1] = '\0';
 					
 				consolehandler(buf);
