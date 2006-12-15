@@ -29,7 +29,8 @@
 #else
 #include <sys/time.h>
 #endif
-#include <pthread.h>
+
+#include "openpbx/lock.h"
 
 typedef struct __opbx_timer_t opbx_timer_t;
 typedef void (opbx_timer_func) (opbx_timer_t*, void*);
@@ -40,31 +41,20 @@ typedef enum {
  	OPBX_TIMER_SIMPLE,
 } opbx_timer_type_t;
 
-#ifdef HAVE_POSIX_TIMERS
 struct __opbx_timer_t {
 	int active;
 	opbx_timer_type_t type;
+#ifdef HAVE_POSIX_TIMERS
 	timer_t timer_id;
 	pthread_t *thread;
+#endif /* HAVE_POSIX_TIMERS */
+#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
+	pthread_t opbx_timer_thread;
+#endif /* USE_GENERIC_TIMERS */
         unsigned long interval;
 	opbx_timer_func *func;
 	void *user_data;
-	void *impl_data;
 };
-#endif
-
-#if defined(USE_GENERIC_TIMERS) & !defined(HAVE_POSIX_TIMERS)
-struct  __opbx_timer_t {
-	int active;
-	opbx_timer_type_t type;
-	struct timespec ts;
-	pthread_t opbx_timer_thread;
-
-	opbx_timer_func *func;
-	void *user_data;
-	void *impl_data;
-};
-#endif /* USE_GENERIC_TIMERS */
 
 /* Create a repeating timer with a firing interval of 'interval' microseconds
  * the user must provide a function that is called when the timer fires.

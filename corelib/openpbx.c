@@ -558,13 +558,13 @@ static void *netconsole(void *vconsole)
 				break;
 		}
 	}
-	if (option_verbose > 2) 
+	if (option_verbose > 2)
 		opbx_verbose(VERBOSE_PREFIX_3 "Remote UNIX connection disconnected\n");
 	close(con->fd);
 	close(con->p[0]);
 	close(con->p[1]);
 	con->fd = -1;
-	
+	printf(opbx_term_quit());
 	return NULL;
 }
 
@@ -864,8 +864,10 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		}
 
 		if (!shuttingdown) {
-			if (option_verbose && option_console)
-				opbx_verbose("OpenPBX %s cancelled.\n", restart ? "restart" : "shutdown");
+			if (option_verbose && option_console) {
+			    opbx_verbose("OpenPBX %s cancelled.\n", restart ? "restart" : "shutdown");
+			    printf(opbx_term_quit());
+			}
 			return;
 		}
 	}
@@ -895,7 +897,6 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	//if (opbx_socket > -1)
 	//	unlink((char *)opbx_config_OPBX_SOCKET);
 	if (!option_remote) unlink((char *)opbx_config_OPBX_PID);
-	printf(opbx_term_quit());
 	if (restart) {
 		if (option_verbose || option_console)
 			opbx_verbose("Preparing for OpenPBX restart...\n");
@@ -923,6 +924,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		/* close logger */
 		close_logger();
 	}
+	printf(opbx_term_quit());
 	exit(0);
 }
 
@@ -1492,7 +1494,7 @@ static int opbx_rl_initialize(void)
 		return -1;
 	*/
 	rl_initialize ();
-	
+	rl_editing_mode = 1;	
 	using_history();
 	
 	rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
@@ -2325,6 +2327,8 @@ int openpbx_main(int argc, char *argv[])
 						dup2(fd, STDIN_FILENO);
 					} else
 						opbx_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
+					
+					printf(opbx_term_quit());
 					break;
 				}
 			}
