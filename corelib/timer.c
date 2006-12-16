@@ -22,6 +22,10 @@
  * Currently only a repeating timer is implemented.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #if defined(__linux__) || defined(__FreeBSD__)
 #include <time.h>
 #else
