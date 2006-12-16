@@ -564,7 +564,6 @@ static void *netconsole(void *vconsole)
 	close(con->p[0]);
 	close(con->p[1]);
 	con->fd = -1;
-	printf(opbx_term_quit());
 	return NULL;
 }
 
@@ -867,6 +866,8 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 			if (option_verbose && option_console) {
 			    opbx_verbose("OpenPBX %s cancelled.\n", restart ? "restart" : "shutdown");
 			    printf(opbx_term_quit());
+			    if(rl_init)
+				rl_deprep_terminal();
 			}
 			return;
 		}
@@ -925,6 +926,8 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		close_logger();
 	}
 	printf(opbx_term_quit());
+	if(rl_init)
+	    rl_deprep_terminal();
 	exit(0);
 }
 
@@ -1494,11 +1497,14 @@ static int opbx_rl_initialize(void)
 		return -1;
 	*/
 	rl_initialize ();
-	rl_editing_mode = 1;	
+	rl_editing_mode = 1;
+	/* start history*/
 	using_history();
 	
 	rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
 	rl_attempted_completion_function = cli_completion;
+	
+	rl_prep_terminal (0);
 	
 	/* setup history with 100 entries */
 	//history(el_hist, &ev, H_SETSIZE, 100);
@@ -2147,11 +2153,15 @@ int openpbx_main(int argc, char *argv[])
 		} else {
 			opbx_log(LOG_ERROR, "OpenPBX already running on %s.  Use 'openpbx -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
 			printf(opbx_term_quit());
+			if(rl_init)
+			    rl_deprep_terminal();
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
 		opbx_log(LOG_ERROR, "Unable to connect to remote openpbx (does %s exist?)\n",opbx_config_OPBX_SOCKET);
 		printf(opbx_term_quit());
+		if(rl_init)
+		    rl_deprep_terminal();
 		exit(1);
 	}
 	/* Blindly write pid file since we couldn't connect */

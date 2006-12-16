@@ -244,11 +244,10 @@ void opbx_timer_destroy(opbx_timer_t *t)
 	    
 #ifdef USE_GENERIC_TIMERS
 	t->active = 0;
-	usleep(t->interval);
+	pthread_cancel(t->opbx_timer_thread);
+	usleep(1);
 	free(t->opbx_timer_thread);
 	t->opbx_timer_thread = NULL;
-	free(t);
-	t = NULL;
 #endif /* USE_GENERIC_TIMERS */
     } else
 	opbx_log(LOG_DEBUG, "Attempted to destroy inactive timer "
