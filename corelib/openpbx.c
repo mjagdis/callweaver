@@ -2353,5 +2353,10 @@ int openpbx_main(int argc, char *argv[])
 		struct pollfd p = { -1 /* no descriptor */, 0, 0 };
 		poll(&p, 0, -1);
 	}
+
+	if(rl_init)
+    	    rl_deprep_terminal();
+
+
 	return 0;
 }
