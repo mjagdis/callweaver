@@ -2148,7 +2148,7 @@ static int set_format(struct opbx_channel *chan, int fmt, int *rawformat, int *f
 	/* Now we have a good choice for both. */
 	opbx_mutex_lock(&chan->lock);
 
-	if ((*rawformat == native) && (*format == fmt)) {
+	if ((*rawformat == native) && (*format == fmt) && ((*rawformat == *format) || (*trans))) {
 		/* the channel is already in these formats, so nothing to do */
 		opbx_mutex_unlock(&chan->lock);
 		return 0;
