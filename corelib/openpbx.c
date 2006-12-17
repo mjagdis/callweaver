@@ -1500,15 +1500,10 @@ static int opbx_rl_initialize(void)
     rl_attempted_completion_function = cli_completion;
 #endif	
     rl_prep_terminal (0);
-	
+    
     /* setup history with 100 entries */
-    //history(el_hist, &ev, H_SETSIZE, 100);
-
-    //el_set(el, EL_HIST, history, el_hist);
-
-    //el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
-    /* Bind <tab> to command completion */
-    //el_set(el, EL_BIND, "^I", "ed-complete", NULL);
+    stifle_history(100);
+    
     /* Bind ? to command completion */
     //el_set(el, EL_BIND, "?", "ed-complete", NULL);
     /* Bind ^D to redisplay */
