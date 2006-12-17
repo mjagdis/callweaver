@@ -1837,6 +1837,14 @@ static void opbx_readconfig(void) {
 	opbx_config_destroy(cfg);
 }
 
+static void opbx_exit(int val)
+{
+    printf(opbx_term_quit());
+    if(rl_init)
+	rl_deprep_terminal();
+	    
+    exit(val);
+}
 
 int openpbx_main(int argc, char *argv[])
 {
@@ -2220,66 +2228,52 @@ int openpbx_main(int argc, char *argv[])
 	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
 
 	if (init_logger()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (dnsmgr_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	/* initialize module loader */
 	if (opbx_loader_init() < 0) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	/* load 'preload' modules, required for access to Realtime-mapped configuration files */
 	if (load_modules(1)) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	opbx_channels_init();
 	if (opbx_cdr_engine_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (init_manager()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (opbx_device_state_engine_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	opbx_rtp_init();
 	opbx_udptl_init();
 	opbx_stun_init();
 	if (opbx_image_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (opbx_file_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (load_pbx()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (opbxdb_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (init_framer()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (load_modules(0)) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 	if (opbx_enum_init()) {
-		printf(opbx_term_quit());
-		exit(1);
+	    opbx_exit(1);
 	}
 #if 0
 	/* This should no longer be necessary */
@@ -2356,7 +2350,6 @@ int openpbx_main(int argc, char *argv[])
 
 	if(rl_init)
     	    rl_deprep_terminal();
-
 
 	return 0;
 }
