@@ -1192,7 +1192,11 @@ static int opbx_rl_read_char(FILE *cp)
 		}
 
 		if (!option_exec && fds[1].revents) {
+#ifdef __Darwin__
+			num_read = read(STDIN_FILENO, cp, 1);
+#else
 			num_read = rl_getc(cp);
+#endif
 			if (num_read < 1)
 			    break;
 			else 
@@ -1479,49 +1483,40 @@ static char **cli_completion(const char *text, int start, int end)
 
 static int opbx_rl_initialize(void)
 {
-	/*HistEvent ev;
-	char *editor = getenv("OPBX_EDITOR");
-
-	if (el != NULL)
-		el_end(el);
-	if (el_hist != NULL)
-		history_end(el_hist);
-
-	el = el_init("openpbx", stdin, stdout, stderr);
-	el_set(el, EL_PROMPT, cli_prompt);
-
-	el_set(el, EL_EDITMODE, 1);		
-	el_set(el, EL_EDITOR, editor ? editor : "emacs");		
-	el_hist = history_init();
-	if (!el || !el_hist)
-		return -1;
-	*/
-	rl_initialize ();
-	rl_editing_mode = 1;
-	/* start history*/
-	using_history();
+    /*
+    char *editor = getenv("OPBX_EDITOR");
+    */
+    rl_initialize ();
+#ifndef __Darwin__
+    rl_editing_mode = 1;
+#endif
+    /* start history*/
+    using_history();
+#ifdef __Darwin__
+    rl_completion_entry_function = (Function *)dummy_completer;
+    rl_attempted_completion_function = (CPPFunction *)cli_completion;
+#else	
+    rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
+    rl_attempted_completion_function = cli_completion;
+#endif	
+    rl_prep_terminal (0);
 	
-	rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
-	rl_attempted_completion_function = cli_completion;
-	
-	rl_prep_terminal (0);
-	
-	/* setup history with 100 entries */
-	//history(el_hist, &ev, H_SETSIZE, 100);
+    /* setup history with 100 entries */
+    //history(el_hist, &ev, H_SETSIZE, 100);
 
-	//el_set(el, EL_HIST, history, el_hist);
+    //el_set(el, EL_HIST, history, el_hist);
 
-	//el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
-	/* Bind <tab> to command completion */
-	//el_set(el, EL_BIND, "^I", "ed-complete", NULL);
-	/* Bind ? to command completion */
-	//el_set(el, EL_BIND, "?", "ed-complete", NULL);
-	/* Bind ^D to redisplay */
-	//el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
-//	rl_bind_key("?", cli_complete);
+    //el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
+    /* Bind <tab> to command completion */
+    //el_set(el, EL_BIND, "^I", "ed-complete", NULL);
+    /* Bind ? to command completion */
+    //el_set(el, EL_BIND, "?", "ed-complete", NULL);
+    /* Bind ^D to redisplay */
+    //el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
+    //rl_bind_key("?", cli_complete);
 
-	rl_init = 1;
-	return 0;
+    rl_init = 1;
+    return 0;
 }
 
 static int opbx_rl_add_history(char *buf)

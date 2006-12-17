@@ -80,10 +80,11 @@ static void sighandler_and_destroyer(sigval_t sigval)
 
 static void _set_interval(opbx_timer_t *t, unsigned long interval)
 {
+#ifdef HAVE_CLOCK_GETRES
 	struct timespec res;
 	int st;
 	long sec, nano;
-
+#endif
 	/* Set the interval */
 	if (!interval)
 		t->interval = 1000000;  /* default 1ms */
@@ -384,6 +385,10 @@ void * _timer_thread(void *parg)
 {
     opbx_timer_t *t = (opbx_timer_t *) parg;
     struct timespec ts;
+    
+    struct timespec onemillisec = {0};
+    onemillisec.tv_nsec = 1000000L;
+    
     for(;;) {
 	if(t->active) {
 	    ts.tv_nsec = (t->interval % 1000000) * 1000;
@@ -413,7 +418,7 @@ void * _timer_thread(void *parg)
 	        (long int)ts.tv_sec, ts.tv_nsec);
 #endif /* TIMER_DEBUG */
 	} else {
-	    usleep(1);
+    	    nanosleep(&onemillisec,NULL);	
 	}
     }
 #ifdef TIMER_DEBUG
