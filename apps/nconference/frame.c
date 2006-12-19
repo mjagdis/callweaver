@@ -13,7 +13,10 @@
  * terms of the GNU Public License V2.
  *
  */
-
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"  
+#endif  
+#include <stdio.h> 
 #include "common.h"
 #include "conference.h"
 #include "member.h"
