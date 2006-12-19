@@ -1987,7 +1987,6 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#if defined(__linux__)
 #ifndef __CYGWIN__
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
@@ -2112,7 +2111,6 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
-#endif /* __linux__ */
 
 	opbx_term_init();
 	printf(opbx_term_end());
