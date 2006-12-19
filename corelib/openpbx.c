@@ -1879,7 +1879,7 @@ int openpbx_main(int argc, char *argv[])
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
 	 * */
 	if (getenv("OPENPBX_ALREADY_NONROOT"))
-		is_child_of_nonroot=1;
+		is_child_of_nonroot = 1;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
 	/* Check for options */
@@ -1987,7 +1987,8 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#ifndef __CYGWIN__
+#if defined(linux) || defined(__Darwin__)
+
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
 	}
@@ -2102,8 +2103,6 @@ int openpbx_main(int argc, char *argv[])
 #endif /* VERY_SECURE */
 	}
 
-#endif /* __CYGWIN__ */
-
 	/* after set*id() the dumpable flag is deleted,
 	   so we set it again to get core dumps */
 	if (option_dumpcore) {
@@ -2111,6 +2110,7 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
+#endif /* linux || __Darwin__*/
 
 	opbx_term_init();
 	printf(opbx_term_end());
