@@ -2,7 +2,7 @@
  * app_nconference
  *
  * NConference
- * A channel independent conference application for Asterisk
+ * A channel independent conference application for Openpbx
  *
  * Copyright (C) 2002, 2003 Navynet SRL
  * http://www.navynet.it
@@ -343,7 +343,7 @@ int member_exec( struct opbx_channel* chan, void* data ) {
     }
 
     //
-    // setup asterisk read/write formats
+    // setup Openpbx read/write formats
     //
 	
     opbx_log( OPBX_CONF_DEBUG, 
