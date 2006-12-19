@@ -12099,6 +12099,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
         opbx_set_flag(p, SIP_NEEDDESTROY);    
         r->call = NULL;
         opbx_sched_del(sched, r->timeout);
+	r->timeout = -1;
         break;
     case 407:
         /* Proxy auth */
