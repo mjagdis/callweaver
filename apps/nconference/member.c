@@ -218,17 +218,28 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	    {
 		int rees;
 		rees = vad_is_talk( f->data, f->datalen, &member->silence_nr, 20);
+		/*
+		opbx_log( OPBX_CONF_DEBUG, 
+		    "FRAME DATA: datalen %d  samples %d  len(ms) %ld, offset: %d \n", 
+		    f->datalen, f->samples, f->len, f->offset );
+		*/
 		// send the frame to the preprocessor
 		if ( rees != 0 )
 		{
 		    // voice detected, reset skip count
-		    member->skip_voice_detection = (OPBX_CONF_SKIP_MS_AFTER_VOICE_DETECTION / member->framelen);
+		    if ( member->framelen != 0 )
+			member->skip_voice_detection = (OPBX_CONF_SKIP_MS_AFTER_VOICE_DETECTION / member->framelen);
+		    else 
+			member->skip_voice_detection = 20;
 		    member->is_speaking=1;
 		}
 		else {
 		    // member is silent
 		    member->is_speaking=0;
-		    member->skip_voice_detection = ( OPBX_CONF_SKIP_MS_WHEN_SILENT / member->framelen );
+		    if ( member->framelen != 0 )
+			member->skip_voice_detection = ( OPBX_CONF_SKIP_MS_WHEN_SILENT / member->framelen );
+		    else 
+			member->skip_voice_detection = 5;
 		}
 
 	    }
