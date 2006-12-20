@@ -465,12 +465,25 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	else if ( left == 0 )
 	{
 	    // No frame avalaible
+	    member->lostframecount ++;
+	    
+	    // If we have lost more than 3 contiguous frames,
+	    // Then it's probably a good thing to queue some silence
+	    // This feature is probably usefull only on long distances 
+	    // With SIP protocol, where some packets can be lost.
+	    // This, anyway, should be confirmed to work well
+	    // in all circumstances.
+	    if ( member->lostframecount >= 3 && member->lostframecount < 6 )
+		queue_incoming_silent_frame(member);
 	}
 	else if ( left > 0 ) 
 	{
 	    // a frame has come in before the latency timeout 
 	    // was reached, so we process the frame
 
+	    // let's reset the lost frame count
+	    member->lostframecount = 0;
+	    
 	    f = opbx_read( chan ) ;
 			
 	    if ( f == NULL ) 
@@ -698,6 +711,8 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, const char* d
     member->quiet_mode = 0;
     member->is_on_hold = 0;
     member->skip_moh_when_alone = 0;
+
+    member->lostframecount = 0;
 
     //DTMF Data
     member->manage_dtmf = 1;

@@ -85,6 +85,8 @@ struct opbx_conf_member
 	int  samples;		// number of samples in framelen
 	long samplefreq;	// calculated sample frequency
 
+	int lostframecount;
+
 	// Circular buffer pointer
 	struct member_cbuffer *cbuf;
 	// Output frame buffer
