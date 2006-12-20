@@ -218,11 +218,6 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	    {
 		int rees;
 		rees = vad_is_talk( f->data, f->datalen, &member->silence_nr, 20);
-		/*
-		opbx_log( OPBX_CONF_DEBUG, 
-		    "FRAME DATA: datalen %d  samples %d  len(ms) %ld, offset: %d \n", 
-		    f->datalen, f->samples, f->len, f->offset );
-		*/
 		// send the frame to the preprocessor
 		if ( rees != 0 )
 		{
@@ -230,6 +225,7 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 		    if ( member->framelen != 0 )
 			member->skip_voice_detection = (OPBX_CONF_SKIP_MS_AFTER_VOICE_DETECTION / member->framelen);
 		    else 
+			// Let's suppose that 20ms as a framelen is not too different from the real situation
 			member->skip_voice_detection = 20;
 		    member->is_speaking=1;
 		}
@@ -540,13 +536,20 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 		{
 		    opbx_log( OPBX_CONF_DEBUG, "FRAME CHANGE  : samples %d  len(ms) %ld\n", f->samples, f->len );
 		    opbx_log( OPBX_CONF_DEBUG, "FRAME SHOULDBE: samples %d  len(ms) %ld\n", member->samples, member->framelen );
-		    if (member->samples==0 ) {
+		    if (member->samples == 0 ) {
 			member->framelen   = f->len;				// frame length in milliseconds
 			member->datalen    = f->datalen;			// frame length in milliseconds
 			member->samples    = f->samples;			// number of samples in framelen
 			member->samplefreq = (int) ( f->samples/f->len)*1000;	// calculated sample frequency
 		    }
 		}
+		
+		// This fix is for chan_zap
+		// Chan_zap NEVER sets framelen value.
+		// Probably when adding support to 16Khz we should add a check for this.
+		if ( ( member->framelen == 0 ) && ( member->datalen == 320 ) && ( member->samples == 160 ) )
+		    member->framelen = 20;
+		
 	    }
 	}
 
