@@ -263,8 +263,6 @@ void add_member( struct opbx_conference *conf, struct opbx_conf_member *member )
     // release the conference lock
     opbx_mutex_unlock( &conf->lock ) ;	
 
-//TODO Manager 
-
     strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
     queue_incoming_silent_frame(member);
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
@@ -383,7 +381,6 @@ void conference_exec( struct opbx_conference *conf )
 	    	opbx_log( OPBX_CONF_DEBUG, "found member slated for removal, channel => %s\n", member->channel_name ) ;
 	    	temp_member = member->next ;
 		strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
-//TODO Manager
 		queue_incoming_silent_frame(member);
 	    	remove_member( conf, member ) ;
 	    	member = temp_member ;
@@ -567,6 +564,14 @@ struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member
 	// release conference mutexes
 	opbx_mutex_unlock( &conf->lock ) ;
 	opbx_log( OPBX_CONF_DEBUG, "started conference thread for conference, name => %s\n", conf->name ) ;
+	manager_event(
+	    EVENT_FLAG_CALL, 
+	    APP_CONFERENCE_MANID"ConfCreate", 
+	    "Channel: %s\r\n"
+	    "ConfNo: %s\r\n",
+	    member->chan->name,
+	    name
+	) ;
     }
     else
     {
@@ -628,6 +633,12 @@ void remove_conf( struct opbx_conference *conf )
 
 	    // calculate time in conference
 	    opbx_log( OPBX_CONF_DEBUG, "removed conference, name => %s\n", conf_current->name ) ;
+	    manager_event(
+		EVENT_FLAG_CALL, 
+		APP_CONFERENCE_MANID"ConfRemove",
+		"ConfNo: %s\r\n",
+		conf_current->name
+	    ) ;
 	    opbx_mutex_unlock( &conf_current->lock ) ;
 
 	    //Free all the command queue

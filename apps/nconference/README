@@ -134,7 +134,6 @@ Manager events are generated on:
  * DTMF Received
  * Speaking state change detected
  * Setting the PIN of a conference
- . Joins/Leave events
- . Conference Creation/Deletion
- . Dialout
+ * Joins/Leave events
+ * Conference Creation/Deletion
 
