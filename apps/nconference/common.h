@@ -19,6 +19,7 @@
 #endif
 
 /* openpbx includes */
+#include "openpbx.h"
 #include "openpbx/lock.h"
 #include "openpbx/file.h"
 #include "openpbx/logger.h"

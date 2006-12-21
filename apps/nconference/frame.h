@@ -31,7 +31,7 @@ struct member_cbuffer {
 
 struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx_conf_member* member, int samples ) ;
 int queue_incoming_frame( struct opbx_conf_member* member, struct opbx_frame* fr ) ;
-int queue_incoming_silent_frame( struct opbx_conf_member *member);
+int queue_incoming_silent_frame( struct opbx_conf_member *member, int count);
 
 long usecdiff( struct timeval* timeA, struct timeval* timeB );
 void add_milliseconds( struct timeval* tv, long ms );

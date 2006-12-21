@@ -17,12 +17,16 @@
 #ifdef HAVE_CONFIG_H  
 #include "confdefs.h"  
 #endif  
+
 #include <stdio.h>
 #include "common.h"
 #include "app_nconference.h"
 #include "conference.h"
 #include "member.h"
 #include "cli.h"
+
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+
 
 /************************************************************
  *        Text Descriptions

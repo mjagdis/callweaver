@@ -24,6 +24,8 @@
 #include "frame.h"
 #include "dtmf.h"
 
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+
 int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 
 
@@ -53,7 +55,7 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		break;
 	    case '2': 
 		member->talk_mute = (member->talk_mute == 0 ) ? 1 : 0;
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,3);
 		if ( member->talk_mute == 1) {
     		    opbx_moh_start(member->chan,"");
 		    if ( member->is_speaking == 1 ) { 
@@ -92,7 +94,7 @@ int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 		    opbx_log(OPBX_CONF_DEBUG,"Member not enabled for VAD\n");
 		break;
 	    case '5':
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,3);
 		member->talk_mute =  !(member->talk_mute);
 		if (member->talk_mute)
 		    conference_queue_sound( member, "conf-muted" );

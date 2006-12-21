@@ -24,6 +24,8 @@
 #include "frame.h"
 #include "sounds.h"
 
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+
 static int conf_play_soundfile( struct opbx_conf_member *member, char * file ) 
 {
     int res = 0;
@@ -33,7 +35,7 @@ static int conf_play_soundfile( struct opbx_conf_member *member, char * file )
 
     opbx_stopstream(member->chan);
 
-    queue_incoming_silent_frame(member);
+    queue_incoming_silent_frame(member,3);
 
     res = opbx_streamfile(member->chan, file, NULL);
     if (!res) { 
@@ -54,7 +56,7 @@ int conf_play_soundqueue( struct opbx_conf_member *member )
     int res = 0;
 
     opbx_stopstream(member->chan);
-    queue_incoming_silent_frame(member);
+    queue_incoming_silent_frame(member,3);
 
     struct opbx_conf_soundq *toplay = member->soundq,
 			    *delitem;

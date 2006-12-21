@@ -17,9 +17,12 @@
 #ifdef HAVE_CONFIG_H 
 #include "confdefs.h" 
 #endif 
+
 #include <stdio.h>
 #include "common.h"
 #include "vad.h"
+
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
 
 #define THRESH	200
 

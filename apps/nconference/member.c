@@ -26,6 +26,8 @@
 #include "dtmf.h"
 #include "vad.h"
 
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+
 /* *****************************************************************************
 	MANAGER UTILS
    ****************************************************************************/
@@ -50,7 +52,7 @@ void send_state_change_notifications( struct opbx_conf_member* member )
     ) ;
 
     if ( member->is_speaking == 0 ) 
-	queue_incoming_silent_frame(member);
+	queue_incoming_silent_frame(member,2);
 
 }
 
@@ -114,7 +116,7 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	}
 	res = conf_play_soundqueue( member ); 
 	if (res != 0) {
-	    queue_incoming_silent_frame(member);
+	    queue_incoming_silent_frame(member,2);
 	    // send the DTMF event to the MGR interface..
 	    manager_event(
 		EVENT_FLAG_CALL,
@@ -174,10 +176,10 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	return 0;
     }
 
-    // Actions basedon the contentof the frame
+    // Actions based on the content of the frame
     if ( f->frametype == OPBX_FRAME_DTMF && member->manage_dtmf )
     {	
-	queue_incoming_silent_frame(member);
+	queue_incoming_silent_frame(member,2);
 
 	// send the DTMF event to the MGR interface..
 	manager_event(
@@ -261,7 +263,7 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
     else if ( f->frametype == OPBX_FRAME_CONTROL && f->subclass == OPBX_CONTROL_HANGUP ) 
     {
 	// hangup received, queue silence && free the frame 
-	queue_incoming_silent_frame(member);
+	queue_incoming_silent_frame(member,2);
 	opbx_fr_free( f ) ;
 	f = NULL ;
     }
@@ -480,7 +482,7 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	    // there will be no glitching in the conference.
 	    // Set the speaking state to 0.
 	    if ( member->lostframecount == 1 ) {
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,1);
 	    }
 	    member->is_speaking = 0;
 	}
@@ -502,7 +504,7 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	    if ( f == NULL ) 
 	    {
 		opbx_log( OPBX_CONF_DEBUG, "unable to read from channel, channel => %s. Got Hangup.\n", chan->name ) ;
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,5);
 		member->is_speaking = 0;
 		break ;
 	    } 

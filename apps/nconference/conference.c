@@ -24,6 +24,8 @@
 #include "frame.h"
 #include "sounds.h"
 
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+
 // mutex for synchronizing access to conflist
 OPBX_MUTEX_DEFINE_EXPORTED(conflist_lock);
 
@@ -123,7 +125,7 @@ void opnx_conf_command_execute( struct opbx_conference *conf ) {
 	    {
 		if (member != cq->issuedby) {
 		    conf_mutex_lock( &member->lock ) ;
-		    queue_incoming_silent_frame(member);
+		    queue_incoming_silent_frame(member,2);
 		    member->talk_mute = cq->param_number;
 		    opbx_log(OPBX_CONF_DEBUG,"(CQ) Member Talk MUTE set to %d\n",member->talk_mute);
 		    if (cq->param_number)
@@ -143,7 +145,7 @@ void opnx_conf_command_execute( struct opbx_conference *conf ) {
 	    while ( member != NULL )
 	    {
 		conf_mutex_lock( &member->lock ) ;
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,2);
 		member->dont_play_any_sound =  cq->param_number;
 		opbx_log(OPBX_CONF_DEBUG,"(CQ) Member Talk Disable sounds set to %d\n",member->dont_play_any_sound);
 		conf_mutex_unlock( &member->lock ) ;
@@ -159,7 +161,7 @@ void opnx_conf_command_execute( struct opbx_conference *conf ) {
 	    {
 		if (member != cq->issuedby) {
 		    conf_mutex_lock( &member->lock ) ;
-		    queue_incoming_silent_frame(member);
+		    queue_incoming_silent_frame(member,2);
 		    if ( !(member->quiet_mode == 1 && cq->param_number) )
 			conference_queue_sound( member, cq->param_text );
 		    conf_mutex_unlock( &member->lock ) ;
@@ -176,7 +178,7 @@ void opnx_conf_command_execute( struct opbx_conference *conf ) {
 	    {
 		if (member != cq->issuedby) {
 		    conf_mutex_lock( &member->lock ) ;
-		    queue_incoming_silent_frame(member);
+		    queue_incoming_silent_frame(member,2);
 		    if ( !(member->quiet_mode == 1 && cq->param_number) )
 			conference_queue_number( member, cq->param_text );
 		    conf_mutex_unlock( &member->lock ) ;
@@ -214,7 +216,7 @@ void opnx_conf_command_execute( struct opbx_conference *conf ) {
 		// If it's not me and we don't have to kick all members
 		if (member != cq->issuedby) {
 		    conf_mutex_lock( &member->lock ) ;
-		    queue_incoming_silent_frame(member);
+		    queue_incoming_silent_frame(member,2);
 		    if (cq->param_number == 0) 
 			conference_queue_sound( member, "goodbye" );
 		    else
@@ -264,7 +266,7 @@ void add_member( struct opbx_conference *conf, struct opbx_conf_member *member )
     opbx_mutex_unlock( &conf->lock ) ;	
 
     strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
-    queue_incoming_silent_frame(member);
+    queue_incoming_silent_frame(member,2);
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "conf-hasjoin" );
 
@@ -381,7 +383,7 @@ void conference_exec( struct opbx_conference *conf )
 	    	opbx_log( OPBX_CONF_DEBUG, "found member slated for removal, channel => %s\n", member->channel_name ) ;
 	    	temp_member = member->next ;
 		strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,2);
 	    	remove_member( conf, member ) ;
 	    	member = temp_member ;
 	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
@@ -900,7 +902,7 @@ int conference_parse_admin_command(struct opbx_conf_member *member) {
 
     switch (action) {
 	case '1':
-	    queue_incoming_silent_frame( member );
+	    queue_incoming_silent_frame( member, 2 );
 	    res = conf_do_originate(member,parameters);
 	    break;
 	case '4':

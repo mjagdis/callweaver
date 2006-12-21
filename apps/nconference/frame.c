@@ -22,6 +22,8 @@
 #include "member.h"
 #include "frame.h"
 
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+
 int vdebug = 0;
 
 /* 
@@ -277,7 +279,7 @@ int queue_incoming_frame( struct opbx_conf_member *member, struct opbx_frame *fr
 }
 
 
-int queue_incoming_silent_frame( struct opbx_conf_member *member) {
+int queue_incoming_silent_frame( struct opbx_conf_member *member, int count) {
     struct opbx_frame f;
     int t = 0;
 
@@ -290,7 +292,7 @@ int queue_incoming_silent_frame( struct opbx_conf_member *member) {
     f.offset = 0;
 
     // Actually queue some frames
-    for (t = 0; t < 5; t++ )
+    for (t = 0; t < count; t++ )
 	queue_incoming_frame(member,&f);
 
     return 0;

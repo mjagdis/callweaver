@@ -17,6 +17,7 @@
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
+
 #include <stdio.h>
 
 #include "common.h"
@@ -24,6 +25,8 @@
 #include "member.h"
 #include "frame.h"
 #include "sounds.h"
+
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
 
 STANDARD_LOCAL_USER ;
 LOCAL_USER_DECL;
@@ -284,7 +287,7 @@ int nconference_admin_exec( int fd, int argc, char *argv[] )
 	    }
 	    else 
 	    {
-		queue_incoming_silent_frame(member);
+		queue_incoming_silent_frame(member,5);
 		conference_queue_sound( member, "conf-kicked" );
 		member->force_remove_flag = 1;
 		opbx_cli(fd, "Conference: %s - Member %s has been kicked.\n", conf->name, member->chan->name);
