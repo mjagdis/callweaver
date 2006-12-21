@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
 
 // mutex for synchronizing access to conflist
 OPBX_MUTEX_DEFINE_EXPORTED(conflist_lock);

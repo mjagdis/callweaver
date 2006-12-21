@@ -25,7 +25,7 @@
 #include "member.h"
 #include "cli.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
 
 
 /************************************************************

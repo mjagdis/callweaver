@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
 
 static int conf_play_soundfile( struct opbx_conf_member *member, char * file ) 
 {

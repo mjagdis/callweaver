@@ -22,7 +22,7 @@
 #include "member.h"
 #include "frame.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
 
 int vdebug = 0;
 

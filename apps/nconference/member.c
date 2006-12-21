@@ -26,7 +26,7 @@
 #include "dtmf.h"
 #include "vad.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$");
+OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
 
 /* *****************************************************************************
 	MANAGER UTILS
