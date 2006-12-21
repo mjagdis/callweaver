@@ -477,9 +477,12 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	    // We have lost a frame.
 	    // In this case, we queue some silence
 	    // Sothat if we keep loosing frames,
-	    // there will be no glitching in the conference.	    
-	    if ( member->lostframecount == 1 )
+	    // there will be no glitching in the conference.
+	    // Set the speaking state to 0.
+	    if ( member->lostframecount == 1 ) {
 		queue_incoming_silent_frame(member);
+		member->is_speaking = 0;
+	    }
 	}
 	else if ( left > 0 ) 
 	{
@@ -487,8 +490,12 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	    // was reached, so we process the frame
 
 	    // let's reset the lost frame count
-	    if ( member->lostframecount )
+	    if ( member->lostframecount ) {
 		member->lostframecount = 0;
+		// If vad is not enabled, then set the speaking state back to 1
+		if ( !member->enable_vad )
+		    member->is_speaking = 1;
+	    }
 	    
 	    f = opbx_read( chan ) ;
 			
