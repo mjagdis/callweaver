@@ -481,8 +481,8 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	    // Set the speaking state to 0.
 	    if ( member->lostframecount == 1 ) {
 		queue_incoming_silent_frame(member);
-		member->is_speaking = 0;
 	    }
+	    member->is_speaking = 0;
 	}
 	else if ( left > 0 ) 
 	{
