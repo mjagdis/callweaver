@@ -473,14 +473,12 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	{
 	    // No frame avalaible
 	    member->lostframecount ++;
-	    
-	    // If we have lost more than 3 contiguous frames,
-	    // Then it's probably a good thing to queue some silence
-	    // This feature is probably usefull only on long distances 
-	    // With SIP protocol, where some packets can be lost.
-	    // This, anyway, should be confirmed to work well
-	    // in all circumstances.
-	    if ( member->lostframecount >= 3 && member->lostframecount < 6 )
+
+	    // We have lost a frame.
+	    // In this case, we queue some silence
+	    // Sothat if we keep loosing frames,
+	    // there will be no glitching in the conference.	    
+	    if ( member->lostframecount == 1 )
 		queue_incoming_silent_frame(member);
 	}
 	else if ( left > 0 ) 
@@ -489,7 +487,8 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	    // was reached, so we process the frame
 
 	    // let's reset the lost frame count
-	    member->lostframecount = 0;
+	    if ( member->lostframecount )
+		member->lostframecount = 0;
 	    
 	    f = opbx_read( chan ) ;
 			
