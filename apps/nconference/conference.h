@@ -15,7 +15,6 @@
  */
 
 opbx_mutex_t conflist_lock;
-opbx_mutex_t start_stop_conf_lock;
 
 extern struct opbx_conference *conflist;
 extern int conference_count;

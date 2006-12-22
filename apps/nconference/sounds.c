@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
+OPENPBX_FILE_VERSION(__FILE__, "$Revision: 2308 $");
 
 static int conf_play_soundfile( struct opbx_conf_member *member, char * file ) 
 {
@@ -119,8 +119,8 @@ int conference_queue_sound( struct opbx_conf_member *member, char *soundfile )
 	opbx_copy_string(newsound->name, soundfile, sizeof(newsound->name));
 
 	// append sound to the end of the list.
-	for( q = &member->soundq; *q; q = &((*q)->next) ) ;;
 
+	for( q = &member->soundq; *q; q = &((*q)->next) ) ;;
 	*q = newsound;
 
 	return 0 ;
@@ -187,9 +187,11 @@ int conference_queue_number( struct opbx_conf_member *member, char *str )
 	    if (fn) {
 		newsound = calloc(1,sizeof(struct opbx_conf_soundq));
 		opbx_copy_string(newsound->name, fn, sizeof(newsound->name));
+
 		// append sound to the end of the list.
 		for( q = &member->soundq; *q; q = &((*q)->next) ) ;;
 		*q = newsound;
+
 	    }
 	}
 

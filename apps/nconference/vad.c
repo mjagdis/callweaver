@@ -22,7 +22,7 @@
 #include "common.h"
 #include "vad.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
+OPENPBX_FILE_VERSION(__FILE__, "$Revision: 2308 $");
 
 #define THRESH	200
 

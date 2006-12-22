@@ -26,7 +26,7 @@
 #include "dtmf.h"
 #include "vad.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
+OPENPBX_FILE_VERSION(__FILE__, "$Revision: 2308 $");
 
 /* *****************************************************************************
 	MANAGER UTILS
@@ -68,7 +68,11 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
     int res;
     struct opbx_frame *cf = NULL;
 
+    opbx_mutex_lock(&member->lock);
+
     cf=get_outgoing_frame( member->conf, member, samples ) ;
+
+    opbx_mutex_unlock(&member->lock);
 
     /*    
     opbx_log(LOG_WARNING,
@@ -80,7 +84,6 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
     // if there's no frames exit the loop.
     if( cf == NULL ) {
         opbx_log( LOG_ERROR, "Nothing to write to the conference, channel => %s\n", member->channel_name ) ;
-        conf_mutex_unlock(&member->lock);
 	return 0;
     }
 
@@ -334,6 +337,8 @@ int member_exec( struct opbx_channel* chan, void* data ) {
     struct opbx_conference  *conf   	= NULL;
     struct opbx_conf_member *member	= NULL;
     struct opbx_frame *f		= NULL;
+
+    opbx_log( OPBX_CONF_DEBUG, "Launching NConference %s\n", "$Revision$" ) ;
 
     if (chan->_state != OPBX_STATE_UP)
 	if ( (res = opbx_answer( chan )) )

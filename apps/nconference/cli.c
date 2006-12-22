@@ -26,7 +26,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 2308 $");
+OPENPBX_FILE_VERSION(__FILE__, "$Revision: 2308 $");
 
 STANDARD_LOCAL_USER ;
 LOCAL_USER_DECL;

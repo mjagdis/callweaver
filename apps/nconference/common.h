@@ -52,10 +52,11 @@
 #define APP_NCONFERENCE_DEBUG	0
 
 #if (APP_NCONFERENCE_DEBUG == 0)
-#define OPBX_CONF_DEBUG 	LOG_DEBUG
+#define OPBX_CONF_DEBUG 	LOG_NOTICE
 #else
 #define OPBX_CONF_DEBUG 	LOG_NOTICE
 #endif
+
 
 
 #define APP_CONFERENCE_NAME     "NConference"
@@ -87,17 +88,6 @@
 
 // Timelog functions
 
-#define conf_mutex_lock(arg)	\
-    if (1) {  \
-	opbx_log(OPBX_CONF_DEBUG,"Lock at %s:%d \n",__FILE__,__LINE__);\
-	opbx_mutex_lock(arg);\
-    }
-
-#define conf_mutex_unlock(arg) \
-    if (1) {  \
-	opbx_log(OPBX_CONF_DEBUG,"Unlock at %s:%d \n",__FILE__,__LINE__);\
-	opbx_mutex_lock(arg);\
-    }
 
 #if 1
 
