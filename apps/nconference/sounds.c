@@ -58,9 +58,11 @@ int conf_play_soundqueue( struct opbx_conf_member *member )
     opbx_stopstream(member->chan);
     queue_incoming_silent_frame(member,3);
 
-    struct opbx_conf_soundq *toplay = member->soundq,
-			    *delitem;
+    struct opbx_conf_soundq *toplay, *delitem;
 
+    opbx_mutex_lock(&member->lock);
+
+    toplay = member->soundq;
     while (  ( toplay != NULL) && ( res == 0 )  ) {
 
 	manager_event(
@@ -80,6 +82,7 @@ int conf_play_soundqueue( struct opbx_conf_member *member )
 	member->soundq = toplay;
 	free(delitem);
     }
+    opbx_mutex_unlock(&member->lock);
 
     if (res != 0)
         conference_stop_sounds( member );
@@ -120,8 +123,12 @@ int conference_queue_sound( struct opbx_conf_member *member, char *soundfile )
 
 	// append sound to the end of the list.
 
+	opbx_mutex_lock(&member->lock);
+
 	for( q = &member->soundq; *q; q = &((*q)->next) ) ;;
 	*q = newsound;
+
+	opbx_mutex_unlock(&member->lock);
 
 	return 0 ;
 }
@@ -189,8 +196,12 @@ int conference_queue_number( struct opbx_conf_member *member, char *str )
 		opbx_copy_string(newsound->name, fn, sizeof(newsound->name));
 
 		// append sound to the end of the list.
+		opbx_mutex_lock(&member->lock);
+
 		for( q = &member->soundq; *q; q = &((*q)->next) ) ;;
 		*q = newsound;
+
+		opbx_mutex_unlock(&member->lock);
 
 	    }
 	}
@@ -211,6 +222,9 @@ int conference_stop_sounds( struct opbx_conf_member *member )
 	}
 
 	// clear all sounds
+
+	opbx_mutex_lock(&member->lock);
+
 	sound = member->soundq;
 	member->soundq = NULL;
 
@@ -219,6 +233,8 @@ int conference_stop_sounds( struct opbx_conf_member *member )
 	    free(sound);
 	    sound = next;
 	}
+
+	opbx_mutex_unlock(&member->lock);
 
 	opbx_log(OPBX_CONF_DEBUG,"Stopped sounds to member %s\n", member->chan->name);	
 	

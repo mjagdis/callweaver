@@ -36,6 +36,8 @@ struct opbx_conf_member
 	// pointer to next member in single-linked list	
 	struct opbx_conf_member *next ;
 
+	//User number
+	//int user_no;
 	// flag indicating we should remove this member
 	short remove_flag ;
 	short force_remove_flag ;

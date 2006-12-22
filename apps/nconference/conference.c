@@ -325,7 +325,7 @@ int remove_member(struct opbx_conference* conf, struct opbx_conf_member* member 
 
 	    manager_event(
 		EVENT_FLAG_CALL, 
-		APP_CONFERENCE_MANID"Join", 
+		APP_CONFERENCE_MANID"Leave", 
 		"Channel: %s\r\n",
 		member->chan->name
 	    ) ;
