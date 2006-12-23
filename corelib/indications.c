@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>			/* For PI */
+#include <math.h>
 #include <spandsp.h>
 
 #include "openpbx.h"
@@ -164,9 +164,9 @@ static void *playtones_alloc(struct opbx_channel *chan, void *params)
 	struct playtones_def *pd = params;
 	struct playtones_state *ps;
 
-	if ((ps = malloc(sizeof(struct playtones_state))) == NULL)
+	if ((ps = malloc(sizeof(*ps))) == NULL)
 		return NULL;
-	memset(ps, 0, sizeof(struct playtones_state));
+	memset(ps, 0, sizeof(*ps));
 	ps->origwfmt = chan->writeformat;
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))
     {
@@ -269,7 +269,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 
 	d.interruptible = interruptible;
 	
-	stringp=data;
+	stringp = data;
 	/* the stringp/data is not null here */
 	/* check if the data is separated with '|' or with ',' by default */
 	if (strchr(stringp,'|'))
@@ -281,7 +281,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
     {
 		int freq1, freq2, time, modulate=0, moddepth=90, midinote=0;
 
-		if (s[0]=='!')
+		if (s[0] == '!')
 			s++;
 		else if (d.reppos == -1)
 			d.reppos = d.nitems;
@@ -385,7 +385,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 				freq2 = 0;
 		}
 
-		if ((d.items = realloc(d.items,(d.nitems+1)*sizeof(struct playtones_item))) == NULL)
+		if ((d.items = realloc(d.items,(d.nitems + 1)*sizeof(struct playtones_item))) == NULL)
 		{
 			opbx_log(LOG_WARNING, "Realloc failed!\n");
 			return -1;
@@ -397,7 +397,7 @@ int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst
 		d.items[d.nitems].modulation_depth = moddepth;
 		d.nitems++;
 
-		s = strsep(&stringp,separator);
+		s = strsep(&stringp, separator);
 	}
 
 	if (opbx_generator_activate(chan, &playtones, &d))
@@ -413,8 +413,6 @@ void opbx_playtones_stop(struct opbx_channel *chan)
 	opbx_generator_deactivate(chan);
 }
 
-/*--------------------------------------------*/
-
 struct tone_zone *tone_zones;
 static struct tone_zone *current_tonezone;
 
@@ -425,9 +423,11 @@ OPBX_MUTEX_DEFINE_EXPORTED(tzlock);
 /* Set global indication country */
 int opbx_set_indication_country(const char *country)
 {
-	if (country) {
+	if (country)
+    {
 		struct tone_zone *z = opbx_get_indication_zone(country);
-		if (z) {
+		if (z)
+        {
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Setting default indication country to '%s'\n",country);
 			current_tonezone = z;
@@ -444,22 +444,27 @@ struct tone_zone *opbx_get_indication_zone(const char *country)
 	int alias_loop = 0;
 
 	/* we need some tonezone, pick the first */
-	if (country == NULL && current_tonezone)
+	if (country == NULL  &&  current_tonezone)
 		return current_tonezone;	/* default country? */
-	if (country == NULL && tone_zones)
+	if (country == NULL  &&  tone_zones)
 		return tone_zones;		/* any country? */
 	if (country == NULL)
 		return 0;	/* not a single country insight */
 
-	if (opbx_mutex_lock(&tzlock)) {
+	if (opbx_mutex_lock(&tzlock))
+    {
 		opbx_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return 0;
 	}
-	do {
-		for (tz=tone_zones; tz; tz=tz->next) {
-			if (strcasecmp(country,tz->country)==0) {
+	do
+    {
+		for (tz=tone_zones; tz; tz=tz->next)
+        {
+			if (strcasecmp(country, tz->country) == 0)
+            {
 				/* tone_zone found */
-				if (tz->alias && tz->alias[0]) {
+				if (tz->alias  &&  tz->alias[0])
+                {
 					country = tz->alias;
 					break;
 				}
@@ -467,9 +472,10 @@ struct tone_zone *opbx_get_indication_zone(const char *country)
 				return tz;
 			}
 		}
-	} while (++alias_loop < 20  &&  tz);
+	}
+    while (++alias_loop < 20  &&  tz);
 	opbx_mutex_unlock(&tzlock);
-	if (alias_loop==20)
+	if (alias_loop == 20)
 		opbx_log(LOG_NOTICE,"Alias loop for '%s' forcefull broken\n",country);
 	/* nothing found, sorry */
 	return 0;
@@ -481,14 +487,15 @@ struct tone_zone_sound *opbx_get_indication_tone(const struct tone_zone *zone, c
 	struct tone_zone_sound *ts;
 
 	/* we need some tonezone, pick the first */
-	if (zone == NULL && current_tonezone)
+	if (zone == NULL  &&  current_tonezone)
 		zone = current_tonezone;	/* default country? */
-	if (zone == NULL && tone_zones)
+	if (zone == NULL  &&  tone_zones)
 		zone = tone_zones;		/* any country? */
 	if (zone == NULL)
 		return 0;	/* not a single country insight */
 
-	if (opbx_mutex_lock(&tzlock)) {
+	if (opbx_mutex_lock(&tzlock))
+    {
 		opbx_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return 0;
 	}
@@ -528,7 +535,8 @@ int opbx_register_indication_country(struct tone_zone *zone)
 {
 	struct tone_zone *tz,*pz;
 
-	if (opbx_mutex_lock(&tzlock)) {
+	if (opbx_mutex_lock(&tzlock))
+    {
 		opbx_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return -1;
 	}
@@ -693,8 +701,8 @@ int opbx_unregister_indication(struct tone_zone *zone, const char *indication)
 				ps->next = tmp;
 			else
 				zone->tones = tmp;
-			free((void*)ts->name);
-			free((void*)ts->data);
+			free((void *) ts->name);
+			free((void *) ts->data);
 			free(ts);
 			ts = tmp;
 			res = 0;

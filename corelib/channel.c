@@ -32,7 +32,8 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <math.h>			/* For PI */
+#include <math.h>
+#include <spandsp.h>
 
 #include "openpbx.h"
 
@@ -514,14 +515,17 @@ int opbx_best_codec(int fmts)
 	};
 
 	/* Find the first prefered codec in the format given */
-	for (x=0; x < (sizeof(prefs) / sizeof(prefs[0]) ); x++)
+	for (x = 0;  x < (sizeof(prefs)/sizeof(prefs[0]));  x++)
+    {
 		if (fmts & prefs[x])
 			return prefs[x];
-	opbx_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
+	}
+    opbx_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
 	return 0;
 }
 
-static const struct opbx_channel_tech null_tech = {
+static const struct opbx_channel_tech null_tech =
+{
 	.type = "NULL",
 	.description = "Null channel (should not see this)",
 };
@@ -534,45 +538,48 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	int flags;
 	struct varshead *headp;        
 	        
-
 	/* If shutting down, don't allocate any new channels */
-	if (shutting_down) {
+	if (shutting_down)
+    {
 		opbx_log(LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
 		return NULL;
 	}
 
-	tmp = malloc(sizeof(struct opbx_channel));
-	if (!tmp) {
+	if ((tmp = malloc(sizeof(*tmp))) == NULL)
+	{
 		opbx_log(LOG_ERROR, "Channel allocation failed: Out of memory\n");
 		return NULL;
 	}
+	memset(tmp, 0, sizeof(*tmp));
 
-	memset(tmp, 0, sizeof(struct opbx_channel));
-	tmp->sched = sched_manual_context_create();
-	if (!tmp->sched) {
+	if ((tmp->sched = sched_manual_context_create()) == NULL)
+    {
 		opbx_log(LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
 		return NULL;
 	}
 	
-	for (x=0; x<OPBX_MAX_FDS - 1; x++)
+	for (x = 0;  x < OPBX_MAX_FDS - 1;  x++)
 		tmp->fds[x] = -1;
 
-	if (needqueue) {
-		if (pipe(tmp->alertpipe)) {
+	if (needqueue)
+    {
+		if (pipe(tmp->alertpipe))
+        {
 			opbx_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 			free(tmp);
 			return NULL;
-		} else {
-			flags = fcntl(tmp->alertpipe[0], F_GETFL);
-			fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK);
-			flags = fcntl(tmp->alertpipe[1], F_GETFL);
-			fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
 		}
-	} else 
-		/* Make sure we've got it done right if they don't */
+    	flags = fcntl(tmp->alertpipe[0], F_GETFL);
+		fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK);
+		flags = fcntl(tmp->alertpipe[1], F_GETFL);
+		fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
+	}
+    else 
+	{
+    	/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
-
+    }
 	/* Init channel generator data struct lock */
 	opbx_mutex_init(&tmp->gcd.lock);
 
@@ -597,7 +604,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	opbx_copy_string(tmp->accountcode, opbx_default_accountcode, sizeof(tmp->accountcode));
 
 	tmp->tech = &null_tech;
-	tmp->t38mode_enabled=0;
+	tmp->t38mode_enabled = 0;
 
 	opbx_mutex_lock(&chlock);
 	tmp->next = channels;
@@ -3382,7 +3389,8 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 		
 		/* Stop if we're a zombie or need a soft hangup */
 		if (opbx_test_flag(c0, OPBX_FLAG_ZOMBIE) || opbx_check_hangup_locked(c0) ||
-		    opbx_test_flag(c1, OPBX_FLAG_ZOMBIE) || opbx_check_hangup_locked(c1)) {
+		    opbx_test_flag(c1, OPBX_FLAG_ZOMBIE) || opbx_check_hangup_locked(c1))
+        {
 			*fo = NULL;
 			if (who)
 				*rc = who;
@@ -3399,13 +3407,15 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 		if (c0->tech->bridge &&
 		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
-		    !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers) {
+		    !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers)
+        {
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 
 				opbx_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			opbx_set_flag(c0, OPBX_FLAG_NBRIDGE);
 			opbx_set_flag(c1, OPBX_FLAG_NBRIDGE);
-			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == OPBX_BRIDGE_COMPLETE) {
+			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == OPBX_BRIDGE_COMPLETE)
+            {
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -3426,13 +3436,16 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 				c1->_bridge = NULL;
 
 				return res;
-			} else {
+			}
+            else
+            {
 				opbx_clear_flag(c0, OPBX_FLAG_NBRIDGE);
 				opbx_clear_flag(c1, OPBX_FLAG_NBRIDGE);
 			}
 			if (res == OPBX_BRIDGE_RETRY)
 				continue;
-			switch (res) {
+			switch (res)
+            {
 			case OPBX_BRIDGE_RETRY:
 /*				continue; */
 				break;
@@ -3447,8 +3460,10 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 	
 		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) ||
 		    (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
-		    !(opbx_generator_is_active(c0) || opbx_generator_is_active(c1))) {
-			if (opbx_channel_make_compatible(c0, c1)) {
+		    !(opbx_generator_is_active(c0) || opbx_generator_is_active(c1)))
+        {
+			if (opbx_channel_make_compatible(c0, c1))
+            {
 				opbx_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
                                 manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
@@ -3489,15 +3504,19 @@ int opbx_channel_setoption(struct opbx_channel *chan, int option, void *data, in
 {
 	int res;
 
-	if (chan->tech->setoption) {
+	if (chan->tech->setoption)
+    {
 		res = chan->tech->setoption(chan, option, data, datalen);
 		if (res < 0)
 			return res;
-	} else {
+	}
+    else
+    {
 		errno = ENOSYS;
 		return -1;
 	}
-	if (block) {
+	if (block)
+    {
 		/* XXX Implement blocking -- just wait for our option frame reply, discarding
 		   intermediate packets. XXX */
 		opbx_log(LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
@@ -3506,32 +3525,26 @@ int opbx_channel_setoption(struct opbx_channel *chan, int option, void *data, in
 	return 0;
 }
 
-struct tonepair_def {
-	int freq1;
-	int freq2;
-	int duration;
-	int vol;
+struct tonepair_def
+{
+    tone_gen_descriptor_t tone_desc;
 };
 
-struct tonepair_state {
-	float freq1;
-	float freq2;
-	float vol;
-	int duration;
-	int pos;
+struct tonepair_state
+{
+    tone_gen_state_t tone_state;
 	int origwfmt;
 	struct opbx_frame f;
-	unsigned char offset[OPBX_FRIENDLY_OFFSET];
-	short data[4000];
+	uint8_t offset[OPBX_FRIENDLY_OFFSET];
+	int16_t data[4000];
 };
 
 static void tonepair_release(struct opbx_channel *chan, void *params)
 {
 	struct tonepair_state *ts = params;
 
-	if (chan) {
+	if (chan)
 		opbx_set_write_format(chan, ts->origwfmt);
-	}
 	free(ts);
 }
 
@@ -3540,22 +3553,17 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 	struct tonepair_state *ts;
 	struct tonepair_def *td = params;
 
-	ts = malloc(sizeof(struct tonepair_state));
-	if (!ts)
+	if ((ts = malloc(sizeof(*ts))) == NULL)
 		return NULL;
-	memset(ts, 0, sizeof(struct tonepair_state));
+	memset(ts, 0, sizeof(*ts));
 	ts->origwfmt = chan->writeformat;
-	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR)) {
+	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))
+    {
 		opbx_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		tonepair_release(NULL, ts);
-		ts = NULL;
-	} else {
-		ts->freq1 = td->freq1;
-		ts->freq2 = td->freq2;
-		ts->duration = td->duration;
-		ts->vol = td->vol;
+		return NULL;
 	}
-	/* Let interrupts interrupt :) */
+    tone_gen_init(&ts->tone_state, &td->tone_desc);
 	opbx_set_flag(chan, OPBX_FLAG_WRITE_INT);
 	return ts;
 }
@@ -3563,40 +3571,30 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 static int tonepair_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	struct tonepair_state *ts = data;
-	int len, x;
+	int len;
+    int x;
 
-	/* we need to prepare a frame with 16 * timelen samples as we're 
-	 * generating SLIN audio
-	 */
-	len = samples * 2;
-
-	if (len > sizeof(ts->data) / 2 - 1) {
+	len = samples*sizeof(int16_t);
+	if (len > sizeof(ts->data)/sizeof(int16_t) - 1)
+    {
 		opbx_log(LOG_WARNING, "Can't generate that much data!\n");
 		return -1;
 	}
 	memset(&ts->f, 0, sizeof(ts->f));
-	for (x = 0; x < (len / 2); x++) {
-		ts->data[x] = ts->vol * (
-				sin((ts->freq1 * 2.0 * M_PI / 8000.0) * (ts->pos + x)) +
-				sin((ts->freq2 * 2.0 * M_PI / 8000.0) * (ts->pos + x))
-			);
-	}
     opbx_fr_init_ex(&ts->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	ts->f.datalen = len;
 	ts->f.samples = samples;
 	ts->f.offset = OPBX_FRIENDLY_OFFSET;
 	ts->f.data = ts->data;
+    x = tone_gen(&ts->tone_state, ts->data, samples);
 	opbx_write(chan, &ts->f);
-	ts->pos += x;
-	if (ts->duration > 0)
-    {
-		if (ts->pos >= ts->duration * 8)
-			return -1;
-	}
+    if (x < samples)
+		return -1;
 	return 0;
 }
 
-static struct opbx_generator tonepair = {
+static struct opbx_generator tonepair =
+{
 	alloc: tonepair_alloc,
 	release: tonepair_release,
 	generate: tonepair_generate,
@@ -3604,16 +3602,37 @@ static struct opbx_generator tonepair = {
 
 int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol)
 {
-	struct tonepair_def d = { 0, };
+	struct tonepair_def d;
 
-	d.freq1 = freq1;
-	d.freq2 = freq2;
-	d.duration = duration;
-	if (vol < 1)
-		d.vol = 8192;
-	else
-		d.vol = vol;
-	if (opbx_generator_activate(chan, &tonepair, &d))
+	if (vol >= 0)
+		vol = -13;
+    if (duration == 0)
+    {
+        make_tone_gen_descriptor(&d.tone_desc,
+                                 freq1,
+                                 vol,
+                                 freq2,
+                                 vol,
+                                 1,
+                                 0,
+                                 0,
+                                 0,
+                                 1);
+	}
+    else
+    {
+        make_tone_gen_descriptor(&d.tone_desc,
+                                 freq1,
+                                 vol,
+                                 freq2,
+                                 vol,
+                                 duration*8,
+                                 0,
+                                 0,
+                                 0,
+                                 0);
+    }
+    if (opbx_generator_activate(chan, &tonepair, &d))
 		return -1;
 	return 0;
 }
@@ -3638,31 +3657,40 @@ opbx_group_t opbx_get_group(char *s)
 {
 	char *copy;
 	char *piece;
-	char *c=NULL;
-	int start=0, finish=0, x;
+	char *c = NULL;
+	int start = 0;
+    int finish = 0;
+    int x;
 	opbx_group_t group = 0;
 
-	copy = opbx_strdupa(s);
-	if (!copy) {
+	if ((copy = opbx_strdupa(s)) == NULL)
+    {
 		opbx_log(LOG_ERROR, "Out of memory\n");
 		return 0;
 	}
 	c = copy;
 	
-	while((piece = strsep(&c, ","))) {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+	while ((piece = strsep(&c, ",")))
+    {
+		if (sscanf(piece, "%d-%d", &start, &finish) == 2)
+        {
 			/* Range */
-		} else if (sscanf(piece, "%d", &start)) {
+		}
+        else if (sscanf(piece, "%d", &start))
+        {
 			/* Just one */
 			finish = start;
-		} else {
+		}
+        else
+        {
 			opbx_log(LOG_ERROR, "Syntax error parsing group configuration '%s' at '%s'. Ignoring.\n", s, piece);
 			continue;
 		}
-		for (x = start; x <= finish; x++) {
-			if ((x > 63) || (x < 0)) {
+		for (x = start;  x <= finish;  x++)
+        {
+			if ((x > 63)  ||  (x < 0))
 				opbx_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
-			} else
+            else
 				group |= ((opbx_group_t) 1 << x);
 		}
 	}
@@ -3672,7 +3700,6 @@ opbx_group_t opbx_get_group(char *s)
 static int (*opbx_moh_start_ptr)(struct opbx_channel *, char *) = NULL;
 static void (*opbx_moh_stop_ptr)(struct opbx_channel *) = NULL;
 static void (*opbx_moh_cleanup_ptr)(struct opbx_channel *) = NULL;
-
 
 void opbx_install_music_functions(int (*start_ptr)(struct opbx_channel *, char *),
 								 void (*stop_ptr)(struct opbx_channel *),

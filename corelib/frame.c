@@ -327,17 +327,17 @@ void opbx_fr_init_ex(struct opbx_frame *fr,
 
 void opbx_fr_free(struct opbx_frame *fr)
 {
-    if (fr->mallocd & OPBX_MALLOCD_DATA)
+    if ((fr->mallocd & OPBX_MALLOCD_DATA))
     {
         if (fr->data) 
             free(fr->data - fr->offset);
     }
-    if (fr->mallocd & OPBX_MALLOCD_SRC)
+    if ((fr->mallocd & OPBX_MALLOCD_SRC))
     {
         if (fr->src)
-            free((char *)fr->src);
+            free((char *) fr->src);
     }
-    if (fr->mallocd & OPBX_MALLOCD_HDR)
+    if ((fr->mallocd & OPBX_MALLOCD_HDR))
     {
 #ifdef TRACE_FRAMES
         headers--;
@@ -432,23 +432,23 @@ struct opbx_frame *opbx_frisolate(struct opbx_frame *fr)
 struct opbx_frame *opbx_frdup(struct opbx_frame *f)
 {
     struct opbx_frame *out;
-    int len, srclen = 0;
-    void *buf;
+    int len;
+    int srclen;
     
+    srclen = 0;
     /* Start with standard stuff */
     len = sizeof(struct opbx_frame) + OPBX_FRIENDLY_OFFSET + f->datalen;
     /* If we have a source, add space for it */
     /*
      * XXX Watch out here - if we receive a src which is not terminated
-     * properly, we can be easily attacked. Should limit the size we deal with.
+     * properly, we can easily be attacked. Should limit the size we deal with.
      */
     if (f->src)
         srclen = strlen(f->src);
     if (srclen > 0)
         len += srclen + 1;
-    if ((buf = malloc(len)) == NULL)
+    if ((out = (struct opbx_frame *) malloc(len)) == NULL)
         return NULL;
-    out = buf;
     /* Set us as having malloc'd header only, so it will eventually
        get freed. */
     opbx_fr_init_ex(out, f->frametype, f->subclass, NULL);
@@ -457,12 +457,12 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     out->delivery = f->delivery;
     out->mallocd = OPBX_MALLOCD_HDR;
     out->offset = OPBX_FRIENDLY_OFFSET;
-    out->data = buf + sizeof(struct opbx_frame) + OPBX_FRIENDLY_OFFSET;
+    out->data = out->local_data;
     if (srclen > 0)
     {
         out->src = out->data + f->datalen;
         /* Must have space since we allocated for it */
-        strcpy((char *)out->src, f->src);
+        strcpy((char *) out->src, f->src);
     }
     else
     {
@@ -477,8 +477,8 @@ struct opbx_frame *opbx_frdup(struct opbx_frame *f)
     {
         out->ts = f->ts;
         out->len = f->len;
-        out->seq_no = f->seq_no;
     }
+    out->seq_no = f->seq_no;
 
     return out;
 }
