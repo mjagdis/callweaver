@@ -3609,8 +3609,8 @@ static int sip_indicate(struct opbx_channel *ast, int condition)
 
 static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flag, struct opbx_frame **fo,struct opbx_channel **rc, int timeoutms)
 {
-    int res1=0;
-    int res2=0;
+    int res1 = 0;
+    int res2 = 0;
      
     opbx_mutex_lock(&c0->lock);
     if (c0->tech->bridge == sip_bridge)
@@ -3664,7 +3664,7 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     /* Don't hold a sip pvt lock while we allocate a channel */
     tmp = opbx_channel_alloc(1);
     opbx_mutex_lock(&i->lock);
-    if (!tmp)
+    if (tmp == NULL)
     {
         opbx_log(LOG_WARNING, "Unable to allocate SIP channel structure\n");
         return NULL;
@@ -3701,7 +3701,6 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
             opbx_dsp_digitmode(i->vad  , DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
             opbx_dsp_digitmode(i->vadtx, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
         }
-
     }
     if (i->rtp)
     {
@@ -3749,25 +3748,15 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
         tmp->cid.cid_dnid = strdup(i->exten);
     tmp->priority = 1;
     if (!opbx_strlen_zero(i->uri))
-    {
         pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
-    }
     if (!opbx_strlen_zero(i->uri))
-    {
         pbx_builtin_setvar_helper(tmp, "SIPRURI", i->ruri);
-    }
     if (!opbx_strlen_zero(i->domain))
-    {
         pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
-    }
     if (!opbx_strlen_zero(i->useragent))
-    {
         pbx_builtin_setvar_helper(tmp, "SIPUSERAGENT", i->useragent);
-    }
     if (!opbx_strlen_zero(i->callid))
-    {
         pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
-    }
 #ifdef OSP_SUPPORT
     snprintf(peer, sizeof(peer), "[%s]:%d", opbx_inet_ntoa(iabuf, sizeof(iabuf), i->sa.sin_addr), ntohs(i->sa.sin_port));
     pbx_builtin_setvar_helper(tmp, "OSPPEER", peer);
@@ -12864,7 +12853,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin, int *recount, char *e)
 {
     int res = 1;
-    struct opbx_channel *c=NULL;
+    struct opbx_channel *c = NULL;
     int gotdest;
     struct opbx_frame af = { OPBX_FRAME_NULL, };
     char *supported;
@@ -12940,7 +12929,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         }
     }
     else if (debug)
+    {
         opbx_verbose("Ignoring this INVITE request\n");
+    }
 
     if (!p->lastinvite && !ignore && !p->owner)
     {
@@ -13032,7 +13023,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             /* Initialize tag */    
             make_our_tag(p->tag, sizeof(p->tag));
             /* First invitation */
-            c = sip_new(p, OPBX_STATE_DOWN, opbx_strlen_zero(p->username) ? NULL : p->username );
+            c = sip_new(p, OPBX_STATE_DOWN, opbx_strlen_zero(p->username)  ?  NULL  :  p->username);
             *recount = 1;
             /* Save Record-Route for any later requests we make on this dialogue */
             build_route(p, req, 0);
@@ -13042,20 +13033,19 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 opbx_mutex_lock(&c->lock);
             }
         }
-        
     }
     else
     {
-        if (option_debug > 1 && sipdebug)
+        if (option_debug > 1  &&  sipdebug)
             opbx_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
         c = p->owner;
     }
-    if (!ignore && p)
+    if (!ignore  &&  p)
         p->lastinvite = seqno;
     if (c)
     {
 #ifdef OSP_SUPPORT
-        opbx_channel_setwhentohangup (c, p->osptimelimit);
+        opbx_channel_setwhentohangup(c, p->osptimelimit);
 #endif
         switch (c->_state)
         {
@@ -13067,7 +13057,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 enum opbx_pbx_result res;
 
                 res = opbx_pbx_start(c);
-
                 switch (res)
                 {
                 case OPBX_PBX_FAILED:
