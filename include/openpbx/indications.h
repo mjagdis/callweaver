@@ -37,7 +37,8 @@
 /* forward reference */
 struct opbx_channel;
 
-struct tone_zone_sound {
+struct tone_zone_sound
+{
 	struct tone_zone_sound *next;		/* next element */
 	const char *name;			/* Identifing name */
 	const char *data;			/* Actual zone description */
@@ -48,8 +49,9 @@ struct tone_zone_sound {
 	   specified in milliseconds */
 };
 
-struct tone_zone {
-	struct tone_zone* next;				/* next in list */
+struct tone_zone
+{
+	struct tone_zone *next;				/* next in list */
 	char country[5];				/* Country code */
 	char alias[5];					/* is this an alias? */
 	char description[40];				/* Description */

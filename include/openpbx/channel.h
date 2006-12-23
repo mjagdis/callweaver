@@ -949,8 +949,10 @@ void opbx_set_callerid(struct opbx_channel *chan, const char *cidnum, const char
 
 /*! Start a tone going */
 int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol);
+
 /*! Stop a tone from playing */
 void opbx_tonepair_stop(struct opbx_channel *chan);
+
 /*! Play a tone pair for a given amount of time */
 int opbx_tonepair(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol);
 

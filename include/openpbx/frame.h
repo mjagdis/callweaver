@@ -74,6 +74,8 @@ typedef struct opbx_frame
 	int seq_no;
 	/*! Number of copies to send (for redundant transmission of special data) */
 	int tx_copies;
+    /*! Allocated data space */
+    uint8_t local_data[0];
 } opvx_frame_t;
 
 #define OPBX_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
