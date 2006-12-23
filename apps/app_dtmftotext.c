@@ -252,7 +252,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 				if (intkeys && strchr(intkeys, f->subclass))
                 {
 					res = f->subclass;
-					opbx_frfree(f);
+					opbx_fr_free(f);
 					break;
 				}
 			}
@@ -298,7 +298,7 @@ static int send_waveform_to_channel(struct opbx_channel *chan, char *waveform, i
 					res = 0;
 				}
 			}
-			opbx_frfree(f);
+			opbx_fr_free(f);
 		}
 	}
 	close(fds[0]);
@@ -686,7 +686,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         {
             opbx_log(LOG_WARNING, "Null frame == hangup() detected\n");
             res = -1;
-            opbx_frfree(f);
+            opbx_fr_free(f);
             break;
         }
         /*endif*/
@@ -699,7 +699,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
             {
                 /* Use a shorter timeout between digits */
                 timer = INTER_DIGIT_TIMEOUT;
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 continue;
             }
             /*endif*/
@@ -708,7 +708,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         {
             if (f->frametype != OPBX_FRAME_VOICE)
             {
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 continue;
             }
             /*endif*/
@@ -735,7 +735,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
             /*endif*/
             if ((i < 0  ||  digval[i] != '#')  &&  timer > 0)
             {
-                opbx_frfree(f);
+                opbx_fr_free(f);
                 continue;
             }
             /*endif*/
@@ -743,7 +743,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
         }
         /*endif*/
         timer = PRE_DIGIT_TIMEOUT;
-        opbx_frfree(f);
+        opbx_fr_free(f);
 
         opbx_log(LOG_WARNING, "Fresh digits '%s'\n", digval);
         if (digval[0] == '\0')

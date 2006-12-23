@@ -505,7 +505,7 @@ printf("Message is '%s'\n", msg);
                     }
                 }
             }
-            opbx_frfree(inf);
+            opbx_fr_free(inf);
         }
         if (inf == NULL)
         {
