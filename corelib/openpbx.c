@@ -1987,7 +1987,7 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#if defined(linux) || defined(__Darwin__)
+#if defined(__linux__) || defined(__Darwin__)
 
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
@@ -1999,6 +1999,7 @@ int openpbx_main(int argc, char *argv[])
 	if (!is_child_of_nonroot) {
 		struct group *gr;
 		struct passwd *pw;
+#if defined(__linux__)
 		cap_user_header_t cap_header;
 		cap_user_data_t cap_data;
 
@@ -2012,6 +2013,7 @@ int openpbx_main(int argc, char *argv[])
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
 			opbx_log(LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
 		}
+#endif
 
 		gr = getgrnam(rungroup);
 		if (!gr) {
@@ -2078,6 +2080,8 @@ int openpbx_main(int argc, char *argv[])
 				opbx_verbose("Now running as user '' (%d)\n", getegid());
 			}
 		}
+
+#if defined(__linux__)
 		if ((cap_header != NULL) && (cap_data != NULL)) {
 			/* get current capabilities */
 			if (capget(cap_header, cap_data) == -1) {
@@ -2090,6 +2094,7 @@ int openpbx_main(int argc, char *argv[])
 				opbx_log(LOG_WARNING, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
 			}
 		}
+#endif
 	}
 
 	/* Check if we're root */
@@ -2103,6 +2108,10 @@ int openpbx_main(int argc, char *argv[])
 #endif /* VERY_SECURE */
 	}
 
+#endif /* linux || __Darwin__*/
+
+
+#if defined(__linux__)
 	/* after set*id() the dumpable flag is deleted,
 	   so we set it again to get core dumps */
 	if (option_dumpcore) {
@@ -2110,7 +2119,7 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to set dumpable flag: %s\n", strerror(errno));
 		}
 	}
-#endif /* linux || __Darwin__*/
+#endif
 
 	opbx_term_init();
 	printf(opbx_term_end());
