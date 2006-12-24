@@ -534,7 +534,7 @@ struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member
     conf->next = NULL ;
     conf->memberlist = NULL ;
     conf->membercount = 0 ;
-    conf->conference_thread = -1 ;
+    conf->conference_thread = OPBX_PTHREADT_NULL ;
     conf->is_locked = 0;
     conf->command_queue = NULL ;
 
@@ -582,7 +582,7 @@ struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member
     else
     {
     	opbx_log( LOG_ERROR, "unable to start conference thread for conference %s\n", conf->name ) ;
-	conf->conference_thread = -1 ;
+	conf->conference_thread = OPBX_PTHREADT_NULL ;
 
 	// release conference mutexes
 	opbx_mutex_unlock( &conf->lock ) ;

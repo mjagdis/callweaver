@@ -14,7 +14,7 @@
  *
  */
 
-opbx_mutex_t conflist_lock;
+extern opbx_mutex_t conflist_lock;
 
 extern struct opbx_conference *conflist;
 extern int conference_count;
@@ -88,3 +88,4 @@ struct opbx_conf_member *find_member( struct opbx_conference *conf, const char* 
 struct opbx_conference *find_conf( const char* name );
 
 int conference_parse_admin_command(struct opbx_conf_member *member);
+

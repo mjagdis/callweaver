@@ -18,6 +18,9 @@
 #include "confdefs.h"
 #endif
 
+#ifndef _NCONFERENCE_COMMON_H
+#define NCONFERENCE_COMMON_H
+
 /* openpbx includes */
 #include "openpbx.h"
 #include "openpbx/lock.h"
@@ -46,6 +49,9 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+
+
+extern opbx_mutex_t conflist_lock;
 
 
 // debug logging level
@@ -107,3 +113,5 @@
 #define TIMELOG(func,min,message) func
 
 #endif
+
+#endif // _NCONFERENCE_COMMON_H
