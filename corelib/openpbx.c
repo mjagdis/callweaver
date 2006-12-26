@@ -1493,8 +1493,13 @@ static int opbx_rl_initialize(void)
     rl_editing_mode = 1;
     /* start history*/
     using_history();
-    rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
-    rl_attempted_completion_function = cli_completion;
+#ifdef __Darwin__ 
+    rl_completion_entry_function = (Function *)dummy_completer; 
+    rl_attempted_completion_function = (CPPFunction *)cli_completion; 
+#else   
+    rl_completion_entry_function = (rl_compentry_func_t *) dummy_completer;
+    rl_attempted_completion_function = (CPPFunction *) cli_completion;
+#endif
     rl_prep_terminal (0);
     
     /* setup history with 100 entries */
