@@ -519,11 +519,13 @@ static void *netconsole(void *vconsole)
 	
 	if (gethostname(hostname, sizeof(hostname)-1))
 		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
+
 	#ifndef RELEASE_TARBALL	
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING " SVN-" SVN_VERSION );
 	#else
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, opbx_mainpid,  PACKAGE_STRING );
 	#endif
+
 	fdprint(con->fd, tmp);
 	for(;;) {
 		fds[0].fd = con->fd;
@@ -714,8 +716,9 @@ static int opbx_tryconnect(void)
 		close(opbx_consock);
 		opbx_consock = -1;
 		return 0;
-	} else
+	} else {
 		return 1;
+	}
 }
 
 /*! Urgent handler
@@ -1192,11 +1195,7 @@ static int opbx_rl_read_char(FILE *cp)
 		}
 
 		if (!option_exec && fds[1].revents) {
-#ifdef __Darwin__
-			num_read = read(STDIN_FILENO, cp, 1);
-#else
 			num_read = rl_getc(cp);
-#endif
 			if (num_read < 1)
 			    break;
 			else 
@@ -1247,7 +1246,7 @@ static int opbx_rl_read_char(FILE *cp)
 	return (0);
 }
 
-static char *cli_prompt()
+static char *cli_prompt(void)
 {
 	static char prompt[200];
 	char *pfmt;
@@ -1435,7 +1434,6 @@ static char **cli_completion(const char *text, int start, int end)
     int res;
         
     matches = (char**)NULL;
-    
     if(option_remote) {
 	snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text); 
 	fdprint(opbx_consock, buf);
@@ -1446,32 +1444,35 @@ static char **cli_completion(const char *text, int start, int end)
 	if (nummatches > 0) {
 	    char *mbuf;
 	    int mlen = 0, maxmbuf = 2048;
-	    /* Start with a 2048 byte buffer */
+	    // Start with a 2048 byte buffer
 	    mbuf = malloc(maxmbuf);
 	    if (!mbuf)
 		return (matches);
-		
+
 	    snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", (char *)rl_line_buffer, (char *)text); 
 	    fdprint(opbx_consock, buf);
 	    res = 0;
 	    mbuf[0] = '\0';
+
 	    while (!strstr(mbuf, OPBX_CLI_COMPLETE_EOF) && res != -1) {
 		if (mlen + 1024 > maxmbuf) {
-		/* Every step increment buffer 1024 bytes */
-		maxmbuf += 1024;
-		mbuf = realloc(mbuf, maxmbuf);
-		if (!mbuf)
-		    return (matches);
+		    // Every step increment buffer 1024 bytes 
+		    maxmbuf += 1024;
+		    mbuf = realloc(mbuf, maxmbuf);
+		    if (!mbuf)
+			return (matches);
 		}
-		/* Only read 1024 bytes at a time */
+		// Only read 1024 bytes at a time
 		res = read(opbx_consock, mbuf + mlen, 1024);
 		if (res > 0)
 		    mlen += res;
-		}
-		mbuf[mlen] = '\0';
-		matches = opbx_rl_strtoarr(mbuf);
-		free(mbuf);
+	    }
+	    mbuf[mlen] = '\0';
+
+	    matches = opbx_rl_strtoarr(mbuf);
+	    free(mbuf);
 	}
+
     } else {
 	nummatches = opbx_cli_generatornummatches((char *)rl_line_buffer, (char*)text);
 	
@@ -1487,18 +1488,11 @@ static int opbx_rl_initialize(void)
     char *editor = getenv("OPBX_EDITOR");
     */
     rl_initialize ();
-#ifndef __Darwin__
     rl_editing_mode = 1;
-#endif
     /* start history*/
     using_history();
-#ifdef __Darwin__
-    rl_completion_entry_function = (Function *)dummy_completer;
-    rl_attempted_completion_function = (CPPFunction *)cli_completion;
-#else	
     rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer;
     rl_attempted_completion_function = cli_completion;
-#endif	
     rl_prep_terminal (0);
     
     /* setup history with 100 entries */
@@ -1585,7 +1579,7 @@ static void opbx_remotecontrol(char * data)
 	remotehostname = hostname;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
-	
+
 	if(!rl_init)	
 	    opbx_rl_initialize();
 
@@ -1594,12 +1588,13 @@ static void opbx_remotecontrol(char * data)
 	if (!opbx_strlen_zero(filename))
 		opbx_rl_read_history(filename);
 
+	FILE tempchar;
+	struct pollfd fds[0];
+	fds[0].fd = opbx_consock;
+	fds[0].events = POLLIN;
+	fds[0].revents = 0;
+
 	if (option_exec && data) {  /* hack to print output then exit if openpbx -rx is used */
-		FILE tempchar;
-		struct pollfd fds[0];
-		fds[0].fd = opbx_consock;
-		fds[0].events = POLLIN;
-		fds[0].revents = 0;
 		while(poll(fds, 1, 100) > 0) {
 			opbx_rl_read_char(&tempchar);
 		}
@@ -1609,8 +1604,11 @@ static void opbx_remotecontrol(char * data)
 		if (ebuf) {
 		    free (ebuf);
 		    ebuf = (char *)NULL;
-		}		
+		}
+
+
 		ebuf = readline(cli_prompt());
+
 		if (!opbx_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
@@ -1621,8 +1619,10 @@ static void opbx_remotecontrol(char * data)
 					break;
 				}
 			}
-		}
+		} 
+
 	}
+
 	if(ebuf) {
 	    free(ebuf);
 	    ebuf = (char *)NULL;
@@ -1987,7 +1987,6 @@ int openpbx_main(int argc, char *argv[])
 		}
 	}
 
-#if defined(__linux__) || defined(__Darwin__)
 
 	if (!is_child_of_nonroot && opbx_set_priority(option_highpriority)) {
 		exit(1);
@@ -2030,11 +2029,8 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
 			exit(1);
 		}
-#ifdef __Darwin__
-		if (setgid(gr->gr_gid)) {
-#else
+
 		if (setregid(gr->gr_gid, gr->gr_gid)) {
-#endif // __Darwin__
 			opbx_log(LOG_ERROR, "Unable to setgid to '%s' (%d)\n", gr->gr_name, gr->gr_gid);
 			exit(1);
 		}
@@ -2063,7 +2059,7 @@ int openpbx_main(int argc, char *argv[])
 			}
 		}
 #ifdef __Darwin__
-		if (setuid(pw->pw_uid)) {
+		if (seteuid(pw->pw_uid)) {
 #else
 		if (setreuid(pw->pw_uid, pw->pw_uid)) {
 #endif
@@ -2108,7 +2104,6 @@ int openpbx_main(int argc, char *argv[])
 #endif /* VERY_SECURE */
 	}
 
-#endif /* linux || __Darwin__*/
 
 
 #if defined(__linux__)
@@ -2169,6 +2164,7 @@ int openpbx_main(int argc, char *argv[])
 		    rl_deprep_terminal();
 		exit(1);
 	}
+
 	/* Blindly write pid file since we couldn't connect */
 	unlink((char *)opbx_config_OPBX_PID);
 	f = fopen((char *)opbx_config_OPBX_PID, "w");
