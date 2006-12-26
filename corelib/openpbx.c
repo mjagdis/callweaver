@@ -1181,9 +1181,11 @@ static int opbx_rl_read_char(FILE *cp)
 		max = 1;
 		fds[0].fd = opbx_consock;
 		fds[0].events = POLLIN;
+		fds[0].revents = 0;
 		if (!option_exec) {
 			fds[1].fd = STDIN_FILENO;
 			fds[1].events = POLLIN;
+			fds[1].revents = 0;
 			max++;
 		}
 		res = poll(fds, max, -1);
