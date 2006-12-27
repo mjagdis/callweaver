@@ -40,6 +40,7 @@
 #include <openpbx/cli.h>
 #include <openpbx/app.h>
 #include <openpbx/manager.h>
+#include <openpbx/devicestate.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -59,12 +60,14 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define DEFAULT_VALETPARK_TIME 45000
 
 static struct opbx_channel *valet_request(const char *type, int format, void *data, int *cause);
+static int valetparked_devicestate(void *data);
 
 static const struct opbx_channel_tech valet_tech = {
 	.type = "Valet",
 	.description = "Valet Unpark Come To ClueCon Aug-3-5 (http://www.cluecon.com)",
 	.requester = valet_request,
 	.capabilities = OPBX_FORMAT_SLINEAR,
+ 	.devicestate = valetparked_devicestate,
 };
 
 static char *valetparking = "ValetParking";
@@ -334,8 +337,9 @@ static int opbx_valetpark_call(struct opbx_channel *chan, int timeout, int *exto
 						  ,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "")
 						  ,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "")
 						  );
+			opbx_device_state_changed("Valet/%d@%s", pu->valetparkingnum, lotname);
 
-				return 0;
+			return 0;
 		} else {
 			opbx_log(LOG_WARNING, "No more valetparking spaces\n");
 			free(pu);
@@ -429,6 +433,7 @@ static void *do_valetparking_thread(void *ignore)
 				else
 					valetparkinglot = pu->next;
 				pt = pu;
+				opbx_device_state_changed("Valet/%d@%s", pu->valetparkingnum, pu->lotname);
 				pu = pu->next;
 				free(pt);
 			} else {
@@ -451,6 +456,7 @@ static void *do_valetparking_thread(void *ignore)
 							else
 								valetparkinglot = pu->next;
 							pt = pu;
+							opbx_device_state_changed("Valet/%d@%s", pu->valetparkingnum, pu->lotname);
 							pu = pu->next;
 							free(pt);
 							break;
@@ -699,6 +705,7 @@ static struct opbx_channel *do_valetunpark(struct opbx_channel *chan, char *exte
 		pu = pu->next;
 	}
 	opbx_mutex_unlock(&valetparking_lock);
+	opbx_device_state_changed("Valet/%s@%s", exten, lotname);
 	if (pu) {
 		rchan = pu->chan;
 		peer = pu->chan;
@@ -849,6 +856,41 @@ static int handle_valetparkedcalls(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/* Pseudo-devices like Valet/<SLOT>@<LOT> */
+static int valetparked_devicestate(void *data)
+{
+	char *slot;
+	char *lot;
+	struct valetparkeduser *cur;
+	int res = OPBX_DEVICE_INVALID;
+	int slotnum;
+
+	slot = opbx_strdupa(data);
+	if ((lot = strchr(slot, '@')))
+		*lot++ = 0;
+	else
+		return (res);
+	slotnum = atoi(slot);
+	
+	if (option_debug > 2)
+		opbx_log(LOG_DEBUG, "Checking device state for lot %s, slot %s\n", lot, slot);
+
+	opbx_mutex_lock(&valetparking_lock);
+
+	cur=valetparkinglot;
+	while(cur) {
+		if (!strcmp(lot, cur->lotname) && slotnum == cur->valetparkingnum)
+			res = OPBX_DEVICE_BUSY;
+		cur = cur->next;
+	}
+
+	opbx_mutex_unlock(&valetparking_lock);
+
+	return (res);
+}
+
+
+
 static char showvaletparked_help[] =
 "Usage: show valetparkedcalls\n"
 "       Lists currently Valet Parked calls.\n";
@@ -860,7 +902,7 @@ static int manager_valetparking_status( struct mansession *s, struct message *m 
 {
 	struct valetparkeduser *cur;
 
-	opbxman_send_ack(s, m, "Valet Parked calls will follow");
+	astman_send_ack(s, m, "Valet Parked calls will follow");
 
         opbx_mutex_lock(&valetparking_lock);
 
