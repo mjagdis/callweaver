@@ -74,12 +74,12 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
 
     opbx_mutex_unlock(&member->lock);
 
-    /*    
+/*
     opbx_log(LOG_WARNING,
 	    "OURGen: samples %d - conf %s - speak: %d - format: %d\n", 
 	    samples, member->chan->name, member->is_speaking , cf->frametype
     );
-    */
+*/
 
     // if there's no frames exit the loop.
     if( cf == NULL ) {
@@ -514,17 +514,20 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 		break ;
 	    } 
 	    else {
-
-		//opbx_log( OPBX_CONF_DEBUG, 
-		//	"Read (PRE dsp), channel => %s, datalen: %d samplefreq: %ld len: %ld samples %d class: %d\n", 
-		//	chan->name, f->datalen, member->samplefreq, f->len, f->samples, f->subclass) ;
-
-		if ( member->samplefreq == 0 && f->len != 0 && f->samples != 0 )
+/*
+		opbx_log( OPBX_CONF_DEBUG, 
+			"Read (PRE dsp), channel => %s, datalen: %d samplefreq: %ld len: %ld samples %d class: %d\n", 
+			chan->name, f->datalen, member->samplefreq, f->len, f->samples, f->subclass) ;
+*/
+		if ( member->samplefreq == 0 && f->samples != 0 )
 		{
-		    member->framelen   = f->len;			// frame length in milliseconds
+		    if ( ( f->len == 0 ) && ( f->datalen == 320 ) && ( f->samples == 160 ) )
+			member->framelen = 20;				// This is probably chan_zap not setting the correct len.
+		    else
+			member->framelen   = f->len;			// frame length in milliseconds
 		    member->datalen    = f->datalen;			// frame length in milliseconds
 		    member->samples    = f->samples;			// number of samples in framelen
-		    member->samplefreq = (int)(f->samples/f->len)*1000;	// calculated sample frequency
+		    member->samplefreq = (int)(member->samples/member->framelen)*1000;	// calculated sample frequency
 		    opbx_log( OPBX_CONF_DEBUG, "MEMBER FRAME DATA: datalen %d  samples %d  len(ms) %ld, offset: %d \n", f->datalen, f->samples, f->len, f->offset );
 
 /*
