@@ -265,8 +265,10 @@ void add_member( struct opbx_conference *conf, struct opbx_conf_member *member )
     // release the conference lock
     opbx_mutex_unlock( &conf->lock ) ;	
 
-    strncpy( cnum, member->chan->cid.cid_num, sizeof(cnum) );
-//    strncpy( cnum, "111", sizeof(cnum) );
+    if ( (member->chan != NULL) && (member->chan->cid.cid_num != NULL) )
+	strncpy( cnum, member->chan->cid.cid_num, sizeof(cnum) );
+    else
+	strncpy( cnum, "", sizeof(cnum) );
     queue_incoming_silent_frame(member,2);
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_NUMBER , 1, cnum );
     add_command_to_queue( conf, member, CONF_ACTION_QUEUE_SOUND  , 1, "conf-hasjoin" );
@@ -385,8 +387,10 @@ void conference_exec( struct opbx_conference *conf )
 		char cnum[80];
 	    	opbx_log( OPBX_CONF_DEBUG, "found member slated for removal, channel => %s\n", member->channel_name ) ;
 	    	temp_member = member->next ;
-		strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
-//		strncpy( cnum, "222", sizeof(cnum) );
+		if ( (member->chan != NULL) && (member->chan->cid.cid_num != NULL) )
+		    strncpy( cnum,member->chan->cid.cid_num,sizeof(cnum) );
+		else
+		    strncpy( cnum, "", sizeof(cnum) );
 		queue_incoming_silent_frame(member,2);
 	    	remove_member( conf, member ) ;
 	    	member = temp_member ;
@@ -844,8 +848,17 @@ int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 	opbx_copy_string( fast->data, 	 dst, sizeof(fast->data) );
 	opbx_copy_string( fast->app, 	 APP_CONFERENCE_NAME, sizeof(fast->app) );
 	opbx_copy_string( fast->appdata, appdata, sizeof(fast->appdata) );
-	opbx_copy_string( fast->cid_name,"NavyConference",sizeof(fast->cid_name) );
-	opbx_copy_string( fast->cid_num, member->id,sizeof(fast->cid_num) );
+
+	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CID_NAME")) )
+	    opbx_copy_string( fast->cid_name, var, sizeof(fast->cid_name) );
+	else
+	    opbx_copy_string( fast->cid_name,"NavyConference",sizeof(fast->cid_name) );
+
+	if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_CID_NUM")) )
+	    opbx_copy_string( fast->cid_num, var,sizeof(fast->cid_num) );
+	else
+	    opbx_copy_string( fast->cid_num, member->id,sizeof(fast->cid_num) );
+
 	opbx_copy_string( fast->context, "internal", sizeof(fast->context) );
 	opbx_copy_string( fast->exten, ext, sizeof(fast->exten) );
 	fast->priority = 1;

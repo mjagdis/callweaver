@@ -20,11 +20,19 @@ parts of the code were re-used.
 
   Nconference accepts 3 channel variables which, if present (like in
 the following example) will set the outbound features of the application.
+All of them are optional.
 
 exten => 1234,1,Answer
+; Then context where outbound calls will take place
 exten => 1234,n,Set(NCONF_OUTBOUND_CONTEXT=internal)
+; The default option parameters for the called member
 exten => 1234,n,Set(NCONF_OUTBOUND_PARAMS=S)
+; The default timeout before giving up the call
 exten => 1234,n,Set(NCONF_OUTBOUND_TIMEOUT=5)
+; Caller id Name and Num
+exten => 1234,n,Set(NCONF_OUTBOUND_CID_NAME=Nconf)
+exten => 1234,n,Set(NCONF_OUTBOUND_CID_NUM=9999)
+; Here we are ! :-)
 exten => 1234,n,NConference(12345/MV/1111)
 
 NCONF_OUTBOUND_CONTEXT: The context where to put the outgoing call to.
