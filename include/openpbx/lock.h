@@ -235,7 +235,7 @@ static inline int __opbx_pthread_mutex_lock(const char *filename, int lineno, co
 					__opbx_mutex_logger("%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
 							   filename, lineno, func, (int)(current - seconds), mutex_name);
 					__opbx_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-							   t->file, t->lineno, t->func, mutex_name);
+							   *t->file, *t->lineno, *t->func, mutex_name);
 				}
 				usleep(200);
 			}
