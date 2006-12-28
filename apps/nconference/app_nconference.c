@@ -38,7 +38,7 @@ static char *app = APP_CONFERENCE_NAME ;
 
 static char *synopsis = "Navynet Channel Independent Conference" ;
 
-static char *descrip = APP_CONFERENCE_NAME "(confno,options,pin):\n"
+static char *descrip = APP_CONFERENCE_NAME "(confno/options/pin):\n"
 "\n"
 "The options string may contain zero or more of the following:\n"
 "   'M': Caller is Moderator (can do everything).\n"
@@ -60,6 +60,7 @@ static char *descrip = APP_CONFERENCE_NAME "(confno,options,pin):\n"
 "by the conference (otherwise pin is empty), if the member is not a Moderator \n"
 "and the conference is locked, that pin is used to gain access to the conference.\n"
 "\n"
+"Please note that the options parameter list delimiter is '/'\n"
 "Returns 0 if the user exits with the '#' key, or -1 if the user hangs up.\n" ;
 
 STANDARD_LOCAL_USER ;
