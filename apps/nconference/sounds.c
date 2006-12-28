@@ -33,18 +33,26 @@ static int conf_play_soundfile( struct opbx_conf_member *member, char * file )
     if ( member->dont_play_any_sound ) 
 	return 0;
 
+    if ( !member->chan ) 
+	return 0;
+
     opbx_stopstream(member->chan);
 
     queue_incoming_silent_frame(member,3);
 
-    if (opbx_fileexists(file, NULL, NULL) > 0) {
-	res = opbx_streamfile(member->chan, file, NULL);
+    if (
+	    ( strrchr(file,'/')!=NULL ) || (opbx_fileexists(file, NULL, member->chan->language) > 0) 
+       )
+    {
+	res = opbx_streamfile(member->chan, file, member->chan->language);
 	if (!res) { 
 	    res = opbx_waitstream(member->chan, OPBX_DIGIT_ANY);	
 	    opbx_stopstream(member->chan);
 	}
+	//opbx_log(LOG_DEBUG, "Soundfile found %s - %d\n", file, opbx_fileexists(file, NULL,  member->chan->language) );
+    } else 
+	opbx_log(LOG_DEBUG, "Soundfile not found %s - lang: %s\n", file, member->chan->language );
 
-    }
 
     opbx_set_write_format( member->chan, OPBX_FORMAT_SLINEAR );
     opbx_generator_activate(member->chan,&membergen,member);
