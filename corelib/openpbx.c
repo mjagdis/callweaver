@@ -1643,14 +1643,12 @@ static void opbx_remotecontrol(char * data)
 		return;
 	}
 
-#ifdef __Darwin__
 	// This very simple line has been added and dedicated
 	// to people who should DO instead of TALK
 	// I have always been not confident with people
 	// who IMPOSE their ideas instead of PROPOSING them.
 	// So remember: talk less and do more otherwise shut up.
 	rl_event_hook = opbx_rl_out_event;
-#endif
 
 	for(;;) {
 		if (ebuf) {
