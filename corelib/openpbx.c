@@ -1248,6 +1248,41 @@ static int opbx_rl_read_char(FILE *cp)
 	return (0);
 }
 
+static int opbx_rl_out_event(void)
+{
+	int lastpos=0;
+	struct pollfd fds[2];
+	int res;
+	char buf[512];
+
+	fds[0].fd = opbx_consock;
+	fds[0].events = POLLIN;
+	fds[0].revents = 0;
+
+        res = poll(fds, 1, 25);
+
+
+	if (fds[0].revents)
+	while ( (res = read(opbx_consock, buf, sizeof(buf) - 1) ) ) {
+	    if ( res > 0 ) {
+		buf[res] = '\0';
+
+		if (!option_exec && !lastpos)
+		    write(STDOUT_FILENO, "\r", 1);
+		write(STDOUT_FILENO, buf, res);
+		if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
+	    	    rl_forced_update_display();
+		    return (0);
+	        } else {
+		    lastpos = 1;
+		}
+	    }
+	    rl_forced_update_display();
+	}
+	return (0);
+}
+
+
 static char *cli_prompt(void)
 {
 	static char prompt[200];
@@ -1607,6 +1642,16 @@ static void opbx_remotecontrol(char * data)
 		}
 		return;
 	}
+
+#ifdef __Darwin__
+	// This very simple line has been added and dedicated
+	// to people who should DO instead of TALK
+	// I have always been not confident with people
+	// who IMPOSE their ideas instead of PROPOSING them.
+	// So remember: talk less and do more otherwise shut up.
+	rl_event_hook = opbx_rl_out_event;
+#endif
+
 	for(;;) {
 		if (ebuf) {
 		    free (ebuf);
