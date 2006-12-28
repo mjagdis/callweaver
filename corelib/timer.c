@@ -270,7 +270,7 @@ int opbx_timer_start(opbx_timer_t *t)
 #endif /* HAVE_POSIX_TIMERS */
 
 #ifdef USE_GENERIC_TIMERS
-    /* Create joinable generator thread */
+    /* Create joinable thread */
     if(!t->opbx_timer_thread) {
 #endif /* USE_GENERIC_TIMERS */
 	opbx_log(LOG_ERROR, "Attempted to start nonexistent timer!\n");

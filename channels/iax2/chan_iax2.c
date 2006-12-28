@@ -7667,11 +7667,12 @@ static void prune_peers(void){
 	opbx_mutex_unlock(&peerl.lock);
 }
 
+#ifdef IAX_TRUNKING
+static int timerrunning = 0;
+#endif
 static void set_timing(void)
 {
 #ifdef IAX_TRUNKING
-	static int timerrunning = 0;
-
 	/* If the timer is running, destroy it */
 	if (timerrunning)
 	    opbx_timer_destroy(&trunktimer);

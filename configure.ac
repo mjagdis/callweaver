@@ -37,6 +37,7 @@ AC_PATH_PROGS(SHELL,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(SH,bash sh,[echo No compatible shell found])
 AC_PATH_PROGS(M4,gm4 m4,[echo No m4 found, who will process my macros now ?])
 AC_PATH_PROGS(SED,gsed sed,[echo sed not found, doh!])
+AC_PATH_PROGS(CAT, cat,[echo cat not found, doh!])
 AC_PATH_PROGS(UNAME,uname,[echo uname not found so no version info will be available])
 AC_PROG_CXX
 AC_PROG_YACC
@@ -48,7 +49,10 @@ AX_SYS_PERLSHARPBANG
 AC_PROG_INSTALL
 
 dnl SVN Revision number, needed for OPBX_VERSION and inclusion into files version number
-if test -n "$SVN" ; then
+if test -f "SVNVERSION" ; then
+	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${CAT} SVNVERSION`",[Which Subversion revision are we building here?])
+	AC_SUBST([SVN_VERSION])
+elif test -n "$SVN" ; then
 	AC_DEFINE_UNQUOTED([SVN_VERSION],"`${SVN} info | ${GREP} Revision | ${AWK} '{ print $2 }'`",[Which Subversion revision are we building here ?] )
 	AC_SUBST([SVN_VERSION])
 else
