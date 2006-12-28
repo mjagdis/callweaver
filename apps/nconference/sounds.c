@@ -37,10 +37,13 @@ static int conf_play_soundfile( struct opbx_conf_member *member, char * file )
 
     queue_incoming_silent_frame(member,3);
 
-    res = opbx_streamfile(member->chan, file, NULL);
-    if (!res) { 
-	res = opbx_waitstream(member->chan, OPBX_DIGIT_ANY);	
-	opbx_stopstream(member->chan);
+    if (opbx_fileexists(file, NULL, NULL) > 0) {
+	res = opbx_streamfile(member->chan, file, NULL);
+	if (!res) { 
+	    res = opbx_waitstream(member->chan, OPBX_DIGIT_ANY);	
+	    opbx_stopstream(member->chan);
+	}
+
     }
 
     opbx_set_write_format( member->chan, OPBX_FORMAT_SLINEAR );
