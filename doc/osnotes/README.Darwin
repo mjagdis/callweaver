@@ -43,12 +43,12 @@ $ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/li
 $ make
 $ sudo make install
 
-******************************************************************** LIBEDITLINE
+******************************************************************** GNU READLINE
 
-# download libedit
+# download GNU readline
 
-$ tar xvf libedit-20061022-2.9.tar.gz
-$ cd libedit-20061022-2.9
+$ tar xvf readline.tgz (or the name you have)
+$ cd readline-XXX
 
 $ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/lib" \
   ./configure --prefix=/usr/local/openpbx.org
