@@ -249,18 +249,20 @@ static int spy_queue_ready(struct opbx_channel_spy *spy)
 }
 #endif
 
-static int spy_generate(struct opbx_channel *chan, void *data, int len)
+static int spy_generate(struct opbx_channel *chan, void *data, int sample)
 {
 
 	struct chanspy_translation_helper *csth = data;
 	struct opbx_frame frame, *f;
-	int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, x, vf, maxsamp;
+	int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, len, x, vf, maxsamp;
 	short buf0[1280], buf1[1280], buf[1280];
 		
 	if (csth->spy.status == CHANSPY_DONE) {
 		/* Channel is already gone more than likely */
 		return -1;
 	}
+
+	len = sample * sizeof(int16_t);
 
 	opbx_mutex_lock(&csth->spy.lock);
 	while((f = csth->spy.queue[0])) {
@@ -292,6 +294,7 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len)
 	vf = get_volfactor(csth->volfactor);
 		
 	for(x=0; x < maxsamp; x++) {
+		/* Volume Control */
 		if (vf < 0) {
 			if (samp0) {
 				buf0[x] /= abs(vf);
@@ -307,6 +310,7 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len)
 				buf1[x] *= vf;
 			}
 		}
+		/* Mixing 2 way remote audio */
 		if (samp0 && samp1) {
 			if (x < samp0 && x < samp1) {
 				buf[x] = buf0[x] + buf1[x];
@@ -329,7 +333,7 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len)
 
 	if (opbx_write(chan, &frame))
 		return -1;
-	if (csth->fd)
+	if (csth->fd) /* Write audio to file if open */
 		write(csth->fd, buf1, len1);
 	return 0;
 }
