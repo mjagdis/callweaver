@@ -10775,6 +10775,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
             opbx_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
             opbx_cli(fd, "  T38 State:              %d\n", cur->t38state);
             opbx_cli(fd, "  DTMF Mode:              %s\n", dtmfmode2str(opbx_test_flag(cur, SIP_DTMF)));
+            opbx_cli(fd, "  On HOLD:                %s\n", opbx_test_flag(cur, SIP_CALL_ONHOLD) ? "Yes" : "No" );
             opbx_cli(fd, "  SIP Options:            ");
             if (cur->sipoptions)
             {
@@ -13217,6 +13218,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                         }
                     }
                 }
+        	else
+		    transmit_response_with_sdp(p, "200 OK", req, 1);
             } 
             break;
         default:
@@ -13788,7 +13791,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     if (p->icseq && (p->icseq > seqno))
     {
         opbx_log(LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
-        transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
+        if (req->method != SIP_ACK) 
+    	    transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
         return -1;
     }
     else if (p->icseq && (p->icseq == seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| opbx_test_flag(p, SIP_ALREADYGONE)))
