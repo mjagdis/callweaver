@@ -13196,9 +13196,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 struct opbx_channel *bridgepeer = NULL;
                 struct sip_pvt *bridgepvt = NULL;
     
-                if ((bridgepeer=opbx_bridged_channel(p->owner)))
-                {
-                    if (!strcasecmp(bridgepeer->type,"SIP"))
+                if ( (bridgepeer=opbx_bridged_channel(p->owner) ) && !strcasecmp(bridgepeer->type,"SIP") ) 
+		{
                     {
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
                         if (bridgepvt->t38state == 5)
