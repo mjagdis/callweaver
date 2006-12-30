@@ -3,6 +3,7 @@ opbxmod_LTLIBRARIES             =
 
 opbxmod_LTLIBRARIES                     += app_nconference.la
 app_nconference_la_SOURCES              = frame.c conference.c member.c sounds.c dtmf.c vad.c cli.c \
+					  jitterbuffer.c \
 					  app_nconference.c 
 app_nconference_la_LDFLAGS              = -module -avoid-version -no-undefined
 app_nconference_la_LIBADD               = ${top_builddir}/corelib/libopenpbx.la
