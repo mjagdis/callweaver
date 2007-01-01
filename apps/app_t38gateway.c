@@ -45,6 +45,7 @@ static char *synopsis = "A PSTN <-> T.38 gateway";
 static int opbx_check_hangup_locked(struct opbx_channel *chan)
 {
     int res;
+
     opbx_mutex_lock(&chan->lock);
     res = opbx_check_hangup(chan);
     opbx_mutex_unlock(&chan->lock);
@@ -86,7 +87,6 @@ static void span_message(int level, const char *msg)
    where you simply want to forward the call elsewhere.
    This is my perception of what opbx_channel_bridge may have looked like in the beginning ;)
 */
-
 static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *peer)
 {
     struct opbx_channel *active = NULL;
@@ -105,7 +105,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
             if ((f = opbx_read(active)))
             {
-                /* TODO: this is only needed because no everthing sets the tx_copies field properly */
+                /* TODO: this is only needed because not everything sets the tx_copies field properly */
                 f->tx_copies = 1;
                 opbx_write(inactive, f);
                 clean_frame(f);
@@ -133,7 +133,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     opbx_fr_init_ex(&outf, OPBX_FRAME_MODEM, OPBX_MODEM_T38, "T38Gateway");
     outf.datalen = len;
     outf.data = (uint8_t *) buf;
-opbx_log(LOG_WARNING, "t38_tx_packet_handler: Sending %d copies fo frame\n", count);
+opbx_log(LOG_WARNING, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
     outf.tx_copies = count;
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
@@ -191,7 +191,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
             }
         }
     }
-    if (t38_gateway_init(&t38_state, t38_tx_packet_handler, &channels[0]) == NULL)
+    if (t38_gateway_init(&t38_state, t38_tx_packet_handler, channels[0]) == NULL)
     {
         opbx_log(LOG_WARNING, "Unable to start the T.38 gateway\n");
         return -1;
@@ -313,7 +313,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
 
         if (!(peer = opbx_request(tech, format, dest, &cause)))
         {
-            opbx_log(LOG_ERROR,"Error creating channel %s/%s\n", tech, dest);
+            opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", tech, dest);
             ALL_DONE(u, 0);
         }
         if (flags  &&  strchr(flags, 'r'))
@@ -321,7 +321,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
     }
     else
     {
-        opbx_log(LOG_ERROR,"Error creating channel. invalid name %s\n", tech);
+        opbx_log(LOG_ERROR, "Error creating channel. Invalid name %s\n", tech);
         ALL_DONE(u, 0);
     }
 
