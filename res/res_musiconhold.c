@@ -198,7 +198,7 @@ static int opbx_moh_files_next(struct opbx_channel *chan)
 			state->pos %= state->class->total_files;
 
 			/* check to see if this file's format can be opened */
-			if (opbx_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)
+			if (opbx_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
 
 		}
@@ -347,7 +347,7 @@ static int spawn_custom_command(struct mohclass *class)
 
 	if (dir) {
 		while ((de = readdir(dir)) && (files < MAX_MOHFILES)) {
-			if (strlen(de->d_name) > 3) {
+			if (de->d_name[0] != '.') {
 				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
 				argv[argc++] = fns[files];
 				files++;
@@ -690,7 +690,7 @@ static int moh_scan_files(struct mohclass *class) {
 	chdir(class->dir);
 	memset(class->filearray, 0, MAX_MOHFILES*MAX_MOHFILE_LEN);
 	while ((files_dirent = readdir(files_DIR))) {
-		if ((strlen(files_dirent->d_name) < 4) || ((strlen(files_dirent->d_name) + dirnamelen) >= MAX_MOHFILE_LEN))
+		if ((files_dirent->d_name[0] == '.') || ((strlen(files_dirent->d_name) + dirnamelen) >= MAX_MOHFILE_LEN))
 			continue;
 
 		snprintf(filepath, MAX_MOHFILE_LEN, "%s/%s", class->dir, files_dirent->d_name);
