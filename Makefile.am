@@ -47,10 +47,13 @@ $(opbxspooldir)/outgoing $(opbxsqlitedir) $(opbxvardir) $(opbxicdmoddir)
 install-data-hook:
 	for install_dir in $(INSTALL_DIRS); \
 	do \
-		mkdir -p $(DESTDIR)$${install_dir}; \
+		if [ ! -d "$(DESTDIR)" ]; \
+		then 
+		    mkdir -p $(DESTDIR)$${install_dir}; \
+		    chmod 0750 $(DESTDIR)$${install_dir}; \
+		fi;
 		if test -z "$(DESTDIR)"; \
 		then \
 			chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)$${install_dir}; \
 		fi; \
-		chmod 0750 $(DESTDIR)$${install_dir}; \
 	done

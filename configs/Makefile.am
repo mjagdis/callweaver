@@ -158,12 +158,15 @@ musiconhold.conf.sample: musiconhold.conf.sample.in Makefile
 	mv musiconhold.conf.sample.tmp musiconhold.conf.sample
 
 install-data-local:
-	mkdir -p $(DESTDIR)${opbxconfdir}; \
+	if [ ! -d "$(DESTDIR)" ]; \
+	then \
+	    mkdir -p $(DESTDIR)${opbxconfdir}; \
+	    chmod 0750 $(DESTDIR)${opbxconfdir}; \
+	fi; \
 	if test -z "$(DESTDIR)"; \
 	then \
 		chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)${opbxconfdir}; \
 	fi; \
-	chmod 0750 $(DESTDIR)${opbxconfdir}; \
 	for samplefile in $(SAMPLES); \
 	do \
 		configfile=`basename $${samplefile} .sample`; \
