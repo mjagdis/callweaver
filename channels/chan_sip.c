@@ -11921,7 +11921,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 if (!strcasecmp(bridgepeer->type, "SIP"))
                 {
                     bridgepvt = (struct sip_pvt *)(bridgepeer->tech_pvt);
-                    if (bridgepvt->udptl)
+                    if (bridgepvt && bridgepvt->udptl)
                     {
                         if (p->t38state == 4)
                         { 

@@ -585,7 +585,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 
 	/* Always watch the alertpipe */
 	tmp->fds[OPBX_MAX_FDS-1] = tmp->alertpipe[0];
-	strcpy(tmp->name, "**Unkown**");
+	strcpy(tmp->name, "**Unknown**");
 	/* Initial state */
 	tmp->_state = OPBX_STATE_DOWN;
 	tmp->appl = NULL;
