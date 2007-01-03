@@ -13262,12 +13262,11 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
     if (option_debug > 2)
         opbx_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
-    res = get_refer_info(p, req, &transfercontext);
     if (opbx_strlen_zero(p->context))
         strcpy(p->context, default_context);
-    res = get_refer_info(p, req, &transfercontext);
     if (opbx_strlen_zero(transfercontext))
         transfercontext = p->context;
+    res = get_refer_info(p, req, &transfercontext);
     if (res < 0)
         transmit_response(p, "603 Declined", req);
     else if (res > 0)
