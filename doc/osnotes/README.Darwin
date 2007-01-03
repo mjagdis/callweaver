@@ -47,8 +47,9 @@ $ sudo make install
 
 # download GNU readline
 
-$ tar xvf readline.tgz (or the name you have)
-$ cd readline-XXX
+$ curl -O ftp://ftp.gnu.org/pub/gnu/readline/readline-5.2.tar.gz
+$ tar xvf readline-5.2.tar.gz
+$ cd readline-5.2
 
 $ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/lib" \
   ./configure --prefix=/usr/local/openpbx.org
@@ -78,9 +79,25 @@ $ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/li
 # it is intended to find bugs.
 
 $ make
-$ sudo make install
 
-# Ignore errors "chown: openpbx: Invalid argument"
+# don't yet try to make install. You need openpbx user and group. (thanks to imyrvold)
+
+$ sudo niutil -list / /groups
+$ sudo niutil -create / /groups/openpbx
+$ sudo niutil -createprop / /groups/openpbx gid 700
+$ sudo niutil -createprop / /groups/openpbx passwd "*"
+$ sudo niutil -createprop / /groups/openpbx users
+$ sudo niutil -appendprop / /groups/openpbx users openpbx
+$ sudo niutil -create / /users/openpbx
+$ sudo niutil -createprop / /users/openpbx uid 700
+$ sudo niutil -createprop / /users/openpbx realname "OpenPBX.org"
+$ sudo niutil -createprop / /users/openpbx shell "/bin/bash"
+$ sudo niutil -createprop / /users/openpbx gid 700
+$ sudo niutil -createprop / /users/openpbx passwd "*" 
+
+#** OK! now:
+
+$ sudo make install
 
 ****************************************************************** LAST STEP
 
