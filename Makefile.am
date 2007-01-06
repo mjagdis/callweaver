@@ -48,12 +48,13 @@ install-data-hook:
 	for install_dir in $(INSTALL_DIRS); \
 	do \
 		if [ ! -d "$(DESTDIR)" ]; \
-		then 
+		then \
 		    mkdir -p $(DESTDIR)$${install_dir}; \
 		    chmod 0750 $(DESTDIR)$${install_dir}; \
-		fi;
+		fi; \
 		if test -z "$(DESTDIR)"; \
 		then \
 			chown ${opbxrunuser}:${opbxrungroup} $(DESTDIR)$${install_dir}; \
 		fi; \
 	done
+
