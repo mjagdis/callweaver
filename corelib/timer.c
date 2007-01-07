@@ -386,9 +386,13 @@ void * _timer_thread(void *parg)
     opbx_timer_t *t = (opbx_timer_t *) parg;
     struct timespec ts;
     
-    struct timespec onemillisec = {0};
-    onemillisec.tv_nsec = 1000000L;
-    
+    struct timespec timetosleep = {0};
+#ifdef __OpenBSD__
+    timetosleep.tv_nsec = 30000000L; /* 30 msec */
+#else
+    timetosleep.tv_nsec = 1000000L; /* 1 msec */
+#endif
+
     for(;;) {
 	if(t->active) {
 	    ts.tv_nsec = (t->interval % 1000000) * 1000;
@@ -418,7 +422,7 @@ void * _timer_thread(void *parg)
 	        (long int)ts.tv_sec, ts.tv_nsec);
 #endif /* TIMER_DEBUG */
 	} else {
-    	    nanosleep(&onemillisec,NULL);	
+    	    nanosleep(&timetosleep,NULL);	
 	}
     }
 #ifdef TIMER_DEBUG
