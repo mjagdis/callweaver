@@ -1248,6 +1248,7 @@ static int opbx_rl_read_char(FILE *cp)
 	return (0);
 }
 
+#ifdef __Darwin__
 static int opbx_rl_out_event(void)
 {
 	int lastpos=0;
@@ -1281,7 +1282,7 @@ static int opbx_rl_out_event(void)
 	}
 	return (0);
 }
-
+#endif
 
 static char *cli_prompt(void)
 {
@@ -1540,12 +1541,6 @@ static int opbx_rl_initialize(void)
     /* setup history with 100 entries */
     stifle_history(100);
     
-    /* Bind ? to command completion */
-    //el_set(el, EL_BIND, "?", "ed-complete", NULL);
-    /* Bind ^D to redisplay */
-    //el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
-    //rl_bind_key("?", cli_complete);
-
     rl_init = 1;
     return 0;
 }
@@ -1625,8 +1620,6 @@ static void opbx_remotecontrol(char * data)
 	if(!rl_init)	
 	    opbx_rl_initialize();
 
-	rl_getc_function = opbx_rl_read_char;	
-
 	if (!opbx_strlen_zero(filename))
 		opbx_rl_read_history(filename);
 
@@ -1643,13 +1636,11 @@ static void opbx_remotecontrol(char * data)
 		return;
 	}
 
-	// This very simple line has been added and dedicated
-	// to people who should DO instead of TALK
-	// I have always been not confident with people
-	// who IMPOSE their ideas instead of PROPOSING them.
-	// So remember: talk less and do more otherwise shut up.
+#ifdef __Darwin__
 	rl_event_hook = opbx_rl_out_event;
-
+#else
+    	rl_getc_function = opbx_rl_read_char;	
+#endif
 	for(;;) {
 		if (ebuf) {
 		    free (ebuf);
