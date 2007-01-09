@@ -86,7 +86,7 @@ static int milliwatt_generate(struct opbx_channel *chan, void *data, int samples
 		samples = sizeof(buf);
 	}
 	waste[0] = 0; /* make compiler happy */
-    opbx_fr_init_ex(&wf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, "app_milliwatt");
+	opbx_fr_init_ex(&wf, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, "app_milliwatt");
 	wf.offset = OPBX_FRIENDLY_OFFSET;
 	wf.data = buf;
 	wf.datalen = samples;
