@@ -7621,7 +7621,7 @@ static void reg_source_db(struct sip_peer *peer)
     if (contact)
         opbx_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
 
-    if (option_verbose > 2)
+    if (option_verbose > 3)
         opbx_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from opbxdb: '%s' at %s@%s:%d for %d\n",
                 peer->name, peer->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
 
@@ -7903,7 +7903,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     if (useragent && strcasecmp(useragent, p->useragent))
     {
         opbx_copy_string(p->useragent, useragent, sizeof(p->useragent));
-        if (option_verbose > 3)
+        if (option_verbose > 4)
         {
             opbx_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
         }
