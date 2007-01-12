@@ -8616,6 +8616,8 @@ int load_module(void)
 
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
+
+	set_config(config, 0);
 	
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(listen_port);
@@ -8649,8 +8651,6 @@ int load_module(void)
 
 	opbx_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
 	opbx_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
-
-	set_config(config, 0);
 
  	if (opbx_channel_register(&iax2_tech)) {
 		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
