@@ -68,14 +68,15 @@
 // Returns the hash value of the null terminated C string 'string' using the
 // SDBM hash algorithm. The number of significant characters for which the
 // hash value will be calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
+// Returns 0 if 'string' is a zero-length string or NULL.
 
 unsigned int opbx_hash_string(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
-
-	if (!string)
-		return -1;
 	
+	if (string == NULL)
+		return 0;
+
 	len = strlen(string);
 	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
 		len = OPBXHASH_SIGNIFICANT_CHARS;
@@ -100,11 +101,15 @@ unsigned int opbx_hash_string(const char *string) {
 // Case conversion is limited to characters in the ASCII range 'A' to 'Z'.
 // The number of significant characters for which the hash value will be
 // calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
+// Returns 0 if 'string' is a zero-length string or NULL.
 
 unsigned int opbx_hash_string_tolower(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
 	
+	if (string == NULL)
+		return 0;
+
 	len = strlen(string);
 	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
 		len = OPBXHASH_SIGNIFICANT_CHARS;
@@ -132,11 +137,15 @@ unsigned int opbx_hash_string_tolower(const char *string) {
 // Case conversion is limited to characters in the ASCII range 'a' to 'z'.
 // The number of significant characters for which the hash value will be
 // calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
+// Returns 0 if 'string' is a zero-length string or NULL.
 
 unsigned int opbx_hash_string_toupper(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
 	
+	if (string == NULL)
+		return 0;
+
 	len = strlen(string);
 	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
 		len = OPBXHASH_SIGNIFICANT_CHARS;
@@ -161,10 +170,14 @@ unsigned int opbx_hash_string_toupper(const char *string) {
 // Returns the hash value of the null terminated C string 'string' using the
 // SDBM hash algorithm. The number of significant characters for which the
 // hash value will be calculated is limited to 'limit'.
+// Returns 0 if 'string' is a zero-length string or NULL.
 
 unsigned int opbx_hash_string_with_limit(const char *string, unsigned int limit) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
+
+	if (string == NULL)
+		return 0;
 	
 	len = strlen(string);
 	if (len > limit) {
@@ -182,4 +195,3 @@ unsigned int opbx_hash_string_with_limit(const char *string, unsigned int limit)
 
 
 // END OF FILE
-
