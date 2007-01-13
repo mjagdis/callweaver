@@ -72,6 +72,9 @@
 unsigned int opbx_hash_string(const char *string) {
 	register unsigned int len, index, hash = 0;
 	register char ch;
+
+	if (!string)
+		return -1;
 	
 	len = strlen(string);
 	if (len > OPBXHASH_SIGNIFICANT_CHARS) {
