@@ -1,0 +1,14 @@
+# BSD-ROMFS directory layout
+helpstring="for BSD embedded devices with ROM filesystems"
+opbxprefix=
+opbxexecdir=/usr/libexec
+opbxutilsdir=/usr/sbin
+opbxconfdir=/etc/openpbx.org
+opbxlibdir=/usr/lib/openpbx.org
+opbxvardir=/var/lib/openpbx.org
+opbxdatadir=/usr/share/openpbx.org
+opbxlogdir=/var/log/openpbx.org
+opbxrundir=/var/run
+opbxspooldir=/var/spool/openpbx.org
+opbxmandir=/usr/share/man
+opbxdocdir=/usr/share/doc

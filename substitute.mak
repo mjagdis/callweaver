@@ -7,6 +7,8 @@ substitute = $(SED) \
 	-e 's,@sysconfdir\@,${sysconfdir},g' \
 	-e 's,@localstatedir\@,${localstatedir},g' \
 	-e 's,@datadir\@,${datadir},g' \
+	-e 's,@opbxexecdir\@,${opbxexecdir},g' \
+	-e 's,@opbxutilsdir\@,${opbxutilsdir},g' \
 	-e 's,@opbxconfdir\@,${opbxconfdir},g' \
 	-e 's,@opbxconffile\@,${opbxconffile},g' \
 	-e 's,@opbxlibdir\@,${opbxlibdir},g' \
@@ -23,6 +25,7 @@ substitute = $(SED) \
 	-e 's,@opbxspooldir\@,${opbxspooldir},g' \
 	-e 's,@opbxmohdir\@,${opbxmohdir},g' \
 	-e 's,@opbxdatadir\@,${opbxdatadir},g' \
+	-e 's,@opbxmandir\@,${opbxmandir},g' \
 	-e 's,@opbxdocdir\@,${opbxdocdir},g' \
 	-e 's,@opbxkeydir\@,${opbxkeydir},g' \
 	-e 's,@opbxsqlitedir\@,${opbxsqlitedir},g' \

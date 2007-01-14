@@ -1,0 +1,14 @@
+# FHS directory layout
+helpstring="follow the Filesystem Hierarchy Standard (FHS)"
+opbxprefix=/usr/local
+opbxexecdir=${sbindir}
+opbxutilsdir=${sbindir}
+opbxconfdir=/etc/openpbx.org
+opbxlibdir=${libdir}
+opbxvardir=/var/openpbx.org
+opbxdatadir=${prefix}/share
+opbxlogdir=${opbxvardir}/log
+opbxrundir=${opbxvardir}/run
+opbxspooldir=${opbxvardir}/var/spool
+opbxmandir=${opbxdatadir}/man
+opbxdocdir=${opbxdatadir}/doc

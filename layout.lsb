@@ -1,0 +1,14 @@
+# LSB directory layout
+helpstring="follow the Linux Standard Base (LSB) standard"
+opbxprefix=/usr/local
+opbxexecdir=${sbindir}
+opbxutilsdir=${sbindir}
+opbxconfdir=${sysconfdir}/openpbx.org
+opbxlibdir=${libdir}/openpbx.org
+opbxvardir=${localstatedir}/lib/openpbx.org
+opbxdatadir=${datadir}/openpbx.org
+opbxlogdir=${localstatedir}/log/openpbx.org
+opbxrundir=${localstatedir}/run/openpbx.org
+opbxspooldir=${localstatedir}/spool/openpbx.org
+opbxmandir=${mandir}
+opbxdocdir=${opbxdatadir}/doc
