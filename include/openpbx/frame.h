@@ -34,7 +34,7 @@ extern "C" {
 
 struct opbx_codec_pref
 {
-	char order[32];
+    char order[32];
 };
 
 /*! Data structure associated with a single frame of data */
@@ -42,189 +42,191 @@ struct opbx_codec_pref
    between channels and applications */
 typedef struct opbx_frame
 {
-	/*! Kind of frame */
-	int frametype;				
-	/*! Subclass, frame dependent */
-	int subclass;				
-	/*! Length of data */
-	int datalen;				
-	/*! Number of samples in this frame */
-	int samples;				
-	/*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
-	int mallocd;				
-	/*! How many bytes exist _before_ "data" that can be used if needed */
-	int offset;				
-	/*! Optional source of frame for debugging */
-	const char *src;				
-	/*! Pointer to actual data */
-	void *data;		
-	/*! Global delivery time */		
-	struct timeval delivery;
-	/*! Next/Prev for linking stand alone frames */
-	struct opbx_frame *prev;			
-	/*! Next/Prev for linking stand alone frames */
-	struct opbx_frame *next;			
-	/*! Timing data flag */
-	int has_timing_info;
-	/*! Timestamp in milliseconds */
-	long ts;
-	/*! Length in milliseconds */
-	long len;
-	/*! Sequence number */
-	int seq_no;
-	/*! Number of copies to send (for redundant transmission of special data) */
-	int tx_copies;
+    /*! Kind of frame */
+    int frametype;                
+    /*! Subclass, frame dependent */
+    int subclass;                
+    /*! Length of data */
+    int datalen;                
+    /*! Number of samples in this frame */
+    int samples;                
+    /*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
+    int mallocd;                
+    /*! How many bytes exist _before_ "data" that can be used if needed */
+    int offset;                
+    /*! Optional source of frame for debugging */
+    const char *src;                
+    /*! Pointer to actual data */
+    void *data;        
+    /*! Global delivery time */        
+    struct timeval delivery;
+    /*! Next/Prev for linking stand alone frames */
+    struct opbx_frame *prev;            
+    /*! Next/Prev for linking stand alone frames */
+    struct opbx_frame *next;            
+    /*! Timing data flag */
+    int has_timing_info;
+    /*! Timestamp in milliseconds */
+    long ts;
+    /*! Length in milliseconds */
+    long len;
+    /*! Sequence number */
+    int seq_no;
+    /*! Number of copies to send (for redundant transmission of special data) */
+    int tx_copies;
     /*! Allocated data space */
     uint8_t local_data[0];
 } opvx_frame_t;
 
-#define OPBX_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
-						  have this number of bytes for additional
-						  headers.  */
-#define OPBX_MIN_OFFSET 		32		/*! Make sure we keep at least this much handy */
+#define OPBX_FRIENDLY_OFFSET    64        /*! It's polite for a a new frame to
+                          have this number of bytes for additional
+                          headers.  */
+#define OPBX_MIN_OFFSET         32        /*! Make sure we keep at least this much handy */
 
 /*! Need the header be free'd? */
-#define OPBX_MALLOCD_HDR		(1 << 0)
+#define OPBX_MALLOCD_HDR        (1 << 0)
 /*! Need the data be free'd? */
-#define OPBX_MALLOCD_DATA	(1 << 1)
+#define OPBX_MALLOCD_DATA       (1 << 1)
 /*! Need the source be free'd? (haha!) */
-#define OPBX_MALLOCD_SRC		(1 << 2)
+#define OPBX_MALLOCD_SRC        (1 << 2)
 
 /* Frame types */
 /*! A DTMF digit, subclass is the digit */
-#define OPBX_FRAME_DTMF		1
+#define OPBX_FRAME_DTMF         1
 /*! Voice data, subclass is OPBX_FORMAT_* */
-#define OPBX_FRAME_VOICE	2
+#define OPBX_FRAME_VOICE        2
 /*! Video frame, maybe?? :) */
-#define OPBX_FRAME_VIDEO	3
+#define OPBX_FRAME_VIDEO        3
 /*! A control frame, subclass is OPBX_CONTROL_* */
-#define OPBX_FRAME_CONTROL	4
+#define OPBX_FRAME_CONTROL      4
 /*! An empty, useless frame */
-#define OPBX_FRAME_NULL		5
+#define OPBX_FRAME_NULL         5
 /*! Inter OpenPBX Exchange private frame type */
-#define OPBX_FRAME_IAX		6
+#define OPBX_FRAME_IAX          6
 /*! Text messages */
-#define OPBX_FRAME_TEXT		7
+#define OPBX_FRAME_TEXT         7
 /*! Image Frames */
-#define OPBX_FRAME_IMAGE	8
+#define OPBX_FRAME_IMAGE        8
 /*! HTML Frame */
-#define OPBX_FRAME_HTML		9
+#define OPBX_FRAME_HTML         9
 /*! Comfort noise frame (subclass is level of CNG in -dBov), 
     body may include zero or more 8-bit reflection coefficients */
-#define OPBX_FRAME_CNG		10
+#define OPBX_FRAME_CNG          10
 /*! T.38, V.150 or other modem-over-IP data stream */
-#define OPBX_FRAME_MODEM	11
+#define OPBX_FRAME_MODEM        11
 
 /* MODEM subclasses */
 /*! T.38 Fax-over-IP */
-#define OPBX_MODEM_T38		1
+#define OPBX_MODEM_T38          1
 /*! V.150 Modem-over-IP */
-#define OPBX_MODEM_V150		2
+#define OPBX_MODEM_V150         2
 
 /* HTML subclasses */
 /*! Sending a URL */
-#define OPBX_HTML_URL		1
+#define OPBX_HTML_URL           1
 /*! Data frame */
-#define OPBX_HTML_DATA		2
+#define OPBX_HTML_DATA          2
 /*! Beginning frame */
-#define OPBX_HTML_BEGIN		4
+#define OPBX_HTML_BEGIN         4
 /*! End frame */
-#define OPBX_HTML_END		8
+#define OPBX_HTML_END           8
 /*! Load is complete */
-#define OPBX_HTML_LDCOMPLETE	16
+#define OPBX_HTML_LDCOMPLETE    16
 /*! Peer is unable to support HTML */
-#define OPBX_HTML_NOSUPPORT	17
+#define OPBX_HTML_NOSUPPORT     17
 /*! Send URL, and track */
-#define OPBX_HTML_LINKURL	18
+#define OPBX_HTML_LINKURL       18
 /*! No more HTML linkage */
-#define OPBX_HTML_UNLINK		19
+#define OPBX_HTML_UNLINK        19
 /*! Reject link request */
-#define OPBX_HTML_LINKREJECT	20
+#define OPBX_HTML_LINKREJECT    20
 
 /* Data formats for capabilities and frames alike */
 #define OPBX_AUDIO_CODEC_MASK   0xFFFF
 
 /*! G.723.1 compression */
-#define OPBX_FORMAT_G723_1	(1 << 0)
+#define OPBX_FORMAT_G723_1      (1 << 0)
 /*! GSM compression */
-#define OPBX_FORMAT_GSM		(1 << 1)
+#define OPBX_FORMAT_GSM         (1 << 1)
 /*! Raw mu-law data (G.711) */
-#define OPBX_FORMAT_ULAW		(1 << 2)
+#define OPBX_FORMAT_ULAW        (1 << 2)
 /*! Raw A-law data (G.711) */
-#define OPBX_FORMAT_ALAW		(1 << 3)
+#define OPBX_FORMAT_ALAW        (1 << 3)
 /*! G.726 ADPCM at 32kbps) */
-#define OPBX_FORMAT_G726		(1 << 4)
+#define OPBX_FORMAT_G726        (1 << 4)
 /*! IMA/DVI/Intel ADPCM */
-#define OPBX_FORMAT_DVI_ADPCM	(1 << 5)
+#define OPBX_FORMAT_DVI_ADPCM   (1 << 5)
 /*! Raw 16-bit Signed Linear (8000 Hz) PCM */
-#define OPBX_FORMAT_SLINEAR	(1 << 6)
+#define OPBX_FORMAT_SLINEAR     (1 << 6)
 /*! LPC10, 180 samples/frame */
-#define OPBX_FORMAT_LPC10	(1 << 7)
+#define OPBX_FORMAT_LPC10       (1 << 7)
 /*! G.729A audio */
-#define OPBX_FORMAT_G729A	(1 << 8)
+#define OPBX_FORMAT_G729A       (1 << 8)
 /*! SpeeX Free Compression */
-#define OPBX_FORMAT_SPEEX	(1 << 9)
+#define OPBX_FORMAT_SPEEX       (1 << 9)
 /*! iLBC Free Compression */
-#define OPBX_FORMAT_ILBC		(1 << 10)
+#define OPBX_FORMAT_ILBC        (1 << 10)
 /*! Oki ADPCM */
-#define OPBX_FORMAT_OKI_ADPCM	(1 << 11)
+#define OPBX_FORMAT_OKI_ADPCM   (1 << 11)
+/*! G.722 */
+#define OPBX_FORMAT_G722        (1 << 12)
 /*! Maximum audio format */
-#define OPBX_FORMAT_MAX_AUDIO	(1 << 15)
+#define OPBX_FORMAT_MAX_AUDIO   (1 << 15)
 /*! JPEG Images */
-#define OPBX_FORMAT_JPEG		(1 << 16)
+#define OPBX_FORMAT_JPEG        (1 << 16)
 /*! PNG Images */
-#define OPBX_FORMAT_PNG		(1 << 17)
+#define OPBX_FORMAT_PNG         (1 << 17)
 /*! H.261 Video */
-#define OPBX_FORMAT_H261		(1 << 18)
+#define OPBX_FORMAT_H261        (1 << 18)
 /*! H.263 Video */
-#define OPBX_FORMAT_H263		(1 << 19)
+#define OPBX_FORMAT_H263        (1 << 19)
 /*! H.263+ Video */
-#define OPBX_FORMAT_H263_PLUS	(1 << 20)
+#define OPBX_FORMAT_H263_PLUS   (1 << 20)
 /*! H.264 Video */
-#define OPBX_FORMAT_H264                (1 << 21)
+#define OPBX_FORMAT_H264        (1 << 21)
 /*! Maximum video format */
-#define OPBX_FORMAT_MAX_VIDEO	(1 << 24)
+#define OPBX_FORMAT_MAX_VIDEO   (1 << 24)
 
 /* Control frame types */
 /*! Other end has hungup */
-#define OPBX_CONTROL_HANGUP		1
+#define OPBX_CONTROL_HANGUP         1
 /*! Local ring */
-#define OPBX_CONTROL_RING		2
+#define OPBX_CONTROL_RING           2
 /*! Remote end is ringing */
-#define OPBX_CONTROL_RINGING 		3
+#define OPBX_CONTROL_RINGING        3
 /*! Remote end has answered */
-#define OPBX_CONTROL_ANSWER		4
+#define OPBX_CONTROL_ANSWER         4
 /*! Remote end is busy */
-#define OPBX_CONTROL_BUSY		5
+#define OPBX_CONTROL_BUSY           5
 /*! Make it go off hook */
-#define OPBX_CONTROL_TAKEOFFHOOK		6
+#define OPBX_CONTROL_TAKEOFFHOOK    6
 /*! Line is off hook */
-#define OPBX_CONTROL_OFFHOOK		7
+#define OPBX_CONTROL_OFFHOOK        7
 /*! Congestion (circuits busy) */
-#define OPBX_CONTROL_CONGESTION		8
+#define OPBX_CONTROL_CONGESTION     8
 /*! Flash hook */
-#define OPBX_CONTROL_FLASH		9
+#define OPBX_CONTROL_FLASH          9
 /*! Wink */
-#define OPBX_CONTROL_WINK		10
+#define OPBX_CONTROL_WINK           10
 /*! Set a low-level option */
-#define OPBX_CONTROL_OPTION		11
+#define OPBX_CONTROL_OPTION         11
 /*! Key Radio */
-#define	OPBX_CONTROL_RADIO_KEY		12
+#define    OPBX_CONTROL_RADIO_KEY   12
 /*! Un-Key Radio */
-#define	OPBX_CONTROL_RADIO_UNKEY		13
+#define    OPBX_CONTROL_RADIO_UNKEY 13
 /*! Indicate PROGRESS */
-#define OPBX_CONTROL_PROGRESS            14
+#define OPBX_CONTROL_PROGRESS       14
 /*! Indicate CALL PROCEEDING */
-#define OPBX_CONTROL_PROCEEDING		15
+#define OPBX_CONTROL_PROCEEDING     15
 /*! Indicate call is placed on hold */
-#define OPBX_CONTROL_HOLD			16
+#define OPBX_CONTROL_HOLD           16
 /*! Indicate call is left from hold */
-#define OPBX_CONTROL_UNHOLD			17
+#define OPBX_CONTROL_UNHOLD         17
 /*! Indicate video frame update */
-#define OPBX_CONTROL_VIDUPDATE		18
+#define OPBX_CONTROL_VIDUPDATE      18
 
-#define OPBX_SMOOTHER_FLAG_G729		(1 << 0)
-#define OPBX_SMOOTHER_FLAG_BE		(1 << 1)
+#define OPBX_SMOOTHER_FLAG_G729     (1 << 0)
+#define OPBX_SMOOTHER_FLAG_BE       (1 << 1)
 
 /* Option identifiers and flags */
 #define OPBX_OPTION_FLAG_REQUEST    0
@@ -235,17 +237,17 @@ typedef struct opbx_frame
 #define OPBX_OPTION_FLAG_WTF        6
 
 /* Verify touchtones by muting audio transmission 
-	(and reception) and verify the tone is still present */
-#define OPBX_OPTION_TONE_VERIFY		1		
+    (and reception) and verify the tone is still present */
+#define OPBX_OPTION_TONE_VERIFY     1        
 
 /* Put a compatible channel into TDD (TTY for the hearing-impared) mode */
-#define	OPBX_OPTION_TDD			2
+#define    OPBX_OPTION_TDD          2
 
 /* Relax the parameters for DTMF reception (mainly for radio use) */
-#define	OPBX_OPTION_RELAXDTMF		3
+#define    OPBX_OPTION_RELAXDTMF    3
 
 /* Set (or clear) Audio (Not-Clear) Mode */
-#define	OPBX_OPTION_AUDIO_MODE		4
+#define    OPBX_OPTION_AUDIO_MODE   4
 
 /* Set channel transmit gain */
 /* Option data is a single signed char
@@ -253,7 +255,7 @@ typedef struct opbx_frame
    to set gain to (on top of any gain
    specified in channel driver)
 */
-#define OPBX_OPTION_TXGAIN		5
+#define OPBX_OPTION_TXGAIN          5
 
 /* Set channel receive gain */
 /* Option data is a single signed char
@@ -261,10 +263,10 @@ typedef struct opbx_frame
    to set gain to (on top of any gain
    specified in channel driver)
 */
-#define OPBX_OPTION_RXGAIN		6
+#define OPBX_OPTION_RXGAIN          6
 
 struct opbx_option_header {
-	/* Always keep in network byte order */
+    /* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN
         u_int16_t flag:3;
         u_int16_t option:13;
@@ -276,7 +278,7 @@ struct opbx_option_header {
 #error Byte order not defined
 #endif
 #endif
-		u_int8_t data[0];
+        u_int8_t data[0];
 };
 
 /*  Requests a frame to be allocated */
@@ -461,7 +463,7 @@ extern int opbx_codec_get_len(int format, int samples);
 /* Gets duration in ms of interpolation frame for a format */
 static inline int opbx_codec_interp_len(int format) 
 { 
-	return (format == OPBX_FORMAT_ILBC) ? 30 : 20;
+    return (format == OPBX_FORMAT_ILBC) ? 30 : 20;
 }
 
 /*!

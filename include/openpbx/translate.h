@@ -39,9 +39,13 @@ struct opbx_translator {
 	/*! Name of translator */
 	char name[80];
 	/*! Source format */
-	int srcfmt;
+	int src_format;
+	/*! Source sample rate */
+	int src_rate;
 	/*! Destination format */
-	int dstfmt;
+	int dst_format;
+	/*! Destination sample rate */
+	int dst_rate;
 	/*! Private data associated with the translator */
 	struct opbx_translator_pvt *(*newpvt)(void);
 	/*! Input frame callback */
@@ -52,7 +56,7 @@ struct opbx_translator {
 	void (*destroy)(struct opbx_translator_pvt *pvt);
 	/* For performance measurements */
 	/*! Generate an example frame */
-	struct opbx_frame * (*sample)(void);
+	struct opbx_frame *(*sample)(void);
 	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
 	int cost;
 	/*! For linking, not to be modified by the translator */

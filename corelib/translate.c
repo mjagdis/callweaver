@@ -155,7 +155,7 @@ struct opbx_trans_pvt *opbx_translator_build_path(int dest, int source)
         }
         
         /* Keep going if this isn't the final destination */
-        source = tmp->step->dstfmt;
+        source = tmp->step->dst_format;
     }
     return tmpr;
 }
@@ -328,12 +328,12 @@ static void rebuild_matrix(int samples)
         if (samples)
             calc_cost(t,samples);
       
-        if (!tr_matrix[t->srcfmt][t->dstfmt].step
+        if (!tr_matrix[t->src_format][t->dst_format].step
             ||
-            tr_matrix[t->srcfmt][t->dstfmt].cost > t->cost)
+            tr_matrix[t->src_format][t->dst_format].cost > t->cost)
         {
-            tr_matrix[t->srcfmt][t->dstfmt].step = t;
-            tr_matrix[t->srcfmt][t->dstfmt].cost = t->cost;
+            tr_matrix[t->src_format][t->dst_format].step = t;
+            tr_matrix[t->src_format][t->dst_format].cost = t->cost;
         }
         t = t->next;
     }
@@ -401,10 +401,10 @@ static int show_translation(int fd, int argc, char *argv[])
 
         if (z > MAX_RECALC)
         {
-            opbx_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
+            opbx_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC,MAX_RECALC);
             z = MAX_RECALC;
         }
-        opbx_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
+        opbx_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
         rebuild_matrix(z);
     }
 
@@ -418,9 +418,9 @@ static int show_translation(int fd, int argc, char *argv[])
         for (y = -1;  y < SHOW_TRANS;  y++)
         {
             if (x >= 0  &&  y >= 0  &&  tr_matrix[x][y].step)
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", tr_matrix[x][y].cost >= 99999 ? tr_matrix[x][y].cost-99999 : tr_matrix[x][y].cost);
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", (tr_matrix[x][y].cost >= 99999)  ?  tr_matrix[x][y].cost - 99999  :  tr_matrix[x][y].cost);
             else if (((x == -1 && y >= 0) || (y == -1 && x >= 0)))
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5s", opbx_getformatname(1<<(x+y+1)) );
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5s", opbx_getformatname(x + y + 1));
             else if (x != -1 && y != -1)
                 snprintf(line + strlen(line), sizeof(line) - strlen(line), "     -");
             else
@@ -454,21 +454,21 @@ int opbx_register_translator(struct opbx_translator *t)
 {
     char tmp[120]; /* Assume 120 character wide screen */
 
-    t->srcfmt = bottom_bit(t->srcfmt);
-    t->dstfmt = bottom_bit(t->dstfmt);
-    if (t->srcfmt >= MAX_FORMAT)
+    t->src_format = bottom_bit(t->src_format);
+    t->dst_format = bottom_bit(t->dst_format);
+    if (t->src_format >= MAX_FORMAT)
     {
-        opbx_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->srcfmt));
+        opbx_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->src_format));
         return -1;
     }
-    if (t->dstfmt >= MAX_FORMAT)
+    if (t->dst_format >= MAX_FORMAT)
     {
-        opbx_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->dstfmt));
+        opbx_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", opbx_getformatname(t->dst_format));
         return -1;
     }
     calc_cost(t, 1);
     if (option_verbose > 1)
-        opbx_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->srcfmt), opbx_getformatname(1 << t->dstfmt), t->cost);
+        opbx_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(t->src_format), opbx_getformatname(t->dst_format), t->cost);
     opbx_mutex_lock(&list_lock);
     if (!added_cli)
     {
@@ -499,7 +499,7 @@ int opbx_unregister_translator(struct opbx_translator *t)
             else
                 list = u->next;
             if (option_verbose > 1)
-                opbx_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->srcfmt), opbx_getformatname(1 << t->dstfmt));
+                opbx_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(t->src_format), opbx_getformatname(t->dst_format));
             break;
         }
         ul = u;

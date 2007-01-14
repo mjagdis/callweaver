@@ -1,9 +1,6 @@
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
- * The GSM code is from TOAST.  Copyright information for that package is available
- * in the GSM directory.
- *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -291,7 +288,9 @@ static struct opbx_translator gsmtolin =
 {
 	"gsmtolin", 
 	OPBX_FORMAT_GSM,
+    8000,
     OPBX_FORMAT_SLINEAR,
+    8000,
 	gsm_new,
 	gsmtolin_framein,
 	gsmtolin_frameout,
@@ -303,7 +302,9 @@ static struct opbx_translator lintogsm =
 {
     "lintogsm", 
 	OPBX_FORMAT_SLINEAR,
+    8000,
     OPBX_FORMAT_GSM,
+    8000,
 	gsm_new,
 	lintogsm_framein,
 	lintogsm_frameout,
@@ -315,15 +316,20 @@ static void parse_config(void)
 {
 	struct opbx_config *cfg;
 	struct opbx_variable *var;
-	if ((cfg = opbx_config_load("codecs.conf"))) {
-		if ((var = opbx_variable_browse(cfg, "plc"))) {
-			while (var) {
-			       if (!strcasecmp(var->name, "genericplc")) {
-				       useplc = opbx_true(var->value) ? 1 : 0;
-				       if (option_verbose > 2)
-					       opbx_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", useplc ? "" : "not ");
-			       }
-			       var = var->next;
+
+	if ((cfg = opbx_config_load("codecs.conf")))
+    {
+		if ((var = opbx_variable_browse(cfg, "plc")))
+        {
+			while (var)
+            {
+		       if (!strcasecmp(var->name, "genericplc"))
+               {
+				   useplc = opbx_true(var->value) ? 1 : 0;
+				   if (option_verbose > 2)
+				       opbx_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", useplc ? "" : "not ");
+		       }
+		       var = var->next;
 			}
 		}
 		opbx_config_destroy(cfg);
@@ -352,8 +358,9 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
+
 	parse_config();
-	res=opbx_register_translator(&gsmtolin);
+	res = opbx_register_translator(&gsmtolin);
 	if (!res) 
 		res=opbx_register_translator(&lintogsm);
 	else

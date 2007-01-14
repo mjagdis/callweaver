@@ -600,8 +600,8 @@ static struct opbx_format_list OPBX_FORMAT_LIST[] =
     { 1, OPBX_FORMAT_G729A, "g729", "G.729A", 8000},
     { 1, OPBX_FORMAT_SPEEX, "speex", "SpeeX", 8000},
     { 1, OPBX_FORMAT_ILBC, "ilbc", "iLBC", 8000},
-    { 0, 0, "nothing", "undefined", 8000},
-    { 0, 0, "nothing", "undefined", 8000},
+    { 0, OPBX_FORMAT_OKI_ADPCM, "oki", "OKI", 8000},
+    { 0, OPBX_FORMAT_G722, "g722", "G.722", 16000},
     { 0, 0, "nothing", "undefined", 8000},
     { 0, 0, "nothing", "undefined", 8000},
     { 0, OPBX_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format", 8000},
@@ -650,7 +650,7 @@ char *opbx_getformatname(int format)
 
     for (x = 0;  x < sizeof(OPBX_FORMAT_LIST)/sizeof(struct opbx_format_list);  x++)
     {
-        if (OPBX_FORMAT_LIST[x].visible && OPBX_FORMAT_LIST[x].bits == format)
+        if (OPBX_FORMAT_LIST[x].visible  &&  OPBX_FORMAT_LIST[x].bits == format)
         {
             ret = OPBX_FORMAT_LIST[x].name;
             break;
@@ -763,31 +763,33 @@ static int show_codecs(int fd, int argc, char *argv[])
 
     opbx_cli(fd, "%11s %9s %10s   TYPE   %5s   %s\n","INT","BINARY","HEX","NAME","DESC");
     opbx_cli(fd, "--------------------------------------------------------------------------------\n");
-    if ((argc == 2) || (!strcasecmp(argv[1],"audio")))
+    if ((argc == 2)  ||  (!strcasecmp(argv[1], "audio")))
     {
         found = 1;
         for (i = 0;  i < 11;  i++)
         {
-            snprintf(hex,25,"(0x%x)",1<<i);
-            opbx_cli(fd, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n",1 << i,i,hex,opbx_getformatname(1<<i),opbx_codec2str(1<<i));
+            snprintf(hex,25,"(0x%x)", 1 << i);
+            opbx_cli(fd, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n", 1 << i, i, hex, opbx_getformatname(1 << i), opbx_codec2str(1 << i));
         }
     }
 
-    if ((argc == 2) || (!strcasecmp(argv[1],"image")))
+    if ((argc == 2)  ||  (!strcasecmp(argv[1], "image")))
     {
         found = 1;
-        for (i=16;i<18;i++) {
-            snprintf(hex,25,"(0x%x)",1<<i);
-            opbx_cli(fd, "%11u (1 << %2d) %10s  image   %5s   (%s)\n",1 << i,i,hex,opbx_getformatname(1<<i),opbx_codec2str(1<<i));
+        for (i = 16;  i < 18;  i++)
+        {
+            snprintf(hex, 25, "(0x%x)", 1 << i);
+            opbx_cli(fd, "%11u (1 << %2d) %10s  image   %5s   (%s)\n", 1 << i, i, hex,opbx_getformatname(1 << i), opbx_codec2str(1 << i));
         }
     }
 
-    if ((argc == 2) || (!strcasecmp(argv[1],"video")))
+    if ((argc == 2)  ||  (!strcasecmp(argv[1], "video")))
     {
         found = 1;
-        for (i=18;i<22;i++) {
-            snprintf(hex,25,"(0x%x)",1<<i);
-            opbx_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n",1 << i,i,hex,opbx_getformatname(1<<i),opbx_codec2str(1<<i));
+        for (i = 18;  i < 22;  i++)
+        {
+            snprintf(hex, 25, "(0x%x)", 1 << i);
+            opbx_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n", 1 << i, i, hex, opbx_getformatname(1 << i), opbx_codec2str(1 << i));
         }
     }
 
