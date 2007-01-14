@@ -345,7 +345,9 @@ static struct opbx_translator g726tolin =
 {
     "g726tolin",
     OPBX_FORMAT_G726,
+    8000,
     OPBX_FORMAT_SLINEAR,
+    8000,
     g726tolin_new,
     g726tolin_framein,
     g726tolin_frameout,
@@ -361,7 +363,9 @@ static struct opbx_translator lintog726 =
 {
     "lintog726",
     OPBX_FORMAT_SLINEAR,
+    8000,
     OPBX_FORMAT_G726,
+    8000,
     lintog726_new,
     lintog726_framein,
     lintog726_frameout,

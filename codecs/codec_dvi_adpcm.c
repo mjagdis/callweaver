@@ -362,7 +362,9 @@ static struct opbx_translator dviadpcmtolin =
 {
     "dviadpcmtolin",
     OPBX_FORMAT_DVI_ADPCM,
+    8000,
     OPBX_FORMAT_SLINEAR,
+    8000,
     dviadpcmtolin_new,
     dviadpcmtolin_framein,
     dviadpcmtolin_frameout,
@@ -378,7 +380,9 @@ static struct opbx_translator lintodviadpcm =
 {
     "lintodviadpcm",
     OPBX_FORMAT_SLINEAR,
+    8000,
     OPBX_FORMAT_DVI_ADPCM,
+    8000,
     lintodviadpcm_new,
     lintodviadpcm_framein,
     lintodviadpcm_frameout,

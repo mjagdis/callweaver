@@ -667,7 +667,10 @@ static void lintospeex_destroy(struct opbx_translator_pvt *pvt)
 
 static struct opbx_translator speextolin =
 	{ "speextolin", 
-	   OPBX_FORMAT_SPEEX, OPBX_FORMAT_SLINEAR,
+	   OPBX_FORMAT_SPEEX, 
+	   8000,
+	   OPBX_FORMAT_SLINEAR,
+	   8000,
 	   speextolin_new,
 	   speextolin_framein,
 	   speextolin_frameout,
@@ -677,7 +680,10 @@ static struct opbx_translator speextolin =
 
 static struct opbx_translator lintospeex =
 	{ "lintospeex", 
-	   OPBX_FORMAT_SLINEAR, OPBX_FORMAT_SPEEX,
+	   OPBX_FORMAT_SLINEAR, 
+	   8000,
+	   OPBX_FORMAT_SPEEX,
+	   8000,
 	   lintospeex_new,
 	   lintospeex_framein,
 	   lintospeex_frameout,

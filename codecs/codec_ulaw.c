@@ -342,7 +342,9 @@ static void ulaw_destroy(struct opbx_translator_pvt *pvt)
 static struct opbx_translator ulawtolin = {
     "ulawtolin",
     OPBX_FORMAT_ULAW,
+    8000,
     OPBX_FORMAT_SLINEAR,
+    8000,
     ulawtolin_new,
     ulawtolin_framein,
     ulawtolin_frameout,
@@ -357,7 +359,9 @@ static struct opbx_translator ulawtolin = {
 static struct opbx_translator lintoulaw = {
     "lintoulaw",
     OPBX_FORMAT_SLINEAR,
+    8000,
     OPBX_FORMAT_ULAW,
+    8000,
     lintoulaw_new,
     lintoulaw_framein,
     lintoulaw_frameout,

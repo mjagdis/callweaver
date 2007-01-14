@@ -270,7 +270,9 @@ static struct opbx_translator alawtoulaw =
 {
     "alawtoulaw",
     OPBX_FORMAT_ALAW,
+    8000,
     OPBX_FORMAT_ULAW,
+    8000,
     alawtoulaw_new,
     alawtoulaw_framein,
     alawtoulaw_frameout,
@@ -286,7 +288,9 @@ static struct opbx_translator ulawtoalaw =
 {
     "ulawtoalaw",
     OPBX_FORMAT_ULAW,
+    8000,
     OPBX_FORMAT_ALAW,
+    8000,
     ulawtoalaw_new,
     ulawtoalaw_framein,
     ulawtoalaw_frameout,

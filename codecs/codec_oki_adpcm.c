@@ -362,7 +362,9 @@ static struct opbx_translator okiadpcmtolin =
 {
     "okiadpcmtolin",
     OPBX_FORMAT_OKI_ADPCM,
+    8000,
     OPBX_FORMAT_SLINEAR,
+    8000,
     okiadpcmtolin_new,
     okiadpcmtolin_framein,
     okiadpcmtolin_frameout,
@@ -378,7 +380,9 @@ static struct opbx_translator lintookiadpcm =
 {
     "lintookiadpcm",
     OPBX_FORMAT_SLINEAR,
+    8000,
     OPBX_FORMAT_OKI_ADPCM,
+    8000,
     lintookiadpcm_new,
     lintookiadpcm_framein,
     lintookiadpcm_frameout,

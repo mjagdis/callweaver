@@ -302,7 +302,9 @@ static struct opbx_translator lpc10tolin =
 {
 	"lpc10tolin", 
 	OPBX_FORMAT_LPC10,
+	8000,
     OPBX_FORMAT_SLINEAR,
+	8000,
 	lpc10_dec_new,
 	lpc10tolin_framein,
 	lpc10tolin_frameout,
@@ -314,7 +316,9 @@ static struct opbx_translator lintolpc10 =
 {
 	"lintolpc10", 
 	OPBX_FORMAT_SLINEAR,
+	8000,
     OPBX_FORMAT_LPC10,
+	8000,
 	lpc10_enc_new,
 	lintolpc10_framein,
 	lintolpc10_frameout,
