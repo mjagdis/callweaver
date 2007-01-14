@@ -962,7 +962,7 @@ AC_ARG_ENABLE([mysql],
 if test "${enable_mysql}" = "yes"; then
    AC_PATH_PROG(MYSQL_CONFIG, mysql_config, no, $PATH)
    if test "$MYSQL_CONFIG" = "no"; then
-      enable_mysql="no"
+      AC_MSG_ERROR([You have specified --enable-mysql, but MySQL is not installed.])
    else
       MYSQL_LIBS=`$MYSQL_CONFIG --libs`
       MYSQL_CFLAGS=`$MYSQL_CONFIG --include`
