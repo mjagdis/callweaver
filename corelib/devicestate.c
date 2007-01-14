@@ -253,16 +253,13 @@ static void *do_devstate_changes(void *data)
 
 	OPBX_LIST_LOCK(&state_changes);
 	for(;;) {
-		if (cur) { 
-		    free(cur);
-		    usleep(150000);
-		}
 		/* the list lock will _always_ be held at this point in the loop */
 		cur = OPBX_LIST_REMOVE_HEAD(&state_changes, list);
 		if (cur) {
 			/* we got an entry, so unlock the list while we process it */
 			OPBX_LIST_UNLOCK(&state_changes);
 			do_state_change(cur->device);
+			free(cur);
 			OPBX_LIST_LOCK(&state_changes);
 		} else {
 			/* there was no entry, so atomically unlock the list and wait for
