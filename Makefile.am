@@ -190,7 +190,7 @@ INSTALL_DIRS +=	$(opbximagesdir)
 install-data-hook:
 	for install_dir in $(INSTALL_DIRS); \
 	do \
-		if [ ! -d "$(DESTDIR)$${install_dir}" ]; \
+		if test ! -d "$(DESTDIR)$${install_dir}"; \
 		then \
 			mkdir -p $(DESTDIR)$${install_dir}; \
 			chmod 0750 $(DESTDIR)$${install_dir}; \
