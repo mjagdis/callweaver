@@ -25,13 +25,13 @@
 #include "confdefs.h"
 #endif
 
+//#undef DEBUG_SCHED
+
 #ifdef DEBUG_SCHEDULER
 #define DEBUG_LOG(a) DEBUG_M(a)
 #else
 #define DEBUG_LOG(a) 
 #endif
-
-#undef DEBUG_SCHED
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -235,7 +235,11 @@ static void sched_release(struct sched_context *con, struct sched *tmp)
 		con->schedccnt++;
 	} else
 #endif
-		free(tmp);
+	{
+	    tmp->id = -1;
+	    free(tmp);
+	    tmp = NULL;
+	}
 }
 
 int opbx_sched_wait(struct sched_context *con)
@@ -316,7 +320,7 @@ int opbx_sched_add_variable(struct sched_context *con, int when, opbx_sched_cb c
 	int res = -1;
 
 #ifdef DEBUG_SCHED
-	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_add()\n"));
+	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_add_variable()\n"));
 #endif
 	if (!when) {
 		opbx_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
@@ -364,6 +368,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 	 * id.
 	 */
 	struct sched *last=NULL, *s;
+	int deleted = 0;
 #ifdef DEBUG_SCHED
 	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_del()\n"));
 #endif
@@ -377,6 +382,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 				con->schedq = s->next;
 			con->schedcnt--;
 			sched_release(con, s);
+			deleted = 1;
 			break;
 		}
 		last = s;
@@ -392,7 +398,7 @@ int opbx_sched_del(struct sched_context *con, int id)
 	opbx_sched_dump(con);
 #endif
 	opbx_mutex_unlock(&con->lock);
-	if (!s) {
+	if (!deleted) {
 		opbx_log(LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
 #ifdef DO_CRASH
 		CRASH;
