@@ -420,7 +420,7 @@ static int show_translation(int fd, int argc, char *argv[])
             if (x >= 0  &&  y >= 0  &&  tr_matrix[x][y].step)
                 snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", (tr_matrix[x][y].cost >= 99999)  ?  tr_matrix[x][y].cost - 99999  :  tr_matrix[x][y].cost);
             else if (((x == -1 && y >= 0) || (y == -1 && x >= 0)))
-                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5s", opbx_getformatname(x + y + 1));
+                snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5s", opbx_getformatname( 1<<(x + y + 1)) );
             else if (x != -1 && y != -1)
                 snprintf(line + strlen(line), sizeof(line) - strlen(line), "     -");
             else
