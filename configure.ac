@@ -399,7 +399,7 @@ if test "${with_directory_layout}" = "singledir"; then
     opbxrundir='${prefix}/run'
     opbxspooldir='${prefix}/var/spool'
     opbxdatadir='${prefix}/var/data'
-    opbxmandir='${prefix}/man'
+    opbxmandir='${prefix}/share/man'
     opbxdocdir='${prefix}/doc'
 else
 
