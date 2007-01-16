@@ -8617,12 +8617,6 @@ int load_module(void)
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
 
-	set_config(config, 0);
-	
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(listen_port);
-	sin.sin_addr.s_addr = INADDR_ANY;
-
 	memset(iaxs, 0, sizeof(iaxs));
 
 	for (x=0;x<IAX_MAX_CALLS;x++)
@@ -8647,6 +8641,12 @@ int load_module(void)
 	opbx_mutex_init(&userl.lock);
 	opbx_mutex_init(&peerl.lock);
 	
+	set_config(config, 0);
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(listen_port);
+	sin.sin_addr.s_addr = INADDR_ANY;
+
 	opbx_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
 
 	opbx_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
