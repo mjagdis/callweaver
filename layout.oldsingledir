@@ -1,0 +1,14 @@
+# old singledir directory layout
+helpstring="use the old singledir layout"
+opbxprefix=/opt/openpbx.org
+opbxexecdir=${prefix}/sbin
+opbxutilsdir=${prefix}/bin
+opbxconfdir=${prefix}/etc
+opbxlibdir=${prefix}/lib
+opbxvardir=${prefix}/var
+opbxdatadir=${prefix}/var/data
+opbxlogdir=${prefix}/var/log
+opbxrundir=${prefix}/var/run
+opbxspooldir=${prefix}/var/spool
+opbxmandir=${prefix}/share/man
+opbxdocdir=${prefix}/doc
