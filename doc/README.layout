@@ -18,6 +18,7 @@
   BSD         bsd
   Linux       lsb
   Solaris     singledir, using prefix /opt/csw/openpbx.org
+  any other   singledir, using prefix /opt/openpbx.org
  --------------------------------------------------------------------------
 
  Directory layout profiles contain a list of key=value pairs, *without* any
