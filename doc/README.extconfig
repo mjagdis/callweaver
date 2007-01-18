@@ -46,13 +46,14 @@ table, for example.
 
 A SIP table would look more like this:
 
-+------+--------+-------+----------+-----+------------+----------+
-| name | host   | secret| ipaddr   | port| regseconds | username |
-+------+--------+-------+----------+-----+------------+----------+
-| foo  | dynamic|  bar  | 127.0.0.1| 4569| 1096954152 |   1234   |
-+------+--------+-------+----------+-----+------------+----------+
++------+--------+-------+----------+-----+------------+----------+---------+
+| name | host   | secret| ipaddr   | port| regseconds | username |useragent|
++------+--------+-------+----------+-----+------------+----------+---------+
+| foo  | dynamic|  bar  | 127.0.0.1| 4569| 1096954152 |   1234   |  NULL   |
++------+--------+-------+----------+-----+------------+----------+---------+
 
 in order to store appropriate parameters required for SIP.
+The useragent column is filled by the sip channel when the peer registers.
 
 A Voicemail table would look more like this:
 
