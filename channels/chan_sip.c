@@ -2262,26 +2262,28 @@ static int sip_sendtext(struct opbx_channel *ast, const char *text)
 }
 
 /*! \brief  realtime_update_peer: Update peer object in realtime storage */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expiry, const char *useragent)
 {
     char port[10];
     char ipaddr[20];
     char regseconds[20] = "0";
     
-    if (expirey)
+    if (expiry)
     {
         /* Registration */
         time_t nowtime;
         time(&nowtime);
-        nowtime += expirey;
+        nowtime += expiry;
         snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);    /* Expiration time */
         opbx_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
         snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
     }
     if (fullcontact)
-        opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, "fullcontact", fullcontact, NULL);
+        opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds,
+		"username", username, "useragent", useragent, "fullcontact", fullcontact, NULL);
     else
-        opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
+        opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds,
+		"username", username, "useragent", useragent, NULL);
 }
 
 /*! \brief  register_peer_exten: Automatically add peer extension to dial plan */
@@ -2344,11 +2346,10 @@ static void update_peer(struct sip_peer *p, int expiry)
 {
     int rtcachefriends = opbx_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS);
         
-    if (opbx_test_flag((&global_flags_page2), SIP_PAGE2_RTUPDATE)
-        &&
+    if (opbx_test_flag((&global_flags_page2), SIP_PAGE2_RTUPDATE) &&
         (opbx_test_flag(p, SIP_REALTIME) || rtcachefriends))
     {
-        realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry);
+        realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry, p->useragent);
     }
 }
 
@@ -7704,7 +7705,7 @@ static void destroy_association(struct sip_peer *peer)
     {
         if (opbx_test_flag(&(peer->flags_page2), SIP_PAGE2_RT_FROMCONTACT))
         {
-            opbx_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", NULL);
+            opbx_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "port", "", "username", "", NULL);
         }
         else
         {
