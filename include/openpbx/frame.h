@@ -404,8 +404,8 @@ extern char *opbx_codec2str(int codec);
 
 struct opbx_smoother;
 
-extern struct opbx_format_list *opbx_get_format_list_index(int index);
-extern struct opbx_format_list *opbx_get_format_list(size_t *size);
+extern struct opbx_format_list_s *opbx_get_format_list_index(int index);
+extern struct opbx_format_list_s *opbx_get_format_list(size_t *size);
 extern struct opbx_smoother *opbx_smoother_new(int bytes);
 extern void opbx_smoother_set_flags(struct opbx_smoother *smoother, int flags);
 extern int opbx_smoother_test_flag(struct opbx_smoother *s, int flag);

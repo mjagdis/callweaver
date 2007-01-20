@@ -60,7 +60,7 @@ OPBX_MUTEX_DEFINE_STATIC(framelock);
 #define TYPE_DONTSEND   0x3
 #define TYPE_MASK       0x3
 
-struct opbx_format_list
+struct opbx_format_list_s
 {
     int visible; /* Can we see this entry */
     int bits; /* bitmask value */
@@ -587,7 +587,7 @@ void opbx_swapcopy_samples(void *dst, const void *src, int samples)
         dst_s[i] = (src_s[i] << 8) | (src_s[i] >> 8);
 }
 
-static struct opbx_format_list OPBX_FORMAT_LIST[] =
+static struct opbx_format_list_s opbx_format_list[] =
 {
     { 1, OPBX_FORMAT_G723_1 , "g723" , "G.723.1", 8000},
     { 1, OPBX_FORMAT_GSM, "gsm" , "GSM", 8000},
@@ -629,18 +629,18 @@ int opbx_codec_sample_rate(struct opbx_frame *f)
 	codec = f->subclass & OPBX_AUDIO_CODEC_MASK;
 	if (codec == 0)
 		return -1;
-	return OPBX_FORMAT_LIST[top_bit(codec)].sample_rate;
+	return opbx_format_list[top_bit(codec)].sample_rate;
 }
 
-struct opbx_format_list *opbx_get_format_list_index(int index) 
+struct opbx_format_list_s *opbx_get_format_list_index(int index) 
 {
-    return &OPBX_FORMAT_LIST[index];
+    return &opbx_format_list[index];
 }
 
-struct opbx_format_list *opbx_get_format_list(size_t *size) 
+struct opbx_format_list_s *opbx_get_format_list(size_t *size) 
 {
-    *size = (sizeof(OPBX_FORMAT_LIST)/sizeof(struct opbx_format_list));
-    return OPBX_FORMAT_LIST;
+    *size = (sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s));
+    return opbx_format_list;
 }
 
 char *opbx_getformatname(int format)
@@ -648,11 +648,11 @@ char *opbx_getformatname(int format)
     int x = 0;
     char *ret = "unknown";
 
-    for (x = 0;  x < sizeof(OPBX_FORMAT_LIST)/sizeof(struct opbx_format_list);  x++)
+    for (x = 0;  x < sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);  x++)
     {
-        if (OPBX_FORMAT_LIST[x].visible  &&  OPBX_FORMAT_LIST[x].bits == format)
+        if (opbx_format_list[x].visible  &&  opbx_format_list[x].bits == format)
         {
-            ret = OPBX_FORMAT_LIST[x].name;
+            ret = opbx_format_list[x].name;
             break;
         }
     }
@@ -666,17 +666,19 @@ char *opbx_getformatname_multiple(char *buf, size_t size, int format)
     unsigned len;
     char *end = buf;
     char *start = buf;
-    if (!size) return buf;
+
+    if (!size)
+        return buf;
     snprintf(end, size, "0x%x (", format);
     len = strlen(end);
     end += len;
     size -= len;
     start = end;
-    for (x = 0 ; x < sizeof(OPBX_FORMAT_LIST) / sizeof(struct opbx_format_list) ; x++)
+    for (x = 0;  x < sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);  x++)
     {
-        if (OPBX_FORMAT_LIST[x].visible && (OPBX_FORMAT_LIST[x].bits & format))
+        if (opbx_format_list[x].visible && (opbx_format_list[x].bits & format))
         {
-            snprintf(end, size,"%s|",OPBX_FORMAT_LIST[x].name);
+            snprintf(end, size, "%s|", opbx_format_list[x].name);
             len = strlen(end);
             end += len;
             size -= len;
@@ -718,13 +720,13 @@ int opbx_getformatbyname(char *name)
     int x = 0, all = 0, format = 0;
 
     all = strcasecmp(name, "all") ? 0 : 1;
-    for (x = 0 ; x < sizeof(OPBX_FORMAT_LIST)/sizeof(struct opbx_format_list) ; x++)
+    for (x = 0 ; x < sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s) ; x++)
     {
-        if (OPBX_FORMAT_LIST[x].visible && (all || 
-            !strcasecmp(OPBX_FORMAT_LIST[x].name,name) ||
-            !strcasecmp(OPBX_FORMAT_LIST[x].name,opbx_expand_codec_alias(name))))
+        if (opbx_format_list[x].visible && (all || 
+            !strcasecmp(opbx_format_list[x].name,name) ||
+            !strcasecmp(opbx_format_list[x].name,opbx_expand_codec_alias(name))))
         {
-            format |= OPBX_FORMAT_LIST[x].bits;
+            format |= opbx_format_list[x].bits;
             if(!all)
                 break;
         }
@@ -738,11 +740,11 @@ char *opbx_codec2str(int codec)
     int x = 0;
     char *ret = "unknown";
 
-    for (x = 0 ; x < sizeof(OPBX_FORMAT_LIST)/sizeof(struct opbx_format_list) ; x++)
+    for (x = 0 ; x < sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s) ; x++)
     {
-        if (OPBX_FORMAT_LIST[x].visible && OPBX_FORMAT_LIST[x].bits == codec)
+        if (opbx_format_list[x].visible && opbx_format_list[x].bits == codec)
         {
-            ret = OPBX_FORMAT_LIST[x].desc;
+            ret = opbx_format_list[x].desc;
             break;
         }
     }
@@ -800,8 +802,8 @@ static int show_codecs(int fd, int argc, char *argv[])
 }
 
 static char frame_show_codecs_usage[] =
-"Usage: show [audio|video|image] codecs\n"
-"       Displays codec mapping\n";
+    "Usage: show [audio|video|image] codecs\n"
+    "       Displays codec mapping\n";
 
 static int show_codec_n(int fd, int argc, char *argv[])
 {
@@ -820,7 +822,7 @@ static int show_codec_n(int fd, int argc, char *argv[])
         if (codec & (1 << i))
         {
             found = 1;
-            opbx_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,opbx_codec2str(1<<i));
+            opbx_cli(fd, "%11u (1 << %2d)  %s\n", 1 << i, i, opbx_codec2str(1 << i));
         }
     }
     if (!found)
@@ -830,8 +832,8 @@ static int show_codec_n(int fd, int argc, char *argv[])
 }
 
 static char frame_show_codec_n_usage[] =
-"Usage: show codec <number>\n"
-"       Displays codec mapping\n";
+    "Usage: show codec <number>\n"
+    "       Displays codec mapping\n";
 
 void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
 {
@@ -858,15 +860,17 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
         return;
     if (f->frametype == OPBX_FRAME_VIDEO)
         return;
-    switch(f->frametype) {
+    switch (f->frametype)
+    {
     case OPBX_FRAME_DTMF:
         strcpy(ftype, "DTMF");
         subclass[0] = f->subclass;
         subclass[1] = '\0';
         break;
     case OPBX_FRAME_CONTROL:
-        strcpy(ftype, "Control");
-        switch(f->subclass) {
+        strcpy (ftype, "Control");
+        switch(f->subclass)
+        {
         case OPBX_CONTROL_HANGUP:
             strcpy(subclass, "Hangup");
             break;
@@ -933,7 +937,8 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
         break;
     case OPBX_FRAME_HTML:
         strcpy(ftype, "HTML");
-        switch(f->subclass) {
+        switch (f->subclass)
+        {
         case OPBX_HTML_URL:
             strcpy(subclass, "URL");
             opbx_copy_string(moreinfo, f->data, sizeof(moreinfo));
@@ -972,6 +977,7 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
         snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
     }
     if (!opbx_strlen_zero(moreinfo))
+    {
         opbx_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
             opbx_term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
             opbx_term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
@@ -980,7 +986,9 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
             f->subclass, 
             opbx_term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
             opbx_term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+    }
     else
+    {
         opbx_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",  
             opbx_term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
             opbx_term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
@@ -988,7 +996,7 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
             opbx_term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
             f->subclass, 
             opbx_term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
-
+    }
 }
 
 #ifdef TRACE_FRAMES
@@ -1004,7 +1012,7 @@ static int show_frame_stats(int fd, int argc, char *argv[])
     opbx_cli(fd, "Total allocated headers: %d\n", headers);
     opbx_cli(fd, "Queue Dump:\n");
     opbx_mutex_lock(&framelock);
-    for (f=headerlist;  f;  f = f->next)
+    for (f = headerlist;  f;  f = f->next)
     {
         opbx_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
     }
@@ -1018,14 +1026,45 @@ static char frame_stats_usage[] =
 #endif
 
 /* XXX no unregister function here ??? */
-static struct opbx_cli_entry my_clis[] = {
-{ { "show", "codecs", NULL }, show_codecs, "Shows codecs", frame_show_codecs_usage },
-{ { "show", "audio", "codecs", NULL }, show_codecs, "Shows audio codecs", frame_show_codecs_usage },
-{ { "show", "video", "codecs", NULL }, show_codecs, "Shows video codecs", frame_show_codecs_usage },
-{ { "show", "image", "codecs", NULL }, show_codecs, "Shows image codecs", frame_show_codecs_usage },
-{ { "show", "codec", NULL }, show_codec_n, "Shows a specific codec", frame_show_codec_n_usage },
+static struct opbx_cli_entry my_clis[] =
+{
+    {
+        { "show", "codecs", NULL },
+        show_codecs,
+        "Shows codecs",
+        frame_show_codecs_usage
+    },
+    {
+        { "show", "audio", "codecs", NULL },
+        show_codecs,
+        "Shows audio codecs",
+        frame_show_codecs_usage
+    },
+    {
+        { "show", "video", "codecs", NULL },
+        show_codecs,
+        "Shows video codecs",
+        frame_show_codecs_usage
+    },
+    {
+        { "show", "image", "codecs", NULL },
+        show_codecs,
+        "Shows image codecs",
+        frame_show_codecs_usage
+    },
+    {
+        { "show", "codec", NULL },
+        show_codec_n,
+        "Shows a specific codec",
+        frame_show_codec_n_usage
+    },
 #ifdef TRACE_FRAMES
-{ { "show", "frame", "stats", NULL }, show_frame_stats, "Shows frame statistics", frame_stats_usage },
+    {
+        { "show", "frame", "stats", NULL },
+        show_frame_stats,
+        "Shows frame statistics",
+        frame_stats_usage
+    },
 #endif
 };
 
@@ -1107,7 +1146,7 @@ int opbx_codec_pref_index(struct opbx_codec_pref *pref, int index)
     if ((index >= 0) && (index < sizeof(pref->order)))
         slot = pref->order[index];
 
-    return slot ? OPBX_FORMAT_LIST[slot-1].bits : 0;
+    return slot ? opbx_format_list[slot-1].bits : 0;
 }
 
 /*--- opbx_codec_pref_remove: Remove codec from pref list ---*/
@@ -1121,16 +1160,17 @@ void opbx_codec_pref_remove(struct opbx_codec_pref *pref, int format)
     if(!pref->order[0])
         return;
 
-    size = sizeof(OPBX_FORMAT_LIST) / sizeof(struct opbx_format_list);
+    size = sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);
 
     memcpy(&oldorder,pref,sizeof(struct opbx_codec_pref));
     memset(pref,0,sizeof(struct opbx_codec_pref));
 
-    for (x = 0; x < size; x++) {
+    for (x = 0;  x < size;  x++)
+    {
         slot = oldorder.order[x];
         if(! slot)
             break;
-        if(OPBX_FORMAT_LIST[slot-1].bits != format)
+        if(opbx_format_list[slot-1].bits != format)
             pref->order[y++] = slot;
     }
     
@@ -1143,18 +1183,23 @@ int opbx_codec_pref_append(struct opbx_codec_pref *pref, int format)
     int x = 0, newindex = -1;
 
     opbx_codec_pref_remove(pref, format);
-    size = sizeof(OPBX_FORMAT_LIST) / sizeof(struct opbx_format_list);
+    size = sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);
 
-    for (x = 0; x < size; x++) {
-        if(OPBX_FORMAT_LIST[x].bits == format) {
+    for (x = 0;  x < size;  x++)
+    {
+        if (opbx_format_list[x].bits == format)
+        {
             newindex = x + 1;
             break;
         }
     }
 
-    if(newindex) {
-        for (x = 0; x < size; x++) {
-            if(!pref->order[x]) {
+    if (newindex)
+    {
+        for (x = 0;  x < size;  x++)
+        {
+            if (!pref->order[x])
+            {
                 pref->order[x] = newindex;
                 break;
             }
@@ -1171,14 +1216,16 @@ int opbx_codec_choose(struct opbx_codec_pref *pref, int formats, int find_best)
     size_t size = 0;
     int x = 0, ret = 0, slot = 0;
 
-    size = sizeof(OPBX_FORMAT_LIST) / sizeof(struct opbx_format_list);
-    for (x = 0; x < size; x++) {
+    size = sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);
+    for (x = 0;  x < size;  x++)
+    {
         slot = pref->order[x];
 
         if(!slot)
             break;
-        if ( formats & OPBX_FORMAT_LIST[slot-1].bits ) {
-            ret = OPBX_FORMAT_LIST[slot-1].bits;
+        if (formats  &  opbx_format_list[slot - 1].bits)
+        {
+            ret = opbx_format_list[slot - 1].bits;
             break;
         }
     }
@@ -1262,17 +1309,20 @@ static int g723_samples(unsigned char *buf, int maxlen)
 
 static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
 {
-    int byte = bit / 8;       /* byte containing first bit */
-    int rem = 8 - (bit % 8);  /* remaining bits in first byte */
+    int byte = bit/8;       /* byte containing first bit */
+    int rem = 8 - (bit%8);  /* remaining bits in first byte */
     unsigned char ret = 0;
     
-    if (n <= 0 || n > 8)
+    if (n <= 0  ||  n > 8)
         return 0;
 
-    if (rem < n) {
+    if (rem < n)
+    {
         ret = (data[byte] << (n - rem));
         ret |= (data[byte + 1] >> (8 - n + rem));
-    } else {
+    }
+    else
+    {
         ret = (data[byte] >> (rem - n));
     }
 
