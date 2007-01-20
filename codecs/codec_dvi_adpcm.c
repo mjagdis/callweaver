@@ -55,7 +55,7 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
 static int localusecnt = 0;
 
-static char *tdesc = "DVI/IMA/Intel 32kbps ADPCM encoder/decoder";
+static char *tdesc = "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator";
 
 static int useplc = 0;
 

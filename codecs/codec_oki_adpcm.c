@@ -55,7 +55,7 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
 static int localusecnt = 0;
 
-static char *tdesc = "Oki 32kbps ADPCM encoder/decoder";
+static char *tdesc = "Oki 32kbps ADPCM to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -369,7 +369,6 @@ static struct opbx_translator okiadpcmtolin =
     okiadpcmtolin_framein,
     okiadpcmtolin_frameout,
     adpcm_destroy,
-    /* NULL */
     okiadpcmtolin_sample
 };
 
@@ -387,7 +386,6 @@ static struct opbx_translator lintookiadpcm =
     lintookiadpcm_framein,
     lintookiadpcm_frameout,
     adpcm_destroy,
-    /* NULL */
     lintookiadpcm_sample
 };
 

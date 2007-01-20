@@ -51,7 +51,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "A-law Coder/Decoder";
+static char *tdesc = "A-law to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -340,7 +340,8 @@ static void alaw_destroy(struct opbx_translator_pvt *pvt)
 /*!
  * \brief The complete translator for alawtolin.
  */
-static struct opbx_translator alawtolin = {
+static struct opbx_translator alawtolin =
+{
     "alawtolin",
     OPBX_FORMAT_ALAW,
     8000,
@@ -350,14 +351,14 @@ static struct opbx_translator alawtolin = {
     alawtolin_framein,
     alawtolin_frameout,
     alaw_destroy,
-    /* NULL */
     alawtolin_sample
 };
 
 /*!
  * \brief The complete translator for lintoalaw.
  */
-static struct opbx_translator lintoalaw = {
+static struct opbx_translator lintoalaw =
+{
     "lintoalaw",
     OPBX_FORMAT_SLINEAR,
     8000,
@@ -367,7 +368,6 @@ static struct opbx_translator lintoalaw = {
     lintoalaw_framein,
     lintoalaw_frameout,
     alaw_destroy,
-    /* NULL */
     lintoalaw_sample
 };
 
@@ -376,10 +376,14 @@ static void parse_config(void)
     struct opbx_config *cfg;
     struct opbx_variable *var;
 
-    if ((cfg = opbx_config_load("codecs.conf"))) {
-        if ((var = opbx_variable_browse(cfg, "plc"))) {
-            while (var) {
-                if (!strcasecmp(var->name, "genericplc")) {
+    if ((cfg = opbx_config_load("codecs.conf")))
+    {
+        if ((var = opbx_variable_browse(cfg, "plc")))
+        {
+            while (var)
+            {
+                if (!strcasecmp(var->name, "genericplc"))
+                {
                     useplc = opbx_true(var->value) ? 1 : 0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "codec_alaw: %susing generic PLC\n", useplc  ?  ""  :  "not ");

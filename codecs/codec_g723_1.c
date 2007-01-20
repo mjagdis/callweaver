@@ -112,9 +112,9 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
 #ifdef ANNEX_B
-static char *tdesc = "Annex B (floating point) G.723.1/PCM16 Codec Translator";
+static char *tdesc = "Annex B (floating point) G.723.1 to/from PCM16 translator";
 #else
-static char *tdesc = "Annex A (fixed point) G.723.1/PCM16 Codec Translator";
+static char *tdesc = "Annex A (fixed point) G.723.1 to/from PCM16 translator";
 #endif
 
 /* Globals */
@@ -391,7 +391,10 @@ static struct opbx_translator g723tolin =
 #else
     "g723tolin", 
 #endif
-    OPBX_FORMAT_G723_1, OPBX_FORMAT_SLINEAR,
+	OPBX_FORMAT_G723_1,
+	8000,
+	OPBX_FORMAT_SLINEAR,
+	8000,
     g723tolin_new,
     g723tolin_framein,
     g723tolin_frameout,
@@ -406,7 +409,10 @@ static struct opbx_translator lintog723 =
 #else
     "lintog723", 
 #endif
-    OPBX_FORMAT_SLINEAR, OPBX_FORMAT_G723_1,
+	OPBX_FORMAT_SLINEAR,
+	8000,
+	OPBX_FORMAT_G723_1,
+	8000,
 	lintog723_new,
 	lintog723_framein,
 	lintog723_frameout,

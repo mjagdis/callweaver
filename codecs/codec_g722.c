@@ -54,7 +54,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/codecs/codec
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "ITU G.722 transcoder";
+static char *tdesc = "ITU G.722 to/from PCM16 translator";
 
 static int useplc = 0;
 

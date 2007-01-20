@@ -84,7 +84,7 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
 static int localusecnt = 0;
 
-static char *tdesc = "LPC10e/PCM16 (signed linear) codec translator";
+static char *tdesc = "LPC10e to/from PCM16 (signed linear) translator";
 
 static int useplc = 0;
 

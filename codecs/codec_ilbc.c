@@ -56,11 +56,12 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 /* #define ILBC_MS			20 */
 
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt=0;
+static int localusecnt = 0;
 
-static char *tdesc = "iLBC/PCM16 (signed linear) Codec Translator";
+static char *tdesc = "iLBC to/from PCM16 translator";
 
-struct opbx_translator_pvt {
+struct opbx_translator_pvt
+{
 	iLBC_Enc_Inst_t enc;
 	iLBC_Dec_Inst_t dec;
 	struct opbx_frame f;
@@ -252,24 +253,32 @@ static void ilbc_destroy_stuff(struct opbx_translator_pvt *pvt)
 }
 
 static struct opbx_translator ilbctolin =
-	{ "ilbctolin", 
-	   OPBX_FORMAT_ILBC, OPBX_FORMAT_SLINEAR,
-	   ilbctolin_new,
-	   ilbctolin_framein,
-	   ilbctolin_frameout,
-	   ilbc_destroy_stuff,
-	   ilbctolin_sample
-	   };
+{
+	"ilbctolin", 
+	OPBX_FORMAT_ILBC,
+	8000,
+	OPBX_FORMAT_SLINEAR,
+	8000,
+	ilbctolin_new,
+	ilbctolin_framein,
+	ilbctolin_frameout,
+	ilbc_destroy_stuff,
+	ilbctolin_sample
+};
 
 static struct opbx_translator lintoilbc =
-	{ "lintoilbc", 
-	   OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ILBC,
-	   lintoilbc_new,
-	   lintoilbc_framein,
-	   lintoilbc_frameout,
-	   ilbc_destroy_stuff,
-	   lintoilbc_sample
-	   };
+{
+	"lintoilbc", 
+	OPBX_FORMAT_SLINEAR,
+	8000,
+	OPBX_FORMAT_ILBC,
+	8000,
+	lintoilbc_new,
+	lintoilbc_framein,
+	lintoilbc_frameout,
+	ilbc_destroy_stuff,
+	lintoilbc_sample
+};
 
 int unload_module(void)
 {
@@ -287,7 +296,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-	res=opbx_register_translator(&ilbctolin);
+	res = opbx_register_translator(&ilbctolin);
 	if (!res) 
 		res=opbx_register_translator(&lintoilbc);
 	else
@@ -306,5 +315,3 @@ int usecount(void)
 	STANDARD_USECOUNT(res);
 	return res;
 }
-
-

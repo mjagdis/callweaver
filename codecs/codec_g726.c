@@ -54,7 +54,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "ITU G.726-32kbps G726 Transcoder";
+static char *tdesc = "ITU G.726-32kbps G726 to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -268,7 +268,6 @@ static int lintog726_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
 }
 
 /*
- * LinToG726_FrameOut
  *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
  *  of 4-bit G726 packed two to a byte (Big Endian).
  *
@@ -352,7 +351,6 @@ static struct opbx_translator g726tolin =
     g726tolin_framein,
     g726tolin_frameout,
     g726_destroy,
-    /* NULL */
     g726tolin_sample
 };
 
@@ -370,7 +368,6 @@ static struct opbx_translator lintog726 =
     lintog726_framein,
     lintog726_frameout,
     g726_destroy,
-    /* NULL */
     lintog726_sample
 };
 

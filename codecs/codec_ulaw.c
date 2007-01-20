@@ -51,7 +51,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "Mu-law Coder/Decoder";
+static char *tdesc = "Mu-law to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -339,7 +339,8 @@ static void ulaw_destroy(struct opbx_translator_pvt *pvt)
 /*!
  * \brief The complete translator for ulawtolin.
  */
-static struct opbx_translator ulawtolin = {
+static struct opbx_translator ulawtolin =
+{
     "ulawtolin",
     OPBX_FORMAT_ULAW,
     8000,
@@ -349,14 +350,14 @@ static struct opbx_translator ulawtolin = {
     ulawtolin_framein,
     ulawtolin_frameout,
     ulaw_destroy,
-    /* NULL */
     ulawtolin_sample
 };
 
 /*!
  * \brief The complete translator for lintoulaw.
  */
-static struct opbx_translator lintoulaw = {
+static struct opbx_translator lintoulaw =
+{
     "lintoulaw",
     OPBX_FORMAT_SLINEAR,
     8000,
@@ -366,7 +367,6 @@ static struct opbx_translator lintoulaw = {
     lintoulaw_framein,
     lintoulaw_frameout,
     ulaw_destroy,
-    /* NULL */
     lintoulaw_sample
 };
 
