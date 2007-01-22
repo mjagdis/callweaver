@@ -36,6 +36,11 @@
 
 #define RTP_HEADER_SIZE                  12
 
+#ifndef CONNECT_RESP_GLOBALCONFIGURATION
+#define CC_HAVE_NO_GLOBALCONFIGURATION
+#warning If you dont update your libcapi20, some fax features are not available
+#endif
+
 /* some helper functions */
 static inline void write_capi_word(void *m, unsigned short val)
 {
@@ -78,6 +83,7 @@ static inline unsigned int read_capi_dword(void *m)
 #define cc_copy_string(dst, src, size)  opbx_copy_string(dst, src, size)
 
 #define CC_CHANNEL_PVT(c) (c)->tech_pvt
+#define CC_BRIDGE_RETURN enum opbx_bridge_result
 
 /*
  * prototypes
@@ -171,6 +177,7 @@ typedef struct fax3proto3 B3_PROTO_FAXG3;
 #define CAPI_FAX_STATE_HANDLED        0x00010000
 #define CAPI_FAX_STATE_ACTIVE         0x00020000
 #define CAPI_FAX_STATE_ERROR          0x00040000
+#define CAPI_FAX_STATE_SENDMODE       0x00080000
 #define CAPI_FAX_STATE_MASK           0xffff0000
 
 struct cc_capi_gains {
@@ -192,19 +199,36 @@ struct cc_capi_gains {
 #define CAPI_ISDN_STATE_RTP           0x00000800
 #define CAPI_ISDN_STATE_HANGUP        0x00001000
 #define CAPI_ISDN_STATE_EC            0x00002000
+#define CAPI_ISDN_STATE_DTMF          0x00004000
+#define CAPI_ISDN_STATE_B3_SELECT     0x00008000
+#define CAPI_ISDN_STATE_PBX_DONT      0x40000000
 #define CAPI_ISDN_STATE_PBX           0x80000000
 
 #define CAPI_CHANNELTYPE_B            0
 #define CAPI_CHANNELTYPE_D            1
+#define CAPI_CHANNELTYPE_NONE         2
+
+/* the lower word is reserved for capi commands */
+#define CAPI_WAITEVENT_B3_UP          0x00010000
+#define CAPI_WAITEVENT_B3_DOWN        0x00020000
+#define CAPI_WAITEVENT_FAX_FINISH     0x00030000
+#define CAPI_WAITEVENT_ANSWER_FINISH  0x00040000
 
 /* ! Private data for a capi device */
 struct capi_pvt {
 	cc_mutex_t lock;
 
+	int readerfd;
+	int writerfd;
+	struct opbx_frame f;
+	unsigned char frame_data[CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET + RTP_HEADER_SIZE];
+
 	opbx_cond_t event_trigger;
 	unsigned int waitevent;
 
 	char name[CAPI_MAX_STRING];
+	char vname[CAPI_MAX_STRING];
+	unsigned char tmpbuf[CAPI_MAX_STRING];
 
 	/*! Channel we belong to, possibly NULL */
 	struct opbx_channel *owner;		
@@ -216,9 +240,6 @@ struct capi_pvt {
 	/* on which controller we do live */
 	int controller;
 	
-	/* we could live on those */
-	unsigned long controllers;
-
 	/* send buffer */
 	unsigned char send_buffer[CAPI_MAX_B3_BLOCKS *
 		(CAPI_MAX_B3_BLOCK_SIZE + OPBX_FRIENDLY_OFFSET)];
@@ -253,8 +274,10 @@ struct capi_pvt {
 	int cid_ton;
 
 	char accountcode[20];	
+	int amaflags;
 
 	opbx_group_t callgroup;
+	opbx_group_t pickupgroup;
 	opbx_group_t group;
 	
 	/* language */
@@ -327,6 +350,7 @@ struct capi_pvt {
 	int capability;
 	int rtpcodec;
 	int codec;
+	unsigned int timestamp;
 
 	/*! Next channel in list */
 	struct capi_pvt *next;
@@ -358,6 +382,7 @@ struct cc_capi_conf {
 	int devices;
 	int softdtmf;
 	int echocancel;
+	int broadband;
 	int ecoption;
 	int ectail;
 	int ecnlp;
@@ -368,8 +393,10 @@ struct cc_capi_conf {
 	int holdtype;
 	int es;
 	int bridge;
+	int amaflags;
 	unsigned int faxsetting;
 	opbx_group_t callgroup;
+	opbx_group_t pickupgroup;
 	opbx_group_t group;
 	float rxgain;
 	float txgain;
@@ -387,6 +414,7 @@ struct cc_capi_controller {
 	/* features: */
 	int dtmf;
 	int echocancel;
+	int broadband;
 	int sservices;	/* supplementray services */
 	int lineinterconnect;
 	/* supported sservices: */

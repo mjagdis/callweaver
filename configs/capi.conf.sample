@@ -26,7 +26,7 @@ incomingmsn=*    ;allow incoming calls to this list of MSNs/DIDs, * = any
                  ;this caller id will be used when dial option 'd' is set.
 ;controller=0    ;ISDN4BSD default
 ;controller=7    ;ISDN4BSD USB default
-controller=1     ;capi controller number to use
+controller=1     ;capi controller number of this interface/port
 group=1          ;dialout group
 ;prefix=0        ;set a prefix to calling number on incoming calls
 softdtmf=on      ;enable/disable software dtmf detection, recommended for AVM cards
@@ -34,6 +34,7 @@ relaxdtmf=on     ;in addition to softdtmf, you can use relaxed dtmf detection
 faxdetect=off    ;enable faxdetection and redirection to EXTEN 'fax' for incoming and/or
                  ;outgoing calls. (default='off', possible values: 'incoming','outgoing','both')
 accountcode=     ;PBX accountcode to use in CDRs
+;amaflags=default;AMA flags for CDR ('default', 'omit', 'billing', or 'documentation')
 context=capi-in  ;context for incoming calls
 ;holdtype=hold   ;when the PBX puts the call on hold, ISDN HOLD will be used. If
                  ;set to 'local' (default value), no hold is done and the PBX may
@@ -52,10 +53,11 @@ echocancelold=yes;use facility selector 6 instead of correct 8 (necessary for ol
                  ;incorporate variable gain in the signal path.
 ;bridge=yes      ;native bridging (CAPI line interconnect) if available
 ;callgroup=1     ;PBX call group
+;pickupgroup=1   ;PBX pickup group (which call groups are we allowed to pickup)
 ;language=de     ;set language for this device (overwrites default language)
 ;disallow=all    ;RTP codec selection (valid with Eicon DIVA Server only)
 ;allow=all       ;RTP codec selection (valid with Eicon DIVA Server only)
-devices=2        ;number of concurrent calls on this controller
+devices=2        ;number of concurrent calls (b-channels) on this controller
                  ;(2 makes sense for single BRI, 30/23 for PRI/T1)
 
 

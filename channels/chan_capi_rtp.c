@@ -158,7 +158,7 @@ _cstruct capi_rtp_ncpi(struct capi_pvt *i)
 			break;
 		default:
 			cc_log(LOG_ERROR, "%s: format %s(%d) invalid.\n",
-				i->name, opbx_getformatname(i->codec), i->codec);
+				i->vname, opbx_getformatname(i->codec), i->codec);
 			break;
 		}
 	}
@@ -181,15 +181,16 @@ int capi_alloc_rtp(struct capi_pvt *i)
 	memcpy(&addr, hp->h_addr, sizeof(addr));
 
 	if (!(i->rtp = opbx_rtp_new_with_bindaddr(NULL, NULL, 0, 0, addr))) {
-		cc_log(LOG_ERROR, "%s: unable to alloc rtp.\n", i->name);
+		cc_log(LOG_ERROR, "%s: unable to alloc rtp.\n", i->vname);
 		return 1;
 	}
 	opbx_rtp_get_us(i->rtp, &us);
 	opbx_rtp_set_peer(i->rtp, &us);
 	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: alloc rtp socket on %s:%d\n",
-		i->name,
+		i->vname,
 		opbx_inet_ntoa(temp, sizeof(temp), us.sin_addr),
 		ntohs(us.sin_port));
+	i->timestamp = 0;
 	return 0;
 }
 
@@ -200,44 +201,66 @@ int capi_write_rtp(struct opbx_channel *c, struct opbx_frame *f)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
-	int rtpheaderlen = RTP_HEADER_SIZE;
 	struct sockaddr_in us;
-	int len;
+	int len, uslen;
+	unsigned int *rtpheader;
+	unsigned char buf[256];
+
+	uslen = sizeof(us);
 
 	if (!(i->rtp)) {
 		cc_log(LOG_ERROR, "rtp struct is NULL\n");
 		return -1;
 	}
 
-	if (f->datalen > (2000)) {
-		cc_verbose(4, 0, VERBOSE_PREFIX_4 "%s: rtp write data: frame too big (len = %d).\n",
-			i->name, f->datalen);
-		return -1;
-	}
-
-	i->send_buffer_handle++;
-
 	opbx_rtp_get_us(i->rtp, &us);
-	us.sin_port = 0; /* don't really send */
 	opbx_rtp_set_peer(i->rtp, &us);
 	if (opbx_rtp_write(i->rtp, f) != 0) {
-		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: rtp_write error, dropping packet.\n",
-			i->name);
-		return -1;
+		cc_verbose(3, 0, VERBOSE_PREFIX_2 "%s: rtp_write error, dropping packet.\n",
+			i->vname);
+		return 0;
 	}
-	len = f->datalen + rtpheaderlen;
 
-	cc_verbose(6, 1, VERBOSE_PREFIX_4 "%s: RTP write for NCCI=%#x len=%d(%d) %s\n",
-		i->name, i->NCCI, len, f->datalen, opbx_getformatname(f->subclass));
+	while(1) {
+		len = recvfrom(opbx_rtp_fd(i->rtp), buf, sizeof(buf),
+			0, (struct sockaddr *)&us, &uslen);
+		if (len <= 0)
+			break;
 
-	DATA_B3_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
-	DATA_B3_REQ_NCCI(&CMSG) = i->NCCI;
-	DATA_B3_REQ_FLAGS(&CMSG) = 0;
-	DATA_B3_REQ_DATAHANDLE(&CMSG) = i->send_buffer_handle;
-	DATA_B3_REQ_DATALENGTH(&CMSG) = len;
-	DATA_B3_REQ_DATA(&CMSG) = (unsigned char *)(f->data - rtpheaderlen);
+		rtpheader = (unsigned int *)buf;
+		
+		rtpheader[1] = htonl(i->timestamp);
+		i->timestamp += CAPI_MAX_B3_BLOCK_SIZE;
+			
+		if (len > (CAPI_MAX_B3_BLOCK_SIZE + RTP_HEADER_SIZE)) {
+			cc_verbose(4, 0, VERBOSE_PREFIX_4 "%s: rtp write data: frame too big (len = %d).\n",
+				i->vname, len);
+			continue;
+		}
+		if (i->B3q >= CAPI_MAX_B3_BLOCKS) {
+			cc_verbose(3, 1, VERBOSE_PREFIX_4 "%s: B3q is full, dropping packet.\n",
+				i->vname);
+			continue;
+		}
+		cc_mutex_lock(&i->lock);
+		i->B3q++;
+		cc_mutex_unlock(&i->lock);
 
-	_capi_put_cmsg(&CMSG);
+		i->send_buffer_handle++;
+
+		cc_verbose(6, 1, VERBOSE_PREFIX_4 "%s: RTP write for NCCI=%#x len=%d(%d) %s ts=%x\n",
+			i->vname, i->NCCI, len, f->datalen, opbx_getformatname(f->subclass),
+			i->timestamp);
+
+		DATA_B3_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(), 0);
+		DATA_B3_REQ_NCCI(&CMSG) = i->NCCI;
+		DATA_B3_REQ_FLAGS(&CMSG) = 0;
+		DATA_B3_REQ_DATAHANDLE(&CMSG) = i->send_buffer_handle;
+		DATA_B3_REQ_DATALENGTH(&CMSG) = len;
+		DATA_B3_REQ_DATA(&CMSG) = (buf);
+
+		_capi_put_cmsg(&CMSG);
+	}
 
 	return 0;
 }
@@ -263,22 +286,22 @@ struct opbx_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len
 
 	if (len != sendto(opbx_rtp_fd(i->rtp), buf, len, 0, (struct sockaddr *)&us, sizeof(us))) {
 		cc_verbose(4, 1, VERBOSE_PREFIX_3 "%s: RTP sendto error\n",
-			i->name);
+			i->vname);
 		return NULL;
 	}
 
 	if ((f = opbx_rtp_read(i->rtp))) {
 		if (f->frametype != OPBX_FRAME_VOICE) {
 			cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND RTP (len=%d) non voice type=%d\n",
-				i->name, len, f->frametype);
+				i->vname, len, f->frametype);
 			return NULL;
 		}
 		cc_verbose(6, 1, VERBOSE_PREFIX_4 "%s: DATA_B3_IND RTP NCCI=%#x len=%d %s (read/write=%d/%d)\n",
-			i->name, i->NCCI, len, opbx_getformatname(f->subclass),
+			i->vname, i->NCCI, len, opbx_getformatname(f->subclass),
 			i->owner->readformat, i->owner->writeformat);
 		if (i->owner->nativeformats != f->subclass) {
 			cc_verbose(3, 1, VERBOSE_PREFIX_3 "%s: DATA_B3_IND RTP nativeformats=%d, but subclass=%d\n",
-				i->name, i->owner->nativeformats, f->subclass);
+				i->vname, i->owner->nativeformats, f->subclass);
 			i->owner->nativeformats = f->subclass;
 			opbx_set_read_format(i->owner, i->owner->readformat);
 			opbx_set_write_format(i->owner, i->owner->writeformat);
