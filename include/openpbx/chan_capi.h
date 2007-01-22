@@ -382,7 +382,6 @@ struct cc_capi_conf {
 	int devices;
 	int softdtmf;
 	int echocancel;
-	int broadband;
 	int ecoption;
 	int ectail;
 	int ecnlp;
@@ -412,9 +411,9 @@ struct cc_capi_controller {
 	/* free bchans */
 	int nfreebchannels;
 	/* features: */
+	int broadband;
 	int dtmf;
 	int echocancel;
-	int broadband;
 	int sservices;	/* supplementray services */
 	int lineinterconnect;
 	/* supported sservices: */
