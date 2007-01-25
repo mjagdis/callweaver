@@ -380,11 +380,10 @@ int opbx_jb_put(struct opbx_channel *chan, struct opbx_frame *f, int codec)
 		return -1;
 	}
 	
-	if(f->mallocd & OPBX_MALLOCD_HDR) {
-		frr = opbx_frdup(f);
-	} else {
-		frr = opbx_frisolate(f);
-	}
+	/* Get us our own copy of the frame.
+	 * We dup it since frisolate makes it hard to 
+	 * manage memory */
+	frr = opbx_frdup(f);
 	if(frr == NULL)
 	{
 		opbx_log(LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", chan->name);

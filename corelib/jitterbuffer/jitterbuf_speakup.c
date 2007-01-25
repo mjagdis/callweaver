@@ -390,6 +390,7 @@ int jb_speakup_get_all(speakup_jitterbuffer *jb, void **data)
 	frame = get_all_frames(jb);
 	if (frame) {
 		*data = frame->data;
+		frame_free(frame);
 		return JB_OK;
 	} else
 		return JB_EMPTY;
