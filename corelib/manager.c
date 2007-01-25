@@ -1257,7 +1257,7 @@ static int process_message(struct mansession *s, struct message *m)
 				return -1;
 			} else {
 				s->authenticated = 1;
-				if (option_verbose > 1) {
+				if (option_verbose > 3) {
 					if ( displayconnects ) {
 						opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 					}
@@ -1384,13 +1384,13 @@ static void *session_do(void *data)
 			break;
 	}
 	if (s->authenticated) {
-		if (option_verbose > 1) {
+		if (option_verbose > 3) {
 			if (displayconnects) 
 				opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
 		}
 		opbx_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	} else {
-		if (option_verbose > 1) {
+		if (option_verbose > 2) {
 			if ( displayconnects )
 				opbx_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		}
@@ -1546,7 +1546,7 @@ int opbx_manager_unregister( char *action )
 		if (!strcasecmp(action, cur->action)) {
 			prev->next = cur->next;
 			free(cur);
-			if (option_verbose > 1) 
+			if (option_verbose > 2) 
 				opbx_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
 			opbx_mutex_unlock(&actionlock);
 			return 0;
@@ -1600,7 +1600,7 @@ static int opbx_manager_register_struct(struct manager_action *act)
 		act->next = NULL;
 	}
 
-	if (option_verbose > 1) 
+	if (option_verbose > 2) 
 		opbx_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
 	opbx_mutex_unlock(&actionlock);
 	return 0;
