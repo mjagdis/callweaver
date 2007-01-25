@@ -311,6 +311,13 @@ app_setcdruserfield_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_setcdruserfield_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_APP_SETCDRUSERFIELD
 
+if WANT_APP_SETCALLERPRES
+opbxmod_LTLIBRARIES			+= app_setcallerpres.la
+app_setcallerpres_la_SOURCES		= app_setcallerpres.c
+app_setcallerpres_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_setcallerpres_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_APP_SETCALLERPRES
+
 if WANT_APP_SETRDNIS
 opbxmod_LTLIBRARIES			+= app_setrdnis.la
 app_setrdnis_la_SOURCES			= app_setrdnis.c

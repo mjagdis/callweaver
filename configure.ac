@@ -1187,6 +1187,14 @@ AM_CONDITIONAL([WANT_APP_DEVSTATE],[test "${with_app_devstate}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_setcallerpres],
+	[AC_HELP_STRING([--with-app_setcallerpres],[Build and install app_setcallerpres (default=yes)])],,
+	[with_app_setcallerpres="yes"])
+
+AM_CONDITIONAL([WANT_APP_SETCALLERPRES],[test "${with_app_setcallerpres}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_dial],
 	[AC_HELP_STRING([--with-app_dial],[Build and install app_dial (default=yes)])],,
 	[with_app_dial="yes"])
