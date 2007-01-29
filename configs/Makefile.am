@@ -47,6 +47,10 @@ if WANT_CDR_PGSQL
 SAMPLES	+= cdr_pgsql.conf.sample
 endif WANT_CDR_PGSQL
 
+if WANT_CDR_PGSQL_CUSTOM
+SAMPLES += cdr_pgsql_custom.conf.sample
+endif WANT_CDR_PGSQL_CUSTOM
+
 if WANT_CHAN_AGENT
 SAMPLES += agents.conf.sample
 endif WANT_CHAN_AGENT
