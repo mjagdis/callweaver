@@ -218,6 +218,7 @@ char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "openpbx.ctl";
+char opbx_config_OPBX_SYSTEM_NAME[20] = "";
 char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
 
 static char *_argv[256];
@@ -1862,6 +1863,8 @@ static void opbx_readconfig(void) {
 			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
 			}
+		} else if (!strcasecmp(v->name, "systemname")) {
+			opbx_copy_string(opbx_config_OPBX_SYSTEM_NAME, v->value, sizeof(opbx_config_OPBX_SYSTEM_NAME));
 		}
 		v = v->next;
 	}

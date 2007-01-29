@@ -1953,6 +1953,13 @@ AC_ARG_WITH(cdr_pgsql,
 AM_CONDITIONAL([WANT_CDR_PGSQL],[test "${enable_postgresql}" = "yes" -a "$with_cdr_pgsql" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH(cdr_pgsql_custom,
+        [AC_HELP_STRING([--with-cdr_pgsql_custom],[Build and install cdr_pgsql_custom (default=no) (requires --enable-postgresql])],,[with_cdr_pgsql_custom="no"])
+
+AM_CONDITIONAL([WANT_CDR_PGSQL_CUSTOM],[test "${enable_postgresql}" = "yes" -a "$with_cdr_pgsql_custom" = "yes"])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Codecs

@@ -1338,6 +1338,11 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
                 opbx_copy_string(workspace, c->language, workspacelen);
                 *ret = workspace;
             }
+	    else if /* SYSTEMNAME */ (hash == OPBX_KEYWORD_SYSTEMNAME)
+	    {
+		opbx_copy_string(workspace, opbx_config_OPBX_SYSTEM_NAME, workspacelen);
+		*ret = workspace;
+	    }	
             else if /* user defined channel variables exist */ (&c->varshead)
             {
                 no_match_yet = 1;

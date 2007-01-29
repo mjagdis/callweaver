@@ -564,6 +564,8 @@ ${RDNIS}         	* Redirected Dial Number ID Service
 ${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS
 ${TRANSFER_CONTEXT} 	Context for transferred calls
 ${UNIQUEID}	 	* Current call unique identifier
+${SYSTEMNAME}		* value of the systemname option of openpbx.conf
+ 
 
 Various application variables
 -----------------------------

@@ -592,7 +592,10 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	tmp->data = NULL;
 	tmp->fin = global_fin;
 	tmp->fout = global_fout;
-	snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
+	if (opbx_strlen_zero(opbx_config_OPBX_SYSTEM_NAME))
+		 snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
+	else
+		 snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%s-%li.%d", opbx_config_OPBX_SYSTEM_NAME, (long) time(NULL), uniqueint++);
 	headp = &tmp->varshead;
 	opbx_mutex_init(&tmp->lock);
 	OPBX_LIST_HEAD_INIT_NOLOCK(headp);

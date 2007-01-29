@@ -56,6 +56,7 @@ extern char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH];
+extern char opbx_config_OPBX_SYSTEM_NAME[20];
 extern char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
 
 /* Provided by openpbx.c */

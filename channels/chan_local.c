@@ -334,6 +334,8 @@ static int local_call(struct opbx_channel *ast, char *dest, int timeout)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res;
+	struct opbx_var_t *varptr = NULL, *new;
+	size_t len, namelen;
 	
 	opbx_mutex_lock(&p->lock);
 	if (p->owner->cid.cid_num)
@@ -359,7 +361,24 @@ static int local_call(struct opbx_channel *ast, char *dest, int timeout)
 	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
 	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
 	p->chan->cdrflags = p->owner->cdrflags;
-	opbx_channel_inherit_variables(p->owner, p->chan);
+
+	/* copy the channel variables from the incoming channel to the outgoing channel */
+	/* Note that due to certain assumptions, they MUST be in the same order */
+	OPBX_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
+		namelen = strlen(varptr->name);
+		len = sizeof(struct opbx_var_t) + namelen + strlen(varptr->value) + 2;
+		new = malloc(len);
+		if (new) {
+			memcpy(new, varptr, len);
+			new->value = &(new->name[0]) + namelen + 1;
+			OPBX_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
+		} else {
+			opbx_log(LOG_ERROR, "Out of memory!\n");
+		}
+	}
+
+	/* Is this line needed? Please test - Mikael */
+/*	opbx_channel_inherit_variables(p->owner, p->chan); */
 	p->launchedpbx = 1;
 
 	/* Start switch on sub channel */
@@ -389,7 +408,7 @@ static void local_destroy(struct local_pvt *p)
 	}
 	opbx_mutex_unlock(&locallock);
 	if (!cur)
-		opbx_log(LOG_WARNING, "Unable ot find local '%s@%s' in local list\n", p->exten, p->context);
+		opbx_log(LOG_WARNING, "Unable to find local '%s@%s' in local list\n", p->exten, p->context);
 }
 #endif
 
