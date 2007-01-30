@@ -5777,7 +5777,7 @@ int opbx_pbx_outgoing_cdr_failed(void)
     return 0;  /* success */
 }
 
-int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct opbx_variable *vars, struct opbx_channel **channel)
+int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct opbx_variable *vars, const char *account, struct opbx_channel **channel)
 {
     struct opbx_channel *chan;
     struct async_stat *as;
@@ -5896,6 +5896,8 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
                     opbx_copy_string(chan->exten, "failed", sizeof(chan->exten));
                     chan->priority = 1;
                     opbx_set_variables(chan, vars);
+                    if (account)
+                        opbx_cdr_setaccount(chan, account);
                     opbx_pbx_run(chan);    
                 }
                 else
@@ -5932,6 +5934,8 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
         as->priority = priority;
         as->timeout = timeout;
         opbx_set_variables(chan, vars);
+        if (account)
+            opbx_cdr_setaccount(chan, account);
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         if (opbx_pthread_create(&as->p, &attr, async_wait, as))
@@ -5979,7 +5983,7 @@ static void *opbx_pbx_run_app(void *data)
     return NULL;
 }
 
-int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct opbx_variable *vars, struct opbx_channel **locked_channel)
+int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct opbx_variable *vars, const char *account, struct opbx_channel **locked_channel)
 {
     struct opbx_channel *chan;
     struct async_stat *as;
@@ -5989,7 +5993,8 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
     pthread_attr_t attr;
     
     memset(&oh, 0, sizeof(oh));
-    oh.vars = vars;    
+    oh.vars = vars;
+    oh.account = account;
 
     if (locked_channel) 
         *locked_channel = NULL;
@@ -6024,6 +6029,8 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
                 opbx_cdr_start(chan->cdr);
             }
             opbx_set_variables(chan, vars);
+            if (account)
+                opbx_cdr_setaccount(chan, account);
             if (chan->_state == OPBX_STATE_UP)
             {
                 res = 0;
@@ -6124,6 +6131,8 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
             opbx_copy_string(as->appdata,  appdata, sizeof(as->appdata));
         as->timeout = timeout;
         opbx_set_variables(chan, vars);
+        if (account)
+            opbx_cdr_setaccount(chan, account);
         /* Start a new thread, and get something handling this channel. */
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);

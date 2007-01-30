@@ -2213,6 +2213,7 @@ struct opbx_channel *__opbx_request_and_dial(const char *type, int format, void 
         {
 			opbx_set_variables(chan, oh->vars);
 			opbx_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
+			opbx_cdr_setaccount(chan, oh->account);
 		}
 		opbx_set_callerid(chan, cid_num, cid_name, cid_num);
 

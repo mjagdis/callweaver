@@ -418,6 +418,7 @@ struct outgoing_helper {
 	int priority;
 	const char *cid_num;
 	const char *cid_name;
+	const char *account;
 	struct opbx_variable *vars;
 };
 

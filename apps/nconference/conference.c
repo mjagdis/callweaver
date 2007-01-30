@@ -749,6 +749,7 @@ struct fopbx_originate_helper {
 	char appdata[256];
 	char cid_name[256];
 	char cid_num[256];
+	char account[256];
 	char context[256];
 	char exten[256];
 	char idtext[256];
@@ -775,7 +776,7 @@ static void *fopbx_originate(void *data)
 			&reason, 1, 
 			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, &chan );
+			in->vars, in->account, &chan );
     } else {
 		res = opbx_pbx_outgoing_exten(
 			in->tech, OPBX_FORMAT_SLINEAR, 
@@ -784,7 +785,7 @@ static void *fopbx_originate(void *data)
 			&reason, 1, 
 			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, NULL );
+			in->vars, in->account, NULL );
     }   
 
     opbx_log(OPBX_CONF_DEBUG,"Originate returned %d \n",reason);
@@ -858,6 +859,12 @@ int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 	    opbx_copy_string( fast->cid_num, var,sizeof(fast->cid_num) );
 	else
 	    opbx_copy_string( fast->cid_num, member->id,sizeof(fast->cid_num) );
+
+        if ( (var = pbx_builtin_getvar_helper(member->chan, "NCONF_OUTBOUND_ACCOUNT")) )
+            opbx_copy_string( fast->account, var,sizeof(fast->account) );
+        else
+            opbx_copy_string( fast->account, member->id,sizeof(fast->account) );
+
 
 	opbx_copy_string( fast->context, "internal", sizeof(fast->context) );
 	opbx_copy_string( fast->exten, ext, sizeof(fast->exten) );
