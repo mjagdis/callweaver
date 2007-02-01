@@ -1070,9 +1070,9 @@ if test "${enable_zaptel}" = "yes"; then
    AC_DEFINE_UNQUOTED([TONEZONE_H], [${TONEZONE_H}], [Location of tonezone.h header file])
 
    if test -n "${ZAPTEL_H}"; then
-     AC_CHECK_TYPES(zt_radio_stat,[ZAPTEL_V12_OR_HIGHER=1],,[#include <zaptel.h>])
+     AC_CHECK_TYPES(struct zt_radio_stat,[ZAPTEL_V12_OR_HIGHER=1],,[#include ${ZAPTEL_H}])
 
-     if test "${ZAPTEL_V12_OR_HIGHER}" = "yes"; then
+     if test "${ZAPTEL_V12_OR_HIGHER}" = "1"; then
        AC_MSG_NOTICE([Zaptel appears to be version 1.2 or higher -- ok.])
        AC_CHECK_LIB([tonezone], [main], [HAVE_LIBTONEZONE=1])
        AC_CHECK_LIB([pri], [main], [HAVE_LIBPRI=1])
