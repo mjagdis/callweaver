@@ -316,7 +316,7 @@ exten => s-BUSY,2,Goto(default,s,1)				; If they press #, return to start
 
 exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
-exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
+exten => a,1,VoiceMailMain(${ARG1})				; If they press *, send the user into VoicemailMain
 
 [macro-stdPrivacyexten];
 ;
@@ -341,7 +341,7 @@ exten => s-TORTURE,1,Goto(${ARG4},s,1)                ; Callee chose to send thi
 
 exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
-exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
+exten => a,1,VoiceMailMain(${ARG1})				; If they press *, send the user into VoiceMailMain
 
 [demo]
 ;
@@ -407,7 +407,7 @@ exten => 600,n,Goto(s,6)		; Start over
 ;
 ; Give voicemail at extension 8500
 ;
-exten => 8500,1,VoicemailMain
+exten => 8500,1,VoiceMailMain
 exten => 8500,n,Goto(s,6)
 ;
 ; Here's what a phone entry would look like (IXJ for example)
@@ -471,9 +471,9 @@ include => demo
 ;exten => wil,1,Goto(6236|1)
 ;
 ; Some other handy things are an extension for checking voicemail via
-; voicemailmain
+; VoiceMailMain
 ;
-;exten => 8500,1,VoicemailMain
+;exten => 8500,1,VoiceMailMain
 ;exten => 8500,n,Hangup
 ;
 ; Or a conference room (you'll need to edit meetme.conf to enable this room)
