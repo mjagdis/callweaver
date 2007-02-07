@@ -583,7 +583,7 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 			opbx_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
 			continue;
 		}
-		if ((option_verbose > 1) && !option_debug) {
+		if ((option_verbose > 3) && !option_debug) {
 			opbx_verbose(VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
 			fflush(stdout);
 		}
