@@ -8248,7 +8248,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 #endif
         )
         return 0;
-    if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE)
+    if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE || sipmethod == SIP_INVITE)
     {
         /* On a REGISTER, we have to use 401 and its family of headers instead of 407 and its family
            of headers -- GO SIP!  Whoo hoo!  Two things that do the same thing but are used in
