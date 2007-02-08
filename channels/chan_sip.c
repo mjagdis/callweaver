@@ -14598,7 +14598,8 @@ static int sip_poke_noanswer(void *data)
     peer->pokeexpire = -1;
     if (peer->lastms > -1)
     {
-        opbx_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
+	if (option_verbose > 3)
+		opbx_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
         manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
     }
     if (peer->call)
