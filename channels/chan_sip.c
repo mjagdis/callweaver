@@ -7966,7 +7966,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         p->sipoptions = 0;
         p->lastms = 0;
 
-        if (option_verbose > 2)
+        if (option_verbose > 3)
             opbx_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
             manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", p->name);
         return PARSE_REGISTER_UPDATE;
@@ -8049,7 +8049,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     if (inaddrcmp(&p->addr, &oldsin))
     {
         sip_poke_peer(p);
-        if (option_verbose > 2)
+        if (option_verbose > 3)
             opbx_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
         register_peer_exten(p, 1);
     }
@@ -12441,7 +12441,8 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         {
             if (pingtime <= peer->maxms)
             {
-                opbx_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+		if (option_verbose > 3)
+			opbx_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
                 statechanged = 1;
                 newstate = 1;
             }
@@ -12450,7 +12451,8 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         {
             if (pingtime > peer->maxms)
             {
-                opbx_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+		if (option_verbose > 3)
+			opbx_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
                 statechanged = 1;
                 newstate = 2;
             }
@@ -12462,10 +12464,12 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
         if (statechanged)
         {
             opbx_device_state_changed("SIP/%s", peer->name);
-            if (newstate == 2)
-                manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
-            else
-                manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
+            if (option_verbose > 3) {
+                if (newstate == 2)
+                    manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
+                else
+                    manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
+	    }
         }
 
         if (peer->pokeexpire > -1) {
