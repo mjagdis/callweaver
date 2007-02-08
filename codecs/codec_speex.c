@@ -633,6 +633,7 @@ static struct opbx_frame *lintospeex_frameout(struct opbx_translator_pvt *tmp)
         if (tmp->silent_state)
         {
             return NULL;
+	}
         tmp->silent_state = 1;
         speex_bits_reset(&tmp->bits);
         tmp->f.frametype = OPBX_FRAME_CNG;
