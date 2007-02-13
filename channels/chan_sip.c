@@ -2256,12 +2256,20 @@ static int sip_sendtext(struct opbx_channel *ast, const char *text)
 }
 
 /*! \brief  realtime_update_peer: Update peer object in realtime storage */
+/*! \brief Update peer object in realtime storage 
+       If the Asterisk system name is set in asterisk.conf, we will use
+       that name and store that in the "regserver" field in the sippeers
+       table to facilitate multi-server setups.
+*/
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expiry, const char *useragent)
 {
     char port[10];
     char ipaddr[20];
     char regseconds[20] = "0";
     
+    char *sysname = opbx_config_OPBX_SYSTEM_NAME;
+    char *syslabel = NULL;
+
     if (expiry)
     {
         /* Registration */
@@ -2272,12 +2280,20 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
         opbx_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
         snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
     }
-    if (fullcontact)
-        opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds,
-		"username", username, "useragent", useragent, "fullcontact", fullcontact, NULL);
+
+    if (opbx_strlen_zero(sysname)) /* No system name, disable this */
+	sysname = NULL;
     else
-        opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds,
-		"username", username, "useragent", useragent, NULL);
+	syslabel = "regserver";
+
+    if (fullcontact)
+	opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", 
+	regseconds, "username", username, "useragent", useragent, "fullcontact", fullcontact, syslabel, 
+	sysname, NULL);
+    else
+	opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", 
+	regseconds, "username", username, "useragent", useragent, syslabel, sysname, NULL);
+
 }
 
 /*! \brief  register_peer_exten: Automatically add peer extension to dial plan */
@@ -7699,7 +7715,8 @@ static void destroy_association(struct sip_peer *peer)
     {
         if (opbx_test_flag(&(peer->flags_page2), SIP_PAGE2_RT_FROMCONTACT))
         {
-            opbx_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "port", "", "username", "", NULL);
+            opbx_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "port", "", "username", "", 
+			     "regserver", "", NULL);
         }
         else
         {

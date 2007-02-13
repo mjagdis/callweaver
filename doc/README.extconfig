@@ -33,11 +33,11 @@ context=local
 
 could be stored in a table like this:
 
-+------+--------+-------+--------------+----------+-----+-----------+
-| name | host   | secret| context      | ipaddr   | port| regseconds|
-+------+--------+-------+--------------+----------+-----+-----------+
-| foo  | dynamic|  bar  | default;local| 127.0.0.1| 4569| 1096954152|
-+------+--------+-------+--------------+----------+-----+-----------+
++------+--------+-------+--------------+----------+-----+-----------+---------+---------+
+| name | host   | secret| context      | ipaddr   | port| regseconds|useragent|regserver|
++------+--------+-------+--------------+----------+-----+-----------+---------+---------+
+| foo  | dynamic|  bar  | default;local| 127.0.0.1| 4569| 1096954152|  NULL   |  NULL   |
++------+--------+-------+--------------+----------+-----+-----------+---------+---------+
 
 Note that for use with IAX or SIP, the table will also need the "name", 
 "ipaddr", "port", "regseconds" columns.  If you wanted to be able to 
@@ -46,14 +46,21 @@ table, for example.
 
 A SIP table would look more like this:
 
-+------+--------+-------+----------+-----+------------+----------+---------+
-| name | host   | secret| ipaddr   | port| regseconds | username |useragent|
-+------+--------+-------+----------+-----+------------+----------+---------+
-| foo  | dynamic|  bar  | 127.0.0.1| 4569| 1096954152 |   1234   |  NULL   |
-+------+--------+-------+----------+-----+------------+----------+---------+
++------+--------+-------+----------+-----+------------+----------+---------+---------+
+| name | host   | secret| ipaddr   | port| regseconds | username |useragent|regserver|
++------+--------+-------+----------+-----+------------+----------+---------+---------+
+| foo  | dynamic|  bar  | 127.0.0.1| 4569| 1096954152 |   1234   |  NULL   |  NULL   |
++------+--------+-------+----------+-----+------------+----------+---------+---------+
 
 in order to store appropriate parameters required for SIP.
 The useragent column is filled by the sip channel when the peer registers.
+
+The regserver column is filled by the sip channel when the peer registers if you
+have the system name set in openpbx.conf.
+OpenPBX.org will store the system name that the user registered on in 
+the database. This can be used to direct calls to go through the server 
+that holds the registration (for NAT traversal purposes).
+
 
 A Voicemail table would look more like this:
 
