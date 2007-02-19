@@ -1238,17 +1238,17 @@ int opbx_codec_choose(struct opbx_codec_pref *pref, int formats, int find_best)
 void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const char *list, int allowing)
 {
     int format_i = 0;
-    char *next_format = NULL, *lopbx_format = NULL;
+    char *next_format = NULL, *last_format = NULL;
 
-    lopbx_format = opbx_strdupa(list);
-    while (lopbx_format)
+    last_format = opbx_strdupa(list);
+    while (last_format)
     {
-        if((next_format = strchr(lopbx_format, ',')))
+        if((next_format = strchr(last_format, ',')))
         {
             *next_format = '\0';
             next_format++;
         }
-        if ((format_i = opbx_getformatbyname(lopbx_format)) > 0) {
+        if ((format_i = opbx_getformatbyname(last_format)) > 0) {
             if (mask) {
                 if (allowing)
                     (*mask) |= format_i;
@@ -1256,7 +1256,7 @@ void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const ch
                     (*mask) &= ~format_i;
             }
             /* can't consider 'all' a prefered codec*/
-            if(pref && strcasecmp(lopbx_format, "all")) {
+            if(pref && strcasecmp(last_format, "all")) {
                 if(allowing)
                     opbx_codec_pref_append(pref, format_i);
                 else
@@ -1264,9 +1264,9 @@ void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const ch
             } else if(!allowing) /* disallow all must clear your prefs or it makes no sense */
                 memset(pref, 0, sizeof(struct opbx_codec_pref));
         } else
-            opbx_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", lopbx_format);
+            opbx_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", last_format);
 
-        lopbx_format = next_format;
+        last_format = next_format;
     }
 }
 

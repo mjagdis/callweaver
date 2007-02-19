@@ -112,7 +112,6 @@ struct g726_decoder_pvt
 };
 
 /*
- * G726ToLin_New
  *  Create a new instance of g726_decoder_pvt.
  *
  * Results:
@@ -121,7 +120,6 @@ struct g726_decoder_pvt
  * Side effects:
  *  None.
  */
-
 static struct opbx_translator_pvt *g726tolin_new(void)
 {
     struct g726_decoder_pvt *tmp;
@@ -139,7 +137,6 @@ static struct opbx_translator_pvt *g726tolin_new(void)
 }
 
 /*
- * LinToG726_New
  *  Create a new instance of g726_encoder_pvt.
  *
  * Results:
@@ -165,7 +162,6 @@ static struct opbx_translator_pvt *lintog726_new(void)
 }
 
 /*
- * G726ToLin_FrameIn
  *  Fill an input buffer with packed 4-bit G726 values if there is room
  *  left.
  *
@@ -175,7 +171,6 @@ static struct opbx_translator_pvt *lintog726_new(void)
  * Side effects:
  *  tmp->tail is the number of packed values in the buffer.
  */
-
 static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
@@ -212,7 +207,6 @@ static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
 }
 
 /*
- * G726ToLin_FrameOut
  *  Convert 4-bit G726 encoded signals to 16-bit signed linear.
  *
  * Results:
@@ -222,7 +216,6 @@ static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  * Side effects:
  *  None.
  */
-
 static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
@@ -241,7 +234,6 @@ static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
 }
 
 /*
- * LinToG726_FrameIn
  *  Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
@@ -250,7 +242,6 @@ static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
  * Side effects:
  *  tmp->tail is number of signal values in the input buffer.
  */
-
 static int lintog726_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
     struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
@@ -277,10 +268,9 @@ static int lintog726_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
  * Side effects:
  *  Leftover inbuf data gets packed, tail gets updated.
  */
-
 static struct opbx_frame *lintog726_frameout(struct opbx_translator_pvt *pvt)
 {
-  struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
+    struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
   
     if (!tmp->tail)
   	    return NULL;
@@ -294,10 +284,6 @@ static struct opbx_frame *lintog726_frameout(struct opbx_translator_pvt *pvt)
     return &tmp->f;
 }
 
-
-/*
- * g726tolin_sample
- */
 static struct opbx_frame *g726tolin_sample(void)
 {
     static struct opbx_frame f;
@@ -384,9 +370,9 @@ static void parse_config(void)
             {
                 if (!strcasecmp(var->name, "genericplc"))
                 {
-                    useplc = opbx_true(var->value) ? 1 : 0;
+                    useplc = opbx_true(var->value)  ?  1  :  0;
                     if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_g726: %susing generic PLC\n", useplc ? "" : "not ");
+                        opbx_verbose(VERBOSE_PREFIX_3 "codec_g726: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }
                 var = var->next;
             }

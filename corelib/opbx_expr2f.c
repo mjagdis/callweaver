@@ -173,7 +173,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 
 #define EOB_ACT_CONTINUE_SCAN 0
 #define EOB_ACT_END_OF_FILE 1
-#define EOB_ACT_LOPBX_MATCH 2
+#define EOB_ACT_LAST_MATCH 2
 
     #define YY_LESS_LINENO(n)
     
@@ -1391,8 +1391,8 @@ struct val {
 
 #define SET_COLUMNS	do {		\
 	yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
-	yylloc_param->lopbx_column += yyleng - 1; \
-	yylloc_param->first_line = yylloc_param->lopbx_line = 1; \
+	yylloc_param->last_column += yyleng - 1; \
+	yylloc_param->first_line = yylloc_param->last_line = 1; \
 	} while (0)
 
 #define SET_STRING	do {		\
@@ -1459,8 +1459,8 @@ struct yyguts_t
     int yy_start_stack_ptr;
     int yy_start_stack_depth;
     int *yy_start_stack;
-    yy_state_type yy_lopbx_accepting_state;
-    char* yy_lopbx_accepting_cpos;
+    yy_state_type yy_last_accepting_state;
+    char* yy_last_accepting_cpos;
 
     int yylineno_r;
     int yy_flex_debug_r;
@@ -1701,8 +1701,8 @@ yy_match:
 			{
 			if ( yy_accept[yy_current_state] )
 				{
-				yyg->yy_lopbx_accepting_state = yy_current_state;
-				yyg->yy_lopbx_accepting_cpos = yy_cp;
+				yyg->yy_last_accepting_state = yy_current_state;
+				yyg->yy_last_accepting_cpos = yy_cp;
 				}
 
 			++yy_cp;
@@ -1722,8 +1722,8 @@ do_action:	/* This label is used only to access EOF actions. */
 			case 0: /* must back up */
 			/* undo the effects of YY_DO_BEFORE_ACTION */
 			*yy_cp = yyg->yy_hold_char;
-			yy_cp = yyg->yy_lopbx_accepting_cpos + 1;
-			yy_current_state = yyg->yy_lopbx_accepting_state;
+			yy_cp = yyg->yy_last_accepting_cpos + 1;
+			yy_current_state = yyg->yy_last_accepting_state;
 			goto yy_find_action;
 
 case 1:
@@ -2076,7 +2076,7 @@ case YY_STATE_EOF(var):
 				yy_bp = yyg->yytext_ptr + YY_MORE_ADJ;
 				goto yy_match;
 
-			case EOB_ACT_LOPBX_MATCH:
+			case EOB_ACT_LAST_MATCH:
 				yyg->yy_c_buf_p =
 				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[yyg->yy_n_chars];
 
@@ -2099,7 +2099,7 @@ case YY_STATE_EOF(var):
 /* yy_get_next_buffer - try to read in a new buffer
  *
  * Returns a code representing an action:
- *	EOB_ACT_LOPBX_MATCH -
+ *	EOB_ACT_LAST_MATCH -
  *	EOB_ACT_CONTINUE_SCAN - continue scanning from current position
  *	EOB_ACT_END_OF_FILE - end of file
  */
@@ -2130,7 +2130,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 			/* We matched some text prior to the EOB, first
 			 * process it.
 			 */
-			return EOB_ACT_LOPBX_MATCH;
+			return EOB_ACT_LAST_MATCH;
 			}
 		}
 
@@ -2210,7 +2210,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		else
 			{
-			ret_val = EOB_ACT_LOPBX_MATCH;
+			ret_val = EOB_ACT_LAST_MATCH;
 			YY_CURRENT_BUFFER_LVALUE->yy_buffer_status =
 				YY_BUFFER_EOF_PENDING;
 			}
@@ -2248,8 +2248,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 			yy_current_state = yy_NUL_trans[yy_current_state];
 		if ( yy_accept[yy_current_state] )
 			{
-			yyg->yy_lopbx_accepting_state = yy_current_state;
-			yyg->yy_lopbx_accepting_cpos = yy_cp;
+			yyg->yy_last_accepting_state = yy_current_state;
+			yyg->yy_last_accepting_cpos = yy_cp;
 			}
 		}
 
@@ -2274,8 +2274,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		{
 		if ( yy_accept[yy_current_state] )
 			{
-			yyg->yy_lopbx_accepting_state = yy_current_state;
-			yyg->yy_lopbx_accepting_cpos = yy_cp;
+			yyg->yy_last_accepting_state = yy_current_state;
+			yyg->yy_last_accepting_cpos = yy_cp;
 			}
 		}
 
@@ -2350,14 +2350,14 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			switch ( yy_get_next_buffer( yyscanner ) )
 				{
-				case EOB_ACT_LOPBX_MATCH:
+				case EOB_ACT_LAST_MATCH:
 					/* This happens because yy_g_n_b()
 					 * sees that we've accumulated a
 					 * token and flags that we need to
 					 * try matching the token before
 					 * proceeding.  But for input(),
 					 * there's no matching to consider.
-					 * So convert the EOB_ACT_LOPBX_MATCH
+					 * So convert the EOB_ACT_LAST_MATCH
 					 * to EOB_ACT_END_OF_FILE.
 					 */
 

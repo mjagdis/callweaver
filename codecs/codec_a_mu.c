@@ -87,7 +87,6 @@ static uint8_t alaw_ex[] =
 /*
  * Private workspace for translating signed linear signals to alaw.
  */
-
 struct alaw_encoder_pvt
 {
     struct opbx_frame f;
@@ -99,7 +98,6 @@ struct alaw_encoder_pvt
 /*
  * Private workspace for translating laws.
  */
-
 struct ulaw_encoder_pvt
 {
     struct opbx_frame f;

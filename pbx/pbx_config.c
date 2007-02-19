@@ -1038,7 +1038,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	
 		/* try to lock context and fireout all info */	
 		if (!opbx_lock_context(c)) {
-			struct opbx_exten *e, *lopbx_written_e = NULL;
+			struct opbx_exten *e, *last_written_e = NULL;
 			struct opbx_include *i;
 			struct opbx_ignorepat *ip;
 			struct opbx_sw *sw;
@@ -1061,11 +1061,11 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						registrar)) {
 			
 						/* make empty line between different extensions */	
-						if (lopbx_written_e != NULL &&
-							strcmp(opbx_get_extension_name(lopbx_written_e),
+						if (last_written_e != NULL &&
+							strcmp(opbx_get_extension_name(last_written_e),
 								opbx_get_extension_name(p)))
 							fprintf(output, "\n");
-						lopbx_written_e = p;
+						last_written_e = p;
 				
 						if (!context_header_written) {
 							fprintf(output, "[%s]\n", opbx_get_context_name(c));
@@ -1119,7 +1119,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			}
 
 			/* written any extensions? ok, write space between exten & inc */
-			if (lopbx_written_e) fprintf(output, "\n");
+			if (last_written_e) fprintf(output, "\n");
 
 			/* walk through includes */
 			i = opbx_walk_context_includes(c, NULL);

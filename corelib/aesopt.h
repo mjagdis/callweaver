@@ -392,11 +392,11 @@
 #endif
 
 #if 1   /* set tables for the last encryption round */
-#define LOPBX_ENC_ROUND  FOUR_TABLES
+#define LAST_ENC_ROUND  FOUR_TABLES
 #elif 0
-#define LOPBX_ENC_ROUND  ONE_TABLE
+#define LAST_ENC_ROUND  ONE_TABLE
 #else
-#define LOPBX_ENC_ROUND  NO_TABLES
+#define LAST_ENC_ROUND  NO_TABLES
 #endif
 
 #if 1   /* set tables for the normal decryption round */
@@ -408,11 +408,11 @@
 #endif
 
 #if 1   /* set tables for the last decryption round */
-#define LOPBX_DEC_ROUND  FOUR_TABLES
+#define LAST_DEC_ROUND  FOUR_TABLES
 #elif 0
-#define LOPBX_DEC_ROUND  ONE_TABLE
+#define LAST_DEC_ROUND  ONE_TABLE
 #else
-#define LOPBX_DEC_ROUND  NO_TABLES
+#define LAST_DEC_ROUND  NO_TABLES
 #endif
 
 /*  The decryption key schedule can be speeded up with tables in the same
@@ -433,12 +433,12 @@
 
 /* Disable or report errors on some combinations of options */
 
-#if ENC_ROUND == NO_TABLES && LOPBX_ENC_ROUND != NO_TABLES
-#undef  LOPBX_ENC_ROUND
-#define LOPBX_ENC_ROUND  NO_TABLES
-#elif ENC_ROUND == ONE_TABLE && LOPBX_ENC_ROUND == FOUR_TABLES
-#undef  LOPBX_ENC_ROUND
-#define LOPBX_ENC_ROUND  ONE_TABLE
+#if ENC_ROUND == NO_TABLES && LAST_ENC_ROUND != NO_TABLES
+#undef  LAST_ENC_ROUND
+#define LAST_ENC_ROUND  NO_TABLES
+#elif ENC_ROUND == ONE_TABLE && LAST_ENC_ROUND == FOUR_TABLES
+#undef  LAST_ENC_ROUND
+#define LAST_ENC_ROUND  ONE_TABLE
 #endif
 
 #if ENC_ROUND == NO_TABLES && ENC_UNROLL != NONE
@@ -446,12 +446,12 @@
 #define ENC_UNROLL  NONE
 #endif
 
-#if DEC_ROUND == NO_TABLES && LOPBX_DEC_ROUND != NO_TABLES
-#undef  LOPBX_DEC_ROUND
-#define LOPBX_DEC_ROUND  NO_TABLES
-#elif DEC_ROUND == ONE_TABLE && LOPBX_DEC_ROUND == FOUR_TABLES
-#undef  LOPBX_DEC_ROUND
-#define LOPBX_DEC_ROUND  ONE_TABLE
+#if DEC_ROUND == NO_TABLES && LAST_DEC_ROUND != NO_TABLES
+#undef  LAST_DEC_ROUND
+#define LAST_DEC_ROUND  NO_TABLES
+#elif DEC_ROUND == ONE_TABLE && LAST_DEC_ROUND == FOUR_TABLES
+#undef  LAST_DEC_ROUND
+#define LAST_DEC_ROUND  ONE_TABLE
 #endif
 
 #if DEC_ROUND == NO_TABLES && DEC_UNROLL != NONE
@@ -532,18 +532,18 @@
 #undef  ENC_ROUND
 #endif
 #define ENC_ROUND   FOUR_TABLES
-#ifdef  LOPBX_ENC_ROUND
-#undef  LOPBX_ENC_ROUND
+#ifdef  LAST_ENC_ROUND
+#undef  LAST_ENC_ROUND
 #endif
-#define LOPBX_ENC_ROUND  FOUR_TABLES
+#define LAST_ENC_ROUND  FOUR_TABLES
 #ifdef  DEC_ROUND
 #undef  DEC_ROUND
 #endif
 #define DEC_ROUND   FOUR_TABLES
-#ifdef  LOPBX_DEC_ROUND
-#undef  LOPBX_DEC_ROUND
+#ifdef  LAST_DEC_ROUND
+#undef  LAST_DEC_ROUND
 #endif
-#define LOPBX_DEC_ROUND  FOUR_TABLES
+#define LAST_DEC_ROUND  FOUR_TABLES
 #ifdef  KEY_SCHED
 #undef  KEY_SCHED
 #define KEY_SCHED   FOUR_TABLES
@@ -558,9 +558,9 @@
 #else
 #define SBX_SET
 #endif
-#if LOPBX_ENC_ROUND == ONE_TABLE
+#if LAST_ENC_ROUND == ONE_TABLE
 #define FL1_SET
-#elif LOPBX_ENC_ROUND == FOUR_TABLES
+#elif LAST_ENC_ROUND == FOUR_TABLES
 #define FL4_SET
 #elif !defined(SBX_SET)
 #define SBX_SET
@@ -575,9 +575,9 @@
 #else
 #define ISB_SET
 #endif
-#if LOPBX_DEC_ROUND == ONE_TABLE
+#if LAST_DEC_ROUND == ONE_TABLE
 #define IL1_SET
-#elif LOPBX_DEC_ROUND == FOUR_TABLES
+#elif LAST_DEC_ROUND == FOUR_TABLES
 #define IL4_SET
 #elif !defined(ISB_SET)
 #define ISB_SET

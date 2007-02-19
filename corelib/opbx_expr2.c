@@ -241,8 +241,8 @@ typedef struct yyltype
   int first_line;
   int first_column;
 
-  int lopbx_line;
-  int lopbx_column;
+  int last_line;
+  int last_column;
 } yyltype;
 
 # define YYLTYPE yyltype
@@ -297,8 +297,8 @@ typedef struct YYLTYPE
 {
   int first_line;
   int first_column;
-  int lopbx_line;
-  int lopbx_column;
+  int last_line;
+  int last_column;
 } YYLTYPE;
 # define yyltype YYLTYPE /* obsolescent; will be withdrawn */
 # define YYLTYPE_IS_DECLARED 1
@@ -796,15 +796,15 @@ while (YYID (0))
 	{								\
 	  (Current).first_line   = YYRHSLOC (Rhs, 1).first_line;	\
 	  (Current).first_column = YYRHSLOC (Rhs, 1).first_column;	\
-	  (Current).lopbx_line    = YYRHSLOC (Rhs, N).lopbx_line;		\
-	  (Current).lopbx_column  = YYRHSLOC (Rhs, N).lopbx_column;	\
+	  (Current).last_line    = YYRHSLOC (Rhs, N).last_line;		\
+	  (Current).last_column  = YYRHSLOC (Rhs, N).last_column;	\
 	}								\
       else								\
 	{								\
-	  (Current).first_line   = (Current).lopbx_line   =		\
-	    YYRHSLOC (Rhs, 0).lopbx_line;				\
-	  (Current).first_column = (Current).lopbx_column =		\
-	    YYRHSLOC (Rhs, 0).lopbx_column;				\
+	  (Current).first_line   = (Current).last_line   =		\
+	    YYRHSLOC (Rhs, 0).last_line;				\
+	  (Current).first_column = (Current).last_column =		\
+	    YYRHSLOC (Rhs, 0).last_column;				\
 	}								\
     while (YYID (0))
 #endif
@@ -819,7 +819,7 @@ while (YYID (0))
 #  define YY_LOCATION_PRINT(File, Loc)			\
      fprintf (File, "%d.%d-%d.%d",			\
 	      (Loc).first_line, (Loc).first_column,	\
-	      (Loc).lopbx_line,  (Loc).lopbx_column)
+	      (Loc).last_line,  (Loc).last_column)
 # else
 #  define YY_LOCATION_PRINT(File, Loc) ((void) 0)
 # endif
@@ -1501,8 +1501,8 @@ YYLTYPE yylloc;
   yylsp = yyls;
 #if YYLTYPE_IS_TRIVIAL
   /* Initialize the default location before parsing starts.  */
-  yylloc.first_line   = yylloc.lopbx_line   = 1;
-  yylloc.first_column = yylloc.lopbx_column = 0;
+  yylloc.first_line   = yylloc.last_line   = 1;
+  yylloc.first_column = yylloc.last_column = 0;
 #endif
 
   goto yysetstate;
@@ -1715,8 +1715,8 @@ yyreduce:
   case 5:
 #line 191 "opbx_expr2.y"
     { (yyval.val) = (yyvsp[(2) - (3)].val); 
-	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						   (yyloc).first_line=0; (yyloc).lopbx_line=0;
+	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						   (yyloc).first_line=0; (yyloc).last_line=0;
 							DESTROY((yyvsp[(1) - (3)].val)); DESTROY((yyvsp[(3) - (3)].val)); ;}
     break;
 
@@ -1724,136 +1724,136 @@ yyreduce:
 #line 195 "opbx_expr2.y"
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
-                         (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						 (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+                         (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 7:
 #line 199 "opbx_expr2.y"
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-                          (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+                          (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 8:
 #line 203 "opbx_expr2.y"
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column;
-						 (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 9:
 #line 207 "opbx_expr2.y"
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
-                         (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column;
-						 (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+                         (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 10:
 #line 211 "opbx_expr2.y"
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						 (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 11:
 #line 215 "opbx_expr2.y"
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						  (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 12:
 #line 219 "opbx_expr2.y"
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						  (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 13:
 #line 223 "opbx_expr2.y"
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						  (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 14:
 #line 227 "opbx_expr2.y"
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						   (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 15:
 #line 231 "opbx_expr2.y"
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-							(yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 16:
 #line 235 "opbx_expr2.y"
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
-	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).lopbx_column = (yylsp[(2) - (2)]).lopbx_column; 
-							(yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 17:
 #line 239 "opbx_expr2.y"
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
-	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).lopbx_column = (yylsp[(2) - (2)]).lopbx_column; 
-							(yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 18:
 #line 243 "opbx_expr2.y"
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						   (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 19:
 #line 247 "opbx_expr2.y"
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						  (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 20:
 #line 251 "opbx_expr2.y"
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-						  (yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 21:
 #line 255 "opbx_expr2.y"
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-							(yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 22:
 #line 259 "opbx_expr2.y"
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
-	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (3)]).lopbx_column; 
-							(yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 23:
@@ -1861,8 +1861,8 @@ yyreduce:
     { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)); 
 						DESTROY((yyvsp[(2) - (5)].val));	
 						DESTROY((yyvsp[(4) - (5)].val));	
-	                        (yyloc).first_column = (yylsp[(1) - (5)]).first_column; (yyloc).lopbx_column = (yylsp[(3) - (5)]).lopbx_column; 
-							(yyloc).first_line=0; (yyloc).lopbx_line=0;;}
+	                        (yyloc).first_column = (yylsp[(1) - (5)]).first_column; (yyloc).last_column = (yylsp[(3) - (5)]).last_column; 
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
 

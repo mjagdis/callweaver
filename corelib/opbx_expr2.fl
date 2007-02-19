@@ -59,8 +59,8 @@ struct val {
 
 #define SET_COLUMNS	do {		\
 	yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
-	yylloc_param->lopbx_column += yyleng - 1; \
-	yylloc_param->first_line = yylloc_param->lopbx_line = 1; \
+	yylloc_param->last_column += yyleng - 1; \
+	yylloc_param->first_line = yylloc_param->last_line = 1; \
 	} while (0)
 
 #define SET_STRING	do {		\

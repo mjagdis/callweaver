@@ -913,7 +913,7 @@ static int remove_file(char *dir, int msgnum)
 	return 0;
 }
 
-static int lopbx_message_index(struct opbx_vm_user *vmu, char *dir)
+static int last_message_index(struct opbx_vm_user *vmu, char *dir)
 {
 	int x = 0;
 	int res;
@@ -1020,7 +1020,7 @@ yuck:
 
 static int count_messages(struct opbx_vm_user *vmu, char *dir)
 {
-	return lopbx_message_index(vmu, dir) + 1;
+	return last_message_index(vmu, dir) + 1;
 }
 
 static void delete_file(char *sdir, int smsg)
@@ -1390,7 +1390,7 @@ static void copy_file(char *frompath, char *topath)
 /*
  * A negative return value indicates an error.
  */
-static int lopbx_message_index(struct opbx_vm_user *vmu, char *dir)
+static int last_message_index(struct opbx_vm_user *vmu, char *dir)
 {
 	int x;
 	char fn[256];
@@ -3767,7 +3767,7 @@ static int play_message(struct opbx_channel *chan, struct opbx_vm_user *vmu, str
 static int open_mailbox(struct vm_state *vms, struct opbx_vm_user *vmu,int box)
 {
 	int res = 0;
-	int count_msg, lopbx_msg;
+	int count_msg, last_msg;
 
 	opbx_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
 	
@@ -3790,10 +3790,10 @@ static int open_mailbox(struct vm_state *vms, struct opbx_vm_user *vmu,int box)
 	detected.
 	*/
 
-	lopbx_msg = lopbx_message_index(vmu, vms->curdir);
-	if (lopbx_msg < 0)
-		return lopbx_msg;
-	else if(vms->lastmsg != lopbx_msg)
+	last_msg = last_message_index(vmu, vms->curdir);
+	if (last_msg < 0)
+		return last_msg;
+	else if(vms->lastmsg != last_msg)
 	{
 		opbx_log(LOG_NOTICE, "Resequencing Mailbox: %s\n", vms->curdir);
 		res = resequence_mailbox(vmu, vms->curdir);

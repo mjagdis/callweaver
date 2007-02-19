@@ -114,8 +114,8 @@ typedef struct yyltype
   int first_line;
   int first_column;
 
-  int lopbx_line;
-  int lopbx_column;
+  int last_line;
+  int last_column;
 } yyltype;
 
 # define YYLTYPE yyltype
@@ -185,82 +185,82 @@ start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(st
 
 expr:	TOKEN   { $$= $1;}
 	| TOK_LP expr TOK_RP { $$ = $2; 
-	                       @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						   @$.first_line=0; @$.lopbx_line=0;
+	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						   @$.first_line=0; @$.last_line=0;
 							DESTROY($1); DESTROY($3); }
 	| expr TOK_OR expr { $$ = op_or ($1, $3);
 						DESTROY($2);	
-                         @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						 @$.first_line=0; @$.lopbx_line=0;}
+                         @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_AND expr { $$ = op_and ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-                          @$.first_line=0; @$.lopbx_line=0;}
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+                          @$.first_line=0; @$.last_line=0;}
 	| expr TOK_EQ expr { $$ = op_eq ($1, $3);
 						DESTROY($2);	
-	                     @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column;
-						 @$.first_line=0; @$.lopbx_line=0;}
+	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
+						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_GT expr { $$ = op_gt ($1, $3);
 						DESTROY($2);	
-                         @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column;
-						 @$.first_line=0; @$.lopbx_line=0;}
+                         @$.first_column = @1.first_column; @$.last_column = @3.last_column;
+						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_LT expr { $$ = op_lt ($1, $3); 
 						DESTROY($2);	
-	                     @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						 @$.first_line=0; @$.lopbx_line=0;}
+	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_GE expr  { $$ = op_ge ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						  @$.first_line=0; @$.lopbx_line=0;}
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_LE expr  { $$ = op_le ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						  @$.first_line=0; @$.lopbx_line=0;}
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_NE expr  { $$ = op_ne ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						  @$.first_line=0; @$.lopbx_line=0;}
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_PLUS expr { $$ = op_plus ($1, $3); 
 						DESTROY($2);	
-	                       @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						   @$.first_line=0; @$.lopbx_line=0;}
+	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						   @$.first_line=0; @$.last_line=0;}
 	| expr TOK_MINUS expr { $$ = op_minus ($1, $3); 
 						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-							@$.first_line=0; @$.lopbx_line=0;}
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+							@$.first_line=0; @$.last_line=0;}
 	| TOK_MINUS expr %prec TOK_COMPL { $$ = op_negate ($2); 
 						DESTROY($1);	
-	                        @$.first_column = @1.first_column; @$.lopbx_column = @2.lopbx_column; 
-							@$.first_line=0; @$.lopbx_line=0;}
+	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
+							@$.first_line=0; @$.last_line=0;}
 	| TOK_COMPL expr   { $$ = op_compl ($2); 
 						DESTROY($1);	
-	                        @$.first_column = @1.first_column; @$.lopbx_column = @2.lopbx_column; 
-							@$.first_line=0; @$.lopbx_line=0;}
+	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
+							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_MULT expr { $$ = op_times ($1, $3); 
 						DESTROY($2);	
-	                       @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						   @$.first_line=0; @$.lopbx_line=0;}
+	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						   @$.first_line=0; @$.last_line=0;}
 	| expr TOK_DIV expr { $$ = op_div ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						  @$.first_line=0; @$.lopbx_line=0;}
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_MOD expr { $$ = op_rem ($1, $3); 
 						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-						  @$.first_line=0; @$.lopbx_line=0;}
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_COLON expr { $$ = op_colon ($1, $3); 
 						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-							@$.first_line=0; @$.lopbx_line=0;}
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_EQTILDE expr { $$ = op_eqtilde ($1, $3); 
 						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-							@$.first_line=0; @$.lopbx_line=0;}
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5); 
 						DESTROY($2);	
 						DESTROY($4);	
-	                        @$.first_column = @1.first_column; @$.lopbx_column = @3.lopbx_column; 
-							@$.first_line=0; @$.lopbx_line=0;}
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+							@$.first_line=0; @$.last_line=0;}
 	;
 
 %%

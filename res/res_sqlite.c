@@ -731,7 +731,7 @@ static struct opbx_config *config_sqlite(const char *database, const char *table
 	char ttable[ARRAY_SIZE];
 	int configured = 0, res = 0;
 	sqlite3_stmt *stmt = NULL;;
-	int cat_metric=0, lopbx_cat_metric=0;
+	int cat_metric=0, last_cat_metric=0;
 	char sql[ARRAY_SIZE];
 	char last[ARRAY_SIZE] = "";
 	char path[ARRAY_SIZE];
@@ -818,14 +818,14 @@ static struct opbx_config *config_sqlite(const char *database, const char *table
 				opbx_verbose(VERBOSE_PREFIX_3"SQLite Config: %d=%s\n",i,sqlite3_column_text(stmt,i));
 			}
 		
-		if (strcmp (last, sqlite3_column_text(stmt,5)) || lopbx_cat_metric != cat_metric) {
+		if (strcmp (last, sqlite3_column_text(stmt,5)) || last_cat_metric != cat_metric) {
 			cur_cat = opbx_category_new((char *)sqlite3_column_text(stmt,5));
 			if (!cur_cat) {
 				opbx_log(LOG_WARNING, "Out of memory!\n");
 				break;
 			}
 			strcpy (last, sqlite3_column_text(stmt,5));
-			lopbx_cat_metric	= cat_metric;
+			last_cat_metric	= cat_metric;
 			opbx_category_append(cfg, cur_cat);
 		}
 		new_v = opbx_variable_new ((char *)sqlite3_column_text(stmt,6), (char *)sqlite3_column_text(stmt,7));

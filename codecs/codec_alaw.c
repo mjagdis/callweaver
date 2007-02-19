@@ -384,7 +384,7 @@ static void parse_config(void)
             {
                 if (!strcasecmp(var->name, "genericplc"))
                 {
-                    useplc = opbx_true(var->value) ? 1 : 0;
+                    useplc = opbx_true(var->value)  ?  1  :  0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "codec_alaw: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }

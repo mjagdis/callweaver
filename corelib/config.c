@@ -94,7 +94,7 @@ struct opbx_config {
 	struct opbx_category *root;
 	struct opbx_category *last;
 	struct opbx_category *current;
-	struct opbx_category *lopbx_browse;		/* used to cache the last category supplied via category_browse */
+	struct opbx_category *last_browse;		/* used to cache the last category supplied via category_browse */
 	int include_level;
 	int max_include_level;
 };
@@ -140,8 +140,8 @@ struct opbx_variable *opbx_variable_browse(const struct opbx_config *config, con
 {
 	struct opbx_category *cat = NULL;
 
-	if (category && config->lopbx_browse && (config->lopbx_browse->name == category))
-		cat = config->lopbx_browse;
+	if (category && config->last_browse && (config->last_browse->name == category))
+		cat = config->last_browse;
 	else
 		cat = opbx_category_get(config, category);
 
@@ -267,8 +267,8 @@ char *opbx_category_browse(struct opbx_config *config, const char *prev)
 {	
 	struct opbx_category *cat = NULL;
 
-	if (prev && config->lopbx_browse && (config->lopbx_browse->name == prev))
-		cat = config->lopbx_browse->next;
+	if (prev && config->last_browse && (config->last_browse->name == prev))
+		cat = config->last_browse->next;
 	else if (!prev && config->root)
 			cat = config->root;
 	else if (prev) {
@@ -291,7 +291,7 @@ char *opbx_category_browse(struct opbx_config *config, const char *prev)
 	if (cat)
 		cat = next_available_category(cat);
 
-	config->lopbx_browse = cat;
+	config->last_browse = cat;
 	if (cat)
 		return cat->name;
 	else

@@ -282,9 +282,9 @@ struct queue_ent {
 	int pos;			/*!< Where we are in the queue */
         int trying_agent;		/*!< Are we trying to reach an agent */
 	int prio;			/*!< Our priority */
-	int lopbx_pos_said;              /*!< Last position we told the user */
-	time_t lopbx_periodic_announce_time;	/*!< The last time we played a periodic anouncement */
-	time_t lopbx_pos;                /*!< Last time we told the user their position */
+	int last_pos_said;              /*!< Last position we told the user */
+	time_t last_periodic_announce_time;	/*!< The last time we played a periodic anouncement */
+	time_t last_pos;                /*!< Last time we told the user their position */
 	int opos;			/*!< Where we started in the queue */
 	int handled;			/*!< Whether our call was handled */
 	time_t start;			/*!< When we started holding */
@@ -1092,11 +1092,11 @@ static int say_position(struct queue_ent *qe)
 
 	/* Check to see if this is ludicrous -- if we just announced position, don't do it again*/
 	time(&now);
-	if ( (now - qe->lopbx_pos) < 15 )
+	if ( (now - qe->last_pos) < 15 )
 		return 0;
 
 	/* If either our position has changed, or we are over the freq timer, say position */
-	if ( (qe->lopbx_pos_said == qe->pos) && ((now - qe->lopbx_pos) < qe->parent->announcefrequency) )
+	if ( (qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency) )
 		return 0;
 
 	opbx_moh_stop(qe->chan);
@@ -1143,7 +1143,7 @@ static int say_position(struct queue_ent *qe)
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
 	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) &&
-	    (!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->lopbx_pos)) {
+	    (!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->last_pos)) {
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
 		if (res && valid_exit(qe, res))
 			goto playout;
@@ -1187,9 +1187,9 @@ static int say_position(struct queue_ent *qe)
 		res = play_file(qe->chan, qe->parent->sound_thanks);	
 
  playout:
-	/* Set our lopbx_pos indicators */
- 	qe->lopbx_pos = now;
-	qe->lopbx_pos_said = qe->pos;
+	/* Set our last_pos indicators */
+ 	qe->last_pos = now;
+	qe->last_pos_said = qe->pos;
 	opbx_moh_start(qe->chan, qe->moh);
 
 	return res;
@@ -1587,7 +1587,7 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	time(&now);
 
 	/* Check to see if it is time to announce */
-	if ((now - qe->lopbx_periodic_announce_time) < qe->parent->periodicannouncefrequency)
+	if ((now - qe->last_periodic_announce_time) < qe->parent->periodicannouncefrequency)
 		return 0;
 
 	/* Stop the music on hold so we can play our own file */
@@ -1602,8 +1602,8 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	/* Resume Music on Hold */
 	opbx_moh_start(qe->chan, qe->moh);
 
-	/* update lopbx_periodic_announce_time */
-	qe->lopbx_periodic_announce_time = now;
+	/* update last_periodic_announce_time */
+	qe->last_periodic_announce_time = now;
 
 	return res;
 }
@@ -2436,20 +2436,20 @@ static void dump_queue_members(struct opbx_call_queue *pm_queue)
 static int remove_from_queue(char *queuename, char *interface, time_t *added)
 {
 	struct opbx_call_queue *q;
-	struct member *lopbx_member, *look;
+	struct member *last_member, *look;
 	int res = RES_NOSUCHQUEUE;
 
 	opbx_mutex_lock(&qlock);
 	for (q = queues ; q ; q = q->next) {
 		opbx_mutex_lock(&q->lock);
 		if (!strcmp(q->name, queuename)) {
-			if ((lopbx_member = interface_exists(q, interface))) {
-				if ((look = q->members) == lopbx_member) {
-					q->members = lopbx_member->next;
+			if ((last_member = interface_exists(q, interface))) {
+				if ((look = q->members) == last_member) {
+					q->members = last_member->next;
 				} else {
 					while (look != NULL) {
-						if (look->next == lopbx_member) {
-							look->next = lopbx_member->next;
+						if (look->next == last_member) {
+							look->next = last_member->next;
 							break;
 						} else {
 							 look = look->next;
@@ -2459,10 +2459,10 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
 				manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
 						"Queue: %s\r\n"
 						"Location: %s\r\n",
-					q->name, lopbx_member->interface);
+					q->name, last_member->interface);
 				if (added != NULL)
-					*added = lopbx_member->added;
-				free(lopbx_member);
+					*added = last_member->added;
+				free(last_member);
 
 				if (queue_persistent_members)
 				    dump_queue_members(q);
@@ -2991,10 +2991,10 @@ static int queue_exec(struct opbx_channel *chan, void *data)
 
 	qe.chan = chan;
 	qe.prio = (int)prio;
-	qe.lopbx_pos_said = 0;
-	qe.lopbx_pos = 0;
+	qe.last_pos_said = 0;
+	qe.last_pos = 0;
         qe.trying_agent=0;
-	qe.lopbx_periodic_announce_time = time(NULL);
+	qe.last_periodic_announce_time = time(NULL);
 	if (!join_queue(queuename, &qe, &reason)) {
 		opbx_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "",
 			      chan->cid.cid_num ? chan->cid.cid_num : "");

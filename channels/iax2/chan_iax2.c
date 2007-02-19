@@ -7703,7 +7703,7 @@ static int set_config(char *config_file, int reload)
 	struct iax2_peer *peer;
 	struct opbx_netsock *ns;
 #if 0
-	static unsigned short int lopbx_port=0;
+	static unsigned short int last_port=0;
 #endif
 
 	cfg = opbx_config_load(config_file);

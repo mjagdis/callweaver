@@ -4568,7 +4568,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	struct opbx_hostent he;
 	struct hostent *hp;
 	struct sockaddr_in sin2;
-	static int lopbx_port = 0;
+	static int last_port = 0;
 	int globalpcmodel = 0;
 	dundi_eid testeid;
 
@@ -4599,9 +4599,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	while(v) {
 		if (!strcasecmp(v->name, "port")){ 
 			sin->sin_port = ntohs(atoi(v->value));
-			if(lopbx_port==0){
-				lopbx_port=sin->sin_port;
-			} else if(sin->sin_port != lopbx_port)
+			if(last_port==0){
+				last_port=sin->sin_port;
+			} else if(sin->sin_port != last_port)
 				opbx_log(LOG_WARNING, "change to port ignored until next openpbx re-start\n");
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			struct hostent *hp;

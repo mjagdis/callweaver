@@ -393,7 +393,7 @@ static struct opbx_config *config_mysql(const char *database, const char *table,
 	struct opbx_category *cur_cat;
 	char sql[250] = "";
 	char last[80] = "";
-	int lopbx_cat_metric = 0;
+	int last_cat_metric = 0;
 
 	last[0] = '\0';
 
@@ -438,14 +438,14 @@ static struct opbx_config *config_mysql(const char *database, const char *table,
 				continue;
 			}
 
-			if(strcmp(last, row[0]) || lopbx_cat_metric != atoi(row[3])) {
+			if(strcmp(last, row[0]) || last_cat_metric != atoi(row[3])) {
 				cur_cat = opbx_category_new(row[0]);
 				if (!cur_cat) {
 					opbx_log(LOG_WARNING, "Out of memory!\n");
 					break;
 				}
 				strcpy(last, row[0]);
-				lopbx_cat_metric = atoi(row[3]);
+				last_cat_metric = atoi(row[3]);
 				opbx_category_append(cfg, cur_cat);
 			}
 			new_v = opbx_variable_new(row[1], row[2]);

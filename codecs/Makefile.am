@@ -2,7 +2,8 @@ AUTOMAKE_OPTS		= gnu foreign
 
 opbxmod_LTLIBRARIES	= codec_lpc10.la codec_dvi_adpcm.la codec_oki_adpcm.la \
 			  codec_ulaw.la codec_alaw.la codec_a_mu.la \
-			  codec_g726.la codec_gsm.la
+			  codec_g722.la codec_g722_16k_8k.la codec_g726.la codec_g726_alaw.la \
+              codec_g726_ulaw.la codec_gsm.la
 
 codec_gsm_la_SOURCES	= codec_gsm.c
 codec_gsm_la_CFLAGS     = $(AM_CFLAGS)
@@ -27,9 +28,21 @@ codec_alaw_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 codec_a_mu_la_SOURCES	= codec_a_mu.c
 codec_a_mu_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_a_mu_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la 
+codec_g722_la_SOURCES   = codec_g722.c
+codec_g722_la_LDFLAGS	= -module -avoid-version -no-undefined
+codec_g722_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
+codec_g722_16k_8k_la_SOURCES   = codec_g722_16k_8k.c
+codec_g722_16k_8k_la_LDFLAGS	= -module -avoid-version -no-undefined
+codec_g722_16k_8k_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 codec_g726_la_SOURCES   = codec_g726.c
 codec_g726_la_LDFLAGS	= -module -avoid-version -no-undefined
 codec_g726_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
+codec_g726_alaw_la_SOURCES   = codec_g726_alaw.c
+codec_g726_alaw_la_LDFLAGS	= -module -avoid-version -no-undefined
+codec_g726_alaw_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
+codec_g726_ulaw_la_SOURCES   = codec_g726_ulaw.c
+codec_g726_ulaw_la_LDFLAGS	= -module -avoid-version -no-undefined
+codec_g726_ulaw_la_LIBADD	= -lspandsp -ltiff ${top_builddir}/corelib/libopenpbx.la
 
 if WANT_CODEC_SPEEX
 opbxmod_LTLIBRARIES	+= codec_speex.la

@@ -54,18 +54,18 @@ struct opbx_frame;
  */
 struct opbx_jb_conf
 {
-	/*! \brief Combination of the OPBX_GENERIC_JB_ENABLED, OPBX_GENERIC_JB_FORCED and OPBX_GENERIC_JB_LOG flags. */
-	unsigned int flags;
-	/*! \brief Minimum size of the jitterbuffer implementation. */
-	long min_size;
-	/*! \brief Max size of the jitterbuffer implementation. */
-	long max_size;
-	/*! \brief Resynchronization threshold of the jitterbuffer implementation. */
- 	long resync_threshold;
-	/*! \brief Timing compensation (in ms) */
-	long timing_compensation;
-	/*! \brief Name of the jitterbuffer implementation to be used. */
- 	char impl[OPBX_GENERIC_JB_IMPL_NAME_SIZE];
+    /*! \brief Combination of the OPBX_GENERIC_JB_ENABLED, OPBX_GENERIC_JB_FORCED and OPBX_GENERIC_JB_LOG flags. */
+    unsigned int flags;
+    /*! \brief Minimum size of the jitterbuffer implementation. */
+    long min_size;
+    /*! \brief Max size of the jitterbuffer implementation. */
+    long max_size;
+    /*! \brief Resynchronization threshold of the jitterbuffer implementation. */
+     long resync_threshold;
+    /*! \brief Timing compensation (in ms) */
+    long timing_compensation;
+    /*! \brief Name of the jitterbuffer implementation to be used. */
+     char impl[OPBX_GENERIC_JB_IMPL_NAME_SIZE];
 };
 
 
@@ -89,64 +89,64 @@ struct opbx_jb_impl;
  */
 struct opbx_jb
 {
-	/*! \brief Jitterbuffer configuration. */
-	struct opbx_jb_conf conf;
-	/*! \brief Jitterbuffer implementation to be used. */
-	struct opbx_jb_impl *impl;
-	/*! \brief Jitterbuffer object, passed to the implementation. */
-	void *jbobj;
-	/*! \brief The time the jitterbuffer was created. */
-	struct timeval timebase;
-	/*! \brief The time the next frame should be played. */
-	long next;
-	/*! \brief Voice format of the last frame in. */
-	int last_format;
-	/*! \brief File for frame timestamp tracing. */
-	FILE *logfile;
-	/*! \brief Jitterbuffer internal state flags. */
-	unsigned int flags;
+    /*! \brief Jitterbuffer configuration. */
+    struct opbx_jb_conf conf;
+    /*! \brief Jitterbuffer implementation to be used. */
+    struct opbx_jb_impl *impl;
+    /*! \brief Jitterbuffer object, passed to the implementation. */
+    void *jbobj;
+    /*! \brief The time the jitterbuffer was created. */
+    struct timeval timebase;
+    /*! \brief The time the next frame should be played. */
+    long next;
+    /*! \brief Voice format of the last frame in. */
+    int last_format;
+    /*! \brief File for frame timestamp tracing. */
+    FILE *logfile;
+    /*! \brief Jitterbuffer internal state flags. */
+    unsigned int flags;
 };
 
-typedef struct opbx_jb_info {
-	/* statistics */
-	long frames_in;  	/* number of frames input to the jitterbuffer.*/
-	long frames_out;  	/* number of frames output from the jitterbuffer.*/
-	long frames_late; 	/* number of frames which were too late, and dropped.*/
-	long frames_lost; 	/* number of missing frames.*/
-	long frames_dropped; 	/* number of frames dropped (shrinkage) */
-	long frames_ooo; 	/* number of frames received out-of-order */
-	long frames_cur; 	/* number of frames presently in jb, awaiting delivery.*/
-	long jitter; 		/* jitter measured within current history interval*/
-	long min;		/* minimum lateness within current history interval */
-	long current; 		/* the present jitterbuffer adjustment */
-	long target; 		/* the target jitterbuffer adjustment */
-	long losspct; 		/* recent lost frame percentage (* 1000) */
-	long next_voice_ts;	/* the ts of the next frame to be read from the jb - in receiver's time */
-	long lopbx_voice_ms;	/* the duration of the last voice frame */
-	long silence_begin_ts;	/* the time of the last CNG frame, when in silence */
-	long lopbx_adjustment;   /* the time of the last adjustment */
- 	long lopbx_delay;        /* the last now added to history */
- 	long cnt_delay_discont;	/* the count of discontinuous delays */
- 	long resync_offset;     /* the amount to offset ts to support resyncs */
-	long cnt_contig_interp; /* the number of contiguous interp frames returned */
-	/* These are used by the SpeakUp JB */
-	long delay;     /* Current delay due the jitterbuffer */
-        long delay_target;   /* The delay where we want to grow to */
-	long frames_received;       /* Number of frames received by the jitterbuffer */
-	long frames_dropped_twice;  /* Number of frames that were dropped because this timestamp was already in the jitterbuffer */
-	short silence;       /* If we are in silence 1-yes 0-no */
-	long iqr;            /* Inter Quartile Range of current history, if the squareroot is taken it is a good estimate of jitter */
-        long last_voice_ms;      /* the duration of the last voice frame */
-
+typedef struct opbx_jb_info
+{
+    /* statistics */
+    long frames_in;         /* number of frames input to the jitterbuffer.*/
+    long frames_out;        /* number of frames output from the jitterbuffer.*/
+    long frames_late;       /* number of frames which were too late, and dropped.*/
+    long frames_lost;       /* number of missing frames.*/
+    long frames_dropped;    /* number of frames dropped (shrinkage) */
+    long frames_ooo;        /* number of frames received out-of-order */
+    long frames_cur;        /* number of frames presently in jb, awaiting delivery.*/
+    long jitter;            /* jitter measured within current history interval*/
+    long min;               /* minimum lateness within current history interval */
+    long current;           /* the present jitterbuffer adjustment */
+    long target;            /* the target jitterbuffer adjustment */
+    long losspct;           /* recent lost frame percentage (* 1000) */
+    long next_voice_ts;     /* the ts of the next frame to be read from the jb - in receiver's time */
+    long last_voice_ms;     /* the duration of the last voice frame */
+    long silence_begin_ts;  /* the time of the last CNG frame, when in silence */
+    long last_adjustment;   /* the time of the last adjustment */
+    long last_delay;        /* the last now added to history */
+    long cnt_delay_discont; /* the count of discontinuous delays */
+    long resync_offset;     /* the amount to offset ts to support resyncs */
+    long cnt_contig_interp; /* the number of contiguous interp frames returned */
+    /* These are used by the SpeakUp JB */
+    long delay;             /* Current delay due the jitterbuffer */
+    long delay_target;      /* The delay where we want to grow to */
+    long frames_received;   /* Number of frames received by the jitterbuffer */
+    long frames_dropped_twice;  /* Number of frames that were dropped because this timestamp was already in the jitterbuffer */
+    short silence;          /* If we are in silence 1-yes 0-no */
+    long iqr;               /* Inter Quartile Range of current history, if the squareroot is taken it is a good estimate of jitter */
 } opbx_jb_info;
 
-typedef struct jb_frame {
-	void *data;		/* the frame data */
-	long ts;	/* the relative delivery time expected */
-	long ms;	/* the time covered by this frame, in sec/8000 */
-	int  type;	/* the type of frame */
-	struct jb_frame *next, *prev;
-	int codec;                    /* codec of this frame, undefined if nonvoice */
+typedef struct jb_frame
+{
+    void *data;             /* the frame data */
+    long ts;                /* the relative delivery time expected */
+    long ms;                /* the time covered by this frame, in sec/8000 */
+    int  type;              /* the type of frame */
+    struct jb_frame *next, *prev;
+    int codec;              /* codec of this frame, undefined if nonvoice */
 } jb_frame;
 
 

@@ -423,7 +423,7 @@ static struct opbx_config *config_odbc(const char *database, const char *table, 
 	struct opbx_category *cur_cat;
 	int res = 0;
 	odbc_obj *obj;
-	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, lopbx_cat_metric=0;
+	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, last_cat_metric=0;
 	SQLBIGINT id;
 	char sql[255] = "", filename[128], category[128], var_name[128], var_val[512];
 	SQLSMALLINT rowcount=0;
@@ -481,14 +481,14 @@ static struct opbx_config *config_odbc(const char *database, const char *table, 
 			}
 			continue;
 		} 
-		if (strcmp(last, category) || lopbx_cat_metric != cat_metric) {
+		if (strcmp(last, category) || last_cat_metric != cat_metric) {
 			cur_cat = opbx_category_new(category);
 			if (!cur_cat) {
 				opbx_log(LOG_WARNING, "Out of memory!\n");
 				break;
 			}
 			strcpy(last, category);
-			lopbx_cat_metric	= cat_metric;
+			last_cat_metric	= cat_metric;
 			opbx_category_append(cfg, cur_cat);
 		}
 

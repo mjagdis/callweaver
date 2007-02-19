@@ -375,11 +375,15 @@ static void parse_config(void)
     struct opbx_config *cfg;
     struct opbx_variable *var;
 
-    if ((cfg = opbx_config_load("codecs.conf"))) {
-        if ((var = opbx_variable_browse(cfg, "plc"))) {
-            while (var) {
-                if (!strcasecmp(var->name, "genericplc")) {
-                    useplc = opbx_true(var->value) ? 1 : 0;
+    if ((cfg = opbx_config_load("codecs.conf")))
+    {
+        if ((var = opbx_variable_browse(cfg, "plc")))
+        {
+            while (var)
+            {
+                if (!strcasecmp(var->name, "genericplc"))
+                {
+                    useplc = opbx_true(var->value)  ?  1  :  0;
                     if (option_verbose > 2)
                         opbx_verbose(VERBOSE_PREFIX_3 "codec_ulaw: %susing generic PLC\n", useplc  ?  ""  :  "not ");
                 }

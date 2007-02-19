@@ -454,7 +454,7 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 			   const char *stop, const char *pause,
 			   const char *restart, int skipms) 
 {
-	long elapsed = 0, lopbx_elapsed = 0;
+	long elapsed = 0, last_elapsed = 0;
 	char *breaks = NULL;
 	char *end = NULL;
 	int blen = 2;
@@ -506,7 +506,7 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 			res = 1;
 			if (elapsed) {
 				opbx_stream_fastforward(chan->stream, elapsed);
-				lopbx_elapsed = elapsed - 200;
+				last_elapsed = elapsed - 200;
 			}
 			if (res)
 				res = opbx_waitstream_fr(chan, breaks, fwd, rev, skipms);
@@ -525,7 +525,7 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file,
 		}
 
 		if (pause != NULL && strchr(pause, res)) {
-			elapsed = opbx_tvdiff_ms(opbx_tvnow(), started) + lopbx_elapsed;
+			elapsed = opbx_tvdiff_ms(opbx_tvnow(), started) + last_elapsed;
 			for(;;) {
 				if (chan)
 					opbx_stopstream(chan);

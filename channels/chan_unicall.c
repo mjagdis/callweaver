@@ -3330,6 +3330,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
     int here;
     int x;
     int ret;
+    const char *dev_names[2];
     ZT_PARAMS p;
 
     here = FALSE;
@@ -3462,6 +3463,8 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
         tmp->protocol_class = protocol_class;
         tmp->protocol_variant = protocol_variant;
         tmp->protocol_end = (protocol_end == NULL  ||  strcasecmp(protocol_end, "co") == 0)  ?  UC_MODE_CO  :  UC_MODE_CPE;
+        dev_names[0] = "fred";
+        dev_names[1] = NULL;
         if ((tmp->uc = uc_new(tmp->subs[SUB_REAL].fd,
                               tmp->subs[SUB_REAL].fd,
                               tmp->protocol_class,

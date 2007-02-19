@@ -204,7 +204,7 @@ static int		tzparse P((const char * name, struct state * sp,
 				int lastditch));
 
 static struct state *	lclptr      = NULL;
-static struct state *	lopbx_lclptr = NULL;
+static struct state *	last_lclptr = NULL;
 static struct state *	gmtptr      = NULL;
 
 #ifndef TZ_STRLEN_MAX
@@ -900,11 +900,11 @@ opbx_tzsetwall P((void))
 	}
 #endif
 
-	if (lopbx_lclptr)
-		lopbx_lclptr->next = cur_state;
+	if (last_lclptr)
+		last_lclptr->next = cur_state;
 	else
 		lclptr = cur_state;
-	lopbx_lclptr = cur_state;
+	last_lclptr = cur_state;
 	return 0;
 }
 
@@ -970,11 +970,11 @@ opbx_tzset P((const char *name))
 		}
 	}
 	strncpy(cur_state->name, name, sizeof(cur_state->name) - 1);
-	if (lopbx_lclptr)
-		lopbx_lclptr->next = cur_state;
+	if (last_lclptr)
+		last_lclptr->next = cur_state;
 	else
 		lclptr = cur_state;
-	lopbx_lclptr = cur_state;
+	last_lclptr = cur_state;
 	return 0;
 }
 

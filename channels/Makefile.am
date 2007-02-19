@@ -57,7 +57,7 @@ endif WANT_CHAN_SIP
 if WANT_CHAN_UNICALL
 opbxmod_LTLIBRARIES     	+= chan_unicall.la
 chan_unicall_la_SOURCES 	= chan_unicall.c
-chan_unicall_la_LIBADD 		= -lunicall ${top_builddir}/corelib/libopenpbx.la
+chan_unicall_la_LIBADD 		= -lunicall -lsupertone ${top_builddir}/corelib/libopenpbx.la
 chan_unicall_la_LDFLAGS 	= -module -avoid-version -no-undefined
 endif WANT_CHAN_UNICALL
 

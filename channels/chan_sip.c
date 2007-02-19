@@ -2194,7 +2194,7 @@ static char *get_in_brackets(char *tmp)
     char *first_quote;
     char *first_bracket;
     char *second_bracket;
-    char lopbx_char;
+    char last_char;
 
     parse = tmp;
     while (1)
@@ -2203,12 +2203,12 @@ static char *get_in_brackets(char *tmp)
         first_bracket = strchr(parse, '<');
         if (first_quote && first_bracket && (first_quote < first_bracket))
         {
-            lopbx_char = '\0';
+            last_char = '\0';
             for (parse = first_quote + 1;  *parse;  parse++)
             {
-                if ((*parse == '"')  &&  (lopbx_char != '\\'))
+                if ((*parse == '"')  &&  (last_char != '\\'))
                     break;
-                lopbx_char = *parse;
+                last_char = *parse;
             }
             if (!*parse)
             {

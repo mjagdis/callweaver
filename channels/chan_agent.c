@@ -1829,7 +1829,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 				}
 				/* End Channel Specific Agent Overides */
 				if (!p->chan) {
-					char lopbx_loginchan[80] = "";
+					char last_loginchan[80] = "";
 					long logintime;
 					snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 
@@ -1871,7 +1871,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 							if (!opbx_strlen_zero(context) && !opbx_strlen_zero(tmpchan))
 								snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
 							else {
-								opbx_copy_string(lopbx_loginchan, p->loginchan, sizeof(lopbx_loginchan));
+								opbx_copy_string(last_loginchan, p->loginchan, sizeof(last_loginchan));
 								opbx_copy_string(p->loginchan, tmpchan, sizeof(p->loginchan));
 							}
 							p->acknowledged = 0;
@@ -1938,8 +1938,8 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 								      "Loginchan: %s\r\n"
 								      "Logintime: %ld\r\n"
 								      "Uniqueid: %s\r\n",
-								      p->agent, lopbx_loginchan, logintime, chan->uniqueid);
-							opbx_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", lopbx_loginchan, logintime);
+								      p->agent, last_loginchan, logintime, chan->uniqueid);
+							opbx_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", last_loginchan, logintime);
 							if (option_verbose > 1)
 								opbx_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged out\n", p->agent);
 							opbx_device_state_changed("Agent/%s", p->agent);

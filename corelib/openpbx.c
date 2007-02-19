@@ -1912,7 +1912,7 @@ int openpbx_main(int argc, char *argv[])
 		option_remote++;
 		option_nofork++;
 	}
-	if (gethostname(hostname, sizeof(hostname)-1))
+	if (gethostname(hostname, sizeof(hostname) - 1))
 		opbx_copy_string(hostname, "<Unknown>", sizeof(hostname));
 	opbx_mainpid = getpid();
 	opbx_ulaw_init();
@@ -2140,10 +2140,9 @@ int openpbx_main(int argc, char *argv[])
 	/* Check if we're root */
 	if (!geteuid()) {
 #ifdef VERY_SECURE
-               opbx_log(LOG_ERROR, "Running as root has been disabled\n");
-               exit(1);
+        opbx_log(LOG_ERROR, "Running as root has been disabled\n");
+        exit(1);
 #else
-
 		opbx_log(LOG_ERROR, "Running as root has been enabled\n");
 #endif /* VERY_SECURE */
 	}

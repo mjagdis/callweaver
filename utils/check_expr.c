@@ -215,7 +215,7 @@ void parse_file(const char *fname)
 	FILE *f = fopen(fname,"r");
 	FILE *l = fopen("expr2_log","w");
 	int c1;
-	char lopbx_char= 0;
+	char last_char= 0;
 	char buffer[30000]; /* I sure hope no expr gets this big! */
 	
 	if (!f) {
@@ -233,7 +233,7 @@ void parse_file(const char *fname)
 		if (c1 == '\n')
 			global_lineno++;
 		else if (c1 == '[') {
-			if (lopbx_char == '$') {
+			if (last_char == '$') {
 				/* bingo, an expr */
 				int bracklev = 1;
 				int bufcount = 0;
@@ -287,7 +287,7 @@ void parse_file(const char *fname)
 				fprintf(l, "%s", error_report);
 			}
 		}
-		lopbx_char = c1;
+		last_char = c1;
 	}
 	printf("Summary:\n  Expressions detected: %d\n  Expressions OK:  %d\n  Total # Warnings:   %d\n  Longest Expr:   %d chars\n  Ave expr len:  %d chars\n",
 		   global_expr_count,

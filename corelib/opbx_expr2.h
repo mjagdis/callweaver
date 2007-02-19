@@ -109,8 +109,8 @@ typedef struct YYLTYPE
 {
   int first_line;
   int first_column;
-  int lopbx_line;
-  int lopbx_column;
+  int last_line;
+  int last_column;
 } YYLTYPE;
 # define yyltype YYLTYPE /* obsolescent; will be withdrawn */
 # define YYLTYPE_IS_DECLARED 1
