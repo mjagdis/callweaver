@@ -9423,6 +9423,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
     if (!user)
     {
+#ifdef RT_LOOKINGUPPEERADRESSFROMDBISSTUPIDBUTIWANTTODOITANYWAY
         /* If we didn't find a user match, check for peers */
         if (sipmethod == SIP_SUBSCRIBE)
             /* For subscribes, match on peer name only */
@@ -9433,6 +9434,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
                IP address, this call is from the peer 
             */
             peer = find_peer(NULL, &p->recv, 1);
+#else
+       peer = find_peer(of, NULL, 1);
+#endif /* RT_LOOKINGUPPEERADRESSFROMDBISSTUPIDBUTIWANTTODOITANYWAY */
 
         if (peer)
         {
