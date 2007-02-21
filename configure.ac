@@ -1940,6 +1940,13 @@ AM_CONDITIONAL([WANT_CDR_ODBC],[test "${enable_odbc}" = "yes" -a "${with_cdr_odb
 
 dnl ###########################################################################
 
+AC_ARG_WITH(cdr_manager,
+        [AC_HELP_STRING([--with-cdr_manager],[Build and install cdr_manager (default=yes)])],,[with_cdr_manager="yes"])
+
+AM_CONDITIONAL([WANT_CDR_MANAGER],[test "${with_cdr_manager}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH(cdr_mysql,
 	[AC_HELP_STRING([--with-cdr_mysql],[Build and install cdr_mysql (default=no) (requires --enable-mysql])],,[with_cdr_mysql="no"])
 
