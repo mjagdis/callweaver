@@ -5537,6 +5537,13 @@ static int vm_box_exists(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	struct opbx_vm_user svm;
 	char *context, *box;
+	int priority_jump = 0;
+
+	OPBX_DECLARE_APP_ARGS(args,
+		OPBX_APP_ARG(mbox);
+		OPBX_APP_ARG(options); 
+	);
+
 
 	if (opbx_strlen_zero(data)) {
 		opbx_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
@@ -5552,15 +5559,23 @@ static int vm_box_exists(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
+	OPBX_STANDARD_APP_ARGS(args, box);
+
+	if (args.options && strchr(args.options, 'j'))
+		priority_jump = 1;
+
 	if ((context = strchr(box, '@'))) {
 		*context = '\0';
 		context++;
 	}
 
 	if (find_user(&svm, context, box)) {
-		if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-			opbx_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
-	}
+		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
+		if (priority_jump || option_priority_jumping)
+			if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+				opbx_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
+	} else
+		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
 	LOCAL_USER_REMOVE(u);
 	return 0;
 }
