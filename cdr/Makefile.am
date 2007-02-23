@@ -38,7 +38,7 @@ opbxmod_LTLIBRARIES     += cdr_manager.la
 cdr_manager_la_SOURCES    = cdr_manager.c
 cdr_manager_la_CFLAGS     = $(AM_CFLAGS) @PQINCPATH@
 cdr_manager_la_LDFLAGS    = -module -avoid-version -no-undefined
-cdr_manager_la_LIBADD     = @PQLIBPATH@ -lpq ${top_builddir}/corelib/libopenpbx.la
+cdr_manager_la_LIBADD     = ${top_builddir}/corelib/libopenpbx.la
 endif WANT_CDR_MANAGER
 
 opbxmod_LTLIBRARIES	+= cdr_sqlite3.la
