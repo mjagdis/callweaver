@@ -8562,6 +8562,12 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     char *t;
     char *domain;
 
+    if (uri == NULL) {
+        opbx_log(LOG_WARNING, "register_verify: URI is NULL!\n");
+        transmit_response_with_date(p, "503 Bad Request", req);
+        return -3;
+    }
+
     /* Terminate URI */
     t = uri;
     while(*t && (*t > 32) && (*t != ';'))
@@ -14135,6 +14141,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             }
             return res;
         }
+    }
+    if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
+        transmit_response(p, "503 Server error", req);
+        opbx_set_flag(p, SIP_NEEDDESTROY);
+        return -1;
     }
 
     /* Handle various incoming SIP methods in requests */
