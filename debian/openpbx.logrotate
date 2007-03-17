@@ -1,4 +1,4 @@
-/var/log/openpbx.orgcdr-csv/Master.csv /var/log/openpbx.orgqueue_log /var/log/openpbx.orgevent_log /var/log/openpbx.orgmessages /var/log/openpbx.orgfull {
+/var/log/openpbx.org/cdr-csv/Master.csv /var/log/openpbx.org/queue_log /var/log/openpbx.org/event_log /var/log/openpbx.org/messages /var/log/openpbx.org/full {
         daily
         missingok
 	compress
