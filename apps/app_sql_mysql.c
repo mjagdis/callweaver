@@ -376,7 +376,7 @@ static int aMYSQL_disconnect(struct opbx_channel *chan, char *data) {
 
 static int MYSQL_exec(struct opbx_channel *chan, void *data)
 {
-	struct opbx_module_user *u;
+	struct localuser *u;
 	int result;
 	char sresult[10];
 
@@ -389,7 +389,7 @@ static int MYSQL_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	u = opbx_module_user_add(chan);
+	LOCAL_USER_ADD(u);
 	result=0;
 
 	opbx_mutex_lock(&_mysql_mutex);
@@ -411,7 +411,7 @@ static int MYSQL_exec(struct opbx_channel *chan, void *data)
 		
 	opbx_mutex_unlock(&_mysql_mutex);
 
-	opbx_module_user_remove(u);
+	LOCL_USER_REMOVE(u);
 	snprintf(sresult, sizeof(sresult), "%d", result);
 	pbx_builtin_setvar_helper(chan, "MYSQL_STATUS", sresult);
 	return 0;
