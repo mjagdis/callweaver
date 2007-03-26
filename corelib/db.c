@@ -225,6 +225,7 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 		if (zErr) {
 			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
+			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
@@ -283,6 +284,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 		if (zErr) {
 			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
+			sqlite3_free(zErr);
 		} else {
 			if (result.rownum)
 				res = 0;
@@ -347,6 +349,7 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 		if (zErr) {
 			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
+			sqlite3_free(zErr);
 		} else {
 			if (!sqlite3_changes(db))
 				res = -1;
@@ -443,6 +446,7 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 		if (zErr) {
 			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
+			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
@@ -530,6 +534,7 @@ static int database_show(int fd, int argc, char *argv[])
 		if (zErr) {
 			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
+			sqlite3_free(zErr);
 		} else {
 			res = 0;
 		}
