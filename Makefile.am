@@ -65,16 +65,16 @@ safe_openpbx:
 
 install-man-pages:
 if WANT_MAN_PAGES
-	if test ! -d ${opbxmandir}; then \
-		mkdir -p ${opbxmandir} ; \
+	if test ! -d $(DESTDIR)${opbxmandir}; then \
+		mkdir -p $(DESTDIR)${opbxmandir} ; \
 	fi ; \
-	cp $(top_srcdir)/openpbx.8 ${opbxmandir}/. ; \
-	cp $(top_srcdir)/contrib/scripts/safe_openpbx.8 ${opbxmandir}/. ;
+	cp $(top_srcdir)/openpbx.8 $(DESTDIR)${opbxmandir}/. ; \
+	cp $(top_srcdir)/contrib/scripts/safe_openpbx.8 $(DESTDIR)${opbxmandir}/. ;
 endif
 
 uninstall-man-pages:
-	if test -d ${opbxmandir}; then \
-		rm -rf ${opbxmandir} ; \
+	if test -d $(DESTDIR)${opbxmandir}; then \
+		rm -rf $(DESTDIR)${opbxmandir} ; \
 	fi ;
 
 ##############
@@ -84,67 +84,67 @@ uninstall-man-pages:
 install-docs: install-readme install-license install-credits install-sgml-docs
 
 uninstall-docs:
-	if test -d ${opbxdocdir}; then \
-		rm -rf ${opbxdocdir} ; \
+	if test -d $(DESTDIR)${opbxdocdir}; then \
+		rm -rf $(DESTDIR)${opbxdocdir} ; \
 	fi ;
 
 # README file
 install-readme:
 if WANT_README
-	if test ! -d ${opbxdocdir}; then \
-		mkdir -p ${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${opbxdocdir}; then \
+		mkdir -p $(DESTDIR)${opbxdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/README ${opbxdocdir}/. ;
+	cp $(top_srcdir)/README $(DESTDIR)${opbxdocdir}/. ;
 endif
 
 uninstall-readme:
-	if test -f ${opbxdocdir}/README; then \
-		if test ! -d ${opbxdocdir}; then \
-			mkdir -p ${opbxdocdir} ; \
+	if test -f $(DESTDIR)${opbxdocdir}/README; then \
+		if test ! -d $(DESTDIR)${opbxdocdir}; then \
+			mkdir -p $(DESTDIR)${opbxdocdir} ; \
 		fi ; \
-		rm -f ${opbxdocdir}/README ; \
+		rm -f $(DESTDIR)${opbxdocdir}/README ; \
 	fi ;
 
 # LICENSE file
 install-license:
 if WANT_LICENSE
-	if test ! -d ${opbxdocdir}; then \
-		mkdir -p ${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${opbxdocdir}; then \
+		mkdir -p $(DESTDIR)${opbxdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/LICENSE ${opbxdocdir}/. ;
+	cp $(top_srcdir)/LICENSE $(DESTDIR)${opbxdocdir}/. ;
 endif
 
 uninstall-license:
-	if test -f ${opbxdocdir}/LICENSE; then \
-		rm -f ${opbxdocdir}/LICENSE ; \
+	if test -f $(DESTDIR)${opbxdocdir}/LICENSE; then \
+		rm -f $(DESTDIR)${opbxdocdir}/LICENSE ; \
 	fi ;
 
 # CREDITS file
 install-credits:
 if WANT_CREDITS
-	if test ! -d ${opbxdocdir}; then \
-		mkdir -p ${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${opbxdocdir}; then \
+		mkdir -p $(DESTDIR)${opbxdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/CREDITS ${opbxdocdir}/. ;
+	cp $(top_srcdir)/CREDITS $(DESTDIR)${opbxdocdir}/. ;
 endif
 
 uninstall-credits:
-	if test -f ${opbxdocdir}/CREDITS; then \
-		rm -f ${opbxdocdir}/CREDITS ; \
+	if test -f $(DESTDIR)${opbxdocdir}/CREDITS; then \
+		rm -f $(DESTDIR)${opbxdocdir}/CREDITS ; \
 	fi ;
 
 # SGML docs
 install-sgml-docs:
 if WANT_SGML_DOCS
-	if test ! -d ${opbxdocdir}; then \
-		mkdir -p ${opbxdocdir} ; \
+	if test ! -d $(DESTDIR)${opbxdocdir}; then \
+		mkdir -p $(DESTDIR)${opbxdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/openpbx.sgml ${opbxdocdir}/. ;
+	cp $(top_srcdir)/openpbx.sgml $(DESTDIR)${opbxdocdir}/. ;
 endif
 
 uninstall-sgml-docs:
-	if test -f ${opbxdocdir}/openpbx.sgml; then \
-		rm -f ${opbxdocdir}/openpbx.sgml ; \
+	if test -f $(DESTDIR)${opbxdocdir}/openpbx.sgml; then \
+		rm -f $(DESTDIR)${opbxdocdir}/openpbx.sgml ; \
 	fi ;
 
 ###################
