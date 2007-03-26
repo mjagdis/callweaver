@@ -337,7 +337,9 @@ load_directory_profile() {
 #   helpstr=`echo $helpstr | ${SED} -e 's/^"//' | ${SED} -e 's/"$//'`
 #
 # read all directory variables from the profile
-   profile=`${CAT} layout.$1 | ${SED} -e 's/#.*//' -e 's/\s*=\s*/=/' -e 's/\\\\ /|/g' -e 's/^\s*//' -e 's/\s.*//' | ${GREP} "^opbx.*="`
+#   profile=`${CAT} layout.$1 | ${SED} -e 's/#.*//' -e 's/\s*=\s*/=/' -e 's/\\\\ /|/g' -e 's/^\s*//' -e 's/\s.*//' | ${GREP} "^opbx.*="`
+   profile=`${CAT} layout.$1 | ${SED} -e 's/#.*//' -e 's/[[:blank:]]*=[[:blank:]]*/=/' -e 's/\\\\ /|/g' -e 's/^[[:blank:]]*//' -e 's/[[:blank:]].*//' | ${GREP} "^opbx.*="`
+
    for line in $profile;
    do
         key=`echo "$line" | ${SED} -e 's/=.*$//'`;
