@@ -118,8 +118,8 @@ fi
 echo ""
 echo "checking versions of required software ..."
 if [ "x$UNAME" = "xFreeBSD" ]; then
-version_compare libtoolize 1 5 20 || exit 1
-version_compare automake19 1 9 6 || exit 1
+version_compare libtoolize 1 5 10 || exit 1
+version_compare automake19 1 9 3 || exit 1
 version_compare autoconf259 2 59 || exit 1
 ACLOCAL=aclocal19
 AUTOHEADER=autoheader259
