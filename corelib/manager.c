@@ -68,7 +68,6 @@ struct fopbx_originate_helper {
 	char appdata[256];
 	char cid_name[256];
 	char cid_num[256];
-	char account[256];
 	char context[256];
 	char exten[256];
 	char idtext[256];
@@ -914,12 +913,12 @@ static void *fopbx_originate(void *data)
 		res = opbx_pbx_outgoing_app(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
 			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, in->account, &chan);
+			in->vars, &chan);
 	} else {
 		res = opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
 			!opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, in->account, &chan);
+			in->vars, &chan);
 	}   
 	if (!res)
 		manager_event(EVENT_FLAG_CALL,
@@ -1044,8 +1043,7 @@ static int action_originate(struct mansession *s, struct message *m)
 				opbx_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
 			if (n)
 				opbx_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
-			fast->vars = vars;
-			opbx_copy_string(fast->account, account, sizeof(fast->account));	
+			fast->vars = vars;	
 			opbx_copy_string(fast->context, context, sizeof(fast->context));
 			opbx_copy_string(fast->exten, exten, sizeof(fast->exten));
 			fast->timeout = to;
@@ -1061,10 +1059,10 @@ static int action_originate(struct mansession *s, struct message *m)
 			
 		}
 	} else if (!opbx_strlen_zero(app)) {
-        	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
+        	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
     	} else {
 		if (exten && context && pi)
-	        	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
+	        	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
