@@ -503,8 +503,7 @@ int unload_module(void)
 		opbx_verbose("MySQL RealTime unloaded.\n");
 	}
 
-	opbx_module_user_hangup_all();
-
+	STANDARD_HANGUP_LOCALUSERS;
 	/* Unlock so something else can destroy the lock. */
 	opbx_mutex_unlock(&mysql_lock);
 
