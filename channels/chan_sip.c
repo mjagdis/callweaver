@@ -2289,12 +2289,14 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	syslabel = "regserver";
 
     if (fullcontact)
-	opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", 
-	regseconds, "username", username, "useragent", useragent, "fullcontact", fullcontact, syslabel, 
-	sysname, NULL);
+	opbx_update_realtime(
+	    "sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", 
+	    regseconds, "username", username, "useragent", useragent, "fullcontact", fullcontact, 
+	    syslabel, sysname, NULL);
     else
-	opbx_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", 
-	regseconds, "username", username, "useragent", useragent, syslabel, sysname, NULL);
+	opbx_update_realtime(
+	    "sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", 
+	    regseconds, "username", username, "useragent", useragent, syslabel, sysname, NULL);
 
 }
 
@@ -2383,7 +2385,9 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
     {
         /* Then check on IP address */
         opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
-        var = opbx_load_realtime("sippeers", "ipaddr", iabuf, NULL);
+        var = opbx_load_realtime("sippeers", "host", iabuf, NULL);
+	if (!var)
+	    var = opbx_load_realtime("sippeers", "ipaddr", iabuf, NULL);	/* Then check for registred hosts */
     }
     else
         return NULL;
@@ -3035,8 +3039,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
     /* incoming and outgoing affects the inUse counter */
     case DEC_CALL_LIMIT:
         if ( *inuse > 0 ) {
-	    if (opbx_test_flag(fup,SIP_INC_COUNT))
+	    if (opbx_test_flag(fup,SIP_INC_COUNT)) {
 	         (*inuse)--;
+		opbx_clear_flag(fup, SIP_INC_COUNT);
+	    }
 	}
         else
             *inuse = 0;
@@ -11118,7 +11124,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
         !strcasecmp(get_header(req, "Content-Type"), "application/vnd.nortelnetworks.digits"))
     {
         /* Try getting the "signal=" part */
-        if (opbx_strlen_zero(c = get_sdp(req, "Signal")) && opbx_strlen_zero(c = get_sdp(req, "d")))
+        if (opbx_strlen_zero(c = get_sdp(req, "Signal")) && opbx_strlen_zero(c = get_body(req, "d")))
         {
             opbx_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
             transmit_response(p, "200 OK", req); /* Should return error */
