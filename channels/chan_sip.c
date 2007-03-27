@@ -2377,6 +2377,8 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
     struct opbx_variable *tmp;
     char *newpeername = (char *) peername;
     char iabuf[80];
+    char iabuf2[10];
+    int port = 0;
 
     /* First check on peer name */
     if (newpeername) 
@@ -2385,9 +2387,11 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
     {
         /* Then check on IP address */
         opbx_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
+        port = ntohs(sin->sin_port);
+        snprintf(iabuf2,sizeof(iabuf2),"%d",port);
         var = opbx_load_realtime("sippeers", "host", iabuf, NULL);
 	if (!var)
-	    var = opbx_load_realtime("sippeers", "ipaddr", iabuf, NULL);	/* Then check for registred hosts */
+	    var = opbx_load_realtime("sippeers", "ipaddr", iabuf, "port", iabuf2, NULL);	/* Then check for registred hosts */
     }
     else
         return NULL;
@@ -8644,6 +8648,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     {
         if (peer)
             ASTOBJ_UNREF(peer,sip_destroy_peer);
+	peer = NULL;
     }
     if (peer)
     {
@@ -8662,6 +8667,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
                 {
                 case PARSE_REGISTER_FAILED:
                     opbx_log(LOG_WARNING, "Failed to parse contact info\n");
+                    transmit_response_with_date(p, "400 Bad Request", req);
 		    peer->lastmsgssent = -1;
 		    res = 0;
                     break;
@@ -9396,7 +9402,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
     	    //To be checked.
             opbx_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
         }
-        if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore)))
+        if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ignore)))
         {
             sip_cancel_destroy(p);
             opbx_copy_flags(p, user, SIP_FLAGS_TO_COPY);
@@ -9458,12 +9464,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
         if (sipmethod == SIP_SUBSCRIBE)
             /* For subscribes, match on peer name only */
             peer = find_peer(of, NULL, 1);
-        else
+        else {
             /* Look for peer based on the IP address we received data from */
             /* If peer is registered from this IP address or have this as a default
                IP address, this call is from the peer 
             */
             peer = find_peer(NULL, &p->recv, 1);
+	}
 
         if (peer)
         {
