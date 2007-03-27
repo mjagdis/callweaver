@@ -349,7 +349,7 @@ static void *originate(void *arg) {
 	int res;
 	struct opbx_channel *chan = NULL;
 
-	res = opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, !opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, NULL, &chan);
+	res = opbx_pbx_outgoing_exten(in->tech, OPBX_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !opbx_strlen_zero(in->cid_num) ? in->cid_num : NULL, !opbx_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
 	manager_event(EVENT_FLAG_CALL, "Originate", 
 			"ChannelRequested: %s/%s\r\n"
 			"Context: %s\r\n"
