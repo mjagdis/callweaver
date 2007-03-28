@@ -411,7 +411,7 @@ static int MYSQL_exec(struct opbx_channel *chan, void *data)
 		
 	opbx_mutex_unlock(&_mysql_mutex);
 
-	LOCL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(u);
 	snprintf(sresult, sizeof(sresult), "%d", result);
 	pbx_builtin_setvar_helper(chan, "MYSQL_STATUS", sresult);
 	return 0;
