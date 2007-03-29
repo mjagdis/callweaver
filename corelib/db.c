@@ -231,6 +231,7 @@ int opbx_db_put(const char *family, const char *keys, char *value)
 		}
 	} else {
 		opbx_log(LOG_ERROR, "Memory Error!\n");
+		res = -1;	/* Return an error */
 	}
 
 	if (sql) {
@@ -293,6 +294,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 		}
 	} else {
 		opbx_log(LOG_ERROR, "Memory Error!\n");
+		res = -1;   /* Return an error */
 	}
 
 	if (sql) {
@@ -358,6 +360,7 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 		}
 	} else {
 		opbx_log(LOG_ERROR, "Memory Error!\n");
+		res = -1;   /* Return an error */
 	}
 
 	if (sql) {
@@ -452,6 +455,7 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 		}
 	} else {
 		opbx_log(LOG_ERROR, "Memory Error!\n");
+		res = -1;   /* Return an error */
 	}
 
 	if (sql) {
@@ -540,6 +544,7 @@ static int database_show(int fd, int argc, char *argv[])
 		}
 	} else {
 		opbx_log(LOG_ERROR, "Memory Error!\n");
+		res = -1;   /* Return an error */
 	}
 
 	if (sql) {
