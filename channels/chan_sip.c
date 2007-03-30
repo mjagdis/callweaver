@@ -1673,7 +1673,7 @@ static void copy_request(struct sip_request *dst,struct sip_request *src);
 /*! \brief  parse_copy: Copy SIP request, parse it */
 static void parse_copy(struct sip_request *dst, struct sip_request *src)
 {
-    memset(dst, 0, sizeof(*dst));
+    memset(dst, 0, sizeof(struct sip_request));
     memcpy(dst->data, src->data, sizeof(dst->data));
     dst->len = src->len;
     parse_request(dst);
@@ -4131,7 +4131,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 {
     struct sip_pvt *p;
 
-    if (!(p = calloc(1, sizeof(*p))))
+    if (!(p = calloc(1, sizeof(struct sip_pvt))))
         return NULL;
 
     opbx_mutex_init(&p->lock);
@@ -5599,7 +5599,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 {
     char newto[256], *ot;
 
-    memset(resp, 0, sizeof(*resp));
+    memset(resp, 0, sizeof(struct sip_request));
     init_resp(resp, msg, req);
     copy_via_headers(p, resp, req, "Via");
     if (msg[0] == '2')
@@ -5792,10 +5792,10 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 /*! \brief  transmit_response_using_temp: Transmit response, no retransmits, using temporary pvt */
 static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg)
 {
-    struct sip_pvt *p = alloca(sizeof(*p));
+    struct sip_pvt *p = alloca(sizeof(struct sip_pvt));
     struct sip_history *hist = NULL;
 
-    memset(p, 0, sizeof(*p));
+    memset(p, 0, sizeof(struct sip_pvt));
 
     p->method = intended_method;
     if (sin)
@@ -6430,7 +6430,7 @@ static void copy_request(struct sip_request *dst, struct sip_request *src)
     int x;
     offset = ((void *)dst) - ((void *)src);
     /* First copy stuff */
-    memcpy(dst, src, sizeof(*dst));
+    memcpy(dst, src, sizeof(struct sip_request));
     /* Now fix pointer arithmetic */
     for (x=0; x < src->headers; x++)
         dst->header[x] += offset;
@@ -8185,7 +8185,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
             ++rr;
             len = strcspn(rr, ">") + 1;
             /* Make a struct route */
-            thishop = malloc(sizeof(*thishop) + len);
+            thishop = malloc(sizeof(struct sip_route) + len);
             if (thishop)
             {
                 opbx_copy_string(thishop->hop, rr, len);
@@ -8237,7 +8237,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
                 c = contact;
                 len = strlen(contact) + 1;
             }
-            thishop = malloc(sizeof(*thishop) + len);
+            thishop = malloc(sizeof(struct sip_route) + len);
             if (thishop)
             {
                 opbx_copy_string(thishop->hop, c, len);
@@ -11447,7 +11447,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 
     if (!p->options)
     {
-        p->options = calloc(1, sizeof(*p->options));
+        p->options = calloc(1, sizeof(struct sip_invite_param));
         if (!p->options)
         {
             opbx_log(LOG_ERROR, "Out of memory\n");
@@ -12985,7 +12985,7 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
     d = malloc(sizeof(struct sip_dual));
     if (d)
     {
-        memset(d, 0, sizeof(*d));
+        memset(d, 0, sizeof(struct sip_dual));
         /* Save original request for followup */
         copy_request(&d->req, req);
         d->chan1 = chan1m;
@@ -14850,7 +14850,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
         return NULL;
     }
 
-    p->options = calloc(1, sizeof(*p->options));
+    p->options = calloc(1, sizeof(struct sip_invite_param));
     if (!p->options)
     {
 	sip_destroy(p);
@@ -15064,7 +15064,7 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
         return 1;
     }
 
-    d = calloc(1, sizeof(*d));
+    d = calloc(1, sizeof(struct domain));
     if (!d)
     {
         opbx_log(LOG_ERROR, "Allocation of domain structure failed, Out of memory\n");
@@ -15370,11 +15370,11 @@ static struct sip_peer *temp_peer(const char *name)
 {
     struct sip_peer *peer;
 
-    peer = malloc(sizeof(*peer));
+    peer = malloc(sizeof(struct sip_peer));
     if (!peer)
         return NULL;
 
-    memset(peer, 0, sizeof(*peer));
+    memset(peer, 0, sizeof(struct sip_peer));
     apeerobjs++;
     ASTOBJ_INIT(peer);
 
@@ -15430,10 +15430,10 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
     }
     else
     {
-        peer = malloc(sizeof(*peer));
+        peer = malloc(sizeof(struct sip_peer));
         if (peer)
         {
-            memset(peer, 0, sizeof(*peer));
+            memset(peer, 0, sizeof(struct sip_peer));
             if (realtime)
                 rpeerobjs++;
             else
