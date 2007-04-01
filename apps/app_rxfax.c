@@ -462,7 +462,9 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                 if (fax_rx(&fax, inf->data, inf->samples))
                     break;
                 samples = (inf->samples <= MAX_BLOCK_SIZE)  ?  inf->samples  :  MAX_BLOCK_SIZE;
-                if ((len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
+
+		len = fax_tx(&fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples);
+                if ( len )
                 {
                     opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
                     outf.datalen = len*sizeof(int16_t);
@@ -475,6 +477,20 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
                         break;
                     }
                 }
+		else {
+		    len = samples;
+                    opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "RxFAX");
+                    outf.datalen = len*sizeof(int16_t);
+                    outf.samples = len;
+                    outf.data = &buf[OPBX_FRIENDLY_OFFSET];
+                    outf.offset = OPBX_FRIENDLY_OFFSET;
+		    memset(&buf[OPBX_FRIENDLY_OFFSET],0,outf.datalen);
+                    if (opbx_write(chan, &outf) < 0)
+                    {
+                        opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+                        break;
+                    }
+		}
             }
             else if (inf->frametype == OPBX_FRAME_MODEM  &&  inf->subclass == OPBX_MODEM_T38)
             {
