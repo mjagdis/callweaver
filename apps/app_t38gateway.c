@@ -23,6 +23,7 @@
 #include <openpbx/logger.h>
 #include <openpbx/channel.h>
 #include <openpbx/dsp.h>
+#include <openpbx/app.h>
 #include <openpbx/pbx.h>
 #include <openpbx/module.h>
 #include <openpbx/lock.h>
@@ -130,7 +131,8 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
         	    {
             		if (fr2->subclass == 'f')
             		{
-    			    opbx_log(LOG_WARNING, "FAX DETECTED !!!\n");
+    			    opbx_log(LOG_DEBUG, "FAX DETECTED !!!\n");
+                	    //opbx_app_request_t38(active);
 			}
 		    }
 		    if (f != fr2)
