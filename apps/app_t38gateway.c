@@ -1,14 +1,17 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * OpenPBX -- An open source telephony toolkit.
  *
- * Dialing Application
- *
+ * Trivial application to receive a TIFF FAX file
+ * 
  * Copyright (C) 2005, Anthony Minessale II
+ * Copyright (C) 2003, 2005, Steve Underwood
  *
  * Anthony Minessale II <anthmct@yahoo.com>
+ * Steve Underwood <steveu@coppice.org>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
+ *
  */
 
 #ifdef HAVE_CONFIG_H
