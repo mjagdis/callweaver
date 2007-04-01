@@ -97,15 +97,16 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     struct opbx_frame *f, *fr2;
     int timeout = -1;
     int running = RUNNING;
+
     struct opbx_dsp *dsp = NULL;
 
     if ( !( dsp = opbx_dsp_new() ) )
         opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
-
-    opbx_dsp_set_threshold(dsp, 256); 
-    opbx_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
-    opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
-
+    else {
+	opbx_dsp_set_threshold(dsp, 256); 
+	opbx_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+	opbx_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+    }
 
     channels[0] = chan;
     channels[1] = peer;
@@ -117,7 +118,9 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
             if ((f = opbx_read(active)))
             {
-		fr2 = opbx_frdup(f);
+
+		if ( ( active == chan ) && dsp )
+		    fr2 = opbx_frdup(f);
 
                 f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
                 opbx_write(inactive, f);
@@ -125,20 +128,21 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                 channels[0] = inactive;
                 channels[1] = active;
 
-        	fr2 = opbx_dsp_process(active, dsp, fr2);
-        	if (fr2) {
-        	    if (fr2->frametype == OPBX_FRAME_DTMF)
-        	    {
-            		if (fr2->subclass == 'f')
-            		{
-    			    opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
-                	    opbx_app_request_t38(active);
+		if ( ( active == chan ) && fr2 && dsp) {
+        	    fr2 = opbx_dsp_process(active, dsp, fr2);
+        	    if (fr2) {
+        		if (fr2->frametype == OPBX_FRAME_DTMF)
+        		{
+            		    if (fr2->subclass == 'f')
+            		    {
+    				opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
+                		opbx_app_request_t38(active);
+			    }
 			}
+			if (f != fr2)
+            		    opbx_fr_free(fr2);
 		    }
-		    if (f != fr2)
-            		opbx_fr_free(fr2);
 		}
-
             }
             else
             {
