@@ -22,6 +22,7 @@
 #include <openpbx/file.h>
 #include <openpbx/logger.h>
 #include <openpbx/channel.h>
+#include <openpbx/dsp.h>
 #include <openpbx/pbx.h>
 #include <openpbx/module.h>
 #include <openpbx/lock.h>
@@ -92,12 +93,22 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     struct opbx_channel *active = NULL;
     struct opbx_channel *inactive = NULL;
     struct opbx_channel *channels[2];
-    struct opbx_frame *f;
+    struct opbx_frame *f, *fr2;
     int timeout = -1;
     int running = RUNNING;
+    struct opbx_dsp *dsp = NULL;
+
+    if ( !( dsp = opbx_dsp_new() ) )
+        opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+
+    opbx_dsp_set_threshold(dsp, 256); 
+    opbx_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+    opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+
 
     channels[0] = chan;
     channels[1] = peer;
+
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
         if ((active = opbx_waitfor_n(channels, 2, &timeout)))
@@ -105,12 +116,27 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
             if ((f = opbx_read(active)))
             {
-                /* TODO: this is only needed because not everything sets the tx_copies field properly */
-                f->tx_copies = 1;
+		fr2 = opbx_frdup(f);
+
+                f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
                 opbx_write(inactive, f);
                 clean_frame(f);
                 channels[0] = inactive;
                 channels[1] = active;
+
+        	fr2 = opbx_dsp_process(active, dsp, fr2);
+        	if (fr2) {
+        	    if (fr2->frametype == OPBX_FRAME_DTMF)
+        	    {
+            		if (fr2->subclass == 'f')
+            		{
+    			    opbx_log(LOG_WARNING, "FAX DETECTED !!!\n");
+			}
+		    }
+		    if (f != fr2)
+            		opbx_fr_free(fr2);
+		}
+
             }
             else
             {
@@ -118,9 +144,14 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             }
         }
         /* Check if we need to change to gateway operation */
-        if (chan->t38mode_enabled != peer->t38mode_enabled)
+        if (chan->t38mode_enabled != peer->t38mode_enabled) {
             break;
+	}
     }
+
+    if (dsp)
+        opbx_dsp_free(dsp);
+
     return running;
 }
 
