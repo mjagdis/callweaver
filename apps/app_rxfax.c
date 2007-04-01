@@ -363,7 +363,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
             t30_set_header_info(&fax.t30_state, x);
         t30_set_rx_file(&fax.t30_state, target_file, -1);
         //t30_set_phase_b_handler(&fax.t30_state, phase_b_handler, chan);
-        t30_set_phase_d_handler(&fax.t30_state, phase_d_handler, chan);
+        //t30_set_phase_d_handler(&fax.t30_state, phase_d_handler, chan);
         t30_set_phase_e_handler(&fax.t30_state, phase_e_handler, chan);
 
         t38_terminal_init(&t38, calling_party, t38_tx_packet_handler, chan);
