@@ -142,9 +142,12 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                 		opbx_app_request_t38(active);
 			    }
 			}
-			if (f != fr2)
-            		    opbx_fr_free(fr2);
 		    }
+		}
+		if (f != fr2) {
+		    if (fr2)
+            		opbx_fr_free(fr2);
+		    fr2=NULL;
 		}
             }
             else
