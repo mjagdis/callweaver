@@ -237,6 +237,8 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     struct opbx_frame 	*inf = NULL;
     int 		ready = 1,
 			res = 0;
+    uint64_t 		now;
+    uint64_t 		passage;
 
     memset(t38, 0, sizeof(t38));
 
@@ -260,6 +262,7 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     if (x  &&  x[0])
         t30_set_header_info(&t38->t30_state, x);
     t30_set_tx_file(&t38->t30_state, source_file, -1, -1);
+
     //t30_set_phase_b_handler(&t38.t30_state, phase_b_handler, chan);
     //t30_set_phase_d_handler(&t38.t30_state, phase_d_handler, chan);
     t30_set_phase_e_handler(&t38->t30_state, phase_e_handler, chan);
@@ -275,7 +278,7 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
         opbx_log(LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
     }
 
-
+    passage = nowis();
 
     while ( ready && ready_to_talk(chan) )
     {
@@ -287,6 +290,13 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 	    ready = 0;
             break;
 	}
+
+        now = nowis();
+        t38_terminal_send_timeout(t38, (now - passage)/125);
+        passage = now;
+        /* End application when T38/T30 has finished */
+        if ((t38->current_rx_type == T30_MODEM_DONE)  ||  (t38->current_tx_type == T30_MODEM_DONE)) 
+            break;
 
         inf = opbx_read(chan);
         if (inf == NULL) {
