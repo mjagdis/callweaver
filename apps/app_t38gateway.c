@@ -131,8 +131,8 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
         	    {
             		if (fr2->subclass == 'f')
             		{
-    			    opbx_log(LOG_DEBUG, "FAX DETECTED !!!\n");
-                	    //opbx_app_request_t38(active);
+    			    opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
+                	    opbx_app_request_t38(active);
 			}
 		    }
 		    if (f != fr2)
@@ -201,6 +201,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         channels[0] = peer;
         channels[1] = chan;
     }
+
     original_read_fmt = channels[1]->readformat;
     original_write_fmt = channels[1]->writeformat;
     if (!channels[1]->t38mode_enabled)
@@ -224,11 +225,13 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
             }
         }
     }
+
     if (t38_gateway_init(&t38_state, t38_tx_packet_handler, channels[0]) == NULL)
     {
         opbx_log(LOG_WARNING, "Unable to start the T.38 gateway\n");
         return -1;
     }
+
     span_log_set_message_handler(&t38_state.logging, span_message);
     span_log_set_message_handler(&t38_state.t38.logging, span_message);
     if (verbose)
@@ -238,6 +241,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     }
     t38_set_t38_version(&t38_state.t38, 0);
     t38_gateway_ecm_control(&t38_state, 1);
+
 
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
@@ -360,7 +364,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
 
     if ((res = opbx_call(peer, dest, 0)) < 0)
         ALL_DONE(u, -1); 
-    
+
     /* While we haven't timed out and we still have no channel up */
     while (timeout  &&  (peer->_state != OPBX_STATE_UP))
     {
@@ -410,7 +414,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
         }
         opbx_fr_free(f);
     }
-    
+
     res = 1;
     if (ready  &&  ready_to_talk(chan, peer))
     {
@@ -423,18 +427,20 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
                 opbx_indicate(chan, -1);
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
+
             if (res  &&  chan->t38mode_enabled == peer->t38mode_enabled)
             {
-                /* Same on both sides, so just bridge */
-                opbx_log(LOG_WARNING, "Bridging frames\n");
+                // Same on both sides, so just bridge 
+                opbx_log(LOG_NOTICE, "Bridging frames\n");
                 res = opbx_bridge_frames(chan, peer);
             }
             if (res  &&  chan->t38mode_enabled != peer->t38mode_enabled)
             {
-                /* Different on each side, so gateway */
-                opbx_log(LOG_WARNING, "Doing T.38 gateway\n");
+                // Different on each side, so gateway 
+                opbx_log(LOG_NOTICE, "Doing T.38 gateway\n");
                 res = opbx_t38_gateway(chan, peer, verbose);
             }
+
         }
         else
         {
