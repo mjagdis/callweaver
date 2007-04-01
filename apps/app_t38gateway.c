@@ -1,7 +1,7 @@
 /*
  * OpenPBX -- An open source telephony toolkit.
  *
- * Trivial application to receive a TIFF FAX file
+ * Trivial application to act as a T.38 gateway
  * 
  * Copyright (C) 2005, Anthony Minessale II
  * Copyright (C) 2003, 2005, Steve Underwood
