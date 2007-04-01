@@ -112,6 +112,14 @@ extern int opbx_app_getdata_full(struct opbx_channel *c, char *prompt, char *s, 
 /*! Record voice (after playing prompt if specified), waiting for silence (in ms) up to a given timeout (in s) or '#' */
 int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *prompt, int silence, int maxsec);
 
+
+void opbx_install_t38_functions( int (*has_request_t38_func)(const struct opbx_channel *chan) );
+
+void opbx_uninstall_t38_functions(void);
+
+int opbx_app_request_t38(const struct opbx_channel *chan);
+
+
 void opbx_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs));
   

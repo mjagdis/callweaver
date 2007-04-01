@@ -16710,13 +16710,13 @@ static char *descrip_sipt38switchover = ""
 static int sip_t38switchover(struct opbx_channel *chan, void *data) 
 {
     struct sip_pvt *p;
-
+/*
     if (!data)
     {
         opbx_log(LOG_WARNING, "This function requires a header name.\n");
         return 0;
     }
-
+*/
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
@@ -16754,10 +16754,17 @@ static int sip_t38switchover(struct opbx_channel *chan, void *data)
             opbx_set_flag(p, SIP_NEEDREINVITE);
         }
     }
+    else {
+	opbx_log(LOG_WARNING,"Cannot execute T38 reinvite\n");
+    }
 
     opbx_mutex_unlock(&chan->lock);
 
     return 0;
+}
+
+static int sip_do_t38switchover(const struct opbx_channel *chan) {
+    return sip_t38switchover( (struct opbx_channel*) chan,NULL);
 }
 
 
@@ -17207,8 +17214,9 @@ int load_module(void)
     //opbx_tpkt_proto_register(&sip_tpkt);
 
     /* Register dialplan applications */
-    opbx_register_application(app_sipt38switchover, sip_t38switchover, synopsis_sipt38switchover, descrip_sipt38switchover);
     opbx_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
+    opbx_register_application(app_sipt38switchover, sip_t38switchover, synopsis_sipt38switchover, descrip_sipt38switchover);
+    opbx_install_t38_functions(sip_do_t38switchover);
 
     /* These will be removed soon */
     opbx_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
@@ -17248,6 +17256,7 @@ int unload_module(void)
     opbx_custom_function_unregister(&checksipdomain_function);
 
     opbx_unregister_application(app_sipt38switchover);
+    opbx_uninstall_t38_functions();
     opbx_unregister_application(app_dtmfmode);
     opbx_unregister_application(app_sipaddheader);
     opbx_unregister_application(app_sipgetheader);

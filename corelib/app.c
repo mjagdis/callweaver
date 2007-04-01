@@ -249,6 +249,27 @@ int opbx_app_getvoice(struct opbx_channel *c, char *dest, char *dstfmt, char *pr
 	return 0;
 }
 
+static int (*opbx_has_request_t38_func)(const struct opbx_channel *chan) = NULL;
+
+void opbx_install_t38_functions( int (*has_request_t38_func)(const struct opbx_channel *chan) )
+{
+	opbx_has_request_t38_func = has_request_t38_func;
+}
+
+void opbx_uninstall_t38_functions(void)
+{
+	opbx_has_request_t38_func = NULL;
+}
+
+int opbx_app_request_t38(const struct opbx_channel *chan)
+{
+    if (opbx_has_request_t38_func)
+		return opbx_has_request_t38_func(chan);
+    return 0;
+}
+
+
+
 static int (*opbx_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
 static int (*opbx_messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
 
