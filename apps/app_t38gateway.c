@@ -363,6 +363,41 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
             opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", tech, dest);
             ALL_DONE(u, 0);
         }
+	if (peer)
+	{
+	  opbx_channel_inherit_variables(chan, peer);
+	  peer->appl = "AppT38GW";
+	  peer->data = "(Outgoing Line)";
+	  peer->whentohangup = 0;
+	  if (peer->cid.cid_num)
+	    free(peer->cid.cid_num);
+	  peer->cid.cid_num = NULL;
+	  if (peer->cid.cid_name)
+	    free(peer->cid.cid_name);
+	  peer->cid.cid_name = NULL;
+	  if (peer->cid.cid_ani)
+	    free(peer->cid.cid_ani);
+	  peer->cid.cid_ani = NULL;
+	  peer->transfercapability = chan->transfercapability;
+	  peer->adsicpe = chan->adsicpe;
+	  peer->cid.cid_tns = chan->cid.cid_tns;
+	  peer->cid.cid_ton = chan->cid.cid_ton;
+	  peer->cid.cid_pres = chan->cid.cid_pres;
+	  peer->cdrflags = chan->cdrflags;
+	  if (chan->cid.cid_rdnis)
+		peer->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
+	  if (chan->cid.cid_num) 
+		peer->cid.cid_num = strdup(chan->cid.cid_num);
+          if (chan->cid.cid_name) 
+		peer->cid.cid_name = strdup(chan->cid.cid_name);
+          if (chan->cid.cid_ani) 
+		peer->cid.cid_ani = strdup(chan->cid.cid_ani);
+	  opbx_copy_string(peer->language, chan->language, sizeof(peer->language));
+	  opbx_copy_string(peer->accountcode, chan->accountcode, sizeof(peer->accountcode));
+	  peer->cdrflags = chan->cdrflags;
+	  if (opbx_strlen_zero(peer->musicclass))
+			opbx_copy_string(peer->musicclass, chan->musicclass, sizeof(peer->musicclass));	
+	}
         if (flags  &&  strchr(flags, 'r'))
             opbx_indicate(chan, OPBX_CONTROL_RINGING);
     }
@@ -371,7 +406,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
         opbx_log(LOG_ERROR, "Error creating channel. Invalid name %s\n", tech);
         ALL_DONE(u, 0);
     }
-
+    opbx_log(LOG_ERROR, "Orig CID: %s Dest CID: %s\n", peer->cid.cid_num, chan->cid.cid_num);
     if ((res = opbx_call(peer, dest, 0)) < 0)
         ALL_DONE(u, -1); 
 
