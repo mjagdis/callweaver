@@ -352,6 +352,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
         else
             timeout = 60000;
     }
+
     if ((dest = strchr(tech, '/')))
     {
         int cause = 0;
@@ -363,6 +364,7 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
             opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", tech, dest);
             ALL_DONE(u, 0);
         }
+
 	if (peer)
 	{
 	  opbx_channel_inherit_variables(chan, peer);

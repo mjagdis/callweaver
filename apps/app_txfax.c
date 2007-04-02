@@ -149,6 +149,20 @@ static int faxgen_generate(struct opbx_channel *chan, void *data, int samples)
             opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
         }
     }
+    else
+    {
+        len = samples;
+        opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "TxFAX");
+        outf.datalen = len*sizeof(int16_t);
+        outf.samples = len;
+        outf.data = &buf[OPBX_FRIENDLY_OFFSET];
+        outf.offset = OPBX_FRIENDLY_OFFSET;
+        memset(&buf[OPBX_FRIENDLY_OFFSET],0,outf.datalen);
+        if (opbx_write(chan, &outf) < 0)
+        {
+            opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+        }
+    }
 
     return 0;
 }
@@ -626,8 +640,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 
     }
 
-    t30_terminate(&fax.t30_state);
-    t30_terminate(&t38.t30_state);
+    if (!chan->t38mode_enabled)
+	t30_terminate(&fax.t30_state);
+    else
+	t30_terminate(&t38.t30_state);
+
     fax_release(&fax);
 
     /* Restoring initial channel formats. */
