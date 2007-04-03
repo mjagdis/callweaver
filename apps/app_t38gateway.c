@@ -124,6 +124,8 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 
 		if ( ( active == chan ) && dsp )
 		    fr2 = opbx_frdup(f);
+		else
+		    fr2=NULL;
 
                 f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
                 opbx_write(inactive, f);
@@ -275,7 +277,9 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                 {
                     if (t38_gateway_rx(&t38_state, f->data, f->samples))
                         break;
+
                     samples = (f->samples <= MAX_BLOCK_SIZE)  ?  f->samples  :  MAX_BLOCK_SIZE;
+
                     if ((len = t38_gateway_tx(&t38_state, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)))
                     {
                         opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "T38Gateway");

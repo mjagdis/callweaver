@@ -424,6 +424,21 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
                     break;
                 }
             }
+	    else
+	    {
+	    	len = samples;
+    		opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "TxFAX");
+    		outf.datalen = len*sizeof(int16_t);
+    		outf.samples = len;
+    		outf.data = &buf[OPBX_FRIENDLY_OFFSET];
+    		outf.offset = OPBX_FRIENDLY_OFFSET;
+    		memset(&buf[OPBX_FRIENDLY_OFFSET],0,outf.datalen);
+    		if (opbx_write(chan, &outf) < 0)
+    		{
+        	    opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
+		    break;
+    		}
+	    }
         }
 	else {
 	    if ( (nowis() - begin) > 1000000 ) {

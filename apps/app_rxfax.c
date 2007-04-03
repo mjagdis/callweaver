@@ -33,6 +33,8 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "openpbx/file.h"
 #include "openpbx/logger.h"
 #include "openpbx/channel.h"
+#include "openpbx/app.h"
+#include "openpbx/dsp.h"
 #include "openpbx/pbx.h"
 #include "openpbx/module.h"
 #include "openpbx/translate.h"
@@ -361,7 +363,8 @@ static int rxfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 
 static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, int calling_party,int verbose, int ecm) {
     char 		*x;
-    struct opbx_frame 	*inf = NULL;
+    struct opbx_frame 	*inf = NULL,
+			*dspf = NULL;
     struct opbx_frame 	outf;
     int 		ready = 1,
 			samples = 0,
@@ -370,6 +373,8 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 			generator_mode = 0;
     uint64_t		begin = 0,
 			received_frames = 0;
+
+    struct opbx_dsp *dsp = NULL;
 
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
@@ -406,6 +411,17 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
         opbx_log(LOG_DEBUG, "Enabling ECM mode for app_rxfax\n"  );
     }
 
+    /* Initializing the DSP */
+
+    if ( !( dsp = opbx_dsp_new() ) )
+        opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+    else {
+	opbx_dsp_set_threshold(dsp, 256); 
+	opbx_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+	opbx_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+    }
+
+
     /* This is the main loop */
 
     begin = nowis();
@@ -426,6 +442,24 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	    ready = 0;
             break;
         }
+
+        dspf = opbx_frdup(inf);
+        dspf = opbx_dsp_process(chan, dsp, dspf);
+
+	if (dspf && dspf->frametype == OPBX_FRAME_DTMF)
+        {
+            if (dspf->subclass == 'f')
+            {
+    		opbx_log(LOG_DEBUG, "Fax detected in RxFax !!!\n");
+        	opbx_app_request_t38(chan);
+	    }
+	}
+ 
+        if ( dspf && (inf != dspf) ) {
+            opbx_fr_free(dspf);
+            dspf=NULL;
+	}
+
 
 	/* We got a frame */
         if (inf->frametype == OPBX_FRAME_VOICE) {
@@ -477,11 +511,14 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
         opbx_fr_free(inf);
     }
 
+    // This is activated when we don't receive any frame for
+    // X seconds (see above)... we are probably on ZAP or talking without UDPTL to
+    // another openpbx box
+
     if (generator_mode) {
-	// This is activated when we don't receive any frame for
-	// X seconds (see above)... we are probably on ZAP or talking without UDPTL to
-	// another openpbx box
-opbx_log(LOG_NOTICE,"Got it 2\n");
+	if (dsp)
+	    opbx_dsp_reset(dsp);
+
 	opbx_generator_activate(chan, &faxgen, fax);
 
 	while ( ready && ready_to_talk(chan) ) {
