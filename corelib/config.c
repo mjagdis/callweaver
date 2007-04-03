@@ -596,9 +596,9 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 		}
 		count++;
 		if (option_debug) {
-			opbx_log(LOG_DEBUG, "Parsing %s\n", fn);
-			if (option_verbose > 1)
-				opbx_verbose("Found\n");
+			opbx_log(LOG_DEBUG, "Parsing %s - Found\n", fn);
+			if (option_verbose > 3)
+				opbx_verbose( "Parsing %s - Found\n", fn);
 		}
 		while(!feof(f)) {
 			lineno++;
