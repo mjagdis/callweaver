@@ -3424,6 +3424,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                 time(&p->lastrtptx);
                 res =  opbx_rtp_write(p->rtp, frame);
 
+/*
                 // Outgoing Fax detection
                 if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && 
         	        p->options  &&  p->options->t38txdetection  &&  p->vadtx)
@@ -3438,6 +3439,7 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                         }
                     }
                 }
+*/
             }
             opbx_mutex_unlock(&p->lock);
         }
@@ -3492,9 +3494,11 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
 {
     int res=0;
     int faxdetected = 0;
-    struct sip_pvt *p = ast->tech_pvt;
 
     res = sip_rtp_write(ast,frame,&faxdetected);
+/*
+    struct sip_pvt *p = ast->tech_pvt;
+
     if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast)))
     {
         opbx_log(LOG_VERBOSE, "Faxdetect set to 1. DSP detected fax tones on TX\n");
@@ -3516,6 +3520,7 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
             opbx_set_flag(p, SIP_NEEDREINVITE);
         }
     }
+*/
     return res;
 }
 
@@ -4044,6 +4049,7 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
                 opbx_set_read_format(p->owner, p->owner->readformat);
                 opbx_set_write_format(p->owner, p->owner->writeformat);
             }
+/*
             if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad )
             {
                 f = opbx_dsp_process(p->owner, p->vad, f);
@@ -4051,13 +4057,14 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
                 {
                     if (t38udptlsupport && f->subclass == 'f' && !(opbx_bridged_channel(ast)))
                     {
-                        /* Fax tone */
+                        // Fax tone 
                         opbx_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
                         *faxdetect = 1;
                     }
                     opbx_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
                 }
             }
+*/
         }
     }
     return f;
@@ -4076,6 +4083,7 @@ static struct opbx_frame *sip_read(struct opbx_channel *ast)
     opbx_mutex_unlock(&p->lock);
     /* If we are NOT bridged to another channel, and we have detected fax tone we issue T38 re-invite to a peer */
     /* If we are bridged then it is responsibility of the SIP device to issue T38 re-invite if it detects CNG or fax preabmle */
+/*
     if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast)))
     {
         if (!opbx_test_flag(p, SIP_GOTREFER))
@@ -4096,6 +4104,7 @@ static struct opbx_frame *sip_read(struct opbx_channel *ast)
                 opbx_set_flag(p, SIP_NEEDREINVITE);
             }    
     }
+*/
     return fr;
 }
 
@@ -16734,7 +16743,11 @@ static int sip_t38switchover(struct opbx_channel *chan, void *data)
         return 0;
     }
 
-    if (t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(chan)))
+    if ( 
+	    t38udptlsupport 
+	    && (p->t38state == 0) 
+	    //&& !(opbx_bridged_channel(chan))
+       )
     {
         if (!opbx_test_flag(p, SIP_GOTREFER))
         {
@@ -16755,7 +16768,12 @@ static int sip_t38switchover(struct opbx_channel *chan, void *data)
         }
     }
     else {
-	opbx_log(LOG_WARNING,"Cannot execute T38 reinvite\n");
+	opbx_log(LOG_WARNING,
+		    "Cannot execute T38 reinvite [ t38udptlsupport: %d, p->t38state %d, bridged %d ]\n",
+		    t38udptlsupport,
+		    p->t38state, 
+		    ( opbx_bridged_channel(chan) ) ? 1 : 0
+		);
     }
 
     opbx_mutex_unlock(&chan->lock);
