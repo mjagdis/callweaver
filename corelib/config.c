@@ -595,10 +595,11 @@ static struct opbx_config *config_text_file_load(const char *database, const cha
 			continue;
 		}
 		count++;
-		if (option_debug)
+		if (option_debug) {
 			opbx_log(LOG_DEBUG, "Parsing %s\n", fn);
-		if (option_verbose > 1)
-			opbx_verbose("Found\n");
+			if (option_verbose > 1)
+				opbx_verbose("Found\n");
+		}
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
