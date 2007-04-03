@@ -537,6 +537,24 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
         	break;
     	    }
 
+    	    dspf = opbx_frdup(inf);
+    	    dspf = opbx_dsp_process(chan, dsp, dspf);
+
+	    if (dspf && dspf->frametype == OPBX_FRAME_DTMF)
+    	    {
+        	if (dspf->subclass == 'f')
+        	{
+    		    opbx_log(LOG_DEBUG, "Fax detected in RxFax !!!\n");
+        	    opbx_app_request_t38(chan);
+		}
+	    }
+ 
+    	    if ( dspf && (inf != dspf) ) {
+        	opbx_fr_free(dspf);
+        	dspf=NULL;
+	    }
+
+
 	    /* We got a frame */
     	    if (inf->frametype == OPBX_FRAME_VOICE) {
         	if (fax_rx(fax, inf->data, inf->samples)) {
