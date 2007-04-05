@@ -26,7 +26,7 @@
  * \section copyright Copyright and author
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
- * OpenPBX is a trade mark registered by Digium, Inc.
+ * Asterisk is a trade mark registered by Digium, Inc.
  *
  * \author Mark Spencer <markster at digium.com>
  * Also see \ref AstCREDITS
