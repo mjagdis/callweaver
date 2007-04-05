@@ -2046,12 +2046,6 @@ int openpbx_main(int argc, char *argv[])
 		cap_user_header_t cap_header;
 		cap_user_data_t cap_data;
 
-		cap_header = alloca(sizeof(*cap_header));
-		cap_data = alloca(sizeof(*cap_data));
-		if (cap_header != NULL) {
-			cap_header->version = _LINUX_CAPABILITY_VERSION;
-			cap_header->pid = 0;
-		}
 		/* inherit our capabilities */
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
 			opbx_log(LOG_WARNING, "Unable to keep capabilities: %s\n", strerror(errno));
@@ -2122,17 +2116,18 @@ int openpbx_main(int argc, char *argv[])
 		}
 
 #if defined(__linux__)
-		if ((cap_header != NULL) && (cap_data != NULL)) {
-			/* get current capabilities */
-			if (capget(cap_header, cap_data) == -1) {
-				opbx_log(LOG_WARNING, "Unable to get capabilities\n");
-			}
-			cap_data->effective = 1 << CAP_NET_ADMIN;
-			/* set capabilities including NET_ADMIN */
-			/* this allows us to e.g. set all TOS bits */
-			if (capset(cap_header, cap_data) == -1) {
-				opbx_log(LOG_WARNING, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
-			}
+		cap_header = alloca(sizeof(*cap_header));
+		cap_data = alloca(sizeof(*cap_data));
+		cap_header->version = _LINUX_CAPABILITY_VERSION;
+		cap_header->pid = 0;
+		cap_data->effective = 1 << CAP_NET_ADMIN;
+		cap_data->permitted = cap_data->effective;
+		cap_data->inheritable = 0;
+		/* set capabilities including NET_ADMIN */
+		/* this allows us to e.g. set all TOS bits */
+		if (capset(cap_header, cap_data) == -1) {
+			opbx_log(LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
+			exit(1);
 		}
 #endif
 	}
