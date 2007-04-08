@@ -149,20 +149,6 @@ static int faxgen_generate(struct opbx_channel *chan, void *data, int samples)
             opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
         }
     }
-    else
-    {
-        len = samples;
-        opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "TxFAX");
-        outf.datalen = len*sizeof(int16_t);
-        outf.samples = len;
-        outf.data = &buf[OPBX_FRIENDLY_OFFSET];
-        outf.offset = OPBX_FRIENDLY_OFFSET;
-        memset(&buf[OPBX_FRIENDLY_OFFSET],0,outf.datalen);
-        if (opbx_write(chan, &outf) < 0)
-        {
-            opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-        }
-    }
 
     return 0;
 }
@@ -172,7 +158,7 @@ struct opbx_generator faxgen =
 	alloc: 		faxgen_alloc,
 	release: 	faxgen_release,
 	generate: 	faxgen_generate,
-} ;
+};
 
 /*- End of function --------------------------------------------------------*/
 
@@ -245,7 +231,6 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 }
 /*- End of function --------------------------------------------------------*/
 
-
 static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char *source_file, int calling_party,int verbose, int ecm) {
     char 		*x;
     struct opbx_frame 	*inf = NULL;
@@ -256,7 +241,11 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
 
     memset(t38, 0, sizeof(t38));
 
-    t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan);
+    if (t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan) == NULL)
+    {
+        opbx_log(LOG_WARNING, "Unable to start T.38 termination.\n");
+        return -1;
+    }
 
     span_log_set_message_handler(&t38->logging, span_message);
     span_log_set_message_handler(&t38->t30_state.logging, span_message);
@@ -319,9 +308,7 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
         }
 
         if (inf->frametype == OPBX_FRAME_MODEM  &&  inf->subclass == OPBX_MODEM_T38)
-        {
-    	    t38_core_rx_ifp_packet(&t38->t38, inf->seq_no, inf->data, inf->datalen);
-	}
+    	    t38_core_rx_ifp_packet(&t38->t38, inf->data, inf->datalen, inf->seq_no);
 
         opbx_fr_free(inf);
     }
@@ -329,7 +316,6 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     return ready;
 
 }
-
 /*- End of function --------------------------------------------------------*/
 
 static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source_file, int calling_party,int verbose, int ecm) {
@@ -349,8 +335,12 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 
     memset(fax, 0, sizeof(fax));
 
-    fax_init(fax, calling_party);
-    fax_set_transmit_on_idle(fax,TRUE);
+    if (fax_init(fax, calling_party) == NULL)
+    {
+        opbx_log(LOG_WARNING, "Unable to start FAX\n");
+        return -1;
+    }
+    fax_set_transmit_on_idle(fax, TRUE);
     span_log_set_message_handler(&fax->logging, span_message);
     span_log_set_message_handler(&fax->t30_state.logging, span_message);
     if (verbose)
@@ -413,9 +403,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
                     break;
 
             samples = (inf->samples <= MAX_BLOCK_SIZE)  ?  inf->samples  :  MAX_BLOCK_SIZE;
-            len = fax_tx(fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples);
-
-            if (len) {
+            if ((len = fax_tx(fax, (int16_t *) &buf[OPBX_FRIENDLY_OFFSET], samples)) > 0) {
                 opbx_fr_init_ex(&outf, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, "TxFAX");
                 outf.datalen = len*sizeof(int16_t);
                 outf.samples = len;
@@ -508,9 +496,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 
     return ready;
 }
-
 /*- End of function --------------------------------------------------------*/
-
 
 static int txfax_exec(struct opbx_channel *chan, void *data)
 {

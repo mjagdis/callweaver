@@ -36,7 +36,7 @@
 #include <tiffio.h>
 #include <spandsp.h>
 
-static char *desc = "Alternate Dialer Application";
+static char *desc = "T.38 Gateway Dialer Application";
 
 static char *tdesc = "\n"
 "Usage T38Gateway(<dialstring>[|<timeout>|<options>])\n\n"
@@ -243,6 +243,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         opbx_log(LOG_WARNING, "Unable to start the T.38 gateway\n");
         return -1;
     }
+    t38_gateway_set_transmit_on_idle(&t38_state, TRUE);
 
     span_log_set_message_handler(&t38_state.logging, span_message);
     span_log_set_message_handler(&t38_state.t38.logging, span_message);
@@ -263,7 +264,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
             {
                 if ((f = opbx_read(active)))
                 {
-                    t38_core_rx_ifp_packet(&t38_state.t38, f->seq_no, f->data, f->datalen);
+                    t38_core_rx_ifp_packet(&t38_state.t38, f->data, f->datalen, f->seq_no);
                     clean_frame(f);
                 }
                 else

@@ -733,15 +733,18 @@ AC_ARG_WITH([spandsp-libs],
 	[AC_HELP_STRING([--with-spandsp-libs],[Location of SpanDSP library files.])],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
-AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre27 or newer is required to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([spandsp.h],[HAVE_SPANDSP_H=1],[AC_MSG_ERROR(SpanDSP version 0.0.3pre30 or newer is required to compile OpenPBX.org.)])
 
-AC_CHECK_HEADERS([spandsp/t38_core.h],[HAVE_SPANDSP_T38_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre27 or newer to compile OpenPBX.org.)],
+AC_CHECK_HEADERS([spandsp/version.h],[HAVE_SPANDSP_VERSION_H=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre30 or newer to compile OpenPBX.org.)],
 [#ifdef HAVE_SPANDSP_H
 #include <spandsp.h>
 #endif
-])
+#include <spandsp/version.h>
 
-AC_CHECK_LIB([spandsp],[fax_set_transmit_on_idle],[HAVE_LIBSPANDSP=1],[AC_MSG_ERROR(SpanDSP does not appear to be new enough. You must have version 0.0.3pre27 or newer to comple OpenPBX.org.)],[-ltiff])
+#if SPANDSP_RELEASE_DATE < 20070408
+#error
+#endif
+])
 
 dnl ###########################################################################
 dnl ###########################################################################
