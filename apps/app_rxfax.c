@@ -437,6 +437,9 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
             break;
 	}
 
+        if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
+            break;
+
         inf = opbx_read(chan);
         if (inf == NULL) {
 	    ready = 0;
@@ -509,8 +512,13 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	    }
 	}
         opbx_fr_free(inf);
+	inf = NULL;
     }
 
+    if (inf) {
+        opbx_fr_free(inf);
+	inf = NULL;
+    }
     // This is activated when we don't receive any frame for
     // X seconds (see above)... we are probably on ZAP or talking without UDPTL to
     // another openpbx box
@@ -530,6 +538,9 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 	        ready = 0;
         	break;
 	    }
+
+    	    if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
+        	break;
 
     	    inf = opbx_read(chan);
     	    if (inf == NULL) {
@@ -563,6 +574,13 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 		}
 	    }
 
+    	    opbx_fr_free(inf);
+	    inf = NULL;
+	}
+
+	if (inf) {
+    	    opbx_fr_free(inf);
+	    inf = NULL;
 	}
 
 	opbx_generator_deactivate(chan);

@@ -395,6 +395,9 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
             break;
 	}
 
+        if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
+            break;
+
         inf = opbx_read(chan);
         if (inf == NULL) {
 	    ready = 0;
@@ -450,6 +453,12 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 	    }
 	}
         opbx_fr_free(inf);
+        inf = NULL;
+    }
+
+    if (inf) {
+        opbx_fr_free(inf);
+        inf = NULL;
     }
 
     if (generator_mode) {
@@ -468,6 +477,9 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
         	break;
 	    }
 
+    	    if ((fax->current_rx_type == T30_MODEM_DONE)  ||  (fax->current_tx_type == T30_MODEM_DONE))
+        	break;
+
     	    inf = opbx_read(chan);
     	    if (inf == NULL) {
 		ready = 0;
@@ -482,8 +494,14 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 		}
 	    }
 
+    	    opbx_fr_free(inf);
+	    inf = NULL;
 	}
 
+	if (inf) {
+    	    opbx_fr_free(inf);
+	    inf = NULL;
+	}
 	opbx_generator_deactivate(chan);
 
     }
