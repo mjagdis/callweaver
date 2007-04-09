@@ -2044,11 +2044,27 @@ AM_CONDITIONAL([WANT_FUNC_CALLERID],[test "${with_func_callerid}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([func_config],
+        [AC_HELP_STRING([--with-func_config],[Build and install func_config (default=no)])],,
+        [with_func_config="no"])
+
+AM_CONDITIONAL([WANT_FUNC_CDR],[test "${with_func_config}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([func_cdr],
         [AC_HELP_STRING([--with-func_cdr],[Build and install func_cdr (default=yes)])],,
         [with_func_cdr="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_CDR],[test "${with_func_cdr}" = "yes"])
+
+dnl ###########################################################################
+
+AC_ARG_WITH([func_config],
+        [AC_HELP_STRING([--with-func_config],[Build and install func_cdr (default=yes)])],,
+        [with_func_config="yes"])
+
+AM_CONDITIONAL([WANT_FUNC_CONFIG],[test "${with_func_config}" = "yes"])
 
 dnl ###########################################################################
 

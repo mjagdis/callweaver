@@ -23,6 +23,14 @@ func_cdr_la_CFLAGS		= $(AM_CFLAGS)
 func_cdr_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
 endif WANT_FUNC_CDR
 
+if WANT_FUNC_CONFIG
+opbxmod_LTLIBRARIES		+= func_config.la
+func_config_la_SOURCES		= func_config.c
+func_config_la_LDFLAGS		= -module -avoid-version -no-undefined
+func_config_la_CFLAGS		= $(AM_CFLAGS)
+func_config_la_LIBADD		= ${top_builddir}/corelib/libopenpbx.la
+endif WANT_FUNC_CONFIG
+
 if WANT_FUNC_DB
 opbxmod_LTLIBRARIES		+= func_db.la
 func_db_la_SOURCES		= func_db.c
