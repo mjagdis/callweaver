@@ -30,7 +30,7 @@
 
 #include "openpbx.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_db.c $", "$Revision$")
+OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_enum.c $", "$Revision$")
 
 #include "openpbx/module.h"
 #include "openpbx/channel.h"
