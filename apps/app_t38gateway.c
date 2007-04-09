@@ -253,7 +253,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
         span_log_set_level(&t38_state.t38.logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
     }
     t38_set_t38_version(&t38_state.t38, 0);
-    t38_gateway_ecm_control(&t38_state, 1);
+    t38_gateway_set_ecm_capability(&t38_state, 1);
 
 
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
