@@ -570,7 +570,7 @@ static int misdn_overlap_dial_task (void *data)
 		stop_indicate(ch);
 		if (opbx_exists_extension(ch->ast, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
 			ch->state=MISDN_DIALING;
-			if (pbx_start_chan(ch->ast) < 0) {
+			if (pbx_start_chan(ch) < 0) {
 				chan_misdn_log(-1, ch->bc->port, "opbx_pbx_start returned < 0 in misdn_overlap_dial_task\n");
 				goto misdn_overlap_dial_task_disconnect;
 			}
