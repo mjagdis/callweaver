@@ -879,21 +879,15 @@ msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc
 
 void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
-//#define FACILITY_DECODE
 #ifdef FACILITY_DEBUG
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	FACILITY_t *facility=(FACILITY_t*)((unsigned long)(msg->data+HEADER_LEN)); 
 	Q931_info_t *qi=(Q931_info_t*)(msg->data+HEADER_LEN);  
-
 #if DEBUG 
 	printf("Parsing FACILITY Msg\n"); 
 #endif
-
-	{
 		fac_dec(facility->FACILITY, qi, &bc->fac_type, &bc->fac, bc);
-	}
 #endif	
-
 }
 
 msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 

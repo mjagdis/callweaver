@@ -108,7 +108,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tas well, since chan_misdn has no chance to distinguish if the L1 is down\n"
 		"\tbecause of a lost Link or because the Provider shut it down..." },
 	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "yes", NONE,
-		"If the port should be blocked, whenever an Alarm comes up\n"},
+		"If the port should be blocked, whenever an Alarm comes up."},
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE,
 		"Set this to yes, if you want to bridge a mISDN data channel to\n"
 		"\tanother channel type or to an application." },

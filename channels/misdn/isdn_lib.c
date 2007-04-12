@@ -2579,6 +2579,7 @@ int handle_frm(msg_t *msg)
     
 		bc=find_bc_by_l3id(stack, frm->dinfo);
     
+handle_frm_bc:
 		if (bc ) {
 			enum event_e event = isdn_msg_get_event(msgs_g, msg, 0);
 			enum event_response_e response=RESPONSE_OK;
@@ -2634,7 +2635,13 @@ int handle_frm(msg_t *msg)
 #endif
       
 		} else {
-			cb_log(0, stack->port, "NO BC FOR STACK\n");		
+			cb_log(0, stack->port, " --> Didn't find BC so temporarly creating dummy BC (l3id:%x) on this port.\n", frm->dinfo);
+			struct misdn_bchannel dummybc;
+			memset (&dummybc,0,sizeof(dummybc));
+			dummybc.port=stack->port;
+			dummybc.l3_id=frm->dinfo;
+			bc=&dummybc; 
+			goto handle_frm_bc;
 		}
 	}
 

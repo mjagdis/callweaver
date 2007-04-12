@@ -98,6 +98,8 @@ available data is returned and the return value indicates the number
 of data. */
 int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
+/* get the level of the buffer */
+int misdn_jb_get_level(struct misdn_jb *jb);
 
 enum misdn_chan_state {
 	MISDN_NOTHING,		/*!< at beginning */
@@ -161,7 +163,9 @@ struct chan_list {
 	int jb_len;
 	int jb_upper_threshold;
 	struct misdn_jb *jb;
-	
+
+ 	struct misdn_jb *jb_rx;
+ 		
 	struct opbx_dsp *dsp;
 	struct opbx_trans_pvt *trans;
   
@@ -260,6 +264,7 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...);
 static struct opbx_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit );
 
+static int pbx_start_chan(struct chan_list *ch);
 
 #define OPBX_CID_P(ast) ast->cid.cid_num
 #define OPBX_BRIDGED_P(ast) opbx_bridged_channel(ast) 
@@ -330,6 +335,9 @@ int add_out_calls(int port);
 int add_in_calls(int port);
 
 static int update_ec_config(struct misdn_bchannel *bc);
+
+
+void trigger_read(struct chan_list *ch, char *data, int len);
 
 /*************** Helpers *****************/
 
@@ -408,15 +416,15 @@ static void print_facility( struct misdn_bchannel *bc)
 {
 	switch (bc->fac_type) {
 	case FACILITY_CALLDEFLECT:
-		chan_misdn_log(2,bc->port," --> calldeflect: %s\n",
+		chan_misdn_log(0,bc->port," --> calldeflect: %s\n",
 			       bc->fac.calldeflect_nr);
 		break;
 	case FACILITY_CENTREX:
-		chan_misdn_log(2,bc->port," --> centrex: %s\n",
+		chan_misdn_log(0,bc->port," --> centrex: %s\n",
 			       bc->fac.cnip);
 		break;
 	default:
-		chan_misdn_log(2,bc->port," --> unknown\n");
+		chan_misdn_log(0,bc->port," --> unknown\n");
 		
 	}
 }
@@ -562,7 +570,7 @@ static int misdn_overlap_dial_task (void *data)
 		stop_indicate(ch);
 		if (opbx_exists_extension(ch->ast, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
 			ch->state=MISDN_DIALING;
-			if (opbx_pbx_start(ch->ast) < 0) {
+			if (pbx_start_chan(ch->ast) < 0) {
 				chan_misdn_log(-1, ch->bc->port, "opbx_pbx_start returned < 0 in misdn_overlap_dial_task\n");
 				goto misdn_overlap_dial_task_disconnect;
 			}
@@ -1600,8 +1608,10 @@ void config_jitterbuffer(struct chan_list *ch)
 		}
 		
 		ch->jb=misdn_jb_init(len, threshold);
+		ch->jb_rx=misdn_jb_init(len, threshold);
+		//ch->jb_rx=misdn_jb_init(len, threshold);
 
-		if (!ch->jb ) 
+		if (!ch->jb  || !ch->jb_rx) 
 			bc->nojitter=1;
 	}
 }
@@ -2465,9 +2475,10 @@ static struct opbx_frame  *misdn_read(struct opbx_channel *ast)
 		chan_misdn_log(1,0,"misdn_read called without bc\n");
 		return NULL;
 	}
-
-	len=read(tmp->pipe[0],tmp->opbx_rd_buf,sizeof(tmp->opbx_rd_buf));
-	
+ //	len=read(tmp->pipe[0], &blah, sizeof(blah));
+#if 1
+  	len=read(tmp->pipe[0],tmp->opbx_rd_buf,sizeof(tmp->opbx_rd_buf));
+#endif	
 	if (len<=0) {
 		/* we hangup here, since our pipe is closed */
 		chan_misdn_log(2,tmp->bc->port,"misdn_read: Pipe closed, hanging up\n");
@@ -2603,6 +2614,13 @@ static int misdn_write(struct opbx_channel *ast, struct opbx_frame *frame)
 	}
 
 	
+	int len=misdn_jb_empty(ch->jb_rx, ch->opbx_rd_buf, frame->samples);
+	if (len>0) { 
+		trigger_read(ch, ch->opbx_rd_buf, len);
+	} else {
+		cb_log(0,ch->bc->port,"jb_read underrun: %d\n",len);
+	}
+
 	
 	return 0;
 }
@@ -3278,7 +3296,7 @@ static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan)
 /** Channel Queue End **/
 
 
-int pbx_start_chan(struct chan_list *ch)
+static int pbx_start_chan(struct chan_list *ch)
 {
 	int ret=opbx_pbx_start(ch->ast);	
 
@@ -3345,7 +3363,9 @@ static void release_chan(struct misdn_bchannel *bc) {
 		/*releaseing jitterbuffer*/
 		if (ch->jb ) {
 			misdn_jb_destroy(ch->jb);
+			misdn_jb_destroy(ch->jb_rx);
 			ch->jb=NULL;
+			ch->jb_rx=NULL;
 		} else {
 			if (!bc->nojitter)
 				chan_misdn_log(5,bc->port,"Jitterbuffer already destroyed.\n");
@@ -3578,6 +3598,46 @@ int add_out_calls(int port)
 }
 
 
+
+void trigger_read(struct chan_list *ch, char *data, int len)
+{
+	fd_set wrfs;
+	struct timeval tv;
+	tv.tv_sec=0;
+	tv.tv_usec=0;
+	struct misdn_bchannel *bc=ch->bc;
+		
+	
+	FD_ZERO(&wrfs);
+	FD_SET(ch->pipe[1],&wrfs);
+			
+	int t=select(FD_SETSIZE,NULL,&wrfs,NULL,&tv);
+
+	if (!t) {
+		chan_misdn_log(9, bc->port, "Select Timed out\n");
+		return;
+	}
+		
+	if (t<0) {
+		chan_misdn_log(-1, bc->port, "Select Error (err=%s)\n",strerror(errno));
+		return;
+	}
+		
+	if (FD_ISSET(ch->pipe[1],&wrfs)) {
+
+#if 0
+		chan_misdn_log(9, bc->port, "writing %d bytes 2 asterisk\n",bc->bframe_len);
+		int ret=write(ch->pipe[1], bc->bframe, bc->bframe_len);
+#endif
+		int ret=write(ch->pipe[1], data , len);
+			
+		if (ret<=0) {
+			chan_misdn_log(-1, bc->port, "Write returned <=0 (err=%s)\n",strerror(errno));
+		}
+	} else {
+		chan_misdn_log(1, bc->port, "Wripe Pipe full!\n");
+	}
+}
 
 /************************************************************/
 /*  Receive Events from isdn_lib  here                     */
@@ -4293,36 +4353,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			opbx_queue_frame(ch->ast,&frame);
 		} else {
-			fd_set wrfs;
-			struct timeval tv;
-			tv.tv_sec=0;
-			tv.tv_usec=0;
-			
-			
-			FD_ZERO(&wrfs);
-			FD_SET(ch->pipe[1],&wrfs);
-			
-			int t=select(FD_SETSIZE,NULL,&wrfs,NULL,&tv);
-
-			if (!t) {
-				chan_misdn_log(9, bc->port, "Select Timed out\n");
-				break;
-			}
-			
-			if (t<0) {
-				chan_misdn_log(-1, bc->port, "Select Error (err=%s)\n",strerror(errno));
-				break;
-			}
-			
-			if (FD_ISSET(ch->pipe[1],&wrfs)) {
-				chan_misdn_log(9, bc->port, "writing %d bytes 2 openpbx\n",bc->bframe_len);
-				int ret=write(ch->pipe[1], bc->bframe, bc->bframe_len);
-				
-				if (ret<=0) {
-					chan_misdn_log(-1, bc->port, "Write returned <=0 (err=%s)\n",strerror(errno));
-				}
-			} else {
-				chan_misdn_log(1, bc->port, "Wripe Pipe full!\n");
+ 			int l=misdn_jb_fill(ch->jb_rx, bc->bframe, bc->bframe_len);
+ 			if (l<0) {
+ 				cb_log(0,bc->port,"jb_fill overflow:%d\n",l);
 			}
 		}
 	}
@@ -4448,6 +4481,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			struct opbx_channel *bridged=OPBX_BRIDGED_P(ch->ast);
 			struct chan_list *ch;
 			
+			misdn_lib_send_event(bc, EVENT_DISCONNECT);
+
 			if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
 				ch=MISDN_ASTERISK_TECH_PVT(bridged);
 				/*ch->state=MISDN_FACILITY_DEFLECTED;*/
@@ -4461,7 +4496,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		break;
 		default:
-			chan_misdn_log(1, bc->port," --> not yet handled: facility type:%p\n", bc->fac_type);
+			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_type);
 		}
 		
 		break;
@@ -5136,7 +5171,10 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len)
 }
 
 
-
+int misdn_jb_get_level(struct misdn_jb *jb)
+{
+	return jb->state_buffer;
+}
 
 /*******************************************************/
 /*************** JITTERBUFFER  END *********************/
