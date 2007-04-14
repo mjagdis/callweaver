@@ -1596,7 +1596,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		f = chan->readq;
 		chan->readq = f->next;
 		/* Interpret hangup and return NULL */
-		if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_HANGUP))
+		if ((f->frametype == OPBX_FRAME_CONTROL)  &&  (f->subclass == OPBX_CONTROL_HANGUP))
         {
 			opbx_fr_free(f);
 			f = NULL;
@@ -1618,7 +1618,9 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 			}
 			/* Clear the exception flag */
 			opbx_clear_flag(chan, OPBX_FLAG_EXCEPTION);
-		} else {
+		}
+        else
+        {
 			if (chan->tech->read)
 				f = chan->tech->read(chan);
 			else
@@ -1626,69 +1628,79 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		}
 	}
 
-
-	if (f  &&  (f->frametype == OPBX_FRAME_VOICE))
+	if (f)
     {
-		if (!(f->subclass & chan->nativeformats))
+		/* If the channel driver returned more than one frame, stuff the excess
+		   into the readq for the next opbx_read call */
+		if (f->next)
         {
-			/* This frame can't be from the current native formats -- drop it on the
-			   floor */
-			opbx_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, opbx_getformatname(f->subclass), opbx_getformatname(chan->nativeformats));
-			opbx_fr_free(f);
-			f = &null_frame;
+            /* We can safely assume the read queue is empty, or we wouldn't be here */
+			chan->readq = f->next;
+			f->next = NULL;
 		}
-        else
-        {
-			if (chan->spiers)
-            {
-				struct opbx_channel_spy *spying;
 
-				for (spying = chan->spiers;  spying;  spying = spying->next)
-					opbx_queue_spy_frame(spying, f, 0);
-			}
-			if (chan->monitor && chan->monitor->read_stream)
+    	if ((f->frametype == OPBX_FRAME_VOICE))
+        {
+    		if (!(f->subclass & chan->nativeformats))
             {
+    			/* This frame can't be from the current native formats -- drop it on the floor */
+    			opbx_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, opbx_getformatname(f->subclass), opbx_getformatname(chan->nativeformats));
+    			opbx_fr_free(f);
+    			f = &null_frame;
+    		}
+            else
+            {
+    			if (chan->spiers)
+                {
+    				struct opbx_channel_spy *spying;
+
+    				for (spying = chan->spiers;  spying;  spying = spying->next)
+    					opbx_queue_spy_frame(spying, f, 0);
+    			}
+    			if (chan->monitor && chan->monitor->read_stream)
+                {
 #ifndef MONITOR_CONSTANT_DELAY
-				int jump = chan->outsmpl - chan->insmpl - 2 * f->samples;
+    				int jump = chan->outsmpl - chan->insmpl - 2 * f->samples;
 
-				if (jump >= 0)
-                {
-					if (opbx_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
-						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-					chan->insmpl += jump + 2 * f->samples;
-				}
-                else
-                {
-					chan->insmpl+= f->samples;
-                }
+    				if (jump >= 0)
+                    {
+    					if (opbx_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+    						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+    					chan->insmpl += jump + 2 * f->samples;
+    				}
+                    else
+                    {
+	    				chan->insmpl+= f->samples;
+                    }
 #else
-				int jump = chan->outsmpl - chan->insmpl;
+    				int jump = chan->outsmpl - chan->insmpl;
 
-				if (jump - MONITOR_DELAY >= 0)
-                {
-					if (opbx_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
-						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-					chan->insmpl += jump;
-				}
-                else
-                {
-					chan->insmpl += f->samples;
-                }
+	    			if (jump - MONITOR_DELAY >= 0)
+                    {
+			    		if (opbx_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
+    						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+	    				chan->insmpl += jump;
+		    		}
+                    else
+                    {
+    					chan->insmpl += f->samples;
+                    }
 #endif
-				if (opbx_writestream(chan->monitor->read_stream, f) < 0)
-					opbx_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
-			}
-			if (chan->readtrans)
-            {
-				if ((f = opbx_translate(chan->readtrans, f, 1)) == NULL)
-					f = &null_frame;
-			}
-		}
-	}
+		    		if (opbx_writestream(chan->monitor->read_stream, f) < 0)
+			    		opbx_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+    			}
+	    		if (chan->readtrans)
+                {
+    				if ((f = opbx_translate(chan->readtrans, f, 1)) == NULL)
+	    				f = &null_frame;
+		    	}
+    		}
+	    }
+    }
 
-	/* Make sure we always return NULL in the future */
 	if (!f)
     {
+    	/* Make sure we always return NULL in the future */
 		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
 		opbx_generator_deactivate(chan);
 		/* End the CDR if appropriate */
