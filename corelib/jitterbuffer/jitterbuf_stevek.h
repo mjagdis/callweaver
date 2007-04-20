@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-#include <openpbx/generic_jb.h>
+#include <callweaver/generic_jb.h>
 
 /* configuration constants */
 	/* Number of historical timestamps to use in calculating jitter and drift */

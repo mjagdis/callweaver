@@ -25,7 +25,7 @@
  * please look at the comments in the code file.
  */
 
-#include <openpbx/frame.h>
+#include <callweaver/frame.h>
 #include "jitterbuf_speakup.h"
 #include <stdlib.h>
 #include <string.h>

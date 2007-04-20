@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openpbx/logger.h>
+#include <callweaver/logger.h>
 
 #include "callweaver.h"
 
@@ -694,8 +694,8 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 			 * INTERP for the lost frame, then it shows up next, and we
 			 * throw it away because it's late */
 	  		/* I've recently only been able to replicate this using
-			 * iaxclient talking to app_echo on openpbx.  In this case,
-			 * my outgoing packets go through openpbx's (old)
+			 * iaxclient talking to app_echo on callweaver.  In this case,
+			 * my outgoing packets go through callweaver's (old)
 			 * jitterbuffer, and then might get an unusual increasing delay 
 			 * there if it decides to grow?? */
 			/* Update: that might have been a different bug, that has been fixed..

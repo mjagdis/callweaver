@@ -675,7 +675,7 @@ static long get_now(struct opbx_jb *jb, struct timeval *tv)
 	return (long) ((tv->tv_sec - jb->timebase.tv_sec) * 1000) +
 		(long) ((double) (tv->tv_usec - jb->timebase.tv_usec) / 1000.0);
 	
-	/* TODO: For openpbx complience, we should use: */
+	/* TODO: For callweaver complience, we should use: */
 	/* return opbx_tvdiff_ms(*tv, jb->timebase); */
 }
 

@@ -85,7 +85,7 @@ typedef struct speakup_jitterbuffer {
 	
 	int  hist_pointer;          /* points to index in history for next entry */
 	long last_adjustment;       /* the time of the last adjustment (growing or shrinking) */
-  long next_voice_time;	      /* the next ts is to be read from the jb (senders timestamp) */
+	long next_voice_time;	      /* the next ts is to be read from the jb (senders timestamp) */
 	long cnt_successive_interp; /* the count of consecutive interpolation frames */	
 	long silence_begin_ts;      /* the time of the last CNG frame, when in silence */
 	long min;		                /* the clock difference within current history interval */
