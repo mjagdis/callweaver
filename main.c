@@ -17,12 +17,12 @@
 
 /*
  *
- * Very Top level source file for openpbx
+ * Very Top level source file for callweaver
  * 
  */
 #include "callweaver.h"
 
 int main(int argc, char *argv[])
 {
-	return openpbx_main(argc, argv);
+	return callweaver_main(argc, argv);
 }

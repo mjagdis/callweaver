@@ -7,7 +7,7 @@ if [ "x$OPENPBXVERSIONNUM" = "x" ]; then
   exit
 fi
 
-## Create a pkgconfig spec file for 3rd party modules (pkg-config openpbx --cflags)
+## Create a pkgconfig spec file for 3rd party modules (pkg-config callweaver --cflags)
 
 if [ ! -d $PPATH ]; then
   exit
@@ -22,7 +22,7 @@ LOCAL_CFLAGS=`echo $CFLAGS | $(SED) -e 's/\s*-pipe\s*//g' | $(SED) -e 's/-[Wmp]\
   $(SED) -r -e 's/-DOPBXT(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|OGIDIR)=\S* //g'`
 
 
-cat <<EOF > $PPATH/openpbx.pc
+cat <<EOF > $PPATH/callweaver.pc
 install_prefix=$INSTALL_PREFIX
 version_number=$OPENPBXVERSIONNUM
 etcdir=$OPBXETCDIR
@@ -35,9 +35,9 @@ confpath=$OPBXCONFPATH
 moddir=$MODULES_DIR
 ogidir=$OGI_DIR
 
-Name: openpbx
+Name: callweaver
 Description: Open Source PBX and telephony toolkit
-Version: $OPENPBXVERSION
+Version: $CALLWEAVERVERSION
 Libs: $LIBS
 Cflags: $LOCAL_CFLAGS
 EOF

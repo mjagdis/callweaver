@@ -29,15 +29,15 @@ SVN = @SVN@
 ##########
 
 libexecdir = ${opbxexecdir}
-libexec_PROGRAMS = openpbx
+libexec_PROGRAMS = callweaver
 
-openpbx_SOURCES = main.c
+callweaver_SOURCES = main.c
 
-openpbx_LDADD	= ${top_builddir}/corelib/libopenpbx.la $(LIBLTDL)
-openpbx_LDADD	+= -lreadline
+callweaver_LDADD	= ${top_builddir}/corelib/libcallweaver.la $(LIBLTDL)
+callweaver_LDADD	+= -lreadline
 
-openpbx_CFLAGS 	=  -fomit-frame-pointer -Wall -Wstrict-prototypes 
-openpbx_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
+callweaver_CFLAGS 	=  -fomit-frame-pointer -Wall -Wstrict-prototypes 
+callweaver_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
 
 #############
 # UTILITIES #
@@ -46,7 +46,7 @@ openpbx_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/in
 EXTRA_DIST = substitute.mak
 
 utilitydir = ${opbxutilsdir}
-utility_SCRIPTS = opbxcli safe_openpbx
+utility_SCRIPTS = opbxcli safe_callweaver
 CLEANFILES = $(utility_SCRIPTS)
 
 @substitute@
@@ -55,9 +55,9 @@ opbxcli:
 	$(substitute) $(top_srcdir)/opbxcli.in > opbxcli
 	chmod +x opbxcli
 
-safe_openpbx:
-	$(substitute) $(top_srcdir)/contrib/scripts/safe_openpbx > safe_openpbx
-	chmod +x safe_openpbx
+safe_callweaver:
+	$(substitute) $(top_srcdir)/contrib/scripts/safe_callweaver > safe_callweaver
+	chmod +x safe_callweaver
 
 #############
 # MAN PAGES #
@@ -68,8 +68,8 @@ if WANT_MAN_PAGES
 	if test ! -d $(DESTDIR)${opbxmandir}; then \
 		mkdir -p $(DESTDIR)${opbxmandir} ; \
 	fi ; \
-	cp $(top_srcdir)/openpbx.8 $(DESTDIR)${opbxmandir}/. ; \
-	cp $(top_srcdir)/contrib/scripts/safe_openpbx.8 $(DESTDIR)${opbxmandir}/. ;
+	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${opbxmandir}/. ; \
+	cp $(top_srcdir)/contrib/scripts/safe_callweaver.8 $(DESTDIR)${opbxmandir}/. ;
 endif
 
 uninstall-man-pages:
@@ -139,12 +139,12 @@ if WANT_SGML_DOCS
 	if test ! -d $(DESTDIR)${opbxdocdir}; then \
 		mkdir -p $(DESTDIR)${opbxdocdir} ; \
 	fi ; \
-	cp $(top_srcdir)/openpbx.sgml $(DESTDIR)${opbxdocdir}/. ;
+	cp $(top_srcdir)/callweaver.sgml $(DESTDIR)${opbxdocdir}/. ;
 endif
 
 uninstall-sgml-docs:
-	if test -f $(DESTDIR)${opbxdocdir}/openpbx.sgml; then \
-		rm -f $(DESTDIR)${opbxdocdir}/openpbx.sgml ; \
+	if test -f $(DESTDIR)${opbxdocdir}/callweaver.sgml; then \
+		rm -f $(DESTDIR)${opbxdocdir}/callweaver.sgml ; \
 	fi ;
 
 ###################

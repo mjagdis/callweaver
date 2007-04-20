@@ -21,7 +21,7 @@
 ######
 
 AC_PREREQ(2.59)
-AC_INIT(OpenPBX.org,svn-trunk,openpbx-dev@openpbx.org)
+AC_INIT(OpenPBX.org,svn-trunk,callweaver-dev@callweaver.org)
 AM_INIT_AUTOMAKE(OpenPBX.org,svn-trunk)
 
 dnl define GNU Source to make sure every compiler and tool 
@@ -217,7 +217,7 @@ dnl ##########################
 # --------------------------------------------------------------------------
 #  BSD         bsd
 #  Linux       lsb
-#  Solaris     singledir, using prefix /opt/csw/openpbx.org
+#  Solaris     singledir, using prefix /opt/csw/callweaver.org
 # --------------------------------------------------------------------------
 #
 # Directory layout profiles contain a list of key=value pairs, *without* any
@@ -387,9 +387,9 @@ if test "${with_directory_layout}" = "singledir"; then
     AC_MSG_NOTICE([Selected directory layout is SINGLEDIR])
     # override default prefix
     if test "${ostype}" = "solaris"; then
-	ac_default_prefix='/opt/csw/openpbx.org'
+	ac_default_prefix='/opt/csw/callweaver.org'
     else
-	ac_default_prefix='/opt/openpbx.org'
+	ac_default_prefix='/opt/callweaver.org'
     fi
     # set directory variables
     opbxexecdir='${prefix}/sbin'
@@ -432,7 +432,7 @@ AC_SUBST([opbxconfdir])
 
 # path to master configuration file
 if test -z "${opbxconffile}"; then
-    opbxconffile='${opbxconfdir}/openpbx.conf'
+    opbxconffile='${opbxconfdir}/callweaver.conf'
 fi
 AC_SUBST([opbxconffile])
 
@@ -477,13 +477,13 @@ AC_SUBST([opbxrundir])
 
 # path to pid file
 if test -z "${opbxpidfile}"; then
-	opbxpidfile='${opbxrundir}/openpbx.pid'
+	opbxpidfile='${opbxrundir}/callweaver.pid'
 fi
 AC_SUBST([opbxpidfile])
 
 # path to console socket
 if test -z "${opbxsocketfile}"; then
-	opbxsocketfile='${opbxrundir}/openpbx.ctl'
+	opbxsocketfile='${opbxrundir}/callweaver.ctl'
 fi
 AC_SUBST([opbxsocketfile])
 
@@ -540,7 +540,7 @@ AC_SUBST([opbxmohdir])
 
 # include directory
 if test -z "${opbxincludedir}"; then
-	opbxincludedir='${includedir}/openpbx'
+	opbxincludedir='${includedir}/callweaver'
 fi
 AC_SUBST([opbxincludedir])
 
@@ -851,21 +851,21 @@ if test "${enable_low_memory}" = "yes"; then
 fi
 
 dnl set user and group
-opbxrunuser="openpbx"
-opbxrungroup="openpbx"
+opbxrunuser="callweaver"
+opbxrungroup="callweaver"
 
-AC_ARG_WITH(openpbx-user,
-	[AC_HELP_STRING([--with-openpbx-user=USER],[Run as USER (default=openpbx)])],,[with_openpbx_user="openpbx"])
+AC_ARG_WITH(callweaver-user,
+	[AC_HELP_STRING([--with-callweaver-user=USER],[Run as USER (default=callweaver)])],,[with_callweaver_user="callweaver"])
 
-if test "${with_openpbx_user}" != "no" -a "${with_openpbx_user}" != "yes"; then
-	opbxrunuser="$with_openpbx_user"
+if test "${with_callweaver_user}" != "no" -a "${with_callweaver_user}" != "yes"; then
+	opbxrunuser="$with_callweaver_user"
 fi
 
-AC_ARG_WITH(openpbx-group,
-	[AC_HELP_STRING([--with-openpbx-group=GROUP],[Run as GROUP (default=openpbx)])],,[with_openpbx_group="openpbx"])
+AC_ARG_WITH(callweaver-group,
+	[AC_HELP_STRING([--with-callweaver-group=GROUP],[Run as GROUP (default=callweaver)])],,[with_callweaver_group="callweaver"])
 
-if test "${with_openpbx_group}" != "no" -a "${with_openpbx_group}" != "yes"; then
-	opbxrungroup="$with_openpbx_group"
+if test "${with_callweaver_group}" != "no" -a "${with_callweaver_group}" != "yes"; then
+	opbxrungroup="$with_callweaver_group"
 fi
 AC_SUBST(opbxrunuser)
 AC_SUBST(opbxrungroup)  
@@ -2383,7 +2383,7 @@ AC_CONFIG_SUBDIRS(libltdl)
 
 AC_OUTPUT([Makefile
 		 include/Makefile
-		 include/openpbx/Makefile
+		 include/callweaver/Makefile
 		 libs/Makefile
                  ogi/Makefile
                  apps/Makefile

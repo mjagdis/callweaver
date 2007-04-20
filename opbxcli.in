@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenPBX.org CLI wrapper - version 1.0 (transitional)
+# CallWeaver.org CLI wrapper - version 1.0 (transitional)
 #
 #  First release January 2007.
 #  This script is hereby released into the Public Domain.
@@ -7,17 +7,17 @@
 #
 # Description
 #  In preparation of separating daemon and CLI this script is
-#  provided as a CLI wrapper to invoke OpenPBX.org's CLI mode
+#  provided as a CLI wrapper to invoke CallWeaver.org's CLI mode
 #  as if it was a separate CLI utility. Its purpose is to get
 #  users accustomed to the idea of a standalone CLI utility.
 
 # online help
 show_usage() {
    echo ""
-   echo "OpenPBX.org CLI v.1.0 (transitional)"
+   echo "CallWeaver.org CLI v.1.0 (transitional)"
    echo ""
    echo "Synopsis:"
-   echo " OpenPBX.org remote CLI"
+   echo " CallWeaver.org remote CLI"
    echo ""
    echo "Usage:"
    echo " opbxcli [options]"
@@ -102,9 +102,9 @@ verbosity="${v1}${v2}"
 # invoke CLI mode
 options="${verbosity}${color}"
 if test -z "${options}"; then
-    @opbxexecdir@/openpbx -r
+    @opbxexecdir@/callweaver -r
 else
-    @opbxexecdir@/openpbx -${options}r
+    @opbxexecdir@/callweaver -${options}r
 fi
 
 # END OF FILE
