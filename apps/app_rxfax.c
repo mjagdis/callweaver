@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Trivial application to send a TIFF file as a FAX
  * 
@@ -25,20 +25,20 @@
 
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/app.h"
-#include "openpbx/dsp.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/translate.h"
-#include "openpbx/manager.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/app.h"
+#include "callweaver/dsp.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/translate.h"
+#include "callweaver/manager.h"
 
 static char *tdesc = "Trivial FAX Receive Application";
 

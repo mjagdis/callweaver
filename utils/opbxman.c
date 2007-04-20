@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -37,7 +37,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "openpbx/manager.h"
+#include "callweaver/manager.h"
 
 #undef gethostbyname
 
@@ -69,7 +69,7 @@ static struct opbx_chan {
 	struct opbx_chan *next;
 } *chans;
 
-/* dummy functions to be compatible with the OpenPBX core for md5.c */
+/* dummy functions to be compatible with the CallWeaver core for md5.c */
 void opbx_register_file_version(const char *file, const char *version);
 void opbx_register_file_version(const char *file, const char *version)
 {
@@ -540,7 +540,7 @@ static int manage_calls(char *host)
 	   If you ever want to make me happy just tell me that you, too, will
 	   never fly Air France again either (in spite of their excellent
 	   cuisine). */
-	snprintf(tmp, sizeof(tmp), "OpenPBX Manager at %s", host);
+	snprintf(tmp, sizeof(tmp), "CallWeaver Manager at %s", host);
 	newtCenteredWindow(74, 20, tmp);
 	form = newtForm(NULL, NULL, 0);
 	newtFormWatchFd(form, session.fd, NEWT_FD_READ);
@@ -631,7 +631,7 @@ static int login(char *hostname)
 	
 	login = newtButton(5, 6, "Login");
 	cancel = newtButton(25, 6, "Cancel");
-	newtCenteredWindow(40, 10, "OpenPBX Manager Login");
+	newtCenteredWindow(40, 10, "CallWeaver Manager Login");
 	snprintf(tmp, sizeof(tmp), "Host:     %s", hostname);
 	label = newtLabel(4,1, tmp);
 	
@@ -697,8 +697,8 @@ int main(int argc, char *argv[])
 	}
 	newtInit();
 	newtCls();
-	newtDrawRootText(0, 0, "OpenPBX Manager");
-	newtPushHelpLine("Welcome to the OpenPBX Manager!");
+	newtDrawRootText(0, 0, "CallWeaver Manager");
+	newtPushHelpLine("Welcome to the CallWeaver Manager!");
 	if (login(argv[1])) {
 		newtFinished();
 		exit(1);

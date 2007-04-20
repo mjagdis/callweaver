@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * SQLite Resource
  * 
@@ -22,16 +22,16 @@
 #include <sqlite3.h>
 #include <sqliteInt.h>
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/cli.h"
-#include "openpbx/module.h"
-#include "openpbx/utils.h"
-#include "openpbx/config.h"
-#include "openpbx.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/cli.h"
+#include "callweaver/module.h"
+#include "callweaver/utils.h"
+#include "callweaver/config.h"
+#include "callweaver.h"
 
 /* When you change the DATE_FORMAT, be sure to change the CHAR(19) below to something else */
 #define DATE_FORMAT "%Y-%m-%d %T"

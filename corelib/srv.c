@@ -40,16 +40,16 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/srv.h"
-#include "openpbx/dns.h"
-#include "openpbx/options.h"
-#include "openpbx/utils.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/srv.h"
+#include "callweaver/dns.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
 
 #ifdef __APPLE__
 #undef T_SRV

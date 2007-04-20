@@ -33,18 +33,18 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.1 $")
 
-#include "openpbx/frame.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/term.h"
-#include "openpbx/options.h"
-#include "openpbx/utils.h"
+#include "callweaver/frame.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/term.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
 
-#include "openpbx/generic_jb.h"
+#include "callweaver/generic_jb.h"
 #include "jitterbuf_scx.h"
 #include "jitterbuf_stevek.h"
 #include "jitterbuf_speakup.h"

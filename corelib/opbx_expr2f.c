@@ -1354,7 +1354,7 @@ static yyconst yy_state_type yy_NUL_trans[54] =
  * \brief Dialplan Expression Lexical Scanner
  */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -1371,9 +1371,9 @@ static yyconst yy_state_type yy_NUL_trans[54] =
 #include <regex.h>
 #include <limits.h>
 
-#include "openpbx/opbx_expr.h"
-#include "openpbx/logger.h"
-#include "openpbx/strings.h"
+#include "callweaver/opbx_expr.h"
+#include "callweaver/logger.h"
+#include "callweaver/strings.h"
 
 enum valtype {
 	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string

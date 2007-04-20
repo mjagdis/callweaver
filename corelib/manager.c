@@ -41,24 +41,24 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/file.h"
-#include "openpbx/module.h"
-#include "openpbx/manager.h"
-#include "openpbx/config.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/cli.h"
-#include "openpbx/app.h"
-#include "openpbx/pbx.h"
-#include "openpbx/acl.h"
-#include "openpbx/utils.h"
+#include "callweaver/channel.h"
+#include "callweaver/file.h"
+#include "callweaver/module.h"
+#include "callweaver/manager.h"
+#include "callweaver/config.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/cli.h"
+#include "callweaver/app.h"
+#include "callweaver/pbx.h"
+#include "callweaver/acl.h"
+#include "callweaver/utils.h"
 
 struct fopbx_originate_helper {
 	char tech[256];

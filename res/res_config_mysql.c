@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * Copyright (C) 1999-2005, Digium, Inc.
  *

@@ -1,11 +1,11 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Anthony Minessale
  * Anthony Minessale (anthmct@yahoo.com)
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -33,16 +33,16 @@
 #include <errno.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/sched.h"
-#include "openpbx/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/sched.h"
+#include "callweaver/module.h"
 #include "confdefs.h"
 
 #define BUF_SIZE 320		/* 320 samples */

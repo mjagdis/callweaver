@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  * 
  * Copyright (C) 2005, Christian Richter
  *
  * Christian Richter <crich@beronet.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -186,7 +186,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"These (presentation and screen) are the exact isdn screening and presentation\n"
 		"\tindicators.\n"
 		"\tIf -1 is given for both values, the presentation indicators are used from\n"
-		"\tOpenPBXs SetCallerPres application.\n"
+		"\tCallWeavers SetCallerPres application.\n"
 		"\n"
 		"\tscreen=0, presentation=0 -> callerid presented not screened\n"
 		"\tscreen=1, presentation=1 -> callerid presented but screened (the remote end doesn't see it!)" },
@@ -194,7 +194,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"These (presentation and screen) are the exact isdn screening and presentation\n"
 		"\tindicators.\n"
 		"\tIf -1 is given for both values, the presentation indicators are used from\n"
-		"\tOpenPBXs SetCallerPres application.\n"
+		"\tCallWeavers SetCallerPres application.\n"
 		"\n"
 		"\tscreen=0, presentation=0 -> callerid presented not screened\n"
 		"\tscreen=1, presentation=1 -> callerid presented but screened (the remote end doesn't see it!)" },
@@ -295,7 +295,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\n"
 		"\tThis option is only read at loading time of chan_misdn, which\n"
 		"\tmeans you need to unload and load chan_misdn to change the value,\n"
-		"\tan OpenPBX restart should do the trick." },
+		"\tan CallWeaver restart should do the trick." },
 	{ "overlap_dial", MISDN_CFG_OVERLAP_DIAL, MISDN_CTYPE_BOOLINT, "0", 4,
 		"Enables overlap dial for the given amount of seconds.\n"
 		"\tPossible values are positive integers or:\n"
@@ -303,7 +303,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\t   no  (= 0 seconds = disabled)" },
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE,
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
-		"\tindicate the incoming calls to OpenPBX.\n"
+		"\tindicate the incoming calls to CallWeaver.\n"
 		"\tHere you can give a comma seperated list, or simply an '*' for any msn." },
 };
 

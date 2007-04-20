@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -153,8 +153,8 @@ extern void callerid_free(struct callerid_state *cid);
 /*! Generate Caller-ID spill from the "callerid" field of openpbx (in e-mail address like format) */
 /*!
  * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
- * \param astcid OpenPBX format callerid string, taken from the callerid field of openpbx.
- * \param codec OpenPBX codec (either OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
+ * \param astcid CallWeaver format callerid string, taken from the callerid field of openpbx.
+ * \param codec CallWeaver codec (either OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
  *
  * Acts like callerid_generate except uses an openpbx format callerid string.
  */

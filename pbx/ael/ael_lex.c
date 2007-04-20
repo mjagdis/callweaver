@@ -17,8 +17,8 @@
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
 /* begin standard C headers. */
-#include "openpbx.h"
-#include "openpbx/strings.h"
+#include "callweaver.h"
+#include "callweaver/strings.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -846,10 +846,10 @@ static yyconst flex_int16_t yy_chk[1285] =
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "openpbx/logger.h"
-//#include "openpbx/utils.h"
+#include "callweaver/logger.h"
+//#include "callweaver/utils.h"
 #include "ael/ael.tab.h"
-#include "openpbx/ael_structs.h"
+#include "callweaver/ael_structs.h"
 
 /*
  * A stack to keep track of matching brackets ( [ { } ] )

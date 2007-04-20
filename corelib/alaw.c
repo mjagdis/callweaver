@@ -36,11 +36,11 @@
 #endif
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/alaw.h"
+#include "callweaver/alaw.h"
 
 uint8_t __opbx_lin2a[8192];
 int16_t __opbx_alaw[256];

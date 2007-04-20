@@ -51,17 +51,17 @@
 #include <sys/sockio.h>
 #endif
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/netsock.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/options.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/srv.h"
+#include "callweaver/netsock.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/srv.h"
 
 struct opbx_netsock {
 	ASTOBJ_COMPONENTS(struct opbx_netsock);

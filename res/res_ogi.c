@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief OGI - the OpenPBX Gateway Interface
+ * \brief OGI - the CallWeaver Gateway Interface
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -42,30 +42,30 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/res/res_ogi.c $", "$Revision: 1547 $")
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/opbxdb.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/cli.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/image.h"
-#include "openpbx/say.h"
-#include "openpbx/app.h"
-#include "openpbx/dsp.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/manager.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/strings.h"
-#include "openpbx/ogi.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/image.h"
+#include "callweaver/say.h"
+#include "callweaver/app.h"
+#include "callweaver/dsp.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/manager.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/strings.h"
+#include "callweaver/ogi.h"
 
 #define MAX_ARGS 128
 #define MAX_COMMANDS 128
@@ -73,7 +73,7 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/res/re
 /* Recycle some stuff from the CLI interface */
 #define fdprintf ogi_debug_cli
 
-static char *tdesc = "OpenPBX Gateway Interface (OGI)";
+static char *tdesc = "CallWeaver Gateway Interface (OGI)";
 
 static char *app = "OGI";
 
@@ -86,8 +86,8 @@ static char *esynopsis = "Executes an EOGI compliant application";
 static char *deadsynopsis = "Executes OGI on a hungup channel";
 
 static char *descrip =
-"  [E|Dead]OGI(command|args): Executes an OpenPBX Gateway Interface compliant\n"
-"program on a channel. OGI allows OpenPBX to launch external programs\n"
+"  [E|Dead]OGI(command|args): Executes an CallWeaver Gateway Interface compliant\n"
+"program on a channel. OGI allows CallWeaver to launch external programs\n"
 "written in any language to control a telephony channel, play audio,\n"
 "read DTMF digits, etc. by communicating with the OGI protocol on stdin\n"
 "and stdout.\n"
@@ -1351,13 +1351,13 @@ static char usage_setmusic[] =
 
 static char usage_dbput[] =
 " Usage: DATABASE PUT <family> <key> <value>\n"
-"	Adds or updates an entry in the OpenPBX database for a\n"
+"	Adds or updates an entry in the CallWeaver database for a\n"
 " given family, key, and value.\n"
 " Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_dbget[] =
 " Usage: DATABASE GET <family> <key>\n"
-"	Retrieves an entry in the OpenPBX database for a\n"
+"	Retrieves an entry in the CallWeaver database for a\n"
 " given family and key.\n"
 " Returns 0 if <key> is not set.  Returns 1 if <key>\n"
 " is set and returns the variable in parentheses.\n"
@@ -1365,14 +1365,14 @@ static char usage_dbget[] =
 
 static char usage_dbdel[] =
 " Usage: DATABASE DEL <family> <key>\n"
-"	Deletes an entry in the OpenPBX database for a\n"
+"	Deletes an entry in the CallWeaver database for a\n"
 " given family and key.\n"
 " Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_dbdeltree[] =
 " Usage: DATABASE DELTREE <family> [keytree]\n"
 "	Deletes a family or specific keytree within a family\n"
-" in the OpenPBX database.\n"
+" in the CallWeaver database.\n"
 " Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_verbose[] =

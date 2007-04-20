@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (c) 2003 - 2005 Tilghman Lesher.  All rights reserved.
  *
@@ -7,8 +7,8 @@
  *
  * This code is released by the author with no restrictions on usage or distribution.
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -30,16 +30,16 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
 
 static char *tdesc = "Random goto";
 

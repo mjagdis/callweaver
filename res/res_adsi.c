@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -7,8 +7,8 @@
  *
  * Includes code and algorithms from the Zapata library.
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -37,19 +37,19 @@
 #include <errno.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/ulaw.h"
-#include "openpbx/alaw.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/adsi.h"
-#include "openpbx/module.h"
-#include "openpbx/config.h"
-#include "openpbx/file.h"
+#include "callweaver/ulaw.h"
+#include "callweaver/alaw.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/adsi.h"
+#include "callweaver/module.h"
+#include "callweaver/config.h"
+#include "callweaver/file.h"
 
 #define DEFAULT_ADSI_MAX_RETRIES 3
 
@@ -60,7 +60,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static int maxretries = DEFAULT_ADSI_MAX_RETRIES;
 
-/* OpenPBX ADSI button definitions */
+/* CallWeaver ADSI button definitions */
 #define ADSI_SPEED_DIAL		10	/* 10-15 are reserved for speed dial */
 
 static char intro[ADSI_MAX_INTRO][20];
@@ -1005,7 +1005,7 @@ static void init_state(void)
 	for (x=0;x<ADSI_MAX_INTRO;x++)
 		aligns[x] = ADSI_JUST_CENT;
 	strncpy(intro[0], "Welcome to the", sizeof(intro[0]) - 1);
-	strncpy(intro[1], "OpenPBX", sizeof(intro[1]) - 1);
+	strncpy(intro[1], "CallWeaver", sizeof(intro[1]) - 1);
 	strncpy(intro[2], "Open Source PBX", sizeof(intro[2]) - 1);
 	total = 3;
 	speeds = 0;

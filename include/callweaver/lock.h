@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief General OpenPBX channel locking definitions.
+ * \brief General CallWeaver channel locking definitions.
  */
 
 #ifndef _OPENPBX_LOCK_H
@@ -28,7 +28,7 @@
 #include <time.h>
 #include <sys/param.h>
 
-#include "openpbx/logger.h"
+#include "callweaver/logger.h"
 
 #define OPBX_PTHREADT_NULL (pthread_t) -1
 #define OPBX_PTHREADT_STOP (pthread_t) -2
@@ -53,7 +53,7 @@
 #endif
 #endif /* BSD */
 
-/* From now on, OpenPBX REQUIRES Recursive (not error checking) mutexes
+/* From now on, CallWeaver REQUIRES Recursive (not error checking) mutexes
    and will not run without them. */
 #ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define PTHREAD_MUTEX_INIT_VALUE	PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP

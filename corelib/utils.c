@@ -39,24 +39,24 @@
 #include <arpa/inet.h>
 #include <openssl/evp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/io.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/config.h"
+#include "callweaver/lock.h"
+#include "callweaver/io.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/config.h"
 
 #define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
-#include "openpbx/strings.h"
+#include "callweaver/strings.h"
 
 #define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
-#include "openpbx/time.h"
+#include "callweaver/time.h"
 
 #define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
-#include "openpbx/utils.h"
+#include "callweaver/utils.h"
 
 static char base64[64];
 static char b2a[256];

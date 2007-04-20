@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2003, Steve Underwood <steveu@coppice.org>
  *
- * See http://www.openpbx.org for more information about
+ * See http://www.callweaver.org for more information about
  * the Openpbx project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
@@ -22,7 +22,7 @@
  * \author Steve Underwood
  */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 
@@ -38,15 +38,15 @@ OPENPBX_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 #include <sys/stat.h>
 #include <spandsp.h>
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/alaw.h"
-#include "openpbx/callerid.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/alaw.h"
+#include "callweaver/callerid.h"
 
 #define PRE_DIGIT_TIMEOUT   (8000*5)
 #define INTER_DIGIT_TIMEOUT (8000*3/2)

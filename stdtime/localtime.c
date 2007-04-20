@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -12,8 +12,8 @@
  * the environment are by Tilghman Lesher, <tlesher@vcch.com>, with
  * the copyright assigned to Digium.
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -30,7 +30,7 @@
  */
 
 /*
- * OpenPBX defines
+ * CallWeaver defines
  *
  * Don't mess with these unless you're really sure you know what you're doing.
  */
@@ -51,8 +51,8 @@
 #endif
 #include "private.h"
 #include "tzfile.h"
-#include "openpbx/lock.h"
-#include "openpbx/localtime.h"
+#include "callweaver/lock.h"
+#include "callweaver/localtime.h"
 
 #ifndef lint
 #ifndef NOID

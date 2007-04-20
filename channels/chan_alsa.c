@@ -5,7 +5,7 @@
  *
  * By Matthew Fredrickson <creslin@digium.com>
  *
- * See http://www.openpbx.org for more information about
+ * See http://www.callweaver.org for more information about
  * the Asterisk project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
@@ -44,20 +44,20 @@
 #define ALSA_PCM_NEW_SW_PARAMS_API
 #include <alsa/asoundlib.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 //OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.53 $")
 
-#include "openpbx/frame.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/module.h"
-#include "openpbx/options.h"
-#include "openpbx/pbx.h"
-#include "openpbx/config.h"
-#include "openpbx/cli.h"
-#include "openpbx/utils.h"
-#include "openpbx/causes.h"
+#include "callweaver/frame.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/module.h"
+#include "callweaver/options.h"
+#include "callweaver/pbx.h"
+#include "callweaver/config.h"
+#include "callweaver/cli.h"
+#include "callweaver/utils.h"
+#include "callweaver/causes.h"
 
 #ifdef ALSA_MONITOR
 #include "alsa-monitor.h"

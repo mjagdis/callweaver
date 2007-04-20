@@ -42,17 +42,17 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/enum.h"
-#include "openpbx/dns.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/utils.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/enum.h"
+#include "callweaver/dns.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/utils.h"
 
 #ifdef __APPLE__
 #undef T_NAPTR

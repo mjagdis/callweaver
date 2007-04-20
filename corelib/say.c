@@ -41,18 +41,18 @@
 #include <iso/limits_iso.h>
 #endif
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/file.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/say.h"
-#include "openpbx/lock.h"
-#include "openpbx/localtime.h"
-#include "openpbx/utils.h"
+#include "callweaver/file.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/say.h"
+#include "callweaver/lock.h"
+#include "callweaver/localtime.h"
+#include "callweaver/utils.h"
 
 /* Forward declaration */
 static int wait_file(struct opbx_channel *chan, const char *ints, const char *file, const char *lang);

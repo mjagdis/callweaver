@@ -37,20 +37,20 @@
 #include <sys/stat.h>
 #include <regex.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/file.h"
-#include "openpbx/app.h"
-#include "openpbx/dsp.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/indications.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/file.h"
+#include "callweaver/app.h"
+#include "callweaver/dsp.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/indications.h"
 
 #define MAX_OTHER_FORMATS 10
 

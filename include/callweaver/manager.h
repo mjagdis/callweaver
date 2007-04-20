@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief AMI - OpenPBX Management Interface
+ * \brief AMI - CallWeaver Management Interface
  * External call management support 
  */
 
@@ -30,12 +30,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "openpbx/lock.h"
+#include "callweaver/lock.h"
 
 /*!
   \file manager.h
-  \brief The AMI - OpenPBX Manager Interface - is a TCP protocol created to 
-	 manage OpenPBX with third-party software.
+  \brief The AMI - CallWeaver Manager Interface - is a TCP protocol created to 
+	 manage CallWeaver with third-party software.
 
  Manager protocol packages are text fields of the form a: b.  There is
  always exactly one space after the colon.
@@ -52,7 +52,7 @@
  
  */
  
-#define DEFAULT_MANAGER_PORT 5038	/* Default port for OpenPBX management via TCP */
+#define DEFAULT_MANAGER_PORT 5038	/* Default port for CallWeaver management via TCP */
 
 #define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */
 #define EVENT_FLAG_CALL			(1 << 1) /* Call event, such as state change, etc */
@@ -190,9 +190,9 @@ extern void astman_send_error(struct mansession *s, struct message *m, char *err
 extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
 extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
 
-/*! Called by OpenPBX initialization */
+/*! Called by CallWeaver initialization */
 extern int init_manager(void);
-/*! Called by OpenPBX initialization */
+/*! Called by CallWeaver initialization */
 extern int reload_manager(void);
 
 #endif /* _OPENPBX_MANAGER_H */

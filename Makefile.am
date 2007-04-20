@@ -1,5 +1,5 @@
 #
-# Main Automake file for OpenPBX.org
+# Main Automake file for CallWeaver.org
 #
 # Author: Michael "cypromis" Bielicki <michal.bielickie at halo2.pl>
 # Copyright (c) 2005, 2006, 2007 Halo Kwadrat Sp. z o.o.

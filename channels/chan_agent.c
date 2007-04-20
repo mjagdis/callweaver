@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -22,7 +22,7 @@
  *
  * @file chan_agent.c
  * @brief This file is the implementation of Agents modules.
- * It is a dynamic module that is loaded by OpenPBX. At load time, load_module is run.
+ * It is a dynamic module that is loaded by CallWeaver. At load time, load_module is run.
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
@@ -40,32 +40,32 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
-#include "openpbx/lock.h"
-#include "openpbx/sched.h"
-#include "openpbx/io.h"
-#include "openpbx/acl.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/file.h"
-#include "openpbx/cli.h"
-#include "openpbx/app.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/manager.h"
-#include "openpbx/features.h"
-#include "openpbx/utils.h"
-#include "openpbx/causes.h"
-#include "openpbx/opbxdb.h"
-#include "openpbx/devicestate.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/lock.h"
+#include "callweaver/sched.h"
+#include "callweaver/io.h"
+#include "callweaver/acl.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/file.h"
+#include "callweaver/cli.h"
+#include "callweaver/app.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/manager.h"
+#include "callweaver/features.h"
+#include "callweaver/utils.h"
+#include "callweaver/causes.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/devicestate.h"
 
 static const char desc[] = "Agent Proxy Channel";
 static const char channeltype[] = "Agent";
@@ -480,7 +480,7 @@ static struct opbx_frame *agent_read(struct opbx_channel *ast)
 		/* If there's a channel, hang it up (if it's on a callback) make it NULL */
 		if (p->chan) {
 			p->chan->_bridge = NULL;
-			/* Note that we don't hangup if it's not a callback because OpenPBX will do it
+			/* Note that we don't hangup if it's not a callback because CallWeaver will do it
 			   for us when the PBX instance that called login finishes */
 			if (!opbx_strlen_zero(p->loginchan)) {
 				if (p->chan)
@@ -1269,7 +1269,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	return res;
 }
 
-/*--- agent_request: Part of the OpenPBX interface ---*/
+/*--- agent_request: Part of the CallWeaver interface ---*/
 static struct opbx_channel *agent_request(const char *type, int format, void *data, int *cause)
 {
 	struct agent_pvt *p;
@@ -2432,7 +2432,7 @@ static int agent_devicestate(void *data)
 
 /**
  * Initialize the Agents module.
- * This funcion is being called by OpenPBX when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
+ * This funcion is being called by CallWeaver when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
  *
  * @returns int Always 0.
  */

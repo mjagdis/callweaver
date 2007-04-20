@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -16,8 +16,8 @@
  * 07-11-2005 : An issue with voicemail synchronization has been fixed by GDS Partners (www.gdspartners.com)
  *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -51,30 +51,30 @@
 #include <dirent.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
-#include "openpbx/config.h"
-#include "openpbx/say.h"
-#include "openpbx/module.h"
-#include "openpbx/adsi.h"
-#include "openpbx/app.h"
-#include "openpbx/manager.h"
-#include "openpbx/dsp.h"
-#include "openpbx/localtime.h"
-#include "openpbx/cli.h"
-#include "openpbx/utils.h"
-#include "openpbx/phone_no_utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/config.h"
+#include "callweaver/say.h"
+#include "callweaver/module.h"
+#include "callweaver/adsi.h"
+#include "callweaver/app.h"
+#include "callweaver/manager.h"
+#include "callweaver/dsp.h"
+#include "callweaver/localtime.h"
+#include "callweaver/cli.h"
+#include "callweaver/utils.h"
+#include "callweaver/phone_no_utils.h"
 
 #ifdef USE_ODBC_STORAGE
-#include "openpbx/res_odbc.h"
+#include "callweaver/res_odbc.h"
 #endif
 
 #define COMMAND_TIMEOUT 5000
@@ -1644,7 +1644,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
-			fprintf(p, "From: OpenPBX <%s>\n", who);
+			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
 		if (emailsubject) {
@@ -1668,7 +1668,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum + 1, mailbox);
 		else
 			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum + 1, mailbox);
-		fprintf(p, "Message-ID: <OpenPBX-%d-%d-%s-%d@%s>\n", msgnum, (unsigned int)opbx_random(), mailbox, getpid(), host);
+		fprintf(p, "Message-ID: <CallWeaver-%d-%d-%s-%d@%s>\n", msgnum, (unsigned int)opbx_random(), mailbox, getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
 			/* Something unique. */
@@ -1696,7 +1696,7 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
 			"in mailbox %s from %s, on %s so you might\n"
-			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--OpenPBX\n\n", vmu->fullname, 
+			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--CallWeaver\n\n", vmu->fullname, 
 			dur, msgnum + 1, mailbox, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
 		}
 		if (attach_user_voicemail) {
@@ -1796,7 +1796,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
-			fprintf(p, "From: OpenPBX <%s>\n", who);
+			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
                if (pagersubject) {
                        struct opbx_channel *ast = opbx_channel_alloc(0);

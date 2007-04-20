@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -11,8 +11,8 @@
  *
  * Based in part on original by Matthew D. Hardeman <mhardemn@papersoft.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -39,17 +39,17 @@
 
 #include <sys/types.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/cdr.h"
-#include "openpbx/module.h"
-#include "openpbx/config.h"
-#include "openpbx/pbx.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
+#include "callweaver/channel.h"
+#include "callweaver/cdr.h"
+#include "callweaver/module.h"
+#include "callweaver/config.h"
+#include "callweaver/pbx.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 

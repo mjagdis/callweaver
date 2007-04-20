@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,43 +17,43 @@
  */
 
 /*! \file
- * \brief General OpenPBX PBX channel definitions.
+ * \brief General CallWeaver PBX channel definitions.
  */
 
 #ifndef _OPENPBX_CHANNEL_H
 #define _OPENPBX_CHANNEL_H
 
 #include "confdefs.h"
-#include "openpbx/frame.h"
-#include "openpbx/sched.h"
-#include "openpbx/chanvars.h"
-#include "openpbx/config.h"
+#include "callweaver/frame.h"
+#include "callweaver/sched.h"
+#include "callweaver/chanvars.h"
+#include "callweaver/config.h"
 
 #include <unistd.h>
 #include <setjmp.h>
 #ifdef POLLCOMPAT 
-#include "openpbx/poll-compat.h"
+#include "callweaver/poll-compat.h"
 #else
 #include <sys/poll.h>
 #endif
 
-#include "openpbx/generic_jb.h"
+#include "callweaver/generic_jb.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-#include "openpbx/lock.h"
+#include "callweaver/lock.h"
 
 /*! Max length of an extension */
 #define OPBX_MAX_EXTENSION	80
 
 #define OPBX_MAX_CONTEXT		80
 
-#include "openpbx/cdr.h"
-#include "openpbx/monitor.h"
-#include "openpbx/utils.h"
-#include "openpbx/generator.h"
+#include "callweaver/cdr.h"
+#include "callweaver/monitor.h"
+#include "callweaver/utils.h"
+#include "callweaver/generator.h"
 
 #define OPBX_CHANNEL_NAME	80
 
@@ -942,7 +942,7 @@ void opbx_cancel_shutdown(void);
 /*! Returns number of active/allocated channels */
 int opbx_active_channels(void);
 
-/*! Returns non-zero if OpenPBX is being shut down */
+/*! Returns non-zero if CallWeaver is being shut down */
 int opbx_shutting_down(void);
 
 void opbx_set_callerid(struct opbx_channel *chan, const char *cidnum, const char *cidname, const char *ani);

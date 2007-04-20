@@ -42,18 +42,18 @@
 #endif
 #endif
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/config.h"
-#include "openpbx/cli.h"
-#include "openpbx/lock.h"
-#include "openpbx/options.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
-#include "openpbx/channel.h"
-#include "openpbx/app.h"
+#include "callweaver/config.h"
+#include "callweaver/cli.h"
+#include "callweaver/lock.h"
+#include "callweaver/options.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
+#include "callweaver/channel.h"
+#include "callweaver/app.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"

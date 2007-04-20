@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief Implementation of Inter-OpenPBX eXchange Protocol, v 2
+ * \brief Implementation of Inter-CallWeaver eXchange Protocol, v 2
  * 
  */
 #ifdef HAVE_CONFIG_H
@@ -34,13 +34,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/frame.h"
-#include "openpbx/utils.h"
-#include "openpbx/unaligned.h"
+#include "callweaver/frame.h"
+#include "callweaver/utils.h"
+#include "callweaver/unaligned.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"

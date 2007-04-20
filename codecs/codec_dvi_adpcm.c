@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Implements the 32kbps DVI ADPCM codec, widely used for things like
  * voice mail and IVR, since it is the main codec used by Dialogic.
@@ -9,8 +9,8 @@
  *
  * Karl Sackett <krs@linux-support.net>, 2001-03-21
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -37,17 +37,17 @@
 #include <unistd.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/codecs/codec_adpcm.c $", "$Revision: 1057 $")
 
-#include "openpbx/lock.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/config.h"
-#include "openpbx/options.h"
-#include "openpbx/translate.h"
-#include "openpbx/channel.h"
+#include "callweaver/lock.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/config.h"
+#include "callweaver/options.h"
+#include "callweaver/translate.h"
+#include "callweaver/channel.h"
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 

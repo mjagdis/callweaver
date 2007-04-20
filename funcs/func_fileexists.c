@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 2005, Reisig Consulting
  *
  * Boris Reisig <boris@boris.ca>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -30,19 +30,19 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/funcs/func_fileexists.c $", "$Revision: 594 $")
 
 #ifndef BUILTIN_FUNC
-#include "openpbx/module.h"
+#include "callweaver/module.h"
 #endif /* BUILTIN_FUNC */
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
-#include "openpbx/app.h"
-#include "openpbx/cdr.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
+#include "callweaver/app.h"
+#include "callweaver/cdr.h"
 
 static char *builtin_function_fileexists(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {

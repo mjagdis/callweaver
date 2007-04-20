@@ -18,7 +18,7 @@
 #include <libq931/list.h>
 
 static const char visdn_channeltype[] = "VISDN";
-static const char visdn_description[] = "VISDN Channel Driver for OpenPBX.org";
+static const char visdn_description[] = "VISDN Channel Driver for CallWeaver.org";
 
 struct visdn_suspended_call
 {

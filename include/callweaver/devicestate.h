@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -68,9 +68,9 @@ int opbx_parse_device_state(const char *device);
  */
 int opbx_device_state(const char *device);
 
-/*! \brief Tells OpenPBX the State for Device is changed
+/*! \brief Tells CallWeaver the State for Device is changed
  * \param fmt devicename like a dialstring with format parameters
- * OpenPBX polls the new extensionstates and calls the registered
+ * CallWeaver polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */
@@ -78,9 +78,9 @@ int opbx_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 
-/*! \brief Tells OpenPBX the State for Device is changed 
+/*! \brief Tells CallWeaver the State for Device is changed 
  * \param device devicename like a dialstrin
- * OpenPBX polls the new extensionstates and calls the registered
+ * CallWeaver polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure
  */

@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  * Copyright (C) 2003, Jefferson Noxon
@@ -7,8 +7,8 @@
  * Mark Spencer <markster@digium.com>
  * Jefferson Noxon <jeff@debian.org>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -33,36 +33,36 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/options.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/opbxdb.h"
-#include "openpbx/lock.h"
+#include "callweaver/options.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/lock.h"
 
-static char *tdesc = "Database access functions for OpenPBX extension logic";
+static char *tdesc = "Database access functions for CallWeaver extension logic";
 
 static char *g_descrip =
-	"  DBget(varname=family/key): Retrieves a value from the OpenPBX\n"
+	"  DBget(varname=family/key): Retrieves a value from the CallWeaver\n"
 	"database and stores it in the given variable.  Always returns 0.  If the\n"
 	"requested key is not found, jumps to priority n+101 if available.\n";
 
 static char *p_descrip =
-	"  DBput(family/key=value): Stores the given value in the OpenPBX\n"
+	"  DBput(family/key=value): Stores the given value in the CallWeaver\n"
 	"database.  Always returns 0.\n";
 
 static char *d_descrip =
-	"  DBdel(family/key): Deletes a key from the OpenPBX database.  Always\n"
+	"  DBdel(family/key): Deletes a key from the CallWeaver database.  Always\n"
 	"returns 0.\n";
 
 static char *dt_descrip =
-	"  DBdelTree(family[/keytree]): Deletes a family or keytree from the OpenPBX\n"
+	"  DBdelTree(family[/keytree]): Deletes a family or keytree from the CallWeaver\n"
 	"database.  Always returns 0.\n";
 
 static char *g_app = "DBget";

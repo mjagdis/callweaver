@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -24,7 +24,7 @@
 #define _OPENPBX_IO_H
 
 #ifdef POLLCOMPAT
-#include "openpbx/poll-compat.h"
+#include "callweaver/poll-compat.h"
 #else
 #include <sys/poll.h>		/* For POLL* constants */
 #endif
@@ -49,7 +49,7 @@ extern "C" {
 #define OPBX_IO_NVAL	POLLNVAL
 
 /*
- * An OpenPBX IO callback takes its id, a file descriptor, list of events, and
+ * An CallWeaver IO callback takes its id, a file descriptor, list of events, and
  * callback data as arguments and returns 0 if it should not be
  * run again, or non-zero if it should be run again.
  */

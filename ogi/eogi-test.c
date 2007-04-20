@@ -71,7 +71,7 @@ static char *wait_result(void)
 				return NULL;
 			}
 			astresp[strlen(astresp) - 1] = '\0';
-			fprintf(stderr, "Ooh, got a response from OpenPBX: '%s'\n", astresp);
+			fprintf(stderr, "Ooh, got a response from CallWeaver: '%s'\n", astresp);
 			return astresp;
 		}
 		if (FD_ISSET(AUDIO_FILENO, &fds)) {

@@ -1,10 +1,10 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -28,16 +28,16 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/module.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
-#include "openpbx/app.h"
+#include "callweaver/module.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
+#include "callweaver/app.h"
 
 static char *builtin_function_language_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
@@ -62,7 +62,7 @@ static struct opbx_custom_function language_function = {
 	"'demo-congrats' is requested to be played, if the file\n"
 	"'fr/demo-congrats' exists, then it will play that file, and if not\n"
 	"will play the normal 'demo-congrats'.  For some language codes,\n"
-	"changing the language also changes the syntax of some OpenPBX\n"
+	"changing the language also changes the syntax of some CallWeaver\n"
 	"functions, like SayNumber.\n",
 	.read = builtin_function_language_read,
 	.write = builtin_function_language_write,

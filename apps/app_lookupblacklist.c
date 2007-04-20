@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -29,21 +29,21 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/translate.h"
-#include "openpbx/image.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/opbxdb.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/translate.h"
+#include "callweaver/image.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/opbxdb.h"
 
 static char *tdesc = "Look up Caller*ID name/number from blacklist database";
 
@@ -53,7 +53,7 @@ static char *synopsis = "Look up Caller*ID name/number from blacklist database";
 
 static char *descrip =
   "  LookupBlacklist: Looks up the Caller*ID number on the active\n"
-  "channel in the OpenPBX database (family 'blacklist').  If the\n"
+  "channel in the CallWeaver database (family 'blacklist').  If the\n"
   "number is found, and if there exists a priority n + 101,\n"
   "where 'n' is the priority of the current instance, then  the\n"
   "channel  will  be  setup  to continue at that priority level.\n"

@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster at digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,14 +17,14 @@
  */
 
 /* \file This file generates Doxygen pages from files in the /doc
- directory of the OpenPBX source code tree 
+ directory of the CallWeaver source code tree 
  */
 
 /* The following is for Doxygen Developer's documentation generated
  * by running "make progdocs" with doxygen installed on your
  * system.
  */
-/*! \page DevDoc OpenPBX Developer's Documentation - appendices
+/*! \page DevDoc CallWeaver Developer's Documentation - appendices
  *  \arg \ref CodeGuide 
  *  \arg \ref OPBXAPI
  *  \arg \ref OPBXDebug
@@ -39,22 +39,22 @@
  *  \arg \ref ConfigFiles
  *  \arg \ref SoundFiles
  * \section wwwsites Web sites
- * \arg Main:  OpenPBX website http://www.openpbx.org
+ * \arg Main:  CallWeaver website http://www.callweaver.org
  * \arg Bugs: The Issue tracker http://trac.openpbx.org
  * \arg Lists: List server http://lists.openpbx.org
- * \arg Wiki: The OpenPBX Wiki 	http://wiki.openpbx.org
- * \arg Docs: The OpenPBX Documentation Project http://www.openpbxdocs.org
+ * \arg Wiki: The CallWeaver Wiki 	http://wiki.openpbx.org
+ * \arg Docs: The CallWeaver Documentation Project http://www.openpbxdocs.org
  */
 
 /*! \page CodeGuide Coding Guidelines
  *  \section Coding Guidelines
- *  This file is in the /doc directory in your OpenPBX source tree.
+ *  This file is in the /doc directory in your CallWeaver source tree.
  *  Make sure to stay up to date with the latest guidelines.
  *  \verbinclude CODING-GUIDELINES
  */
 
-/*! \page OPBXAPI OpenPBX API
- *  \section OpenPBXapi OpenPBX API
+/*! \page OPBXAPI CallWeaver API
+ *  \section CallWeaverapi CallWeaver API
  *  This programmer's documentation covers the generic API.
  *  \subsection generic Generic Model
  *  \verbinclude model.txt
@@ -74,7 +74,7 @@
  *  \verbinclude manager.txt
  */
 
-/*!  \page OPBXARA ARA - The OpenPBX Realtime Interface
+/*!  \page OPBXARA ARA - The CallWeaver Realtime Interface
  *  \section realtime ARA - a generic API to storage and retrieval
  *  Implemented in \ref config.c 
  *  Implemented in \ref pbx_realtime.c 
@@ -150,7 +150,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link Config_vm Voicemail configuration  \endlink
  */
 
-/*! \page Config_ast OpenPBX.conf
+/*! \page Config_ast CallWeaver.conf
  * \verbinclude README.openpbx.conf
  */
 /*! \page Config_mod Modules configuration
@@ -316,8 +316,8 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page SoundFiles Sound files
- *  \section SecSound OpenPBX Sound files
- *  OpenPBX includes a large amount of sound files. Many of these
+ *  \section SecSound CallWeaver Sound files
+ *  CallWeaver includes a large amount of sound files. Many of these
  *  are used by applications and demo scripts within openpbx.
  *
  *  \section SoundList List of included sound files

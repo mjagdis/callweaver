@@ -39,24 +39,24 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/udp.c $", "$Revision: 1600 $")
 
-#include "openpbx/frame.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/acl.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/lock.h"
-#include "openpbx/utils.h"
-#include "openpbx/cli.h"
-#include "openpbx/unaligned.h"
-#include "openpbx/utils.h"
-#include "openpbx/udp.h"
-#include "openpbx/stun.h"
+#include "callweaver/frame.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/acl.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/unaligned.h"
+#include "callweaver/utils.h"
+#include "callweaver/udp.h"
+#include "callweaver/stun.h"
 
 struct udp_socket_info_s
 {

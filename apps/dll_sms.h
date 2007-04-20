@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 - 2006, Steve Underwod <steveu@coppice.org>
  *
- * See http://www.openpbx.org for more information about
+ * See http://www.callweaver.org for more information about
  * the Openpbx project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC

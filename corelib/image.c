@@ -34,19 +34,19 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/sched.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/file.h"
-#include "openpbx/image.h"
-#include "openpbx/translate.h"
-#include "openpbx/cli.h"
-#include "openpbx/lock.h"
+#include "callweaver/sched.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/file.h"
+#include "callweaver/image.h"
+#include "callweaver/translate.h"
+#include "callweaver/cli.h"
+#include "callweaver/lock.h"
 
 static struct opbx_imager *list;
 OPBX_MUTEX_DEFINE_STATIC(listlock);

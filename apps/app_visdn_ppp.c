@@ -13,18 +13,18 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_dial.c $", "$Revision: 878 $")
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/options.h"
-#include "openpbx/logger.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/options.h"
+#include "callweaver/logger.h"
 
 #include "../channels/chan_visdn.h"
 

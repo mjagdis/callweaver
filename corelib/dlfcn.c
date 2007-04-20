@@ -51,7 +51,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define __BSD_VISIBLE 1
 #endif
 
-#include "openpbx/dlfcn-compat.h"
+#include "callweaver/dlfcn-compat.h"
 
 #ifndef dl_restrict
 #define dl_restrict __restrict

@@ -39,16 +39,16 @@
 #include <stdio.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/frame.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/dsp.h"
-#include "openpbx/ulaw.h"
-#include "openpbx/alaw.h"
+#include "callweaver/frame.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/dsp.h"
+#include "callweaver/ulaw.h"
+#include "callweaver/alaw.h"
 
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA       183     /* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */

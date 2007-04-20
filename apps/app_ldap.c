@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Unix.
+ * CallWeaver -- A telephony toolkit for Unix.
  *
  * LDAP Directory lookup function
  *

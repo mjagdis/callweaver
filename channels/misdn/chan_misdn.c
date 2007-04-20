@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  * 
  * Copyright (C) 2004, Christian Richter
  *
  * Christian Richter <crich@beronet.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -20,7 +20,7 @@
 /*!
  * \file
  *
- * \brief the chan_misdn channel driver for OpenPBX
+ * \brief the chan_misdn channel driver for CallWeaver
  * \author Christian Richter <crich@beronet.com>
  *
  * \ingroup channel_drivers
@@ -4520,7 +4520,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 /******************************************
  *
- *   OpenPBX Channel Endpoint END
+ *   CallWeaver Channel Endpoint END
  *
  *
  *******************************************/

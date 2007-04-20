@@ -2,7 +2,7 @@
  * (CAPI*)
  *
  * An implementation of Common ISDN API 2.0 for
- * Asterisk / OpenPBX.org
+ * Asterisk / CallWeaver.org
  *
  * Copyright (C) 2006 Cytronics & Melware
  *
@@ -25,21 +25,21 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "openpbx/lock.h"
-#include "openpbx/frame.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/config.h"
-#include "openpbx/options.h"
-#include "openpbx/features.h"
-#include "openpbx/utils.h"
-#include "openpbx/rtp.h"
-#include "openpbx/strings.h"
-#include "openpbx/chan_capi20.h"
-#include "openpbx/chan_capi.h"
-#include "openpbx/chan_capi_rtp.h"
+#include "callweaver/lock.h"
+#include "callweaver/frame.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/config.h"
+#include "callweaver/options.h"
+#include "callweaver/features.h"
+#include "callweaver/utils.h"
+#include "callweaver/rtp.h"
+#include "callweaver/strings.h"
+#include "callweaver/chan_capi20.h"
+#include "callweaver/chan_capi.h"
+#include "callweaver/chan_capi_rtp.h"
 
 /* RTP settings / NCPI RTP struct */
 

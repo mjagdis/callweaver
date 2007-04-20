@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * MySQL CDR logger 
  * 

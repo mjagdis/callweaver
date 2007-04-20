@@ -60,17 +60,17 @@
 #define       IPTOS_MINCOST           IPTOS_LOWCOST
 #endif
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/acl.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/options.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/srv.h"
+#include "callweaver/acl.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/srv.h"
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 OPBX_MUTEX_DEFINE_STATIC(routeseq_lock);

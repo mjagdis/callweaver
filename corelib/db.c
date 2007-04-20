@@ -40,21 +40,21 @@
 #include <errno.h>
 #include <unistd.h>
 #include <dirent.h>
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/file.h"
-#include "openpbx/app.h"
-#include "openpbx/dsp.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/opbxdb.h"
-#include "openpbx/cli.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/manager.h"
+#include "callweaver/channel.h"
+#include "callweaver/file.h"
+#include "callweaver/app.h"
+#include "callweaver/dsp.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/cli.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/manager.h"
 #include "sqlite3.h"
 
 OPBX_MUTEX_DEFINE_STATIC(dblock);

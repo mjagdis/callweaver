@@ -1,10 +1,10 @@
 /*
- * OpenPBX.org -- An open source telephony toolkit.
+ * CallWeaver.org -- An open source telephony toolkit.
  *
  * Copyright (C) 2004 - 2005
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX.org project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver.org project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -16,7 +16,7 @@
 
 /*! \file
  *
- * \brief OpenPBX.org Call Manager CDR records.
+ * \brief CallWeaver.org Call Manager CDR records.
  * 
  * See also
  * \arg \ref OpbxCDR
@@ -34,22 +34,22 @@
 #include <unistd.h>
 #include <time.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/cdr.h"
-#include "openpbx/module.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
-#include "openpbx/manager.h"
-#include "openpbx/config.h"
+#include "callweaver/channel.h"
+#include "callweaver/cdr.h"
+#include "callweaver/module.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
+#include "callweaver/manager.h"
+#include "callweaver/config.h"
 
 #define DATE_FORMAT 	"%Y-%m-%d %T"
 #define CONF_FILE	"cdr_manager.conf"
 
-static char *desc = "OpenPBX.org Call Manager CDR Backend";
+static char *desc = "CallWeaver.org Call Manager CDR Backend";
 static char *name = "cdr_manager";
 
 static int enablecdr = 0;
@@ -159,7 +159,7 @@ int load_module(void)
 	
 	res = opbx_cdr_register(name, desc, manager_log);
 	if (res) {
-		opbx_log(LOG_ERROR, "Unable to register OpenPBX.org Call Manager CDR handling\n");
+		opbx_log(LOG_ERROR, "Unable to register CallWeaver.org Call Manager CDR handling\n");
 	}
 	
 	return res;

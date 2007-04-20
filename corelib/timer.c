@@ -38,9 +38,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "openpbx/utils.h"
-#include "openpbx/timer.h"
-#include "openpbx/logger.h"
+#include "callweaver/utils.h"
+#include "callweaver/timer.h"
+#include "callweaver/logger.h"
 
 #ifdef __FreeBSD__
 #ifdef HAVE_POSIX_TIMERS

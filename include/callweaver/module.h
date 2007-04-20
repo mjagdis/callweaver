@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,9 +17,9 @@
  */
 
 /*! \file
- * \brief OpenPBX module definitions.
+ * \brief CallWeaver module definitions.
  *
- * This file contains the definitons for functions OpenPBX modules should
+ * This file contains the definitons for functions CallWeaver modules should
  * provide and some other module related functions.
  */
 
@@ -40,7 +40,7 @@ extern "C" {
  * etc.
  *
  * \return This function should return 0 on success and non-zero on failure.
- * If the module is not loaded successfully, OpenPBX will call its
+ * If the module is not loaded successfully, CallWeaver will call its
  * unload_module() function.
  */
 int load_module(void);
@@ -204,7 +204,7 @@ int opbx_loader_exit(void);
 int opbx_module_reload(const char *name);
 
 /*! 
- * \brief Match modules names for the OpenPBX cli.
+ * \brief Match modules names for the CallWeaver cli.
  * \param line Unused by this function, but this should be the line we are
  *        matching.
  * \param word The partial name to match. 
@@ -222,7 +222,7 @@ int opbx_module_reload(const char *name);
 char *opbx_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload);
 
 /*! 
- * \brief Register a function to be executed before OpenPBX exits.
+ * \brief Register a function to be executed before CallWeaver exits.
  * \param func The callback function to use.
  *
  * \return Zero on success, -1 on error.

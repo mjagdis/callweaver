@@ -30,13 +30,13 @@
 
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/ $", "$Revision$")
 
-#include "openpbx/slinfactory.h"
-#include "openpbx/logger.h"
-#include "openpbx/translate.h"
+#include "callweaver/slinfactory.h"
+#include "callweaver/logger.h"
+#include "callweaver/translate.h"
 
 
 void opbx_slinfactory_init(struct opbx_slinfactory *sf) 

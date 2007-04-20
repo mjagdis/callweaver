@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -8,8 +8,8 @@
  * res_odbc.c <ODBC resource manager>
  * Copyright (C) 2004 - 2005 Anthony Minessale II <anthmct@yahoo.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -35,20 +35,20 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/options.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/cli.h"
-#include "openpbx/lock.h"
-#include "openpbx/res_odbc.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/options.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/cli.h"
+#include "callweaver/lock.h"
+#include "callweaver/res_odbc.h"
 #define MAX_ODBC_HANDLES 25
 
 struct odbc_list

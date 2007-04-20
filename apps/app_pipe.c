@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * PIPE Standard in or out of a call
  * 
@@ -33,18 +33,18 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1 $")
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/frame.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/translate.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/frame.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/translate.h"
 
 static char *tdesc = "Pipe Raw Audio to and from an External Process";
 

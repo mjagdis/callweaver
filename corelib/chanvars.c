@@ -28,14 +28,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/chanvars.h"
-#include "openpbx/logger.h"
-#include "openpbx/strings.h"
-#include "openpbx/opbx_hash.h"
+#include "callweaver/chanvars.h"
+#include "callweaver/logger.h"
+#include "callweaver/strings.h"
+#include "callweaver/opbx_hash.h"
 
 /*!
  * \note I M P O R T A N T :

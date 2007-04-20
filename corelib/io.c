@@ -32,12 +32,12 @@
 #include <string.h> /* for memset */
 #include <sys/ioctl.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/io.h"
-#include "openpbx/logger.h"
+#include "callweaver/io.h"
+#include "callweaver/logger.h"
 
 #ifdef DEBUG_IO
 #define DEBUG_LOG(a) DEBUG_M(a)

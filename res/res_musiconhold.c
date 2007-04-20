@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -42,23 +42,23 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
-#include "openpbx/module.h"
-#include "openpbx/translate.h"
-#include "openpbx/say.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/config.h"
-#include "openpbx/utils.h"
-#include "openpbx/cli.h"
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/module.h"
+#include "callweaver/translate.h"
+#include "callweaver/say.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/config.h"
+#include "callweaver/utils.h"
+#include "callweaver/cli.h"
 
 #define MAX_MOHFILES 512
 #define MAX_MOHFILE_LEN 128

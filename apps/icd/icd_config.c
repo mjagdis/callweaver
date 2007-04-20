@@ -4,17 +4,17 @@
  * Written by Anthony Minessale II <anthmct at yahoo dot com>
  * Written by Bruce Atherton <bruce at callenish dot com>
  * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
- * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Changed to adopt to jabber interaction and adjusted for CallWeaver.org by
  * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
  * 
  * This application is a part of:
  * 
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  * Copyright (C) 1999 - 2005, Digium, Inc.
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -48,15 +48,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "openpbx/logger.h"
-#include "openpbx/icd/icd_types.h"
-#include "openpbx/icd/icd_config.h"
-#include "openpbx/icd/icd_fieldset.h"
-#include "openpbx/icd/icd_common.h"
+#include "callweaver/logger.h"
+#include "callweaver/icd/icd_types.h"
+#include "callweaver/icd/icd_config.h"
+#include "callweaver/icd/icd_fieldset.h"
+#include "callweaver/icd/icd_common.h"
 
 /* This is for getting at the function pointers in the registry */
-#include "openpbx/icd/icd_distributor.h"
-#include "openpbx/icd/icd_list.h"
+#include "callweaver/icd/icd_distributor.h"
+#include "callweaver/icd/icd_list.h"
 
 /*===== Private Types, Variables, and APIs =====*/
 

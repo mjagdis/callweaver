@@ -31,18 +31,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/channel.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/linkedlists.h"
-#include "openpbx/logger.h"
-#include "openpbx/devicestate.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/linkedlists.h"
+#include "callweaver/logger.h"
+#include "callweaver/devicestate.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
 
 static const char *devstatestring[] = {
 	/* 0 OPBX_DEVICE_UNKNOWN */	"Unknown",	/* Valid, but unknown state */

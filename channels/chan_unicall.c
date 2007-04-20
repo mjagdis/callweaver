@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * UniCall support
  * 
@@ -39,30 +39,30 @@
 #include <libsupertone.h>
 #include <unicall.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
-#include "openpbx/file.h"
-#include "openpbx/ulaw.h"
-#include "openpbx/alaw.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/adsi.h"
-#include "openpbx/cli.h"
-#include "openpbx/cdr.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/say.h"
-#include "openpbx/app.h"
-#include "openpbx/dsp.h"
-#include "openpbx/utils.h"
-#include "openpbx/causes.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/file.h"
+#include "callweaver/ulaw.h"
+#include "callweaver/alaw.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/adsi.h"
+#include "callweaver/cli.h"
+#include "callweaver/cdr.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/say.h"
+#include "callweaver/app.h"
+#include "callweaver/dsp.h"
+#include "callweaver/utils.h"
+#include "callweaver/causes.h"
 
 /* 
    XXX 

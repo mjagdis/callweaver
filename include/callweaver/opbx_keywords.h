@@ -1,7 +1,7 @@
 /* API to use string hashes for keywords in place of strcmp()
  *
  *  opbx_keywords.h
- *  OpenPBX Keywords
+ *  CallWeaver Keywords
  *
  * Keyword hash codes
  *

@@ -19,7 +19,7 @@
 
 //#include <openpbx/adsi.h>
 #include <stdio.h>
-#include "openpbx/channel.h"
+#include "callweaver/channel.h"
 
 
 

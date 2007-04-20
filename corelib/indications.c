@@ -38,18 +38,18 @@
 #include <math.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/indications.h"
-#include "openpbx/frame.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/lock.h"
-#include "openpbx/utils.h"
-#include "openpbx/resonator.h"
+#include "callweaver/indications.h"
+#include "callweaver/frame.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
+#include "callweaver/resonator.h"
 
 static int midi_tohz[128] =
 {

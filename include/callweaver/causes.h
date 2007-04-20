@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Martin Pycko <martinp@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief Internal OpenPBX hangup causes
+ * \brief Internal CallWeaver hangup causes
  */
 
 #ifndef _OPENPBX_CAUSES_H
@@ -70,7 +70,7 @@
 #define OPBX_CAUSE_PROTOCOL_ERROR			111
 #define OPBX_CAUSE_INTERWORKING				127
 
-/* Special OpenPBX aliases */
+/* Special CallWeaver aliases */
 #define OPBX_CAUSE_BUSY 					OPBX_CAUSE_USER_BUSY
 #define OPBX_CAUSE_FAILURE 				OPBX_CAUSE_NETWORK_OUT_OF_ORDER
 #define OPBX_CAUSE_NORMAL 				OPBX_CAUSE_NORMAL_CLEARING

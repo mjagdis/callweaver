@@ -6,17 +6,17 @@
  * Written by Anthony Minessale II <anthmct at yahoo dot com>
  * Written by Bruce Atherton <bruce at callenish dot com>
  * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
- * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Changed to adopt to jabber interaction and adjusted for CallWeaver.org by
  * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
  * 
  * This application is a part of:
  * 
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  * Copyright (C) 1999 - 2005, Digium, Inc.
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -40,31 +40,31 @@
 #include <netinet/in.h>
 
 /* Openpbx Includes */
-#include "openpbx.h"
+#include "callweaver.h"
 
-#include "openpbx/file.h"
-#include "openpbx/say.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/cli.h"
-#include "openpbx/config.h"
-#include "openpbx/manager.h"
-#include "openpbx/features.h"
+#include "callweaver/file.h"
+#include "callweaver/say.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/cli.h"
+#include "callweaver/config.h"
+#include "callweaver/manager.h"
+#include "callweaver/features.h"
 
 /* ICD Includes */
-#include "openpbx/icd/icd_fieldset.h"
-#include "openpbx/icd/icd_listeners.h"
-#include "openpbx/icd/icd_event.h"
-#include "openpbx/icd/voidhash.h"
-#include "openpbx/icd/icd_config.h"
-#include "openpbx/icd/icd_types.h"
-#include "openpbx/icd/icd_globals.h"
-#include "openpbx/icd/icd_plugable_fn.h"
+#include "callweaver/icd/icd_fieldset.h"
+#include "callweaver/icd/icd_listeners.h"
+#include "callweaver/icd/icd_event.h"
+#include "callweaver/icd/voidhash.h"
+#include "callweaver/icd/icd_config.h"
+#include "callweaver/icd/icd_types.h"
+#include "callweaver/icd/icd_globals.h"
+#include "callweaver/icd/icd_plugable_fn.h"
 
 /* 
    Support for pre/post 1.0 rendition of opbx_set_(read/write)_format.

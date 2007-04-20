@@ -31,21 +31,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/module.h"
-#include "openpbx/options.h"
-#include "openpbx/config.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/term.h"
-#include "openpbx/manager.h"
-#include "openpbx/cdr.h"
-#include "openpbx/enum.h"
-#include "openpbx/lock.h"
-#include "openpbx/rtp.h"
+#include "callweaver/module.h"
+#include "callweaver/options.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/term.h"
+#include "callweaver/manager.h"
+#include "callweaver/cdr.h"
+#include "callweaver/enum.h"
+#include "callweaver/lock.h"
+#include "callweaver/rtp.h"
 #include "libltdl/ltdl.h"
 
 #ifndef RTLD_NOW

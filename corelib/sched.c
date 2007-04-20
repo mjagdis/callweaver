@@ -39,15 +39,15 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/sched.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/lock.h"
-#include "openpbx/utils.h"
+#include "callweaver/sched.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
 #include <openpbx/timer.h>
 
 /* Determine if a is sooner than b */

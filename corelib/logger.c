@@ -45,7 +45,7 @@
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
@@ -61,15 +61,15 @@ static int syslog_level_map[] = {
 
 #define SYSLOG_NLEVELS 6
 
-#include "openpbx/logger.h"
-#include "openpbx/lock.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/term.h"
-#include "openpbx/cli.h"
-#include "openpbx/utils.h"
-#include "openpbx/manager.h"
+#include "callweaver/logger.h"
+#include "callweaver/lock.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/term.h"
+#include "callweaver/cli.h"
+#include "callweaver/utils.h"
+#include "callweaver/manager.h"
 
 #define MAX_MSG_QUEUE 200
 

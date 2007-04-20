@@ -185,14 +185,14 @@
  *
  */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "openpbx/logger.h"
-#include "openpbx/ael_structs.h"
+#include "callweaver/logger.h"
+#include "callweaver/ael_structs.h"
 
 static pval * linku1(pval *head, pval *tail);
 

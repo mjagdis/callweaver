@@ -6,17 +6,17 @@
  * Written by Anthony Minessale II <anthmct at yahoo dot com>
  * Written by Bruce Atherton <bruce at callenish dot com>
  * Additions, Changes and Support by Tim R. Clark <tclark at shaw dot ca>
- * Changed to adopt to jabber interaction and adjusted for OpenPBX.org by
+ * Changed to adopt to jabber interaction and adjusted for CallWeaver.org by
  * Halo Kwadrat Sp. z o.o., Piotr Figurny and Michal Bielicki
  * 
  * This application is a part of:
  * 
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  * Copyright (C) 1999 - 2005, Digium, Inc.
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -101,9 +101,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "openpbx/icd/icd_common.h"
-#include "openpbx/icd/icd_listeners.h"
-#include "openpbx/icd/icd_event.h"
+#include "callweaver/icd/icd_common.h"
+#include "callweaver/icd/icd_listeners.h"
+#include "callweaver/icd/icd_event.h"
 
 /*===== Private types and APIs =====*/
 

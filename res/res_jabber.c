@@ -1,7 +1,7 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
- * res_jabber Application For OpenPBX
+ * res_jabber Application For CallWeaver
  *
  * Copyright (C) 2005, Anthony Minessale II
  *
@@ -21,14 +21,14 @@
 #include <assert.h>
 #define PATCHED_MANAGER
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/manager.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/manager.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/lock.h"
 
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
 

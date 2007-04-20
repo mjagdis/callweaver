@@ -1,5 +1,5 @@
 /*
- * OpenPBX Bluetooth Channel
+ * CallWeaver Bluetooth Channel
  *
  * Author: Theo Zourzouvillys <theo@adaptive-it.co.uk>
  * Adaptive Linux Solutions <http://www.adaptive-it.co.uk>

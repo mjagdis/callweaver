@@ -1,6 +1,6 @@
 //#define DO_TRACE
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Fax Channel Driver
  * 
@@ -28,15 +28,15 @@
 #include <signal.h>
 #include <netinet/tcp.h>
 
-#include "openpbx/lock.h"
-#include "openpbx/cli.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/astobj.h"
-#include "openpbx/module.h"
-#include "openpbx/lock.h"
-#include "openpbx/pbx.h"
-#include "openpbx/devicestate.h"
+#include "callweaver/lock.h"
+#include "callweaver/cli.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/astobj.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/pbx.h"
+#include "callweaver/devicestate.h"
 #include "faxmodem.h"
 
 static const char desc[] = "Fax Modem Interface";

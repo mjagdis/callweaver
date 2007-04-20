@@ -35,7 +35,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "openpbx.h"
+#include "callweaver.h"
 
 #include <openpbx/lock.h>
 #include <openpbx/file.h>

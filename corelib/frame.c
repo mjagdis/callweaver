@@ -33,18 +33,18 @@
 #include <stdio.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/frame.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/cli.h"
-#include "openpbx/term.h"
-#include "openpbx/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/frame.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/cli.h"
+#include "callweaver/term.h"
+#include "callweaver/utils.h"
 
 #ifdef TRACE_FRAMES
 static int headers = 0;

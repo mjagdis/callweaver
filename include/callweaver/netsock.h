@@ -1,13 +1,13 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -29,8 +29,8 @@ extern "C" {
 #endif
 
 #include <netinet/in.h>
-#include "openpbx/io.h"
-#include "openpbx/astobj.h"
+#include "callweaver/io.h"
+#include "callweaver/astobj.h"
 
 struct opbx_netsock;
 

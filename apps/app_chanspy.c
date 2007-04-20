@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 2005 Anthony Minessale II (anthmct@yahoo.com)
  *
  * Disclaimed to Digium
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -30,23 +30,23 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/features.h"
-#include "openpbx/options.h"
-#include "openpbx/slinfactory.h"
-#include "openpbx/app.h"
-#include "openpbx/utils.h"
-#include "openpbx/say.h"
-#include "openpbx/pbx.h"
-#include "openpbx/translate.h"
-#include "openpbx/module.h"
-#include "openpbx/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/features.h"
+#include "callweaver/options.h"
+#include "callweaver/slinfactory.h"
+#include "callweaver/app.h"
+#include "callweaver/utils.h"
+#include "callweaver/say.h"
+#include "callweaver/pbx.h"
+#include "callweaver/translate.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
 
 OPBX_MUTEX_DEFINE_STATIC(modlock);
 

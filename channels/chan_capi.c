@@ -2,7 +2,7 @@
  * (CAPI*)
  *
  * An implementation of Common ISDN API 2.0 for
- * Asterisk / OpenPBX.org
+ * Asterisk / CallWeaver.org
  *
  * Copyright (C) 2005-2006 Cytronics & Melware
  *
@@ -31,30 +31,30 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/frame.h" 
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/config.h"
-#include "openpbx/options.h"
-#include "openpbx/features.h"
-#include "openpbx/utils.h"
-#include "openpbx/cli.h"
-#include "openpbx/rtp.h"
-#include "openpbx/causes.h"
-#include "openpbx/strings.h"
-#include "openpbx/devicestate.h"
-#include "openpbx/dsp.h"
-#include "openpbx/xlaw.h"
-#include "openpbx/chan_capi20.h"
-#include "openpbx/chan_capi.h"
-#include "openpbx/chan_capi_rtp.h"
+#include "callweaver/lock.h"
+#include "callweaver/frame.h" 
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/config.h"
+#include "callweaver/options.h"
+#include "callweaver/features.h"
+#include "callweaver/utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/rtp.h"
+#include "callweaver/causes.h"
+#include "callweaver/strings.h"
+#include "callweaver/devicestate.h"
+#include "callweaver/dsp.h"
+#include "callweaver/xlaw.h"
+#include "callweaver/chan_capi20.h"
+#include "callweaver/chan_capi.h"
+#include "callweaver/chan_capi_rtp.h"
 
 #define CC_VERSION "cm-opbx-0.7"
 
@@ -66,7 +66,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 unsigned capi_ApplID = CAPI_APPLID_UNUSED;
 
 static _cword capi_MessageNumber;
-static char *ccdesc = "Common ISDN API for OpenPBX";
+static char *ccdesc = "Common ISDN API for CallWeaver";
 static const char tdesc[] = "Common ISDN API Driver (" CC_VERSION ")";
 static const char channeltype[] = "CAPI";
 static const struct opbx_channel_tech capi_tech;
@@ -100,7 +100,7 @@ static char *commandtdesc = "CAPI command interface.\n"
 "FAXFORMAT     :0=SFF\n"
 "FAXPAGES      :Number of pages received\n"
 "FAXID         :ID of the remote fax machine\n"
-"OpenPBX.org variables used/set by chan_capi:\n"
+"CallWeaver.org variables used/set by chan_capi:\n"
 "BCHANNELINFO,CALLEDTON,_CALLERHOLDID,CALLINGSUBADDRESS,CALLEDSUBADDRESS\n"
 "CONNECTEDNUMBER,FAXEXTEN,PRI_CAUSE,REDIRECTINGNUMBER,REDIRECTREASON\n"
 "!!! for more details and samples, check the README of chan-capi !!!\n";

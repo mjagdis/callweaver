@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -28,38 +28,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
      
-#include "openpbx/lock.h"
-#include "openpbx/frame.h" 
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/sched.h"
-#include "openpbx/io.h"
-#include "openpbx/config.h"
-#include "openpbx/options.h"
-#include "openpbx/cli.h"
-#include "openpbx/translate.h"
-#include "openpbx/cdr.h"
-#include "openpbx/crypto.h"
-#include "openpbx/acl.h"
-#include "openpbx/manager.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/app.h"
-#include "openpbx/opbxdb.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/features.h"
-#include "openpbx/utils.h"
-#include "openpbx/causes.h"
-#include "openpbx/localtime.h"
-#include "openpbx/aes.h"
-#include "openpbx/dnsmgr.h"
-#include "openpbx/devicestate.h"
-#include "openpbx/netsock.h"
+#include "callweaver/lock.h"
+#include "callweaver/frame.h" 
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/sched.h"
+#include "callweaver/io.h"
+#include "callweaver/config.h"
+#include "callweaver/options.h"
+#include "callweaver/cli.h"
+#include "callweaver/translate.h"
+#include "callweaver/cdr.h"
+#include "callweaver/crypto.h"
+#include "callweaver/acl.h"
+#include "callweaver/manager.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/app.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/features.h"
+#include "callweaver/utils.h"
+#include "callweaver/causes.h"
+#include "callweaver/localtime.h"
+#include "callweaver/aes.h"
+#include "callweaver/dnsmgr.h"
+#include "callweaver/devicestate.h"
+#include "callweaver/netsock.h"
 
 #include <sys/mman.h>
 #include <arpa/inet.h>
@@ -88,7 +88,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 opbx_timer_t trunktimer;
 #endif
 
-#include "openpbx/generic_jb.h"
+#include "callweaver/generic_jb.h"
 
 static struct opbx_jb_conf global_jbconf;
 

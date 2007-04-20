@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -32,7 +32,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.47 $")
 

@@ -35,17 +35,17 @@
 #include <ctype.h>
 #include <spandsp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/phone_no_utils.c $", "$Revision: 922 $")
 
-#include "openpbx/ulaw.h"
-#include "openpbx/alaw.h"
-#include "openpbx/frame.h"
-#include "openpbx/channel.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
+#include "callweaver/ulaw.h"
+#include "callweaver/alaw.h"
+#include "callweaver/frame.h"
+#include "callweaver/channel.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
 
 static struct {
 	int val;

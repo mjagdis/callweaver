@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -38,27 +38,27 @@
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/file.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/say.h"
-#include "openpbx/module.h"
-#include "openpbx/options.h"
-#include "openpbx/crypto.h"
-#include "openpbx/cli.h"
-#include "openpbx/io.h"
-#include "openpbx/lock.h"
-#include "openpbx/astosp.h"
-#include "openpbx/config.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/causes.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/pbx.h"
+#include "callweaver/file.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/say.h"
+#include "callweaver/module.h"
+#include "callweaver/options.h"
+#include "callweaver/crypto.h"
+#include "callweaver/cli.h"
+#include "callweaver/io.h"
+#include "callweaver/lock.h"
+#include "callweaver/astosp.h"
+#include "callweaver/config.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/causes.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/pbx.h"
 
 #define MAX_CERTS 10
 #define MAX_SERVICEPOINTS 10

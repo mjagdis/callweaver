@@ -58,7 +58,7 @@
 #include <visdn/visdn.h>
 
 
-#define VISDN_DESCRIPTION "VISDN Channel For OpenPBX.org"
+#define VISDN_DESCRIPTION "VISDN Channel For CallWeaver.org"
 #define VISDN_CHAN_TYPE "VISDN"
 #define VISDN_CONFIG_FILE "chan_visdn.conf"
 

@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) <Year>, <Your Name Here>
  *
  * <Your Name Here> <<You Email Here>>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -30,24 +30,24 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/module.h"
-#include "openpbx/lock.h"
-#include "openpbx/app.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/app.h"
 
 static char *tdesc = "Trivial skeleton Application";
 static char *app = "Skel";
 static char *synopsis = 
 "Skeleton application.";
 static char *descrip = "This application is a template to build other applications from.\n"
- " It shows you the basic structure to create your own OpenPBX applications.\n";
+ " It shows you the basic structure to create your own CallWeaver applications.\n";
 
 #define OPTION_A	(1 << 0)	/* Option A */
 #define OPTION_B	(1 << 1)	/* Option B(n) */

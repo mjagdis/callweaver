@@ -33,23 +33,23 @@
 #include <stdio.h>
 #include <signal.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/cdr.h"
-#include "openpbx/logger.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/causes.h"
-#include "openpbx/options.h"
-#include "openpbx/linkedlists.h"
-#include "openpbx/utils.h"
-#include "openpbx/sched.h"
-#include "openpbx/config.h"
-#include "openpbx/cli.h"
-#include "openpbx/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/cdr.h"
+#include "callweaver/logger.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/causes.h"
+#include "callweaver/options.h"
+#include "callweaver/linkedlists.h"
+#include "callweaver/utils.h"
+#include "callweaver/sched.h"
+#include "callweaver/config.h"
+#include "callweaver/cli.h"
+#include "callweaver/module.h"
 
 int opbx_default_amaflags = OPBX_CDR_DOCUMENTATION;
 char opbx_default_accountcode[OPBX_MAX_ACCOUNT_CODE] = "";

@@ -2,7 +2,7 @@
  * (CAPI*)
  *
  * An implementation of Common ISDN API 2.0 for
- * Asterisk / OpenPBX.org
+ * Asterisk / CallWeaver.org
  *
  * Copyright (C) 2005-2006 Cytronics & Melware
  *

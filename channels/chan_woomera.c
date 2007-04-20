@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Woomera Channel Driver
  * 
@@ -27,23 +27,23 @@
 #include <signal.h>
 #include <netinet/tcp.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/sched.h"
-#include "openpbx/astobj.h"
-#include "openpbx/lock.h"
-#include "openpbx/manager.h"
-#include "openpbx/channel.h"
-#include "openpbx/pbx.h"
-#include "openpbx/cli.h"
-#include "openpbx/logger.h"
-#include "openpbx/frame.h"
-#include "openpbx/config.h"
-#include "openpbx/module.h"
-#include "openpbx/lock.h"
-#include "openpbx/translate.h"
+#include "callweaver/sched.h"
+#include "callweaver/astobj.h"
+#include "callweaver/lock.h"
+#include "callweaver/manager.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/cli.h"
+#include "callweaver/logger.h"
+#include "callweaver/frame.h"
+#include "callweaver/config.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/translate.h"
 
 #define MEDIA_ANSWER "ANSWER"
 #define USE_ANSWER 0

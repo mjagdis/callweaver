@@ -33,18 +33,18 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/cli.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/channel.h"
-#include "openpbx/manager.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/cli.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/channel.h"
+#include "callweaver/manager.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
 
 /* For rl_filename_completion */
 #include <readline/readline.h>

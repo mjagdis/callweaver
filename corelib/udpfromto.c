@@ -38,7 +38,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include "openpbx/udpfromto.h"
+#include "callweaver/udpfromto.h"
 
 int opbx_udpfromto_init(int s)
 {

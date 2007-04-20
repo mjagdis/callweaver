@@ -34,24 +34,24 @@
 #include <unistd.h>
 #include <math.h>			/* For PI */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/pbx.h"
-#include "openpbx/frame.h"
-#include "openpbx/sched.h"
-#include "openpbx/options.h"
-#include "openpbx/channel.h"
-#include "openpbx/logger.h"
-#include "openpbx/file.h"
-#include "openpbx/translate.h"
-#include "openpbx/manager.h"
-#include "openpbx/chanvars.h"
-#include "openpbx/linkedlists.h"
-#include "openpbx/indications.h"
-#include "openpbx/lock.h"
-#include "openpbx/utils.h"
+#include "callweaver/pbx.h"
+#include "callweaver/frame.h"
+#include "callweaver/sched.h"
+#include "callweaver/options.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/file.h"
+#include "callweaver/translate.h"
+#include "callweaver/manager.h"
+#include "callweaver/chanvars.h"
+#include "callweaver/linkedlists.h"
+#include "callweaver/indications.h"
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
 
 #define MAX_AUTOMONS 256
 

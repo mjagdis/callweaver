@@ -29,12 +29,12 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/generator.c $", "$Revision: 878 $")
 
-#include "openpbx/channel.h"	/* generator.h is included */
-#include "openpbx/lock.h"
+#include "callweaver/channel.h"	/* generator.h is included */
+#include "callweaver/lock.h"
 
 /* Needed declarations */
 static void *opbx_generator_thread(void *data);

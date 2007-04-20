@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * UDPTL support for T.38
  * 
@@ -8,8 +8,8 @@
  *
  * Steve Underood <steveu@coppice.org>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -25,10 +25,10 @@
 #ifndef _OPENPBX_UDPTL_H
 #define _OPENPBX_UDPTL_H
 
-#include "openpbx/frame.h"
-#include "openpbx/io.h"
-#include "openpbx/sched.h"
-#include "openpbx/channel.h"
+#include "callweaver/frame.h"
+#include "callweaver/io.h"
+#include "callweaver/sched.h"
+#include "callweaver/channel.h"
 
 #include <netinet/in.h>
 

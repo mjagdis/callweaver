@@ -36,22 +36,22 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/frame.h"
-#include "openpbx/file.h"
-#include "openpbx/cli.h"
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/sched.h"
-#include "openpbx/options.h"
-#include "openpbx/translate.h"
-#include "openpbx/utils.h"
-#include "openpbx/lock.h"
-#include "openpbx/app.h"
-#include "openpbx/pbx.h"
+#include "callweaver/frame.h"
+#include "callweaver/file.h"
+#include "callweaver/cli.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/sched.h"
+#include "callweaver/options.h"
+#include "callweaver/translate.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+#include "callweaver/app.h"
+#include "callweaver/pbx.h"
 
 struct opbx_format {
 	/* Name of format */

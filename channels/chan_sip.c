@@ -1,11 +1,11 @@
-/* OpenPBX -- An open source telephony toolkit.
+/* CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -49,52 +49,52 @@
 #include <netinet/ip.h>
 #include <regex.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
-#include "openpbx/lock.h"
-#include "openpbx/sched.h"
-#include "openpbx/io.h"
-#include "openpbx/udp.h"
-#include "openpbx/rtp.h"
-#include "openpbx/udptl.h"
-//#include "openpbx/tpkt.h"
-#include "openpbx/acl.h"
-#include "openpbx/manager.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/cli.h"
-#include "openpbx/app.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/dsp.h"
-#include "openpbx/features.h"
-#include "openpbx/acl.h"
-#include "openpbx/srv.h"
-#include "openpbx/opbxdb.h"
-#include "openpbx/causes.h"
-#include "openpbx/utils.h"
-#include "openpbx/file.h"
-#include "openpbx/astobj.h"
-#include "openpbx/dnsmgr.h"
-#include "openpbx/devicestate.h"
-#include "openpbx/linkedlists.h"
-#include "openpbx/localtime.h"
-#include "openpbx/udpfromto.h"
-#include "openpbx/stun.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/lock.h"
+#include "callweaver/sched.h"
+#include "callweaver/io.h"
+#include "callweaver/udp.h"
+#include "callweaver/rtp.h"
+#include "callweaver/udptl.h"
+//#include "callweaver/tpkt.h"
+#include "callweaver/acl.h"
+#include "callweaver/manager.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/app.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/dsp.h"
+#include "callweaver/features.h"
+#include "callweaver/acl.h"
+#include "callweaver/srv.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/causes.h"
+#include "callweaver/utils.h"
+#include "callweaver/file.h"
+#include "callweaver/astobj.h"
+#include "callweaver/dnsmgr.h"
+#include "callweaver/devicestate.h"
+#include "callweaver/linkedlists.h"
+#include "callweaver/localtime.h"
+#include "callweaver/udpfromto.h"
+#include "callweaver/stun.h"
 
 #ifdef OSP_SUPPORT
-#include "openpbx/astosp.h"
+#include "callweaver/astosp.h"
 #endif
 
 #ifndef DEFAULT_USERAGENT
-#define DEFAULT_USERAGENT "OpenPBX"
+#define DEFAULT_USERAGENT "CallWeaver"
 #endif
  
 #define VIDEO_CODEC_MASK    0x1fc0000 /* Video codecs from H.261 thru OPBX_FORMAT_MAX_VIDEO */
@@ -150,7 +150,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEBUG_READ    0            /* Recieved data    */
 #define DEBUG_SEND    1            /* Transmit data    */
 
-#include "openpbx/generic_jb.h"
+#include "callweaver/generic_jb.h"
 static struct opbx_jb_conf global_jbconf;
 
 static const char desc[] = "Session Initiation Protocol (SIP)";
@@ -297,7 +297,7 @@ static const struct cfalias {
    we should check the list and answer accordingly. */
 static const struct cfsip_options {
     int id;            /*!< Bitmap ID */
-    int supported;        /*!< Supported by OpenPBX ? */
+    int supported;        /*!< Supported by CallWeaver ? */
     char * const text;    /*!< Text id, as in standard */
 } sip_options[] = {
 	/* Replaces: header for transfer */
@@ -1237,7 +1237,7 @@ static void build_via(struct sip_pvt *p, char *buf, int len)
         snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
 }
 
-/*! \brief  opbx_sip_ouraddrfor: NAT fix - decide which IP address to use for OpenPBX.org server? */
+/*! \brief  opbx_sip_ouraddrfor: NAT fix - decide which IP address to use for CallWeaver.org server? */
 /* Only used for outbound registrations */
 static int opbx_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p)
 {
@@ -3092,7 +3092,7 @@ static void sip_destroy(struct sip_pvt *p)
 
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal);
 
-/*! \brief  hangup_sip2cause: Convert SIP hangup causes to OpenPBX hangup causes */
+/*! \brief  hangup_sip2cause: Convert SIP hangup causes to CallWeaver hangup causes */
 static int hangup_sip2cause(int cause)
 {
     /* Possible values taken from causes.h */
@@ -3129,7 +3129,7 @@ static int hangup_sip2cause(int cause)
     return 0;
 }
 
-/*! \brief  hangup_cause2sip: Convert OpenPBX hangup causes to SIP codes 
+/*! \brief  hangup_cause2sip: Convert CallWeaver hangup causes to SIP codes 
 \verbatim
  Possible values from causes.h
         OPBX_CAUSE_NOTDEFINED    OPBX_CAUSE_NORMAL        OPBX_CAUSE_BUSY
@@ -4286,7 +4286,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
         /* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
            we need more to identify a branch - so we have to check branch, from
            and to tags to identify a call leg.
-           For OpenPBX to behave correctly, you need to turn on pedanticsipchecking
+           For CallWeaver to behave correctly, you need to turn on pedanticsipchecking
            in sip.conf
            */
         if (gettag(req, "To", totag, sizeof(totag)))
@@ -5791,7 +5791,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
         about the reason why we are doing this in clear text */
     if (msg[0] != '1' && p->owner && p->owner->hangupcause)
     {
-        add_header(&resp, "X-OpenPBX-HangupCause", opbx_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
+        add_header(&resp, "X-CallWeaver-HangupCause", opbx_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
     }
     add_blank_header(&resp);
     return send_response(p, &resp, reliable, seqno);
@@ -7738,7 +7738,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
     {
         if (p->owner && p->owner->hangupcause)
         {
-            add_header(&resp, "X-OpenPBX-HangupCause", opbx_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
+            add_header(&resp, "X-CallWeaver-HangupCause", opbx_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
         }
     }
 
@@ -7798,7 +7798,7 @@ static int sip_poke_peer_s(void *data)
     return 0;
 }
 
-/*! \brief  reg_source_db: Get registration details from OpenPBX DB */
+/*! \brief  reg_source_db: Get registration details from CallWeaver DB */
 static void reg_source_db(struct sip_peer *peer)
 {
     char data[256];
@@ -8740,7 +8740,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
             break;
         case -2:
             /* Username and digest username does not match. 
-               OpenPBX uses the From: username for authentication. We need the
+               CallWeaver uses the From: username for authentication. We need the
                users to use the same authentication user name until we support
                proper authentication by digest auth name */
             transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
@@ -9082,7 +9082,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
         }
         else
         {
-            opbx_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on OpenPBX box to transfer at this time.\n", replace_callid);
+            opbx_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on CallWeaver box to transfer at this time.\n", replace_callid);
             /* XXX The refer_to could contain a call on an entirely different machine, requiring an 
                   INVITE with a replaces header -anthm XXX */
             /* The only way to find out is to use the dialplan - oej */
@@ -11235,7 +11235,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
         }
         return;
     }
-    /* Other type of INFO message, not really understood by OpenPBX */
+    /* Other type of INFO message, not really understood by CallWeaver */
     opbx_log(LOG_WARNING, "Unable to parse INFO message from %s. Content %s\n", p->callid, buf);
     transmit_response(p, "415 Unsupported media type", req);
     return;
@@ -11641,7 +11641,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 static char show_domains_usage[] = 
 "Usage: sip show domains\n"
 "       Lists all configured SIP local domains.\n"
-"       OpenPBX only responds to SIP messages to local domains.\n";
+"       CallWeaver only responds to SIP messages to local domains.\n";
 
 static char notify_usage[] =
 "Usage: sip notify <type> <peer> [<peer>...]\n"
@@ -11806,7 +11806,7 @@ static struct opbx_custom_function checksipdomain_function = {
     .syntax = "CHECKSIPDOMAIN(<domain|IP>)",
     .read = func_check_sipdomain,
     .desc = "This function checks if the domain in the argument is configured\n"
-        "as a local SIP domain that this OpenPBX server is configured to handle.\n"
+        "as a local SIP domain that this CallWeaver server is configured to handle.\n"
         "Returns the domain name if it is locally handled, otherwise an empty string.\n"
         "Check the domain= configuration in sip.conf\n",
 };
@@ -13942,7 +13942,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
             }
             else
             {
-                /* At this point, OpenPBX does not understand the specified event */
+                /* At this point, CallWeaver does not understand the specified event */
                 transmit_response(p, "489 Bad Event", req);
                 if (option_debug > 1)
                     opbx_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
@@ -16693,7 +16693,7 @@ static char *descrip_sipaddheader = ""
 "  SipAddHeader(Header: Content)\n"
 "Adds a header to a SIP call placed with DIAL.\n"
 "Remember to user the X-header if you are adding non-standard SIP\n"
-"headers, like \"X-OpenPBX-Accountcode:\". Use this with care.\n"
+"headers, like \"X-CallWeaver-Accountcode:\". Use this with care.\n"
 "Adding the wrong headers may jeopardize the SIP dialog.\n"
 "Always returns 0\n";
 
@@ -17160,7 +17160,7 @@ static int sip_reload(int fd, int argc, char *argv[])
     return 0;
 }
 
-/*! \brief  reload: Part of OpenPBX module interface */
+/*! \brief  reload: Part of CallWeaver module interface */
 int reload(void)
 {
     return sip_reload(0, 0, NULL);

@@ -1,10 +1,10 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 2005, Jeff Ollie
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -40,15 +40,15 @@
 #include <fcntl.h>
 #endif
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/file.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
 
 #define SAMPLES_MAX 160
 #define BLOCK_SIZE 4096
@@ -80,7 +80,7 @@ struct opbx_filestream {
 	/*! \brief Buffer to hold audio data. */
 	short buffer[SAMPLES_MAX];
 
-	/*! \brief OpenPBX frame object. */
+	/*! \brief CallWeaver frame object. */
 	struct opbx_frame fr;
 	char waste[OPBX_FRIENDLY_OFFSET];
 	char empty;
@@ -297,7 +297,7 @@ static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
 		}
 
 		vorbis_comment_init(&tmp->vc);
-		vorbis_comment_add_tag(&tmp->vc, "ENCODER", "OpenPBX");
+		vorbis_comment_add_tag(&tmp->vc, "ENCODER", "CallWeaver");
 		if(comment)
 			vorbis_comment_add_tag(&tmp->vc, "COMMENT", (char *) comment);
 

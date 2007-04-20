@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -39,27 +39,27 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/lock.h"
-#include "openpbx/channel.h"
-#include "openpbx/config.h"
-#include "openpbx/logger.h"
-#include "openpbx/module.h"
-#include "openpbx/pbx.h"
-#include "openpbx/options.h"
-#include "openpbx/lock.h"
-#include "openpbx/sched.h"
-#include "openpbx/io.h"
-#include "openpbx/acl.h"
-#include "openpbx/phone_no_utils.h"
-#include "openpbx/file.h"
-#include "openpbx/cli.h"
-#include "openpbx/app.h"
-#include "openpbx/musiconhold.h"
-#include "openpbx/manager.h"
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/lock.h"
+#include "callweaver/sched.h"
+#include "callweaver/io.h"
+#include "callweaver/acl.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/file.h"
+#include "callweaver/cli.h"
+#include "callweaver/app.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/manager.h"
 
 static const char desc[] = "Feature Proxy Channel";
 static const char type[] = "Feature";

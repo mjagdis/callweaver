@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -31,9 +31,9 @@
 #include <limits.h>
 #include <openssl/evp.h>
 
-#include "openpbx/lock.h"
-#include "openpbx/time.h"
-#include "openpbx/strings.h"
+#include "callweaver/lock.h"
+#include "callweaver/time.h"
+#include "callweaver/strings.h"
 
 /*! \note
  \verbatim

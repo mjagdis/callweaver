@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 #include "jitterbuf_stevek.h"
-#include "openpbx/generic_jb.h"
+#include "callweaver/generic_jb.h"
 
 /***********
  * The header file consists of four parts.

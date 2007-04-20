@@ -1,7 +1,7 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
- * General Definitions for OpenPBX top level program
+ * General Definitions for CallWeaver top level program
  * 
  * Copyright (C) 1999-2005, Mark Spencer
  *
@@ -12,7 +12,7 @@
  */
 
 /*! \file
- * \brief OpenPBX main include file. File version handling, generic pbx functions.
+ * \brief CallWeaver main include file. File version handling, generic pbx functions.
 */
 #ifndef _OPENPBX_H
 #define _OPENPBX_H
@@ -111,7 +111,7 @@ void opbx_unregister_file_version(const char *file);
  *
  * This macro will place a file-scope constructor and destructor into the
  * source of the module using it; this will cause the version of this file
- * to registered with the OpenPBX core (and unregistered) at the appropriate
+ * to registered with the CallWeaver core (and unregistered) at the appropriate
  * times.
  *
  * Example:

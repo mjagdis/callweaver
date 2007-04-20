@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -30,11 +30,11 @@
 #ifndef _OPENPBX_RTP_H
 #define _OPENPBX_RTP_H
 
-#include "openpbx/frame.h"
-#include "openpbx/io.h"
-#include "openpbx/sched.h"
-#include "openpbx/channel.h"
-#include "openpbx/udp.h"
+#include "callweaver/frame.h"
+#include "callweaver/io.h"
+#include "callweaver/sched.h"
+#include "callweaver/channel.h"
+#include "callweaver/udp.h"
 
 #include <netinet/in.h>
 
@@ -172,7 +172,7 @@ void opbx_rtp_set_m_type(struct opbx_rtp* rtp, int pt);
 void opbx_rtp_set_rtpmap_type(struct opbx_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype);
 
-/*  Mapping between RTP payload format codes and OpenPBX codes: */
+/*  Mapping between RTP payload format codes and CallWeaver codes: */
 struct rtpPayloadType opbx_rtp_lookup_pt(struct opbx_rtp* rtp, int pt);
 int opbx_rtp_lookup_code(struct opbx_rtp* rtp, int is_opbx_format, int code);
 void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local);
@@ -180,7 +180,7 @@ void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local);
 void opbx_rtp_get_current_formats(struct opbx_rtp* rtp,
 			     int* astFormats, int* nonAstFormats);
 
-/*  Mapping an OpenPBX code into a MIME subtype (string): */
+/*  Mapping an CallWeaver code into a MIME subtype (string): */
 char* opbx_rtp_lookup_mime_subtype(int is_opbx_format, int code);
 
 /* Build a string of MIME subtype names from a capability list */

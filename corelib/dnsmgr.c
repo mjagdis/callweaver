@@ -37,18 +37,18 @@
 #include <regex.h>
 #include <signal.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/dnsmgr.h"
-#include "openpbx/linkedlists.h"
-#include "openpbx/utils.h"
-#include "openpbx/config.h"
-#include "openpbx/logger.h"
-#include "openpbx/sched.h"
-#include "openpbx/options.h"
-#include "openpbx/cli.h"
+#include "callweaver/dnsmgr.h"
+#include "callweaver/linkedlists.h"
+#include "callweaver/utils.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/sched.h"
+#include "callweaver/options.h"
+#include "callweaver/cli.h"
 
 static struct sched_context *sched;
 static int refresh_sched = -1;

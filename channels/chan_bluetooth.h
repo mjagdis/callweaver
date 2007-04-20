@@ -1,5 +1,5 @@
 /*
- * OpenPBX Bluetooth Channel
+ * CallWeaver Bluetooth Channel
  *
  * openpbx'ized by Rico Gloeckner <mc+openpbx@ukeer.de>
  *
@@ -51,7 +51,7 @@
 #define BLUETOOTH_FORMAT    OPBX_FORMAT_SLINEAR
 #define BLT_CHAN_NAME       "BLT"
 #define BLT_CONFIG_FILE     "chan_bluetooth.conf"
-#define BLT_DESCRIPTION     "Bluetooth Channel driver for OpenPBX.org"
+#define BLT_DESCRIPTION     "Bluetooth Channel driver for CallWeaver.org"
 #define BLT_RDBUFF_MAX      1024
 #define BLT_DEFAULT_HCI_DEV 0
 

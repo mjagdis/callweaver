@@ -6,10 +6,10 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <time.h>
-#include "openpbx/cli.h"
-#include "openpbx/lock.h"
-#include "openpbx/logger.h"
-#include "openpbx/icd/icd_types.h"
+#include "callweaver/cli.h"
+#include "callweaver/lock.h"
+#include "callweaver/logger.h"
+#include "callweaver/icd/icd_types.h"
 
 struct opbx_channel { int x; };
 struct opbx_cdr { int x; };

@@ -1,7 +1,7 @@
 /*
- * OpenPBX -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
- * Implementation of Inter-OpenPBX eXchange
+ * Implementation of Inter-CallWeaver eXchange
  * 
  * Copyright (C) 2003, Digium
  *
@@ -18,7 +18,7 @@
 #ifndef _IAX2_PARSER_H
 #define _IAX2_PARSER_H
 
-#include "openpbx/frame.h"
+#include "callweaver/frame.h"
 
 struct iax_ies {
 	char *called_number;

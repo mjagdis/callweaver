@@ -31,15 +31,15 @@
 #include <string.h>
 #include <time.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/cli.h"
-#include "openpbx/logger.h"
-#include "openpbx/options.h"
-#include "openpbx/lock.h"
-#include "openpbx/strings.h"
+#include "callweaver/cli.h"
+#include "callweaver/logger.h"
+#include "callweaver/options.h"
+#include "callweaver/lock.h"
+#include "callweaver/strings.h"
 
 #define SOME_PRIME 563
 

@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief OpenPBX internal frame definitions.
+ * \brief CallWeaver internal frame definitions.
  */
 
 #ifndef _OPENPBX_FRAME_H
@@ -101,7 +101,7 @@ typedef struct opbx_frame
 #define OPBX_FRAME_CONTROL      4
 /*! An empty, useless frame */
 #define OPBX_FRAME_NULL         5
-/*! Inter OpenPBX Exchange private frame type */
+/*! Inter CallWeaver Exchange private frame type */
 #define OPBX_FRAME_IAX          6
 /*! Text messages */
 #define OPBX_FRAME_TEXT         7

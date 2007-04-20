@@ -35,7 +35,7 @@
 	<depend>sqlite</depend>
  ***/
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/cdr/cdr_sqlite3.c $", "$Revision: 1589 $")
 
@@ -45,10 +45,10 @@ OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/cdr/cdr_sqli
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "openpbx/channel.h"
-#include "openpbx/module.h"
-#include "openpbx/logger.h"
-#include "openpbx/utils.h"
+#include "callweaver/channel.h"
+#include "callweaver/module.h"
+#include "callweaver/logger.h"
+#include "callweaver/utils.h"
 #include <sqlite3.h>
 
 #define LOG_UNIQUEID	0

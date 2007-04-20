@@ -35,13 +35,13 @@
 #include <resolv.h>
 #include <unistd.h>
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "openpbx/logger.h"
-#include "openpbx/channel.h"
-#include "openpbx/dns.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/dns.h"
 #define MAX_SIZE 4096
 
 typedef struct {

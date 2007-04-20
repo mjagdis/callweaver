@@ -22,7 +22,7 @@
  * 
  */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 OPENPBX_FILE_VERSION(__FILE__, "$Revision: 37925 $")
 
@@ -35,17 +35,17 @@ OPENPBX_FILE_VERSION(__FILE__, "$Revision: 37925 $")
 #include <regex.h>
 #include <sys/stat.h>
 
-#include "openpbx/pbx.h"
-#include "openpbx/config.h"
-#include "openpbx/module.h"
-#include "openpbx/logger.h"
-#include "openpbx/cli.h"
-#include "openpbx/app.h"
-#include "openpbx/callerid.h"
-#include "openpbx/ael_structs.h"
-#include "openpbx/lock.h"
+#include "callweaver/pbx.h"
+#include "callweaver/config.h"
+#include "callweaver/module.h"
+#include "callweaver/logger.h"
+#include "callweaver/cli.h"
+#include "callweaver/app.h"
+#include "callweaver/callerid.h"
+#include "callweaver/ael_structs.h"
+#include "callweaver/lock.h"
 #ifdef AAL_ARGCHECK
-#include "openpbx/argdesc.h"
+#include "callweaver/argdesc.h"
 #endif
 
 static char expr_output[2096];
