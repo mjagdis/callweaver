@@ -1,5 +1,5 @@
 AUTOMAKE_OPTS = gnu
 
-SUBDIRS = openpbx
+SUBDIRS = callweaver
 
-noinst_HEADERS = openpbx.h 
+noinst_HEADERS = callweaver.h 

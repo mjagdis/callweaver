@@ -40,10 +40,10 @@
  *  \arg \ref SoundFiles
  * \section wwwsites Web sites
  * \arg Main:  CallWeaver website http://www.callweaver.org
- * \arg Bugs: The Issue tracker http://trac.openpbx.org
- * \arg Lists: List server http://lists.openpbx.org
- * \arg Wiki: The CallWeaver Wiki 	http://wiki.openpbx.org
- * \arg Docs: The CallWeaver Documentation Project http://www.openpbxdocs.org
+ * \arg Bugs: The Issue tracker http://trac.callweaver.org
+ * \arg Lists: List server http://lists.callweaver.org
+ * \arg Wiki: The CallWeaver Wiki 	http://wiki.callweaver.org
+ * \arg Docs: The CallWeaver Documentation Project http://www.callweaverdocs.org
  */
 
 /*! \page CodeGuide Coding Guidelines
@@ -122,7 +122,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 
 /*! \page ConfigFiles Configuration files
  * \section config Main configuration files
- * \arg \link Config_ast openpbx.conf - the main configuration file \endlink
+ * \arg \link Config_ast callweaver.conf - the main configuration file \endlink
  * \arg \link Config_ext extensions.conf - The Dial Plan \endlink
  * \arg \link Config_mod modules.conf - which modules to load and not to load \endlink
  * \arg \link Config_fea features.conf - call features (transfer, parking, etc) \endlink
@@ -151,7 +151,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_ast CallWeaver.conf
- * \verbinclude README.openpbx.conf
+ * \verbinclude README.callweaver.conf
  */
 /*! \page Config_mod Modules configuration
  * \verbinclude modules.conf.sample
@@ -318,7 +318,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 /*! \page SoundFiles Sound files
  *  \section SecSound CallWeaver Sound files
  *  CallWeaver includes a large amount of sound files. Many of these
- *  are used by applications and demo scripts within openpbx.
+ *  are used by applications and demo scripts within callweaver.
  *
  *  \section SoundList List of included sound files
  *  \verbinclude sounds.txt

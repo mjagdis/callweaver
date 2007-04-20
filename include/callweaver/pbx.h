@@ -110,7 +110,7 @@ struct opbx_custom_function {
 	struct opbx_custom_function *next;
 };
 
-/*! Data structure associated with an openpbx switch */
+/*! Data structure associated with an callweaver switch */
 struct opbx_switch
 {
 	/*! NULL */
@@ -153,7 +153,7 @@ struct opbx_pbx
 /*!
  * \param sw switch to register
  * This function registers a populated opbx_switch structure with the
- * openpbx switching architecture.
+ * callweaver switching architecture.
  * It returns 0 on success, and other than 0 on failure
  */
 extern int opbx_register_switch(struct opbx_switch *sw);
@@ -161,7 +161,7 @@ extern int opbx_register_switch(struct opbx_switch *sw);
 /*! Unregister an alternative switch */
 /*!
  * \param sw switch to unregister
- * Unregisters a switch from openpbx.
+ * Unregisters a switch from callweaver.
  * Returns nothing
  */
 extern void opbx_unregister_switch(struct opbx_switch *sw);
@@ -284,7 +284,7 @@ int opbx_add_extension2(struct opbx_context *con,
    Include a one-line synopsis (e.g. 'hangs up a channel') and a more lengthy, multiline
    description with more detail, including under what conditions the application
    will return 0 or -1.
-   This registers an application with openpbxs internal application list.  Please note:
+   This registers an application with callweavers internal application list.  Please note:
    The individual applications themselves are responsible for registering and unregistering
    CLI commands.
    It returns 0 on success, -1 on failure.
@@ -295,7 +295,7 @@ int opbx_register_application(const char *app, int (*execute)(struct opbx_channe
 /*! Remove an application */
 /*!
  * \param app name of the application (does not have to be the same string as the one that was registered)
- * This unregisters an application from openpbx's internal registration mechanisms.
+ * This unregisters an application from callweaver's internal registration mechanisms.
  * It returns 0 on success, and -1 on failure.
  */
 int opbx_unregister_application(const char *app);
@@ -423,7 +423,7 @@ int opbx_extension_pattern_match(const char *destination, const char *pattern);
  * \param exten new extension to add
  * \param priority priority of new extension
  * \param callerid callerid of extension
- * This adds a new extension to the openpbx extension list.
+ * This adds a new extension to the callweaver extension list.
  * It returns 0 on success, -1 on failure.
  */
 int opbx_spawn_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
@@ -485,7 +485,7 @@ int opbx_context_verify_includes(struct opbx_context *con);
  * \param data data to pass to switch
  * \param eval whether to evaluate variables when running switch
  * \param registrar whoever registered the switch
- * This function registers a switch with the openpbx switch architecture
+ * This function registers a switch with the callweaver switch architecture
  * It returns 0 on success, -1 on failure
  */
 int opbx_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);

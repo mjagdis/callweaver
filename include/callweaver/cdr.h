@@ -210,7 +210,7 @@ extern void opbx_cdr_detach(struct opbx_cdr *cdr);
 /*! Spawns (possibly) a new thread to submit a batch of CDRs to the backend engines */
 /*!
  * \param shutdown Whether or not we are shutting down
- * Blocks the openpbx shutdown procedures until the CDR data is submitted.
+ * Blocks the callweaver shutdown procedures until the CDR data is submitted.
  * Returns nothing
  */
 extern void opbx_cdr_submit_batch(int shutdown);

@@ -3,7 +3,7 @@
 #
 # RUNOPBX: run openpbx upon boot. Should be set to "yes" once you have
 #              setup your configuration.
-RUNOPENPBX=yes
+RUNCALLWEAVER=yes
 #
 #
 # OPBX_REALTIME:if set to anything other than "no", openpbx will run in 

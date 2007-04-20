@@ -59,7 +59,7 @@ int unload_module(void);
 /*! 
  * \brief Provides a usecount.
  *
- * This function will be called by various parts of openpbx.  Basically, all
+ * This function will be called by various parts of callweaver.  Basically, all
  * it has to do is to return a usecount when called.  You will need to maintain
  * your usecount within the module somewhere.  The usecount should be how many
  * channels provided by this module are in use.
@@ -188,7 +188,7 @@ int opbx_loader_init(void);
 int opbx_loader_exit(void);
 
 /*! 
- * \brief Reload openpbx modules.
+ * \brief Reload callweaver modules.
  * \param name the name of the module to reload
  *
  * This function reloads the specified module, or if no modules are specified,
