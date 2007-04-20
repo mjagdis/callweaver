@@ -15,7 +15,7 @@ ENABLE_DEBUG			:=no
 ENABLE_ODBC			:=no
 ENABLE_MISC			:=yes
 
-DEB_TAR_SRCDIR                  := openpbx-0.2.0
+DEB_TAR_SRCDIR                  := callweaver-0.2.0
 DEB_AUTO_CLEANUP_RCS            := yes
 
 
@@ -65,7 +65,7 @@ DEB_DH_INSTALL_SOURCEDIR	:= debian/tmp
 # dh_install cannot handle rename,
 # so need an explicit rule here.
 common-install-arch::
-	sed -e "s,__OPENPBX_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_openpbx > \
-	        debian/tmp/usr/sbin/safe_openpbx
+	sed -e "s,__CALLWEAVER_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_callweaver > \
+	        debian/tmp/usr/sbin/safe_callweaver
 
 

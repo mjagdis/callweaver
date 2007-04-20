@@ -1,11 +1,11 @@
 #!/bin/sh
-CLIARGS="$*"		# Grab any args passed to safe_openpbx
+CLIARGS="$*"		# Grab any args passed to safe_callweaver
 TTY=9			# TTY (if you want one) for CallWeaver to run on
 CONSOLE=yes		# Whether or not you want a console
 #NOTIFY=ben@alkaloid.net	# Who to notify about crashes
 MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
 DUMPDROP=/tmp
-OPBXSBINDIR=__OPENPBX_SBIN_DIR__
+OPBXSBINDIR=__CALLWEAVER_SBIN_DIR__
 
 #
 # Don't fork when running "safely"
@@ -35,21 +35,21 @@ fi
 #
 ulimit -c unlimited
 
-#launch_openpbx()
+#launch_callweaver()
 #{
 #}
 
-run_openpbx()
+run_callweaver()
 {
 	while :; do 
 
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			${OPBXSBINDIR}/openpbx ${CLIARGS} ${OPBXARGS} >& /dev/${TTY} < /dev/${TTY}
+			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS} >& /dev/${TTY} < /dev/${TTY}
 		else
 			cd /tmp
-			${OPBXSBINDIR}/openpbx ${CLIARGS} ${OPBXARGS}
+			${OPBXSBINDIR}/callweaver ${CLIARGS} ${OPBXARGS}
 		fi
 		EXITSTATUS=$?
 		echo "CallWeaver ended with exit status $EXITSTATUS"
@@ -83,4 +83,4 @@ run_openpbx()
 	done
 }
 
-run_openpbx &
+run_callweaver &

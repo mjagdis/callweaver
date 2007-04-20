@@ -11,11 +11,11 @@ depend() {
 }
 
 is_running() {
-	if [[ -z "$(pidof openpbx)" ]]; then
+	if [[ -z "$(pidof callweaver)" ]]; then
 		return 1
 	else
-		PID="$(cat /var/run/openpbx.org/openpbx.pid)"
-		for x in $(pidof openpbx); do
+		PID="$(cat /var/run/callweaver.org/callweaver.pid)"
+		for x in $(pidof callweaver); do
 			if [[ "${x}" = "${PID}" ]]; then
 				return 0
 			fi	
@@ -25,7 +25,7 @@ is_running() {
 	return 1
 }
 
-openpbx_run_loop() {
+callweaver_run_loop() {
 	local OPTS ARGS MSG NICE=""
 	local result=0 signal=0
 
@@ -36,51 +36,51 @@ openpbx_run_loop() {
 	ARGS="$(echo "${@}" | sed -e "s:-c\|-f::g")"
 
 	# mangle yes/no options
-	OPENPBX_CONSOLE="$(echo ${OPENPBX_CONSOLE} | tr [:lower:] [:upper:])"
+	CALLWEAVER_CONSOLE="$(echo ${CALLWEAVER_CONSOLE} | tr [:lower:] [:upper:])"
 
-	if [[ -n "${OPENPBX_CORE_SIZE}" ]] &&
-	   [[ "${OPENPBX_CORE_SIZE}" != "0" ]]; then
-		ulimit -c ${OPENPBX_CORE_SIZE}
+	if [[ -n "${CALLWEAVER_CORE_SIZE}" ]] &&
+	   [[ "${CALLWEAVER_CORE_SIZE}" != "0" ]]; then
+		ulimit -c ${CALLWEAVER_CORE_SIZE}
 
-		if [[ -n "${OPENPBX_CORE_DIR}" ]] && \
-		   [[ ! -d "${OPENPBX_CORE_DIR}" ]]
+		if [[ -n "${CALLWEAVER_CORE_DIR}" ]] && \
+		   [[ ! -d "${CALLWEAVER_CORE_DIR}" ]]
 		then
-			mkdir -m750 -p "${OPENPBX_CORE_DIR}"
+			mkdir -m750 -p "${CALLWEAVER_CORE_DIR}"
 
-			if [[ -n "${OPENPBX_USER}" ]]; then
-				chown -R "${OPENPBX_USER}" "${OPENPBX_CORE_DIR}"
+			if [[ -n "${CALLWEAVER_USER}" ]]; then
+				chown -R "${CALLWEAVER_USER}" "${CALLWEAVER_CORE_DIR}"
 			fi
 		fi
-		OPENPBX_CORE_DIR="${OPENPBX_CORE_DIR:-/tmp}"
+		CALLWEAVER_CORE_DIR="${CALLWEAVER_CORE_DIR:-/tmp}"
 
-		cd "${OPENPBX_CORE_DIR}"
-		echo "   Core dump size            : ${OPENPBX_CORE_SIZE}"
-		echo "   Core dump location        : ${OPENPBX_CORE_DIR}"
+		cd "${CALLWEAVER_CORE_DIR}"
+		echo "   Core dump size            : ${CALLWEAVER_CORE_SIZE}"
+		echo "   Core dump location        : ${CALLWEAVER_CORE_DIR}"
 	fi
 
-	if [[ -n "${OPENPBX_MAX_FD}" ]]; then
-		ulimit -n ${OPENPBX_MAX_FD}
-		echo "   Max open filedescriptors  : ${OPENPBX_MAX_FD}"
+	if [[ -n "${CALLWEAVER_MAX_FD}" ]]; then
+		ulimit -n ${CALLWEAVER_MAX_FD}
+		echo "   Max open filedescriptors  : ${CALLWEAVER_MAX_FD}"
 	fi
 
-	if [[ -n "${OPENPBX_NICE}" ]]; then
-		echo "   Nice level                : ${OPENPBX_NICE}"
-		NICE="/bin/nice -n ${OPENPBX_NICE} --"
+	if [[ -n "${CALLWEAVER_NICE}" ]]; then
+		echo "   Nice level                : ${CALLWEAVER_NICE}"
+		NICE="/bin/nice -n ${CALLWEAVER_NICE} --"
 	fi
 
-	if [[ -n "${OPENPBX_NOTIFY_EMAIL}" ]]; then
+	if [[ -n "${CALLWEAVER_NOTIFY_EMAIL}" ]]; then
 		if [[ -x /usr/sbin/sendmail ]]; then
-			echo "   Email notifications go to : ${OPENPBX_NOTIFY_EMAIL}"
+			echo "   Email notifications go to : ${CALLWEAVER_NOTIFY_EMAIL}"
 		else
 			echo "   Notifications disabled, /usr/sbin/sendmail doesn't exist or is not executable!"
-			unset OPENPBX_NOTIFY_EMAIL
+			unset CALLWEAVER_NOTIFY_EMAIL
 		fi
 	fi
 
-	if [[ -n "${OPENPBX_TTY}" ]]; then
-		for x in ${OPENPBX_TTY} \
-			 /dev/tty${OPENPBX_TTY} \
-			 /dev/vc/${OPENPBX_TTY}
+	if [[ -n "${CALLWEAVER_TTY}" ]]; then
+		for x in ${CALLWEAVER_TTY} \
+			 /dev/tty${CALLWEAVER_TTY} \
+			 /dev/vc/${CALLWEAVER_TTY}
 		do
 			if [[ -c "${x}" ]]; then
 				TTY="${x}"
@@ -90,8 +90,8 @@ openpbx_run_loop() {
 			echo "   Messages are sent to      : ${TTY}"
 	fi
 
-	if [[ "${OPENPBX_CONSOLE}" = "YES" ]] && [[ -n "${TTY}" ]]; then
-		echo "   Starting Openpbx console : ${OPENPBX_CONSOLE}"
+	if [[ "${CALLWEAVER_CONSOLE}" = "YES" ]] && [[ -n "${TTY}" ]]; then
+		echo "   Starting Openpbx console : ${CALLWEAVER_CONSOLE}"
 		OPTS="${OPTS} -c"
 	fi
 
@@ -101,10 +101,10 @@ openpbx_run_loop() {
 
 		if [[ -n "${TTY}" ]]; then
 			/usr/bin/stty -F ${TTY} sane
-			${NICE} /usr/sbin/openpbx ${OPTS} >${TTY} 2>&1 <${TTY}
+			${NICE} /usr/sbin/callweaver ${OPTS} >${TTY} 2>&1 <${TTY}
 			result=$?
 		else
-			${NICE} /usr/sbin/openpbx ${OPTS} &>/dev/null
+			${NICE} /usr/sbin/callweaver ${OPTS} &>/dev/null
 			result=$?
 		fi		
 
@@ -119,26 +119,26 @@ openpbx_run_loop() {
 				CORE_TARGET="core-$(date "+%Y%m%d-%h%M%s")"
 
 				local CORE_DUMPED=0
-				if [[ -f "${OPENPBX_CORE_DIR}/core" ]]; then
-					mv "${OPENPBX_CORE_DIR}/core" \
-					   "${OPENPBX_CORE_DIR}/${CORE_TARGET}"
+				if [[ -f "${CALLWEAVER_CORE_DIR}/core" ]]; then
+					mv "${CALLWEAVER_CORE_DIR}/core" \
+					   "${CALLWEAVER_CORE_DIR}/${CORE_TARGET}"
 					CORE_DUMPED=1
 
-				elif [[ -f "${OPENPBX_CORE_DIR}/core.${PID}" ]]; then
-					mv "${OPENPBX_CORE_DIR}/core.${PID}" \
-					   "${OPENPBX_CORE_DIR}/${CORE_TARGET}"
+				elif [[ -f "${CALLWEAVER_CORE_DIR}/core.${PID}" ]]; then
+					mv "${CALLWEAVER_CORE_DIR}/core.${PID}" \
+					   "${CALLWEAVER_CORE_DIR}/${CORE_TARGET}"
 					CORE_DUMPED=1
 
 				fi
 
 				[[ $CORE_DUMPED -eq 1 ]] && \
-					MSG="${MSG}\n\rCore dumped: ${OPENPBX_CORE_DIR}/${CORE_TARGET}"
+					MSG="${MSG}\n\rCore dumped: ${CALLWEAVER_CORE_DIR}/${CORE_TARGET}"
 			else
 				MSG="Openpbx terminated with return code: $result"
 			fi
 
 			# kill left-over tasks
-			for X in ${OPENPBX_CLEANUP_ON_CRASH}; do
+			for X in ${CALLWEAVER_CLEANUP_ON_CRASH}; do
 				kill -9 $(pidof ${X});
 			done
 		fi
@@ -148,10 +148,10 @@ openpbx_run_loop() {
 			|| echo "${MSG}"
 
 
-		if [[ -n "${OPENPBX_NOTIFY_EMAIL}" ]] && \
+		if [[ -n "${CALLWEAVER_NOTIFY_EMAIL}" ]] && \
 		   [[ -x /usr/sbin/sendmail ]]; then
 			echo -e -n "Subject: Openpbx crashed\n\r${MSG}\n\r" |\
-				 /usr/sbin/sendmail "${OPENPBX_NOTIFY_EMAIL}"
+				 /usr/sbin/sendmail "${CALLWEAVER_NOTIFY_EMAIL}"
 		fi
 		sleep 5
 		echo "Restarting Openpbx..."
@@ -163,24 +163,24 @@ start() {
 	local OPTS USER GROUP PID
 	local tmp x
 
-	if [[ -n "${OPENPBX_NICE}" ]]; then
-		if [[ ${OPENPBX_NICE} -ge -20 ]] && \
-		   [[ ${OPENPBX_NICE} -le  19 ]]; then 
-			OPTS="--nicelevel ${OPENPBX_NICE}"
+	if [[ -n "${CALLWEAVER_NICE}" ]]; then
+		if [[ ${CALLWEAVER_NICE} -ge -20 ]] && \
+		   [[ ${CALLWEAVER_NICE} -le  19 ]]; then 
+			OPTS="--nicelevel ${CALLWEAVER_NICE}"
 		else
 			eerror "Nice value must be between -20 and 19"
 			return 1
 		fi
 	fi
 
-	if [[ -n "${OPENPBX_USER}" ]]; then
-		USER=${OPENPBX_USER/:*/}
-		GROUP=$(echo $OPENPBX_USER | awk -F: '/.*:.*/ { print $2 }')
+	if [[ -n "${CALLWEAVER_USER}" ]]; then
+		USER=${CALLWEAVER_USER/:*/}
+		GROUP=$(echo $CALLWEAVER_USER | awk -F: '/.*:.*/ { print $2 }')
 		if [[ -n "${USER}" ]]; then
-			OPENPBX_OPTS="${OPENPBX_OPTS} -U ${USER}"
+			CALLWEAVER_OPTS="${CALLWEAVER_OPTS} -U ${USER}"
 		fi
 		if [[ -n "${GROUP}" ]]; then
-			OPENPBX_OPTS="${OPENPBX_OPTS} -G ${GROUP}"
+			CALLWEAVER_OPTS="${CALLWEAVER_OPTS} -G ${GROUP}"
 			GROUP=":${GROUP}"	# make it look nice...
 		fi
 		ebegin "Starting Openpbx (as ${USER}${GROUP})"
@@ -188,15 +188,15 @@ start() {
 		ebegin "Starting Openpbx (as root)"
 	fi
 
-	if [[ "$(echo ${OPENPBX_WRAPPER} | tr [:upper:] [:lower:])" != "yes" ]]; then
-		start-stop-daemon --start --exec /usr/sbin/openpbx \
-			${OPTS} -- ${OPENPBX_OPTS}
+	if [[ "$(echo ${CALLWEAVER_WRAPPER} | tr [:upper:] [:lower:])" != "yes" ]]; then
+		start-stop-daemon --start --exec /usr/sbin/callweaver \
+			${OPTS} -- ${CALLWEAVER_OPTS}
 	else
-		openpbx_run_loop ${OPENPBX_OPTS} 2>/dev/null &
+		callweaver_run_loop ${CALLWEAVER_OPTS} 2>/dev/null &
 	fi
 
 	if [[ $result -eq 0 ]]; then
-		# 2 seconds should be enough for openpbx to start
+		# 2 seconds should be enough for calweaver to start
 		sleep 2
 
 		result=$(is_running)
@@ -207,15 +207,15 @@ start() {
 
 forcestop() {
 	ebegin "Stopping Openpbx PBX"
-	start-stop-daemon --stop --pidfile /var/run/openpbx.org/openpbx.pid
+	start-stop-daemon --stop --pidfile /var/run/callweaver.org/callweaver.pid
 	eend $?
 }
 
 stop() {
 
 	if is_running; then
-		ebegin "Stopping openpbx gracefully"
-		/usr/sbin/openpbx -r -x "stop gracefully" &>/dev/null
+		ebegin "Stopping callweaver gracefully"
+		/usr/sbin/callweaver -r -x "stop gracefully" &>/dev/null
 		[[ $? -eq 0 ]] && svc_stop
 		eend
 	else
@@ -226,8 +226,8 @@ stop() {
 
 reload() {
 	if is_running; then
-		ebegin "Forcing openpbx to reload configuration"
-		/usr/sbin/openpbx -r -x "reload" &>/dev/null
+		ebegin "Forcing callweaver to reload configuration"
+		/usr/sbin/callweaver -r -x "reload" &>/dev/null
 		eend $?
 	else
 		eerror "Openpbx is not running!"
