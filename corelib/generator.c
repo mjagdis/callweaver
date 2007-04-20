@@ -279,10 +279,6 @@ static void *opbx_generator_thread(void *data)
 			gettimeofday(&tv, NULL);
 			ts.tv_sec = tv.tv_sec;
 			ts.tv_nsec = 1000 * tv.tv_usec;
-
-			/* CMANTUNES: is this prod thing really necessary? */
-			/* Prod channel */
-			opbx_prod(chan);
 		} else if (pgcd->gen_req == gen_req_shutdown) {
 			/* Shutdown requests. */
 
