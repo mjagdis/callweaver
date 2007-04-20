@@ -20,8 +20,8 @@
  * \brief CallWeaver internal frame definitions.
  */
 
-#ifndef _OPENPBX_FRAME_H
-#define _OPENPBX_FRAME_H
+#ifndef _CALLWEAVER_FRAME_H
+#define _CALLWEAVER_FRAME_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -489,4 +489,4 @@ int opbx_frame_slinear_sum(struct opbx_frame *f1, struct opbx_frame *f2);
 }
 #endif
 
-#endif /* _OPENPBX_FRAME_H */
+#endif /* _CALLWEAVER_FRAME_H */

@@ -20,8 +20,8 @@
  look and feel to CallWeaver apps.
  */
 
-#ifndef _OPENPBX_APP_H
-#define _OPENPBX_APP_H
+#ifndef _CALLWEAVER_APP_H
+#define _CALLWEAVER_APP_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -255,4 +255,4 @@ int opbx_record_review(struct opbx_channel *chan, const char *playfile, const ch
 }
 #endif
 
-#endif /* _OPENPBX_APP_H */
+#endif /* _CALLWEAVER_APP_H */

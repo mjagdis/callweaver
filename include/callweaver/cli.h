@@ -20,8 +20,8 @@
  * \brief Standard Command Line Interface
  */
 
-#ifndef _OPENPBX_CLI_H
-#define _OPENPBX_CLI_H
+#ifndef _CALLWEAVER_CLI_H
+#define _CALLWEAVER_CLI_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -108,4 +108,4 @@ extern char **opbx_cli_completion_matches(char *, char *);
 }
 #endif
 
-#endif /* _OPENPBX_CLI_H */
+#endif /* _CALLWEAVER_CLI_H */

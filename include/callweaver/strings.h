@@ -20,8 +20,8 @@
  * \brief String manipulation functions
  */
 
-#ifndef _OPENPBX_STRINGS_H
-#define _OPENPBX_STRINGS_H
+#ifndef _CALLWEAVER_STRINGS_H
+#define _CALLWEAVER_STRINGS_H
 
 #include <string.h>
 #include <stdarg.h>
@@ -256,4 +256,4 @@ int setenv(const char *name, const char *value, int overwrite);
 int unsetenv(const char *name);   
 #endif
 
-#endif /* _OPENPBX_STRINGS_H */
+#endif /* _CALLWEAVER_STRINGS_H */

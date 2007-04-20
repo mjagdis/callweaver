@@ -20,8 +20,8 @@
  * \brief General CallWeaver PBX channel definitions.
  */
 
-#ifndef _OPENPBX_CHANNEL_H
-#define _OPENPBX_CHANNEL_H
+#ifndef _CALLWEAVER_CHANNEL_H
+#define _CALLWEAVER_CHANNEL_H
 
 #include "confdefs.h"
 #include "callweaver/frame.h"
@@ -1115,4 +1115,4 @@ extern char *opbx_print_group(char *buf, int buflen, opbx_group_t group);
 }
 #endif
 
-#endif /* _OPENPBX_CHANNEL_H */
+#endif /* _CALLWEAVER_CHANNEL_H */

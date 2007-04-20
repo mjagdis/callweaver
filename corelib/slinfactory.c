@@ -32,7 +32,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/ $", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/ $", "$Revision$")
 
 #include "callweaver/slinfactory.h"
 #include "callweaver/logger.h"

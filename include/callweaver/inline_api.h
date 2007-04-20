@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef __OPENPBX_INLINEAPI_H
-#define __OPENPBX_INLINEAPI_H
+#ifndef __CALLWEAVER_INLINEAPI_H
+#define __CALLWEAVER_INLINEAPI_H
 
 /*! \file
  * \brief Inlinable API function macro
@@ -63,4 +63,4 @@
 
 #undef OPBX_API_MODULE
 
-#endif /* __OPENPBX_INLINEAPI_H */
+#endif /* __CALLWEAVER_INLINEAPI_H */

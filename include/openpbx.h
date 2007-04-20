@@ -14,8 +14,8 @@
 /*! \file
  * \brief CallWeaver main include file. File version handling, generic pbx functions.
 */
-#ifndef _OPENPBX_H
-#define _OPENPBX_H
+#ifndef _CALLWEAVER_H
+#define _CALLWEAVER_H
 
 // #define RELEASE_TARBALL 1
 
@@ -89,7 +89,7 @@ extern void dnsmgr_reload(void);
  * \return nothing
  *
  * This function should not be called directly, but instead the
- * OPENPBX_FILE_VERSION macro should be used to register a file with the core.
+ * CALLWEAVER_FILE_VERSION macro should be used to register a file with the core.
  */
 void opbx_register_file_version(const char *file, const char *version);
 
@@ -99,7 +99,7 @@ void opbx_register_file_version(const char *file, const char *version);
  * \return nothing
  *
  * This function should not be called directly, but instead the
- * OPENPBX_FILE_VERSION macro should be used to automatically unregister
+ * CALLWEAVER_FILE_VERSION macro should be used to automatically unregister
  * the file when the module is unloaded.
  */
 void opbx_unregister_file_version(const char *file);
@@ -117,7 +117,7 @@ void opbx_unregister_file_version(const char *file);
  * Example:
  *
  * \code
- * OPENPBX_FILE_VERSION("\$HeadURL\$", "\$Revision\$")
+ * CALLWEAVER_FILE_VERSION("\$HeadURL\$", "\$Revision\$")
  * \endcode
  *
  * \note The dollar signs above have been protected with backslashes to keep
@@ -126,7 +126,7 @@ void opbx_unregister_file_version(const char *file);
  * revision number.
  */
 #if defined(__GNUC__) && !defined(LOW_MEMORY)
-#define OPENPBX_FILE_VERSION(file, version) \
+#define CALLWEAVER_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
 		opbx_register_file_version(file, version); \
@@ -136,9 +136,9 @@ void opbx_unregister_file_version(const char *file);
 		opbx_unregister_file_version(file); \
 	}
 #elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
-#define OPENPBX_FILE_VERSION(file, x) static const char __file_version[] = x;
+#define CALLWEAVER_FILE_VERSION(file, x) static const char __file_version[] = x;
 #else /* LOW_MEMORY */
-#define OPENPBX_FILE_VERSION(file, x)
+#define CALLWEAVER_FILE_VERSION(file, x)
 #endif /* __GNUC__ */
 
-#endif /* _OPENPBX_H */
+#endif /* _CALLWEAVER_H */

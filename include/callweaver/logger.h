@@ -22,8 +22,8 @@
 	Configuration in file logger.conf
 */
 
-#ifndef _OPENPBX_LOGGER_H
-#define _OPENPBX_LOGGER_H
+#ifndef _CALLWEAVER_LOGGER_H
+#define _CALLWEAVER_LOGGER_H
 
 #include "confdefs.h"
 
@@ -124,4 +124,4 @@ extern void opbx_console_puts(const char *string);
 }
 #endif
 
-#endif /* _OPENPBX_LOGGER_H */
+#endif /* _CALLWEAVER_LOGGER_H */

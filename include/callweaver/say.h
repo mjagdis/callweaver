@@ -20,8 +20,8 @@
  * \brief Say numbers and dates (maybe words one day too)
  */
 
-#ifndef _OPENPBX_SAY_H
-#define _OPENPBX_SAY_H
+#ifndef _CALLWEAVER_SAY_H
+#define _CALLWEAVER_SAY_H
 
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
@@ -99,4 +99,4 @@ int opbx_say_date_with_format(struct opbx_channel *chan, time_t t, const char *i
 }
 #endif
 
-#endif /* _OPENPBX_SAY_H */
+#endif /* _CALLWEAVER_SAY_H */

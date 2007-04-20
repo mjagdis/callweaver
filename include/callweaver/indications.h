@@ -29,8 +29,8 @@
  *
  */
 
-#ifndef _OPENPBX_INDICATIONS_H
-#define _OPENPBX_INDICATIONS_H
+#ifndef _CALLWEAVER_INDICATIONS_H
+#define _CALLWEAVER_INDICATIONS_H
 
 #include "callweaver/lock.h"
 
@@ -86,4 +86,4 @@ void opbx_playtones_stop(struct opbx_channel *chan);
 extern struct tone_zone *tone_zones;
 extern opbx_mutex_t tzlock;
 
-#endif /* _OPENPBX_INDICATIONS_H */
+#endif /* _CALLWEAVER_INDICATIONS_H */

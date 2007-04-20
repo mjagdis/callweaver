@@ -45,7 +45,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/udp.h"
 #include "callweaver/rtp.h"

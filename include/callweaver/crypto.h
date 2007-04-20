@@ -20,8 +20,8 @@
  * \brief Provide cryptographic signature routines
  */
 
-#ifndef _OPENPBX_CRYPTO_H
-#define _OPENPBX_CRYPTO_H
+#ifndef _CALLWEAVER_CRYPTO_H
+#define _CALLWEAVER_CRYPTO_H
 
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
@@ -113,4 +113,4 @@ extern int (*opbx_decrypt_bin)(unsigned char *dst, const unsigned char *src, int
 }
 #endif
 
-#endif /* _OPENPBX_CRYPTO_H */
+#endif /* _CALLWEAVER_CRYPTO_H */

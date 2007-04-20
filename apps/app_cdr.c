@@ -30,7 +30,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/channel.h"
 #include "callweaver/module.h"

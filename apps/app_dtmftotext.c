@@ -24,7 +24,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
+CALLWEAVER_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 
 #include <stdlib.h>
 #include <stdio.h>

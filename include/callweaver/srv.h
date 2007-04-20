@@ -20,8 +20,8 @@
  * DNS SRV record support
  */
 
-#ifndef _OPENPBX_SRV_H
-#define _OPENPBX_SRV_H
+#ifndef _CALLWEAVER_SRV_H
+#define _CALLWEAVER_SRV_H
 
 struct opbx_channel;
 
@@ -44,4 +44,4 @@ struct opbx_channel;
 */
 extern int opbx_get_srv(struct opbx_channel *chan, char *host, int hostlen, int *port, const char *service);
 
-#endif /* _OPENPBX_SRV_H */
+#endif /* _CALLWEAVER_SRV_H */

@@ -22,8 +22,8 @@
  * \brief ODBC resource manager
  */
 
-#ifndef _OPENPBX_RES_ODBC_H
-#define _OPENPBX_RES_ODBC_H
+#ifndef _CALLWEAVER_RES_ODBC_H
+#define _CALLWEAVER_RES_ODBC_H
 
 #include <sql.h>
 #include <sqlext.h>
@@ -58,4 +58,4 @@ int odbc_sanity_check(odbc_obj *obj);
 int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt);
 int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql);
 
-#endif /* _OPENPBX_RES_ODBC_H */
+#endif /* _CALLWEAVER_RES_ODBC_H */

@@ -20,8 +20,8 @@
  * \brief OSP support (Open Settlement Protocol)
  */
 
-#ifndef _OPENPBX_OSP_H
-#define _OPENPBX_OSP_H
+#ifndef _CALLWEAVER_OSP_H
+#define _CALLWEAVER_OSP_H
 
 #include "callweaver/channel.h"
 #include <netinet/in.h>
@@ -45,4 +45,4 @@ int opbx_osp_terminate(int handle, int cause, time_t start, time_t duration);
 
 int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, char *callerid, struct in_addr addr, char *extension);
 
-#endif /* _OPENPBX_OSP_H */
+#endif /* _CALLWEAVER_OSP_H */

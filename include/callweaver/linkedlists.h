@@ -17,8 +17,8 @@
  * at the top of the source tree.
  */
 
-#ifndef OPENPBX_LINKEDLISTS_H
-#define OPENPBX_LINKEDLISTS_H
+#ifndef CALLWEAVER_LINKEDLISTS_H
+#define CALLWEAVER_LINKEDLISTS_H
 
 #include "callweaver/lock.h"
 
@@ -507,4 +507,4 @@ struct {								\
 	}								\
 } while (0)
 
-#endif /* _OPENPBX_LINKEDLISTS_H */
+#endif /* _CALLWEAVER_LINKEDLISTS_H */

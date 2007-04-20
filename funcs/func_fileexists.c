@@ -32,7 +32,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/funcs/func_fileexists.c $", "$Revision: 594 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/funcs/func_fileexists.c $", "$Revision: 594 $")
 
 #ifndef BUILTIN_FUNC
 #include "callweaver/module.h"

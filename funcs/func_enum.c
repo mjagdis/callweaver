@@ -30,7 +30,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_enum.c $", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_enum.c $", "$Revision$")
 
 #include "callweaver/module.h"
 #include "callweaver/channel.h"

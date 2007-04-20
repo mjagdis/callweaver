@@ -20,8 +20,8 @@
  * \brief Convenient Signal Processing routines
  */
 
-#ifndef _OPENPBX_DSP_H
-#define _OPENPBX_DSP_H
+#ifndef _CALLWEAVER_DSP_H
+#define _CALLWEAVER_DSP_H
 
 #define DSP_FEATURE_SILENCE_SUPPRESS	(1 << 0)
 #define DSP_FEATURE_BUSY_DETECT		(1 << 1)
@@ -103,4 +103,4 @@ int opbx_dsp_getdigits(struct opbx_dsp *dsp, char *buf, int max);
 /*! \brief Set digit mode */
 int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode);
 
-#endif /* _OPENPBX_DSP_H */
+#endif /* _CALLWEAVER_DSP_H */

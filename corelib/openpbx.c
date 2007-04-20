@@ -89,7 +89,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
      
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
@@ -1142,9 +1142,9 @@ static int handle_bang(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-#define OPENPBX_PROMPT "*CLI> "
+#define CALLWEAVER_PROMPT "*CLI> "
 
-#define OPENPBX_PROMPT2 "%s*CLI> "
+#define CALLWEAVER_PROMPT2 "%s*CLI> "
 
 static struct opbx_cli_entry core_cli[] = {
 	{ { "abort", "halt", NULL }, handle_abort_halt,
@@ -1292,7 +1292,7 @@ static char *cli_prompt(void)
 	int color_used=0;
 	char term_code[20];
 
-	if ((pfmt = getenv("OPENPBX_PROMPT"))) {
+	if ((pfmt = getenv("CALLWEAVER_PROMPT"))) {
 		char *t = pfmt, *p = prompt;
 		memset(prompt, 0, sizeof(prompt));
 		while (*t != '\0' && *p < sizeof(prompt)) {
@@ -1423,9 +1423,9 @@ static char *cli_prompt(void)
 			}
 		}
 	} else if (remotehostname)
-		snprintf(prompt, sizeof(prompt), OPENPBX_PROMPT2, remotehostname);
+		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT2, remotehostname);
 	else
-		snprintf(prompt, sizeof(prompt), OPENPBX_PROMPT);
+		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT);
 
 	return (prompt);	
 }
@@ -1922,7 +1922,7 @@ int openpbx_main(int argc, char *argv[])
 	/* When CallWeaver restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
 	 * */
-	if (getenv("OPENPBX_ALREADY_NONROOT"))
+	if (getenv("CALLWEAVER_ALREADY_NONROOT"))
 		is_child_of_nonroot = 1;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
@@ -2104,7 +2104,7 @@ int openpbx_main(int argc, char *argv[])
 			opbx_log(LOG_ERROR, "Unable to setuid to '%s' (%d)\n", pw->pw_name, pw->pw_uid);
 			exit(1);
 		}
-		setenv("OPENPBX_ALREADY_NONROOT","yes",1);
+		setenv("CALLWEAVER_ALREADY_NONROOT","yes",1);
 		if (option_verbose) {
 			struct passwd *pw2;
 			pw2 = getpwuid(geteuid());

@@ -20,8 +20,8 @@
  * Object Model for CallWeaver
  */
 
-#ifndef _OPENPBX_ASTOBJ_H
-#define _OPENPBX_ASTOBJ_H
+#ifndef _CALLWEAVER_ASTOBJ_H
+#define _CALLWEAVER_ASTOBJ_H
 
 #include <string.h>
 
@@ -749,4 +749,4 @@ extern "C" {
 }
 #endif
 
-#endif /* _OPENPBX_ASTOBJ_H */
+#endif /* _CALLWEAVER_ASTOBJ_H */

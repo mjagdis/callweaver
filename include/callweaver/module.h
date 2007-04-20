@@ -23,8 +23,8 @@
  * provide and some other module related functions.
  */
 
-#ifndef _OPENPBX_MODULE_H
-#define _OPENPBX_MODULE_H
+#ifndef _CALLWEAVER_MODULE_H
+#define _CALLWEAVER_MODULE_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -393,4 +393,4 @@ void opbx_unregister_atexit(void (*func)(void));
 }
 #endif
 
-#endif /* _OPENPBX_MODULE_H */
+#endif /* _CALLWEAVER_MODULE_H */

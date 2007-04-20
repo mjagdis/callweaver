@@ -55,7 +55,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define DEFAULT_VALETPARK_TIME 45000
 

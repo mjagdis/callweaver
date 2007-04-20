@@ -20,8 +20,8 @@
  * \brief Channel Variables
  */
 
-#ifndef _OPENPBX_CHANVARS_H
-#define _OPENPBX_CHANVARS_H
+#ifndef _CALLWEAVER_CHANVARS_H
+#define _CALLWEAVER_CHANVARS_H
 
 #include "callweaver/linkedlists.h"
 
@@ -42,4 +42,4 @@ char *opbx_var_full_name(struct opbx_var_t *var);
 char *opbx_var_value(struct opbx_var_t *var);
 #define opbx_var_hash(v) (v ? v->hash : 0)
 
-#endif /* _OPENPBX_CHANVARS_H */
+#endif /* _CALLWEAVER_CHANVARS_H */

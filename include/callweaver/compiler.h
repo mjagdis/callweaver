@@ -20,11 +20,11 @@
  * \brief Compiler-specific macros and other items
  */
 
-#ifndef _OPENPBX_COMPILER_H
-#define _OPENPBX_COMPILER_H
+#ifndef _CALLWEAVER_COMPILER_H
+#define _CALLWEAVER_COMPILER_H
 
 #if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
 #define __builtin_expect(exp, c) (exp)
 #endif
 
-#endif /* _OPENPBX_COMPILER_H */
+#endif /* _CALLWEAVER_COMPILER_H */

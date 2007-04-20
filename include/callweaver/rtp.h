@@ -27,8 +27,8 @@
  *
  */
 
-#ifndef _OPENPBX_RTP_H
-#define _OPENPBX_RTP_H
+#ifndef _CALLWEAVER_RTP_H
+#define _CALLWEAVER_RTP_H
 
 #include "callweaver/frame.h"
 #include "callweaver/io.h"
@@ -247,4 +247,4 @@ int opbx_get_random(unsigned char *key, size_t len);
 }
 #endif
 
-#endif /* _OPENPBX_RTP_H */
+#endif /* _CALLWEAVER_RTP_H */

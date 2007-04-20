@@ -37,7 +37,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/apps/app_getextstate.c $", "$Revision: 1055 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/apps/app_getextstate.c $", "$Revision: 1055 $")
 
 #include "callweaver/options.h"
 #include "callweaver/file.h"

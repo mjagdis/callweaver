@@ -22,8 +22,8 @@
  * $Revision$
  */
 
-#ifndef _OPENPBX_UDPTL_H
-#define _OPENPBX_UDPTL_H
+#ifndef _CALLWEAVER_UDPTL_H
+#define _CALLWEAVER_UDPTL_H
 
 #include "callweaver/frame.h"
 #include "callweaver/io.h"

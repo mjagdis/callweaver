@@ -20,8 +20,8 @@
  * \brief Configuration File Parser
  */
 
-#ifndef _OPENPBX_CONFIG_H
-#define _OPENPBX_CONFIG_H
+#ifndef _CALLWEAVER_CONFIG_H
+#define _CALLWEAVER_CONFIG_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -197,5 +197,5 @@ struct opbx_config *opbx_config_internal_load(const char *configfile, struct opb
 }
 #endif
 
-#endif /* _OPENPBX_CONFIG_H */
+#endif /* _CALLWEAVER_CONFIG_H */
 

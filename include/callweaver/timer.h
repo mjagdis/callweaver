@@ -19,8 +19,8 @@
  * \brief CallWeaver timer implementation
  */
 
-#ifndef _OPENPBX_TIMER_H
-#define _OPENPBX_TIMER_H
+#ifndef _CALLWEAVER_TIMER_H
+#define _CALLWEAVER_TIMER_H
 
 #include "confdefs.h"
 
@@ -91,4 +91,4 @@ int opbx_timer_newtime(opbx_timer_t *t, unsigned long interval);
 int opbx_simple_timer(opbx_timer_t *t, unsigned long interval,
 		      opbx_timer_func *func, void *user_data);
 
-#endif /* _OPENPBX_TIMER_H */
+#endif /* _CALLWEAVER_TIMER_H */

@@ -21,8 +21,8 @@
  * See also \ref AstDUNDi
  */
 
-#ifndef _OPENPBX_DUNDI_H 
-#define _OPENPBX_DUNDI_H
+#ifndef _CALLWEAVER_DUNDI_H 
+#define _CALLWEAVER_DUNDI_H
 
 #include "callweaver/channel.h"
 
@@ -223,4 +223,4 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 /*! \brief Pre-cache to push upstream peers */
 int dundi_precache(const char *dcontext, const char *number);
 
-#endif /* _OPENPBX_DUNDI_H */
+#endif /* _CALLWEAVER_DUNDI_H */

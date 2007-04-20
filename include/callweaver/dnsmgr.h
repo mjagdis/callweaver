@@ -20,8 +20,8 @@
  * \brief Background DNS update manager
  */
 
-#ifndef _OPENPBX_DNSMGR_H
-#define _OPENPBX_DNSMGR_H
+#ifndef _CALLWEAVER_DNSMGR_H
+#define _CALLWEAVER_DNSMGR_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -41,4 +41,4 @@ int opbx_dnsmgr_lookup(const char *name, struct in_addr *result, struct opbx_dns
 }
 #endif /* c_plusplus */
 
-#endif /* OPENPBX_DNSMGR_H */
+#endif /* CALLWEAVER_DNSMGR_H */

@@ -20,8 +20,8 @@
  * \brief General CallWeaver channel transcoding definitions.
  */
 
-#ifndef _OPENPBX_TRANSCAP_H
-#define _OPENPBX_TRANSCAP_H
+#ifndef _CALLWEAVER_TRANSCAP_H
+#define _CALLWEAVER_TRANSCAP_H
 
 /* These definitions are taken directly out of libpri.h and used here.
  * DO NOT change them as it will cause unexpected behavior in channels
@@ -39,4 +39,4 @@
 #define IS_DIGITAL(cap)\
 	(cap) & OPBX_TRANS_CAP_DIGITAL ? 1 : 0
 
-#endif /* _OPENPBX_TRANSCAP_H */
+#endif /* _CALLWEAVER_TRANSCAP_H */

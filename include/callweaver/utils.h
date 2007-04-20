@@ -20,8 +20,8 @@
  * \brief Utility functions
  */
 
-#ifndef _OPENPBX_UTILS_H
-#define _OPENPBX_UTILS_H
+#ifndef _CALLWEAVER_UTILS_H
+#define _CALLWEAVER_UTILS_H
 
 #include "confdefs.h"
 
@@ -251,7 +251,7 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 #define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(a,b,c,d,0)
 extern int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
-#endif /* _OPENPBX_UTILS_H */
+#endif /* _CALLWEAVER_UTILS_H */
 
 #ifdef linux
 #define opbx_random random

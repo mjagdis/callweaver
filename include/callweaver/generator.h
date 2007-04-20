@@ -23,8 +23,8 @@
  * This only needs to be included by openpbx/channel.h
  */
 
-#ifndef _OPENPBX_GENERATOR_H
-#define _OPENPBX_GENERATOR_H
+#ifndef _CALLWEAVER_GENERATOR_H
+#define _CALLWEAVER_GENERATOR_H
 
 #define GENERATOR_WAIT_ITERATIONS 100
 
@@ -96,5 +96,5 @@ inline int opbx_generator_is_active(struct opbx_channel *chan);
 /*! Is the caller of this function running in the generator thread? */
 inline int opbx_generator_is_self(struct opbx_channel *chan);
 
-#endif /* _OPENPBX_GENERATOR_H */
+#endif /* _CALLWEAVER_GENERATOR_H */
 

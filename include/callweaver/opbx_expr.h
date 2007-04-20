@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef _OPENPBX_EXPR_H
-#define _OPENPBX_EXPR_H
+#ifndef _CALLWEAVER_EXPR_H
+#define _CALLWEAVER_EXPR_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -29,4 +29,4 @@ int opbx_expr(char *expr, char *buf, int length);
 }
 #endif
 
-#endif /* _OPENPBX_EXPR_H */
+#endif /* _CALLWEAVER_EXPR_H */

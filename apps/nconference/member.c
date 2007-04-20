@@ -26,7 +26,7 @@
 #include "dtmf.h"
 #include "vad.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision$");
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
 
 /* *****************************************************************************
 	MANAGER UTILS

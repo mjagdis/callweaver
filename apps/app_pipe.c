@@ -35,7 +35,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1 $")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"

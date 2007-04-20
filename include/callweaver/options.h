@@ -20,8 +20,8 @@
  * \brief Options provided by main openpbx program
  */
 
-#ifndef _OPENPBX_OPTIONS_H
-#define _OPENPBX_OPTIONS_H
+#ifndef _CALLWEAVER_OPTIONS_H
+#define _CALLWEAVER_OPTIONS_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -63,4 +63,4 @@ extern char debug_filename[OPBX_FILENAME_MAX];
 }
 #endif
 
-#endif /* _OPENPBX_OPTIONS_H */
+#endif /* _CALLWEAVER_OPTIONS_H */

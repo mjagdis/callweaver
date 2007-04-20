@@ -26,8 +26,8 @@
  *
  */
 
-#if !defined(_OPENPBX_UDP_H)
-#define _OPENPBX_UDP_H
+#if !defined(_CALLWEAVER_UDP_H)
+#define _CALLWEAVER_UDP_H
 
 typedef struct udp_socket_info_s udp_socket_info_t;
 
@@ -85,4 +85,4 @@ int udp_socket_sendto(udp_socket_info_t *info, void *buf, size_t size, int flags
 }
 #endif
 
-#endif /* _OPENPBX_UDP_H */
+#endif /* _CALLWEAVER_UDP_H */

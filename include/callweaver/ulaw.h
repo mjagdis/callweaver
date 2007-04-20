@@ -20,8 +20,8 @@
  * \brief u-Law to Signed linear conversion
  */
 
-#ifndef _OPENPBX_ULAW_H
-#define _OPENPBX_ULAW_H
+#ifndef _CALLWEAVER_ULAW_H
+#define _CALLWEAVER_ULAW_H
 
 /*! Init the ulaw conversion stuff */
 /*!
@@ -38,4 +38,4 @@ extern int16_t __opbx_mulaw[256];
 #define OPBX_LIN2MU(a) (__opbx_lin2mu[((unsigned short)(a)) >> 2])
 #define OPBX_MULAW(a) (__opbx_mulaw[(a)])
 
-#endif /* _OPENPBX_ULAW_H */
+#endif /* _CALLWEAVER_ULAW_H */

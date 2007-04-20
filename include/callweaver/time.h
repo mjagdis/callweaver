@@ -20,8 +20,8 @@
  * \brief Time-related functions and macros
  */
 
-#ifndef _OPENPBX_TIME_H
-#define _OPENPBX_TIME_H
+#ifndef _CALLWEAVER_TIME_H
+#define _CALLWEAVER_TIME_H
 
 #include <sys/time.h>
 
@@ -149,4 +149,4 @@ struct timeval opbx_samp2tv(unsigned int _nsamp, unsigned int _rate),
 }
 )
 
-#endif /* _OPENPBX_TIME_H */
+#endif /* _CALLWEAVER_TIME_H */

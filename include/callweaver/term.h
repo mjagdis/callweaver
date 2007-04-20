@@ -20,8 +20,8 @@
  * \brief Handy terminal functions for vt* terms
  */
 
-#ifndef _OPENPBX_TERM_H
-#define _OPENPBX_TERM_H
+#ifndef _CALLWEAVER_TERM_H
+#define _CALLWEAVER_TERM_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -73,4 +73,4 @@ extern char *opbx_term_quit(void);
 }
 #endif
 
-#endif /* _OPENPBX_TERM_H */
+#endif /* _CALLWEAVER_TERM_H */

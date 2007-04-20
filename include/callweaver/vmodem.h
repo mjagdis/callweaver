@@ -20,8 +20,8 @@
  * \brief Voice Modem Definitions
  */
 
-#ifndef _OPENPBX_VMODEM_H
-#define _OPENPBX_VMODEM_H
+#ifndef _CALLWEAVER_VMODEM_H
+#define _CALLWEAVER_VMODEM_H
 
 #include "callweaver/frame.h"
 #include "callweaver/channel.h"
@@ -181,4 +181,4 @@ extern struct opbx_channel *opbx_modem_new(struct opbx_modem_pvt *i, int state);
 /*! Trim off trailing mess */
 extern void opbx_modem_trim(char *s);
 
-#endif /* _OPENPBX_VMODEM_H */
+#endif /* _CALLWEAVER_VMODEM_H */

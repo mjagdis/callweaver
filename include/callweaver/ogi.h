@@ -20,8 +20,8 @@
  * \brief OGI Extension interfaces - CallWeaver Gateway Interface
  */
 
-#ifndef _OPENPBX_OGI_H
-#define _OPENPBX_OGI_H
+#ifndef _CALLWEAVER_OGI_H
+#define _CALLWEAVER_OGI_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -53,4 +53,4 @@ void ogi_unregister(ogi_command *cmd);
 }
 #endif
 
-#endif /* _OPENPBX_OGI_H */
+#endif /* _CALLWEAVER_OGI_H */

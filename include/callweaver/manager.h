@@ -21,8 +21,8 @@
  * External call management support 
  */
 
-#ifndef _OPENPBX_MANAGER_H
-#define _OPENPBX_MANAGER_H
+#ifndef _CALLWEAVER_MANAGER_H
+#define _CALLWEAVER_MANAGER_H
 
 #include <stdarg.h>
 #include <sys/types.h>
@@ -195,4 +195,4 @@ extern int init_manager(void);
 /*! Called by CallWeaver initialization */
 extern int reload_manager(void);
 
-#endif /* _OPENPBX_MANAGER_H */
+#endif /* _CALLWEAVER_MANAGER_H */

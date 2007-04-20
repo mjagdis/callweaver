@@ -20,8 +20,8 @@
  * \brief General CallWeaver channel definitions for image handling
  */
 
-#ifndef _OPENPBX_IMAGE_H
-#define _OPENPBX_IMAGE_H
+#ifndef _CALLWEAVER_IMAGE_H
+#define _CALLWEAVER_IMAGE_H
 
 /*! \brief structure associated with registering an image format */
 struct opbx_imager {
@@ -93,4 +93,4 @@ extern void opbx_image_unregister(struct opbx_imager *imgdrv);
  */
 extern int opbx_image_init(void);
 
-#endif /* _OPENPBX_IMAGE_H */
+#endif /* _CALLWEAVER_IMAGE_H */

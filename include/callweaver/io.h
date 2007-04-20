@@ -20,8 +20,8 @@
  * \brief I/O Management (derived from Cheops-NG)
  */
 
-#ifndef _OPENPBX_IO_H
-#define _OPENPBX_IO_H
+#ifndef _CALLWEAVER_IO_H
+#define _CALLWEAVER_IO_H
 
 #ifdef POLLCOMPAT
 #include "callweaver/poll-compat.h"
@@ -142,4 +142,4 @@ extern int opbx_get_termcols(int fd);
 }
 #endif
 
-#endif /* _OPENPBX_IO_H */
+#endif /* _CALLWEAVER_IO_H */

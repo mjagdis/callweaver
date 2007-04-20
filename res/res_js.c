@@ -55,7 +55,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.21 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.21 $")
 
 size_t gStackChunkSize = 8192;
 
@@ -1428,5 +1428,5 @@ int usecount(void)
 
 char *key()
 {
-	return 0;// OPENPBX_GPL_KEY;
+	return 0;// CALLWEAVER_GPL_KEY;
 }

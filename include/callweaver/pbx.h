@@ -20,8 +20,8 @@
  * \brief Core PBX routines and definitions.
  */
 
-#ifndef _OPENPBX_PBX_H
-#define _OPENPBX_PBX_H
+#ifndef _CALLWEAVER_PBX_H
+#define _CALLWEAVER_PBX_H
 
 #include "callweaver/sched.h"
 #include "callweaver/channel.h"
@@ -682,4 +682,4 @@ void opbx_hint_state_changed(const char *device);
 }
 #endif
 
-#endif /* _OPENPBX_PBX_H */
+#endif /* _CALLWEAVER_PBX_H */

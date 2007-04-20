@@ -20,8 +20,8 @@
  * \brief Call Detail Record API 
  */
 
-#ifndef _OPENPBX_CDR_H
-#define _OPENPBX_CDR_H
+#ifndef _CALLWEAVER_CDR_H
+#define _CALLWEAVER_CDR_H
 
 #include <sys/time.h>
 #define OPBX_CDR_FLAG_KEEP_VARS			(1 << 0)
@@ -292,4 +292,4 @@ extern int opbx_cdr_engine_init(void);
 /*! Submit any remaining CDRs and prepare for shutdown */
 extern void opbx_cdr_engine_term(void);
 
-#endif /* _OPENPBX_CDR_H */
+#endif /* _CALLWEAVER_CDR_H */

@@ -21,8 +21,8 @@
  * Includes code and algorithms from the Zapata library.
  */
 
-#ifndef _OPENPBX_PHONE_NO_UTILS_H
-#define _OPENPBX_PHONE_NO_UTILS_H
+#ifndef _CALLWEAVER_PHONE_NO_UTILS_H
+#define _CALLWEAVER_PHONE_NO_UTILS_H
 
 /*! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s... */
 /*!
@@ -89,4 +89,4 @@ extern char *opbx_callerid_merge(char *buf, int bufsiz, const char *name, const 
 /*! Destructively parse inbuf into name and location (or number) */
 extern int opbx_callerid_parse(char *instr, char **name, char **location);
 
-#endif /* _OPENPBX_PHONE_NO_UTILS_H */
+#endif /* _CALLWEAVER_PHONE_NO_UTILS_H */

@@ -46,7 +46,7 @@
 
 #include "callweaver.h"
 
-//OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.53 $")
+//CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.53 $")
 
 #include "callweaver/frame.h"
 #include "callweaver/logger.h"
@@ -3183,5 +3183,5 @@ int usecount()
 
 char *key()
 {
-	return 0; //OPENPBX_GPL_KEY;
+	return 0; //CALLWEAVER_GPL_KEY;
 }

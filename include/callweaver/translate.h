@@ -20,8 +20,8 @@
  * \brief Translate via the use of pseudo channels
  */
 
-#ifndef _OPENPBX_TRANSLATE_H
-#define _OPENPBX_TRANSLATE_H
+#ifndef _CALLWEAVER_TRANSLATE_H
+#define _CALLWEAVER_TRANSLATE_H
 
 #define MAX_FORMAT 32
 
@@ -120,4 +120,4 @@ extern struct opbx_frame *opbx_translate(struct opbx_trans_pvt *tr, struct opbx_
 }
 #endif
 
-#endif /* _OPENPBX_TRANSLATE_H */
+#endif /* _CALLWEAVER_TRANSLATE_H */

@@ -20,8 +20,8 @@
  * \brief ADSI Support (built upon Caller*ID) 
  */
 
-#ifndef _OPENPBX_ADSI_H
-#define _OPENPBX_ADSI_H
+#ifndef _CALLWEAVER_ADSI_H
+#define _CALLWEAVER_ADSI_H
 
 #include "callweaver/old_callerid.h"
 #include "callweaver/channel.h"
@@ -342,4 +342,4 @@ extern int (*adsi_input_control)(unsigned char *buf, int page, int line, int dis
  */
 extern int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
 
-#endif /* _OPENPBX_ADSI_H */
+#endif /* _CALLWEAVER_ADSI_H */

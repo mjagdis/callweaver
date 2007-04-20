@@ -53,7 +53,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
@@ -80,7 +80,7 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define COMMAND_TIMEOUT 5000
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
-#define OPENPBX_USERNAME "openpbx"
+#define CALLWEAVER_USERNAME "openpbx"
 
 /* Default mail command to mail voicemail. Change it with the
     mailcmd= command in voicemail.conf */
@@ -5863,7 +5863,7 @@ static int load_config(void)
 			silencethreshold = atoi(thresholdstr);
 		
 		if (!(astemail = opbx_variable_retrieve(cfg, "general", "serveremail"))) 
-			astemail = OPENPBX_USERNAME;
+			astemail = CALLWEAVER_USERNAME;
 		opbx_copy_string(serveremail, astemail, sizeof(serveremail));
 		
 		vmmaxmessage = 0;

@@ -20,8 +20,8 @@
  * \brief Channel monitoring
  */
 
-#ifndef _OPENPBX_MONITOR_H
-#define _OPENPBX_MONITOR_H
+#ifndef _CALLWEAVER_MONITOR_H
+#define _CALLWEAVER_MONITOR_H
 
 #include <stdio.h>
 
@@ -56,4 +56,4 @@ extern int (*opbx_monitor_change_fname)(	struct opbx_channel *chan,
 
 extern void (*opbx_monitor_setjoinfiles)(struct opbx_channel *chan, int turnon);
 
-#endif /* _OPENPBX_MONITOR_H */
+#endif /* _CALLWEAVER_MONITOR_H */

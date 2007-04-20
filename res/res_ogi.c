@@ -44,7 +44,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/res/res_ogi.c $", "$Revision: 1547 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/res/res_ogi.c $", "$Revision: 1547 $")
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

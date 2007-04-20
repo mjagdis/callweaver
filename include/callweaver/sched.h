@@ -20,8 +20,8 @@
  * \brief Scheduler Routines (derived from cheops)
  */
 
-#ifndef _OPENPBX_SCHED_H
-#define _OPENPBX_SCHED_H
+#ifndef _CALLWEAVER_SCHED_H
+#define _CALLWEAVER_SCHED_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -175,4 +175,4 @@ extern long opbx_sched_when(struct sched_context *con,int id);
 }
 #endif
 
-#endif /* _OPENPBX_SCHED_H */
+#endif /* _CALLWEAVER_SCHED_H */

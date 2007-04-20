@@ -20,8 +20,8 @@
  * \brief Persistant data storage (akin to *doze registry)
  */
 
-#ifndef _OPENPBX_PRIVACY_H
-#define _OPENPBX_PRIVACY_H
+#ifndef _CALLWEAVER_PRIVACY_H
+#define _CALLWEAVER_PRIVACY_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -43,4 +43,4 @@ int opbx_privacy_reset(char *dest);
 }
 #endif
 
-#endif /* _OPENPBX_PRIVACY_H */
+#endif /* _CALLWEAVER_PRIVACY_H */

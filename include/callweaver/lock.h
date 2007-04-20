@@ -20,8 +20,8 @@
  * \brief General CallWeaver channel locking definitions.
  */
 
-#ifndef _OPENPBX_LOCK_H
-#define _OPENPBX_LOCK_H
+#ifndef _CALLWEAVER_LOCK_H
+#define _CALLWEAVER_LOCK_H
 
 #include <pthread.h>
 #include <netdb.h>
@@ -697,4 +697,4 @@ static inline int opbx_cond_timedwait(opbx_cond_t *cond, opbx_mutex_t *t, const 
 #define pthread_create __use_opbx_pthread_create_instead__
 #endif
 
-#endif /* _OPENPBX_LOCK_H */
+#endif /* _CALLWEAVER_LOCK_H */

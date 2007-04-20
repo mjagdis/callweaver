@@ -20,8 +20,8 @@
  * \brief Handle unaligned data access
  */
 
-#ifndef _OPENPBX_UNALIGNED_H
-#define _OPENPBX_UNALIGNED_H
+#ifndef _CALLWEAVER_UNALIGNED_H
+#define _CALLWEAVER_UNALIGNED_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -99,4 +99,4 @@ static inline void put_unaligned_uint16(void *p, unsigned int datum)
 #endif
 
 
-#endif /* _OPENPBX_UNALIGNED_H */
+#endif /* _CALLWEAVER_UNALIGNED_H */

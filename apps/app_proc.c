@@ -33,7 +33,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/apps/app_proc.c $", "$Revision: 1055 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/apps/app_proc.c $", "$Revision: 1055 $")
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

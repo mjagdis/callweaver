@@ -20,8 +20,8 @@
  * Persistant data storage (akin to *doze registry)
  */
 
-#ifndef _OPENPBX_OPBXDB_H
-#define _OPENPBX_OPBXDB_H
+#ifndef _CALLWEAVER_OPBXDB_H
+#define _CALLWEAVER_OPBXDB_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -49,4 +49,4 @@ void opbx_db_freetree(struct opbx_db_entry *entry);
 }
 #endif
 
-#endif /* _OPENPBX_OPBXDB_H */
+#endif /* _CALLWEAVER_OPBXDB_H */

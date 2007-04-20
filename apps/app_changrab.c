@@ -34,7 +34,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision: 1.47 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.47 $")
 
 static char *tdesc = "Take over an existing channel and bridge to it.";
 static char *app = "ChanGrab";

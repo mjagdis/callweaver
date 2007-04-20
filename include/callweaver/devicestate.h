@@ -20,8 +20,8 @@
  * \brief Device state management
  */
 
-#ifndef _OPENPBX_DEVICESTATE_H
-#define _OPENPBX_DEVICESTATE_H
+#ifndef _CALLWEAVER_DEVICESTATE_H
+#define _CALLWEAVER_DEVICESTATE_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -100,4 +100,4 @@ int opbx_device_state_engine_init(void);
 }
 #endif
 
-#endif /* _OPENPBX_DEVICESTATE_H */
+#endif /* _CALLWEAVER_DEVICESTATE_H */

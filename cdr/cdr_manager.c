@@ -36,7 +36,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION(__FILE__, "$Revision$")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"

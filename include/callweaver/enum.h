@@ -20,8 +20,8 @@
 	\brief DNS and ENUM functions
 */
 
-#ifndef _OPENPBX_ENUM_H
-#define _OPENPBX_ENUM_H
+#ifndef _CALLWEAVER_ENUM_H
+#define _CALLWEAVER_ENUM_H
 
 #include "callweaver/channel.h"
 
@@ -57,4 +57,4 @@ extern int opbx_get_txt(struct opbx_channel *chan, const char *number, char *loc
 extern int opbx_enum_init(void);
 extern int opbx_enum_reload(void);
 
-#endif /* _OPENPBX_ENUM_H */
+#endif /* _CALLWEAVER_ENUM_H */

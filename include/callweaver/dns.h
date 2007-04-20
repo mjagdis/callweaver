@@ -21,8 +21,8 @@
  * \author Thorsten Lockert <tholo at trollphone.org>
  */
 
-#ifndef _OPENPBX_DNS_H
-#define _OPENPBX_DNS_H
+#ifndef _CALLWEAVER_DNS_H
+#define _CALLWEAVER_DNS_H
 
 struct opbx_channel;
 
@@ -36,4 +36,4 @@ struct opbx_channel;
 extern int opbx_search_dns(void *context, const char *dname, int class, int type,
 	 int (*callback)(void *context, char *answer, int len, char *fullanswer));
 
-#endif /* _OPENPBX_DNS_H */
+#endif /* _CALLWEAVER_DNS_H */

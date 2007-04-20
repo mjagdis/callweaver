@@ -37,7 +37,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL$", "$Revision: 46 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 46 $")
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

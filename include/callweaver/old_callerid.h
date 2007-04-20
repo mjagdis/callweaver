@@ -21,8 +21,8 @@
  * Includes code and algorithms from the Zapata library.
  */
 
-#ifndef _OPENPBX_OLD_CALLERID_H
-#define _OPENPBX_OLD_CALLERID_H
+#ifndef _CALLWEAVER_OLD_CALLERID_H
+#define _CALLWEAVER_OLD_CALLERID_H
 
 #define NCOLA 0x4000
 
@@ -202,4 +202,4 @@ struct tdd_state *tdd_new(void);
 
 void tdd_free(struct tdd_state *tdd);
 
-#endif /* _OPENPBX_OLD_CALLERID_H */
+#endif /* _CALLWEAVER_OLD_CALLERID_H */

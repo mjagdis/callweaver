@@ -21,8 +21,8 @@
  * \brief Network socket handling
  */
 
-#ifndef _OPENPBX_NETSOCK_H
-#define _OPENPBX_NETSOCK_H
+#ifndef _CALLWEAVER_NETSOCK_H
+#define _CALLWEAVER_NETSOCK_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -63,4 +63,4 @@ void *opbx_netsock_data(const struct opbx_netsock *ns);
 }
 #endif
 
-#endif /* _OPENPBX_NETSOCK_H */
+#endif /* _CALLWEAVER_NETSOCK_H */

@@ -20,8 +20,8 @@
  * \brief Generic File Format Support.
  */
 
-#ifndef _OPENPBX_FILE_H
-#define _OPENPBX_FILE_H
+#ifndef _CALLWEAVER_FILE_H
+#define _CALLWEAVER_FILE_H
 
 #include "callweaver/channel.h"
 #include "callweaver/frame.h"
@@ -327,4 +327,4 @@ extern int opbx_file_init(void);
 }
 #endif
 
-#endif /* _OPENPBX_FILE_H */
+#endif /* _CALLWEAVER_FILE_H */

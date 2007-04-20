@@ -20,8 +20,8 @@
  * \brief Music on hold handling
  */
 
-#ifndef _OPENPBX_MOH_H
-#define _OPENPBX_MOH_H
+#ifndef _CALLWEAVER_MOH_H
+#define _CALLWEAVER_MOH_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -44,4 +44,4 @@ void opbx_moh_cleanup(struct opbx_channel *chan);
 }
 #endif
 
-#endif /* _OPENPBX_MOH_H */
+#endif /* _CALLWEAVER_MOH_H */

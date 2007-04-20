@@ -20,8 +20,8 @@
  * \brief Internal CallWeaver hangup causes
  */
 
-#ifndef _OPENPBX_CAUSES_H
-#define _OPENPBX_CAUSES_H
+#ifndef _CALLWEAVER_CAUSES_H
+#define _CALLWEAVER_CAUSES_H
 
 /* Causes for disconnection (from Q.931) */
 #define OPBX_CAUSE_UNALLOCATED				1
@@ -80,4 +80,4 @@
 #define OPBX_CAUSE_NOTDEFINED 				0
 #define OPBX_CAUSE_NOSUCHDRIVER				OPBX_CAUSE_CHAN_NOT_IMPLEMENTED
 
-#endif /* _OPENPBX_CAUSES_H */
+#endif /* _CALLWEAVER_CAUSES_H */

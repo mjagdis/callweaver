@@ -21,8 +21,8 @@
  * to raw slinear on demand.
  */
 
-#ifndef _OPENPBX_SLINFACTORY_H
-#define _OPENPBX_SLINFACTORY_H
+#ifndef _CALLWEAVER_SLINFACTORY_H
+#define _CALLWEAVER_SLINFACTORY_H
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -57,4 +57,4 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 }
 #endif
 
-#endif /* _OPENPBX_SLINFACTORY_H */
+#endif /* _CALLWEAVER_SLINFACTORY_H */

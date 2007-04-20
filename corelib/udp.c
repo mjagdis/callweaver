@@ -41,7 +41,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/udp.c $", "$Revision: 1600 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/udp.c $", "$Revision: 1600 $")
 
 #include "callweaver/frame.h"
 #include "callweaver/logger.h"

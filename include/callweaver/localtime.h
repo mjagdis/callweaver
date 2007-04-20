@@ -21,8 +21,8 @@
  * \brief Custom localtime functions for multiple timezones
  */
 
-#ifndef _OPENPBX_LOCALTIME_H
-#define _OPENPBX_LOCALTIME_H
+#ifndef _CALLWEAVER_LOCALTIME_H
+#define _CALLWEAVER_LOCALTIME_H
 #include "confdefs.h"
 extern int opbx_tzsetwall(void);
 extern void opbx_tzset(const char *name);
@@ -31,4 +31,4 @@ extern time_t opbx_mktime(struct tm * const tmp, const char *zone);
 extern char *opbx_ctime(const time_t * const timep);
 extern char *opbx_ctime_r(const time_t * const timep, char *buf);
 
-#endif /* _OPENPBX_LOCALTIME_H */
+#endif /* _CALLWEAVER_LOCALTIME_H */

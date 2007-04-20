@@ -20,8 +20,8 @@
  * \brief Access Control of various sorts
  */
 
-#ifndef _OPENPBX_ACL_H
-#define _OPENPBX_ACL_H
+#ifndef _CALLWEAVER_ACL_H
+#define _CALLWEAVER_ACL_H
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -53,4 +53,4 @@ extern int opbx_str2tos(const char *value, int *tos);
 }
 #endif
 
-#endif /* _OPENPBX_ACL_H */
+#endif /* _CALLWEAVER_ACL_H */

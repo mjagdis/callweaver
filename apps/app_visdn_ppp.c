@@ -15,7 +15,7 @@
 
 #include "callweaver.h"
 
-OPENPBX_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_dial.c $", "$Revision: 878 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/apps/app_dial.c $", "$Revision: 878 $")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"

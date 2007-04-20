@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _OPENPBX_RESONATOR_H
-#define _OPENPBX_RESONATOR_H
+#ifndef _CALLWEAVER_RESONATOR_H
+#define _CALLWEAVER_RESONATOR_H
 
 /* A digital resonator is a fast, efficient way of producing sinewaves */
 struct digital_resonator {
@@ -46,4 +46,4 @@ void digital_resonator_reinit(struct digital_resonator *dr, uint16_t new_frequen
 /* How we get samples after resonator is initialized */
 inline int16_t digital_resonator_get_sample(struct digital_resonator *dr);
 
-#endif /* OPENPBX_RESONATOR_H */
+#endif /* CALLWEAVER_RESONATOR_H */
