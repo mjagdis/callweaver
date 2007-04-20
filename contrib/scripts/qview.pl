@@ -12,7 +12,7 @@ use IO::Socket;
 use CGI qw(:standard);
 use CGI::Carp qw/fatalsToBrowser/;
 
-$host = "openpbx.yourdomain.com";
+$host = "callweaver.yourdomain.com";
 $port = 5038;
 $user = "manager_user";
 $secret = "Manager_secret";

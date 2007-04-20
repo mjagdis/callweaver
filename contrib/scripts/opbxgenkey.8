@@ -1,4 +1,4 @@
-.\" $Header: /usr/cvsroot/openpbx/contrib/scripts/astgenkey.8,v 1.1 2005/06/24 03:02:55 kpfleming Exp $
+.\" $Header: /usr/cvsroot/callweaver/contrib/scripts/astgenkey.8,v 1.1 2005/06/24 03:02:55 kpfleming Exp $
 .\"
 .\"	transcript compatibility for postscript use.
 .\"
@@ -71,7 +71,7 @@ option
 without entering the passphrase you won't be able to use it. 
 
 However if you want to use such a key with CallWeaver, you'll have to start 
-it interactively, because the scripts that start openpbx can't use that
+it interactively, because the scripts that start callweaver can't use that
 encrypted key.
 
 The key is identified by a name. If you don't write the name on the 
@@ -88,11 +88,11 @@ The private key: secret.
 .RE
 
 Those files should be copied to 
-.I /var/lib/openpbx/keys
+.I /var/lib/callweaver/keys
 
 (The private key: on your system. The public key: on other systems)
 
-To see the currently-installed keys from the openpbx CLI, use the command
+To see the currently-installed keys from the callweaver CLI, use the command
 
 .RS
 show keys
@@ -110,12 +110,12 @@ Don't encrypt the private key.
 .RE
 
 .SH FILES
-.I /var/lib/openpbx/keys
+.I /var/lib/callweaver/keys
 .RS
 .RE
 
 .SH "SEE ALSO" 
-openpbx(8), genrsa(1), rsa(1), 
+callweaver(8), genrsa(1), rsa(1), 
 
 http://www.voip-info.org/wiki-CallWeaver+iax+rsa+auth
 

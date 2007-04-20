@@ -29,7 +29,7 @@ if [ "$QUIET" != 'y' ]; then
 	echo "in PEM format for use by CallWeaver.  You will be asked to"
 	echo "enter a passcode for your key multiple times.  Please"
 	echo "enter the same code each time.  The resulting files will"
-	echo "need to be moved to /var/lib/openpbx/keys if you want"
+	echo "need to be moved to /var/lib/callweaver/keys if you want"
 	echo "to use them, and any private keys (.key files) will"
 	echo "need to be initialized at runtime either by running"
 	echo "CallWeaver with the '-i' option, or with the 'init keys'"

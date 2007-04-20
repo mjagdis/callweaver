@@ -29,7 +29,7 @@ use POSIX qw(setsid);
 #############################
 # User Configurable Options
 #############################
-# Configuration for logging in to your openpbx server
+# Configuration for logging in to your callweaver server
 # Check you CallWeaver config file "manager.conf" for details
 my $manager_host = '127.0.0.1';
 my $manager_port = 5038;
@@ -37,7 +37,7 @@ my $manager_user = 'your_username';
 my $manager_secret = 'your_secret';
 # Port For this proxy
 my $listen_port = 1234;
-my $manager_pid = "/var/run/openpbx_managerproxy.pid";
+my $manager_pid = "/var/run/callweaver_managerproxy.pid";
 
 #############################
 # Declarations
@@ -170,10 +170,10 @@ while (1)
                     # do a 'next' unless we have completed a block; we are not ready to continue
 
                     # Process the completed block
-                    # If block is from openpbx, send to clients
+                    # If block is from callweaver, send to clients
                     if ($_ == $p) {
-                       # block is from openpbx, send to clients
-                       print "openpbx: $_\n$blocks{$_}" if $debug;
+                       # block is from callweaver, send to clients
+                       print "callweaver: $_\n$blocks{$_}" if $debug;
                        my $cnt = 0;
                        foreach my $client (values %proxy_clients) {
                           print "writing to $$client...\n" if $debug;
@@ -182,7 +182,7 @@ while (1)
                        }
                        print "sent block to $cnt clients\n" if $debug;
                     } else {
-                       # Blocks are from clients, send to openpbx
+                       # Blocks are from clients, send to callweaver
                        syswrite($p, $blocks{$_});
                        print "client: $_\n$blocks{$_}\n" if $debug;
                     }

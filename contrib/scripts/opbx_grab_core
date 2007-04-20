@@ -1,6 +1,6 @@
 #!/bin/sh
 # $Id: ast_grab_core,v 1.1 2005/05/15 05:07:14 kpfleming Exp $
-# lame quickie script to snarf a core of a hung openpbx process.
+# lame quickie script to snarf a core of a hung callweaver process.
 # bugs to ast_grab_core, blinky-lights.org  (derrick daugherty)
 
 DATE=`date +%Y%m%d%H%M`
@@ -9,18 +9,18 @@ HOSTNAME=`hostname`
 ADMINEMAIL="root@localhost"
 
 #the following should be improved
-if [ -e /etc/openpbx/openpbx.conf ]; then
-	RUNDIR=`awk -F"=>" '/astrundir/ {print $2}' /etc/openpbx/openpbx.conf`
-	PID=`cat ${RUNDIR}/openpbx.pid`
-elif [ -e /var/run/openpbx.pid ] ; then 
-	PID=`cat /var/run/openpbx.pid`
+if [ -e /etc/callweaver/callweaver.conf ]; then
+	RUNDIR=`awk -F"=>" '/astrundir/ {print $2}' /etc/callweaver/callweaver.conf`
+	PID=`cat ${RUNDIR}/callweaver.pid`
+elif [ -e /var/run/callweaver.pid ] ; then 
+	PID=`cat /var/run/callweaver.pid`
 else 
-	echo Could not find an openpbx.conf definition for astrundir,  using \'ps\'
+	echo Could not find an callweaver.conf definition for astrundir,  using \'ps\'
 	echo to try and determine process ID.  This is not reliable.
-	PID=`ps auxwf|grep openpbx|grep vv|head -1|awk '{print $2}'`
+	PID=`ps auxwf|grep callweaver|grep vv|head -1|awk '{print $2}'`
 fi
 
-echo Snarfing openpbx core, this could take a few seconds depending
+echo Snarfing callweaver core, this could take a few seconds depending
 echo on how much memory is in use.
 echo
 echo \*\*\* WARNING \*\*\*  If the system is not already locked this will cause the 
@@ -29,17 +29,17 @@ echo
 
 /usr/bin/gdb > /dev/null << EOF
 	attach ${PID}
-	gcore ${DUMPDIR}/openpbx_${DATE}.core.${PID}
+	gcore ${DUMPDIR}/callweaver_${DATE}.core.${PID}
 	detach
 	quit
 EOF
 
-echo Snarfed!  ${DUMPDIR}/openpbx_${DATE}.core.${PID}
+echo Snarfed!  ${DUMPDIR}/callweaver_${DATE}.core.${PID}
 echo
 
 
 echo Trying for a backtrace of the captured core.
-/usr/bin/gdb /usr/sbin/openpbx ${DUMPDIR}/openpbx_${DATE}.core.${PID} > /tmp/gdb_dump.${PID} 2> /dev/null << EOF
+/usr/bin/gdb /usr/sbin/callweaver ${DUMPDIR}/callweaver_${DATE}.core.${PID} > /tmp/gdb_dump.${PID} 2> /dev/null << EOF
 set prompt \n
 echo --------------------------------------------------------------------------------\n
 echo INFO THREAD
@@ -56,7 +56,7 @@ echo Done trying for a bt.
 
 
 echo Notifying admins of the core.
-/usr/bin/mail -s "${HOSTNAME} core dumped at ${DUMPDIR}/openpbx_${DATE}.core.${PID}" ${ADMINEMAIL} < /tmp/gdb_dump.${PID}
+/usr/bin/mail -s "${HOSTNAME} core dumped at ${DUMPDIR}/callweaver_${DATE}.core.${PID}" ${ADMINEMAIL} < /tmp/gdb_dump.${PID}
 /bin/rm /tmp/gdb_dump.${PID}
 echo Done.
 echo
