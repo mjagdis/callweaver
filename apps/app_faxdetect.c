@@ -10,7 +10,7 @@
  * Asterisk project.
  * Newman Ventures <info@newmanventures.com>
  *
- * Modified and ported to openpbx.org by
+ * Modified and ported to callweaver.org by
  * Massimo CtRiX Cetra <devel@navynet.it>
  * Thanks to Navynet SRL for funding this project
  *
@@ -35,18 +35,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+
 #include "callweaver.h"
 
-#include <openpbx/lock.h>
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/translate.h>
-#include <openpbx/dsp.h>
-#include <openpbx/indications.h>
-#include <openpbx/utils.h>
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/translate.h"
+#include "callweaver/dsp.h"
+#include "callweaver/indications.h"
+#include "callweaver/utils.h"
 
 static char *tdesc = "Fax detection application";
 

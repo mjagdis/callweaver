@@ -976,7 +976,7 @@ static void opbx_moh_destroy(void)
 
 	while (moh) {
 /*
-		// This Seems to kill openpbx Whenever a reload is done.
+		// This Seems to kill callweaver Whenever a reload is done.
 		// Someone should look into it. In the meanwhile, it's better to
 		// comment it out to prevent malfunctions.
 

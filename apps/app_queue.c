@@ -28,7 +28,7 @@
  *             Kevin Lindsay <kevinl@netnation.com>
  * 
  *             Each dynamic agent in each queue is now stored in the opbxdb.
- *             When openpbx is restarted, each agent will be automatically
+ *             When callweaver is restarted, each agent will be automatically
  *             readded into their recorded queues. This feature can be
  *             configured with the 'persistent_members=<1|0>' setting in the
  *             '[general]' category in queues.conf. The default is on.
@@ -46,7 +46,7 @@
  * Patch Version 1.07 2003-12-24 01
  *
  * Added servicelevel statistic by Michiel Betel <michiel@betel.nl>
- * Added Priority jumping code for adding and removing queue members by Jonathan Stanton <openpbx@doilooklikeicare.com>
+ * Added Priority jumping code for adding and removing queue members by Jonathan Stanton <callweaver@doilooklikeicare.com>
  *
  * Fixed to work with CVS as of 2004-02-25 and released as 1.07a
  * by Matthew Enger <m.enger@xi.com.au>

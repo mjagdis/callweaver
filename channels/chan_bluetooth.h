@@ -1,7 +1,7 @@
 /*
  * CallWeaver Bluetooth Channel
  *
- * openpbx'ized by Rico Gloeckner <mc+openpbx@ukeer.de>
+ * callweaver'ized by Rico Gloeckner <mc+callweaver@ukeer.de>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -26,17 +26,6 @@
 #include <ctype.h>
 #include <endian.h>
 
-#include <openpbx/lock.h>
-#include <openpbx/utils.h>
-#include <openpbx/channel.h>
-#include <openpbx/config.h>
-#include <openpbx/logger.h>
-#include <openpbx/module.h>
-#include <openpbx/pbx.h>
-#include <openpbx/sched.h>
-#include <openpbx/options.h>
-#include <openpbx/cli.h>
-
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
@@ -44,6 +33,17 @@
 #include <bluetooth/rfcomm.h>
 #include <bluetooth/sdp.h>
 #include <bluetooth/sdp_lib.h>
+
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/sched.h"
+#include "callweaver/options.h"
+#include "callweaver/cli.h"
 
 #ifndef HANDSFREE_AUDIO_GW_SVCLASS_ID
 # define HANDSFREE_AUDIO_GW_SVCLASS_ID 0x111f

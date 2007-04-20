@@ -22,9 +22,10 @@
 #include "sccp_indicate.h"
 #include "sccp_utils.h"
 #include "sccp_device.h"
-#include <openpbx/utils.h>
-#include <openpbx/cli.h>
-#include <openpbx/opbxdb.h>
+
+#include "callweaver/utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/opbxdb.h"
 
 /* ------------------------------------------------------------ */
 

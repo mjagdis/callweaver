@@ -434,7 +434,7 @@ main (int argc, const char *argv[])
       *queue = "",
       *udfile = 0,
       *process = 0,
-      *spooldir = "/var/spool/openpbx.org",
+      *spooldir = "/var/spool/callweaver.org",
       *motxchannel = "Local/1709400X",
       *motxcallerid = 0,
       *mttxchannel = 0,
@@ -666,7 +666,7 @@ main (int argc, const char *argv[])
       return 1;
    }
 
-   /* Spooldir is setgid openpbx; allow created files to be group-writable */
+   /* Spooldir is setgid callweaver; allow created files to be group-writable */
    umask(0002);
 
    if (oa || da)

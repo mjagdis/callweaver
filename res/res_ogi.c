@@ -44,7 +44,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://ctrix@svn.openpbx.org/openpbx/trunk/res/res_ogi.c $", "$Revision: 1547 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://ctrix@svn.callweaver.org/callweaver/trunk/res/res_ogi.c $", "$Revision: 1547 $")
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -1626,7 +1626,7 @@ static ogi_command commands[MAX_COMMANDS] = {
 	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
 	{ { "control", "stream", "file", NULL }, handle_controlstreamfile, "Sends audio file on channel and allows the listner to control the stream", usage_controlstreamfile },
 	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode },
-	{ { "verbose", NULL }, handle_verbose, "Logs a message to the openpbx verbose log", usage_verbose },
+	{ { "verbose", NULL }, handle_verbose, "Logs a message to the callweaver verbose log", usage_verbose },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 };
 

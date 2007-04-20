@@ -36,8 +36,8 @@
 #endif
 
 
-/* provided in openpbx.c */
-extern int openpbx_main(int argc, char *argv[]);
+/* provided in callweaver.c */
+extern int callweaver_main(int argc, char *argv[]);
 extern char opbx_config_OPBX_CONFIG_DIR[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_CONFIG_FILE[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_MODULE_DIR[OPBX_CONFIG_MAX_PATH];
@@ -59,7 +59,7 @@ extern char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_SYSTEM_NAME[20];
 extern char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
 
-/* Provided by openpbx.c */
+/* Provided by callweaver.c */
 extern int opbx_set_priority(int);
 /* Provided by module.c */
 extern int load_modules(const int preload_only);

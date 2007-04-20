@@ -20,7 +20,7 @@
 
 /*
  * Synthetic frame generation definitions.
- * This only needs to be included by openpbx/channel.h
+ * This only needs to be included by callweaver/channel.h
  */
 
 #ifndef _CALLWEAVER_GENERATOR_H

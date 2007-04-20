@@ -87,7 +87,7 @@ static char save_dialplan_help[] =
 "Usage: save dialplan [/path/to/extension/file]\n"
 "       Save dialplan created by pbx_config module.\n"
 "\n"
-"Example: save dialplan                 (/etc/openpbx/extensions.conf)\n"
+"Example: save dialplan                 (/etc/callweaver/extensions.conf)\n"
 "         save dialplan /home/markster  (/home/markster/extensions.conf)\n";
 
 static char context_add_extension_help[] =

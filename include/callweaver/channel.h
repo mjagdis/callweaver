@@ -883,7 +883,7 @@ char *opbx_transfercapability2str(int transfercapability);
 /* Options: Some low-level drivers may implement "options" allowing fine tuning of the
    low level channel.  See frame.h for options.  Note that many channel drivers may support
    none or a subset of those features, and you should not count on this if you want your
-   openpbx application to be portable.  They're mainly useful for tweaking performance */
+   callweaver application to be portable.  They're mainly useful for tweaking performance */
 
 /*! Sets an option on a channel */
 /*! 

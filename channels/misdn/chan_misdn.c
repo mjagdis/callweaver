@@ -41,27 +41,27 @@
 #include <sys/file.h>
 #include <semaphore.h>
 
-#include <openpbx/channel.h>
-#include <openpbx/config.h>
-#include <openpbx/logger.h>
-#include <openpbx/module.h>
-#include <openpbx/pbx.h>
-#include <openpbx/options.h>
-#include <openpbx/io.h>
-#include <openpbx/frame.h>
-#include <openpbx/translate.h>
-#include <openpbx/cli.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/dsp.h>
-#include <openpbx/translate.h>
-#include <openpbx/config.h>
-#include <openpbx/file.h>
-#include <openpbx/phone_no_utils.h>
-#include <openpbx/indications.h>
-#include <openpbx/app.h>
-#include <openpbx/features.h>
-#include <openpbx/term.h>
-#include <openpbx/sched.h>
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/io.h"
+#include "callweaver/frame.h"
+#include "callweaver/translate.h"
+#include "callweaver/cli.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/dsp.h"
+#include "callweaver/translate.h"
+#include "callweaver/config.h"
+#include "callweaver/file.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/indications.h"
+#include "callweaver/app.h"
+#include "callweaver/features.h"
+#include "callweaver/term.h"
+#include "callweaver/sched.h"
 
 #include <chan_misdn_config.h>
 #include <isdn_lib.h>
@@ -104,7 +104,7 @@ int misdn_jb_get_level(struct misdn_jb *jb);
 enum misdn_chan_state {
 	MISDN_NOTHING,		/*!< at beginning */
 	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
-	MISDN_EXTCANTMATCH, /*!<  when openpbx couldnt match our ext */
+	MISDN_EXTCANTMATCH, /*!<  when callweaver couldnt match our ext */
 	MISDN_DIALING, /*!<  when pbx_start */
 	MISDN_PROGRESS, /*!<  we got a progress */
 	MISDN_PROCEEDING, /*!<  we got a progress */
@@ -274,7 +274,7 @@ static int pbx_start_chan(struct chan_list *ch);
 #define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
 #define MISDN_ASTERISK_PVT(ast) 1
 
-#include <openpbx/strings.h>
+#include "callweaver/strings.h"
 
 /* #define MISDN_DEBUG 1 */
 
@@ -872,7 +872,7 @@ struct state_struct {
 static struct state_struct state_array[] = {
 	{MISDN_NOTHING,"NOTHING"}, /* at beginning */
 	{MISDN_WAITING4DIGS,"WAITING4DIGS"}, /*  when waiting for infos */
-	{MISDN_EXTCANTMATCH,"EXTCANTMATCH"}, /*  when openpbx couldnt match our ext */
+	{MISDN_EXTCANTMATCH,"EXTCANTMATCH"}, /*  when callweaver couldnt match our ext */
 	{MISDN_DIALING,"DIALING"}, /*  when pbx_start */
 	{MISDN_PROGRESS,"PROGRESS"}, /*  when pbx_start */
 	{MISDN_PROCEEDING,"PROCEEDING"}, /*  when pbx_start */

@@ -1561,7 +1561,7 @@ static int adsi_exec(struct opbx_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	if (opbx_strlen_zero(data))
-		data = "openpbx.adsi";
+		data = "callweaver.adsi";
 	
 	if (!adsi_available(chan)) {
 		if (option_verbose > 2)

@@ -23,11 +23,11 @@
 #include "sccp_channel.h"
 #include "sccp_indicate.h"
 
-#include <openpbx/app.h>
-#include <openpbx/pbx.h>
-#include <openpbx/opbxdb.h>
-#include <openpbx/utils.h>
-#include <openpbx/devicestate.h>
+#include "callweaver/app.h"
+#include "callweaver/pbx.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/utils.h"
+#include "callweaver/devicestate.h"
 
 
 void sccp_dev_build_buttontemplate(sccp_device_t *d, btnlist * btn) {
@@ -776,7 +776,7 @@ void * sccp_dev_postregistration(void *data) {
 	/* turn off the device MWI light. We need to force it off on some phone (7910 for example) */
 	sccp_dev_set_mwi(d, NULL, 0);
 
-	/* poll the state of the openpbx hints extensions and notify the state to the phone */
+	/* poll the state of the callweaver hints extensions and notify the state to the phone */
 	h = d->hints;
 	while (h) {
 		/* force the hint state for non SCCP (or mixed) devices */

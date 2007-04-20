@@ -98,7 +98,7 @@ static char *descrip =
 "             don't allow callerids from other extensions then the ones\n"
 "             that are assigned to you.\n"
 "      'o' -- Original (inbound) Caller*ID should be placed on the outbound leg of the call\n" 
-"             instead of using the destination extension (old style openpbx behavior)\n"
+"             instead of using the destination extension (old style callweaver behavior)\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
 "                      with the specified class.\n"

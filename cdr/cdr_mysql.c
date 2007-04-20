@@ -19,16 +19,16 @@
  *
  */
 
-#include <openpbx.h>
+#include <callweaver.h>
 
 #include <sys/types.h>
-#include <openpbx/config.h>
-#include <openpbx/options.h>
-#include <openpbx/channel.h>
-#include <openpbx/cdr.h>
-#include <openpbx/module.h>
-#include <openpbx/logger.h>
-#include <openpbx/cli.h>
+#include <callweaver/config.h>
+#include <callweaver/options.h>
+#include <callweaver/channel.h>
+#include <callweaver/cdr.h>
+#include <callweaver/module.h>
+#include <callweaver/logger.h>
+#include <callweaver/cli.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -331,8 +331,8 @@ static int my_load_module(void)
 			return -1;
 		}
 	} else {
-		opbx_log(LOG_WARNING, "MySQL database not specified.  Assuming openpbxcdrdb\n");
-		dbname = "openpbxcdrdb";
+		opbx_log(LOG_WARNING, "MySQL database not specified.  Assuming callweavercdrdb\n");
+		dbname = "callweavercdrdb";
 	}
 
 	tmp = opbx_variable_retrieve(cfg, "global", "user");

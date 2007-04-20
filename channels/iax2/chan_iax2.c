@@ -27,6 +27,27 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <arpa/inet.h>
+#include <dirent.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/time.h>
+#include <sys/signal.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <regex.h>
+#include "iax2.h"
+#include "iax2-parser.h"
 
 #include "callweaver.h"
 
@@ -61,30 +82,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/netsock.h"
 
-#include <sys/mman.h>
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <sys/time.h>
-#include <sys/signal.h>
-#include <signal.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <regex.h>
-#include "iax2.h"
-#include "iax2-parser.h"
-
 #ifdef IAX_TRUNKING
-#include <openpbx/timer.h>
+#include "callweaver/timer.h"
+
 opbx_timer_t trunktimer;
 #endif
 

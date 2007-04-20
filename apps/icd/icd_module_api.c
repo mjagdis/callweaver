@@ -115,7 +115,7 @@ static int icd_module_load_from_file(char *filename, icd_config_registry * regis
 /* this is called from app_icd.c->load_module                */
 icd_status icd_module_load_dynamic_module(icd_config_registry * registry)
 {
-    static char *mydir = "/opt/openpbx.org/lib/modules/icd";
+    static char *mydir = "/opt/callweaver.org/lib/modules/icd";
     char file[512];
     DIR *dir;
     struct dirent *de;

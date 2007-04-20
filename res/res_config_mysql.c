@@ -38,16 +38,6 @@
  *                       Code beautification (doc/CODING-GUIDELINES)
  */
 
-#include <openpbx.h>
-
-#include <openpbx/channel.h>
-#include <openpbx/logger.h>
-#include <openpbx/config.h>
-#include <openpbx/module.h>
-#include <openpbx/lock.h>
-#include <openpbx/options.h>
-#include <openpbx/cli.h>
-#include <openpbx/utils.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,6 +45,17 @@
 #include <mysql/mysql.h>
 #include <mysql/mysql_version.h>
 #include <mysql/errmsg.h>
+
+#include "callweaver.h"
+
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/config.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/options.h"
+#include "callweaver/cli.h"
+#include "callweaver/utils.h"
 
 STANDARD_LOCAL_USER;
 
@@ -541,15 +542,15 @@ static int parse_config (void)
 
 	if(config) {
 		if(!(s=opbx_variable_retrieve(config, "general", "dbuser"))) {
-			opbx_log(LOG_WARNING, "MySQL RealTime: No database user found, using 'openpbx' as default.\n");
-			strncpy(dbuser, "openpbx", sizeof(dbuser) - 1);
+			opbx_log(LOG_WARNING, "MySQL RealTime: No database user found, using 'callweaver' as default.\n");
+			strncpy(dbuser, "callweaver", sizeof(dbuser) - 1);
 		} else {
 			strncpy(dbuser, s, sizeof(dbuser) - 1);
 		}
 
 		if(!(s=opbx_variable_retrieve(config, "general", "dbpass"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database password found, using 'openpbx' as default.\n");
-                        strncpy(dbpass, "openpbx", sizeof(dbpass) - 1);
+                        opbx_log(LOG_WARNING, "MySQL RealTime: No database password found, using 'callweaver' as default.\n");
+                        strncpy(dbpass, "callweaver", sizeof(dbpass) - 1);
                 } else {
                         strncpy(dbpass, s, sizeof(dbpass) - 1);
                 }
@@ -562,8 +563,8 @@ static int parse_config (void)
                 }
 
 		if(!(s=opbx_variable_retrieve(config, "general", "dbname"))) {
-                        opbx_log(LOG_WARNING, "MySQL RealTime: No database name found, using 'openpbx' as default.\n");
-			strncpy(dbname, "openpbx", sizeof(dbname) - 1);
+                        opbx_log(LOG_WARNING, "MySQL RealTime: No database name found, using 'callweaver' as default.\n");
+			strncpy(dbname, "callweaver", sizeof(dbname) - 1);
                 } else {
                         strncpy(dbname, s, sizeof(dbname) - 1);
                 }

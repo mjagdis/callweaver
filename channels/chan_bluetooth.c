@@ -7,7 +7,7 @@
  * 
  * Modifications by Chris Halls <halls@debian.org>
  *
- * openpbx'ized by Rico Gloeckner <mc+openpbx@ukeer.de>
+ * callweaver'ized by Rico Gloeckner <mc+callweaver@ukeer.de>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

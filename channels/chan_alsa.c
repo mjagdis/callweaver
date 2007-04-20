@@ -3128,7 +3128,7 @@ int load_module()
 	if (res < 0) {
 		if (option_verbose > 1) {
 			opbx_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
-			opbx_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/openpbx/modules.conf\n");
+			opbx_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/callweaver/modules.conf\n");
 		}
 		return 0;
 	}

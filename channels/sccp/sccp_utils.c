@@ -20,9 +20,10 @@
 #include "chan_sccp.h"
 #include "sccp_utils.h"
 #include "sccp_indicate.h"
-#include <openpbx/opbxdb.h>
-#include <openpbx/pbx.h>
-#include <openpbx/utils.h>
+
+#include "callweaver/opbxdb.h"
+#include "callweaver/pbx.h"
+#include "callweaver/utils.h"
 
 sccp_device_t * sccp_device_find_byid(const char * name) {
   sccp_device_t * d;
@@ -238,9 +239,9 @@ void sccp_dev_dbput(sccp_device_t * d) {
 		cfwdbusy[strlen(cfwdbusy)-1] = '\0';
 
 	snprintf(tmp, sizeof(tmp), "dnd=%d,cfwdall=%s,cfwdbusy=%s", d->dnd, cfwdall, cfwdbusy);
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Storing device status (dnd, cfwd*) in the openpbx db\n", d->id);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Storing device status (dnd, cfwd*) in the callweaver db\n", d->id);
 	if (opbx_db_put("SCCP", d->id, tmp))
-		opbx_log(LOG_NOTICE, "%s: Unable to store device status (dnd, cfwd*) in the openpbx db\n", d->id);
+		opbx_log(LOG_NOTICE, "%s: Unable to store device status (dnd, cfwd*) in the callweaver db\n", d->id);
 	opbx_mutex_unlock(&d->lock);
 }
 
@@ -276,7 +277,7 @@ void sccp_dev_dbget(sccp_device_t * d) {
 
 	if (!d)
 		return;
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Restoring device status (dnd, cfwd*) from the openpbx db\n", d->id);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Restoring device status (dnd, cfwd*) from the callweaver db\n", d->id);
 	if (opbx_db_get("SCCP", d->id, result, sizeof(result))) {
 		return;
 	}
@@ -320,7 +321,7 @@ void sccp_dev_dbclean() {
 			}
 			if (!d) {
 				opbx_db_del("SCCP", key);
-				sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: device %s removed from openpbx database\n", entry->key);
+				sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: device %s removed from callweaver database\n", entry->key);
 			}
 
 		}

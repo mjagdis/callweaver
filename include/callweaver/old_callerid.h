@@ -150,13 +150,13 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags);
  */
 extern void callerid_free(struct callerid_state *cid);
 
-/*! Generate Caller-ID spill from the "callerid" field of openpbx (in e-mail address like format) */
+/*! Generate Caller-ID spill from the "callerid" field of callweaver (in e-mail address like format) */
 /*!
  * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
- * \param astcid CallWeaver format callerid string, taken from the callerid field of openpbx.
+ * \param astcid CallWeaver format callerid string, taken from the callerid field of callweaver.
  * \param codec CallWeaver codec (either OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
  *
- * Acts like callerid_generate except uses an openpbx format callerid string.
+ * Acts like callerid_generate except uses an callweaver format callerid string.
  */
 extern int opbx_callerid_generate(uint8_t *buf, char *name, char *number, int codec);
 

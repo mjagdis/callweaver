@@ -80,7 +80,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define COMMAND_TIMEOUT 5000
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
-#define CALLWEAVER_USERNAME "openpbx"
+#define CALLWEAVER_USERNAME "callweaver"
 
 /* Default mail command to mail voicemail. Change it with the
     mailcmd= command in voicemail.conf */
@@ -5804,7 +5804,7 @@ static int load_config(void)
 		opbx_set2_flag((&globalflags), opbx_true(astattach), VM_ATTACH);	
 
 #ifdef USE_ODBC_STORAGE
-		strcpy(odbc_database, "openpbx");
+		strcpy(odbc_database, "callweaver");
 		if ((thresholdstr = opbx_variable_retrieve(cfg, "general", "odbcstorage"))) {
 			opbx_copy_string(odbc_database, thresholdstr, sizeof(odbc_database));
 		}

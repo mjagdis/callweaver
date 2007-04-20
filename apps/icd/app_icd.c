@@ -113,7 +113,7 @@ int icd_debug = 0;
 /* delimiter for lists of options in icd conf files */
 char icd_delimiter = '|';
 
-/* delimiter for args in interface to openpbx _exec functions */
+/* delimiter for args in interface to callweaver _exec functions */
 char opbx_delimiter = '|';
 
 /* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
@@ -369,7 +369,7 @@ int reload(void)
 {
     icd_status result;
 
-    opbx_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from openpbx cli \n");
+    opbx_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from callweaver cli \n");
     /* the ICD way */
     reload_app_icd(APP_ICD);
 
@@ -1347,7 +1347,7 @@ int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
 
     LOCAL_USER_ADD(u);
 
-    /* Deal with incomplete state change in channel received from openpbx */
+    /* Deal with incomplete state change in channel received from callweaver */
     if (chan->_state != OPBX_STATE_UP) {
         res = opbx_answer(chan);
     }

@@ -38,7 +38,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/codecs/codec_g722.c $", "$Revision: 2254 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/codecs/codec_g722.c $", "$Revision: 2254 $")
 
 #include "callweaver/lock.h"
 #include "callweaver/logger.h"

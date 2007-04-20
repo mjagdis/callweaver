@@ -508,7 +508,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
     }
     // This is activated when we don't receive any frame for
     // X seconds (see above)... we are probably on ZAP or talking without UDPTL to
-    // another openpbx box
+    // another callweaver box
 
     if (generator_mode) {
 	if (dsp)

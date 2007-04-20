@@ -27,7 +27,7 @@
  */
  
  /*! \file
-  *  \brief icd_mod_event_astmgr.c - interface to send events to the openpbx.org manager
+  *  \brief icd_mod_event_astmgr.c - interface to send events to the callweaver.org manager
   */
  
 #ifdef HAVE_CONFIG_H

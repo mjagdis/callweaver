@@ -12,8 +12,6 @@
  * the GNU General Public License
  */
 
-#include <openpbx.h>
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -24,14 +22,16 @@
 
 #include <mysql/mysql.h>
 
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/linkedlists.h>
-#include <openpbx/chanvars.h>
-#include <openpbx/lock.h>
+#include "callweaver.h"
+
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/linkedlists.h"
+#include "callweaver/chanvars.h"
+#include "callweaver/lock.h"
 
 STANDARD_LOCAL_USER;
 
@@ -69,7 +69,7 @@ static char *descrip =
 /*	
 EXAMPLES OF USE : 
 
-exten => s,2,MYSQL(Connect connid localhost openpbx mypass credit)
+exten => s,2,MYSQL(Connect connid localhost callweaver mypass credit)
 exten => s,3,MYSQL(Query resultid ${connid} SELECT username,credit FROM credit WHERE callerid=${CALLERIDNUM})
 exten => s,4,MYSQL(Fetch fetchid ${resultid} datavar1 datavar2)
 exten => s,5,GotoIf(${fetchid}?6:8)
@@ -181,7 +181,7 @@ static int del_identifier(int identifier,int identifier_type) {
 	}
 }
 
-static int set_openpbx_int(struct opbx_channel *chan, char *varname, int id) {
+static int set_callweaver_int(struct opbx_channel *chan, char *varname, int id) {
 	if( id>=0 ) {
 		char s[100] = "";
 		snprintf(s, sizeof(s)-1, "%d", id);
@@ -193,8 +193,8 @@ static int set_openpbx_int(struct opbx_channel *chan, char *varname, int id) {
 	return id;
 }
 
-static int add_identifier_and_set_openpbx_int(struct opbx_channel *chan, char *varname, int identifier_type, void *data) {
-	return set_openpbx_int(chan,varname,add_identifier(identifier_type,data));
+static int add_identifier_and_set_callweaver_int(struct opbx_channel *chan, char *varname, int identifier_type, void *data) {
+	return set_callweaver_int(chan,varname,add_identifier(identifier_type,data));
 }
 
 static int safe_scan_int( char** data, char* delim, int def ) {
@@ -231,7 +231,7 @@ static int aMYSQL_connect(struct opbx_channel *chan, char *data) {
 		mysql = mysql_init(NULL);
 		if (mysql) {
 			if (mysql_real_connect(mysql,dbhost,dbuser,dbpass,dbname,0,NULL,0)) {
-				add_identifier_and_set_openpbx_int(chan,connid_var,OPBX_MYSQL_ID_CONNID,mysql);
+				add_identifier_and_set_callweaver_int(chan,connid_var,OPBX_MYSQL_ID_CONNID,mysql);
 				return 0;
 			}
 			else {
@@ -268,7 +268,7 @@ static int aMYSQL_query(struct opbx_channel *chan, char *data) {
 		if ((mysql=find_identifier(connid,OPBX_MYSQL_ID_CONNID))!=NULL) {
 			mysql_query(mysql,querystring);
 			if ((mysqlres=mysql_use_result(mysql))!=NULL) {
-				add_identifier_and_set_openpbx_int(chan,resultid_var,OPBX_MYSQL_ID_RESID,mysqlres);
+				add_identifier_and_set_callweaver_int(chan,resultid_var,OPBX_MYSQL_ID_RESID,mysqlres);
 				return 0;
 			}
 			else if( mysql_field_count(mysql)==0 ) {
@@ -320,12 +320,12 @@ static int aMYSQL_fetch(struct opbx_channel *chan, char *data) {
 #if EXTRA_LOG
 				opbx_log(LOG_WARNING,"opbx_MYSQL_fetch: numFields=%d\n",numFields);
 #endif
-				set_openpbx_int(chan,fetchid_var,1); // try more rows
+				set_callweaver_int(chan,fetchid_var,1); // try more rows
 			} else {
 #if EXTRA_LOG
 				opbx_log(LOG_WARNING,"opbx_MYSQL_fetch : EOF\n");
 #endif
-				set_openpbx_int(chan,fetchid_var,0); // no more rows
+				set_callweaver_int(chan,fetchid_var,0); // no more rows
 			}
 			return 0;
 		}

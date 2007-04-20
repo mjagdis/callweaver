@@ -1,14 +1,14 @@
 /* comments and license {{{
  * vim:ts=4:sw=4:smartindent:cindent:autoindent:foldmethod=marker
  *
- * openpbx -- an open source telephony toolkit.
+ * CallWeaver -- an open source telephony toolkit.
  *
  * copyright (c) 1999 - 2005, digium, inc.
  *
  * roy sigurd karlsbakk <roy@karlsbakk.net>
  *
  * see http://www.callweaver.org for more information about
- * the openpbx project. please do not directly contact
+ * the callweaver project. please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and irc
  * channels for your use.
@@ -33,7 +33,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$headurl: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/funcs/func_config.c $", "$revision: 2183 $")
+CALLWEAVER_FILE_VERSION("$headurl: svn+ssh://svn@svn.callweaver.org/callweaver/trunk/funcs/func_config.c $", "$revision: 2183 $")
 
 #include "callweaver/module.h"
 #include "callweaver/channel.h"
@@ -44,7 +44,7 @@ CALLWEAVER_FILE_VERSION("$headurl: svn+ssh://svn@svn.openpbx.org/openpbx/trunk/f
 /* function_config_read() {{{ */
 static char *function_config_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-/* These doesn't seem to be available outside openpbx.c
+/* These doesn't seem to be available outside callweaver.c
 	if (strcasecmp(data, "opbxrunuser") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_USER, len);
 	} else if (strcasecmp(data, "opbxrungroup") == 0) {
@@ -94,16 +94,16 @@ static char *function_config_read(struct opbx_channel *chan, char *cmd, char *da
 /* function_config_write() {{{ */
 static void function_config_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
 {
-	opbx_log(LOG_WARNING, "This function cannot be used to change the CallWeaver config. Modify openpbx.conf manually and restart.\n");
+	opbx_log(LOG_WARNING, "This function cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 }
 /* function_config_write() }}} */
 
 /* globals {{{ */
 static struct opbx_custom_function config_function = {
 	.name = "CONFIG",
-	.synopsis = "Read configuration values set in openpbx.conf",
+	.synopsis = "Read configuration values set in callweaver.conf",
 	.syntax = "CONFIG(<name>)",
-	.desc = "This function will read configuration values set in openpbx.conf.\n"
+	.desc = "This function will read configuration values set in callweaver.conf.\n"
 			"Possible values include opbxctlpermissions, opbxctlowner, opbxctlgroup,\n"
 			"opbxctl, opbxdb, opbxetcdir, opbxconfigdir, opbxspooldir, opbxvarlibdir,\n"
 			"opbxvardir, opbxdbdir, opbxlogdir, opbxogidir, opbxsoundsdir, and opbxrundir\n",

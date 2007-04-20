@@ -22,7 +22,7 @@
  * 
  * \author Pauline Middelink <middelink at polyware.nl>
  *
- * Load the country specific dialtones into the openpbx PBX.
+ * Load the country specific dialtones into the callweaver PBX.
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

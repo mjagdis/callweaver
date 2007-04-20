@@ -197,8 +197,8 @@ static void *recordthread(void *args);
 
 #define CONFFLAG_ADMIN	(1 << 1)	/* If set the user has admin access on the conference */
 #define CONFFLAG_MONITOR (1 << 2)	/* If set the user can only receive audio from the conference */
-#define CONFFLAG_POUNDEXIT (1 << 3)	/* If set openpbx will exit conference when '#' is pressed */
-#define CONFFLAG_STARMENU (1 << 4)	/* If set openpbx will provide a menu to the user what '*' is pressed */
+#define CONFFLAG_POUNDEXIT (1 << 3)	/* If set callweaver will exit conference when '#' is pressed */
+#define CONFFLAG_STARMENU (1 << 4)	/* If set callweaver will provide a menu to the user what '*' is pressed */
 #define CONFFLAG_TALKER (1 << 5)	/* If set the use can only send audio to the conference */
 #define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */

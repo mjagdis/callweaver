@@ -43,7 +43,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/cdr/cdr_pgsql_custom.c $", "$Revision: 1589 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/cdr/cdr_pgsql_custom.c $", "$Revision: 1589 $")
 
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"
@@ -92,8 +92,8 @@ static int parse_config(void)
 		/* get the PostgreSQL DSN */
 		s = opbx_variable_retrieve(config, "global", "dsn");
 		if (s == NULL) {
-			opbx_log(LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=openpbx user=openpbx'.\n");
-			strncpy(conninfo, "dbname=openpbx user=openpbx", sizeof(conninfo));
+			opbx_log(LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
+			strncpy(conninfo, "dbname=callweaver user=callweaver", sizeof(conninfo));
 		} else {
 			strncpy(conninfo, s, sizeof(conninfo));
 		}

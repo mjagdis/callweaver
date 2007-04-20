@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005, Frank Sautter, levigo holding gmbh, www.levigo.de
  *
- * Frank Sautter - openpbx+at+sautter+dot+com 
+ * Frank Sautter - callweaver+at+sautter+dot+com 
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact

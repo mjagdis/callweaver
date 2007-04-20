@@ -284,7 +284,7 @@ static struct opbx_key *try_load_key (char *dir, char *fname, int ifd, int ofd, 
 		key->ktype |= KEY_NEEDS_PASSCODE;
 		if (!notice) {
 			if (!option_initcrypto) 
-				opbx_log(LOG_NOTICE, "Add the '-i' flag to the openpbx command line if you want to automatically initialize passcodes at launch.\n");
+				opbx_log(LOG_NOTICE, "Add the '-i' flag to the callweaver command line if you want to automatically initialize passcodes at launch.\n");
 			notice++;
 		}
 		/* Keep it anyway */

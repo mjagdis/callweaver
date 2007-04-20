@@ -662,20 +662,20 @@ static void tech_init(private_object *tech_pvt, woomera_profile *profile, int fl
 	opbx_set_flag(tech_pvt, flags);
 
 
-	/* Openpbx being openpbx and all allows approx 1 nanosecond 
+	/* Openpbx being callweaver and all allows approx 1 nanosecond 
 	 * to try and establish a connetion here before it starts crying.
-	 * Now openpbx, being unsure of it's self will not enforce a lock while we work
+	 * Now callweaver, being unsure of it's self will not enforce a lock while we work
 	 * and after even a 1 second delay it will give up on the lock and mess everything up
-	 * This stems from the fact that openpbx will scan it's list of channels constantly for 
+	 * This stems from the fact that callweaver will scan it's list of channels constantly for 
 	 * silly reasons like tab completion and cli output.
 	 *
 	 * Anyway, since we've already spent that nanosecond with the previous line of code
 	 * tech_create_read_socket(tech_pvt); to setup a read socket
-	 * which, by the way, openpbx insists we have before going any furthur.  
-	 * So, in short, we are between a rock and a hard place and openpbx wants us to open a socket here
+	 * which, by the way, callweaver insists we have before going any furthur.  
+	 * So, in short, we are between a rock and a hard place and callweaver wants us to open a socket here
 	 * but it too impaitent to wait for us to make sure it's ready so in the case of outgoing calls
 	 * we will defer the rest of the socket establishment process to the monitor thread.  This is, of course, common 
-	 * knowledge since openpbx abounds in documentation right?, sorry to bother you with all this!
+	 * knowledge since callweaver abounds in documentation right?, sorry to bother you with all this!
 	 */
 	if (globals.more_threads) {
 		opbx_set_flag(tech_pvt, TFLAG_ACTIVATE);
@@ -785,7 +785,7 @@ static void *tech_monitor_thread(void *obj)
 		if (globals.panic) {
 			opbx_set_flag(tech_pvt, TFLAG_ABORT);
 		}
-		/* finish the deferred crap openpbx won't allow us to do live */
+		/* finish the deferred crap callweaver won't allow us to do live */
 
 		if (opbx_test_flag(tech_pvt, TFLAG_ABORT)) {
 			if (tech_pvt->command_channel) {
@@ -1568,7 +1568,7 @@ static int tech_send_digit(struct opbx_channel *self, char digit)
 		opbx_verbose(WOOMERA_DEBUG_PREFIX "+++DIGIT %s '%c'\n",self->name, digit);
 	}
 
-	/* we don't have time to make sure the dtmf command is successful cos openpbx again 
+	/* we don't have time to make sure the dtmf command is successful cos callweaver again 
 	   is much too impaitent... so we will cache the digits so the monitor thread can send
 	   it for us when it has time to actually wait.
 	*/

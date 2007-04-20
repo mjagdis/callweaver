@@ -4602,7 +4602,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			if(last_port==0){
 				last_port=sin->sin_port;
 			} else if(sin->sin_port != last_port)
-				opbx_log(LOG_WARNING, "change to port ignored until next openpbx re-start\n");
+				opbx_log(LOG_WARNING, "change to port ignored until next callweaver re-start\n");
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			struct hostent *hp;
 			struct opbx_hostent he;

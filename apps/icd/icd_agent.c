@@ -569,7 +569,7 @@ icd_status icd_agent__standard_cleanup_caller(icd_caller * that)
             icd_bridge__safe_hangup(that);
             /*%TC wait for hangup to reset, a zap chan may have come from fail state not call end no wrapuptime
              * so we go back on dist & try dial & zap rets busy in endless loop :(, maybe we hack 
-             * icd_bridge_dial_openpbx_channel to wait 1sec & retry if a Zap channel rets busy ?
+             * icd_bridge_dial_callweaver_channel to wait 1sec & retry if a Zap channel rets busy ?
              */
             sleep(1);
         }

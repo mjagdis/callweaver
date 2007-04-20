@@ -49,7 +49,7 @@
    -- distinguish CA and GW default MGCP ports
    -- prevent clipping of DTMF tones in an established call
    -- fixed a few crash scenarios in 3-way
-   -- fix for a few cases where openpbx and MGW end-up in conflicting ep states 
+   -- fix for a few cases where callweaver and MGW end-up in conflicting ep states 
    -- enclose numeric IP in [] for outgoing requests
 */
 
@@ -339,7 +339,7 @@ struct mgcp_response {
 
 struct mgcp_subchannel {
 	/* SC: subchannel magic string. 
-	   Needed to prove that any subchannel pointer passed by openpbx 
+	   Needed to prove that any subchannel pointer passed by callweaver 
 	   really points to a valid subchannel memory area.
 	   Ugly.. But serves the purpose for the time being.
 	 */

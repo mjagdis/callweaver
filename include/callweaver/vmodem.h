@@ -131,9 +131,9 @@ struct opbx_modem_pvt {
 	char cid_name[OPBX_MAX_EXTENSION];	
 	/*! Caller ID if available */
 	char cid_num[OPBX_MAX_EXTENSION];	
-	/*! DTMF-detection mode (i4l/openpbx) */
+	/*! DTMF-detection mode (i4l/callweaver) */
 	int dtmfmode;
-	/*! DTMF-generation mode (i4l (outband) / openpbx (inband) */
+	/*! DTMF-generation mode (i4l (outband) / callweaver (inband) */
 	int dtmfmodegen;
 	/*! DSP for DTMF detection */
 	struct opbx_dsp *dsp;

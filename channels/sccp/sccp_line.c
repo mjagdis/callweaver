@@ -22,7 +22,8 @@
 #include "sccp_utils.h"
 #include "sccp_device.h"
 #include "sccp_channel.h"
-#include <openpbx/utils.h>
+
+#include "callweaver/utils.h"
 
 /* Kills a line's channels. */
 /* Called with a lock on l->lock */

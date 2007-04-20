@@ -77,7 +77,7 @@ static char *descrip =
     "Typical usage is to use to handle called from the SMS service centre CLI,\n"
     "or to set up a call using 'outgoing' or manager interface to connect\n"
     "service centre to SMS()\n"
-    "name is the name of the queue used in /var/spool/openpbx.org/sms\n"
+    "name is the name of the queue used in /var/spool/callweaver.org/sms\n"
     "Arguments:\n"
     " a: answer, i.e. send initial FSK packet.\n"
     " s: act as service centre talking to a phone.\n"

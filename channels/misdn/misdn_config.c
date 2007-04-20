@@ -33,13 +33,13 @@
 
 #include "chan_misdn_config.h"
 
-#include <openpbx/config.h>
-#include <openpbx/channel.h>
-#include <openpbx/logger.h>
-#include <openpbx/lock.h>
-#include <openpbx/pbx.h>
-#include <openpbx/strings.h>
-#include <openpbx/utils.h>
+#include "callweaver/config.h"
+#include "callweaver/channel.h"
+#include "callweaver/logger.h"
+#include "callweaver/lock.h"
+#include "callweaver/pbx.h"
+#include "callweaver/strings.h"
+#include "callweaver/utils.h"
 
 #define OPBX_LOAD_CFG opbx_config_load
 #define OPBX_DESTROY_CFG opbx_config_destroy
@@ -317,7 +317,7 @@ static const struct misdn_cfg_spec gen_spec[] = {
 		"\t4 - even more Verbose than 3" },
 	{ "misdn_init", MISDN_GEN_MISDN_INIT, MISDN_CTYPE_STR, "/etc/misdn-init.conf", NONE,
 		"Set the path to the misdn-init.conf (for nt_ptp mode checking)." },
-	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/openpbx.org/misdn.log", NONE,
+	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/callweaver.org/misdn.log", NONE,
 		"Set the path to the massively growing trace file, if you want that." },
 	{ "bridging", MISDN_GEN_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE,
 		"Set this to yes if you want mISDN_dsp to bridge the calls in HW." },

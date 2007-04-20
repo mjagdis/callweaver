@@ -21,8 +21,9 @@
 #ifndef _NCONFERENCE_COMMON_H
 #define NCONFERENCE_COMMON_H
 
-/* openpbx includes */
+/* callweaver includes */
 #include "callweaver.h"
+
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

@@ -171,7 +171,7 @@ int opbx_manager_register2(
 */
 int opbx_manager_unregister( char *action );
 
-/*! External routines may send openpbx manager events this way */
+/*! External routines may send callweaver manager events this way */
 /*! 	\param category	Event category, matches manager authorization
 	\param event	Event name
 	\param contents	Contents of event

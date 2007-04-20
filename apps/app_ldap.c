@@ -18,21 +18,21 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#include <openpbx/options.h>
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/opbxdb.h>
-#include <openpbx/lock.h>
-#include <openpbx/config.h>
-#include <openpbx/utils.h>
-
 #include <ctype.h>
 #include <errno.h>
 #include <iconv.h>
 #include <ldap.h>
+
+#include "callweaver/options.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/lock.h"
+#include "callweaver/config.h"
+#include "callweaver/utils.h"
 
 #define LDAP_CONFIG "ldap.conf"
 

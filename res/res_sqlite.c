@@ -128,8 +128,8 @@ struct switch_config {
 };
 
 static char *desc = "SQLite Resource Module";
-static char default_dbfile[ARRAY_SIZE] = {"/usr/local/openpbx/sqlite/openpbx.db"};
-static char clidb[ARRAY_SIZE] = {"/usr/local/openpbx/sqlite/openpbx.db"};
+static char default_dbfile[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
+static char clidb[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
 
 static Hash extens;
 

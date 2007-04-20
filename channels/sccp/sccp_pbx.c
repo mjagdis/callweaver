@@ -24,10 +24,10 @@
 #include "sccp_channel.h"
 #include "sccp_indicate.h"
 
-#include <openpbx/pbx.h>
-#include <openpbx/old_callerid.h>
-#include <openpbx/utils.h>
-#include <openpbx/causes.h>
+#include "callweaver/pbx.h"
+#include "callweaver/old_callerid.h"
+#include "callweaver/utils.h"
+#include "callweaver/causes.h"
 
 static struct opbx_frame * sccp_rtp_read(sccp_channel_t * c) {
 	/* Retrieve audio/etc from channel.  Assumes c->lock is already held. */
@@ -75,7 +75,7 @@ static void * sccp_pbx_call_autoanswer_thread(void *data) {
 }
 
 
-/* this is for incoming calls openpbx sccp_request */
+/* this is for incoming calls callweaver sccp_request */
 static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 	sccp_line_t	 * l;
 	sccp_device_t  * d;
@@ -178,7 +178,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 			c->ringermode = SKINNY_STATION_URGENTRING;
 	}
 
-	/* release the openpbx lock */
+	/* release the callweaver lock */
 	opbx_mutex_unlock(&ast->lock);
 	if ( sccp_channel_get_active(d) ) {
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLWAITING);
@@ -372,13 +372,13 @@ static int sccp_pbx_indicate(struct opbx_channel *ast, int ind) {
 	opbx_mutex_lock(&c->lock);
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Asterisk indicate '%d' (%s) condition on channel %s\n", DEV_ID_LOG(c->device), ind, sccp_control2str(ind), ast->name);
 	if (c->state == SCCP_CHANNELSTATE_CONNECTED) {
-		/* let's openpbx emulate it */
+		/* let's callweaver emulate it */
 		opbx_mutex_unlock(&c->lock);
 		return -1;
 
 	}
 	
-	/* when the rtp media stream is open we will let openpbx emulate the tones */
+	/* when the rtp media stream is open we will let callweaver emulate the tones */
 	if (c->rtp)
 		res = -1;
 
@@ -523,7 +523,7 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 
 	tmp = opbx_channel_alloc(1);
 	if (!tmp) {
-		opbx_log(LOG_ERROR, "%s: Unable to allocate openpbx channel on line %s\n", d->id, l->name);
+		opbx_log(LOG_ERROR, "%s: Unable to allocate callweaver channel on line %s\n", d->id, l->name);
 		return 0;
 	}
 
@@ -600,7 +600,7 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	tmp->pickupgroup = l->pickupgroup;
 #endif
 	tmp->priority = 1;
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Allocated openpbx channel %s-%d\n", d->id, l->name, c->callid);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Allocated callweaver channel %s-%d\n", d->id, l->name, c->callid);
 	return 1;
 }
 

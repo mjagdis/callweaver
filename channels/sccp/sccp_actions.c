@@ -27,11 +27,11 @@
 #include "sccp_line.h"
 #include "sccp_socket.h"
 
-#include <openpbx/pbx.h>
-#include <openpbx/utils.h>
-#include <openpbx/devicestate.h>
+#include "callweaver/pbx.h"
+#include "callweaver/utils.h"
+#include "callweaver/devicestate.h"
 #ifdef CS_SCCP_PICKUP
-#include <openpbx/features.h>
+#include "callweaver/features.h"
 #endif
 
 struct opbx_ha {
@@ -283,8 +283,8 @@ static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
 	}
 
 	if ( strchr(hint_dialplan,'&') || strncasecmp(hint_dialplan,"SCCP",4) ) {
-		/* openpbx style hint system */
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Configuring openpbx (no sccp features) hint %s for exten: %s and context: %s\n", d->id, hint_dialplan, hint_exten, hint_context);
+		/* callweaver style hint system */
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Configuring callweaver (no sccp features) hint %s for exten: %s and context: %s\n", d->id, hint_dialplan, hint_exten, hint_context);
 		h->hintid = opbx_extension_state_add(hint_context, hint_exten, sccp_hint_state, h);
 		if (h->hintid > -1) {
 			opbx_copy_string(h->exten, hint_exten, sizeof(h->exten));
@@ -1281,7 +1281,7 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set the RTP media address to %s:%d\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			opbx_rtp_set_peer(c->rtp, &sin);
 		} else {
-			opbx_log(LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no openpbx rtp channel!\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			opbx_log(LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no callweaver rtp channel!\n", d->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 		}
 		opbx_mutex_unlock(&c->lock);
 	} else {

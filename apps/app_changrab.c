@@ -15,18 +15,8 @@
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
 #endif
-#include <stdio.h>
 
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/utils.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/module.h>
-#include <openpbx/features.h>
-#include <openpbx/cli.h>
-#include <openpbx/manager.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -35,6 +25,17 @@
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.47 $")
+
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/utils.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/module.h"
+#include "callweaver/features.h"
+#include "callweaver/cli.h"
+#include "callweaver/manager.h"
 
 static char *tdesc = "Take over an existing channel and bridge to it.";
 static char *app = "ChanGrab";

@@ -1051,7 +1051,7 @@ static void *icd_command_login_thread(void *arg) {
 	channelstring = icd_caller__get_channel_string(agent);
 	agent_id = icd_caller__get_caller_id(agent);
     chan = icd_caller__get_channel(agent);
-    res = icd_bridge_dial_openpbx_channel(agent, channelstring, 20000);
+    res = icd_bridge_dial_callweaver_channel(agent, channelstring, 20000);
     icd_caller__set_channel(agent, NULL);
     if (res != OPBX_CONTROL_ANSWER){
         opbx_log(LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
@@ -1372,7 +1372,7 @@ argv[1] = start or stop
 argv[2] = customer token 
 argv[3] = if start - directory & file name. %D -day, %M - minute, %S - second. To this failename wil be added
 	  token and .WAV. Example: 
-argv[3] = /tmp/%D/%m/  fliename is: /tmp/29/59/openpbx123123423423454.WAV	                 
+argv[3] = /tmp/%D/%m/  fliename is: /tmp/29/59/callweaver123123423423454.WAV	                 
 */
 
 int icd_command_record(int fd, int argc, char **argv)

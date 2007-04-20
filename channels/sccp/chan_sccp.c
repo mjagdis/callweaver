@@ -17,6 +17,9 @@
 #include "confdefs.h"
 #endif
 
+#include <ctype.h>
+#include <unistd.h>
+
 #include "chan_sccp.h"
 #include "sccp_actions.h"
 #include "sccp_utils.h"
@@ -28,15 +31,12 @@
 #include "sccp_pbx.h"
 #include "sccp_indicate.h"
 
-#include <ctype.h>
-#include <unistd.h>
-#include <openpbx/pbx.h>
-#include <openpbx/old_callerid.h>
-#include <openpbx/utils.h>
-#include <openpbx/causes.h>
-#include <openpbx/devicestate.h>
-#include <openpbx/translate.h>
-
+#include "callweaver/pbx.h"
+#include "callweaver/old_callerid.h"
+#include "callweaver/utils.h"
+#include "callweaver/causes.h"
+#include "callweaver/devicestate.h"
+#include "callweaver/translate.h"
 
 static pthread_t socket_thread;
 
@@ -324,7 +324,7 @@ void sccp_hint_notify_linestate(sccp_line_t * l, uint8_t state, sccp_device_t * 
 		h = h->next;
 	}
 
-	/* notify the openpbx hint system when we are not in a postregistration state (onedevice) */
+	/* notify the callweaver hint system when we are not in a postregistration state (onedevice) */
 	if (!onedevice)
 		opbx_device_state_changed("SCCP/%s", l->name);
 }
@@ -418,7 +418,7 @@ void sccp_hint_notify(sccp_channel_t * c, sccp_device_t * onedevice) {
 	}
 }
 
-/* openpbx hint wrapper */
+/* callweaver hint wrapper */
 int sccp_hint_state(char *context, char* exten, int state, void *data) {
 	sccp_hint_t * h = data;
 	sccp_device_t *d;

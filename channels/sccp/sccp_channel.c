@@ -24,19 +24,21 @@
 #include "sccp_pbx.h"
 #include "sccp_channel.h"
 #include "sccp_indicate.h"
-#include <openpbx/pbx.h>
-#include <openpbx/utils.h>
-#include <openpbx/old_callerid.h>
-#include <openpbx/musiconhold.h>
+
+#include "callweaver/pbx.h"
+#include "callweaver/utils.h"
+#include "callweaver/old_callerid.h"
+#include "callweaver/musiconhold.h"
+
 #ifdef CS_SCCP_PARK
-#include <openpbx/features.h>
+#include "callweaver/features.h"
 #endif
 
 static uint32_t callCount = 1;
 OPBX_MUTEX_DEFINE_STATIC(callCountLock);
 
 sccp_channel_t * sccp_channel_allocate(sccp_line_t * l) {
-/* this just allocate a sccp channel (not the openpbx channel, for that look at sccp_pbx_channel_allocate) */
+/* this just allocate a sccp channel (not the callweaver channel, for that look at sccp_pbx_channel_allocate) */
 	sccp_channel_t * c;
 	sccp_device_t * d;
 
@@ -424,7 +426,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	sccp_channel_set_active(c);
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_OFFHOOK);
 
-	/* ok the number exist. allocate the openpbx channel */
+	/* ok the number exist. allocate the callweaver channel */
 	if (!sccp_pbx_channel_allocate(c)) {
 		opbx_log(LOG_WARNING, "%s: Unable to allocate a new channel for line %s\n", d->id, l->name);
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
@@ -793,7 +795,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	}
 
 	if (!c->owner || !peer->owner) {
-			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer error, openpbx channel error %s-%d and %s-%d\n", d->id, c->line->name, c->callid, peer->line->name, peer->callid);
+			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Transfer error, callweaver channel error %s-%d and %s-%d\n", d->id, c->line->name, c->callid, peer->line->name, peer->callid);
 		return;
 	}
 
@@ -809,7 +811,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 	c->owner->name, c->owner);
 
 	if (!transferred || !transferee) {
-		opbx_log(LOG_WARNING, "Failed to complete transfer. Missing openpbx transferred or transferee channel\n");
+		opbx_log(LOG_WARNING, "Failed to complete transfer. Missing callweaver transferred or transferee channel\n");
 		sccp_dev_displayprompt(d, c->line->instance, c->callid, SKINNY_DISP_CAN_NOT_COMPLETE_TRANSFER, 5);
 		return;
 	}
@@ -934,25 +936,25 @@ void sccp_channel_park(sccp_channel_t * c) {
 	}
 
 	if (!c->owner) {
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no openpbx channel\n", d->id);
+		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no callweaver channel\n", d->id);
 		return;
 	}
 	bridged = CS_OPBX_BRIDGED_CHANNEL(c->owner);
 	if (!bridged) {
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no openpbx bridged channel\n", d->id);
+		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't Park: no callweaver bridged channel\n", d->id);
 		return;
 	}
 	sccp_indicate_lock(c, SCCP_CHANNELSTATE_CALLPARK);
 
 	chan1m = opbx_channel_alloc(0);
 	if (!chan1m) {
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create openpbx channel\n", d->id);
+		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create callweaver channel\n", d->id);
 		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, SKINNY_DISP_NO_PARK_NUMBER_AVAILABLE, 0);
 		return;
 	}
 	chan2m = opbx_channel_alloc(0);
 	if (!chan1m) {
-		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create openpbx channel\n", d->id);
+		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Park Failed: can't create callweaver channel\n", d->id);
 		sccp_dev_displayprompt(c->device, c->line->instance, c->callid, SKINNY_DISP_NO_PARK_NUMBER_AVAILABLE, 0);
 		opbx_hangup(chan1m);
 		return;

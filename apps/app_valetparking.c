@@ -6,7 +6,7 @@
  *
  * Mark Spencer <markster@linux-support.net>
  *
- * Valet Parking derived from original openpbx Parking
+ * Valet Parking derived from original asterisk Parking
  * Copyright (C) 2004, Anthony Minessale
  * Anthony Minessale <anthmct@yahoo.com>
  *
@@ -20,27 +20,6 @@
 #include "confdefs.h"
 #endif
 
-
-#include <openpbx/lock.h>
-#include <openpbx/utils.h>
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/options.h>
-#include <openpbx/causes.h>
-#include <openpbx/module.h>
-#include <openpbx/translate.h>
-#include <openpbx/utils.h>
-#include <openpbx/say.h>
-#include <openpbx/phone_no_utils.h>
-#include <openpbx/features.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/config.h>
-#include <openpbx/cli.h>
-#include <openpbx/app.h>
-#include <openpbx/manager.h>
-#include <openpbx/devicestate.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -56,6 +35,27 @@
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/causes.h"
+#include "callweaver/module.h"
+#include "callweaver/translate.h"
+#include "callweaver/utils.h"
+#include "callweaver/say.h"
+#include "callweaver/phone_no_utils.h"
+#include "callweaver/features.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/config.h"
+#include "callweaver/cli.h"
+#include "callweaver/app.h"
+#include "callweaver/manager.h"
+#include "callweaver/devicestate.h"
 
 #define DEFAULT_VALETPARK_TIME 45000
 
@@ -745,7 +745,7 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
 			return NULL;
 		}
 		/* We return the chan we have been protecting which is already up but
-		   be vewy vewy qwiet we will trick openpbx into thinking it's a new channel
+		   be vewy vewy qwiet we will trick callweaver into thinking it's a new channel
 		*/
 		opbx_setstate(peer, OPBX_STATE_RESERVED);
 	}

@@ -52,6 +52,7 @@
 #endif 
 
 #include <assert.h>
+
 #include "callweaver/icd/icd_types.h"
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_caller.h"
@@ -68,7 +69,7 @@
 #include "callweaver/icd/icd_plugable_fn.h"
 #include "callweaver/icd/icd_plugable_fn_list.h"
 
-/* These are temporary until we factor out icd_openpbx */
+/* These are temporary until we factor out icd_callweaver */
 #include "callweaver/app.h"
 
 /*===== Private types and functions =====*/
@@ -3124,7 +3125,7 @@ opbx_channel *icd_caller__create_channel(icd_caller * that)
         opbx_log(LOG_DEBUG, "Creating Channel for caller %d [%s]  chan=%s, c=%s, p=%s, e=%s\n",
             icd_caller__get_id(that), icd_caller__get_name(that), chanstring, context, priority, extension);
 
-    chan = icd_bridge_get_openpbx_channel(chanstring, context, priority, extension);
+    chan = icd_bridge_get_callweaver_channel(chanstring, context, priority, extension);
 
     if (chan != NULL) {
         icd_caller__assign_channel(that, chan);
@@ -3168,7 +3169,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
     if (that->chan->_state == OPBX_STATE_UP) {
         return ICD_SUCCESS;
     }
-    /* Deal with issue in openpbx that leaves state in RINGING */
+    /* Deal with issue in callweaver that leaves state in RINGING */
     result = opbx_answer(that->chan);
     if (that->chan->_state == OPBX_STATE_UP) {
         return ICD_SUCCESS;
@@ -3180,7 +3181,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
             icd_caller__get_name(that));
     chanstring = icd_caller__get_channel_string(that);
     timeout = that->timeout;
-    result = icd_bridge_dial_openpbx_channel(that, chanstring, timeout);
+    result = icd_bridge_dial_callweaver_channel(that, chanstring, timeout);
     if (that->chan != NULL && that->chan->_state == OPBX_STATE_UP) {
         opbx_set_read_format(that->chan, opbx_best_codec(that->chan->nativeformats));
         opbx_set_write_format(that->chan, that->chan->readformat);

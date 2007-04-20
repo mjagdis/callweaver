@@ -346,12 +346,12 @@ static char default_useragent[OPBX_MAX_EXTENSION] = DEFAULT_USERAGENT;
 static char default_context[OPBX_MAX_CONTEXT] = DEFAULT_CONTEXT;
 static char default_subscribecontext[OPBX_MAX_CONTEXT];
 
-#define DEFAULT_VMEXTEN "openpbx"
+#define DEFAULT_VMEXTEN "callweaver"
 static char global_vmexten[OPBX_MAX_EXTENSION] = DEFAULT_VMEXTEN;
 
 static char default_language[MAX_LANGUAGE] = "";
 
-#define DEFAULT_CALLERID "openpbx"
+#define DEFAULT_CALLERID "callweaver"
 static char default_callerid[OPBX_MAX_EXTENSION] = DEFAULT_CALLERID;
 
 static char default_fromdomain[OPBX_MAX_EXTENSION] = "";
@@ -468,7 +468,7 @@ static int recordhistory = 0;                /*!< Record SIP history. Off by def
 static int dumphistory = 0;                /*!< Dump history to verbose before destroying SIP dialog */
 
 static char global_musicclass[MAX_MUSICCLASS] = "";    /*!< Global music on hold class */
-#define DEFAULT_REALM    "openpbx.org"
+#define DEFAULT_REALM    "callweaver.org"
 static char global_realm[MAXHOSTNAMELEN] = DEFAULT_REALM;     /*!< Default realm */
 static char regcontext[OPBX_MAX_CONTEXT] = "";        /*!< Context for auto-extensions */
 
@@ -6567,7 +6567,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
     
     add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
     if (sipdebug)
-        add_header(&req, "X-openpbx-info", "SIP re-invite (RTP bridge)", SIP_DL_DONTCARE);
+        add_header(&req, "X-callweaver-info", "SIP re-invite (RTP bridge)", SIP_DL_DONTCARE);
     opbx_rtp_offered_from_local(p->rtp, 1);
     add_sdp(&req, p);
     /* Use this as the basis */
@@ -6605,7 +6605,7 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
     
     add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
     if (sipdebug)
-        add_header(&req, "X-openpbx-info", "SIP re-invite (T38 switchover)", SIP_DL_DONTCARE);
+        add_header(&req, "X-callweaver-info", "SIP re-invite (T38 switchover)", SIP_DL_DONTCARE);
     opbx_udptl_offered_from_local(p->udptl, 1);
     add_t38_sdp(&req, p);
     /* Use this as the basis */

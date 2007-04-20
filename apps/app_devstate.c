@@ -19,17 +19,18 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-#include <openpbx/lock.h>
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/opbxdb.h>
-#include <openpbx/utils.h>
-#include <openpbx/cli.h>
-#include <openpbx/manager.h>
-#include <openpbx/devicestate.h>
+
+#include "callweaver/lock.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/opbxdb.h"
+#include "callweaver/utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/manager.h"
+#include "callweaver/devicestate.h"
 
 
 static char type[] = "DS";
@@ -39,7 +40,7 @@ static char app[] = "DevState";
 
 static char synopsis[] = "Generate a device state change event given the input parameters";
 
-static char descrip[] = " DevState(device|state):  Generate a device state change event given the input parameters. Returns 0. State values match the openpbx device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
+static char descrip[] = " DevState(device|state):  Generate a device state change event given the input parameters. Returns 0. State values match the callweaver device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
 
 static char devstate_cli_usage[] = 
 "Usage: DevState device state\n" 

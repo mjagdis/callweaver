@@ -68,7 +68,7 @@ struct opbx_trans_pvt;
 /*! Register a translator */
 /*! 
  * \param t populated opbx_translator structure
- * This registers a codec translator with openpbx
+ * This registers a codec translator with callweaver
  * Returns 0 on success, -1 on failure
  */
 extern int opbx_register_translator(struct opbx_translator *t);

@@ -111,7 +111,7 @@ Syntax of SQL commands :
 	
 EXAMPLES OF USE : 
 
-exten => s,2,PGSQL(Connect connid host=localhost user=openpbx dbname=credit)
+exten => s,2,PGSQL(Connect connid host=localhost user=callweaver dbname=credit)
 exten => s,3,PGSQL(Query resultid ${connid} SELECT username,credit FROM credit WHERE callerid=${CALLERIDNUM})
 exten => s,4,PGSQL(Fetch fetchid ${resultid} datavar1 datavar2)
 exten => s,5,GotoIf(${fetchid}?6:8)

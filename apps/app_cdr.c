@@ -37,11 +37,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 
 
-static char *tdesc = "Make sure openpbx doesn't save CDR for a certain call";
+static char *tdesc = "Make sure callweaver doesn't save CDR for a certain call";
 
 static char *nocdr_descrip = "NoCDR(): makes sure there won't be any CDR written for a certain call";
 static char *nocdr_app = "NoCDR";
-static char *nocdr_synopsis = "Make sure openpbx doesn't save CDR for a certain call";
+static char *nocdr_synopsis = "Make sure callweaver doesn't save CDR for a certain call";
 
 STANDARD_LOCAL_USER;
 

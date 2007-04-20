@@ -45,7 +45,7 @@ struct opbx_filestream;
 
 /*! Registers a new file format */
 /*! Register a new file format capability
- * Adds a format to openpbx's format abilities.  Fill in the fields, and it will work. For examples, look at some of the various format code.
+ * Adds a format to callweaver's format abilities.  Fill in the fields, and it will work. For examples, look at some of the various format code.
  * returns 0 on success, -1 on failure
  */
 int opbx_format_register(const char *name, const char *exts, int format,

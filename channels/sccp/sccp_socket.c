@@ -17,13 +17,15 @@
 #include "confdefs.h"
 #endif
 
+#include <signal.h>
+#include <sys/ioctl.h>
+
 #include "chan_sccp.h"
 #include "sccp_line.h"
 #include "sccp_socket.h"
 #include "sccp_device.h"
-#include <signal.h>
-#include <sys/ioctl.h>
-#include <openpbx/utils.h>
+
+#include "callweaver/utils.h"
 
 /* file descriptors of active sockets */
 static fd_set	active_fd_set;

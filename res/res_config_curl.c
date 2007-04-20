@@ -1,5 +1,5 @@
 /*
- * Openpbx -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * res_config_curl.c <curl+curl plugin for portable configuration engine >
  *
@@ -21,19 +21,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <stdio.h> 
-#include <openpbx.h>
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/config.h>
-#include <openpbx/module.h>
-#include <openpbx/lock.h>
-#include <openpbx/options.h>
-#include <openpbx/utils.h>
+
 #include <curl/curl.h>
+
+#include "callweaver.h"
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/config.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
 
 static char *tdesc = "CURL URL Based Configuration";
 static const char *global_tmp_prefix = "/var/tmp/res_config_curl/";
@@ -192,7 +193,7 @@ static void curl_process(struct config_data *config_data) {
 		curl_easy_setopt(curl_handle, CURLOPT_URL, config_data->url);
 		curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, realtime_callback);
 		curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)config_data);
-		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "openpbx/1.2");
+		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "callweaver/1.2");
 		curl_easy_perform(curl_handle);
 		curl_easy_cleanup(curl_handle);
 	}

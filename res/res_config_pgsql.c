@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005 CallWeaver.org.
  *
- * Marc Olivier Chouinard <mochouinard@openpbx.org>
+ * Marc Olivier Chouinard <mochouinard@callweaver.org>
  *
  * res_config_pgsql.c <PostgreSQL plugin for portable configuration engine >
  * Copyright (C) 2005 Business Technology Group (http://www.btg.co.nz)
@@ -69,8 +69,8 @@ static int parse_config(void)
 		/* get the database host */
 		s = opbx_variable_retrieve(config, "general", "dsn");
 		if (s == NULL) {
-			opbx_log(LOG_WARNING, "PgSQL RealTime: No DSN found, using 'dbname=openpbx user=openpbx'.\n");
-			strncpy(conninfo, "dbname=openpbx user=openpbx", sizeof(conninfo));
+			opbx_log(LOG_WARNING, "PgSQL RealTime: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
+			strncpy(conninfo, "dbname=callweaver user=callweaver", sizeof(conninfo));
 		} else {
 			strncpy(conninfo, s, sizeof(conninfo));
 		}

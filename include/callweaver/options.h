@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief Options provided by main openpbx program
+ * \brief Options provided by main callweaver program
  */
 
 #ifndef _CALLWEAVER_OPTIONS_H

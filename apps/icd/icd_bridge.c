@@ -51,7 +51,7 @@
 
 extern icd_fieldset *agents;
 
-/* shamelessly borrowed from real openpbx and slowly moprhed to our needs*/
+/* shamelessly borrowed from real callweaver and slowly moprhed to our needs*/
 int ok_exit_noagent(icd_caller * caller);
 int ok_exit(icd_caller * caller, char digit);
 int no_agent(icd_caller * caller, icd_queue * queue);    
@@ -445,7 +445,7 @@ int icd_bridge_wait_ack(icd_caller * that)
     return 0;	 
 }
 
-//! An openpbx-specific method to translate text strings into a channel
+//! An callweaver-specific method to translate text strings into a channel
 /*!
  * There are two ways to get a channel. The first uses the channel string,
  * which divvies up into a protocol (type) and data that is specific for the
@@ -456,10 +456,10 @@ int icd_bridge_wait_ack(icd_caller * that)
  * /param context a context as defined by the dialplan
  * /param priority the priority that identifies lines in the dialplan
  * /param extension the extension in the dialplan to look at
- * /return an openpbx channel or NULL on failure
+ * /return an callweaver channel or NULL on failure
  * /todo implement the local channel method for getting a channel
  */
-struct opbx_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *context, char *priority,
+struct opbx_channel *icd_bridge_get_callweaver_channel(char *chanstring, char *context, char *priority,
     char *extension)
 {
     struct opbx_channel *chan = NULL;
@@ -495,17 +495,17 @@ struct opbx_channel *icd_bridge_get_openpbx_channel(char *chanstring, char *cont
     return NULL;
 }
 
-//! Bring up an openpbx channel
+//! Bring up an callweaver channel
 /*!
- * Ask the low levels of openpbx to ring a channel
+ * Ask the low levels of callweaver to ring a channel
  * until it comes up or we don't care any more.
  *
  * \param caller the caller object
  * \param chanstring the address to ring
  * \param timeout how long in milliseconds to wait before timing out
- * \return openpbx channel state
+ * \return callweaver channel state
  */
-int icd_bridge_dial_openpbx_channel(icd_caller * that, char *chanstring, int timeout)
+int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int timeout)
 {
     //struct opbx_channel *newchan;
     struct opbx_channel *chan;

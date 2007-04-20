@@ -21,20 +21,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/dsp.h>
-#include <openpbx/app.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/lock.h>
 #include <inttypes.h>
 #include <errno.h>
 #include <unistd.h>
 #include <tiffio.h>
 #include <spandsp.h>
+
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/dsp.h"
+#include "callweaver/app.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
 
 static char *desc = "T.38 Gateway Dialer Application";
 

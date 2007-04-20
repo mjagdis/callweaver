@@ -38,24 +38,24 @@
 
 #include <linux/rtc.h>
 
-#include <openpbx/lock.h>
-#include <openpbx/channel.h>
-#include <openpbx/config.h>
-#include <openpbx/logger.h>
-#include <openpbx/module.h>
-#include <openpbx/pbx.h>
-#include <openpbx/options.h>
-#include <openpbx/utils.h>
-#include <openpbx/indications.h>
-#include <openpbx/cli.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/devicestate.h>
-
 #include <streamport.h>
 #include <lapd.h>
 #include <libq931/q931.h>
 
 #include <visdn/visdn.h>
+
+#include "callweaver/lock.h"
+#include "callweaver/channel.h"
+#include "callweaver/config.h"
+#include "callweaver/logger.h"
+#include "callweaver/module.h"
+#include "callweaver/pbx.h"
+#include "callweaver/options.h"
+#include "callweaver/utils.h"
+#include "callweaver/indications.h"
+#include "callweaver/cli.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/devicestate.h"
 
 
 #define VISDN_DESCRIPTION "VISDN Channel For CallWeaver.org"

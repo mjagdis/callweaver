@@ -14,12 +14,12 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <openpbx/acl.h>
-#include <openpbx/module.h>
-#include <openpbx/rtp.h>
-#include <openpbx/options.h>
-#include <openpbx/logger.h>
-#include <openpbx/config.h>
+#include "callweaver/acl.h"
+#include "callweaver/module.h"
+#include "callweaver/rtp.h"
+#include "callweaver/options.h"
+#include "callweaver/logger.h"
+#include "callweaver/config.h"
 
 #define SCCP_LITTLE_ENDIAN   1234 /* byte 0 is least significant (i386) */
 #define SCCP_BIG_ENDIAN      4321 /* byte 0 is most significant (mc68k) */
@@ -178,7 +178,7 @@ struct sccp_line {
 	/* The lines position/instanceId on the current device*/
 	uint8_t instance;
 
-	/* the name of the line, so use in openpbx (i.e SCCP/<name>) */
+	/* the name of the line, so use in callweaver (i.e SCCP/<name>) */
 	char name[80];
 
 	/* A description for the line, displayed on in header (on7960/40)
@@ -305,7 +305,7 @@ struct sccp_device {
 	/* If the device has been rully registered yet */
 	uint8_t registrationState;
 
-	/* openpbx codec device preference */
+	/* callweaver codec device preference */
 	struct opbx_codec_pref codecs;
 
 	/* SCCP_DEVICE_ONHOOK or SCCP_DEVICE_OFFHOOK */
@@ -320,7 +320,7 @@ struct sccp_device {
 	/* last dialed number */
 	char lastNumber[OPBX_MAX_EXTENSION];
 
-	/* openpbx codec capability */
+	/* callweaver codec capability */
 	int capability;
 
 	/* channel state where to open the rtp media stream */
@@ -383,7 +383,7 @@ struct sccp_session {
 
 struct sccp_channel {
 	opbx_mutex_t			lock;
-	/* codec requested by openpbx */
+	/* codec requested by callweaver */
 	int					format;
 	char				calledPartyName[StationMaxNameSize];
 	char				calledPartyNumber[StationMaxDirnumSize];

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2003 - 2005 Tilghman Lesher.  All rights reserved.
  *
- * Tilghman Lesher <openpbx__app_random__200508@the-tilghman.com>
+ * Tilghman Lesher <asterisk__app_random__200508@the-tilghman.com>
  *
  * This code is released by the author with no restrictions on usage or distribution.
  *
@@ -19,7 +19,7 @@
  *
  * \brief Random application
  *
- * \author Tilghman Lesher <openpbx__app_random__200508 at the-tilghman.com>
+ * \author Tilghman Lesher <asterisk__app_random__200508 at the-tilghman.com>
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

@@ -14,8 +14,9 @@
  #include "confdefs.h"
 #endif
 
-#include <openpbx/channel.h>
 #include <libq931/list.h>
+
+#include "callweaver/channel.h"
 
 static const char visdn_channeltype[] = "VISDN";
 static const char visdn_description[] = "VISDN Channel Driver for CallWeaver.org";

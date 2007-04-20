@@ -7,7 +7,7 @@
  * 
  * Copyright (c) 2003 Tilghman Lesher.  All rights reserved.
  * 
- * Tilghman Lesher <openpbx-hasnewvoicemail-app@the-tilghman.com>
+ * Tilghman Lesher <asterisk-hasnewvoicemail-app@the-tilghman.com>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact

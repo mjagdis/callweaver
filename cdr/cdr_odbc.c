@@ -267,8 +267,8 @@ static int odbc_load_module(void)
 
 	tmp = opbx_variable_retrieve(cfg,"global","dsn");
 	if (tmp == NULL) {
-		opbx_log(LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming openpbxdb\n");
-		tmp = "openpbxdb";
+		opbx_log(LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming callweaverdb\n");
+		tmp = "callweaverdb";
 	}
 	dsn = strdup(tmp);
 	if (dsn == NULL) {

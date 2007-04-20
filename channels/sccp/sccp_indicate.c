@@ -24,7 +24,6 @@
 #include "sccp_actions.h"
 #include "sccp_utils.h"
 
-
 void sccp_indicate_lock(sccp_channel_t * c, uint8_t state) {
 	if (!c)
 		return;
@@ -142,7 +141,7 @@ void sccp_indicate_nolock(sccp_channel_t * c, uint8_t state) {
 		if (!c->rtp) {
 			sccp_channel_openreceivechannel(c);
 		}
-		/* openpbx wants rtp open before OPBX_STATE_UP */
+		/* callweaver wants rtp open before OPBX_STATE_UP */
 		sccp_opbx_setstate(c, OPBX_STATE_UP);
 		break;
 	case SCCP_CHANNELSTATE_BUSY:

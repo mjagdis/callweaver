@@ -23,12 +23,13 @@
 #include "sccp_device.h"
 #include "sccp_line.h"
 #include "sccp_indicate.h"
-#include <openpbx/utils.h>
+
+#include "callweaver/utils.h"
 #ifdef CS_SCCP_PICKUP
-#include <openpbx/features.h>
-#include <openpbx/old_callerid.h>
+#include "callweaver/features.h"
+#include "callweaver/old_callerid.h"
 #endif
-#include <openpbx/devicestate.h>
+#include "callweaver/devicestate.h"
 
 void sccp_sk_redial(sccp_device_t * d , sccp_line_t * l, sccp_channel_t * c) {
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Redial Softkey.\n",d->id);
@@ -109,7 +110,7 @@ void sccp_sk_dnd(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	if (d->dndmode == SCCP_DNDMODE_REJECT) {
 		l1 = d->lines;
 		while (l1) {
-			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Notify the dnd status (%s) to openpbx for line %s\n", d->id, d->dnd ? "on" : "off", l1->name);
+			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Notify the dnd status (%s) to callweaver for line %s\n", d->id, d->dnd ? "on" : "off", l1->name);
 			if (d->dnd)
  				sccp_hint_notify_linestate(l1, SCCP_DEVICESTATE_DND, NULL);
  			else

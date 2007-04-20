@@ -12,17 +12,6 @@
  */
 
 
-#include <openpbx/file.h>
-#include <openpbx/logger.h>
-#include <openpbx/channel.h>
-#include <openpbx/pbx.h>
-#include <openpbx/module.h>
-#include <openpbx/app.h>
-#include <openpbx/options.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/config.h>
-#include <openpbx/utils.h>
-#include <openpbx/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -50,6 +39,19 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/channel.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/app.h"
+#include "callweaver/options.h"
+#include "callweaver/musiconhold.h"
+#include "callweaver/config.h"
+#include "callweaver/utils.h"
+#include "callweaver/lock.h"
+
 #define EXITCODE_RUNTIME_ERROR 3
 #define EXITCODE_FILE_NOT_FOUND 4
 
@@ -79,7 +81,7 @@ JSClass global_class = {
 static char *tdesc = "Embedded JavaScript Application";
 static char *app = "JavaScript";
 static char *synopsis = "Embedded JavaScript Application";
-static char global_dir[128] = "/usr/local/openpbx/logic";
+static char global_dir[128] = "/usr/local/callweaver/logic";
 
 
 STANDARD_LOCAL_USER;
@@ -924,7 +926,7 @@ js_fetchurl(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 		curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, realtime_callback);
 		curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&config_data);
-		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "openpbx-js/1.0");
+		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "callweaver-js/1.0");
 		curl_easy_perform(curl_handle);
 		curl_easy_cleanup(curl_handle);
     } else {
@@ -1218,7 +1220,7 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 }
 
 
-static JSFunctionSpec openpbx_functions[] = {
+static JSFunctionSpec callweaver_functions[] = {
 	{"Verbose", js_verbose, 2}, 
 	{"Log", js_log, 2}, 
 	{"Include", js_include, 1}, 
@@ -1235,7 +1237,7 @@ static JSFunctionSpec openpbx_functions[] = {
 	{0}
 };
 
-static JSFunctionSpec secure_openpbx_functions[] = {
+static JSFunctionSpec secure_callweaver_functions[] = {
 	{"Verbose", js_verbose, 2}, 
 	{"Log", js_log, 2}, 
 	{"Include", js_include, 1}, 
@@ -1313,7 +1315,7 @@ static int js_exec(struct opbx_channel *chan, void *data)
     if ((cx = JS_NewContext(rt, gStackChunkSize))) {
 		JS_SetErrorReporter(cx, js_error);
 		if ((glob = JS_NewObject(cx, &global_class, NULL, NULL)) && 
-			JS_DefineFunctions(cx, glob, (flags & JC_SECURE_FLAG) ? secure_openpbx_functions : openpbx_functions) &&
+			JS_DefineFunctions(cx, glob, (flags & JC_SECURE_FLAG) ? secure_callweaver_functions : callweaver_functions) &&
 			JS_InitStandardClasses(cx, glob) &&
 			(Chan = new_jchan(cx, glob, chan, &jc, flags))) {
 			JS_SetGlobalObject(cx, glob);
