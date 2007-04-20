@@ -1,5 +1,5 @@
-Inter-CallWeaver eXchange Protocol
-================================
+Inter-PBX eXchange Protocol
+===========================
 
 INTRODUCTION
 ------------
@@ -110,11 +110,11 @@ The comment character in CallWeaver configuration files is the semicolon
 parts of extensions and it didn't seem like a good idea to have to escape 
 it.
 
-IAX CONFIGURATION IN OPENPBX
------------------------------
+IAX CONFIGURATION IN CALLWEAVER
+-------------------------------
 
 Like everything else in CallWeaver, IAX's configuration lies in 
-/etc/openpbx -- specifically /etc/openpbx/iax.conf
+/etc/callweaver -- specifically /etc/callweaver/iax.conf
 
 The IAX configuration file is a collection of sections, each of which
 (with the exception of the "general" section) represents an entity within 
@@ -197,7 +197,7 @@ identify ourselves as.  A secret may be provided as well.  The secret is
 generally a shared password between the local server and the remote 
 server.  However, if the secret is in square brackets ([]'s) then it is 
 interpreted as the name of a RSA key to use.  In that case, the local CallWeaver 
-server must have the *private* key (/var/lib/openpbx/keys/<name>.key) and 
+server must have the *private* key (/var/lib/callweaver/keys/<name>.key) and 
 the remote server will have to have the corresponding public key.
 
 The "host" is a required field and is the hostname or IP address of the 
@@ -294,7 +294,7 @@ some cases for debugging.
 The "inkeys" line specifies which keys we can use to authenticate the 
 remote peer.  If the peer's challenge passes with any of the given keys, 
 then we accept its authentication.  The key files live in 
-/var/lib/openpbx/keys/<name>.pub and are *public keys*.  Public keys are 
+/var/lib/callweaver/keys/<name>.pub and are *public keys*.  Public keys are 
 not typically DES3 encrypted and thus do not usually need initialization.
 
 ---------------

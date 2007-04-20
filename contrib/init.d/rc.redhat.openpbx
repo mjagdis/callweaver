@@ -1,50 +1,50 @@
 #!/bin/sh
-# $Id: openpbx,v 0.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
+# $Id: callweaver,v 0.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
 #
-# openpbx    Starts, Stops and Reloads CallWeaver.
+# callweaver    Starts, Stops and Reloads CallWeaver.
 #
 # chkconfig: 2345 40 60
 # description: CallWeaver and telephony daemon.
-# processname: openpbx
-# pidfile: /var/run/openpbx.pid
+# processname: callweaver
+# pidfile: /var/run/callweaver.pid
 #
 # Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
 # - Updated Version to 0.2
-# - Added test for safe_openpbx
+# - Added test for safe_callweaver
 # - Verified SIGTERM issued by "killproc" ensures "stop gracefully"
 # - Added support for -U and -G command line options
-# - Modified "reload" to call openpbx -rx 'reload' 
+# - Modified "reload" to call callweaver -rx 'reload' 
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-[ -x /usr/sbin/openpbx ] || exit 0
-[ -d /etc/openpbx ] || exit 0
+[ -x /usr/sbin/callweaver ] || exit 0
+[ -d /etc/callweaver ] || exit 0
 
 # Leave this set unless you know what you are doing.
 export LD_ASSUME_KERNEL=2.4.1
 
-# Full path to openpbx binary
-DAEMON=/usr/sbin/openpbx
+# Full path to callweaver binary
+DAEMON=/usr/sbin/callweaver
 
-# Full path to safe_openpbx script
-SAFE_OPENPBX=/usr/sbin/safe_openpbx
+# Full path to safe_callweaver script
+SAFE_CALLWEAVER=/usr/sbin/safe_callweaver
 
 # Uncomment the following and set them to the user/groups that you
 # want to run CallWeaver as. NOTE: this requires substantial work to
 # be sure that CallWeaver's environment has permission to write the
 # files required  for  its  operation, including logs, its comm
-# socket, the openpbx database, etc.
-#AST_USER="openpbx"
-#AST_GROUP="openpbx"
+# socket, the callweaver database, etc.
+#AST_USER="callweaver"
+#AST_GROUP="callweaver"
 
 RETVAL=0
 
 start() {
 	# Start daemons.
-	echo -n $"Starting openpbx: "
-        if [ -f $SAFE_OPENPBX ] ; then
-		DAEMON=$SAFE_OPENPBX
+	echo -n $"Starting callweaver: "
+        if [ -f $SAFE_CALLWEAVER ] ; then
+		DAEMON=$SAFE_CALLWEAVER
 	fi
 	if [ $AST_USER ] ; then
 		ASTARGS="-U $AST_USER"
@@ -54,17 +54,17 @@ start() {
 	fi
 	daemon $DAEMON $ASTARGS
 	RETVAL=$?
-	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/openpbx
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/callweaver
 	echo
 	return $RETVAL
 }
 
 stop() {
 	# Stop daemons.
-	echo -n $"Shutting down openpbx: "
-	killproc openpbx
+	echo -n $"Shutting down callweaver: "
+	killproc callweaver
 	RETVAL=$?
-	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/openpbx
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/callweaver
 	echo
 	return $RETVAL
 }
@@ -93,13 +93,13 @@ case "$1" in
 	reload
 	;;
   condrestart)
-	[ -f /var/lock/subsys/openpbx ] && restart || :
+	[ -f /var/lock/subsys/callweaver ] && restart || :
 	;;
   status)
-	status openpbx
+	status callweaver
 	;;
   *)
-	echo "Usage: openpbx {start|stop|restart|reload|condrestart|status}"
+	echo "Usage: callweaver {start|stop|restart|reload|condrestart|status}"
 	exit 1
 esac
 

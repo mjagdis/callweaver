@@ -1,6 +1,6 @@
 ******************************************************************************** 
-             HOW TO BUILD OPENPBX.ORG ON MAC OSX 
-    Tested with Openpbx.org 1.2 (rel.2119) on iMac PPC 800 and OSX 10.4
+             HOW TO BUILD CALLWEAVER.ORG ON MAC OSX 
+    Tested with CallWeaver.org 1.2 (rel.2119) on iMac PPC 800 and OSX 10.4
 ********************************************************************************
 
 # open a terminal (i prefer iTerm rather than terminal)
@@ -8,10 +8,10 @@
 
 ************************************************************************** BEGIN
 
-# We will install openpbx.org in /usr/local/openpbx.org.
+# We will install callweaver.org in /usr/local/callweaver.org.
 # everithing will be contained in that directory.
 
-$ sudo mkdir -p /usr/local/openpbx.org
+$ sudo mkdir -p /usr/local/callweaver.org
 
 # we will download and build everything in our home dir 
 # in this newly created dev/ dir
@@ -26,8 +26,8 @@ $ cd dev
 $ tar zxf tiff-3.8.2.tar.gz
 $ cd tiff-3.8.2
 
-$ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/lib" \
-  ./configure --prefix=/usr/local/openpbx.org
+$ CFLAGS="-I/usr/local/callweaver.org/include" LDFLAGS="-L/usr/local/callweaver.org/lib" \
+  ./configure --prefix=/usr/local/callweaver.org
 $ make
 $ sudo make install
 
@@ -38,8 +38,8 @@ $ sudo make install
 $ tar zxf spandsp-20061122.tar.gz
 $ cd spandsp-0.0.3/
 
-$ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/lib" \
-  ./configure --prefix=/usr/local/openpbx.org
+$ CFLAGS="-I/usr/local/callweaver.org/include" LDFLAGS="-L/usr/local/callweaver.org/lib" \
+  ./configure --prefix=/usr/local/callweaver.org
 $ make
 $ sudo make install
 
@@ -51,20 +51,20 @@ $ curl -O ftp://ftp.gnu.org/pub/gnu/readline/readline-5.2.tar.gz
 $ tar xvf readline-5.2.tar.gz
 $ cd readline-5.2
 
-$ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/lib" \
-  ./configure --prefix=/usr/local/openpbx.org
+$ CFLAGS="-I/usr/local/callweaver.org/include" LDFLAGS="-L/usr/local/callweaver.org/lib" \
+  ./configure --prefix=/usr/local/callweaver.org
 $ make
 $ sudo make install
 
-****************************************************************** OPENPBX
+****************************************************************** CALLWEAVER
 # and again:
 
-$ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/lib" \
+$ CFLAGS="-I/usr/local/callweaver.org/include" LDFLAGS="-L/usr/local/callweaver.org/lib" \
   \
   ./configure \
     --enable-iax-trunking=yes \
     --enable-t38=yes \
-    --prefix=/usr/local/openpbx.org \
+    --prefix=/usr/local/callweaver.org \
     \
     --enable-debug=yes \
     --enable-do-crash=yes \
@@ -80,20 +80,20 @@ $ CFLAGS="-I/usr/local/openpbx.org/include" LDFLAGS="-L/usr/local/openpbx.org/li
 
 $ make
 
-# don't yet try to make install. You need openpbx user and group. (thanks to imyrvold)
+# don't yet try to make install. You need callweaver user and group. (thanks to imyrvold)
 
 $ sudo niutil -list / /groups
-$ sudo niutil -create / /groups/openpbx
-$ sudo niutil -createprop / /groups/openpbx gid 700
-$ sudo niutil -createprop / /groups/openpbx passwd "*"
-$ sudo niutil -createprop / /groups/openpbx users
-$ sudo niutil -appendprop / /groups/openpbx users openpbx
-$ sudo niutil -create / /users/openpbx
-$ sudo niutil -createprop / /users/openpbx uid 700
-$ sudo niutil -createprop / /users/openpbx realname "CallWeaver.org"
-$ sudo niutil -createprop / /users/openpbx shell "/bin/bash"
-$ sudo niutil -createprop / /users/openpbx gid 700
-$ sudo niutil -createprop / /users/openpbx passwd "*" 
+$ sudo niutil -create / /groups/callweaver
+$ sudo niutil -createprop / /groups/callweaver gid 700
+$ sudo niutil -createprop / /groups/callweaver passwd "*"
+$ sudo niutil -createprop / /groups/callweaver users
+$ sudo niutil -appendprop / /groups/callweaver users callweaver
+$ sudo niutil -create / /users/callweaver
+$ sudo niutil -createprop / /users/callweaver uid 700
+$ sudo niutil -createprop / /users/callweaver realname "CallWeaver.org"
+$ sudo niutil -createprop / /users/callweaver shell "/bin/bash"
+$ sudo niutil -createprop / /users/callweaver gid 700
+$ sudo niutil -createprop / /users/callweaver passwd "*" 
 
 #** OK! now:
 
@@ -105,20 +105,20 @@ $ sudo make install
 
 $ sudo -s
 
-# Let's switch to the openpbx.orgbin directory
+# Let's switch to the callweaver.orgbin directory
 
-$ cd /usr/local/openpbx.org/sbin
+$ cd /usr/local/callweaver.org/sbin
 
 # AND FINALLY RUN IT!!
 
-$ ./openpbx 
+$ ./callweaver 
 
 # AND LET'S CONNECT TO THE CONSOLE
 
-$ ./openpbx -rvvv
+$ ./callweaver -rvvv
 
 # Please note. If the last command does not work, then run again
-# using "./openpbx -c -g" and read the console output
+# using "./callweaver -c -g" and read the console output
 
 
 ******************************************************************
