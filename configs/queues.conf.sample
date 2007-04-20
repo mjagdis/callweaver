@@ -122,7 +122,7 @@ persistentmembers = yes
 ;queue-reporthold = queue-reporthold		;       ("Hold time")
 ;periodic-announce = queue-periodic-announce    ;       ("All reps busy / wait for next")
 ;
-; Calls may be recorded using OpenPBX's monitor resource
+; Calls may be recorded using CallWeaver's monitor resource
 ; This can be enabled from within the Queue application, starting recording
 ; when the call is actually picked up; thus, only successful calls are
 ; recorded, and you are not recording while people are listening to MOH.

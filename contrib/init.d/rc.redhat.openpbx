@@ -1,10 +1,10 @@
 #!/bin/sh
 # $Id: openpbx,v 0.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
 #
-# openpbx    Starts, Stops and Reloads OpenPBX.
+# openpbx    Starts, Stops and Reloads CallWeaver.
 #
 # chkconfig: 2345 40 60
-# description: OpenPBX and telephony daemon.
+# description: CallWeaver and telephony daemon.
 # processname: openpbx
 # pidfile: /var/run/openpbx.pid
 #
@@ -31,8 +31,8 @@ DAEMON=/usr/sbin/openpbx
 SAFE_OPENPBX=/usr/sbin/safe_openpbx
 
 # Uncomment the following and set them to the user/groups that you
-# want to run OpenPBX as. NOTE: this requires substantial work to
-# be sure that OpenPBX's environment has permission to write the
+# want to run CallWeaver as. NOTE: this requires substantial work to
+# be sure that CallWeaver's environment has permission to write the
 # files required  for  its  operation, including logs, its comm
 # socket, the openpbx database, etc.
 #AST_USER="openpbx"

@@ -1,15 +1,15 @@
-OpenPBX external configuration
+CallWeaver external configuration
 ===============================
 
-The OpenPBX external configuration engine is the result of work by
+The CallWeaver external configuration engine is the result of work by
 Anthony Minessale II, Mark Spencer and Constantine Filin.
 
 It is designed to provide a flexible, seamless integration between
-OpenPBX's internal configuration structure and external SQL other other
+CallWeaver's internal configuration structure and external SQL other other
 databases (maybe even LDAP one day).
 
 The external configuration engine is the basis for the ARA, the
-OpenPBX Realtime Architecture (see README.realtime for more 
+CallWeaver Realtime Architecture (see README.realtime for more 
 information).
 
 * Configuration
@@ -57,7 +57,7 @@ The useragent column is filled by the sip channel when the peer registers.
 
 The regserver column is filled by the sip channel when the peer registers if you
 have the system name set in openpbx.conf.
-OpenPBX.org will store the system name that the user registered on in 
+CallWeaver.org will store the system name that the user registered on in 
 the database. This can be used to direct calls to go through the server 
 that holds the registration (for NAT traversal purposes).
 

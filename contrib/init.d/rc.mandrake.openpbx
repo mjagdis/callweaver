@@ -10,7 +10,7 @@
 # processname:	openpbx
 # 
 
-TTY=9			# TTY (if you want one) for OpenPBX to run on
+TTY=9			# TTY (if you want one) for CallWeaver to run on
 CONSOLE=yes		# Whether or not you want a console
 NOTIFY=root		# Who to notify about crashes
 DUMPDROP=/tmp
@@ -60,7 +60,7 @@ if [ ! -w ${DUMPDROP} ]; then
 fi
 
 #
-# Let OpenPBX dump core
+# Let CallWeaver dump core
 #
 ulimit -c unlimited
 
@@ -83,30 +83,30 @@ run_openpbx()
 			openpbx ${ASTARGS}
 		fi
 		EXITSTATUS=$?
-		echo "OpenPBX ended with exit status $EXITSTATUS"
+		echo "CallWeaver ended with exit status $EXITSTATUS"
 		if [ "$EXITSTATUS" = "0" ]; then
 			# Properly shutdown....
-			echo "OpenPBX shutdown normally."
+			echo "CallWeaver shutdown normally."
 			exit 0
 		elif [ $EXITSTATUS -gt 128 ]; then
 			EXITSIGNAL=$(($EXITSTATUS - 128))
 			EXITMSG=$SIGMSG[$EXITSIGNAL]
-			echo "OpenPBX exited on signal $EXITSIGNAL - $EXITMSG."
+			echo "CallWeaver exited on signal $EXITSIGNAL - $EXITMSG."
 			if [ "$NOTIFY" != "" ]; then
-				echo "OpenPBX exited on signal $EXITSIGNAL - $EXITMSG.  Might want to take a peek." | \
-				mail -s "OpenPBX Died ($HOSTNAME)" $NOTIFY
+				echo "CallWeaver exited on signal $EXITSIGNAL - $EXITMSG.  Might want to take a peek." | \
+				mail -s "CallWeaver Died ($HOSTNAME)" $NOTIFY
 			fi
 			if [ -f /tmp/core ]; then
 				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 			fi
 		else
-			echo "OpenPBX died with code $EXITSTATUS.  Aborting."
+			echo "CallWeaver died with code $EXITSTATUS.  Aborting."
 			if [ -f /tmp/core ]; then
 				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 			fi
 			exit 0
 		fi
-		echo "Automatically restarting OpenPBX."
+		echo "Automatically restarting CallWeaver."
 	done
 }
 
@@ -164,9 +164,9 @@ case "$1" in
 	status)
 		succeeded=`pidof openpbx|awk '{print NF}'`
 		if [ $succeeded = "0" ]; then
-			echo "OpenPBX is not running"
+			echo "CallWeaver is not running"
 		else
-			echo "OpenPBX is currently running with $succeeded threads"
+			echo "CallWeaver is currently running with $succeeded threads"
 		fi
 		;;
 	*)

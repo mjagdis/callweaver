@@ -1,7 +1,7 @@
 ;
 ; Static extension configuration file, used by
 ; the pbx_config module. This is where you configure all your 
-; inbound and outbound calls in OpenPBX. 
+; inbound and outbound calls in CallWeaver. 
 ; 
 ; This configuration file is reloaded 
 ; - With the "extensions reload" command in the CLI
@@ -27,16 +27,16 @@ writeprotect=no
 ;
 ; If autofallthrough is set, then if an extension runs out of
 ; things to do, it will terminate the call with BUSY, CONGESTION
-; or HANGUP depending on OpenPBX's best guess (strongly recommended).
+; or HANGUP depending on CallWeaver's best guess (strongly recommended).
 ;
 ; If autofallthrough is not set, then if an extension runs out of 
 ; things to do, openpbx will wait for a new extension to be dialed 
-; (this is the original behavior of OpenPBX 1.0 and earlier).
+; (this is the original behavior of CallWeaver 1.0 and earlier).
 ;
 autofallthrough=yes
 ;
 ; If clearglobalvars is set, global variables will be cleared 
-; and reparsed on an extensions reload, or OpenPBX reload.
+; and reparsed on an extensions reload, or CallWeaver reload.
 ;
 ; If clearglobalvars is not set, then global variables will persist
 ; through reloads, and even if deleted from the extensions.conf or
@@ -47,7 +47,7 @@ clearglobalvars=no
 ; If priorityjumping is set to 'yes', then applications that support
 ; 'jumping' to a different priority based on the result of their operations
 ; will do so (this is backwards compatible behavior with pre-1.2 releases
-; of OpenPBX). Individual applications can also be requested to do this
+; of CallWeaver). Individual applications can also be requested to do this
 ; by passing a 'j' option in their arguments.
 ;
 priorityjumping=no
@@ -282,7 +282,7 @@ include => iaxprovider
 ; You can use an alternative switch type as well, to resolve
 ; extensions that are not known here, for example with remote 
 ; IAX switching you transparently get access to the remote
-; OpenPBX
+; CallWeaver
 ; 
 ; switch => IAX2/user:password@bigserver/local
 ;
@@ -389,10 +389,10 @@ exten => i,1,Playback(invalid)		; "That's not valid, try again"
 
 ;
 ; Create an extension, 500, for dialing the
-; OpenPBX demo.
+; CallWeaver demo.
 ;
 exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
-exten => 500,n,Dial(IAX2/guest@demo.openpbx.org/s@default)	; Call the OpenPBX demo
+exten => 500,n,Dial(IAX2/guest@demo.openpbx.org/s@default)	; Call the CallWeaver demo
 exten => 500,n,Playback(demo-nogo)	; Couldn't connect to the demo site
 exten => 500,n,Goto(s,6)		; Return to the start over message.
 
@@ -485,7 +485,7 @@ include => demo
 ;exten = 8700,1,Dial(${MARK},30,A(/path/to/my/announcemsg))
 ;
 ; For more information on applications, just type "show applications" at your
-; friendly OpenPBX CLI prompt.
+; friendly CallWeaver CLI prompt.
 ;
 ; 'show application <command>' will show details of how you
 ; use that particular application in this file, the dial plan. 

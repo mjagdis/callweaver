@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Start/stop/restart OpenPBX
+# Start/stop/restart CallWeaver
 #
 # Version: 1.0 - Paul Belanger <pabelanger@gmail.com>
 #
@@ -9,7 +9,7 @@
 
 openpbx_start() {
    if [ -x /usr/sbin/openpbx ]; then
-      echo "Starting OpenPBX   /usr/sbin/openpbx"
+      echo "Starting CallWeaver   /usr/sbin/openpbx"
       /usr/sbin/openpbx
    fi
 }

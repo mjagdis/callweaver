@@ -1,7 +1,7 @@
-OpenPBX.org Configuration Parser (version 1.1 and later)
+CallWeaver.org Configuration Parser (version 1.1 and later)
 -----------------------------------------------------
 
-The OpenPBX.org configuration parser in the 0.2 stable and beyond series 
+The CallWeaver.org configuration parser in the 0.2 stable and beyond series 
 has been improved in a number of ways. In addition to the realtime 
 architecture, we now have the ability to create templates in 
 configuration files, and use these as templates when we
@@ -12,7 +12,7 @@ all configuration files.
 
 General syntax
 --------------
-OpenPBX configuration files are defined as follows:
+CallWeaver configuration files are defined as follows:
 
 	[section]
 	label = value
@@ -101,7 +101,7 @@ Defining a template-only section
 	label = value
 
 The exclamation mark indicates to the config parser that this is a only
-a template and should not itself be used by the OpenPBX module for
+a template and should not itself be used by the CallWeaver module for
 configuration. The section can be inherited by other sections (see 
 section "Using templates" below) but is not used by itself.
 

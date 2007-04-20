@@ -1,4 +1,4 @@
-; Sample OpenPBX config file for CDR logging to PostgresSQL
+; Sample CallWeaver config file for CDR logging to PostgresSQL
 
 [global]
 ;dsn=host=localhost dbname=cdrdb user=openpbx password=secret

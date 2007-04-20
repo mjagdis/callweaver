@@ -51,10 +51,10 @@
 .ds f4\"
 '\" t 
 .ta 8n 16n 24n 32n 40n 48n 56n 64n 72n  
-.TH ASTGENKEY 8 "May 14th, 2005" "OpenPBX" "Linux Programmer's Manual"
+.TH ASTGENKEY 8 "May 14th, 2005" "CallWeaver" "Linux Programmer's Manual"
 .SH NAME
 .B astgenkey
--- generates keys for for OpenPBX IAX2 RSA authentication
+-- generates keys for for CallWeaver IAX2 RSA authentication
 .SH SYNOPSIS
 .PP 
 .B astgenkey
@@ -63,14 +63,14 @@
 .SH DESCRIPTION
 .B genzaptelconf 
 This script generates an RSA private and public key pair in PEM format 
-for use by OpenPBX.  The private key should be kept a secret, as it can 
+for use by CallWeaver.  The private key should be kept a secret, as it can 
 be used to fake your system's identity.  Thus by default (without the 
 option 
 .I -n
 ) the script will create a passphrase-encrypted copy of your secret key: 
 without entering the passphrase you won't be able to use it. 
 
-However if you want to use such a key with OpenPBX, you'll have to start 
+However if you want to use such a key with CallWeaver, you'll have to start 
 it interactively, because the scripts that start openpbx can't use that
 encrypted key.
 
@@ -117,7 +117,7 @@ Don't encrypt the private key.
 .SH "SEE ALSO" 
 openpbx(8), genrsa(1), rsa(1), 
 
-http://www.voip-info.org/wiki-OpenPBX+iax+rsa+auth
+http://www.voip-info.org/wiki-CallWeaver+iax+rsa+auth
 
 .SH "AUTHOR" 
 This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 

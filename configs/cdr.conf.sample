@@ -1,5 +1,5 @@
 ;
-; OpenPBX Call Detail Record engine configuration
+; CallWeaver Call Detail Record engine configuration
 ;
 ; CDR is Call Detail Record, which provides logging services via a variety of
 ; pluggable backend modules.  Detailed call information can be recorded to

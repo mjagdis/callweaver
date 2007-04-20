@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# Web based Voicemail for OpenPBX
+# Web based Voicemail for CallWeaver
 #
 # Copyright (C) 2002, Linux Support Services, Inc.
 #
@@ -46,7 +46,7 @@ $context=""; # Define here your by default context (so you dont need to put voic
 $opbxpath = "/_openpbx";
 
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
-$footer = "<hr><font size=-1><a href=\"http://www.openpbx.org\">The OpenPBX.org Open Source PBX</a> Copyright 2006</a></a>";
+$footer = "<hr><font size=-1><a href=\"http://www.openpbx.org\">The CallWeaver.org Open Source PBX</a> Copyright 2006</a></a>";
 $stdcontainerend = "</td></tr><tr><td align=right>$footer</td></tr></table>\n";
 
 sub lock_path() {
@@ -105,7 +105,7 @@ sub login_screen() {
 	my ($message) = @_;
 	print <<_EOH;
 
-<TITLE>OpenPBX Web-Voicemail</TITLE>
+<TITLE>CallWeaver Web-Voicemail</TITLE>
 <BODY BGCOLOR="white">
 $stdcontainerstart
 <FORM METHOD="post">
@@ -429,7 +429,7 @@ sub message_prefs()
 	print header;
 	print <<_EOH;
 
-<TITLE>OpenPBX Web-Voicemail: Preferences</TITLE>
+<TITLE>CallWeaver Web-Voicemail: Preferences</TITLE>
 <BODY BGCOLOR="white">
 $stdcontainerstart
 <FORM METHOD="post">
@@ -496,7 +496,7 @@ sub message_play()
 		}
 		print <<_EOH;
 	
-<TITLE>OpenPBX Web-Voicemail: $folder Message $msgid</TITLE>
+<TITLE>CallWeaver Web-Voicemail: $folder Message $msgid</TITLE>
 <BODY BGCOLOR="white">
 $stdcontainerstart
 <FORM METHOD="post">
@@ -646,7 +646,7 @@ sub message_index()
 	print header(-cookie => &makecookie($format));
 	print <<_EOH;
 
-<TITLE>OpenPBX Web-Voicemail: $mbox\@$context $folder</TITLE>
+<TITLE>CallWeaver Web-Voicemail: $mbox\@$context $folder</TITLE>
 <BODY BGCOLOR="white">
 $stdcontainerstart
 <FORM METHOD="post">

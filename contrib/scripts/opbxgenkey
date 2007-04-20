@@ -26,14 +26,14 @@ fi
 if [ "$QUIET" != 'y' ]; then
 	echo ""
 	echo "This script generates an RSA private and public key pair"
-	echo "in PEM format for use by OpenPBX.  You will be asked to"
+	echo "in PEM format for use by CallWeaver.  You will be asked to"
 	echo "enter a passcode for your key multiple times.  Please"
 	echo "enter the same code each time.  The resulting files will"
 	echo "need to be moved to /var/lib/openpbx/keys if you want"
 	echo "to use them, and any private keys (.key files) will"
 	echo "need to be initialized at runtime either by running"
-	echo "OpenPBX with the '-i' option, or with the 'init keys'"
-	echo "command once OpenPBX is running."
+	echo "CallWeaver with the '-i' option, or with the 'init keys'"
+	echo "command once CallWeaver is running."
 	echo ""
 	echo "Press ENTER to continue or ^C to cancel."
 	read BLAH

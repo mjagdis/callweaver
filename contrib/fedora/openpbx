@@ -12,14 +12,14 @@ RETVAL=0
 case "$1" in
   start)
 	mkdir -p /dev/fax &>/dev/null && chown openpbx.openpbx /dev/fax
-	echo -n $"Starting OpenPBX: "
+	echo -n $"Starting CallWeaver: "
 	daemon /usr/sbin/openpbx
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/openpbx
 	;;
   stop)
-	echo -n $"Stopping OpenPBX: "
+	echo -n $"Stopping CallWeaver: "
 	killproc openpbx
 	RETVAL=$?
 

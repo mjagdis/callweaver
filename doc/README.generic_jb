@@ -11,7 +11,7 @@ lines of code, look at chan_sip for an example.
 Credits:
  Most of this implementation is written by Slav Klenov, and some of
   it has been paid for by IP24.no.
- Integration into OpenPBX.org and some additions and bugfixes made by 
+ Integration into CallWeaver.org and some additions and bugfixes made by 
   Bartek (eGnarF) Kania.
 
 
@@ -84,14 +84,14 @@ the actual jitterbuffer is still in use and can be selected with
 	jb-impl = adaptive
 
 
-The new Jitterbuffer in OpenPBX
+The new Jitterbuffer in CallWeaver
 --------------------------------
 Steve Kann
 
 
 
 The new jitterbuffer, PLC, and the IAX2-integration of the new jitterbuffer 
-have been integrated into OpenPBX. The jitterbuffer is generic and has 
+have been integrated into CallWeaver. The jitterbuffer is generic and has 
 been implemented in SIP/RTP as well.
 
 Also, we've added a feature called "trunktimestamps", which adds individual 
@@ -119,7 +119,7 @@ genericplc => true in the [plc] section of codecs.conf.
 
 3) Trunktimestamps:
 -------------------
-To use this, both sides must be using OpenPBX v1.1dev (or coming 1.2 stable).
+To use this, both sides must be using CallWeaver v1.1dev (or coming 1.2 stable).
 Setting "trunktimestamps=yes" in iax.conf will cause your box to send 16-bit timestamps 
 for each trunked frame inside of a trunk frame. This will enable you to use jitterbuffer
 for an IAX2 trunk, something that was not possible in the old architecture.
@@ -215,7 +215,7 @@ times of the frames you're receiving.  You can make such a tcpdump with:
 
 tcpdump -s 2048 -w /tmp/example.dump udp and port 4569 [and host <other-end>]
 
-Report bugs in the OpenPBX bugtracker, http://bugs.digium.com.
+Report bugs in the CallWeaver bugtracker, http://bugs.digium.com.
 Please read the bug guidelines before you post a bug.
 
 Have fun!

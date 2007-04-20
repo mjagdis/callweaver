@@ -12,7 +12,7 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=openpbx
-DESC="OpenPBX"
+DESC="CallWeaver"
 # Full path to openpbx binary
 DAEMON=/usr/sbin/openpbx
 
@@ -23,8 +23,8 @@ SAFE_OPENPBX=/usr/sbin/safe_openpbx
 export LD_ASSUME_KERNEL=2.4.1
 
 # Uncomment the following and set them to the user/groups that you
-# want to run OpenPBX as. NOTE: this requires substantial work to
-# be sure that OpenPBX's environment has permission to write the
+# want to run CallWeaver as. NOTE: this requires substantial work to
+# be sure that CallWeaver's environment has permission to write the
 # files required  for  its  operation, including logs, its comm
 # socket, the openpbx database, etc.
 #AST_USER="openpbx"

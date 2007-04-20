@@ -158,7 +158,7 @@ etc etc
 
 
 Eventually, I will replace the linked list storage and linear search with a
-hashtable storage library so OpenPBX can store arbitrary objects in a hash
+hashtable storage library so CallWeaver can store arbitrary objects in a hash
 table from where they can be retrieved much faster than the current method
 using linear searches on linked lists and arrays.
 

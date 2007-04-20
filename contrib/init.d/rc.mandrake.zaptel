@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# zaptel:       Loads OpenPBX modules
+# zaptel:       Loads CallWeaver modules
 #
 # Version:      @(#) /etc/rc.d/init.d/zaptel 1.0
 #
@@ -54,7 +54,7 @@ function reverse_modules() {
 # See how we were called.
 case "$1" in
   start)
-	gprintf "Loading OpenPBX modules:\n"
+	gprintf "Loading CallWeaver modules:\n"
 	for i in $MODULES; do
 		probe $i
 		usleep 100000 ;
@@ -62,7 +62,7 @@ case "$1" in
 	ztcfg
 	;;
   stop)
-	gprintf "Unloading OpenPBX modules:\n"
+	gprintf "Unloading CallWeaver modules:\n"
 	reverse_modules
 	for i in $MODULES; do
 		unprobe $i
@@ -72,7 +72,7 @@ case "$1" in
   status)
   	#ztcfg -vv
 	OK=1
-	gprintf "Checking OpenPBX modules"
+	gprintf "Checking CallWeaver modules"
 	for i in $MODULES; do
 		if [ `lsmod | grep -c $i` -eq 0 ]; then
 			OK=0

@@ -90,7 +90,7 @@ $ sudo niutil -createprop / /groups/openpbx users
 $ sudo niutil -appendprop / /groups/openpbx users openpbx
 $ sudo niutil -create / /users/openpbx
 $ sudo niutil -createprop / /users/openpbx uid 700
-$ sudo niutil -createprop / /users/openpbx realname "OpenPBX.org"
+$ sudo niutil -createprop / /users/openpbx realname "CallWeaver.org"
 $ sudo niutil -createprop / /users/openpbx shell "/bin/bash"
 $ sudo niutil -createprop / /users/openpbx gid 700
 $ sudo niutil -createprop / /users/openpbx passwd "*" 

@@ -28,7 +28,7 @@ INTRODUCTION
 
 This document describes the Intelligent Call Distribution application. The
 goal of this application is to provide a flexible, thread-safe infrastructure
-to the OpenPBX for distributing calls.
+to the CallWeaver for distributing calls.
 
 There are two major components to this system, the application itself and the 
 infrastructure pieces that support the functionality of the application.

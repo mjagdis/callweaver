@@ -12,7 +12,7 @@
 #		Written by Miquel van Smoorenburg <miquels@cistron.nl>.
 #		Modified for Debian GNU/Linux
 #		by Ian Murdock <imurdock@gnu.ai.mit.edu>
-#               adapted for OpenPBX by Gerd Flaig <gefla@pond.sub.org>.
+#               adapted for CallWeaver by Gerd Flaig <gefla@pond.sub.org>.
 #
 # Version:	@(#)skeleton  1.9  26-Feb-2001  miquels@cistron.nl
 #

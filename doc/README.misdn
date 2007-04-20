@@ -1,8 +1,8 @@
-mISDN Channel Driver for OpenPBX
+mISDN Channel Driver for CallWeaver
 ======================================
 
 
-This package contains the mISDN Channel Driver for OpenPBX. It 
+This package contains the mISDN Channel Driver for CallWeaver. It 
 supports every mISDN Hardware and provides an interface for openpbx. 
 
 Features: 
@@ -64,7 +64,7 @@ Pre-Requisites
 
 To compile and install this driver, you'll need at least one mISDN Driver and
 the mISDNuser package. Chan_misdn works with both, the current release version
-and the development (svn trunk) version of OpenPBX. mISDNuser and mISDN must
+and the development (svn trunk) version of CallWeaver. mISDNuser and mISDN must
 be fetched from cvs.isdn4linux.de.
 
 Please Note that mISDN works good for the linux-2.6.x kernels. Some of the
@@ -114,11 +114,11 @@ misdn.conf file which resides in the openpbx config directory (normally
 
 - misdn.conf: [general]
 The misdn.conf file contains a "general" Section, and user sections which
-contain misdn port settings and different OpenPBX contexts.
+contain misdn port settings and different CallWeaver contexts.
 
 The general section contains especially a variable named context with which
 the default context is set. There is also the very important debug variable
-which you can set from the OpenPBX cli (command line interface) or in this
+which you can set from the CallWeaver cli (command line interface) or in this
 configuration file, bigger numbers will lead to more debug output. There's also a
 tracefile option, which takes a path+filename where debug output is written
 to.
@@ -137,9 +137,9 @@ Espacially for TE-Mode Ports there is a msns variable. This variable tells the
 chan_misdn driver to listen for incomming calls with the given msns, you can
 insert a '*' as single msn, which leads in getting every incoming call (if
 you want to share on PMP TE S0 with a openpbx and a phone or isdn card you
-should insert here the msns which you'll like to give the OpenPBX).  Finally
+should insert here the msns which you'll like to give the CallWeaver).  Finally
 a context variable resides in the user sections, which tells chan_misdn where
-to send incoming calls to in the OpenPBX dial plan (extension.conf).
+to send incoming calls to in the CallWeaver dial plan (extension.conf).
 
 
 Dial and Options String
@@ -197,7 +197,7 @@ exten => ${CRYPT_MSN},2,dial(${PHONE2})
 misdn cli commands
 ------------------
 
-At the OpenPBX cli you can try to type in: 
+At the CallWeaver cli you can try to type in: 
 
 misdn <tab> <tab>
 
@@ -223,7 +223,7 @@ Now you should see the misdn cli commands:
 
 - reload 		(reloads misdn.conf)
 
-You can only use "misdn send display" when an OpenPBX channel is created and
+You can only use "misdn send display" when an CallWeaver channel is created and
 isdn is in the correct state. "correct state" means that you have established a
 call to another phone (mustn't be isdn though).
 
@@ -244,7 +244,7 @@ should be enough. the messages are divided in openpbx and misdn parts.
 Misdn Debug messages begin with an 'I', openpbx messages begin with an '*', 
 the rest is clear I think. 
 
-Please take a trace of the problem and open a report in the OpenPBX issue
+Please take a trace of the problem and open a report in the CallWeaver issue
 tracker at http://trac.openpbx.org/ in the "channel drivers" project,
 "chan_misdn" category. Read the bug guidelines to make sure you
 provide all the information needed.

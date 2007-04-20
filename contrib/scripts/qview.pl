@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# OpenPBX Queue Viewer
+# CallWeaver Queue Viewer
 # Uses management interface to query call queues on a machine
 # (C) 2003 David C. Troy -- dave@toad.net
 #
@@ -29,7 +29,7 @@ $remote = IO::Socket::INET->new(
 
 $remote->autoflush(1);	# Send immediately
 
-# Login and get our booty from OpenPBX
+# Login and get our booty from CallWeaver
 $logres = send_cmd("Action: Login${EOL}Username: $user${EOL}Secret: $secret$BLANK");
 $qinfo = send_cmd("Action: queues$BLANK$EOL");
 $logres = send_cmd("Action: Logoff$BLANK");

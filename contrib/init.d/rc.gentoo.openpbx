@@ -5,13 +5,13 @@ depend() {
 }
 
 start() {
-	ebegin "Starting OpenPBX"
+	ebegin "Starting CallWeaver"
 	/usr/sbin/openpbx
-	eend $? "Failed to start OpenPBX"
+	eend $? "Failed to start CallWeaver"
 }
 
 stop() {
-	ebegin "Stopping OpenPBX"
+	ebegin "Stopping CallWeaver"
 	kill $(cat /var/run/openpbx.pid)
-	eend $? "Failed to stop OpenPBX"
+	eend $? "Failed to stop CallWeaver"
 }

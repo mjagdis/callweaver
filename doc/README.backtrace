@@ -2,13 +2,13 @@
 
 This document is to provide information on how to obtain the backtraces required on the openpbx bug tracker, available at http://bugs.digium.com.
 The information is required by developers to help fix problem with bugs of any kind.
-Backtraces provide information about what was wrong when a program crashed; in our case, OpenPBX.
+Backtraces provide information about what was wrong when a program crashed; in our case, CallWeaver.
 There are two kind of backtraces (aka 'bt'), which are useful: bt and bt full.
 
-First of all, when you start OpenPBX, you MUST start it with option -g (this tells OpenPBX to produce a core file if it crashes).
-If you start OpenPBX with the safe_openpbx script, it automatically starts using the option -g.
+First of all, when you start CallWeaver, you MUST start it with option -g (this tells CallWeaver to produce a core file if it crashes).
+If you start CallWeaver with the safe_openpbx script, it automatically starts using the option -g.
 
-If you're not sure if OpenPBX is running with the -g option, type the following command in your shell:
+If you're not sure if CallWeaver is running with the -g option, type the following command in your shell:
 
 debian:/tmp# ps aux | grep openpbx
 root     17832  0.0  1.2   2348   788 pts/1    S    Aug12   0:00 /bin/sh /usr/sbin/safe_openpbx
@@ -18,7 +18,7 @@ root     26686  0.0  2.8  15544  1744 pts/1    S    Aug13   0:02 openpbx -vvvg -
 The interesting information is located in the last column.
 
 
-After OpenPBX crashes, a core file will be "dumped" in your /tmp/ directory
+After CallWeaver crashes, a core file will be "dumped" in your /tmp/ directory
 To make sure it's really there, you can just type the following command in your shell:
 
 debian:/tmp# ls -l /tmp/core.*

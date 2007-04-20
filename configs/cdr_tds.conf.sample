@@ -1,4 +1,4 @@
-; Sample OpenPBX config file for CDR logging to FreeTDS
+; Sample CallWeaver config file for CDR logging to FreeTDS
 
 ;[global]
 ;hostname=fs.malico.loc

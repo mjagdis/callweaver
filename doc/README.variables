@@ -1,16 +1,16 @@
 ----------------------------
-OpenPBX dial plan variables 
+CallWeaver dial plan variables 
 ----------------------------
 
-There are two levels of parameter evaluation done in the OpenPBX
+There are two levels of parameter evaluation done in the CallWeaver
 dial plan in extensions.conf.
 * The first, and most frequently used, is the substitution of variable
   references with their values. 
 * Then there are the evaluations of expressions done in $[ .. ]. 
   This will be discussed below.
 
-OpenPBX has user-defined variables and standard variables set
-by various modules in OpenPBX. These standard variables are
+CallWeaver has user-defined variables and standard variables set
+by various modules in CallWeaver. These standard variables are
 listed at the end of this document.
 
 ___________________________
@@ -86,7 +86,7 @@ would be 18005551234. This is useful in situations when we require users to
 dial a number to access an outside line, but do not wish to pass the first 
 digit.
 
-If you use a negative offset number, OpenPBX starts counting from the end 
+If you use a negative offset number, CallWeaver starts counting from the end 
 of the string and then removes everything before the new position. The following
 example will save the numbers 1234 to the 'number' variable, still assuming
 we've dialed 918005551234.
@@ -111,7 +111,7 @@ previous example).
 	;Save the numbers 555 to the 'number' variable
 	exten => _9X.,1,Set(number=${EXTEN:-7:3})
 
-If a negative length value is entered, it is ignored and OpenPBX will match
+If a negative length value is entered, it is ignored and CallWeaver will match
 to the end of the string.
 ___________________________
 EXPRESSIONS: 
@@ -235,7 +235,7 @@ with equal precedence are grouped within { } symbols.
 	     expression evaluation.  Otherwise, expr2 is the result.
 	     If expr1 is a string, and evaluates to an empty string,
 	     or the two characters (""), then expr3 is the
-	     result. Otherwise, expr2 is the result.  In OpenPBX, all
+	     result. Otherwise, expr2 is the result.  In CallWeaver, all
 	     3 exprs will be "evaluated"; if expr1 is "true", expr2
 	     will be the result of the "evaluation" of this
 	     expression.  expr3 will be the result otherwise. This
@@ -519,10 +519,10 @@ guaranteed to work in all cases, but it is hoped that it will be
 useful.
 
 ---------------------------------------------------------
-OpenPBX standard channel variables 
+CallWeaver standard channel variables 
 ---------------------------------------------------------
 There are a number of variables that are defined or read
-by OpenPBX. Here is a list of them. More information is
+by CallWeaver. Here is a list of them. More information is
 available in each application's help text. All these variables
 are in UPPER CASE only.
 
@@ -552,7 +552,7 @@ ${GOTO_ON_BLINDXFR}	Transfer to the specified context/extension/priority
 			after a blind transfer (use ^ characters in place of
 			| to separate context/extension/priority when setting
 			this variable from the dialplan)
-${HANGUPCAUSE}	 	* OpenPBX cause of hangup (inbound/outbound)
+${HANGUPCAUSE}	 	* CallWeaver cause of hangup (inbound/outbound)
 ${HINT}          	* Channel hints for this extension
 ${HINTNAME}      	* Suggested Caller*ID name for this extension
 ${INVALID_EXTEN} 	The invalid called extension (used in the "i" extension)
@@ -723,4 +723,4 @@ SetVAR(CDR(var)=val) to anything you want.
 
 Certain functional variables may be accessed with $(foo <args>).  A list
 of these functional variables may be found by typing "show functions"
-at the OpenPBX CLI.
+at the CallWeaver CLI.

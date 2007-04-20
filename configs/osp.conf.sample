@@ -3,7 +3,7 @@
 ;
 ;
 ; This file contains configuration of providers that
-; are used by the OSP subsystem of OpenPBX.  The section
+; are used by the OSP subsystem of CallWeaver.  The section
 ; "general" is reserved for global options.  Each other 
 ; section declares an OSP Provider.  The provider "default"
 ; is used when no provider is otherwise specified.
@@ -15,11 +15,11 @@
 ;
 ;accelerate=yes
 ;
-; Defines the token format that OpenPBX can validate. 
+; Defines the token format that CallWeaver can validate. 
 ; 0 - signed tokens only 
 ; 1 - unsigned tokens only 
 ; 2 - both signed and unsigned
-; The defaults to 0, i.e. the OpenPBX can validate signed tokens only.
+; The defaults to 0, i.e. the CallWeaver can validate signed tokens only.
 ;
 ;tokenformat=0
 

@@ -1,6 +1,6 @@
 Call data records can be stored in many different databases or even CSV text.
 
-MSSQL:		OpenPBX can currently store CDRs into an MSSQL database in
+MSSQL:		CallWeaver can currently store CDRs into an MSSQL database in
 		two different ways:  cdr_odbc.c or cdr_tds.c
 		
 		Call Data Records can be stored using unixODBC (which requires
@@ -46,7 +46,7 @@ MSSQL:		OpenPBX can currently store CDRs into an MSSQL database in
 
 		/etc/odbc.ini
 		   [MSSQL-openpbx]
-		   description         = OpenPBX ODBC for MSSQL
+		   description         = CallWeaver ODBC for MSSQL
 		   driver              = FreeTDS
 		   server              = 192.168.1.25
 		   port                = 1433

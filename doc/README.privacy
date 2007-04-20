@@ -121,7 +121,7 @@ Next: Torture Them!
 
 I have developed an elaborate script to torture Telemarketers, and
 entertain friends. (See
-http://www.voip-info.org/wiki-OpenPBX+Telemarketer+Torture )
+http://www.voip-info.org/wiki-CallWeaver+Telemarketer+Torture )
 
 While mostly those that call in and traverse my teletorture scripts
 are those we know, and are doing so out of curiosity, there have been
@@ -157,7 +157,7 @@ have a "memory".
 Turning on these modes in the dial command results in this sequence of
 events, when someone calls you at an extension:
 
-1. The caller calls the OpenPBX system, and at some point, selects an
+1. The caller calls the CallWeaver system, and at some point, selects an
 option or enters an extension number that would dial your extension.
 
 2. Before ringing your extension, the caller is asked to supply an

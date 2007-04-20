@@ -3,7 +3,7 @@
 ;
 ; Configuration file
 ;
-; You need to restart OpenPBX to re-configure the Zap channel
+; You need to restart CallWeaver to re-configure the Zap channel
 ; CLI> reload chan_zap.so 
 ;		will reload the configuration file,
 ;		but not all configuration options are 
@@ -116,7 +116,7 @@ switchtype=national
 ;
 ; PRI Out of band indications.
 ; Enable this to report Busy and Congestion on a PRI using out-of-band
-; notification. Inband indication, as used by OpenPBX doesn't seem to work
+; notification. Inband indication, as used by CallWeaver doesn't seem to work
 ; with all telcos.
 ; 
 ; outofband:      Signal Busy/Congestion out of band with RELEASE/DISCONNECT
@@ -413,7 +413,7 @@ immediate=no
 ;
 ;busypattern=500,500
 ;
-; NOTE: In the OpenPBX Makefile you'll find further options to tweak the busy
+; NOTE: In the CallWeaver Makefile you'll find further options to tweak the busy
 ; detector.  If your country has a busy tone with the same length tone and
 ; silence (as many countries do), consider defining the
 ; -DBUSYDETECT_COMPARE_TONE_AND_SILENCE option.

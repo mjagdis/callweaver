@@ -2,7 +2,7 @@
 ;
 ; Define whether callbacklogins should be stored in opbxdb for
 ; persistence. Persistent logins will be reloaded after
-; OpenPBX restarts.
+; CallWeaver restarts.
 ;
 persistentagents=yes
 ;

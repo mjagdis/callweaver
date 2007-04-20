@@ -1,10 +1,10 @@
 ;
-; OpenPBX default ADSI script
+; CallWeaver default ADSI script
 ;
 ;
 ; Begin with the preamble requirements
 ;
-DESCRIPTION "OpenPBX"			; Name of vendor
+DESCRIPTION "CallWeaver"			; Name of vendor
 VERSION 0x00				; Version of stuff
 ;SECURITY "_AST"			; Security code
 SECURITY 0X9BDBF7AC			; Security code
@@ -18,7 +18,7 @@ FLAG "nocallwaiting"
 ;
 ; Predefined strings
 ;
-DISPLAY "titles" IS "** OpenPBX **"
+DISPLAY "titles" IS "** CallWeaver **"
 DISPLAY "talkingto" IS "Call active." JUSTIFY LEFT
 DISPLAY "callname" IS "$Call1p" JUSTIFY LEFT
 DISPLAY "callnum" IS "$Call1s" JUSTIFY LEFT

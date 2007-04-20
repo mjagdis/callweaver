@@ -31,13 +31,13 @@ Requires:	/sbin/chkconfig
 %{?FE_USERADD_REQ}
 
 %description
-OpenPBX is an Open Source PBX and telephony development platform that
+CallWeaver is an Open Source PBX and telephony development platform that
 can both replace a conventional PBX and act as a platform for developing
 custom telephony applications for delivering dynamic content over a
 telephone similarly to how one can deliver dynamic content through a
 web browser using CGI and a web server.
 
-OpenPBX talks to a variety of telephony hardware including BRI, PRI,
+CallWeaver talks to a variety of telephony hardware including BRI, PRI,
 POTS, Bluetooth headsets and IP telephony clients using SIP and IAX
 protocols protocol (e.g. ekiga or kphone).  For more information and a
 current list of supported hardware, see www.openpbx.org.
@@ -49,112 +49,112 @@ Summary:	Development package for %{name}
 Requires:	%{name} = %{version}-%{release}
 
 %description devel
-Use this package for developing and building modules for OpenPBX
+Use this package for developing and building modules for CallWeaver
 
 
 %package postgresql
 Group:		Applications/Internet
-Summary:	PostgreSQL support for OpenPBX
+Summary:	PostgreSQL support for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description postgresql
-This package contains modules for OpenPBX which make use of PostgreSQL.
+This package contains modules for CallWeaver which make use of PostgreSQL.
 
 %package mysql
 Group:		Applications/Internet
-Summary:	MySQL support for OpenPBX
+Summary:	MySQL support for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description mysql
-This package contains modules for OpenPBX which make use of MySQL.
+This package contains modules for CallWeaver which make use of MySQL.
 
 %package odbc
 Group:		Applications/Internet
-Summary:	ODBC support for OpenPBX
+Summary:	ODBC support for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description odbc
-This package contains modules for OpenPBX which make use of ODBC.
+This package contains modules for CallWeaver which make use of ODBC.
 
 %package ldap
 Group:		Applications/Internet
-Summary:	LDAP support for OpenPBX
+Summary:	LDAP support for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description ldap
-This package contains modules for OpenPBX which make use of LDAP.
+This package contains modules for CallWeaver which make use of LDAP.
 
 %package bluetooth
 Group:		Applications/Internet
-Summary:	Bluetooth channel driver for OpenPBX
+Summary:	Bluetooth channel driver for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description bluetooth
-This package contains a Bluetooth channel driver for OpenPBX, which
+This package contains a Bluetooth channel driver for CallWeaver, which
 allows Bluetooth headsets and telephones to be used for communication.
 
 %package capi
 Group:		Applications/Internet
-Summary:	CAPI channel driver for OpenPBX
+Summary:	CAPI channel driver for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description capi
 This package contains a CAPI (Common ISDN API) channel driver for
-OpenPBX, allowing CAPI devices to be used for making and receiving calls.
+CallWeaver, allowing CAPI devices to be used for making and receiving calls.
 
 %package misdn
 Group:		Applications/Internet
-Summary:	mISDN channel driver for OpenPBX
+Summary:	mISDN channel driver for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description misdn
-This package contains the mISDN channel driver for OpenPBX. mISDN is
+This package contains the mISDN channel driver for CallWeaver. mISDN is
 the replacement modular ISDN stack for Linux, intended to be merged
 into the 2.6 kernel.
 
 %package zaptel
 Group:		Applications/Internet
-Summary:	Zaptel modules for OpenPBX
+Summary:	Zaptel modules for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 Requires:	zaptel >= 1.4.0-1
 
 %description zaptel
 This package contains the Zap channel driver and MeetMe application
-for OpenPBX. Zaptel is Digium's telephony driver package.
+for CallWeaver. Zaptel is Digium's telephony driver package.
 
 %package jabber
 Group:		Applications/Internet
-Summary:	Jabber support for OpenPBX
+Summary:	Jabber support for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description jabber
-This package contains Jabber protocol support for OpenPBX.
+This package contains Jabber protocol support for CallWeaver.
 
 %package javascript
 Group:		Applications/Internet
-Summary:	JavaScript support for OpenPBX
+Summary:	JavaScript support for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description javascript
-This package contains JavaScript support for OpenPBX.
+This package contains JavaScript support for CallWeaver.
 
 %package alsa
 Group:		Applications/Internet
-Summary:	ALSA channel driver for OpenPBX
+Summary:	ALSA channel driver for CallWeaver
 Requires:	%{name} = %{version}-%{release}
 
 %description alsa
-This package contains an ALSA console driver for OpenPBX, which allows
+This package contains an ALSA console driver for CallWeaver, which allows
 the local sound devices to be used for making and receiving calls.
 
 %package ogi
 Group:		Applications/Internet
-Summary:	OpenPBX Gateway Interface
+Summary:	CallWeaver Gateway Interface
 Requires:	%{name} = %{version}-%{release}
 
 %description ogi
-This package contains files support for the OpenPBX Gateway Interface; a
-convenient interface between OpenPBX and external scripts or programs.
+This package contains files support for the CallWeaver Gateway Interface; a
+convenient interface between CallWeaver and external scripts or programs.
 
 
 %prep
@@ -215,7 +215,7 @@ rm -rf $RPM_BUILD_ROOT
 %pre
 %__fe_groupadd 30 -r openpbx &>/dev/null || :
 %__fe_useradd  30 -r -s /sbin/nologin -d %{_sysconfdir}/openpbx.org -M \
-                    -c 'OpenPBX user' -g openpbx openpbx &>/dev/null || :
+                    -c 'CallWeaver user' -g openpbx openpbx &>/dev/null || :
 %post
 /sbin/chkconfig --add openpbx
 

@@ -1,5 +1,5 @@
 ;
-; MGCP Configuration for OpenPBX
+; MGCP Configuration for CallWeaver
 ;
 [general]
 ;port = 2427

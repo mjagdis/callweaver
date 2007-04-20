@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w 
 #
-#  Simple OpenPBX Manager Proxy, Version 1.01
+#  Simple CallWeaver Manager Proxy, Version 1.01
 #  2004-09-26
 #  Copyright (c) 2004 David C. Troy &lt;dave@popvox.com>
 #
@@ -30,7 +30,7 @@ use POSIX qw(setsid);
 # User Configurable Options
 #############################
 # Configuration for logging in to your openpbx server
-# Check you OpenPBX config file "manager.conf" for details
+# Check you CallWeaver config file "manager.conf" for details
 my $manager_host = '127.0.0.1';
 my $manager_port = 5038;
 my $manager_user = 'your_username';
@@ -77,7 +77,7 @@ $p =
                             Proto    => "tcp",
                             Type     => SOCK_STREAM
                            )
-  or die "\nCould not connect to OpenPBX Manager Port at $manager_host\n";
+  or die "\nCould not connect to CallWeaver Manager Port at $manager_host\n";
 
 $p->autoflush(1);
 
@@ -111,7 +111,7 @@ sub manager_reconnect()
         $attempt++;
         if ($attempt > $total_attempts)
         {
-            die("!! Could not reconnect to OpenPBX Manager port");
+            die("!! Could not reconnect to CallWeaver Manager port");
         }
         sleep(10);    # wait 10 seconds before trying to reconnect
     } until $p;
@@ -149,11 +149,11 @@ while (1)
                         $O->remove($_);
                         $_->close;
 
-                        # If we lost the socket for the OpenPBX Mgr, then reconnect
+                        # If we lost the socket for the CallWeaver Mgr, then reconnect
                         if ($_ == $p)
                         {
                             log_debug(
-                                     "** OpenPBX Manager connection lost!!!!!",
+                                     "** CallWeaver Manager connection lost!!!!!",
                                      16);
                             manager_reconnect();
                         } else {
