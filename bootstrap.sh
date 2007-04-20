@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 echo ""
-echo "OpenPBX.org bootstrap script to generate autotools build environment"
+echo "CallWeaver.org bootstrap script to generate autotools build environment"
 
 ############
 ##

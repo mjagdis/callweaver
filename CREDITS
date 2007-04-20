@@ -1,11 +1,11 @@
 
 === DEVELOPMENT SUPPORT ===
 I'd like to thank the following companies for helping fund development of
-OpenPBX:
+CallWeaver:
 
-Pilosoft, Inc. - for supporting ADSI development in OpenPBX
+Pilosoft, Inc. - for supporting ADSI development in CallWeaver
 
-Asterlink, Inc. - for supporting broad OpenPBX development
+Asterlink, Inc. - for supporting broad CallWeaver development
 
 GFS - for supporting ALSA development
 
@@ -83,5 +83,5 @@ Michael Bielicki & co. Intelligent Call Distribution (ICD)
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
 
-=== OTHER SOURCE CODE IN OPENPBX ===
+=== OTHER SOURCE CODE IN CALLWEAVER ===
 

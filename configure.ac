@@ -1,5 +1,5 @@
-# Main Autoconf configuration file for the OpenPBX.org project
-# Copyright <c> 2005, 2006, 2007 by OpenPBX.org
+# Main Autoconf configuration file for the CallWeaver.org project
+# Copyright <c> 2005, 2006, 2007 by CallWeaver.org
 #
 # For a list of Authors check the AUTHORS file in the same directory
 # as this file
@@ -21,8 +21,8 @@
 ######
 
 AC_PREREQ(2.59)
-AC_INIT(OpenPBX.org,svn-trunk,callweaver-dev@callweaver.org)
-AM_INIT_AUTOMAKE(OpenPBX.org,svn-trunk)
+AC_INIT(CallWeaver.org,svn-trunk,callweaver-dev@callweaver.org)
+AM_INIT_AUTOMAKE(CallWeaver.org,svn-trunk)
 
 dnl define GNU Source to make sure every compiler and tool 
 dnl  knows that we use GNU compliant macros etc
@@ -564,7 +564,7 @@ dnl # AC_CHECK_LIB([expat], [main]) # why would we need this one ?
 AC_CHECK_LIB([ib], [main])
 AC_CHECK_LIB([m], [main])
 AC_CHECK_LIB([ncurses], [main],,[AC_CHECK_LIB([curses],[main])])
-AC_CHECK_LIB([readline],[main],,[AC_MSG_ERROR(readline is required to compile OpenPBX.org.)])
+AC_CHECK_LIB([readline],[main],,[AC_MSG_ERROR(readline is required to compile CallWeaver.org.)])
 AC_CHECK_LIB([newt], [main],[AC_DEFINE([HAVE_LIBNEWT],["yes"],[yes there is newt])])
 AM_CONDITIONAL([USE_NEWT],[test -n "${HAVE_LIBNEWT}"])
 AC_CHECK_LIB([nsl], [main])
@@ -619,7 +619,7 @@ dnl # include <w32api/winsock2.h>
 dnl # endif
 dnl ])
 AC_CHECK_HEADER([dlfcn.h],[AM_CONDITIONAL([NEED_DLFCN_H],[true = yes])])
-AC_CHECK_HEADERS([readline/readline.h readline/history.h],,[AC_MSG_ERROR(readline is required to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([readline/readline.h readline/history.h],,[AC_MSG_ERROR(readline is required to compile CallWeaver.org.)])
 
 dnl check structures
 AC_STRUCT_TM
@@ -711,8 +711,8 @@ AC_ARG_WITH([tiff-libs],
 	[AC_HELP_STRING([--with-tiff-libs],[Location of libtiff library files.])],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
-AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
-AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile CallWeaver.org.)])
+AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile CallWeaver.org.)])
 
 dnl ###########################################################################
 
@@ -721,7 +721,7 @@ AC_CHECK_LIB([rt], [timer_create],[AC_DEFINE([HAVE_POSIX_TIMERS],[1],[yes there 
 dnl ###########################################################################
 
 if test "${no_libcap}" != "yes"; then
-AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile OpenPBX.org.)])
+AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile CallWeaver.org.)])
 fi
 dnl ###########################################################################
 
