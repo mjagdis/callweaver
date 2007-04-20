@@ -29,9 +29,9 @@
 ;
 ; For console logging, you set options at start of
 ; CallWeaver with -v for verbose and -d for debug
-; See 'openpbx -h' for more information.
+; See 'callweaver -h' for more information.
 ;
-; Directory for log files is configures in openpbx.conf
+; Directory for log files is configures in callweaver.conf
 ; option astlogdir
 ;
 [logfiles]

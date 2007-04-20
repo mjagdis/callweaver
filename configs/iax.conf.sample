@@ -256,8 +256,8 @@ inkeys=freeworlddialup
 ; authentication is used, "inkeys" is a list of acceptable public keys on the 
 ; local system that can be used to authenticate the remote peer, separated by
 ; the ":" character.  "outkey" is a single, private key to use to authenticate
-; to the other side.  Public keys are named /var/lib/openpbx/keys/<name>.pub
-; while private keys are named /var/lib/openpbx/keys/<name>.key.  Private
+; to the other side.  Public keys are named /var/lib/callweaver/keys/<name>.pub
+; while private keys are named /var/lib/callweaver/keys/<name>.key.  Private
 ; keys should always be 3DES encrypted.
 ;
 ;
@@ -283,11 +283,11 @@ inkeys=freeworlddialup
 ;
 [demo]
 type=peer
-username=openpbx
+username=callweaver
 secret=supersecret
 host=216.207.245.47
 ;sendani=no
-;host=openpbx.linux-support.net
+;host=fred.callweaver.org
 ;port=5036
 ;mask=255.255.255.255
 ;qualify=yes			; Make sure this peer is alive

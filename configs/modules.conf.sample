@@ -39,7 +39,7 @@ noload => chan_alsa.so
 noload => chan_woomera.so
 
 ; Don't load chan_capi by default.  Loading it without having
-; configured prevents openpbx from working.
+; configured prevents callweaver from working.
 noload => chan_capi.so
 
 ;

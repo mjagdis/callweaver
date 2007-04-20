@@ -1,14 +1,14 @@
 ;;; odbc setup file 
 
-[openpbx]
-dsn => openpbx
+[callweaver]
+dsn => callweaver
 ;username => myuser
 ;password => mypass
 pre-connect => yes
 
 
 ;[mysql2]
-;dsn => MySQL-openpbx
+;dsn => MySQL-callweaver
 ;username => myuser
 ;password => mypass
 ;pre-connect => yes

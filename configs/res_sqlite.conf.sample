@@ -13,7 +13,7 @@ dbfile => opbx_cdr
 
 [switch]
 table => dialplan
-dbfile => openpbx
+dbfile => callweaver
 
 [cli]
-dbfile => openpbx
+dbfile => callweaver

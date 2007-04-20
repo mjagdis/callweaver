@@ -1,23 +1,23 @@
-openpbx (0.2.0-trunk-2577) opo; urgency=low
+callweaver (0.2.0-trunk-2577) opo; urgency=low
 
   * Added ODBC support
   * Added chan_bluetooth support
 
  -- Massimo Cetra <devel@navynet.it>  Tue,  3 Jan 2006 20:41:15 +0100
 
-openpbx (0.2.0-trunk-1659-109) opo; urgency=low
+callweaver (0.2.0-trunk-1659-109) opo; urgency=low
 
   * Updated trunk
 
  -- Massimo Cetra <devel@navynet.it>  Tue,  3 Jan 2006 20:41:15 +0100
 
-openpbx (0.2.0-5) opo; urgency=low
+callweaver (0.2.0-5) opo; urgency=low
 
   * enable T.38 support
 
  -- Gerd Flaig <gerd@schlund.de>  Tue,  3 Jan 2006 20:41:15 +0100
 
-openpbx (0.2.0-4) opo; urgency=low
+callweaver (0.2.0-4) opo; urgency=low
 
-  * create openpbx user in postinst
+  * create callweaver user in postinst
 

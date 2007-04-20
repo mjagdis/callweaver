@@ -25,7 +25,7 @@
 
 ;[default]
 ;
-; All paths are presumed to be under /var/lib/openpbx/keys unless
+; All paths are presumed to be under /var/lib/callweaver/keys unless
 ; the path begins with '/'
 ;
 ; Specify the private keyfile.  If unspecified, defaults to the name

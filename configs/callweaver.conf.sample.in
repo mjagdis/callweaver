@@ -1,7 +1,7 @@
 [general]
-;user to run openpbx (this can not be root/UID 0)
+;user to run callweaver (this can not be root/UID 0)
 opbxrunuser => @opbxrunuser@
-;group to run openpbx (this can not be root wheel or GID 0)
+;group to run callweaver (this can not be root wheel or GID 0)
 opbxrungroup => @opbxrunuser@
 
 [directories]
@@ -20,5 +20,5 @@ opbxsoundsdir => @opbxsoundsdir@
 ;opbxctlpermissions = 0660
 ;opbxctlowner = root
 ;opbxctlgroup = apache
-;opbxctl = openpbx.ctl
+;opbxctl = callweaver.ctl
 ;opbxdb = @opbxdbfile@

@@ -6,6 +6,6 @@ columns	=> calldate, clid, src, dst, dcontext, channel, dstchannel, lastapp, las
 values	=> '${CDR(start)}', '${CDR(clid)}', '${CDR(src)}', '${CDR(dst)}', '${CDR(dcontext)}', '${CDR(channel)}', '${CDR(dstchannel)}', '${CDR(lastapp)}', '${CDR(lastdata)}', '${CDR(duration)}', '${CDR(billsec)}', '${CDR(disposition)}', '${CDR(amaflags)}', '${CDR(accountcode)}', '${CDR(uniqueid)}', '${CDR(userfield)}'
 
 [global]
-dsn=host=localhost dbname=openpbx user=openpbx password=password
+dsn=host=localhost dbname=callweaver user=callweaver password=password
 table=cdr               ;SQL table where CDRs will be inserted
 
