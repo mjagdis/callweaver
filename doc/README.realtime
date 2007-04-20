@@ -24,8 +24,8 @@ Currently there are three realtime database drivers:
 * ODBC: Support for UnixODBC, integrated into CallWeaver
   The UnixODBC subsystem supports many different databases,
   please check www.unixodbc.org for more information.
-* MySQL: Found in the openpbx-addons cvs archive on cvs.digium.com
-* Res_perl: Found in the openpbx-addons cvs archive on cvs.digium.com
+* MySQL: Found in the callweaver-addons cvs archive on cvs.digium.com
+* Res_perl: Found in the callweaver-addons cvs archive on cvs.digium.com
 
 
 * Two modes: Static and Realtime
@@ -67,7 +67,7 @@ The realtime Architecture lets you store all of your configuration in
 databases and reload it whenever you want. You can force a reload over
 the AMI, CallWeaver Manager Interface or by calling CallWeaver from a 
 shell script with 
-	openpbx -rx "reload"
+	callweaver -rx "reload"
 
 You may also dynamically add SIP and IAX devices and extensions 
 and making them available without a reload, by using the realtime

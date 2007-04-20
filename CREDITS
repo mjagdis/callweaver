@@ -34,7 +34,7 @@ PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 Anthony Minessale - Countless big and small fixes, and relentless forward push
        anthmct@yahoo.com              http://www.asterlink.com
 James Golovich - Innumerable contributions
-       You can find him and openpbx-perl at http://openpbx.gnuinter.net
+       You can find him and callweaver-perl at http://callweaver.gnuinter.net
 Andre Bierwirth - Extension hints and status
 Oliver Daudey - ISDN4Linux fixes
 Pauline Middelink - ISDN4Linux patches and some general patches.
@@ -52,10 +52,10 @@ Ross Finlayson - Dynamic RTP payload support
 Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
        format, and various fixes. Can be contacted at mahmut@oa.com.au
 James Dennis - Cisco SIP compatibility patches to work with SIP service
-       providers. Can be contacted at openpbx@jdennis.net
+       providers. Can be contacted at callweaver@jdennis.net
 Tilghman Lesher - - Route lookup code; opbx_localtime(), opbx_say_date_with_format(); 
                     GotoIfTime, Random, SayUnixTime, HasNewVoicemail, and Cut applications, 
-		    along with various other patches. http://openpbx.drunkcoder.com/
+		    along with various other patches. http://asterisk.drunkcoder.com/
 Jayson Vantuyl - Manager protocol changes, various other bugs.
 	jvantuyl@computingedge.net
 Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,

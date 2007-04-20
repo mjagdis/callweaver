@@ -29,7 +29,7 @@ message. There is no cross-message standardization of headers.
 
 If you develop applications, please try to reuse existing manager
 headers and their interpretation. If you are unsure, discuss on
-the openpbx-dev mailing list.
+the callweaver-dev mailing list.
 
 
 Command Syntax
@@ -150,7 +150,7 @@ Where 680 is an extension that sends you to a MeetMe room.
 
 There are a number of GUI tools that use the manager interface, please search
 the mailing list archives and the documentation page on the 
-http://www.openpbx.org web site for more information.
+http://www.callweaver.org web site for more information.
 
 
 Some standard AMI headers:

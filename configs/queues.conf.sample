@@ -4,7 +4,7 @@
 ;
 ; Persistent Members
 ;    Store each dynamic member in each queue in the opbxdb so that
-;    when openpbx is restarted, each member will be automatically
+;    when callweaver is restarted, each member will be automatically
 ;    readded into their recorded queues. Default is 'yes'.
 ;
 persistentmembers = yes

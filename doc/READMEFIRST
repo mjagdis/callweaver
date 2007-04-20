@@ -57,7 +57,7 @@ oper/			Operation Guide
 prep/			Preparation Guide
 prov/			Provisioning Guide
 Makefile		GNU Makefile
-openpbx-docs.xml	Documentation Set container document
+callweaver-docs.xml	Documentation Set container document
 
 
 

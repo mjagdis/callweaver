@@ -30,7 +30,7 @@ writeprotect=no
 ; or HANGUP depending on CallWeaver's best guess (strongly recommended).
 ;
 ; If autofallthrough is not set, then if an extension runs out of 
-; things to do, openpbx will wait for a new extension to be dialed 
+; things to do, callweaver will wait for a new extension to be dialed 
 ; (this is the original behavior of CallWeaver 1.0 and earlier).
 ;
 autofallthrough=yes
@@ -55,7 +55,7 @@ priorityjumping=no
 ; You can include other config files, use the #include command
 ; (without the ';'). Note that this is different from the "include" command
 ; that includes contexts within other contexts. The #include command works
-; in all openpbx configuration files.
+; in all callweaver configuration files.
 ;#include "filename.conf"
 
 ; The "Globals" category contains global variables that can be referenced
@@ -392,7 +392,7 @@ exten => i,1,Playback(invalid)		; "That's not valid, try again"
 ; CallWeaver demo.
 ;
 exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
-exten => 500,n,Dial(IAX2/guest@demo.openpbx.org/s@default)	; Call the CallWeaver demo
+exten => 500,n,Dial(IAX2/guest@demo.callweaver.org/s@default)	; Call the CallWeaver demo
 exten => 500,n,Playback(demo-nogo)	; Couldn't connect to the demo site
 exten => 500,n,Goto(s,6)		; Return to the start over message.
 

@@ -14,22 +14,22 @@ set -e
 case "$1" in
     configure)
 
-	if (getent passwd openpbx >/dev/null);then
+	if (getent passwd callweaver >/dev/null);then
 		:
 	else
-	    	adduser --system --group --home /var/lib/openpbx.org --gecos "Openpbx PBX daemon" openpbx
-		adduser openpbx audio 
-		adduser openpbx dialout
+	    	adduser --system --group --home /var/lib/callweaver.org --gecos "callweaver PBX daemon" callweaver
+		adduser callweaver audio 
+		adduser callweaver dialout
 	fi
-	if (getent group dialout | grep -q openpbx); then
-		adduser openpbx dialout
+	if (getent group dialout | grep -q callweaver); then
+		adduser callweaver dialout
 	fi
 
-	test -d /var/log/openpbx.org || mkdir /var/log/openpbx.org
-	test -d /var/log/openpbx.org/cdr-csv || mkdir /var/log/openpbx.org/cdr-csv
-	chown -R openpbx.openpbx /var/log/openpbx.org /var/run/openpbx.org \
-		/var/spool/openpbx.org /var/lib/openpbx.org /etc/openpbx.org
-	chmod o-rwx /etc/openpbx.org/*
+	test -d /var/log/callweaver.org || mkdir /var/log/callweaver.org
+	test -d /var/log/callweaver.org/cdr-csv || mkdir /var/log/callweaver.org/cdr-csv
+	chown -R callweaver.callweaver /var/log/callweaver.org /var/run/callweaver.org \
+		/var/spool/callweaver.org /var/lib/callweaver.org /etc/callweaver.org
+	chmod o-rwx /etc/callweaver.org/*
 
     ;;
 

@@ -1,21 +1,21 @@
-Source: openpbx
+Source: callweaver
 Section: unknown
 Priority: optional
 Maintainer: Massimo Cetra <devel@navynet.it>
 Build-Depends: cdbs, debhelper (>= 4.1.0), libcap-dev, libreadline5-dev, libspandsp-dev (>= 0.0.3), libssl-dev, libncurses-dev, libpq-dev | postgresql-dev, libspeex-dev, libcurl3-dev, unixodbc-dev, libcapi20-dev, zaptel-source
 Standards-Version: 3.6.2
 
-Package: openpbx
+Package: callweaver
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, openpbx-sounds, libspeex1, unixodbc
+Depends: ${shlibs:Depends}, ${misc:Depends}, callweaver-sounds, libspeex1, unixodbc
 Description: Private branch exchange
  Forked from Asterisk
 
-Package: openpbx-dev
+Package: callweaver-dev
 Architecture: any
 Description: Development files
 
-Package: openpbx-doc
+Package: callweaver-doc
 Architecture: all
 Description: Private branch exchange
  Documentation

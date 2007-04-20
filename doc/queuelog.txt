@@ -5,7 +5,7 @@ In order to properly manage ACD queues, it is important to be able to
 keep track of details of call setups and teardowns in much greater detail
 than traditional call detail records provide.  In order to support this,
 extensive and detailed tracing of every queued call is stored in the
-queue log, located (by default) in /var/log/openpbx/queue_log.
+queue log, located (by default) in /var/log/callweaver/queue_log.
 
 These are the events (and associated information) in the queue log:
 
@@ -47,7 +47,7 @@ recorded.  The caller's original position in the queue is recorded in
 origposition.
 
 CONFIGRELOAD
-The configuration has been reloaded (e.g. with openpbx -rx reload)
+The configuration has been reloaded (e.g. with callweaver -rx reload)
 
 CONNECT(holdtime)
 The caller was connected to an agent.  Hold time represents the amount

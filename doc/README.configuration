@@ -69,16 +69,16 @@ included at the row that the #include statement occured.
 	#include myusers.conf
 
 You may also include the output of a program with the #exec directive,
-if you enable it in openpbx.conf
+if you enable it in callweaver.conf
 	
-In openpbx.conf, add the execincludes = yes statement in the options
+In callweaver.conf, add the execincludes = yes statement in the options
 section:
 	[options]
 	execincludes=yes
 
 The exec directive is used like this:
 	
-	#exec /usr/local/bin/myopenpbxconfigurator.sh
+	#exec /usr/local/bin/mycallweaverconfigurator.sh
 
 Adding to an existing section
 -----------------------------

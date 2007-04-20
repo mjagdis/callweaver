@@ -14,7 +14,7 @@ separated text file.
    * cdr_sqlite supports SQlite
    * cdr_pgsql supports PostgreSQL
 
-In the openpbx-addons cvs archive, there's a cdr_mysql driver for
+In the callweaver-addons cvs archive, there's a cdr_mysql driver for
 MySQL.
 
 
@@ -108,7 +108,7 @@ cdr_csv2
 This module is an experimental new cdr module to demonstrate the cdr vars.
 usage(
 
-*) Create a file called cdr.conf and place it in your /etc/openpbx (or wherever your config files are) in the [cdr_csv2] section.
+*) Create a file called cdr.conf and place it in your /etc/callweaver (or wherever your config files are) in the [cdr_csv2] section.
 *) Add an entry called format to indicate any format you want for the output.
 
 The following format string will emulate the regular cdr file format:
