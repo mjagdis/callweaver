@@ -7,12 +7,12 @@ inherit eutils
 IUSE="alsa debug fax jabber odbc osp oss mgr2 mysql postgres pri profile speex t38 zap"
 
 DESCRIPTION="open Source Private Branch Exchange System"
-HOMEPAGE="http://www.openpbx.org/"
-SRC_URI="http://www.openpbx.org/openpbx.org-1.2_rc2.tar.gz"
+HOMEPAGE="http://www.callweaver.org/"
+SRC_URI="http://www.callweaver.org/callweaver.org-1.2_rc2.tar.gz"
 
 
 #S=${WORKDIR}/${PN}
-S=/var/tmp/portage/openpbx.org-1.2_rc2/work/openpbx.org-1.2_rc2/
+S=/var/tmp/portage/callweaver.org-1.2_rc2/work/callweaver.org-1.2_rc2/
 
 SLOT="0"
 LICENSE="GPL-2"
@@ -48,7 +48,7 @@ src_compile() {
 		--libdir=/usr/lib \
 		--datadir=/var/lib \
 		--localstatedir=/var \
-		--sharedstatedir=/var/lib/openpbx.org \
+		--sharedstatedir=/var/lib/callweaver.org \
 		--with-directory-layout=lsb 		\
 		`use_with speex codec_speex`		\
 		`use_with jabber res_jabber`		\
@@ -86,45 +86,45 @@ src_install() {
 	dodoc doc/README* doc/*.txt doc/*.pdf
 
 	docinto samples
-	dodoc ${D}etc/openpbx.org/*.sample
+	dodoc ${D}etc/callweaver.org/*.sample
 
 	# remove dir
-	rm -rf ${D}var/lib/openpbx.org/doc
+	rm -rf ${D}var/lib/callweaver.org/doc
 
-	newconfd ${FILESDIR}/openpbx.confd openpbx
+	newconfd ${FILESDIR}/callweaver.confd callweaver
 	exeinto /etc/init.d
-	newexe ${FILESDIR}/openpbx.rc6 openpbx
+	newexe ${FILESDIR}/callweaver.rc6 callweaver
 
 
 	# don't delete these
-	keepdir /var/{log,run,spool}/openpbx.org
-	keepdir /var/lib/openpbx.org/{images,keys}
+	keepdir /var/{log,run,spool}/callweaver.org
+	keepdir /var/lib/callweaver.org/{images,keys}
 }
 
 pkg_preinst() {
-	if [[ -z "$(egetent passwd openpbx)" ]]; then
-		einfo "Creating openpbx group and user..."
-		enewgroup openpbx
-		enewuser openpbx -1 -1 /var/lib/openpbx openpbx
+	if [[ -z "$(egetent passwd callweaver)" ]]; then
+		einfo "Creating callweaver group and user..."
+		enewgroup callweaver
+		enewuser callweaver -1 -1 /var/lib/callweaver callweaver
 	fi
 }
 
 pkg_postinst() {
-	# only change permissions if openpbx wasn't installed before
+	# only change permissions if callweaver wasn't installed before
 	einfo "Fixing permissions..."
 
-	chmod -R u=rwX,g=rX,o=	${ROOT}etc/openpbx.org
-	chown -R root:openpbx   ${ROOT}etc/openpbx.org
+	chmod -R u=rwX,g=rX,o=	${ROOT}etc/callweaver.org
+	chown -R root:callweaver   ${ROOT}etc/callweaver.org
 
 	for x in lib log run spool; do
-		chmod -R u=rwX,g=rX,o=	${ROOT}var/${x}/openpbx.org
-		chown -R openpbx:openpbx  ${ROOT}var/${x}/openpbx.org
+		chmod -R u=rwX,g=rX,o=	${ROOT}var/${x}/callweaver.org
+		chown -R callweaver:callweaver  ${ROOT}var/${x}/callweaver.org
 	done
 }
 
 pkg_config() {
 	# TODO: ask user if he want to reset permissions back to sane defaults
-	einfo "Do you want to reset the permissions and ownerships of openpbx.org to"
+	einfo "Do you want to reset the permissions and ownerships of callweaver.org to"
 	einfo "the default values (y/N)?"
 	read res
 
@@ -135,12 +135,12 @@ pkg_config() {
 	then
 		einfo "First time installation, fixing permissions..."
 
-		chmod -R u=rwX,g=rX,o=	${ROOT}etc/openpbx.org
-		chown -R root:openpbx   ${ROOT}etc/openpbx.org
+		chmod -R u=rwX,g=rX,o=	${ROOT}etc/callweaver.org
+		chown -R root:callweaver   ${ROOT}etc/callweaver.org
 
 		for x in lib log run spool; do
-			chmod -R u=rwX,g=rX,o=	${ROOT}var/${x}/openpbx.org
-			chown -R openpbx:openpbx  ${ROOT}var/${x}/openpbx.org
+			chmod -R u=rwX,g=rX,o=	${ROOT}var/${x}/callweaver.org
+			chown -R callweaver:callweaver  ${ROOT}var/${x}/callweaver.org
 		done
 	fi
 }

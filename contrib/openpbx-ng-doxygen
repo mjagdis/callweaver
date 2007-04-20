@@ -452,7 +452,7 @@ WARN_LOGFILE           =
 
 INPUT                  = ./ \
 			 include \
-                         include/openpbx \
+			 include/callweaver \
 			 channels \
 			 funcs \
 			 apps \

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $astdir = $ENV{ASTSRC} || "/usr/src/openpbx";
+my $astdir = $ENV{ASTSRC} || "/usr/src/callweaver";
 
 
 sub esystem($) {
@@ -146,12 +146,12 @@ if(($args{install} or $args{installonly}) and $vars{MODULES_DIR}) {
   my ($mod) = $file =~ /([^\/]*)$/;
 
   if($args{autoload}) {
-    $bad = esystem("/opt/openpbx.org/sbin/openpbx -rx 'unload $mod'");
+    $bad = esystem("/opt/callweaver.org/sbin/callweaver -rx 'unload $mod'");
   }
   $bad = esystem("/bin/cp -p ${base}.so $vars{MODULES_DIR}") if(!$bad);
   
   if($args{autoload}) {
-    $bad = esystem("/opt/openpbx.org/sbin/openpbx -rx 'load $mod'");
+    $bad = esystem("/opt/callweaver.org/sbin/callweaver -rx 'load $mod'");
   }
 }
 
