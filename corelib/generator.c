@@ -31,7 +31,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.openpbx.org/openpbx/trunk/corelib/generator.c $", "$Revision: 878 $")
+CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/corelib/generator.c $", "$Revision: 878 $")
 
 #include "callweaver/channel.h"	/* generator.h is included */
 #include "callweaver/lock.h"

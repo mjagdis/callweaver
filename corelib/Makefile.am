@@ -9,7 +9,7 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	opbxmm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
 	utils.c dnsmgr.c devicestate.c \
 	netsock.c slinfactory.c opbx_expr2.c \
-	opbx_expr2f.c strcompat.c loader.c openpbx.c \
+	opbx_expr2f.c strcompat.c loader.c callweaver.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
 	stubfunctions-monitor.c udp.c udptl.c udpfromto.c stun.c coef_in.h coef_out.h \
 	ecdisa.h aesopt.h opbx_expr2.h timer.c jitterbuffer/libopbxjb.la

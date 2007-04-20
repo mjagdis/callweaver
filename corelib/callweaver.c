@@ -169,7 +169,7 @@ char record_cache_dir[OPBX_CACHE_DIR_LEN] = opbxtmpdir_default;
 char debug_filename[OPBX_FILENAME_MAX] = "";
 
 static int opbx_socket = -1;		/*!< UNIX Socket for allowing remote control */
-static int opbx_consock = -1;		/*!< UNIX Socket for controlling another openpbx */
+static int opbx_consock = -1;		/*!< UNIX Socket for controlling another callweaver */
 int opbx_mainpid;
 struct console {
 	int fd;				/*!< File descriptor */
@@ -217,7 +217,7 @@ char opbx_config_OPBX_RUN_GROUP[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CTL_PERMISSIONS[OPBX_CONFIG_MAX_PATH];
 char opbx_config_OPBX_CTL_OWNER[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
-char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "openpbx.ctl";
+char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "callweaver.ctl";
 char opbx_config_OPBX_SYSTEM_NAME[20] = "";
 char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
 
@@ -838,7 +838,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 			/* Begin shutdown routine, hanging up active channels */
 			opbx_begin_shutdown(1);
 			if (option_verbose && option_console)
-				opbx_verbose("Beginning openpbx %s....\n", restart ? "restart" : "shutdown");
+				opbx_verbose("Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
 			time(&s);
 			for(;;) {
 				time(&e);
@@ -878,7 +878,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	}
 	if (option_console || option_remote) {
 		if (getenv("HOME")) 
-			snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
+			snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
 		if (!opbx_strlen_zero(filename))
 			opbx_rl_write_history(filename);
 	}
@@ -1616,7 +1616,7 @@ static void opbx_remotecontrol(char * data)
 	opbx_verbose("Connected to CallWeaver %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
 	if (getenv("HOME")) 
-		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
+		snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
 
 	if(!rl_init)	
 	    opbx_rl_initialize();
@@ -1630,7 +1630,7 @@ static void opbx_remotecontrol(char * data)
 	fds[0].events = POLLIN;
 	fds[0].revents = 0;
 
-	if (option_exec && data) {  /* hack to print output then exit if openpbx -rx is used */
+	if (option_exec && data) {  /* hack to print output then exit if callweaver -rx is used */
 		while(poll(fds, 1, 100) > 0) {
 			opbx_rl_read_char(&tempchar);
 		}
@@ -1689,7 +1689,7 @@ static int show_cli_help(void) {
 	#else
 	printf( PACKAGE_STRING "\n");
 	#endif
-	printf("Usage: openpbx [OPTIONS]\n");
+	printf("Usage: callweaver [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");
 	printf("   -C <configfile> Use an alternate configuration file\n");
@@ -1746,7 +1746,7 @@ static void opbx_readconfig(void) {
 	opbx_copy_string(opbx_config_OPBX_RUN_DIR, opbxrundir_default, sizeof(opbx_config_OPBX_RUN_DIR));
 	opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, opbxsoundsdir_default, sizeof(opbx_config_OPBX_SOUNDS_DIR));
 
-	/* no openpbx.conf? no problem, use buildtime config! */
+	/* no callweaver.conf? no problem, use buildtime config! */
 	if (!cfg) {
 		return;
 	}
@@ -1792,7 +1792,7 @@ static void opbx_readconfig(void) {
 		} else if (!strcasecmp(v->name, "opbxsoundsdir")) {
 			opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, v->value, sizeof(opbx_config_OPBX_SOUNDS_DIR));
 		} else if (!strcasecmp(v->name, "opbxrundir")) {
-			snprintf(opbx_config_OPBX_PID, sizeof(opbx_config_OPBX_PID), "%s/%s", v->value, "openpbx.pid");
+			snprintf(opbx_config_OPBX_PID, sizeof(opbx_config_OPBX_PID), "%s/%s", v->value, "callweaver.pid");
 			snprintf(opbx_config_OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET), "%s/%s", v->value, opbx_config_OPBX_CTL);
 			opbx_copy_string(opbx_config_OPBX_RUN_DIR, v->value, sizeof(opbx_config_OPBX_RUN_DIR));
 		} else if (!strcasecmp(v->name, "opbxmoddir")) {
@@ -1880,7 +1880,7 @@ static void opbx_exit(int val)
     exit(val);
 }
 
-int openpbx_main(int argc, char *argv[])
+int callweaver_main(int argc, char *argv[])
 {
 	int c;
 	char filename[80] = "";
@@ -1907,8 +1907,8 @@ int openpbx_main(int argc, char *argv[])
 		_argv[x] = argv[x];
 	_argv[x] = NULL;
 
-	/* if the progname is ropenpbx consider it a remote console */
-	if (argv[0] && (strstr(argv[0], "ropenpbx")) != NULL) {
+	/* if the progname is rcallweaver consider it a remote console */
+	if (argv[0] && (strstr(argv[0], "rcallweaver")) != NULL) {
 		option_remote++;
 		option_nofork++;
 	}
@@ -1925,7 +1925,7 @@ int openpbx_main(int argc, char *argv[])
 	if (getenv("CALLWEAVER_ALREADY_NONROOT"))
 		is_child_of_nonroot = 1;
 	if (getenv("HOME")) 
-		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
+		snprintf(filename, sizeof(filename), "%s/.callweaver_history", getenv("HOME"));
 	/* Check for options */
 	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:L:M:")) != -1) {
 		switch(c) {
@@ -2009,9 +2009,9 @@ int openpbx_main(int argc, char *argv[])
 
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when
-	 * the main openpbx process has died yet). */
+	 * the main callweaver process has died yet). */
 	if (option_remote) {
-		strcpy(argv[0], "ropenpbx");
+		strcpy(argv[0], "rcallweaver");
 		for (x = 1; x < argc; x++) {
 			argv[x] = argv[0] + 10;
 		}
@@ -2189,14 +2189,14 @@ int openpbx_main(int argc, char *argv[])
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
-			opbx_log(LOG_ERROR, "CallWeaver already running on %s.  Use 'openpbx -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
+			opbx_log(LOG_ERROR, "CallWeaver already running on %s.  Use 'callweaver -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
 			printf(opbx_term_quit());
 			if(rl_init)
 			    rl_deprep_terminal();
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
-		opbx_log(LOG_ERROR, "Unable to connect to remote openpbx (does %s exist?)\n",opbx_config_OPBX_SOCKET);
+		opbx_log(LOG_ERROR, "Unable to connect to remote callweaver (does %s exist?)\n",opbx_config_OPBX_SOCKET);
 		printf(opbx_term_quit());
 		if(rl_init)
 		    rl_deprep_terminal();
@@ -2352,8 +2352,8 @@ int openpbx_main(int argc, char *argv[])
 					
 				consolehandler(buf);
 			} else {
-				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the openpbx console\n",
-								  strlen("\nUse EXIT or QUIT to exit the openpbx console\n")) < 0) {
+				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the callweaver console\n",
+								  strlen("\nUse EXIT or QUIT to exit the callweaver console\n")) < 0) {
 					/* Whoa, stdout disappeared from under us... Make /dev/null's */
 					int fd;
 					fd = open("/dev/null", O_RDWR);

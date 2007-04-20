@@ -18,7 +18,7 @@
 #endif
 
 #include <stdio.h>
-#include <openpbx/features.h>
+#include <callweaver/features.h>
 
 
 static int stub_opbx_park_call(struct opbx_channel *chan, struct opbx_channel *host, int timeout, int *extout)

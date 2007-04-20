@@ -17,7 +17,7 @@
 #include "confdefs.h"
 #endif
 
-//#include <openpbx/adsi.h>
+//#include <callweaver/adsi.h>
 #include <stdio.h>
 #include "callweaver/channel.h"
 

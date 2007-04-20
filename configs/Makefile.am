@@ -19,8 +19,8 @@ SAMPLES = adsi.conf.sample \
 	modules.conf.sample \
 	musiconhold.conf.sample \
 	muted.conf.sample \
-	openpbx.adsi.sample \
-	openpbx.conf.sample \
+	callweaver.adsi.sample \
+	callweaver.conf.sample \
 	osp.conf.sample \
 	privacy.conf.sample \
 	rpt.conf.sample \
@@ -143,13 +143,13 @@ noinst_DATA = $(SAMPLES)
 
 @substitute@
 
-EXTRA_DIST = $(SAMPLES) openpbx.conf.sample.in logger.conf.sample.in
-CLEANFILES = openpbx.conf.sample logger.conf.sample musiconhold.conf.sample
+EXTRA_DIST = $(SAMPLES) callweaver.conf.sample.in logger.conf.sample.in
+CLEANFILES = callweaver.conf.sample logger.conf.sample musiconhold.conf.sample
 
-openpbx.conf.sample: openpbx.conf.sample.in Makefile
-	rm -f openpbx.conf.sample.tmp
-	$(substitute) $(srcdir)/openpbx.conf.sample.in > openpbx.conf.sample.tmp
-	mv openpbx.conf.sample.tmp openpbx.conf.sample
+callweaver.conf.sample: callweaver.conf.sample.in Makefile
+	rm -f callweaver.conf.sample.tmp
+	$(substitute) $(srcdir)/callweaver.conf.sample.in > callweaver.conf.sample.tmp
+	mv callweaver.conf.sample.tmp callweaver.conf.sample
 
 logger.conf.sample: logger.conf.sample.in Makefile
 	rm -f logger.conf.sample.tmp

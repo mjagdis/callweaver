@@ -12,7 +12,8 @@
 #include <string.h>
 #include <sys/select.h>
 
-#include <openpbx.h>
+#include "callweaver.h"
+
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 
 static int read_environment(void)

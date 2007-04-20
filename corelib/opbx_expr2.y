@@ -12,7 +12,7 @@
  * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -30,8 +30,8 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "openpbx/opbx_expr.h"
-#include "openpbx/logger.h"
+#include "callweaver/opbx_expr.h"
+#include "callweaver/logger.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
 #define QUAD_MIN LONG_LONG_MIN

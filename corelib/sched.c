@@ -48,7 +48,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
-#include <openpbx/timer.h>
+#include "callweaver/timer.h"
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \

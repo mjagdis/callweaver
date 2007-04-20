@@ -20,7 +20,7 @@
 #endif  
 
 #include <stdio.h>
-#include <openpbx/crypto.h>
+#include <callweaver/crypto.h>
 
 
 /* Hrm, I wonder if the compiler is smart enough to only create two functions

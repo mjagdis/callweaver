@@ -186,7 +186,7 @@ static int open_mixer(void)
 }
 #endif /* !__Darwin */
 
-static int connect_openpbx(void)
+static int connect_callweaver(void)
 {
 	int sock;
 	struct hostent *hp;
@@ -240,7 +240,7 @@ static char *get_line(void)
 		return NULL;
 }
 
-static int login_openpbx(void)
+static int login_callweaver(void)
 {
 	char *welcome;
 	char *resp;
@@ -647,13 +647,13 @@ int main(int argc, char *argv[])
 	if (open_mixer())
 		exit(1);
 #endif
-	if (connect_openpbx()) {
+	if (connect_callweaver()) {
 #ifndef __Darwin__
 		close(mixfd);
 #endif
 		exit(1);
 	}
-	if (login_openpbx()) {
+	if (login_callweaver()) {
 #ifndef __Darwin__		
 		close(mixfd);
 #endif
@@ -665,10 +665,10 @@ int main(int argc, char *argv[])
 	for(;;) {
 		if (wait_event()) {
 			fclose(astf);
-			while(connect_openpbx()) {
+			while(connect_callweaver()) {
 				sleep(5);
 			}
-			if (login_openpbx()) {
+			if (login_callweaver()) {
 				fclose(astf);
 				exit(1);
 			}

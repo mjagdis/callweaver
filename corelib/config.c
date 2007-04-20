@@ -454,7 +454,7 @@ static int process_text_line(struct opbx_config *cfg, struct opbx_category **cat
 		else
 			do_exec = 0;
 		if (do_exec && !option_exec_includes) {
-			opbx_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in openpbx.conf (options section)!\n");
+			opbx_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in callweaver.conf (options section)!\n");
 			do_exec = 0;
 		}
 		if (do_include || do_exec) {
@@ -824,8 +824,8 @@ void read_config_maps(void)
 			continue;
 		}
 
-		if (!strcmp(v->name, "openpbx.conf")) {
-			opbx_log(LOG_WARNING, "Cannot bind 'openpbx.conf'!\n");
+		if (!strcmp(v->name, "callweaver.conf")) {
+			opbx_log(LOG_WARNING, "Cannot bind 'callweaver.conf'!\n");
 			continue;
 		}
 
@@ -946,7 +946,7 @@ struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_
 
 	cfg->include_level++;
 
-	if (strcmp(filename, extconfig_conf) && strcmp(filename, "openpbx.conf") && config_engine_list) {
+	if (strcmp(filename, extconfig_conf) && strcmp(filename, "callweaver.conf") && config_engine_list) {
 		struct opbx_config_engine *eng;
 
 		eng = find_engine(filename, db, sizeof(db), table, sizeof(table));

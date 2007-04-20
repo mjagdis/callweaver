@@ -6,7 +6,7 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
+ * See http://www.callweaver.org for more information about
  * the Openpbx project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
@@ -22,7 +22,7 @@
  * \brief Dialplan Expression Lexical Scanner
  */
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -39,9 +39,9 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "openpbx/opbx_expr.h"
-#include "openpbx/logger.h"
-#include "openpbx/strings.h"
+#include "callweaver/opbx_expr.h"
+#include "callweaver/logger.h"
+#include "callweaver/strings.h"
 
 enum valtype {
 	OPBX_EXPR_integer, OPBX_EXPR_numeric_string, OPBX_EXPR_string
@@ -394,7 +394,7 @@ int opbx_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
-	opbx_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the openpbx source.\n");
+	opbx_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
 #endif
 	free(s2);
 	return(0);

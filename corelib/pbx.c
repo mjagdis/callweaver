@@ -296,7 +296,7 @@ static struct pbx_builtin {
     { "Answer", pbx_builtin_answer, 
     "Answer a channel if ringing", 
     "  Answer([delay]): If the channel is ringing, answer it, otherwise do nothing. \n"
-    "If delay is specified, openpbx will pause execution for the specified amount\n"
+    "If delay is specified, callweaver will pause execution for the specified amount\n"
     "of milliseconds if an answer is required, in order to give audio a chance to\n"
     "become ready. Returns 0 unless it tries to answer the channel and fails.\n"   
     },

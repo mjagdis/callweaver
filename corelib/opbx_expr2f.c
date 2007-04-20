@@ -3287,7 +3287,7 @@ int opbx_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
-	opbx_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the openpbx source.\n");
+	opbx_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
 #endif
 	free(s2);
 	return(0);

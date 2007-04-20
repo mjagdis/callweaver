@@ -17,8 +17,7 @@
 #include "confdefs.h"
 #endif
 
-#include <openpbx/monitor.h>
-
+#include <callweaver/monitor.h>
 
 static int stub_opbx_monitor_start( struct opbx_channel *chan, const char *format_spec, const char *fname_base, int need_lock )
 {

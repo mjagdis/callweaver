@@ -267,7 +267,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 		chan->type = LOGTYPE_SYSLOG;
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
-		openlog("openpbx", LOG_PID, chan->facility);
+		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
 		if (channel[0] == '/') {
 			if(!opbx_strlen_zero(hostname)) { 
@@ -737,7 +737,7 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 	if (logfiles.event_log && level == __LOG_EVENT) {
 		va_start(ap, fmt);
 
-		fprintf(eventlog, "%s openpbx[%d]: ", date, getpid());
+		fprintf(eventlog, "%s callweaver[%d]: ", date, getpid());
 		vfprintf(eventlog, fmt, ap);
 		fflush(eventlog);
 

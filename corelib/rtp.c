@@ -1685,7 +1685,7 @@ static int opbx_rtp_raw_write(struct opbx_rtp *rtp, struct opbx_frame *f, int co
     if (rtp->lastts > rtp->lastdigitts)
         rtp->lastdigitts = rtp->lastts;
 
-    /* Take the timestamp from the openpbx frame if it has timing */
+    /* Take the timestamp from the callweaver frame if it has timing */
     if (f->has_timing_info)
         rtp->lastts = f->ts*8;
 
