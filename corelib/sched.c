@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -432,9 +432,9 @@ void opbx_sched_dump(const struct sched_context *con)
 	struct sched *q;
 	struct timeval tv = opbx_tvnow();
 #ifdef SCHED_MAX_CACHE
-	opbx_log(LOG_DEBUG, "OpenPBX Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
+	opbx_log(LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
 #else
-	opbx_log(LOG_DEBUG, "OpenPBX Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
+	opbx_log(LOG_DEBUG, "CallWeaver Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
 #endif
 
 	opbx_log(LOG_DEBUG, "=============================================================\n");

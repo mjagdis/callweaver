@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -351,7 +351,7 @@ static struct opbx_frame *process_rfc3389(struct opbx_rtp *rtp, unsigned char *d
     {
         char iabuf[INET_ADDRSTRLEN];
 
-        opbx_log(LOG_NOTICE, "Comfort noise support incomplete in OpenPBX (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
+        opbx_log(LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
                  opbx_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_them(rtp->rtp_sock_info)->sin_addr));
         opbx_set_flag(rtp, FLAG_3389_WARNING);
     }
@@ -1874,7 +1874,7 @@ static struct opbx_rtp_protocol *get_proto(struct opbx_channel *chan)
 
 /* opbx_rtp_bridge: Bridge calls. If possible and allowed, initiate
    re-invite so the peers exchange media directly outside 
-   of OpenPBX. */
+   of CallWeaver. */
 enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_channel *c1, int flags, struct opbx_frame **fo, struct opbx_channel **rc, int timeoutms)
 {
     struct opbx_frame *f;
@@ -2021,7 +2021,7 @@ enum opbx_bridge_result opbx_rtp_bridge(struct opbx_channel *c0, struct opbx_cha
     opbx_mutex_unlock(&c0->lock);
     opbx_mutex_unlock(&c1->lock);
     /* External RTP Bridge up, now loop and see if something happes that force us to take the
-       media back to OpenPBX */
+       media back to CallWeaver */
     cs[0] = c0;
     cs[1] = c1;
     cs[2] = NULL;

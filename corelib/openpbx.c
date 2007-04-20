@@ -1,11 +1,11 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Based on Asterisk written by Mark Spencer <markster@digium.com>
  *  Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -18,7 +18,7 @@
 
 /* Doxygenified Copyright Header */
 /*!
- * \mainpage OpenPBX -- An Open Source Telephony Toolkit
+ * \mainpage CallWeaver -- An Open Source Telephony Toolkit
  *
  * \arg \ref DevDoc 
  * \arg \ref ConfigFiles
@@ -32,8 +32,8 @@
  * Also see \ref AstCREDITS
  *
  * \section license License
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -47,7 +47,7 @@
  */
 
 /*! \file
-  \brief Top level source file for OpenPBX  - the Open Source PBX. Implementation
+  \brief Top level source file for CallWeaver  - the Open Source PBX. Implementation
   of PBX core functions and CLI interface.
   
  */
@@ -135,10 +135,10 @@ OPENPBX_FILE_VERSION("$HeadURL$", "$Revision$")
 #define NUM_MSGS 64
 
 #ifndef RELEASE_TARBALL
-#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " SVN-" SVN_VERSION " http://www.openpbx.org - The True Open Source PBX\n"); \
+#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " SVN-" SVN_VERSION " http://www.callweaver.org - The True Open Source PBX\n"); \
 		opbx_verbose( "=========================================================================\n")
 #else
-#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " http://www.openpbx.org - The True Open Source PBX\n"); \
+#define WELCOME_MESSAGE opbx_verbose(PACKAGE_STRING " http://www.callweaver.org - The True Open Source PBX\n"); \
                opbx_verbose( "=========================================================================\n")
 #endif
 
@@ -276,7 +276,7 @@ void opbx_unregister_file_version(const char *file)
 
 static char show_version_files_help[] = 
 "Usage: show version files [like <pattern>]\n"
-"       Shows the revision numbers of the files used to build this copy of OpenPBX.\n"
+"       Shows the revision numbers of the files used to build this copy of CallWeaver.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
 
 /*! CLI command to list module versions */
@@ -868,7 +868,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 
 		if (!shuttingdown) {
 			if (option_verbose && option_console) {
-			    opbx_verbose("OpenPBX %s cancelled.\n", restart ? "restart" : "shutdown");
+			    opbx_verbose("CallWeaver %s cancelled.\n", restart ? "restart" : "shutdown");
 			    printf(opbx_term_quit());
 			    if(rl_init)
 				rl_deprep_terminal();
@@ -887,9 +887,9 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	opbx_run_atexits();
 	/* Called on exit */
 	if (option_verbose && option_console)
-		opbx_verbose("OpenPBX %s ending (%d).\n", opbx_active_channels() ? "uncleanly" : "cleanly", num);
+		opbx_verbose("CallWeaver %s ending (%d).\n", opbx_active_channels() ? "uncleanly" : "cleanly", num);
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "OpenPBX ending (%d).\n", num);
+		opbx_log(LOG_DEBUG, "CallWeaver ending (%d).\n", num);
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", opbx_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (opbx_socket > -1) {
 		pthread_cancel(lthread);
@@ -904,13 +904,13 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	if (!option_remote) unlink((char *)opbx_config_OPBX_PID);
 	if (restart) {
 		if (option_verbose || option_console)
-			opbx_verbose("Preparing for OpenPBX restart...\n");
+			opbx_verbose("Preparing for CallWeaver restart...\n");
 		/* Mark all FD's for closing on exec */
 		for (x=3;x<32768;x++) {
 			fcntl(x, F_SETFD, FD_CLOEXEC);
 		}
 		if (option_verbose || option_console)
-			opbx_verbose("Restarting OpenPBX NOW...\n");
+			opbx_verbose("Restarting CallWeaver NOW...\n");
 		restartnow = 1;
 
 		/* close logger */
@@ -1036,35 +1036,35 @@ static int remoteconsolehandler(char *s)
 
 static char abort_halt_help[] = 
 "Usage: abort shutdown\n"
-"       Causes OpenPBX to abort an executing shutdown or restart, and resume normal\n"
+"       Causes CallWeaver to abort an executing shutdown or restart, and resume normal\n"
 "       call operations.\n";
 
 static char shutdown_now_help[] = 
 "Usage: stop now\n"
-"       Shuts down a running OpenPBX immediately, hanging up all active calls .\n";
+"       Shuts down a running CallWeaver immediately, hanging up all active calls .\n";
 
 static char shutdown_gracefully_help[] = 
 "Usage: stop gracefully\n"
-"       Causes OpenPBX to not accept new calls, and exit when all\n"
+"       Causes CallWeaver to not accept new calls, and exit when all\n"
 "       active calls have terminated normally.\n";
 
 static char shutdown_when_convenient_help[] = 
 "Usage: stop when convenient\n"
-"       Causes OpenPBX to perform a shutdown when all active calls have ended.\n";
+"       Causes CallWeaver to perform a shutdown when all active calls have ended.\n";
 
 static char restart_now_help[] = 
 "Usage: restart now\n"
-"       Causes OpenPBX to hangup all calls and exec() itself performing a cold\n"
+"       Causes CallWeaver to hangup all calls and exec() itself performing a cold\n"
 "       restart.\n";
 
 static char restart_gracefully_help[] = 
 "Usage: restart gracefully\n"
-"       Causes OpenPBX to stop accepting new calls and exec() itself performing a cold\n"
+"       Causes CallWeaver to stop accepting new calls and exec() itself performing a cold\n"
 "       restart when all active calls have ended.\n";
 
 static char restart_when_convenient_help[] = 
 "Usage: restart when convenient\n"
-"       Causes OpenPBX to perform a cold restart when all active calls have ended.\n";
+"       Causes CallWeaver to perform a cold restart when all active calls have ended.\n";
 
 static char bang_help[] =
 "Usage: !<command>\n"
@@ -1150,22 +1150,22 @@ static struct opbx_cli_entry core_cli[] = {
 	{ { "abort", "halt", NULL }, handle_abort_halt,
 	  "Cancel a running halt", abort_halt_help },
 	{ { "stop", "now", NULL }, handle_shutdown_now,
-	  "Shut down OpenPBX immediately", shutdown_now_help },
+	  "Shut down CallWeaver immediately", shutdown_now_help },
 	{ { "stop", "gracefully", NULL }, handle_shutdown_gracefully,
-	  "Gracefully shut down OpenPBX", shutdown_gracefully_help },
+	  "Gracefully shut down CallWeaver", shutdown_gracefully_help },
 	{ { "stop", "when","convenient", NULL }, handle_shutdown_when_convenient,
-	  "Shut down OpenPBX at empty call volume", shutdown_when_convenient_help },
+	  "Shut down CallWeaver at empty call volume", shutdown_when_convenient_help },
 	{ { "restart", "now", NULL }, handle_restart_now,
-	  "Restart OpenPBX immediately", restart_now_help },
+	  "Restart CallWeaver immediately", restart_now_help },
 	{ { "restart", "gracefully", NULL }, handle_restart_gracefully,
-	  "Restart OpenPBX gracefully", restart_gracefully_help },
+	  "Restart CallWeaver gracefully", restart_gracefully_help },
 	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient,
-	  "Restart OpenPBX at empty call volume", restart_when_convenient_help },
+	  "Restart CallWeaver at empty call volume", restart_when_convenient_help },
 	{ { "!", NULL }, handle_bang,
 	  "Execute a shell command", bang_help },
 #if !defined(LOW_MEMORY)
 	{ { "show", "version", "files", NULL }, handle_show_version_files,
-	  "Show versions of files used to build OpenPBX", show_version_files_help, complete_show_version_files },
+	  "Show versions of files used to build CallWeaver", show_version_files_help, complete_show_version_files },
 #endif /* ! LOW_MEMORY */
 };
 
@@ -1208,7 +1208,7 @@ static int opbx_rl_read_char(FILE *cp)
 			res = read(opbx_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
-				fprintf(stderr, "\nDisconnected from OpenPBX server\n");
+				fprintf(stderr, "\nDisconnected from CallWeaver server\n");
 				if (!option_reconnect) {
 					quit_handler(0, 0, 0, 0);
 				} else {
@@ -1613,7 +1613,7 @@ static void opbx_remotecontrol(char * data)
 	fdprint(opbx_consock, tmp);
 	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
 	fdprint(opbx_consock, tmp);
-	opbx_verbose("Connected to OpenPBX %s currently running on %s (pid = %d)\n", version, hostname, pid);
+	opbx_verbose("Connected to CallWeaver %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.openpbx_history", getenv("HOME"));
@@ -1669,7 +1669,7 @@ static void opbx_remotecontrol(char * data)
 	    free(ebuf);
 	    ebuf = (char *)NULL;
 	}
-	printf("\nDisconnected from OpenPBX server\n");	
+	printf("\nDisconnected from CallWeaver server\n");	
 }
 
 static int show_version(void)
@@ -1704,8 +1704,8 @@ static int show_cli_help(void) {
 	printf("   -n              Disable console colorization at startup or console (not remote)\n");
 	printf("   -p              Run as pseudo-realtime thread\n");
 	printf("   -q              Quiet mode (suppress output)\n");
-	printf("   -r              Connect to OpenPBX on this machine\n");
-	printf("   -R              Connect to OpenPBX, and attempt to reconnect if disconnected\n");
+	printf("   -r              Connect to CallWeaver on this machine\n");
+	printf("   -R              Connect to CallWeaver, and attempt to reconnect if disconnected\n");
 	printf("   -t              Record soundfiles in /var/tmp and move them where they belong after they are done.\n");
 	printf("   -T              Display the time in [Mmm dd hh:mm:ss] format for each line of output to the CLI.\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
@@ -1919,7 +1919,7 @@ int openpbx_main(int argc, char *argv[])
 	opbx_alaw_init();
 	callerid_init();
 	opbx_utils_init();
-	/* When OpenPBX restarts after it has dropped the root privileges,
+	/* When CallWeaver restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
 	 * */
 	if (getenv("OPENPBX_ALREADY_NONROOT"))
@@ -2189,7 +2189,7 @@ int openpbx_main(int argc, char *argv[])
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
-			opbx_log(LOG_ERROR, "OpenPBX already running on %s.  Use 'openpbx -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
+			opbx_log(LOG_ERROR, "CallWeaver already running on %s.  Use 'openpbx -r' to connect.\n", (char *)opbx_config_OPBX_SOCKET);
 			printf(opbx_term_quit());
 			if(rl_init)
 			    rl_deprep_terminal();
@@ -2226,7 +2226,7 @@ int openpbx_main(int argc, char *argv[])
 
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
-		opbx_verbose("Warning! OpenPBX is not thread safe.\n");
+		opbx_verbose("Warning! CallWeaver is not thread safe.\n");
 
 	opbx_makesocket();
 	sigemptyset(&sigs);
@@ -2253,7 +2253,7 @@ int openpbx_main(int argc, char *argv[])
 	signal(SIGPIPE, SIG_IGN);
 
 	/* ensure that the random number generators are seeded with a different value every time
-	   OpenPBX is started
+	   CallWeaver is started
 	*/
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
 	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
@@ -2321,7 +2321,7 @@ int openpbx_main(int argc, char *argv[])
 	if (option_console && !option_verbose)
 		opbx_verbose(" ]\n");
 	if (option_verbose || option_console)
-		opbx_verbose(opbx_term_color(tmp, "OpenPBX Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+		opbx_verbose(opbx_term_color(tmp, "CallWeaver Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	if (option_nofork)
 		consolethread = pthread_self();
 	fully_booted = 1;
@@ -2335,8 +2335,8 @@ int openpbx_main(int argc, char *argv[])
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
-		set_icon("OpenPBX");
-		snprintf(title, sizeof(title), "OpenPBX Console on '%s' (pid %d)", hostname, opbx_mainpid);
+		set_icon("CallWeaver");
+		snprintf(title, sizeof(title), "CallWeaver Console on '%s' (pid %d)", hostname, opbx_mainpid);
 		set_title(title);
 
 		for (;;) {

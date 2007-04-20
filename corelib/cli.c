@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -73,11 +73,11 @@ struct opbx_cli_entry *helpers = NULL;
 
 static char load_help[] = 
 "Usage: load <module name>\n"
-"       Loads the specified module into OpenPBX.\n";
+"       Loads the specified module into CallWeaver.\n";
 
 static char unload_help[] = 
 "Usage: unload [-f|-h] <module name>\n"
-"       Unloads the specified module from OpenPBX. The -f\n"
+"       Unloads the specified module from CallWeaver. The -f\n"
 "       option causes the module to be unloaded even if it is\n"
 "       in use (may cause a crash) and the -h module causes the\n"
 "       module to be unloaded even if the module says it cannot, \n"
@@ -251,15 +251,15 @@ static int modlist_modentry(const char *module, const char *description, int use
 
 static char modlist_help[] =
 "Usage: show modules [like keyword]\n"
-"       Shows OpenPBX modules currently in use, and usage statistics.\n";
+"       Shows CallWeaver modules currently in use, and usage statistics.\n";
 
 static char version_help[] =
 "Usage: show version\n"
-"       Shows OpenPBX version information.\n";
+"       Shows CallWeaver version information.\n";
 
 static char uptime_help[] =
 "Usage: show uptime [seconds]\n"
-"       Shows OpenPBX uptime information.\n"
+"       Shows CallWeaver uptime information.\n"
 "       The seconds word returns the uptime in seconds only.\n";
 
 static char *format_uptimestr(time_t timeval)

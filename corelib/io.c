@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -305,7 +305,7 @@ void opbx_io_dump(struct io_context *ioc)
 	 * the logger interface
 	 */
 	int x;
-	opbx_log(LOG_DEBUG, "OpenPBX IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
+	opbx_log(LOG_DEBUG, "CallWeaver IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
 	opbx_log(LOG_DEBUG, "================================================\n");
 	opbx_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
 	opbx_log(LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");

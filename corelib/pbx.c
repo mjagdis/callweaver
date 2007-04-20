@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -490,7 +490,7 @@ static struct pbx_builtin {
     "requested to be played, if the file 'fr/demo-congrats' exists, then\n"
     "it will play that file, and if not will play the normal 'demo-congrats'.\n"
     "For some language codes, SetLanguage also changes the syntax of some\n"
-    "OpenPBX functions, like SayNumber.\n"
+    "CallWeaver functions, like SayNumber.\n"
     "Always returns 0.\n"
     "SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
     },
@@ -3684,7 +3684,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
         return RESULT_SUCCESS;
     }
     /* ... we have hints ... */
-    opbx_cli(fd, "\n    -== Registered OpenPBX Dial Plan Hints ==-\n");
+    opbx_cli(fd, "\n    -== Registered CallWeaver Dial Plan Hints ==-\n");
     if (opbx_mutex_lock(&hintlock))
     {
         opbx_log(LOG_ERROR, "Unable to lock hints\n");
@@ -3719,7 +3719,7 @@ static int handle_show_switches(int fd, int argc, char *argv[])
         return RESULT_SUCCESS;
     }
     /* ... we have applications ... */
-    opbx_cli(fd, "\n    -= Registered OpenPBX Alternative Switches =-\n");
+    opbx_cli(fd, "\n    -= Registered CallWeaver Alternative Switches =-\n");
     if (opbx_mutex_lock(&switchlock))
     {
         opbx_log(LOG_ERROR, "Unable to lock switches\n");
@@ -3773,11 +3773,11 @@ static int handle_show_applications(int fd, int argc, char *argv[])
     /* show applications describing <keyword1> [<keyword2>] [...] */
     if ((!like) && (!describing))
     {
-        opbx_cli(fd, "    -= Registered OpenPBX Applications =-\n");
+        opbx_cli(fd, "    -= Registered CallWeaver Applications =-\n");
     }
     else
     {
-        opbx_cli(fd, "    -= Matching OpenPBX Applications =-\n");
+        opbx_cli(fd, "    -= Matching CallWeaver Applications =-\n");
     }
 
     /* ... go through all applications ... */
@@ -7169,7 +7169,7 @@ int load_pbx(void)
     /* Initialize the PBX */
     if (option_verbose)
     {
-        opbx_verbose( "OpenPBX Core Initializing\n");
+        opbx_verbose( "CallWeaver Core Initializing\n");
         opbx_verbose( "Registering builtin applications:\n");
     }
     OPBX_LIST_HEAD_INIT_NOLOCK(&globals);

@@ -1338,7 +1338,7 @@ static yyconst yy_state_type yy_NUL_trans[54] =
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
+ * See http://www.callweaver.org for more information about
  * the Openpbx project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC

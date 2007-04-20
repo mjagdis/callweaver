@@ -1,5 +1,5 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * SQLite DB Functionality
  * 
@@ -12,8 +12,8 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -622,28 +622,28 @@ static int database_deltree(int fd, int argc, char *argv[])
 
 static char database_show_usage[] =
 "Usage: database show [family [keytree]]\n"
-"       Shows OpenPBX database contents, optionally restricted\n"
+"       Shows CallWeaver database contents, optionally restricted\n"
 "to a given family, or family and keytree.\n";
 
 static char database_put_usage[] =
 "Usage: database put <family> <key> <value>\n"
-"       Adds or updates an entry in the OpenPBX database for\n"
+"       Adds or updates an entry in the CallWeaver database for\n"
 "a given family, key, and value.\n";
 
 static char database_get_usage[] =
 "Usage: database get <family> <key>\n"
-"       Retrieves an entry in the OpenPBX database for a given\n"
+"       Retrieves an entry in the CallWeaver database for a given\n"
 "family and key.\n";
 
 static char database_del_usage[] =
 "Usage: database del <family> <key>\n"
-"       Deletes an entry in the OpenPBX database for a given\n"
+"       Deletes an entry in the CallWeaver database for a given\n"
 "family and key.\n";
 
 static char database_deltree_usage[] =
 "Usage: database deltree <family> [keytree]\n"
 "       Deletes a family or specific keytree within a family\n"
-"in the OpenPBX database.\n";
+"in the CallWeaver database.\n";
 
 struct opbx_cli_entry cli_database_show =
 { { "database", "show", NULL }, database_show, "Shows database contents", database_show_usage };

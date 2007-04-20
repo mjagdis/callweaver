@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -49,7 +49,7 @@ static const char *devstatestring[] = {
 	/* 1 OPBX_DEVICE_NOT_INUSE */	"Not in use",	/* Not used */
 	/* 2 OPBX_DEVICE IN USE */	"In use",	/* In use */
 	/* 3 OPBX_DEVICE_BUSY */	"Busy",		/* Busy */
-	/* 4 OPBX_DEVICE_INVALID */	"Invalid",	/* Invalid - not known to OpenPBX */
+	/* 4 OPBX_DEVICE_INVALID */	"Invalid",	/* Invalid - not known to CallWeaver */
 	/* 5 OPBX_DEVICE_UNAVAILABLE */	"Unavailable",	/* Unavailable (not registred) */
 	/* 6 OPBX_DEVICE_RINGING */	"Ringing"	/* Ring, ring, ring */
 };

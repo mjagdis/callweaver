@@ -1,11 +1,11 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 2006
  * Bartek (eGnarF) Kania
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -16,7 +16,7 @@
  */
 
 /*! \file
- * \brief OpenPBX timer implementation
+ * \brief CallWeaver timer implementation
  * This abstracts the timer functionality and allows one to implement them
  * in the best way possible on each system.
  * Currently only a repeating timer is implemented.

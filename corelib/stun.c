@@ -1,8 +1,8 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -201,7 +201,7 @@ static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
                   (struct sockaddr *) dst,
                   sizeof(*dst));
 /*
-    // Alternative way to send STUN PACKETS using OpenPBX library functions.
+    // Alternative way to send STUN PACKETS using CallWeaver library functions.
     return opbx_sendfromto(
 	s,
 	resp,ntohs(resp->msglen) + sizeof(*resp),0,

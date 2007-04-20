@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief OpenPBX Logger
+ * \brief CallWeaver Logger
  * 
  * Logging routines
  *
@@ -84,7 +84,7 @@ static int syslog_level_map[] = {
 #define TIDFMT "%ld"
 #endif
 
-static char dateformat[256] = "%b %e %T";		/* Original OpenPBX Format */
+static char dateformat[256] = "%b %e %T";		/* Original CallWeaver Format */
 
 OPBX_MUTEX_DEFINE_STATIC(msglist_lock);
 OPBX_MUTEX_DEFINE_STATIC(loglock);
@@ -474,9 +474,9 @@ int reload_logger(int rotate)
 
 	if (logfiles.event_log) {
 		if (eventlog) {
-			opbx_log(LOG_EVENT, "Restarted OpenPBX Event Logger\n");
+			opbx_log(LOG_EVENT, "Restarted CallWeaver Event Logger\n");
 			if (option_verbose)
-				opbx_verbose("OpenPBX Event Logger restarted\n");
+				opbx_verbose("CallWeaver Event Logger restarted\n");
 			return 0;
 		} else 
 			opbx_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
@@ -609,9 +609,9 @@ int init_logger(void)
 		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)opbx_config_OPBX_LOG_DIR, EVENTLOG);
 		eventlog = fopen((char *)tmp, "a");
 		if (eventlog) {
-			opbx_log(LOG_EVENT, "Started OpenPBX Event Logger\n");
+			opbx_log(LOG_EVENT, "Started CallWeaver Event Logger\n");
 			if (option_verbose)
-				opbx_verbose("OpenPBX Event Logger Started %s\n",(char *)tmp);
+				opbx_verbose("CallWeaver Event Logger Started %s\n",(char *)tmp);
 			return 0;
 		} else 
 			opbx_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
@@ -782,9 +782,9 @@ void opbx_log(int level, const char *file, int line, const char *function, const
 					levels[level], GETTID(), file);
 				res = fprintf(chan->fileptr, buf);
 				if (res <= 0 && buf[0] != '\0') {	/* Error, no characters printed */
-					fprintf(stderr,"**** OpenPBX Logging Error: ***********\n");
+					fprintf(stderr,"**** CallWeaver Logging Error: ***********\n");
 					if (errno == ENOMEM || errno == ENOSPC) {
-						fprintf(stderr, "OpenPBX logging error: Out of disk space, can't log to log file %s\n", chan->filename);
+						fprintf(stderr, "CallWeaver logging error: Out of disk space, can't log to log file %s\n", chan->filename);
 					} else
 						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
 					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));

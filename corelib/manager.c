@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -18,7 +18,7 @@
 
 /*
  *
- * The OpenPBX Management Interface
+ * The CallWeaver Management Interface
  *
  * Channel Management and more
  * 
@@ -240,16 +240,16 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 
 static char showmancmd_help[] = 
 "Usage: show manager command <actionname>\n"
-"	Shows the detailed description for a specific OpenPBX manager interface command.\n";
+"	Shows the detailed description for a specific CallWeaver manager interface command.\n";
 
 static char showmancmds_help[] = 
 "Usage: show manager commands\n"
-"	Prints a listing of all the available OpenPBX manager interface commands.\n";
+"	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 static char showmanconn_help[] = 
 "Usage: show manager connected\n"
 "	Prints a listing of the users that are currently connected to the\n"
-"OpenPBX manager interface.\n";
+"CallWeaver manager interface.\n";
 
 static struct opbx_cli_entry show_mancmd_cli =
 	{ { "show", "manager", "command", NULL },
@@ -885,7 +885,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 static char mandescr_command[] = 
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
-"	*Command: OpenPBX CLI command to run\n"
+"	*Command: CallWeaver CLI command to run\n"
 "	ActionID: Optional Action id for message matching.\n";
 
 /*! \brief  action_command: Manager command "command" - execute CLI command */
@@ -1364,7 +1364,7 @@ static void *session_do(void *data)
 	int res;
 	
 	opbx_mutex_lock(&s->__lock);
-	opbx_cli(s->fd, "OpenPBX Call Manager/1.0\r\n");
+	opbx_cli(s->fd, "CallWeaver Call Manager/1.0\r\n");
 	opbx_mutex_unlock(&s->__lock);
 	memset(&m, 0, sizeof(m));
 	for (;;) {
@@ -1648,7 +1648,7 @@ int init_manager(void)
 		opbx_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
 		opbx_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
 		opbx_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
-		opbx_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute OpenPBX CLI Command", mandescr_command );
+		opbx_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute CallWeaver CLI Command", mandescr_command );
 		opbx_manager_register2("ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
 		opbx_manager_register2("AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
 		opbx_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
@@ -1741,7 +1741,7 @@ int init_manager(void)
 			return -1;
 		}
 		if (option_verbose)
-			opbx_verbose("OpenPBX Management interface listening on port %d\n", portno);
+			opbx_verbose("CallWeaver Management interface listening on port %d\n", portno);
 		opbx_pthread_create(&t, NULL, accept_thread, NULL);
 	}
 	return 0;

@@ -1,12 +1,12 @@
 /*
- * OpenPBX -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.openpbx.org for more information about
- * the OpenPBX project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -198,7 +198,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 static char show_channeltypes_usage[] = 
 "Usage: show channeltypes\n"
-"       Shows available channel types registered in your OpenPBX server.\n";
+"       Shows available channel types registered in your CallWeaver server.\n";
 
 static struct opbx_cli_entry cli_show_channeltypes = 
 	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
@@ -271,7 +271,7 @@ void opbx_cancel_shutdown(void)
 	shutting_down = 0;
 }
 
-/*--- opbx_shutting_down: Returns non-zero if OpenPBX is being shut down */
+/*--- opbx_shutting_down: Returns non-zero if CallWeaver is being shut down */
 int opbx_shutting_down(void)
 {
 	return shutting_down;
@@ -316,7 +316,7 @@ int opbx_channel_cmpwhentohangup(struct opbx_channel *chan, time_t offset)
 	}
 }
 
-/*--- opbx_channel_register: Register a new telephony channel in OpenPBX */
+/*--- opbx_channel_register: Register a new telephony channel in CallWeaver */
 int opbx_channel_register(const struct opbx_channel_tech *tech)
 {
 	struct chanlist *chan;
