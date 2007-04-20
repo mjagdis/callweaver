@@ -7,34 +7,34 @@
 # 03.29.2005 - Initial Version
 #
 
-openpbx_start() {
-   if [ -x /usr/sbin/openpbx ]; then
-      echo "Starting CallWeaver   /usr/sbin/openpbx"
-      /usr/sbin/openpbx
+callweaver_start() {
+   if [ -x /usr/sbin/callweaver ]; then
+      echo "Starting CallWeaver   /usr/sbin/callweaver"
+      /usr/sbin/callweaver
    fi
 }
 
-openpbx_stop() {
+callweaver_stop() {
     # If there is no PID file, ignore this request...
-    if [ -r /var/run/openpbx.pid ]; then
-      killall openpbx
+    if [ -r /var/run/callweaver.pid ]; then
+      killall callweaver
     fi
 }
 
-openpbx_restart() {
-   openpbx_stop
-   openpbx_start
+callweaver_restart() {
+   callweaver_stop
+   callweaver_start
 }
 
 case "$1" in
    'start')
-      openpbx_start
+      callweaver_start
       ;;
    'stop')
-      openpbx_stop
+      callweaver_stop
       ;;
    'restart')
-      openpbx_restart
+      callweaver_restart
       ;;
    *)
       echo "usage $0 start|stop|restart" ;;

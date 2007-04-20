@@ -1,13 +1,13 @@
 #!/bin/sh
 # 
-# openpbx:		Starts the openpbx service
+# callweaver:		Starts the callweaver service
 # 
-# Version:		@(#) /etc/rc.d/init.d/openpbx 1.0
+# Version:		@(#) /etc/rc.d/init.d/callweaver 1.0
 # 
 # chkconfig: 2345 95 10
-# description:	Starts the openpbx service
+# description:	Starts the callweaver service
 # 
-# processname:	openpbx
+# processname:	callweaver
 # 
 
 TTY=9			# TTY (if you want one) for CallWeaver to run on
@@ -19,7 +19,7 @@ CONFIGFILE=/etc/sysconfig/`basename $0`
 
 # Setup environment
 cd /usr/src
-if [ -f /usr/lib/openpbx/modules/chan_h323.so -a `grep -c ^noload=chan_h323.so /etc/openpbx/modules.conf` -eq 0 ]; then
+if [ -f /usr/lib/callweaver/modules/chan_h323.so -a `grep -c ^noload=chan_h323.so /etc/callweaver/modules.conf` -eq 0 ]; then
 	OPENH323DIR=/usr/src/h323/openh323
 	PWLIBDIR=/usr/src/h323/pwlib
 else
@@ -27,7 +27,7 @@ else
 	PWLIBDIR=/usr/src/oh323/pwlib
 fi
 
-# Put overrides in /etc/sysconfig/openpbx
+# Put overrides in /etc/sysconfig/callweaver
 [ -f $CONFIGFILE ] && . $CONFIGFILE
 
 LD_LIBRARY_PATH=$OPENH323DIR/lib:$PWLIBDIR/lib
@@ -64,23 +64,23 @@ fi
 #
 ulimit -c unlimited
 
-#launch_openpbx()
+#launch_callweaver()
 #{
 #}
 
 SIGMSG=("Hangup" "Interrupt" "Quit" "Illegal instruction" "Trace trap" "IOT Trap" "Bus Error" "Floating-point exception" "Killed" "User-defined signal 1" "Segmentation violation" "User-defined signal 2" "Broken pipe" "Alarm clock" "Termination" "Stack fault")
 
-run_openpbx()
+run_callweaver()
 {
 	while :; do 
 
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			openpbx ${ASTARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
+			callweaver ${ASTARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
 		else
 			cd /tmp
-			openpbx ${ASTARGS}
+			callweaver ${ASTARGS}
 		fi
 		EXITSTATUS=$?
 		echo "CallWeaver ended with exit status $EXITSTATUS"
@@ -112,10 +112,10 @@ run_openpbx()
 
 case "$1" in
 	start)
-		gprintf "Starting openpbx: "
-		run_openpbx >/dev/null 2>&1 &
+		gprintf "Starting callweaver: "
+		run_callweaver >/dev/null 2>&1 &
 		sleep 2	# Give it time to die
-		succeeded=`pidof openpbx|awk '{print NF}'`
+		succeeded=`pidof callweaver|awk '{print NF}'`
 		if [ $succeeded = "0" ]; then
 			failure
 		else
@@ -124,8 +124,8 @@ case "$1" in
 		echo
 		;;
 	stop)
-		gprintf "Stopping openpbx: "
-		openpbx -r -x "stop gracefully" >/dev/null 2>&1
+		gprintf "Stopping callweaver: "
+		callweaver -r -x "stop gracefully" >/dev/null 2>&1
 		killall -9 mpg123 2>/dev/null
 		success
 		echo
@@ -136,14 +136,14 @@ case "$1" in
 		$0 start
 		;;
 	reload)
-		gprintf "Reloading openpbx: "
-		openpbx -r -x "reload" >/dev/null 2>&1
+		gprintf "Reloading callweaver: "
+		callweaver -r -x "reload" >/dev/null 2>&1
 		success
 		echo
 		;;
 	stopnow)
-		gprintf "Stopping openpbx: "
-		openpbx -r -x "stop now" >/dev/null 2>&1
+		gprintf "Stopping callweaver: "
+		callweaver -r -x "stop now" >/dev/null 2>&1
 		success
 		echo
 		;;
@@ -162,7 +162,7 @@ case "$1" in
 		$0 start
 		;;
 	status)
-		succeeded=`pidof openpbx|awk '{print NF}'`
+		succeeded=`pidof callweaver|awk '{print NF}'`
 		if [ $succeeded = "0" ]; then
 			echo "CallWeaver is not running"
 		else

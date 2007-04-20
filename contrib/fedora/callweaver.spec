@@ -5,17 +5,17 @@
 
 %bcond_without	fedora
 
-Name:		openpbx
+Name:		callweaver
 Version:	1.2
 Release:	2.rc1.svn%{snap}%{?dist}
 Summary:	The Truly Open Source PBX
 
 Group:		Applications/Internet
 License:	GPL
-URL:		http://www.openpbx.org/
-# svn co -r %{snap} svn://svn.openpbx.org/openpbx/trunk openpbx
-# tar cvfz openpbx-r%{snap}.tar.gz openpbx
-Source0:	openpbx-r%{snap}.tar.gz
+URL:		http://www.callweaver.org/
+# svn co -r %{snap} svn://svn.callweaver.org/callweaver/trunk callweaver
+# tar cvfz callweaver-r%{snap}.tar.gz callweaver
+Source0:	callweaver-r%{snap}.tar.gz
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:	spandsp-devel >= 0.0.3-1.pre24
@@ -40,7 +40,7 @@ web browser using CGI and a web server.
 CallWeaver talks to a variety of telephony hardware including BRI, PRI,
 POTS, Bluetooth headsets and IP telephony clients using SIP and IAX
 protocols protocol (e.g. ekiga or kphone).  For more information and a
-current list of supported hardware, see www.openpbx.org.
+current list of supported hardware, see www.callweaver.org.
 
 
 %package devel
@@ -158,7 +158,7 @@ convenient interface between CallWeaver and external scripts or programs.
 
 
 %prep
-%setup -q -n openpbx
+%setup -q -n callweaver
 
 %build
 %if 0%{?snap}
@@ -193,163 +193,163 @@ mv doc/README.{misdn,chan_capi,res_jabber,odbcstorage} doc2
 %install
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
-rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/modules/*.la
-rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.a
-rm -f $RPM_BUILD_ROOT/%{_libdir}/openpbx.org/*.la
+rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver.org/modules/*.la
+rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver.org/*.a
+rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver.org/*.la
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
-install -m0755 contrib/fedora/openpbx $RPM_BUILD_ROOT%{_initrddir}/openpbx
+install -m0755 contrib/fedora/callweaver $RPM_BUILD_ROOT%{_initrddir}/callweaver
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
-install -m0644 contrib/fedora/openpbx.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/openpbx
+install -m0644 contrib/fedora/callweaver.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/callweaver
 
-mv $RPM_BUILD_ROOT/%{_datadir}/openpbx.org/ogi/eogi-*test $RPM_BUILD_ROOT/%{_sbindir}
+mv $RPM_BUILD_ROOT/%{_datadir}/callweaver.org/ogi/eogi-*test $RPM_BUILD_ROOT/%{_sbindir}
 
-# More autocrap insanity. We can't just move confdefs.h into the openpbx/ subdir
+# More autocrap insanity. We can't just move confdefs.h into the callweaver/ subdir
 # because then autocrap will add that subdir to the compiler's include path and
 # many things break. So let's just clean up after it.
-sed -i 's:"confdefs.h":<openpbx/confdefs.h>:' $RPM_BUILD_ROOT/%{_includedir}/openpbx/*.h
-install -m0644 include/confdefs.h $RPM_BUILD_ROOT/%{_includedir}/openpbx/confdefs.h
+sed -i 's:"confdefs.h":<callweaver/confdefs.h>:' $RPM_BUILD_ROOT/%{_includedir}/callweaver/*.h
+install -m0644 include/confdefs.h $RPM_BUILD_ROOT/%{_includedir}/callweaver/confdefs.h
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-%__fe_groupadd 30 -r openpbx &>/dev/null || :
-%__fe_useradd  30 -r -s /sbin/nologin -d %{_sysconfdir}/openpbx.org -M \
-                    -c 'CallWeaver user' -g openpbx openpbx &>/dev/null || :
+%__fe_groupadd 30 -r callweaver &>/dev/null || :
+%__fe_useradd  30 -r -s /sbin/nologin -d %{_sysconfdir}/callweaver.org -M \
+                    -c 'CallWeaver user' -g callweaver callweaver &>/dev/null || :
 %post
-/sbin/chkconfig --add openpbx
+/sbin/chkconfig --add callweaver
 
 %preun
-test "$1" != 0 || /sbin/chkconfig --del openpbx
+test "$1" != 0 || /sbin/chkconfig --del callweaver
 
 %postun
-%__fe_userdel  openpbx &>/dev/null || :
-%__fe_groupdel openpbx &>/dev/null || :
+%__fe_userdel  callweaver &>/dev/null || :
+%__fe_groupdel callweaver &>/dev/null || :
 
 %pre zaptel
-%{_sbindir}/usermod -G `id -G openpbx | tr " " , `,zaptel openpbx
+%{_sbindir}/usermod -G `id -G callweaver | tr " " , `,zaptel callweaver
 
 %pre misdn
-%{_sbindir}/usermod -G `id -G openpbx | tr " " , `,misdn openpbx
+%{_sbindir}/usermod -G `id -G callweaver | tr " " , `,misdn callweaver
 
 %files
 %defattr(-,root,root,-)
 %doc COPYING CREDITS LICENSE BUGS AUTHORS SECURITY README HARDWARE
 %doc doc/README.* doc/*.txt doc/*.html sample.call ChangeLog
 %doc BUGS InstallGuide.txt
-%config(noreplace) %{_sysconfdir}/logrotate.d/openpbx
-%{_initrddir}/openpbx
-%{_sbindir}/openpbx
+%config(noreplace) %{_sysconfdir}/logrotate.d/callweaver
+%{_initrddir}/callweaver
+%{_sbindir}/callweaver
 %{_bindir}/smsq
 %{_bindir}/streamplayer
-%dir %{_libdir}/openpbx.org
-%{_libdir}/openpbx.org/lib*.so.*
-%dir %{_libdir}/openpbx.org/modules
-%{_libdir}/openpbx.org/modules/*.so
-%{_mandir}/man8/openpbx.8.gz
-%dir %{_datadir}/openpbx.org
-%dir %attr(0755,openpbx,openpbx) %{_sysconfdir}/openpbx.org
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/*
-%attr(2755,openpbx,openpbx) %{_localstatedir}/spool/openpbx.org
-%attr(0755,openpbx,openpbx) %{_localstatedir}/log/openpbx.org
-%attr(0755,openpbx,openpbx) %{_localstatedir}/run/openpbx.org
+%dir %{_libdir}/callweaver.org
+%{_libdir}/callweaver.org/lib*.so.*
+%dir %{_libdir}/callweaver.org/modules
+%{_libdir}/callweaver.org/modules/*.so
+%{_mandir}/man8/callweaver.8.gz
+%dir %{_datadir}/callweaver.org
+%dir %attr(0755,callweaver,callweaver) %{_sysconfdir}/callweaver.org
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/*
+%attr(2755,callweaver,callweaver) %{_localstatedir}/spool/callweaver.org
+%attr(0755,callweaver,callweaver) %{_localstatedir}/log/callweaver.org
+%attr(0755,callweaver,callweaver) %{_localstatedir}/run/callweaver.org
 # Unneeded
-%exclude %{_sysconfdir}/openpbx.org/cdr_tds.conf
+%exclude %{_sysconfdir}/callweaver.org/cdr_tds.conf
 # Separately packaged
-%exclude %{_libdir}/openpbx.org/modules/*pgsql.so
-%exclude %{_libdir}/openpbx.org/modules/*mysql.so
-%exclude %{_libdir}/openpbx.org/modules/app_sql_postgres.so
-%exclude %{_libdir}/openpbx.org/modules/app_ldap.so
-%exclude %{_libdir}/openpbx.org/modules/cdr_odbc.so
-%exclude %{_libdir}/openpbx.org/modules/chan_bluetooth.so
-%exclude %{_libdir}/openpbx.org/modules/res_jabber.so
-%exclude %{_libdir}/openpbx.org/modules/res_js.so
-%exclude %{_libdir}/openpbx.org/modules/chan_alsa.so
-%exclude %{_libdir}/openpbx.org/modules/res_ogi.so
-%exclude %{_libdir}/openpbx.org/modules/chan_capi.so
-%exclude %{_sysconfdir}/openpbx.org/cdr_pgsql.conf
-%exclude %{_sysconfdir}/openpbx.org/*mysql.conf
-%exclude %{_sysconfdir}/openpbx.org/cdr_odbc.conf
-%exclude %{_sysconfdir}/openpbx.org/chan_bluetooth.conf
-%exclude %{_sysconfdir}/openpbx.org/res_jabber.conf
-%exclude %{_sysconfdir}/openpbx.org/alsa.conf
-%exclude %{_sysconfdir}/openpbx.org/capi.conf
+%exclude %{_libdir}/callweaver.org/modules/*pgsql.so
+%exclude %{_libdir}/callweaver.org/modules/*mysql.so
+%exclude %{_libdir}/callweaver.org/modules/app_sql_postgres.so
+%exclude %{_libdir}/callweaver.org/modules/app_ldap.so
+%exclude %{_libdir}/callweaver.org/modules/cdr_odbc.so
+%exclude %{_libdir}/callweaver.org/modules/chan_bluetooth.so
+%exclude %{_libdir}/callweaver.org/modules/res_jabber.so
+%exclude %{_libdir}/callweaver.org/modules/res_js.so
+%exclude %{_libdir}/callweaver.org/modules/chan_alsa.so
+%exclude %{_libdir}/callweaver.org/modules/res_ogi.so
+%exclude %{_libdir}/callweaver.org/modules/chan_capi.so
+%exclude %{_sysconfdir}/callweaver.org/cdr_pgsql.conf
+%exclude %{_sysconfdir}/callweaver.org/*mysql.conf
+%exclude %{_sysconfdir}/callweaver.org/cdr_odbc.conf
+%exclude %{_sysconfdir}/callweaver.org/chan_bluetooth.conf
+%exclude %{_sysconfdir}/callweaver.org/res_jabber.conf
+%exclude %{_sysconfdir}/callweaver.org/alsa.conf
+%exclude %{_sysconfdir}/callweaver.org/capi.conf
 %if 0%{?with_misdn:1}
-%exclude %{_libdir}/openpbx.org/modules/chan_misdn.so
-%exclude %{_sysconfdir}/openpbx.org/misdn.conf
+%exclude %{_libdir}/callweaver.org/modules/chan_misdn.so
+%exclude %{_sysconfdir}/callweaver.org/misdn.conf
 %endif
 %if 0%{?with_zaptel:1}
-%exclude %{_libdir}/openpbx.org/modules/chan_zap.so
-%exclude %{_libdir}/openpbx.org/modules/app_meetme.so
-%exclude %{_libdir}/openpbx.org/modules/app_flash.so
-%exclude %{_sysconfdir}/openpbx.org/zapata.conf
-%exclude %{_sysconfdir}/openpbx.org/meetme.conf
+%exclude %{_libdir}/callweaver.org/modules/chan_zap.so
+%exclude %{_libdir}/callweaver.org/modules/app_meetme.so
+%exclude %{_libdir}/callweaver.org/modules/app_flash.so
+%exclude %{_sysconfdir}/callweaver.org/zapata.conf
+%exclude %{_sysconfdir}/callweaver.org/meetme.conf
 %endif
 
 %files devel
 %defattr(-,root,root,-)
-%dir %{_includedir}/openpbx
-%{_includedir}/openpbx/*.h
-%{_libdir}/openpbx.org/lib*.so
+%dir %{_includedir}/callweaver
+%{_includedir}/callweaver/*.h
+%{_libdir}/callweaver.org/lib*.so
 
 %files postgresql
-%{_libdir}/openpbx.org/modules/*pgsql.so
-%{_libdir}/openpbx.org/modules/app_sql_postgres.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/cdr_pgsql.conf
+%{_libdir}/callweaver.org/modules/*pgsql.so
+%{_libdir}/callweaver.org/modules/app_sql_postgres.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/cdr_pgsql.conf
 
 %files mysql
-%{_libdir}/openpbx.org/modules/*mysql.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/*mysql.conf
+%{_libdir}/callweaver.org/modules/*mysql.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/*mysql.conf
 
 %files odbc
-%{_libdir}/openpbx.org/modules/cdr_odbc.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/cdr_odbc.conf
+%{_libdir}/callweaver.org/modules/cdr_odbc.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/cdr_odbc.conf
 %doc doc2/README.odbcstorage
 
 %files ldap
-%{_libdir}/openpbx.org/modules/app_ldap.so
+%{_libdir}/callweaver.org/modules/app_ldap.so
 
 %files bluetooth
-%{_libdir}/openpbx.org/modules/chan_bluetooth.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/chan_bluetooth.conf
+%{_libdir}/callweaver.org/modules/chan_bluetooth.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/chan_bluetooth.conf
 
 %files capi
-%{_libdir}/openpbx.org/modules/chan_capi.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/capi.conf
+%{_libdir}/callweaver.org/modules/chan_capi.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/capi.conf
 %doc doc2/README.chan_capi
 
 %if 0%{?with_misdn:1}
 %files misdn
-%{_libdir}/openpbx.org/modules/chan_misdn.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/misdn.conf
+%{_libdir}/callweaver.org/modules/chan_misdn.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/misdn.conf
 %doc doc2/README.misdn
 %endif
 
 %if 0%{?with_zaptel:1}
 %files zaptel
-%{_libdir}/openpbx.org/modules/chan_zap.so
-%{_libdir}/openpbx.org/modules/app_meetme.so
-%{_libdir}/openpbx.org/modules/app_flash.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/zapata.conf
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/meetme.conf
+%{_libdir}/callweaver.org/modules/chan_zap.so
+%{_libdir}/callweaver.org/modules/app_meetme.so
+%{_libdir}/callweaver.org/modules/app_flash.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/zapata.conf
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/meetme.conf
 %endif
 
 %files jabber
-%{_libdir}/openpbx.org/modules/res_jabber.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/res_jabber.conf
+%{_libdir}/callweaver.org/modules/res_jabber.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/res_jabber.conf
 %doc doc2/README.res_jabber
 
 %files javascript
-%{_libdir}/openpbx.org/modules/res_js.so
+%{_libdir}/callweaver.org/modules/res_js.so
 
 %files alsa
-%{_libdir}/openpbx.org/modules/chan_alsa.so
-%config(noreplace) %attr(0644,openpbx,openpbx) %{_sysconfdir}/openpbx.org/alsa.conf
+%{_libdir}/callweaver.org/modules/chan_alsa.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/alsa.conf
 
 %files ogi
-%{_libdir}/openpbx.org/modules/res_ogi.so
-%dir %attr(0755,root,root) %{_datadir}/openpbx.org/ogi
-%{_datadir}/openpbx.org/ogi/*
+%{_libdir}/callweaver.org/modules/res_ogi.so
+%dir %attr(0755,root,root) %{_datadir}/callweaver.org/ogi
+%{_datadir}/callweaver.org/ogi/*
 %{_sbindir}/eogi*
 
 %changelog

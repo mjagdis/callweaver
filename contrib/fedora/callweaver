@@ -2,7 +2,7 @@
 #
 # chkconfig: - 99 15
 # description: Open source PBX 
-# processname: openpbx
+# processname: callweaver
 
 # source function library
 . /etc/rc.d/init.d/functions
@@ -11,20 +11,20 @@ RETVAL=0
 
 case "$1" in
   start)
-	mkdir -p /dev/fax &>/dev/null && chown openpbx.openpbx /dev/fax
+	mkdir -p /dev/fax &>/dev/null && chown callweaver.callweaver /dev/fax
 	echo -n $"Starting CallWeaver: "
-	daemon /usr/sbin/openpbx
+	daemon /usr/sbin/callweaver
 	RETVAL=$?
 	echo
-	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/openpbx
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/callweaver
 	;;
   stop)
 	echo -n $"Stopping CallWeaver: "
-	killproc openpbx
+	killproc callweaver
 	RETVAL=$?
 
 	echo
-	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/openpbx
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/callweaver
 	;;
   restart)
 	$0 stop
@@ -32,16 +32,16 @@ case "$1" in
 	RETVAL=$?
 	;;
   reload)
-	killproc openpbx -HUP
-	status openpbx
+	killproc callweaver -HUP
+	status callweaver
 	RETVAL=$?
 	;;
   status)
-	status openpbx
+	status callweaver
 	RETVAL=$?
 	;;
   *)
-	echo "Usage: openpbx {start|stop|status|restart|reload}"
+	echo "Usage: callweaver {start|stop|status|restart|reload}"
 	exit 1
 esac
 
