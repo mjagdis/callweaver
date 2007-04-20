@@ -13,20 +13,20 @@
 # Written by: James Golovich <james@gnuinter.net>
 # Updated by: Jeff Siddall <jeff@siddall.name>
 
-use Openpbx::OGI;
+use callweaver::OGI;
 use LWP::UserAgent;
 
 # Set $CACHELOOKUPS to 1 to cachelookups locally, default is enabled
 $CACHELOOKUPS = 1;
 # You must create this directory if you enable $CACHELOOKUPS, or caching will fail
-$CACHEDIR = '/var/spool/openpbx.org/calleridlookups';
+$CACHEDIR = '/var/spool/callweaver.org/calleridlookups';
 
 # TIMEOUT is maximum number of seconds for http requests (we don't want to take too long)
 $TIMEOUT = 3;
 
 $VERSION = '0.03';
 
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 my %input = $OGI->ReadParse();
 
@@ -130,7 +130,7 @@ sub anywho_lookup {
 
 	$URL .= '?npa=' . $npa . '&telephone=' . $nxx . $station;
 
-	$ua->agent('OpenpbxOGIQuery/$VERSION');
+	$ua->agent('callweaverOGIQuery/$VERSION');
 
 	my $req = new HTTP::Request GET => $URL;
 	my $res = $ua->request($req);
@@ -155,7 +155,7 @@ sub www411_lookup {
 
 	my $URL = "http://www.411.com/search/Reverse_Phone?phone=$npa$nxx$station";
 
-	$ua->agent('OpenpbxOGIQuery/$VERSION');
+	$ua->agent('callweaverOGIQuery/$VERSION');
 
 	my $req = new HTTP::Request GET => $URL;
 	my $res = $ua->request($req);

@@ -6,8 +6,8 @@
 ;format=g723sf|wav49|wav
 format=wav49|gsm|wav
 ; Who the e-mail notification should appear to come from
-serveremail=openpbx
-;serveremail=openpbx@linux-support.net
+serveremail=callweaver
+;serveremail=callweaver@callweaver.org
 ; Should the email contain the voicemail as an attachment
 attach=yes
 ; Maximum number of messages per folder.  If not specified, a default value

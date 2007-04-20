@@ -26,9 +26,9 @@
 [general]
 context=default			; Default context for incoming calls
 ;allowguest=no			; Allow or reject guest calls (default is yes, this can also be set to 'osp'
-				; if openpbx was compiled with OSP support.
+				; if callweaver was compiled with OSP support.
 ;realm=mydomain.tld		; Realm for digest authentication
-				; defaults to "openpbx"
+				; defaults to "callweaver"
 				; Realms MUST be globally unique according to RFC 3261
 				; Set this to your host name or domain name
 bindport=5060			; UDP Port to bind to (SIP standard port is 5060)
@@ -64,7 +64,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;checkmwi=10			; Default time between mailbox checks for peers
 ;vmexten=voicemail      ; dialplan extension to reach mailbox sets the 
 						; Message-Account in the MWI notify message 
-						; defaults to "openpbx"
+						; defaults to "callweaver"
 ;videosupport=yes		; Turn on support for SIP video
 ;t38udptlsupport=yes		; Turn on support for T.38 UDPTL
 ;t38rtpsupport=yes		; Turn on support for T.38 RTP	- *** NOT YET IMPLEMENTED ***
@@ -175,7 +175,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; are:
 
 ;stunserver_host=your.stun.server.here ; decommenting this and inserting a valid stun server, 
-				; makes openpbx work behind nat without problems.
+				; makes callweaver work behind nat without problems.
 				; Please note that if STUN fails, the old externip behaviour is retained so
 				; setting externip could still be valid to have a failover.
 ;stunserver_port=3478		; default id 3478
@@ -235,7 +235,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; Domains can be specified using:
 ; domain=<domain>[,<context>]
 ; Examples:
-; domain=myopenpbx.dom
+; domain=mycallweaver.dom
 ; domain=customer.com,customer-context
 ;
 ; In addition, all the 'default' domains associated with a server should be
@@ -355,7 +355,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;canreinvite=yes		; allow RTP voice traffic to bypass CallWeaver
 ;dtmfmode=info			; either RFC2833 or INFO for the BudgeTone
 ;call-limit=1			; permit only 1 outgoing call and 1 incoming call at a time
-				; from the phone to openpbx
+				; from the phone to callweaver
 				; (1 for the explicit peer, 1 for the explicit user,
 				; remember that a friend equals 1 peer and 1 user in
 				; memory)
@@ -397,7 +397,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
 ;vmexten=voicemail      ; dialplan extension to reach mailbox 
                         ; sets the Message-Account in the MWI notify message
-                        ; defaults to global vmexten which defaults to "openpbx"
+                        ; defaults to global vmexten which defaults to "callweaver"
 ;restrictcid=yes		; To have the callerid restriced -> sent as ANI
 ;disallow=all
 ;allow=ulaw			; dtmfmode=inband only works with ulaw or alaw!

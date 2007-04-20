@@ -1,4 +1,4 @@
-package Openpbx::OGI;
+package CallWeaver::OGI;
 
 require 5.004;
 
@@ -30,7 +30,7 @@ $OGI = new Openpbx::OGI;
 =head1 DESCRIPTION
 
 This module should make it easier to write scripts that interact with the
-openpbx.org open source pbx via OGI (openpbx.org gateway interface)
+callweaver.org open source pbx via OGI (callweaver.org gateway interface)
 
 =head1 MODULE COMMANDS
 

@@ -1,14 +1,14 @@
-package Openpbx::Outgoing;
+package CallWeaver::Outgoing;
 
 =head1 NAME
 
-Openpbx::Outgoing - Create outgoing call queue file
+CallWeaver::Outgoing - Create outgoing call queue file
 
 =head1 SYNOPSIS
 
-use Openpbx::Outgoing;
+use CallWeaver::Outgoing;
 
-my $out = new Openpbx::Outgoing;
+my $out = new CallWeaver::Outgoing;
 
 $out->setvariable('Channel', 'Zap/1/');
 
@@ -40,7 +40,7 @@ my $VERSION = '0.02';
 sub new {
 	my ($class, %args) = @_;
 	my $self = {};
-	$self->{OUTDIR} = '/var/spool/openpbx.org/outgoing';
+	$self->{OUTDIR} = '/var/spool/callweaver.org/outgoing';
 	$self->{OUTTIME} = undef;
 	$self->{OUTVARS} = {};
 	$self->{CUSTOM_VARS} = ();

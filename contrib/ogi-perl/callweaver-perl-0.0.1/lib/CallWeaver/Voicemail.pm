@@ -4,7 +4,7 @@ require 5.004;
 
 =head1 NAME
 
-Openpbx::Voicemail - Stuff to deal with openpbx.org voicemail
+CallWeaver::Voicemail - Stuff to deal with callweaver.org voicemail
 
 =head1 SYNOPSIS
 
@@ -42,7 +42,7 @@ sub spooldirectory {
 	if (defined($directory)) {
 		$self->{'spooldirectory'} = $directory;
 	} else {
-		$self->{'spooldirectory'} = '/var/spool/openpbx.org/vm' if (!defined($self->{'spooldirectory'}));
+		$self->{'spooldirectory'} = '/var/spool/callweaver.org/vm' if (!defined($self->{'spooldirectory'}));
 	}
 
 	return $self->{'spooldirectory'};
@@ -54,7 +54,7 @@ sub sounddirectory {
 	if (defined($directory)) {
 		$self->{'sounddirectory'} = $directory;
 	} else {
-		$self->{'sounddirectory'} = '/var/lib/openpbx.org/sounds' if (!defined($self->{'sounddirectory'}));
+		$self->{'sounddirectory'} = '/var/lib/callweaver.org/sounds' if (!defined($self->{'sounddirectory'}));
 	}
 
 	return $self->{'sounddirectory'};
@@ -115,7 +115,7 @@ sub configfile {
 	if (defined($configfile)) {
 		$self->{'configfile'} = $configfile;
 	} else {
-		$self->{'configfile'} = '/etc/openpbx.org/voicemail.conf' if (!defined($self->{'configfile'}));
+		$self->{'configfile'} = '/etc/callweaver.org/voicemail.conf' if (!defined($self->{'configfile'}));
 	}
 
 	return $self->{'configfile'};

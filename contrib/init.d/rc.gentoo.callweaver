@@ -6,12 +6,12 @@ depend() {
 
 start() {
 	ebegin "Starting CallWeaver"
-	/usr/sbin/openpbx
+	/usr/sbin/callweaver
 	eend $? "Failed to start CallWeaver"
 }
 
 stop() {
 	ebegin "Stopping CallWeaver"
-	kill $(cat /var/run/openpbx.pid)
+	kill $(cat /var/run/callweaver.pid)
 	eend $? "Failed to stop CallWeaver"
 }

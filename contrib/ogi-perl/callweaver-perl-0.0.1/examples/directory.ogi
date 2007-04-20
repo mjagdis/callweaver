@@ -56,11 +56,11 @@
 # First off you need the following:
 # - Festival
 # - Perl
-# - The Perl module Openpbx::OGI
+# - The Perl module callweaver::OGI
 # 
 # 
 # Then just follow the next couple of steps:
-# 1). Place this file in the Openpbx ogi-bin directory (/usr/share/openpbx.org/ogi-bin)
+# 1). Place this file in the callweaver ogi-bin directory (/usr/share/callweaver.org/ogi-bin)
 # and check the section "Check the following and adjust to your local environment"
 # to make sure it fits with your needs
 #
@@ -71,7 +71,7 @@
 #    exten => 100,4,Dial(SIP/${DIRNUMBER}@GW-PSTN,30)
 #
 # 3). Create a phone directory file called "Phonebook" and place it in 
-# the directory /usr/share/openpbx.org/directory/.
+# the directory /usr/share/callweaver.org/directory/.
 # 
 # The phone directory conisist of one Heading Line and multiple Entry Lines
 # 
@@ -121,7 +121,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 ################################################################################
-use Openpbx::OGI;
+use CallWeaver::OGI;
 use File::Basename;
 use Digest::MD5 qw(md5_hex);
 
@@ -129,10 +129,10 @@ use Digest::MD5 qw(md5_hex);
 # Check the following and adjust to your local environment
 ################################################################################
 # location of the phone directory files
-local $DIRECTORYDIR="/usr/share/openpbx.org/directory/";
+local $DIRECTORYDIR="/usr/share/callweaver.org/directory/";
 
 # location of the wave file cache and owrking directory
-local $SOUNDDIR = "/var/lib/openpbx.org/festivalcache/";
+local $SOUNDDIR = "/var/lib/callweaver.org/festivalcache/";
 
 # festival text2wave location 
 local $T2WDIR= "/usr/bin/";
@@ -547,9 +547,9 @@ sub processTargetNumber {
 ###############################################################################
 
 #
-# Initialise Openpbx OGI
+# Initialise callweaver OGI
 #
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 %input = $OGI->ReadParse();
 ;foreach $i (sort keys %input) {

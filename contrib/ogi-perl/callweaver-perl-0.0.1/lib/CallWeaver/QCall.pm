@@ -12,7 +12,7 @@ sub version { $VERSION; }
 sub new {
 	my ($class, %args) = @_;
 	my $self = {};
-	$self->{QUEUEDIR} = '/var/spool/openpbx.org/qcall';
+	$self->{QUEUEDIR} = '/var/spool/callweaver.org/qcall';
 	$self->{QUEUETIME} = undef;
 	bless $self, ref $class || $class;
 	return $self;

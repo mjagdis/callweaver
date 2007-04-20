@@ -1,4 +1,4 @@
-package Openpbx::Manager;
+package CallWeaver::Manager;
 
 require 5.004;
 
@@ -31,7 +31,7 @@ $opbman->disconnect;
 
 =head1 DESCRIPTION
 
-This module provides a simple interface to the openpbx manager interface.
+This module provides a simple interface to the callweaver manager interface.
 
 =cut
 

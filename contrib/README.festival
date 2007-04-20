@@ -29,9 +29,9 @@ add this to your /etc/festival.scm or /usr/share/festival/festival/scm:
  http://www.voip-info.org/wiki-CallWeaver+festival+installation for the
  original mentioning of it]
 
-2) You may wish to obtain and install the openpbx-perl
+2) You may wish to obtain and install the callweaver-perl
 module by James Golovich <james@gnuinter.net>, from 
-either CPAN, or his site: http://openpbx.gnuinter.net,
+either CPAN, or his site: http://callweaver.gnuinter.net,
 as this contains a good example of how variable text
 can be tts'd via callweaver, namely the examples/tts-*.ogi
 files there. It has been noted that the current expression
