@@ -61,13 +61,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "openpbx/logger.h"
-#include "openpbx/lock.h"
-#include "openpbx/utils.h"
+#include "callweaver/logger.h"
+#include "callweaver/lock.h"
+#include "callweaver/utils.h"
 #include "ael/ael.tab.h"
-#include "openpbx/ael_structs.h"
+#include "callweaver/ael_structs.h"
 
-#include "openpbx.h"
+#include "callweaver.h"
 
 /*
  * A stack to keep track of matching brackets ( [ { } ] )

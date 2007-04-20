@@ -1,4 +1,4 @@
-/var/log/openpbx.org/cdr-csv/Master.csv /var/log/openpbx.org/queue_log /var/log/openpbx.org/event_log /var/log/openpbx.org/messages /var/log/openpbx.org/full {
+/var/log/callweaver.org/cdr-csv/Master.csv /var/log/callweaver.org/queue_log /var/log/callweaver.org/event_log /var/log/callweaver.org/messages /var/log/callweaver.org/full {
         daily
         missingok
 	compress
@@ -6,6 +6,6 @@
         rotate 30
         sharedscripts
         postrotate
-                /usr/sbin/invoke-rc.d openpbx logger-reload
+                /usr/sbin/invoke-rc.d callweaver logger-reload
         endscript
 }
