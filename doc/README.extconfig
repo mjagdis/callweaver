@@ -14,7 +14,7 @@ information).
 
 * Configuration
 
-External configuration is configured in /etc/openpbx/extconfig.conf
+External configuration is configured in /etc/callweaver/extconfig.conf
 allowing you to map any configuration file (static mappings) to
 be pulled from the database, or to map special runtime entries which
 permit the dynamic creation of objects, entities, peers, etc. without
@@ -56,7 +56,7 @@ in order to store appropriate parameters required for SIP.
 The useragent column is filled by the sip channel when the peer registers.
 
 The regserver column is filled by the sip channel when the peer registers if you
-have the system name set in openpbx.conf.
+have the system name set in callweaver.conf.
 CallWeaver.org will store the system name that the user registered on in 
 the database. This can be used to direct calls to go through the server 
 that holds the registration (for NAT traversal purposes).

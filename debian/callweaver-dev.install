@@ -1,5 +1,5 @@
-usr/include/openpbx
-usr/lib/openpbx.org/libo*.so
-usr/lib/openpbx.org/lib*.la
+usr/include/callweaver
+usr/lib/callweaver.org/libo*.so
+usr/lib/callweaver.org/lib*.la
 usr/lib/lib*.la
-usr/lib/openpbx.org/modules/*.la
+usr/lib/callweaver.org/modules/*.la

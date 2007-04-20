@@ -215,7 +215,7 @@ helpful.
 
 When there is no CallerID, P and p options will always record an intro
 for the incoming caller. This intro will be stored temporarily in the
-/var/lib/openpbx/sounds/priv-callerintros dir, under the name
+/var/lib/callweaver/sounds/priv-callerintros dir, under the name
 NOCALLERID_<extension><channelname> and will be erased after the
 callee decides what to do with the call.
 
@@ -252,7 +252,7 @@ introductions are stored and re-used for the convenience of the CALLER.]
 
 Unless instructed to not save introductions (see the 'n' option above),
 the screening modes will save the recordings of the caller's names in
-the directory /var/lib/openpbx/sounds/priv-callerintros, if they have
+the directory /var/lib/callweaver/sounds/priv-callerintros, if they have
 a CallerID.  Just the 10-digit callerid numbers are used as filenames,
 with a ".gsm" at the end.
 
@@ -265,7 +265,7 @@ having to supply their name, which shortens their call a bit.
 Next of all, these intros can be used in voicemail, played over
 loudspeakers, and perhaps other nifty things. For instance:
 
-exten => s,7,System(/usr/bin/play /var/lib/openpbx/sounds/priv-callerintros/${CALLERIDNUM}.gsm&|0) 
+exten => s,7,System(/usr/bin/play /var/lib/callweaver/sounds/priv-callerintros/${CALLERIDNUM}.gsm&|0) 
 
 When a call comes in at the house, the above priority gets executed,
 and the callers intro is played over the phone systems speakers. This

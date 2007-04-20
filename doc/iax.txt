@@ -7,7 +7,7 @@ The format for the dialing string on CallWeaver is:
 IAX/[user@]peer[:exten[@context]]
 
 (Note, []'s denote optional fields).  The peer is either an IP address
-or a peer as specified in the /etc/openpbx/iax.conf file.  Exten is
+or a peer as specified in the /etc/callweaver/iax.conf file.  Exten is
 an optional requested extension (otherwise "s" will be used), and 
 "context" is an optional context to request.  The user is an optional
 username specified in the peer's iax.conf.  If the user is not specified,

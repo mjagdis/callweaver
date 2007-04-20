@@ -4,7 +4,7 @@ and better maintained.
 
 2nd version, implemented as macros.
 
-	include <openpbx/linkedlists.h>
+	include <callweaver/linkedlists.h>
 
 OPBX_LIST_ENTRY declares pointers inside the object structure : 
 

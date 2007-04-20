@@ -74,7 +74,7 @@ Permissions
 ===========
 
 CallWeaver.org, by default, runs as the non-root user/group
-openpbx/openpbx.  You must make sure that the /dev/capi* device files
+callweaver/callweaver.  You must make sure that the /dev/capi* device files
 are readable by CallWeaver.org either by changing the ownership or the
 permissions of the the device files or by running CallWeaver.org as root.
 
