@@ -4,15 +4,15 @@ opbxlib_LTLIBRARIES = libcallweaver.la
 libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	generator.c translate.c file.c say.c pbx.c cli.c term.c \
 	ulaw.c alaw.c phone_no_utils.c old_callerid.c image.c app.c \
-	cdr.c acl.c rtp.c manager.c opbx_hash.c\
+	cdr.c acl.c rtp.c manager.c callweaver_hash.c\
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
 	callweaver_mm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
 	utils.c dnsmgr.c devicestate.c \
-	netsock.c slinfactory.c opbx_expr2.c \
-	opbx_expr2f.c strcompat.c loader.c callweaver.c \
+	netsock.c slinfactory.c callweaver_expr2.c \
+	callweaver_expr2f.c strcompat.c loader.c callweaver.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
 	stubfunctions-monitor.c udp.c udptl.c udpfromto.c stun.c coef_in.h coef_out.h \
-	ecdisa.h aesopt.h opbx_expr2.h timer.c jitterbuffer/libcwjb.la
+	ecdisa.h aesopt.h callweaver_expr2.h timer.c jitterbuffer/libcwjb.la
 
 nodist_libcallweaver_la_SOURCES = defaults.h
 

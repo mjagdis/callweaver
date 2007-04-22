@@ -90,12 +90,12 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 147 "opbx_expr2.y"
+#line 147 "callweaver_expr2.y"
 {
 	struct val *val;
 }
 /* Line 1529 of yacc.c.  */
-#line 99 "opbx_expr2.h"
+#line 99 "callweaver_expr2.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

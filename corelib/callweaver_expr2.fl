@@ -39,7 +39,7 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "callweaver/opbx_expr.h"
+#include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
 #include "callweaver/strings.h"
 
@@ -55,7 +55,7 @@ struct val {
 	} u;
 } ;
 
-#include "opbx_expr2.h" /* the o/p of the bison on opbx_expr2.y */
+#include "callweaver_expr2.h" /* the o/p of the bison on callweaver_expr2.y */
 
 #define SET_COLUMNS	do {		\
 	yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
@@ -90,7 +90,7 @@ static char *expr2_token_subst(char *mess);
 
 %option prefix="opbx_yy"
 %option batch
-%option outfile="opbx_expr2f.c"
+%option outfile="callweaver_expr2f.c"
 %option reentrant
 %option bison-bridge
 %option bison-locations

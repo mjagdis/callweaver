@@ -9,7 +9,6 @@
  * error messages, and then to fold in a flex scanner for the 
  * yylex operation.
  *
- * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
 
 #include "callweaver.h"
