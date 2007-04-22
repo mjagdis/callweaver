@@ -1,5 +1,5 @@
 /*
- * CallWeaver -- A telephony toolkit for Linux.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * res_jabber Application For CallWeaver
  *

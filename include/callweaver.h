@@ -1,5 +1,5 @@
 /*
- * CallWeaver -- A telephony toolkit for Linux.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * General Definitions for CallWeaver top level program
  * 
@@ -141,4 +141,4 @@ void opbx_unregister_file_version(const char *file);
 #define CALLWEAVER_FILE_VERSION(file, x)
 #endif /* __GNUC__ */
 
-#endif /* _CALLWEAVER_H */
+#endif

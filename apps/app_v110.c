@@ -1,5 +1,5 @@
 /*
- * CallWeaver -- A telephony toolkit for Linux.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * V.110 application -- accept incoming v.110 call and spawn a login pty
  * 

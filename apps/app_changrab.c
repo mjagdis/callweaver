@@ -1,5 +1,5 @@
 /*
- * CallWeaver -- A telephony toolkit for Linux.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

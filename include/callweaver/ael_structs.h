@@ -1,5 +1,17 @@
-#ifndef _ASTERISK_AEL_STRUCTS_H
-#define _ASTERISK_AEL_STRUCTS_H
+/*
+ * CallWeaver -- An open source telephony toolkit.
+ *
+ * General Definitions for CallWeaver top level program
+ * 
+ * Copyright (C) 1999-2005, Mark Spencer
+ *
+ * Mark Spencer <markster@digium.com>
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License
+ */
+#ifndef _CALLWEAVER_AEL_STRUCTS_H
+#define _CALLWEAVER_AEL_STRUCTS_H
 
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 #include <err.h>
@@ -184,4 +196,4 @@ struct ael_extension
 	int return_needed;
 };
 
-#endif /* _ASTERISK_AEL_STRUCTS_H */
+#endif

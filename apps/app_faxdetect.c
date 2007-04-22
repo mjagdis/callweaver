@@ -1,5 +1,5 @@
 /*
- * CallWeaver -- A telephony toolkit for Linux.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Fax detection application for all channel types. 
  * Copyright (C) 2004-2005, Newman Telecom, Inc. and Newman Ventures, Inc.
