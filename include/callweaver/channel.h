@@ -212,7 +212,7 @@ struct opbx_channel {
 
 	/*! Who are we bridged to, if we're bridged. Who is proxying for us,
 	  if we are proxied (i.e. chan_agent).
-	  Do not access directly, use ast_bridged_channel(chan) */
+	  Do not access directly, use opbx_bridged_channel(chan) */
 	struct opbx_channel *_bridge;
 	/*! Channel that will masquerade as us */
 	struct opbx_channel *masq;		
@@ -551,12 +551,12 @@ int opbx_hangup(struct opbx_channel *chan);
  * \param chan channel to be soft-hung-up
  * Call the protocol layer, but don't destroy the channel structure (use this if you are trying to
  * safely hangup a channel managed by another thread.
- * \param cause	Ast hangupcause for hangup
+ * \param cause	opbx hangupcause for hangup
  * Returns 0 regardless
  */
 int opbx_softhangup(struct opbx_channel *chan, int cause);
 /*! Softly hangup up a channel (no channel lock) 
- * \param cause	Ast hangupcause for hangup */
+ * \param cause	opbx hangupcause for hangup */
 int opbx_softhangup_nolock(struct opbx_channel *chan, int cause);
 
 /*! Check to see if a channel is needing hang up */

@@ -178,7 +178,7 @@ int opbx_rtp_lookup_code(struct opbx_rtp* rtp, int is_opbx_format, int code);
 void opbx_rtp_offered_from_local(struct opbx_rtp* rtp, int local);
 
 void opbx_rtp_get_current_formats(struct opbx_rtp* rtp,
-			     int* astFormats, int* nonAstFormats);
+			     int* opbx_formats, int* non_opbx_formats);
 
 /*  Mapping an CallWeaver code into a MIME subtype (string): */
 char* opbx_rtp_lookup_mime_subtype(int is_opbx_format, int code);

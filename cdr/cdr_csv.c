@@ -22,7 +22,7 @@
  *
  * \brief Comma Separated Value CDR records.
  * 
- * \arg See also \ref AstCDR
+ * \arg See also \ref opbxCDR
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

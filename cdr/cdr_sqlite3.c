@@ -1,13 +1,13 @@
 /*
- * Asterisk -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 2004 - 2005, Holger Schurig
  *
  *
  * Ideas taken from other cdr_*.c files
  *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.

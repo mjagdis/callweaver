@@ -1,5 +1,5 @@
 /*
- * Asterisk -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef _ASTERISK_EXPR_H
-#define _ASTERISK_EXPR_H
+#ifndef _CALLWEAVER_AST_EXPR_H
+#define _CALLWEAVER_AST_EXPR_H
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -29,4 +29,4 @@ int ast_expr(char *expr, char *buf, int length);
 }
 #endif
 
-#endif /* _ASTERISK_EXPR_H */
+#endif

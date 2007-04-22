@@ -6,10 +6,8 @@
  * Contributors:
  * Slav Klenov <slav@securax.org>
  *
- * Copyright on this file is disclaimed to Digium for inclusion in Asterisk
- *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.
@@ -25,8 +23,8 @@
  * 
  */
 
-#ifndef _ABSTRACT_JB_H_
-#define _ABSTRACT_JB_H_
+#ifndef _CALLWEAVER_GENERIC_JB_H_
+#define _CALLWEAVER_GENERIC_JB_H_
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -287,4 +285,4 @@ int opbx_jb_is_active(struct opbx_channel *chan);
 }
 #endif
 
-#endif /* _ABSTRACT_JB_H_ */
+#endif

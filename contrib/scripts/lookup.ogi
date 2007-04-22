@@ -38,7 +38,7 @@ if (-f "$cid_cache/$number") {
     %cid = %{$ref};
 } else {
     my $ua = LWP::UserAgent->new;
-    $ua->agent("Asterisk");
+    $ua->agent("CallWeaver");
     my $req = HTTP::Request->new(POST => 'http://www.phonenumber.com/2321/search/Reverse_Phone');
     $req->content_type('application/x-www-form-urlencoded');
     $req->content("phone=$number");

@@ -30,7 +30,7 @@
  *  \brief app_icd.h - Main entry point of Intelligent Call Distribution
  * 
  * This module represents the Intelligent Call Distribution system. It
- * provides the public interface that other systems, particularly Asterisk,
+ * provides the public interface that other systems, particularly CallWeaver,
  * can use for interacting with the ICD system.
  *
  * The ICD system provides a mechanism for creating queues of callers, each
@@ -38,9 +38,9 @@
  * calls between the two lists using a completely configurable mechanism
  * called a distributor.
  *
- * The app_icd module will typically be controlled through Asterisk as an
+ * The app_icd module will typically be controlled through CallWeaver as an
  * application, but that is not required. You can also control it through a
- * custom Asterisk manager, for example. You could even interact with it from
+ * custom CallWeaver manager, for example. You could even interact with it from
  * one of the other apps. The functions available for that purpose are
  * identified here.
  *
@@ -58,9 +58,9 @@ extern "C" {
     icd_status icd_module_load_dynamic_module(icd_config_registry * registry);
     icd_status icd_module_unload_dynamic_modules(void);
 
-/***** Asterisk-specific APIs *****/
+/***** CallWeaver-specific APIs *****/
 
-/* These functions are the mechanism that Asterisk uses to control ICD.
+/* These functions are the mechanism that CallWeaver uses to control ICD.
  * They are declared in module.h so there is no need to declare them a
  * second time here. They are provided for documentation purposes only.
  * If you wish to use these functions, include module.h in your file.

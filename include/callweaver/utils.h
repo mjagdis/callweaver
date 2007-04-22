@@ -266,9 +266,9 @@ long int opbx_random(void);
 
   On Linux, UDP sockets default to sending packets with the Dont Fragment (DF)
   bit set. This is supposedly done to allow the application to do PMTU
-  discovery, but Asterisk does not do this.
+  discovery, but CallWeaver does not do this.
 
-  Because of this, UDP packets sent by Openpbx that are larger than the MTU
+  Because of this, UDP packets sent by CallWeaver that are larger than the MTU
   of any hop in the path will be lost. This function can be called on a socket
   to ensure that the DF bit will not be set.
  */
