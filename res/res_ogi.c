@@ -44,7 +44,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://ctrix@svn.callweaver.org/callweaver/trunk/res/res_ogi.c $", "$Revision: 1547 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1547 $")
 
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

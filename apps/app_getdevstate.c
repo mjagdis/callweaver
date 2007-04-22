@@ -37,7 +37,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/apps/app_getdevstate.c $", "$Revision: 1055 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1055 $")
 
 #include "callweaver/options.h"
 #include "callweaver/file.h"

@@ -41,7 +41,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2626 $")
 
 #include "callweaver/sched.h"
 #include "callweaver/logger.h"

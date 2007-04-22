@@ -16,7 +16,7 @@
  * at the top of the source tree.
  *
  * $HeadURL$
- * $Revision$
+ * $Revision: 2638 $
  */
 
 /*

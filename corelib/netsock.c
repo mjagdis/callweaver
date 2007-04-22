@@ -53,7 +53,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 #include "callweaver/netsock.h"
 #include "callweaver/logger.h"

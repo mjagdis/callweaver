@@ -47,7 +47,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2626 $")
 
 static int syslog_level_map[] = {
 	LOG_DEBUG,

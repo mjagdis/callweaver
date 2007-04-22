@@ -39,7 +39,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 #include "callweaver/dnsmgr.h"
 #include "callweaver/linkedlists.h"

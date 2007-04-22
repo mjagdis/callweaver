@@ -30,7 +30,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn+ssh://svn@svn.callweaver.org/callweaver/trunk/funcs/func_enum.c $", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2642 $")
 
 #include "callweaver/module.h"
 #include "callweaver/channel.h"

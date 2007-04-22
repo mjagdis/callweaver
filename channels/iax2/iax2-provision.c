@@ -26,7 +26,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 #if defined(__linux__)
 #include <netinet/in.h>

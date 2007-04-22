@@ -26,7 +26,7 @@
 #include "dtmf.h"
 #include "vad.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 2641 $");
 
 /* *****************************************************************************
 	MANAGER UTILS
@@ -338,7 +338,7 @@ int member_exec( struct opbx_channel* chan, void* data ) {
     struct opbx_conf_member *member	= NULL;
     struct opbx_frame *f		= NULL;
 
-    opbx_log( OPBX_CONF_DEBUG, "Launching NConference %s\n", "$Revision$" ) ;
+    opbx_log( OPBX_CONF_DEBUG, "Launching NConference %s\n", "$Revision: 2641 $" ) ;
 
     if (chan->_state != OPBX_STATE_UP)
 	if ( (res = opbx_answer( chan )) )

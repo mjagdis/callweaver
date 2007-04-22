@@ -89,7 +89,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2640 $")
      
 #include "callweaver/logger.h"
 #include "callweaver/options.h"

@@ -29,7 +29,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2641 $")
 
 #include "callweaver/sched.h"
 #include "callweaver/astobj.h"

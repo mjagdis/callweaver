@@ -37,7 +37,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/corelib/callerid.c $", "$Revision: 922 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 922 $")
 
 #include "callweaver/ulaw.h"
 #include "callweaver/alaw.h"

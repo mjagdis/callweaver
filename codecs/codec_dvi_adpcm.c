@@ -39,7 +39,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/codecs/codec_adpcm.c $", "$Revision: 1057 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1057 $")
 
 #include "callweaver/lock.h"
 #include "callweaver/logger.h"

@@ -43,7 +43,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/cdr/cdr_pgsql_custom.c $", "$Revision: 1589 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1589 $")
 
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"

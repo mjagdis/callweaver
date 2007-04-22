@@ -42,7 +42,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2639 $")
 
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"

@@ -32,7 +32,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/corelib/ $", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2626 $")
 
 #include "callweaver/slinfactory.h"
 #include "callweaver/logger.h"
