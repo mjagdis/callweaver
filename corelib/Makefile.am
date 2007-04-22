@@ -6,7 +6,7 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	ulaw.c alaw.c phone_no_utils.c old_callerid.c image.c app.c \
 	cdr.c acl.c rtp.c manager.c opbx_hash.c\
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
-	opbxmm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
+	callweaver_mm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
 	utils.c dnsmgr.c devicestate.c \
 	netsock.c slinfactory.c opbx_expr2.c \
 	opbx_expr2f.c strcompat.c loader.c callweaver.c \
