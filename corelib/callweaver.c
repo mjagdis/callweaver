@@ -29,7 +29,7 @@
  * Asterisk is a trade mark registered by Digium, Inc.
  *
  * \author Mark Spencer <markster at digium.com>
- * Also see \ref AstCREDITS
+ * Also see \ref opbxCREDITS
  *
  * \section license License
  * See http://www.callweaver.org for more information about

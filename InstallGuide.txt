@@ -4,7 +4,7 @@ CallWeaver.org Installation Guide
 
 Introduction
 
-CallWeaver.org is a software PBX derived (forked)from the Asterisk project. The primary goals of CallWeaver.org are to be fully open-source, and stable. CallWeaver.org is being crafted to run on many operating systems including Linux, OpenBSD, and MacOS X.
+CallWeaver.org is a software PBX derived (forked) from the Asterisk project. The primary goals of CallWeaver.org are to be fully open-source, and stable. CallWeaver.org is being crafted to run on many operating systems including Linux, OpenBSD, and MacOS X.
 
 A software PBX or Private Branch eXchange is like a hardware PBX employed in many business where an internal company phone system is used.  In a software PBX all of the digital switching takes place in software and specialized hardware running on commodity-style PC hardware.
 

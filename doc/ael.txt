@@ -2,7 +2,7 @@ The Asterisk Extension Language - v 2
 =====================================
 
 AEL is a specialized language intended purely for 
-describing Asterisk dial plans.
+describing CallWeaver dial plans.
 
 The current version was written by Steve Murphy, and is a rewrite of 
 the original version.
@@ -17,7 +17,7 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
       provided near the end of this document.
 
     * The second syntax is the Expression Syntax, which is normally
-     handled by Asterisk extension engine, as expressions enclosed in
+     handled by CallWeaver extension engine, as expressions enclosed in
      $[...]. The right hand side of assignments are wrapped in $[ ... ] 
      by AEL, and so are the if and while expressions, among others.
 
@@ -32,7 +32,7 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
       extension language is what you see in extensions.conf, and AEL
       compiles the higher level AEL language into extensions and
       priorities, and passes them via function calls into
-      Asterisk. Embedded in this language is the Application/OGI
+      CallWeaver. Embedded in this language is the Application/OGI
       commands, of which one application call per step, or priority
       can be made. You can think of this as a "macro assembler"
       language, that AEL will compile into.
@@ -41,11 +41,11 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
 Any programmer of AEL should be familiar with it's syntax, of course,
 as well as the Expression syntax, and the Variable syntax.
 
-**************************
-* Asterisk in a Nutshell *
-**************************
+****************************
+* CallWeaver in a Nutshell *
+****************************
 
-Asterisk acts as a server. Devices involved in telephony, like Zapata
+CallWeaver acts as a server. Devices involved in telephony, like Zapata
 cards, or Voip phones, all indicate some context that should be
 activated in their behalf. See the config file formats for IAX, SIP,
 zapata.conf, etc. They all help describe a device, and they all
@@ -115,7 +115,7 @@ applications do fairly simple things, some provide amazingly complex
 services.
 
 Hopefully, the above objects will allow you do anything you need to in
-the Asterisk environment!
+the CallWeaver environment!
 
 
 *******************
@@ -125,7 +125,7 @@ the Asterisk environment!
 The AEL parser (pbx_ael.so) is completely separate from the module
 that parses extensions.conf (pbx_config.so). To use AEL, the only
 thing that has to be done is the module pbx_ael.so must be loaded by
-Asterisk. This will be done automatically if using 'autoload=yes' in
+CallWeaver. This will be done automatically if using 'autoload=yes' in
 /etc/asterisk/modules.conf. When the module is loaded, it will look
 for 'extensions.ael' in /etc/asterisk/. extensions.conf and
 extensions.ael can be used in conjunction with
@@ -267,7 +267,7 @@ The AEL keywords are case-sensitive. If an application name and a
 keyword overlap, there is probably good reason, and you should
 consider replacing the application call with an AEL statement. If you
 do not wish to do so, you can still use the application, by using a
-capitalized letter somewhere in its name. In the Asterisk extension
+capitalized letter somewhere in its name. In the CallWeaver extension
 language, application names are NOT case-sensitive.
 
 The following are keywords in the AEL language:
@@ -638,7 +638,7 @@ context default {
 
 
 Time-limited inclusions can be specified, as in extensions.conf
-format, with the fields described in the wiki page Asterisk cmd
+format, with the fields described in the wiki page CallWeaver cmd
 GotoIfTime.
 
 
@@ -674,7 +674,7 @@ Dialplan Switches
 =================
 
 Switches are listed in their own block within a context. For clues as
-to what these are used for, see Asterisk - dual servers, and Asterisk
+to what these are used for, see CallWeaver - dual servers, and CallWeaver
 config extensions.conf.
 
 
@@ -708,7 +708,7 @@ context outgoing {
 Variables
 =========
 
-Variables in Asterisk do not have a type, so to define a variable, it
+Variables in CallWeaver do not have a type, so to define a variable, it
 just has to be specified with a value.
 
 Global variables are set in their own block.
@@ -863,7 +863,7 @@ NOTE: AEL generates each case as a separate extension. case clauses
 NOTE: AEL introduces the ifTime keyword/statement, which works just
       like the if() statement, but the expression is a time value,
       exactly like that used by the application GotoIfTime(). See
-      Asterisk cmd GotoIfTime
+      CallWeaver cmd GotoIfTime
 
 NOTE: The pattern statement makes sure the new extension that is
       created has an '_' preceding it to make sure asterisk recognizes
@@ -1104,7 +1104,7 @@ tree, and makes several checks:
     * (0.13) Issue a warning if a label is a numeric value. 
 
 There are a subset of checks that have been removed until the proposed
-AAL (Asterisk Argument Language) is developed and incorporated into Asterisk.
+AAL (Asterisk Argument Language) is developed and incorporated into CallWeaver.
 These checks will be:
 
     * (if the application argument analyzer is working: the presence
@@ -1189,7 +1189,7 @@ Differences with the original version of AEL
       expected. (0.6)
   17. A trailing label in an extension, will automatically have a
       NoOp() added, to make sure the label exists in the extension on
-      Asterisk. (0.6)
+      CallWeaverk. (0.6)
   18. (0.9) the semicolon is no longer required after a closing brace!
       (i.e. "];" ===> "}". You can have them there if you like, but
       they are not necessary. Someday they may be rejected as a syntax
@@ -1231,15 +1231,15 @@ Hints and Bugs
 The Full Power of AEL
 ==============================
 
-A newcomer to Asterisk will look at the above constructs and
+A newcomer to CallWeaver will look at the above constructs and
 descriptions, and ask, "Where's the string manipulation functions?",
 "Where's all the cool operators that other languages have to offer?",
 etc.
 
-The answer is that the rich capabilities of Asterisk are made
+The answer is that the rich capabilities of CallWeaver are made
 available through AEL, via:
 
-    * Applications: See Asterisk - documentation of application
+    * Applications: See CallWeaver - documentation of application
       commands
 
     * Functions: Functions were implemented inside ${ .. } variable
@@ -1249,7 +1249,7 @@ available through AEL, via:
       wrapped inside $[...]. This includes some string manipulation
       facilities, arithmetic expressions, etc. 
 
-    * Application Gateway Interface: Asterisk can fork external
+    * Application Gateway Interface: CallWeaver can fork external
       processes that communicate via pipe. OGI applications can be
       written in any language. Very powerful applications can be added
       this way. 

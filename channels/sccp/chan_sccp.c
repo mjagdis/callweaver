@@ -74,7 +74,7 @@ struct opbx_channel *sccp_request(const char *type, int format, void *data, int 
 		options++;
 	}
 
-	sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Asterisk asked to create a channel type=%s, format=%d, data=%s, options=%s\n", type, format, datadup, (options) ? options : "");
+	sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: CallWeaver asked to create a channel type=%s, format=%d, data=%s, options=%s\n", type, format, datadup, (options) ? options : "");
 
 	l = sccp_line_find_byname(datadup);
 
@@ -216,7 +216,7 @@ int sccp_devicestate(void * data) {
 	else
 		res = OPBX_DEVICE_INUSE;
 
-	sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Asterisk asked for the state (%d) of the line %s\n", res, (char *)data);
+	sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: CallWeaver asked for the state (%d) of the line %s\n", res, (char *)data);
 
 	return res;
 }
@@ -1292,7 +1292,7 @@ int load_module() {
 	GLOB(keepalive)  = SCCP_KEEPALIVE;
 	opbx_copy_string(GLOB(date_format), "D/M/YA", sizeof(GLOB(date_format)));
 	opbx_copy_string(GLOB(context), "default", sizeof(GLOB(context)));
-	opbx_copy_string(GLOB(servername), "Asterisk", sizeof(GLOB(servername)));
+	opbx_copy_string(GLOB(servername), "CallWeaver", sizeof(GLOB(servername)));
 
 	/* Wait up to 16 seconds for first digit */
 	GLOB(firstdigittimeout) = 16;

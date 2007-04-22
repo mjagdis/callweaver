@@ -88,7 +88,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 	c = CS_OPBX_CHANNEL_PVT(ast);
 
 	if (!c) {
-		opbx_log(LOG_WARNING, "SCCP: Asterisk request to call %s channel: %s, but we don't have this channel!\n", dest, ast->name);
+		opbx_log(LOG_WARNING, "SCCP: CallWeaver request to call %s channel: %s, but we don't have this channel!\n", dest, ast->name);
 		return -1;
 	}
 
@@ -101,7 +101,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 		return -1;
 	}
 
-	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Asterisk request to call %s\n", d->id, ast->name);
+	sccp_log(1)(VERBOSE_PREFIX_3 "%s: CallWeaver request to call %s\n", d->id, ast->name);
 
 	opbx_mutex_lock(&d->lock);
 
@@ -224,7 +224,7 @@ static int sccp_pbx_hangup(struct opbx_channel * ast) {
 	l = c->line;
 	d = l->device;
 
-	sccp_log(1)(VERBOSE_PREFIX_3 "SCCP: Asterisk request to hangup %s channel %s\n", skinny_calltype2str(c->calltype), ast->name);
+	sccp_log(1)(VERBOSE_PREFIX_3 "SCCP: CallWeaver request to hangup %s channel %s\n", skinny_calltype2str(c->calltype), ast->name);
 
 	if (c->rtp) {
 		sccp_channel_closereceivechannel(c);
@@ -370,7 +370,7 @@ static int sccp_pbx_indicate(struct opbx_channel *ast, int ind) {
 		return -1;
 
 	opbx_mutex_lock(&c->lock);
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Asterisk indicate '%d' (%s) condition on channel %s\n", DEV_ID_LOG(c->device), ind, sccp_control2str(ind), ast->name);
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: CallWeaver indicate '%d' (%s) condition on channel %s\n", DEV_ID_LOG(c->device), ind, sccp_control2str(ind), ast->name);
 	if (c->state == SCCP_CHANNELSTATE_CONNECTED) {
 		/* let's callweaver emulate it */
 		opbx_mutex_unlock(&c->lock);
@@ -448,7 +448,7 @@ static int sccp_pbx_recvdigit(struct opbx_channel *ast, char digit) {
 
 	d = c->device;
 
-	sccp_log(1)(VERBOSE_PREFIX_3 "SCCP: Asterisk asked to send dtmf '%d' to channel %s. Trying to send it %s\n", digit, ast->name, (d->dtmfmode) ? "outofband" : "inband");
+	sccp_log(1)(VERBOSE_PREFIX_3 "SCCP: CallWeaver asked to send dtmf '%d' to channel %s. Trying to send it %s\n", digit, ast->name, (d->dtmfmode) ? "outofband" : "inband");
 
 	if (c->state != SCCP_CHANNELSTATE_CONNECTED) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Can't send the dtmf '%d' %c to a not connected channel %s\n", d->id, digit, digit, ast->name);

@@ -2259,7 +2259,7 @@ static int sip_sendtext(struct opbx_channel *ast, const char *text)
 
 /*! \brief  realtime_update_peer: Update peer object in realtime storage */
 /*! \brief Update peer object in realtime storage 
-       If the Asterisk system name is set in asterisk.conf, we will use
+       If the CallWeaver system name is set in callweaver.conf, we will use
        that name and store that in the "regserver" field in the sippeers
        table to facilitate multi-server setups.
 */

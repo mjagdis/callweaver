@@ -1,5 +1,5 @@
 /*
- * vISDN channel driver for Asterisk
+ * vISDN channel driver for CallWeaver
  *
  * Copyright (C) 2004-2005 Daniele Orlandi
  *
@@ -3025,7 +3025,7 @@ static void visdn_q931_setup_indication(
 			// We should check the destination bearer capability
 			// unfortunately we don't know if the destination is
 			// compatible until we start the PBX... this is a
-			// design flaw in Asterisk
+			// design flaw in CallWeaver
 
 			struct q931_ie_bearer_capability *bc =
 				container_of(ies->ies[i],
