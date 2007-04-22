@@ -1,5 +1,5 @@
 /*
- * Openpbx.org -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * Fax detection application for all channel types. 
  * Copyright (C) 2004-2005, Newman Telecom, Inc. and Newman Ventures, Inc.

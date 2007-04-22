@@ -4,20 +4,20 @@ require 5.004;
 
 use strict;
 use warnings;
-use Openpbx;
+use CallWeaver;
 
 use vars qw(@ISA);
-@ISA = ( 'Openpbx' );
+@ISA = ( 'CallWeaver' );
 
 =head1 NAME
 
-Openpbx::OGI - Simple Openpbx.org Gateway Interface Class
+CallWeaver::OGI - Simple CallWeaver.org Gateway Interface Class
 
 =head1 SYNOPSIS
 
-use Openpbx::OGI;
+use CallWeaver::OGI;
 
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 # pull OGI variables into %input
 
@@ -334,7 +334,7 @@ sub database_del {
 
 Executes OGI Command "DATABASE DELTREE $family $key"
 
-Deletes a family or specific keytree within a family in the Openpbx.org database
+Deletes a family or specific keytree within a family in the CallWeaver.org database
 
 Example: $OGI->database_deltree('test', 'status'); 
 Example: $OGI->database_deltree('test');
@@ -536,7 +536,7 @@ sub hangup {
 Executes OGI Command "NOOP"
 
 Does absolutely nothing except pop up a log message.  
- Useful for outputting debugging information to the Openpbx.org console.
+ Useful for outputting debugging information to the CallWeaver.org console.
 
 Example: $OGI->noop("Test Message");
 
@@ -978,8 +978,8 @@ sub set_variable {
 
 Executes OGI Command "STREAM FILE $filename $digits"
 
-This command instructs Openpbx.org to play the given sound file and listen for the given dtmf digits. The
-fileextension must not be used in the filename because Openpbx.org will find the most appropriate file
+This command instructs CallWeaver.org to play the given sound file and listen for the given dtmf digits. The
+fileextension must not be used in the filename because CallWeaver.org will find the most appropriate file
 type.
 
 Example: $OGI->stream_file('demo-echotest', '0123');

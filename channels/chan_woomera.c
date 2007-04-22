@@ -662,7 +662,7 @@ static void tech_init(private_object *tech_pvt, woomera_profile *profile, int fl
 	opbx_set_flag(tech_pvt, flags);
 
 
-	/* Openpbx being callweaver and all allows approx 1 nanosecond 
+	/* CallWeaver being callweaver and all allows approx 1 nanosecond 
 	 * to try and establish a connetion here before it starts crying.
 	 * Now callweaver, being unsure of it's self will not enforce a lock while we work
 	 * and after even a 1 second delay it will give up on the lock and mess everything up

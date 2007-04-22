@@ -1,17 +1,17 @@
 #!/usr/bin/perl
 #
-# Example script to show how to use Openpbx::Manager
+# Example script to show how to use CallWeaver::Manager
 #
 # Written by: James Golovich <james@gnuinter.net>
 #
 #
 
 use lib './lib', '../lib';
-use Openpbx::Manager;
+use CallWeaver::Manager;
 
 $|++;
 
-my $opbman = new Openpbx::Manager;
+my $opbman = new CallWeaver::Manager;
 
 $opbman->user('test');
 $opbman->secret('test');

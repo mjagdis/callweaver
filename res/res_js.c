@@ -1,5 +1,5 @@
 /*
- * Openpbx -- A telephony toolkit for Linux.
+ * CallWeaver -- A telephony toolkit for Linux.
  *
  * res_js: Javascript in your dialplan
  *

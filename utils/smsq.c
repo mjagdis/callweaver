@@ -484,7 +484,7 @@ main (int argc, const char *argv[])
       {"v", 0, POPT_ARG_INT, &vp, 0, "Validity Period", "seconds"},
       {"scts", 0, POPT_ARG_STRING, &scts, 0, "Timestamp", "YYYY-MM-SSTHH:MM:SS"},
       {"default-sub-address", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &defaultsubaddress, 0, "Default sub address", "X"},
-      {"spool-dir", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &spooldir, 0, "Openpbx spool dir", "dirname"},
+      {"spool-dir", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &spooldir, 0, "CallWeaver spool dir", "dirname"},
       POPT_AUTOHELP {NULL, 0, 0, NULL, 0}
    };
 

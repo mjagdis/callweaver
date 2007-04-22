@@ -7,9 +7,9 @@ use lib 'lib';
 
 BEGIN { plan tests => 2 }
 
-use Openpbx::OGI;
+use CallWeaver::OGI;
 
-my $OGI = new Openpbx::OGI;
+my $OGI = new CallWeaver::OGI;
 
 my $fh;
 open($fh, "<t/ogi.head") || die;

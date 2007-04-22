@@ -31,9 +31,9 @@ require 5.004;
 use strict;
 use warnings;
 use Fcntl ':flock';
-use Openpbx;
+use CallWeaver;
 use vars qw(@ISA);
-@ISA = ('Openpbx');
+@ISA = ('CallWeaver');
 
 my $VERSION = '0.02';
 

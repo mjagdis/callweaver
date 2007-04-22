@@ -138,7 +138,7 @@ opbx_mutex_t customers_lock;
 
 /* static icd_module module_id = APP_ICD; */
 
-/*** For Openpbx functions ***/
+/*** For CallWeaver functions ***/
 
 /* Required for interacting with the CallWeaver.org CLI */
 static struct opbx_cli_entry icd_command_cli_struct = {

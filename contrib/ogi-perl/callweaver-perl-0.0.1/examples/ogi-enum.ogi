@@ -21,7 +21,7 @@
 #the Dialed string would be SIP/8005551234@testing.example.com
 #
 
-use Openpbx::OGI;
+use CallWeaver::OGI;
 use Net::DNS;
 
 #DEFAULTDOMAIN is the default domain to append to lookups that don't include a domain
@@ -39,7 +39,7 @@ $DEFAULTPSTN = 'Zap/g2';
 #		'h323'
 		);
 
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 my %input = $OGI->ReadParse();
 

@@ -1,4 +1,4 @@
-package Openpbx::Voicemail;
+package CallWeaver::Voicemail;
 
 require 5.004;
 
@@ -16,9 +16,9 @@ description
 
 =cut
 
-use Openpbx;
+use CallWeaver;
 
-@ISA = ( 'Openpbx' );
+@ISA = ( 'CallWeaver' );
 
 $VERSION = '0.01';
 

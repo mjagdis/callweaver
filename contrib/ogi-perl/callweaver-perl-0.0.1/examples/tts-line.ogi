@@ -6,9 +6,9 @@
 # Written by: James Golovich <james@gnuinter.net>
 #
 
-use Openpbx::OGI;
+use CallWeaver::OGI;
 
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 my %input = $OGI->ReadParse();
 

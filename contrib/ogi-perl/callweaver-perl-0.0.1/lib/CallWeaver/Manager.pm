@@ -2,7 +2,7 @@ package CallWeaver::Manager;
 
 require 5.004;
 
-use Openpbx;
+use CallWeaver;
 use IO::Socket;
 use Digest::MD5;
 
@@ -11,13 +11,13 @@ use warnings;
 
 =head1 NAME
 
-Openpbx::Manager - Openpbx Manager Interface
+CallWeaver::Manager - CallWeaver Manager Interface
 
 =head1 SYNOPSIS
 
-use Openpbx::Manager;
+use CallWeaver::Manager;
 
-my $opbman = new Openpbx::Manager;
+my $opbman = new CallWeaver::Manager;
 
 $opbman->user('username');
 
@@ -191,7 +191,7 @@ sub connect {
 
 	my ($manager, $version) = split('/', $input);
 
-	if ($manager !~ /Openpbx Call Manager/) {
+	if ($manager !~ /CallWeaver Call Manager/) {
 		return $self->error("Unknown Protocol\n");
 	}
 

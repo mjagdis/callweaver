@@ -1332,14 +1332,14 @@ static yyconst yy_state_type yy_NUL_trans[54] =
 #line 1 "opbx_expr2.fl"
 #line 2 "opbx_expr2.fl"
 /*
- * Openpbx -- An open source telephony toolkit.
+ * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.callweaver.org for more information about
- * the Openpbx project. Please do not directly contact
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.

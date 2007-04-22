@@ -1,9 +1,9 @@
-package Openpbx::QCall;
+package CallWeaver::QCall;
 
 require 5.004;
 
 use Fcntl ':flock';
-use Openpbx;
+use CallWeaver;
 
 $VERSION = '0.01';
 

@@ -2,16 +2,16 @@
 #
 # OGI Script that prompts the user for an ip address, pings the ip, and reports back to the user.
 #
-# Requires the Openpbx::OGI and Net::Ping::External perl modules
+# Requires the CallWeaver::OGI and Net::Ping::External perl modules
 #
 # Written by: James Golovich <james@gnuinter.net>
 #
 #
 
-use Openpbx::OGI;
+use CallWeaver::OGI;
 use Net::Ping::External qw(ping);
 
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 my %input = $OGI->ReadParse();
 

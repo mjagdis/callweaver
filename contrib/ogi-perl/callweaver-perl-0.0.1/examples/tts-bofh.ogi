@@ -10,10 +10,10 @@
 
 
 
-use Openpbx::OGI;
+use CallWeaver::OGI;
 use Fortune;
 
-$OGI = new Openpbx::OGI;
+$OGI = new CallWeaver::OGI;
 
 my %input = $OGI->ReadParse();
 

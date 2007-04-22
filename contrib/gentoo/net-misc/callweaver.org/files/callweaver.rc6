@@ -91,7 +91,7 @@ callweaver_run_loop() {
 	fi
 
 	if [[ "${CALLWEAVER_CONSOLE}" = "YES" ]] && [[ -n "${TTY}" ]]; then
-		echo "   Starting Openpbx console : ${CALLWEAVER_CONSOLE}"
+		echo "   Starting CallWeaver console : ${CALLWEAVER_CONSOLE}"
 		OPTS="${OPTS} -c"
 	fi
 
@@ -109,12 +109,12 @@ callweaver_run_loop() {
 		fi		
 
 		if [[ $result -eq 0 ]]; then
-			echo "Openpbx terminated normally"
+			echo "CallWeaver terminated normally"
 			break
 		else
 			if [[ $result -gt 128 ]]; then
 				signal=$((result -  128))
-				MSG="Openpbx terminated with Signal: $signal"
+				MSG="CallWeaver terminated with Signal: $signal"
 
 				CORE_TARGET="core-$(date "+%Y%m%d-%h%M%s")"
 
@@ -134,7 +134,7 @@ callweaver_run_loop() {
 				[[ $CORE_DUMPED -eq 1 ]] && \
 					MSG="${MSG}\n\rCore dumped: ${CALLWEAVER_CORE_DIR}/${CORE_TARGET}"
 			else
-				MSG="Openpbx terminated with return code: $result"
+				MSG="CallWeaver terminated with return code: $result"
 			fi
 
 			# kill left-over tasks
@@ -150,11 +150,11 @@ callweaver_run_loop() {
 
 		if [[ -n "${CALLWEAVER_NOTIFY_EMAIL}" ]] && \
 		   [[ -x /usr/sbin/sendmail ]]; then
-			echo -e -n "Subject: Openpbx crashed\n\r${MSG}\n\r" |\
+			echo -e -n "Subject: CallWeaver crashed\n\r${MSG}\n\r" |\
 				 /usr/sbin/sendmail "${CALLWEAVER_NOTIFY_EMAIL}"
 		fi
 		sleep 5
-		echo "Restarting Openpbx..."
+		echo "Restarting CallWeaver..."
 	done
 	return 0
 }
@@ -183,9 +183,9 @@ start() {
 			CALLWEAVER_OPTS="${CALLWEAVER_OPTS} -G ${GROUP}"
 			GROUP=":${GROUP}"	# make it look nice...
 		fi
-		ebegin "Starting Openpbx (as ${USER}${GROUP})"
+		ebegin "Starting CallWeaver (as ${USER}${GROUP})"
 	else
-		ebegin "Starting Openpbx (as root)"
+		ebegin "Starting CallWeaver (as root)"
 	fi
 
 	if [[ "$(echo ${CALLWEAVER_WRAPPER} | tr [:upper:] [:lower:])" != "yes" ]]; then
@@ -206,7 +206,7 @@ start() {
 }
 
 forcestop() {
-	ebegin "Stopping Openpbx PBX"
+	ebegin "Stopping CallWeaver PBX"
 	start-stop-daemon --stop --pidfile /var/run/callweaver.org/callweaver.pid
 	eend $?
 }
@@ -220,7 +220,7 @@ stop() {
 		eend
 	else
 
-		eerror "Openpbx is not running!"
+		eerror "CallWeaver is not running!"
 	fi
 }
 
@@ -230,6 +230,6 @@ reload() {
 		/usr/sbin/callweaver -r -x "reload" &>/dev/null
 		eend $?
 	else
-		eerror "Openpbx is not running!"
+		eerror "CallWeaver is not running!"
 	fi
 }

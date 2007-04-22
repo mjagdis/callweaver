@@ -30,7 +30,6 @@
 
 #define ICD_COMMON_H
 
-/* Standard Includes */
 #include <assert.h>
 #include <pthread.h>
 #include <sched.h>
@@ -39,7 +38,6 @@
 #include <string.h>
 #include <netinet/in.h>
 
-/* Openpbx Includes */
 #include "callweaver.h"
 
 #include "callweaver/file.h"
@@ -56,7 +54,6 @@
 #include "callweaver/manager.h"
 #include "callweaver/features.h"
 
-/* ICD Includes */
 #include "callweaver/icd/icd_fieldset.h"
 #include "callweaver/icd/icd_listeners.h"
 #include "callweaver/icd/icd_event.h"
@@ -68,12 +65,12 @@
 
 /* 
    Support for pre/post 1.0 rendition of opbx_set_(read/write)_format.
-   Add the CFLAG -DAST_POST_10 in make.conf to get the 3 arg version *default*
+   Add the CFLAG -DOPBX_POST_10 in make.conf to get the 3 arg version *default*
    or comment it to get the 2 arg version.
    This is obsolete as of 06/01/2004 do we nuke this macros 
 */
 
-#ifdef AST_POST_10
+#ifdef OPBX_POST_10
 #define icd_set_read_format(chan,fmt) opbx_set_read_format(chan,fmt,0);
 #define icd_set_write_format(chan,fmt) opbx_set_write_format(chan,fmt,0);
 #else

@@ -41,7 +41,7 @@ int ldap_lookup(char *host, int port, int version, int timeout, char *user, char
 int strconvert(const char *incharset, const char *outcharset, char *in, char *out);
 char *strtrim (char *string);
 
-static char *tdesc = "LDAP directory lookup function for Openpbx extension logic.";
+static char *tdesc = "LDAP directory lookup function for CallWeaver extension logic.";
 
 static char *g_descrip =
 "  LDAPget(varname=config-file-section/key): Retrieves a value from an LDAP\n"

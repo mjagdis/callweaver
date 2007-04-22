@@ -1,7 +1,7 @@
 #
-# $Id: Openpbx.org.pm,v 1.12 2006/09/25 08:42:54 james Exp $
+# $Id: CallWeaver.org.pm,v 1.12 2006/09/25 08:42:54 james Exp $
 #
-package Openpbx;
+package CallWeaver;
 
 require 5.004;
 
