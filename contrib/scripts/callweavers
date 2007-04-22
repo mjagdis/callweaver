@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $astdir = $ENV{ASTSRC} || "/usr/src/callweaver";
+my $opbxdir = $ENV{OPBXSRC} || "/usr/src/callweaver";
 
 
 sub esystem($) {
@@ -15,9 +15,9 @@ sub usage($) {
 
   print "varnames of interest:
 ===============================================================================
-'INCLUDES' 'ASTLIBDIR' 'OGI_DIR' 'ASTVARRUNDIR' 'CC' 'ASTETCDIR' 'EXTOBJ'
-'ASTSPOOLDIR' 'ASTLOGDIR' 'MODULES_DIR' 'ASTSBINDIR' 'ASTHEADERDIR' 'LDFLAGS'
-'ASTVARLIBDIR' 'ASTBINDIR' 'INSTALL_PREFIX' 'ASTCONFPATH' 'ASTSRC' 'CFLAGS'
+'INCLUDES' 'OPBXLIBDIR' 'OGI_DIR' 'OPBXVARRUNDIR' 'CC' 'OPBXETCDIR' 'EXTOBJ'
+'OPBXSPOOLDIR' 'OPBXLOGDIR' 'MODULES_DIR' 'OPBXSBINDIR' 'OPBXHEADERDIR' 'LDFLAGS'
+'OPBXVARLIBDIR' 'OPBXBINDIR' 'INSTALL_PREFIX' 'OPBXCONFPATH' 'OPBXSRC' 'CFLAGS'
 ===============================================================================
 ";
 
@@ -63,9 +63,9 @@ if($args{help} or $args{h}) {
 my $pwd = `/bin/pwd`;
 chomp($pwd);
 
-$vars{astdir} ||= $astdir;
+$vars{opbxdir} ||= $opbxdir;
 
-chdir($vars{astdir});
+chdir($vars{opbxdir});
 my $type = $args{type} || "apps";
 my $env = `make ${type}_env`;
 chdir($pwd);
@@ -100,16 +100,16 @@ my $cfile = $args{plain}->[0];
 if($cfile =~ /http:\/\/.*?\/([^\/]+)$/) {
 
   my $f = $1;
-  if(! -d "/tmp/astbld") {
-    mkdir("/tmp/astbld");
+  if(! -d "/tmp/opbxbld") {
+    mkdir("/tmp/opbxbld");
   }
   my $pwd = `pwd`;
   chomp $pwd;
-  chdir("/tmp/astbld");
+  chdir("/tmp/opbxbld");
   system("/bin/rm $f");
   system("wget $cfile");
   chdir($pwd);
-  $cfile = "/tmp/astbld/$f";
+  $cfile = "/tmp/opbxbld/$f";
 
 
 }
@@ -131,7 +131,7 @@ if($ext eq "so") {
 
 my $bad=0;
 
-$bad = esystem("$vars{CC} -I${astdir} -I${astdir}/include $vars{CFLAGS} -c ${base}.c -o ${base}.o") unless($args{linkonly} or $args{installonly});
+$bad = esystem("$vars{CC} -I${opbxdir} -I${opbxdir}/include $vars{CFLAGS} -c ${base}.c -o ${base}.o") unless($args{linkonly} or $args{installonly});
 exit -1 if($bad);
 exit if($args{nolink});
 
