@@ -58,7 +58,7 @@
 
 %conf-enteringno.gsm%You are entering conference number
 
-%demo-abouttotry.gsm%an Inter-Asterisk Exchange connection will be joined to a demonstration server located on the Internet.  In order for this to work you must already be connected to the Internet.  Please wait a moment while the connection is attempted.
+%demo-abouttotry.gsm%an IAX connection will be joined to a demonstration server located on the Internet.  In order for this to work you must already be connected to the Internet.  Please wait a moment while the connection is attempted.
 
 %demo-congrats.gsm%Congratulations.  You have successfully installed and executed CallWeaver.org.  You have also installed a set of sample sounds and configuration files to help you to get started.  Like a normal PBX you will navigate this demonstration by dialing digits.
 
@@ -70,7 +70,7 @@
 
 %demo-nomatch.gsm%Sorry, there are no matches for those keywords
 
-%demo-instruct.gsm%If you would like to learn more technical information about CallWeaver.org dial 2 now.  If you would like to test the voice over IP capabilities of CallWeaver.org you can dial 500 to attempt an Inter-Asterisk Exchange or IAX connection to a demonstration server on the Internet.  In order for this test to work you will need to be connected to the Internet and have at least a 28.8 kilobit modem.  To execute an echo test dial 600.  This test is most useful when you have connected to this CallWeaver server from a remote location.  
+%demo-instruct.gsm%If you would like to learn more technical information about CallWeaver.org dial 2 now.  If you would like to test the voice over IP capabilities of CallWeaver.org you can dial 500 to attempt an IAX connection to a demonstration server on the Internet.  In order for this test to work you will need to be connected to the Internet and have at least a 28.8 kilobit modem.  To execute an echo test dial 600.  This test is most useful when you have connected to this CallWeaver server from a remote location.
 The sample configuration also has a single user with extension 1234 and password 4242.  That user is configured to ring the console when their extension is dialed.  If you dial 1234 you can try to ring the console.  If the console is busy or unavailable you will be given the option to leave voicemail.  To check voicemail for the user dial extension 8500 to enter the voicemail system.  Finally,  you can press the pound key to disconnect.
 
 %demo-moreinfo.gsm%This message has not yet been written.

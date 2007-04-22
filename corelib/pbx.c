@@ -1067,7 +1067,7 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
     return NULL;
 }
 
-/*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
+/*! \brief  pbx_retrieve_variable: Support for CallWeaver built-in variables and
       functions in the dialplan
   ---*/
 

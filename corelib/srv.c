@@ -22,7 +22,7 @@
  *
  * \brief DNS SRV Record Lookup Support for CallWeaver
  * 
- * \arg See also \ref AstENUM
+ * \arg See also \ref opbxENUM
  *
  */
 #ifdef HAVE_CONFIG_H
