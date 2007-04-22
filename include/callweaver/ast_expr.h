@@ -5,8 +5,8 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * See http://www.asterisk.org for more information about
- * the Asterisk project. Please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and IRC
  * channels for your use.

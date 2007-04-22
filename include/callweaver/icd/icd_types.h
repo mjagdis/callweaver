@@ -39,7 +39,7 @@
 
 #define ICD_STRING_LEN 255
 
-/* Asterisk specific pieces */
+/* CallWeaver specific pieces */
 typedef struct opbx_channel opbx_channel;
 
 /* Infrastructure pieces */

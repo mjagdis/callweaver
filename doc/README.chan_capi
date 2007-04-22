@@ -1,5 +1,5 @@
 (CAPI*) chan_capi a Common ISDN API 2.0 implementation
-for Asterisk/CallWeaver
+for CallWeaver
 
  Copyright (C) 2005-2006 Cytronics & Melware
  Armin Schindler <armin@melware.de>
@@ -27,9 +27,6 @@ Hans Petter Selasky
 
 (...and all the others that have been forgotten...) :-)
 
-No support for Asterisk 1.0.x any more, you need at least
-Asterisk 1.2.x
-
 To support all fax features (e.g. fax polling), you
 need version 3 of libcapi20.
 
@@ -45,7 +42,7 @@ This chan_capi version includes:
 - Incoming/outgoing calls
 - Overlap sending (dialtone and additional digits)
 - E(xplicit) C(all) T(ransfer) (...although it's done implicit-but don't tell!)
-- Use asterisks internal DSP functions for DTMF
+- Use CallWeavers internal DSP functions for DTMF
 - Alaw support 
 - Ulaw support! 
 - Eicon CAPI echo cancelation (echocancel=1)
@@ -61,7 +58,7 @@ This chan_capi version includes:
 - Callgroup support
 - report correct DIALSTATUS and HANGUPCAUSE.
 - Updated to support the new frame->delivery field
-- Compiles with different Asterisk versions (automatic build configuration)
+- Compiles with different CallWeaver versions (automatic build configuration)
 - receive/send faxes over CAPI (see below)
 - Fixes and compatibility for BSD (Jan Stocker and Hans Petter Selasky)
 - Support 'type of number'.
@@ -113,7 +110,7 @@ The Dial string
 
 CAPI command application
 ========================
-chan_capi provides an additional Asterisk application
+chan_capi provides an additional CallWeaver application
    capicommand()
 With this application, special capi commands and features can be used.
 
@@ -125,13 +122,13 @@ Call Deflection:
 Fax receive:
     Receive a fax using CAPI.
         Example:
-        exten => s,1,capicommand(receivefax|/tmp/${UNIQUEID}|+49 6137 555123|Asterisk)
+        exten => s,1,capicommand(receivefax|/tmp/${UNIQUEID}|+49 6137 555123|CallWeaver)
 	(more see below)
 
 Fax send:
     Send a fax using CAPI.
         Example:
-        exten => s,1,capicommand(sendfax|/path/to/faxfile.sff|+49 6137 555123|Asterisk)
+        exten => s,1,capicommand(sendfax|/path/to/faxfile.sff|+49 6137 555123|CallWeaver)
 	(more see below)
 
 Enable/Disable echosquelch:
@@ -157,7 +154,7 @@ Malicious Call Identification:
         exten => s,1,capicommand(malicious)
 
 Hold:
-    Puts an answered call on hold, this has nothing to do with asterisk's onhold
+    Puts an answered call on hold, this has nothing to do with CallWeaver's onhold
     thingie (music et al).
     An optional parameter is the name of the variable which shall be set with
     the reference ID of the call on hold.
@@ -167,15 +164,15 @@ Hold:
         exten => s,1,capicommand(hold|MYHOLDVAR)
 
 Holdtype:
-    Set the type of 'hold'. When Asterisk wants to put the call on hold, the specified method
+    Set the type of 'hold'. When CallWeaver wants to put the call on hold, the specified method
     will be used.
         Example:
-        exten => s,1,capicommand(holdtype|local)  ;no hold, Asterisk can play MOH
+        exten => s,1,capicommand(holdtype|local)  ;no hold, CallWeaver can play MOH
          or
         exten => s,1,capicommand(holdtype|hold)   ;ISDN-HOLD 
          or
         ; not yet implemented
-        exten => s,1,capicommand(holdtype|notify) ;notify the peer only, Asterisk can play MOH
+        exten => s,1,capicommand(holdtype|notify) ;notify the peer only, CallWeaver can play MOH
 
        
 Retrieve:
@@ -329,7 +326,7 @@ Column description:
   ton       : type of number value
   number    : the caller-number and destination-number
 
-Asterisk variables used/set by chan_capi
+CallWeaver variables used/set by chan_capi
 ========================================
 
 BCHANNELINFO

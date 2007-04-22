@@ -1,8 +1,7 @@
 /*
  * (CAPI*)
  *
- * An implementation of Common ISDN API 2.0 for
- * Asterisk / CallWeaver.org
+ * An implementation of Common ISDN API 2.0 for CallWeaver
  *
  * Copyright (C) 2006 Cytronics & Melware
  *

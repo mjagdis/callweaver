@@ -1004,7 +1004,7 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 	for (;help; help=help->next) {
 		struct misdn_bchannel *bc=help->bc;   
 		struct opbx_channel *ast=help->ast;
-		if (misdn_debug[0] > 2) opbx_cli(fd, "Bc:%p Ast:%p\n", bc, ast);
+		if (misdn_debug[0] > 2) opbx_cli(fd, "Bc:%p Opbx:%p\n", bc, ast);
 		if (bc) {
 			print_bc_info(fd, help, bc);
 		} else if ( (bc=help->holded_bc) ) {
@@ -3456,7 +3456,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 	 else  
 		dialtone_indicate(ch);
   
-	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, OPBX_CID_P(ast));
+	chan_misdn_log(1, bc->port, "* Starting Opbx ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, OPBX_CID_P(ast));
   
 	strncpy(ast->exten,"s", 2);
   
@@ -3486,7 +3486,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 
 static void send_cause2ast(struct opbx_channel *ast, struct misdn_bchannel*bc, struct chan_list *ch) {
 	if (!ast) {
-		chan_misdn_log(1,0,"send_cause2ast: No Ast\n");
+		chan_misdn_log(1,0,"send_cause2ast: No Opbx\n");
 		return;
 	}
 	if (!bc) {
@@ -3699,7 +3699,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		default:
 			if ( !ch->ast  || !MISDN_ASTERISK_PVT(ch->ast) || !MISDN_ASTERISK_TECH_PVT(ch->ast)) {
 				if (event!=EVENT_BCHAN_DATA)
-					opbx_log(LOG_NOTICE, "No Ast or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
+					opbx_log(LOG_NOTICE, "No Opbx or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
 				return -1;
 			}
 		}
@@ -3830,7 +3830,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ch->state=MISDN_DIALING;
 	  
 				stop_indicate(ch);
-/*				chan_misdn_log(1, bc->port, " --> * Starting Ast ctx:%s\n", ch->context);*/
+/*				chan_misdn_log(1, bc->port, " --> * Starting Opbx ctx:%s\n", ch->context);*/
 				if (pbx_start_chan(ch)<0) {
 					hangup_chan(ch);
 

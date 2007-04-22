@@ -7,7 +7,7 @@
  * Justin Newman <jnewman@newmantelecom.com>
  *
  * We would like to thank Newman Ventures, Inc. for funding this
- * Asterisk project.
+ * project.
  * Newman Ventures <info@newmanventures.com>
  *
  * Modified and ported to callweaver.org by

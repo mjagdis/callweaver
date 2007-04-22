@@ -2931,7 +2931,7 @@ static void misdn_lib_isdn_event_catcher(void *arg)
 		
 		frm = (iframe_t*) msg->data;
 		
-		/** When we make a call from NT2Ast we get this frames **/
+		/** When we make a call from NT2Opbx we get this frames **/
 		if (frm->len == 0 && frm->addr == 0 && frm->dinfo == 0 && frm->prim == 0 ) {
 			zero_frm++; 
 			free_msg(msg);

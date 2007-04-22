@@ -1,6 +1,6 @@
 
 /*
- * Chan_Misdn -- Channel Driver for Asterisk
+ * Chan_Misdn -- Channel Driver for CallWeaver
  *
  * Interface to mISDN
  *

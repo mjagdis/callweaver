@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1999-2005, Digium, Inc.
  *
- * Mark Spencer <markster@digium.com>  - Asterisk Author
+ * Mark Spencer <markster@digium.com>
  * Matthew Boehm <mboehm@cytelcom.com> - MySQL RealTime Driver Author
  *
  * res_config_mysql.c <mysql plugin for RealTime configuration engine>

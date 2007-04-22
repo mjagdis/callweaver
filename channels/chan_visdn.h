@@ -1,5 +1,5 @@
 /*
- * vISDN channel driver for Asterisk
+ * vISDN channel driver for CallWeaver
  *
  * Copyright (C) 2004-2005 Daniele Orlandi
  *

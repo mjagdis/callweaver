@@ -20,7 +20,7 @@
  *
  * \brief Realtime PBX Module
  *
- * \arg See also: \ref AstARA
+ * \arg See also: \ref opbxARA
  */
 
 

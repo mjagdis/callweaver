@@ -30,7 +30,7 @@
  * \brief Main entry point to the ICD system
  * 
  * This is the main entry point for the ICD program.
- * It is responsible for providing the APIs that Asterisk requires in
+ * It is responsible for providing the APIs that CallWeaver requires in
  * order to load ICD as a module, as well as providing all of the set up
  * functions required to initialize ICD so that it is ready to handle calls.
  * It also acts as a registry for Queues and Agents.

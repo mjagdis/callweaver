@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief ENUM Functions
- * \arg See also AstENUM
+ * \arg See also opbxENUM
  */
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"

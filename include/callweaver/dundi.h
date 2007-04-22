@@ -18,7 +18,7 @@
 
 /*! \file
  * \brief Distributed Universal Number Discovery (DUNDi)
- * See also \ref AstDUNDi
+ * See also \ref opbxDUNDi
  */
 
 #ifndef _CALLWEAVER_DUNDI_H 

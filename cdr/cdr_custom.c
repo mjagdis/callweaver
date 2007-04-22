@@ -22,7 +22,7 @@
  *
  * \brief Custom Comma Separated Value CDR records.
  * 
- * \arg See also \ref AstCDR
+ * \arg See also \ref opbxCDR
  *
  * Logs in LOG_DIR/cdr_custom
  */
