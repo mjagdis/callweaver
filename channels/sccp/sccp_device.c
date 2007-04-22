@@ -25,7 +25,7 @@
 
 #include "callweaver/app.h"
 #include "callweaver/pbx.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/utils.h"
 #include "callweaver/devicestate.h"
 

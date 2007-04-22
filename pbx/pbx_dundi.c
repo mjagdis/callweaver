@@ -67,7 +67,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/io.h"
 #include "callweaver/utils.h"
 #include "callweaver/crypto.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/acl.h"
 #include "callweaver/aes.h"
 

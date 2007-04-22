@@ -45,7 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL: svn://svn.callweaver.org/callweaver/trunk/app
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/lock.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/cli.h"	//Needed to have RESULT_SUCCESS and RESULT_FAILURE

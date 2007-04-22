@@ -108,7 +108,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/say.h"
 #include "callweaver/cdr.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/features.h"
 #include "callweaver/app.h"
 #include "callweaver/musiconhold.h"

@@ -57,8 +57,8 @@
  */
 
 
-#ifndef _OPBX_KEYWORDS_H
-#define _OPBX_KEYWORDS_H
+#ifndef _CALLWEAVER_CALLWEAVER_KEYWORDS_H
+#define _CALLWEAVER_CALLWEAVER_KEYWORDS_H
 
 
 // ---------------------------------------------------------------------------
@@ -145,5 +145,3 @@
 
 
 #endif
-
-// END OF FILE

@@ -157,7 +157,7 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "callweaver/opbx_expr.h"
+#include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)

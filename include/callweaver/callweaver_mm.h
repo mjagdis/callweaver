@@ -21,8 +21,8 @@
  */
 
 #ifndef NO_OPBX_MM
-#ifndef _CALLWEAVER_ASTMM_H
-#define _CALLWEAVER_ASTMM_H
+#ifndef _CALLWEAVER_CALLWEAVER_MM_H
+#define _CALLWEAVER_CALLWEAVER_MM_H
 
 #define __OPBX_DEBUG_MALLOC
 
@@ -75,5 +75,5 @@ void __opbx_mm_init(void);
 
 #else
 #error "NEVER INCLUDE astmm.h DIRECTLY!!"
-#endif /* _CALLWEAVER_ASTMM_H */
+#endif
 #endif

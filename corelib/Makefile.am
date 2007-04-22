@@ -12,7 +12,7 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	opbx_expr2f.c strcompat.c loader.c callweaver.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
 	stubfunctions-monitor.c udp.c udptl.c udpfromto.c stun.c coef_in.h coef_out.h \
-	ecdisa.h aesopt.h opbx_expr2.h timer.c jitterbuffer/libopbxjb.la
+	ecdisa.h aesopt.h opbx_expr2.h timer.c jitterbuffer/libcwjb.la
 
 nodist_libcallweaver_la_SOURCES = defaults.h
 
@@ -27,7 +27,7 @@ libcallweaver_la_CFLAGS	+= @SSL_CFLAGS@
 libcallweaver_la_LIBADD	=  -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 libcallweaver_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 libcallweaver_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 
-libcallweaver_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libopbxjb.la
+libcallweaver_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
 libcallweaver_la_LIBADD	+= -lreadline
 
 if WANT_SRTP

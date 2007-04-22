@@ -1371,7 +1371,7 @@ static yyconst yy_state_type yy_NUL_trans[54] =
 #include <regex.h>
 #include <limits.h>
 
-#include "callweaver/opbx_expr.h"
+#include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
 #include "callweaver/strings.h"
 

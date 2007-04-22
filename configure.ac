@@ -462,7 +462,7 @@ AC_SUBST([opbxdbdir])
 
 # path to database file of internal db
 if test -z "${opbxdbfile}"; then
-	opbxdbfile='opbxdb'
+	opbxdbfile='callweaverdb'
 fi
 AC_SUBST([opbxdbfile])
 
@@ -684,7 +684,7 @@ AC_DEFINE([__BIG_ENDIAN],4321,[for the places where it is not defined])
 dnl ###########################################################################
 
 if test "${builtin_sqlite3}" = "yes"; then
-	SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libopbxsqlite3.la -lpthread'
+	SQLITE3_THREADSAFE_LIBS='${top_builddir}/sqlite3-embedded/libcwsqlite3.la -lpthread'
 	SQLITE3_THREADSAFE_CFLAGS='-DTEMP_STORE=2 -DTHREADSAFE=1 -DSQLITE_OMIT_CURSOR -DNO_TCL -I${top_srcdir}/sqlite3-embedded -I${top_builddir}/sqlite3-embedded'
 	case "${host}" in
 	  *cygwin*)

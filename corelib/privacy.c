@@ -44,7 +44,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/dsp.h"
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/privacy.h"
 #include "callweaver/utils.h"

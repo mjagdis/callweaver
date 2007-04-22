@@ -51,7 +51,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/term.h"
 #include "callweaver/manager.h"
-#include "callweaver/opbx_expr.h"
+#include "callweaver/callweaver_expr.h"
 #include "callweaver/linkedlists.h"
 #include "callweaver/say.h"
 #include "callweaver/utils.h"
@@ -59,8 +59,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/musiconhold.h"
 #include "callweaver/app.h"
 #include "callweaver/devicestate.h"
-#include "callweaver/opbx_hash.h"
-#include "callweaver/opbx_keywords.h"
+#include "callweaver/callweaver_hash.h"
+#include "callweaver/callweaver_keywords.h"
 
 /*!
  * \note I M P O R T A N T :

@@ -58,7 +58,7 @@
 
 
 #include <string.h>
-#include <callweaver/opbx_hash.h>
+#include <callweaver/callweaver_hash.h>
 
 
 // --------------------------------------------------------------------------

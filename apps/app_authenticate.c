@@ -41,7 +41,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/app.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/utils.h"
 
 static char *tdesc = "Authentication Application";

@@ -71,7 +71,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/app.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/musiconhold.h"
 #include "callweaver/features.h"
 #include "callweaver/utils.h"

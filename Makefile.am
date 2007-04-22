@@ -46,14 +46,14 @@ callweaver_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)
 EXTRA_DIST = substitute.mak
 
 utilitydir = ${opbxutilsdir}
-utility_SCRIPTS = opbxcli safe_callweaver
+utility_SCRIPTS = callweaver_cli safe_callweaver
 CLEANFILES = $(utility_SCRIPTS)
 
 @substitute@
 
-opbxcli:
-	$(substitute) $(top_srcdir)/opbxcli.in > opbxcli
-	chmod +x opbxcli
+callweaver_cli:
+	$(substitute) $(top_srcdir)/callweaver_cli.in > callweaver_cli
+	chmod +x callweaver_cli
 
 safe_callweaver:
 	$(substitute) $(top_srcdir)/contrib/scripts/safe_callweaver > safe_callweaver

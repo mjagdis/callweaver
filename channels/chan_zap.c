@@ -77,7 +77,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/say.h"
 #include "callweaver/app.h"
 #include "callweaver/dsp.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/manager.h"
 #include "callweaver/causes.h"
 #include "callweaver/term.h"

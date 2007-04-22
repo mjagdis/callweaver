@@ -1,8 +1,8 @@
 AUTOMAKE_OPTS		= gnu foreign
 
-opbxlib_LTLIBRARIES	= libopbxsqlite3.la
+opbxlib_LTLIBRARIES	= libcwsqlite3.la
 
-libopbxsqlite3_la_SOURCES = \
+libcwsqlite3_la_SOURCES = \
   src/alter.c \
   src/analyze.c \
   src/attach.c \
@@ -54,11 +54,11 @@ libopbxsqlite3_la_SOURCES = \
   src/vtab.c \
   src/where.c
 
-nodist_libopbxsqlite3_la_SOURCES =  sqlite3.h opcodes.c opcodes.h parse.c parse.h 
+nodist_libcwsqlite3_la_SOURCES =  sqlite3.h opcodes.c opcodes.h parse.c parse.h 
 
-libopbxsqlite3_la_CFLAGS  = $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@ -I$(srcdir)/src
-libopbxsqlite3_la_LIBADD  = -lpthread
-libopbxsqlite3_la_LDFLAGS = -no-undefined -version-info "8:6:8"
+libcwsqlite3_la_CFLAGS  = $(AM_CFLAGS) @SQLITE3_THREADSAFE_CFLAGS@ -I$(srcdir)/src
+libcwsqlite3_la_LIBADD  = -lpthread
+libcwsqlite3_la_LDFLAGS = -no-undefined -version-info "8:6:8"
 
 EXTRA_DIST = src/parse.y tool/lempar.c
 BUILT_SOURCES = opcodes.c opcodes.h parse.c parse.h keywordhash.h sqlite3.h

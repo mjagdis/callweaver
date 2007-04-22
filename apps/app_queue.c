@@ -90,7 +90,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/monitor.h"
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/devicestate.h"
 
 #define QUEUE_STRATEGY_RINGALL		0

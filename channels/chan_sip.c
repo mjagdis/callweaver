@@ -77,7 +77,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/features.h"
 #include "callweaver/acl.h"
 #include "callweaver/srv.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 #include "callweaver/causes.h"
 #include "callweaver/utils.h"
 #include "callweaver/file.h"

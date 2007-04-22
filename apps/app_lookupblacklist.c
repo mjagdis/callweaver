@@ -43,7 +43,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/image.h"
 #include "callweaver/phone_no_utils.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 
 static char *tdesc = "Look up Caller*ID name/number from blacklist database";
 

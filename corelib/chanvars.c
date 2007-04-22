@@ -35,7 +35,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/chanvars.h"
 #include "callweaver/logger.h"
 #include "callweaver/strings.h"
-#include "callweaver/opbx_hash.h"
+#include "callweaver/callweaver_hash.h"
 
 /*!
  * \note I M P O R T A N T :

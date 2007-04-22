@@ -43,7 +43,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 
 static char *function_db_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {

@@ -25,7 +25,7 @@
 
 #include "callweaver/utils.h"
 #include "callweaver/cli.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 
 /* ------------------------------------------------------------ */
 

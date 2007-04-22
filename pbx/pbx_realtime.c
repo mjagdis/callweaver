@@ -56,7 +56,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 46 $")
 #include "callweaver/io.h"
 #include "callweaver/utils.h"
 #include "callweaver/crypto.h"
-#include "callweaver/opbxdb.h"
+#include "callweaver/callweaver_db.h"
 
 #define MODE_MATCH 		0
 #define MODE_MATCHMORE 	1
