@@ -213,7 +213,7 @@ static void launch_cli_thread(char *cli_command);
 static int jabber_manager_event(int category, char *event, char *body)
 {
 	struct jabber_message_node *node;
-	if ((node=jabber_message_node_printf(globals.event_master, "ASTERISK EVENT", "%s", body))) { 
+	if ((node=jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", body))) { 
 		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 	}
 	return 0;

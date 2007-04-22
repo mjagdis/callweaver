@@ -271,8 +271,8 @@ static int pbx_start_chan(struct chan_list *ch);
 #define OPBX_LOAD_CFG opbx_config_load
 #define OPBX_DESTROY_CFG opbx_config_destroy
 
-#define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
-#define MISDN_ASTERISK_PVT(ast) 1
+#define MISDN_CALLWEAVER_TECH_PVT(ast) ast->tech_pvt
+#define MISDN_CALLWEAVER_PVT(ast) 1
 
 #include "callweaver/strings.h"
 
@@ -1904,7 +1904,7 @@ static int misdn_call(struct opbx_channel *ast, char *dest, int timeout)
 {
 	int port=0;
 	int r;
-	struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
+	struct chan_list *ch=MISDN_CALLWEAVER_TECH_PVT(ast);
 	struct misdn_bchannel *newbc;
 	char *opts=NULL, *ext,*tokb;
 	char dest_cp[256];
@@ -1988,7 +1988,7 @@ static int misdn_call(struct opbx_channel *ast, char *dest, int timeout)
 	}
 	
 	{
-		struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
+		struct chan_list *ch=MISDN_CALLWEAVER_TECH_PVT(ast);
 		if (!ch) { opbx_verbose("No chan_list in misdn_call"); return -1;}
 		
 		newbc->capability=ast->transfercapability;
@@ -2042,7 +2042,7 @@ static int misdn_answer(struct opbx_channel *ast)
 	struct chan_list *p;
 
 	
-	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast)) ) return -1;
+	if (!ast || ! (p=MISDN_CALLWEAVER_TECH_PVT(ast)) ) return -1;
 	
 	chan_misdn_log(1, p? (p->bc? p->bc->port : 0) : 0, "* ANSWER:\n");
 	
@@ -2102,7 +2102,7 @@ static int misdn_digit(struct opbx_channel *ast, char digit )
 {
 	struct chan_list *p;
 	
-	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast))) return -1;
+	if (!ast || ! (p=MISDN_CALLWEAVER_TECH_PVT(ast))) return -1;
 
 	struct misdn_bchannel *bc=p->bc;
 	chan_misdn_log(1, bc?bc->port:0, "* IND : Digit %c\n",digit);
@@ -2160,7 +2160,7 @@ static int misdn_fixup(struct opbx_channel *oldast, struct opbx_channel *ast)
 {
 	struct chan_list *p;
 	
-	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) )) return -1;
+	if (!ast || ! (p=MISDN_CALLWEAVER_TECH_PVT(ast) )) return -1;
 	
 	chan_misdn_log(1, p->bc?p->bc->port:0, "* IND: Got Fixup State:%s L3id:%x\n", misdn_get_ch_state(p), p->l3id);
 	
@@ -2177,7 +2177,7 @@ static int misdn_indication(struct opbx_channel *ast, int cond)
 	struct chan_list *p;
 
   
-	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast))) {
+	if (!ast || ! (p=MISDN_CALLWEAVER_TECH_PVT(ast))) {
 		opbx_log(LOG_WARNING, "Returnded -1 in misdn_indication\n");
 		return -1;
 	}
@@ -2311,7 +2311,7 @@ static int misdn_hangup(struct opbx_channel *ast)
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
 	
-	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
+	if (!ast || ! (p=MISDN_CALLWEAVER_TECH_PVT(ast) ) ) return -1;
 	
 	opbx_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
 	
@@ -2328,14 +2328,14 @@ static int misdn_hangup(struct opbx_channel *ast)
 	}
 
 	
-	MISDN_ASTERISK_TECH_PVT(ast)=NULL;
+	MISDN_CALLWEAVER_TECH_PVT(ast)=NULL;
 	p->ast=NULL;
 
 	bc=p->bc;
 	
 	if (ast->_state == OPBX_STATE_RESERVED) {
 		/* between request and call */
-		MISDN_ASTERISK_TECH_PVT(ast)=NULL;
+		MISDN_CALLWEAVER_TECH_PVT(ast)=NULL;
 		
 		cl_dequeue_chan(&cl_te, p);
 		free(p);
@@ -2467,7 +2467,7 @@ static struct opbx_frame  *misdn_read(struct opbx_channel *ast)
 		chan_misdn_log(1,0,"misdn_read called without ast\n");
 		return NULL;
 	}
-	if (! (tmp=MISDN_ASTERISK_TECH_PVT(ast)) ) {
+	if (! (tmp=MISDN_CALLWEAVER_TECH_PVT(ast)) ) {
 		chan_misdn_log(1,0,"misdn_read called without ast->pvt\n");
 		return NULL;
 	}
@@ -2530,7 +2530,7 @@ static int misdn_write(struct opbx_channel *ast, struct opbx_frame *frame)
 	struct chan_list *ch;
 	int i  = 0;
 	
-	if (!ast || ! (ch=MISDN_ASTERISK_TECH_PVT(ast)) ) return -1;
+	if (!ast || ! (ch=MISDN_CALLWEAVER_TECH_PVT(ast)) ) return -1;
 	
 	if (!ch->bc ) {
 		opbx_log(LOG_WARNING, "private but no bc\n");
@@ -3391,10 +3391,10 @@ static void release_chan(struct misdn_bchannel *bc) {
 			close(ch->pipe[1]);
 
 			
-			if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
+			if (ast && MISDN_CALLWEAVER_TECH_PVT(ast)) {
 				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, ast->context, ast->exten,OPBX_CID_P(ast),misdn_get_ch_state(ch));
 				chan_misdn_log(3, bc->port, " --> * State Down\n");
-				MISDN_ASTERISK_TECH_PVT(ast)=NULL;
+				MISDN_CALLWEAVER_TECH_PVT(ast)=NULL;
 				
       
 				if (ast->_state != OPBX_STATE_RESERVED) {
@@ -3475,7 +3475,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 	while (!opbx_strlen_zero(p) ) {
         opbx_fr_init_ex(&fr, OPBX_FRAME_DTMF, *p, "");
 
-		if (ch->ast && MISDN_ASTERISK_PVT(ch->ast) && MISDN_ASTERISK_TECH_PVT(ch->ast)) {
+		if (ch->ast && MISDN_CALLWEAVER_PVT(ch->ast) && MISDN_CALLWEAVER_TECH_PVT(ch->ast)) {
 			opbx_queue_frame(ch->ast, &fr);
 		}
 		p++;
@@ -3697,7 +3697,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				chan_misdn_log(3,bc->port,"opbx_hangup already called, so we have no ast ptr anymore in event(%s)\n",manager_isdn_get_info(event));
 			break;
 		default:
-			if ( !ch->ast  || !MISDN_ASTERISK_PVT(ch->ast) || !MISDN_ASTERISK_TECH_PVT(ch->ast)) {
+			if ( !ch->ast  || !MISDN_CALLWEAVER_PVT(ch->ast) || !MISDN_CALLWEAVER_TECH_PVT(ch->ast)) {
 				if (event!=EVENT_BCHAN_DATA)
 					opbx_log(LOG_NOTICE, "No Opbx or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
 				return -1;
@@ -4201,7 +4201,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		stop_indicate(ch);
 
 		if (bridged && !strcasecmp(bridged->tech->type,"mISDN")) {
-			struct chan_list *bridged_ch=MISDN_ASTERISK_TECH_PVT(bridged);
+			struct chan_list *bridged_ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
 
 			chan_misdn_log(1,bc->port," --> copying cpndialplan:%d and cad:%s to the A-Channel\n",bc->cpnnumplan,bc->cad);
 			if (bridged_ch) {
@@ -4457,7 +4457,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		struct opbx_channel *bridged=OPBX_BRIDGED_P(ch->ast);
 		
 		if (bridged){
-			struct chan_list *bridged_ch=MISDN_ASTERISK_TECH_PVT(bridged);
+			struct chan_list *bridged_ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
 			ch->state = MISDN_HOLDED;
 			ch->l3id = bc->l3_id;
 			
@@ -4483,8 +4483,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			misdn_lib_send_event(bc, EVENT_DISCONNECT);
 
-			if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
-				ch=MISDN_ASTERISK_TECH_PVT(bridged);
+			if (bridged && MISDN_CALLWEAVER_TECH_PVT(bridged)) {
+				ch=MISDN_CALLWEAVER_TECH_PVT(bridged);
 				/*ch->state=MISDN_FACILITY_DEFLECTED;*/
 				if (ch->bc) {
 					/* todo */
@@ -4764,7 +4764,7 @@ char *description(void)
 
 static int misdn_facility_exec(struct opbx_channel *chan, void *data)
 {
-	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(chan);
+	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok, *tokb;
 
 	chan_misdn_log(0,0,"TYPE: %s\n",chan->tech->type);
@@ -4806,7 +4806,7 @@ static int misdn_facility_exec(struct opbx_channel *chan, void *data)
 
 static int misdn_set_opt_exec(struct opbx_channel *chan, void *data)
 {
-	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(chan);
+	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok,*tokb;
 	int  keyidx=0;
 	int rxgain=0;

@@ -291,13 +291,13 @@ static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
 			opbx_copy_string(h->context, hint_context, sizeof(h->context));
 			h->next = d->hints;
 			d->hints = h;
-			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Added hint (ASTERISK), extension %s@%s, device %s\n", d->id, hint_exten, hint_context, hint_dialplan);
+			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Added hint (CALLWEAVER), extension %s@%s, device %s\n", d->id, hint_exten, hint_context, hint_dialplan);
 			return 1;
 		}
 		/* error */
 		free(h);
 		h = NULL;
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Error adding hint (ASTERISK) for extension %s@%s and device %s\n", d->id, hint_exten, hint_context, hint_dialplan);
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Error adding hint (CALLWEAVER) for extension %s@%s and device %s\n", d->id, hint_exten, hint_context, hint_dialplan);
 		return 0;
 	}
 
