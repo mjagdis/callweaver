@@ -1,6 +1,6 @@
 # old singledir directory layout
 helpstring="use the old singledir layout"
-opbxprefix=/opt/callweaver.org
+opbxprefix=/opt/callweaver
 opbxexecdir=${prefix}/sbin
 opbxutilsdir=${prefix}/bin
 opbxconfdir=${prefix}/etc

@@ -16,7 +16,7 @@
 
 ######
 #
-# initialisation of the GNU AutoTools Packages
+# Initialisation of the GNU AutoTools Packages
 #
 ######
 
@@ -217,7 +217,7 @@ dnl ##########################
 # --------------------------------------------------------------------------
 #  BSD         bsd
 #  Linux       lsb
-#  Solaris     singledir, using prefix /opt/csw/callweaver.org
+#  Solaris     singledir, using prefix /opt/csw/callweaver
 # --------------------------------------------------------------------------
 #
 # Directory layout profiles contain a list of key=value pairs, *without* any
@@ -387,9 +387,9 @@ if test "${with_directory_layout}" = "singledir"; then
     AC_MSG_NOTICE([Selected directory layout is SINGLEDIR])
     # override default prefix
     if test "${ostype}" = "solaris"; then
-	ac_default_prefix='/opt/csw/callweaver.org'
+	ac_default_prefix='/opt/csw/callweaver'
     else
-	ac_default_prefix='/opt/callweaver.org'
+	ac_default_prefix='/opt/callweaver'
     fi
     # set directory variables
     opbxexecdir='${prefix}/sbin'
@@ -564,7 +564,7 @@ dnl # AC_CHECK_LIB([expat], [main]) # why would we need this one ?
 AC_CHECK_LIB([ib], [main])
 AC_CHECK_LIB([m], [main])
 AC_CHECK_LIB([ncurses], [main],,[AC_CHECK_LIB([curses],[main])])
-AC_CHECK_LIB([readline],[main],,[AC_MSG_ERROR(readline is required to compile CallWeaver.org.)])
+AC_CHECK_LIB([readline],[main],,[AC_MSG_ERROR(readline is required to compile CallWeaver.)])
 AC_CHECK_LIB([newt], [main],[AC_DEFINE([HAVE_LIBNEWT],["yes"],[yes there is newt])])
 AM_CONDITIONAL([USE_NEWT],[test -n "${HAVE_LIBNEWT}"])
 AC_CHECK_LIB([nsl], [main])
@@ -619,7 +619,7 @@ dnl # include <w32api/winsock2.h>
 dnl # endif
 dnl ])
 AC_CHECK_HEADER([dlfcn.h],[AM_CONDITIONAL([NEED_DLFCN_H],[true = yes])])
-AC_CHECK_HEADERS([readline/readline.h readline/history.h],,[AC_MSG_ERROR(readline is required to compile CallWeaver.org.)])
+AC_CHECK_HEADERS([readline/readline.h readline/history.h],,[AC_MSG_ERROR(readline is required to compile CallWeaver.)])
 
 dnl check structures
 AC_STRUCT_TM
@@ -711,8 +711,8 @@ AC_ARG_WITH([tiff-libs],
 	[AC_HELP_STRING([--with-tiff-libs],[Location of libtiff library files.])],
 	[LDFLAGS="$LDFLAGS -L${withval}"])
 
-AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile CallWeaver.org.)])
-AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile CallWeaver.org.)])
+AC_CHECK_HEADERS([tiffio.h],[HAVE_TIFFIO_H=1],[AC_MSG_ERROR(libtiff is required to compile CallWeaver.)])
+AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is required to compile CallWeaver.)])
 
 dnl ###########################################################################
 
@@ -721,7 +721,7 @@ AC_CHECK_LIB([rt], [timer_create],[AC_DEFINE([HAVE_POSIX_TIMERS],[1],[yes there 
 dnl ###########################################################################
 
 if test "${no_libcap}" != "yes"; then
-AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile CallWeaver.org.)])
+AC_CHECK_HEADERS([sys/capability.h],[HAVE_PCAP_H=1],[AC_MSG_ERROR(libcap-dev is required to compile CallWeaver.)])
 fi
 dnl ###########################################################################
 
