@@ -56,7 +56,7 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
     return wrote;
 }
 
-static int modem_control_handler(at_state_t *s, void *user_data, int op, 
+static int modem_control_handler(t31_state_t *s, void *user_data, int op, 
 				 const char *num)
 {
 	struct faxmodem *fm = user_data;
