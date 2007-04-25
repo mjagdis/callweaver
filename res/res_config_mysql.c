@@ -38,6 +38,10 @@
  *                       Code beautification (doc/CODING-GUIDELINES)
  */
 
+#ifdef HAVE_CONFIG_H
+	#include "confdefs.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
