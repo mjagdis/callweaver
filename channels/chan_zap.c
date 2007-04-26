@@ -835,6 +835,7 @@ static void zap_queue_frame(struct zt_pvt *p, struct opbx_frame *f, void *pri)
 #endif		
 }
 
+#ifdef ZAPATA_PRI
 #define MAX_MAND_IES 10
 
 struct msgtype {
@@ -862,6 +863,7 @@ static char *ton2str(int plan)
 	};
 	return code2str(plan, plans, sizeof(plans) / sizeof(plans[0]));
 }
+#endif
 
 static int restore_gains(struct zt_pvt *p);
 
