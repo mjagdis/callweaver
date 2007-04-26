@@ -278,7 +278,7 @@ opbxspooldir
 opbxdatadir
 opbxmandir
 opbxdocdir
->EOF`
+EOF`
 # END list
 
 # ----------------------------------------------------------
