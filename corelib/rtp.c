@@ -1808,7 +1808,7 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
         if (_f->offset < hdrlen) {
             f = opbx_frdup(_f);
            opbx_rtp_raw_write(rtp, f, codec);
-           opbx_frfree(f);
+           opbx_fr_free(f);
        } else {
            opbx_rtp_raw_write(rtp, _f, codec);
        }

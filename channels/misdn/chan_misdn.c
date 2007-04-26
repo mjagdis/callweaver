@@ -2726,7 +2726,7 @@ enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
 		else {
 			opbx_write(c0,f);
 		}
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 	
 	chan_misdn_log(1, ch1->bc->port, "I SEND: Splitting conference with Number:%d\n", ch1->bc->pid +1);
