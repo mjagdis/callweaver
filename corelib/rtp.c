@@ -1805,11 +1805,13 @@ int opbx_rtp_write(struct opbx_rtp *rtp, struct opbx_frame *_f)
     else
     {
         /* Don't buffer outgoing frames; send them one-per-packet: */
-        if (_f->offset < hdrlen)
+        if (_f->offset < hdrlen) {
             f = opbx_frdup(_f);
-        else
-            f = _f;
-        opbx_rtp_raw_write(rtp, f, codec);
+           opbx_rtp_raw_write(rtp, f, codec);
+           opbx_frfree(f);
+       } else {
+           opbx_rtp_raw_write(rtp, _f, codec);
+       }
     }
     return 0;
 }
