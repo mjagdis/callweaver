@@ -3151,7 +3151,7 @@ static void bridge_playfile(struct opbx_channel *chan, struct opbx_channel *peer
 }
 
 static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, struct opbx_channel *c1,
-			      struct opbx_bridge_config *config, struct opbx_frame **fo, struct opbx_channel **rc, int toms)
+			      struct opbx_bridge_config *config, struct opbx_frame **fo, struct opbx_channel **rc, int to)
 {
 	/* Copy voice back and forth between the two channels. */
 	struct opbx_channel *cs[3];
@@ -3163,6 +3163,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 	int watch_c0_dtmf;
 	int watch_c1_dtmf;
 	void *pvt0, *pvt1;
+	int toms = to;
 	
 	/* Indicates whether a frame was queued into a jitterbuffer */
 	int frame_put_in_jb;
@@ -3191,7 +3192,7 @@ static enum opbx_bridge_result opbx_generic_bridge(struct opbx_channel *c0, stru
 		/* Calculate the appropriate max sleep interval - 
 		 * in general, this is the time,
 		 * left to the closest jb delivery moment */
-		toms = opbx_jb_get_when_to_wakeup(c0, c1, toms);
+		toms = opbx_jb_get_when_to_wakeup(c0, c1, to);
 
 		who = opbx_waitfor_n(cs, 2, &toms);
 		if (!who) {
