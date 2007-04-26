@@ -835,6 +835,34 @@ static void zap_queue_frame(struct zt_pvt *p, struct opbx_frame *f, void *pri)
 #endif		
 }
 
+#define MAX_MAND_IES 10
+
+struct msgtype {
+        int msgnum;
+        char *name;
+        int mandies[MAX_MAND_IES];
+};
+
+static char *code2str(int code, struct msgtype *codes, int max)
+{
+	int x;
+	for (x=0;x<max; x++)
+		if (codes[x].msgnum == code)
+			return codes[x].name;
+	return "Unknown";
+}
+static char *ton2str(int plan)
+{
+	static struct msgtype plans[] = {
+		{ PRI_UNKNOWN, "Unknown Number Type" },
+		{ PRI_INTERNATIONAL_ISDN, "International Number" },
+		{ PRI_NATIONAL_ISDN, "National Number" },
+		{ PRI_LOCAL_ISDN, "Local Number" },
+		{ PRI_PRIVATE, "Private Number" }
+	};
+	return code2str(plan, plans, sizeof(plans) / sizeof(plans[0]));
+}
+
 static int restore_gains(struct zt_pvt *p);
 
 static void swap_subs(struct zt_pvt *p, int a, int b)
@@ -1700,7 +1728,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 {
 	struct zt_pvt *p = ast->tech_pvt;
 	int x, res, index;
-	char *c, *n, *l;
+	char *c, *n, *l, *t;
 #ifdef ZAPATA_PRI
 	char *s=NULL;
 #endif
@@ -2050,31 +2078,85 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		dp_strip = 0;
  		pridialplan = p->pri->dialplan - 1;
  		if (pridialplan == -2) { /* compute dynamically */
- 			if (strncmp(c + p->stripmsd, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
- 				dp_strip = strlen(p->pri->internationalprefix);
- 				pridialplan = PRI_INTERNATIONAL_ISDN;
- 			} else if (strncmp(c + p->stripmsd, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
- 				dp_strip = strlen(p->pri->nationalprefix);
- 				pridialplan = PRI_NATIONAL_ISDN;
- 			} else {
+			if (strlen(p->pri->internationalprefix) > 0 && strncmp(c + p->stripmsd, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
+				dp_strip = strlen(p->pri->internationalprefix);
+				pridialplan = PRI_INTERNATIONAL_ISDN;
+			} else if (strlen(p->pri->nationalprefix) > 0 && strncmp(c + p->stripmsd, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
+				dp_strip = strlen(p->pri->nationalprefix);
+				pridialplan = PRI_NATIONAL_ISDN;
+			} else if (strlen(p->pri->localprefix) > 0 && strncmp(c + p->stripmsd, p->pri->localprefix, strlen(p->pri->localprefix)) == 0) {
+				dp_strip = strlen(p->pri->localprefix);
 				pridialplan = PRI_LOCAL_ISDN;
- 			}
- 		}
+			} else if (strlen(p->pri->privateprefix) > 0 && strncmp(c + p->stripmsd, p->pri->privateprefix, strlen(p->pri->privateprefix)) == 0) {
+				dp_strip = strlen(p->pri->privateprefix);
+				pridialplan = PRI_PRIVATE;
+			} else if (strlen(p->pri->unknownprefix) > 0 && strncmp(c + p->stripmsd, p->pri->unknownprefix, strlen(p->pri->unknownprefix)) == 0) {
+				dp_strip = strlen(p->pri->unknownprefix);
+				pridialplan = PRI_UNKNOWN;
+			} else {
+				pridialplan = PRI_LOCAL_ISDN;
+			}
+		}
+
+		t = pbx_builtin_getvar_helper(ast, "PRITON");
+		if (t) {
+			if (!strcasecmp(t, "INTERNATIONAL")) {
+				pridialplan = PRI_INTERNATIONAL_ISDN;
+			} else if (!strcasecmp(t, "NATIONAL")) {
+				pridialplan = PRI_NATIONAL_ISDN;
+			} else if (!strcasecmp(t, "LOCAL")) {
+				pridialplan = PRI_LOCAL_ISDN;
+			} else if (!strcasecmp(t, "PRIVATE")) {
+				pridialplan = PRI_PRIVATE;
+			} else if (!strcasecmp(t, "UNKNOWN")) {
+				pridialplan = PRI_UNKNOWN;
+			} else {
+				opbx_log(LOG_WARNING, "Unable to determine PRI type of number '%s', using instead '%s'\n", t, ton2str(pridialplan));
+			}
+		}
+		
+
  		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan,  s ? 1 : 0);
 
 		ldp_strip = 0;
 		prilocaldialplan = p->pri->localdialplan - 1;
 		if ((l != NULL) && (prilocaldialplan == -2)) { /* compute dynamically */
-			if (strncmp(l, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
+			if (strlen(p->pri->internationalprefix) > 0 && strncmp(l, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
 				ldp_strip = strlen(p->pri->internationalprefix);
 				prilocaldialplan = PRI_INTERNATIONAL_ISDN;
-			} else if (strncmp(l, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
+			} else if (strlen(p->pri->nationalprefix) > 0 && strncmp(l, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
 				ldp_strip = strlen(p->pri->nationalprefix);
 				prilocaldialplan = PRI_NATIONAL_ISDN;
+			} else if (strlen(p->pri->localprefix) > 0 && strncmp(l, p->pri->localprefix, strlen(p->pri->localprefix)) == 0) {
+				ldp_strip = strlen(p->pri->localprefix);
+				prilocaldialplan = PRI_LOCAL_ISDN;
+			} else if (strlen(p->pri->privateprefix) > 0 && strncmp(l, p->pri->privateprefix, strlen(p->pri->privateprefix)) == 0) {
+				ldp_strip = strlen(p->pri->privateprefix);
+				prilocaldialplan = PRI_PRIVATE;
+			} else if (strlen(p->pri->unknownprefix) > 0 && strncmp(l, p->pri->unknownprefix, strlen(p->pri->unknownprefix)) == 0) {
+				ldp_strip = strlen(p->pri->unknownprefix);
+				prilocaldialplan = PRI_UNKNOWN;
 			} else {
 				prilocaldialplan = PRI_LOCAL_ISDN;
 			}
 		}
+		t = pbx_builtin_getvar_helper(ast, "PRILOCALTON");
+		if (t) {
+			if (!strcasecmp(t, "INTERNATIONAL")) {
+				prilocaldialplan = PRI_INTERNATIONAL_ISDN;
+			} else if (!strcasecmp(t, "NATIONAL")) {
+				prilocaldialplan = PRI_NATIONAL_ISDN;
+			} else if (!strcasecmp(t, "LOCAL")) {
+				prilocaldialplan = PRI_LOCAL_ISDN;
+			} else if (!strcasecmp(t, "PRIVATE")) {
+				prilocaldialplan = PRI_PRIVATE;
+			} else if (!strcasecmp(t, "UNKNOWN")) {
+				prilocaldialplan = PRI_UNKNOWN;
+			} else {
+				opbx_log(LOG_WARNING, "Unable to determine local PRI type of number '%s', using instead '%s'\n", x, ton2str(prilocaldialplan));
+			}
+		}
+
 		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan, 
 					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
@@ -6791,6 +6873,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 						opbx_copy_string(pris[span].localprefix, localprefix, sizeof(pris[span].localprefix));
 						opbx_copy_string(pris[span].privateprefix, privateprefix, sizeof(pris[span].privateprefix));
 						opbx_copy_string(pris[span].unknownprefix, unknownprefix, sizeof(pris[span].unknownprefix));
+						
 						pris[span].resetinterval = resetinterval;
 						
 						tmp->pri = &pris[span];
