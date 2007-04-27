@@ -101,8 +101,8 @@ Installing CallWeaver
 
 cd /usr/src
 
-svn co svn://svn.callweaver.org/callweaver/trunk callweaver
-svn co svn://svn.callweaver.org/callweaver-sounds callweaver-sounds
+svn co http://svn.callweaver.org/callweaver/trunk 
+svn co http://svn.callweaver.org/callweaver-sounds
 
 cd callweaver
 ./bootstrap.sh
