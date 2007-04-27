@@ -9,7 +9,8 @@
 ;GNU is for Gnu's not Unix, and is typically pronounced 'Gah-nu' probably with more emphasis on the second syllable
 
 
-;Note: All .gsm files are in the following format: 16.000 kHz, Mono 1 kb/sec
+;Note: All .gsm files are in the following format: GSM 06.10, packed as per libgsm
+
 ;CallWeaver 11/15/2005 
 
 ;sounds directory - File Name Sound File Script
