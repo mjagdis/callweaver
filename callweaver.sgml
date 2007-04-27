@@ -52,7 +52,7 @@
 	</para>
 	<para>
 	CallWeaver reads most of its configuration files from configuration files
-	located in /opt/callweaver.org/etc.  Virtually all aspects of the operation of
+	located in /opt/callweaver/etc.  Virtually all aspects of the operation of
 	callweaver's configuration files can be found in the sample configuration
 	files.  The format for those files is generally beyond the scope of this
 	man page.
@@ -73,7 +73,7 @@
 		<listitem>
 			<para>
 			Use <filename>file</filename> as master configuration file
-			instead of the default, ex: /opt/callweaver.org/etc/callweaver.conf
+			instead of the default, ex: /opt/callweaver/etc/callweaver.conf
 			</para>
 		</listitem>
 	</varlistentry>
@@ -291,7 +291,7 @@
 <refsect1>
 	<title>BUGS</title>
 	<para>
-	Bug reports and feature requests may be filed at http://trac.callweaver.org
+	Bug reports and feature requests may be filed at http://www.callweaver.org
 	</para>
 </refsect1>
 <refsect1>

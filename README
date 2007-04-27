@@ -16,16 +16,16 @@ on the project itself, please visit the CallWeaver home page at:
 
 
 * LICENSING
-  CallWeaver.org is distributed under GNU General Public License
+  CallWeaver is distributed under GNU General Public License
 
 * OPERATING SYSTEMS
 
 == Linux ==
-  CallWeaver.org is developed and tested primarily on the GNU/Linux operating 
+  CallWeaver is developed and tested primarily on the GNU/Linux operating 
 system, and is supported on every major GNU/Linux distribution.
 
 == Others ==
-  CallWeaver.org has also been 'ported' and reportedly runs properly on other
+  CallWeaver has also been 'ported' and reportedly runs properly on other
 operating systems as well, including Sun Solaris, Apple's Mac OS X, and
 the BSD variants.
 
@@ -187,7 +187,7 @@ everything from configuration information to voicemail storage.
   Most systems limit the number of file descriptors that CallWeaver can
 have open at one time.  This can limit the number of simultaneous
 calls that your system can handle.  For example, if the limit is set
-at 1024 (a common default value) CallWeaver.org can handle approxiately 150
+at 1024 (a common default value) CallWeaver can handle approxiately 150
 SIP calls simultaneously.  To change the number of file descriptors
 follow the instructions for your system below:
 
@@ -208,7 +208,7 @@ these changes to take effect.
 
   If there are no instructions specifically adapted to your system
 above you can try adding the command "ulimit -n 8192" to the script
-that starts CallWeaver.org.
+that starts CallWeaver.
 
 * MORE INFORMATION
 
@@ -219,5 +219,5 @@ you're interested in getting more information.
 
    http://www.callweaver.org
 
-  Welcome to the growing worldwide community of CallWeaver.org users!
+  Welcome to the growing worldwide community of CallWeaver users!
 
