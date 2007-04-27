@@ -71,12 +71,15 @@ opcodes.c: opcodes.h mkopcodec.awk
 opcodes.h: parse.h src/vdbe.c mkopcodeh.awk
 	cat parse.h $(srcdir)/src/vdbe.c | ${AWK} -f mkopcodeh.awk > opcodes.h
 
-lempar.c parse.c parse.h: sqlite3.h parse.y tool/lempar.c lemon
-	cp $(srcdir)/tool/lempar.c .
-	cp $(srcdir)/src/parse.y .
+parse.c: sqlite3.h parse.y lempar.c lemon
 	./lemon parse.y
 	mv parse.h parse.h.temp
+
+parse.h: parse.c
 	awk -f addopcodes.awk parse.h.temp >parse.h
+
+lempar.c: tool/lempar.c
+	cp $(srcdir)/tool/lempar.c .
 
 parse.y: src/parse.y
 	cp $(srcdir)/src/parse.y .
