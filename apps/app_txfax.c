@@ -279,6 +279,10 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
         t30_set_ecm_capability(&t38->t30_state, TRUE);
         t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
         opbx_log(LOG_DEBUG, "Enabling ECM mode for app_txfax\n"  );
+    } 
+    else 
+    {
+        t30_set_supported_compressions(&t38->t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION );
     }
 
     passage = nowis();
