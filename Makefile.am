@@ -65,16 +65,16 @@ safe_callweaver:
 
 install-man-pages:
 if WANT_MAN_PAGES
-	if test ! -d $(DESTDIR)${opbxmandir}; then \
-		mkdir -p $(DESTDIR)${opbxmandir} ; \
+	if test ! -d $(DESTDIR)${opbxmandir}/man8; then \
+		mkdir -p $(DESTDIR)${opbxmandir}/man8 ; \
 	fi ; \
-	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${opbxmandir}/. ; \
-	cp $(top_srcdir)/contrib/scripts/safe_callweaver.8 $(DESTDIR)${opbxmandir}/. ;
+	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ; \
+	cp $(top_srcdir)/contrib/scripts/safe_callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ;
 endif
 
 uninstall-man-pages:
-	if test -d $(DESTDIR)${opbxmandir}; then \
-		rm -rf $(DESTDIR)${opbxmandir} ; \
+	if test -d $(DESTDIR)${opbxmandir}/man8; then \
+		rm -rf $(DESTDIR)${opbxmandir}/man8/*callweaver.8 ; \
 	fi ;
 
 ##############
