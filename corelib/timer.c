@@ -176,8 +176,17 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 		"CLOCK_REALTIME\n");
 	if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
 #if defined(HAVE_STRERROR_R)
+#if defined(STRERROR_R_CHAR_P)
 	    opbx_log(LOG_ERROR, "Error creating monotonic timer: "
 			 "%s\n", strerror_r(errno, buf, 128));
+#else
+	    if(strerror_r(errno, buf, 128) == 0) {
+	    	opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                         "%s\n", buf);
+	    } else {
+		opbx_log(LOG_ERROR, "Error starting timer\n");
+	    }
+#endif
 #else
 	    opbx_log(LOG_ERROR, "Error creating monotonic timer"
 			 "\n");
@@ -303,8 +312,17 @@ int opbx_timer_start(opbx_timer_t *t)
     /* Actually start the timer */
     if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
 #if defined(HAVE_STRERROR_R)
-	opbx_log(LOG_ERROR, "Error starting timer: %s\n",
-	    strerror_r(errno, buf, 128));
+#if defined(STRERROR_R_CHAR_P)
+            opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                         "%s\n", strerror_r(errno, buf, 128));
+#else
+            if(strerror_r(errno, buf, 128) == 0) {
+                opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                         "%s\n", buf);
+            } else {
+		opbx_log(LOG_ERROR, "Error starting timer\n");
+	    }
+#endif
 #else
 	opbx_log(LOG_ERROR, "Error starting timer\n");
 #endif
@@ -331,8 +349,17 @@ int opbx_timer_stop(opbx_timer_t *t)
     /* Actually stop the timer */
     if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
 #if defined(HAVE_STRERROR_R)
-	opbx_log(LOG_ERROR, "Error stopping timer: %s\n",
-	    strerror_r(errno, buf, 128));
+#if defined(STRERROR_R_CHAR_P)
+            opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                         "%s\n", strerror_r(errno, buf, 128));
+#else
+            if(strerror_r(errno, buf, 128) == 0) {
+                opbx_log(LOG_ERROR, "Error creating monotonic timer: "
+                         "%s\n", buf);
+            } else {
+		opbx_log(LOG_ERROR, "Error starting timer\n");
+	    }
+#endif
 #else
 	opbx_log(LOG_ERROR, "Error stopping timer\n");
 #endif
@@ -405,15 +432,18 @@ void * _timer_thread(void *parg)
 			"Timing may be unreliable!\n", 
 			ts.tv_nsec);
 	    }
+
+	    if(t->type == OPBX_TIMER_SIMPLE || t->type == OPBX_TIMER_ONESHOT) {
+                t->active = 0;
+            }
+
 	    if(t->func) {
 		t->func(t, t->user_data);
 	    }
-	    if(t->type == OPBX_TIMER_SIMPLE || t->type == OPBX_TIMER_ONESHOT) {
-		t->active = 0;
-		if(t->type == OPBX_TIMER_SIMPLE) {
+	    
+	    if(t->type == OPBX_TIMER_SIMPLE) {
 		    opbx_timer_destroy(t);
 		    break;
-		}
 	    }
 #ifdef TIMER_DEBUG
 	    opbx_log(LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld\n",

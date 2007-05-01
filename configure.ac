@@ -21,8 +21,8 @@
 ######
 
 AC_PREREQ(2.59)
-AC_INIT(CallWeaver.org,svn-trunk,callweaver-dev@callweaver.org)
-AM_INIT_AUTOMAKE(CallWeaver.org,svn-trunk)
+AC_INIT(CallWeaver,svn-trunk,callweaver-dev@callweaver.org)
+AM_INIT_AUTOMAKE(CallWeaver,svn-trunk)
 
 dnl define GNU Source to make sure every compiler and tool 
 dnl  knows that we use GNU compliant macros etc
@@ -54,6 +54,7 @@ AC_PROG_CPP
 AM_PROG_LEX
 AX_SYS_PERLSHARPBANG
 AC_PROG_INSTALL
+AC_FUNC_STRERROR_R
 
 dnl SVN Revision number, needed for OPBX_VERSION and inclusion into files version number
 if test -n "$SVNVERSION" ; then
@@ -598,7 +599,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday clock_getres inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strerror_r strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf])  
+AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday clock_getres inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf])  
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC

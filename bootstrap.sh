@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 echo ""
-echo "CallWeaver.org bootstrap script to generate autotools build environment"
+echo "CallWeaver bootstrap script to generate autotools build environment"
 
 ############
 ##
