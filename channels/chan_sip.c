@@ -16966,7 +16966,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     if (!cdest)
     {
         opbx_log(LOG_ERROR, "Problem allocating the memory\n");
-        return 0;
+        return -1;
     }
     extension = strsep(&cdest, "@");
     host = strsep(&cdest, ":");
@@ -16974,7 +16974,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     if (!extension)
     {
         opbx_log(LOG_ERROR, "Missing mandatory argument: extension\n");
-        return 0;
+        return -1;
     }
 
     /* we'll issue the redirect message here */
@@ -16995,7 +16995,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
         if (!strlen(tmp))
         {
             opbx_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
-            return 0;
+            return -1;
         }
         if ((localtmp = strstr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@')))
         {
@@ -17010,13 +17010,13 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
             if (!strlen(lhost))
             {
                 opbx_log(LOG_ERROR, "Can't find the host address\n");
-                return 0;
+                return -1;
             }
             host = opbx_strdupa(lhost);
             if (!host)
             {
                 opbx_log(LOG_ERROR, "Problem allocating the memory\n");
-                return 0;
+                return -1;
             }
             if (!opbx_strlen_zero(lport))
             {
@@ -17024,7 +17024,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
                 if (!port)
                 {
                     opbx_log(LOG_ERROR, "Problem allocating the memory\n");
-                    return 0;
+                    return -1;
                 }
             }
         }
@@ -17037,8 +17037,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     /* this is all that we want to send to that SIP device */
     opbx_set_flag(p, SIP_ALREADYGONE);
 
-    /* hangup here */
-    return -1;
+    return 0;
 }
 
 /*! \brief  sip_get_codec: Return SIP UA's codec (part of the RTP interface) */
