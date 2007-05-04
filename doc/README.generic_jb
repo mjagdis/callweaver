@@ -64,11 +64,13 @@ jitterbuffer on the ZAP-channel for it to work.
                                ; to 1000.
 
 ; jb-impl = fixed              ; Jitterbuffer implementation, used on the
-                               ; receiving side of a SIP channel. Two
-                               ; implementation are currenlty available -
-                               ; "fixed" (with size always equals to
-                               ; jb-max-size) and "adaptive" (with variable
-                               ; size, actually the new jb of IAX2).
+                               ; receiving side of a SIP channel. Three
+                               ; implementations are currenlty available:
+                               ; * "fixed" (with size always equals to
+                               ;; jb-max-size)
+                               ; * "adaptive" (with variable size, actually the 
+                               ; new jb of IAX2).
+                               ; * "speakup" - contributed by SpeakUp.nl
                                ; Defaults to fixed.
 
 ; jb-log = no                  ; Enables jitterbuffer frame logging.
