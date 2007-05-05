@@ -677,7 +677,11 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 int opbx_queue_hangup(struct opbx_channel *chan)
 {
 	struct opbx_frame f = { OPBX_FRAME_CONTROL, OPBX_CONTROL_HANGUP };
-	chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
+	/* Yeah, let's not change a lock-critical value without locking */
+	if (!opbx_mutex_trylock(&chan->lock)) {	
+		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
+		opbx_mutex_unlock(&chan->lock);
+	}
 	return opbx_queue_frame(chan, &f);
 }
 
