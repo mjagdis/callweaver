@@ -1,7 +1,7 @@
-usr/lib/callweaver.org/libopbx*.so.*
-usr/lib/callweaver.org/libcallweaver*.so.*
-usr/lib/callweaver.org/modules/*.so
-usr/lib/callweaver.org/libedit.so.* usr/lib/callweaver.org/
+usr/lib/callweaver/libopbx*.so.*
+usr/lib/callweaver/libcallweaver*.so.*
+usr/lib/callweaver/modules/*.so
+usr/lib/callweaver/libedit.so.* usr/lib/callweaver/
 usr/sbin
 usr/bin
-etc/callweaver.org
+etc/callweaver

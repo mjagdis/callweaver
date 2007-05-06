@@ -1,4 +1,4 @@
-callweaver (0.2.0-trunk-2577) opo; urgency=low
+callweaver (1.1.99-2663) opo; urgency=low
 
   * Added ODBC support
   * Added chan_bluetooth support

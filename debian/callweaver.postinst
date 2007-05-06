@@ -17,7 +17,7 @@ case "$1" in
 	if (getent passwd callweaver >/dev/null);then
 		:
 	else
-	    	adduser --system --group --home /var/lib/callweaver.org --gecos "callweaver PBX daemon" callweaver
+	    	adduser --system --group --home /var/lib/callweaver --gecos "callweaver PBX daemon" callweaver
 		adduser callweaver audio 
 		adduser callweaver dialout
 	fi
@@ -25,11 +25,11 @@ case "$1" in
 		adduser callweaver dialout
 	fi
 
-	test -d /var/log/callweaver.org || mkdir /var/log/callweaver.org
-	test -d /var/log/callweaver.org/cdr-csv || mkdir /var/log/callweaver.org/cdr-csv
-	chown -R callweaver.callweaver /var/log/callweaver.org /var/run/callweaver.org \
-		/var/spool/callweaver.org /var/lib/callweaver.org /etc/callweaver.org
-	chmod o-rwx /etc/callweaver.org/*
+	test -d /var/log/callweaver || mkdir /var/log/callweaver
+	test -d /var/log/callweaver/cdr-csv || mkdir /var/log/callweaver/cdr-csv
+	chown -R callweaver.callweaver /var/log/callweaver /var/run/callweaver \
+		/var/spool/callweaver /var/lib/callweaver /etc/callweaver
+	chmod o-rwx /etc/callweaver/*
 
     ;;
 
