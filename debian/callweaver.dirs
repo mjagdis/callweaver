@@ -1,12 +1,14 @@
+usr/bin
+usr/sbin
 usr/share/callweaver/ogi
-var/lib/callweaver.org
+var/lib/callweaver
 var/lib/callweaver/keys
 var/lib/callweaver/firmware
 var/lib/callweaver/firmware/iax
 var/lib/callweaver/moh
 var/log/callweaver/cdr-csv
 var/log/callweaver/cdr-custom
-var/run/callweaver.org
+var/run/callweaver
 var/spool/callweaver/meetme
 var/spool/callweaver/outgoing
 var/spool/callweaver/voicemail

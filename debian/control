@@ -1,22 +1,48 @@
 Source: callweaver
-Section: unknown
 Priority: optional
-Maintainer: Massimo Cetra <devel@navynet.it>
-Build-Depends: cdbs, debhelper (>= 4.1.0), libcap-dev, libreadline5-dev, libspandsp-dev (>= 0.0.3), libssl-dev, libncurses-dev, libpq-dev | postgresql-dev, libspeex-dev, libcurl3-dev, unixodbc-dev, libcapi20-dev, zaptel-source
+Section: comm
+Maintainer: Debian VoIP Team <pkg-voip-maintainers@lists.alioth.debian.org>
+Uploaders: Kilian Krause <kilian@debian.org>, Mark Purcell <msp@debian.org>
+Build-Depends: debhelper (>= 4.1.0), dpatch, libcap-dev, libedit-dev, libspandsp-dev (= 0.0.4), libssl-dev, libncurses-dev, libpq-dev, libspeex-dev, libcurl3-dev, unixodbc-dev, libcapi20-dev, zaptel-source, libreadline-dev
 Standards-Version: 3.6.2
+XS-Vcs-Svn: svn://svn.debian.org/pkg-voip/
+XS-Vcs-Browser: http://svn.debian.org/wsvn/pkg-voip/
 
 Package: callweaver
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, callweaver-sounds, libspeex1, unixodbc
-Description: Private branch exchange
- Forked from Asterisk
+Suggests: gnomemeeting, ekiga, ohphone, kphone, asterisk-doc, asterisk-dev, asterisk-rate-engine
+Description: Open Source Private Branch Exchange (PBX), forked from Asterisk
+ OpenPBX is an Open Source PBX and telephony toolkit. It is, in a
+ sense, middleware between Internet and telephony channels on the bottom,
+ and Internet and telephony applications at the top.  The OpenPBX fork of
+ asterisk is community driven and intended to be easy to use and easy to
+ deploy. 
+ .
+ OpenPBX can be used with Voice over IP (SIP, H.323, IAX) standards, or the 
+ Public Switched Telephone Network (PSTN) through Supported Hardware.
+ .
+ This Debian package includes the sample configuration, with demonstration
+ extensions, etc
+ .
+ Website: http://www.callweaver.org
 
 Package: callweaver-dev
+Section: devel
 Architecture: any
-Description: Development files
+Description: Development files for OpenPBX
+ OpenPBX is an Open Source PBX and telephony toolkit.
+ .
+ This package contains the include files used if you wish to compile a
+ package which requires OpenPBX source file headers.
 
 Package: callweaver-doc
+Recommends: callweaver
+Section: doc
 Architecture: all
-Description: Private branch exchange
- Documentation
+Description: documentation for OpenPBX
+ Asterisk is an Open Source PBX and telephony toolkit.
+ .
+ This package contains the source documentation needed if you wish to
+ extend the callweaver package.
 

@@ -17,7 +17,7 @@ case "$1" in
 	if (getent passwd callweaver >/dev/null);then
 		:
 	else
-	    	adduser --system --group --home /var/lib/callweaver --gecos "callweaver PBX daemon" callweaver
+	    	adduser --system --group --home /var/lib/callweaver --gecos "CallWeaver PBX daemon" callweaver
 		adduser callweaver audio 
 		adduser callweaver dialout
 	fi

@@ -1,23 +1,6 @@
-callweaver (1.1.99-2663) opo; urgency=low
+callweaver (1.1.99~trunk~dfsg-1) UNRELEASED; urgency=low
 
-  * Added ODBC support
-  * Added chan_bluetooth support
+  * Callweaver 1.2 initial release.
+  * Imported from callweaver original package.
 
- -- Massimo Cetra <devel@navynet.it>  Tue,  3 Jan 2006 20:41:15 +0100
-
-callweaver (0.2.0-trunk-1659-109) opo; urgency=low
-
-  * Updated trunk
-
- -- Massimo Cetra <devel@navynet.it>  Tue,  3 Jan 2006 20:41:15 +0100
-
-callweaver (0.2.0-5) opo; urgency=low
-
-  * enable T.38 support
-
- -- Gerd Flaig <gerd@schlund.de>  Tue,  3 Jan 2006 20:41:15 +0100
-
-callweaver (0.2.0-4) opo; urgency=low
-
-  * create callweaver user in postinst
-
+ -- Kilian Krause <kilian@debian.org>  Wed,  3 Jan 2007 18:11:16 +0100

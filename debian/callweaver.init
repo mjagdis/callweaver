@@ -12,7 +12,7 @@
 #		Written by Miquel van Smoorenburg <miquels@cistron.nl>.
 #		Modified for Debian GNU/Linux
 #		by Ian Murdock <imurdock@gnu.ai.mit.edu>
-#               adapted for CallWeaver by Gerd Flaig <gefla@pond.sub.org>.
+#               adapted for OpenPBX by Gerd Flaig <gefla@pond.sub.org>.
 #
 # Version:	@(#)skeleton  1.9  26-Feb-2001  miquels@cistron.nl
 #
@@ -20,22 +20,22 @@
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=callweaver
 USER=$NAME
-DESC="CallWeaver"
-PIDFILE="/var/run/callweaver/callweaver.pid"
+DESC="CallWeaver PBX"
+PIDFILE="/var/run/$NAME/$NAME.pid"
 
 # by default: use real-time priority
 PARAMS=""
-OPBX_REALTIME="yes"
+CALLWEAVER_REALTIME="yes"
 RUNCALLWEAVER="no"
 MODULEINIT=""
-if [ -r /etc/default/callweaver ]; then . /etc/default/callweaver; fi
+if [ -r /etc/default/$NAME ]; then . /etc/default/$NAME; fi
 
 if [ "$RUNCALLWEAVER" != "yes" ];then
-	echo "CallWeaver not yet configured. Edit /etc/default/callweaver first."
+	echo "$DESC not yet configured. Edit /etc/default/$NAME first."
 	exit 1
 fi
 
-if [ "$OPBX_REALTIME" != "no" ]
+if [ "$CALLWEAVER_REALTIME" != "no" ]
 then
   PARAMS="$PARAMS -p"
 fi
@@ -51,7 +51,7 @@ then
   exit 1
 fi
 PARAMS="$PARAMS -U $USER"
-if [ "x$RUNOPBXSAFE" = "xyes" ];then
+if [ "x$RUNCALLWEAVERSAFE" = "xyes" ];then
 	DAEMON=/usr/sbin/safe_callweaver
 	REALDAEMON=/usr/sbin/callweaver
 else
@@ -70,7 +70,7 @@ case "$1" in
 	;;
   stop)
 	echo -n "Stopping $DESC: "
-	if [ "$RUNOPBXSAFE" = "yes" ];then
+	if [ "$RUNCALLWEAVERSAFE" = "yes" ];then
 		# hopefully this will work. Untested
 		$REALDAEMON -rx 'stop now' > /dev/null  || true
 	else
@@ -80,7 +80,7 @@ case "$1" in
 	echo -n "$NAME"
 	# giving a small grace time to shut down cleanly.
 	sleep 2
-	if [ "$RUNOPBXSAFE" = "yes" ];then
+	if [ "$RUNCALLWEAVERSAFE" = "yes" ];then
 		start-stop-daemon --quiet --oknodo --stop --exec $DAEMON
 	fi
 	# just making sure it's really, really dead. 

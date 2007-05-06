@@ -1,16 +1,16 @@
 # This file allows you to alter the configuration of the callweaver
 # init.d script
 #
-# RUNOPBX: run callweaver upon boot. Should be set to "yes" once you have
+# RUNCALLWEAVER: run callweaver upon boot. Should be set to "yes" once you have
 #              setup your configuration.
-RUNCALLWEAVER=yes
+RUNCALLWEAVER=no
 #
 #
-# OPBX_REALTIME:if set to anything other than "no", callweaver will run in 
+# CALLWEAVER_REALTIME:if set to anything other than "no", callweaver will run in 
 #               real-time priority (pass '-p' to callweaver). un-rem the 
 #               following line to disable callweaver from running in real-time 
 #               priority
-#OPBX_REALTIME=yes
+#CALLWEAVER_REALTIME=yes
 #
 # PARAMS: exra parameters to pass to callweaver
 #         The example here may help you in debugging, but is not intended for
@@ -19,6 +19,6 @@ RUNCALLWEAVER=yes
 #PARAMS="-g -vvv"
 #
 #
-# RUNOPBXSAFE: run safe_callweaver rather than callweaver (will auto-restart upon
+# RUNCALLWEAVERSAFE: run safe_callweaver rather than callweaver (will auto-restart upon
 #             crash)
-#RUNOPBXSAFE=yes
+#RUNCALLWEAVERSAFE=yes
