@@ -24,11 +24,11 @@
 
 ;[default]
 ;mode=files
-;directory=@opbxmohdir@
+;directory=@opbxdatadir@/moh
 ;
 ;[default-random]
 ;mode=files
-;directory=@opbxmohdir@
+;directory=@opbxdatadir@/moh
 ;random=yes 	; Play the files in a random order
 
 ;[ulawstream]
@@ -48,24 +48,24 @@
 
 ;[mp3stream]
 ;mode=custom
-;directory=@opbxmohdir@
+;directory=@opbxdatadir@/moh
 ;application=/usr/bin/mpg123 -q -s --mono -r 8000 -f 8192
 ;format=slin
 ;
 ;[mp3nbstream]
 ;mode=custom
-;directory=@opbxmohdir@
+;directory=@opbxdatadir@/moh
 ;application=/usr/bin/mpg123 -q -s --mono -r 8000 -b 2048 -f 8192
 ;format=slin
 ;
 ;[quietmp3stream]
 ;mode=custom
-;directory=@opbxmohdir@
+;directory=@opbxdatadir@/moh
 ;application=/usr/bin/mpg123 -q -s --mono -r 8000 -f 4096
 ;format=slin
 ;
 ;[quietmp3nbstream]
 ;mode=custom
-;directory=@opbxmohdir@
+;directory=@opbxdatadir@/moh
 ;application=/usr/bin/mpg123 -q -s --mono -r 8000 -b 2048 -f 4096
 ;format=slin
