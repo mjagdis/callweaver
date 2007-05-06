@@ -42,6 +42,9 @@ noload => chan_woomera.so
 ; configured prevents callweaver from working.
 noload => chan_capi.so
 
+; Jabber wont work without config
+noload => res_jabber.so
+
 ;
 ; Module names listed in "global" section will have symbols globally
 ; exported to modules loaded after them.
