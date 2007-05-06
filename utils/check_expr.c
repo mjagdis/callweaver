@@ -21,20 +21,20 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include <errno.h>
 #include "callweaver/callweaver_expr.h"
 
-int global_lineno = 1;
-int global_expr_count = 0;
-int global_expr_max_size = 0;
-int global_expr_tot_size = 0;
-int global_warn_count = 0;
-int global_OK_count = 0;
+static unsigned int global_lineno = 1;
+static unsigned int global_expr_count = 0;
+static unsigned int global_expr_max_size = 0;
+static unsigned int global_expr_tot_size = 0;
+static unsigned int global_warn_count = 0;
+static unsigned int global_OK_count = 0;
 
 struct varz
 {
 	char varname[100]; /* a really ultra-simple, space-wasting linked list of var=val data */
-	char varval[1000]; /* if any varname is bigger than 100 chars, or val greater than 1000, then **CRASH** */
+	char varval[1000]; /* Input strings will be truncated if the buffers are not big enough. */
 	struct varz *next;
 };
 
@@ -42,17 +42,29 @@ struct varz *global_varlist;
 
 /* Our own version of opbx_log, since the expr parser uses it. */
 
-void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void opbx_log(int level, const char *file, unsigned int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
 
-void opbx_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void opbx_log(int level, const char *file, unsigned int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
 	va_start(vars,fmt);
 	
-	printf("LOG: lev:%d file:%s  line:%d func: %s  ",
-		   level, file, line, function);
-	vprintf(fmt, vars);
-	fflush(stdout);
+	if (printf("LOG: lev:%d file:%s  line:%u func: %s  ",
+		       level, file, line, function) < 0)
+	{
+		exit(errno);
+	}
+
+	if (vprintf(fmt, vars) < 0)
+	{
+		exit(errno);
+	}
+
+	if (fflush(stdout))
+	{
+		exit(errno);
+	}
+
 	va_end(vars);
 }
 
@@ -69,88 +81,101 @@ char *find_var(const char *varname) /* the list should be pretty short, if there
 
 void set_var(const char *varname, const char *varval)
 {
-	struct varz *t = calloc(1,sizeof(struct varz));
-	strcpy(t->varname, varname);
-	strcpy(t->varval, varval);
+	struct varz* t = (struct varz*) calloc(1, sizeof(struct varz));
+	
+	if (!t)
+	{
+		exit(ENOMEM);
+	}
+	
+	strncat(t->varname, varname, sizeof(t->varname) - 1);
+	strncat(t->varval, varval, sizeof(t->varval) - 1);
 	t->next = global_varlist;
 	global_varlist = t;
 }
 
-int check_expr(char *buffer, char *error_report)
+unsigned int check_expr(char* buffer, char* error_report)
 {
-	char *cp;
-	int oplen = 0;
-	int warn_found = 0;
+	char* cp;
+	unsigned int warn_found = 0;
 
 	error_report[0] = 0;
 	
-	for (cp=buffer;*cp;cp++) {
-		
-		if (*cp == '|' 
-			|| *cp == '&'
-			|| *cp == '='
-			|| *cp == '>'
-			|| *cp == '<'
-			|| *cp == '+'
-			|| *cp == '-'
-			|| *cp == '*'
-			|| *cp == '/'
-			|| *cp == '%'
-			|| *cp == '?'
-			|| *cp == ':'
-			/*	|| *cp == '('
-				|| *cp == ')' These are pretty hard to track, as they are in funcalls, etc. */
-			|| *cp == '"') {
-			if (*cp == '"') {
+	for (cp = buffer; *cp; ++cp)
+	{
+		switch (*cp)
+		{
+			case '"':
 				/* skip to the other end */
-				cp++;
-				while (*cp && *cp != '"')
-					cp++;
-				if (*cp == 0) {
-					fprintf(stderr,"Trouble? Unterminated double quote found at line %d\n",
-							global_lineno);
-				}
-			}
-			else {
-				if ((*cp == '>'||*cp == '<' ||*cp=='!') && (*(cp+1) == '=')) {
-					oplen = 2;
-				}
-				else {
-					oplen = 1;
-				}
-				
-				if ((cp > buffer && *(cp-1) != ' ') || *(cp+oplen) != ' ') {
-					char tbuf[1000];
-					if (oplen == 1)
-						sprintf(tbuf,"WARNING: line %d,  '%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
-								global_lineno, *cp);
-					else
-						sprintf(tbuf,"WARNING: line %d,  '%c%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
-								global_lineno, *cp, *(cp+1));
-					strcat(error_report,tbuf);
+				while (*(++cp) && *cp != '"') ;
 
-					global_warn_count++;
-					warn_found++;
+				if (*cp == 0)
+				{
+					if (fprintf(stderr,
+							"Trouble? Unterminated double quote found at line %u\n",
+							global_lineno) < 0)
+					{
+						exit(errno);
+					}
 				}
-			}
+				break;
+				
+			case '>':
+			case '<':
+			case '!':
+				if (   (*(cp + 1) == '=')
+					&& ( ( (cp > buffer) && (*(cp - 1) != ' ') ) || (*(cp + 2) != ' ') ) )
+				{
+					char msg[200];
+					snprintf(msg,
+						sizeof(msg),
+						"WARNING: line %u: '%c%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
+						global_lineno, *cp, *(cp + 1));
+					strcat(error_report, msg);
+					++global_warn_count;
+					++warn_found;
+				}
+				break;
+				
+			case '|':
+			case '&':
+			case '=':
+			case '+':
+			case '-':
+			case '*':
+			case '/':
+			case '%':
+			case '?':
+			case ':':
+				if ( ( (cp > buffer) && (*(cp - 1) != ' ') ) || (*(cp + 1) != ' ') )
+				{
+					char msg[200];
+					snprintf(msg,
+						sizeof(msg),
+						"WARNING: line %u: '%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
+						global_lineno, *cp, *(cp + 1));
+					strcat(error_report, msg);
+					++global_warn_count;
+					++warn_found;
+				}
+				break;
 		}
 	}
+
 	return warn_found;
 }
 
 int check_eval(char *buffer, char *error_report)
 {
-	char *cp, *ep, *xp;
+	char *cp, *ep;
 	char s[4096];
 	char evalbuf[80000];
-	int oplen = 0;
-	int warn_found = 0;
 	int result;
 
 	error_report[0] = 0;
 	ep = evalbuf;
 
-	for (cp=buffer;*cp;cp++) {
+	for (cp = buffer; *cp; ++cp) {
 		if (*cp == '$' && *(cp+1) == '{') {
 			int brack_lev = 1;
 			char *xp= cp+2;
@@ -185,7 +210,10 @@ int check_eval(char *buffer, char *error_report)
 				}
 			}
 			else {
-				printf("Unterminated variable reference at line %d\n", global_lineno);
+				if (printf("Unterminated variable reference at line %u\n", global_lineno) < 0)
+				{
+					exit(errno);
+				}
 				*ep++ = *cp;
 			}
 		}
@@ -202,10 +230,10 @@ int check_eval(char *buffer, char *error_report)
 	/* now, run the test */
 	result = opbx_expr(evalbuf, s, sizeof(s));
 	if (result) {
-		sprintf(error_report,"line %d, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
+		sprintf(error_report, "line %u, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
 		return 1;
 	} else {
-		sprintf(error_report,"line %d, evaluation of $[ %s ] result: ****SYNTAX ERROR****\n", global_lineno, evalbuf);
+		sprintf(error_report, "line %u, evaluation of $[ %s ] result: ****SYNTAX ERROR****\n", global_lineno, evalbuf);
 		return 1;
 	}
 }
@@ -214,17 +242,28 @@ int check_eval(char *buffer, char *error_report)
 void parse_file(const char *fname)
 {
 	FILE *f = fopen(fname,"r");
-	FILE *l = fopen("expr2_log","w");
+	FILE *l;
 	int c1;
 	char last_char= 0;
 	char buffer[30000]; /* I sure hope no expr gets this big! */
 	
 	if (!f) {
-		fprintf(stderr,"Couldn't open %s for reading... need an extensions.conf file to parse!\n");
+		if (fprintf(stderr,
+				"Couldn't open %s for reading... need an extensions.conf file to parse!\n",
+				fname) < 0)
+		{
+			exit(errno);
+		}
 		exit(20);
 	}
 	if (!l) {
-		fprintf(stderr,"Couldn't open 'expr2_log' file for writing... please fix and re-run!\n");
+
+	if (!(l = fopen("expr2_log", "w"))) {
+		if (fprintf(stderr, "Couldn't open 'expr2_log' file for writing... please fix and re-run!\n") < 0)
+		{
+			exit(errno);
+		}
+
 		exit(21);
 	}
 	
@@ -237,7 +276,7 @@ void parse_file(const char *fname)
 			if (last_char == '$') {
 				/* bingo, an expr */
 				int bracklev = 1;
-				int bufcount = 0;
+				unsigned int bufcount = 0;
 				int retval;
 				char error_report[30000];
 				
@@ -247,10 +286,25 @@ void parse_file(const char *fname)
 					else if (c1 == ']')
 						bracklev--;
 					if (c1 == '\n') {
-						fprintf(l, "ERROR-- A newline in an expression? Weird! ...at line %d\n", global_lineno);
-						fclose(f);
-						fclose(l);
-						printf("--- ERROR --- A newline in the middle of an expression at line %d!\n", global_lineno);
+						if (fprintf(l, "ERROR-- A newline in an expression? Weird! ...at line %u\n", global_lineno) < 0)
+						{
+							exit(errno);
+						}
+
+						if (fclose(f))
+						{
+							exit(errno);
+						}
+
+						if (fclose(l))
+						{
+							exit(errno);
+						}
+
+						if (printf("--- ERROR --- A newline in the middle of an expression at line %u!\n", global_lineno) < 0)
+						{
+							exit(errno);
+						}
 					}
 					
 					if (bracklev == 0)
@@ -258,10 +312,25 @@ void parse_file(const char *fname)
 					buffer[bufcount++] = c1;
 				}
 				if (c1 == EOF) {
-					fprintf(l, "ERROR-- End of File Reached in the middle of an Expr at line %d\n", global_lineno);
-					fclose(f);
-					fclose(l);
-					printf("--- ERROR --- EOF reached in middle of an expression at line %d!\n", global_lineno);
+					if (fprintf(l, "ERROR-- End of File Reached in the middle of an Expr at line %u\n", global_lineno) < 0)
+					{
+						exit(errno);
+					}
+
+					if (fclose(f))
+					{
+						exit(errno);
+					}
+
+					if (fclose(l))
+					{
+						exit(errno);
+					}
+
+					if (printf("--- ERROR --- EOF reached in middle of an expression at line %u!\n", global_lineno) < 0)
+					{
+						exit(errno);
+					}
 					exit(22);
 				}
 				
@@ -275,41 +344,70 @@ void parse_file(const char *fname)
 				retval = check_expr(buffer, error_report); /* check_expr should bump the warning counter */
 				if (retval != 0) {
 					/* print error report */
-					printf("Warning(s) at line %d, expression: $[%s]; see expr2_log file for details\n", 
-						   global_lineno, buffer);
-					fprintf(l, "%s", error_report);
+					if (printf("Warning(s) at line %u, expression: $[%s]; see expr2_log file for details\n", 
+						   global_lineno, buffer) < 0)
+					{
+						exit(errno);
+					}
+
+					if (fprintf(l, "%s", error_report) < 0)
+					{
+						exit(errno);
+					}
 				}
 				else {
-					printf("OK -- $[%s] at line %d\n", buffer, global_lineno);
+					if (printf("OK -- $[%s] at line %u\n", buffer, global_lineno) < 0)
+					{
+						exit(errno);
+					}
 					global_OK_count++;
 				}
 				error_report[0] = 0;
 				retval = check_eval(buffer, error_report);
-				fprintf(l, "%s", error_report);
+
+				if (fprintf(l, "%s", error_report) < 0)
+				{
+					exit(errno);
+				}
 			}
 		}
 		last_char = c1;
 	}
-	printf("Summary:\n  Expressions detected: %d\n  Expressions OK:  %d\n  Total # Warnings:   %d\n  Longest Expr:   %d chars\n  Ave expr len:  %d chars\n",
+	if (printf("Summary:\n  Expressions detected: %u\n  Expressions OK:  %u\n  Total # Warnings:   %u\n  Longest Expr:   %u chars\n  Ave expr len:  %u chars\n",
 		   global_expr_count,
 		   global_OK_count,
 		   global_warn_count,
 		   global_expr_max_size,
-		   (global_expr_count) ? global_expr_tot_size/global_expr_count : 0);
-	
-	fclose(f);
-	fclose(l);
+		   global_expr_count ? global_expr_tot_size/global_expr_count : 0) < 0)
+	{
+		exit(errno);
+	}
+
+	if (fclose(f))
+	{
+		exit(errno);
+	}
+
+	if (fclose(l))
+	{
+		exit(errno);
+	}
+
 }
 
 
-main(int argc,char **argv)
+int main(int argc, char **argv)
 {
 	int argc1;
 	char *eq;
 	
 	if (argc < 2) {
-		printf("Hey-- give me a path to an extensions.conf file!\n");
-		exit(19);
+		if (printf("Hey-- give me a path to an extensions.conf file!\n") < 0)
+		{
+			return errno;
+		}
+
+		return 19;
 	}
 	global_varlist = 0;
 	for (argc1=2;argc1 < argc; argc1++) {
@@ -322,4 +420,5 @@ main(int argc,char **argv)
 	/* parse command args for x=y and set varz */
 	
 	parse_file(argv[1]);
+	return 0;
 }
