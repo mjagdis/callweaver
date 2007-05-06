@@ -16768,6 +16768,7 @@ static int sip_t38switchover(struct opbx_channel *chan, void *data)
         }
     }
     else {
+	if ( ! t38udptlsupport ) /* Don't warn if it's disabled */
 	opbx_log(LOG_WARNING,
 		    "Cannot execute T38 reinvite [ t38udptlsupport: %d, p->t38state %d, bridged %d ]\n",
 		    t38udptlsupport,
