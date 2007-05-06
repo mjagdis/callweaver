@@ -32,7 +32,7 @@ if [ -r /etc/default/$NAME ]; then . /etc/default/$NAME; fi
 
 if [ "$RUNCALLWEAVER" != "yes" ];then
 	echo "$DESC not yet configured. Edit /etc/default/$NAME first."
-	exit 1
+	exit 0
 fi
 
 if [ "$CALLWEAVER_REALTIME" != "no" ]

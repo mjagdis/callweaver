@@ -52,6 +52,7 @@ ifeq ($(ENABLE_DEBUG), yes)
     --enable-debug-scheduler=yes \
     --enable-stack-backtraces=yes \
     --disable-optimization
+    --with-directory-layout=lsb
 endif
 
 check-ilbc:
@@ -65,14 +66,24 @@ config.status: check-ilbc patch-stamp configure
 	dh_testdir
 	# just make sure we're not regenerating configure =)
 	touch configure
-	CFLAGS="$(CFLAGS)" ./configure $(confflags) --prefix=/usr --mandir=\$${prefix}/share/man \
-				--infodir=\$${prefix}/share/info --sysconfdir=/etc --disable-ilbc \
-				--with-directory-layout=lsb --with-pbx_ael=yes \
+	CFLAGS="$(CFLAGS)" ./configure $(confflags) \
+			        --with-directory-layout=lsb \
+				--prefix=/usr \
+				--mandir=\$${prefix}/share/man \
+	        		--infodir=\$${prefix}/share/info \
+				--bindir=\$${prefix}/bin \
+				--sbindir=\$${prefix}/sbin \
+				--libdir=\$${prefix}/lib \
+				--datarootdir=\$${prefix}/share \
+				--localstatedir=/var \
+				--sysconfdir=/etc \
+				\
+				--disable-ilbc --with-pbx_ael=yes \
 				--with-app_sql_postgres=yes --enable-postgresql=yes \
 				--with-res_config_pgsql --with-res_sqlite=yes \
 				--with-cdr_pgsql=yes --with-app_meetme=no --with-chan-capi=yes \
 				--enable-iax-trunking=yes --with-res_config_curl=yes \
-				--enable-t38=yes --with-chan-fax=yes --enable-jabber=yes \
+				--enable-t38=yes --with-chan-fax=yes \
 				--with-res_jabber=yes --enable-odbc=yes --with-cdr_odbc=yes \
 				--with-res_config_odbc=yes --with-res_odbc=yes \
 				--with-chan_bluetooth=yes
@@ -114,8 +125,8 @@ install: build
 	
 	# Add here commands to install the package into debian/yate.
 	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
-	sed -e "s,__OPENPBX_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_openpbx > \
-	        debian/tmp/usr/sbin/safe_openpbx
+	sed -e "s,__OPENPBX_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_callweaver > \
+	        debian/tmp/usr/sbin/safe_callweaver
 
 # Build architecture-independent files here.
 binary-indep: install

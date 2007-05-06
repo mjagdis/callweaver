@@ -1,6 +1,5 @@
 callweaver (1.1.99~trunk~dfsg-1) UNRELEASED; urgency=low
 
-  * Callweaver 1.2 initial release.
-  * Imported from callweaver original package.
+  * Callweaver 1.1.99 Developemet release.
 
- -- Kilian Krause <kilian@debian.org>  Wed,  3 Jan 2007 18:11:16 +0100
+ -- Massimo Cetra <devel@navynet.it>  Sun,  6 May 2007 16:28:16 +0100
