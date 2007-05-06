@@ -24,7 +24,7 @@ SED = @SED@
 M4 = @M4@
 SVN = @SVN@
 
-LDFLAGS		= --as-needed --enable-new-dtags
+## LDFLAGS		= --as-needed --enable-new-dtags
 
 ##########
 # DAEMON #
