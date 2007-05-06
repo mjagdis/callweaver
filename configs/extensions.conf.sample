@@ -343,7 +343,55 @@ exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
 exten => a,1,VoiceMailMain(${ARG1})				; If they press *, send the user into VoiceMailMain
 
+;
+; The following contexts describe how to sed/receive a fax. 
+;
+
+[faxin]
+exten => s,1,Set(LOCALSTATIONID=Callweaver FAX)
+exten => s,n,Set(LOCALHEADERINFO=Callewaver fax termination)
+exten => s,n,Set(FAXFILE=/tmp/${UNIQUEID}.tif)
+exten => s,n,Set(FAXFILENOEXT=/tmp/${UNIQUEID})
+exten => s,n,Set(SIP_CODEC=alaw)
+exten => s,n,SipDTMFMode(inband)
+exten => s,n,RxFAX(${FAXFILE}|ecm)
+exten => s,n,Hangup()
+exten => h,n,NoOp(RX: REMOTESTATIONID is ${REMOTESTATIONID})
+exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTATUS})
+exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTRING})
+
+[faxout]
+exten => s,1,Set(LOCALSTATIONID=Callweaver FAX)
+exten => s,n,Set(LOCALHEADERINFO=Callewaver fax termination)
+exten => s,n,Set(FAXFILE=/tmp/${UNIQUEID}.tif)
+exten => s,n,Set(SIP_CODEC=alaw)
+exten => s,n,SipDTMFMode(inband)
+exten => s,n,TxFAX(${FAXFILE}|caller|debug|ecm)
+exten => h,1,NoOp(TX: REMOTESTATIONID is ${REMOTESTATIONID})
+exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTATUS})
+exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTRING})
+
+[detectfax]
+exten => s,1,FaxDetect(8000)
+exten => s,n,Hangup()
+exten => fax,1,NoOp(Fax detected)
+exten => fax,1,Set(LOCALSTATIONID=Callweaver FAX)
+exten => fax,n,Set(LOCALHEADERINFO=Callewaver fax termination wih detection)
+exten => fax,n,RxFAX(/tmp/${UNIQUEID}.tiff)
+exten => fax,n,Hangup()
+exten => h,1,NoOp(RX: REMOTESTATIONID is ${REMOTESTATIONID})
+exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTATUS})
+exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTRING})
+
+[myfax]
+exten => 800,1,Goto(faxin,s,1);
+exten => 801,1,Goto(faxout,s,1);
+exten => 802,1,Goto(detectfax,s,1);
+
 [demo]
+
+include => myfax
+
 ;
 ; We start with what to do when a call first comes in.
 ;
