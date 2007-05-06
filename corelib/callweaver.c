@@ -2065,6 +2065,7 @@ int callweaver_main(int argc, char *argv[])
 			exit(1);
 		}
 		
+		if (gr->gr_gid != getegid() )
 		if (initgroups(pw->pw_name, gr->gr_gid) == -1) {
 			opbx_log(LOG_ERROR, "Unable to initgroups '%s' (%d)\n", pw->pw_name, gr->gr_gid);
 			exit(1);
