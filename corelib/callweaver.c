@@ -1797,6 +1797,8 @@ static void opbx_readconfig(void) {
 			opbx_copy_string(opbx_config_OPBX_RUN_DIR, v->value, sizeof(opbx_config_OPBX_RUN_DIR));
 		} else if (!strcasecmp(v->name, "opbxmoddir")) {
 			opbx_copy_string(opbx_config_OPBX_MODULE_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR));
+		} else if (!strcasecmp(v->name, "opbxkeydir")) { 
+			opbx_copy_string(opbx_config_OPBX_KEY_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR)); 
 		}
 		v = v->next;
 	}
