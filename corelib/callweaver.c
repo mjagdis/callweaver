@@ -2128,10 +2128,12 @@ int callweaver_main(int argc, char *argv[])
 		cap_data->inheritable = 0;
 		/* set capabilities including NET_ADMIN */
 		/* this allows us to e.g. set all TOS bits */
-		if (capset(cap_header, cap_data) == -1) {
+
+		if (gr->gr_gid != getegid() )
+		    if (capset(cap_header, cap_data) == -1) {
 			opbx_log(LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
 			exit(1);
-		}
+		    }
 #endif
 	}
 
