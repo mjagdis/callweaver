@@ -332,6 +332,7 @@ int opbx_say_digits(struct opbx_channel *chan, int num, const char *ints, const 
 
 /* Forward declarations of language specific variants of opbx_say_number_full */
 static int opbx_say_number_full_en(struct opbx_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
+static int opbx_say_number_full_br(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int opbx_say_number_full_cz(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int opbx_say_number_full_da(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int opbx_say_number_full_de(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
@@ -411,6 +412,8 @@ int opbx_say_number_full(struct opbx_channel *chan, int num, const char *ints, c
 {
 	if (!strcasecmp(language,"en") ) {	/* English syntax */
 	   return(opbx_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "br") ) {	/* Brazilian syntax */
+	   return(opbx_say_number_full_br(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "cz") ) {	/* Czech syntax */
 	   return(opbx_say_number_full_cz(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "da") ) {	/* Danish syntax */
@@ -526,6 +529,100 @@ static int exp10_int(int power)
 	int x, res= 1;
 	for (x=0;x<power;x++)
 		res *= 10;
+	return res;
+}
+
+/*! \brief  opbx_say_number_full_br: Brazilian syntax */
+/* 
+   In addition to English, the following sounds are required:
+      "1F", "2F"
+      "100", "200", "300", "400", "500", "600", "700", "800", "900" 
+      "200F", "300F", "400F", "500F", "600F", "700F", "800F", "900F" 
+      "short-and", "million", "millions"
+   Play a short "and" after each tens (20, 30,...,90 ) and each hundreds (100, 200,...,900) if continue
+*/
+static int opbx_say_number_full_br(struct opbx_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playa = 0;     /* play short-and */
+	int mf = 1;        /* +1 = male; -1 = female */
+	char fn[256] = "";
+	
+	if (!num) 
+		return opbx_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+
+	if (options && !strncasecmp(options, "f",1)) 
+		mf = -1;
+
+	while(!res && num ) {
+		if (num < 0) {
+			snprintf(fn, sizeof(fn), "digits/minus");
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}	
+		} else if (num < 3) {
+		        if (mf < 0) {
+				snprintf(fn, sizeof(fn), "digits/%dF", num);
+			} else { 
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+			}
+			num = 0;
+		} else if (num < 20) {
+			snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
+		} else if (num < 100) {
+			snprintf(fn, sizeof(fn), "digits/%d", (num / 10) * 10);
+			num = num % 10;
+			if (num)
+				playa = 1;
+		} else if (num == 100) {
+			snprintf(fn, sizeof(fn), "digits/hundred");
+			num = 0;
+		} else if (num < 200) {
+			snprintf(fn, sizeof(fn), "digits/100");
+			num = num % 100;
+			playa = 1;
+		} else if (num < 1000) {
+		        if (mf < 0) {
+				snprintf(fn, sizeof(fn), "digits/%dF", (num / 100) * 100);
+			} else { 
+				snprintf(fn, sizeof(fn), "digits/%d", (num / 100) * 100);
+			}
+			num = num % 100;
+			if (num)
+				playa = 1;
+		} else if (num < 1000000) {
+			res = opbx_say_number_full_br(chan, (num / 1000), ints, language, options, audiofd, ctrlfd);
+			snprintf(fn, sizeof(fn), "digits/1000");
+			num = num % 1000;
+		} else if (num < 1000000000) {
+			res = opbx_say_number_full_br(chan, (num / 1000000), ints, language, options, audiofd, ctrlfd );
+			if (num < 2000000)
+				snprintf(fn, sizeof(fn), "digits/million");
+			else
+				snprintf(fn, sizeof(fn), "digits/millions");
+			num = num % 1000000;
+		} else {
+			opbx_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			res = -1;
+		}
+		if (!res) {
+			if (!opbx_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1))
+					res = opbx_waitstream_full(chan, ints, audiofd, ctrlfd);	
+				else
+					res = opbx_waitstream(chan, ints);
+			}
+			opbx_stopstream(chan);
+		}
+		if (!res && playa) {
+			res = wait_file(chan, ints, "digits/short-and", language);
+			opbx_stopstream(chan);
+			playa = 0;
+		}
+	}
 	return res;
 }
 
