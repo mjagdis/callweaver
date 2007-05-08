@@ -1,9 +1,9 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 2007, Eris Associates Limited, UK
  *
- * Mark Spencer <markster@digium.com>
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -17,322 +17,128 @@
  */
 
 /*! \file
- * \brief CallerID (and other GR30) management and generation
- * Includes code and algorithms from the Zapata library.
+ * \brief Caller ID (and other GR30) Generation support 
+ * Includes code and algorithms from the spandsp library.
  *
  */
 
 /*!
- * \page CID Caller ID names and numbers
+ * \page Caller ID names and numbers
  *
- * Caller ID names are currently 8 bit characters, propably
+ * Caller ID names are currently 8 bit characters, probably
  * ISO8859-1, depending on what your channel drivers handle.
  *
- * IAX2 and SIP caller ID names are UTF8
+ * IAX2 and SIP caller ID names are UTF-8
  * On ISDN Caller ID names are 7 bit, Almost ASCII
  * (See http://www.zytrax.com/tech/ia5.html )
  *
- * \note CallWeaver does not currently support SIP utf8 caller ID names or caller ID's.
+ * \note CallWeaver does not currently support SIP UTF-8 caller ID names or caller IDs.
  *
  * \par See also
  * 	\arg \ref callerid.c
  * 	\arg \ref callerid.h
  *	\arg \ref Def_CallerPres
  */
-
 #ifndef _CALLWEAVER_CALLERID_H
 #define _CALLWEAVER_CALLERID_H
 
+#include <spandsp.h>
+
+
+/*! Maximum length (in samples) of a buffer used for caller ID data.
+ *  32000 is 4s - which should be enough for more than 20 DTMF digits
+ */
 #define MAX_CALLERID_SIZE 32000
 
-#define CID_PRIVATE_NAME 		(1 << 0)
-#define CID_PRIVATE_NUMBER		(1 << 1)
-#define CID_UNKNOWN_NAME		(1 << 2)
-#define CID_UNKNOWN_NUMBER		(1 << 3)
 
-#define CID_SIG_BELL	1
-#define CID_SIG_V23	2
-#define CID_SIG_DTMF	3
-#define CID_SIG_V23_JP	4
-#define CID_SIG_SMDI	5
-
-#define CID_START_RING	1
-#define CID_START_POLARITY 2
-
-
-#define OPBX_LIN2X(a) ((codec == OPBX_FORMAT_ALAW) ? (OPBX_LIN2A(a)) : (OPBX_LIN2MU(a)))
-#define OPBX_XLAW(a) ((codec == OPBX_FORMAT_ALAW) ? (OPBX_ALAW(a)) : (OPBX_MULAW(a)))
-
-
-struct callerid_state;
-typedef struct callerid_state CIDSTATE;
-
-/*! \brief CallerID Initialization
- * \par
- * Initializes the callerid system.  Mostly stuff for inverse FFT
- */
-void callerid_init(void);
-
-/*! \brief Generates a CallerID FSK stream in ulaw format suitable for transmission.
- * \param buf Buffer to use. If "buf" is supplied, it will use that buffer instead of allocating its own.  "buf" must be at least 32000 bytes in size of you want to be sure you don't have an overrun.
- * \param number Use NULL for no number or "P" for "private"
- * \param name name to be used
- * \param flags passed flags
- * \param callwaiting callwaiting flag
- * \param codec -- either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW
- * This function creates a stream of callerid (a callerid spill) data in ulaw format.
- * \return It returns the size
- * (in bytes) of the data (if it returns a size of 0, there is probably an error)
-*/
-int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, int codec);
-
-/*! \brief Create a callerID state machine
- * \param cid_signalling Type of signalling in use
+/*! \brief Generates an FSK/DTMF encoded caller ID stream in [ua]law format suitable for transmission.
  *
- * This function returns a malloc'd instance of the callerid_state data structure.
- * \return Returns a pointer to a malloc'd callerid_state structure, or NULL on error.
- */
-struct callerid_state *callerid_new(int cid_signalling);
-
-/*! \brief Read samples into the state machine.
- * \param cid Which state machine to act upon
- * \param ubuf containing your samples
- * \param samples number of samples contained within the buffer.
- * \param codec which codec (OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
+ * \param sig         Signalling type to use -- one of ADSI_STANDARD_* from spandsp/adsi.h.
+ * \param outbuf      Buffer to use.  "outbuf" must be at least MAX_CALLERID_SIZE bytes long
+ *                    if you want to be sure you don't have an overrun.
+ * \param outlen      Length of "outbuf" available for use.
+ * \param pres        Caller ID presentation flags (see include/callweaver/phone_no_utils.h)
+ * \param number      Caller number. Use NULL for no number.
+ * \param name        Caller name. Use NULL for no name.
+ * \param callwaiting Whether this is at the start of a call or is a callwaiting announcement.
+ * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
  *
- * Send received audio to the Caller*ID demodulator.
- * \return Returns -1 on error, 0 for "needs more samples",
- * and 1 if the CallerID spill reception is complete.
- */
-int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, int codec);
-
-/*! \brief Read samples into the state machine.
- * \param cid Which state machine to act upon
- * \param ubuf containing your samples
- * \param samples number of samples contained within the buffer.
- * \param codec which codec (OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
+ * This function creates a stream of caller ID (a callerid spill) data in ulaw or alaw format.
  *
- * Send received audio to the Caller*ID demodulator (for japanese style lines).
- * \return Returns -1 on error, 0 for "needs more samples",
- * and 1 if the CallerID spill reception is complete.
+ * \return It returns the size (in bytes) of the data.
  */
-int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int samples, int codec);
+extern int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec);
 
-/*! \brief Extract info out of callerID state machine.  Flags are listed above
- * \param cid Callerid state machine to act upon
- * \param number Pass the address of a pointer-to-char (will contain the phone number)
- * \param name Pass the address of a pointer-to-char (will contain the name)
- * \param flags Pass the address of an int variable(will contain the various callerid flags)
+/*! \brief Parse the caller ID decoded from an adsi_rx decoded FSK/DTMF stream and apply it to the channel
  *
- * This function extracts a callerid string out of a callerid_state state machine.
- * If no number is found, *number will be set to NULL.  Likewise for the name.
- * Flags can contain any of the following:
+ * \param adsi       The SpanDSP adsi_rx_state_t used to decode the data stream.
+ * \param chan       The CallWeaver channel the caller ID applies to.
+ * \param msg        The message buffer containing the decoded data stream.
+ * \param len        The length of data in the message buffer.
  *
- * \return Returns nothing.
+ * Note: This function is never called directly but should be called via a SpanDSP adsi_rx
+ * callback function that knows the correct adsi and chan arguments.
+ * See channels/chan_zap.c for an example.
  */
-void callerid_get(struct callerid_state *cid, char **number, char **name, int *flags);
+extern void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_t *msg, int len);
 
-/*! Get and parse DTMF-based callerid  */
-/*!
- * \param cidstring The actual transmitted string.
- * \param number The cid number is returned here.
- * \param flags The cid flags are returned here.
- * This function parses DTMF callerid.
- */
-void callerid_get_dtmf(char *cidstring, char *number, int *flags);
-
-/*! \brief Free a callerID state
- * \param cid This is the callerid_state state machine to free
- * This function frees callerid_state cid.
- */
-void callerid_free(struct callerid_state *cid);
-
-/*! \brief Generate Caller-ID spill from the "callerid" field of CallWeaver (in e-mail address like format)
- * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
- * \param name Caller-ID Name
- * \param number Caller-ID Number
- * \param codec CallWeaver codec (either OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
+/*! \brief Generates an FSK encoded message waiting indication in [ua]law format
+ *         suitable for transmission.
  *
- * Acts like callerid_generate except uses an CallWeaver format callerid string.
+ * \param outbuf      Buffer to use.  "outbuf" must be at least MAX_CALLERID_SIZE bytes long
+ *                    if you want to be sure you don't have an overrun.
+ * \param outlen      Length of "outbuf" available for use.
+ * \param active      Whether the message waiting indicator should be active or not.
+ * \param mdmf        True if an MDMF indication should be used, FALSE for SDMF.
+ * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
+ *
+ * \return It returns the size (in bytes) of the data.
  */
-int OPBX_callerid_generate(unsigned char *buf, const char *name, const char *number, int codec);
+extern int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec);
 
-/*! \brief Generate message waiting indicator  (stutter tone) */
-int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
-
-/*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
- * See OPBX_callerid_generate() for other details
- */
-int OPBX_callerid_callwaiting_generate(unsigned char *buf, const char *name, const char *number, int codec);
-
-/*! \brief Destructively parse inbuf into name and location (or number)
- * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.
- * \param instr buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
- * \param name address of a pointer-to-char for the name value of the stream.
- * \param location address of a pointer-to-char for the phone number value of the stream.
- * \return Returns 0 on success, -1 on failure.
- */
-int OPBX_callerid_parse(char *instr, char **name, char **location);
-
-/*! Generate a CAS (CPE Alert Signal) tone for 'n' samples */
-/*!
- * \param outbuf Allocated buffer for data.  Must be at least 2400 bytes unless no SAS is desired
- * \param sas Non-zero if CAS should be preceeded by SAS
- * \param len How many samples to generate.
- * \param codec Which codec (OPBX_FORMAT_ALAW or OPBX_FORMAT_ULAW)
+/*! \brief Generate a CAS (CPE Alert Signal) tone, optionally preceeded by SAS (Subscriber Alert Signal)
+ *
+ * \param outbuf      Buffer to use.  Must be at least 2400 bytes unless no SAS is desired.
+ * \param outlen      Length of "outbuf" available for use.
+ * \param sendsas     Non-zero if CAS should be preceeded by SAS.
+ * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
+ *
  * \return Returns -1 on error (if len is less than 2400), 0 on success.
  */
-int OPBX_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
+extern int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec);
 
-/*! \brief Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s... */
-/*!
- * \param n The number to be stripped/shrunk
- * \return Returns nothing important
+	/* A 2100Hz monotone (commonly known as a fax tone) may be used to cause
+	 * most switches (with the possible exceptio of some ancient pre-fax
+	 * switches maybe?) to disable echo cancelling and provide a clean channel.
+	 */
+/*! \brief Generate a 2100Hz monotone (or "fax tone") to request downstream
+ *         echo cancelling is turned off.
+ *
+ * \param outbuf      Buffer to use.
+ * \param outlen      Length of "outbuf" to use.
+ * \param codec       Either OPBX_FORMAT_ULAW or OPBX_FORMAT_ALAW.
  */
-void OPBX_shrink_phone_number(char *n);
+extern int opbx_gen_ecdisa(uint8_t *outbuf, int outlen, int codec);
 
-/*! \brief Check if a string consists only of digits and + \#
-    \param n number to be checked.
-    \return Returns 0 if n is a number, 1 if it's not.
- */
-int OPBX_isphonenumber(const char *n);
-
-/*! \brief Check if a string consists only of digits and and + \# ( ) - .
-	(meaning it can be cleaned with OPBX_shrink_phone_number)
-    \param exten The extension (or URI) to be checked.
-    \return Returns 0 if n is a number, 1 if it's not.
- */
-int OPBX_is_shrinkable_phonenumber(const char *exten);
-
-int OPBX_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
-
-char *OPBX_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
 
 /*
  * Caller*ID and other GR-30 compatible generation
  * routines (used by ADSI for example)
  */
 
-extern float cid_dr[4];
-extern float cid_di[4];
-extern float clidsb;
+extern int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec);
 
-static inline float callerid_getcarrier(float *cr, float *ci, int bit)
-{
-	/* Move along.  There's nothing to see here... */
-	float t;
-	t = *cr * cid_dr[bit] - *ci * cid_di[bit];
-	*ci = *cr * cid_di[bit] + *ci * cid_dr[bit];
-	*cr = t;
+#define	TDD_SAMPLES_PER_CHAR	2700
 
-	t = 2.0 - (*cr * *cr + *ci * *ci);
-	*cr *= t;
-	*ci *= t;
-	return *cr;
-}
+struct tdd_state;
 
-#define PUT_BYTE(a) do { \
-	*(buf++) = (a); \
-	bytes++; \
-} while(0)
+extern int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char *str, int codec);
 
-#define PUT_AUDIO_SAMPLE(y) do { \
-	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = OPBX_LIN2X(index); \
-	bytes++; \
-} while(0)
+extern int tdd_feed(struct tdd_state *tdd, uint8_t *xlaw, int len, int codec);
 
-#define PUT_CLID_MARKMS do { \
-	int x; \
-	for (x=0;x<8;x++) \
-		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, 1)); \
-} while(0)
+extern struct tdd_state *tdd_new(void);
 
-#define PUT_CLID_BAUD(bit) do { \
-	while(scont < clidsb) { \
-		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, bit)); \
-		scont += 1.0; \
-	} \
-	scont -= clidsb; \
-} while(0)
+extern void tdd_free(struct tdd_state *tdd);
 
 
-#define PUT_CLID(byte) do { \
-	int z; \
-	unsigned char b = (byte); \
-	PUT_CLID_BAUD(0); 	/* Start bit */ \
-	for (z=0;z<8;z++) { \
-		PUT_CLID_BAUD(b & 1); \
-		b >>= 1; \
-	} \
-	PUT_CLID_BAUD(1);	/* Stop bit */ \
-} while(0)
-
-/* Various defines and bits for handling PRI- and SS7-type restriction */
-
-#define OPBX_PRES_NUMBER_TYPE				0x03
-#define OPBX_PRES_USER_NUMBER_UNSCREENED			0x00
-#define OPBX_PRES_USER_NUMBER_PASSED_SCREEN		0x01
-#define OPBX_PRES_USER_NUMBER_FAILED_SCREEN		0x02
-#define OPBX_PRES_NETWORK_NUMBER				0x03
-
-#define OPBX_PRES_RESTRICTION				0x60
-#define OPBX_PRES_ALLOWED				0x00
-#define OPBX_PRES_RESTRICTED				0x20
-#define OPBX_PRES_UNAVAILABLE				0x40
-#define OPBX_PRES_RESERVED				0x60
-
-#define OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED \
-	OPBX_PRES_USER_NUMBER_UNSCREENED + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN \
-	OPBX_PRES_USER_NUMBER_PASSED_SCREEN + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN \
-	OPBX_PRES_USER_NUMBER_FAILED_SCREEN + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_ALLOWED_NETWORK_NUMBER	\
-	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_ALLOWED
-
-#define OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED \
-	OPBX_PRES_USER_NUMBER_UNSCREENED + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN \
-	OPBX_PRES_USER_NUMBER_PASSED_SCREEN + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN \
-	OPBX_PRES_USER_NUMBER_FAILED_SCREEN + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_PROHIB_NETWORK_NUMBER \
-	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_RESTRICTED
-
-#define OPBX_PRES_NUMBER_NOT_AVAILABLE \
-	OPBX_PRES_NETWORK_NUMBER + OPBX_PRES_UNAVAILABLE
-
-int OPBX_parse_caller_presentation(const char *data);
-const char *OPBX_describe_caller_presentation(int data);
-
-/*! \page Def_CallerPres Caller ID Presentation
-
-	Caller ID presentation values are used to set properties to a
-	caller ID in PSTN networks, and as RPID value in SIP transactions.
-
-	The following values are available to use:
-	\arg \b Defined value, text string in config file, explanation
-
-	\arg \b OPBX_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", Presentation Allowed, Not Screened,
-	\arg \b OPBX_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", Presentation Allowed, Passed Screen,
-	\arg \b OPBX_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN, "allowed_failed_screen", Presentation Allowed, Failed Screen,
-	\arg \b OPBX_PRES_ALLOWED_NETWORK_NUMBER, "allowed", Presentation Allowed, Network Number,
-	\arg \b OPBX_PRES_PROHIB_USER_NUMBER_NOT_SCREENED, "prohib_not_screened", Presentation Prohibited, Not Screened,
-	\arg \b OPBX_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN, "prohib_passed_screen", Presentation Prohibited, Passed Screen,
-	\arg \b OPBX_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN, "prohib_failed_screen", Presentation Prohibited, Failed Screen,
-	\arg \b OPBX_PRES_PROHIB_NETWORK_NUMBER, "prohib", Presentation Prohibited, Network Number,
-
-	\par References
-	\arg \ref callerid.h Definitions
-	\arg \ref callerid.c Functions
-	\arg \ref CID Caller ID names and numbers
-*/
-
-#endif
+#endif /* _CALLWEAVER_CALLERID_H */

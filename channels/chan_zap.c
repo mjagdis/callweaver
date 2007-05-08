@@ -68,7 +68,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 #include "callweaver/ulaw.h"
 #include "callweaver/alaw.h"
 #include "callweaver/phone_no_utils.h"
-#include "callweaver/old_callerid.h"
+#include "callweaver/callerid.h"
 #include "callweaver/adsi.h"
 #include "callweaver/cli.h"
 #include "callweaver/cdr.h"
@@ -124,12 +124,10 @@ static struct opbx_jb_conf global_jbconf;
  */
 /* #define ZAP_CHECK_HOOKSTATE */
 
-/* Typically, how many rings before we should send Caller*ID */
-#define DEFAULT_CIDRINGS 1
 
 #define CHANNEL_PSEUDO -12
 
-#define OPBX_LAW(p) (((p)->law == ZT_LAW_ALAW) ? OPBX_FORMAT_ALAW : OPBX_FORMAT_ULAW)
+#define OPBX_LAW(p) (((p)->law == ZT_LAW_MULAW) ? OPBX_FORMAT_ULAW : OPBX_FORMAT_ALAW)
 
 /* Signaling types that need to use MF detection should be placed in this macro */
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FEATB)) 
@@ -172,6 +170,10 @@ static const char config[] = "zapata.conf";
 #define SIG_GR303FXOKS	(0x0100000 | ZT_SIG_FXOKS)
 #define SIG_GR303FXSKS	(0x0100000 | ZT_SIG_FXSKS)
 
+#define CID_START_RING		1
+#define CID_START_POLARITY	2
+#define CID_START_IDLE		3
+
 #define NUM_SPANS 		32
 #define NUM_DCHANS		4		/* No more than 4 d-channels */
 #define MAX_CHANNELS	672		/* No more than a DS3 per trunk group */
@@ -185,6 +187,7 @@ static const char config[] = "zapata.conf";
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
 static char context[OPBX_MAX_CONTEXT] = "default";
+static char exten[OPBX_MAX_EXTENSION] = "";
 static char cid_num[256] = "";
 static char cid_name[256] = "";
 static char defaultcic[64] = "";
@@ -194,14 +197,15 @@ static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_MUSICCLASS] = "";
 static char progzone[10]= "";
 
-static int usedistinctiveringdetection = 0;
-static int distinctiveringaftercid = 0;
+static int usedistinctiveringdetection = 1;
+static int distinctiveringaftercid = 1;
 
 static int transfertobusy = 1;
 
 static int use_callerid = 1;
-static int cid_signalling = CID_SIG_BELL;
-static int cid_start = CID_START_RING;
+static int cid_signalling = ADSI_STANDARD_CLIP;
+static int cid_start = CID_START_POLARITY;
+static int polarity_events = 1;
 static int zaptrcallerid = 0;
 static int cur_signalling = -1;
 
@@ -233,6 +237,8 @@ static int transfer = 0;
 static int canpark = 0;
 
 static int cancallforward = 0;
+
+static float cid_rxgain = 5.0;
 
 static float rxgain = 0.0;
 
@@ -331,7 +337,7 @@ static int hanguponpolarityswitch = 0;
 static int polarityonanswerdelay = 600;
 
 /* When to send the CallerID signals (rings) */
-static int sendcalleridafter = DEFAULT_CIDRINGS;
+static int sendcalleridafter = -1;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
@@ -472,6 +478,7 @@ struct distRingData {
 };
 struct ringContextData {
 	char contextData[OPBX_MAX_CONTEXT];
+	char extenData[OPBX_MAX_EXTENSION];
 };
 struct zt_distRings {
 	struct distRingData ringnum[3];
@@ -521,6 +528,7 @@ static struct zt_pvt {
 	
 	int sig;					/* Signalling style */
 	int radio;					/* radio type */
+	float cid_rxgain;				/* Gain to apply during CID detection */
 	float rxgain;
 	float txgain;
 	int tonezone;					/* tone zone for this chan, or -1 for default */
@@ -569,6 +577,7 @@ static struct zt_pvt {
 	unsigned int use_callerid:1;			/* Whether or not to use caller id on this channel */
 	unsigned int use_callingpres:1;			/* Whether to use the callingpres the calling switch sends */
 	unsigned int usedistinctiveringdetection:1;
+	unsigned int distinctiveringaftercid:1;
 	unsigned int zaptrcallerid:1;			/* should we use the callerid from incoming call on zap transfer or not */
 	unsigned int transfertobusy:1;			/* allow flash-transfers to busy channels */
 #if defined(ZAPATA_PRI)
@@ -580,6 +589,7 @@ static struct zt_pvt {
 	unsigned int resetting:1;
 	unsigned int setup_ack:1;
 #endif
+	unsigned int polarity_events:1;
 
 	struct zt_distRings drings;
 
@@ -612,12 +622,14 @@ static struct zt_pvt {
 	int channel;					/* Channel Number or CRV */
 	int span;					/* Span number */
 	time_t guardtime;				/* Must wait this much time before using for new call */
+	adsi_rx_state_t *adsi_rx1, *adsi_rx2;		/* Internal CID decoding states */
 	int cid_signalling;				/* CID signalling type bell202 or v23 */
 	int cid_start;					/* CID start indicator, polarity or ring */
+	int cid_send_on;				/* Internal send CID on polarity or ring indicator */
 	int callingpres;				/* The value of callling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;				/* How many samples to wait before repeating call waiting */
 	int cidcwexpire;				/* When to expire our muting for CID/CW */
-	unsigned char *cidspill;
+	uint8_t *cidspill;
 	int cidpos;
 	int cidlen;
 	int ringt;
@@ -1540,8 +1552,7 @@ static int bump_gains(struct zt_pvt *p)
 {
 	int res;
 
-	/* Bump receive gain by 5.0db */
-	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + 5.0, p->txgain, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + p->cid_rxgain, p->txgain, p->law);
 	if (res) {
 		opbx_log(LOG_WARNING, "Unable to bump gain: %s\n", strerror(errno));
 		return -1;
@@ -1644,22 +1655,13 @@ int send_cwcidspill(struct zt_pvt *p)
 	p->cidcwexpire = 0;
 	p->cidspill = malloc(MAX_CALLERID_SIZE);
 	if (p->cidspill) {
-		memset(p->cidspill, 0x7f, MAX_CALLERID_SIZE);
-		p->cidlen = opbx_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, OPBX_LAW(p));
-		/* Make sure we account for the end */
-		p->cidlen += READ_SIZE * 4;
+		p->cidlen = opbx_callerid_generate(p->cid_signalling, p->cidspill, MAX_CALLERID_SIZE, OPBX_PRES_ALLOWED, p->callwait_num, p->callwait_name, 1, OPBX_LAW(p));
 		p->cidpos = 0;
 		send_callerid(p);
 		if (option_verbose > 2)
 			opbx_verbose(VERBOSE_PREFIX_3 "CPE supports Call Waiting Caller*ID.  Sending '%s/%s'\n", p->callwait_name, p->callwait_num);
 	} else return -1;
 	return 0;
-}
-
-static int has_voicemail(struct zt_pvt *p)
-{
-
-	return opbx_app_has_voicemail(p->mailbox, NULL);
 }
 
 static int send_callerid(struct zt_pvt *p)
@@ -1685,14 +1687,12 @@ static int send_callerid(struct zt_pvt *p)
 			return 0;
 		p->cidpos += res;
 	}
-	free(p->cidspill);
-	p->cidspill = NULL;
 	if (p->callwaitcas) {
 		/* Wait for CID/CW to expire */
 		p->cidcwexpire = CIDCW_EXPIRE_SAMPLES;
 	} else
 		restore_conference(p);
-	return 0;
+	return 1;
 }
 
 static int zt_callwait(struct opbx_channel *ast)
@@ -1700,27 +1700,23 @@ static int zt_callwait(struct opbx_channel *ast)
 	struct zt_pvt *p = ast->tech_pvt;
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
-		opbx_log(LOG_WARNING, "Spill already exists?!?\n");
+		opbx_log(LOG_WARNING, "%s: Discarded existing spill!\n", ast->name);
 		free(p->cidspill);
 	}
-	p->cidspill = malloc(2400 /* SAS */ + 680 /* CAS */ + READ_SIZE * 4);
+	p->cidspill = malloc(MAX_CALLERID_SIZE);
 	if (p->cidspill) {
 		save_conference(p);
-		/* Silence */
-		memset(p->cidspill, 0x7f, 2400 + 600 + READ_SIZE * 4);
 		if (!p->callwaitrings && p->callwaitingcallerid) {
-			opbx_gen_cas(p->cidspill, 1, 2400 + 680, OPBX_LAW(p));
+			p->cidlen = opbx_gen_cas(p->cidspill, MAX_CALLERID_SIZE, 1, OPBX_LAW(p));
 			p->callwaitcas = 1;
-			p->cidlen = 2400 + 680 + READ_SIZE * 4;
 		} else {
-			opbx_gen_cas(p->cidspill, 1, 2400, OPBX_LAW(p));
+			p->cidlen = opbx_gen_cas(p->cidspill, MAX_CALLERID_SIZE, 1, OPBX_LAW(p));
 			p->callwaitcas = 0;
-			p->cidlen = 2400 + READ_SIZE * 4;
 		}
 		p->cidpos = 0;
 		send_callerid(p);
 	} else {
-		opbx_log(LOG_WARNING, "Unable to create SAS/CAS spill\n");
+		opbx_log(LOG_WARNING, "%s: No memory for SAS/CAS spill\n", ast->name);
 		return -1;
 	}
 	return 0;
@@ -1728,6 +1724,8 @@ static int zt_callwait(struct opbx_channel *ast)
 
 static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 {
+	struct zt_ring_cadence rcad, *cadence;
+	struct tone_zone *tzone;
 	struct zt_pvt *p = ast->tech_pvt;
 	int x, res, index;
 	char *c, *n, *l, *t;
@@ -1771,35 +1769,6 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		if (p->owner == ast) {
 			/* Normal ring, on hook */
 			
-			/* Don't send audio while on hook, until the call is answered */
-			p->dialing = 1;
-			if (p->use_callerid) {
-				/* Generate the Caller-ID spill if desired */
-				if (p->cidspill) {
-					opbx_log(LOG_WARNING, "cidspill already exists??\n");
-					free(p->cidspill);
-				}
-				p->cidspill = malloc(MAX_CALLERID_SIZE);
-				p->callwaitcas = 0;
-				if (p->cidspill) {
-					p->cidlen = opbx_callerid_generate(p->cidspill, ast->cid.cid_name, ast->cid.cid_num, OPBX_LAW(p));
-					p->cidpos = 0;
-					send_callerid(p);
-				} else
-					opbx_log(LOG_WARNING, "Unable to generate CallerID spill\n");
-			}
-			/* Choose proper cadence */
-			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, &cadences[p->distinctivering-1]))
-					opbx_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s'\n", p->distinctivering, ast->name);
-				p->cidrings = cidrings[p->distinctivering - 1];
-			} else {
-				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, NULL))
-					opbx_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
-				p->cidrings = p->sendcalleridafter;
-			}
-
-
 			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
 			c = strchr(dest, '/');
 			if (c)
@@ -1815,12 +1784,115 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 			} else {
 				p->dop.dialstr[0] = '\0';
 			}
-			x = ZT_RING;
-			if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
-				opbx_log(LOG_WARNING, "Unable to ring phone: %s\n", strerror(errno));
-				opbx_mutex_unlock(&p->lock);
-				return -1;
+
+			if (p->cidspill) {
+				opbx_log(LOG_WARNING, "cidspill already exists??\n");
+				free(p->cidspill);
+				p->cidspill = NULL;
 			}
+			if (p->use_callerid) {
+				p->cidspill = malloc(MAX_CALLERID_SIZE);
+				p->callwaitcas = 0;
+				if (p->cidspill) {
+					p->cidlen = opbx_callerid_generate(p->cid_signalling, p->cidspill, MAX_CALLERID_SIZE, ast->cid.cid_pres, ast->cid.cid_num, ast->cid.cid_name, 0, OPBX_LAW(p));
+					p->cidpos = 0;
+				} else {
+					/* No memory for caller ID but maybe we can still make the call */
+					opbx_log(LOG_WARNING, "Unable to generate CallerID spill\n");
+				}
+			}
+
+			/* Choose main cadence */
+			if (p->distinctivering > 0 && p->distinctivering <= num_cadence) {
+				cadence = &cadences[p->distinctivering-1];
+				p->cidrings = cidrings[p->distinctivering-1];
+			} else if (!ioctl(p->subs[SUB_REAL].zfd, ZT_GETTONEZONE, &res)
+			&& (tzone = tone_zone_find_by_num(res))) {
+				memcpy(rcad.ringcadence, tzone->ringcadence, sizeof(rcad.ringcadence));
+				cadence = &rcad;
+				p->cidrings = -1;
+			} else {
+				rcad.ringcadence[0] = -ZT_DEFAULT_RINGTIME;
+				rcad.ringcadence[1] = ZT_RINGOFFTIME;
+				cadence = &rcad;
+				p->cidrings = 1;
+			}
+
+			if (p->cidspill && p->distinctiveringaftercid) {
+				/* Insert the initial cadence making the silence long enough for
+				 * the CID. Note that we don't adjust silence like this anywhere
+				 * else otherwise it breaks the remote's distinctive ring
+				 * detection. Even this might break some but... tough!
+				 */
+				memmove(&rcad.ringcadence[2], &cadence->ringcadence[0],
+					sizeof(rcad.ringcadence) - 2 * sizeof(rcad.ringcadence[0]));
+				rcad.ringcadence[0] = 250;
+				rcad.ringcadence[1] = ((p->cidlen >> 3) > 1000 ? (p->cidlen >> 3) : 1000);
+				cadence = &rcad;
+				p->cidrings = 1;
+
+				/* If the main cadence doesn't explicitly mark the loop start
+				 * we need to mark it ourselves to be the start of the main
+				 * cadence, after the initial cadence
+				 */
+				for (x = 2; x < arraysize(rcad.ringcadence) && rcad.ringcadence[x] >= 0; x += 2);
+				if (x >= arraysize(rcad.ringcadence))
+					rcad.ringcadence[2] = -rcad.ringcadence[2];
+			} else if (p->cidrings < 0 && (p->cidrings = p->sendcalleridafter) < 0) {
+				/* Look for the longest silence in the cadence and use
+				 * that for the CID position
+				 */
+				index = 0;
+				for (x = 1; x < arraysize(rcad.ringcadence); x += 2) {
+					if (rcad.ringcadence[x] > index) {
+						index = rcad.ringcadence[x];
+						p->cidrings = (x >> 1) + 1;
+					}
+				}
+			}
+
+			if (option_debug) {
+				for (x = 0; x < arraysize(rcad.ringcadence) && cadence->ringcadence[x]; x += 2)
+					opbx_log(LOG_DEBUG, "%s: cadence[%d] = %d/%d\n", ast->name, (x >> 1) + 1, cadence->ringcadence[x], cadence->ringcadence[x+1]);
+				opbx_log(LOG_DEBUG, "%s: Post-ring CID follows ring %d\n", ast->name, p->cidrings);
+			}
+
+			if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, cadence))
+				opbx_log(LOG_WARNING, "%s: Unable to set ring cadence\n", ast->name);
+
+			if (!p->cidspill || (p->cid_start == CID_START_RING && p->cidrings)) {
+				/* Caller ID goes in the silence between two rings. Just start ringing
+				 * the line. Caller ID will be despatched in due course.
+				 */
+				opbx_log(LOG_DEBUG, "%s: Start ringing\n", ast->name);
+				p->cid_send_on = CID_START_RING;
+				x = ZT_RING;
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
+					opbx_log(LOG_WARNING, "%s: Unable to ring phone: %s\n", ast->name, strerror(errno));
+					opbx_mutex_unlock(&p->lock);
+					return -1;
+				}
+			} else {
+				/* Caller ID goes before the first ring. We assume that means it's flagged
+				 * by a UK style polarity reversal, followed by data, followed by ringing.
+				 * If we are sending using DTMF then in some implementations there should be
+				 * no polarity reversal. It probably doesn't hurt, though?
+				 * If one or both of these fail caller ID might fail but the call may still
+				 * be possible. We'll find out when we try and start ringing after the
+				 * caller ID has been sent (possibly into the ether).
+				 */
+				opbx_log(LOG_DEBUG, "%s: Send pre-ring caller ID\n", ast->name);
+				p->cid_send_on = CID_START_POLARITY;
+				x = p->cidlen;
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x))
+					opbx_log(LOG_WARNING, "%s: Unable to start on hook transfer: %s\n", ast->name, strerror(errno));
+				x = POLARITY_REV;
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &x))
+					opbx_log(LOG_WARNING, "%s: Unable to reverse polarity: %s\n", ast->name, strerror(errno));
+				send_callerid(p);
+			}
+
+			/* Don't send audio while on hook, until the call is answered */
 			p->dialing = 1;
 		} else {
 			/* Call waiting call */
@@ -2376,8 +2448,10 @@ static int zt_hangup(struct opbx_channel *ast)
 	}	
 	if (p->dsp)
 		opbx_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+#if 0
 	if (p->exten)
 		p->exten[0] = '\0';
+#endif
 
 	opbx_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
@@ -2803,13 +2877,13 @@ static int zt_setoption(struct opbx_channel *chan, int option, void *data, int d
 		if (!p->didtdd) {
 			/* if haven't done it yet */
 			uint8_t mybuf[41000];
-            uint8_t *buf;
+			uint8_t *buf;
 			int size,res,fd,len;
 			struct pollfd fds[1];
 
 			buf = mybuf;
 			memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
-			opbx_tdd_gen_ecdisa(OPBX_LAW(p), buf + 16000, 16000);  /* put in tone */
+			opbx_gen_ecdisa(buf + 16000, 16000, OPBX_LAW(p));  /* put in tone */
 			len = 40000;
 			index = zt_get_index(chan, p, 0);
 			if (index < 0) {
@@ -3459,7 +3533,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 	} else
 		res = zt_get_event(p->subs[index].zfd);
 
-	opbx_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
+	opbx_log(LOG_DEBUG, "%s: Got event %s(%d) on channel %d (index %d)\n", ast->name, event2str(res), res, p->channel, index);
 
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
 		if (res & ZT_EVENT_PULSEDIGIT)
@@ -3779,7 +3853,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 					break;
 				case OPBX_STATE_RESERVED:
 					/* Start up dialtone */
-					if (has_voicemail(p))
+					if (opbx_app_has_voicemail(p->mailbox, NULL))
 						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_STUTTER);
 					else
 						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
@@ -3858,16 +3932,18 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			if (p->inalarm) break;
 			if (p->radio) break;
 			ast->rings++;
-			if ((ast->rings > p->cidrings) && (p->cidspill)) {
-				opbx_log(LOG_WARNING, "Didn't finish Caller-ID spill.  Cancelling.\n");
-				free(p->cidspill);
-				p->cidspill = NULL;
-				p->callwaitcas = 0;
-			}
+			if (p->cidspill && ast->rings == p->cidrings)
+				opbx_log(LOG_DEBUG, "%s: Send post-ring caller ID\n", ast->name);
 			p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 			p->subs[index].f.subclass = OPBX_CONTROL_RINGING;
 			break;
 		case ZT_EVENT_RINGERON:
+			if (p->cidspill && ast->rings > p->cidrings) {
+				opbx_log(LOG_WARNING, "%s: Didn't finish sending caller ID before start of ring!\n", ast->name);
+				free(p->cidspill);
+				p->cidspill = NULL;
+				p->callwaitcas = 0;
+			}
 			break;
 		case ZT_EVENT_NOALARM:
 			p->inalarm = 0;
@@ -4248,7 +4324,7 @@ static struct opbx_frame *__zt_exception(struct opbx_channel *ast)
 		f = &p->subs[index].f;
 		return f;
 	}
-	if (!p->radio) opbx_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
+	if (!p->radio) opbx_log(LOG_DEBUG, "%s: Exception on %d, channel %d\n", ast->name, ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		opbx_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
@@ -4429,7 +4505,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		int c;
 
 		/* if in TDD mode, see if we receive that */
-		c = tdd_feed(p->tdd, OPBX_LAW(p), readbuf, READ_SIZE);
+		c = tdd_feed(p->tdd, readbuf, READ_SIZE, OPBX_LAW(p));
 		if (c < 0) {
 			opbx_log(LOG_DEBUG,"tdd_feed failed\n");
 			opbx_mutex_unlock(&p->lock);
@@ -4468,8 +4544,35 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		p->subs[index].f.datalen = READ_SIZE;
 
 	/* Handle CallerID Transmission */
-	if ((p->owner == ast) && p->cidspill &&((ast->_state == OPBX_STATE_UP) || (ast->rings == p->cidrings))) {
-		send_callerid(p);
+	if (p->owner == ast && p->cidspill && (ast->_state == OPBX_STATE_UP || p->cid_send_on != CID_START_RING || ast->rings == p->cidrings)) {
+		if (send_callerid(p)) {
+			/* Once we're done sending caller ID we need to start ringing the line
+			 * if it isn't up and we were sending caller ID before the first ring.
+			 */
+			if (ast->_state != OPBX_STATE_UP && p->cid_send_on != CID_START_RING && !ast->rings) {
+				ioctl(p->subs[SUB_REAL].zfd, ZT_SYNC, &res);
+				res = POLARITY_IDLE;
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &res))
+					opbx_log(LOG_WARNING, "%s: Unable to restore polarity: %s\n", ast->name, strerror(errno));
+				opbx_log(LOG_DEBUG, "%s: Start ringing\n", ast->name);
+				res = ZT_RING;
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &res) && errno != EINPROGRESS)
+					opbx_log(LOG_WARNING, "%s: Unable to ring phone: %s\n", ast->name, strerror(errno));
+				/* Caller ID before ring uses defined signalling format. Caller ID between
+				 * rings is (nearly) always US style. This is sufficiently compatible with all the
+				 * possibilities we might want that it should "just work".
+				 * Note: India (Bharti) uses DTMF after the first ring apparently. If you want
+				 * that you have to use explicit cidsignalling=dtmf, cidstart=ring and forego
+				 * any pre-ring CID.
+				 */
+				p->cidlen = opbx_callerid_generate(ADSI_STANDARD_CLASS, p->cidspill, MAX_CALLERID_SIZE, ast->cid.cid_pres, ast->cid.cid_num, ast->cid.cid_name, 0, OPBX_LAW(p));
+				p->cidpos = 0;
+				p->cid_send_on = CID_START_RING;
+			} else {
+				free(p->cidspill);
+				p->cidspill = NULL;
+			}
+		}
 	}
 
 	p->subs[index].f.frametype = OPBX_FRAME_VOICE;
@@ -5091,6 +5194,22 @@ static int zt_wink(struct zt_pvt *p, int index)
 	return 0;
 }
 
+static void ss_thread_adsi_get(struct zt_pvt *p, adsi_rx_state_t *adsi_rx, const uint8_t *msg, int len) {
+	callerid_get(adsi_rx, p->owner, msg, len);
+	free(p->adsi_rx1);
+	p->adsi_rx1 = NULL;
+	free(p->adsi_rx2);
+	p->adsi_rx2 = NULL;
+}
+static void ss_thread_adsi_get1(void *data, const uint8_t *msg, int len) {
+	struct zt_pvt *p = data;
+	ss_thread_adsi_get(p, p->adsi_rx1, msg, len);
+}
+static void ss_thread_adsi_get2(void *data, const uint8_t *msg, int len) {
+	struct zt_pvt *p = data;
+	ss_thread_adsi_get(p, p->adsi_rx2, msg, len);
+}
+
 static void *ss_thread(void *data)
 {
 	struct opbx_channel *chan = data;
@@ -5098,12 +5217,9 @@ static void *ss_thread(void *data)
 	char exten[OPBX_MAX_EXTENSION]="";
 	char exten2[OPBX_MAX_EXTENSION]="";
 	unsigned char buf[256];
-	char dtmfcid[300];
 	char dtmfbuf[300];
-	struct callerid_state *cs;
 	char *name=NULL, *number=NULL;
-	int distMatches;
-	int curRingData[3];
+	int curRingData[2 + arraysize(drings.ringnum[0].ring)];
 	int receivedRingT;
 	int counter1;
 	int counter;
@@ -5175,7 +5291,7 @@ static void *ss_thread(void *data)
 			opbx_log(LOG_DEBUG, "No such possible extension '%s' in context '%s'\n", exten, chan->context);
 			chan->hangupcause = OPBX_CAUSE_UNALLOCATED;
 			opbx_hangup(chan);
-			p->exten[0] = '\0';
+			p->exten[0] = '\0'; /* FIXME: is this right? We didn't use it except as an initial base */
 			/* Since we send release complete here, we won't get one */
 			p->call = NULL;
 		}
@@ -5706,412 +5822,180 @@ static void *ss_thread(void *data)
 			}
 		}
 #endif
-		/* If we want caller id, we're in a prering state due to a polarity reversal
-		 * and we're set to use a polarity reversal to trigger the start of caller id,
-		 * grab the caller id and wait for ringing to start... */
-		if (p->use_callerid && (chan->_state == OPBX_STATE_PRERING && p->cid_start == CID_START_POLARITY)) {
-			/* If set to use DTMF CID signalling, listen for DTMF */
-			if (p->cid_signalling == CID_SIG_DTMF) {
-				int i = 0;
-				cs = NULL;
-				opbx_log(LOG_DEBUG, "Receiving DTMF cid on "
-					"channel %s\n", chan->name);
-				zt_setlinear(p->subs[index].zfd, 0);
-				res = 2000;
-				for (;;) {
-					struct opbx_frame *f;
-					res = opbx_waitfor(chan, res);
-					if (res <= 0) {
-						opbx_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
-							"Exiting simple switch\n");
-						opbx_hangup(chan);
-						return NULL;
-					} 
-					f = opbx_read(chan);
-					if (f->frametype == OPBX_FRAME_DTMF) {
-						dtmfbuf[i++] = f->subclass;
-						opbx_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass);
-						res = 2000;
-					}
-					opbx_fr_free(f);
-					if (chan->_state == OPBX_STATE_RING ||
-					    chan->_state == OPBX_STATE_RINGING) 
-						break; /* Got ring */
-				}
-				dtmfbuf[i] = 0;
-				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
-				/* Got cid and ring. */
-				opbx_log(LOG_DEBUG, "CID got string '%s'\n", dtmfbuf);
-				callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
-				opbx_log(LOG_DEBUG, "CID is '%s', flags %d\n", 
-					dtmfcid, flags);
-				/* If first byte is NULL, we have no cid */
-				if (dtmfcid[0]) 
-					number = dtmfcid;
-				else
-					number = 0;
-			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
-			} else if (p->cid_signalling == CID_SIG_V23) {
-				cs = callerid_new(cid_signalling);
-				if (cs) {
-					samples = 0;
-#if 1
-					bump_gains(p);
-#endif				
-					/* Take out of linear mode for Caller*ID processing */
-					zt_setlinear(p->subs[index].zfd, 0);
-					
-					/* First we wait and listen for the Caller*ID */
-					for(;;) {	
-						i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
-						if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
-							opbx_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-							callerid_free(cs);
-							opbx_hangup(chan);
-							return NULL;
-						}
-						if (i & ZT_IOMUX_SIGEVENT) {
-							res = zt_get_event(p->subs[index].zfd);
-							opbx_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-							res = 0;
-							break;
-						} else if (i & ZT_IOMUX_READ) {
-							res = read(p->subs[index].zfd, buf, sizeof(buf));
-							if (res < 0) {
-								if (errno != ELAST) {
-									opbx_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-									callerid_free(cs);
-									opbx_hangup(chan);
-									return NULL;
-								}
-								break;
-							}
-							samples += res;
-							res = callerid_feed(cs, buf, res, OPBX_LAW(p));
-							if (res < 0) {
-								opbx_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
-								break;
-							} else if (res)
-								break;
-							else if (samples > (8000 * 10))
-								break;
-						}
-					}
-					if (res == 1) {
-						callerid_get(cs, &name, &number, &flags);
-						if (option_debug)
-							opbx_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
-					}
-					if (res < 0) {
-						opbx_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
-					}
+		opbx_log(LOG_DEBUG, "CID/distinctive ring detection...\n");
+		opbx_copy_string(chan->exten, p->exten, sizeof(chan->exten));
+		if (p->use_callerid) {
+			/* DTMF detection in CID will be handled by spandsp */
+			disable_dtmf_detect(p);
 
-					/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */ 
-					res = 2000;
-					for (;;) {
-						struct opbx_frame *f;
-						res = opbx_waitfor(chan, res);
-						if (res <= 0) {
-							opbx_log(LOG_WARNING, "CID timed out waiting for ring. "
-								"Exiting simple switch\n");
-							opbx_hangup(chan);
-							return NULL;
-						} 
-						f = opbx_read(chan);
-						opbx_fr_free(f);
-						if (chan->_state == OPBX_STATE_RING ||
-						    chan->_state == OPBX_STATE_RINGING) 
-							break; /* Got ring */
-					}
-	
-					/* We must have a ring by now, so, if configured, lets try to listen for
-					 * distinctive ringing */ 
-					if (p->usedistinctiveringdetection == 1) {
-						len = 0;
-						distMatches = 0;
-						/* Clear the current ring data array so we dont have old data in it. */
-						for (receivedRingT=0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
-							curRingData[receivedRingT] = 0;
+			bump_gains(p);
 
-						receivedRingT = 0;
-						counter = 0;
-						counter1 = 0;
-						/* Check to see if context is what it should be, if not set to be. */
-						if (strcmp(p->context,p->defcontext) != 0) {
-							opbx_copy_string(p->context, p->defcontext, sizeof(p->context));
-							opbx_copy_string(chan->context,p->defcontext,sizeof(chan->context));
-						}
-		
-						for(;;) {	
-							i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
-							if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
-								opbx_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-								callerid_free(cs);
-								opbx_hangup(chan);
-								return NULL;
-							}
-							if (i & ZT_IOMUX_SIGEVENT) {
-								res = zt_get_event(p->subs[index].zfd);
-								opbx_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-								res = 0;
-								/* Let us detect distinctive ring */
-		
-								curRingData[receivedRingT] = p->ringt;
-		
-								if (p->ringt < p->ringt_base/2)
-									break;
-								/* Increment the ringT counter so we can match it against
-								   values in zapata.conf for distinctive ring */
-								if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
-									break;
-							} else if (i & ZT_IOMUX_READ) {
-								res = read(p->subs[index].zfd, buf, sizeof(buf));
-								if (res < 0) {
-									if (errno != ELAST) {
-										opbx_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-										callerid_free(cs);
-										opbx_hangup(chan);
-										return NULL;
-									}
-									break;
-								}
-								if (p->ringt) 
-									p->ringt--;
-								if (p->ringt == 1) {
-									res = -1;
-									break;
-								}
-							}
-						}
-						if(option_verbose > 2)
-							/* this only shows up if you have n of the dring patterns filled in */
-							opbx_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
-	
-						for (counter=0; counter < 3; counter++) {
-							/* Check to see if the rings we received match any of the ones in zapata.conf for this
-							channel */
-							distMatches = 0;
-							for (counter1=0; counter1 < 3; counter1++) {
-								if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
-								(p->drings.ringnum[counter].ring[counter1]-10)) {
-									distMatches++;
-								}
-							}
-							if (distMatches == 3) {
-								/* The ring matches, set the context to whatever is for distinctive ring.. */
-								opbx_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
-								opbx_copy_string(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context));
-								if(option_verbose > 2)
-									opbx_verbose( VERBOSE_PREFIX_3 "Distinctive Ring matched context %s\n",p->context);
-								break;
-							}
-						}
-					}
-					/* Restore linear mode (if appropriate) for Caller*ID processing */
-					zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
-#if 1
-					restore_gains(p);
-#endif				
-				} else {
-					opbx_log(LOG_WARNING, "Unable to get caller ID space\n");			
-				}
-			} else {
-				opbx_log(LOG_WARNING, "Channel %s in prering "
-					"state, but I have nothing to do. "
-					"Terminating simple switch, should be "
-					"restarted by the actual ring.\n", 
-					chan->name);
+			/* Take out of linear mode if necessary */
+			zt_setlinear(p->subs[index].zfd, 0);
+
+			/* Pre-ring could be V23 or DTMF but not Bell202 (AFAIK).
+			 * Post-ring could be US style Bell202, Japanese V23 or even UK V23 (sent
+			 * after a short first ring by some exchanges used by the cable industry)
+			 * or DTMF (used by Bharti in India?).
+			 * Fortunately Bell202/V23 are very nearly the same and interchangeable
+			 * for most decoders and the message formats are near enough identical
+			 * for our purposes. So we just need to deal with Bell202 and DTMF...
+			 */
+			if (!p->adsi_rx1 && (p->adsi_rx1 = malloc(sizeof(adsi_rx_state_t))))
+				adsi_rx_init(p->adsi_rx1, ADSI_STANDARD_CLASS, ss_thread_adsi_get1, p);
+			if (!p->adsi_rx2 && (p->adsi_rx2 = malloc(sizeof(adsi_rx_state_t))))
+				adsi_rx_init(p->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, p);
+		}
+
+		/* Clear the current ring data array so we dont have old data in it. */
+		for (i=0; i < arraysize(curRingData); i++)
+			curRingData[i] = 0;
+
+		/* Check to see if context is what it should be, if not set to be. */
+		if (strcmp(p->context,p->defcontext) != 0) {
+			opbx_copy_string(p->context, p->defcontext, sizeof(p->context));
+			opbx_copy_string(chan->context,p->defcontext,sizeof(chan->context));
+		}
+
+		/* Note we only look for caller ID during the distinctive ring detection phase.
+		 * With the 3 step distinctive ring config and a possible initial ring/silence
+		 * before the first step for chirp/CID that means we listen in the first
+		 * two silences (and before the first ring if that wasn't the call trigger)
+		 */
+		p->ringt = p->ringt_base;
+		receivedRingT = !p->usedistinctiveringdetection;
+		samples = 0;
+		chan->rings = chan->_state == OPBX_STATE_PRERING ? -1 : 0;
+		while (p->ringt
+		&& (!receivedRingT || (p->adsi_rx1 && chan->rings < (int)arraysize(curRingData)-1))) {
+			i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
+			if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
+				opbx_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 				opbx_hangup(chan);
 				return NULL;
 			}
-		} else if (p->use_callerid && p->cid_start == CID_START_RING) {
-			/* FSK Bell202 callerID */
-			cs = callerid_new(cid_signalling);
-			if (cs) {
-#if 1
-				bump_gains(p);
-#endif				
-				samples = 0;
-				len = 0;
-				distMatches = 0;
-				/* Clear the current ring data array so we dont have old data in it. */
-				for (receivedRingT=0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
-					curRingData[receivedRingT] = 0;
-				receivedRingT = 0;
-				counter = 0;
-				counter1 = 0;
-				/* Check to see if context is what it should be, if not set to be. */
-				if (strcmp(p->context,p->defcontext) != 0) {
-					opbx_copy_string(p->context, p->defcontext, sizeof(p->context));
-					opbx_copy_string(chan->context,p->defcontext,sizeof(chan->context));
+			if (i & ZT_IOMUX_SIGEVENT) {
+				res = zt_get_event(p->subs[index].zfd);
+				if (option_debug)
+					opbx_log(LOG_DEBUG, "%s: Got event %d (%s)...\n", chan->name, res, event2str(res));
+				switch (res) {
+					case ZT_EVENT_RINGOFFHOOK:
+						if (p->adsi_rx1) adsi_rx_init(p->adsi_rx1, ADSI_STANDARD_CLASS, ss_thread_adsi_get1, p);
+						if (p->adsi_rx2) adsi_rx_init(p->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, p);
+						/* Fall through */
+					case ZT_EVENT_RINGBEGIN:
+						if (chan->rings >= 0 && !receivedRingT) {
+							int offset;
+							curRingData[chan->rings] = samples / 8;
+							if (option_debug)
+								opbx_log(LOG_DEBUG, "%s: cadence=%d,%d,%d,%d,%d\n", chan->name, curRingData[0], curRingData[1], curRingData[2], curRingData[3], curRingData[4]);
+							len = 0;
+							counter = 0;
+								/* Perhaps distinctive ring follows an initial chirp+CID
+								 * (as for some UK cable co's that use US style CID with
+								 * UK cadence)
+								 */
+							for (offset = 0; offset <= chan->rings && !counter && offset <= 2; offset += 2) {
+								for (i = 0; i < arraysize(p->drings.ringnum); i++) {
+									int j;
+									if (!p->drings.ringnum[i].ring[0])
+										continue;
+									samples = 0;
+									for (j = 0; j <= chan->rings - offset && j < arraysize(p->drings.ringnum[0].ring); j++) {
+										samples += curRingData[offset + j] - p->drings.ringnum[i].ring[j];
+										if (abs(samples) > 180)
+											break;
+									}
+									if (option_debug)
+										opbx_log(LOG_DEBUG, "dring%d cmp (offset=%d, j=%d, samples=%d, dring=%d,%d,%d)\n", i+1, offset, j, samples, p->drings.ringnum[i].ring[0], p->drings.ringnum[i].ring[1], p->drings.ringnum[i].ring[2]);
+									if (offset + j > chan->rings && j >= len) {
+									if (option_debug)
+										opbx_log(LOG_DEBUG, "dring%d match (j=%d, samples=%d, dring=%d,%d,%d)\n", i+1, j, samples, p->drings.ringnum[i].ring[0], p->drings.ringnum[i].ring[1], p->drings.ringnum[i].ring[2]);
+										if (j == len) {
+											counter++;
+										} else {
+											len = j;
+											res = i;
+											counter++;
+										}
+									}
+								}
+							}
+							if (counter == 1) {
+								/* Exactly one match - use it */
+								if (!opbx_strlen_zero(p->drings.ringContext[res].contextData)) {
+									opbx_copy_string(chan->context, p->drings.ringContext[res].contextData, sizeof(chan->context));
+									/* FIXME: why do we have a private context? */
+									opbx_copy_string(p->context, chan->context, sizeof(p->context));
+								}
+								if (!opbx_strlen_zero(p->drings.ringContext[res].extenData))
+									opbx_copy_string(chan->exten, p->drings.ringContext[res].extenData, sizeof(chan->exten));
+								if (option_verbose > 2)
+									opbx_verbose(VERBOSE_PREFIX_3 "%s: Matched Distinctive Ring %d context %s exten %s\n", chan->name, res + 1, chan->context, chan->exten);
+								receivedRingT = 1;
+							} else if (counter == 0 && chan->rings >= 2) {
+								/* No matches and we're beyond any initial chirp/CID. Give in */
+								receivedRingT = 1;
+							} else if (chan->rings == (int)arraysize(curRingData)-1) {
+								/* More than one match but we've reached the max steps */
+								opbx_log(LOG_WARNING, "%d matches for received ring cadence", counter);
+								receivedRingT = 1;
+							}
+						}
+						chan->rings++;
+						samples = 0;
+						break;
 				}
-
-				/* Take out of linear mode for Caller*ID processing */
-				zt_setlinear(p->subs[index].zfd, 0);
-				for(;;) {	
-					i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
-					if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
-						opbx_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-						callerid_free(cs);
+			} else if (i & ZT_IOMUX_READ) {
+				uint16_t lin[256];
+				uint8_t buf[256];
+				res = read(p->subs[index].zfd, buf, sizeof(buf));
+				if (res < 0) {
+					if (errno != ELAST) {
+						opbx_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
 						opbx_hangup(chan);
 						return NULL;
 					}
-					if (i & ZT_IOMUX_SIGEVENT) {
-						res = zt_get_event(p->subs[index].zfd);
-						opbx_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-						res = 0;
-						/* Let us detect callerid when the telco uses distinctive ring */
-
-						curRingData[receivedRingT] = p->ringt;
-
-						if (p->ringt < p->ringt_base/2)
-							break;
-						/* Increment the ringT counter so we can match it against
-						   values in zapata.conf for distinctive ring */
-						if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
-							break;
-					} else if (i & ZT_IOMUX_READ) {
-						res = read(p->subs[index].zfd, buf, sizeof(buf));
-						if (res < 0) {
-							if (errno != ELAST) {
-								opbx_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-								callerid_free(cs);
-								opbx_hangup(chan);
-								return NULL;
-							}
-							break;
-						}
-						if (p->ringt) 
-							p->ringt--;
-						if (p->ringt == 1) {
-							res = -1;
-							break;
-						}
-						samples += res;
-						res = callerid_feed(cs, buf, res, OPBX_LAW(p));
-						if (res < 0) {
-							opbx_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
-							break;
-						} else if (res)
-							break;
-						else if (samples > (8000 * 10))
-							break;
-					}
+					break;
 				}
-				if (res == 1) {
-					callerid_get(cs, &name, &number, &flags);
-					if (option_debug)
-						opbx_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
-				}
-				if (distinctiveringaftercid == 1) {
-					/* Clear the current ring data array so we dont have old data in it. */
-					for (receivedRingT=0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
-						curRingData[receivedRingT] = 0;
-					receivedRingT = 0;
-					opbx_verbose( VERBOSE_PREFIX_3 "Detecting post-CID distinctive ring\n");
-					for(;;) {
-						i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
-						if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))    {
-							opbx_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-							callerid_free(cs);
-							opbx_hangup(chan);
-							return NULL;
-						}
-						if (i & ZT_IOMUX_SIGEVENT) {
-							res = zt_get_event(p->subs[index].zfd);
-							opbx_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-							res = 0;
-							/* Let us detect callerid when the telco uses distinctive ring */
 
-							curRingData[receivedRingT] = p->ringt;
+				if (p->law == ZT_LAW_MULAW)
+					for (i = 0; i < res; i++)
+						lin[i] = OPBX_MULAW(buf[i]);
+				else
+					for (i = 0; i < res; i++)
+						lin[i] = OPBX_ALAW(buf[i]);
+				if (p->adsi_rx1) adsi_rx(p->adsi_rx1, lin, res);
+				if (p->adsi_rx2) adsi_rx(p->adsi_rx2, lin, res);
+				samples += res;
 
-							if (p->ringt < p->ringt_base/2)
-								break;
-							/* Increment the ringT counter so we can match it against
-								values in zapata.conf for distinctive ring */
-							if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
-									break;
-						} else if (i & ZT_IOMUX_READ) {
-							res = read(p->subs[index].zfd, buf, sizeof(buf));
-							if (res < 0) {
-								if (errno != ELAST) {
-									opbx_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-									callerid_free(cs);
-									opbx_hangup(chan);
-									return NULL;
-								}
-								break;
-							}
-						if (p->ringt)
-							p->ringt--;
-							if (p->ringt == 1) {
-								res = -1;
-								break;
-							}
-						}
-					}
-				}
-				if (p->usedistinctiveringdetection == 1) {
-					if(option_verbose > 2)
-						/* this only shows up if you have n of the dring patterns filled in */
-						opbx_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
+				p->ringt--;
+			}
+		}
+		if (option_verbose > 2)
+			opbx_verbose(VERBOSE_PREFIX_3 "%s: Done CID/distinctive ring detection: cadence=%d,%d,%d,%d,%d\n",
+				chan->name, curRingData[0], curRingData[1], curRingData[2], curRingData[3], curRingData[4]);
 
-					for (counter=0; counter < 3; counter++) {
-						/* Check to see if the rings we received match any of the ones in zapata.conf for this
-						channel */
-						if(option_verbose > 2)
-							/* this only shows up if you have n of the dring patterns filled in */
-							opbx_verbose( VERBOSE_PREFIX_3 "Checking %d,%d,%d\n",
-								p->drings.ringnum[counter].ring[0],
-								p->drings.ringnum[counter].ring[1],
-								p->drings.ringnum[counter].ring[2]);
-						distMatches = 0;
-						for (counter1=0; counter1 < 3; counter1++) {
-							if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
-							(p->drings.ringnum[counter].ring[counter1]-10)) {
-								distMatches++;
-							}
-						}
-						if (distMatches == 3) {
-							/* The ring matches, set the context to whatever is for distinctive ring.. */
-							opbx_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
-							opbx_copy_string(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context));
-							if(option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "Distinctive Ring matched context %s\n",p->context);
-							break;
-						}
-					}
-				}
-				/* Restore linear mode (if appropriate) for Caller*ID processing */
+		if (p->use_callerid) {
+			/* Restore linear mode if necessary */
+			if (p->subs[index].linear)
 				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
-#if 1
-				restore_gains(p);
-#endif				
-				if (res < 0) {
-					opbx_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
-				}
-			} else
-				opbx_log(LOG_WARNING, "Unable to get caller ID space\n");
-		}
-		else
-			cs = NULL;
-		if (number || name) {
-		    if (chan->cid.cid_num) {
-			free(chan->cid.cid_num);
-			chan->cid.cid_num = NULL;
-		    }
-		    if (chan->cid.cid_name) {
-			free(chan->cid.cid_name);
-			chan->cid.cid_name = NULL;
-		    }
-		}
-		if (number)
-			opbx_shrink_phone_number(number);
 
-		opbx_set_callerid(chan, number, name, number);
+			restore_gains(p);
 
-		if (cs)
-			callerid_free(cs);
+			if (!p->ignoredtmf)
+				enable_dtmf_detect(p);
+
+			if (p->adsi_rx1) {
+				free(p->adsi_rx1);
+				p->adsi_rx1 = NULL;
+			}
+			if (p->adsi_rx2) {
+				free(p->adsi_rx2);
+				p->adsi_rx2 = NULL;
+			}
+		}
+
 		opbx_setstate(chan, OPBX_STATE_RING);
 		chan->rings = 1;
 		p->ringt = p->ringt_base;
@@ -6149,6 +6033,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		if (i->radio) break;
 		break;
 	case ZT_EVENT_WINKFLASH:
+	case ZT_EVENT_RINGBEGIN:
 	case ZT_EVENT_RINGOFFHOOK:
 		if (i->inalarm) break;
 		if (i->radio) break;
@@ -6178,7 +6063,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, OPBX_STATE_RESERVED, 0, SUB_REAL, 0, 0);
 				if (chan) {
-					if (has_voicemail(i))
+					if (opbx_app_has_voicemail(i->mailbox, NULL))
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_STUTTER);
 					else
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
@@ -6292,25 +6177,24 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			return -1;
 		}
 		break;
+	case ZT_EVENT_DTMFUP:
 	case ZT_EVENT_POLARITY:
 		switch(i->sig) {
 		case SIG_FXSLS:
 		case SIG_FXSKS:
 		case SIG_FXSGS:
-			if (i->cid_start == CID_START_POLARITY) {
+			if (event == ZT_EVENT_POLARITY)
 				i->polarity = POLARITY_REV;
-				opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity "
-					    "CID detection on channel %d\n",
-					    i->channel);
-				chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
-					opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-				}
+			if (option_verbose > 1)
+				opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
+			chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
+			if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 			}
 			break;
 		default:
 			opbx_log(LOG_WARNING, "handle_init_event detected "
-				"polarity reversal on non-FXO (SIG_FXS) "
+				"polarity reversal or on-hook DTMF on non-FXO (SIG_FXS) "
 				"interface %d\n", i->channel);
 		}
 	}
@@ -6319,12 +6203,13 @@ static int handle_init_event(struct zt_pvt *i, int event)
 
 static void *do_monitor(void *data)
 {
+	uint8_t buf[256];
+	uint16_t lin[arraysize(buf)];
 	int count, res, res2, spoint, pollres=0;
 	struct zt_pvt *i;
 	struct zt_pvt *last = NULL;
 	time_t thispass = 0, lastpass = 0;
 	int found;
-	char buf[1024];
 	struct pollfd *pfds=NULL;
 	int lastalloc = -1;
 	/* This thread monitors all the frame relay interfaces which are not yet in use
@@ -6370,6 +6255,19 @@ static void *do_monitor(void *data)
 					/* Message waiting also get watched for reading */
 					if (i->cidspill)
 						pfds[count].events |= POLLIN;
+					/* If caller ID is required but we don't get polarity events
+					 * on this FXO we have to actively monitor the line for a
+					 * bell/v23 carrier or a DTMF digit.
+					 */
+					if (i->use_callerid && !i->polarity_events) {
+						if (i->adsi_rx1 || (i->adsi_rx1 = malloc(sizeof(adsi_rx_state_t)))) {
+							adsi_rx_init(i->adsi_rx1, ADSI_STANDARD_CLIP, ss_thread_adsi_get1, i);
+							i->adsi_rx1->bitpos = -1;
+						}
+						if (i->adsi_rx2 || (i->adsi_rx2 = malloc(sizeof(adsi_rx_state_t))))
+							adsi_rx_init(i->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, i);
+						pfds[count].events |= POLLIN;
+					}
 					count++;
 				}
 			}
@@ -6416,10 +6314,8 @@ static void *do_monitor(void *data)
 									opbx_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
 								last->cidspill = malloc(MAX_CALLERID_SIZE);
 								if (last->cidspill) {
-									/* Turn on on hook transfer for 4 seconds */
-									x = 4000;
-									ioctl(last->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x);
-									last->cidlen = vmwi_generate(last->cidspill, res, 1, OPBX_LAW(last));
+									last->cidlen = vmwi_generate(last->cidspill, MAX_CALLERID_SIZE, res, 1, OPBX_LAW(last));
+									ioctl(last->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &last->cidlen);
 									last->cidpos = 0;
 									last->msgstate = res;
 									last->onhooktime = thispass;
@@ -6448,50 +6344,7 @@ static void *do_monitor(void *data)
 					continue;
 				}					
 				pollres = opbx_fdisset(pfds, i->subs[SUB_REAL].zfd, count, &spoint);
-				if (pollres & POLLIN) {
-					if (i->owner || i->subs[SUB_REAL].owner) {
-#ifdef ZAPATA_PRI
-						if (!i->pri)
-#endif						
-							opbx_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].zfd);
-						i = i->next;
-						continue;
-					}
-					if (!i->cidspill) {
-						opbx_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
-						i = i->next;
-						continue;
-					}
-					res = read(i->subs[SUB_REAL].zfd, buf, sizeof(buf));
-					if (res > 0) {
-						/* We read some number of bytes.  Write an equal amount of data */
-						if (res > i->cidlen - i->cidpos) 
-							res = i->cidlen - i->cidpos;
-						res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos, res);
-						if (res2 > 0) {
-							i->cidpos += res2;
-							if (i->cidpos >= i->cidlen) {
-								free(i->cidspill);
-								i->cidspill = 0;
-								i->cidpos = 0;
-								i->cidlen = 0;
-							}
-						} else {
-							opbx_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
-							i->msgstate = -1;
-						}
-					} else {
-						opbx_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
-					}
-					if (option_debug)
-						opbx_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
-					/* Don't hold iflock while handling init events -- race with chlock */
-					opbx_mutex_unlock(&iflock);
-					handle_init_event(i, res);
-					opbx_mutex_lock(&iflock);	
-				}
-				if (pollres & POLLPRI) 
-				{
+				if (pollres & POLLPRI) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
 #ifdef ZAPATA_PRI
 						if (!i->pri)
@@ -6507,6 +6360,57 @@ static void *do_monitor(void *data)
 					opbx_mutex_unlock(&iflock);
 					handle_init_event(i, res);
 					opbx_mutex_lock(&iflock);	
+				}
+				if (pollres & POLLIN) {
+					if (i->owner || i->subs[SUB_REAL].owner) {
+#ifdef ZAPATA_PRI
+						if (!i->pri)
+#endif						
+							opbx_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].zfd);
+						i = i->next;
+						continue;
+					}
+					res = read(i->subs[SUB_REAL].zfd, buf, sizeof(buf));
+					if (res > 0) {
+						if (i->cidspill) {
+							/* We read some number of bytes.  Write an equal amount of data */
+							res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos,
+									(res > i->cidlen - i->cidpos
+									 	? i->cidlen - i->cidpos
+										: res)
+								    );
+							if (res2 > 0) {
+								i->cidpos += res2;
+								if (i->cidpos >= i->cidlen) {
+									free(i->cidspill);
+									i->cidspill = 0;
+									i->cidpos = 0;
+									i->cidlen = 0;
+								}
+							} else {
+								opbx_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
+								i->msgstate = -1;
+							}
+						}
+						if (i->use_callerid && !i->polarity_events) {
+							if (i->law == ZT_LAW_MULAW)
+								for (res2 = 0; res2 < res; res2++)
+									lin[res2] = OPBX_MULAW(buf[res2]);
+							else
+								for (res2 = 0; res2 < res; res2++)
+									lin[res2] = OPBX_ALAW(buf[res2]);
+							if (i->adsi_rx1) adsi_rx(i->adsi_rx1, lin, res);
+							if (i->adsi_rx2) adsi_rx(i->adsi_rx2, lin, res);
+							if ((i->adsi_rx1 && i->adsi_rx1->bitpos == 0)
+							|| (i->adsi_rx2 && i->adsi_rx2->msg_len)) {
+								opbx_mutex_unlock(&iflock);
+								handle_init_event(i, ZT_EVENT_POLARITY);
+								opbx_mutex_lock(&iflock);	
+							}
+						}
+					} else {
+						opbx_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
+					}
 				}
 			}
 			i=i->next;
@@ -6977,6 +6881,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->destroy = 0;
 		tmp->drings = drings;
 		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
+		tmp->distinctiveringaftercid = distinctiveringaftercid;
 		tmp->callwaitingcallerid = callwaitingcallerid;
 		tmp->threewaycalling = threewaycalling;
 		tmp->adsi = adsi;
@@ -6999,18 +6904,13 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->stripmsd = stripmsd;
 		tmp->use_callerid = use_callerid;
 		tmp->cid_signalling = cid_signalling;
-		tmp->cid_start = cid_start;
+		tmp->cid_start = tmp->cid_send_on = cid_start;
+		tmp->polarity_events = (signalling & __ZT_SIG_FXS) ? polarity_events : 1;
 		tmp->zaptrcallerid = zaptrcallerid;
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
 		tmp->priindication_oob = priindication_oob;
 		tmp->priexclusive = cur_priexclusive;
-		if (tmp->usedistinctiveringdetection) {
-			if (!tmp->use_callerid) {
-				opbx_log(LOG_NOTICE, "Distinctive Ring detect requires 'usecallerid' be on\n");
-				tmp->use_callerid = 1;
-			}
-		}
 
 		opbx_copy_string(tmp->accountcode, accountcode, sizeof(tmp->accountcode));
 		tmp->amaflags = amaflags;
@@ -7024,6 +6924,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		opbx_copy_string(tmp->language, language, sizeof(tmp->language));
 		opbx_copy_string(tmp->musicclass, musicclass, sizeof(tmp->musicclass));
 		opbx_copy_string(tmp->context, context, sizeof(tmp->context));
+		opbx_copy_string(tmp->exten, exten, sizeof(tmp->exten));
 		opbx_copy_string(tmp->cid_num, cid_num, sizeof(tmp->cid_num));
 		tmp->cid_ton = 0;
 		opbx_copy_string(tmp->cid_name, cid_name, sizeof(tmp->cid_name));
@@ -7032,6 +6933,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->group = cur_group;
 		tmp->callgroup=cur_callergroup;
 		tmp->pickupgroup=cur_pickupgroup;
+		tmp->cid_rxgain = cid_rxgain;
 		tmp->rxgain = rxgain;
 		tmp->txgain = txgain;
 		tmp->tonezone = tonezone;
@@ -9827,9 +9729,9 @@ static int setup_zap(int reload)
 	int y;
 	int found_pseudo = 0;
 	int cur_radio = 0;
+    int i;
 #ifdef ZAPATA_PRI
 	int spanno;
-	int i;
 	int logicalspan;
 	int trunkgroup;
 	int dchannels[NUM_DCHANS];
@@ -10020,43 +9922,70 @@ static int setup_zap(int reload)
 				chan = strsep(&c, ",");
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (opbx_true(v->value))
-				usedistinctiveringdetection = 1;
+			usedistinctiveringdetection = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "distinctiveringaftercid")) {
-			if (!strcasecmp(v->value, "yes")) distinctiveringaftercid = 1;
+			distinctiveringaftercid = opbx_true(v->value);
+		} else if (!strcasecmp(v->name, "dring1cadence")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
+		} else if (!strcasecmp(v->name, "dring2cadence")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+		} else if (!strcasecmp(v->name, "dring3cadence")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			opbx_copy_string(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData));
 		} else if (!strcasecmp(v->name, "dring2context")) {
 			opbx_copy_string(drings.ringContext[1].contextData,v->value,sizeof(drings.ringContext[1].contextData));
 		} else if (!strcasecmp(v->name, "dring3context")) {
 			opbx_copy_string(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData));
-		} else if (!strcasecmp(v->name, "dring1")) {
+		} else if (!strcasecmp(v->name, "dring1exten")) {
+			opbx_copy_string(drings.ringContext[0].extenData,v->value,sizeof(drings.ringContext[0].extenData));
+		} else if (!strcasecmp(v->name, "dring2exten")) {
+			opbx_copy_string(drings.ringContext[1].extenData,v->value,sizeof(drings.ringContext[1].extenData));
+		} else if (!strcasecmp(v->name, "dring3exten")) {
+			opbx_copy_string(drings.ringContext[2].extenData,v->value,sizeof(drings.ringContext[2].extenData));
+		} else if (!strcasecmp(v->name, "dring1")) { /* OBSOLETE */
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
-		} else if (!strcasecmp(v->name, "dring2")) {
+			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++) {
+				drings.ringnum[0].ring[i] *= 140;
+				drings.ringnum[0].ring[i] >>= 3;
+			}
+			opbx_log(LOG_NOTICE, "\"%s=%s\" is obsolete. Please replace with \"%scadence=%d,%d,%d\"\n", v->name, ringc, v->name, drings.ringnum[0].ring[0], drings.ringnum[0].ring[1], drings.ringnum[0].ring[2]);
+		} else if (!strcasecmp(v->name, "dring2")) { /* OBSOLETE */
 			ringc = v->value;
-			sscanf(ringc,"%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
-		} else if (!strcasecmp(v->name, "dring3")) {
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++) {
+				drings.ringnum[1].ring[i] *= 140;
+				drings.ringnum[1].ring[i] >>= 3;
+			}
+			opbx_log(LOG_NOTICE, "\"%s=%s\" is obsolete. Please replace with \"%scadence=%d,%d,%d\"\n", v->name, ringc, v->name, drings.ringnum[1].ring[0], drings.ringnum[1].ring[1], drings.ringnum[1].ring[2]);
+		} else if (!strcasecmp(v->name, "dring3")) { /* OBSOLETE */
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
+			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++) {
+				drings.ringnum[2].ring[i] *= 140;
+				drings.ringnum[2].ring[i] >>= 3;
+			}
+			opbx_log(LOG_NOTICE, "\"%s=%s\" is obsolete. Please replace with \"%scadence=%d,%d,%d\"\n", v->name, ringc, v->name, drings.ringnum[2].ring[0], drings.ringnum[2].ring[1], drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			use_callerid = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "cidsignalling")) {
-			if (!strcasecmp(v->value, "bell"))
-				cid_signalling = CID_SIG_BELL;
-			else if (!strcasecmp(v->value, "v23"))
-				cid_signalling = CID_SIG_V23;
+			if (!strcasecmp(v->value, "v23"))
+				cid_signalling = ADSI_STANDARD_CLIP;
 			else if (!strcasecmp(v->value, "dtmf"))
-				cid_signalling = CID_SIG_DTMF;
-			else if (opbx_true(v->value))
-				cid_signalling = CID_SIG_BELL;
+				cid_signalling = ADSI_STANDARD_CLIP_DTMF;
+			if (!strcasecmp(v->value, "bell") || opbx_true(v->value))
+				cid_signalling = ADSI_STANDARD_CLASS;
 		} else if (!strcasecmp(v->name, "cidstart")) {
-			if (!strcasecmp(v->value, "ring"))
-				cid_start = CID_START_RING;
-			else if (!strcasecmp(v->value, "polarity"))
+			if (!strcasecmp(v->value, "polarity"))
 				cid_start = CID_START_POLARITY;
-			else if (opbx_true(v->value))
+			else if (!strcasecmp(v->value, "ring") || opbx_true(v->value))
 				cid_start = CID_START_RING;
+		} else if (!strcasecmp(v->name, "polarityevents")) {
+			polarity_events = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "threewaycalling")) {
 			threewaycalling = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "cancallforward")) {
@@ -10135,6 +10064,8 @@ static int setup_zap(int reload)
 			callwaitingcallerid = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "context")) {
 			opbx_copy_string(context, v->value, sizeof(context));
+		} else if (!strcasecmp(v->name, "exten")) {
+			opbx_copy_string(exten, v->value, sizeof(exten));
 		} else if (!strcasecmp(v->name, "language")) {
 			opbx_copy_string(language, v->value, sizeof(language));
 		} else if (!strcasecmp(v->name, "progzone")) {
@@ -10155,6 +10086,10 @@ static int setup_zap(int reload)
 			immediate = opbx_true(v->value);
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			transfertobusy = opbx_true(v->value);
+		} else if (!strcasecmp(v->name, "cid_rxgain")) {
+			if (sscanf(v->value, "%f", &cid_rxgain) != 1) {
+				opbx_log(LOG_WARNING, "Invalid cid_rxgain: %s\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "rxgain")) {
 			if (sscanf(v->value, "%f", &rxgain) != 1) {
 				opbx_log(LOG_WARNING, "Invalid rxgain: %s\n", v->value);
@@ -10651,7 +10586,7 @@ int load_module(void)
 
 static int zt_sendtext(struct opbx_channel *c, const char *text)
 {
-	unsigned char *buf,*mybuf;
+	uint8_t *buf,*mybuf;
 	struct zt_pvt *p = c->tech_pvt;
 	struct pollfd fds[1];
 	int size,res,fd,len;
@@ -10666,29 +10601,27 @@ static int zt_sendtext(struct opbx_channel *c, const char *text)
 	if (!text[0]) return(0); /* if nothing to send, dont */
 	if ((!p->tdd) && (!p->mate))
 		return(0);  /* if not in TDD mode, just return */
-	if (p->mate) 
-		buf = malloc(((strlen(text) + 1) * ASCII_BYTES_PER_CHAR) + END_SILENCE_LEN + HEADER_LEN);
-	else
-		buf = malloc(((strlen(text) + 1) * TDD_SAMPLES_PER_CHAR) + END_SILENCE_LEN);
+
+	len = (p->tdd ? MAX_CALLERID_SIZE*3 : MAX_CALLERID_SIZE);
+	buf = malloc(len);
 	if (!buf) {
 		opbx_log(LOG_ERROR, "MALLOC FAILED\n");
 		return -1;
 	}
 	mybuf = buf;
 	if (p->mate) {
-        len = mate_generate(mybuf, text, OPBX_LAW(p));
+		len = mate_generate(mybuf, len, text, OPBX_LAW(p));
 		buf = mybuf;
 	}
 	else {
-		len = tdd_generate(p->tdd, OPBX_LAW(p), buf, text);
+		len = tdd_generate(p->tdd, buf, len, text, OPBX_LAW(p));
 		if (len < 1) {
 			opbx_log(LOG_ERROR, "TDD generate (len %d) failed!!\n",(int)strlen(text));
 			free(mybuf);
 			return -1;
 		}
 	}
-	memset(buf + len,0x7f,END_SILENCE_LEN);
-	len += END_SILENCE_LEN;
+
 	fd = p->subs[index].zfd;
 	while(len) {
 		if (opbx_check_hangup(c)) {
@@ -10726,6 +10659,9 @@ static int zt_sendtext(struct opbx_channel *c, const char *text)
 		buf += size;
 	}
 	free(mybuf);
+
+	/* FIXME: we should do 50ms trailing silence now */
+
 	return(0);
 }
 

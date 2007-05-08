@@ -35,6 +35,8 @@
 #include "callweaver/time.h"
 #include "callweaver/strings.h"
 
+#define arraysize(X)	(sizeof(X)/sizeof(X[0]))
+
 /*! \note
  \verbatim
    Note:

@@ -95,7 +95,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2640 $")
 #include "callweaver/options.h"
 #include "callweaver/cli.h"
 #include "callweaver/channel.h"
-#include "callweaver/old_callerid.h"
 #include "callweaver/ulaw.h"
 #include "callweaver/alaw.h"
 #include "callweaver/phone_no_utils.h"
@@ -1919,7 +1918,6 @@ int callweaver_main(int argc, char *argv[])
 	opbx_mainpid = getpid();
 	opbx_ulaw_init();
 	opbx_alaw_init();
-	callerid_init();
 	opbx_utils_init();
 	/* When CallWeaver restarts after it has dropped the root privileges,
 	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 

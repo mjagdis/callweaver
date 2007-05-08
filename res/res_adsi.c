@@ -36,6 +36,7 @@
 #include <math.h>
 #include <errno.h>
 #include <spandsp.h>
+#include <spandsp/adsi.h>
 
 #include "callweaver.h"
 
@@ -152,7 +153,9 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **msg, int *msglen, int *msgtype)
 {
 	/* msglen must be no more than 256 bits, each */
-	unsigned char buf[24000 * 5];
+	uint8_t buf[24000 * 5];
+	uint16_t lin[(sizeof(buf)/sizeof(buf[0])) * sizeof(uint16_t)];
+	adsi_tx_state_t adsi;
 	int pos = 0, res;
 	int x;
 	int start=0;
@@ -175,7 +178,7 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	while(retries < maxretries) {
 		if (!(chan->adsicpe & ADSI_FLAG_DATAMODE)) {
 			/* Generate CAS (no SAS) */
-			opbx_gen_cas(buf, 0, 680, OPBX_FORMAT_ULAW);
+			opbx_gen_cas(buf, 680, 0, OPBX_FORMAT_ULAW);
 		
 			/* Send CAS */
 			if (adsi_careful_send(chan, buf, 680, NULL)) {
@@ -224,22 +227,34 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 			opbx_log(LOG_DEBUG, "Already in data mode\n");
 
 		x = 0;
-		pos = 0;
 #if 1
 		def= opbx_channel_defer_dtmf(chan);
 #endif
+		adsi_tx_init(&adsi, ADSI_STANDARD_CLASS);
+		pos = 0;
 		while((x < 6) && msg[x]) {
-			res = adsi_generate(buf + pos, msgtype[x], msg[x], msglen[x], x+1 - start, (x == 5) || !msg[x+1], OPBX_FORMAT_ULAW);
-			if (res < 0) {
-				opbx_log(LOG_WARNING, "Failed to generate ADSI message %d on channel %s\n", x + 1, chan->name);
-				return -1;
+			buf[0] = msgtype[x];
+			buf[1] = msglen[x] + 1;
+			buf[2] = x + 1 - start;
+			memcpy(buf+3, msg[x], msglen[x]);
+			adsi_put_message(&adsi, buf, 3 + msglen[x]);
+			/* Magic: suppress the leading line seizure */
+			adsi.bitno = 300;
+			if (x + 1 - start != 1) {
+				/* Magic: suppress the leading marks */
+				adsi.ones_len = 0;
 			}
-			opbx_log(LOG_DEBUG, "Message %d, of %d input bytes, %d output bytes\n", 
-					x + 1, msglen[x], res);
-			pos += res; 
+			/* We should suppress the trailing marks as well except for
+			 * the last message but this isn't possible. Is it a problem?
+			 */
+			pos += adsi_tx(&adsi, lin + pos, sizeof(lin)/sizeof(lin[0]) - pos);
+			//if (option_debug)
+				opbx_log(LOG_DEBUG, "Message %d, of %d input bytes, %d output bytes\n", x + 1, msglen[x], pos);
 			x++;
 		}
 
+		for (x = 0; x < pos; x++)
+			buf[x] = OPBX_LIN2MU(lin[x]);
 
 		rem = 0;
 		res = adsi_careful_send(chan, buf, pos, &rem); 

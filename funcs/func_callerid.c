@@ -40,7 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 #include "callweaver/options.h"
-#include "callweaver/old_callerid.h"
+#include "callweaver/callerid.h"
 
 static char *callerid_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {

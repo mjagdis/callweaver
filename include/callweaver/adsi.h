@@ -23,7 +23,7 @@
 #ifndef _CALLWEAVER_ADSI_H
 #define _CALLWEAVER_ADSI_H
 
-#include "callweaver/old_callerid.h"
+#include "callweaver/callerid.h"
 #include "callweaver/channel.h"
 
 /* ADSI Message types */
