@@ -193,15 +193,15 @@ mv doc/README.{misdn,chan_capi,res_jabber,odbcstorage} doc2
 %install
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
-rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver.org/modules/*.la
-rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver.org/*.a
-rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver.org/*.la
+rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver/modules/*.la
+rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver/*.a
+rm -f $RPM_BUILD_ROOT/%{_libdir}/callweaver/*.la
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
 install -m0755 contrib/fedora/callweaver $RPM_BUILD_ROOT%{_initrddir}/callweaver
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -m0644 contrib/fedora/callweaver.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/callweaver
 
-mv $RPM_BUILD_ROOT/%{_datadir}/callweaver.org/ogi/eogi-*test $RPM_BUILD_ROOT/%{_sbindir}
+mv $RPM_BUILD_ROOT/%{_datadir}/callweaver/ogi/eogi-*test $RPM_BUILD_ROOT/%{_sbindir}
 
 # More autocrap insanity. We can't just move confdefs.h into the callweaver/ subdir
 # because then autocrap will add that subdir to the compiler's include path and
@@ -214,7 +214,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %pre
 %__fe_groupadd 30 -r callweaver &>/dev/null || :
-%__fe_useradd  30 -r -s /sbin/nologin -d %{_sysconfdir}/callweaver.org -M \
+%__fe_useradd  30 -r -s /sbin/nologin -d %{_sysconfdir}/callweaver -M \
                     -c 'CallWeaver user' -g callweaver callweaver &>/dev/null || :
 %post
 /sbin/chkconfig --add callweaver
@@ -242,114 +242,114 @@ test "$1" != 0 || /sbin/chkconfig --del callweaver
 %{_sbindir}/callweaver
 %{_bindir}/smsq
 %{_bindir}/streamplayer
-%dir %{_libdir}/callweaver.org
-%{_libdir}/callweaver.org/lib*.so.*
-%dir %{_libdir}/callweaver.org/modules
-%{_libdir}/callweaver.org/modules/*.so
+%dir %{_libdir}/callweaver
+%{_libdir}/callweaver/lib*.so.*
+%dir %{_libdir}/callweaver/modules
+%{_libdir}/callweaver/modules/*.so
 %{_mandir}/man8/callweaver.8.gz
-%dir %{_datadir}/callweaver.org
-%dir %attr(0755,callweaver,callweaver) %{_sysconfdir}/callweaver.org
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/*
-%attr(2755,callweaver,callweaver) %{_localstatedir}/spool/callweaver.org
-%attr(0755,callweaver,callweaver) %{_localstatedir}/log/callweaver.org
-%attr(0755,callweaver,callweaver) %{_localstatedir}/run/callweaver.org
+%dir %{_datadir}/callweaver
+%dir %attr(0755,callweaver,callweaver) %{_sysconfdir}/callweaver
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/*
+%attr(2755,callweaver,callweaver) %{_localstatedir}/spool/callweaver
+%attr(0755,callweaver,callweaver) %{_localstatedir}/log/callweaver
+%attr(0755,callweaver,callweaver) %{_localstatedir}/run/callweaver
 # Unneeded
-%exclude %{_sysconfdir}/callweaver.org/cdr_tds.conf
+%exclude %{_sysconfdir}/callweaver/cdr_tds.conf
 # Separately packaged
-%exclude %{_libdir}/callweaver.org/modules/*pgsql.so
-%exclude %{_libdir}/callweaver.org/modules/*mysql.so
-%exclude %{_libdir}/callweaver.org/modules/app_sql_postgres.so
-%exclude %{_libdir}/callweaver.org/modules/app_ldap.so
-%exclude %{_libdir}/callweaver.org/modules/cdr_odbc.so
-%exclude %{_libdir}/callweaver.org/modules/chan_bluetooth.so
-%exclude %{_libdir}/callweaver.org/modules/res_jabber.so
-%exclude %{_libdir}/callweaver.org/modules/res_js.so
-%exclude %{_libdir}/callweaver.org/modules/chan_alsa.so
-%exclude %{_libdir}/callweaver.org/modules/res_ogi.so
-%exclude %{_libdir}/callweaver.org/modules/chan_capi.so
-%exclude %{_sysconfdir}/callweaver.org/cdr_pgsql.conf
-%exclude %{_sysconfdir}/callweaver.org/*mysql.conf
-%exclude %{_sysconfdir}/callweaver.org/cdr_odbc.conf
-%exclude %{_sysconfdir}/callweaver.org/chan_bluetooth.conf
-%exclude %{_sysconfdir}/callweaver.org/res_jabber.conf
-%exclude %{_sysconfdir}/callweaver.org/alsa.conf
-%exclude %{_sysconfdir}/callweaver.org/capi.conf
+%exclude %{_libdir}/callweaver/modules/*pgsql.so
+%exclude %{_libdir}/callweaver/modules/*mysql.so
+%exclude %{_libdir}/callweaver/modules/app_sql_postgres.so
+%exclude %{_libdir}/callweaver/modules/app_ldap.so
+%exclude %{_libdir}/callweaver/modules/cdr_odbc.so
+%exclude %{_libdir}/callweaver/modules/chan_bluetooth.so
+%exclude %{_libdir}/callweaver/modules/res_jabber.so
+%exclude %{_libdir}/callweaver/modules/res_js.so
+%exclude %{_libdir}/callweaver/modules/chan_alsa.so
+%exclude %{_libdir}/callweaver/modules/res_ogi.so
+%exclude %{_libdir}/callweaver/modules/chan_capi.so
+%exclude %{_sysconfdir}/callweaver/cdr_pgsql.conf
+%exclude %{_sysconfdir}/callweaver/*mysql.conf
+%exclude %{_sysconfdir}/callweaver/cdr_odbc.conf
+%exclude %{_sysconfdir}/callweaver/chan_bluetooth.conf
+%exclude %{_sysconfdir}/callweaver/res_jabber.conf
+%exclude %{_sysconfdir}/callweaver/alsa.conf
+%exclude %{_sysconfdir}/callweaver/capi.conf
 %if 0%{?with_misdn:1}
-%exclude %{_libdir}/callweaver.org/modules/chan_misdn.so
-%exclude %{_sysconfdir}/callweaver.org/misdn.conf
+%exclude %{_libdir}/callweaver/modules/chan_misdn.so
+%exclude %{_sysconfdir}/callweaver/misdn.conf
 %endif
 %if 0%{?with_zaptel:1}
-%exclude %{_libdir}/callweaver.org/modules/chan_zap.so
-%exclude %{_libdir}/callweaver.org/modules/app_meetme.so
-%exclude %{_libdir}/callweaver.org/modules/app_flash.so
-%exclude %{_sysconfdir}/callweaver.org/zapata.conf
-%exclude %{_sysconfdir}/callweaver.org/meetme.conf
+%exclude %{_libdir}/callweaver/modules/chan_zap.so
+%exclude %{_libdir}/callweaver/modules/app_meetme.so
+%exclude %{_libdir}/callweaver/modules/app_flash.so
+%exclude %{_sysconfdir}/callweaver/zapata.conf
+%exclude %{_sysconfdir}/callweaver/meetme.conf
 %endif
 
 %files devel
 %defattr(-,root,root,-)
 %dir %{_includedir}/callweaver
 %{_includedir}/callweaver/*.h
-%{_libdir}/callweaver.org/lib*.so
+%{_libdir}/callweaver/lib*.so
 
 %files postgresql
-%{_libdir}/callweaver.org/modules/*pgsql.so
-%{_libdir}/callweaver.org/modules/app_sql_postgres.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/cdr_pgsql.conf
+%{_libdir}/callweaver/modules/*pgsql.so
+%{_libdir}/callweaver/modules/app_sql_postgres.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/cdr_pgsql.conf
 
 %files mysql
-%{_libdir}/callweaver.org/modules/*mysql.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/*mysql.conf
+%{_libdir}/callweaver/modules/*mysql.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/*mysql.conf
 
 %files odbc
-%{_libdir}/callweaver.org/modules/cdr_odbc.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/cdr_odbc.conf
+%{_libdir}/callweaver/modules/cdr_odbc.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/cdr_odbc.conf
 %doc doc2/README.odbcstorage
 
 %files ldap
-%{_libdir}/callweaver.org/modules/app_ldap.so
+%{_libdir}/callweaver/modules/app_ldap.so
 
 %files bluetooth
-%{_libdir}/callweaver.org/modules/chan_bluetooth.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/chan_bluetooth.conf
+%{_libdir}/callweaver/modules/chan_bluetooth.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/chan_bluetooth.conf
 
 %files capi
-%{_libdir}/callweaver.org/modules/chan_capi.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/capi.conf
+%{_libdir}/callweaver/modules/chan_capi.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/capi.conf
 %doc doc2/README.chan_capi
 
 %if 0%{?with_misdn:1}
 %files misdn
-%{_libdir}/callweaver.org/modules/chan_misdn.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/misdn.conf
+%{_libdir}/callweaver/modules/chan_misdn.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/misdn.conf
 %doc doc2/README.misdn
 %endif
 
 %if 0%{?with_zaptel:1}
 %files zaptel
-%{_libdir}/callweaver.org/modules/chan_zap.so
-%{_libdir}/callweaver.org/modules/app_meetme.so
-%{_libdir}/callweaver.org/modules/app_flash.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/zapata.conf
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/meetme.conf
+%{_libdir}/callweaver/modules/chan_zap.so
+%{_libdir}/callweaver/modules/app_meetme.so
+%{_libdir}/callweaver/modules/app_flash.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/zapata.conf
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/meetme.conf
 %endif
 
 %files jabber
-%{_libdir}/callweaver.org/modules/res_jabber.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/res_jabber.conf
+%{_libdir}/callweaver/modules/res_jabber.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/res_jabber.conf
 %doc doc2/README.res_jabber
 
 %files javascript
-%{_libdir}/callweaver.org/modules/res_js.so
+%{_libdir}/callweaver/modules/res_js.so
 
 %files alsa
-%{_libdir}/callweaver.org/modules/chan_alsa.so
-%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver.org/alsa.conf
+%{_libdir}/callweaver/modules/chan_alsa.so
+%config(noreplace) %attr(0644,callweaver,callweaver) %{_sysconfdir}/callweaver/alsa.conf
 
 %files ogi
-%{_libdir}/callweaver.org/modules/res_ogi.so
-%dir %attr(0755,root,root) %{_datadir}/callweaver.org/ogi
-%{_datadir}/callweaver.org/ogi/*
+%{_libdir}/callweaver/modules/res_ogi.so
+%dir %attr(0755,root,root) %{_datadir}/callweaver/ogi
+%{_datadir}/callweaver/ogi/*
 %{_sbindir}/eogi*
 
 %changelog
