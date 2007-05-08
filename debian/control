@@ -3,7 +3,7 @@ Priority: optional
 Section: comm
 Maintainer: Debian VoIP Team <pkg-voip-maintainers@lists.alioth.debian.org>
 Uploaders: Kilian Krause <kilian@debian.org>, Mark Purcell <msp@debian.org>
-Build-Depends: debhelper (>= 4.1.0), dpatch, libcap-dev, libedit-dev, libspandsp-dev (= 0.0.4), libssl-dev, libncurses-dev, libpq-dev, libspeex-dev, libcurl3-dev, unixodbc-dev, libcapi20-dev, zaptel-source, libreadline-dev
+Build-Depends: debhelper (>= 4.1.0), dpatch, libcap-dev, libspandsp-dev (>= 0.0.4), libssl-dev, libncurses-dev, libpq-dev, libmysqlclient15-dev, libspeex-dev, libcurl3-dev, unixodbc-dev, libcapi20-dev, zaptel-source, libreadline-dev, libbluetooth2-dev
 Standards-Version: 3.6.2
 XS-Vcs-Svn: svn://svn.debian.org/pkg-voip/
 XS-Vcs-Browser: http://svn.debian.org/wsvn/pkg-voip/
