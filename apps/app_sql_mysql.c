@@ -423,7 +423,7 @@ static int MYSQL_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	opbx_module_user_hangup_all();
+	STANDARD_HANGUP_LOCALUSERS;
 	return opbx_unregister_application(app);
 }
 
