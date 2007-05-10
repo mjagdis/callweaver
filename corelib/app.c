@@ -139,11 +139,6 @@ int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, 
 	if (timeout < 0) 
 		fto = to = 1000000000;
 	res = opbx_readstring(c, s, maxlen, to, fto, "#");
-	if (result) {
-		char tmp[256];
-		snprintf(tmp, sizeof(tmp), "%c%s", result, s);
-		snprintf(s, sizeof(tmp), "%s", tmp);
-	}
 	return res;
 }
 
