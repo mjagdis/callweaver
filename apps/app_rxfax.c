@@ -696,7 +696,7 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
         res = opbx_answer(chan);
 	if (!res)
 	{
-    	    opbx_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+    	    opbx_log(LOG_DEBUG, "Could not answer channel '%s'\n", chan->name);
 //	    LOCAL_USER_REMOVE(u);
 //	    return res;
 	}
