@@ -45,43 +45,43 @@ CALLWEAVER_FILE_VERSION("$headurl: svn+ssh://svn@svn.callweaver.org/callweaver/t
 static char *function_config_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 /* These doesn't seem to be available outside callweaver.c
-	if (strcasecmp(data, "opbxrunuser") == 0) {
+	if (strcasecmp(data, "cwrunuser") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_USER, len);
-	} else if (strcasecmp(data, "opbxrungroup") == 0) {
+	} else if (strcasecmp(data, "cwrungroup") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_GROUP, len);
-	} else if (strcasecmp(data, "opbxmoddir") == 0) {
+	} else if (strcasecmp(data, "cwmoddir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_MOD_DIR, len);
 	} else
 */
-	if (strcasecmp(data, "opbxctlpermissions") == 0) {
+	if (strcasecmp(data, "cwctlpermissions") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL_PERMISSIONS, len);
-	} else if (strcasecmp(data, "opbxctlowner") == 0) {
+	} else if (strcasecmp(data, "cwctlowner") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL_OWNER, len);
-	} else if (strcasecmp(data, "opbxctlgroup") == 0) {
+	} else if (strcasecmp(data, "cwctlgroup") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL_GROUP, len);
-	} else if (strcasecmp(data, "opbxctl") == 0) {
+	} else if (strcasecmp(data, "cwctl") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL, len);
-	} else if (strcasecmp(data, "opbxdb") == 0) {
+	} else if (strcasecmp(data, "cwdb") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_DB, len);
-	} else if (strcasecmp(data, "opbxetcdir") == 0) {
+	} else if (strcasecmp(data, "cwetcdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CONFIG_DIR, len);
-	} else if (strcasecmp(data, "opbxconfigdir") == 0) {
+	} else if (strcasecmp(data, "cwconfigdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CONFIG_DIR, len);; /* opbxetcdir alias */
-	} else if (strcasecmp(data, "opbxspooldir") == 0) {
+	} else if (strcasecmp(data, "cwspooldir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_SPOOL_DIR, len);
-	} else if (strcasecmp(data, "opbxvarlibdir") == 0) {
+	} else if (strcasecmp(data, "cwvarlibdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_VAR_DIR, len);
-	} else if (strcasecmp(data, "opbxvardir") == 0) {
-		opbx_copy_string(buf, opbx_config_OPBX_VAR_DIR, len);; /* opbxvarlibdir alias */
-	} else if (strcasecmp(data, "opbxdbdir") == 0) {
+	} else if (strcasecmp(data, "cwvardir") == 0) {
+		opbx_copy_string(buf, opbx_config_OPBX_VAR_DIR, len);; /* cwvarlibdir alias */
+	} else if (strcasecmp(data, "cwdbdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_DB_DIR, len);
-	} else if (strcasecmp(data, "opbxlogdir") == 0) {
+	} else if (strcasecmp(data, "cwlogdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_LOG_DIR, len);
-	} else if (strcasecmp(data, "opbxogidir") == 0) {
+	} else if (strcasecmp(data, "cwogidir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_OGI_DIR, len);
-	} else if (strcasecmp(data, "opbxsoundsdir") == 0) {
+	} else if (strcasecmp(data, "cwsoundsdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_SOUNDS_DIR, len);
-	} else if (strcasecmp(data, "opbxrundir") == 0) {
+	} else if (strcasecmp(data, "cwrundir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_DIR, len);
 	} else {
 		opbx_log(LOG_WARNING, "Config setting '%s' not known.\n", data);
@@ -104,9 +104,9 @@ static struct opbx_custom_function config_function = {
 	.synopsis = "Read configuration values set in callweaver.conf",
 	.syntax = "CONFIG(<name>)",
 	.desc = "This function will read configuration values set in callweaver.conf.\n"
-			"Possible values include opbxctlpermissions, opbxctlowner, opbxctlgroup,\n"
-			"opbxctl, opbxdb, opbxetcdir, opbxconfigdir, opbxspooldir, opbxvarlibdir,\n"
-			"opbxvardir, opbxdbdir, opbxlogdir, opbxogidir, opbxsoundsdir, and opbxrundir\n",
+			"Possible values include cwctlpermissions, cwctlowner, cwctlgroup,\n"
+			"cwctl, cwdb, cwetcdir, cwconfigdir, cwspooldir, cwvarlibdir,\n"
+			"cwvardir, cwdbdir, cwlogdir, cwogidir, cwsoundsdir, and cwrundir\n",
 	.read = function_config_read,
 	.write = function_config_write,
 };

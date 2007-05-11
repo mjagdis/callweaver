@@ -268,7 +268,7 @@ inkeys=freeworlddialup
 ;auth=md5,plaintext,rsa
 ;secret=markpasswd
 ;setvar=foo=bar
-;dbsecret=mysecrets/place	; Secrets can be stored in opbxdb, too
+;dbsecret=mysecrets/place	; Secrets can be stored in cwdb, too
 ;notransfer=yes		; Disable IAX native transfer
 ;maxauthreq=10		; Set maximum number of outstanding AUTHREQs waiting for replies. Any further authentication attempts will be blocked
 ;			; if this limit is reached until they expire or a reply is received.

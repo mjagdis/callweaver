@@ -1523,7 +1523,7 @@ static char **cli_completion(const char *text, int start, int end)
 static int opbx_rl_initialize(void)
 {
     /*
-    char *editor = getenv("OPBX_EDITOR");
+    char *editor = getenv("CW_EDITOR");
     */
     rl_initialize ();
     rl_editing_mode = 1;
@@ -1751,52 +1751,52 @@ static void opbx_readconfig(void) {
 	}
 	v = opbx_variable_browse(cfg, "general");
 	while (v) {
-		if (!strcasecmp(v->name, "opbxrunuser")) {
+		if (!strcasecmp(v->name, "cwrunuser")) {
 			opbx_copy_string(opbx_config_OPBX_RUN_USER, v->value, sizeof(opbx_config_OPBX_RUN_USER));
-		} else if (!strcasecmp(v->name, "opbxrungroup")) {
+		} else if (!strcasecmp(v->name, "cwrungroup")) {
 			opbx_copy_string(opbx_config_OPBX_RUN_GROUP, v->value, sizeof(opbx_config_OPBX_RUN_GROUP));
 		}
 		v = v->next;
 	}
 	v = opbx_variable_browse(cfg, "files");
 	while (v) {
-		if (!strcasecmp(v->name, "opbxctlpermissions")) {
+		if (!strcasecmp(v->name, "cwctlpermissions")) {
 			opbx_copy_string(opbx_config_OPBX_CTL_PERMISSIONS, v->value, sizeof(opbx_config_OPBX_CTL_PERMISSIONS));
-		} else if (!strcasecmp(v->name, "opbxctlowner")) {
+		} else if (!strcasecmp(v->name, "cwctlowner")) {
 			opbx_copy_string(opbx_config_OPBX_CTL_OWNER, v->value, sizeof(opbx_config_OPBX_CTL_OWNER));
-		} else if (!strcasecmp(v->name, "opbxctlgroup")) {
+		} else if (!strcasecmp(v->name, "cwctlgroup")) {
 			opbx_copy_string(opbx_config_OPBX_CTL_GROUP, v->value, sizeof(opbx_config_OPBX_CTL_GROUP));
-		} else if (!strcasecmp(v->name, "opbxctl")) {
+		} else if (!strcasecmp(v->name, "cwctl")) {
 			opbx_copy_string(opbx_config_OPBX_CTL, v->value, sizeof(opbx_config_OPBX_CTL));
-		} else if (!strcasecmp(v->name, "opbxdb")) {
+		} else if (!strcasecmp(v->name, "cwdb")) {
 			opbx_copy_string(opbx_config_OPBX_DB, v->value, sizeof(opbx_config_OPBX_DB));
 		}
 		v = v->next;
 	}
 	v = opbx_variable_browse(cfg, "directories");
 	while(v) {
-		if (!strcasecmp(v->name, "opbxetcdir")) {
+		if (!strcasecmp(v->name, "cwetcdir")) {
 			opbx_copy_string(opbx_config_OPBX_CONFIG_DIR, v->value, sizeof(opbx_config_OPBX_CONFIG_DIR));
-		} else if (!strcasecmp(v->name, "opbxspooldir")) {
+		} else if (!strcasecmp(v->name, "cwspooldir")) {
 			opbx_copy_string(opbx_config_OPBX_SPOOL_DIR, v->value, sizeof(opbx_config_OPBX_SPOOL_DIR));
 			snprintf(opbx_config_OPBX_MONITOR_DIR, sizeof(opbx_config_OPBX_MONITOR_DIR) - 1, "%s/monitor", v->value);
-		} else if (!strcasecmp(v->name, "opbxvarlibdir")) {
+		} else if (!strcasecmp(v->name, "cwvarlibdir")) {
 			opbx_copy_string(opbx_config_OPBX_VAR_DIR, v->value, sizeof(opbx_config_OPBX_VAR_DIR));
-		} else if (!strcasecmp(v->name, "opbxdbdir")) {
+		} else if (!strcasecmp(v->name, "cwdbdir")) {
 			opbx_copy_string(opbx_config_OPBX_DB_DIR, v->value, sizeof(opbx_config_OPBX_DB_DIR));
-		} else if (!strcasecmp(v->name, "opbxlogdir")) {
+		} else if (!strcasecmp(v->name, "cwlogdir")) {
 			opbx_copy_string(opbx_config_OPBX_LOG_DIR, v->value, sizeof(opbx_config_OPBX_LOG_DIR));
-		} else if (!strcasecmp(v->name, "opbxogidir")) {
+		} else if (!strcasecmp(v->name, "cwogidir")) {
 			opbx_copy_string(opbx_config_OPBX_OGI_DIR, v->value, sizeof(opbx_config_OPBX_OGI_DIR));
-		} else if (!strcasecmp(v->name, "opbxsoundsdir")) {
+		} else if (!strcasecmp(v->name, "cwsoundsdir")) {
 			opbx_copy_string(opbx_config_OPBX_SOUNDS_DIR, v->value, sizeof(opbx_config_OPBX_SOUNDS_DIR));
-		} else if (!strcasecmp(v->name, "opbxrundir")) {
+		} else if (!strcasecmp(v->name, "cwrundir")) {
 			snprintf(opbx_config_OPBX_PID, sizeof(opbx_config_OPBX_PID), "%s/%s", v->value, "callweaver.pid");
 			snprintf(opbx_config_OPBX_SOCKET, sizeof(opbx_config_OPBX_SOCKET), "%s/%s", v->value, opbx_config_OPBX_CTL);
 			opbx_copy_string(opbx_config_OPBX_RUN_DIR, v->value, sizeof(opbx_config_OPBX_RUN_DIR));
-		} else if (!strcasecmp(v->name, "opbxmoddir")) {
+		} else if (!strcasecmp(v->name, "cwmoddir")) {
 			opbx_copy_string(opbx_config_OPBX_MODULE_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR));
-		} else if (!strcasecmp(v->name, "opbxkeydir")) { 
+		} else if (!strcasecmp(v->name, "cwkeydir")) { 
 			opbx_copy_string(opbx_config_OPBX_KEY_DIR, v->value, sizeof(opbx_config_OPBX_MODULE_DIR)); 
 		}
 		v = v->next;

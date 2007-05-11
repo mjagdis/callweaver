@@ -2,13 +2,13 @@
 reload => no
 
 [config]
-table => opbx_config
+table => cw_config
 dbfile => config
 
 
 [cdr]
-table => opbx_cdr
-dbfile => opbx_cdr
+table => cw_cdr
+dbfile => cw_cdr
 
 
 [switch]

@@ -1,6 +1,6 @@
 [general]
 ;
-; Define whether callbacklogins should be stored in opbxdb for
+; Define whether callbacklogins should be stored in cwdb for
 ; persistence. Persistent logins will be reloaded after
 ; CallWeaver restarts.
 ;

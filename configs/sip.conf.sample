@@ -366,7 +366,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;allow=alaw
 ;allow=g723.1			; CallWeaver only supports g723.1 pass-thru!
 ;allow=g729			; Pass-thru only unless g729 license obtained
-;opbxdb=chan2ext/SIP/grandstream1=1234	; ensures an opbxdb entry exists
+;cwdb=chan2ext/SIP/grandstream1=1234	; ensures an cwdb entry exists
 
 
 ;[xlite1]
