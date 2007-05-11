@@ -953,10 +953,20 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
                 case HELPER_EXEC:
                 case HELPER_FINDLABEL:
                     /* We are only interested in exact matches */
+                    if (eroot->matchcid  &&  !matchcid(eroot->cidmatch, callerid))
+                    {
+                        res = 0;
+                        break;
+                    }
                     res = (match == EXTENSION_MATCH_POSSIBLE  ||  match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE);
                     break;
                 case HELPER_CANMATCH:
                     /* We are interested in exact or incomplete matches */
+                    if (eroot->matchcid  &&  !matchcid(eroot->cidmatch, callerid))
+                    {
+                        res = 0;
+                        break;
+                    }
                     res = (match == EXTENSION_MATCH_POSSIBLE  ||  match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE);
                     break;
                 case HELPER_MATCHMORE:
