@@ -16,10 +16,12 @@ SLOT="0"
 LICENSE="GPL-2"
 KEYWORDS="~x86"
 
-# Soon
-#IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
+IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
 
-RDEPEND=">=media-libs/spandsp-0.0.3_pre26"
+RDEPEND=">=media-libs/spandsp-0.0.3_pre26
+	misdn? ( >=net-dialup/misdn-1.1.1 >=net-dialup/misdnuser-1.1 )
+	speex? ( media-libs/speex )"
+
 DEPEND="${RDEPEND}
         sys-devel/flex
         dev-util/subversion
