@@ -946,47 +946,35 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
                 /* Match extension */
                 match = opbx_extension_pattern_match(exten, eroot->exten);
                 res = 0;
-                switch (action)
-                {
-                case HELPER_EXISTS:
-                case HELPER_SPAWN:
-                case HELPER_EXEC:
-                case HELPER_FINDLABEL:
-                    /* We are only interested in exact matches */
-                    if (eroot->matchcid  &&  !matchcid(eroot->cidmatch, callerid))
+		if (!(eroot->matchcid  &&  !matchcid(eroot->cidmatch, callerid)))
+		{
+                    switch (action)
                     {
-                        res = 0;
-                        break;
+                        case HELPER_EXISTS:
+                        case HELPER_SPAWN:
+                        case HELPER_EXEC:
+                        case HELPER_FINDLABEL:
+                    	    /* We are only interested in exact matches */
+                    	    res = (match == EXTENSION_MATCH_POSSIBLE  ||  match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE);
+                    	    break;
+                        case HELPER_CANMATCH:
+                            /* We are interested in exact or incomplete matches */
+                            res = (match == EXTENSION_MATCH_POSSIBLE  ||  match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE);
+                    	    break;
+                        case HELPER_MATCHMORE:
+                    	    /* We are only interested in incomplete matches */
+                    	    if (match == EXTENSION_MATCH_POSSIBLE  &&  earlymatch == NULL) 
+			    {
+                               /* It matched an extension ending in a '!' wildcard
+                               So just record it for now, unless there's a better match */
+                               earlymatch = eroot;
+                               res = 0;
+                               break;
+                            }
+                            res = (match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE)  ?  1  :  0;
+                            break;
                     }
-                    res = (match == EXTENSION_MATCH_POSSIBLE  ||  match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE);
-                    break;
-                case HELPER_CANMATCH:
-                    /* We are interested in exact or incomplete matches */
-                    if (eroot->matchcid  &&  !matchcid(eroot->cidmatch, callerid))
-                    {
-                        res = 0;
-                        break;
-                    }
-                    res = (match == EXTENSION_MATCH_POSSIBLE  ||  match == EXTENSION_MATCH_EXACT  ||  match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE);
-                    break;
-                case HELPER_MATCHMORE:
-                    /* We are only interested in incomplete matches */
-                    if (eroot->matchcid  &&  !matchcid(eroot->cidmatch, callerid))
-                    {
-                        res = 0;
-                        break;
-                    }
-                    if (match == EXTENSION_MATCH_POSSIBLE  &&  earlymatch == NULL)
-                    {
-                        /* It matched an extension ending in a '!' wildcard
-                           So just record it for now, unless there's a better match */
-                        earlymatch = eroot;
-                        res = 0;
-                        break;
-                    }
-                    res = (match == EXTENSION_MATCH_STRETCHABLE  ||  match == EXTENSION_MATCH_INCOMPLETE)  ?  1  :  0;
-                    break;
-                }
+		}
                 if (res)
                 {
                     e = eroot;
