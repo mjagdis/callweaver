@@ -569,7 +569,7 @@ static int unicall_digit(struct opbx_channel *opbx, char digit)
         buf[0] = digit;
         buf[1] = '\0';
 opbx_log(LOG_WARNING, "Sending DTMF digit\n");
-        dtmf_put(&p->subs[SUB_REAL].dtmf_tx_state, buf);
+        dtmf_tx_put(&p->subs[SUB_REAL].dtmf_tx_state, buf);
         p->dialing = TRUE;
     }
     /*endif*/    
@@ -2932,7 +2932,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
             else
             {
                 i->dialing = TRUE;
-                dtmf_put(&i->subs[SUB_REAL].dtmf_tx_state, i->dialstr);
+                dtmf_tx_put(&i->subs[SUB_REAL].dtmf_tx_state, i->dialstr);
                 opbx_log(LOG_DEBUG, "Sent deferred digit string: %s\n", i->dialstr);
                 i->dialstr[0] = '\0';
             }
