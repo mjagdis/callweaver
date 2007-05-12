@@ -1,8 +1,8 @@
 Intro
 -----
 
-This for people running Gentoo/portage adn who wants to try the current trunk
-of CallWeaver. The version is 1.1.99.$date.
+This for people running Gentoo/portage and who wants to try the current trunk
+of CallWeaver. There are two versions, daily bootstrapped and svn.
 
 Digests are already made so they should match. Just drop the 2 subdirs in your $PORTDIR_OVERLAY and you are all set.
 
@@ -32,3 +32,4 @@ You will find more information about how to run/configure CallWeaver.org on
 http://www.CallWeaver.org/
 
 Happy chatting
+heart
