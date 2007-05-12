@@ -40,16 +40,20 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/options.h"
 #include "callweaver/lock.h"
 #include "callweaver/strings.h"
+#include "callweaver/unaligned.h"
 #include "callweaver/callweaver_mm.h"
 
 #define SOME_PRIME      563
 
-#define FUNC_CALLOC     1
-#define FUNC_MALLOC     2
-#define FUNC_REALLOC    3
-#define FUNC_STRDUP     4
-#define FUNC_STRNDUP    5
-#define FUNC_VASPRINTF  6
+enum func_type
+{
+    FUNC_CALLOC = 1,
+    FUNC_MALLOC,
+    FUNC_REALLOC,
+    FUNC_STRDUP,
+    FUNC_STRNDUP,
+    FUNC_VASPRINTF
+};
 
 /* Undefine all our macros */
 #undef malloc
@@ -64,20 +68,22 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static FILE *mmlog;
 
-static struct opbx_region
+struct opbx_region
 {
     struct opbx_region *next;
     char file[40];
     char func[40];
-    int lineno;
-    int which;
+    unsigned int lineno;
+    enum func_type which;
+    unsigned int cache;		/* region was allocated as part of a cache pool */
     size_t len;
     unsigned int fence;
     unsigned char data[0];
-} *regions[SOME_PRIME];
+};
 
-#define HASH(a) \
-    (((unsigned long)(a)) % SOME_PRIME)
+static struct opbx_region *regions[SOME_PRIME];
+
+#define HASH(a) (((unsigned long)(a)) % SOME_PRIME)
     
 OPBX_MUTEX_DEFINE_STATIC(reglock);
 OPBX_MUTEX_DEFINE_STATIC(showmemorylock);
@@ -102,14 +108,15 @@ static inline void *__opbx_alloc_region(size_t size, int which, const char *file
         reg->which = which;
         ptr = reg->data;
         hash = HASH(ptr);
+        fence = (ptr + reg->len);
+        put_unaligned_uint32(fence, FENCE_MAGIC);
+
         reg->next = regions[hash];
         regions[hash] = reg;
         reg->fence = FENCE_MAGIC;
-        fence = (ptr + reg->len);
-        *fence = FENCE_MAGIC;
     }
     opbx_mutex_unlock(&reglock);
-    if (!reg)
+    if (reg == NULL)
     {
         fprintf(stderr, "Out of memory :(\n");
         if (mmlog)
@@ -128,15 +135,13 @@ static inline size_t __opbx_sizeof_region(void *ptr)
     size_t len = 0;
     
     opbx_mutex_lock(&reglock);
-    reg = regions[hash];
-    while (reg)
+    for (reg = regions[hash];  reg;  reg = reg->next)
     {
         if (reg->data == ptr)
         {
             len = reg->len;
             break;
         }
-        reg = reg->next;
     }
     opbx_mutex_unlock(&reglock);
     return len;
@@ -149,8 +154,7 @@ static void __opbx_free_region(void *ptr, const char *file, int lineno, const ch
     unsigned int *fence;
 
     opbx_mutex_lock(&reglock);
-    reg = regions[hash];
-    while (reg)
+    for (reg = regions[hash];  reg;  reg = reg->next)
     {
         if (reg->data == ptr)
         {
@@ -161,12 +165,11 @@ static void __opbx_free_region(void *ptr, const char *file, int lineno, const ch
             break;
         }
         prev = reg;
-        reg = reg->next;
     }
     opbx_mutex_unlock(&reglock);
     if (reg)
     {
-        fence = (unsigned int *)(reg->data + reg->len);
+        fence = (unsigned int *) (reg->data + reg->len);
         if (reg->fence != FENCE_MAGIC)
         {
             fprintf(stderr, "WARNING: Low fence violation at %p, in %s of %s, line %d\n", reg->data, reg->func, reg->file, reg->lineno);
@@ -201,6 +204,7 @@ static void __opbx_free_region(void *ptr, const char *file, int lineno, const ch
 void *__opbx_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
 {
     void *ptr;
+
     ptr = __opbx_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func);
     if (ptr) 
         memset(ptr, 0, size * nmemb);
@@ -324,11 +328,11 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 
     for (x = 0;  x < SOME_PRIME;  x++)
     {
-        reg = regions[x];
-        while (reg)
+        for (reg = regions[x];  reg;  reg = reg->next)
         {
-            if (!fn || !strcasecmp(fn, reg->file) || !strcasecmp(fn, "anomolies")) {
-                fence = (unsigned int *)(reg->data + reg->len);
+            if (fn == NULL  ||  strcasecmp(fn, reg->file) == 0  ||  strcasecmp(fn, "anomolies") == 0)
+            {
+                fence = (unsigned int *) (reg->data + reg->len);
                 if (reg->fence != FENCE_MAGIC)
                 {
                     fprintf(stderr, "WARNING: Low fence violation at %p, in %s of %s, line %d\n", reg->data, reg->func, reg->file, reg->lineno);
@@ -348,13 +352,12 @@ static int handle_show_memory(int fd, int argc, char *argv[])
                     }
                 }
             }
-            if (!fn  ||  !strcasecmp(fn, reg->file))
+            if (fn == NULL  ||  strcasecmp(fn, reg->file) == 0)
             {
                 opbx_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
                 len += reg->len;
                 count++;
             }
-            reg = reg->next;
         }
     }
     opbx_cli(fd, "%d bytes allocated %d units total\n", len, count);
@@ -366,6 +369,7 @@ struct file_summary
 {
     char fn[80];
     int len;
+    int cache_len;
     int count;
     struct file_summary *next;
 };
@@ -376,6 +380,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
     int x;
     struct opbx_region *reg;
     unsigned int len = 0;
+    unsigned int cache_len = 0;
     int count = 0;
     struct file_summary *list = NULL;
     struct file_summary *cur;
@@ -388,55 +393,73 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 
     for (x = 0;  x < SOME_PRIME;  x++)
     {
-        reg = regions[x];
-        while (reg)
+        for (reg = regions[x];  reg;  reg = reg->next)
         {
-            if (!fn  ||  !strcasecmp(fn, reg->file))
+            if (fn  &&  strcasecmp(fn, reg->file))
+                continue;
+            for (cur = list;  cur;  cur = cur->next)
             {
-                cur = list;
-                while (cur)
-                {
-                    if ((!fn  &&  !strcmp(cur->fn, reg->file))  ||  (fn  &&  !strcmp(cur->fn, reg->func)))
-                        break;
-                    cur = cur->next;
-                }
-                if (!cur)
-                {
-                    if (cur = alloca(sizeof(struct file_summary)) == NULL)
-                    {
-                        /* TODO: improve this */
-                        opbx_cli(fd, "Out of memory\n");
-                        return RESULT_SUCCESS;
-                    }
-                    memset(cur, 0, sizeof(struct file_summary));
-                    opbx_copy_string(cur->fn, (fn)  ?  reg->func  :  reg->file, sizeof(cur->fn));
-                    cur->next = list;
-                    list = cur;
-                }
-                cur->len += reg->len;
-                cur->count++;
+                if ((fn == NULL  &&  strcmp(cur->fn, reg->file) == 0)  ||  (fn  &&  strcmp(cur->fn, reg->func) == 0))
+                    break;
             }
-            reg = reg->next;
+            if (cur == NULL)
+            {
+                if ((cur = alloca(sizeof(*cur))) == NULL)
+                {
+                    /* TODO: improve this */
+                    opbx_cli(fd, "Out of memory\n");
+                    return RESULT_SUCCESS;
+                }
+                memset(cur, 0, sizeof(*cur));
+                opbx_copy_string(cur->fn, (fn)  ?  reg->func  :  reg->file, sizeof(cur->fn));
+                cur->next = list;
+                list = cur;
+            }
+            cur->len += reg->len;
+            if (reg->cache)
+                cur->cache_len += reg->len;
+            cur->count++;
         }
     }
     opbx_mutex_unlock(&reglock);
     
     /* Dump the whole list */
-    while (list)
+    for (cur = list;  cur;  cur = cur->next)
     {
-        cur = list;
         len += list->len;
+        cache_len += cur->cache_len;
         count += list->count;
-        if (fn)
-            opbx_cli(fd, "%10d bytes in %5d allocations in function '%s' of '%s'\n", list->len, list->count, list->fn, fn);
+        if (cur->cache_len)
+        {
+            if (fn)
+            {
+                opbx_cli(fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
+                    cur->len, cur->cache_len, cur->count, cur->fn, fn);
+            }
+            else
+            {
+                opbx_cli(fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
+                    cur->len, cur->cache_len, cur->count, cur->fn);
+            }
+        }
         else
-            opbx_cli(fd, "%10d bytes in %5d allocations in file '%s'\n", list->len, list->count, list->fn);
-        list = list->next;
-#if 0
-        free(cur);
-#endif        
+        {
+            if (fn)
+            {
+                opbx_cli(fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
+                    cur->len, cur->count, cur->fn, fn);
+            }
+            else
+            {
+                opbx_cli(fd, "%10d bytes in %d allocations in file '%s'\n", 
+                    cur->len, cur->count, cur->fn);
+            }
+        }
     }
-    opbx_cli(fd, "%d bytes allocated %d units total\n", len, count);
+    if (cache_len)
+        opbx_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
+    else
+        opbx_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
     return RESULT_SUCCESS;
 }
 
