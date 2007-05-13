@@ -352,8 +352,6 @@ typedef struct unicall_pvt_s
 
 static unicall_pvt_t *iffirst = NULL;
 static unicall_pvt_t *iflast = NULL;
-static unicall_pvt_t *iflist = NULL;
-static unicall_pvt_t *ifend = NULL;
 /* The current round robin position within each of the 32 possible groups */
 static unicall_pvt_t *round_robin[32];
 
@@ -3595,7 +3593,6 @@ static unicall_pvt_t *chandup(unicall_pvt_t *src)
     }
     /*endif*/
     p->destroy = TRUE;
-    p->next = iflist;
     p->next = iffirst;
     iffirst = p;
     return p;
@@ -3672,11 +3669,11 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
             if (dest[0] == 'G')
             {
                 backwards = 1;
-                p = ifend;
+                p = iflast;
             }
             else
             {
-                p = iflist;
+                p = iffirst;
             }
             /*endif*/
         }
@@ -3685,14 +3682,14 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
             if (dest[0] == 'R')
             {
                 backwards = 1;
-                if ((p = (round_robin[x])  ?  round_robin[x]->prev  :  ifend) == NULL)
-                    p = ifend;
+                if ((p = (round_robin[x])  ?  round_robin[x]->prev  :  iflast) == NULL)
+                    p = iflast;
                 /*endif*/
             }
             else
             {
-                if ((p = (round_robin[x])  ?  round_robin[x]->next  :  iflist) == NULL)
-                    p = iflist;
+                if ((p = (round_robin[x])  ?  round_robin[x]->next  :  iffirst) == NULL)
+                    p = iffirst;
                 /*endif*/
             }
             /*endif*/
@@ -3810,12 +3807,12 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         if (backwards)
         {
             if ((p = p->prev) == NULL)
-                p = ifend;
+                p = iflast;
         }
         else
         {
             if ((p = p->next) == NULL)
-                p = iflist;
+                p = iffirst;
         }
     }
     /*endwhile*/
