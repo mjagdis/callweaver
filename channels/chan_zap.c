@@ -7219,53 +7219,69 @@ static struct opbx_channel *zt_request(const char *type, int format, void *data,
 		opbx_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
 	}
-	if (toupper(dest[0]) == 'G' || toupper(dest[0])=='R') {
+	if (toupper(dest[0]) == 'G'  ||  toupper(dest[0]) == 'R')
+    {
 		/* Retrieve the group number */
-		char *stringp=NULL;
-		stringp=dest + 1;
+		char *stringp;
+
+		stringp = dest + 1;
 		s = strsep(&stringp, "/");
-		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
-			opbx_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
+		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1)
+        {
+			opbx_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *) data);
 			return NULL;
 		}
 		groupmatch = 1 << x;
-		if (toupper(dest[0]) == 'G') {
-			if (dest[0] == 'G') {
+		if (toupper(dest[0]) == 'G')
+        {
+			if (dest[0] == 'G')
+            {
 				backwards = 1;
 				p = ifend;
-			} else
+			}
+            else
 				p = iflist;
-		} else {
-			if (dest[0] == 'R') {
+		}
+        else
+        {
+			if (dest[0] == 'R')
+            {
 				backwards = 1;
-				p = round_robin[x]?round_robin[x]->prev:ifend;
-				if (!p)
+				if ((p = round_robin[x]?round_robin[x]->prev:ifend) == NULL)
 					p = ifend;
-			} else {
-				p = round_robin[x]?round_robin[x]->next:iflist;
-				if (!p)
+			}
+            else
+            {
+				if ((p = round_robin[x]?round_robin[x]->next:iflist) == NULL)
 					p = iflist;
 			}
 			roundrobin = 1;
 		}
-	} else {
-		char *stringp=NULL;
-		stringp=dest;
+	}
+    else
+    {
+		char *stringp;
+
+		stringp = dest;
 		s = strsep(&stringp, "/");
 		p = iflist;
-		if (!strcasecmp(s, "pseudo")) {
+		if (!strcasecmp(s, "pseudo"))
+        {
 			/* Special case for pseudo */
 			x = CHAN_PSEUDO;
 			channelmatch = x;
 		} 
 #ifdef ZAPATA_PRI
-		else if ((res = sscanf(s, "%d:%d%c%d", &trunkgroup, &crv, &opt, &y)) > 1) {
-			if ((trunkgroup < 1) || (crv < 1)) {
+		else if ((res = sscanf(s, "%d:%d%c%d", &trunkgroup, &crv, &opt, &y)) > 1)
+        {
+			if ((trunkgroup < 1) || (crv < 1))
+            {
 				opbx_log(LOG_WARNING, "Unable to determine trunk group and CRV for data %s\n", (char *)data);
 				return NULL;
 			}
 			res--;
-			for (x=0;x<NUM_SPANS;x++) {
+			for (x = 0;  x < NUM_SPANS;  x++)
+            {
 				if (pris[x].trunkgroup == trunkgroup) {
 					pri = pris + x;
 					lock = &pri->lock;
@@ -7285,23 +7301,28 @@ static struct opbx_channel *zt_request(const char *type, int format, void *data,
 		else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			opbx_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
 			return NULL;
-		} else {
+		}
+        else
+        {
 			channelmatch = x;
 		}
 	}
 	/* Search for an unowned channel */
-	if (opbx_mutex_lock(lock)) {
+	if (opbx_mutex_lock(lock))
+    {
 		opbx_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return NULL;
 	}
 	exit = p;
-	while(p && !tmp) {
+	while (p  &&  !tmp)
+    {
 		if (roundrobin)
 			round_robin[x] = p;
 #if 0
 		opbx_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
-		if (p && available(p, channelmatch, groupmatch, &busy)) {
+		if (p  &&  available(p, channelmatch, groupmatch, &busy))
+        {
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "Using channel %d\n", p->channel);
 				if (p->inalarm) 
@@ -7331,14 +7352,15 @@ static struct opbx_channel *zt_request(const char *type, int format, void *data,
 				}
 			}
 #endif			
-			if (p->channel == CHAN_PSEUDO) {
-				p = chandup(p);
-				if (!p) {
+			if (p->channel == CHAN_PSEUDO)
+            {
+				if ((p = chandup(p)) == NULL)
 					break;
-				}
 			}
-			if (p->owner) {
-				if (alloc_sub(p, SUB_CALLWAIT)) {
+			if (p->owner)
+            {
+				if (alloc_sub(p, SUB_CALLWAIT))
+                {
 					p = NULL;
 					break;
 				}
@@ -7346,28 +7368,37 @@ static struct opbx_channel *zt_request(const char *type, int format, void *data,
 			p->outgoing = 1;
 			tmp = zt_new(p, OPBX_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0);
 #ifdef ZAPATA_PRI
-			if (p->bearer) {
+			if (p->bearer)
+            {
 				/* Log owner to bearer channel, too */
 				p->bearer->owner = tmp;
 			}
 #endif			
 			/* Make special notes */
-			if (res > 1) {
-				if (opt == 'c') {
+			if (res > 1)
+            {
+				if (opt == 'c')
+                {
 					/* Confirm answer */
 					p->confirmanswer = 1;
-				} else if (opt == 'r') {
+				}
+                else if (opt == 'r')
+                {
 					/* Distinctive ring */
 					if (res < 3)
 						opbx_log(LOG_WARNING, "Distinctive ring missing identifier in '%s'\n", (char *)data);
 					else
 						p->distinctivering = y;
-				} else if (opt == 'd') {
+				}
+                else if (opt == 'd')
+                {
 					/* If this is an ISDN call, make it digital */
 					p->digital = 1;
 					if (tmp)
 						tmp->transfercapability = OPBX_TRANS_CAP_DIGITAL;
-				} else {
+				}
+                else
+                {
 					opbx_log(LOG_WARNING, "Unknown option '%c' in '%s'\n", opt, (char *)data);
 				}
 			}
@@ -7377,22 +7408,23 @@ static struct opbx_channel *zt_request(const char *type, int format, void *data,
 			break;
 		}
 next:
-		if (backwards) {
-			p = p->prev;
-			if (!p)
+		if (backwards)
+        {
+			if ((p = p->prev) == NULL)
 				p = end;
-		} else {
-			p = p->next;
-			if (!p)
+		}
+        else
+        {
+			if ((p = p->next) == NULL)
 				p = start;
 		}
-		/* stop when you roll to the one that we started from */
+		/* Stop when rolling to the one that we started from */
 		if (p == exit)
 			break;
 	}
 	opbx_mutex_unlock(lock);
 	restart_monitor();
-	if (callwait || (!tmp && busy))
+	if (callwait  ||  (tmp == NULL  &&  busy))
 		*cause = OPBX_CAUSE_BUSY;
 	return tmp;
 }

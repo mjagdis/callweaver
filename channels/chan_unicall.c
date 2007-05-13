@@ -1139,15 +1139,15 @@ static int destroy_channel(unicall_pvt_t *prev, unicall_pvt_t *cur, int now)
         /*endfor*/
         if (!owned)
         {
-			if (prev)
+            if (prev)
             {
-				prev->next = cur->next;
+                prev->next = cur->next;
                 if (prev->next)
                     prev->next->prev = prev;
                 else
                     iflast = prev;
                 /*endif*/
-			}
+            }
             else
             {
                 iffirst = cur->next;
@@ -1156,7 +1156,7 @@ static int destroy_channel(unicall_pvt_t *prev, unicall_pvt_t *cur, int now)
                 else
                     iflast = NULL;
                 /*endif*/
-			}
+            }
             /*endif*/
             if ((res = unicall_close(cur->subs[SUB_REAL].fd)))
             {
@@ -1171,15 +1171,15 @@ static int destroy_channel(unicall_pvt_t *prev, unicall_pvt_t *cur, int now)
     }
     else
     {
-		if (prev)
+        if (prev)
         {
-			prev->next = cur->next;
-			if (prev->next)
-				prev->next->prev = prev;
-			else
+            prev->next = cur->next;
+            if (prev->next)
+                prev->next->prev = prev;
+            else
                 iflast = prev;
             /*endif*/
-		}
+        }
         else
         {
             iffirst = cur->next;
@@ -1188,7 +1188,7 @@ static int destroy_channel(unicall_pvt_t *prev, unicall_pvt_t *cur, int now)
             else
                 iflast = NULL;
             /*endif*/
-		}
+        }
         /*endif*/
         if ((res = unicall_close(cur->subs[SUB_REAL].fd)))
         {
@@ -3551,8 +3551,8 @@ static inline int available(unicall_pvt_t *p, int channelmatch, int groupmatch, 
     if (channelmatch > 0  &&  p->channel != channelmatch)
         return FALSE;
     /*endif*/
-	/* We're at least busy at this point */
-	if (busy)
+    /* We're at least busy at this point */
+    if (busy)
         *busy = TRUE;
     /* If do not disturb, definitely not */
     if (p->dnd)
@@ -3604,7 +3604,7 @@ static unicall_pvt_t *chandup(unicall_pvt_t *src)
 static struct opbx_channel *unicall_request(const char *type, int format, void *data, int *cause)
 {
     unicall_pvt_t *p;
-	unicall_pvt_t *exit;
+    unicall_pvt_t *exit;
     int oldformat;
     int groupmatch;
     int channelmatch;
@@ -3613,15 +3613,15 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     char *dest;
     int x;
     char *s;
-    char opt = 0;
-    int res = 0;
-    int y = 0;
+    char opt;
+    int res;
+    int y;
     char *stringp;
-  	int roundrobin;
-	int backwards;
-	int busy;
+      int roundrobin;
+    int backwards;
+    int busy;
  
-	busy = FALSE;
+    busy = FALSE;
     tmp = NULL;
     dest = NULL;
     callwait = FALSE;
@@ -3631,10 +3631,9 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     res = 0;
     y = 0;
 
-    /* We do signed linear */
     oldformat = format;
     format &= (OPBX_FORMAT_SLINEAR | OPBX_FORMAT_ALAW | OPBX_FORMAT_ULAW);
-    if (!format)
+    if (format == 0)
     {
         opbx_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
         return NULL;
@@ -3655,7 +3654,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
     backwards = FALSE;
     roundrobin = FALSE;
     p = iffirst;
-	if (toupper(dest[0]) == 'G'  ||  toupper(dest[0])=='R')
+    if (toupper(dest[0]) == 'G'  ||  toupper(dest[0]) == 'R')
     {
         /* Retrieve the group number */
         stringp = dest + 1;
@@ -3667,41 +3666,38 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
             return NULL;
         }
         /*endif*/
-        if (x < 0  ||  x > 31)
-            x = 0;
-        /*endif*/
         groupmatch = 1 << x;
-		if (toupper(dest[0]) == 'G')
+        if (toupper(dest[0]) == 'G')
         {
-			if (dest[0] == 'G')
+            if (dest[0] == 'G')
             {
-				backwards = 1;
-				p = ifend;
-			}
+                backwards = 1;
+                p = ifend;
+            }
             else
             {
-				p = iflist;
+                p = iflist;
             }
             /*endif*/
-		}
+        }
         else
         {
-			if (dest[0] == 'R')
+            if (dest[0] == 'R')
             {
-				backwards = 1;
-				if ((p = (round_robin[x])  ?  round_robin[x]->prev  :  ifend) == NULL)
-					p = ifend;
+                backwards = 1;
+                if ((p = (round_robin[x])  ?  round_robin[x]->prev  :  ifend) == NULL)
+                    p = ifend;
                 /*endif*/
-			}
+            }
             else
             {
-				if ((p = (round_robin[x])  ?  round_robin[x]->next  :  iflist) == NULL)
-					p = iflist;
+                if ((p = (round_robin[x])  ?  round_robin[x]->next  :  iflist) == NULL)
+                    p = iflist;
                 /*endif*/
-			}
+            }
             /*endif*/
-			roundrobin = 1;
-		}
+            roundrobin = 1;
+        }
         /*endif*/
     }
     else
@@ -3712,6 +3708,7 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         {
             /* Special case for pseudo */
             x = CHAN_PSEUDO;
+            channelmatch = x;
         }
         else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1)
         {
@@ -3730,10 +3727,10 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
         return NULL;
     }
     /*endif*/
-    for (exit = p;  p  &&  tmp == NULL;  p = (backwards)  ?  p->prev  :  p->next, p = (p == exit)  ?  NULL  :  p)
+    for (exit = p;  p  &&  tmp == NULL;  p = (p == exit)  ?  NULL  :  p)
     {
-		if (roundrobin)
-			round_robin[x] = p;
+        if (roundrobin)
+            round_robin[x] = p;
         /*endif*/
         if (available(p, channelmatch, groupmatch, &busy))
         {
@@ -3810,12 +3807,22 @@ static struct opbx_channel *unicall_request(const char *type, int format, void *
             break;
         }
         /*endif*/
+        if (backwards)
+        {
+            if ((p = p->prev) == NULL)
+                p = ifend;
+        }
+        else
+        {
+            if ((p = p->next) == NULL)
+                p = iflist;
+        }
     }
     /*endwhile*/
     opbx_mutex_unlock(&iflock);
     restart_monitor();
-	if (callwait  ||  (tmp == NULL  &&  busy))
-		*cause = OPBX_CAUSE_BUSY;
+    if (callwait  ||  (tmp == NULL  &&  busy))
+        *cause = OPBX_CAUSE_BUSY;
     return tmp;
 }
 
