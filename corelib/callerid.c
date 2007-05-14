@@ -1,3 +1,15 @@
+/* Temporary things, until everyone is using the latest spandsp */
+#if !defined(CLIP_DTMF_C_TERMINATED)
+    #define CLIP_DTMF_C_TERMINATED 'C'
+#endif
+#if !defined(CLIP_DTMF_HASH_TERMINATED)
+    #define CLIP_DTMF_HASH_TERMINATED '#'
+#endif
+#if !defined(CLIP_DTMF_C_CALLER_NUMBER)
+    #define CLIP_DTMF_C_CALLER_NUMBER CLIP_DTMF_CALLER_NUMBER
+    #define adsi_tx_set_preamble(a,b,c,d) /**/
+#endif
+
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
@@ -55,7 +67,7 @@ struct tdd_state {
 };
 
 
-static inline int lin2xlaw(int codec, uint16_t *lin, int slen, uint8_t *xlaw, int xmax)
+static inline int lin2xlaw(int codec, int16_t *lin, int slen, uint8_t *xlaw, int xmax)
 {
 	int i;
 
@@ -76,7 +88,7 @@ static inline int lin2xlaw(int codec, uint16_t *lin, int slen, uint8_t *xlaw, in
 
 int opbx_gen_ecdisa(uint8_t *outbuf, int outlen, int codec)
 {
-	uint16_t lin[MAX_CALLERID_SIZE];
+	int16_t lin[MAX_CALLERID_SIZE];
 	tone_gen_descriptor_t tone_desc;
 	tone_gen_state_t tone_state;
 	int slen;
@@ -93,7 +105,7 @@ int opbx_gen_ecdisa(uint8_t *outbuf, int outlen, int codec)
 
 int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec)
 {
-	uint16_t lin[MAX_CALLERID_SIZE];
+	int16_t lin[MAX_CALLERID_SIZE];
 	tone_gen_descriptor_t tone_desc;
 	tone_gen_state_t tone_state;
 	int slen;
@@ -136,7 +148,7 @@ int opbx_gen_cas(uint8_t *outbuf, int outlen, int sendsas, int codec)
 
 int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec)
 {
-	uint16_t lin[MAX_CALLERID_SIZE];
+	int16_t lin[MAX_CALLERID_SIZE];
 	int slen;
 
 	adsi_tx_state_t adsi;
@@ -147,10 +159,7 @@ int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec)
 	 */
 	for (adsi.msg_len = 0; msg[adsi.msg_len]; adsi.msg_len++)
 		adsi.msg[adsi.msg_len] = msg[adsi.msg_len];
-	adsi.ones_len = 80;
-
-	/* Magic: skip the 300bit line seizure that spandsp's adsi_tx wants to do */
-	adsi.bitno = 300;
+    adsi_tx_set_preamble(&adsi, 0, 80, -1);
 
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
@@ -159,8 +168,8 @@ int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec)
 int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec)
 {
 	const int init_silence = 2000;
-	uint16_t lin[MAX_CALLERID_SIZE];
-	char msg[256];
+	int16_t lin[MAX_CALLERID_SIZE];
+	uint8_t msg[256];
 	adsi_tx_state_t adsi;
 	int len, slen;
 
@@ -169,10 +178,10 @@ int vmwi_generate(uint8_t *outbuf, int outlen, int active, int mdmf, int codec)
 
 	if (mdmf) {
 		len = adsi_add_field(&adsi, msg, -1, CLASS_MDMF_MSG_WAITING, NULL, 0);
-		len = adsi_add_field(&adsi, msg, len, MCLASS_VISUAL_INDICATOR, (active ? "\377" : "\000"), 1);
+		len = adsi_add_field(&adsi, msg, len, MCLASS_VISUAL_INDICATOR, (active)  ?  (const uint8_t *) "\377"  :  (const uint8_t *) "\000", 1);
 	} else {
 		len = adsi_add_field(&adsi, msg, -1, CLASS_SDMF_MSG_WAITING, NULL, 0);
-		len = adsi_add_field(&adsi, msg, len, 0, (active ? "\102\102\102" : "\157\157\157"), 3);
+		len = adsi_add_field(&adsi, msg, len, 0, (active)  ?  (const uint8_t *) "\102\102\102"  :  (const uint8_t *) "\157\157\157", 3);
 	}
 
 	adsi_put_message(&adsi, msg, len);
@@ -229,9 +238,9 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 				msg--;
 				field_len++;
 				switch (field_len) {
-					case 1: field_type = 'D'; break;
-					case 2: field_type = 'B'; break;
-					default: field_type = 'A'; break;
+					case 1: field_type = (uint8_t) 'D'; break;
+					case 2: field_type = (uint8_t) 'B'; break;
+					default: field_type = (uint8_t) 'A'; break;
 				}
 			}
 
@@ -242,9 +251,9 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 					if (field_len == 1) {
 						/* CLIP-DTMF absence code */
 						switch (field_body[0]) {
-							case '1': name = "Withheld"; break;
-							case '2': name = "International"; break;
-							case '3': name = "Unknown"; break;
+							case '1': name = (uint8_t *) "Withheld"; break;
+							case '2': name = (uint8_t *) "International"; break;
+							case '3': name = (uint8_t *) "Unknown"; break;
 						}
 					} else if (number) {
 						/* Finland/Denmark/etc. diverting number */
@@ -258,8 +267,8 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 				case 'B':
 					if (field_len == 2 && field_body[1] == '0') {
 						switch (field_body[0]) {
-							case '0': name = "Unknown"; break;
-							case '1': name = "Withheld"; break;
+							case '0': name = (uint8_t *) "Unknown"; break;
+							case '1': name = (uint8_t *) "Withheld"; break;
 						}
 					}
 					break;
@@ -297,28 +306,28 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 								break;
 
 							case MCLASS_ABSENCE1:
-								number = "";
+								number = (uint8_t *) "";
 								if (name)
 									break;
 								/* Fall through */
 							case MCLASS_ABSENCE2:
 								if (field_len == 1) {
 									if (field_body[0] == 'P') {
-										name = "Withheld";
+										name = (uint8_t *) "Withheld";
 										break;
 									} else if (field_body[0] == 'O') {
-										name = "Unknown";
+										name = (uint8_t *) "Unknown";
 										break;
 									} else if (field_body[0] == 'I') { /* Taiwan */
-										name = "International";
+										name = (uint8_t *) "International";
 										break;
 									} else if (field_body[0] == 'C') { /* Taiwan */
-										name = "Coin/Public";
+										name = (uint8_t *) "Coin/Public";
 										break;
 									}
 								}
 								opbx_log(LOG_DEBUG, "%s: CID-IN: unknown absence code \"%.*s\"\n", chan->name, field_len, field_body);
-								name = "Unknown";
+								name = (uint8_t *) "Unknown";
 								break;
 							case MCLASS_CALLER_NAME:
 								name = field_body;
@@ -333,7 +342,7 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 						break;
 				}
 			}
-			l = adsi_next_field(adsi, msg, len, l, &field_type, (uint8_t const **)&field_body, &field_len);
+			l = adsi_next_field(adsi, msg, len, l, &field_type, (uint8_t const **) &field_body, &field_len);
 		}
 	}
 
@@ -357,7 +366,7 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 			 * may have unwanted side-effects and may break existing user
 			 * configurations.
 			 */
-			opbx_shrink_phone_number(number);
+			opbx_shrink_phone_number((char *) number);
 		}
 
 		if (name_len >= 0)
@@ -367,15 +376,15 @@ void callerid_get(adsi_rx_state_t *adsi, struct opbx_channel *chan, const uint8_
 		 * possible) we should use it, no?
 		 */
 		opbx_log(LOG_DEBUG, "%s: CID-IN: number=\"%s\", name=\"%s\"\n", chan->name, number, name);
-		opbx_set_callerid(chan, number, name, number);
+		opbx_set_callerid(chan, (char *) number, (char *) name, (char *) number);
 	}
 }
 
 int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char *number, char *name, int callwaiting, int codec)
 {
 	const int init_silence = 2000;
-	uint16_t lin[MAX_CALLERID_SIZE];
-	char msg[256];
+	int16_t lin[MAX_CALLERID_SIZE];
+	uint8_t msg[256];
 	adsi_tx_state_t adsi;
 	struct tm tm;
 	char datetime[9];
@@ -436,9 +445,12 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 			 * AnnnnnnC might be rquired for some. A world tour is needed.
 			 * Sponsors?
 			 */
-			if (number && *number)
-				len = adsi_add_field(&adsi, msg, 0, CLIP_DTMF_CALLER_NUMBER, (uint8_t *)number, strlen(number));
-			break;
+			if (number  &&  *number)
+            {
+				len = adsi_add_field(&adsi, msg, -1, CLIP_DTMF_C_TERMINATED, NULL, 0);
+				len = adsi_add_field(&adsi, msg, len, CLIP_DTMF_C_CALLER_NUMBER, (uint8_t *) number, strlen(number));
+			}
+            break;
 		default:
 			opbx_log(LOG_ERROR, "Bad signalling type %d\n", sig);
 			break;
@@ -473,23 +485,21 @@ int opbx_callerid_generate(int sig, uint8_t *outbuf, int outlen, int pres, char 
 		 */
 	}
 
-	slen += adsi_tx(&adsi, lin+slen, sizeof(lin)/sizeof(lin[0]) - slen);
+	slen += adsi_tx(&adsi, lin + slen, sizeof(lin)/sizeof(lin[0]) - slen);
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
 }
 
 
 int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char *msg, int codec)
 {
-	uint16_t lin[MAX_CALLERID_SIZE * 3];
+	int16_t lin[MAX_CALLERID_SIZE * 3];
 	adsi_tx_state_t adsi;
 	int slen;
 
 	adsi_tx_init(&adsi, ADSI_STANDARD_TDD);
 
-	adsi_put_message(&adsi, (uint8_t *)msg, strlen(msg));
-
-	/* Magic: skip the 300bit line seizure that spandsp's adsi_tx wants to do */
-	adsi.bitno = 300;
+	adsi_put_message(&adsi, (uint8_t *) msg, strlen(msg));
+    adsi_tx_set_preamble(&adsi, 0, -1, -1);
 
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);

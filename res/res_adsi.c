@@ -1,3 +1,15 @@
+/* Temporary things, until everyone is using the latest spandsp */
+#if !defined(CLIP_DTMF_C_TERMINATED)
+    #define CLIP_DTMF_C_TERMINATED 'C'
+#endif
+#if !defined(CLIP_DTMF_HASH_TERMINATED)
+    #define CLIP_DTMF_HASH_TERMINATED '#'
+#endif
+#if !defined(CLIP_DTMF_C_CALLER_NUMBER)
+    #define CLIP_DTMF_C_CALLER_NUMBER CLIP_DTMF_CALLER_NUMBER
+    #define adsi_tx_set_preamble(a,b,c,d) /**/
+#endif
+
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
@@ -154,15 +166,13 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 {
 	/* msglen must be no more than 256 bits, each */
 	uint8_t buf[24000 * 5];
-	uint16_t lin[(sizeof(buf)/sizeof(buf[0])) * sizeof(uint16_t)];
+	int16_t lin[(sizeof(buf)/sizeof(buf[0])) * sizeof(int16_t)];
 	adsi_tx_state_t adsi;
 	int pos = 0, res;
 	int x;
 	int start=0;
 	int retries = 0;
-
 	char ack[3];
-
 	/* Wait up to 500 ms for initial ACK */
 	int waittime;
 	struct opbx_frame *f;
@@ -238,11 +248,9 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 			buf[2] = x + 1 - start;
 			memcpy(buf+3, msg[x], msglen[x]);
 			adsi_put_message(&adsi, buf, 3 + msglen[x]);
-			/* Magic: suppress the leading line seizure */
-			adsi.bitno = 300;
+            adsi_tx_set_preamble(&adsi, 0, -1, -1);
 			if (x + 1 - start != 1) {
-				/* Magic: suppress the leading marks */
-				adsi.ones_len = 0;
+                adsi_tx_set_preamble(&adsi, 0, 0, -1);
 			}
 			/* We should suppress the trailing marks as well except for
 			 * the last message but this isn't possible. Is it a problem?
