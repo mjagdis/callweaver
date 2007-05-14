@@ -10699,10 +10699,8 @@ static int zt_sendtext(struct opbx_channel *c, const char *text)
 
 int reload(void)
 {
-	int res = 0;
-
-	res = setup_zap(1);
-	if (res) {
+	if (setup_zap(1))
+	{
 		opbx_log(LOG_WARNING, "Reload of chan_zap.so is unsuccessful!\n");
 		return -1;
 	}

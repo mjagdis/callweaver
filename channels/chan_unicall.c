@@ -121,7 +121,6 @@ static int transfer = 0;
 static int cancallforward = 0;
 static float rxgain = 0.0;
 static float txgain = 0.0;
-static int t38_support = 0;
 static int echocancel = 0;
 static int echotraining = 0;
 static int echocanbridged = 0;
@@ -136,7 +135,7 @@ static int amaflags = 0;
 
 static int adsi = 0;
 
-static int minunused = 2;
+static int min_unused = 2;
 static char idleext[OPBX_MAX_EXTENSION];
 static char idledial[OPBX_MAX_EXTENSION];
 
@@ -202,9 +201,8 @@ typedef struct unicall_uc_s
     char idleext[OPBX_MAX_EXTENSION];           /* Where to idle extra calls */
     char idlecontext[OPBX_MAX_EXTENSION];       /* What context to use for idle */
     char idledial[OPBX_MAX_EXTENSION];          /* What to dial before dumping */
-    int minunused;                              /* Min # of channels to keep empty */
-    int minidle;                                /* Min # of "idling" calls to keep active */
-    int nodetype;                               /* Node type */
+    int min_unused;                             /* Min # of channels to keep empty */
+    int min_idle;                               /* Min # of "idling" calls to keep active */
     int num_channels;                           /* Num of chans in group (say, 31 or 24) */
     uc_t *uc;
     int debug;
@@ -215,7 +213,6 @@ typedef struct unicall_uc_s
     int resetting;
     int resetchannel;
     time_t lastreset;
-    int chanmask[32];                           /* Channel status */
     struct unicall_pvt_s *pvt[32];              /* Member channel pvt structs */
     struct unicall_channel *chan[32];           /* Channels on each line */
 } unicall_uc_t;
@@ -245,7 +242,7 @@ struct unicall_subchannel
     int needbusy;
     int current_codec;
     int inthreeway;
-    int curconfno;                              /* What conference we're currently in */
+    int curconfno;                              /* Which conference we are currently in */
     dtmf_tx_state_t dtmf_tx_state;
     char dtmfq[OPBX_MAX_EXTENSION];
     int super_tone;
@@ -330,16 +327,13 @@ typedef struct unicall_pvt_s
     int onhooktime;
     int msgstate;
     struct opbx_dsp *dsp;
-    int t38_support;
-    int t38_active;
     
     int confirm_answer;                 /* Wait for '#' to confirm answer */
     int distinctive_ring;               /* Which distinctive ring to use */
     
     int faxhandled;                     /* Has a fax tone already been handled? */
-    
-    char mate;                          /* flag to say its in MATE mode */
-    int dtmfrelax;                      /* whether to run in relaxed DTMF mode */
+
+    int dtmfrelax;                      /* Whether to run in relaxed DTMF mode */
     uc_t *uc;
     int blocked;
     int sigcheck;
@@ -2073,16 +2067,9 @@ void handle_uc_read(uc_t *uc, int ch, void *user_data, uint8_t *buf, int len)
     
     p = (unicall_pvt_t *) user_data;
 
-    if (p->t38_active)
-    {
-        /* TODO */
-    }
-    else
-    {
-        readbuf = ((uint8_t *) p->subs[SUB_REAL].buffer) + OPBX_FRIENDLY_OFFSET;
-        memcpy(readbuf, buf, len);
-        p->subs[SUB_REAL].buffer_contents = len;
-    }
+    readbuf = ((uint8_t *) p->subs[SUB_REAL].buffer) + OPBX_FRIENDLY_OFFSET;
+    memcpy(readbuf, buf, len);
+    p->subs[SUB_REAL].buffer_contents = len;
     if (p->subs[SUB_REAL].super_tone != ST_TYPE_NONE)
     {
         gen_len = super_tone_tx(&p->subs[SUB_REAL].tx_state, amp, len);
@@ -2638,22 +2625,22 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
     if (!i->adsi)
         tmp->adsicpe = OPBX_ADSI_UNAVAILABLE;
     /*endif*/
-    if (!opbx_strlen_zero(i->exten))
+    if (i->exten[0])
         strncpy(tmp->exten, i->exten, sizeof(tmp->exten) - 1);
     /*endif*/
-    if (!opbx_strlen_zero(i->rdnis))
+    if (i->rdnis[0])
         tmp->cid.cid_rdnis = strdup(i->rdnis);
     /*endif*/
-    if (!opbx_strlen_zero(i->dnid))
+    if (i->dnid[0])
         tmp->cid.cid_dnid = strdup(i->dnid);
     /*endif*/
-    if (!opbx_strlen_zero(i->cid_num))
+    if (i->cid_num[0])
     {
         tmp->cid.cid_num = strdup(i->cid_num);
         tmp->cid.cid_ani = strdup(i->cid_num);
     }
     /*endif*/
-    if (!opbx_strlen_zero(i->cid_name))
+    if (i->cid_name[0])
         tmp->cid.cid_name = strdup(i->cid_name);
     /*endif*/
     tmp->cid.cid_pres = i->callingpres;
@@ -2907,7 +2894,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
         ch = ev->gen.channel;
         if (ch)
         {
-            if (opbx_strlen_zero(i->dialstr))
+            if (i->dialstr[0] == '\0')
             {
                 unicall_enable_ec(i);
                 i->subs[SUB_REAL].needringing = 1;
@@ -2923,7 +2910,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
     case UC_EVENT_CONNECTED:
         if ((ch = ev->gen.channel) >= 0)
         {
-            if (opbx_strlen_zero(i->dialstr))
+            if (i->dialstr[0] == '\0')
             {
                 i->subs[SUB_REAL].needanswer = TRUE;
             }
@@ -3317,7 +3304,7 @@ static int reset_channel(unicall_pvt_t *p)
     return 0;
 }
 
-static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_variant, char *protocol_end, int radio)
+static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_variant, char *protocol_end, int radio, int reloading)
 {
     /* Make a unicall_pvt structure for this interface */
     unicall_pvt_t *tmp = NULL;
@@ -3347,7 +3334,7 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
     }
     /*endfor*/
 
-    if (!here)
+    if (!here  &&  !reloading)
     {
         if ((tmp = (unicall_pvt_t *) malloc(sizeof(unicall_pvt_t))) == NULL)
         {
@@ -3487,7 +3474,6 @@ static unicall_pvt_t *mkintf(int channel, char *protocol_class, char *protocol_v
         /*endif*/
         tmp->immediate = immediate;
         tmp->protocol_class = protocol_class;
-        tmp->t38_support = t38_support;
         tmp->radio = radio;
         tmp->firstradio = FALSE;
         /* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
@@ -4176,7 +4162,6 @@ static int setup_unicall(int reload)
     cur_protocol_class = NULL;
     cur_protocol_variant = NULL;
     cur_protocol_end = NULL;
-    t38_support = FALSE;
     first_logging_level = TRUE;
     cur_radio = FALSE;
 
@@ -4236,7 +4221,7 @@ static int setup_unicall(int reload)
                 /*endif*/
                 for (x = start;  x <= finish;  x++)
                 {
-                    if ((tmp = mkintf(x, cur_protocol_class, cur_protocol_variant, cur_protocol_end, cur_radio)) == NULL)
+                    if ((tmp = mkintf(x, cur_protocol_class, cur_protocol_variant, cur_protocol_end, cur_radio, reload)) == NULL)
                     {
                         opbx_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
                         opbx_config_destroy(cfg);
@@ -4268,10 +4253,6 @@ static int setup_unicall(int reload)
         {
             cur_protocol_end = strdup(v->value);
             cur_radio = FALSE;
-        }
-        else if (strcasecmp(v->name, "t38support") == 0)
-        {
-            t38_support = opbx_true(v->value);
         }
         else if (strcasecmp(v->name, "threewaycalling") == 0)
         {
@@ -4373,7 +4354,7 @@ static int setup_unicall(int reload)
         } 
         else if (strcasecmp(v->name, "minunused") == 0)
         {
-            minunused = atoi(v->value);
+            min_unused = atoi(v->value);
         }
         else if (strcasecmp(v->name, "idleext") == 0)
         {
@@ -4446,7 +4427,7 @@ int load_module(void)
     uc_set_error_handler(unicall_report);
     uc_set_message_handler(unicall_message);
 
-    if (setup_unicall(0))
+    if (setup_unicall(FALSE))
         return -1;
     /*endif*/
 
@@ -4531,11 +4512,12 @@ int unload_module(void)
 
 static int unicall_send_text(struct opbx_channel *c, const char *text)
 {
-    unicall_pvt_t *p = c->tech_pvt;
+    unicall_pvt_t *p;
     int index;
     int ret;
     uc_usertouser_t msg;
 
+    p = c->tech_pvt;
     if ((index = unicall_get_index(c, p, 0)) < 0)
     {
         opbx_log(LOG_WARNING, "Huh?  I don't exist?\n");
@@ -4558,9 +4540,7 @@ static int unicall_send_text(struct opbx_channel *c, const char *text)
 
 int reload(void)
 {
-    int res;
-
-    if ((res = setup_unicall(1)))
+    if (setup_unicall(TRUE))
     {
         opbx_log(LOG_WARNING, "Reload of chan_unicall.so is unsuccessful!\n");
         return -1;
