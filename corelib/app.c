@@ -104,43 +104,27 @@ int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect
 	return res;
 }
 
-
-
-/* set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
-   "ludicrous time" (essentially never times out) */
 int opbx_app_getdata(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout)
 {
-	int res=0;
-	int to,fto;
-	int result=0;
+	int res,to,fto;
 	/* XXX Merge with full version? XXX */
 	if (maxlen)
 		s[0] = '\0';
 	if (prompt) {
-		char *front;
-		char *temp = opbx_strdupa(prompt);
-		while ( (!res) && (front = strsep(&temp, "&")) ) {
-			if ( (res = opbx_streamfile(c, front, c->language)) ) {
-				res = 0;
-				break;
-			}
-			if (!res && !result)
-				result = opbx_waitstream(c, OPBX_DIGIT_ANY);
-			if (result)
-				break;
-			opbx_stopstream(c);
+		res = opbx_streamfile(c, prompt, c->language);
+		if (res < 0)
+			return res;
 		}
-	}
 	fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
 	to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
 
-	if (timeout > 0) 
+	if (timeout > 0)
 		fto = to = timeout;
-	if (timeout < 0) 
+	if (timeout < 0)
 		fto = to = 1000000000;
 	res = opbx_readstring(c, s, maxlen, to, fto, "#");
 	return res;
-}
+} 
 
 
 int opbx_app_getdata_full(struct opbx_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
