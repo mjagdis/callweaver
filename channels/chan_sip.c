@@ -2313,7 +2313,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
         while ((ext = strsep(&stringp, "&")))
         {
             if (onoff)
-                opbx_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
+                opbx_add_extension(regcontext, 1, ext, 1, NULL, NULL, "NoOp", strdup(peer->name), free, channeltype);
             else
                 opbx_context_remove_extension(regcontext, ext, 1, NULL);
         }
