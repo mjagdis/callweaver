@@ -16,6 +16,7 @@ SLOT="0"
 LICENSE="GPL-2"
 KEYWORDS="~x86"
 
+# IUSE experimental
 IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
 
 RDEPEND=">=media-libs/spandsp-0.0.3_pre26
@@ -38,7 +39,8 @@ src_unpack() {
 
 
 src_compile() {
-        econf \
+        einfo "ALL IUSE ARE EXPERIMENTAL!!!"
+		econf \
                 --libdir=/usr/$(get_libdir)/callweaver  \
                 --datadir=/var/lib                      \
                 --localstatedir=/var                    \
