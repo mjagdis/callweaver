@@ -19,7 +19,8 @@ KEYWORDS="~x86"
 # IUSE experimental
 IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
 
-RDEPEND=">=media-libs/spandsp-0.0.3_pre26
+RDEPEND="!net-misc/callweaver
+	>=media-libs/spandsp-0.0.3_pre26
 	misdn? ( >=net-dialup/misdn-1.1.1 >=net-dialup/misdnuser-1.1 )
 	speex? ( media-libs/speex )"
 
