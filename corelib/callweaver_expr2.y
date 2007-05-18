@@ -25,9 +25,18 @@
 #else
 #define quad_t int64_t
 #endif
+#endif
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
+
+#if !defined (__P)
+#  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
+#    define __P(protos) protos /* full-blown ANSI C */
+#  else 
+#    define __P(protos) () /* traditional C preprocessor */
+#  endif
+#endif
 
 #include "callweaver/opbx_expr.h"
 #include "callweaver/logger.h"
