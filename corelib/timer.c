@@ -42,7 +42,7 @@
 #include "callweaver/timer.h"
 #include "callweaver/logger.h"
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(SOLARIS)
 #ifdef HAVE_POSIX_TIMERS
 typedef union sigval sigval_t;
 #endif /* HAVE_POSIX_TIMERS */
