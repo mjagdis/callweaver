@@ -2227,6 +2227,13 @@ AM_CONDITIONAL([WANT_RES_CONFIG_CURL],[test "${with_res_config_curl}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([res_snmp],
+        [AC_HELP_STRING([--with-res_snmp],[Build and install res_snmp (default=no)])],,[with_res_snmp="no"])
+
+AM_CONDITIONAL([WANT_RES_SNMP],[test "${with_res_snmp}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH(res_config_mysql,
 	[AC_HELP_STRING([--with-res_config_mysql],[Build and install res_config_mysql (default=no) (requires --enable-mysql])],,[with_res_config_mysql="no"])
 

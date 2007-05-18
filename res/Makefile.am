@@ -105,4 +105,12 @@ res_config_curl_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
 res_config_curl_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libcallweaver.la
 endif WANT_RES_CONFIG_CURL
 
+if WANT_RES_SNMP
+opbxmod_LTLIBRARIES		+= res_snmp.la
+res_snmp_la_SOURCES	= res_snmp.c
+res_snmp_la_LDFLAGS	= -module -avoid-version -no-undefined
+res_snmp_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
+res_snmp_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libcallweaver.la
+endif WANT_RES_SNMP
+
 INCLUDES = -I$(top_srcdir)/include

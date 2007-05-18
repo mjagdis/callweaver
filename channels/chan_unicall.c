@@ -553,6 +553,7 @@ static int unicall_digit(struct opbx_channel *opbx, char digit)
 {
     unicall_pvt_t *p;
     int index;
+    int i;
     char buf[2];
 
     p = opbx->tech_pvt;
@@ -560,8 +561,8 @@ static int unicall_digit(struct opbx_channel *opbx, char digit)
     {
         buf[0] = digit;
         buf[1] = '\0';
-opbx_log(LOG_WARNING, "Sending DTMF digit\n");
-        dtmf_tx_put(&p->subs[SUB_REAL].dtmf_tx_state, buf);
+        if ((i = dtmf_tx_put(&p->subs[SUB_REAL].dtmf_tx_state, buf)) != 0)
+            opbx_log(LOG_WARNING, "Failed to add %d digits to the DTMF tx buffer\n", i);
         p->dialing = TRUE;
     }
     /*endif*/    
