@@ -21,7 +21,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision:$")
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
 #include "callweaver/indications.h"
-#include "callweaver/version.h"
+// #include "callweaver/version.h"
 #include "callweaver/pbx.h"
 
 /* Colission between Net-SNMP and CallWeaver */
