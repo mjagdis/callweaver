@@ -712,10 +712,10 @@ static u_char *opbx_var_Version(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
     switch (vp->magic) {
-	case ASTVERSTRING:
-		*var_len = strlen(ASTERISK_VERSION);
-		return (u_char *)ASTERISK_VERSION;
-	case ASTVERTAG:
+	case OPBXVERSTRING:
+		*var_len = strlen(CALLWEAVER_VERSION);
+		return (u_char *)CALLWEAVER_VERSION;
+	case OPBXVERTAG:
 		long_ret = ASTERISK_VERSION_NUM;
 		return (u_char *)&long_ret;
 	default:
@@ -799,7 +799,7 @@ static void init_callweaver_mib(void)
     };
 
     register_sysORTable(callweaver_oid, OID_LENGTH(callweaver_oid),
-			"ASTERISK-MIB implementation for Asterisk.");
+			"CALLWEAVER-MIB implementation for CallWeaver.");
 
     REGISTER_MIB("res_snmp", callweaver_vars, variable4, callweaver_oid);
 

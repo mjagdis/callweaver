@@ -23,6 +23,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision:$")
 static char *tdesc = "SNMP [Sub]Agent for Callweaver";
 static char *global_config_file = "res_snmp.conf";
 
+static pthread_t thread = OPBX_PTHREADT_NULL;
+
+int res_snmp_agentx_subagent;
+int res_snmp_dont_stop;
+int res_snmp_enabled;
+
 /*
 static char *app_1 = "URLFetch";
 static char *synopsis_1 = "Fetch Data from a URL";
@@ -84,10 +90,10 @@ static int load_config(void)
 	return 1;
 }
 
-static int load_module(void)
+int load_module(void)
 {
 	if (!load_config())
-		return OPBX_MODULE_LOAD_DECLINE;
+		return -1;
 
 	opbx_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
 
@@ -97,7 +103,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+int unload_module(void)
 {
 	opbx_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
@@ -105,7 +111,7 @@ static int unload_module(void)
 	return ((thread != OPBX_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
 }
 
-static int reload(void)
+int reload(void)
 {
 	opbx_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
