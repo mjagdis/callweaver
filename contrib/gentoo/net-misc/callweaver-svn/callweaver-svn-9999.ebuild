@@ -40,7 +40,9 @@ src_unpack() {
 
 
 src_compile() {
-        einfo "ALL IUSE ARE EXPERIMENTAL!!!"
+        ewarn "ALL IUSE ARE EXPERIMENTAL,"
+		ewarn "NOT TESTED APPROPRIATELY!!!"
+		epause 5
 		econf \
                 --libdir=/usr/$(get_libdir)/callweaver  \
                 --datadir=/var/lib                      \

@@ -12,7 +12,7 @@ SLOT="0"
 LICENSE="GPL-2"
 KEYWORDS="~x86"
 
-# IUSE experimental
+# IUSE experimental, not tested appropriately!
 IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
 
 RDEPEND="!net-misc/callweaver-svn
@@ -29,7 +29,9 @@ DEPEND="${RDEPEND}
 
 
 src_compile() {
-        einfo "ALL IUSE ARE EXPERIMENTAL!!!"
+        ewarn "ALL IUSE ARE EXPERIMENTAL,"
+		ewarn "NOT TESTED APPROPRIATELY!!!"
+		epause 5
 		econf \
                 --libdir=/usr/$(get_libdir)/callweaver  \
                 --datadir=/var/lib                      \
