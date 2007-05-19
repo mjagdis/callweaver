@@ -377,7 +377,7 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
 		ret = (u_char *)&long_ret;
 		break;
 	case OPBXCHANMUTED:
-		long_ret = chan->_state & opbx_STATE_MUTE ? 1 : 2;
+		long_ret = chan->_state & OPBX_STATE_MUTE ? 1 : 2;
 		ret = (u_char *)&long_ret;
 		break;
 	case OPBXCHANRINGS:
@@ -604,8 +604,8 @@ static u_char *opbx_var_Config(struct variable *vp, oid *name, size_t *length,
 		long_ret = getpid();
 		return (u_char *)&long_ret;
 	case OPBXCONFSOCKET:
-		*var_len = strlen(opbx_config_opbx_SOCKET);
-		return (u_char *)opbx_config_opbx_SOCKET;
+		*var_len = strlen(opbx_config_OPBX_SOCKET);
+		return (u_char *)opbx_config_OPBX_SOCKET;
 	default:
 		break;
     }
@@ -628,7 +628,7 @@ static u_char *opbx_var_indications(struct variable *vp, oid *name, size_t *leng
 			long_ret++;
 
 		return (u_char *)&long_ret;
-	case ASTINDCURRENT:
+	case OPBXINDCURRENT:
 		tz = opbx_get_indication_zone(NULL);
 		if (tz) {
 			*var_len = strlen(tz->country);
@@ -659,19 +659,19 @@ static u_char *opbx_var_indications_table(struct variable *vp, oid *name, size_t
 		return NULL;
 
     switch (vp->magic) {
-	case ASTINDINDEX:
+	case OPBXINDINDEX:
 		long_ret = name[*length - 1];
 		return (u_char *)&long_ret;
-	case ASTINDCOUNTRY:
+	case OPBXINDCOUNTRY:
 		*var_len = strlen(tz->country);
 		return (u_char *)tz->country;
-	case ASTINDALIAS:
+	case OPBXINDALIAS:
 		if (tz->alias) {
 			*var_len = strlen(tz->alias);
 			return (u_char *)tz->alias;
 		}
 		return NULL;
-	case ASTINDDESCRIPTION:
+	case OPBXINDDESCRIPTION:
 		*var_len = strlen(tz->description);
 		return (u_char *)tz->description;
 	default:
@@ -716,7 +716,7 @@ static u_char *opbx_var_Version(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(CALLWEAVER_VERSION);
 		return (u_char *)CALLWEAVER_VERSION;
 	case OPBXVERTAG:
-		long_ret = ASTERISK_VERSION_NUM;
+		long_ret = CALLWEAVER_VERSION_NUM;
 		return (u_char *)&long_ret;
 	default:
 		break;
