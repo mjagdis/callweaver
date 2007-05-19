@@ -86,8 +86,8 @@ src_install() {
         # remove dir
         rm -rf ${D}var/lib/callweaver/doc
 
-        enewinitd "${FILESDIR}"/callweaver.rc6   callweaver
-        enewconfd "${FILESDIR}"/callweaver.confd callweaver
+        newinitd "${FILESDIR}"/callweaver.rc6   callweaver
+        newconfd "${FILESDIR}"/callweaver.confd callweaver
 
         # don't delete these
         keepdir /var/{log,run,spool}/callweaver
