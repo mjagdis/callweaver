@@ -58,7 +58,7 @@ callweaver_cli:
 	chmod +x callweaver_cli
 
 safe_callweaver:
-	$(substitute) $(top_srcdir)/contrib/scripts/safe_callweaver > safe_callweaver
+	$(substitute) $(top_srcdir)/safe_callweaver.in > safe_callweaver
 	chmod +x safe_callweaver
 
 #############
@@ -71,7 +71,7 @@ if WANT_MAN_PAGES
 		mkdir -p $(DESTDIR)${opbxmandir}/man8 ; \
 	fi ; \
 	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ; \
-	cp $(top_srcdir)/contrib/scripts/safe_callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ;
+	cp $(top_srcdir)/safe_callweaver.8 $(DESTDIR)${opbxmandir}/man8/. ;
 endif
 
 uninstall-man-pages:

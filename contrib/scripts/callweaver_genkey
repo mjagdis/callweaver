@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Usage: astgenkey [ -q ] [ -n ] [keyname]
+# Usage: cwgenkey [ -q ] [ -n ] [keyname]
 #
 DES3=-des3
 if [ "$1" = "-q" ]; then

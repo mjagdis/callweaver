@@ -5,7 +5,7 @@ CONSOLE=yes		# Whether or not you want a console
 #NOTIFY=ben@alkaloid.net	# Who to notify about crashes
 MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
 DUMPDROP=/tmp
-OPBXSBINDIR=__CALLWEAVER_SBIN_DIR__
+OPBXSBINDIR=@sbindir@
 
 #
 # Don't fork when running "safely"
