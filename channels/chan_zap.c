@@ -6177,26 +6177,28 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			return -1;
 		}
 		break;
-	case ZT_EVENT_DTMFUP:
-	case ZT_EVENT_POLARITY:
-		switch(i->sig) {
-		case SIG_FXSLS:
-		case SIG_FXSKS:
-		case SIG_FXSGS:
-			if (event == ZT_EVENT_POLARITY)
-				i->polarity = POLARITY_REV;
-			if (option_verbose > 1)
-				opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
-			chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
-			if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
-				opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+	default:
+		if (event == ZT_EVENT_POLARITY || (event & ZT_EVENT_DTMFUP)) {
+			switch(i->sig) {
+			case SIG_FXSLS:
+			case SIG_FXSKS:
+			case SIG_FXSGS:
+				if (event == ZT_EVENT_POLARITY)
+					i->polarity = POLARITY_REV;
+				if (option_verbose > 1)
+					opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
+				chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
+				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+					opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+				}
+				break;
+			default:
+				opbx_log(LOG_WARNING, "handle_init_event detected "
+					"polarity reversal or on-hook DTMF on non-FXO (SIG_FXS) "
+					"interface %d\n", i->channel);
 			}
-			break;
-		default:
-			opbx_log(LOG_WARNING, "handle_init_event detected "
-				"polarity reversal or on-hook DTMF on non-FXO (SIG_FXS) "
-				"interface %d\n", i->channel);
 		}
+		break;
 	}
 	return 0;
 }
