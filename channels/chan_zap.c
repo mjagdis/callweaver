@@ -681,14 +681,14 @@ static struct zt_pvt {
 } *iflist = NULL, *ifend = NULL;
 
 static struct opbx_channel *zt_request(const char *type, int format, void *data, int *cause);
-static int zt_digit(struct opbx_channel *ast, char digit);
+static int zt_digit(struct opbx_channel *opbx, char digit);
 static int zt_sendtext(struct opbx_channel *c, const char *text);
-static int zt_call(struct opbx_channel *ast, char *rdest, int timeout);
-static int zt_hangup(struct opbx_channel *ast);
-static int zt_answer(struct opbx_channel *ast);
-struct opbx_frame *zt_read(struct opbx_channel *ast);
-static int zt_write(struct opbx_channel *ast, struct opbx_frame *frame);
-struct opbx_frame *zt_exception(struct opbx_channel *ast);
+static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout);
+static int zt_hangup(struct opbx_channel *opbx);
+static int zt_answer(struct opbx_channel *opbx);
+struct opbx_frame *zt_read(struct opbx_channel *opbx);
+static int zt_write(struct opbx_channel *opbx, struct opbx_frame *frame);
+struct opbx_frame *zt_exception(struct opbx_channel *opbx);
 static int zt_indicate(struct opbx_channel *chan, int condition);
 static int zt_fixup(struct opbx_channel *oldchan, struct opbx_channel *newchan);
 static int zt_setoption(struct opbx_channel *chan, int option, void *data, int datalen);
@@ -768,14 +768,14 @@ static int cidrings[NUM_CADENCE_MAX] = {
 #define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
-static int zt_get_index(struct opbx_channel *ast, struct zt_pvt *p, int nullok)
+static int zt_get_index(struct opbx_channel *opbx, struct zt_pvt *p, int nullok)
 {
 	int res;
-	if (p->subs[0].owner == ast)
+	if (p->subs[0].owner == opbx)
 		res = 0;
-	else if (p->subs[1].owner == ast)
+	else if (p->subs[1].owner == opbx)
 		res = 1;
-	else if (p->subs[2].owner == ast)
+	else if (p->subs[2].owner == opbx)
 		res = 2;
 	else {
 		res = -1;
@@ -1027,18 +1027,18 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 	return 0;
 }
 
-static int zt_digit(struct opbx_channel *ast, char digit)
+static int zt_digit(struct opbx_channel *opbx, char digit)
 {
 	ZT_DIAL_OPERATION zo;
 	struct zt_pvt *p;
 	int res = 0;
 	int index;
-	p = ast->tech_pvt;
+	p = opbx->tech_pvt;
 	opbx_mutex_lock(&p->lock);
-	index = zt_get_index(ast, p, 0);
+	index = zt_get_index(opbx, p, 0);
 	if ((index == SUB_REAL) && p->owner) {
 #ifdef ZAPATA_PRI
-		if ((p->sig == SIG_PRI) && (ast->_state == OPBX_STATE_DIALING) && !p->proceeding) {
+		if ((p->sig == SIG_PRI) && (opbx->_state == OPBX_STATE_DIALING) && !p->proceeding) {
 			if (p->setup_ack) {
 				if (!pri_grab(p, p->pri)) {
 					pri_information(p->pri->pri,p->call,digit);
@@ -1695,12 +1695,12 @@ static int send_callerid(struct zt_pvt *p)
 	return 1;
 }
 
-static int zt_callwait(struct opbx_channel *ast)
+static int zt_callwait(struct opbx_channel *opbx)
 {
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
-		opbx_log(LOG_WARNING, "%s: Discarded existing spill!\n", ast->name);
+		opbx_log(LOG_WARNING, "%s: Discarded existing spill!\n", opbx->name);
 		free(p->cidspill);
 	}
 	p->cidspill = malloc(MAX_CALLERID_SIZE);
@@ -1716,17 +1716,17 @@ static int zt_callwait(struct opbx_channel *ast)
 		p->cidpos = 0;
 		send_callerid(p);
 	} else {
-		opbx_log(LOG_WARNING, "%s: No memory for SAS/CAS spill\n", ast->name);
+		opbx_log(LOG_WARNING, "%s: No memory for SAS/CAS spill\n", opbx->name);
 		return -1;
 	}
 	return 0;
 }
 
-static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
+static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout)
 {
 	struct zt_ring_cadence rcad, *cadence;
 	struct tone_zone *tzone;
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	int x, res, index;
 	char *c, *n, *l, *t;
 #ifdef ZAPATA_PRI
@@ -1736,13 +1736,13 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 	opbx_mutex_lock(&p->lock);
 	opbx_copy_string(dest, rdest, sizeof(dest));
 	opbx_copy_string(p->dialdest, rdest, sizeof(p->dialdest));
-	if ((ast->_state == OPBX_STATE_BUSY)) {
+	if ((opbx->_state == OPBX_STATE_BUSY)) {
 		p->subs[SUB_REAL].needbusy = 1;
 		opbx_mutex_unlock(&p->lock);
 		return 0;
 	}
-	if ((ast->_state != OPBX_STATE_DOWN) && (ast->_state != OPBX_STATE_RESERVED)) {
-		opbx_log(LOG_WARNING, "zt_call called on %s, neither down nor reserved\n", ast->name);
+	if ((opbx->_state != OPBX_STATE_DOWN) && (opbx->_state != OPBX_STATE_RESERVED)) {
+		opbx_log(LOG_WARNING, "zt_call called on %s, neither down nor reserved\n", opbx->name);
 		opbx_mutex_unlock(&p->lock);
 		return -1;
 	}
@@ -1750,7 +1750,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 	if (p->radio)  /* if a radio channel, up immediately */
 	{
 		/* Special pseudo -- automatically up */
-		opbx_setstate(ast, OPBX_STATE_UP); 
+		opbx_setstate(opbx, OPBX_STATE_UP); 
 		opbx_mutex_unlock(&p->lock);
 		return 0;
 	}
@@ -1766,7 +1766,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 	case SIG_FXOLS:
 	case SIG_FXOGS:
 	case SIG_FXOKS:
-		if (p->owner == ast) {
+		if (p->owner == opbx) {
 			/* Normal ring, on hook */
 			
 			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
@@ -1794,7 +1794,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 				p->cidspill = malloc(MAX_CALLERID_SIZE);
 				p->callwaitcas = 0;
 				if (p->cidspill) {
-					p->cidlen = opbx_callerid_generate(p->cid_signalling, p->cidspill, MAX_CALLERID_SIZE, ast->cid.cid_pres, ast->cid.cid_num, ast->cid.cid_name, 0, OPBX_LAW(p));
+					p->cidlen = opbx_callerid_generate(p->cid_signalling, p->cidspill, MAX_CALLERID_SIZE, opbx->cid.cid_pres, opbx->cid.cid_num, opbx->cid.cid_name, 0, OPBX_LAW(p));
 					p->cidpos = 0;
 				} else {
 					/* No memory for caller ID but maybe we can still make the call */
@@ -1853,22 +1853,22 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 
 			if (option_debug) {
 				for (x = 0; x < arraysize(rcad.ringcadence) && cadence->ringcadence[x]; x += 2)
-					opbx_log(LOG_DEBUG, "%s: cadence[%d] = %d/%d\n", ast->name, (x >> 1) + 1, cadence->ringcadence[x], cadence->ringcadence[x+1]);
-				opbx_log(LOG_DEBUG, "%s: Post-ring CID follows ring %d\n", ast->name, p->cidrings);
+					opbx_log(LOG_DEBUG, "%s: cadence[%d] = %d/%d\n", opbx->name, (x >> 1) + 1, cadence->ringcadence[x], cadence->ringcadence[x+1]);
+				opbx_log(LOG_DEBUG, "%s: Post-ring CID follows ring %d\n", opbx->name, p->cidrings);
 			}
 
 			if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, cadence))
-				opbx_log(LOG_WARNING, "%s: Unable to set ring cadence\n", ast->name);
+				opbx_log(LOG_WARNING, "%s: Unable to set ring cadence\n", opbx->name);
 
 			if (!p->cidspill || (p->cid_start == CID_START_RING && p->cidrings)) {
 				/* Caller ID goes in the silence between two rings. Just start ringing
 				 * the line. Caller ID will be despatched in due course.
 				 */
-				opbx_log(LOG_DEBUG, "%s: Start ringing\n", ast->name);
+				opbx_log(LOG_DEBUG, "%s: Start ringing\n", opbx->name);
 				p->cid_send_on = CID_START_RING;
 				x = ZT_RING;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
-					opbx_log(LOG_WARNING, "%s: Unable to ring phone: %s\n", ast->name, strerror(errno));
+					opbx_log(LOG_WARNING, "%s: Unable to ring phone: %s\n", opbx->name, strerror(errno));
 					opbx_mutex_unlock(&p->lock);
 					return -1;
 				}
@@ -1881,14 +1881,14 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 				 * be possible. We'll find out when we try and start ringing after the
 				 * caller ID has been sent (possibly into the ether).
 				 */
-				opbx_log(LOG_DEBUG, "%s: Send pre-ring caller ID\n", ast->name);
+				opbx_log(LOG_DEBUG, "%s: Send pre-ring caller ID\n", opbx->name);
 				p->cid_send_on = CID_START_POLARITY;
 				x = p->cidlen;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x))
-					opbx_log(LOG_WARNING, "%s: Unable to start on hook transfer: %s\n", ast->name, strerror(errno));
+					opbx_log(LOG_WARNING, "%s: Unable to start on hook transfer: %s\n", opbx->name, strerror(errno));
 				x = POLARITY_REV;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &x))
-					opbx_log(LOG_WARNING, "%s: Unable to reverse polarity: %s\n", ast->name, strerror(errno));
+					opbx_log(LOG_WARNING, "%s: Unable to reverse polarity: %s\n", opbx->name, strerror(errno));
 				send_callerid(p);
 			}
 
@@ -1897,26 +1897,26 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		} else {
 			/* Call waiting call */
 			p->callwaitrings = 0;
-			if (ast->cid.cid_num)
-				opbx_copy_string(p->callwait_num, ast->cid.cid_num, sizeof(p->callwait_num));
+			if (opbx->cid.cid_num)
+				opbx_copy_string(p->callwait_num, opbx->cid.cid_num, sizeof(p->callwait_num));
 			else
 				p->callwait_num[0] = '\0';
-			if (ast->cid.cid_name)
-				opbx_copy_string(p->callwait_name, ast->cid.cid_name, sizeof(p->callwait_name));
+			if (opbx->cid.cid_name)
+				opbx_copy_string(p->callwait_name, opbx->cid.cid_name, sizeof(p->callwait_name));
 			else
 				p->callwait_name[0] = '\0';
 			/* Call waiting tone instead */
-			if (zt_callwait(ast)) {
+			if (zt_callwait(opbx)) {
 				opbx_mutex_unlock(&p->lock);
 				return -1;
 			}
 			/* Make ring-back */
 			if (tone_zone_play_tone(p->subs[SUB_CALLWAIT].zfd, ZT_TONE_RINGTONE))
-				opbx_log(LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", ast->name);
+				opbx_log(LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", opbx->name);
 				
 		}
-		n = ast->cid.cid_name;
-		l = ast->cid.cid_num;
+		n = opbx->cid.cid_name;
+		l = opbx->cid.cid_num;
 		if (l)
 			opbx_copy_string(p->lastcid_num, l, sizeof(p->lastcid_num));
 		else
@@ -1925,8 +1925,8 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 			opbx_copy_string(p->lastcid_name, n, sizeof(p->lastcid_name));
 		else
 			p->lastcid_name[0] = '\0';
-		opbx_setstate(ast, OPBX_STATE_RINGING);
-		index = zt_get_index(ast, p, 0);
+		opbx_setstate(opbx, OPBX_STATE_RINGING);
+		index = zt_get_index(opbx, p, 0);
 		if (index > -1) {
 			p->subs[index].needringing = 1;
 		}
@@ -1980,14 +1980,14 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 
 		switch (p->sig) {
 		case SIG_FEATD:
-			l = ast->cid.cid_num;
+			l = opbx->cid.cid_num;
 			if (l) 
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c);
 			break;
 		case SIG_FEATDMF:
-			l = ast->cid.cid_num;
+			l = opbx->cid.cid_num;
 			if (l) 
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			else
@@ -2049,11 +2049,11 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		p->dialing = 1;
 		if (opbx_strlen_zero(c))
 			p->dialednone = 1;
-		opbx_setstate(ast, OPBX_STATE_DIALING);
+		opbx_setstate(opbx, OPBX_STATE_DIALING);
 		break;
 	case 0:
 		/* Special pseudo -- automatically up*/
-		opbx_setstate(ast, OPBX_STATE_UP);
+		opbx_setstate(opbx, OPBX_STATE_UP);
 		break;		
 	case SIG_PRI:
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
@@ -2080,8 +2080,8 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		else
 			c = dest;
 		if (!p->hidecallerid) {
-			l = ast->cid.cid_num;
-			n = ast->cid.cid_name;
+			l = opbx->cid.cid_num;
+			n = opbx->cid.cid_name;
 		} else {
 			l = NULL;
 			n = NULL;
@@ -2128,7 +2128,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 				opbx_log(LOG_DEBUG, "I'm being setup with no bearer right now...\n");
 			pri_set_crv(p->pri->pri, p->call, p->channel, 0);
 		}
-		p->digital = IS_DIGITAL(ast->transfercapability);
+		p->digital = IS_DIGITAL(opbx->transfercapability);
 		/* Add support for exclusive override */
 		if (p->priexclusive)
 			exclusive = 1;
@@ -2141,14 +2141,14 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		}
 		
 		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), exclusive, 1);
-		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast->transfercapability, 
+		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : opbx->transfercapability, 
 					(p->digital ? -1 : 
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
 		if (p->pri->facilityenable)
 			pri_facility_enable(p->pri->pri);
 
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", ast->transfercapability, opbx_transfercapability2str(ast->transfercapability));
+			opbx_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", opbx->transfercapability, opbx_transfercapability2str(opbx->transfercapability));
 		dp_strip = 0;
  		pridialplan = p->pri->dialplan - 1;
  		if (pridialplan == -2) { /* compute dynamically */
@@ -2172,7 +2172,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 			}
 		}
 
-		t = pbx_builtin_getvar_helper(ast, "PRITON");
+		t = pbx_builtin_getvar_helper(opbx, "PRITON");
 		if (t) {
 			if (!strcasecmp(t, "INTERNATIONAL")) {
 				pridialplan = PRI_INTERNATIONAL_ISDN;
@@ -2214,7 +2214,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 				prilocaldialplan = PRI_LOCAL_ISDN;
 			}
 		}
-		t = pbx_builtin_getvar_helper(ast, "PRILOCALTON");
+		t = pbx_builtin_getvar_helper(opbx, "PRILOCALTON");
 		if (t) {
 			if (!strcasecmp(t, "INTERNATIONAL")) {
 				prilocaldialplan = PRI_INTERNATIONAL_ISDN;
@@ -2232,9 +2232,9 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 		}
 
 		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan, 
-					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
+					l ? (p->use_callingpres ? opbx->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
-		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
+		pri_sr_set_redirecting(sr, opbx->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
 		/* User-user info */
 		useruser = pbx_builtin_getvar_helper(p->owner, "USERUSERINFO");
 
@@ -2250,7 +2250,7 @@ static int zt_call(struct opbx_channel *ast, char *rdest, int timeout)
 			return -1;
 		}
 		pri_sr_free(sr);
-		opbx_setstate(ast, OPBX_STATE_DIALING);
+		opbx_setstate(opbx, OPBX_STATE_DIALING);
 		pri_rel(p->pri);
 	}
 #endif		
@@ -2407,30 +2407,30 @@ int pri_find_dchan(struct zt_pri *pri)
 }
 #endif
 
-static int zt_hangup(struct opbx_channel *ast)
+static int zt_hangup(struct opbx_channel *opbx)
 {
 	int res;
 	int index,x, law;
 	/*static int restore_gains(struct zt_pvt *p);*/
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	struct zt_pvt *tmp = NULL;
 	struct zt_pvt *prev = NULL;
 	ZT_PARAMS par;
 
 	if (option_debug)
-		opbx_log(LOG_DEBUG, "zt_hangup(%s)\n", ast->name);
-	if (!ast->tech_pvt) {
+		opbx_log(LOG_DEBUG, "zt_hangup(%s)\n", opbx->name);
+	if (!opbx->tech_pvt) {
 		opbx_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	
 	opbx_mutex_lock(&p->lock);
 	
-	index = zt_get_index(ast, p, 1);
+	index = zt_get_index(opbx, p, 1);
 
 	if (p->sig == SIG_PRI) {
 		x = 1;
-		opbx_channel_setoption(ast,OPBX_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		opbx_channel_setoption(opbx, OPBX_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
 	}
 
 	x = 0;
@@ -2581,7 +2581,7 @@ static int zt_hangup(struct opbx_channel *ast)
 		/* Perform low level hangup if no owner left */
 #ifdef ZAPATA_PRI
 		if (p->pri) {
-			char *useruser = pbx_builtin_getvar_helper(ast,"USERUSERINFO");
+			char *useruser = pbx_builtin_getvar_helper(opbx, "USERUSERINFO");
 			/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
 			if (p->call && (!p->bearer || (p->bearer->call == p->call))) {
 				if (!pri_grab(p, p->pri)) {
@@ -2593,8 +2593,8 @@ static int zt_hangup(struct opbx_channel *ast)
 						if (p->bearer) 
 							p->bearer->call = NULL;
 					} else {
-						char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
-						int icause = ast->hangupcause ? ast->hangupcause : -1;
+						char *cause = pbx_builtin_getvar_helper(opbx, "PRI_CAUSE");
+						int icause = opbx->hangupcause ? opbx->hangupcause : -1;
 						opbx_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
 						pri_call_set_useruser(p->call, useruser);
 						p->alreadyhungup = 1;
@@ -2624,7 +2624,7 @@ static int zt_hangup(struct opbx_channel *ast)
 		if (p->sig && (p->sig != SIG_PRI))
 			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
-			opbx_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
+			opbx_log(LOG_WARNING, "Unable to hangup line %s\n", opbx->name);
 		}
 		switch(p->sig) {
 		case SIG_FXOGS:
@@ -2647,7 +2647,7 @@ static int zt_hangup(struct opbx_channel *ast)
 		case SIG_FXSKS:
 			/* Make sure we're not made available for at least two seconds assuming
 			   we were actually used for an inbound or outbound call. */
-			if (ast->_state != OPBX_STATE_RESERVED) {
+			if (opbx->_state != OPBX_STATE_RESERVED) {
 				time(&p->guardtime);
 				p->guardtime += 2;
 			}
@@ -2660,8 +2660,8 @@ static int zt_hangup(struct opbx_channel *ast)
 		if (p->sig)
 			zt_disable_ec(p);
 		x = 0;
-		opbx_channel_setoption(ast, OPBX_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
-		opbx_channel_setoption(ast, OPBX_OPTION_TDD, &x, sizeof(char), 0);
+		opbx_channel_setoption(opbx, OPBX_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
+		opbx_channel_setoption(opbx, OPBX_OPTION_TDD, &x, sizeof(char), 0);
 		p->didtdd = FALSE;
 		p->cidspill = NULL;
 		p->callwaitcas = 0;
@@ -2674,7 +2674,7 @@ static int zt_hangup(struct opbx_channel *ast)
 		/* Restore data mode */
 		if (p->sig == SIG_PRI) {
 			x = 0;
-			opbx_channel_setoption(ast,OPBX_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+			opbx_channel_setoption(opbx, OPBX_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
 		}
 #ifdef ZAPATA_PRI
 		if (p->bearer) {
@@ -2696,7 +2696,7 @@ static int zt_hangup(struct opbx_channel *ast)
 
 	p->callwaitingrepeat = 0;
 	p->cidcwexpire = 0;
-	ast->tech_pvt = NULL;
+	opbx->tech_pvt = NULL;
 	opbx_mutex_unlock(&p->lock);
 	opbx_mutex_lock(&usecnt_lock);
 	usecnt--;
@@ -2705,7 +2705,7 @@ static int zt_hangup(struct opbx_channel *ast)
 	opbx_mutex_unlock(&usecnt_lock);
 	opbx_update_use_count();
 	if (option_verbose > 2) 
-		opbx_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
+		opbx_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", opbx->name);
 
 	opbx_mutex_lock(&iflock);
 	tmp = iflist;
@@ -2725,15 +2725,15 @@ static int zt_hangup(struct opbx_channel *ast)
 	return 0;
 }
 
-static int zt_answer(struct opbx_channel *ast)
+static int zt_answer(struct opbx_channel *opbx)
 {
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	int res=0;
 	int index;
-	int oldstate = ast->_state;
-	opbx_setstate(ast, OPBX_STATE_UP);
+	int oldstate = opbx->_state;
+	opbx_setstate(opbx, OPBX_STATE_UP);
 	opbx_mutex_lock(&p->lock);
-	index = zt_get_index(ast, p, 0);
+	index = zt_get_index(opbx, p, 0);
 	if (index < 0)
 		index = SUB_REAL;
 	/* nothing to do if a radio channel */
@@ -2763,7 +2763,7 @@ static int zt_answer(struct opbx_channel *ast)
 	case SIG_FXOGS:
 	case SIG_FXOKS:
 		/* Pick up the line */
-		opbx_log(LOG_DEBUG, "Took %s off hook\n", ast->name);
+		opbx_log(LOG_DEBUG, "Took %s off hook\n", opbx->name);
 		if(p->hanguponpolarityswitch) {
 			gettimeofday(&p->polaritydelaytv, NULL);
 		}
@@ -3509,12 +3509,12 @@ static int get_alarms(struct zt_pvt *p)
 	return zi.alarms;
 }
 			
-static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
+static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 {
 	int res,x;
 	int index;
 	char *c;
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	pthread_t threadid;
 	pthread_attr_t attr;
 	struct opbx_channel *chan;
@@ -3522,7 +3522,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-	index = zt_get_index(ast, p, 0);
+	index = zt_get_index(opbx, p, 0);
     opbx_fr_init(&p->subs[index].f);
 	p->subs[index].f.src = "zt_handle_event";
 	if (index < 0)
@@ -3533,7 +3533,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 	} else
 		res = zt_get_event(p->subs[index].zfd);
 
-	opbx_log(LOG_DEBUG, "%s: Got event %s(%d) on channel %d (index %d)\n", ast->name, event2str(res), res, p->channel, index);
+	opbx_log(LOG_DEBUG, "%s: Got event %s(%d) on channel %d (index %d)\n", opbx->name, event2str(res), res, p->channel, index);
 
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
 		if (res & ZT_EVENT_PULSEDIGIT)
@@ -3572,14 +3572,14 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			break;
 		case ZT_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
-			if (!ast->pbx)
+			if (!opbx->pbx)
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			break;
 		case ZT_EVENT_DIALCOMPLETE:
 			if (p->inalarm) break;
 			if (p->radio) break;
 			if (ioctl(p->subs[index].zfd,ZT_DIALING,&x) == -1) {
-				opbx_log(LOG_DEBUG, "ZT_DIALING ioctl failed on %s\n",ast->name);
+				opbx_log(LOG_DEBUG, "ZT_DIALING ioctl failed on %s\n",opbx->name);
 				return NULL;
 			}
 			if (!x) { /* if not still dialing in driver */
@@ -3594,23 +3594,23 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 					p->dialing = 0;
 					if (p->sig == SIG_E911) {
 						/* if thru with dialing after offhook */
-						if (ast->_state == OPBX_STATE_DIALING_OFFHOOK) {
-							opbx_setstate(ast, OPBX_STATE_UP);
+						if (opbx->_state == OPBX_STATE_DIALING_OFFHOOK) {
+							opbx_setstate(opbx, OPBX_STATE_UP);
 							p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 							p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
 							break;
 						} else { /* if to state wait for offhook to dial rest */
 							/* we now wait for off hook */
-							opbx_setstate(ast,OPBX_STATE_DIALING_OFFHOOK);
+							opbx_setstate(opbx,OPBX_STATE_DIALING_OFFHOOK);
 						}
 					}
-					if (ast->_state == OPBX_STATE_DIALING) {
+					if (opbx->_state == OPBX_STATE_DIALING) {
 						if ((p->callprogress & 1) && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
 							opbx_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
 						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EM_E1) ||  (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
-							opbx_setstate(ast, OPBX_STATE_RINGING);
+							opbx_setstate(opbx, OPBX_STATE_RINGING);
 						} else if (!p->answeronpolarityswitch) {
-							opbx_setstate(ast, OPBX_STATE_UP);
+							opbx_setstate(opbx, OPBX_STATE_UP);
 							p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 							p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
 						}
@@ -3686,14 +3686,14 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 						while(p->subs[SUB_THREEWAY].owner && opbx_mutex_trylock(&p->subs[SUB_THREEWAY].owner->lock)) {
 							/* Yuck, didn't get the lock on the 3-way, gotta release everything and re-grab! */
 							opbx_mutex_unlock(&p->lock);
-							opbx_mutex_unlock(&ast->lock);
+							opbx_mutex_unlock(&opbx->lock);
 							usleep(1);
-							/* We can grab ast and p in that order, without worry.  We should make sure
+							/* We can grab opbx and p in that order, without worry.  We should make sure
 							   nothing seriously bad has happened though like some sort of bizarre double
 							   masquerade! */
-							opbx_mutex_lock(&ast->lock);
+							opbx_mutex_lock(&opbx->lock);
 							opbx_mutex_lock(&p->lock);
-							if (p->owner != ast) {
+							if (p->owner != opbx) {
 								opbx_log(LOG_WARNING, "This isn't good...\n");
 								return NULL;
 							}
@@ -3712,13 +3712,13 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 							p->subs[SUB_THREEWAY].owner->_softhangup |= OPBX_SOFTHANGUP_DEV;
 							opbx_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 							opbx_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
-						} else if ((ast->pbx) || (ast->_state == OPBX_STATE_UP)) {
+						} else if ((opbx->pbx) || (opbx->_state == OPBX_STATE_UP)) {
 							if (p->transfer) {
 								/* In any case this isn't a threeway call anymore */
 								p->subs[SUB_REAL].inthreeway = 0;
 								p->subs[SUB_THREEWAY].inthreeway = 0;
 								/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
-								if (!p->transfertobusy && ast->_state == OPBX_STATE_BUSY) {
+								if (!p->transfertobusy && opbx->_state == OPBX_STATE_BUSY) {
 									opbx_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 									/* Swap subs and dis-own channel */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
@@ -3770,7 +3770,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			}
 			/* for E911, its supposed to wait for offhook then dial
 			   the second half of the dial string */
-			if ((p->sig == SIG_E911) && (ast->_state == OPBX_STATE_DIALING_OFFHOOK)) {
+			if ((p->sig == SIG_E911) && (opbx->_state == OPBX_STATE_DIALING_OFFHOOK)) {
 				c = strchr(p->dialdest, '/');
 				if (c)
 					c++;
@@ -3799,7 +3799,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			case SIG_FXOLS:
 			case SIG_FXOGS:
 			case SIG_FXOKS:
-				switch(ast->_state) {
+				switch(opbx->_state) {
 				case OPBX_STATE_RINGING:
 					zt_enable_ec(p);
 					zt_train_ec(p);
@@ -3833,13 +3833,13 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 							p->dialing = 1;
 						}
 						p->dop.dialstr[0] = '\0';
-						opbx_setstate(ast, OPBX_STATE_DIALING);
+						opbx_setstate(opbx, OPBX_STATE_DIALING);
 					} else
-						opbx_setstate(ast, OPBX_STATE_UP);
+						opbx_setstate(opbx, OPBX_STATE_UP);
 					return &p->subs[index].f;
 				case OPBX_STATE_DOWN:
-					opbx_setstate(ast, OPBX_STATE_RING);
-					ast->rings = 1;
+					opbx_setstate(opbx, OPBX_STATE_RING);
+					opbx->rings = 1;
 					p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 					p->subs[index].f.subclass = OPBX_CONTROL_OFFHOOK;
 					opbx_log(LOG_DEBUG, "channel %d picked up\n", p->channel);
@@ -3859,13 +3859,13 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					break;
 				default:
-					opbx_log(LOG_WARNING, "FXO phone off hook in weird state %d??\n", ast->_state);
+					opbx_log(LOG_WARNING, "FXO phone off hook in weird state %d??\n", opbx->_state);
 				}
 				break;
 			case SIG_FXSLS:
 			case SIG_FXSGS:
 			case SIG_FXSKS:
-				if (ast->_state == OPBX_STATE_RING) {
+				if (opbx->_state == OPBX_STATE_RING) {
 					p->ringt = p->ringt_base;
 				}
 
@@ -3890,14 +3890,14 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			case SIG_SF_FEATD:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
-				if (ast->_state == OPBX_STATE_PRERING)
-					opbx_setstate(ast, OPBX_STATE_RING);
-				if ((ast->_state == OPBX_STATE_DOWN) || (ast->_state == OPBX_STATE_RING)) {
+				if (opbx->_state == OPBX_STATE_PRERING)
+					opbx_setstate(opbx, OPBX_STATE_RING);
+				if ((opbx->_state == OPBX_STATE_DOWN) || (opbx->_state == OPBX_STATE_RING)) {
 					if (option_debug)
 						opbx_log(LOG_DEBUG, "Ring detected\n");
 					p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 					p->subs[index].f.subclass = OPBX_CONTROL_RING;
-				} else if (p->outgoing && ((ast->_state == OPBX_STATE_RINGING) || (ast->_state == OPBX_STATE_DIALING))) {
+				} else if (p->outgoing && ((opbx->_state == OPBX_STATE_RINGING) || (opbx->_state == OPBX_STATE_DIALING))) {
 					if (option_debug)
 						opbx_log(LOG_DEBUG, "Line answered\n");
 					if (p->confirmanswer) {
@@ -3906,10 +3906,10 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 					} else {
 						p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 						p->subs[index].f.subclass = OPBX_CONTROL_ANSWER;
-						opbx_setstate(ast, OPBX_STATE_UP);
+						opbx_setstate(opbx, OPBX_STATE_UP);
 					}
-				} else if (ast->_state != OPBX_STATE_RING)
-					opbx_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast->_state, p->channel);
+				} else if (opbx->_state != OPBX_STATE_RING)
+					opbx_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", opbx->_state, p->channel);
 				break;
 			default:
 				opbx_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
@@ -3921,7 +3921,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 			case SIG_FXSLS:
 			case SIG_FXSGS:
 			case SIG_FXSKS:
-				if (ast->_state == OPBX_STATE_RING) {
+				if (opbx->_state == OPBX_STATE_RING) {
 					p->ringt = p->ringt_base;
 				}
 				break;
@@ -3931,15 +3931,15 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 		case ZT_EVENT_RINGEROFF:
 			if (p->inalarm) break;
 			if (p->radio) break;
-			ast->rings++;
-			if (p->cidspill && ast->rings == p->cidrings)
-				opbx_log(LOG_DEBUG, "%s: Send post-ring caller ID\n", ast->name);
+			opbx->rings++;
+			if (p->cidspill && opbx->rings == p->cidrings)
+				opbx_log(LOG_DEBUG, "%s: Send post-ring caller ID\n", opbx->name);
 			p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 			p->subs[index].f.subclass = OPBX_CONTROL_RINGING;
 			break;
 		case ZT_EVENT_RINGERON:
-			if (p->cidspill && ast->rings > p->cidrings) {
-				opbx_log(LOG_WARNING, "%s: Didn't finish sending caller ID before start of ring!\n", ast->name);
+			if (p->cidspill && opbx->rings > p->cidrings) {
+				opbx_log(LOG_WARNING, "%s: Didn't finish sending caller ID before start of ring!\n", opbx->name);
 				free(p->cidspill);
 				p->cidspill = NULL;
 				p->callwaitcas = 0;
@@ -4008,9 +4008,9 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 						}
 						/* XXX This section needs much more error checking!!! XXX */
 						/* Start a 3-way call if feasible */
-						if (!((ast->pbx) ||
-						      (ast->_state == OPBX_STATE_UP) ||
-						      (ast->_state == OPBX_STATE_RING))) {
+						if (!((opbx->pbx) ||
+						      (opbx->_state == OPBX_STATE_UP) ||
+						      (opbx->_state == OPBX_STATE_RING))) {
 							opbx_log(LOG_DEBUG, "Flash when call not up or ringing\n");
 								goto winkflashdone;
 						}
@@ -4071,8 +4071,8 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 						p->subs[SUB_THREEWAY].inthreeway = 0;
 					} else {
 						/* Lets see what we're up to */
-						if (((ast->pbx) || (ast->_state == OPBX_STATE_UP)) && 
-						    (p->transfertobusy || (ast->_state != OPBX_STATE_BUSY))) {
+						if (((opbx->pbx) || (opbx->_state == OPBX_STATE_UP)) && 
+						    (p->transfertobusy || (opbx->_state != OPBX_STATE_BUSY))) {
 							int otherindex = SUB_THREEWAY;
 
 							if (option_verbose > 2)
@@ -4080,14 +4080,14 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 							/* Put them in the threeway, and flip */
 							p->subs[SUB_THREEWAY].inthreeway = 1;
 							p->subs[SUB_REAL].inthreeway = 1;
-							if (ast->_state == OPBX_STATE_UP) {
+							if (opbx->_state == OPBX_STATE_UP) {
 								swap_subs(p, SUB_THREEWAY, SUB_REAL);
 								otherindex = SUB_REAL;
 							}
 							if (p->subs[otherindex].owner && opbx_bridged_channel(p->subs[otherindex].owner))
 								opbx_moh_stop(opbx_bridged_channel(p->subs[otherindex].owner));
 							p->owner = p->subs[SUB_REAL].owner;
-							if (ast->_state == OPBX_STATE_RINGING) {
+							if (opbx->_state == OPBX_STATE_RINGING) {
 								opbx_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
 								res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
 								res = tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, ZT_TONE_RINGTONE);
@@ -4120,7 +4120,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 				if (p->dialing)
 					opbx_log(LOG_DEBUG, "Ignoring wink on channel %d\n", p->channel);
 				else
-					opbx_log(LOG_DEBUG, "Got wink in weird state %d on channel %d\n", ast->_state, p->channel);
+					opbx_log(LOG_DEBUG, "Got wink in weird state %d on channel %d\n", opbx->_state, p->channel);
 				break;
 			case SIG_FEATDMF_TA:
 				switch (p->whichwink) {
@@ -4203,35 +4203,35 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
                         if (p->polarity == POLARITY_IDLE) {
                                 p->polarity = POLARITY_REV;
                                 if (p->answeronpolarityswitch &&
-                                    ((ast->_state == OPBX_STATE_DIALING) ||
-                                     (ast->_state == OPBX_STATE_RINGING))) {
+                                    ((opbx->_state == OPBX_STATE_DIALING) ||
+                                     (opbx->_state == OPBX_STATE_RINGING))) {
                                         opbx_log(LOG_DEBUG, "Answering on polarity switch!\n");
                                         opbx_setstate(p->owner, OPBX_STATE_UP);
                                 } else
-                                        opbx_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
+                                        opbx_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, opbx->_state);
 			} 
 			/* Removed else statement from here as it was preventing hangups from ever happening*/
 			/* Added OPBX_STATE_RING in if statement below to deal with calling party hangups that take place when ringing */
 			if(p->hanguponpolarityswitch &&
 				(p->polarityonanswerdelay > 0) &&
 			       (p->polarity == POLARITY_REV) &&
-				((ast->_state == OPBX_STATE_UP) || (ast->_state == OPBX_STATE_RING)) ) {
+				((opbx->_state == OPBX_STATE_UP) || (opbx->_state == OPBX_STATE_RING)) ) {
                                 /* Added log_debug information below to provide a better indication of what is going on */
-				opbx_log(LOG_DEBUG, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, ast->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) );
+				opbx_log(LOG_DEBUG, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, opbx->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) );
 			
 				if(opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) > p->polarityonanswerdelay) {
 					opbx_log(LOG_DEBUG, "Polarity Reversal detected and now Hanging up on channel %d\n", p->channel);
 					opbx_softhangup(p->owner, OPBX_SOFTHANGUP_EXPLICIT);
 					p->polarity = POLARITY_IDLE;
 				} else {
-					opbx_log(LOG_DEBUG, "Polarity Reversal detected but NOT hanging up (too close to answer event) on channel %d, state %d\n", p->channel, ast->_state);
+					opbx_log(LOG_DEBUG, "Polarity Reversal detected but NOT hanging up (too close to answer event) on channel %d, state %d\n", p->channel, opbx->_state);
 				}
 			} else {
 				p->polarity = POLARITY_IDLE;
-				opbx_log(LOG_DEBUG, "Ignoring Polarity switch to IDLE on channel %d, state %d\n", p->channel, ast->_state);
+				opbx_log(LOG_DEBUG, "Ignoring Polarity switch to IDLE on channel %d, state %d\n", p->channel, opbx->_state);
 			}
                      	/* Added more log_debug information below to provide a better indication of what is going on */
-			opbx_log(LOG_DEBUG, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, ast->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) );
+			opbx_log(LOG_DEBUG, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, opbx->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, opbx_tvdiff_ms(opbx_tvnow(), p->polaritydelaytv) );
 			break;
 		default:
 			opbx_log(LOG_DEBUG, "Dunno what to do with event %d on channel %d\n", res, p->channel);
@@ -4239,16 +4239,16 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *ast)
 	return &p->subs[index].f;
 }
 
-static struct opbx_frame *__zt_exception(struct opbx_channel *ast)
+static struct opbx_frame *__zt_exception(struct opbx_channel *opbx)
 {
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	int res;
 	int usedindex=-1;
 	int index;
 	struct opbx_frame *f;
 
 
-	index = zt_get_index(ast, p, 1);
+	index = zt_get_index(opbx, p, 1);
 	
     opbx_fr_init(&p->subs[index].f);
 	p->subs[index].f.src = "zt_exception";
@@ -4324,30 +4324,30 @@ static struct opbx_frame *__zt_exception(struct opbx_channel *ast)
 		f = &p->subs[index].f;
 		return f;
 	}
-	if (!p->radio) opbx_log(LOG_DEBUG, "%s: Exception on %d, channel %d\n", ast->name, ast->fds[0],p->channel);
+	if (!p->radio) opbx_log(LOG_DEBUG, "%s: Exception on %d, channel %d\n", opbx->name, opbx->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
-	if (ast != p->owner) {
-		opbx_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
+	if (opbx != p->owner) {
+		opbx_log(LOG_WARNING, "We're %s, not %s\n", opbx->name, p->owner->name);
 		f = &p->subs[index].f;
 		return f;
 	}
-	f = zt_handle_event(ast);
+	f = zt_handle_event(opbx);
 	return f;
 }
 
-struct opbx_frame *zt_exception(struct opbx_channel *ast)
+struct opbx_frame *zt_exception(struct opbx_channel *opbx)
 {
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	struct opbx_frame *f;
 	opbx_mutex_lock(&p->lock);
-	f = __zt_exception(ast);
+	f = __zt_exception(opbx);
 	opbx_mutex_unlock(&p->lock);
 	return f;
 }
 
-struct opbx_frame  *zt_read(struct opbx_channel *ast)
+struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 {
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	int res;
 	int index;
 	void *readbuf;
@@ -4356,7 +4356,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 
 	opbx_mutex_lock(&p->lock);
 	
-	index = zt_get_index(ast, p, 0);
+	index = zt_get_index(opbx, p, 0);
 	
 	/* Hang up if we don't really exist */
 	if (index < 0)	{
@@ -4406,7 +4406,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		p->subs[index].needringing = 0;
 		p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
 		p->subs[index].f.subclass = OPBX_CONTROL_RINGING;
-		opbx_setstate(ast, OPBX_STATE_RINGING);
+		opbx_setstate(opbx, OPBX_STATE_RINGING);
 		opbx_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
@@ -4430,7 +4430,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	}
 
 	if (p->subs[index].needcallerid) {
-		opbx_set_callerid(ast, !opbx_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL, 
+		opbx_set_callerid(opbx, !opbx_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL, 
 							!opbx_strlen_zero(p->lastcid_name) ? p->lastcid_name : NULL,
 							!opbx_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL
 							);
@@ -4455,15 +4455,15 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		return &p->subs[index].f;
 	}	
 	
-	if (ast->rawreadformat == OPBX_FORMAT_SLINEAR) {
+	if (opbx->rawreadformat == OPBX_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
 			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
 				opbx_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, index);
 		}
-	} else if ((ast->rawreadformat == OPBX_FORMAT_ULAW) ||
-		   (ast->rawreadformat == OPBX_FORMAT_ALAW)) {
+	} else if ((opbx->rawreadformat == OPBX_FORMAT_ULAW) ||
+		   (opbx->rawreadformat == OPBX_FORMAT_ALAW)) {
 		if (p->subs[index].linear) {
 			p->subs[index].linear = 0;
 			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
@@ -4471,14 +4471,14 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 				opbx_log(LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, index);
 		}
 	} else {
-		opbx_log(LOG_WARNING, "Don't know how to read frames in format %s\n", opbx_getformatname(ast->rawreadformat));
+		opbx_log(LOG_WARNING, "Don't know how to read frames in format %s\n", opbx_getformatname(opbx->rawreadformat));
 		opbx_mutex_unlock(&p->lock);
 		return NULL;
 	}
 	readbuf = ((unsigned char *)p->subs[index].buffer) + OPBX_FRIENDLY_OFFSET;
-	CHECK_BLOCKING(ast);
+	CHECK_BLOCKING(opbx);
 	res = read(p->subs[index].zfd, readbuf, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
-	opbx_clear_flag(ast, OPBX_FLAG_BLOCKING);
+	opbx_clear_flag(opbx, OPBX_FLAG_BLOCKING);
 	/* Check for hangup */
 	if (res < 0) {
 		f = NULL;
@@ -4488,7 +4488,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 				opbx_mutex_unlock(&p->lock);
 				return &p->subs[index].f;
 			} else if (errno == ELAST) {
-				f = __zt_exception(ast);
+				f = __zt_exception(opbx);
 			} else
 				opbx_log(LOG_WARNING, "zt_rec: %s\n", strerror(errno));
 		}
@@ -4497,7 +4497,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	}
 	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
 		opbx_log(LOG_DEBUG, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
-		f = __zt_exception(ast);
+		f = __zt_exception(opbx);
 		opbx_mutex_unlock(&p->lock);
 		return f;
 	}
@@ -4530,7 +4530,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	/* Repeat callwaiting */
 	if (p->callwaitingrepeat == 1) {
 		p->callwaitrings++;
-		zt_callwait(ast);
+		zt_callwait(opbx);
 	}
 	/* Expire CID/CW */
 	if (p->cidcwexpire == 1) {
@@ -4544,20 +4544,20 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 		p->subs[index].f.datalen = READ_SIZE;
 
 	/* Handle CallerID Transmission */
-	if (p->owner == ast && p->cidspill && (ast->_state == OPBX_STATE_UP || p->cid_send_on != CID_START_RING || ast->rings == p->cidrings)) {
+	if (p->owner == opbx && p->cidspill && (opbx->_state == OPBX_STATE_UP || p->cid_send_on != CID_START_RING || opbx->rings == p->cidrings)) {
 		if (send_callerid(p)) {
 			/* Once we're done sending caller ID we need to start ringing the line
 			 * if it isn't up and we were sending caller ID before the first ring.
 			 */
-			if (ast->_state != OPBX_STATE_UP && p->cid_send_on != CID_START_RING && !ast->rings) {
+			if (opbx->_state != OPBX_STATE_UP && p->cid_send_on != CID_START_RING && !opbx->rings) {
 				ioctl(p->subs[SUB_REAL].zfd, ZT_SYNC, &res);
 				res = POLARITY_IDLE;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETPOLARITY, &res))
-					opbx_log(LOG_WARNING, "%s: Unable to restore polarity: %s\n", ast->name, strerror(errno));
-				opbx_log(LOG_DEBUG, "%s: Start ringing\n", ast->name);
+					opbx_log(LOG_WARNING, "%s: Unable to restore polarity: %s\n", opbx->name, strerror(errno));
+				opbx_log(LOG_DEBUG, "%s: Start ringing\n", opbx->name);
 				res = ZT_RING;
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &res) && errno != EINPROGRESS)
-					opbx_log(LOG_WARNING, "%s: Unable to ring phone: %s\n", ast->name, strerror(errno));
+					opbx_log(LOG_WARNING, "%s: Unable to ring phone: %s\n", opbx->name, strerror(errno));
 				/* Caller ID before ring uses defined signalling format. Caller ID between
 				 * rings is (nearly) always US style. This is sufficiently compatible with all the
 				 * possibilities we might want that it should "just work".
@@ -4565,7 +4565,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 				 * that you have to use explicit cidsignalling=dtmf, cidstart=ring and forego
 				 * any pre-ring CID.
 				 */
-				p->cidlen = opbx_callerid_generate(ADSI_STANDARD_CLASS, p->cidspill, MAX_CALLERID_SIZE, ast->cid.cid_pres, ast->cid.cid_num, ast->cid.cid_name, 0, OPBX_LAW(p));
+				p->cidlen = opbx_callerid_generate(ADSI_STANDARD_CLASS, p->cidspill, MAX_CALLERID_SIZE, opbx->cid.cid_pres, opbx->cid.cid_num, opbx->cid.cid_name, 0, OPBX_LAW(p));
 				p->cidpos = 0;
 				p->cid_send_on = CID_START_RING;
 			} else {
@@ -4576,16 +4576,16 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	}
 
 	p->subs[index].f.frametype = OPBX_FRAME_VOICE;
-	p->subs[index].f.subclass = ast->rawreadformat;
+	p->subs[index].f.subclass = opbx->rawreadformat;
 	p->subs[index].f.samples = READ_SIZE;
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = OPBX_FRIENDLY_OFFSET;
 	p->subs[index].f.data = p->subs[index].buffer + OPBX_FRIENDLY_OFFSET/2;
 #if 0
-	opbx_log(LOG_DEBUG, "Read %d of voice on %s\n", p->subs[index].f.datalen, ast->name);
+	opbx_log(LOG_DEBUG, "Read %d of voice on %s\n", p->subs[index].f.datalen, opbx->name);
 #endif	
 	if (p->dialing || /* Transmitting something */
-	   (index && (ast->_state != OPBX_STATE_UP)) || /* Three-way or callwait that isn't up */
+	   (index && (opbx->_state != OPBX_STATE_UP)) || /* Three-way or callwait that isn't up */
 	   ((index == SUB_CALLWAIT) && !p->subs[SUB_CALLWAIT].inthreeway) /* Inactive and non-confed call-wait */
 	   ) {
 		/* Whoops, we're still dialing, or in a state where we shouldn't transmit....
@@ -4600,10 +4600,10 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
 		/* Perform busy detection. etc on the zap line */
-		f = opbx_dsp_process(ast, p->dsp, &p->subs[index].f);
+		f = opbx_dsp_process(opbx, p->dsp, &p->subs[index].f);
 		if (f) {
 			if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_BUSY)) {
-				if ((ast->_state == OPBX_STATE_UP) && !p->outgoing) {
+				if ((opbx->_state == OPBX_STATE_UP) && !p->outgoing) {
 					/* Treat this as a "hangup" instead of a "busy" on the assumption that
 					   a busy  */
 					f = NULL;
@@ -4623,9 +4623,9 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 	} else 
 		f = &p->subs[index].f; 
 	if (f && (f->frametype == OPBX_FRAME_DTMF)) {
-		opbx_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+		opbx_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, opbx->name);
 		if (p->confirmanswer) {
-			opbx_log(LOG_DEBUG, "Confirm answer on %s!\n", ast->name);
+			opbx_log(LOG_DEBUG, "Confirm answer on %s!\n", opbx->name);
 			/* Upon receiving a DTMF digit, consider this an answer confirmation instead
 			   of a DTMF digit */
 			p->subs[index].f.frametype = OPBX_FRAME_CONTROL;
@@ -4649,16 +4649,16 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 			/* Fax tone -- Handle and return NULL */
 			if (!p->faxhandled) {
 				p->faxhandled++;
-				if (strcmp(ast->exten, "fax")) {
-					const char *target_context = opbx_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext;
+				if (strcmp(opbx->exten, "fax")) {
+					const char *target_context = opbx_strlen_zero(opbx->macrocontext) ? opbx->context : opbx->macrocontext;
 
-					if (opbx_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+					if (opbx_exists_extension(opbx, target_context, "fax", 1, opbx->cid.cid_num)) {
 						if (option_verbose > 2)
-							opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
+							opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", opbx->name);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
-						if (opbx_async_goto(ast, target_context, "fax", 1))
-							opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
+						pbx_builtin_setvar_helper(opbx, "FAXEXTEN", opbx->exten);
+						if (opbx_async_goto(opbx, target_context, "fax", 1))
+							opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, target_context);
 					} else
 						opbx_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
 				} else
@@ -4687,7 +4687,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *ast)
 
 	/* If we have a fake_event, trigger exception to handle it */
 	if (p->fake_event)
-		opbx_set_flag(ast, OPBX_FLAG_EXCEPTION);
+		opbx_set_flag(opbx, OPBX_FLAG_EXCEPTION);
 
 	opbx_mutex_unlock(&p->lock);
 	return f;
@@ -4716,15 +4716,15 @@ static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index,
 	return sent;
 }
 
-static int zt_write(struct opbx_channel *ast, struct opbx_frame *frame)
+static int zt_write(struct opbx_channel *opbx, struct opbx_frame *frame)
 {
-	struct zt_pvt *p = ast->tech_pvt;
+	struct zt_pvt *p = opbx->tech_pvt;
 	int res;
 	unsigned char outbuf[4096];
 	int index;
-	index = zt_get_index(ast, p, 0);
+	index = zt_get_index(opbx, p, 0);
 	if (index < 0) {
-		opbx_log(LOG_WARNING, "%s doesn't really exist?\n", ast->name);
+		opbx_log(LOG_WARNING, "%s doesn't really exist?\n", opbx->name);
 		return -1;
 	}
 
@@ -4758,12 +4758,12 @@ static int zt_write(struct opbx_channel *ast, struct opbx_frame *frame)
 	}
 	if (p->dialing) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n",ast->name);
+			opbx_log(LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n",opbx->name);
 		return 0;
 	}
 	if (!p->owner) {
 		if (option_debug)
-			opbx_log(LOG_DEBUG, "Dropping frame since there is no active owner on %s...\n",ast->name);
+			opbx_log(LOG_DEBUG, "Dropping frame since there is no active owner on %s...\n",opbx->name);
 		return 0;
 	}
 	if (p->cidspill) {
