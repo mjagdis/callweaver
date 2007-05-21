@@ -22,7 +22,7 @@ int main (int argc, const char * argv[]) {
 		}
 		hash = (hash & 0x7FFFFFFF);
 
-		printf("0x%8X\n", hash);
+		printf("0x%08X\n", hash);
 
 		return 0;
 	}
