@@ -5947,7 +5947,7 @@ static void *ss_thread(void *data)
 						break;
 				}
 			} else if (i & ZT_IOMUX_READ) {
-				uint16_t lin[256];
+				int16_t lin[256];
 				uint8_t buf[256];
 				res = read(p->subs[index].zfd, buf, sizeof(buf));
 				if (res < 0) {
@@ -6206,7 +6206,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 static void *do_monitor(void *data)
 {
 	uint8_t buf[256];
-	uint16_t lin[arraysize(buf)];
+	int16_t lin[arraysize(buf)];
 	int count, res, res2, spoint, pollres=0;
 	struct zt_pvt *i;
 	struct zt_pvt *last = NULL;
