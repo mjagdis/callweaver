@@ -46,6 +46,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
+#include "callweaver/pbx.h"
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
 #include "callweaver/enum.h"
@@ -280,6 +281,8 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 
 /* do not return requested value, just count RRs and return thei number in dst */
 #define ENUMLOOKUP_OPTIONS_COUNT	1
+/* use options field as a variable name pattern to set (e.g. name%d) */
+#define ENUMLOOKUP_OPTIONS_ARRAY       2
 
 struct enum_naptr_rr {
 	struct naptr naptr; /* order and preference of RR */
@@ -347,26 +350,15 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 		opbx_log(LOG_WARNING, "Failed to parse naptr :(\n");
 		return -1;
 	} else if(res > 0 && !opbx_strlen_zero(c->dst)){ /* ok, we got needed NAPTR */
-		 if(c->options & ENUMLOOKUP_OPTIONS_COUNT){ /* counting RRs */
-			  c->position++;
-			  snprintf(c->dst, c->dstlen, "%d", c->position);
-		 } else  {
-			  p = realloc(c->naptr_rrs, sizeof(struct enum_naptr_rr)*(c->naptr_rrs_count+1));
-			  if(p){
-				   c->naptr_rrs = (struct enum_naptr_rr*)p;
-				   memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(struct naptr));
-				   c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
-				   c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
-				   c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
-				   c->naptr_rrs_count++;
-			  }
-			  c->dst[0] = 0;
+		if ((p = realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
+			c->naptr_rrs = p;
+			memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
+			c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
+			c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
+			c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
+			c->naptr_rrs_count++;
 		 }
 		 return 0;
-	}
-
-	if(c->options & ENUMLOOKUP_OPTIONS_COUNT){ /* counting RRs */
-		 snprintf(c->dst, c->dstlen, "%d", c->position);
 	}
 
 	return 0;
@@ -407,7 +399,11 @@ int opbx_get_enum(struct opbx_channel *chan, const char *number, char *dst, int 
 	context.naptr_rrs_count = 0;
 
 	if(options != NULL){
-		 if(*options == 'c'){
+		p1 = strchr(options, '%');
+		if (p1 && p1[1] == 'd' && !strchr(p1+1, '%')) {
+			context.options = ENUMLOOKUP_OPTIONS_ARRAY|ENUMLOOKUP_OPTIONS_COUNT;
+			context.position = 0;
+		} else if(*options == 'c'){
 			  context.options = ENUMLOOKUP_OPTIONS_COUNT;
 			  context.position = 0;
 		 } else {
@@ -484,7 +480,7 @@ int opbx_get_enum(struct opbx_channel *chan, const char *number, char *dst, int 
 		ret = 0;
 	}
 
-	if(context.naptr_rrs_count >= context.position && ! (context.options & ENUMLOOKUP_OPTIONS_COUNT)){
+	if (context.naptr_rrs_count >= context.position || (context.options & ENUMLOOKUP_OPTIONS_ARRAY)) {
 		 /* sort array by NAPTR order/preference */
 		 for(k=0; k<context.naptr_rrs_count; k++){
 			  for(i=0; i<context.naptr_rrs_count; i++){
@@ -510,15 +506,27 @@ int opbx_get_enum(struct opbx_channel *chan, const char *number, char *dst, int 
 				   }
 			  }
 		 }
-		 for(k=0; k<context.naptr_rrs_count; k++){
-			  if(context.naptr_rrs[k].sort_pos == context.position-1){
-				   opbx_copy_string(context.dst, context.naptr_rrs[k].result, dstlen);
-				   opbx_copy_string(context.tech, context.naptr_rrs[k].tech, techlen);
-				   break;
-			  }
-		 }
-	} else if( !(context.options & ENUMLOOKUP_OPTIONS_COUNT) ) {
-		 context.dst[0] = 0;
+		if ((context.options & ENUMLOOKUP_OPTIONS_ARRAY)) {
+			for (k = 0; k < context.naptr_rrs_count; k++) {
+				if (snprintf(dst, dstlen, options, context.naptr_rrs[k].sort_pos+1) >= dstlen) {
+					opbx_log(LOG_WARNING, "ENUM buffer too small setting result vars!");
+					break;
+				} else {
+					pbx_builtin_setvar_helper(chan, dst, context.naptr_rrs[k].result);	
+				}
+			}
+		} else {
+			for (k = 0; k < context.naptr_rrs_count; k++) {
+				if (context.naptr_rrs[k].sort_pos == context.position-1) {
+					opbx_copy_string(dst, context.naptr_rrs[k].result, dstlen);
+					opbx_copy_string(tech, context.naptr_rrs[k].tech, techlen);
+					break;
+				}
+			}
+		}
+	}
+	if ((context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
+		snprintf(dst, dstlen, "%d", context.naptr_rrs_count);
 	}
 
 	if (chan)
