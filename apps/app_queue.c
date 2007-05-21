@@ -1881,6 +1881,7 @@ static int is_our_turn(struct queue_ent *qe)
 	int found;
 
 	/* Check if we have some agent available */
+/*
 	found=0;
 	opbx_mutex_lock(&qe->parent->lock);
 	cur = qe->parent->members;
@@ -1898,6 +1899,7 @@ static int is_our_turn(struct queue_ent *qe)
 			opbx_log(LOG_DEBUG, "Not any available agent .\n");
 		return 0;
 	}
+*/
 
 	/* Atomically read the parent head */
 	opbx_mutex_lock(&qe->parent->lock);
