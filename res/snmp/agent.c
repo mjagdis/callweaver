@@ -21,7 +21,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision:$")
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
 #include "callweaver/indications.h"
-// #include "callweaver/version.h"
 #include "callweaver/pbx.h"
 
 /* Colission between Net-SNMP and CallWeaver */
@@ -174,11 +173,11 @@ opbx_var_channels(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
     switch (vp->magic) {
-	case OPBXCHANCOUNT:
-		long_ret = opbx_active_channels();
-		return (u_char *)&long_ret;
-	default:
-		break;
+		case OPBXCHANCOUNT:
+			long_ret = opbx_active_channels();
+			return (u_char *)&long_ret;
+		default:
+			break;
     }
     return NULL;
 }
@@ -207,296 +206,296 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
 	*var_len = sizeof(long_ret);
 
     switch (vp->magic) {
-	case OPBXCHANINDEX:
-		long_ret = name[*length - 1];
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANNAME:
-		if (!opbx_strlen_zero(chan->name)) {
-			strncpy(string_ret, chan->name, sizeof(string_ret));
+		case OPBXCHANINDEX:
+			long_ret = name[*length - 1];
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANNAME:
+			if (!opbx_strlen_zero(chan->name)) {
+				strncpy(string_ret, chan->name, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANLANGUAGE:
+			if (!opbx_strlen_zero(chan->language)) {
+				strncpy(string_ret, chan->language, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANTYPE:
+			strncpy(string_ret, chan->tech->type, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANLANGUAGE:
-		if (!opbx_strlen_zero(chan->language)) {
-			strncpy(string_ret, chan->language, sizeof(string_ret));
+			break;
+		case OPBXCHANMUSICCLASS:
+			if (!opbx_strlen_zero(chan->musicclass)) {
+				strncpy(string_ret, chan->musicclass, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANBRIDGE:
+			if ((bridge = opbx_bridged_channel(chan)) != NULL) {
+				strncpy(string_ret, bridge->name, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANMASQ:
+			if (chan->masq && !opbx_strlen_zero(chan->masq->name)) {
+				strncpy(string_ret, chan->masq->name, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANMASQR:
+			if (chan->masqr && !opbx_strlen_zero(chan->masqr->name)) {
+				strncpy(string_ret, chan->masqr->name, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANWHENHANGUP:
+			if (chan->whentohangup) {
+				gettimeofday(&tval, NULL);
+				long_ret = difftime(chan->whentohangup, tval.tv_sec) * 100 - tval.tv_usec / 10000;
+				ret= (u_char *)&long_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANAPP:
+			if (chan->appl) {
+				strncpy(string_ret, chan->appl, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANDATA:
+			if (chan->data) {
+				strncpy(string_ret, chan->data, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANCONTEXT:
+			strncpy(string_ret, chan->context, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANTYPE:
-		strncpy(string_ret, chan->tech->type, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case OPBXCHANMUSICCLASS:
-		if (!opbx_strlen_zero(chan->musicclass)) {
-			strncpy(string_ret, chan->musicclass, sizeof(string_ret));
+			break;
+		case OPBXCHANMACROCONTEXT:
+			strncpy(string_ret, chan->macrocontext, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANBRIDGE:
-		if ((bridge = opbx_bridged_channel(chan)) != NULL) {
-			strncpy(string_ret, bridge->name, sizeof(string_ret));
+			break;
+		case OPBXCHANMACROEXTEN:
+			strncpy(string_ret, chan->macroexten, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANMASQ:
-		if (chan->masq && !opbx_strlen_zero(chan->masq->name)) {
-			strncpy(string_ret, chan->masq->name, sizeof(string_ret));
+			break;
+		case OPBXCHANMACROPRI:
+			long_ret = chan->macropriority;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANEXTEN:
+			strncpy(string_ret, chan->exten, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANMASQR:
-		if (chan->masqr && !opbx_strlen_zero(chan->masqr->name)) {
-			strncpy(string_ret, chan->masqr->name, sizeof(string_ret));
+			break;
+		case OPBXCHANPRI:
+			long_ret = chan->priority;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANACCOUNTCODE:
+			if (!opbx_strlen_zero(chan->accountcode)) {
+				strncpy(string_ret, chan->accountcode, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANFORWARDTO:
+			if (!opbx_strlen_zero(chan->call_forward)) {
+				strncpy(string_ret, chan->call_forward, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANUNIQUEID:
+			strncpy(string_ret, chan->uniqueid, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-		}
-		else
+			break;
+		case OPBXCHANCALLGROUP:
+			long_ret = chan->callgroup;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANPICKUPGROUP:
+			long_ret = chan->pickupgroup;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANSTATE:
+			long_ret = chan->_state & 0xffff;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANMUTED:
+			long_ret = chan->_state & OPBX_STATE_MUTE ? 1 : 2;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANRINGS:
+			long_ret = chan->rings;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANCIDDNID:
+			if (chan->cid.cid_dnid) {
+				strncpy(string_ret, chan->cid.cid_dnid, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANCIDNUM:
+			if (chan->cid.cid_num) {
+				strncpy(string_ret, chan->cid.cid_num, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANCIDNAME:
+			if (chan->cid.cid_name) {
+				strncpy(string_ret, chan->cid.cid_name, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANCIDANI:
+			if (chan->cid.cid_ani) {
+				strncpy(string_ret, chan->cid.cid_ani, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANCIDRDNIS:
+			if (chan->cid.cid_rdnis) {
+				strncpy(string_ret, chan->cid.cid_rdnis, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANCIDPRES:
+			long_ret = chan->cid.cid_pres;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANCIDANI2:
+			long_ret = chan->cid.cid_ani2;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANCIDTON:
+			long_ret = chan->cid.cid_ton;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANCIDTNS:
+			long_ret = chan->cid.cid_tns;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANAMAFLAGS:
+			long_ret = chan->amaflags;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANADSI:
+			long_ret = chan->adsicpe;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANTONEZONE:
+			if (chan->zone) {
+				strncpy(string_ret, chan->zone->country, sizeof(string_ret));
+				string_ret[sizeof(string_ret) - 1] = '\0';
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANHANGUPCAUSE:
+			long_ret = chan->hangupcause;
+			ret = (u_char *)&long_ret;
+			break;
+		case OPBXCHANVARIABLES:
+			if (pbx_builtin_serialize_variables(chan, string_ret, sizeof(string_ret))) {
+				*var_len = strlen(string_ret);
+				ret = (u_char *)string_ret;
+			}
+			else
+				ret = NULL;
+			break;
+		case OPBXCHANFLAGS:
+			bits_ret[0] = 0;
+			for (bit = 0; bit < 8; bit++)
+				bits_ret[0] |= ((chan->flags & (1 << bit)) >> bit) << (7 - bit);
+			bits_ret[1] = 0;
+			for (bit = 0; bit < 8; bit++)
+				bits_ret[1] |= (((chan->flags >> 8) & (1 << bit)) >> bit) << (7 - bit);
+			*var_len = 2;
+			ret = bits_ret;
+			break;
+		case OPBXCHANTRANSFERCAP:
+			long_ret = chan->transfercapability;
+			ret = (u_char *)&long_ret;
+			break;
+		default:
 			ret = NULL;
-		break;
-	case OPBXCHANWHENHANGUP:
-		if (chan->whentohangup) {
-			gettimeofday(&tval, NULL);
-			long_ret = difftime(chan->whentohangup, tval.tv_sec) * 100 - tval.tv_usec / 10000;
-			ret= (u_char *)&long_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANAPP:
-		if (chan->appl) {
-			strncpy(string_ret, chan->appl, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANDATA:
-		if (chan->data) {
-			strncpy(string_ret, chan->data, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANCONTEXT:
-		strncpy(string_ret, chan->context, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case OPBXCHANMACROCONTEXT:
-		strncpy(string_ret, chan->macrocontext, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case OPBXCHANMACROEXTEN:
-		strncpy(string_ret, chan->macroexten, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case OPBXCHANMACROPRI:
-		long_ret = chan->macropriority;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANEXTEN:
-		strncpy(string_ret, chan->exten, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case OPBXCHANPRI:
-		long_ret = chan->priority;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANACCOUNTCODE:
-		if (!opbx_strlen_zero(chan->accountcode)) {
-			strncpy(string_ret, chan->accountcode, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANFORWARDTO:
-		if (!opbx_strlen_zero(chan->call_forward)) {
-			strncpy(string_ret, chan->call_forward, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANUNIQUEID:
-		strncpy(string_ret, chan->uniqueid, sizeof(string_ret));
-		string_ret[sizeof(string_ret) - 1] = '\0';
-		*var_len = strlen(string_ret);
-		ret = (u_char *)string_ret;
-		break;
-	case OPBXCHANCALLGROUP:
-		long_ret = chan->callgroup;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANPICKUPGROUP:
-		long_ret = chan->pickupgroup;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANSTATE:
-		long_ret = chan->_state & 0xffff;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANMUTED:
-		long_ret = chan->_state & OPBX_STATE_MUTE ? 1 : 2;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANRINGS:
-		long_ret = chan->rings;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANCIDDNID:
-		if (chan->cid.cid_dnid) {
-			strncpy(string_ret, chan->cid.cid_dnid, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANCIDNUM:
-		if (chan->cid.cid_num) {
-			strncpy(string_ret, chan->cid.cid_num, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANCIDNAME:
-		if (chan->cid.cid_name) {
-			strncpy(string_ret, chan->cid.cid_name, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANCIDANI:
-		if (chan->cid.cid_ani) {
-			strncpy(string_ret, chan->cid.cid_ani, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANCIDRDNIS:
-		if (chan->cid.cid_rdnis) {
-			strncpy(string_ret, chan->cid.cid_rdnis, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANCIDPRES:
-		long_ret = chan->cid.cid_pres;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANCIDANI2:
-		long_ret = chan->cid.cid_ani2;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANCIDTON:
-		long_ret = chan->cid.cid_ton;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANCIDTNS:
-		long_ret = chan->cid.cid_tns;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANAMAFLAGS:
-		long_ret = chan->amaflags;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANADSI:
-		long_ret = chan->adsicpe;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANTONEZONE:
-		if (chan->zone) {
-			strncpy(string_ret, chan->zone->country, sizeof(string_ret));
-			string_ret[sizeof(string_ret) - 1] = '\0';
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANHANGUPCAUSE:
-		long_ret = chan->hangupcause;
-		ret = (u_char *)&long_ret;
-		break;
-	case OPBXCHANVARIABLES:
-		if (pbx_builtin_serialize_variables(chan, string_ret, sizeof(string_ret))) {
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
-		}
-		else
-			ret = NULL;
-		break;
-	case OPBXCHANFLAGS:
-		bits_ret[0] = 0;
-		for (bit = 0; bit < 8; bit++)
-			bits_ret[0] |= ((chan->flags & (1 << bit)) >> bit) << (7 - bit);
-		bits_ret[1] = 0;
-		for (bit = 0; bit < 8; bit++)
-			bits_ret[1] |= (((chan->flags >> 8) & (1 << bit)) >> bit) << (7 - bit);
-		*var_len = 2;
-		ret = bits_ret;
-		break;
-	case OPBXCHANTRANSFERCAP:
-		long_ret = chan->transfercapability;
-		ret = (u_char *)&long_ret;
-		break;
-	default:
-		ret = NULL;
-		break;
+			break;
     }
     opbx_channel_unlock(chan);
     return ret;
@@ -512,15 +511,15 @@ static u_char *opbx_var_channel_types(struct variable *vp, oid *name, size_t *le
 		return NULL;
 
     switch (vp->magic) {
-	case OPBXCHANTYPECOUNT:
-		long_ret = 0;
-		for (channel_types = next = opbx_channeltype_list(); next; next = next->next) {
-			long_ret++;
-		}
-		opbx_variables_destroy(channel_types);
-		return (u_char *)&long_ret;
-	default:
-		break;
+		case OPBXCHANTYPECOUNT:
+			long_ret = 0;
+			for (channel_types = next = opbx_channeltype_list(); next; next = next->next) {
+				long_ret++;
+			}
+			opbx_variables_destroy(channel_types);
+			return (u_char *)&long_ret;
+		default:
+			break;
     }
     return NULL;
 }
@@ -547,34 +546,34 @@ static u_char *opbx_var_channel_types_table(struct variable *vp, oid *name, size
 		return NULL;
     
     switch (vp->magic) {
-	case OPBXCHANTYPEINDEX:
-		long_ret = name[*length - 1];
-		return (u_char *)&long_ret;
-	case OPBXCHANTYPENAME:
-		*var_len = strlen(tech->type);
-		return (u_char *)tech->type;
-	case OPBXCHANTYPEDESC:
-		*var_len = strlen(tech->description);
-		return (u_char *)tech->description;
-	case OPBXCHANTYPEDEVSTATE:
-		long_ret = tech->devicestate ? 1 : 2;
-		return (u_char *)&long_ret;
-	case OPBXCHANTYPEINDICATIONS:
-		long_ret = tech->indicate ? 1 : 2;
-		return (u_char *)&long_ret;
-	case OPBXCHANTYPETRANSFER:
-		long_ret = tech->transfer ? 1 : 2;
-		return (u_char *)&long_ret;
-	case OPBXCHANTYPECHANNELS:
-		long_ret = 0;
-		for (chan = opbx_channel_walk_locked(NULL); chan; chan = opbx_channel_walk_locked(chan)) {
-			opbx_channel_unlock(chan);
-			if (chan->tech == tech)
-				long_ret++;
-		}
-		return (u_char *)&long_ret;
-	default:
-		break;
+		case OPBXCHANTYPEINDEX:
+			long_ret = name[*length - 1];
+			return (u_char *)&long_ret;
+		case OPBXCHANTYPENAME:
+			*var_len = strlen(tech->type);
+			return (u_char *)tech->type;
+		case OPBXCHANTYPEDESC:
+			*var_len = strlen(tech->description);
+			return (u_char *)tech->description;
+		case OPBXCHANTYPEDEVSTATE:
+			long_ret = tech->devicestate ? 1 : 2;
+			return (u_char *)&long_ret;
+		case OPBXCHANTYPEINDICATIONS:
+			long_ret = tech->indicate ? 1 : 2;
+			return (u_char *)&long_ret;
+		case OPBXCHANTYPETRANSFER:
+			long_ret = tech->transfer ? 1 : 2;
+			return (u_char *)&long_ret;
+		case OPBXCHANTYPECHANNELS:
+			long_ret = 0;
+			for (chan = opbx_channel_walk_locked(NULL); chan; chan = opbx_channel_walk_locked(chan)) {
+				opbx_channel_unlock(chan);
+				if (chan->tech == tech)
+					long_ret++;
+			}
+			return (u_char *)&long_ret;
+		default:
+			break;
     }
     return NULL;
 }
@@ -589,25 +588,25 @@ static u_char *opbx_var_Config(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
     switch (vp->magic) {
-	case OPBXCONFUPTIME:
-		gettimeofday(&tval, NULL);
-		long_ret = difftime(tval.tv_sec, opbx_startuptime) * 100 + tval.tv_usec / 10000;
-		return (u_char *)&long_ret;
-	case OPBXCONFRELOADTIME:
-		gettimeofday(&tval, NULL);
-		if (opbx_lastreloadtime)
-			long_ret = difftime(tval.tv_sec, opbx_lastreloadtime) * 100 + tval.tv_usec / 10000;
-		else
+		case OPBXCONFUPTIME:
+			gettimeofday(&tval, NULL);
 			long_ret = difftime(tval.tv_sec, opbx_startuptime) * 100 + tval.tv_usec / 10000;
-		return (u_char *)&long_ret;
-	case OPBXCONFPID:
-		long_ret = getpid();
-		return (u_char *)&long_ret;
-	case OPBXCONFSOCKET:
-		*var_len = strlen(opbx_config_OPBX_SOCKET);
-		return (u_char *)opbx_config_OPBX_SOCKET;
-	default:
-		break;
+			return (u_char *)&long_ret;
+		case OPBXCONFRELOADTIME:
+			gettimeofday(&tval, NULL);
+			if (opbx_lastreloadtime)
+				long_ret = difftime(tval.tv_sec, opbx_lastreloadtime) * 100 + tval.tv_usec / 10000;
+			else
+				long_ret = difftime(tval.tv_sec, opbx_startuptime) * 100 + tval.tv_usec / 10000;
+			return (u_char *)&long_ret;
+		case OPBXCONFPID:
+			long_ret = getpid();
+			return (u_char *)&long_ret;
+		case OPBXCONFSOCKET:
+			*var_len = strlen(opbx_config_OPBX_SOCKET);
+			return (u_char *)opbx_config_OPBX_SOCKET;
+		default:
+			break;
     }
     return NULL;
 }
@@ -622,22 +621,22 @@ static u_char *opbx_var_indications(struct variable *vp, oid *name, size_t *leng
 		return NULL;
 
     switch (vp->magic) {
-	case OPBXINDCOUNT:
-		long_ret = 0;
-		while ( (tz = opbx_walk_indications(tz)) )
-			long_ret++;
+		case OPBXINDCOUNT:
+			long_ret = 0;
+			while ( (tz = opbx_walk_indications(tz)) )
+				long_ret++;
 
-		return (u_char *)&long_ret;
-	case OPBXINDCURRENT:
-		tz = opbx_get_indication_zone(NULL);
-		if (tz) {
-			*var_len = strlen(tz->country);
-			return (u_char *)tz->country;
-		}
-		*var_len = 0;
-		return NULL;
-	default:
-		break;
+			return (u_char *)&long_ret;
+		case OPBXINDCURRENT:
+			tz = opbx_get_indication_zone(NULL);
+			if (tz) {
+				*var_len = strlen(tz->country);
+				return (u_char *)tz->country;
+			}
+			*var_len = 0;
+			return NULL;
+		default:
+			break;
     }
     return NULL;
 }
@@ -659,23 +658,23 @@ static u_char *opbx_var_indications_table(struct variable *vp, oid *name, size_t
 		return NULL;
 
     switch (vp->magic) {
-	case OPBXINDINDEX:
-		long_ret = name[*length - 1];
-		return (u_char *)&long_ret;
-	case OPBXINDCOUNTRY:
-		*var_len = strlen(tz->country);
-		return (u_char *)tz->country;
-	case OPBXINDALIAS:
-		if (tz->alias) {
-			*var_len = strlen(tz->alias);
-			return (u_char *)tz->alias;
-		}
-		return NULL;
-	case OPBXINDDESCRIPTION:
-		*var_len = strlen(tz->description);
-		return (u_char *)tz->description;
-	default:
-		break;
+		case OPBXINDINDEX:
+			long_ret = name[*length - 1];
+			return (u_char *)&long_ret;
+		case OPBXINDCOUNTRY:
+			*var_len = strlen(tz->country);
+			return (u_char *)tz->country;
+		case OPBXINDALIAS:
+			if (tz->alias) {
+				*var_len = strlen(tz->alias);
+				return (u_char *)tz->alias;
+			}
+			return NULL;
+		case OPBXINDDESCRIPTION:
+			*var_len = strlen(tz->description);
+			return (u_char *)tz->description;
+		default:
+			break;
     }
     return NULL;
 }
@@ -694,11 +693,11 @@ static u_char *opbx_var_Modules(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
     switch (vp->magic) {
-	case OPBXMODCOUNT:
-		long_ret = opbx_update_module_list(countmodule, NULL);
-		return (u_char *)&long_ret;
-	default:
-		break;
+		case OPBXMODCOUNT:
+			long_ret = opbx_update_module_list(countmodule, NULL);
+			return (u_char *)&long_ret;
+		default:
+			break;
     }
     return NULL;
 }
@@ -711,16 +710,21 @@ static u_char *opbx_var_Version(struct variable *vp, oid *name, size_t *length,
     if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
+#if 0
+	FIXME
+		Someone please help me out here. I dunno where to find these
+
     switch (vp->magic) {
-	case OPBXVERSTRING:
-		*var_len = strlen(CALLWEAVER_VERSION);
-		return (u_char *)CALLWEAVER_VERSION;
-	case OPBXVERTAG:
-		long_ret = CALLWEAVER_VERSION_NUM;
-		return (u_char *)&long_ret;
-	default:
-		break;
+		case OPBXVERSTRING:
+			*var_len = strlen(OPBX_VERSION);
+			return (u_char *)OPBX_VERSION;
+		case OPBXVERTAG:
+			long_ret = CALLWEAVER_VERSION_NUM;
+			return (u_char *)&long_ret;
+		default:
+			break;
     }
+#endif
     return NULL;
 }
 

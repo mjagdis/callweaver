@@ -126,3 +126,16 @@ int reload(void)
 		return opbx_pthread_create_background(&thread, NULL, agent_thread, NULL);
 	return 0;
 }
+
+int usecount(void)
+{
+	int res;
+	STANDARD_USECOUNT(res);
+	return res;
+}
+
+char *description (void)
+{
+	return tdesc;
+}
+
