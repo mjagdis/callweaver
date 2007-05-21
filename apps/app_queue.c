@@ -280,7 +280,7 @@ struct queue_ent {
 	char context[OPBX_MAX_CONTEXT];	/*!< Context when user exits queue */
 	char digits[OPBX_MAX_EXTENSION];	/*!< Digits entered while in queue */
 	int pos;			/*!< Where we are in the queue */
-        int trying_agent;		/*!< Are we trying to reach an agent */
+	int trying_agent;		/*!< Are we trying to reach an agent */
 	int prio;			/*!< Our priority */
 	int last_pos_said;              /*!< Last position we told the user */
 	time_t last_periodic_announce_time;	/*!< The last time we played a periodic anouncement */
@@ -350,8 +350,8 @@ struct opbx_call_queue {
 	char sound_reporthold[80];	/*!< Sound file: "Hold time" (def. queue-reporthold) */
 	char sound_periodicannounce[80];/*!< Sound file: Custom announce, no default */
 
-        int report_maxpos;              /*!< How many position queue are we reporting (ex: if set to 5, 6 and more will not have pos report) */
-        unsigned int reportpos_first:1; /*!< Are we reporting the "you are the next" to the next caller */
+	int report_maxpos;              /*!< How many position queue are we reporting (ex: if set to 5, 6 and more will not have pos report) */
+	unsigned int reportpos_first:1; /*!< Are we reporting the "you are the next" to the next caller */
 
 	int count;			/*!< How many entries */
 	int maxlen;			/*!< Max number of entries */
@@ -436,7 +436,7 @@ static enum queue_member_status get_member_status(struct opbx_call_queue *q)
 	struct member *member;
 	enum queue_member_status result = QUEUE_NO_MEMBERS;
 
-        opbx_mutex_lock(&q->lock);
+	opbx_mutex_lock(&q->lock);
 	for (member = q->members; member; member = member->next) {
 		switch (member->status) {
 		case OPBX_DEVICE_INVALID:
@@ -446,7 +446,7 @@ static enum queue_member_status get_member_status(struct opbx_call_queue *q)
 			result = QUEUE_NO_REACHABLE_MEMBERS;
 			break;
 		default:
-                        opbx_mutex_unlock(&q->lock);
+			opbx_mutex_unlock(&q->lock);
 			return QUEUE_NORMAL;
 		}
 	}
@@ -582,8 +582,8 @@ static void init_queue(struct opbx_call_queue *q)
 	q->context[0] = '\0';
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
-        q->report_maxpos = -1;
-        q->reportpos_first = opbx_true("yes");
+	q->report_maxpos = -1;
+	q->reportpos_first = opbx_true("yes");
 
 	opbx_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
 	opbx_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
@@ -647,10 +647,10 @@ static void queue_set_param(struct opbx_call_queue *q, const char *param, const 
 		opbx_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
 	} else if (!strcasecmp(param, "queue-reporthold")) {
 		opbx_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
-        } else if (!strcasecmp(param, "reportmaxpos")) {
-                q->report_maxpos = atoi(val);
-        } else if (!strcasecmp(param, "reportpos-first")) {
-                q->reportpos_first = opbx_true(val);
+	} else if (!strcasecmp(param, "reportmaxpos")) {
+		q->report_maxpos = atoi(val);
+	} else if (!strcasecmp(param, "reportpos-first")) {
+		q->reportpos_first = opbx_true(val);
 	} else if (!strcasecmp(param, "announce-frequency")) {
 		q->announcefrequency = atoi(val);
 	} else if (!strcasecmp(param, "announce-round-seconds")) {
@@ -899,7 +899,7 @@ static struct opbx_call_queue *reload_queue_rt(const char *queuename, struct opb
 		}
 		m = next_m;
 	}
-        opbx_mutex_unlock(&q->lock);
+	opbx_mutex_unlock(&q->lock);
 	return q;
 }
 
@@ -979,12 +979,12 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		opbx_copy_string(qe->context, q->context, sizeof(qe->context));
 		q->count++;
 		res = 0;
-		manager_event(EVENT_FLAG_CALL, "Join", 
-			      "Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-			      qe->chan->name, 
-			      qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-			      qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-			      q->name, qe->pos, q->count );
+		manager_event(EVENT_FLAG_CALL, "Join",
+				"Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+				qe->chan->name, 
+				qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
+				qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
+				q->name, qe->pos, q->count );
 #if 0
 opbx_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
@@ -1032,7 +1032,7 @@ static void destroy_queue(struct opbx_call_queue *q)
 	}
 	opbx_mutex_unlock(&qlock);
 	free_members(q, 1);
-        opbx_mutex_destroy(&q->lock);
+	opbx_mutex_destroy(&q->lock);
 	free(q);
 }
 
@@ -1102,14 +1102,13 @@ static int say_position(struct queue_ent *qe)
 	opbx_moh_stop(qe->chan);
 	/* Say we're next, if we are */
 	if (qe->pos == 1) {
-                if (qe->parent->reportpos_first) {
-     			res = play_file(qe->chan, qe->parent->sound_next);
+		if (qe->parent->reportpos_first) {
+			res = play_file(qe->chan, qe->parent->sound_next);
 			if (res && valid_exit(qe, res))
 				goto playout;
 			else
 				goto posout;
-		}
-		else 
+		} else 
 			goto playout;
 	} else {
 		if (qe->pos <= qe->parent->report_maxpos) {
@@ -1124,7 +1123,7 @@ static int say_position(struct queue_ent *qe)
 				goto playout;
 		} else {
 			goto playout;
-                }
+		}
 	}
 	/* Round hold time to nearest minute */
 	avgholdmins = abs(( (qe->parent->holdtime + 30) - (now - qe->start) ) / 60);
@@ -1143,7 +1142,7 @@ static int say_position(struct queue_ent *qe)
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
 	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) &&
-	    (!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->last_pos)) {
+			(!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->last_pos)) {
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
 		if (res && valid_exit(qe, res))
 			goto playout;
@@ -1182,7 +1181,7 @@ static int say_position(struct queue_ent *qe)
  posout:
 	if (option_verbose > 2)
 		opbx_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
-			    qe->chan->name, qe->parent->name, qe->pos);
+				qe->chan->name, qe->parent->name, qe->pos);
 	if (!opbx_strlen_zero(qe->parent->sound_thanks))
 		res = play_file(qe->chan, qe->parent->sound_thanks);	
 
@@ -1207,7 +1206,7 @@ static void recalc_holdtime(struct queue_ent *qe)
 
 	opbx_mutex_lock(&qe->parent->lock);
 	if (newvalue <= qe->parent->servicelevel)
-       		qe->parent->callscompletedinsl++;
+		qe->parent->callscompletedinsl++;
 	oldvalue = qe->parent->holdtime;
 	qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newvalue) >> 2;
 	opbx_mutex_unlock(&qe->parent->lock);
@@ -1668,7 +1667,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 		if (found < 0) {
 			if (numlines == (numbusies + numnochan)) {
 				opbx_log(LOG_DEBUG, "Everyone is busy at this time\n");
-                                /* Make sure it doesn't loop too fast */
+				/* Make sure it doesn't loop too fast */
 				usleep(1000000);
 			} else {
 				opbx_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
@@ -1764,59 +1763,59 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 				if (f) {
 					if (f->frametype == OPBX_FRAME_CONTROL) {
 						switch(f->subclass) {
-		    			case OPBX_CONTROL_ANSWER:
-							/* This is our guy if someone answered. */
-							if (!peer) {
+							case OPBX_CONTROL_ANSWER:
+								/* This is our guy if someone answered. */
+								if (!peer) {
+									if (option_verbose > 2)
+										opbx_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+									peer = o;
+								}
+								break;
+							case OPBX_CONTROL_BUSY:
 								if (option_verbose > 2)
-									opbx_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
-								peer = o;
-							}
-							break;
-						case OPBX_CONTROL_BUSY:
-							if (option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
-							o->stillgoing = 0;
-							if (in->cdr)
-								opbx_cdr_busy(in->cdr);
-							opbx_hangup(o->chan);
-							o->chan = NULL;
-							if (qe->parent->strategy) {
-								if (qe->parent->timeoutrestart)
-									*to = orig;
-								ring_one(qe, outgoing, &numbusies);
-							}
-							numbusies++;
-							break;
-						case OPBX_CONTROL_CONGESTION:
-							if (option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
-							o->stillgoing = 0;
-							if (in->cdr)
-								opbx_cdr_busy(in->cdr);
-							opbx_hangup(o->chan);
-							o->chan = NULL;
-							if (qe->parent->strategy) {
-								if (qe->parent->timeoutrestart)
-									*to = orig;
-								ring_one(qe, outgoing, &numbusies);
-							}
-							numbusies++;
-							break;
-						case OPBX_CONTROL_RINGING:
-							if (option_verbose > 2)
-								opbx_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
-							if (!sentringing) {
+									opbx_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
+								o->stillgoing = 0;
+								if (in->cdr)
+									opbx_cdr_busy(in->cdr);
+								opbx_hangup(o->chan);
+								o->chan = NULL;
+								if (qe->parent->strategy) {
+									if (qe->parent->timeoutrestart)
+										*to = orig;
+									ring_one(qe, outgoing, &numbusies);
+								}
+								numbusies++;
+								break;
+							case OPBX_CONTROL_CONGESTION:
+								if (option_verbose > 2)
+									opbx_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
+								o->stillgoing = 0;
+								if (in->cdr)
+									opbx_cdr_busy(in->cdr);
+								opbx_hangup(o->chan);
+								o->chan = NULL;
+								if (qe->parent->strategy) {
+									if (qe->parent->timeoutrestart)
+										*to = orig;
+									ring_one(qe, outgoing, &numbusies);
+								}
+								numbusies++;
+								break;
+							case OPBX_CONTROL_RINGING:
+								if (option_verbose > 2)
+									opbx_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
+								if (!sentringing) {
 #if 0
-								opbx_indicate(in, OPBX_CONTROL_RINGING);
+									opbx_indicate(in, OPBX_CONTROL_RINGING);
 #endif								
-								sentringing++;
-							}
-							break;
-						case OPBX_CONTROL_OFFHOOK:
-							/* Ignore going off hook */
-							break;
-						default:
-							opbx_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+									sentringing++;
+								}
+								break;
+							case OPBX_CONTROL_OFFHOOK:
+								/* Ignore going off hook */
+								break;
+							default:
+								opbx_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
 					}
 					opbx_fr_free(f);
@@ -1877,60 +1876,60 @@ static int is_our_turn(struct queue_ent *qe)
 {
 	struct queue_ent *ch;
 	int res;
-        struct member *cur;
-        struct queue_ent *cur_qe;
-        int found;
+	struct member *cur;
+	struct queue_ent *cur_qe;
+	int found;
 
-        /* Check if we have some agent available */
+	/* Check if we have some agent available */
 	found=0;
-        opbx_mutex_lock(&qe->parent->lock);
+	opbx_mutex_lock(&qe->parent->lock);
 	cur = qe->parent->members;
 	while(cur) {
-            if (cur->status == 1 && cur->paused ==0) {
-                found=1;
-                break;
-            }
-	    cur = cur->next;
+		if (cur->status == 1 && cur->paused ==0) {
+			found=1;
+			break;
+		}
+		cur = cur->next;
 	}
-        opbx_mutex_unlock(&qe->parent->lock);
+	opbx_mutex_unlock(&qe->parent->lock);
 
-        if (found !=1) {
-                if (option_debug)
-                        opbx_log(LOG_DEBUG, "Not any available agent .\n");
-                return 0;
+	if (found !=1) {
+		if (option_debug)
+			opbx_log(LOG_DEBUG, "Not any available agent .\n");
+		return 0;
 	}
 
 	/* Atomically read the parent head */
 	opbx_mutex_lock(&qe->parent->lock);
 	ch = qe->parent->head;
 	/* If we are now at the top of the head, break out */
-        if (ch == qe) {
-	        qe->trying_agent = 1;
-                res = 1;
-                        if (option_debug)
-                                opbx_log(LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
-        } else {
+	if (ch == qe) {
+		qe->trying_agent = 1;
+		res = 1;
+		if (option_debug)
+			opbx_log(LOG_DEBUG, "It's Head turn (%s).\n", qe->chan->name);
+	} else {
 		/* Are we next? */
-                cur_qe = qe->parent->head;
-                while(cur_qe) {
+		cur_qe = qe->parent->head;
+		while(cur_qe) {
 			if (cur_qe->trying_agent != 1)
 				break;
 			cur_qe = cur_qe->next;
-                }
+		}
 
-                if (ch->trying_agent == 1 && cur_qe && qe == cur_qe) {
-                	qe->trying_agent = 1;
-	        	if (option_debug)
-	            		opbx_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+		if (ch->trying_agent == 1 && cur_qe && qe == cur_qe) {
+			qe->trying_agent = 1;
+			if (option_debug)
+		    		opbx_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
 			res = 1;
-                } else {
-                	qe->trying_agent = 0;
-	            	if (option_debug)
-	            		opbx_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
-		        res = 0;
-                }
-        }
-               
+		} else {
+			qe->trying_agent = 0;
+		    	if (option_debug)
+		    		opbx_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+			res = 0;
+		}
+	}
+	       
 	opbx_mutex_unlock(&qe->parent->lock); 
 
 	return res;
@@ -2253,7 +2252,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				/* Agent must have hung up */
 				opbx_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
 				opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
-                                record_abandoned(qe);
+				record_abandoned(qe);
 				if (qe->parent->eventwhencalled) {
 					manager_event(EVENT_FLAG_AGENT, "AgentDump",
 						      "Queue: %s\r\n"
@@ -2283,7 +2282,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (res < 0) {
 			opbx_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
 			opbx_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
-                        record_abandoned(qe);
+			record_abandoned(qe);
 			opbx_hangup(peer);
 			return -1;
 		}
@@ -2993,7 +2992,7 @@ static int queue_exec(struct opbx_channel *chan, void *data)
 	qe.prio = (int)prio;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
-        qe.trying_agent=0;
+	qe.trying_agent=0;
 	qe.last_periodic_announce_time = time(NULL);
 	if (!join_queue(queuename, &qe, &reason)) {
 		opbx_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "",
@@ -3038,7 +3037,7 @@ check_turns:
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.expire && (time(NULL) > qe.expire)) {
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					opbx_queue_log(queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
@@ -3108,7 +3107,7 @@ check_turns:
 
 				/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 				res = wait_a_bit(&qe);
-                                
+
 				if (res < 0) {
 					record_abandoned(&qe);
 					opbx_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
@@ -3129,7 +3128,7 @@ check_turns:
 						res = -1;
 					}
 					opbx_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					break;
@@ -3138,7 +3137,7 @@ check_turns:
 				 * it is not sure that we are still at the head
 				 * of the queue, go and check for our turn again.
 				 */
-                                qe.trying_agent =0;
+				qe.trying_agent =0;
 				if (!is_our_turn(&qe)) {
 					if (option_debug)
 						opbx_log(LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
@@ -3894,7 +3893,7 @@ int load_module(void)
 	reload_queues();
 	
 	if (queue_persistent_members)
-	    reload_queue_members();
+		reload_queue_members();
 
 	return res;
 }
