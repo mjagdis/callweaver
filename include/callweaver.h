@@ -14,13 +14,20 @@
 /*! \file
  * \brief CallWeaver main include file. File version handling, generic pbx functions.
 */
-#ifndef _CALLWEAVER_H
+#if !defined(_CALLWEAVER_H)
 #define _CALLWEAVER_H
 
 // #define RELEASE_TARBALL 1
 
 #ifdef HAVE_CONFIG_H
 #include "confdefs.h"
+#endif
+
+#if !defined(FALSE)
+#define FALSE 0
+#endif
+#if !defined(TRUE)
+#define TRUE (!FALSE)
 #endif
 
 #define DEFAULT_LANGUAGE "en"

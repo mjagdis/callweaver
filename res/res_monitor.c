@@ -222,7 +222,9 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 /* Stop monitoring a channel */
 static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 {
-	char *execute, *execute_args;
+	char *execute;
+	char *execute_args;
+    int explicit_file_type;
 	int delfiles = 0;
 
 	if (need_lock) {
@@ -267,25 +269,45 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 		if (chan->monitor->joinfiles && !opbx_strlen_zero(chan->monitor->filename_base)) {
 			char tmp[1024];
 			char tmp2[1024];
-			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
+			char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
 			char *dir = directory ? "" : opbx_config_OPBX_MONITOR_DIR;
 
+			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
+			if (execute_args == NULL  ||  execute_args[0] == '\0')
+				execute_args = "";
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
-			if (!execute || opbx_strlen_zero(execute)) { 
+            explicit_file_type = FALSE;
+			if (execute == NULL  ||  execute[0] == '\0')
+            { 
 				execute = "nice -n 19 soxmix";
 				delfiles = 1;
-			} 
-			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
-			if (!execute_args || opbx_strlen_zero(execute_args)) {
-				execute_args = "";
+                /* Explicitly specify the file type, so file names with multiple '.'
+                   characters don't confuse things. */
+                explicit_file_type = TRUE;
 			}
-			
-			snprintf(tmp, sizeof(tmp), "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" \"%s/%s.%s\" %s &", execute, dir, name, format, dir, name, format, dir, name, format,execute_args);
-			if (delfiles) {
-				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &",tmp, dir ,name); /* remove legs when done mixing */
+			snprintf(tmp,
+                     sizeof(tmp),
+                     "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" %s%s \"%s/%s.%s\" %s &",
+                     execute,
+                     dir,
+                     name,
+                     format,
+                     dir,
+                     name,
+                     format,
+                     (explicit_file_type)  ?  "-t "  :  "",
+                     (explicit_file_type)  ?  format  :  "",
+                     dir,
+                     name,
+                     format,
+                     execute_args);
+			if (delfiles)
+            {
+                /* Remove legs when done mixing */
+				snprintf(tmp2, sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &", tmp, dir ,name);
 				opbx_copy_string(tmp, tmp2, sizeof(tmp));
 			}
 			opbx_log(LOG_DEBUG,"monitor executing %s\n",tmp);
