@@ -234,6 +234,13 @@ app_osplookup_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_osplookup_la_LIBADD			= ${SSL_LIBS} ${top_builddir}/corelib/libcallweaver.la
 endif WANT_APP_OSPLOOKUP
 
+if WANT_APP_PAGE
+opbxmod_LTLIBRARIES			+= app_page.la
+app_page_la_SOURCES			= app_page.c
+app_page_la_LDFLAGS			= -module -avoid-version -no-undefined
+app_page_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la
+endif WANT_APP_PAGE
+
 if WANT_APP_PLAYBACK
 opbxmod_LTLIBRARIES			+= app_playback.la
 app_playback_la_SOURCES			= app_playback.c

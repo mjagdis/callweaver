@@ -1439,6 +1439,14 @@ AM_CONDITIONAL([WANT_APP_OSPLOOKUP],[test "${with_app_osplookup}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_page],
+        [AC_HELP_STRING([--with-app_page],[Build and install app_page (default=no)])],,
+        [with_app_age="no"])
+
+AM_CONDITIONAL([WANT_APP_PAGE],[test "${with_app_page}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_pipe],
    [AC_HELP_STRING([--with-app_pipe],[Build and install app_pipe (default=yes)])],,
    [with_app_pipe="yes"])
