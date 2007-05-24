@@ -39,7 +39,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: https://mikael@svn.callweaver.org/callweaver/trunk/apps/app_disa.c $", "$Revision: 2820 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2820 $")
 
 #include "callweaver/options.h"
 #include "callweaver/logger.h"
