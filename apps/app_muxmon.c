@@ -217,7 +217,7 @@ static void *muxmon_thread(void *obj)
 		opbx_set_flag(muxmon, MUXFLAG_VOLUME);
 	}
 
-	if ((ext = strchr(muxmon->filename, '.'))) {
+	if ((ext = strrchr(muxmon->filename, '.'))) {
 		*(ext++) = '\0';
 	} else {
 		ext = "raw";

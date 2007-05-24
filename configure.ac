@@ -1968,9 +1968,16 @@ AM_CONDITIONAL([WANT_CDR_PGSQL],[test "${enable_postgresql}" = "yes" -a "$with_c
 dnl ###########################################################################
 
 AC_ARG_WITH(cdr_pgsql_custom,
-        [AC_HELP_STRING([--with-cdr_pgsql_custom],[Build and install cdr_pgsql_custom (default=no) (requires --enable-postgresql])],,[with_cdr_pgsql_custom="no"])
+        [AC_HELP_STRING([--with-cdr_pgsql_custom],[Build and install cdr_pgsql_custom (default=no) (requires --enable-postgresql)])],,[with_cdr_pgsql_custom="no"])
 
 AM_CONDITIONAL([WANT_CDR_PGSQL_CUSTOM],[test "${enable_postgresql}" = "yes" -a "$with_cdr_pgsql_custom" = "yes"])
+
+dnl ###########################################################################
+
+AC_ARG_WITH(cdr_sqlite3_custom,
+        [AC_HELP_STRING([--with-cdr_sqlite3_custom],[Build and install cdr_sqlite3_custom (default=no)])],,[with_cdr_sqlite3_custom="no"])
+
+AM_CONDITIONAL([WANT_CDR_SQLITE3_CUSTOM],[test "${with_cdr_sqlite3_custom}" = "yes"])
 
 dnl ###########################################################################
 dnl ###########################################################################

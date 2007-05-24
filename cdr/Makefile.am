@@ -48,4 +48,13 @@ cdr_sqlite3_la_LIBADD	= ${top_builddir}/corelib/libcallweaver.la
 cdr_sqlite3_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 cdr_sqlite3_la_CFLAGS	= @SQLITE3_THREADSAFE_CFLAGS@ 
 
+if WANT_CDR_SQLITE3_CUSTOM
+opbxmod_LTLIBRARIES	+= cdr_sqlite3_custom.la
+cdr_sqlite3_custom_la_SOURCES	= cdr_sqlite3_custom.c
+cdr_sqlite3_custom_la_LDFLAGS	= -module -avoid-version -no-undefined
+cdr_sqlite3_custom_la_LIBADD	= ${top_builddir}/corelib/libcallweaver.la
+cdr_sqlite3_custom_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
+cdr_sqlite3_custom_la_CFLAGS	= @SQLITE3_THREADSAFE_CFLAGS@ 
+endif WANT_CDR_SQLITE3_CUSTOM
+
 INCLUDES = -I$(top_srcdir)/include
