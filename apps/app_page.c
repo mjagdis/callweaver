@@ -21,8 +21,10 @@
  * \brief page() - Paging application
  *
  * \author Mark Spencer <markster@digium.com>
- *
  * \ingroup applications
+ *
+ * ----- THIS APPLICATION IS EXPERIMENTAL -----
+ *
  */
 
 #ifdef HAVE_CONFIG_H
