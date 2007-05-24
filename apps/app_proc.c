@@ -48,7 +48,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1055 $")
 #define MAX_ARGS 80
 
 /* special result value used to force proc exit */
-#define MACRO_EXIT_RESULT 1024
+#define PROC_EXIT_RESULT 1024
 
 static char *tdesc = "Extension Procs";
 
@@ -94,8 +94,8 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 {
 	char *tmp;
 	char *cur, *rest;
-	char *macro;
-	char fullmacro[80];
+	char *proc;
+	char fullproc[80];
 	char varname[80];
 	char *oldargs[MAX_ARGS + 1] = { NULL, };
 	int argc, x;
@@ -106,13 +106,13 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 	char oldcontext[OPBX_MAX_CONTEXT] = "";
 	char *offsets;
 	int offset, depth;
-	int setmacrocontext=0;
+	int setproccontext=0;
 	int autoloopflag;
   
-	char *save_macro_exten;
-	char *save_macro_context;
-	char *save_macro_priority;
-	char *save_macro_offset;
+	char *save_proc_exten;
+	char *save_proc_context;
+	char *save_proc_priority;
+	char *save_proc_offset;
 	struct localuser *u;
  
 	if (opbx_strlen_zero(data)) {
@@ -140,18 +140,18 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 
 	tmp = opbx_strdupa(data);
 	rest = tmp;
-	macro = strsep(&rest, "|");
-	if (opbx_strlen_zero(macro)) {
+	proc = strsep(&rest, "|");
+	if (opbx_strlen_zero(proc)) {
 		opbx_log(LOG_WARNING, "Invalid proc name specified\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	snprintf(fullmacro, sizeof(fullmacro), "proc-%s", macro);
-	if (!opbx_exists_extension(chan, fullmacro, "s", 1, chan->cid.cid_num)) {
-  		if (!opbx_context_find(fullmacro)) 
-			opbx_log(LOG_WARNING, "No such context '%s' for proc '%s'\n", fullmacro, macro);
+	snprintf(fullproc, sizeof(fullproc), "proc-%s", proc);
+	if (!opbx_exists_extension(chan, fullproc, "s", 1, chan->cid.cid_num)) {
+  		if (!opbx_context_find(fullproc)) 
+			opbx_log(LOG_WARNING, "No such context '%s' for proc '%s'\n", fullproc, proc);
 		else
-	  		opbx_log(LOG_WARNING, "Context '%s' for proc '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
+	  		opbx_log(LOG_WARNING, "Context '%s' for proc '%s' lacks 's' extension, priority 1\n", fullproc, proc);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -164,40 +164,40 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 		opbx_copy_string(chan->macrocontext, chan->context, sizeof(chan->macrocontext));
 		opbx_copy_string(chan->macroexten, chan->exten, sizeof(chan->macroexten));
 		chan->macropriority = chan->priority;
-		setmacrocontext=1;
+		setproccontext=1;
 	}
 	argc = 1;
-	/* Save old macro variables */
-	save_macro_exten = pbx_builtin_getvar_helper(chan, "PROC_EXTEN");
-	if (save_macro_exten) 
-		save_macro_exten = strdup(save_macro_exten);
+	/* Save old proc variables */
+	save_proc_exten = pbx_builtin_getvar_helper(chan, "PROC_EXTEN");
+	if (save_proc_exten) 
+		save_proc_exten = strdup(save_proc_exten);
 	pbx_builtin_setvar_helper(chan, "PROC_EXTEN", oldexten);
 
-	save_macro_context = pbx_builtin_getvar_helper(chan, "PROC_CONTEXT");
-	if (save_macro_context)
-		save_macro_context = strdup(save_macro_context);
+	save_proc_context = pbx_builtin_getvar_helper(chan, "PROC_CONTEXT");
+	if (save_proc_context)
+		save_proc_context = strdup(save_proc_context);
 	pbx_builtin_setvar_helper(chan, "PROC_CONTEXT", oldcontext);
 
-	save_macro_priority = pbx_builtin_getvar_helper(chan, "PROC_PRIORITY");
-	if (save_macro_priority) 
-		save_macro_priority = strdup(save_macro_priority);
+	save_proc_priority = pbx_builtin_getvar_helper(chan, "PROC_PRIORITY");
+	if (save_proc_priority) 
+		save_proc_priority = strdup(save_proc_priority);
 	snprintf(pc, sizeof(pc), "%d", oldpriority);
 	pbx_builtin_setvar_helper(chan, "PROC_PRIORITY", pc);
   
-	save_macro_offset = pbx_builtin_getvar_helper(chan, "PROC_OFFSET");
-	if (save_macro_offset) 
-		save_macro_offset = strdup(save_macro_offset);
+	save_proc_offset = pbx_builtin_getvar_helper(chan, "PROC_OFFSET");
+	if (save_proc_offset) 
+		save_proc_offset = strdup(save_proc_offset);
 	pbx_builtin_setvar_helper(chan, "PROC_OFFSET", NULL);
 
 	/* Setup environment for new run */
 	chan->exten[0] = 's';
 	chan->exten[1] = '\0';
-	opbx_copy_string(chan->context, fullmacro, sizeof(chan->context));
+	opbx_copy_string(chan->context, fullproc, sizeof(chan->context));
 	chan->priority = 1;
 
 	while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
   		/* Save copy of old arguments if we're overwriting some, otherwise
-	   	let them pass through to the other macro */
+	   	let them pass through to the other proc */
   		snprintf(varname, sizeof(varname), "ARG%d", argc);
 		oldargs[argc] = pbx_builtin_getvar_helper(chan, varname);
 		if (oldargs[argc])
@@ -208,7 +208,7 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 	autoloopflag = opbx_test_flag(chan, OPBX_FLAG_IN_AUTOLOOP);
 	opbx_set_flag(chan, OPBX_FLAG_IN_AUTOLOOP);
 	while(opbx_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
-		/* Reset the macro depth, if it was changed in the last iteration */
+		/* Reset the proc depth, if it was changed in the last iteration */
 		pbx_builtin_setvar_helper(chan, "PROC_DEPTH", depthc);
 		if ((res = opbx_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 			/* Something bad happened, or a hangup has been requested. */
@@ -219,27 +219,27 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 				break;
 			}
 			switch(res) {
-	        	case MACRO_EXIT_RESULT:
-                        	res = 0;
+	        	case PROC_EXIT_RESULT:
+				res = 0;
 				goto out;
 			case OPBX_PBX_KEEPALIVE:
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in proc %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
+					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in proc %s on '%s'\n", chan->context, chan->exten, chan->priority, proc, chan->name);
 				if (option_verbose > 1)
-					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in proc '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
+					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in proc '%s' on '%s'\n", chan->context, chan->exten, chan->priority, proc, chan->name);
 				goto out;
 				break;
 			default:
 				if (option_debug)
-					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+					opbx_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, proc);
 				if (option_verbose > 1)
-					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+					opbx_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in proc '%s'\n", chan->context, chan->exten, chan->priority, chan->name, proc);
 				goto out;
 			}
 		}
-		if (strcasecmp(chan->context, fullmacro)) {
+		if (strcasecmp(chan->context, fullproc)) {
 			if (option_verbose > 1)
-				opbx_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of proc '%s'\n", chan->name, macro);
+				opbx_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of proc '%s'\n", chan->name, proc);
 			break;
 		}
 		/* don't stop executing extensions when we're in "h" */
@@ -251,7 +251,7 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 		chan->priority++;
   	}
 	out:
-	/* Reset the depth back to what it was when the routine was entered (like if we called Macro recursively) */
+	/* Reset the depth back to what it was when the routine was entered (like if we called Proc recursively) */
 	snprintf(depthc, sizeof(depthc), "%d", depth);
 	pbx_builtin_setvar_helper(chan, "PROC_DEPTH", depthc);
 
@@ -267,31 +267,31 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 		}
   	}
 
-	/* Restore macro variables */
-	pbx_builtin_setvar_helper(chan, "PROC_EXTEN", save_macro_exten);
-	if (save_macro_exten)
-		free(save_macro_exten);
-	pbx_builtin_setvar_helper(chan, "PROC_CONTEXT", save_macro_context);
-	if (save_macro_context)
-		free(save_macro_context);
-	pbx_builtin_setvar_helper(chan, "PROC_PRIORITY", save_macro_priority);
-	if (save_macro_priority)
-		free(save_macro_priority);
-	if (setmacrocontext) {
+	/* Restore proc variables */
+	pbx_builtin_setvar_helper(chan, "PROC_EXTEN", save_proc_exten);
+	if (save_proc_exten)
+		free(save_proc_exten);
+	pbx_builtin_setvar_helper(chan, "PROC_CONTEXT", save_proc_context);
+	if (save_proc_context)
+		free(save_proc_context);
+	pbx_builtin_setvar_helper(chan, "PROC_PRIORITY", save_proc_priority);
+	if (save_proc_priority)
+		free(save_proc_priority);
+	if (setproccontext) {
 		chan->macrocontext[0] = '\0';
 		chan->macroexten[0] = '\0';
 		chan->macropriority = 0;
 	}
 
-	if (!strcasecmp(chan->context, fullmacro)) {
-  		/* If we're leaving the macro normally, restore original information */
+	if (!strcasecmp(chan->context, fullproc)) {
+  		/* If we're leaving the proc normally, restore original information */
 		chan->priority = oldpriority;
 		opbx_copy_string(chan->context, oldcontext, sizeof(chan->context));
 		if (!(chan->_softhangup & OPBX_SOFTHANGUP_ASYNCGOTO)) {
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
 			opbx_copy_string(chan->exten, oldexten, sizeof(chan->exten));
 			if ((offsets = pbx_builtin_getvar_helper(chan, "PROC_OFFSET"))) {
-				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
+				/* Handle proc offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   	normally if there is any problem */
 				if (sscanf(offsets, "%d", &offset) == 1) {
 					if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->cid.cid_num)) {
@@ -302,9 +302,9 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 		}
 	}
 
-	pbx_builtin_setvar_helper(chan, "PROC_OFFSET", save_macro_offset);
-	if (save_macro_offset)
-		free(save_macro_offset);
+	pbx_builtin_setvar_helper(chan, "PROC_OFFSET", save_proc_offset);
+	if (save_proc_offset)
+		free(save_proc_offset);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -345,7 +345,7 @@ static int procif_exec(struct opbx_channel *chan, void *data)
 			
 static int proc_exit_exec(struct opbx_channel *chan, void *data)
 {
-	return MACRO_EXIT_RESULT;
+	return PROC_EXIT_RESULT;
 }
 
 int unload_module(void)
@@ -374,5 +374,3 @@ int usecount(void)
 	STANDARD_USECOUNT(res);
 	return res;
 }
-
-
