@@ -37,9 +37,9 @@
 typedef enum 
 {
 	PV_WORD, /* an ident, string, name, label, etc. A user-supplied string. */
-	PV_MACRO,
+	PV_PROC,
 	PV_CONTEXT,
-	PV_MACRO_CALL,
+	PV_PROC_CALL,
 	PV_APPLICATION_CALL,
 	PV_CASE,
 	PV_PATTERN,
@@ -96,7 +96,7 @@ struct pval
 	
 	union
 	{
-		struct pval *arglist; /* used in macro_call, application_call, MACRO def, also attached to PWORD, the 4 timevals for includes  */
+		struct pval *arglist; /* used in proc_call, application_call, PROC def, also attached to PWORD, the 4 timevals for includes  */
 		struct pval *statements; /* used in case, default, catch, while's statement, CONTEXT elements, GLOBALS */
 		char *val;  /* used in VARDEC */
 		char *for_test; /* used in FOR */
@@ -107,7 +107,7 @@ struct pval
 	{
 		char *for_inc; /* used in FOR */
 		struct pval *else_statements; /* used in IF */
-		struct pval *macro_statements; /* used in MACRO */
+		struct pval *proc_statements; /* used in PROC */
 		int abstract;  /* used for context */
 		char *hints; /* used in EXTENSION */
 	} u3;
@@ -118,13 +118,9 @@ struct pval
 		int regexten;                /* used in EXTENSION */
 	} u4;
 	
-	
 	struct pval *next; /* the pval at the end of this ptr will ALWAYS be of the same type as this one! 
-						  EXCEPT for objects of the different types, that are in the same list, like contexts & macros, etc */
-	
-	
-} ;
-
+						  EXCEPT for objects of the different types, that are in the same list, like contexts & procs, etc */
+};
 
 typedef struct pval pval;
 
