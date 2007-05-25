@@ -2136,7 +2136,7 @@ yyreduce:
 #line 215 "ael.y"
     {
 		(yyval.pval) = npval2(PV_PROC, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
-		(yyval.pval)->u1.str = (yyvsp[(2) - (8)].str); (yyval.pval)->u2.arglist = (yyvsp[(4) - (8)].pval); (yyval.pval)->u3.macro_statements = (yyvsp[(7) - (8)].pval); ;}
+		(yyval.pval)->u1.str = (yyvsp[(2) - (8)].str); (yyval.pval)->u2.arglist = (yyvsp[(4) - (8)].pval); (yyval.pval)->u3.proc_statements = (yyvsp[(7) - (8)].pval); ;}
     break;
 
   case 16:
