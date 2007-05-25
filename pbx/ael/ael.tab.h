@@ -51,7 +51,7 @@
      AMPER = 267,
      BAR = 268,
      AT = 269,
-     KW_MACRO = 270,
+     KW_PROC = 270,
      KW_GLOBALS = 271,
      KW_IGNOREPAT = 272,
      KW_SWITCH = 273,
@@ -93,7 +93,7 @@
 #define AMPER 267
 #define BAR 268
 #define AT 269
-#define KW_MACRO 270
+#define KW_PROC 270
 #define KW_GLOBALS 271
 #define KW_IGNOREPAT 272
 #define KW_SWITCH 273

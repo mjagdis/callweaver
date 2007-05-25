@@ -4449,10 +4449,10 @@ static int dundi_helper(struct opbx_channel *chan, const char *context, const ch
 	int found = 0;
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
-			opbx_log(LOG_NOTICE, "Can't use macro mode without a channel!\n");
+			opbx_log(LOG_NOTICE, "Can't use Proc mode without a channel!\n");
 			return -1;
 		}
-		/* If done as a macro, use macro extension */
+		/* If done as a proc, use proc extension */
 		if (!strcasecmp(exten, "s")) {
 			exten = pbx_builtin_getvar_helper(chan, "ARG1");
 			if (!exten || opbx_strlen_zero(exten))
@@ -4460,7 +4460,7 @@ static int dundi_helper(struct opbx_channel *chan, const char *context, const ch
 			if (!exten || opbx_strlen_zero(exten))
 				exten = chan->exten;
 			if (!exten || opbx_strlen_zero(exten)) {	
-				opbx_log(LOG_WARNING, "Called in Macro mode with no ARG1 or MACRO_EXTEN?\n");
+				opbx_log(LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
 				return -1;
 			}
 		}
@@ -4500,10 +4500,10 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 	
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
-			opbx_log(LOG_NOTICE, "Can't use macro mode without a channel!\n");
+			opbx_log(LOG_NOTICE, "Can't use Proc mode without a channel!\n");
 			return -1;
 		}
-		/* If done as a macro, use macro extension */
+		/* If done as a proc, use proc extension */
 		if (!strcasecmp(exten, "s")) {
 			exten = pbx_builtin_getvar_helper(chan, "ARG1");
 			if (!exten || opbx_strlen_zero(exten))
@@ -4511,7 +4511,7 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 			if (!exten || opbx_strlen_zero(exten))
 				exten = chan->exten;
 			if (!exten || opbx_strlen_zero(exten)) {	
-				opbx_log(LOG_WARNING, "Called in Macro mode with no ARG1 or MACRO_EXTEN?\n");
+				opbx_log(LOG_WARNING, "Called in Proc mode with no ARG1 or PROC_EXTEN?\n");
 				return -1;
 			}
 		}

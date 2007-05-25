@@ -189,7 +189,7 @@ NOSEMIC		([^;()\{\}\[\]]|\\[;()\[\]\{\}])*
 \/\/[^\n]*	{/*comment*/}
 context		{ STORE_POS; return KW_CONTEXT;}
 abstract	{ STORE_POS; return KW_ABSTRACT;}
-macro		{ STORE_POS; return KW_MACRO;};
+macro		{ STORE_POS; return KW_PROC;};
 globals		{ STORE_POS; return KW_GLOBALS;}
 ignorepat	{ STORE_POS; return KW_IGNOREPAT;}
 switch		{ STORE_POS; return KW_SWITCH;}

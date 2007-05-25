@@ -62,9 +62,9 @@ static void FREE(void *ptr)
 #define FREE free
 #endif
 
-#define DEBUG_READ   (1 << 0)
-#define DEBUG_TOKENS (1 << 1)
-#define DEBUG_MACROS (1 << 2)
+#define DEBUG_READ     (1 << 0)
+#define DEBUG_TOKENS   (1 << 1)
+#define DEBUG_PROCS    (1 << 2)
 #define DEBUG_CONTEXTS (1 << 3)
 
 static int aeldebug = 0;
@@ -102,10 +102,8 @@ void check_switch_expr(pval *item, struct argapp *apps);
 void opbx_expr_register_extra_error_info(char *errmsg);
 void opbx_expr_clear_extra_error_info(void);
 int  opbx_expr(char *expr, char *buf, int length);
-struct pval *find_macro(char *name);
+struct pval *find_proc(char *name);
 struct pval *find_context(char *name);
-struct pval *find_context(char *name);
-struct pval *find_macro(char *name);
 struct ael_priority *new_prio(void);
 struct ael_extension *new_exten(void);
 void linkprio(struct ael_extension *exten, struct ael_priority *prio);
@@ -166,7 +164,7 @@ static void print_pval(FILE *fin, pval *item, int depth)
 		fprintf(fin,"%s;\n", item->u1.str); /* usually, words are encapsulated in something else */
 		break;
 		
-	case PV_MACRO:
+	case PV_PROC:
 		fprintf(fin, "proc %s(", item->u1.str);
 		for (lp=item->u2.arglist; lp; lp=lp->next) {
 			if (lp != item->u2.arglist )
@@ -174,7 +172,7 @@ static void print_pval(FILE *fin, pval *item, int depth)
 			fprintf(fin,"%s", lp->u1.str);
 		}
 		fprintf(fin,") {\n");
-		print_pval_list(fin,item->u3.macro_statements,depth+1);
+		print_pval_list(fin,item->u3.proc_statements,depth+1);
 		for (i=0; i<depth; i++) {
 			fprintf(fin,"\t"); /* depth == indentation */
 		}
@@ -193,7 +191,7 @@ static void print_pval(FILE *fin, pval *item, int depth)
 		fprintf(fin,"};\n\n");
 		break;
 			
-	case PV_MACRO_CALL:
+	case PV_PROC_CALL:
 		fprintf(fin,"&%s(", item->u1.str);
 		for (lp=item->u2.arglist; lp; lp=lp->next) {
 			if ( lp != item->u2.arglist )
@@ -445,18 +443,18 @@ void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy f
 		/* fields: item->u1.str == string associated with this (word). */
 		break;
 		
-	case PV_MACRO:
-		/* fields: item->u1.str     == name of macro
-		           item->u2.arglist == pval list of PV_WORD arguments of macro, as given by user
+	case PV_PROC:
+		/* fields: item->u1.str     == name of proc
+		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.macro_statements == pval list of statements in macro body.
+				   item->u3.proc_statements == pval list of statements in proc body.
 		*/
 		for (lp=item->u2.arglist; lp; lp=lp->next) {
 		
 		}
-		traverse_pval_item_template(item->u3.macro_statements,depth+1);
+		traverse_pval_item_template(item->u3.proc_statements,depth+1);
 		break;
 			
 	case PV_CONTEXT:
@@ -467,9 +465,9 @@ void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy f
 		traverse_pval_item_template(item->u2.statements,depth+1);
 		break;
 			
-	case PV_MACRO_CALL:
-		/* fields: item->u1.str     == name of macro to call
-		           item->u2.arglist == pval list of PV_WORD arguments of macro call, as given by user
+	case PV_PROC_CALL:
+		/* fields: item->u1.str     == name of proc to call
+		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -479,7 +477,7 @@ void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy f
 			
 	case PV_APPLICATION_CALL:
 		/* fields: item->u1.str     == name of application to call
-		           item->u2.arglist == pval list of PV_WORD arguments of macro call, as given by user
+		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -1126,16 +1124,16 @@ static void find_pval_goto_item(pval *item, int lev)
 	}
 	
 	switch ( item->type ) {
-	case PV_MACRO:
-		/* fields: item->u1.str     == name of macro
-		           item->u2.arglist == pval list of PV_WORD arguments of macro, as given by user
+	case PV_PROC:
+		/* fields: item->u1.str     == name of proc
+		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.macro_statements == pval list of statements in macro body.
+				   item->u3.proc_statements == pval list of statements in proc body.
 		*/
 			
-		/* printf("Descending into matching macro %s\n", match_context); */
+		/* printf("Descending into matching proc %s\n", match_context); */
 		find_pval_gotos(item->u2.statements,lev+1); /* if we're just searching for a context, don't bother descending into them */
 		
 		break;
@@ -1293,29 +1291,29 @@ static struct pval *match_pval_item(pval *item)
 	pval *x;
 	
 	switch ( item->type ) {
-	case PV_MACRO:
-		/* fields: item->u1.str     == name of macro
-		           item->u2.arglist == pval list of PV_WORD arguments of macro, as given by user
+	case PV_PROC:
+		/* fields: item->u1.str     == name of proc
+		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.macro_statements == pval list of statements in macro body.
+				   item->u3.proc_statements == pval list of statements in proc body.
 		*/
 		if (!strcmp(match_context,"*") || !strcmp(item->u1.str, match_context)) {
 			if (return_on_context_match && !strcmp(item->u1.str, match_context)) {
-				/* printf("Returning on matching macro %s\n", match_context); */
+				/* printf("Returning on matching proc %s\n", match_context); */
 				return item;
 			}
 			
 			
 			if (!return_on_context_match) {
-				/* printf("Descending into matching macro %s\n", match_context); */
+				/* printf("Descending into matching proc %s\n", match_context); */
 				if ((x=match_pval(item->u2.statements))) /* if we're just searching for a context, don't bother descending into them */ {
 					return x;
 				}
 			}
 		} else {
-			/* printf("Skipping context/macro %s\n", item->u1.str); */
+			/* printf("Skipping context/proc %s\n", item->u1.str); */
 		}
 		
 		break;
@@ -1339,7 +1337,7 @@ static struct pval *match_pval_item(pval *item)
 				}
 			}
 		} else {
-			/* printf("Skipping context/macro %s\n", item->u1.str); */
+			/* printf("Skipping context/proc %s\n", item->u1.str); */
 		}
 		break;
 
@@ -1582,8 +1580,8 @@ static struct pval *find_label_in_current_extension(const char *label)
 	match_context = "*";
 	match_exten = "*";
 	match_label = label;
-	if (! current_extension) /* macros have no current extension, the whole thing is one extension... */
-		return match_pval(current_context->u3.macro_statements);
+	if (! current_extension) /* procs have no current extension, the whole thing is one extension... */
+		return match_pval(current_context->u3.proc_statements);
 	return match_pval(current_extension->u2.statements);
 }
 
@@ -1601,7 +1599,7 @@ static struct pval *find_label_in_current_db(const char *context, const char *ex
 }
 
 
-struct pval *find_macro(char *name)
+struct pval *find_proc(char *name)
 {
 	return_on_context_match = 1;
 	count_labels = 0;
@@ -1944,9 +1942,9 @@ static void check_context_names(void)
 {
 	pval *i,*j;
 	for (i=current_db; i; i=i->next) {
-		if (i->type == PV_CONTEXT || i->type == PV_MACRO) {
+		if (i->type == PV_CONTEXT || i->type == PV_PROC) {
 			for (j=i->next; j; j=j->next) {
-				if ( j->type == PV_CONTEXT || j->type == PV_MACRO ) {
+				if ( j->type == PV_CONTEXT || j->type == PV_PROC ) {
 					if ( !strcmp(i->u1.str, j->u1.str) )
 					{
 						opbx_log(LOG_WARNING,"Warning: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d!\n",
@@ -1993,7 +1991,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 #ifdef AAL_ARGCHECK
 	struct argapp *app, *found;
 #endif
-	struct pval *macro_def;
+	struct pval *proc_def;
 	struct pval *app_def;
 	
 	char errmsg[4096];
@@ -2005,13 +2003,13 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		           item->u2.arglist  == pval list of 4 PV_WORD elements for time values (only in PV_INCLUDES) */
 		break;
 		
-	case PV_MACRO:
-		/* fields: item->u1.str     == name of macro
-		           item->u2.arglist == pval list of PV_WORD arguments of macro, as given by user
+	case PV_PROC:
+		/* fields: item->u1.str     == name of proc
+		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.macro_statements == pval list of statements in macro body.
+				   item->u3.proc_statements == pval list of statements in proc body.
 		*/
 		in_abstract_context = 0;
 		current_context = item;
@@ -2019,7 +2017,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		for (lp=item->u2.arglist; lp; lp=lp->next) {
 		
 		}
-		check_pval(item->u3.macro_statements, apps,in_globals);
+		check_pval(item->u3.proc_statements, apps,in_globals);
 		break;
 			
 	case PV_CONTEXT:
@@ -2037,34 +2035,34 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
-	case PV_MACRO_CALL:
-		/* fields: item->u1.str     == name of macro to call
-		           item->u2.arglist == pval list of PV_WORD arguments of macro call, as given by user
+	case PV_PROC_CALL:
+		/* fields: item->u1.str     == name of proc to call
+		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
-		macro_def = find_macro(item->u1.str);
-		if (!macro_def) {
-			opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: macro call to non-existent %s !\n",
+		proc_def = find_proc(item->u1.str);
+		if (!proc_def) {
+			opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: proc call to non-existent %s !\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			errs++;
-		} else if (macro_def->type != PV_MACRO) {
-			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: macro call to %s references a context, not a macro!\n",
+		} else if (proc_def->type != PV_PROC) {
+			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: proc call to %s references a context, not a proc!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			errs++;
 		} else {
-			/* macro_def is a MACRO, so do the args match in number? */
+			/* proc_def is a PROC, so do the args match in number? */
 			int hereargs = 0;
 			int thereargs = 0;
 			
 			for (lp=item->u2.arglist; lp; lp=lp->next) {
 				hereargs++;
 			}
-			for (lp=macro_def->u2.arglist; lp; lp=lp->next) {
+			for (lp=proc_def->u2.arglist; lp; lp=lp->next) {
 				thereargs++;
 			}
 			if (hereargs != thereargs ) {
-				opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: The macro call to %s has %d arguments, but the macro definition has %d arguments\n",
+				opbx_log(LOG_ERROR, "Error: file %s, line %d-%d: The proc call to %s has %d arguments, but the proc definition has %d arguments\n",
 						item->filename, item->startline, item->endline, item->u1.str, hereargs, thereargs);
 				errs++;
 			}
@@ -2073,14 +2071,14 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_APPLICATION_CALL:
 		/* fields: item->u1.str     == name of application to call
-		           item->u2.arglist == pval list of PV_WORD arguments of macro call, as given by user
+		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
 		/* Need to check to see if the application is available! */
 		app_def = find_context(item->u1.str);
-		if (app_def && app_def->type == PV_MACRO) {
-			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: application call to %s references an existing macro, but had no & preceding it!\n",
+		if (app_def && app_def->type == PV_PROC) {
+			opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: application call to %s references an existing proc, but had no & preceding it!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			errs++;
 		}
@@ -2406,9 +2404,9 @@ void check_pval(pval *item, struct argapp *apps, int in_globals)
 
 	/* checks to do:
 	   1. Do goto's point to actual labels? 
-	   2. Do macro calls reference a macro?
-	   3. Does the number of macro args match the definition?
-	   4. Is a macro call missing its & at the front?
+	   2. Do proc calls reference a proc?
+	   3. Does the number of proc args match the definition?
+	   4. Is a proc call missing its & at the front?
 	   5. Application calls-- we could check syntax for existing applications,
 	      but I need some some sort of universal description bnf for a general
 		  sort of method for checking arguments, in number, maybe even type, at least. 
@@ -2923,7 +2921,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			switch_end->origin = p;
 			break;
 
-		case PV_MACRO_CALL:
+		case PV_PROC_CALL:
 			pr = new_prio();
 			pr->type = AEL_APPCALL;
 			snprintf(buf1,sizeof(buf1),"%s", p->u1.str);
@@ -3294,7 +3292,7 @@ void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 		int argc;
 		
 		switch (p->type) {
-		case PV_MACRO:
+		case PV_PROC:
 			strcpy(buf, "proc-");
 			strcat(buf, p->u1.str);
 			context = opbx_context_create(local_contexts, buf, registrar);
@@ -3313,12 +3311,12 @@ void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 			}
 			
 			/* CONTAINS APPCALLS, CATCH, just like extensions... */
-			gen_prios(exten, p->u1.str, p->u3.macro_statements, 0 );
+			gen_prios(exten, p->u1.str, p->u3.proc_statements, 0 );
 			if (exten->return_needed) {
 				struct ael_priority *np2 = new_prio();
 				np2->type = AEL_APPCALL;
 				np2->app = strdup("NoOp");
-				snprintf(buf,sizeof(buf),"End of Macro %s-%s",p->u1.str, exten->name);
+				snprintf(buf,sizeof(buf),"End of Proc %s-%s",p->u1.str, exten->name);
 				np2->appargs = strdup(buf);
 				linkprio(exten, np2);
 				exten-> return_target = np2;
@@ -3495,9 +3493,9 @@ static int ael2_debug_tokens(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_macros(int fd, int argc, char *argv[])
+static int ael2_debug_procs(int fd, int argc, char *argv[])
 {
-	aeldebug |= DEBUG_MACROS;
+	aeldebug |= DEBUG_PROCS;
 	return 0;
 }
 
@@ -3523,7 +3521,7 @@ static struct opbx_cli_entry  ael_cli[] = {
 	{ { "ael", "reload", NULL }, ael2_reload, "Reload AEL configuration"},
 	{ { "ael", "debug", "read", NULL }, ael2_debug_read, "Enable AEL read debug (does nothing)"},
 	{ { "ael", "debug", "tokens", NULL }, ael2_debug_tokens, "Enable AEL tokens debug (does nothing)"},
-	{ { "ael", "debug", "procs", NULL }, ael2_debug_macros, "Enable AEL macros debug (does nothing)"},
+	{ { "ael", "debug", "procs", NULL }, ael2_debug_procs, "Enable AEL procs debug (does nothing)"},
 	{ { "ael", "debug", "contexts", NULL }, ael2_debug_contexts, "Enable AEL contexts debug (does nothing)"},
 	{ { "ael", "no", "debug", NULL }, ael2_no_debug, "Disable AEL debug messages"}
 };
@@ -3588,18 +3586,18 @@ void destroy_pval_item(pval *item)
 			destroy_pval(item->u2.arglist);
 		break;
 		
-	case PV_MACRO:
-		/* fields: item->u1.str     == name of macro
-		           item->u2.arglist == pval list of PV_WORD arguments of macro, as given by user
+	case PV_PROC:
+		/* fields: item->u1.str     == name of proc
+		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.macro_statements == pval list of statements in macro body.
+				   item->u3.proc_statements == pval list of statements in proc body.
 		*/
 		destroy_pval(item->u2.arglist);
 		if (item->u1.str )
 			free(item->u1.str);
-		destroy_pval(item->u3.macro_statements);
+		destroy_pval(item->u3.proc_statements);
 		break;
 			
 	case PV_CONTEXT:
@@ -3612,9 +3610,9 @@ void destroy_pval_item(pval *item)
 		destroy_pval(item->u2.statements);
 		break;
 			
-	case PV_MACRO_CALL:
-		/* fields: item->u1.str     == name of macro to call
-		           item->u2.arglist == pval list of PV_WORD arguments of macro call, as given by user
+	case PV_PROC_CALL:
+		/* fields: item->u1.str     == name of proc to call
+		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -3625,7 +3623,7 @@ void destroy_pval_item(pval *item)
 			
 	case PV_APPLICATION_CALL:
 		/* fields: item->u1.str     == name of application to call
-		           item->u2.arglist == pval list of PV_WORD arguments of macro call, as given by user
+		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/

@@ -86,7 +86,7 @@
      AMPER = 267,
      BAR = 268,
      AT = 269,
-     KW_MACRO = 270,
+     KW_PROC = 270,
      KW_GLOBALS = 271,
      KW_IGNOREPAT = 272,
      KW_SWITCH = 273,
@@ -128,7 +128,7 @@
 #define AMPER 267
 #define BAR 268
 #define AT 269
-#define KW_MACRO 270
+#define KW_PROC 270
 #define KW_GLOBALS 271
 #define KW_IGNOREPAT 272
 #define KW_SWITCH 273
@@ -646,7 +646,7 @@ static const yytype_uint16 yyrline[] =
 static const char *const yytname[] =
 {
   "$end", "error", "$undefined", "KW_CONTEXT", "LC", "RC", "LP", "RP",
-  "SEMI", "EQ", "COMMA", "COLON", "AMPER", "BAR", "AT", "KW_MACRO",
+  "SEMI", "EQ", "COMMA", "COLON", "AMPER", "BAR", "AT", "KW_PROC",
   "KW_GLOBALS", "KW_IGNOREPAT", "KW_SWITCH", "KW_IF", "KW_IFTIME",
   "KW_ELSE", "KW_RANDOM", "KW_ABSTRACT", "EXTENMARK", "KW_GOTO", "KW_JUMP",
   "KW_RETURN", "KW_BREAK", "KW_CONTINUE", "KW_REGEXTEN", "KW_HINT",
@@ -2135,7 +2135,7 @@ yyreduce:
   case 15:
 #line 215 "ael.y"
     {
-		(yyval.pval) = npval2(PV_MACRO, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
+		(yyval.pval) = npval2(PV_PROC, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (8)].str); (yyval.pval)->u2.arglist = (yyvsp[(4) - (8)].pval); (yyval.pval)->u3.macro_statements = (yyvsp[(7) - (8)].pval); ;}
     break;
 
@@ -2682,7 +2682,7 @@ yyreduce:
 #line 492 "ael.y"
     {
 		/* XXX original code had @2 but i think we need @5 */
-		(yyval.pval) = npval2(PV_MACRO_CALL, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
+		(yyval.pval) = npval2(PV_PROC_CALL, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (5)].str);
 		(yyval.pval)->u2.arglist = (yyvsp[(4) - (5)].pval);;}
     break;
@@ -2690,7 +2690,7 @@ yyreduce:
   case 98:
 #line 497 "ael.y"
     {
-		(yyval.pval)= npval2(PV_MACRO_CALL, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
+		(yyval.pval)= npval2(PV_PROC_CALL, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (3)].str); ;}
     break;
 
@@ -3133,7 +3133,7 @@ static char *token_equivs1[] =
 	"KW_IGNOREPAT",
 	"KW_INCLUDES"
 	"KW_JUMP",
-	"KW_MACRO",
+	"KW_PROC",
 	"KW_PATTERN",
 	"KW_REGEXTEN",
 	"KW_RETURN",

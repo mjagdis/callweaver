@@ -2307,8 +2307,8 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 	int res = 0;
 	int msgnum;
 	int duration = 0;
-	int ausemacro = 0;
-	int ousemacro = 0;
+	int auseproc = 0;
+	int ouseproc = 0;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -2373,7 +2373,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 	if (mkdir(dir, 0700) && (errno != EEXIST))
 		opbx_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 
-	/* Check current or macro-calling context for special extensions */
+	/* Check current or proc-calling context for special extensions */
 	if (!opbx_strlen_zero(vmu->exit)) {
 		if (opbx_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num))
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
@@ -2381,7 +2381,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 		strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 	else if (!opbx_strlen_zero(chan->proc_context) && opbx_exists_extension(chan, chan->proc_context, "o", 1, chan->cid.cid_num)) {
 		strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-		ousemacro = 1;
+		ouseproc = 1;
 	}
 
 	if (!opbx_strlen_zero(vmu->exit)) {
@@ -2391,7 +2391,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 	else if (!opbx_strlen_zero(chan->proc_context) && opbx_exists_extension(chan, chan->proc_context, "a", 1, chan->cid.cid_num)) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-		ausemacro = 1;
+		auseproc = 1;
 	}
 
 	/* Play the beginning intro if desired */
@@ -2434,7 +2434,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 		chan->exten[1] = '\0';
 		if (!opbx_strlen_zero(vmu->exit)) {
 			opbx_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-		} else if (ausemacro && !opbx_strlen_zero(chan->proc_context)) {
+		} else if (auseproc && !opbx_strlen_zero(chan->proc_context)) {
 			opbx_copy_string(chan->context, chan->proc_context, sizeof(chan->context));
 		}
 		chan->priority = 0;
@@ -2449,7 +2449,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 			chan->exten[1] = '\0';
 			if (!opbx_strlen_zero(vmu->exit)) {
 				opbx_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-			} else if (ousemacro && !opbx_strlen_zero(chan->proc_context)) {
+			} else if (ouseproc && !opbx_strlen_zero(chan->proc_context)) {
 				opbx_copy_string(chan->context, chan->proc_context, sizeof(chan->context));
 			}
 			opbx_play_and_wait(chan, "transfer");
@@ -6317,7 +6317,7 @@ static int advanced_options(struct opbx_channel *chan, struct opbx_vm_user *vmu,
 	cid = opbx_variable_retrieve(msg_cfg, "message", "callerid");
 
 	context = opbx_variable_retrieve(msg_cfg, "message", "context");
-	if (!strncasecmp("proc", context, 5)) /* Macro names in contexts are useless for our needs */
+	if (!strncasecmp("proc", context, 5)) /* Proc names in contexts are useless for our needs */
 		context = opbx_variable_retrieve(msg_cfg, "message", "proccontext");
 
 	if (option == 3) {

@@ -94,15 +94,15 @@ The extensions can also contain "goto" or "jump" commands to skip to
 extensions in other contexts. Conditionals provide the ability to
 react to different stimiuli, and there you have it.
 
-Macros
+Procs
 ------
 
-Think of a macro as a combination of a context with one nameless
+Think of a proc as a combination of a context with one nameless
 extension, and a subroutine. It has arguments like a subroutine
-might. A macro call can be made within an extension, and the
+might. A proc call can be made within an extension, and the
 individual statements there are executed until it ends. At this point,
-execution returns to the next statement after the macro call. Macros
-can call other macros. And they work just like function calls.
+execution returns to the next statement after the proc call. Procs
+can call other procs. And they work just like function calls.
 
 Applications
 ------------
@@ -154,8 +154,8 @@ nothing:
 Enable AEL contexts debug
    *CLI> ael debug contexts 
 
-Enable AEL macros debug
-   *CLI> ael debug macros 
+Enable AEL procs debug
+   *CLI> ael debug procs 
 
 Enable AEL read debug
    *CLI> ael debug read
@@ -274,7 +274,7 @@ The following are keywords in the AEL language:
 
     * abstract
     * context
-    * macro
+    * proc
     * globals
     * ignorepat
     * switch
@@ -351,7 +351,7 @@ First, some basic objects
 
 
 <object> :==  <context>
-         | <macro>
+         | <proc>
          | <globals>
          | ';'
 
@@ -366,10 +366,10 @@ First, some basic objects
             | 'abstract'  'context' 'default' '{' '}'
 
 
-<macro> :== 'macro' <word> '(' <arglist> ')' '{' <macro_statements> '}'
-       | 'macro' <word> '(' <arglist> ')' '{'  '}'
-       | 'macro' <word> '(' ')' '{' <macro_statements> '}'
-       | 'macro' <word> '(' ')' '{'  '}'
+<proc> :== 'proc' <word> '(' <arglist> ')' '{' <proc_statements> '}'
+       | 'proc' <word> '(' <arglist> ')' '{'  '}'
+       | 'proc' <word> '(' ')' '{' <proc_statements> '}'
+       | 'proc' <word> '(' ')' '{'  '}'
 
 
 <globals> :== 'globals' '{' <global_statements> '}'
@@ -436,7 +436,7 @@ First, some basic objects
        | 'while' '('  <collected-word> ')' <statement>
        | <switch_head> '}'
        | <switch_head> <case_statements> '}'
-       | '&' macro_call ';'
+       | '&' proc_call ';'
        | <application_call> ';'
        | <application_call> '='  <collected-word> ';'
        | 'break' ';'
@@ -465,7 +465,7 @@ First, some basic objects
                | <word> ',' <word> '@' 'default'
                | <word> '@' 'default'
 
-<macro_call> :== <word> '(' <eval_arglist> ')'
+<proc_call> :== <word> '(' <eval_arglist> ')'
        | <word> '(' ')'
 
 <application_call_head> :== <word>  '('
@@ -489,10 +489,10 @@ First, some basic objects
        | 'default' ':'
        | 'pattern' <word> ':'
 
-<macro_statements> :== <macro_statement>
-       | <macro_statements> <macro_statement>
+<proc_statements> :== <proc_statement>
+       | <proc_statements> <proc_statement>
 
-<macro_statement> :== <statement>
+<proc_statement> :== <statement>
        | 'catch' <word> '{' <statements> '}'
 
 <switches> :== 'switches' '{' <switchlist> '}'
@@ -662,7 +662,7 @@ You can include other files with the #include "filepath" construct.
 
 An interesting property of the #include, is that you can use it almost
 anywhere in the .ael file. It is possible to include the contents of
-a file in a macro, context, or even extension.  The #include does not
+a file in a proc, context, or even extension.  The #include does not
 have to occur at the beginning of a line. Included files can include
 other files, up to 50 levels deep. If the path provided in quotes is a
 relative path, the parser looks in the config file directory for the
@@ -894,7 +894,7 @@ test will then be performed. In the case of the while loop, the
 continue will jump to the test at the top of the loop.
 
 The return keyword will cause an immediate jump to the end of the
-context, or macro, and can be used anywhere.
+context, or proc, and can be used anywhere.
 
 
 
@@ -980,16 +980,16 @@ NOTE: A NEW addition to AEL: you can now use ',' instead of '|' to
 
 
 
-Macros
-======
+Procs
+=====
 
-A macro is defined in its own block like this. The arguments to the
-macro are specified with the name of the macro. They are then referred
+A proc is defined in its own block like this. The arguments to the
+proc are specified with the name of the proc. They are then referred
 to by that same name. A catch block can be specified to catch special
 extensions.
 
 
-macro std-exten( ext , dev ) {
+proc std-exten( ext , dev ) {
        Dial(${dev}/${ext},20);
        switch(${DIALSTATUS) {
        case BUSY:
@@ -1006,7 +1006,7 @@ macro std-exten( ext , dev ) {
 }
 
 
-A macro is then called by preceeding the macro name with an
+A proc is then called by preceeding the proc name with an
 ampersand. Empty arguments can be passed simply with nothing between
 comments(0.11).
 
@@ -1076,10 +1076,10 @@ Semantic Checks
 AEL, after parsing, but before compiling, traverses the dialplan
 tree, and makes several checks:
 
-    * Macro calls to non-existent macros.
-    * Macro calls to contexts.
-    * Macro calls with argument count not matching the definition.
-    * application call to macro. (missing the '&')
+    * Proc calls to non-existent procs.
+    * Proc calls to contexts.
+    * Proc calls with argument count not matching the definition.
+    * application call to proc. (missing the '&')
     * application calls to "GotoIf", "GotoIfTime", "while",
       "endwhile", "Random", and "execIf", will generate a message to
       consider converting the call to AEL goto, while, etc. constructs.
@@ -1164,7 +1164,7 @@ Differences with the original version of AEL
       in switch constructs. Hopefully these will be documented in the
       AEL README.
   11. Added the "return" keyword, which will jump to the end of an
-      extension/Macro.
+      extension/Proc.
   12. Added the ifTime (<time range>|<days of week>|<days of
       month>|<months> ) {} [else {}] construct, which executes much
       like an if () statement, but the decision is based on the
