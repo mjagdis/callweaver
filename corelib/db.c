@@ -57,6 +57,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 #include "callweaver/manager.h"
 #include "sqlite3.h"
 
+#define SQL_MAX_RETRIES 5
+
 OPBX_MUTEX_DEFINE_STATIC(dblock);
 
 static char *create_odb_sql = 
@@ -259,6 +261,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 	int res = 0;
 	struct opbx_db_data result;
 	sqlite3 *db;
+	int retry=0;
 
 	sanity_check();
 	if (!(db = sqlite_open_db(globals.dbfile))) {
@@ -273,6 +276,7 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 	result.datalen = valuelen;
 	result.rownum = 0;
 
+retry_1:
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
 		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
@@ -283,9 +287,15 @@ int opbx_db_get(const char *family, const char *keys, char *value, int valuelen)
 						   );
 		
 		if (zErr) {
-			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
-			res = -1;
 			sqlite3_free(zErr);
+			if (retry >= SQL_MAX_RETRIES) {
+				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			} else {
+				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				usleep(250000);
+				goto retry_1;
+			}
+			res = -1;
 		} else {
 			if (result.rownum)
 				res = 0;
@@ -314,7 +324,7 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 	sqlite3 *db;
 	char *op = "=";
 	char *pct = "";
-
+	int retry=0;
 
 	sanity_check();
 	if (!(db = sqlite_open_db(globals.dbfile))) {
@@ -340,7 +350,11 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 
 
 	if (sql) {
-		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+retry_2:
+		if (retry)
+			opbx_log(LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+		else
+			opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   NULL,
@@ -349,9 +363,15 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 						   );
 
 		if (zErr) {
-			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
-			res = -1;
 			sqlite3_free(zErr);
+			if (retry >= SQL_MAX_RETRIES) {
+				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			} else {
+				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				usleep(250000);
+				goto retry_2;
+			}
+			res = -1;
 		} else {
 			if (!sqlite3_changes(db))
 				res = -1;
@@ -418,6 +438,7 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 	int res = 0;
 	struct opbx_db_entry *tree = NULL;
 	sqlite3 *db;
+	int retry=0;
 
 	sanity_check();
 	if (!(db = sqlite_open_db(globals.dbfile))) {
@@ -438,7 +459,11 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 	}
 
 	if (sql) {
-		opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
+retry_3:
+		if (retry)
+			opbx_log(LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+		else
+			opbx_log(LOG_DEBUG, "SQL [%s]\n", sql, retry);
 		res = sqlite3_exec(db,
 						   sql,
 						   tree_callback,
@@ -447,9 +472,15 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree)
 						   );
 		
 		if (zErr) {
-			opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
-			res = -1;
 			sqlite3_free(zErr);
+			if (retry >= SQL_MAX_RETRIES) {
+				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+			} else {
+				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				usleep(250000);
+				goto retry_3;
+			}
+			res = -1;
 		} else {
 			res = 0;
 		}
