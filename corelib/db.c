@@ -58,6 +58,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 #include "sqlite3.h"
 
 #define SQL_MAX_RETRIES 5
+#define SQL_RETRY_USEC  500000
 
 OPBX_MUTEX_DEFINE_STATIC(dblock);
 
@@ -292,7 +293,7 @@ retry_1:
 				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
 				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
-				usleep(250000);
+				usleep(SQL_RETRY_USEC);
 				goto retry_1;
 			}
 			res = -1;
@@ -368,7 +369,7 @@ retry_2:
 				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
 				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
-				usleep(250000);
+				usleep(SQL_RETRY_USEC);
 				goto retry_2;
 			}
 			res = -1;
@@ -477,7 +478,7 @@ retry_3:
 				opbx_log(LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			} else {
 				opbx_log(LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
-				usleep(250000);
+				usleep(SQL_RETRY_USEC);
 				goto retry_3;
 			}
 			res = -1;
