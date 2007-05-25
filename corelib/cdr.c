@@ -761,8 +761,8 @@ int opbx_cdr_update(struct opbx_channel *c)
 			/* Copy account code et-al */	
 			opbx_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
-			opbx_copy_string(cdr->dst, (opbx_strlen_zero(c->macroexten)) ? c->exten : c->macroexten, sizeof(cdr->dst));
-			opbx_copy_string(cdr->dcontext, (opbx_strlen_zero(c->macrocontext)) ? c->context : c->macrocontext, sizeof(cdr->dcontext));
+			opbx_copy_string(cdr->dst, (opbx_strlen_zero(c->proc_exten)) ? c->exten : c->proc_exten, sizeof(cdr->dst));
+			opbx_copy_string(cdr->dcontext, (opbx_strlen_zero(c->proc_context)) ? c->context : c->proc_context, sizeof(cdr->dcontext));
 		}
 		cdr = cdr->next;
 	}

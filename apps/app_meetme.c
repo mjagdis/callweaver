@@ -851,8 +851,8 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
 		if ((ogifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
 			opbx_copy_string(exitcontext, ogifile, sizeof(exitcontext));
-		else if (!opbx_strlen_zero(chan->macrocontext)) 
-			opbx_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
+		else if (!opbx_strlen_zero(chan->proc_context)) 
+			opbx_copy_string(exitcontext, chan->proc_context, sizeof(exitcontext));
 		else
 			opbx_copy_string(exitcontext, chan->context, sizeof(exitcontext));
 	}

@@ -167,7 +167,7 @@ static void print_pval(FILE *fin, pval *item, int depth)
 		break;
 		
 	case PV_MACRO:
-		fprintf(fin,"macro %s(", item->u1.str);
+		fprintf(fin, "proc %s(", item->u1.str);
 		for (lp=item->u2.arglist; lp; lp=lp->next) {
 			if (lp != item->u2.arglist )
 				fprintf(fin,", ");
@@ -2931,7 +2931,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 				strcat(buf1,"|");
 				strcat(buf1,p2->u1.str);
 			}
-			pr->app = strdup("Macro");
+			pr->app = strdup("Proc");
 			pr->appargs = strdup(buf1);
 			pr->origin = p;
 			linkprio(exten, pr);
@@ -3295,8 +3295,8 @@ void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 		
 		switch (p->type) {
 		case PV_MACRO:
-			strcpy(buf,"macro-");
-			strcat(buf,p->u1.str);
+			strcpy(buf, "proc-");
+			strcat(buf, p->u1.str);
 			context = opbx_context_create(local_contexts, buf, registrar);
 			
 			exten = new_exten();
@@ -3523,7 +3523,7 @@ static struct opbx_cli_entry  ael_cli[] = {
 	{ { "ael", "reload", NULL }, ael2_reload, "Reload AEL configuration"},
 	{ { "ael", "debug", "read", NULL }, ael2_debug_read, "Enable AEL read debug (does nothing)"},
 	{ { "ael", "debug", "tokens", NULL }, ael2_debug_tokens, "Enable AEL tokens debug (does nothing)"},
-	{ { "ael", "debug", "macros", NULL }, ael2_debug_macros, "Enable AEL macros debug (does nothing)"},
+	{ { "ael", "debug", "procs", NULL }, ael2_debug_macros, "Enable AEL macros debug (does nothing)"},
 	{ { "ael", "debug", "contexts", NULL }, ael2_debug_contexts, "Enable AEL contexts debug (does nothing)"},
 	{ { "ael", "no", "debug", NULL }, ael2_no_debug, "Disable AEL debug messages"}
 };

@@ -1743,8 +1743,8 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
-						if (!opbx_strlen_zero(in->macroexten))
-							o->chan->cid.cid_rdnis = strdup(in->macroexten);
+						if (!opbx_strlen_zero(in->proc_exten))
+							o->chan->cid.cid_rdnis = strdup(in->proc_exten);
 						else
 							o->chan->cid.cid_rdnis = strdup(in->exten);
 						if (opbx_call(o->chan, tmpchan, 0)) {

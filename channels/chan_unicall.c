@@ -2203,23 +2203,24 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
                 p->faxhandled = TRUE;
                 if (strncasecmp(opbx->exten, "fax", 3))
                 {
+					const char *target_context = (opbx->proc_context[0] == '\0')  ?  opbx->context  :  opbx->proc_context;
                     snprintf(tmpfax, sizeof(tmpfax), "fax%s", opbx->exten);
-                    if (opbx_exists_extension(opbx, opbx->context, tmpfax, 1, opbx->cid.cid_num))
+                    if (opbx_exists_extension(opbx, target_context, tmpfax, 1, opbx->cid.cid_num))
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to specific fax extension %s\n", opbx->name, tmpfax);
                         /*endif*/
-                        if (opbx_async_goto(opbx, opbx->context, tmpfax, 1))
-                            opbx_log(LOG_WARNING, "Failed to async goto '%s' into '%s' of '%s'\n", opbx->name, tmpfax, opbx->context);
+                        if (opbx_async_goto(opbx, target_context, tmpfax, 1))
+                            opbx_log(LOG_WARNING, "Failed to async goto '%s' into '%s' of '%s'\n", opbx->name, tmpfax, target_context);
                         /*endif*/
                     }
-                    else if (opbx_exists_extension(opbx, opbx->context, "fax", 1, opbx->cid.cid_num))
+                    else if (opbx_exists_extension(opbx, target_context, "fax", 1, opbx->cid.cid_num))
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", opbx->name);
                         /*endif*/
-                        if (opbx_async_goto(opbx, opbx->context, "fax", 1))
-                            opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, opbx->context);
+                        if (opbx_async_goto(opbx, target_context, "fax", 1))
+                            opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, target_context);
                         /*endif*/
                     }
                     else
@@ -2340,13 +2341,14 @@ struct opbx_frame *unicall_read(struct opbx_channel *opbx)
                 p->faxhandled = TRUE;
                 if (strcmp(opbx->exten, "fax"))
                 {
-                    if (opbx_exists_extension(opbx, opbx->context, "fax", 1, opbx->cid.cid_num))
+					const char *target_context = (opbx->proc_context[0] == '\0')  ?  opbx->context  :  opbx->proc_context;
+                    if (opbx_exists_extension(opbx, target_context, "fax", 1, opbx->cid.cid_num))
                     {
                         if (option_verbose > 2)
                             opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", opbx->name);
                         /*endif*/
-                        if (opbx_async_goto(opbx, opbx->context, "fax", 1))
-                            opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, opbx->context);
+                        if (opbx_async_goto(opbx, target_context, "fax", 1))
+                            opbx_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", opbx->name, target_context);
                         /*endif*/
                     }
                     else

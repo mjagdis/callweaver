@@ -91,9 +91,9 @@ static oid callweaver_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 #define OPBXCHANAPP 10
 #define OPBXCHANDATA 11
 #define OPBXCHANCONTEXT 12
-#define OPBXCHANMACROCONTEXT 13
-#define OPBXCHANMACROEXTEN 14
-#define OPBXCHANMACROPRI 15
+#define OPBXCHANPROCCONTEXT 13
+#define OPBXCHANPROCEXTEN 14
+#define OPBXCHANPROCPRI 15
 #define OPBXCHANEXTEN 16
 #define OPBXCHANPRI 17
 #define OPBXCHANACCOUNTCODE 18
@@ -311,20 +311,20 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 			break;
-		case OPBXCHANMACROCONTEXT:
-			strncpy(string_ret, chan->macrocontext, sizeof(string_ret));
+		case OPBXCHANPROCCONTEXT:
+			strncpy(string_ret, chan->proc_context, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 			break;
-		case OPBXCHANMACROEXTEN:
-			strncpy(string_ret, chan->macroexten, sizeof(string_ret));
+		case OPBXCHANPROCEXTEN:
+			strncpy(string_ret, chan->proc_exten, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 			break;
-		case OPBXCHANMACROPRI:
-			long_ret = chan->macropriority;
+		case OPBXCHANPROCPRI:
+			long_ret = chan->proc_priority;
 			ret = (u_char *)&long_ret;
 			break;
 		case OPBXCHANEXTEN:
@@ -763,9 +763,9 @@ static void init_callweaver_mib(void)
 		{OPBXCHANAPP,            ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANAPP}},
 		{OPBXCHANDATA,           ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANDATA}},
 		{OPBXCHANCONTEXT,        ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANCONTEXT}},
-		{OPBXCHANMACROCONTEXT,   ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMACROCONTEXT}},
-		{OPBXCHANMACROEXTEN,     ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMACROEXTEN}},
-		{OPBXCHANMACROPRI,       ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANMACROPRI}},
+		{OPBXCHANPROCCONTEXT,    ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPROCCONTEXT}},
+		{OPBXCHANPROCEXTEN,      ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPROCEXTEN}},
+		{OPBXCHANPROCPRI,        ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPROCPRI}},
 		{OPBXCHANEXTEN,          ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANEXTEN}},
 		{OPBXCHANPRI,            ASN_INTEGER,   RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANPRI}},
 		{OPBXCHANACCOUNTCODE,    ASN_OCTET_STR, RONLY, opbx_var_channels_table,      4, {OPBXCHANNELS, OPBXCHANTABLE, 1, OPBXCHANACCOUNTCODE}},

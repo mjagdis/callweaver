@@ -518,7 +518,7 @@ static char *complete_exten_at_context(char *line, char *word, int pos,
 				e = opbx_walk_context_extensions(c, NULL);
 				while (e) {
 
-					if(!strncasecmp(opbx_get_context_name(c),"macro-",6) || !strncasecmp(opbx_get_extension_name(e),"_",1)) {
+					if(!strncasecmp(opbx_get_context_name(c), "proc-", 5) || !strncasecmp(opbx_get_extension_name(e),"_",1)) {
 						e = opbx_walk_context_extensions(c, e);
 						continue;
 					}

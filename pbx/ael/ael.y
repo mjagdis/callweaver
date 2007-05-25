@@ -78,7 +78,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 
 %token KW_CONTEXT LC RC LP RP SEMI EQ COMMA COLON AMPER BAR AT
-%token KW_MACRO KW_GLOBALS KW_IGNOREPAT KW_SWITCH KW_IF KW_IFTIME KW_ELSE KW_RANDOM KW_ABSTRACT
+%token KW_PROC KW_GLOBALS KW_IGNOREPAT KW_SWITCH KW_IF KW_IFTIME KW_ELSE KW_RANDOM KW_ABSTRACT
 %token EXTENMARK KW_GOTO KW_JUMP KW_RETURN KW_BREAK KW_CONTINUE KW_REGEXTEN KW_HINT
 %token KW_FOR KW_WHILE KW_CASE KW_PATTERN KW_DEFAULT KW_CATCH KW_SWITCHES KW_ESWITCHES
 %token KW_INCLUDES
@@ -92,14 +92,14 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>switchlist
 %type <pval>eswitches
 %type <pval>switches
-%type <pval>macro_statement
-%type <pval>macro_statements
+%type <pval>proc_statement
+%type <pval>proc_statements
 %type <pval>case_statement
 %type <pval>case_statements
 %type <pval>eval_arglist
 %type <pval>application_call
 %type <pval>application_call_head
-%type <pval>macro_call
+%type <pval>proc_call
 %type <pval>target jumptarget
 %type <pval>statement
 %type <pval>switch_statement
@@ -114,7 +114,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>assignment
 %type <pval>global_statements
 %type <pval>globals
-%type <pval>macro
+%type <pval>proc
 %type <pval>context
 %type <pval>object
 %type <pval>objects
@@ -163,12 +163,12 @@ static pval *update_last(pval *, YYLTYPE *);
 		destroy_pval($$);
 		prev_word=0;
 	}	includes includeslist switchlist eswitches switches
-		macro_statement macro_statements case_statement case_statements
+		proc_statement proc_statements case_statement case_statements
 		eval_arglist application_call application_call_head
-		macro_call target jumptarget statement switch_statement
+		proc_call target jumptarget statement switch_statement
 		if_like_head statements extension
 		ignorepat element elements arglist assignment
-		global_statements globals macro context object objects
+		global_statements globals proc context object objects
 		opt_else
 		timespec included_entry
 
@@ -189,7 +189,7 @@ objects : object {$$=$1;}
 	;
 
 object : context {$$=$1;}
-	| macro {$$=$1;}
+	| proc {$$=$1;}
 	| globals {$$=$1;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
@@ -210,9 +210,9 @@ opt_abstract: KW_ABSTRACT { $$ = 1; }
 	| /* nothing */ { $$ = 0; }
 	;
 
-macro : KW_MACRO word LP arglist RP LC macro_statements RC {
-		$$ = npval2(PV_MACRO, &@1, &@8);
-		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
+proc : KW_PROC word LP arglist RP LC proc_statements RC {
+		$$ = npval2(PV_PROC, &@1, &@8);
+		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.proc_statements = $7; }
 	;
 
 globals : KW_GLOBALS LC global_statements RC {
@@ -396,7 +396,7 @@ statement : LC statements RC {
 		$$->u1.str = $2;
 		$$->u2.statements = $3; }
 	| switch_statement { $$ = $1; }
-	| AMPER macro_call SEMI { $$ = update_last($2, &@2); }
+	| AMPER proc_call SEMI { $$ = update_last($2, &@2); }
 	| application_call SEMI { $$ = update_last($1, &@2); }
 	| word SEMI {
 		$$= npval2(PV_APPLICATION_CALL, &@1, &@2);
@@ -487,13 +487,13 @@ jumptarget : goto_word opt_pri {			/* ext[, pri] default 1 */
 		$$->next->next = nword($2, &@2); }
 	;
 
-macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
+proc_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
 		/* XXX original code had @2 but i think we need @5 */
-		$$ = npval2(PV_MACRO_CALL, &@1, &@5);
+		$$ = npval2(PV_PROC_CALL, &@1, &@5);
 		$$->u1.str = $1;
 		$$->u2.arglist = $4;}
 	| word LP RP {
-		$$= npval2(PV_MACRO_CALL, &@1, &@3);
+		$$= npval2(PV_PROC_CALL, &@1, &@3);
 		$$->u1.str = $1; }
 	;
 
@@ -550,11 +550,11 @@ case_statement: KW_CASE word COLON statements {
 		$$->u2.statements = $4;}
 	;
 
-macro_statements: /* empty */ { $$ = NULL; }
-	| macro_statement macro_statements { $$ = linku1($1, $2); }
+proc_statements: /* empty */ { $$ = NULL; }
+	| proc_statement proc_statements { $$ = linku1($1, $2); }
 	;
 
-macro_statement : statement {$$=$1;}
+proc_statement : statement {$$=$1;}
 	| KW_CATCH word LC statements RC {
 		$$ = npval2(PV_CATCH, &@1, &@5);
 		$$->u1.str = $2;
@@ -625,7 +625,7 @@ static char *token_equivs1[] =
 	"KW_IGNOREPAT",
 	"KW_INCLUDES"
 	"KW_JUMP",
-	"KW_MACRO",
+	"KW_PROC",
 	"KW_PATTERN",
 	"KW_REGEXTEN",
 	"KW_RETURN",
@@ -665,7 +665,7 @@ static char *token_equivs2[] =
 	"ignorepat",
 	"includes"
 	"jump",
-	"macro",
+	"proc",
 	"pattern",
 	"regexten",
 	"return",

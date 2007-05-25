@@ -652,15 +652,15 @@ static const char *const yytname[] =
   "KW_RETURN", "KW_BREAK", "KW_CONTINUE", "KW_REGEXTEN", "KW_HINT",
   "KW_FOR", "KW_WHILE", "KW_CASE", "KW_PATTERN", "KW_DEFAULT", "KW_CATCH",
   "KW_SWITCHES", "KW_ESWITCHES", "KW_INCLUDES", "word", "$accept", "file",
-  "objects", "object", "context_name", "context", "opt_abstract", "macro",
+  "objects", "object", "context_name", "context", "opt_abstract", "proc",
   "globals", "global_statements", "assignment", "@1", "arglist",
   "elements", "element", "ignorepat", "extension", "statements",
   "timerange", "timespec", "test_expr", "@2", "if_like_head", "word_list",
   "word3_list", "goto_word", "switch_statement", "statement", "@3", "@4",
-  "@5", "@6", "opt_else", "target", "opt_pri", "jumptarget", "macro_call",
+  "@5", "@6", "opt_else", "target", "opt_pri", "jumptarget", "proc_call",
   "@7", "application_call_head", "@8", "application_call", "opt_word",
-  "eval_arglist", "case_statements", "case_statement", "macro_statements",
-  "macro_statement", "switches", "eswitches", "switchlist",
+  "eval_arglist", "case_statements", "case_statement", "proc_statements",
+  "proc_statement", "switches", "eswitches", "switchlist",
   "included_entry", "includeslist", "includes", 0
 };
 #endif
@@ -1460,7 +1460,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 	};
 #line 1464 "ael.tab.c"
 	break;
-      case 49: /* "macro" */
+      case 49: /* "proc" */
 #line 164 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
@@ -1626,7 +1626,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 	};
 #line 1630 "ael.tab.c"
 	break;
-      case 78: /* "macro_call" */
+      case 78: /* "proc_call" */
 #line 164 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
@@ -1679,7 +1679,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 	};
 #line 1683 "ael.tab.c"
 	break;
-      case 87: /* "macro_statements" */
+      case 87: /* "proc_statements" */
 #line 164 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
@@ -1687,7 +1687,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 	};
 #line 1691 "ael.tab.c"
 	break;
-      case 88: /* "macro_statement" */
+      case 88: /* "proc_statement" */
 #line 164 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
@@ -3173,7 +3173,7 @@ static char *token_equivs2[] =
 	"ignorepat",
 	"includes"
 	"jump",
-	"macro",
+	"proc",
 	"pattern",
 	"regexten",
 	"return",

@@ -1081,9 +1081,9 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 			goto yuck;
 		}
 #ifdef EXTENDED_ODBC_STORAGE
-		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording, mailboxuser, mailboxcontext) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording,?,? FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
+		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, proc_context, callerid, origtime, duration, recording, mailboxuser, mailboxcontext) SELECT ?,?,context,proc_context,callerid,origtime,duration,recording,?,? FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
 #else
- 		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
+ 		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, proc_context, callerid, origtime, duration, recording) SELECT ?,?,context,proc_context,callerid,origtime,duration,recording FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
 #endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -1130,7 +1130,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	char full_fn[256];
 	char fmt[80]="";
 	char *c;
-	char *context="", *macrocontext="", *callerid="", *origtime="", *duration="";
+	char *context="", *proc_context="", *callerid="", *origtime="", *duration="";
 	char *category = "";
 	struct opbx_config *cfg=NULL;
 	odbc_obj *obj;
@@ -1160,8 +1160,8 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		if (cfg) {
 			context = opbx_variable_retrieve(cfg, "message", "context");
 			if (!context) context = "";
-			macrocontext = opbx_variable_retrieve(cfg, "message", "macrocontext");
-			if (!macrocontext) macrocontext = "";
+			proc_context = opbx_variable_retrieve(cfg, "message", "proccontext");
+			if (!proc_context) proc_context = "";
 			callerid = opbx_variable_retrieve(cfg, "message", "callerid");
 			if (!callerid) callerid = "";
 			origtime = opbx_variable_retrieve(cfg, "message", "origtime");
@@ -1186,15 +1186,15 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		}
  		if (!opbx_strlen_zero(category)) 
 #ifdef EXTENDED_ODBC_STORAGE
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)",odbc_table); 
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,proc_context,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)",odbc_table); 
 #else
- 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,category) VALUES (?,?,?,?,?,?,?,?,?)",odbc_table);
+ 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,proc_context,callerid,origtime,duration,category) VALUES (?,?,?,?,?,?,?,?,?)",odbc_table);
 #endif
  		else
 #ifdef EXTENDED_ODBC_STORAGE
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)",odbc_table);
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,proc_context,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)",odbc_table);
 #else
- 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)",odbc_table);
+ 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,proc_context,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)",odbc_table);
 #endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -1207,7 +1207,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY, fdlen, 0, (void *)fdm, fdlen, &len);
 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(context), 0, (void *)context, 0, NULL);
-		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(macrocontext), 0, (void *)macrocontext, 0, NULL);
+		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(proc_context), 0, (void *)proc_context, 0, NULL);
 		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(callerid), 0, (void *)callerid, 0, NULL);
 		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(origtime), 0, (void *)origtime, 0, NULL);
 		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
@@ -2379,7 +2379,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 	} else if (opbx_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num))
 		strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-	else if (!opbx_strlen_zero(chan->macrocontext) && opbx_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
+	else if (!opbx_strlen_zero(chan->proc_context) && opbx_exists_extension(chan, chan->proc_context, "o", 1, chan->cid.cid_num)) {
 		strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 		ousemacro = 1;
 	}
@@ -2389,7 +2389,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 	} else if (opbx_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num))
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-	else if (!opbx_strlen_zero(chan->macrocontext) && opbx_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num)) {
+	else if (!opbx_strlen_zero(chan->proc_context) && opbx_exists_extension(chan, chan->proc_context, "a", 1, chan->cid.cid_num)) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 		ausemacro = 1;
 	}
@@ -2434,8 +2434,8 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 		chan->exten[1] = '\0';
 		if (!opbx_strlen_zero(vmu->exit)) {
 			opbx_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-		} else if (ausemacro && !opbx_strlen_zero(chan->macrocontext)) {
-			opbx_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
+		} else if (ausemacro && !opbx_strlen_zero(chan->proc_context)) {
+			opbx_copy_string(chan->context, chan->proc_context, sizeof(chan->context));
 		}
 		chan->priority = 0;
 		free_user(vmu);
@@ -2449,8 +2449,8 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 			chan->exten[1] = '\0';
 			if (!opbx_strlen_zero(vmu->exit)) {
 				opbx_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-			} else if (ousemacro && !opbx_strlen_zero(chan->macrocontext)) {
-				opbx_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
+			} else if (ousemacro && !opbx_strlen_zero(chan->proc_context)) {
+				opbx_copy_string(chan->context, chan->proc_context, sizeof(chan->context));
 			}
 			opbx_play_and_wait(chan, "transfer");
 			chan->priority = 0;
@@ -2510,7 +2510,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 					"[message]\n"
 					"origmailbox=%s\n"
 					"context=%s\n"
-					"macrocontext=%s\n"
+					"proccontext=%s\n"
 					"exten=%s\n"
 					"priority=%d\n"
 					"callerchan=%s\n"
@@ -2520,7 +2520,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 					"category=%s\n",
 					ext,
 					chan->context,
-					chan->macrocontext, 
+					chan->proc_context, 
 					chan->exten,
 					chan->priority,
 					chan->name,
@@ -3738,8 +3738,8 @@ static int play_message(struct opbx_channel *chan, struct opbx_vm_user *vmu, str
 	category = opbx_variable_retrieve(msg_cfg, "message", "category");
 
 	context = opbx_variable_retrieve(msg_cfg, "message", "context");
-	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
-		context = opbx_variable_retrieve(msg_cfg, "message","macrocontext");
+	if (!strncasecmp("proc", context, 5)) /* Proc names in contexts are useless for our needs */
+		context = opbx_variable_retrieve(msg_cfg, "message", "proccontext");
 
 	if (!res)
 		res = play_message_category(chan, category);
@@ -6317,8 +6317,8 @@ static int advanced_options(struct opbx_channel *chan, struct opbx_vm_user *vmu,
 	cid = opbx_variable_retrieve(msg_cfg, "message", "callerid");
 
 	context = opbx_variable_retrieve(msg_cfg, "message", "context");
-	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
-		context = opbx_variable_retrieve(msg_cfg, "message","macrocontext");
+	if (!strncasecmp("proc", context, 5)) /* Macro names in contexts are useless for our needs */
+		context = opbx_variable_retrieve(msg_cfg, "message", "proccontext");
 
 	if (option == 3) {
 

@@ -305,8 +305,8 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 	}
 	if (digit == '0') {
 		if (!opbx_goto_if_exists(chan, chan->context, "o", 1) ||
-		    (!opbx_strlen_zero(chan->macrocontext) &&
-		     !opbx_goto_if_exists(chan, chan->macrocontext, "o", 1))) {
+		    (!opbx_strlen_zero(chan->proc_context) &&
+		     !opbx_goto_if_exists(chan, chan->proc_context, "o", 1))) {
 			return 0;
 		} else {
 			opbx_log(LOG_WARNING, "Can't find extension 'o' in current context.  "
@@ -316,8 +316,8 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 	}	
 	if (digit == '*') {
 		if (!opbx_goto_if_exists(chan, chan->context, "a", 1) ||
-		    (!opbx_strlen_zero(chan->macrocontext) &&
-		     !opbx_goto_if_exists(chan, chan->macrocontext, "a", 1))) {
+		    (!opbx_strlen_zero(chan->proc_context) &&
+		     !opbx_goto_if_exists(chan, chan->proc_context, "a", 1))) {
 			return 0;
 		} else {
 			opbx_log(LOG_WARNING, "Can't find extension 'a' in current context.  "

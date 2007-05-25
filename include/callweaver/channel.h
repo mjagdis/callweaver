@@ -247,8 +247,8 @@ struct opbx_channel {
         struct opbx_filestream *stream;
 	/*! For streaming playback, the schedule ID */
 	int vstreamid;
-        /*! Stream itself. */
-        struct opbx_filestream *vstream;
+	/*! Stream itself. */
+	struct opbx_filestream *vstream;
 	/*! Original writer format */
 	int oldwriteformat;			
 	
@@ -268,12 +268,12 @@ struct opbx_channel {
 		
 	/*! Current extension context */
 	char context[OPBX_MAX_CONTEXT];
-	/*! Current non-macro context */
-	char macrocontext[OPBX_MAX_CONTEXT];	
-	/*! Current non-macro extension */
-	char macroexten[OPBX_MAX_EXTENSION];
-	/*! Current non-macro priority */
-	int macropriority;
+	/*! Current non-proc context */
+	char proc_context[OPBX_MAX_CONTEXT];	
+	/*! Current non-proc extension */
+	char proc_exten[OPBX_MAX_EXTENSION];
+	/*! Current non-proc priority */
+	int proc_priority;
 	/*! Current extension number */
 	char exten[OPBX_MAX_EXTENSION];		
 	/* Current extension priority */

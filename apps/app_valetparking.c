@@ -282,18 +282,18 @@ static int opbx_valetpark_call(struct opbx_channel *chan, int timeout, int *exto
 			*extout = x;
 			/* Remember what had been dialed, so that if the valetparking
 			   expires, we try to come back to the same place */
-			if (strlen(chan->macrocontext)) {
-				strncpy(pu->context, chan->macrocontext, sizeof(pu->context)-1);
+			if (strlen(chan->proc_context)) {
+				strncpy(pu->context, chan->proc_context, sizeof(pu->context)-1);
 			} else {
 				strncpy(pu->context, chan->context, sizeof(pu->context)-1);
 			}
-			if (strlen(chan->macroexten)) {
-				strncpy(pu->exten, chan->macroexten, sizeof(pu->exten)-1);
+			if (strlen(chan->proc_exten)) {
+				strncpy(pu->exten, chan->proc_exten, sizeof(pu->exten)-1);
 			} else {
 				strncpy(pu->exten, chan->exten, sizeof(pu->exten)-1);
 			}
-			if (chan->macropriority) {
-				pu->priority = chan->macropriority;
+			if (chan->proc_priority) {
+				pu->priority = chan->proc_priority;
 			} else {
 				pu->priority = chan->priority;
 			}

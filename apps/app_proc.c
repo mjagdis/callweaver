@@ -160,10 +160,10 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 	oldpriority = chan->priority;
 	opbx_copy_string(oldexten, chan->exten, sizeof(oldexten));
 	opbx_copy_string(oldcontext, chan->context, sizeof(oldcontext));
-	if (opbx_strlen_zero(chan->macrocontext)) {
-		opbx_copy_string(chan->macrocontext, chan->context, sizeof(chan->macrocontext));
-		opbx_copy_string(chan->macroexten, chan->exten, sizeof(chan->macroexten));
-		chan->macropriority = chan->priority;
+	if (opbx_strlen_zero(chan->proc_context)) {
+		opbx_copy_string(chan->proc_context, chan->context, sizeof(chan->proc_context));
+		opbx_copy_string(chan->proc_exten, chan->exten, sizeof(chan->proc_exten));
+		chan->proc_priority = chan->priority;
 		setproccontext=1;
 	}
 	argc = 1;
@@ -278,9 +278,9 @@ static int proc_exec(struct opbx_channel *chan, void *data)
 	if (save_proc_priority)
 		free(save_proc_priority);
 	if (setproccontext) {
-		chan->macrocontext[0] = '\0';
-		chan->macroexten[0] = '\0';
-		chan->macropriority = 0;
+		chan->proc_context[0] = '\0';
+		chan->proc_exten[0] = '\0';
+		chan->proc_priority = 0;
 	}
 
 	if (!strcasecmp(chan->context, fullproc)) {

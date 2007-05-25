@@ -718,8 +718,8 @@ void opbx_channel_undefer_dtmf(struct opbx_channel *chan)
  * prev != NULL : get channel next in list after prev
  * name != NULL : get channel with matching name
  * name != NULL && namelen != 0 : get channel whose name starts with prefix
- * exten != NULL : get channel whose exten or macroexten matches
- * context != NULL && exten != NULL : get channel whose context or macrocontext
+ * exten != NULL : get channel whose exten or proc_exten matches
+ * context != NULL && exten != NULL : get channel whose context or proc_context
  *                                    
  * It returns with the channel's lock held. If getting the individual lock fails,
  * unlock and retry quickly up to 10 times, then give up.
@@ -763,11 +763,11 @@ static struct opbx_channel *channel_find_locked(const struct opbx_channel *prev,
 				} else if (exten) {
 					/* want match by context and exten */
 					if (context && (strcasecmp(c->context, context) &&
-							strcasecmp(c->macrocontext, context)))
+							strcasecmp(c->proc_context, context)))
 						continue;
 					/* match by exten */
 					if (strcasecmp(c->exten, exten) &&
-					    strcasecmp(c->macroexten, exten))
+					    strcasecmp(c->proc_exten, exten))
 						continue;
 					else
 						break;
@@ -2771,7 +2771,7 @@ static void clone_variables(struct opbx_channel *original, struct opbx_channel *
 	OPBX_LIST_TRAVERSE_SAFE_END;
 
 	/* Append variables from clone channel into original channel */
-	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
+	/* XXX Is this always correct?  We have to in order to keep PROCS working XXX */
 	if (OPBX_LIST_FIRST(&clone->varshead))
 		OPBX_LIST_INSERT_TAIL(&original->varshead, OPBX_LIST_FIRST(&clone->varshead), entries);
 }

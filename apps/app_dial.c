@@ -244,8 +244,8 @@ static int onedigit_goto(struct opbx_channel *chan, char *context, char exten, i
 	} else {
 		if (!opbx_goto_if_exists(chan, chan->context, rexten, pri))
 			return 1;
-		else if (!opbx_strlen_zero(chan->macrocontext)) {
-			if (!opbx_goto_if_exists(chan, chan->macrocontext, rexten, pri))
+		else if (!opbx_strlen_zero(chan->proc_context)) {
+			if (!opbx_goto_if_exists(chan, chan->proc_context, rexten, pri))
 				return 1;
 		}
 	}
@@ -257,13 +257,13 @@ static char *get_cid_name(char *name, int namelen, struct opbx_channel *chan)
 {
 	char *context;
 	char *exten;
-	if (!opbx_strlen_zero(chan->macrocontext))
-		context = chan->macrocontext;
+	if (!opbx_strlen_zero(chan->proc_context))
+		context = chan->proc_context;
 	else
 		context = chan->context;
 
-	if (!opbx_strlen_zero(chan->macroexten))
-		exten = chan->macroexten;
+	if (!opbx_strlen_zero(chan->proc_exten))
+		exten = chan->proc_exten;
 	else
 		exten = chan->exten;
 
@@ -405,8 +405,8 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 						if (opbx_test_flag(o, DIAL_FORCECALLERID)) {
 							char *newcid = NULL;
 
-							if (!opbx_strlen_zero(in->macroexten))
-								newcid = in->macroexten;
+							if (!opbx_strlen_zero(in->proc_exten))
+								newcid = in->proc_exten;
 							else
 								newcid = in->exten;
 							o->chan->cid.cid_num = strdup(newcid);
@@ -438,8 +438,8 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
-						if (!opbx_strlen_zero(in->macroexten))
-							o->chan->cid.cid_rdnis = strdup(in->macroexten);
+						if (!opbx_strlen_zero(in->proc_exten))
+							o->chan->cid.cid_rdnis = strdup(in->proc_exten);
 						else
 							o->chan->cid.cid_rdnis = strdup(in->exten);
 						if (opbx_call(o->chan, tmpchan, 0)) {
@@ -452,7 +452,7 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 							senddialevent(in, o->chan);
 							/* After calling, set callerid to extension */
 							if (!opbx_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
-								opbx_set_callerid(o->chan, opbx_strlen_zero(in->macroexten) ? in->exten : in->macroexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
+								opbx_set_callerid(o->chan, opbx_strlen_zero(in->proc_exten) ? in->exten : in->proc_exten, get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -683,14 +683,14 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	char *sdtmfptr;
 	char *dtmfcalled=NULL, *dtmfcalling=NULL;
 	char *stack,*var;
-	char *mac = NULL, *macroname = NULL;
+	char *mac = NULL, *proc_name = NULL;
 	char status[256];
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
 	char *mohclass = NULL;
 	char *outbound_group = NULL;
-	char *macro_result = NULL, *macro_transfer_dest = NULL;
+	char *proc_result = NULL, *proc_transfer_dest = NULL;
 	int digit = 0, result = 0;
 	time_t start_time, answer_time, end_time;
 	struct opbx_app *app = NULL;
@@ -892,19 +892,19 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			}
 		}
 
-		/* Get the macroname from the dial option string */
+		/* Get the proc name from the dial option string */
 		if ((mac = strstr(transfer, "M("))) {
 			hasmacro = 1;
-			macroname = opbx_strdupa(mac + 2);
+			proc_name = opbx_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
 			if (*mac) {
 				*mac = 'X';
-				mac = strchr(macroname, ')');
+				mac = strchr(proc_name, ')');
 				if (mac)
 					*mac = '\0';
 				else {
-					opbx_log(LOG_WARNING, "Macro flag set without trailing ')'\n");
+					opbx_log(LOG_WARNING, "Proc flag set without trailing ')'\n");
 					hasmacro = 0;
 				}
 			} else {
@@ -1244,7 +1244,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
 			if (!opbx_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
-				opbx_set_callerid(tmp->chan, opbx_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
+				opbx_set_callerid(tmp->chan, opbx_strlen_zero(chan->proc_exten) ? chan->exten : chan->proc_exten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
@@ -1543,7 +1543,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			return 0;
 		}
 
-		if (hasmacro && macroname) {
+		if (hasmacro && proc_name) {
 			res = opbx_autoservice_start(chan);
 			if (res) {
 				opbx_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
@@ -1553,10 +1553,10 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			app = pbx_findapp("Proc");
 
 			if (app && !res) {
-				for (res = 0; res<strlen(macroname); res++)
-					if (macroname[res] == '^')
-						macroname[res] = '|';
-				res = pbx_exec(peer, app, macroname, 1);
+				for (res = 0;  res < strlen(proc_name);  res++)
+					if (proc_name[res] == '^')
+						proc_name[res] = '|';
+				res = pbx_exec(peer, app, proc_name, 1);
 				opbx_log(LOG_DEBUG, "Proc exited with status %d\n", res);
 				res = 0;
 			} else {
@@ -1570,39 +1570,39 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			}
 
 			if (!res) {
-				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
-					if (!strcasecmp(macro_result, "BUSY")) {
-						opbx_copy_string(status, macro_result, sizeof(status));
+				if ((proc_result = pbx_builtin_getvar_helper(peer, "PROC_RESULT"))) {
+					if (!strcasecmp(proc_result, "BUSY")) {
+						opbx_copy_string(status, proc_result, sizeof(status));
 						if (!opbx_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
 							opbx_set_flag(peerflags, DIAL_GO_ON);
 						}
 						res = -1;
 					}
-					else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
-						opbx_copy_string(status, macro_result, sizeof(status));
+					else if (!strcasecmp(proc_result, "CONGESTION") || !strcasecmp(proc_result, "CHANUNAVAIL")) {
+						opbx_copy_string(status, proc_result, sizeof(status));
 						opbx_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
 					}
-					else if (!strcasecmp(macro_result, "CONTINUE")) {
-						/* hangup peer and keep chan alive assuming the macro has changed 
+					else if (!strcasecmp(proc_result, "CONTINUE")) {
+						/* hangup peer and keep chan alive assuming the proc has changed 
 						   the context / exten / priority or perhaps 
 						   the next priority in the current exten is desired.
 						*/
 						opbx_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
-					} else if (!strcasecmp(macro_result, "ABORT")) {
+					} else if (!strcasecmp(proc_result, "ABORT")) {
 						/* Hangup both ends unless the caller has the g flag */
 						res = -1;
-					} else if (!strncasecmp(macro_result, "GOTO:",5) && (macro_transfer_dest = opbx_strdupa(macro_result + 5))) {
+					} else if (!strncasecmp(proc_result, "GOTO:",5) && (proc_transfer_dest = opbx_strdupa(proc_result + 5))) {
 						res = -1;
 						/* perform a transfer to a new extension */
-						if (strchr(macro_transfer_dest,'^')) { /* context^exten^priority*/
+						if (strchr(proc_transfer_dest,'^')) { /* context^exten^priority*/
 							/* no brainer mode... substitute ^ with | and feed it to builtin goto */
-							for (res=0;res<strlen(macro_transfer_dest);res++)
-								if (macro_transfer_dest[res] == '^')
-									macro_transfer_dest[res] = '|';
+							for (res=0;res<strlen(proc_transfer_dest);res++)
+								if (proc_transfer_dest[res] == '^')
+									proc_transfer_dest[res] = '|';
 
-							if (!opbx_parseable_goto(chan, macro_transfer_dest))
+							if (!opbx_parseable_goto(chan, proc_transfer_dest))
 								opbx_set_flag(peerflags, DIAL_GO_ON);
 
 						}

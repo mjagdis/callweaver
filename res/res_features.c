@@ -348,16 +348,16 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
-	if (!opbx_strlen_zero(chan->macrocontext))
-		opbx_copy_string(pu->context, chan->macrocontext, sizeof(pu->context));
+	if (!opbx_strlen_zero(chan->proc_context))
+		opbx_copy_string(pu->context, chan->proc_context, sizeof(pu->context));
 	else
 		opbx_copy_string(pu->context, chan->context, sizeof(pu->context));
-	if (!opbx_strlen_zero(chan->macroexten))
-		opbx_copy_string(pu->exten, chan->macroexten, sizeof(pu->exten));
+	if (!opbx_strlen_zero(chan->proc_exten))
+		opbx_copy_string(pu->exten, chan->proc_exten, sizeof(pu->exten));
 	else
 		opbx_copy_string(pu->exten, chan->exten, sizeof(pu->exten));
-	if (chan->macropriority)
-		pu->priority = chan->macropriority;
+	if (chan->proc_priority)
+		pu->priority = chan->proc_priority;
 	else
 		pu->priority = chan->priority;
 	pu->next = parkinglot;
@@ -379,7 +379,7 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 		"CallerID: %s\r\n"
 		"CallerIDName: %s\r\n\r\n"
 		,pu->parkingnum, pu->chan->name, peer->name
-		,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
+		,(long) pu->start.tv_sec + (long) (pu->parkingtime/1000) - (long) time(NULL)
 		,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
 		,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
 		);
@@ -571,8 +571,8 @@ static int builtin_blindtransfer(struct opbx_channel *chan, struct opbx_channel 
 	if (!(transferer_real_context = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
 		!(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
 		/* Use the non-macro context to transfer the call */
-		if (!opbx_strlen_zero(transferer->macrocontext))
-			transferer_real_context = transferer->macrocontext;
+		if (!opbx_strlen_zero(transferer->proc_context))
+			transferer_real_context = transferer->proc_context;
 		else
 			transferer_real_context = transferer->context;
 	}
@@ -683,7 +683,7 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 {
 	struct opbx_channel *transferer;
 	struct opbx_channel *transferee;
-	struct opbx_channel *newchan, *xferchan=NULL;
+	struct opbx_channel *newchan, *xferchan = NULL;
 	int outstate=0;
 	struct opbx_bridge_config bconfig;
 	char *transferer_real_context;
@@ -705,8 +705,8 @@ static int builtin_atxfer(struct opbx_channel *chan, struct opbx_channel *peer, 
 	if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
 		!(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
 		/* Use the non-macro context to transfer the call */
-		if (!opbx_strlen_zero(transferer->macrocontext))
-			transferer_real_context = transferer->macrocontext;
+		if (!opbx_strlen_zero(transferer->proc_context))
+			transferer_real_context = transferer->proc_context;
 		else
 			transferer_real_context = transferer->context;
 	}

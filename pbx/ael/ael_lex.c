@@ -1355,7 +1355,7 @@ YY_RULE_SETUP
 case 16:
 YY_RULE_SETUP
 #line 190 "ael.flex"
-{ STORE_POS; return KW_MACRO;};
+{ STORE_POS; return KW_PROC;};
 	YY_BREAK
 case 17:
 YY_RULE_SETUP

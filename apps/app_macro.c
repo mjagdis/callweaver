@@ -106,7 +106,7 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 	char oldcontext[OPBX_MAX_CONTEXT] = "";
 	char *offsets;
 	int offset, depth;
-	int setmacrocontext=0;
+	int setproc_context=0;
 	int autoloopflag;
   
 	char *save_macro_exten;
@@ -162,11 +162,11 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 	oldpriority = chan->priority;
 	opbx_copy_string(oldexten, chan->exten, sizeof(oldexten));
 	opbx_copy_string(oldcontext, chan->context, sizeof(oldcontext));
-	if (opbx_strlen_zero(chan->macrocontext)) {
-		opbx_copy_string(chan->macrocontext, chan->context, sizeof(chan->macrocontext));
-		opbx_copy_string(chan->macroexten, chan->exten, sizeof(chan->macroexten));
-		chan->macropriority = chan->priority;
-		setmacrocontext=1;
+	if (opbx_strlen_zero(chan->proc_context)) {
+		opbx_copy_string(chan->proc_context, chan->context, sizeof(chan->proc_context));
+		opbx_copy_string(chan->proc_exten, chan->exten, sizeof(chan->proc_exten));
+		chan->proc_priority = chan->priority;
+		setproc_context=1;
 	}
 	argc = 1;
 	/* Save old macro variables */
@@ -279,10 +279,10 @@ static int macro_exec(struct opbx_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
 	if (save_macro_priority)
 		free(save_macro_priority);
-	if (setmacrocontext) {
-		chan->macrocontext[0] = '\0';
-		chan->macroexten[0] = '\0';
-		chan->macropriority = 0;
+	if (setproc_context) {
+		chan->proc_context[0] = '\0';
+		chan->proc_exten[0] = '\0';
+		chan->proc_priority = 0;
 	}
 
 	if (!strcasecmp(chan->context, fullmacro)) {

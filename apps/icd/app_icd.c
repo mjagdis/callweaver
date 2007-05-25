@@ -1379,7 +1379,7 @@ int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
         context = chan->context;
         /* TC this should work i want the specfic include context * finds a match in for this app
            context = pbx_builtin_getvar_helper(chan, "CONTEXT");
-           chan->macrocontext; chan->context;
+           chan->proc_context; chan->context;
         */
     }
 

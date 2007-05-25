@@ -3173,7 +3173,7 @@ struct opbx_frame *process_opbx_dsp(struct chan_list *tmp, struct opbx_frame *fr
 					char *context;
 					char context_tmp[BUFFERSIZE];
 					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
-					context = opbx_strlen_zero(context_tmp) ? (opbx_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
+					context = opbx_strlen_zero(context_tmp) ? (opbx_strlen_zero(ast->proc_context) ? ast->context : ast->proc_context) : context_tmp;
 					if (opbx_exists_extension(ast, context, "fax", 1, OPBX_CID_P(ast))) {
 						if (option_verbose > 2)
 							opbx_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", ast->name, context);

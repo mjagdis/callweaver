@@ -4650,7 +4650,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 			if (!p->faxhandled) {
 				p->faxhandled++;
 				if (strcmp(opbx->exten, "fax")) {
-					const char *target_context = opbx_strlen_zero(opbx->macrocontext) ? opbx->context : opbx->macrocontext;
+					const char *target_context = opbx_strlen_zero(opbx->proc_context)  ?  opbx->context  :  opbx->proc_context;
 
 					if (opbx_exists_extension(opbx, target_context, "fax", 1, opbx->cid.cid_num)) {
 						if (option_verbose > 2)
@@ -4664,7 +4664,7 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 				} else
 					opbx_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
 			} else
-					opbx_log(LOG_DEBUG, "Fax already handled\n");
+				opbx_log(LOG_DEBUG, "Fax already handled\n");
 			zt_confmute(p, 0);
 			p->subs[index].f.frametype = OPBX_FRAME_NULL;
 			p->subs[index].f.subclass = 0;
