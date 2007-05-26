@@ -3853,3 +3853,110 @@ int opbx_carefulwrite(int fd, char *s, int len, int timeoutms)
 	}
 	return res;
 }
+
+/*! \brief Unlock OPBX channel (and print debugging output) 
+res_snmp needs these for some reason */
+int opbx_channel_unlock(struct opbx_channel *chan)
+{
+	int res = 0;
+	if (option_debug > 2) 
+		opbx_log(LOG_DEBUG, "::::==== Unlocking OPBX channel %s\n", chan->name);
+	
+	if (!chan) {
+		if (option_debug)
+			opbx_log(LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
+		return 0;
+	}
+
+	res = opbx_mutex_unlock(&chan->lock);
+
+	if (option_debug > 2) {
+#ifdef DEBUG_THREADS
+		int count = 0;
+		if ((count = chan->lock.reentrancy))
+			opbx_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
+#endif
+		if (!res)
+			if (option_debug)
+				opbx_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
+			if (res == EINVAL) {
+				if (option_debug)
+					opbx_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
+			}
+		}
+		if (res == EPERM) {
+			/* We had no lock, so okay any way*/
+			if (option_debug > 3)
+				opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
+		res = 0;
+	}
+	return res;
+}
+
+/*! \brief Lock OPBX channel (and print debugging output)
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int opbx_channel_lock(struct opbx_channel *chan)
+{
+	int res;
+
+	if (option_debug > 3)
+		opbx_log(LOG_DEBUG, "====:::: Locking OPBX channel %s\n", chan->name);
+
+	res = opbx_mutex_lock(&chan->lock);
+
+	if (option_debug > 3) {
+#ifdef DEBUG_THREADS
+		int count = 0;
+		if ((count = chan->lock.reentrancy))
+			opbx_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
+#endif
+		if (!res)
+			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
+		if (res == EDEADLK) {
+		/* We had no lock, so okey any way */
+		if (option_debug > 3)
+			opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
+		}
+		if (res == EINVAL) {
+			if (option_debug > 3)
+				opbx_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+		}
+	}
+	return res;
+}
+
+/*! \brief Lock OPBX channel (and print debugging output)
+\note	You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int opbx_channel_trylock(struct opbx_channel *chan)
+{
+	int res;
+
+	if (option_debug > 2)
+		opbx_log(LOG_DEBUG, "====:::: Trying to lock OPBX channel %s\n", chan->name);
+
+	res = opbx_mutex_trylock(&chan->lock);
+
+	if (option_debug > 2) {
+#ifdef DEBUG_THREADS
+		int count = 0;
+		if ((count = chan->lock.reentrancy))
+			opbx_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
+#endif
+		if (!res)
+			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
+		if (res == EBUSY) {
+			/* We failed to lock */
+			if (option_debug > 2)
+				opbx_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
+		}
+		if (res == EDEADLK) {
+			/* We had no lock, so okey any way*/
+			if (option_debug > 2)
+				opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
+		}
+		if (res == EINVAL && option_debug > 2)
+			opbx_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+	}
+	return res;
+}
+
