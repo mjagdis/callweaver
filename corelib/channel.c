@@ -171,13 +171,16 @@ const struct opbx_control {
 	{OPBX_CONTROL_VIDUPDATE, "Indicate video frame update"},
 };
 
-#if 0
-/* this code is broken */
+/* this code is broken - if someone knows how to rewrite the list traversal, please tell */
 struct opbx_variable *opbx_channeltype_list(void)
 {
 	struct chanlist *cl;
 	struct opbx_variable *var=NULL, *prev = NULL;
-//	OPBX_LIST_TRAVERSE(&backends, cl, list) {
+
+	return NULL;
+
+/*	OPBX_LIST_TRAVERSE(&backends, cl, list) {  <-- original line from asterisk */
+	/*
 	OPBX_LIST_TRAVERSE(&backends, cl, next) {
 		if (prev)  {
 			if ((prev->next = opbx_variable_new(cl->tech->type, cl->tech->description)))
@@ -188,8 +191,8 @@ struct opbx_variable *opbx_channeltype_list(void)
 		}
 	}
 	return var;
+	*/
 }
-#endif
 
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
