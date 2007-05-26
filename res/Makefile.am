@@ -110,7 +110,7 @@ opbxmod_LTLIBRARIES		+= res_snmp.la
 res_snmp_la_SOURCES	= res_snmp.c snmp/agent.c
 res_snmp_la_LDFLAGS	= -module -avoid-version -no-undefined
 res_snmp_la_CFLAGS	= $(AM_CFLAGS) @ODBC_CFLAGS@
-res_snmp_la_LIBADD	= @ODBC_LIBS@ ${top_builddir}/corelib/libcallweaver.la
+res_snmp_la_LIBADD	= @ODBC_LIBS@ -lnetsnmp -lnetsnmpagent -lnetsnmphelpers ${top_builddir}/corelib/libcallweaver.la
 endif WANT_RES_SNMP
 
 INCLUDES = -I$(top_srcdir)/include
