@@ -171,6 +171,8 @@ const struct opbx_control {
 	{OPBX_CONTROL_VIDUPDATE, "Indicate video frame update"},
 };
 
+#if 0
+/* this code is broken */
 struct opbx_variable *opbx_channeltype_list(void)
 {
 	struct chanlist *cl;
@@ -187,6 +189,7 @@ struct opbx_variable *opbx_channeltype_list(void)
 	}
 	return var;
 }
+#endif
 
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
