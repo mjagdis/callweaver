@@ -420,6 +420,23 @@ static struct tone_zone *current_tonezone;
  * it at the same time, but still! */
 OPBX_MUTEX_DEFINE_EXPORTED(tzlock);
 
+struct tone_zone *opbx_walk_indications(const struct tone_zone *cur)
+{
+	struct tone_zone *tz;
+
+	if (cur == NULL)
+		return tone_zones;
+	opbx_mutex_lock(&tzlock);
+	for (tz = tone_zones; tz; tz = tz->next)
+		if (tz == cur)
+			break;
+	if (tz)
+		tz = tz->next;
+	opbx_mutex_unlock(&tzlock);
+	return tz;
+}
+
+
 /* Set global indication country */
 int opbx_set_indication_country(const char *country)
 {
