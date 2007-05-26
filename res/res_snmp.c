@@ -2,7 +2,7 @@
  * Copyright (C) 2006 Voop as
  * Thorsten Lockert <tholo@voop.as>
  *
- * Ported to callweaver by Roy Sigurd Karlsbakk <roy@karlsbakk.net>
+ * Ported to CallWeaver by Roy Sigurd Karlsbakk <roy@karlsbakk.net>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License Version 2. See the LICENSE file
@@ -99,7 +99,7 @@ int load_module(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create_background(&thread, NULL, agent_thread, NULL);
+		return opbx_pthread_create(&thread, NULL, agent_thread, NULL);
 	return 0;
 }
 
@@ -123,7 +123,7 @@ int reload(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create_background(&thread, NULL, agent_thread, NULL);
+		return opbx_pthread_create(&thread, NULL, agent_thread, NULL);
 	return 0;
 }
 
