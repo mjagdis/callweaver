@@ -27,7 +27,7 @@
 
 #include "callweaver/pbx.h"
 #include "callweaver/utils.h"
-#include "callweaver/old_callerid.h"
+#include "callweaver/callerid.h"
 #include "callweaver/musiconhold.h"
 
 #ifdef CS_SCCP_PARK

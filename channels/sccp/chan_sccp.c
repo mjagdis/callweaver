@@ -32,7 +32,7 @@
 #include "sccp_indicate.h"
 
 #include "callweaver/pbx.h"
-#include "callweaver/old_callerid.h"
+#include "callweaver/callerid.h"
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
 #include "callweaver/devicestate.h"

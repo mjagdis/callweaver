@@ -27,7 +27,7 @@
 #include "callweaver/utils.h"
 #ifdef CS_SCCP_PICKUP
 #include "callweaver/features.h"
-#include "callweaver/old_callerid.h"
+#include "callweaver/callerid.h"
 #endif
 #include "callweaver/devicestate.h"
 
