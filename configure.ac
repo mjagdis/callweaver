@@ -1399,14 +1399,6 @@ AM_CONDITIONAL([WANT_APP_LOOKUPCIDNAME],[test "${with_app_lookupcidname}" = "yes
 
 dnl ###########################################################################
 
-AC_ARG_WITH([app_macro],
-	[AC_HELP_STRING([--with-app_macro],[Build and install app_macro (default=yes)])],,
-	[with_app_macro="yes"])
-
-AM_CONDITIONAL([WANT_APP_MACRO],[test "${with_app_macro}" = "yes"])
-
-dnl ###########################################################################
-
 AC_ARG_WITH([app_meetme],
 	[AC_HELP_STRING([--with-app_meetme],[Build and install app_meetme (default=yes)])],,
 	[with_app_meetme="yes"])

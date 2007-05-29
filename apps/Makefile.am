@@ -191,13 +191,6 @@ app_lookupcidname_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_lookupcidname_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la
 endif WANT_APP_LOOKUPCIDNAME
 
-if WANT_APP_MACRO
-opbxmod_LTLIBRARIES			+= app_macro.la
-app_macro_la_SOURCES			= app_macro.c
-app_macro_la_LDFLAGS			= -module -avoid-version -no-undefined
-app_macro_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la
-endif WANT_APP_MACRO
-
 if WANT_APP_PROC
 opbxmod_LTLIBRARIES			+= app_proc.la
 app_proc_la_SOURCES			= app_proc.c
