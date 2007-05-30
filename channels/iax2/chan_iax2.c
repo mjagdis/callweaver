@@ -4813,8 +4813,10 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expiry value */
 	p->expiry = min_reg_expire;
-	if (!opbx_test_flag(p, IAX_TEMPONLY))
+	if (!opbx_test_flag(p, IAX_TEMPONLY)) {
 		opbx_db_del("IAX/Registry", p->name);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: RegistrationExpired\r\n", p->name);
+	}
 	register_peer_exten(p, 0);
 	opbx_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 	if (iax2_regfunk)
