@@ -20,4 +20,41 @@ faxN:234:respawn:/usr/sbin/faxgetty /dev/FAXN
 
 Sample config file:
 
-http://www.sofaswitch.org/chan_fax/config.FAX0
+CountryCode:1
+AreaCode:800
+FAXNumber:+1.800.555.1212
+LongDistancePrefix:1
+InternationalPrefix:011
+DialStringRules:etc/dialrules
+TracingMask:            0x11
+#ServerTracing:1
+ServerTracing: 0xDFFFF
+SessionTracing:0xFFF
+RecvFileMode:0600
+LogFileMode:0600
+DeviceMode:0600
+RingsBeforeAnswer:0
+SpeakerVolume:off
+GettyArgs:"-h %l dx_%s"
+LocalIdentifier:"chan_fax"
+TagLineFont:etc/lutRS18.pcf
+TagLineFormat:"From %%l|%c|Page %%P of %%T"
+MaxRecvPages:100
+#
+#
+# Modem-related stuff: should reflect modem command interface
+# and hardware connection/cabling (e.g. flow control).
+#
+ModemType:Class1# use this to supply a hint
+
+Class1TMConnectDelay:400# counteract quick CONNECT response
+#Class1RMQueryCmd:       "!24,48,72,96"  # V.17 fast-train recv doesn't work well
+
+CallIDPattern:          "NMBR="
+CallIDPattern:          "NAME="
+CallIDPattern:          "NDID="
+CallIDAnswerLength:4
+# Uncomment these if you really want them, but you probably don't.
+CallIDPattern:          "DATE="
+CallIDPattern:          "TIME="
+
