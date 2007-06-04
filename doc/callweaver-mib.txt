@@ -1,3 +1,4 @@
+-- vim:ft=mib
 CALLWEAVER-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
@@ -28,9 +29,9 @@ callweaver MODULE-IDENTITY
 		"Initial published revision."
 	::= { digium 1 }
 
-callweaverVersion		OBJECT IDENTIFIER ::= { callweaver 1 }
+callweaverVersion	OBJECT IDENTIFIER ::= { callweaver 1 }
 callweaverConfiguration	OBJECT IDENTIFIER ::= { callweaver 2 }
-callweaverModules		OBJECT IDENTIFIER ::= { callweaver 3 }
+callweaverModules	OBJECT IDENTIFIER ::= { callweaver 3 }
 callweaverIndications	OBJECT IDENTIFIER ::= { callweaver 4 }
 callweaverChannels	OBJECT IDENTIFIER ::= { callweaver 5 }
 
@@ -223,9 +224,9 @@ CwChanEntry ::= SEQUENCE {
 	cwChanExten		DisplayString,
 	cwChanPri		Integer32,
 	cwChanAccountCode	DisplayString,
-	cwChanForwardTo	DisplayString,
+	cwChanForwardTo		DisplayString,
 	cwChanUniqueId		DisplayString,
-	cwChanCallGroup	Unsigned32,
+	cwChanCallGroup		Unsigned32,
 	cwChanPickupGroup	Unsigned32,
 	cwChanState		INTEGER,
 	cwChanMuted		TruthValue,
@@ -243,7 +244,7 @@ CwChanEntry ::= SEQUENCE {
 	cwChanADSI		INTEGER,
 	cwChanToneZone		DisplayString,
 	cwChanHangupCause	INTEGER,
-	cwChanVariables	DisplayString,
+	cwChanVariables		DisplayString,
 	cwChanFlags		BITS,
 	cwChanTransferCap	INTEGER
 }
@@ -655,7 +656,7 @@ cwChanTypeEntry OBJECT-TYPE
 	::= { cwChanTypeTable 1 }
 
 CwChanTypeEntry ::= SEQUENCE {
-	cwChanTypeIndex	Integer32,
+	cwChanTypeIndex		Integer32,
 	cwChanTypeName		DisplayString,
 	cwChanTypeDesc		DisplayString,
 	cwChanTypeDeviceState	Integer32,
