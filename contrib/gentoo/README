@@ -25,7 +25,7 @@ Pre-flight check
 Installation
 ------------
 - emerge -pv callweaver
-- set the USE flags you want
+- set the USE flags you want (EXPERIMENTAL!!!)
 - emerge callweaver
 
 You will find more information about how to run/configure CallWeaver.org on

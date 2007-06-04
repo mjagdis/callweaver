@@ -13,12 +13,15 @@ LICENSE="GPL-2"
 KEYWORDS="~x86"
 
 # IUSE experimental, not tested appropriately!
-IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
+#IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
+IUSE="misdn speex postgres zap"
 
 RDEPEND="!net-misc/callweaver-svn
 	>=media-libs/spandsp-0.0.3_pre26
-	misdn? ( >=net-dialup/misdn-1.1.1 >=net-dialup/misdnuser-1.1 )
-	speex? ( media-libs/speex )"
+	misdn? ( =net-dialup/misdn-1.1.2 >=net-dialup/misdnuser-1.1 )
+	speex? ( media-libs/speex )
+	postgres? ( dev-db/postgresql )
+	zap? ( net-misc/zaptel )"
 
 DEPEND="${RDEPEND}
         sys-devel/flex
