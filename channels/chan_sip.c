@@ -8098,7 +8098,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         p->expire = -1;
     pvt->expiry = expiry;
     snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", opbx_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
-    if (!opbx_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT)) 
+    if (!opbx_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !opbx_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
         opbx_db_put("SIP/Registry", p->name, data);
     manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
     if (inaddrcmp(&p->addr, &oldsin))
