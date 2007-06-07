@@ -95,6 +95,9 @@ struct opbx_rtp
 	int lastrxformat;
 	int dtmfcount;
 	unsigned int dtmfduration;
+	uint32_t senddtmf_rtphdr;
+	uint32_t senddtmf_payload;
+	int senddtmf_duration;
 	int nat;
 	unsigned int flags;
 	int framems;
@@ -156,7 +159,7 @@ udp_socket_info_t *opbx_rtp_udp_socket(struct opbx_rtp *rtp,
 udp_socket_info_t *opbx_rtcp_udp_socket(struct opbx_rtp *rtp,
                                         udp_socket_info_t *sock_info);
 
-int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit);
+int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit);
 
 int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level);
 

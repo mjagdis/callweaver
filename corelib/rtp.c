@@ -27,6 +27,7 @@
 #include "confdefs.h"
 #endif
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -795,6 +796,117 @@ struct opbx_frame *opbx_rtcp_read(struct opbx_rtp *rtp)
     return &null_frame;
 }
 
+
+int opbx_rtp_senddigit(struct opbx_rtp * const rtp, char digit)
+{
+	static char *digitcodes = "0123456789*#ABCD";
+	uint32_t pkt[4];
+	char *p;
+	char iabuf[INET_ADDRSTRLEN];
+	const struct sockaddr_in *them;
+
+	/* If we have no peer, return immediately */
+	them = udp_socket_get_them(rtp->rtp_sock_info);
+	if (them->sin_addr.s_addr == 0 || them->sin_port == 0)
+		return 0;
+
+	if (!(p = strchr(digitcodes, toupper(digit)))) {
+		opbx_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+		return -1;
+	}
+
+	rtp->senddtmf_rtphdr = ((2 << 30) | (opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_DTMF) << 16));
+	rtp->senddtmf_payload = ((p - digitcodes) << 24) | (0xa << 16);
+	rtp->senddtmf_duration = 0;
+
+	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
+ 
+	pkt[0] = htonl(rtp->senddtmf_rtphdr | (1 << 23) | (rtp->seqno));
+	pkt[1] = htonl(rtp->lastdigitts);
+	pkt[2] = htonl(rtp->ssrc); 
+	pkt[3] = htonl(rtp->senddtmf_payload);
+
+	if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
+		opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+			ntohs(them->sin_port),
+			strerror(errno));
+	}
+	if (rtp_debug_test_addr(them)) {
+		opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len 4) - DTMF start (duration = %d)\n",
+			opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+			ntohs(them->sin_port),
+			(rtp->senddtmf_rtphdr & !(2 << 30)),
+			rtp->seqno,
+			rtp->lastdigitts,
+			rtp->senddtmf_duration);
+	}
+
+	rtp->seqno++;
+	return 0;
+}
+
+static int opbx_rtp_senddigit_continue(struct opbx_rtp * const rtp)
+{
+	uint32_t pkt[4];
+	int repeat;
+	char iabuf[INET_ADDRSTRLEN];
+	const struct sockaddr_in *them;
+
+	them = udp_socket_get_them(rtp->rtp_sock_info);
+
+	rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
+
+	/* Assumption: the rate used for telephone-events is the
+	 * default 8kHz and the packetization interval of the
+	 * incoming audio (which we are clocking off) is 20ms
+	 */
+	rtp->senddtmf_duration += 160;
+
+	pkt[0] = htonl(rtp->senddtmf_rtphdr | rtp->seqno);
+	pkt[1] = htonl(rtp->lastdigitts);
+	pkt[2] = htonl(rtp->ssrc); 
+	pkt[3] = htonl(rtp->senddtmf_payload | rtp->senddtmf_duration);
+
+	/* DTMF tone duration is fixed at 80ms (given the above
+	 * assumptions are true). The inter-digit time is fixed
+	 * at 60ms. However, note that we're not negotiating
+	 * back off with higher levels. If we're asked to send
+	 * back-to-back DTMF we'll simply send events with
+	 * timestamps in the future.
+	 */
+	repeat = 1;
+	if (rtp->senddtmf_duration >= 80*8) {
+		rtp->lastdigitts += rtp->senddtmf_duration + (60 * 8);
+		/* End event packets are sent 3 times back-to-back */
+		rtp->senddtmf_rtphdr = 0;
+		pkt[3] |= htonl(1 << 23);
+		repeat = 3;
+	}
+
+	while (repeat--) {
+		if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
+			opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+				ntohs(them->sin_port),
+				strerror(errno));
+		}
+		if (rtp_debug_test_addr(them)) {
+			opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len 4) - DTMF cont (duration=%d)\n",
+				opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
+				ntohs(them->sin_port),
+				(rtp->senddtmf_rtphdr & !(2 << 30)),
+				rtp->seqno,
+				rtp->lastdigitts,
+				rtp->senddtmf_duration);
+		}
+	}
+
+	rtp->seqno++;
+	return 0;
+}
+
+
 static void calc_rxstamp(struct timeval *tv, struct opbx_rtp *rtp, unsigned int timestamp, int mark)
 {
     struct timeval ts = opbx_samp2tv(timestamp, 8000);
@@ -827,7 +939,16 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
     uint32_t *rtpheader;
     static struct opbx_frame *f, null_frame = { OPBX_FRAME_NULL, };
     struct rtpPayloadType rtpPT;
-    
+
+    /* Is this always right? It clocks off incoming data on
+     * the assumption that we are reading data at regular
+     * known intervals - specifically that incoming packets
+     * are 20ms long and evenly paced.
+     * (see opbx_rtp_senddigit_continue)
+     */
+    if (rtp->senddtmf_rtphdr)
+	    opbx_rtp_senddigit_continue(rtp);
+
     len = sizeof(sin);
 
     /* Cache where the header will go */
@@ -922,6 +1043,7 @@ struct opbx_frame *opbx_rtp_read(struct opbx_rtp *rtp)
                      timestamp,
                      res - hdrlen);
     }
+
     rtpPT = opbx_rtp_lookup_pt(rtp, payloadtype);
     if (!rtpPT.is_opbx_format)
     {
@@ -1431,6 +1553,7 @@ void opbx_rtp_reset(struct opbx_rtp *rtp)
     memset(&rtp->txcore, 0, sizeof(rtp->txcore));
     memset(&rtp->dtmfmute, 0, sizeof(rtp->dtmfmute));
     rtp->lastts = 0;
+    rtp->senddtmf_rtphdr = 0;
     rtp->lastdigitts = 0;
     rtp->lastrxts = 0;
     rtp->lastividtimestamp = 0;
@@ -1476,103 +1599,6 @@ static uint32_t calc_txstamp(struct opbx_rtp *rtp, struct timeval *delivery)
     /* Use what we just got for next time */
     rtp->txcore = t;
     return (uint32_t) ms;
-}
-
-int opbx_rtp_senddigit(struct opbx_rtp *rtp, char digit)
-{
-    unsigned int *rtpheader;
-    int hdrlen = 12;
-    int res;
-    int x;
-    int payload;
-    char data[256];
-    char iabuf[INET_ADDRSTRLEN];
-    const struct sockaddr_in *them;
-
-    them = udp_socket_get_them(rtp->rtp_sock_info);
-
-    if ((digit <= '9') && (digit >= '0'))
-        digit -= '0';
-    else if (digit == '*')
-        digit = 10;
-    else if (digit == '#')
-        digit = 11;
-    else if ((digit >= 'A')  &&  (digit <= 'D')) 
-        digit = digit - 'A' + 12;
-    else if ((digit >= 'a')  &&  (digit <= 'd')) 
-        digit = digit - 'a' + 12;
-    else
-    {
-        opbx_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
-        return -1;
-    }
-    payload = opbx_rtp_lookup_code(rtp, 0, OPBX_RTP_DTMF);
-
-    /* If we have no peer, return immediately */    
-    if (them->sin_addr.s_addr == 0)
-        return 0;
-
-    rtp->dtmfmute = opbx_tvadd(opbx_tvnow(), opbx_tv(0, 500000));
-    
-    /* Get a pointer to the header */
-    rtpheader = (unsigned int *) data;
-    rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno));
-    rtpheader[1] = htonl(rtp->lastdigitts);
-    rtpheader[2] = htonl(rtp->ssrc); 
-    rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-    for (x = 0;  x < 6;  x++)
-    {
-        if (them->sin_port && them->sin_addr.s_addr)
-        {
-            if ((res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 4, 0)) < 0)
-            {
-                opbx_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-                         opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-                         ntohs(them->sin_port),
-                         strerror(errno));
-            }
-            if (rtp_debug_test_addr(them))
-            {
-                opbx_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
-                             opbx_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-                             ntohs(them->sin_port),
-                             payload,
-                             rtp->seqno,
-                             rtp->lastdigitts,
-                             res - hdrlen);
-            }
-        }
-        /* Sequence number of last two end packets does not get incremented */
-        if (x < 3)
-            rtp->seqno++;
-        /* Clear marker bit and set seqno */
-        rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
-        /* For the last three packets, set the duration and the end bit */
-        if (x == 2)
-        {
-#if 0
-            /* No, this is wrong...  Do not increment lastdigitts, that's not according
-               to the RFC, as best we can determine */
-            rtp->lastdigitts++; /* or else the SPA3000 will click instead of beeping... */
-            rtpheader[1] = htonl(rtp->lastdigitts);
-#endif            
-            /* Make duration 100ms (800) */
-            rtpheader[3] |= htonl(100*8);
-            /* Set the End bit */
-            rtpheader[3] |= htonl((1 << 23));
-        }
-    }
-    /* Increment the digit timestamp by 120ms, to ensure that digits
-       sent sequentially with no intervening non-digit packets do not
-       get sent with the same timestamp, and that sequential digits
-       have some 'dead air' in between them
-    */
-    rtp->lastdigitts += 960;
-    /* Increment the sequence number to reflect the last packet
-       that was sent
-    */
-    rtp->seqno++;
-    return 0;
 }
 
 int opbx_rtp_sendcng(struct opbx_rtp *rtp, int level)
