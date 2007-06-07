@@ -1,4 +1,4 @@
-/var/log/callweaver.org/*log /var/log/callweaver.org/messages {
+/var/log/callweaver/*log /var/log/callweaver/messages {
   sharedscripts
   missingok
   notifempty
