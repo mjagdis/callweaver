@@ -7,7 +7,7 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	cdr.c acl.c rtp.c manager.c callweaver_hash.c\
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
 	callweaver_mm.c enum.c srv.c dns.c aescrypt.c aestab.c aeskey.c \
-	utils.c dnsmgr.c devicestate.c \
+	malloc.c utils.c dnsmgr.c devicestate.c \
 	netsock.c slinfactory.c callweaver_expr2.c \
 	callweaver_expr2f.c strcompat.c loader.c callweaver.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
