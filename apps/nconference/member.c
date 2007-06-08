@@ -359,15 +359,19 @@ int member_exec( struct opbx_channel* chan, void* data ) {
     //
     // setup CallWeaver read/write formats
     //
-	
-    opbx_log( OPBX_CONF_DEBUG, 
-		"CHANNEL INFO, CHANNEL => %s, DNID => %s, CALLER_ID => %s, ANI => %s\n", 
-		chan->name, chan->cid.cid_dnid, chan->cid.cid_num, chan->cid.cid_ani ) ;
+     opbx_log(OPBX_CONF_DEBUG, 
+              "CHANNEL INFO, CHANNEL => %s, DNID => %s, CALLER_ID => %s, ANI => %s\n",
+              chan->name  ?  chan->name  :  "----",
+              chan->cid.cid_dnid  ?  chan->cid.cid_dnid  :  "----",
+              chan->cid.cid_num  ?  chan->cid.cid_num  :  "----",
+              chan->cid.cid_ani  ?  chan->cid.cid_ani  :  "----");
 
-    opbx_log( OPBX_CONF_DEBUG, 
-		"CHANNEL CODECS, CHANNEL => %s, NATIVE => %d, READ => %d, WRITE => %d\n", 
-		chan->name, chan->nativeformats, member->read_format, member->write_format ) ;
-
+    opbx_log(OPBX_CONF_DEBUG, 
+    	 	 "CHANNEL CODECS, CHANNEL => %s, NATIVE => %d, READ => %d, WRITE => %d\n", 
+	    	 chan->name,
+             chan->nativeformats,
+             member->read_format,
+             member->write_format);
 
     if ( opbx_set_read_format( chan, member->read_format ) < 0 )
     {
