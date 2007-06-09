@@ -3424,22 +3424,6 @@ static int sip_rtp_write(struct opbx_channel *ast, struct opbx_frame *frame, int
                 time(&p->lastrtptx);
                 res =  opbx_rtp_write(p->rtp, frame);
 
-/*
-                // Outgoing Fax detection
-                if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && 
-        	        p->options  &&  p->options->t38txdetection  &&  p->vadtx)
-                {
-                    frame = opbx_dsp_process(p->owner, p->vadtx, frame);
-                    if (frame  &&  (frame->frametype == OPBX_FRAME_DTMF))
-                    {
-                        if (t38udptlsupport && frame->subclass == 'f')
-                        {
-                            opbx_log(LOG_DEBUG, "OUTGOING Fax CNG detected on %s\n", ast->name);
-                            *faxdetect = 1;
-                        }
-                    }
-                }
-*/
             }
             opbx_mutex_unlock(&p->lock);
         }
@@ -3496,31 +3480,7 @@ static int sip_write(struct opbx_channel *ast, struct opbx_frame *frame)
     int faxdetected = 0;
 
     res = sip_rtp_write(ast,frame,&faxdetected);
-/*
-    struct sip_pvt *p = ast->tech_pvt;
 
-    if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast)))
-    {
-        opbx_log(LOG_VERBOSE, "Faxdetect set to 1. DSP detected fax tones on TX\n");
-        if (!opbx_test_flag(p, SIP_GOTREFER))
-        {
-            if (!p->pendinginvite)
-            {
-                if (option_debug > 2)
-                    opbx_log(LOG_DEBUG, "Sending reinvite on SIP (%s) for T.38 negotiation.\n",ast->name);
-                p->t38state = 2;
-                transmit_reinvite_with_t38_sdp(p);
-                opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,ast->name);
-            }
-        }
-        else if (!opbx_test_flag(p, SIP_PENDINGBYE))
-        {
-            if (option_debug > 2)
-                opbx_log(LOG_DEBUG, "Deferring reinvite on SIP (%s) - it will be re-negotiated for T.38\n",ast->name);
-            opbx_set_flag(p, SIP_NEEDREINVITE);
-        }
-    }
-*/
     return res;
 }
 
