@@ -4049,22 +4049,6 @@ static struct opbx_frame *sip_rtp_read(struct opbx_channel *ast, struct sip_pvt 
                 opbx_set_read_format(p->owner, p->owner->readformat);
                 opbx_set_write_format(p->owner, p->owner->writeformat);
             }
-/*
-            if ((opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad )
-            {
-                f = opbx_dsp_process(p->owner, p->vad, f);
-                if (f && (f->frametype == OPBX_FRAME_DTMF))
-                {
-                    if (t38udptlsupport && f->subclass == 'f' && !(opbx_bridged_channel(ast)))
-                    {
-                        // Fax tone 
-                        opbx_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
-                        *faxdetect = 1;
-                    }
-                    opbx_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
-                }
-            }
-*/
         }
     }
     return f;
@@ -4081,30 +4065,7 @@ static struct opbx_frame *sip_read(struct opbx_channel *ast)
     fr = sip_rtp_read(ast, p, &faxdetected);
     time(&p->lastrtprx);
     opbx_mutex_unlock(&p->lock);
-    /* If we are NOT bridged to another channel, and we have detected fax tone we issue T38 re-invite to a peer */
-    /* If we are bridged then it is responsibility of the SIP device to issue T38 re-invite if it detects CNG or fax preabmle */
-/*
-    if (faxdetected  && t38udptlsupport && (p->t38state == 0) && !(opbx_bridged_channel(ast)))
-    {
-        if (!opbx_test_flag(p, SIP_GOTREFER))
-        {
-            if (!p->pendinginvite)
-            {
-                if (option_debug > 2)
-                    opbx_log(LOG_DEBUG, "Sending reinvite on SIP (%s) for T.38 negotiation.\n",ast->name);
-                p->t38state = 2;
-                transmit_reinvite_with_t38_sdp(p);
-                opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,ast->name);
-            }
-        }
-        else if (!opbx_test_flag(p, SIP_PENDINGBYE))
-        {
-                if (option_debug > 2)
-                    opbx_log(LOG_DEBUG, "Deferring reinvite on SIP (%s) - it will be re-negotiated for T.38\n",ast->name);
-                opbx_set_flag(p, SIP_NEEDREINVITE);
-            }    
-    }
-*/
+
     return fr;
 }
 
