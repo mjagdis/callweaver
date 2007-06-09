@@ -177,10 +177,12 @@ struct opbx_variable *opbx_channeltype_list(void)
 	struct chanlist *cl;
 	struct opbx_variable *var=NULL, *prev = NULL;
 
+	opbx_log(LOG_WARNING, "opbx_channeltype_list() called (probably by res_snmp.so). This is not implemented yet.\n");
 	return NULL;
 
 /*	OPBX_LIST_TRAVERSE(&backends, cl, list) {  <-- original line from asterisk */
-	/*
+
+#if 0
 	OPBX_LIST_TRAVERSE(&backends, cl, next) {
 		if (prev)  {
 			if ((prev->next = opbx_variable_new(cl->tech->type, cl->tech->description)))
@@ -191,7 +193,7 @@ struct opbx_variable *opbx_channeltype_list(void)
 		}
 	}
 	return var;
-	*/
+#endif
 }
 
 static int show_channeltypes(int fd, int argc, char *argv[])
