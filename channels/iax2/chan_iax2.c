@@ -123,6 +123,27 @@ static int nochecksums = 0;
 
 #define MIN_REUSE_TIME		60	/* Don't reuse a call number within 60 seconds */
 
+
+static void *iaxpeer_func;
+static const char *iaxpeer_func_name = "IAXPEER";
+static const char *iaxpeer_func_synopsis = "Gets IAX peer information";
+static const char *iaxpeer_func_syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])";
+static const char *iaxpeer_func_desc =
+	"If peername specified, valid items are:\n"
+	"- ip (default)          The IP address.\n"
+	"- mailbox               The configured mailbox.\n"
+	"- context               The configured context.\n"
+	"- expire                The epoch time of the next expire.\n"
+	"- dynamic               Is it dynamic? (yes/no).\n"
+	"- callerid_name         The configured Caller ID name.\n"
+	"- callerid_num          The configured Caller ID number.\n"
+	"- codecs                The configured codecs.\n"
+	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"\n"
+	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
+	"\n";
+
+
 static struct opbx_codec_pref prefs;
 
 static const char desc[] = "IAX2";
@@ -1528,7 +1549,7 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 				break;
 			opbx_cli(fd, "%s", opbx_getformatname(codec));
 			if(x < 31 && opbx_codec_pref_index(&peer->prefs,x+1))
-				opbx_cli(fd, "|");
+				opbx_cli(fd, ",");
 		}
 
 		if (!x)
@@ -8279,7 +8300,7 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 		if (dialstatus) {
 			dial = pbx_findapp(dialstatus);
 			if (dial) 
-				pbx_exec(chan, dial, "", newstack);
+				pbx_exec(chan, dial, "");
 		}
 		return -1;
 	} else if (priority != 1)
@@ -8308,39 +8329,39 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 	opbx_mutex_unlock(&dpcache_lock);
 	dial = pbx_findapp("Dial");
 	if (dial) {
-		return pbx_exec(chan, dial, req, newstack);
+		return pbx_exec(chan, dial, req);
 	} else {
 		opbx_log(LOG_WARNING, "No dial application registered\n");
 	}
 	return -1;
 }
 
-static char *function_iaxpeer(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_iaxpeer(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret = NULL;
 	struct iax2_peer *peer;
-	char *peername, *colname;
+	char *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (!(peername = opbx_strdupa(data))) {
-		opbx_log(LOG_ERROR, "Memory Error!\n");
-		return ret;
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", iaxpeer_func_syntax);
+		return NULL;
 	}
 
 	/* if our channel, return the IP address of the endpoint of current channel */
-	if (!strcmp(peername,"CURRENTCHANNEL")) {
+	if (!strcmp(argv[0], "CURRENTCHANNEL")) {
 	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
 		opbx_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
 		return buf;
 	}
 
-	if ((colname = strchr(peername, ':'))) {
+	if ((colname = strchr(argv[0], ':'))) {
 		*colname = '\0';
 		colname++;
 	} else {
 		colname = "ip";
 	}
-	if (!(peer = find_peer(peername, 1)))
+	if (!(peer = find_peer(argv[0], 1)))
 		return ret;
 
 	if (!strcasecmp(colname, "ip")) {
@@ -8378,27 +8399,6 @@ static char *function_iaxpeer(struct opbx_channel *chan, char *cmd, char *data, 
 
 	return ret;
 }
-
-struct opbx_custom_function iaxpeer_function = {
-    .name = "IAXPEER",
-    .synopsis = "Gets IAX peer information",
-    .syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])",
-    .read = function_iaxpeer,
-	.desc = "If peername specified, valid items are:\n"
-	"- ip (default)          The IP address.\n"
-	"- mailbox               The configured mailbox.\n"
-	"- context               The configured context.\n"
-	"- expire                The epoch time of the next expire.\n"
-	"- dynamic               Is it dynamic? (yes/no).\n"
-	"- callerid_name         The configured Caller ID name.\n"
-	"- callerid_num          The configured Caller ID number.\n"
-	"- codecs                The configured codecs.\n"
-	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
-	"\n"
-	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
-	"\n"
-};
-
 
 /*--- iax2_devicestate: Part of the device state notification system ---*/
 static int iax2_devicestate(void *data) 
@@ -8606,7 +8606,7 @@ int unload_module()
 	opbx_mutex_destroy(&iaxq.lock);
 	opbx_mutex_destroy(&userl.lock);
 	opbx_mutex_destroy(&peerl.lock);
-	opbx_custom_function_unregister(&iaxpeer_function);
+	opbx_unregister_function(iaxpeer_func);
 	return __unload_module();
 }
 
@@ -8622,8 +8622,8 @@ int load_module(void)
 	
 	struct opbx_netsock *ns;
 	struct sockaddr_in sin;
-	
-	opbx_custom_function_register(&iaxpeer_function);
+
+	iaxpeer_func = opbx_register_function(iaxpeer_func_name, function_iaxpeer, NULL, iaxpeer_func_synopsis, iaxpeer_func_syntax, iaxpeer_func_desc);
 
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);

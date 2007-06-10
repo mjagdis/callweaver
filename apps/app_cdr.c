@@ -39,15 +39,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "Make sure callweaver doesn't save CDR for a certain call";
 
-static char *nocdr_descrip = "NoCDR(): makes sure there won't be any CDR written for a certain call";
-static char *nocdr_app = "NoCDR";
+static void *nocdr_app;
+static char *nocdr_name = "NoCDR";
 static char *nocdr_synopsis = "Make sure callweaver doesn't save CDR for a certain call";
+static char *nocdr_syntax = "NoCDR()";
+static char *nocdr_descrip = "Makes sure there won't be any CDR written for a certain call";
+
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int nocdr_exec(struct opbx_channel *chan, void *data)
+static int nocdr_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	
@@ -65,13 +68,16 @@ static int nocdr_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(nocdr_app);
+	res |= opbx_unregister_application(nocdr_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
+	nocdr_app = opbx_register_application(nocdr_name, nocdr_exec, nocdr_synopsis, nocdr_syntax, nocdr_descrip);
+	return 0;
 }
 
 char *description(void)

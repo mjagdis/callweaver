@@ -410,9 +410,9 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
 #define FORMAT_STRING2 "%-20.20s %-20.20s %-7.7s %-30.30s\n"
-#define CONCISE_FORMAT_STRING  "%s!%s!%s!%d!%s!%s!%s!%s!%s!%d!%s!%s\n"
-#define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
-#define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
+#define CONCISE_FORMAT_STRING  "%s!%s!%s!%d!%s!%s!%s!%s!%d!%s!%s\n"
+#define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
+#define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
 	struct opbx_channel *c = NULL, *bc = NULL;
 	char durbuf[10] = "-";
@@ -429,9 +429,9 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	if (!concise && !verbose)
-		opbx_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
+		opbx_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application");
 	else if (verbose)
-		opbx_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
+		opbx_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", 
 		        "CallerID", "Duration", "Accountcode", "BridgedTo");
 	while ((c = opbx_channel_walk_locked(c)) != NULL) {
 		bc = opbx_bridged_channel(c);
@@ -450,13 +450,13 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		}
 		if (concise) {
 			opbx_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, opbx_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? ( !opbx_strlen_zero(c->data) ? c->data : "" ): "",
+			        (c->appl ? c->appl : "(None)"),
 			        (c->cid.cid_num && !opbx_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "",
 			        (c->accountcode && !opbx_strlen_zero(c->accountcode)) ? c->accountcode : "", c->amaflags, 
 			        durbuf, bc ? bc->name : "(None)");
 		} else if (verbose) {
 			opbx_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, opbx_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? ( !opbx_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)",
+			        (c->appl ? c->appl : "(None)"),
 			        (c->cid.cid_num && !opbx_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "", durbuf,
 			        (c->accountcode && !opbx_strlen_zero(c->accountcode)) ? c->accountcode : "", bc ? bc->name : "(None)");
 		} else {
@@ -465,7 +465,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 			else
 				strcpy(locbuf, "(None)");
 			if (c->appl) {
-				snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, c->data ? c->data : "");
+				snprintf(appdata, sizeof(appdata), "%s", c->appl);
 			} else {
 				strcpy(appdata, "(None)");
 			}
@@ -772,7 +772,6 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"     Call Group: %d\n"
 		"   Pickup Group: %d\n"
 		"    Application: %s\n"
-		"           Data: %s\n"
 		"    Blocking in: %s\n"
 		"    T38 mode on: %s\n",
 		c->name, c->type, c->uniqueid,
@@ -790,7 +789,6 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->jb.flags,
 		c->context, c->exten, c->priority, (int)c->callgroup, 
 		(int)c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-		( c-> data ? (!opbx_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 		(opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"),
 		(c->t38mode_enabled ? "Yes" : "No")
 		);

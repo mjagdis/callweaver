@@ -53,12 +53,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static char *tdesc = "Simple PostgreSQL Interface";
 
-static char *app = "PGSQL";
-
+static void *app;
+static char *name = "PGSQL";
 static char *synopsis = "Do several SQLy things";
-
+static char *syntax = "PGSQL()";
 static char *descrip = 
-"PGSQL():  Do several SQLy things\n"
+"Do several SQLy things\n"
 "Syntax:\n"
 "  PGSQL(Connect var option-string)\n"
 "    Connects to a database.  Option string contains standard PostgreSQL\n"
@@ -508,38 +508,38 @@ static int aPGSQL_debug(struct opbx_channel *chan, void *data) {
 		
 	
 
-static int PGSQL_exec(struct opbx_channel *chan, void *data)
+static int PGSQL_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	int result;
 
-#if EXTRA_LOG
-	printf("PRSQL_exec: data=%s\n",(char*)data);
-#endif
-
-	if (!data) {
+	if (argc == 0 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
 		return -1;
 	}
+
+#if EXTRA_LOG
+	printf("PRSQL_exec: arg=%s\n", argv[0]);
+#endif
 	LOCAL_USER_ADD(u);
 	result=0;
 	
-	if (strncasecmp("connect",data,strlen("connect"))==0) {
-		result=(aPGSQL_connect(chan,data));
-	} else 	if (strncasecmp("query",data,strlen("query"))==0) {
-		result=(aPGSQL_query(chan,data));
-	} else 	if (strncasecmp("fetch",data,strlen("fetch"))==0) {
-		result=(aPGSQL_fetch(chan,data));
-	} else 	if (strncasecmp("reset",data,strlen("reset"))==0) {
-		result=(aPGSQL_reset(chan,data));
-	} else 	if (strncasecmp("clear",data,strlen("clear"))==0) {
-		result=(aPGSQL_clear(chan,data));
-	} else  if (strncasecmp("debug",data,strlen("debug"))==0) {
-		result=(aPGSQL_debug(chan,data));
-	} else 	if (strncasecmp("disconnect",data,strlen("disconnect"))==0) {
-		result=(aPGSQL_disconnect(chan,data));
+	if (strncasecmp("connect",argv[0],strlen("connect"))==0) {
+		result=(aPGSQL_connect(chan,argv[0]));
+	} else 	if (strncasecmp("query",argv[0],strlen("query"))==0) {
+		result=(aPGSQL_query(chan,argv[0]));
+	} else 	if (strncasecmp("fetch",argv[0],strlen("fetch"))==0) {
+		result=(aPGSQL_fetch(chan,argv[0]));
+	} else 	if (strncasecmp("reset",argv[0],strlen("reset"))==0) {
+		result=(aPGSQL_reset(chan,argv[0]));
+	} else 	if (strncasecmp("clear",argv[0],strlen("clear"))==0) {
+		result=(aPGSQL_clear(chan,argv[0]));
+	} else  if (strncasecmp("debug",argv[0],strlen("debug"))==0) {
+		result=(aPGSQL_debug(chan,argv[0]));
+	} else 	if (strncasecmp("disconnect",argv[0],strlen("disconnect"))==0) {
+		result=(aPGSQL_disconnect(chan,argv[0]));
 	} else {
-		opbx_log(LOG_WARNING, "Unknown APP_PGSQL argument : %s\n",(char *)data);
+		opbx_log(LOG_WARNING, "Unknown APP_PGSQL argument : %s\n", argv[0]);
 		result=-1;	
 	}
 		
@@ -550,8 +550,10 @@ static int PGSQL_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(app);
+	return res;
 }
 
 int load_module(void)
@@ -561,7 +563,8 @@ int load_module(void)
         headp=&PGSQLidshead;
         
 	OPBX_LIST_HEAD_INIT(headp);
-	return opbx_register_application(app, PGSQL_exec, synopsis, descrip);
+	app = opbx_register_application(name, PGSQL_exec, synopsis, syntax, descrip);
+	return 0;
 }
 
 char *description(void)

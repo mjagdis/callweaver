@@ -77,8 +77,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 #define OPBX_MAX_WATCHERS 256
 
-static char *parkedcall = "ParkedCall";
-
 /* No more than 45 seconds parked before you do something with them */
 static int parkingtime = DEFAULT_PARK_TIME;
 
@@ -118,19 +116,21 @@ static int featuredigittimeout;
 /* Registrar for operations */
 static char *registrar = "res_features";
 
-static char *synopsis = "Answer a parked call";
-
-static char *descrip = "ParkedCall(exten):"
+static void *parkedcall_app;
+static const char *parkedcall_name = "ParkedCall";
+static const char *parkedcall_synopsis = "Answer a parked call";
+static const char *parkedcall_syntax = "ParkedCall(exten)";
+static const char *parkedcall_descrip =
 "Used to connect to a parked call.  This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
-static char *parkcall = "Park";
-
-static char *synopsis2 = "Park yourself";
-
-static char *descrip2 = "Park(exten):"
+static void *parkcall_app;
+static const char *parkcall_name = "Park";
+static const char *parkcall_synopsis = "Park yourself";
+static const char *parkcall_syntax = "Park(exten)";
+static const char *parkcall_descrip =
 "Used to park yourself (typically in combination with a supervised\n"
 "transfer to know the parking space). This application is always\n"
 "registered internally and does not need to be explicitly added\n"
@@ -207,7 +207,7 @@ static void check_goto_on_transfer(struct opbx_channel *chan)
 		
 		for (x = goto_on_transfer; x && *x; x++)
 			if (*x == '^')
-				*x = '|';
+				*x = ',';
 
 		strcpy(xferchan->name, chan->name);
 		/* Make formats okay */
@@ -234,10 +234,8 @@ static struct opbx_channel *opbx_feature_request_and_dial(struct opbx_channel *c
 static void *__opbx_bridge_call_thread(void *data) 
 {
 	struct opbx_bridge_thread_obj *tobj = data;
-	tobj->chan->appl = "Transferred Call";
-	tobj->chan->data = tobj->peer->name;
-	tobj->peer->appl = "Transferred Call";
-	tobj->peer->data = tobj->chan->name;
+	tobj->chan->appl = tobj->peer->name;
+	tobj->peer->appl = tobj->chan->name;
 	if (tobj->chan->cdr) {
 		opbx_cdr_reset(tobj->chan->cdr,0);
 		opbx_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
@@ -327,7 +325,6 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 	if (parkfindnext) 
 		parking_offset = x - parking_start + 1;
 	chan->appl = "Parked Call";
-	chan->data = NULL; 
 
 	pu->chan = chan;
 	/* Start music on hold */
@@ -401,7 +398,7 @@ static int __opbx_park_call(struct opbx_channel *chan, struct opbx_channel *peer
 	}
 	if (con) {
 		snprintf(exten, sizeof(exten), "%d", x);
-		opbx_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), FREE, registrar);
+		opbx_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall_name, strdup(exten), FREE, registrar);
 	}
 	if (peer) 
 		opbx_say_digits(peer, pu->parkingnum, "", peer->language);
@@ -521,13 +518,13 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 		if (touch_monitor) {
 			len = strlen(touch_monitor) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s|auto-%ld-%s|m", (touch_format) ? touch_format : "wav", time(NULL), touch_monitor);
+			snprintf(args, len, "%s,auto-%ld-%s,m", (touch_format) ? touch_format : "wav", time(NULL), touch_monitor);
 		} else {
 			caller_chan_id = opbx_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
 			callee_chan_id = opbx_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s|auto-%ld-%s-%s|m", (touch_format) ? touch_format : "wav", time(NULL), caller_chan_id, callee_chan_id);
+			snprintf(args, len, "%s,auto-%ld-%s-%s,m", (touch_format) ? touch_format : "wav", time(NULL), caller_chan_id, callee_chan_id);
 		}
 
 		for( x = 0; x < strlen(args); x++)
@@ -537,7 +534,7 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 		if (option_verbose > 3)
 			opbx_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
 
-		pbx_exec(callee_chan, monitor_app, args, 1);
+		pbx_exec(callee_chan, monitor_app, args);
 		
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -957,8 +954,15 @@ static int feature_exec_app(struct opbx_channel *chan, struct opbx_channel *peer
 	app = pbx_findapp(feature->app);
 	if (app) {
 		struct opbx_channel *work=chan;
+		char *args;
 		if (opbx_test_flag(feature,OPBX_FEATURE_FLAG_CALLEE)) work=peer;
-		res = pbx_exec(work, app, feature->app_args, 1);
+		res = strlen(feature->app_args) + 1;
+		if (!(args = alloca(res))) {
+			opbx_log(LOG_WARNING, "Feature exec failed - insufficient memory\n");
+			return -1;
+		}
+		memcpy(args, feature->app_args, res);
+		res = pbx_exec(work, app, feature->app_args);
 		if (res<0) return res; 
 	} else {
 		opbx_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
@@ -1291,14 +1295,21 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
 
 	if (monitor_ok) {
-		if (!monitor_app) { 
-			if (!(monitor_app = pbx_findapp("Monitor")))
+		if (!monitor_app && !(monitor_app = pbx_findapp("Monitor"))) {
 				monitor_ok=0;
+		} else {
+			char *argv[4];
+			argv[3] = NULL;
+			if ((argv[0] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FORMAT"))) {
+				argv[1] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_BASE");
+				argv[2] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_OPTS");
+				pbx_exec_argv(chan, monitor_app, 3, argv);
+			} else if ((argv[0] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FORMAT"))) {
+				argv[1] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_BASE");
+				argv[2] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_OPTS");
+				pbx_exec_argv(peer, monitor_app, 3, argv);
+			}
 		}
-		if ((monitor_exec = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR"))) 
-			pbx_exec(chan, monitor_app, monitor_exec, 1);
-		else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
-			pbx_exec(peer, monitor_app, monitor_exec, 1);
 	}
 	
 	allowdisconnect_in = opbx_test_flag(&(config->features_callee), OPBX_FEATURE_DISCONNECT);
@@ -1311,8 +1322,7 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 	/* Answer if need be */
 	if (opbx_answer(chan))
 		return -1;
-	peer->appl = "Bridged Call";
-	peer->data = chan->name;
+	peer->appl = chan->name;
 
 	/* copy the userfield from the B-leg to A-leg if applicable */
 	if (chan->cdr && peer->cdr && !opbx_strlen_zero(peer->cdr->userfield)) {
@@ -1535,7 +1545,7 @@ static void *do_parking_thread(void *ignore)
 						}
 					}
 					if (con) {
-						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
+						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
 						opbx_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), FREE, registrar);
 					}
 					opbx_copy_string(pu->chan->exten, peername, sizeof(pu->chan->exten));
@@ -1665,9 +1675,9 @@ std:					for (x=0; x<OPBX_MAX_FDS; x++) {
 	return NULL;	/* Never reached */
 }
 
-static int park_call_exec(struct opbx_channel *chan, void *data)
+static int park_call_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	/* Data is unused at the moment but could contain a parking
+	/* Args are unused at the moment but could contain a parking
 	   lot context eventually */
 	int res=0;
 	struct localuser *u;
@@ -1688,7 +1698,7 @@ static int park_call_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static int park_exec(struct opbx_channel *chan, void *data)
+static int park_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
@@ -1700,12 +1710,14 @@ static int park_exec(struct opbx_channel *chan, void *data)
 	int dres;
 	struct opbx_bridge_config config;
 
-	if (!data) {
-		opbx_log(LOG_WARNING, "Park requires an argument (extension number)\n");
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: Park(exten)\n");
 		return -1;
 	}
+
 	LOCAL_USER_ADD(u);
-	park = atoi((char *)data);
+
+	park = atoi(argv[0]);
 	opbx_mutex_lock(&parking_lock);
 	pu = parkinglot;
 	while(pu) {
@@ -2138,7 +2150,7 @@ static int load_config(void)
 			return -1;
 		}
 	}
-	return opbx_add_extension2(con, 1, __opbx_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
+	return opbx_add_extension2(con, 1, __opbx_parking_ext(), 1, NULL, NULL, parkcall_name, strdup(""), FREE, registrar);
 }
 
 int reload(void) {
@@ -2158,12 +2170,12 @@ int load_module(void)
 	opbx_cli_register(&showparked);
 	opbx_cli_register(&showfeatures);
 	opbx_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
-	res = opbx_register_application(parkedcall, park_exec, synopsis, descrip);
-	if (!res)
-		res = opbx_register_application(parkcall, park_call_exec, synopsis2, descrip2);
-	if (!res) {
-		opbx_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
-	}
+
+	parkedcall_app = opbx_register_application(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
+	parkcall_app = opbx_register_application(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);
+
+	opbx_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
+
 	/* Install our functions into stubs */
 	opbx_park_call = __opbx_park_call;
 	opbx_masq_park_call = __opbx_masq_park_call;
@@ -2180,13 +2192,15 @@ int load_module(void)
 
 int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
+	int res = 0;
 
+	STANDARD_HANGUP_LOCALUSERS;
 	opbx_manager_unregister("ParkedCalls");
 	opbx_cli_unregister(&showfeatures);
 	opbx_cli_unregister(&showparked);
-	opbx_unregister_application(parkcall);
-	return opbx_unregister_application(parkedcall);
+	res |= opbx_unregister_application(parkcall_app);
+	res |= opbx_unregister_application(parkedcall_app);
+	return res;
 }
 
 char *description(void)

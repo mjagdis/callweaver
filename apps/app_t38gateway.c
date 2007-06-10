@@ -36,16 +36,17 @@
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 
-static char *desc = "T.38 Gateway Dialer Application";
+static char *tdesc = "T.38 Gateway Dialer Application";
 
-static char *tdesc = "\n"
-"Usage T38Gateway(<dialstring>[|<timeout>|<options>])\n\n"
+static void *t38gateway_app;
+static const char *t38gateway_name = "T38Gateway";
+static const char *t38gateway_synopsis = "A PSTN <-> T.38 gateway";
+static const char *t38gateway_syntax = "T38Gateway(dialstring[, timeout[, options]])";
+static const char *t38gateway_descrip =
 "Options:\n\n"
 " h -- Hangup if the call was successful.\n\n"
 " r -- Indicate 'ringing' to the caller.\n\n";
 
-static char *app = "T38Gateway";
-static char *synopsis = "A PSTN <-> T.38 gateway";
 
 static int opbx_check_hangup_locked(struct opbx_channel *chan)
 {
@@ -318,63 +319,45 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     return running;
 }
 
-static int t38gateway_exec(struct opbx_channel *chan, void *data)
+static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
     struct localuser *u;
-    char *tech = NULL;
     char *dest = NULL;
-    char *to = NULL;
-    char *flags = "";
     struct opbx_channel *peer;
     int state = 0, ready = 0;
-    int timeout = 60000;
+    int timeout;
     int format = chan->nativeformats;
     struct opbx_frame *f;
     int verbose;
     
-    if (!data)
-    {
-        opbx_log(LOG_WARNING, "t38gateway requires an argument\n");
-        return -1;
+    if (argc < 1 || argc > 3 || !argv[0][0]) {
+	opbx_log(LOG_ERROR, "Syntax: %s\n", t38gateway_syntax);
+	return -1;
     }
+
     LOCAL_USER_ADD(u);
+
     verbose = TRUE;
-    tech = opbx_strdupa((char *) data);
-    if ((to = strchr(tech, '|')))
-    {
-        *to = '\0';
-        to++;
 
-        if ((flags = strchr(to, '|')))
-        {
-            *flags = '\0';
-            flags++;
-        }
+    timeout = (argc > 1 && argv[1][0] ? atoi(argv[1]) * 1000 : 60000);
 
-        if ((timeout = atoi(to)))
-            timeout *= 1000;
-        else
-            timeout = 60000;
-    }
-
-    if ((dest = strchr(tech, '/')))
+    if ((dest = strchr(argv[0], '/')))
     {
         int cause = 0;
         *dest = '\0';
         dest++;
 
-        if (!(peer = opbx_request(tech, format, dest, &cause)))
+        if (!(peer = opbx_request(argv[0], format, dest, &cause)))
         {
-            opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", tech, dest);
+            opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", argv[0], dest);
             ALL_DONE(u, 0);
         }
 
 	if (peer)
 	{
 	  opbx_channel_inherit_variables(chan, peer);
-	  peer->appl = "AppT38GW";
-	  peer->data = "(Outgoing Line)";
+	  peer->appl = "AppT38GW (Outgoing Line)";
 	  peer->whentohangup = 0;
 	  if (peer->cid.cid_num)
 	    free(peer->cid.cid_num);
@@ -405,12 +388,12 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
 	  if (opbx_strlen_zero(peer->musicclass))
 			opbx_copy_string(peer->musicclass, chan->musicclass, sizeof(peer->musicclass));	
 	}
-        if (flags  &&  strchr(flags, 'r'))
+        if (argc > 2 && strchr(argv[2], 'r'))
             opbx_indicate(chan, OPBX_CONTROL_RINGING);
     }
     else
     {
-        opbx_log(LOG_ERROR, "Error creating channel. Invalid name %s\n", tech);
+        opbx_log(LOG_ERROR, "Error creating channel. Invalid name %s\n", argv[0]);
         ALL_DONE(u, 0);
     }
     opbx_log(LOG_ERROR, "Orig CID: %s Dest CID: %s\n", peer->cid.cid_num, chan->cid.cid_num);
@@ -473,9 +456,8 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
         if (!opbx_channel_make_compatible(chan, peer))
         {
             opbx_answer(chan);
-            peer->appl = app;
-            peer->data = opbx_strdupa(chan->name);
-            if (flags  &&  strchr(flags, 'r'))
+            peer->appl = t38gateway_app;
+            if (argc > 2 && strchr(argv[2], 'r'))
                 opbx_indicate(chan, -1);
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
@@ -496,35 +478,38 @@ static int t38gateway_exec(struct opbx_channel *chan, void *data)
         }
         else
         {
-            opbx_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", tech, dest);
+            opbx_log(LOG_ERROR, "failed to make remote_channel %s/%s Compatible\n", argv[0], dest);
         }
     }
     else
     {
-        opbx_log(LOG_ERROR, "failed to get remote_channel %s/%s\n", tech, dest);
+        opbx_log(LOG_ERROR, "failed to get remote_channel %s/%s\n", argv[0], dest);
     }
 
     if (peer)
         opbx_hangup(peer);
 
     /* Hangup if the call worked and you spec the h flag */
-    ALL_DONE(u, (!res  &&  (flags  &&  strchr(flags, 'h')))  ?  -1  :  0);
+    ALL_DONE(u, (!res && (argc > 2 && strchr(argv[2], 'h')))  ?  -1  :  0);
 }
 
 int unload_module(void)
 {
+    int res = 0;
     STANDARD_HANGUP_LOCALUSERS;
-    return opbx_unregister_application(app);
+    res |= opbx_unregister_application(t38gateway_app);
+    return res;
 }
 
 int load_module(void)
 {
-    return opbx_register_application(app, t38gateway_exec, synopsis, tdesc);
+    t38gateway_app = opbx_register_application(t38gateway_name, t38gateway_exec, t38gateway_synopsis, t38gateway_syntax, t38gateway_descrip);
+    return 0;
 }
 
 char *description(void)
 {
-    return desc;
+    return tdesc;
 }
 
 int usecount(void)

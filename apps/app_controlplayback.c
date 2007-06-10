@@ -44,19 +44,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static const char *tdesc = "Control Playback Application";
 
-static const char *app = "ControlPlayback";
-
-static const char *synopsis = "Play a file with fast forward and rewind";
-
-static const char *descrip = 
-"ControlPlayback(filename[|skipms[|ffchar[|rewchar[|stopchar[|pausechar[|restartchar]]]]]]):\n"
+static void *controlplayback_app;
+static const char *controlplayback_name = "ControlPlayback";
+static const char *controlplayback_synopsis = "Play a file with fast forward and rewind";
+static const char *controlplayback_syntax = "ControlPlayback(filename[, skipms[, ffchar[, rewchar[, stopchar[, pausechar[, restartchar]]]]]])";
+static const char *controlplayback_descrip = 
 "  Plays  back  a  given  filename (do not put extension). Options may also\n"
 "  be included following a pipe symbol.  You can use * and # to rewind and\n"
 "  fast forward the playback specified. If 'stopchar' is added the file will\n"
 "  terminate playback when 'stopchar' is pressed. If 'restartchar' is added, the file\n"
 "  will restart when 'restartchar' is pressed. Returns -1 if the channel\n"
 "  was hung up. if the file does not exist jumps to n+101 if it present.\n\n"
-"  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0|5)\n\n";
+"  Example:  exten => 1234,1, ControlPlayback(file, 4000, *, #, 1, 0, 5)\n\n";
 
 STANDARD_LOCAL_USER;
 
@@ -67,61 +66,35 @@ static int is_on_phonepad(char key)
 	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
-static int controlplayback_exec(struct opbx_channel *chan, void *data)
+static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 0;
 	int skipms = 0;
 	struct localuser *u;
-	char *tmp;
-	int argc;
-	char *argv[7];
-	enum arg_ids {
-		arg_file = 0,
-		arg_skip = 1,
-		arg_fwd = 2,
-		arg_rev = 3,
-		arg_stop = 4,
-		arg_pause = 5,
-		arg_restart = 6,
-	};
-	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
+	int i;
+
+	if (argc < 1 || argc > 7) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", controlplayback_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 	
-	tmp = opbx_strdupa(data);
-	memset(argv, 0, sizeof(argv));
-
-	argc = opbx_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	if (argc < 1) {
-		opbx_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	skipms = argv[arg_skip] ? atoi(argv[arg_skip]) : 3000;
+	skipms = (argc > 1 && argv[1] ? atoi(argv[1]) : 3000);
 	if (!skipms)
 		skipms = 3000;
 
-	if (!argv[arg_fwd] || !is_on_phonepad(*argv[arg_fwd]))
-		argv[arg_fwd] = "#";
-	if (!argv[arg_rev] || !is_on_phonepad(*argv[arg_rev]))
-		argv[arg_rev] = "*";
-	if (argv[arg_stop] && !is_on_phonepad(*argv[arg_stop]))
-		argv[arg_stop] = NULL;
-	if (argv[arg_pause] && !is_on_phonepad(*argv[arg_pause]))
-		argv[arg_pause] = NULL;
-	if (argv[arg_restart] && !is_on_phonepad(*argv[arg_restart]))
-		argv[arg_restart] = NULL;
+	for (i = 2; i < 6; i++) {
+		if (i >= argc || !argv[i] || !is_on_phonepad(argv[i][0]))
+			argv[i] = NULL;
+	}
+	if (!argv[2]) argv[2] = "#";
+	if (!argv[3]) argv[2] = "*";
 
-	res = opbx_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
+	res = opbx_control_streamfile(chan, argv[0], argv[2], argv[3], argv[4], argv[5], argv[6], skipms);
 
 	/* If we stopped on one of our stop keys, return 0  */
-	if (argv[arg_stop] && strchr(argv[arg_stop], res)) 
+	if (argv[4] && strchr(argv[4], res)) 
 		res = 0;
 
 	if (res < 0) {
@@ -136,14 +109,17 @@ static int controlplayback_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
+	int res = 0;
 
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(controlplayback_app);
+	STANDARD_HANGUP_LOCALUSERS;
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, controlplayback_exec, synopsis, descrip);
+	controlplayback_app = opbx_register_application(controlplayback_name, controlplayback_exec, controlplayback_synopsis, controlplayback_syntax, controlplayback_descrip);
+	return 0;
 }
 
 char *description(void)

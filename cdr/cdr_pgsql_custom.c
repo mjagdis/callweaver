@@ -189,11 +189,10 @@ static int pgsql_log(struct opbx_cdr *cdr)
 
 	snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
 
-	memset(sql_insert_cmd, 0, sizeof(sql_insert_cmd));
 	/* Not quite the first use of a static struct ast_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
         dummy.cdr = cdr;
-        pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd) - 1);
+        pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
 
 
 	opbx_log(LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);

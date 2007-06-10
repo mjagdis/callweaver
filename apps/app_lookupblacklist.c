@@ -47,12 +47,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 
 static char *tdesc = "Look up Caller*ID name/number from blacklist database";
 
-static char *app = "LookupBlacklist";
-
-static char *synopsis = "Look up Caller*ID name/number from blacklist database";
-
-static char *descrip =
-  "  LookupBlacklist: Looks up the Caller*ID number on the active\n"
+static void *lookupblacklist_app;
+static char *lookupblacklist_name = "LookupBlacklist";
+static char *lookupblacklist_synopsis = "Look up Caller*ID name/number from blacklist database";
+static char *lookupblacklist_syntax = "LookupBlacklist()";
+static char *lookupblacklist_descrip =
+  "Looks up the Caller*ID number on the active\n"
   "channel in the CallWeaver database (family 'blacklist').  If the\n"
   "number is found, and if there exists a priority n + 101,\n"
   "where 'n' is the priority of the current instance, then  the\n"
@@ -66,13 +66,14 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 static int
-lookupblacklist_exec (struct opbx_channel *chan, void *data)
+lookupblacklist_exec (struct opbx_channel *chan, int argc, char **argv)
 {
 	char blacklist[1];
 	struct localuser *u;
 	int bl = 0;
 
 	LOCAL_USER_ADD (u);
+
 	if (chan->cid.cid_num)
 	{
 		if (!opbx_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
@@ -100,13 +101,16 @@ lookupblacklist_exec (struct opbx_channel *chan, void *data)
 
 int unload_module (void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application (app);
+	res |= opbx_unregister_application(lookupblacklist_app);
+	return res;
 }
 
 int load_module (void)
 {
-	return opbx_register_application (app, lookupblacklist_exec, synopsis,descrip);
+	lookupblacklist_app = opbx_register_application(lookupblacklist_name, lookupblacklist_exec, lookupblacklist_synopsis, lookupblacklist_syntax, lookupblacklist_descrip);
+	return 0;
 }
 
 char *description (void)

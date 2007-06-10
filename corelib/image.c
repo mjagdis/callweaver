@@ -136,7 +136,7 @@ struct opbx_frame *opbx_read_image(char *filename, char *preflang, int format)
 			char *stringp=NULL;
 			strncpy(tmp, i->exts, sizeof(tmp)-1);
 			stringp=tmp;
-			e = strsep(&stringp, "|");
+			e = strsep(&stringp, "|,");
 			while(e) {
 				make_filename(buf, sizeof(buf), filename, preflang, e);
 				if ((len = file_exists(buf))) {
@@ -148,7 +148,7 @@ struct opbx_frame *opbx_read_image(char *filename, char *preflang, int format)
 					found = i;
 					break;
 				}
-				e = strsep(&stringp, "|");
+				e = strsep(&stringp, "|,");
 			}
 		}
 		i = i->next;

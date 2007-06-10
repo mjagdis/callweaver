@@ -125,8 +125,8 @@ struct opbx_conf_member
 
 
 void send_state_change_notifications( struct opbx_conf_member* member );
-int member_exec( struct opbx_channel* chan, void* data );
-struct opbx_conf_member* create_member( struct opbx_channel *chan, const char* data ) ;
+int member_exec( struct opbx_channel* chan, int argc, char **argv );
+struct opbx_conf_member* create_member( struct opbx_channel *chan, int argc, char **argv ) ;
 struct opbx_conf_member* delete_member( struct opbx_conf_member* member ) ;
 int opbx_conf_member_genactivate( struct opbx_conf_member *member ) ;
 char *membertypetostring  (int member_type);

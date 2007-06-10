@@ -70,6 +70,8 @@ static const char tdesc[] = "Common ISDN API Driver (" CC_VERSION ")";
 static const char channeltype[] = "CAPI";
 static const struct opbx_channel_tech capi_tech;
 
+static void *command_app;
+static char *commandsyntax = "See description"
 static char *commandtdesc = "CAPI command interface.\n"
 "The dial command:\n"
 "Dial(CAPI/g<group>/[<callerid>:]<destination>[/<params>])\n"
@@ -80,16 +82,16 @@ static char *commandtdesc = "CAPI command interface.\n"
 "\"d\":use callerID from capi.conf, \"o\":overlap sending number\n"
 "\n"
 "capicommand() where () can be:\n"
-"\"deflect|to_number\" forwards an unanswered call to number\n"
+"\"deflect, to_number\" forwards an unanswered call to number\n"
 "\"malicous\" report a call of malicious nature\n"
-"\"echocancel|<yes> or <no>\" echo-cancel provided by driver/hardware\n"
-"\"echosquelch|<yes> or <no>\" very primitive echo-squelch by chan-capi\n"
-"\"holdtype|<local> or <hold>\" set type of 'hold'\n"
-"\"hold[|MYHOLDVAR]\" puts an answered call on hold\n"
-"\"retrieve|${MYHOLDVAR}\" gets back the held call\n"
-"\"ect|${MYHOLDVAR})\" explicit call transfer of call on hold\n"
-"\"receivefax|filename|stationID|headline\" receive a CAPIfax\n"
-"\"sendfax|filename.sff|stationID|headline\" send a CAPIfax\n"
+"\"echocancel, <yes> or <no>\" echo-cancel provided by driver/hardware\n"
+"\"echosquelch, <yes> or <no>\" very primitive echo-squelch by chan-capi\n"
+"\"holdtype, <local> or <hold>\" set type of 'hold'\n"
+"\"hold[, MYHOLDVAR]\" puts an answered call on hold\n"
+"\"retrieve, ${MYHOLDVAR}\" gets back the held call\n"
+"\"ect, ${MYHOLDVAR})\" explicit call transfer of call on hold\n"
+"\"receivefax, filename, stationID, headline\" receive a CAPIfax\n"
+"\"sendfax, filename.sff, stationID, headline\" send a CAPIfax\n"
 "Variables set after fax receive:\n"
 "FAXSTATUS     :0=OK, 1=Error\n"
 "FAXREASON     :B3 disconnect reason\n"
@@ -2277,37 +2279,29 @@ static void capi_change_bchan_fax(struct opbx_channel *c, B3_PROTO_FAXG3 *b3conf
 /*
  * capicommand 'receivefax'
  */
-static int pbx_capi_receive_fax(struct opbx_channel *c, char *data)
+static int pbx_capi_receive_fax(struct opbx_channel *c, int argc, char **argv)
 {
+	char buffer[CAPI_MAX_STRING];
+	B3_PROTO_FAXG3 b3conf;
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	int res = 0;
-	char *filename, *stationid, *headline;
-	B3_PROTO_FAXG3 b3conf;
-	char buffer[CAPI_MAX_STRING];
 
-	if (!data) { /* no data implies no filename or anything is present */
-		cc_log(LOG_WARNING, "capi receivefax requires a filename\n");
+	if (argc < 1 || !argv[0][0]) {
+		cc_log(LOG_ERROR, "capi receivefax requires a filename\n");
 		return -1;
 	}
 
-	filename = strsep(&data, "|");
-	stationid = strsep(&data, "|");
-	headline = data;
-
-	if (!stationid)
-		stationid = emptyid;
-	if (!headline)
-		headline = emptyid;
-
 	capi_wait_for_answered(i);
 
-	if ((i->fFax = fopen(filename, "wb")) == NULL) {
+	if ((i->fFax = fopen(argv[0], "wb")) == NULL) {
 		cc_log(LOG_WARNING, "can't create fax output file (%s)\n", strerror(errno));
 		return -1;
 	}
 
 	i->FaxState |= CAPI_FAX_STATE_ACTIVE;
-	setup_b3_fax_config(&b3conf, FAX_SFF_FORMAT, stationid, headline);
+	setup_b3_fax_config(&b3conf, FAX_SFF_FORMAT,
+			(argc > 1 && argv[1][0] ? argv[1] : ""),
+			(argc > 2 && argv[2][0] ? argv[2] : ""));
 
 	i->bproto = CC_BPROTO_FAXG3;
 
@@ -2344,7 +2338,7 @@ static int pbx_capi_receive_fax(struct opbx_channel *c, char *data)
 		cc_verbose(2, 0,
 			VERBOSE_PREFIX_1 "capi receivefax: fax receive failed reason=0x%04x reasonB3=0x%04x\n",
 				i->reason, i->reasonb3);
-		unlink(filename);
+		unlink(argv[0]);
 	} else {
 		cc_verbose(2, 0,
 			VERBOSE_PREFIX_1 "capi receivefax: fax receive successful.\n");
@@ -2358,37 +2352,29 @@ static int pbx_capi_receive_fax(struct opbx_channel *c, char *data)
 /*
  * capicommand 'sendfax'
  */
-static int pbx_capi_send_fax(struct opbx_channel *c, char *data)
+static int pbx_capi_send_fax(struct opbx_channel *c, int argc, char **argv)
 {
+	char buffer[CAPI_MAX_STRING];
+	B3_PROTO_FAXG3 b3conf;
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	int res = 0;
-	char *filename, *stationid, *headline;
-	B3_PROTO_FAXG3 b3conf;
-	char buffer[CAPI_MAX_STRING];
 
-	if (!data) { /* no data implies no filename or anything is present */
+	if (argc < 1 || !argv[0][0]) {
 		cc_log(LOG_WARNING, "capi sendfax requires a filename\n");
 		return -1;
 	}
 
-	filename = strsep(&data, "|");
-	stationid = strsep(&data, "|");
-	headline = data;
-
-	if (!stationid)
-		stationid = emptyid;
-	if (!headline)
-		headline = emptyid;
-
 	capi_wait_for_answered(i);
 
-	if ((i->fFax = fopen(filename, "rb")) == NULL) {
+	if ((i->fFax = fopen(argv[0], "rb")) == NULL) {
 		cc_log(LOG_WARNING, "can't open fax file (%s)\n", strerror(errno));
 		return -1;
 	}
 
 	i->FaxState |= (CAPI_FAX_STATE_ACTIVE | CAPI_FAX_STATE_SENDMODE);
-	setup_b3_fax_config(&b3conf, FAX_SFF_FORMAT, stationid, headline);
+	setup_b3_fax_config(&b3conf, FAX_SFF_FORMAT,
+			(argv > 1 && argv[1][0] ? argv[1] : ""),
+			(argv > 2 && argv[2][0] ? argv[2] : ""));
 
 	i->bproto = CC_BPROTO_FAXG3;
 
@@ -4110,30 +4096,26 @@ static void capidev_handle_msg(_cmsg *CMSG)
 /*
  * deflect a call
  */
-static int pbx_capi_call_deflect(struct opbx_channel *c, char *param)
+static int pbx_capi_call_deflect(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg	CMSG;
 	char	fac[64];
 	int	res = 0;
-	char *number;
 	int numberlen;
 
-	if (!param) {
-		cc_log(LOG_WARNING, "capi deflection requires an argument (destination phone number)\n");
+	if (argc != 1 || !argv[0][0]) {
+		cc_log(LOG_ERROR, "capi deflection requires an argument (destination phone number)\n");
 		return -1;
 	}
-	number = strsep(&param, "|");
-	numberlen = strlen(number);
 
-	if (!numberlen) {
-		cc_log(LOG_WARNING, "capi deflection requires an argument (destination phone number)\n");
-		return -1;
-	}
+	numberlen = strlen(argv[0]);
+
 	if (numberlen > 35) {
 		cc_log(LOG_WARNING, "capi deflection does only support phone number up to 35 digits\n");
 		return -1;
 	}
+
 	if (!(capi_controllers[i->controller]->CD)) {
 		cc_log(LOG_NOTICE,"%s: CALL DEFLECT for %s not supported by controller.\n",
 			i->vname, c->name);
@@ -4165,7 +4147,7 @@ static int pbx_capi_call_deflect(struct opbx_channel *c, char *param)
 	fac[9] = 0x00; /* presentation allowed */
 	fac[10 + numberlen] = 0x00; /* subaddress len */
 
-	memcpy((unsigned char *)fac + 10, number, numberlen);
+	memcpy((unsigned char *)fac + 10, argv[0], numberlen);
 
 	FACILITY_REQ_HEADER(&CMSG, capi_ApplID, get_capi_MessageNumber(),0);
 	FACILITY_REQ_PLCI(&CMSG) = i->PLCI;
@@ -4185,7 +4167,7 @@ static int pbx_capi_call_deflect(struct opbx_channel *c, char *param)
 /*
  * retrieve a hold on call
  */
-static int pbx_capi_retrieve(struct opbx_channel *c, char *param)
+static int pbx_capi_retrieve(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c); 
 	_cmsg	CMSG;
@@ -4198,8 +4180,8 @@ static int pbx_capi_retrieve(struct opbx_channel *c, char *param)
 		i = NULL;
 	}
 
-	if (param) {
-		plci = (unsigned int)strtoul(param, NULL, 0);
+	if (argc > 0 && argv[0][0]) {
+		plci = (unsigned int)strtoul(argv[0], NULL, 0);
 		cc_mutex_lock(&iflock);
 		for (i = iflist; i; i = i->next) {
 			if (i->onholdPLCI == plci)
@@ -4263,7 +4245,7 @@ static int pbx_capi_retrieve(struct opbx_channel *c, char *param)
 /*
  * explicit transfer a held call
  */
-static int pbx_capi_ect(struct opbx_channel *c, char *param)
+static int pbx_capi_ect(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	struct capi_pvt *ii = NULL;
@@ -4276,8 +4258,8 @@ static int pbx_capi_ect(struct opbx_channel *c, char *param)
 		plci = (unsigned int)strtoul(id, NULL, 0);
 	}
 	
-	if (param) {
-		plci = (unsigned int)strtoul(param, NULL, 0);
+	if (argc > 0 && argv[0][0]) {
+		plci = (unsigned int)strtoul(argv[0], NULL, 0);
 	}
 
 	if (!plci) {
@@ -4351,7 +4333,7 @@ static int pbx_capi_ect(struct opbx_channel *c, char *param)
 /*
  * hold a call
  */
-static int pbx_capi_hold(struct opbx_channel *c, char *param)
+static int pbx_capi_hold(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg	CMSG;
@@ -4406,7 +4388,7 @@ static int pbx_capi_hold(struct opbx_channel *c, char *param)
 /*
  * report malicious call
  */
-static int pbx_capi_malicious(struct opbx_channel *c, char *param)
+static int pbx_capi_malicious(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg	CMSG;
@@ -4441,18 +4423,18 @@ static int pbx_capi_malicious(struct opbx_channel *c, char *param)
 /*
  * set echo cancel
  */
-static int pbx_capi_echocancel(struct opbx_channel *c, char *param)
+static int pbx_capi_echocancel(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 
-	if (!param) {
+	if (argc < 1 || !argv[0][0]) {
 		cc_log(LOG_WARNING, "Parameter for echocancel missing.\n");
 		return -1;
 	}
-	if (opbx_true(param)) {
+	if (opbx_true(argv[0])) {
 		i->doEC = 1;
 		capi_echo_canceller(c, EC_FUNCTION_ENABLE);
-	} else if (opbx_false(param)) {
+	} else if (opbx_false(argv[0])) {
 		capi_echo_canceller(c, EC_FUNCTION_DISABLE);
 		i->doEC = 0;
 	} else {
@@ -4467,20 +4449,20 @@ static int pbx_capi_echocancel(struct opbx_channel *c, char *param)
 /*
  * set echo squelch
  */
-static int pbx_capi_echosquelch(struct opbx_channel *c, char *param)
+static int pbx_capi_echosquelch(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 
-	if (!param) {
-		cc_log(LOG_WARNING, "Parameter for echosquelch missing.\n");
+	if (argc < 1 || !argv[0][0]) {
+		cc_log(LOG_ERROR, "Parameter for echosquelch missing.\n");
 		return -1;
 	}
-	if (opbx_true(param)) {
+	if (opbx_true(argv[0])) {
 		i->doES = 1;
-	} else if (opbx_false(param)) {
+	} else if (opbx_false(argv[0])) {
 		i->doES = 0;
 	} else {
-		cc_log(LOG_WARNING, "Parameter for echosquelch invalid.\n");
+		cc_log(LOG_ERROR, "Parameter for echosquelch invalid.\n");
 		return -1;
 	}
 	cc_verbose(2, 0, VERBOSE_PREFIX_4 "%s: echosquelch switched %s\n",
@@ -4491,26 +4473,26 @@ static int pbx_capi_echosquelch(struct opbx_channel *c, char *param)
 /*
  * set holdtype
  */
-static int pbx_capi_holdtype(struct opbx_channel *c, char *param)
+static int pbx_capi_holdtype(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 
-	if (!param) {
+	if (argc < 1 || !argv[0][0]) {
 		cc_log(LOG_WARNING, "Parameter for holdtype missing.\n");
 		return -1;
 	}
-	if (!strcasecmp(param, "hold")) {
+	if (!strcasecmp(argv[0], "hold")) {
 		i->doholdtype = CC_HOLDTYPE_HOLD;
-	} else if (!strcasecmp(param, "notify")) {
+	} else if (!strcasecmp(argv[0], "notify")) {
 		i->doholdtype = CC_HOLDTYPE_NOTIFY;
-	} else if (!strcasecmp(param, "local")) {
+	} else if (!strcasecmp(argv[0], "local")) {
 		i->doholdtype = CC_HOLDTYPE_LOCAL;
 	} else {
 		cc_log(LOG_WARNING, "Parameter for holdtype invalid.\n");
 		return -1;
 	}
 	cc_verbose(2, 0, VERBOSE_PREFIX_4 "%s: holdtype switched to %s\n",
-		i->vname, param);
+		i->vname, argv[0]);
 	return 0;
 }
 
@@ -4518,7 +4500,7 @@ static int pbx_capi_holdtype(struct opbx_channel *c, char *param)
  * set early-B3 (progress) for incoming connections
  * (only for NT mode)
  */
-static int pbx_capi_signal_progress(struct opbx_channel *c, char *param)
+static int pbx_capi_signal_progress(struct opbx_channel *c, int argc, char **argv)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 
@@ -4566,38 +4548,28 @@ static struct capicommands_s {
 /*
  * capi command interface
  */
-static int pbx_capicommand_exec(struct opbx_channel *chan, void *data)
+static int pbx_capicommand_exec(struct opbx_channel *chan, char **argv, int exec)
 {
-	int res = 0;
 	struct localuser *u;
-	char *s;
-	char *stringp;
-	char *command, *params;
 	struct capicommands_s *capicmd = &capicommands[0];
+	int res = 0;
 
-	if (!data) {
-		cc_log(LOG_WARNING, "capiCommand requires arguments\n");
+	if (argc < 1 || !argv[0][0]) {
+		cc_log(LOG_ERROR, "Syntax: capiCommand(command[, args...])\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	s = opbx_strdupa(data);
-	stringp = s;
-	command = strsep(&stringp, "|");
-	params = stringp;
-	cc_verbose(2, 1, VERBOSE_PREFIX_3 "capiCommand: '%s' '%s'\n",
-		command, params);
-
 	while(capicmd->cmd) {
-		if (!strcasecmp(capicmd->cmdname, command))
+		if (!strcasecmp(capicmd->cmdname, argv[0]))
 			break;
 		capicmd++;
 	}
 	if (!capicmd->cmd) {
 		LOCAL_USER_REMOVE(u);
 		cc_log(LOG_WARNING, "Unknown command '%s' for capiCommand\n",
-			command);
+			argv[0]);
 		return -1;
 	}
 
@@ -4607,7 +4579,7 @@ static int pbx_capicommand_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	res = (capicmd->cmd)(chan, params);
+	res = (capicmd->cmd)(chan, argv + 1, argc - 1);
 	
 	LOCAL_USER_REMOVE(u);
 	return(res);
@@ -4639,13 +4611,13 @@ static int pbx_capi_indicate(struct opbx_channel *c, int condition)
 		/* TODO somehow enable unhold on ringing, but when wanted only */
 		/* 
 		if (i->isdnstate & CAPI_ISDN_STATE_HOLD)
-			pbx_capi_retrieve(c, NULL);
+			pbx_capi_retrieve(c, NULL, 0);
 		*/
 		if (i->ntmode) {
 			if ((i->isdnstate & CAPI_ISDN_STATE_B3_UP)) {
 				ret = 0;
 			}
-			pbx_capi_signal_progress(c, NULL);
+			pbx_capi_signal_progress(c, NULL, 0);
 			pbx_capi_alert(c);
 		} else {
 			ret = pbx_capi_alert(c);
@@ -4663,7 +4635,7 @@ static int pbx_capi_indicate(struct opbx_channel *c, int condition)
 			ret = 0;
 		}
 		if ((i->isdnstate & CAPI_ISDN_STATE_HOLD))
-			pbx_capi_retrieve(c, NULL);
+			pbx_capi_retrieve(c, NULL, 0);
 		break;
 	case OPBX_CONTROL_CONGESTION:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested CONGESTION-Indication for %s\n",
@@ -4677,37 +4649,37 @@ static int pbx_capi_indicate(struct opbx_channel *c, int condition)
 			ret = 0;
 		}
 		if ((i->isdnstate & CAPI_ISDN_STATE_HOLD))
-			pbx_capi_retrieve(c, NULL);
+			pbx_capi_retrieve(c, NULL, 0);
 		break;
 	case OPBX_CONTROL_PROGRESS:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested PROGRESS-Indication for %s\n",
 			i->vname, c->name);
-		if (i->ntmode) pbx_capi_signal_progress(c, NULL);
+		if (i->ntmode) pbx_capi_signal_progress(c, NULL, 0);
 		break;
 	case OPBX_CONTROL_PROCEEDING:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested PROCEEDING-Indication for %s\n",
 			i->vname, c->name);
-		if (i->ntmode) pbx_capi_signal_progress(c, NULL);
+		if (i->ntmode) pbx_capi_signal_progress(c, NULL, 0);
 		break;
 	case OPBX_CONTROL_HOLD:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested HOLD-Indication for %s\n",
 			i->vname, c->name);
 		if (i->doholdtype != CC_HOLDTYPE_LOCAL) {
-			ret = pbx_capi_hold(c, NULL);
+			ret = pbx_capi_hold(c, NULL, 0);
 		}
 		break;
 	case OPBX_CONTROL_UNHOLD:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested UNHOLD-Indication for %s\n",
 			i->vname, c->name);
 		if (i->doholdtype != CC_HOLDTYPE_LOCAL) {
-			ret = pbx_capi_retrieve(c, NULL);
+			ret = pbx_capi_retrieve(c, NULL, 0);
 		}
 		break;
 	case -1: /* stop indications */
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested Indication-STOP for %s\n",
 			i->vname, c->name);
 		if ((i->isdnstate & CAPI_ISDN_STATE_HOLD))
-			pbx_capi_retrieve(c, NULL);
+			pbx_capi_retrieve(c, NULL, 0);
 		break;
 	default:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested unknown Indication %d for %s\n",
@@ -5703,8 +5675,9 @@ int unload_module()
 {
 	struct capi_pvt *i, *itmp;
 	int controller;
+	int res = 0;
 
-	opbx_unregister_application(commandapp);
+	res |= opbx_unregister_application(command_app);
 
 	opbx_cli_unregister(&cli_info);
 	opbx_cli_unregister(&cli_show_channels);
@@ -5748,7 +5721,7 @@ int unload_module()
 	
 	opbx_channel_unregister(&capi_tech);
 	
-	return 0;
+	return res;
 }
 
 /*
@@ -5805,7 +5778,7 @@ int load_module(void)
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_no_debug);
 	
-	opbx_register_application(commandapp, pbx_capicommand_exec, commandsynopsis, commandtdesc);
+	command_app = opbx_register_application(commandapp, pbx_capicommand_exec, commandsynopsis, commandsyntax, commandtdesc);
 
 	if (opbx_pthread_create(&monitor_thread, NULL, capidev_loop, NULL) < 0) {
 		monitor_thread = (pthread_t)(0-1);

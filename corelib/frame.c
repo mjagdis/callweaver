@@ -1125,7 +1125,7 @@ int opbx_codec_pref_string(struct opbx_codec_pref *pref, char *buf, size_t size)
         }
         if (total_len && x < 31 && opbx_codec_pref_index(pref , x + 1))
         {
-            strncat(buf,"|",total_len);
+            strncat(buf,",",total_len);
             total_len--;
         }
     }

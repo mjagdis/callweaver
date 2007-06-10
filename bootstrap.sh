@@ -126,8 +126,8 @@ AUTOHEADER=autoheader259
 AUTOMAKE=automake19
 AUTOCONF=autoconf259
 else
-version_compare libtoolize 1 5 20 || exit 1
-version_compare automake 1 9 6 || exit 1
+version_compare libtoolize 1 5 14 || exit 1
+version_compare automake 1 9 5 || exit 1
 version_compare autoconf 2 59 || exit 1
 ACLOCAL=aclocal
 AUTOHEADER=autoheader

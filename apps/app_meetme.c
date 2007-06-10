@@ -56,16 +56,24 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "MeetMe conference bridge";
 
-static char *app = "MeetMe";
-static char *app2 = "MeetMeCount";
-static char *app3 = "MeetMeAdmin";
+static void *app;
+static void *app2;
+static void *app3;
+
+static char *name = "MeetMe";
+static char *name2 = "MeetMeCount";
+static char *name3 = "MeetMeAdmin";
 
 static char *synopsis = "MeetMe conference bridge";
 static char *synopsis2 = "MeetMe participant count";
 static char *synopsis3 = "MeetMe conference Administration";
 
+static char *syntax = "MeetMe([confno[, options[, pin]]])";
+static char *syntax2 = "MeetMeCount(confno[, var])";
+static char *syntax3 = "MeetMeAdmin(confno,command[, user])";
+
 static char *descrip =
-"  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
+"Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
 "one. \n"
 "MeetMe returns 0 if user pressed # to exit (see option 'p'), otherwise -1.\n"
@@ -102,13 +110,13 @@ static char *descrip =
 "      'P' -- always prompt for the pin even if it is specified\n";
 
 static char *descrip2 =
-"  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
+"Plays back the number of users in the specifiedi\n"
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
 "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
 static char *descrip3 = 
-"  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"
+"Run admin command for conference\n"
 "      'K' -- Kick all users out of conference\n"
 "      'k' -- Kick one user out of conference\n"
 "      'e' -- Eject last user that joined\n"
@@ -179,7 +187,7 @@ enum volume_action {
 
 OPBX_MUTEX_DEFINE_STATIC(conflock);
 
-static int admin_exec(struct opbx_channel *chan, void *data);
+static int admin_exec(struct opbx_channel *chan, int argc, char **argv);
 
 static void *recordthread(void *args);
 
@@ -494,14 +502,14 @@ static struct opbx_cli_entry cli_show_confs = {
 	
 static int conf_cmd(int fd, int argc, char **argv) {
 	/* Process the command */
+	char buf[1024] = "";
+	char *header_format = "%-14s %-14s %-10s %-8s  %-8s\n";
+	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s\n";
 	struct opbx_conference *cnf;
 	struct opbx_conf_user *user;
 	int hr, min, sec;
 	int i = 0, total = 0;
 	time_t now;
-	char *header_format = "%-14s %-14s %-10s %-8s  %-8s\n";
-	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s\n";
-	char cmdline[1024] = "";
 
 	if (argc > 8)
 		opbx_cli(fd, "Invalid Arguments.\n");
@@ -521,14 +529,14 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	opbx_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
 		while(cnf) {
 			if (cnf->markedusers == 0)
-				strcpy(cmdline, "N/A ");
+				strcpy(buf, "N/A ");
 			else 
-				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
+				snprintf(buf, sizeof(buf), "%4.4d", cnf->markedusers);
 			hr = (now - cnf->start) / 3600;
 			min = ((now - cnf->start) % 3600) / 60;
 			sec = (now - cnf->start) % 60;
 
-			opbx_cli(fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
+			opbx_cli(fd, data_format, cnf->confno, cnf->users, buf, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
 
 			total += cnf->users; 	
 			cnf = cnf->next;
@@ -538,33 +546,32 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	}
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
-	opbx_copy_string(cmdline, argv[2], sizeof(cmdline));	/* Argv 2: conference number */
+
 	if (strstr(argv[1], "lock")) {	
-		if (strcmp(argv[1], "lock") == 0) {
-			/* Lock */
-			strncat(cmdline, "|L", sizeof(cmdline) - strlen(cmdline) - 1);
-		} else {
-			/* Unlock */
-			strncat(cmdline, "|l", sizeof(cmdline) - strlen(cmdline) - 1);
-		}
+		argv[3] = (strcmp(argv[1], "lock") == 0 ? argv[3] = "L" : "l");
+		argc = 2;
 	} else if (strstr(argv[1], "mute")) { 
 		if (argc < 4)
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[1], "mute") == 0) {
 			/* Mute */
 			if (strcmp(argv[3], "all") == 0) {
-				 strncat(cmdline, "|N", sizeof(cmdline) - strlen(cmdline) - 1);
+				argv[3] = "N";
+				argc = 2;
 			} else {
-				strncat(cmdline, "|M|", sizeof(cmdline) - strlen(cmdline) - 1);	
-				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+				argv[4] = argv[3];
+				argv[3] = "M";
+				argc = 3;
 			}
 		} else {
 			/* Unmute */
 			if (strcmp(argv[3], "all") == 0) {
-				 strncat(cmdline, "|n", sizeof(cmdline) - strlen(cmdline) - 1);
+				argv[3] = "n";
+				argc = 2;
 			} else {
-				strncat(cmdline, "|m|", sizeof(cmdline) - strlen(cmdline) - 1);
-				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+				argv[4] = argv[3];
+				argv[3] = "m";
+				argc = 3;
 			}
 		}
 	} else if (strcmp(argv[1], "kick") == 0) {
@@ -572,11 +579,13 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[3], "all") == 0) {
 			/* Kick all */
-			strncat(cmdline, "|K", sizeof(cmdline) - strlen(cmdline) - 1);
+			argv[3] = "K";
+			argc = 2;
 		} else {
 			/* Kick a single user */
-			strncat(cmdline, "|k|", sizeof(cmdline) - strlen(cmdline) - 1);
-			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			argv[4] = argv[3];
+			argv[3] = "k";
+			argc = 3;
 		}	
 	} else if(strcmp(argv[1], "list") == 0) {
 		/* List all the users in a conference */
@@ -606,8 +615,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		return RESULT_SUCCESS;
 	} else 
 		return RESULT_SHOWUSAGE;
-	opbx_log(LOG_DEBUG, "Cmdline: %s\n", cmdline);
-	admin_exec(NULL, cmdline);
+
+	admin_exec(NULL, argc, argv + 2);
 	return 0;
 }
 
@@ -1030,13 +1039,6 @@ zapretry:
 	opbx_mutex_unlock(&conflock);
 	if (confflags & CONFFLAG_OGI) {
 
-		/* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
-		  or use default filename of conf-background.ogi */
-
-		ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
-		if (!ogifile)
-			ogifile = ogifiledefault;
-
 		if (user->zapchannel) {
 			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
 			x = 1;
@@ -1045,7 +1047,12 @@ zapretry:
 		/* Find a pointer to the ogi app and execute the script */
 		app = pbx_findapp("ogi");
 		if (app) {
-			ret = pbx_exec(chan, app, ogifile, 1);
+			/* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
+			  or use default filename of conf-background.ogi */
+			ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
+			ogifile = strdup(ogifile ? ogifile : ogifiledefault);
+			ret = pbx_exec(chan, app, ogifile);
+			free(ogifile);
 		} else {
 			opbx_log(LOG_WARNING, "Could not find application (ogi)\n");
 			ret = -2;
@@ -1640,102 +1647,83 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
 }
 
 /*--- count_exec: The MeetmeCount application */
-static int count_exec(struct opbx_channel *chan, void *data)
+static int count_exec(struct opbx_channel *chan, int argc, char **argv)
 {
+	char val[80] = "0"; 
 	struct localuser *u;
 	int res = 0;
 	struct opbx_conference *conf;
 	int count;
-	char *confnum, *localdata;
-	char val[80] = "0"; 
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
+	if (argc < 1 || argc > 2) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax2);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 	
-	localdata = opbx_strdupa(data);
-	if (!localdata) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-	
-	confnum = strsep(&localdata,"|");       
-	conf = find_conf(chan, confnum, 0, 0, NULL);
+	conf = find_conf(chan, argv[0], 0, 0, NULL);
 	if (conf)
 		count = conf->users;
 	else
 		count = 0;
 
-	if (!opbx_strlen_zero(localdata)){
+	if (argc > 1) {
 		/* have var so load it and exit */
-		snprintf(val,sizeof(val), "%d",count);
-		pbx_builtin_setvar_helper(chan, localdata,val);
+		snprintf(val, sizeof(val), "%d",count);
+		pbx_builtin_setvar_helper(chan, argv[1], val);
 	} else {
 		if (chan->_state != OPBX_STATE_UP)
 			opbx_answer(chan);
 		res = opbx_say_number(chan, count, "", chan->language, (char *) NULL); /* Needs gender */
 	}
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
 /*--- conf_exec: The meetme() application */
-static int conf_exec(struct opbx_channel *chan, void *data)
+static int conf_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=-1;
-	struct localuser *u;
 	char confno[OPBX_MAX_EXTENSION] = "";
+	char the_pin[OPBX_MAX_EXTENSION] = "";
+	struct opbx_flags confflags = {0};
+	struct opbx_conference *cnf;
+	struct localuser *u;
+	int res=-1;
 	int allowretry = 0;
 	int retrycnt = 0;
-	struct opbx_conference *cnf;
-	struct opbx_flags confflags = {0};
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
-	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[OPBX_MAX_EXTENSION] = "";
+
+	if (argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax);
+		return -1;
+	}
 
 	LOCAL_USER_ADD(u);
 
-	if (opbx_strlen_zero(data)) {
+	if (argc == 0 || !argv[0][0])
 		allowretry = 1;
-		notdata = "";
-	} else {
-		notdata = data;
-	}
-	
-	if (chan->_state != OPBX_STATE_UP)
-		opbx_answer(chan);
+	opbx_copy_string(confno, argv[0], sizeof(confno));
 
-	info = opbx_strdupa(notdata);
+	if (argc > 2)
+		opbx_copy_string(the_pin, argv[2], sizeof(the_pin));
 
-	if (info) {
-		char *tmp = strsep(&info, "|");
-		opbx_copy_string(confno, tmp, sizeof(confno));
-		if (opbx_strlen_zero(confno)) {
-			allowretry = 1;
-		}
-	}
-	if (info)
-		inflags = strsep(&info, "|");
-	if (info)
-		inpin = strsep(&info, "|");
-	if (inpin)
-		opbx_copy_string(the_pin, inpin, sizeof(the_pin));
-
-	if (inflags) {
-		opbx_parseoptions(meetme_opts, &confflags, NULL, inflags);
+	if (argc > 1 && argv[1][0]) {
+		opbx_parseoptions(meetme_opts, &confflags, NULL, argv[1]);
 		dynamic = opbx_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
-		if (opbx_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !inpin)
+		if (opbx_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && (argc < 3 || !argv[2][0]))
 			strcpy(the_pin, "q");
 
 		empty = opbx_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
 		empty_no_pin = opbx_test_flag(&confflags, CONFFLAG_EMPTYNOPIN);
 		always_prompt = opbx_test_flag(&confflags, CONFFLAG_ALWAYSPROMPT);
 	}
+
+	if (chan->_state != OPBX_STATE_UP)
+		opbx_answer(chan);
 
 	do {
 		if (retrycnt > 3)
@@ -1850,7 +1838,7 @@ static int conf_exec(struct opbx_channel *chan, void *data)
 				break;
 			}
 		}
-		if (!opbx_strlen_zero(confno)) {
+		if (confno[0]) {
 			/* Check the validity of the conference */
 			cnf = find_conf(chan, confno, 1, dynamic, the_pin);
 			if (!cnf) {
@@ -1948,120 +1936,108 @@ static struct opbx_conf_user* find_user(struct opbx_conference *conf, char *call
 
 /*--- admin_exec: The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
-static int admin_exec(struct opbx_channel *chan, void *data) {
-	char *params, *command = NULL, *caller = NULL, *conf = NULL;
+static int admin_exec(struct opbx_channel *chan, int argc, char **argv) {
 	struct opbx_conference *cnf;
-	struct opbx_conf_user *user = NULL;
+	struct opbx_conf_user *user;
 	struct localuser *u;
 	
-	LOCAL_USER_ADD(u);
-
-	opbx_mutex_lock(&conflock);
-	/* The param has the conference number the user and the command to execute */
-	if (!opbx_strlen_zero(data)) {		
-		params = opbx_strdupa((char *) data);
-		conf = strsep(&params, "|");
-		command = strsep(&params, "|");
-		caller = strsep(&params, "|");
-		
-		if (!command) {
-			opbx_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
-			opbx_mutex_unlock(&conflock);
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-		cnf = confs;
-		while (cnf) {
-			if (strcmp(cnf->confno, conf) == 0) 
-				break;
-			cnf = cnf->next;
-		}
-		
-		if (caller)
-			user = find_user(cnf, caller);
-		
-		if (cnf) {
-			switch((int) (*command)) {
-				case 76: /* L: Lock */ 
-					cnf->locked = 1;
-					break;
-				case 108: /* l: Unlock */ 
-					cnf->locked = 0;
-					break;
-				case 75: /* K: kick all users*/
-					user = cnf->firstuser;
-					while(user) {
-						user->adminflags |= ADMINFLAG_KICKME;
-						if (user->nextuser) {
-							user = user->nextuser;
-						} else {
-							break;
-						}
-					}
-					break;
-				case 101: /* e: Eject last user*/
-					user = cnf->lastuser;
-					if (!(user->userflags & CONFFLAG_ADMIN)) {
-						user->adminflags |= ADMINFLAG_KICKME;
-						break;
-					} else
-						opbx_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
-					break;
-				case 77: /* M: Mute */ 
-					if (user) {
-						user->adminflags |= ADMINFLAG_MUTED;
-					} else {
-						opbx_log(LOG_NOTICE, "Specified User not found!\n");
-					}
-					break;
-				case 78: /* N: Mute all users */
-					user = cnf->firstuser;
-					while(user) {
-						if (user && !(user->userflags & CONFFLAG_ADMIN))
-							user->adminflags |= ADMINFLAG_MUTED;
-						if (user->nextuser) {
-							user = user->nextuser;
-						} else {
-							break;
-						}
-					}
-					break;					
-				case 109: /* m: Unmute */ 
-					if (user && (user->adminflags & ADMINFLAG_MUTED)) {
-						user->adminflags ^= ADMINFLAG_MUTED;
-					} else {
-						opbx_log(LOG_NOTICE, "Specified User not found or he muted himself!");
-					}
-					break;
-				case  110: /* n: Unmute all users */
-					user = cnf->firstuser;
-					while(user) {
-						if (user && (user-> adminflags & ADMINFLAG_MUTED)) {
-							user->adminflags ^= ADMINFLAG_MUTED;
-						}
-						if (user->nextuser) {
-							user = user->nextuser;
-						} else {
-							break;
-						}
-					}
-					break;
-				case 107: /* k: Kick user */ 
-					if (user) {
-						user->adminflags |= ADMINFLAG_KICKME;
-					} else {
-						opbx_log(LOG_NOTICE, "Specified User not found!");
-					}
-					break;
-			}
-		} else {
-			opbx_log(LOG_NOTICE, "Conference Number not found\n");
-		}
+	if (argc < 2 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax3);
+		return -1;
 	}
-	opbx_mutex_unlock(&conflock);
 
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_ADD(u);
+	opbx_mutex_lock(&conflock);
+
+	cnf = confs;
+	while (cnf) {
+		if (strcmp(cnf->confno, argv[0]) == 0) 
+			break;
+		cnf = cnf->next;
+	}
 	
+	user = (argc > 2 ? find_user(cnf, argv[2]) : NULL);
+	
+	if (cnf) {
+		switch((int) (*argv[1])) {
+			case 76: /* L: Lock */ 
+				cnf->locked = 1;
+				break;
+			case 108: /* l: Unlock */ 
+				cnf->locked = 0;
+				break;
+			case 75: /* K: kick all users*/
+				user = cnf->firstuser;
+				while(user) {
+					user->adminflags |= ADMINFLAG_KICKME;
+					if (user->nextuser) {
+						user = user->nextuser;
+					} else {
+						break;
+					}
+				}
+				break;
+			case 101: /* e: Eject last user*/
+				user = cnf->lastuser;
+				if (!(user->userflags & CONFFLAG_ADMIN)) {
+					user->adminflags |= ADMINFLAG_KICKME;
+					break;
+				} else
+					opbx_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
+				break;
+			case 77: /* M: Mute */ 
+				if (user) {
+					user->adminflags |= ADMINFLAG_MUTED;
+				} else {
+					opbx_log(LOG_NOTICE, "Specified User not found!\n");
+				}
+				break;
+			case 78: /* N: Mute all users */
+				user = cnf->firstuser;
+				while(user) {
+					if (user && !(user->userflags & CONFFLAG_ADMIN))
+						user->adminflags |= ADMINFLAG_MUTED;
+					if (user->nextuser) {
+						user = user->nextuser;
+					} else {
+						break;
+					}
+				}
+				break;					
+			case 109: /* m: Unmute */ 
+				if (user && (user->adminflags & ADMINFLAG_MUTED)) {
+					user->adminflags ^= ADMINFLAG_MUTED;
+				} else {
+					opbx_log(LOG_NOTICE, "Specified User not found or he muted himself!");
+				}
+				break;
+			case  110: /* n: Unmute all users */
+				user = cnf->firstuser;
+				while(user) {
+					if (user && (user-> adminflags & ADMINFLAG_MUTED)) {
+						user->adminflags ^= ADMINFLAG_MUTED;
+					}
+					if (user->nextuser) {
+						user = user->nextuser;
+					} else {
+						break;
+					}
+				}
+				break;
+			case 107: /* k: Kick user */ 
+				if (user) {
+					user->adminflags |= ADMINFLAG_KICKME;
+				} else {
+					opbx_log(LOG_NOTICE, "Specified User not found!");
+				}
+				break;
+		}
+	} else {
+		opbx_log(LOG_NOTICE, "Conference Number not found\n");
+	}
+
+	opbx_mutex_unlock(&conflock);
+	LOCAL_USER_REMOVE(u);
 	return 0;
 }
 
@@ -2109,21 +2085,24 @@ static void *recordthread(void *args)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
 	opbx_cli_unregister(&cli_show_confs);
 	opbx_cli_unregister(&cli_conf);
-	opbx_unregister_application(app3);
-	opbx_unregister_application(app2);
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(app3);
+	res |= opbx_unregister_application(app2);
+	res |= opbx_unregister_application(app);
+	return res;
 }
 
 int load_module(void)
 {
 	opbx_cli_register(&cli_show_confs);
 	opbx_cli_register(&cli_conf);
-	opbx_register_application(app3, admin_exec, synopsis3, descrip3);
-	opbx_register_application(app2, count_exec, synopsis2, descrip2);
-	return opbx_register_application(app, conf_exec, synopsis, descrip);
+	app3 = opbx_register_application(name3, admin_exec, synopsis3, syntax3, descrip3);
+	app2 = opbx_register_application(name2, count_exec, synopsis2, syntax2, descrip2);
+	app = opbx_register_application(name, conf_exec, synopsis, syntax, descrip);
+	return 0;
 }
 
 

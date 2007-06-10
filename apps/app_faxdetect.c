@@ -51,12 +51,11 @@
 
 static char *tdesc = "Fax detection application";
 
-static char *app = "FaxDetect";
-
-static char *synopsis = "Detects fax sounds on all channel types (IAX and SIP too)";
-
-static char *descrip = 
-"  FaxDetect([waitdur[|tonestr[|options[|sildur[|mindur[|maxdur]]]]]]):\n"
+static void *detectfax_app;
+static char *detectfax_name = "FaxDetect";
+static char *detectfax_synopsis = "Detects fax sounds on all channel types (IAX and SIP too)";
+static char *detectfax_syntax = "FaxDetect([waitdur[, tonestr[, options[, sildur[, mindur[, maxdur]]]]]])";
+static char *detectfax_descrip = 
 "Parameters:\n"
 "      waitdur:  Maximum number of seconds to wait (default=4)\n"
 "      tonestr:  Indication to be used while detecting (example: ring)\n"
@@ -103,19 +102,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int detectfax_exec(struct opbx_channel *chan, void *data)
+static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
     struct localuser *u;
     char tmp[256] = "\0";
     char dtmf_did[256] = "\0";
     char *p = NULL;
-    char *waitstr = NULL;
     char *tonestr = NULL;
-    char *options = NULL;
-    char *silstr = NULL;
-    char *minstr = NULL;
-    char *maxstr = NULL;
     int totalsilence;            // working vars
     int ms_silence = 0;
     int ms_talk = 0;        // working vars
@@ -127,10 +121,10 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
     struct timeval start_talk = {0, 0};
     struct timeval start_silence = {0, 0};
     struct timeval now = {0, 0};
-    int waitdur = 4;
-    int sildur = 1000;
-    int mindur = 100;
-    int maxdur = -1;
+    int waitdur;
+    int sildur;
+    int mindur;
+    int maxdur;
     int skipanswer = 0;
     int noextneeded = 0;
     int ignoredtmf = 0;
@@ -151,66 +145,39 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
     pbx_builtin_setvar_helper(chan, "TALK_DETECTED", "0");
         pbx_builtin_setvar_helper(chan, "DTMF_DID", "");
 
-    if (data  ||  !opbx_strlen_zero((char *) data))
-        strncpy(tmp, (char *) data, sizeof(tmp) - 1);
-    
-    p = tmp;
-    
-    waitstr = strsep(&p, "|");
-    tonestr = strsep(&p, "|");
-    options = strsep(&p, "|");
-    silstr = strsep(&p, "|");
-    minstr = strsep(&p, "|");    
-    maxstr = strsep(&p, "|");    
-    
-    if (waitstr)
-    {
-        if ((sscanf(waitstr, "%d", &x) == 1) && (x > 0))
-            waitdur = x;
-    }
+	if (argc > 6) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", detectfax_syntax);
+		return -1;
+	}
 
-    if ((tonestr != NULL)  &&  strlen(tonestr) == 0)
-        tonestr = NULL;
-    
-    if (options)
-    {
-        if (strchr(options, 'n'))
-            skipanswer = 1;
-        if (strchr(options, 'x'))
-            noextneeded = 1;
-        if (strchr(options, 'd'))
-            ignoredtmf = 1;
-        if (strchr(options, 'D'))
-        {
-            longdtmf = 1;
-            ignoredtmf = 0;
-        }
-        if (strchr(options, 'f'))
-            ignorefax = 1;
-        if (strchr(options, 't'))
-            ignoretalk = 1;
-        if (strchr(options, 'j'))
-            ignorejump = 1;
-    }
-    
-    if (silstr)
-    {
-        if ((sscanf(silstr, "%d", &x) == 1)  &&  (x > 0))
-            sildur = x;
-    }
-    
-    if (minstr)
-    {
-        if ((sscanf(minstr, "%d", &x) == 1)  &&  (x > 0))
-            mindur = x;
-    }
-    
-    if (maxstr)
-    {
-        if ((sscanf(maxstr, "%d", &x) == 1)  &&  (x > 0))
-            maxdur = x;
-    }
-    
+	waitdur = (argc > 0 ? atoi(argv[0]) : 4);
+	if (waitdur <= 0) waitdur = 4;
+
+	tonestr = (argc > 1 && argv[1][0] ? argv[1] : NULL);
+
+	if (argc > 2) {
+		for (; argv[2][0]; argv[2]++) {
+			switch (argv[2][0]) {
+				case 'n': skipanswer = 1; break;
+				case 'x': noextneeded = 1; break;
+				case 'd': ignoredtmf = 1; break;
+				case 'D': ignoredtmf = 0; longdtmf = 1; break;
+				case 'f': ignorefax = 1; break;
+				case 't': ignoretalk = 1; break;
+				case 'j': ignorejump = 1; break;
+			}
+		}
+	}
+
+	sildur = (argc > 3 ? atoi(argv[3]) : 1000);
+	if (sildur <= 0) sildur = 1000;
+
+	mindur = (argc > 4 ? atoi(argv[4]) : 100);
+	if (mindur <= 0) mindur = 100;
+
+	maxdur = (argc > 5 ? atoi(argv[5]) : -1);
+	if (maxdur <= 0) maxdur = -1;
+
     opbx_log(LOG_DEBUG, "Preparing detect of fax (waitdur=%dms, sildur=%dms, mindur=%dms, maxdur=%dms)\n", 
                         waitdur, sildur, mindur, maxdur);
                         
@@ -509,13 +476,16 @@ static int detectfax_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+    int res = 0;
     STANDARD_HANGUP_LOCALUSERS;
-    return opbx_unregister_application(app);
+    res |= opbx_unregister_application(detectfax_app);
+    return res;
 }
 
 int load_module(void)
 {
-    return opbx_register_application(app, detectfax_exec, synopsis, descrip);
+    detectfax_app = opbx_register_application(detectfax_name, detectfax_exec, detectfax_synopsis, detectfax_syntax, detectfax_descrip);
+    return 0;
 }
 
 char *description(void)

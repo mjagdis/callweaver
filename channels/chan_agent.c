@@ -72,16 +72,23 @@ static const char channeltype[] = "Agent";
 static const char tdesc[] = "Call Agent Proxy Channel";
 static const char config[] = "agents.conf";
 
+static void *agentlogin_app;
+static void *agentcallbacklogin_app;
+static void *agentmonitoroutgoing_app;
+
 static const char app[] = "AgentLogin";
 static const char app2[] = "AgentCallbackLogin";
 static const char app3[] = "AgentMonitorOutgoing";
+
+static const char syntax[] = "AgentLogin([AgentNo[, options]])";
+static const char syntax2[] = "AgentCallbackLogin([AgentNo[, options[, [exten]@context]]])";
+static const char syntax3[] = "AgentMonitorOutgoing([options])";
 
 static const char synopsis[] = "Call agent login";
 static const char synopsis2[] = "Call agent callback login";
 static const char synopsis3[] = "Record agent's outgoing call";
 
 static const char descrip[] =
-"  AgentLogin([AgentNo][|options]):\n"
 "Asks the agent to login to the system.  Always returns -1.  While\n"
 "logged in, the agent can receive calls and will hear a 'beep'\n"
 "when a new call comes in. The agent can dump the call by pressing\n"
@@ -90,7 +97,6 @@ static const char descrip[] =
 "      's' -- silent login - do not announce the login ok segment after agent logged in/off\n";
 
 static const char descrip2[] =
-"  AgentCallbackLogin([AgentNo][|[options][|[exten]@context]]):\n"
 "Asks the agent to login to the system with callback.\n"
 "The agent's callback extension is called (optionally with the specified\n"
 "context).\n"
@@ -98,7 +104,6 @@ static const char descrip2[] =
 "      's' -- silent login - do not announce the login ok segment agent logged in/off\n";
 
 static const char descrip3[] =
-"  AgentMonitorOutgoing([options]):\n"
 "Tries to figure out the id of the agent who is placing outgoing call based on\n"
 "comparision of the callerid of the current interface and the global variable \n"
 "placed by the AgentCallbackLogin application. That's why it should be used only\n"
@@ -310,7 +315,7 @@ static void agent_unlink(struct agent_pvt *agent)
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
 	int argc;
-	char *argv[3];
+	char *argv[3 + 1];
 	char *args;
 	char *password = NULL;
 	char *name = NULL;
@@ -320,7 +325,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	args = opbx_strdupa(agent);
 
 	// Extract username (agt), password and name from agent (args).
-	if ((argc = opbx_separate_app_args(args, ',', argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((argc = opbx_separate_app_args(args, ',', arraysize(argv), argv))) {
 		agt = argv[0];
 		if (argc > 1) {
 			password = argv[1];
@@ -1677,7 +1682,7 @@ LOCAL_USER_DECL;
  * @param callbackmode
  * @returns 
  */
-static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
+static int __login_exec(struct opbx_channel *chan, int argc, char **argv, int callbackmode)
 {
 	int res=0;
 	int tries = 0;
@@ -1690,13 +1695,6 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	char agent[OPBX_MAX_AGENT] = "";
 	char xpass[OPBX_MAX_AGENT] = "";
 	char *errmsg;
-	char *parse;
-	char *opts;
-	OPBX_DECLARE_APP_ARGS(args,
-			     OPBX_APP_ARG(agent_id);
-			     OPBX_APP_ARG(options);
-			     OPBX_APP_ARG(extension);
-		);
 	char *tmpoptions = NULL;
 	char *context = NULL;
 	int play_announcement = 1;
@@ -1705,14 +1703,6 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	char *filename = "agent-loginok";
 
 	LOCAL_USER_ADD(u);
-
-	if (!(parse = opbx_strdupa(data))) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	OPBX_STANDARD_APP_ARGS(args, parse);
 
 	opbx_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
 
@@ -1742,24 +1732,24 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 	}
 	/* End Channel Specific Login Overrides */
 	
-	if (callbackmode && args.extension) {
-		parse = args.extension;
-		args.extension = strsep(&parse, "@");
-		context = parse;
+	if (callbackmode && argc > 2) {
+		if ((context = strchr(argv[2], '@')))
+			*(context++) = '\0';
 	}
 
-	opts = args.options;
-	if (!opbx_strlen_zero(opts)) {
-		if (strchr(opts, 's')) {
-			play_announcement = 0;
+	if (argc > 1) {
+		for (; argv[1][0]; argv[1]++) {
+			switch (argv[1][0]) {
+				case 's': play_announcement = 0; break;
+			}
 		}
 	}
 
 	if (chan->_state != OPBX_STATE_UP)
 		res = opbx_answer(chan);
 	if (!res) {
-		if (!opbx_strlen_zero(args.agent_id))
-			opbx_copy_string(user, args.agent_id, OPBX_MAX_AGENT);
+		if (argc > 1 && argv[0][0])
+			opbx_copy_string(user, argv[0], OPBX_MAX_AGENT);
 		else
 			res = opbx_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
 	}
@@ -1835,20 +1825,21 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 
 					if (callbackmode) {
 						char tmpchan[OPBX_MAX_BUF] = "";
+						char *extension = (argc > 2 ? argv[2] : NULL);
 						int pos = 0;
 						/* Retrieve login chan */
-						while (!args.extension || args.extension[0] != '#') {
-							if (!opbx_strlen_zero(args.extension)) {
-								opbx_copy_string(tmpchan, args.extension, sizeof(tmpchan));
+						while (!extension || extension[0] != '#') {
+							if (!opbx_strlen_zero(extension)) {
+								opbx_copy_string(tmpchan, extension, sizeof(tmpchan));
 								res = 0;
 							} else
 								res = opbx_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
 							if (opbx_strlen_zero(tmpchan) || opbx_exists_extension(chan, !opbx_strlen_zero(context) ? context : "default", tmpchan,
 													     1, NULL))
 								break;
-							if (args.extension) {
-								opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", args.extension, p->agent);
-								args.extension = NULL;
+							if (extension) {
+								opbx_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", extension, p->agent);
+								extension = NULL;
 								pos = 0;
 							} else {
 								opbx_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !opbx_strlen_zero(context) ? context : "default", p->agent);
@@ -1865,7 +1856,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 								}
 							}
 						}
-						args.extension = tmpchan;
+						extension = tmpchan;
 						if (!res) {
 							set_agentbycallerid(p->logincallerid, NULL);
 							if (!opbx_strlen_zero(context) && !opbx_strlen_zero(tmpchan))
@@ -2089,7 +2080,7 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
 			pbx_builtin_setvar_helper(chan, "AGENTNUMBER", user);
 			if (login_state==1) {
 				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "on");
-				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", args.extension);
+				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", argv[0]);
 			}
 			else {
 				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "off");
@@ -2128,9 +2119,9 @@ static int __login_exec(struct opbx_channel *chan, void *data, int callbackmode)
  * @returns
  * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int login_exec(struct opbx_channel *chan, void *data)
+static int login_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	return __login_exec(chan, data, 0);
+	return __login_exec(chan, argc, argv, 0);
 }
 
 /**
@@ -2141,9 +2132,9 @@ static int login_exec(struct opbx_channel *chan, void *data)
  * @returns
  * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int callback_exec(struct opbx_channel *chan, void *data)
+static int callback_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	return __login_exec(chan, data, 1);
+	return __login_exec(chan, argc, argv, 1);
 }
 
 /**
@@ -2239,7 +2230,7 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
  * @returns
  * @sa login_exec(), callback_login_exec(), load_module().
  */
-static int agentmonitoroutgoing_exec(struct opbx_channel *chan, void *data)
+static int agentmonitoroutgoing_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int exitifnoagentid = 0;
 	int nowarnings = 0;
@@ -2247,14 +2238,16 @@ static int agentmonitoroutgoing_exec(struct opbx_channel *chan, void *data)
 	int res = 0;
 	char agent[OPBX_MAX_AGENT], *tmp;
 
-	if (data) {
-		if (strchr(data, 'd'))
-			exitifnoagentid = 1;
-		if (strchr(data, 'n'))
-			nowarnings = 1;
-		if (strchr(data, 'c'))
-			changeoutgoing = 1;
+	if (argc > 1) {
+		for (; argv[0][0]; argv[0]++) {
+			switch (argv[0][0]) {
+				case 'c': changeoutgoing = 1; break;
+				case 'd': exitifnoagentid = 1; break;
+				case 'n': nowarnings = 1; break;
+			}
+		}
 	}
+
 	if (chan->cid.cid_num) {
 		char agentvar[OPBX_MAX_BUF];
 		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->cid.cid_num);
@@ -2444,9 +2437,9 @@ int load_module()
 		return -1;
 	}
 	/* Dialplan applications */
-	opbx_register_application(app, login_exec, synopsis, descrip);
-	opbx_register_application(app2, callback_exec, synopsis2, descrip2);
-	opbx_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
+	agentlogin_app = opbx_register_application(app, login_exec, synopsis, syntax, descrip);
+	agentcallbacklogin_app = opbx_register_application(app2, callback_exec, synopsis2, syntax2, descrip2);
+	agentmonitoroutgoing_app = opbx_register_application(app3, agentmonitoroutgoing_exec, synopsis3, syntax3, descrip3);
 	/* Manager commands */
 	opbx_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
 	opbx_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
@@ -2472,14 +2465,16 @@ int reload()
 int unload_module()
 {
 	struct agent_pvt *p;
+	int res = 0;
+
 	/* First, take us out of the channel loop */
 	/* Unregister CLI application */
 	opbx_cli_unregister(&cli_show_agents);
 	opbx_cli_unregister(&cli_agent_logoff);
 	/* Unregister dialplan applications */
-	opbx_unregister_application(app);
-	opbx_unregister_application(app2);
-	opbx_unregister_application(app3);
+	res |= opbx_unregister_application(agentlogin_app);
+	res |= opbx_unregister_application(agentcallbacklogin_app);
+	res |= opbx_unregister_application(agentmonitoroutgoing_app);
 	/* Unregister manager command */
 	opbx_manager_unregister("Agents");
 	opbx_manager_unregister("AgentLogoff");
@@ -2500,7 +2495,7 @@ int unload_module()
 		opbx_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}		
-	return 0;
+	return res;
 }
 
 int usecount()

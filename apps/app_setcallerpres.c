@@ -47,16 +47,12 @@ CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 7221 $")
 
 static char *tdesc = "SetCallerPres Application";
 
-static char *app = "SetCallerPres";
-
-static char *synopsis = "Set CallerID Presentation";
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static char *descrip = 
-"  SetCallerPres(presentation): Set Caller*ID presentation on a call.\n"
+static void *setcallerid_pres_app;
+static const char *setcallerid_pres_name = "SetCallerPres";
+static const char *setcallerid_pres_synopsis = "Set CallerID Presentation";
+static const char *setcallerid_pres_syntax = "SetCallerPres(presentation)";
+static const char *setcallerid_pres_descrip = 
+"Set Caller*ID presentation on a call.\n"
 "  Valid presentations are:\n"
 "\n"
 "      allowed_not_screened    : Presentation Allowed, Not Screened\n"
@@ -71,18 +67,21 @@ static char *descrip =
 "\n"
 ;
 
-static int setcallerid_pres_exec(struct opbx_channel *chan, void *data)
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
+static int setcallerid_pres_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	int pres = -1;
 
 	LOCAL_USER_ADD(u);
 	
-	pres = opbx_parse_caller_presentation(data);
+	pres = opbx_parse_caller_presentation(argv[0]);
 
 	if (pres < 0) {
-		opbx_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
-			(char *) data);
+		opbx_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n", argv[0]);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -95,22 +94,16 @@ static int setcallerid_pres_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int res;
-
-	res = opbx_unregister_application(app);
-
+	int res = 0;
+	res |= opbx_unregister_application(setcallerid_pres_app);
 	STANDARD_HANGUP_LOCALUSERS;
-
 	return res;
 }
 
 int load_module(void)
 {
-	int res;
-	
-	res = opbx_register_application(app, setcallerid_pres_exec, synopsis, descrip);
-
-	return res;
+	setcallerid_pres_app = opbx_register_application(setcallerid_pres_name, setcallerid_pres_exec, setcallerid_pres_synopsis, setcallerid_pres_syntax, setcallerid_pres_descrip);
+	return 0;
 }
 
 char *description(void)

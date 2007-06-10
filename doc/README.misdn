@@ -148,7 +148,7 @@ Dial and Options String
 The dial string of chan_misdn got more complex, because we added more features,
 so the generic dial string looks like:
 
-mISDN/<port>|g:<group>/<extension>[/<OPTIONSSTRING>]
+mISDN/<port>,g:<group>/<extension>[/<OPTIONSSTRING>]
 
 The Optionsstring looks Like:
 :<optchar1><OptParam1>:<optchar2><OptParam2>

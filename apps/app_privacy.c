@@ -51,12 +51,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Require phone number to be entered, if no CallerID sent";
 
-static char *app = "PrivacyManager";
-
-static char *synopsis = "Require phone number to be entered, if no CallerID sent";
-
-static char *descrip =
-  "  PrivacyManager: If no Caller*ID is sent, PrivacyManager answers the\n"
+static void *privacy_app;
+static char *privacy_name = "PrivacyManager";
+static char *privacy_synopsis = "Require phone number to be entered, if no CallerID sent";
+static char *privacy_syntax = "PrivacyManager()";
+static char *privacy_descrip =
+  "If no Caller*ID is sent, PrivacyManager answers the\n"
   "channel and asks the caller to enter their phone number.\n"
   "The caller is given 3 attempts.  If after 3 attempts, they do not enter\n"
   "at least a 10 digit phone number, and if there exists a priority n + 101,\n"
@@ -75,20 +75,20 @@ LOCAL_USER_DECL;
 
 
 
-static int
-privacy_exec (struct opbx_channel *chan, void *data)
+static int privacy_exec (struct opbx_channel *chan, int argc, char **argv)
 {
+	char phone[30];
+	struct localuser *u;
+	struct opbx_config *cfg;
+	char *s;
 	int res=0;
 	int retries;
 	int maxretries = 3;
 	int minlength = 10;
 	int x;
-	char *s;
-	char phone[30];
-	struct localuser *u;
-	struct opbx_config *cfg;
 
 	LOCAL_USER_ADD (u);
+
 	if (!opbx_strlen_zero(chan->cid.cid_num)) {
 		if (option_verbose > 2)
 			opbx_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
@@ -173,15 +173,17 @@ privacy_exec (struct opbx_channel *chan, void *data)
 int
 unload_module (void)
 {
+  int res = 0;
   STANDARD_HANGUP_LOCALUSERS;
-  return opbx_unregister_application (app);
+  res |= opbx_unregister_application (privacy_app);
+  return res;
 }
 
 int
 load_module (void)
 {
-  return opbx_register_application (app, privacy_exec, synopsis,
-				   descrip);
+	privacy_app = opbx_register_application(privacy_name, privacy_exec, privacy_synopsis, privacy_syntax, privacy_descrip);
+	return 0;
 }
 
 char *

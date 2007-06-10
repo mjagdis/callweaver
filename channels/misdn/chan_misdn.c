@@ -326,7 +326,7 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
-static int misdn_set_opt_exec(struct opbx_channel *chan, void *data);
+static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv);
 static int misdn_facility_exec(struct opbx_channel *chan, void *data);
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
@@ -2006,7 +2006,7 @@ static int misdn_call(struct opbx_channel *ast, char *dest, int timeout)
 		
 		/* Finally The Options Override Everything */
 		if (opts)
-			misdn_set_opt_exec(ast,opts);
+			misdn_set_opt_exec(ast, &opts, 1);
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
@@ -4528,6 +4528,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 static int g_config_initialized=0;
 
+static void *misdn_set_opt_app;
+static void *misdn_facility_app;
+
 int load_module(void)
 {
 	int i, port;
@@ -4629,8 +4632,8 @@ int load_module(void)
 	opbx_cli_register(&cli_reload);
 
   
-	opbx_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
-				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"
+	misdn_set_opt_app = opbx_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
+				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..)",
 				 "Sets mISDN opts. and optargs\n"
 				 "\n"
 				 "The available options are:\n"
@@ -4646,8 +4649,8 @@ int load_module(void)
 		);
 
 	
-	opbx_register_application("misdn_facility", misdn_facility_exec, "misdn_facility",
-				 "misdn_facility(<FACILITY_TYPE>|<ARG1>|..)\n"
+	misdn_facility_app = opbx_register_application("misdn_facility", misdn_facility_exec, "misdn_facility",
+				 "misdn_facility(<FACILITY_TYPE>|<ARG1>|..)",
 				 "Sends the Facility Message FACILITY_TYPE with \n"
 				 "the given Arguments to the current ISDN Channel\n"
 				 "Supported Facilities are:\n"
@@ -4687,6 +4690,8 @@ int load_module(void)
 
 int unload_module(void)
 {
+	int res = 0;
+
 	/* First, take us out of the channel loop */
 	opbx_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
 
@@ -4717,8 +4722,8 @@ int unload_module(void)
 	opbx_cli_unregister(&cli_set_crypt_debug);
 	opbx_cli_unregister(&cli_reload);
 	/* opbx_unregister_application("misdn_crypt"); */
-	opbx_unregister_application("misdn_set_opt");
-	opbx_unregister_application("misdn_facility");
+	res |= opbx_unregister_application(misdn_set_opt_app);
+	res |= opbx_unregister_application(misdn_facility_app);
   
 	opbx_channel_unregister(&misdn_tech);
 
@@ -4732,7 +4737,7 @@ int unload_module(void)
 	if (misdn_debug_only)
 		free(misdn_debug_only);
 	
-	return 0;
+	return res;
 }
 
 int reload(void)
@@ -4762,7 +4767,7 @@ char *description(void)
 
 /*** SOME APPS ;)***/
 
-static int misdn_facility_exec(struct opbx_channel *chan, void *data)
+static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok, *tokb;
@@ -4774,29 +4779,19 @@ static int misdn_facility_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 	
-	if (opbx_strlen_zero((char *)data)) {
+	if (argc < 1 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "misdn_facility Requires arguments\n");
 		return -1;
 	}
 	
-	tok=strtok_r((char*)data,"|", &tokb) ;
-	
-	if (!tok) {
-		opbx_log(LOG_WARNING, "misdn_facility Requires arguments\n");
-		return -1;
-	}
-	
-	if (!strcasecmp(tok,"calldeflect")) {
-		tok=strtok_r(NULL,"|", &tokb) ;
-		
-		if (!tok) {
+	if (!strcasecmp(argv[0],"calldeflect")) {
+		if (argc < 2 || !argv[1][0])
 			opbx_log(LOG_WARNING, "Facility: Call Defl Requires arguments\n");
-		}
-		
-		misdn_lib_send_facility(ch->bc, FACILITY_CALLDEFLECT, tok);
+		else 
+			misdn_lib_send_facility(ch->bc, FACILITY_CALLDEFLECT, argv[1]);
 		
 	} else {
-		opbx_log(LOG_WARNING, "Unknown Facility: %s\n",tok);
+		opbx_log(LOG_WARNING, "Unknown Facility: %s\n", argv[0]);
 	}
 	
 	return 0;
@@ -4804,7 +4799,7 @@ static int misdn_facility_exec(struct opbx_channel *chan, void *data)
 }
 
 
-static int misdn_set_opt_exec(struct opbx_channel *chan, void *data)
+static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok,*tokb;
@@ -4818,12 +4813,12 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 	
-	if (opbx_strlen_zero((char *)data)) {
+	if (argc != 1 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "misdn_set_opt Requires arguments\n");
 		return -1;
 	}
 
-	for (tok=strtok_r((char*)data, ":",&tokb);
+	for (tok=strtok_r(argv[0], ":",&tokb);
 	     tok;
 	     tok=strtok_r(NULL,":",&tokb) ) {
 		int neglect=0;

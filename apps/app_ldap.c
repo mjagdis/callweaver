@@ -43,24 +43,24 @@ char *strtrim (char *string);
 
 static char *tdesc = "LDAP directory lookup function for CallWeaver extension logic.";
 
-static char *g_descrip =
-"  LDAPget(varname=config-file-section/key): Retrieves a value from an LDAP\n"
+static void *g_app;= "LDAPget";
+static const char *g_name = "LDAPget";
+static const char *g_synopsis = "Retrieve a value from an ldap directory";
+static const char *g_syntax = "LDAPget(varname=config-file-section/key)";
+static const char *g_descrip =
+"Retrieves a value from an LDAP\n"
 "directory and stores it in the given variable. Always returns 0.  If the\n"
 "requested key is not found, jumps to priority n+101 if available.\n";
 
-static char *g_app = "LDAPget";
-
-static char *g_synopsis = "Retrieve a value from an ldap directory";
 
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
-static int ldap_exec (struct opbx_channel *chan, void *data)
+static int ldap_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-  int arglen;
-  struct localuser *u;
-  char *argv, *varname, *config, *keys = NULL, *key = NULL, *tail = NULL;
   char result[2048];
+  struct localuser *u;
+  char *varname, *config, *keys = NULL, *key = NULL, *tail = NULL;
   char *result_conv;
   struct opbx_config *cfg;
 
@@ -68,25 +68,22 @@ static int ldap_exec (struct opbx_channel *chan, void *data)
   char *temp, *host, *user, *pass, *base, *scope, *filter, *_filter, *attribute,
     *convert_from = NULL, *convert_to = NULL;
 
+  if (argc != 1) {
+	  opbx_log(LOG_ERROR, "Syntax: %s\n", g_syntax);
+	  return -1;
+  }
+
   LOCAL_USER_ADD(u);
 
-  arglen = strlen(data);
-  argv = alloca(arglen+1);
-  if(!argv) {
-    opbx_log(LOG_DEBUG, "Memory allocation failed\n");
-    return 0;
-  }
-  memcpy (argv, data, arglen+1);
-
-  if(strchr(argv, '=')) {
-    varname = strsep (&argv, "=");
-    if(strchr(argv, '/')) {
-      config = strsep(&argv, "/");
-      keys = strsep(&argv, "\0");
+  if(strchr(argv[0], '=')) {
+    varname = strsep (&argv[0], "=");
+    if(strchr(argv[0], '/')) {
+      config = strsep(&argv[0], "/");
+      keys = strsep(&argv[0], "\0");
       if(option_verbose > 2)
 	opbx_verbose(VERBOSE_PREFIX_3 "LDAPget: varname=%s, config-section=%s, keys=%s\n", varname, config, keys);
     } else {
-      config = strsep(&argv, "\0");
+      config = strsep(&argv[0], "\0");
       if(option_verbose > 2)
 	opbx_verbose(VERBOSE_PREFIX_3 "LDAPget: varname=%s, config-section=%s\n", varname, config);
     }
@@ -199,12 +196,15 @@ static int ldap_exec (struct opbx_channel *chan, void *data)
 }
 
 int unload_module (void) {
+  int res = 0;
   STANDARD_HANGUP_LOCALUSERS;
-  return opbx_unregister_application (g_app);
+  res |= opbx_unregister_application (g_app);
+  return res;
 }
 
 int load_module (void) {
-  return opbx_register_application (g_app, ldap_exec, g_synopsis, g_descrip);
+  g_app = opbx_register_application(g_name, ldap_exec, g_synopsis, g_syntax, g_descrip);
+  return 0;
 }
 
 char *description (void) {

@@ -82,7 +82,7 @@ mode=immediate
 ;dtmfmode=callweaver			; Detect using CallWeaver
 ;dtmfmode=callweaver/both		; Detect using CallWeaver, generate w/ both
 ; two other devices, which are in group '1' and are used when an
-; outgoing dial used: exten => s,1,Dial,Modem/g1:1234|60|r
+; outgoing dial used: exten => s,1,Dial,Modem/g1:1234,60,r
 ; (we do not need more outgoing devices, since ISDN2 has only 2 channels.)
 ; Lines can be in more than one group (0-63); comma separated list.
 ;

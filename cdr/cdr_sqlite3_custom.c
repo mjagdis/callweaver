@@ -161,7 +161,7 @@ static int sqlite3_log(struct opbx_cdr *cdr)
 		char sql_insert_cmd[2048] = "";
 		sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
 		dummy.cdr = cdr;
-		pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd) - 1);
+		pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
 		sqlite3_free(sql_tmp_cmd);
 		sql_cmd = alloca(strlen(sql_insert_cmd) * 2 + 1);
 		do_escape(sql_cmd, sql_insert_cmd);

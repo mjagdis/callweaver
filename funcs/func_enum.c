@@ -46,116 +46,96 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2642 $")
 
 #include "callweaver/enum.h"
 
-static char* synopsis = "Syntax: ENUMLOOKUP(number[,Method-type[,options|record#[,zone-suffix]]])\n";
+static void *enum_function;
+static const char *enum_func_name = "ENUMLOOKUP";
+static const char *enum_func_synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
+		" or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
+static const char *enum_func_syntax = "ENUMLOOKUP(number[, Method-type[, options|record#[, zone-suffix]]])";
+static const char *enum_func_desc =
+	"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
+	"Option '*%d*' (e.g. result%d) returns an integer count of the matched NAPTRs and sets\n"
+	"the results in variables (e.g. result1, result2, ...result<n>)\n"
+	"Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
+	"Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
+	"For more information, see README.enum";
+
+static void *txtcidname_function;
+static const char *txtcidname_func_name = "TXTCIDNAME";
+static const char *txtcidname_func_synopsis = "TXTCIDNAME looks up a caller name via DNS";
+static const char *txtcidname_func_syntax = "TXTCIDNAME(number)";
+static const char *txtcidname_func_desc = "This function looks up the given phone number in DNS to retrieve\n"
+		"the caller id name.  The result will either be blank or be the value\n"
+		"found in the TXT record in DNS.\n";
+
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static char *function_enum(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_enum(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
-       int res=0;
        char tech[80];
-       char dest[80] = "";
-       char *zone;
-       char *options;
        struct localuser *u;
-       char *params[4];
-       char *p = data;
-       char *s;
-       int i = 0;
+       char *p, *s;
 
-
-       if (!data || opbx_strlen_zero(data)) {
-               opbx_log(LOG_WARNING, synopsis);
-               return "";
+       if (argc < 1 || argc == arraysize(argv) || !argv[0][0]) {
+               opbx_log(LOG_ERROR, "Syntax: %s\n", enum_func_syntax);
+               return NULL;
        }
 
-       do {
-               if(i>3){
-                       opbx_log(LOG_WARNING, synopsis);
-                       return "";
-               }
-               params[i++] = p;
-               p = strchr(p, '|');
-               if(p){
-                       *p = '\0';
-                       p++;
-               }
-       } while(p);
-
-       if(i < 1){
-               opbx_log(LOG_WARNING, synopsis);
-               return "";
+       /* A certain application from which CallWeaver was originally
+	* derived changed argument parsing at some stage and, possibly
+	* inadvertantly, made options and record# separate arguments.
+	* They aren't. They're mutually exclusive. A record# is just
+	* a numeric option. We support options and record# as either
+	* the same or distinct arguments. This sucks but it avoids
+	* unpleasantness for people upgrading to CallWeaver.
+	*/
+	if (argc >= 4) {
+		if ((!argv[2][0] && isdigit(argv[3][0])) || (argv[2][0] && !argv[3][0])) {
+			opbx_log(LOG_WARNING, "options and record# are the same argument!\n");
+			if (!argv[2][0])
+				argv[2] = argv[3];
+			argv[3] = argv[4];
+			argc--;
+		}
        }
 
-       if( (i > 1 && strlen(params[1]) == 0) || i < 2){
-               opbx_copy_string(tech, "sip", sizeof(tech));
-       } else {
-               opbx_copy_string(tech, params[1], sizeof(tech));
-       }
+       if (argc < 1 || !argv[1][0])
+               argv[1] = "sip";
 
-       if( (i > 3 && strlen(params[3]) == 0) || i<4){
-               zone = "e164.arpa";
-       } else {
-               zone = params[3];
-       }
+       if (argc < 2 || !argv[2][0])
+               argv[2] = "1";
 
-       if( (i > 2 && strlen(params[2]) == 0) || i<3){
-               options = "1";
-       } else {
-               options = params[2];
-       }
+       if (argc < 3 || !argv[3][0])
+               argv[3] = "e164.arpa";
 
        /* strip any '-' signs from number */
-       p = params[0];
-       /*
-       while(*p == '+'){
-               p++;
-       }
-       */
-       s = p;
-       i = 0;
-       while(*p && *s){
-               if(*s == '-'){
-                       s++;
-               } else {
-                       p[i++] = *s++;
-               }
-       }
-       p[i] = 0;
+       for (s = p = argv[0]; *s; s++)
+               if (*s != '-')
+		       *(p++) = *s;
+       *p = '\0';
+
+       opbx_copy_string(tech, argv[1], sizeof(tech));
 
        LOCAL_USER_ACF_ADD(u);
 
-       res = opbx_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), zone, options);
+       /* N.B. The oly reason opbx_get_enum returns tech is to support
+	* the old (and deprecated) apps/app_enum which hardcodes a mapping
+	* from enum method to channel technology. With funcs/func_enum
+	* you're expected to do it yourself in the dialplan.
+	*/
+       opbx_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), argv[3], argv[2]);
 
        LOCAL_USER_REMOVE(u);
 
-       p = strchr(dest, ':');
-       if(p && strncasecmp(tech, "ALL", sizeof(tech))) {
-               opbx_copy_string(buf, p+1, sizeof(dest));
-       } else {
-               opbx_copy_string(buf, dest, sizeof(dest));
-       }
+       if ((p = strchr(buf, ':')) && strcasecmp(argv[1], "ALL"))
+               opbx_copy_string(buf, p+1, len);
 
        return buf;
 }
 
-static struct opbx_custom_function enum_function = {
-       .name = "ENUMLOOKUP",
-       .synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
-       " or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
-       .syntax = "ENUMLOOKUP(number[,Method-type[,options|record#[,zone-suffix]]])",
-       .desc = "Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
-	"Option '*%d*' (e.g. result%d) returns an integer count of the matched NAPTRs and sets\n"
-	"the results in variables (e.g. result1, result2, ...result<n>)\n"
-       "Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
-       "Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
-       "For more information, see README.enum",
-       .read = function_enum,
-};
-
-static char *function_txtcidname(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_txtcidname(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
 	int res;
 	char tech[80];
@@ -163,17 +143,16 @@ static char *function_txtcidname(struct opbx_channel *chan, char *cmd, char *dat
 	char dest[80];
 	struct localuser *u;
 
-	LOCAL_USER_ACF_ADD(u);
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", txtcidname_func_syntax);
+		return NULL;
+	}
 
 	buf[0] = '\0';
 
-	if (!data || opbx_strlen_zero(data)) {
-	        opbx_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
-	        LOCAL_USER_REMOVE(u);
-	        return buf;
-	}
+	LOCAL_USER_ACF_ADD(u);
 
-	res = opbx_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+	res = opbx_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
 
 	if (!opbx_strlen_zero(txt))
 	        opbx_copy_string(buf, txt, len);
@@ -183,41 +162,23 @@ static char *function_txtcidname(struct opbx_channel *chan, char *cmd, char *dat
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function txtcidname_function = {
-	 .name = "TXTCIDNAME",
-	 .synopsis = "TXTCIDNAME looks up a caller name via DNS",
-	 .syntax = "TXTCIDNAME(<number>)",
-	 .desc = "This function looks up the given phone number in DNS to retrieve\n"
-	"the caller id name.  The result will either be blank or be the value\n"
-	"found in the TXT record in DNS.\n",
-	 .read = function_txtcidname,
-};
-
 
 static char *tdesc = "ENUMLOOKUP allows for general or specific querying of NAPTR records or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
 
 int unload_module(void)
 {
-	opbx_custom_function_unregister(&enum_function);
-	opbx_custom_function_unregister(&txtcidname_function);
-	
-	STANDARD_HANGUP_LOCALUSERS;
+	int res = 0;
 
-	return 0;
+	res |= opbx_unregister_function(enum_function);
+	res |= opbx_unregister_function(txtcidname_function);
+	return res;
 }
 
 int load_module(void)
 {
-	int res;
-
-	res = opbx_custom_function_register(&enum_function);
-	if (!res)
-		opbx_custom_function_register(&txtcidname_function);
-
-	return res;
+	enum_function = opbx_register_function(enum_func_name, function_enum, NULL, enum_func_synopsis, enum_func_syntax, enum_func_desc);
+	txtcidname_function = opbx_register_function(txtcidname_func_name, function_txtcidname, NULL, txtcidname_func_synopsis, txtcidname_func_syntax, txtcidname_func_desc);
+	return 0;
 }
 
 char *description(void)

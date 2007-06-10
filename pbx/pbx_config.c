@@ -119,33 +119,6 @@ static char reload_extensions_help[] =
 "\n"
 "Example: extensions reload\n";
 
-/*
- * Static code
- */
-static char *process_quotes_and_slashes(char *start, char find, char replace_with)
-{
- 	char *dataPut = start;
-	int inEscape = 0;
-	int inQuotes = 0;
-
-	for (; *start; start++) {
-		if (inEscape) {
-			*dataPut++ = *start;       /* Always goes verbatim */
-			inEscape = 0;
-    		} else {
-			if (*start == '\\') {
-				inEscape = 1;      /* Do not copy \ into the data */
-			} else if (*start == '\'') {
-				inQuotes = 1-inQuotes;   /* Do not copy ' into the data */
-			} else {
-				/* Replace , with |, unless in quotes */
-				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
-			}
-		}
-	}
-	*dataPut = 0;
-	return dataPut;
-}
 
 /*
  * Implementation of functions provided by this module
@@ -1073,20 +1046,12 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						}
 
 						if (opbx_get_extension_priority(p)!=PRIORITY_HINT) {
-							char *tempdata, *startdata;
+							char *tempdata;
 							const char *el = opbx_get_extension_label(p);
 							char label[128] = "";
 
-							tempdata = opbx_strdupa(opbx_get_extension_app_data(p));
+							tempdata = opbx_get_extension_app_data(p);
 
-							startdata = tempdata;
-							while (*tempdata) {
-								if (*tempdata == '|')
-									*tempdata = ',';
-								tempdata++;
-							}
-							tempdata = startdata;
-							
 							if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
 								incomplete = 1; // error encountered or label is > 125 chars
 
@@ -1231,7 +1196,6 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
-		process_quotes_and_slashes(app_data, ',', '|');
 	} else {
 		if (app) {
 			app_data = strchr(app, ',');
@@ -1669,8 +1633,7 @@ static int pbx_load_module(void)
 
 		v = opbx_variable_browse(cfg, "globals");
 		while(v) {
-			memset(realvalue, 0, sizeof(realvalue));
-			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 			v = v->next;
 		}
@@ -1695,7 +1658,7 @@ static int pbx_load_module(void)
 							ext = strsep(&stringp, ",");
 							if (!ext)
 								ext="";
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
+							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext));
 							cidmatch = strchr(realext, '/');
 							if (cidmatch) {
 								*cidmatch = '\0';
@@ -1764,7 +1727,6 @@ static int pbx_load_module(void)
 								} else {
 									opbx_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
 								}
-								process_quotes_and_slashes(data, ',', '|');
 							}
 
 							if (!data)
@@ -1786,20 +1748,17 @@ static int pbx_load_module(void)
 						} else 
 						    opbx_log(LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
-						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 						if (opbx_context_add_include2(con, realvalue, registrar))
 							opbx_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
-						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 						if (opbx_context_add_ignorepat2(con, realvalue, registrar))
 							opbx_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp=NULL;
-						memset(realvalue, 0, sizeof(realvalue));
 						if (!strcasecmp(v->name, "switch"))
-							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue));
 						else
 							strncpy(realvalue, v->value, sizeof(realvalue) - 1);
 						tc = realvalue;

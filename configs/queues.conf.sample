@@ -11,8 +11,8 @@ persistentmembers = yes
 ;
 ; Note that a timeout to fail out of a queue may be passed as part of
 ; an application call from extensions.conf:
-; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
-; example: Queue(dave|t|||45)
+; Queue(queuename[, options[, optionalurl[, announceoverride[, timeout]]]])
+; example: Queue(dave, t, , , 45)
 
 ;[markq]
 ;
@@ -133,7 +133,7 @@ persistentmembers = yes
 ;    Set(MONITOR_FILENAME=foo)
 ; Otherwise it will use MONITOR_FILENAME=${UNIQUEID}
 ;
-;monitor-format = gsm|wav|wav49
+;monitor-format = gsm,wav,wav49
 ;
 ; If you wish to have the two files joined together when the call ends, set this
 ; to yes.

@@ -53,12 +53,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2820 $")
 
 static const char *tdesc = "Page Multiple Phones";
 
-static const char *app_page= "Page";
-
+static void *page_app;
+static const char *page_name = "Page";
 static const char *page_synopsis = "Pages phones";
-
+static const char *page_syntax = "Page(Technology/Resource&Technology2/Resource2[, options])";
 static const char *page_descrip =
-"Page(Technology/Resource&Technology2/Resource2[|options])\n"
 "  Places outbound calls to the given technology / resource and dumps\n"
 "them into a conference bridge as muted participants.  The original\n"
 "caller is dumped into the conference as a speaker and the room is\n"
@@ -75,10 +74,6 @@ enum {
 	PAGE_QUIET = (1 << 1),
 } page_opt_flags;
 
-OPBX_APP_OPTIONS(page_opts, {
-	OPBX_APP_OPTION('d', PAGE_DUPLEX),
-	OPBX_APP_OPTION('q', PAGE_QUIET),
-});
 
 struct calloutdata {
 	char cidnum[64];
@@ -146,20 +141,18 @@ static void launch_page(struct opbx_channel *chan, const char *meetmeopts, const
 	}
 }
 
-static int page_exec(struct opbx_channel *chan, void *data)
+static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
-	char *options;
 	char *tech, *resource;
 	char meetmeopts[80];
-	struct opbx_flags flags = { 0 };
+	unsigned char flags;
 	unsigned int confid = rand();
 	struct opbx_app *app;
-	char *tmp;
 	int res=0;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "This application requires at least one argument (destination(s) to page)\n");
+	if (argc < 1 || argc > 2) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", page_syntax);
 		return -1;
 	}
 
@@ -171,19 +164,19 @@ static int page_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	};
 
-	options = opbx_strdupa(data);
-	if (!options) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
+	flags = 0;
+	if (argc > 1) {
+		char *p;
+		for (; *argv[1]; argv[1]++) {
+			switch (*argv[1]) {
+				case 'd': flags |= PAGE_DUPLEX; break;
+				case 'q': flags |= PAGE_QUIET; break;
+			}
+		}
 	}
 
-	tmp = strsep(&options, "|");
-	if (options)
-		opbx_app_parse_options(page_opts, &flags, NULL, options);
-
-	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, opbx_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
-	while ((tech = strsep(&tmp, "&"))) {
+	snprintf(meetmeopts, sizeof(meetmeopts), "%ud,%sqxdw", confid, ((flags & PAGE_DUPLEX) ? "" : "m"));
+	while ((tech = strsep(&argv[0], "&"))) {
 		if ((resource = strchr(tech, '/'))) {
 			*resource++ = '\0';
 			launch_page(chan, meetmeopts, tech, resource);
@@ -191,14 +184,14 @@ static int page_exec(struct opbx_channel *chan, void *data)
 			opbx_log(LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
 		}
 	}
-	if (!opbx_test_flag(&flags, PAGE_QUIET)) {
+	if (!(flags & PAGE_QUIET)) {
 		res = opbx_streamfile(chan, "beep", chan->language);
 		if (!res)
 			res = opbx_waitstream(chan, "");
 	}
 	if (!res) {
-		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, opbx_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
-		pbx_exec(chan, app, meetmeopts, 1);
+		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ((flags & PAGE_DUPLEX) ? "" : "t"));
+		pbx_exec(chan, app, meetmeopts);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -208,18 +201,16 @@ static int page_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int res;
-
-	res =  opbx_unregister_application(app_page);
-
+	int res = 0;
+	res |=  opbx_unregister_application(page_app);
 	STANDARD_HANGUP_LOCALUSERS;
-
 	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app_page, page_exec, page_synopsis, page_descrip);
+	page_app = opbx_register_application(page_name, page_exec, page_synopsis, page_syntax, page_descrip);
+	return 0;
 }
 
 char *description(void)

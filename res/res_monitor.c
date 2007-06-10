@@ -54,9 +54,11 @@ OPBX_MUTEX_DEFINE_STATIC(monitorlock);
 
 static unsigned long seq = 0;
 
-static char *monitor_synopsis = "Monitor a channel";
-
-static char *monitor_descrip = "Monitor([file_format[:urlbase]|[fname_base]|[options]]):\n"
+static void *monitor_app;
+static const char *monitor_name = "Monitor";
+static const char *monitor_synopsis = "Monitor a channel";
+static const char *monitor_syntax = "Monitor([file_format[:urlbase]|[fname_base]|[options]])";
+static const char *monitor_descrip =
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"
 "monitoring is stopped by the StopMonitor application.\n"
@@ -80,14 +82,18 @@ static char *monitor_descrip = "Monitor([file_format[:urlbase]|[fname_base]|[opt
 "monitored, otherwise 0.\n"
 ;
 
-static char *stopmonitor_synopsis = "Stop monitoring a channel";
-
-static char *stopmonitor_descrip = "StopMonitor\n"
+static void *stopmonitor_app;
+static const char *stopmonitor_name = "StopMonitor";
+static const char *stopmonitor_synopsis = "Stop monitoring a channel";
+static const char *stopmonitor_syntax = "StopMonitor";
+static const char *stopmonitor_descrip =
 	"Stops monitoring a channel. Has no effect if the channel is not monitored\n";
 
-static char *changemonitor_synopsis = "Change monitoring filename of a channel";
-
-static char *changemonitor_descrip = "ChangeMonitor(filename_base)\n"
+static void *changemonitor_app;
+static const char *changemonitor_name = "ChangeMonitor";
+static const char *changemonitor_synopsis = "Change monitoring filename of a channel";
+static const char *changemonitor_syntax = "ChangeMonitor(filename_base)";
+static const char *changemonitor_descrip =
 	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored\n"
 	"The argument is the new filename base to use for monitoring this channel.\n";
 
@@ -362,84 +368,57 @@ static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fn
 	return 0;
 }
 
-static int start_monitor_exec(struct opbx_channel *chan, void *data)
+static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *arg = NULL;
-	char *format = NULL;
-	char *fname_base = NULL;
-	char *options = NULL;
-	char *delay = NULL;
-	char *urlprefix = NULL;
 	char tmp[256];
+	char *urlprefix = NULL;
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;
-	
-	/* Parse arguments. */
-	if (data && !opbx_strlen_zero((char*)data)) {
-		arg = opbx_strdupa((char*)data);
-		format = arg;
-		fname_base = strchr(arg, '|');
-		if (fname_base) {
-			*fname_base = 0;
-			fname_base++;
-			if ((options = strchr(fname_base, '|'))) {
-				*options = 0;
-				options++;
-				if (strchr(options, 'm'))
-					joinfiles = 1;
-				if (strchr(options, 'b'))
-					waitforbridge = 1;
+
+	if (argc > 2) {
+		for (; argv[2][0]; argv[2]++) {
+			switch (argv[2][0]) {
+				case 'b': waitforbridge = 1; break;
+				case 'm': joinfiles = 1; break;
 			}
 		}
-		arg = strchr(format,':');
-		if (arg) {
-			*arg++ = 0;
-			urlprefix = arg;
-		}
+		argc--;
 	}
-	if (urlprefix) {
-		snprintf(tmp,sizeof(tmp) - 1,"%s/%s.%s",urlprefix,fname_base,
-			((strcmp(format,"gsm")) ? "wav" : "gsm"));
+
+	if ((urlprefix = strchr(argv[0], ':'))) {
+		*(urlprefix++) = '\0';
+		snprintf(tmp, sizeof(tmp) - 1, "%s/%s.%s", urlprefix, (argc > 1 ? argv[1] : ""),
+			((strcmp(argv[0], "gsm")) ? "wav" : "gsm"));
 		if (!chan->cdr)
 			chan->cdr = opbx_cdr_alloc();
 		opbx_cdr_setuserfield(chan, tmp);
 	}
+
 	if (waitforbridge) {
-		/* We must remove the "b" option if listed.  In principle none of
-		   the following could give NULL results, but we check just to
-		   be pedantic. Reconstructing with checks for 'm' option does not
-		   work if we end up adding more options than 'm' in the future. */
-		delay = opbx_strdupa((char*)data);
-		if (delay) {
-			options = strrchr(delay, '|');
-			if (options) {
-				arg = strchr(options, 'b');
-				if (arg) {
-					*arg = 'X';
-					pbx_builtin_setvar_helper(chan,"AUTO_MONITOR",delay);
-				}
-			}
-		}
+		pbx_builtin_setvar_helper(chan, "AUTO_MONITOR_FORMAT", (argc > 0 ? argv[0] : ""));
+		pbx_builtin_setvar_helper(chan, "AUTO_MONITOR_FNAME_BASE", (argc > 1 ? argv[1] : ""));
+		/* We must not pass the "b" option */
+		pbx_builtin_setvar_helper(chan, "AUTO_MONITOR_OPTS", (joinfiles ? "m" : ""));
 		return 0;
 	}
 
-	res = __opbx_monitor_start(chan, format, fname_base, 1);
+	res = __opbx_monitor_start(chan, argv[0], (argc > 1 ? argv[1] : ""), 1);
 	if (res < 0)
-		res = __opbx_monitor_change_fname(chan, fname_base, 1);
+		res = __opbx_monitor_change_fname(chan, (argc > 1 ? argv[1] : ""), 1);
 	__opbx_monitor_setjoinfiles(chan, joinfiles);
 
 	return res;
 }
 
-static int stop_monitor_exec(struct opbx_channel *chan, void *data)
+static int stop_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	return __opbx_monitor_stop(chan, 1);
 }
 
-static int change_monitor_exec(struct opbx_channel *chan, void *data)
+static int change_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	return __opbx_monitor_change_fname(chan, (const char*)data, 1);
+	return __opbx_monitor_change_fname(chan, argv[0], 1);
 }
 
 static char start_monitor_action_help[] =
@@ -579,9 +558,10 @@ static void __opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
 
 int load_module(void)
 {
-	opbx_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
-	opbx_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
-	opbx_register_application("ChangeMonitor", change_monitor_exec, changemonitor_synopsis, changemonitor_descrip);
+	monitor_app = opbx_register_application(monitor_name, start_monitor_exec, monitor_synopsis, monitor_syntax, monitor_descrip);
+	stopmonitor_app = opbx_register_application(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);
+	changemonitor_app = opbx_register_application(changemonitor_name, change_monitor_exec, changemonitor_synopsis, changemonitor_syntax, changemonitor_descrip);
+
 	opbx_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
 	opbx_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
 	opbx_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
@@ -596,9 +576,10 @@ int load_module(void)
 
 int unload_module(void)
 {
-	opbx_unregister_application("Monitor");
-	opbx_unregister_application("StopMonitor");
-	opbx_unregister_application("ChangeMonitor");
+	opbx_unregister_application(monitor_app);
+	opbx_unregister_application(stopmonitor_app);
+	opbx_unregister_application(changemonitor_app);
+
 	opbx_manager_unregister("Monitor");
 	opbx_manager_unregister("StopMonitor");
 	opbx_manager_unregister("ChangeMonitor");

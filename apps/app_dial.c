@@ -61,12 +61,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "Dialing Application";
 
-static char *app = "Dial";
-
-static char *synopsis = "Place a call and connect to the current channel";
-
-static char *descrip =
-"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|options][|URL]):\n"
+static void *dial_app;
+static const char *dial_name = "Dial";
+static const char *dial_synopsis = "Place a call and connect to the current channel";
+static const char *dial_syntax = "Dial(Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
+static const char *dial_descrip =
 "Requests one or more channels and places specified outgoing calls on them.\n"
 "As soon as a channel answers, the Dial app will answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
@@ -150,10 +149,11 @@ static char *descrip =
 "";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
-static char *rapp = "RetryDial";
-static char *rsynopsis = "Place a call, retrying on failure allowing optional exit extension.";
-static char *rdescrip =
-"  RetryDial(announce|sleep|loops|Technology/resource[&Technology2/resource2...][|timeout][|options][|URL]):\n"
+static void *retrydial_app;
+static const char *retrydial_name = "RetryDial";
+static const char *retrydial_synopsis = "Place a call, retrying on failure allowing optional exit extension.";
+static const char *retrydial_syntax = "RetryDial(announce, sleep, loops, Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
+static const char *retrydial_descrip =
 "Attempt to place a call.  If no channel can be reached, play the file defined by 'announce'\n"
 "waiting 'sleep' seconds to retry the call.  If the specified number of attempts matches \n"
 "'loops' the call will continue in the dialplan.  If 'loops' is set to 0, the call will retry endlessly.\n\n"
@@ -635,11 +635,11 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 }
 
 
-static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_flags *peerflags)
+static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, struct opbx_flags *peerflags)
 {
 	int res=-1;
 	struct localuser *u;
-	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
+	char *peers, *timeout, *tech, *number, *rest, *cur;
 	char privdb[256], *s;
 	char privcid[256];
 	char privintro[1024];
@@ -663,7 +663,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	char numsubst[OPBX_MAX_EXTENSION];
 	char restofit[OPBX_MAX_EXTENSION];
 	char cidname[OPBX_MAX_EXTENSION];
-	char *transfer = NULL;
+	char *options = NULL;
 	char *newnum;
 	char *l;
 	char *url=NULL; /* JDG */
@@ -697,63 +697,36 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 	char *dblgoto = NULL;
 	int priority_jump = 0;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
+	if (argc < 1 || argc > 4) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", dial_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	info = opbx_strdupa(data);	
-	if (!info) {
-		opbx_log(LOG_WARNING, "Unable to dupe data :(\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-	
-	peers = info;
-	if (peers) {
-		timeout = strchr(info, '|');
-		if (timeout) {
-			*timeout = '\0';
-			timeout++;
-			transfer = strchr(timeout, '|');
-			if (transfer) {
-				*transfer = '\0';
-				transfer++;
-				/* JDG */
-				url = strchr(transfer, '|');
-				if (url) {
-					*url = '\0';
-					url++;
-					if (option_debug)
-						opbx_log(LOG_DEBUG, "DIAL WITH URL=%s_\n", url);
-				} else 
-					if (option_debug) {
-						opbx_log(LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
-					}
-				/* /JDG */
-			}
-		}
-	} else
-		timeout = NULL;
-	if (opbx_strlen_zero(peers)) {
-		opbx_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
-		goto out;
-	}
-	
+	peers = argv[0];
+	timeout = (argc > 1 && argv[1][0] ? argv[1] : NULL);
+	options = (argc > 2 && argv[2][0] ? argv[2] : NULL);
+	url = (argc > 3 && argv[3][0] ? argv[3] : NULL);
 
-	if (transfer) {
+	if (option_debug) {
+		if (url)
+			opbx_log(LOG_DEBUG, "DIAL WITH URL=%s\n", url);
+		else
+			opbx_log(LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
+	}
+
+	if (options) {
 
 		/* Extract call duration limit */
-		if ((cdl = strstr(transfer, "S("))) {
+		if ((cdl = strstr(options, "S("))) {
 			calldurationlimit=atoi(cdl+2);
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n",calldurationlimit);			
 		} 
 
 		/* Extract DTMF strings to send upon successfull connect */
-		if ((sdtmfptr = strstr(transfer, "D("))) {
+		if ((sdtmfptr = strstr(options, "D("))) {
 			dtmfcalled = opbx_strdupa(sdtmfptr + 2);
 			dtmfcalling = strchr(dtmfcalled, ')');
 			if (dtmfcalling)
@@ -773,7 +746,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		}
   
 		/* XXX LIMIT SUPPORT */
-		if ((limitptr = strstr(transfer, "L("))) {
+		if ((limitptr = strstr(options, "L("))) {
 			opbx_copy_string(limitdata, limitptr + 2, sizeof(limitdata));
 			/* Overwrite with X's what was the limit info */
 			while (*limitptr && (*limitptr != ')')) 
@@ -847,12 +820,12 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		}
 		
 		/* XXX # REQUEST ANNOUNCE SUPPORT */
-		if (strchr(transfer, 'R')) {
+		if (strchr(options, 'R')) {
 			waitpound = 1;
 		}		
 
 		/* XXX ANNOUNCE SUPPORT */
-		if ((ann = strstr(transfer, "A("))) {
+		if ((ann = strstr(options, "A("))) {
 			announce = 1;
 			opbx_copy_string(announcemsg, ann + 2, sizeof(announcemsg));
 			/* Overwrite with X's what was the announce info */
@@ -871,7 +844,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		}
 
 		/* Get the goto from the dial option string */
-		if ((mac = strstr(transfer, "G("))) {
+		if ((mac = strstr(options, "G("))) {
 
 
 			dblgoto = opbx_strdupa(mac + 2);
@@ -893,7 +866,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		}
 
 		/* Get the proc name from the dial option string */
-		if ((mac = strstr(transfer, "M("))) {
+		if ((mac = strstr(options, "M("))) {
 			hasmacro = 1;
 			proc_name = opbx_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
@@ -913,7 +886,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			}
 		}
 		/* Get music on hold class */
-		if ((mac = strstr(transfer, "m("))) {
+		if ((mac = strstr(options, "m("))) {
 			mohclass = opbx_strdupa(mac + 2);
 			mac++; /* Leave the "m" in the string */
 			while (*mac && (*mac != ')'))
@@ -933,7 +906,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			}
 		}
 		/* Extract privacy info from transfer */
-		if ((s = strstr(transfer, "P("))) {
+		if ((s = strstr(options, "P("))) {
 			privacy = 1;
 			opbx_copy_string(privdb, s + 2, sizeof(privdb));
 			/* Overwrite with X's what was the privacy info */
@@ -949,20 +922,20 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 				opbx_log(LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
 				privacy = 0;
 			}
-		} else if (strchr(transfer, 'P')) {
+		} else if (strchr(options, 'P')) {
 			/* No specified privdb */
 			privacy = 1;
-		} else if (strchr(transfer, 'p')) {
+		} else if (strchr(options, 'p')) {
 			screen = 1;
-		} else if (strchr(transfer, 'C')) {
+		} else if (strchr(options, 'C')) {
 			resetcdr = 1;
-		} else if (strchr(transfer, 'j')) {
+		} else if (strchr(options, 'j')) {
 			priority_jump = 1;
 		}
-		if (strchr(transfer, 'n')) {
+		if (strchr(options, 'n')) {
 			no_save_intros = 1;
 		} 
-		if (strchr(transfer, 'N')) {
+		if (strchr(options, 'N')) {
 			no_screen_callerid = 1;
 		}
 	}
@@ -1089,7 +1062,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		tech = cur;
 		number = strchr(tech, '/');
 		if (!number) {
-			opbx_log(LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...|optional timeout)\n");
+			opbx_log(LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...,optional timeout)\n");
 			goto out;
 		}
 		*number = '\0';
@@ -1100,22 +1073,22 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			goto out;
 		}
 		memset(tmp, 0, sizeof(struct localuser));
-		if (transfer) {
-			opbx_set2_flag(tmp, strchr(transfer, 't'), DIAL_ALLOWREDIRECT_IN);
-			opbx_set2_flag(tmp, strchr(transfer, 'T'), DIAL_ALLOWREDIRECT_OUT);
-			opbx_set2_flag(tmp, strchr(transfer, 'r'), DIAL_RINGBACKONLY);	
-			opbx_set2_flag(tmp, strchr(transfer, 'm'), DIAL_MUSICONHOLD);	
-			opbx_set2_flag(tmp, strchr(transfer, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
-			opbx_set2_flag(peerflags, strchr(transfer, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
-			opbx_set2_flag(tmp, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);
-			opbx_set2_flag(peerflags, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);
-			opbx_set2_flag(tmp, strchr(transfer, 'f'), DIAL_FORCECALLERID);	
+		if (options) {
+			opbx_set2_flag(tmp, strchr(options, 't'), DIAL_ALLOWREDIRECT_IN);
+			opbx_set2_flag(tmp, strchr(options, 'T'), DIAL_ALLOWREDIRECT_OUT);
+			opbx_set2_flag(tmp, strchr(options, 'r'), DIAL_RINGBACKONLY);	
+			opbx_set2_flag(tmp, strchr(options, 'm'), DIAL_MUSICONHOLD);	
+			opbx_set2_flag(tmp, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
+			opbx_set2_flag(peerflags, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
+			opbx_set2_flag(tmp, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
+			opbx_set2_flag(peerflags, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
+			opbx_set2_flag(tmp, strchr(options, 'f'), DIAL_FORCECALLERID);	
 			opbx_set2_flag(tmp, url, DIAL_NOFORWARDHTML);	
-			opbx_set2_flag(peerflags, strchr(transfer, 'w'), DIAL_MONITOR_IN);	
-			opbx_set2_flag(peerflags, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
-			opbx_set2_flag(peerflags, strchr(transfer, 'd'), DIAL_HALT_ON_DTMF);	
-			opbx_set2_flag(peerflags, strchr(transfer, 'g'), DIAL_GO_ON);	
-			opbx_set2_flag(peerflags, strchr(transfer, 'o'), DIAL_PRESERVE_CALLERID);	
+			opbx_set2_flag(peerflags, strchr(options, 'w'), DIAL_MONITOR_IN);	
+			opbx_set2_flag(peerflags, strchr(options, 'W'), DIAL_MONITOR_OUT);	
+			opbx_set2_flag(peerflags, strchr(options, 'd'), DIAL_HALT_ON_DTMF);	
+			opbx_set2_flag(peerflags, strchr(options, 'g'), DIAL_GO_ON);	
+			opbx_set2_flag(peerflags, strchr(options, 'o'), DIAL_PRESERVE_CALLERID);	
 		}
 		opbx_copy_string(numsubst, number, sizeof(numsubst));
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -1178,8 +1151,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		/* Inherit specially named variables from parent channel */
 		opbx_channel_inherit_variables(chan, tmp->chan);
 
-		tmp->chan->appl = "AppDial";
-		tmp->chan->data = "(Outgoing Line)";
+		tmp->chan->appl = "AppDial (Outgoing Line)";
 		tmp->chan->whentohangup = 0;
 		if (tmp->chan->cid.cid_num)
 			free(tmp->chan->cid.cid_num);
@@ -1334,10 +1306,10 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 				   target extension was picked up. We are going to have to kill some
 				   time and make the caller believe the peer hasn't picked up yet */
 
-				if ( strchr(transfer, 'm') ) {
+				if ( strchr(options, 'm') ) {
 					opbx_indicate(chan, -1);
 					opbx_moh_start(chan, mohclass);
-				} else if ( strchr(transfer, 'r') ) {
+				} else if ( strchr(options, 'r') ) {
 					opbx_indicate(chan, OPBX_CONTROL_RINGING);
 					sentringing++;
 				}
@@ -1405,9 +1377,9 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n", privdb, privcid);
 						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_DENY);
 					}
-					if ( strchr(transfer, 'm') ) {
+					if ( strchr(options, 'm') ) {
 						opbx_moh_stop(chan);
-					} else if ( strchr(transfer, 'r') ) {
+					} else if ( strchr(options, 'r') ) {
 						opbx_indicate(chan, -1);
 						sentringing=0;
 					}
@@ -1425,9 +1397,9 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 					opbx_copy_string(status, "TORTURE", sizeof(status));
 					
 					res = 0;
-					if ( strchr(transfer, 'm') ) {
+					if ( strchr(options, 'm') ) {
 						opbx_moh_stop(chan);
-					} else if ( strchr(transfer, 'r') ) {
+					} else if ( strchr(options, 'r') ) {
 						opbx_indicate(chan, -1);
 						sentringing=0;
 					}
@@ -1444,9 +1416,9 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 
 					opbx_copy_string(status, "DONTCALL", sizeof(status));
 					res = 0;
-					if ( strchr(transfer, 'm') ) {
+					if ( strchr(options, 'm') ) {
 						opbx_moh_stop(chan);
-					} else if ( strchr(transfer, 'r') ) {
+					} else if ( strchr(options, 'r') ) {
 						opbx_indicate(chan, -1);
 						sentringing=0;
 					}
@@ -1460,9 +1432,9 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 							opbx_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
 						opbx_privacy_set(privdb,privcid,OPBX_PRIVACY_ALLOW);
 					
-						if ( strchr(transfer, 'm') ) {
+						if ( strchr(options, 'm') ) {
 							opbx_moh_stop(chan);
-						} else if ( strchr(transfer, 'r') ) {
+						} else if ( strchr(options, 'r') ) {
 							opbx_indicate(chan, -1);
 							sentringing=0;
 						}
@@ -1479,9 +1451,9 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 					/* since the callee may have hung up, let's do the voicemail thing, no database decision */
 					if (option_verbose > 2)
 						opbx_log(LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
-					if ( strchr(transfer, 'm') ) {
+					if ( strchr(options, 'm') ) {
 						opbx_moh_stop(chan);
-					} else if ( strchr(transfer, 'r') ) {
+					} else if ( strchr(options, 'r') ) {
 						opbx_indicate(chan, -1);
 						sentringing=0;
 					}
@@ -1491,9 +1463,9 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 					goto out;
 					break;
 				}
-				if ( strchr(transfer, 'm') ) {
+				if ( strchr(options, 'm') ) {
 					opbx_moh_stop(chan);
-				} else if ( strchr(transfer, 'r') ) {
+				} else if ( strchr(options, 'r') ) {
 					opbx_indicate(chan, -1);
 					sentringing=0;
 				}
@@ -1531,7 +1503,7 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 		if (chan && peer && dblgoto) {
 			for (mac = dblgoto; *mac; mac++) {
 				if(*mac == '^') {
-					*mac = '|';
+					*mac = ',';
 				}
 			}
 			opbx_parseable_goto(chan, dblgoto);
@@ -1555,8 +1527,8 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 			if (app && !res) {
 				for (res = 0;  res < strlen(proc_name);  res++)
 					if (proc_name[res] == '^')
-						proc_name[res] = '|';
-				res = pbx_exec(peer, app, proc_name, 1);
+						proc_name[res] = ',';
+				res = pbx_exec(peer, app, proc_name);
 				opbx_log(LOG_DEBUG, "Proc exited with status %d\n", res);
 				res = 0;
 			} else {
@@ -1597,10 +1569,10 @@ static int dial_exec_full(struct opbx_channel *chan, void *data, struct opbx_fla
 						res = -1;
 						/* perform a transfer to a new extension */
 						if (strchr(proc_transfer_dest,'^')) { /* context^exten^priority*/
-							/* no brainer mode... substitute ^ with | and feed it to builtin goto */
+							/* no brainer mode... substitute ^ with , and feed it to builtin goto */
 							for (res=0;res<strlen(proc_transfer_dest);res++)
 								if (proc_transfer_dest[res] == '^')
-									proc_transfer_dest[res] = '|';
+									proc_transfer_dest[res] = ',';
 
 							if (!opbx_parseable_goto(chan, proc_transfer_dest))
 								opbx_set_flag(peerflags, DIAL_GO_ON);
@@ -1714,80 +1686,43 @@ out:
 	return res;
 }
 
-static int dial_exec(struct opbx_channel *chan, void *data)
+static int dial_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct opbx_flags peerflags;
 	memset(&peerflags, 0, sizeof(peerflags));
-	return dial_exec_full(chan, data, &peerflags);
+	return dial_exec_full(chan, argc, argv, &peerflags);
 }
 
-static int retrydial_exec(struct opbx_channel *chan, void *data)
+static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *announce = NULL, *context = NULL, *dialdata = NULL;
+	char *announce = NULL, *context = NULL;
 	int sleep = 0, loops = 0, res = 0;
 	struct localuser *u;
 	struct opbx_flags peerflags;
 	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "RetryDial requires an argument!\n");
+	if (argc < 4 || argc > 7) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", retrydial_syntax);
 		return -1;
 	}	
 
 	LOCAL_USER_ADD(u);
 
-	announce = opbx_strdupa(data);	
-	if (!announce) {	
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-	
-	memset(&peerflags, 0, sizeof(peerflags));
+	announce = argv[0];
+	sleep = atoi(argv[1]) * 1000;
+	if (sleep < 1000) sleep = 10000;
+	loops = atoi(argv[2]);
+	if (!loops) loops = -1;
 
-	if ((dialdata = strchr(announce, '|'))) {
-		*dialdata = '\0';
-		dialdata++;
-		if ((sleep = atoi(dialdata))) {
-			sleep *= 1000;
-		} else {
-			opbx_log(LOG_ERROR, "%s requires the numerical argument <sleep>\n",rapp);
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-		if ((dialdata = strchr(dialdata, '|'))) {
-			*dialdata = '\0';
-			dialdata++;
-			if (!(loops = atoi(dialdata))) {
-				opbx_log(LOG_ERROR, "%s requires the numerical argument <loops>\n",rapp);
-				LOCAL_USER_REMOVE(u);
-				return -1;
-			}
-		}
-	}
-	
-	if ((dialdata = strchr(dialdata, '|'))) {
-		*dialdata = '\0';
-		dialdata++;
-	} else {
-		opbx_log(LOG_ERROR, "%s requires more arguments\n",rapp);
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-		
-	if (sleep < 1000)
-		sleep = 10000;
-	
-	if (!loops)
-		loops = -1;
-	
+	argv += 3;
+	argc -= 3;
+
 	context = pbx_builtin_getvar_helper(chan, "EXITCONTEXT");
 	
 	while (loops) {
-		chan->data = "Retrying";
 		if (opbx_test_flag(chan, OPBX_FLAG_MOH))
 			opbx_moh_stop(chan);
 
-		if ((res = dial_exec_full(chan, dialdata, &peerflags)) == 0) {
+		if ((res = dial_exec_full(chan, argc, argv, &peerflags)) == 0) {
 			if (opbx_test_flag(&peerflags, DIAL_HALT_ON_DTMF)) {
 				if (!(res = opbx_streamfile(chan, announce, chan->language)))
 					res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
@@ -1829,17 +1764,18 @@ static int retrydial_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	opbx_unregister_application(app);
-	return opbx_unregister_application(rapp);
+	res |= opbx_unregister_application(dial_app);
+	res |= opbx_unregister_application(retrydial_app);
+	return res;
 }
 
 int load_module(void)
 {
-	int res;
-	if (!(res = opbx_register_application(app, dial_exec, synopsis, descrip)))
-		res = opbx_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);
-	return res;
+	dial_app = opbx_register_application(dial_name, dial_exec, dial_synopsis, dial_syntax, dial_descrip);
+	retrydial_app = opbx_register_application(retrydial_name, retrydial_exec, retrydial_synopsis, retrydial_syntax, retrydial_descrip);
+	return 0;
 }
 
 char *description(void)

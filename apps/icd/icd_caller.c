@@ -3196,7 +3196,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
             if (app) {
                 opbx_verbose(VERBOSE_PREFIX_2 "Calling Verify App: %s(%s)\n", verify_app,
                     verify_app_arg ? verify_app_arg : "");
-                result = pbx_exec(that->chan, app, verify_app_arg ? verify_app_arg : "", 1);
+                result = pbx_exec(that->chan, app, (verify_app_arg ? verify_app_arg : ""));
             }
 
         }

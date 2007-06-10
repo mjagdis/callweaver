@@ -41,50 +41,61 @@ CALLWEAVER_FILE_VERSION("$headurl: svn+ssh://svn@svn.callweaver.org/callweaver/t
 #include "callweaver/utils.h"
 /* }}} */
 
+
+static void *config_function;
+static const char *config_func_name = "CONFIG";
+static const char *config_func_synopsis = "Read configuration values set in callweaver.conf";
+static const char *config_func_syntax = "CONFIG(name)";
+static const char *config_func_desc = "This function will read configuration values set in callweaver.conf.\n"
+			"Possible values include cwctlpermissions, cwctlowner, cwctlgroup,\n"
+			"cwctl, cwdb, cwetcdir, cwconfigdir, cwspooldir, cwvarlibdir,\n"
+			"cwvardir, cwdbdir, cwlogdir, cwogidir, cwsoundsdir, and cwrundir\n";
+
+
 /* function_config_read() {{{ */
-static char *function_config_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_config_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
 /* These doesn't seem to be available outside callweaver.c
-	if (strcasecmp(data, "cwrunuser") == 0) {
+	if (strcasecmp(argv[0], "cwrunuser") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_USER, len);
-	} else if (strcasecmp(data, "cwrungroup") == 0) {
+	} else if (strcasecmp(argv[0], "cwrungroup") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_GROUP, len);
-	} else if (strcasecmp(data, "cwmoddir") == 0) {
+	} else if (strcasecmp(argv[0], "cwmoddir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_MOD_DIR, len);
 	} else
 */
-	if (strcasecmp(data, "cwctlpermissions") == 0) {
+	if (strcasecmp(argv[0], "cwctlpermissions") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL_PERMISSIONS, len);
-	} else if (strcasecmp(data, "cwctlowner") == 0) {
+	} else if (strcasecmp(argv[0], "cwctlowner") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL_OWNER, len);
-	} else if (strcasecmp(data, "cwctlgroup") == 0) {
+	} else if (strcasecmp(argv[0], "cwctlgroup") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL_GROUP, len);
-	} else if (strcasecmp(data, "cwctl") == 0) {
+	} else if (strcasecmp(argv[0], "cwctl") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CTL, len);
-	} else if (strcasecmp(data, "cwdb") == 0) {
+	} else if (strcasecmp(argv[0], "cwdb") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_DB, len);
-	} else if (strcasecmp(data, "cwetcdir") == 0) {
+	} else if (strcasecmp(argv[0], "cwetcdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CONFIG_DIR, len);
-	} else if (strcasecmp(data, "cwconfigdir") == 0) {
+	} else if (strcasecmp(argv[0], "cwconfigdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_CONFIG_DIR, len);; /* opbxetcdir alias */
-	} else if (strcasecmp(data, "cwspooldir") == 0) {
+	} else if (strcasecmp(argv[0], "cwspooldir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_SPOOL_DIR, len);
-	} else if (strcasecmp(data, "cwvarlibdir") == 0) {
+	} else if (strcasecmp(argv[0], "cwvarlibdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_VAR_DIR, len);
-	} else if (strcasecmp(data, "cwvardir") == 0) {
+	} else if (strcasecmp(argv[0], "cwvardir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_VAR_DIR, len);; /* cwvarlibdir alias */
-	} else if (strcasecmp(data, "cwdbdir") == 0) {
+	} else if (strcasecmp(argv[0], "cwdbdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_DB_DIR, len);
-	} else if (strcasecmp(data, "cwlogdir") == 0) {
+	} else if (strcasecmp(argv[0], "cwlogdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_LOG_DIR, len);
-	} else if (strcasecmp(data, "cwogidir") == 0) {
+	} else if (strcasecmp(argv[0], "cwogidir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_OGI_DIR, len);
-	} else if (strcasecmp(data, "cwsoundsdir") == 0) {
+	} else if (strcasecmp(argv[0], "cwsoundsdir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_SOUNDS_DIR, len);
-	} else if (strcasecmp(data, "cwrundir") == 0) {
+	} else if (strcasecmp(argv[0], "cwrundir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_DIR, len);
 	} else {
-		opbx_log(LOG_WARNING, "Config setting '%s' not known.\n", data);
+		opbx_log(LOG_WARNING, "Config setting '%s' not known.\n", argv[0]);
 	}
 
 	return buf;
@@ -92,39 +103,28 @@ static char *function_config_read(struct opbx_channel *chan, char *cmd, char *da
 /* function_config_read() }}} */
 
 /* function_config_write() {{{ */
-static void function_config_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
+static void function_config_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
 {
 	opbx_log(LOG_WARNING, "This function cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 }
 /* function_config_write() }}} */
 
 /* globals {{{ */
-static struct opbx_custom_function config_function = {
-	.name = "CONFIG",
-	.synopsis = "Read configuration values set in callweaver.conf",
-	.syntax = "CONFIG(<name>)",
-	.desc = "This function will read configuration values set in callweaver.conf.\n"
-			"Possible values include cwctlpermissions, cwctlowner, cwctlgroup,\n"
-			"cwctl, cwdb, cwetcdir, cwconfigdir, cwspooldir, cwvarlibdir,\n"
-			"cwvardir, cwdbdir, cwlogdir, cwogidir, cwsoundsdir, and cwrundir\n",
-	.read = function_config_read,
-	.write = function_config_write,
-};
-
 static char *tdesc = "CONFIG function";
 /* globals }}} */
 
 /* unload_module() {{{ */
 int unload_module(void)
 {
-        return opbx_custom_function_unregister(&config_function);
+        return opbx_unregister_function(config_function);
 }
 /* }}} */
 
 /* load_module() {{{ */
 int load_module(void)
 {
-        return opbx_custom_function_register(&config_function);
+        config_function = opbx_register_function(config_func_name, function_config_read, function_config_write, config_func_synopsis, config_func_syntax, config_func_desc);
+	return 0;
 }
 /* }}} */
 

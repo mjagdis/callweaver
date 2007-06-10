@@ -47,13 +47,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Executes applications";
 
-static char *app_exec = "Exec";
-
+static void *exec_app;
+static char *name_exec = "Exec";
 static char *exec_synopsis = "Executes internal application";
-
+static char *exec_syntax = "Exec(appname(arguments))";
 static char *exec_descrip =
-"Usage: Exec(appname(arguments))\n"
-"  Allows an arbitrary application to be invoked even when not\n"
+"Allows an arbitrary application to be invoked even when not\n"
 "hardcoded into the dialplan. To invoke external applications\n"
 "see the application System. Returns whatever value the\n"
 "app returns or a non-zero value if the app cannot be found.\n";
@@ -62,7 +61,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int exec_exec(struct opbx_channel *chan, void *data)
+static int exec_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
@@ -71,23 +70,21 @@ static int exec_exec(struct opbx_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	memset(args, 0, MAXRESULT);
-
 	/* Check and parse arguments */
-	if (data) {
-		s = opbx_strdupa((char *)data);
+	if (argc > 0) {
+		s = opbx_strdupa(argv[0]);
 		if (s) {
 			appname = strsep(&s, "(");
 			if (s) {
 				endargs = strrchr(s, ')');
 				if (endargs)
 					*endargs = '\0';
-				pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+				pbx_substitute_variables_helper(chan, s, args, sizeof(args));
 			}
 			if (appname) {
 				app = pbx_findapp(appname);
 				if (app) {
-					res = pbx_exec(chan, app, args, 1);
+					res = pbx_exec(chan, app, args);
 				} else {
 					opbx_log(LOG_WARNING, "Could not find application (%s)\n", appname);
 					res = -1;
@@ -105,13 +102,16 @@ static int exec_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app_exec);
+	res |= opbx_unregister_application(exec_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
+	exec_app = opbx_register_application(name_exec, exec_exec, exec_synopsis, exec_syntax, exec_descrip);
+	return 0;
 }
 
 char *description(void)

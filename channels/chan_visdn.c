@@ -3721,7 +3721,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int visdn_exec_overlap_dial(struct opbx_channel *chan, void *data)
+static int visdn_exec_overlap_dial(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
@@ -3784,6 +3784,7 @@ static int visdn_exec_overlap_dial(struct opbx_channel *chan, void *data)
 	return -1;
 }
 
+static void *visdn_exec_overlap_dial_app;
 static char *visdn_overlap_dial_descr =
 "  vISDNOverlapDial():\n";
 
@@ -3920,10 +3921,11 @@ int load_module()
 	opbx_cli_register(&show_visdn_interfaces);
 	opbx_cli_register(&show_visdn_calls);
 
-	opbx_register_application(
+	visdn_exec_overlap_dial_app = opbx_register_application(
 		"VISDNOverlapDial",
 		visdn_exec_overlap_dial,
 		"Plays dialtone and waits for digits",
+		visdn_overlap_dial_descr,
 		visdn_overlap_dial_descr);
 
 	return res;
@@ -3931,7 +3933,9 @@ int load_module()
 
 int unload_module(void)
 {
-	opbx_unregister_application("VISDNOverlapDial");
+	int res = 0;
+
+	res |= opbx_unregister_application(visdn_exec_overlap_dial_app);
 
 	opbx_cli_unregister(&show_visdn_calls);
 	opbx_cli_unregister(&show_visdn_interfaces);

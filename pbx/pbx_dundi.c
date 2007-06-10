@@ -81,19 +81,32 @@ extern char opbx_config_OPBX_KEY_DIR[];
 
 static char *tdesc = "Distributed Universal Number Discovery (DUNDi)";
 
-static char *app = "DUNDiLookup";
-static char *synopsis = "Look up a number with DUNDi";
-static char *descrip = 
-"DUNDiLookup(number[|context[|options]])\n"
-"      Looks up a given number in the global context specified or in\n"
-"the reserved 'e164' context if not specified.  Returns -1 if the channel\n"
-"is hungup during the lookup or 0 otherwise.  On completion, the variable\n"
-"${DUNDTECH} and ${DUNDDEST} will contain the technology and destination\n"
-"of the appropriate technology and destination to access the number. If no\n"
-"answer was found, and the priority n + 101 exists, execution will continue\n"
-"at that location. Note that this will only occur if the global priority\n"
-"jumping option is enabled in extensions.conf. If the 'b' option is specified,\n"
-"the internal DUNDi cache will by bypassed.\n";
+static void *dundi_app;
+static const char *dundi_lookup_name = "DUNDiLookup";
+static const char *dundi_lookup_synopsis = "Look up a number with DUNDi";
+static const char *dundi_lookup_syntax = "DUNDiLookup(number[,context[,options]])";
+static const char *dundi_lookup_descrip = 
+	"      Looks up a given number in the global context specified or in\n"
+	"the reserved 'e164' context if not specified.  Returns -1 if the channel\n"
+	"is hungup during the lookup or 0 otherwise.  On completion, the variable\n"
+	"${DUNDTECH} and ${DUNDDEST} will contain the technology and destination\n"
+	"of the appropriate technology and destination to access the number. If no\n"
+	"answer was found, and the priority n + 101 exists, execution will continue\n"
+	"at that location. Note that this will only occur if the global priority\n"
+	"jumping option is enabled in extensions.conf. If the 'b' option is specified,\n"
+	"the internal DUNDi cache will by bypassed.\n";
+
+static void *dundi_func;
+static const char *dundifunc_name = "DUNDILOOKUP";
+static const char *dundifunc_synopsis = "Do a DUNDi lookup of a phone number.";
+static const char *dundifunc_syntax = "DUNDILOOKUP(number[,context[,options]])";
+static const char *dundifunc_desc =
+	"This will do a DUNDi lookup of the given phone number.\n"
+	"If no context is given, the default will be e164. The result of\n"
+	"this function will the Technology/Resource found in the DUNDi\n"
+	"lookup. If no results were found, the result will be blank.\n"
+	"If the 'b' option is specified, the internal DUNDi cache will\n"
+	"be bypassed.\n";
 
 #define DUNDI_MODEL_INBOUND		(1 << 0)
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
@@ -839,7 +852,7 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 
 	time(&timeout);
 	timeout += expiration;
-	snprintf(data, sizeof(data), "%ld|", (long)(timeout));
+	snprintf(data, sizeof(data), "%ld,", (long)(timeout));
 	
 	opbx_db_put("dundi/cache", key1, data);
 	opbx_log(LOG_DEBUG, "Caching hint at '%s'\n", key1);
@@ -875,12 +888,12 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 	/* Build request string */
 	time(&timeout);
 	timeout += expiration;
-	snprintf(data, sizeof(data), "%ld|", (long)(timeout));
+	snprintf(data, sizeof(data), "%ld,", (long)(timeout));
 	for (x=start;x<req->respcount;x++) {
-		/* Skip anything with an illegal pipe in it */
-		if (strchr(req->dr[x].dest, '|'))
+		/* Skip anything with an illegal comma in it */
+		if (strchr(req->dr[x].dest, ','))
 			continue;
-		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%d/%d/%d/%s/%s|", 
+		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%d/%d/%d/%s/%s,", 
 			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest, 
 			dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), &req->dr[x].eid));
 	}
@@ -1151,14 +1164,14 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	/* Build request string */
 	if (!opbx_db_get("dundi/cache", key, data, sizeof(data))) {
 		ptr = data;
-		if (sscanf(ptr, "%ld|%n", &timeout, &length) == 1) {
+		if (sscanf(ptr, "%ld,%n", &timeout, &length) == 1) {
 			expiration = timeout - now;
 			if (expiration > 0) {
 				opbx_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
 				ptr += length;
 				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
-					term = strchr(ptr, '|');
+					term = strchr(ptr, ',');
 					if (term) {
 						*term = '\0';
 						src = strrchr(ptr, '/');
@@ -3853,7 +3866,7 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
-static int dundi_lookup_exec(struct opbx_channel *chan, void *data)
+static int dundi_lookup_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	char *num;
 	char *context;
@@ -3872,36 +3885,23 @@ static int dundi_lookup_exec(struct opbx_channel *chan, void *data)
 		dep_warning = 1;
 	}
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "DUNDiLookup requires an argument (number)\n");
+	if (argc < 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", dundi_lookup_syntax);
 		LOCAL_USER_REMOVE(u);
-		return 0;
+		return -1;
 	}
 
-	num = opbx_strdupa(data);
-	if (!num) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
+	context = (argc > 1 && argv[1][0] ? argv[1] : "e164");
 
-	context = strchr(num, '|');
-	if (context) {
-		*context = '\0';
-		context++;
-		opts = strchr(context, '|');
-		if (opts) {
-			*opts = '\0';
-			opts++;
-			if (strchr(opts, 'b'))
-				bypass = 1;
+	if (argc > 2) {
+		for (; argv[2][0]; argv[2]++) {
+			switch (argv[2][0]) {
+				case 'b': bypass = 1; break;
+			}
 		}
 	}
 
-	if (!context || opbx_strlen_zero(context))
-		context = "e164";
-	
-	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, num, bypass);
+	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, argv[0], bypass);
 	if (results > 0) {
 		sort_results(dr, results);
 		for (x = 0; x < results; x++) {
@@ -3919,7 +3919,7 @@ static int dundi_lookup_exec(struct opbx_channel *chan, void *data)
 	return 0;
 }
 
-static char *dundifunc_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *dundifunc_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
 	char *num;
 	char *context;
@@ -3930,40 +3930,25 @@ static char *dundifunc_read(struct opbx_channel *chan, char *cmd, char *data, ch
 	struct localuser *u;
 	struct dundi_result dr[MAX_RESULTS];
 
+	if (argc < 1 || argc > 3 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", dundifunc_syntax);
+		return NULL;
+	}
+
 	LOCAL_USER_ACF_ADD(u);
 
-	buf[0] = '\0';
+	context = (argc > 1 && argv[1][0] ? argv[1] : "e164");
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "DUNDILOOKUP requires an argument (number)\n");
-		LOCAL_USER_REMOVE(u);
-		return buf;
-	}
-
-	num = opbx_strdupa(data);
-	if (!num) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return buf;
-	}
-
-	context = strchr(num, '|');
-	if (context) {
-		*context = '\0';
-		context++;
-		opts = strchr(context, '|');
-		if (opts) {
-			*opts = '\0';
-			opts++;
-			if (strchr(opts, 'b'))
-				bypass = 1;
+	if (argc > 2) {
+		for (; argv[2]; argv[2]++) {
+			switch (argv[2][0]) {
+				case 'b': bypass = 1; break;
+			}
 		}
 	}
 
-	if (!context || opbx_strlen_zero(context))
-		context = "e164";
-	
-	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, num, bypass);
+	buf[0] = '\0';
+	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, argv[0], bypass);
 	if (results > 0) {
 		sort_results(dr, results);
 		for (x = 0; x < results; x++) {
@@ -3978,19 +3963,6 @@ static char *dundifunc_read(struct opbx_channel *chan, char *cmd, char *data, ch
 
 	return buf;
 }
-
-static struct opbx_custom_function dundi_function = {
-	.name = "DUNDILOOKUP",
-	.synopsis = "Do a DUNDi lookup of a phone number.",
-	.syntax = "DUNDILOOKUP(number[|context[|options]])",
-	.desc = "This will do a DUNDi lookup of the given phone number.\n"
-	"If no context is given, the default will be e164. The result of\n"
-	"this function will the Technology/Resource found in the DUNDi\n"
-	"lookup. If no results were found, the result will be blank.\n"
-	"If the 'b' option is specified, the internal DUNDi cache will\n"
-	"be bypassed.\n",
-	.read = dundifunc_read,
-};
 
 static void mark_peers(void)
 {
@@ -4536,7 +4508,7 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 		snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
 		dial = pbx_findapp("Dial");
 		if (dial)
-			res = pbx_exec(chan, dial, req, newstack);
+			res = pbx_exec(chan, dial, req);
 	} else
 		res = -1;
 	return res;
@@ -4713,7 +4685,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 
 int unload_module(void)
 {
-	int res;
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
 	opbx_cli_unregister(&cli_debug);
 	opbx_cli_unregister(&cli_store_history);
@@ -4731,8 +4703,8 @@ int unload_module(void)
 	opbx_cli_unregister(&cli_precache);
 	opbx_cli_unregister(&cli_queryeid);
 	opbx_unregister_switch(&dundi_switch);
-	opbx_custom_function_unregister(&dundi_function);
-	res = opbx_unregister_application(app);
+	res |= opbx_unregister_function(dundi_func);
+	res |= opbx_unregister_application(dundi_app);
 	return res;
 }
 
@@ -4811,8 +4783,8 @@ int load_module(void)
 	opbx_cli_register(&cli_queryeid);
 	if (opbx_register_switch(&dundi_switch))
 		opbx_log(LOG_ERROR, "Unable to register DUNDi switch\n");
-	opbx_register_application(app, dundi_lookup_exec, synopsis, descrip);
-	opbx_custom_function_register(&dundi_function); 
+	dundi_app = opbx_register_application(dundi_lookup_name, dundi_lookup_exec, dundi_lookup_synopsis, dundi_lookup_syntax, dundi_lookup_descrip);
+	dundi_func = opbx_register_function(dundifunc_name, dundifunc_read, NULL, dundifunc_synopsis, dundifunc_syntax, dundifunc_desc); 
 	
 	return res;
 }

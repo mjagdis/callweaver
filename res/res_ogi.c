@@ -75,15 +75,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1547 $")
 
 static char *tdesc = "CallWeaver Gateway Interface (OGI)";
 
-static char *app = "OGI";
+static void *app_app;
+static char *app_name = "OGI";
+static char *app_synopsis = "Executes an OGI compliant application";
 
-static char *eapp = "EOGI";
+static void *eapp_app;
+static char *eapp_name = "EOGI";
+static char *eapp_synopsis = "Executes an EOGI compliant application";
 
-static char *deadapp = "DeadOGI";
-
-static char *synopsis = "Executes an OGI compliant application";
-static char *esynopsis = "Executes an EOGI compliant application";
-static char *deadsynopsis = "Executes OGI on a hungup channel";
+static void *deadapp_app;
+static char *deadapp_name = "DeadOGI";
+static char *deadapp_synopsis = "Executes OGI on a hungup channel";
 
 static char *descrip =
 "  [E|Dead]OGI(command|args): Executes an CallWeaver Gateway Interface compliant\n"
@@ -1083,7 +1085,7 @@ static int handle_exec(struct opbx_channel *chan, OGI *ogi, int argc, char **arg
 	app = pbx_findapp(argv[1]);
 
 	if (app) {
-		res = pbx_exec(chan, app, argv[2], 1);
+		res = pbx_exec(chan, app, argv[2]);
 	} else {
 		opbx_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
 		res = -2;
@@ -1182,7 +1184,7 @@ static int handle_getvariablefull(struct opbx_channel *chan, OGI *ogi, int argc,
 		chan2 = chan;
 	}
 	if (chan) { /* XXX isn't this chan2 ? */
-		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
+		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp));
 		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
 	} else {
 		fdprintf(ogi->fd, "200 result=0\n");
@@ -1220,7 +1222,7 @@ static int handle_verbose(struct opbx_channel *chan, OGI *ogi, int argc, char **
 	}
 
 	if (level <= option_verbose)
-		opbx_verbose("%s %s: %s\n", prefix, chan->data, argv[1]);
+		opbx_verbose("%s%s\n", prefix, argv[1]);
 	
 	fdprintf(ogi->fd, "200 result=1\n");
 	
@@ -1993,31 +1995,22 @@ static int handle_dumpogihtml(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int ogi_exec_full(struct opbx_channel *chan, void *data, int enhanced, int dead)
+static int ogi_exec_full(struct opbx_channel *chan, int argc, char **argv, int enhanced, int dead)
 {
 	int res=0;
 	struct localuser *u;
-	char *argv[MAX_ARGS];
 	char buf[2048]="";
 	char *tmp = (char *)buf;
-	int argc = 0;
 	int fds[2];
 	int efd = -1;
 	int pid;
         char *stringp;
 	OGI ogi;
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "OGI requires an argument (script)\n");
+	if (argc < 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: OGI(script[, args])\n");
 		return -1;
 	}
-	opbx_copy_string(buf, data, sizeof(buf));
-
-	memset(&ogi, 0, sizeof(ogi));
-        while ((stringp = strsep(&tmp, "|"))) {
-		argv[argc++] = stringp;
-        }
-	argv[argc] = NULL;
 
 	LOCAL_USER_ADD(u);
 #if 0
@@ -2040,18 +2033,19 @@ static int ogi_exec_full(struct opbx_channel *chan, void *data, int enhanced, in
 		if (efd > -1)
 			close(efd);
 	}
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-static int ogi_exec(struct opbx_channel *chan, void *data)
+static int ogi_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	if (chan->_softhangup)
 		opbx_log(LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
-	return ogi_exec_full(chan, data, 0, 0);
+	return ogi_exec_full(chan, argc, argv, 0, 0);
 }
 
-static int eogi_exec(struct opbx_channel *chan, void *data)
+static int eogi_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int readformat;
 	int res;
@@ -2063,7 +2057,7 @@ static int eogi_exec(struct opbx_channel *chan, void *data)
 		opbx_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
 		return -1;
 	}
-	res = ogi_exec_full(chan, data, 1, 0);
+	res = ogi_exec_full(chan, argc, argv, 1, 0);
 	if (!res) {
 		if (opbx_set_read_format(chan, readformat)) {
 			opbx_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, opbx_getformatname(readformat));
@@ -2072,9 +2066,9 @@ static int eogi_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static int deadogi_exec(struct opbx_channel *chan, void *data)
+static int deadogi_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	return ogi_exec_full(chan, data, 0, 1);
+	return ogi_exec_full(chan, argc, argv, 0, 1);
 }
 
 static char showogi_help[] =
@@ -2096,14 +2090,16 @@ static struct opbx_cli_entry dumpogihtml =
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
 	opbx_cli_unregister(&showogi);
 	opbx_cli_unregister(&dumpogihtml);
 	opbx_cli_unregister(&cli_debug);
 	opbx_cli_unregister(&cli_no_debug);
-	opbx_unregister_application(eapp);
-	opbx_unregister_application(deadapp);
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(eapp_app);
+	res |= opbx_unregister_application(deadapp_app);
+	res |= opbx_unregister_application(app_app);
+	return res;
 }
 
 int load_module(void)
@@ -2112,9 +2108,10 @@ int load_module(void)
 	opbx_cli_register(&dumpogihtml);
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_no_debug);
-	opbx_register_application(deadapp, deadogi_exec, deadsynopsis, descrip);
-	opbx_register_application(eapp, eogi_exec, esynopsis, descrip);
-	return opbx_register_application(app, ogi_exec, synopsis, descrip);
+	deadapp_app = opbx_register_application(deadapp_name, deadogi_exec, deadapp_synopsis, NULL, descrip);
+	eapp_app = opbx_register_application(eapp_name, eogi_exec, eapp_synopsis, NULL, descrip);
+	app_app = opbx_register_application(app_name, ogi_exec, app_synopsis, NULL, descrip);
+	return 0;
 }
 
 char *description(void)

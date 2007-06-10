@@ -231,7 +231,7 @@ extern void opbx_cdr_setdestchan(struct opbx_cdr *cdr, char *chan);
  * Changes the value of the last executed app
  * Returns nothing
  */
-extern void opbx_cdr_setapp(struct opbx_cdr *cdr, char *app, char *data);
+extern void opbx_cdr_setapp(struct opbx_cdr *cdr, const char *app, const char *data);
 
 /*! Convert a string to a detail record AMA flag */
 /*!

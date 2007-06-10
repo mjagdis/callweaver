@@ -135,10 +135,13 @@ static Hash extens;
 
 
 
-static char *tdesc = "SQLite SQL Interface";
-static char *app = "SQL";
-static char *synopsis = "SQL(\"[sql statement]\"|[dbname])\n" 
+static const char *tdesc = "SQLite SQL Interface";
+
+static void *app:
+static const char *name = "SQL";
+static const char *synopsis = "SQL(\"[sql statement]\"|[dbname])\n" 
 "[if it's a select it will auto-vivify chan vars matching the selected column names.]\n";
+static const char *syntax = "SQL(\"[sql statement]\"|[dbname])";
 
 
 static void pick_path(char *dbname,char *buf, size_t size) {
@@ -185,44 +188,19 @@ static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_execapp(struct opbx_channel *chan, void *data)
+static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argv)
 {
-	int res=0;
 	struct localuser *u;
 	char *errmsg;
 	sqlite3 *db;
-	char *filename=NULL;
-	char *buf=NULL;
-	char *sql=NULL;
-	char *p=NULL;
+	int res=0;
 
-	buf = opbx_strdupa((char *) data);
-	
-	sql = buf;
-	if (sql[0] == '"') {
-		sql++;
-		p=sql;
-		while (p && (p = strchr(p,'"'))) {
-			filename=p;
-			p++;
-		}
-		if (filename) {
-			*filename = '\0';
-			filename++;
-			if (filename && *filename == '|')
-				filename++;
-		}
-	}
-
-	if (!filename)
-		filename = default_dbfile;
-
-	if (!data) {
+	if (argv < 1 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "sql requires an argument (sql)\n");
 		return -1;
 	}
 
-	db = open_db(filename);
+	db = open_db(argc > 1 && argv[1][0] ? argv[1] : default_dbfile);
 	if (!db)
 		return -1;
 
@@ -232,7 +210,7 @@ static int sqlite_execapp(struct opbx_channel *chan, void *data)
 
 	sqlite3_exec(
 				db,
-				sql,
+				argv[0],
 				app_callback,
 				chan,
 				&errmsg
@@ -276,15 +254,15 @@ static int cli_callback(void *pArg, int argc, char **argv, char **columnNames){
 	}
 	else {
 		if (!config->seeheads) {
-			opbx_cli(fd,"|");
+			opbx_cli(fd,",");
 			for(x=0;x<argc;x++)
-				opbx_cli(fd,"%s|",columnNames[x]);
+				opbx_cli(fd,"%s,",columnNames[x]);
 			config->seeheads = 1;
 			opbx_cli(fd,"\n");
 		}
-		opbx_cli(fd,"|");
+		opbx_cli(fd,",");
 		for(x=0;x<argc;x++)
-			opbx_cli(fd,"%s|",argv[x]);
+			opbx_cli(fd,"%s,",argv[x]);
 		opbx_cli(fd,"\n");
 	}
 
@@ -658,7 +636,6 @@ static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, con
 	//opbx_log(LOG_NOTICE, "SQLiteSwitch_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 
 	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
-	memset(&app_data,0,sizeof(app_data) - 1);
 
 	opbx_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exec lookup [%s]: ",key);
 	cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
@@ -667,9 +644,9 @@ static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, con
 	if (cache) {
 		app = pbx_findapp(cache->app_name[priority]);
 		if (app) {
-			pbx_substitute_variables_helper(chan, cache->app_data[priority], app_data, sizeof(app_data) - 1);
+			pbx_substitute_variables_helper(chan, cache->app_data[priority], app_data, sizeof(app_data));
 			opbx_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exec: call app %s(%s)\n",cache->app_name[priority],app_data);
-			res = pbx_exec(chan, app,app_data,1);
+			res = pbx_exec(chan, app, app_data);
 		}
 		else {
 			opbx_log(LOG_WARNING, "application %s not registered\n",cache->app_name[priority]);
@@ -1150,7 +1127,7 @@ int load_module(void)
 
 
 
-	opbx_register_application(app, sqlite_execapp, synopsis, tdesc);
+	app = opbx_register_application(name, sqlite_execapp, synopsis, syntax, tdesc);
 
 
 	if (has_switch) {

@@ -34,12 +34,11 @@ CALLWEAVER_FILE_VERSION( __FILE__, "$Revision: 2308 $");
 
 static char *tdesc = "Navynet Channel Independent Conference Application" ;
 
-static char *app = APP_CONFERENCE_NAME ;
-
-static char *synopsis = "Navynet Channel Independent Conference" ;
-
-static char *descrip = APP_CONFERENCE_NAME "(confno/options/pin):\n"
-"\n"
+static void *conference_app;
+static const char *conference_name = APP_CONFERENCE_NAME ;
+static const char *conference_synopsis = "Navynet Channel Independent Conference" ;
+static const char *conference_syntax = APP_CONFERENCE_NAME "(confno/options/pin)";
+static const char *conference_description =
 "The options string may contain zero or more of the following:\n"
 "   'M': Caller is Moderator (can do everything).\n"
 "   'S': Caller is Speaker.\n"
@@ -67,17 +66,20 @@ STANDARD_LOCAL_USER ;
 LOCAL_USER_DECL;
 
 int unload_module( void ) {
+	int res = 0;
 	opbx_log( LOG_NOTICE, "unloading " APP_CONFERENCE_NAME " module\n" );
 	STANDARD_HANGUP_LOCALUSERS;
 	unregister_conference_cli();
-	return opbx_unregister_application( app ) ;
+	res |= opbx_unregister_application( conference_app ) ;
+	return res;
 }
 
 int load_module( void ) {
 	opbx_log( LOG_NOTICE, "Loading " APP_CONFERENCE_NAME " module\n" );
 	init_conference() ;
 	register_conference_cli();
-	return opbx_register_application( app, app_conference_main, synopsis, descrip ) ;
+	conference_app = opbx_register_application( conference_name, app_conference_main, conference_synopsis, conference_syntax, conference_description ) ;
+	return 0;
 }
 
 char *description( void ) {
@@ -95,11 +97,11 @@ int usecount( void ) {
  *        Main Conference function
  ***********************************************************/
 
-int app_conference_main( struct opbx_channel* chan, void* data ) {
+int app_conference_main( struct opbx_channel* chan, int argc, char **argv ) {
 	int res = 0 ;
 	struct localuser *u ;
 	LOCAL_USER_ADD( u ) ; 
-	res = member_exec( chan, data ) ;
+	res = member_exec( chan, argc, argv ) ;
 	LOCAL_USER_REMOVE( u ) ;	
 	return res ;
 }

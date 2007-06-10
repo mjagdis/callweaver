@@ -48,12 +48,11 @@ CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1 $")
 
 static char *tdesc = "Pipe Raw Audio to and from an External Process";
 
-static char *app = "PIPE";
-
-static char *synopsis = "Pipe Raw Audio to and from an External Process";
-
-static char *descrip = 
-	"  PIPE(1=in/0=out|program|argument) Pipe Raw Audio to and from an External Process";
+static void *pipe_app;
+static const char *pipe_name = "PIPE";
+static const char *pipe_synopsis = "Pipe Raw Audio to and from an External Process";
+static const char *pipe_syntax = "PIPE(1=in/0=out, program, argument)";
+static const char *pipe_descrip = "Pipe Raw Audio to and from an External Process";
 
 STANDARD_LOCAL_USER;
 
@@ -95,7 +94,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 
 }
 
-static int pipe_exec(struct opbx_channel *chan, void *data)
+static int pipe_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
@@ -106,11 +105,8 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 	int owriteformat;
 	int oreadformat;
 	int timeout = 2000;
-	int stdinout = -1;
 	struct timeval last;
 	struct opbx_frame *f;
-	char filename[256]="";
-	char argument[256]="";
 	char *c;
 	struct myframe {
 		struct opbx_frame f;
@@ -121,39 +117,8 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 	last.tv_usec = 0;
 	last.tv_sec = 0;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "PIPE requires an argument (filename)\n");
-		return -1;
-	}
-	if (!opbx_strlen_zero(data)) {
-		char *tmp;
-		int argc;
-		char *argv[3];
-
-		tmp = opbx_strdupa(data);
-		argc = opbx_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-		if (argc >= 2) {
-			if (!opbx_strlen_zero(argv[0])) {
-				switch (argv[0][0]) {
-					case '1':
-						stdinout = 1;
-						break;
-					case '0':
-						stdinout = 0;
-						break;
-				}
-			}
-
-			opbx_log(LOG_WARNING, "SELECTED %d\n",stdinout);
-			strncpy(filename, argv[1], sizeof(filename) - 1);
-		}
-		if (argc == 3) {
-			strncpy(argument, argv[2], sizeof(argument) - 1);
-		}
-	}
-	if (stdinout == -1) {
-		opbx_log(LOG_WARNING, "Arguments are invalid\n");
+	if (argc < 2 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", pipe_syntax);
 		return -1;
 	}
 
@@ -199,7 +164,7 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	res = pipeencode(filename, argument, fds[0], fds[1]);
+	res = pipeencode(argv[1], argv[2], fds[0], fds[1]);
 
 	if (res >= 0) {
 	   last = opbx_tvnow();
@@ -208,7 +173,7 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 		pid = res;
 		for (;;) {
 			/* Wait for audio, and stream */
-			if (stdinout == 0) {
+			if (argv[0][0] == '0') {
 				/* START WRITE TO FD */
 				ms = opbx_waitfor(chan, 10);
 				if (ms < 0) {
@@ -240,8 +205,7 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 					}
 					opbx_fr_free(f);
 				} /* END WRITE TO FD */
-			}
-			if (stdinout == 1) {
+			} else {
 				/* START WRITE CHANNEL */
 				ms = opbx_tvdiff_ms(last, opbx_tvnow());
 				if (ms <= 0) {
@@ -307,17 +271,15 @@ static int pipe_exec(struct opbx_channel *chan, void *data)
 int unload_module(void)
 {
 	int res;
-
-	res = opbx_unregister_application(app);
-
+	res |= opbx_unregister_application(pipe_app);
 	STANDARD_HANGUP_LOCALUSERS;
-	
 	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, pipe_exec, synopsis, descrip);
+	pipe_app = opbx_register_application(pipe_name, pipe_exec, pipe_synopsis, pipe_syntax, pipe_descrip);
+	return 0;
 }
 
 char *description(void)

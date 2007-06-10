@@ -47,24 +47,25 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 
 static char *tdesc = "Look up CallerID Name from local database";
 
-static char *app = "LookupCIDName";
-
-static char *synopsis = "Look up CallerID Name from local database";
-
-static char *descrip =
-  "  LookupCIDName: Looks up the Caller*ID number on the active\n"
+static void *app;
+static const char *name = "LookupCIDName";
+static const char *synopsis = "Look up CallerID Name from local database";
+static const char *syntax = "LookupCIDName()";
+static const char *descrip =
+  "Looks up the Caller*ID number on the active\n"
   "channel in the CallWeaver database (family 'cidname') and sets the\n"
   "Caller*ID name.  Does nothing if no Caller*ID was received on the\n"
   "channel.  This is useful if you do not subscribe to Caller*ID\n"
   "name delivery, or if you want to change the names on some incoming\n"
   "calls.  Always returns 0.\n";
 
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
 static int
-lookupcidname_exec (struct opbx_channel *chan, void *data)
+lookupcidname_exec (struct opbx_channel *chan, int argc, char **argv)
 {
   char dbname[64];
   struct localuser *u;
@@ -85,15 +86,17 @@ lookupcidname_exec (struct opbx_channel *chan, void *data)
 int
 unload_module (void)
 {
+  int res = 0;
   STANDARD_HANGUP_LOCALUSERS;
-  return opbx_unregister_application (app);
+  res |= opbx_unregister_application (app);
+  return res;
 }
 
 int
 load_module (void)
 {
-  return opbx_register_application (app, lookupcidname_exec, synopsis,
-				   descrip);
+  app = opbx_register_application(name, lookupcidname_exec, synopsis, syntax, descrip);
+  return 0;
 }
 
 char *

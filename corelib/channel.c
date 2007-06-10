@@ -614,7 +614,6 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	/* Initial state */
 	tmp->_state = OPBX_STATE_DOWN;
 	tmp->appl = NULL;
-	tmp->data = NULL;
 	tmp->fin = global_fin;
 	tmp->fout = global_fout;
 //	snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++); 

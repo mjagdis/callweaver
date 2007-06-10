@@ -761,7 +761,7 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
         }
         if (monitor_app && chan ) {
             pbx_substitute_variables_helper(chan, buf, buf2, sizeof(buf2));
-            pbx_exec(chan, monitor_app, buf2, 1);
+            pbx_exec(chan, monitor_app, buf2);
         }
       
     }

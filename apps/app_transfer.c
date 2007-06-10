@@ -48,12 +48,12 @@ LOCAL_USER_DECL;
 
 static const char *tdesc = "Transfer";
 
-static const char *app = "Transfer";
-
-static const char *synopsis = "Transfer caller to remote extension";
-
-static const char *descrip = 
-"  Transfer([Tech/]dest):  Requests the remote caller be transfered\n"
+static void *transfer_app;
+static const char *transfer_name = "Transfer";
+static const char *transfer_synopsis = "Transfer caller to remote extension";
+static const char *transfer_syntax = "Transfer([Tech/]dest)";
+static const char *transfer_descrip = 
+"Requests the remote caller be transfered\n"
 "to a given extension. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
 "an incoming call with the same channel technology will be transfered.\n"
 "Note that for SIP, if you transfer before call is setup, a 302 redirect\n"
@@ -71,23 +71,24 @@ static const char *descrip =
 "successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-static int transfer_exec(struct opbx_channel *chan, void *data)
+static int transfer_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res;
 	int len;
 	struct localuser *u;
 	char *slash;
 	char *tech = NULL;
-	char *dest = data;
+	char *dest;
 	char *status;
 
-	if (opbx_strlen_zero(dest)) {
-		opbx_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
-		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
-		return 0;
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", transfer_syntax);
+		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
+
+	dest = argv[0];
 
 	if ((slash = strchr(dest, '/')) && (len = (slash - dest))) {
 		tech = dest;
@@ -128,14 +129,16 @@ static int transfer_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(transfer_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, transfer_exec, synopsis, descrip);
+	transfer_app = opbx_register_application(transfer_name, transfer_exec, transfer_synopsis, transfer_syntax, transfer_descrip);
+	return 0;
 }
 
 char *description(void)

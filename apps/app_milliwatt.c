@@ -45,12 +45,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Digital Milliwatt (mu-law) Test Application";
 
-static char *app = "Milliwatt";
+static void *milliwatt_app;
+static char *milliwatt_name = "Milliwatt";
+static char *milliwatt_synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
+static char *milliwatt_syntax = "Milliwatt()";
+static char *milliwatt_descrip = 
+"Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
 
-static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
-
-static char *descrip = 
-"Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
 
 STANDARD_LOCAL_USER;
 
@@ -107,11 +108,12 @@ static struct opbx_generator milliwattgen =
 	generate: milliwatt_generate,
 } ;
 
-static int milliwatt_exec(struct opbx_channel *chan, void *data)
+static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-
 	struct localuser *u;
+
 	LOCAL_USER_ADD(u);
+
 	opbx_set_write_format(chan, OPBX_FORMAT_ULAW);
 	opbx_set_read_format(chan, OPBX_FORMAT_ULAW);
 	if (chan->_state != OPBX_STATE_UP)
@@ -125,6 +127,7 @@ static int milliwatt_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 	while(!opbx_safe_sleep(chan, 10000));
+
 	opbx_generator_deactivate(chan);
 	LOCAL_USER_REMOVE(u);
 	return -1;
@@ -132,13 +135,16 @@ static int milliwatt_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(milliwatt_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, milliwatt_exec, synopsis, descrip);
+	milliwatt_app = opbx_register_application(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
+	return 0;
 }
 
 char *description(void)

@@ -54,9 +54,11 @@ OPBX_MUTEX_DEFINE_STATIC(modlock);
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
-static const char *synopsis = "Tap into any type of callweaver channel and listen to audio";
-static const char *app = "ChanSpy";
-static const char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
+static void *chanspy_app;
+static const char *chanspy_name = "ChanSpy";
+static const char *chanspy_synopsis = "Tap into any type of callweaver channel and listen to audio";
+static const char *chanspy_syntax = "Chanspy([scanspec][, options])";
+static const char *chanspy_desc =
 "Valid Options:\n"
 " - q: quiet, don't announce channels beep, etc.\n"
 " - b: bridged, only spy on channels involved in a bridged call.\n"
@@ -108,7 +110,7 @@ static int spy_generate(struct opbx_channel *chan, void *data, int len);
 static void start_spying(struct opbx_channel *chan, struct opbx_channel *spychan, struct opbx_channel_spy *spy);
 static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy);
 static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd);
-static int chanspy_exec(struct opbx_channel *chan, void *data);
+static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv);
 
 
 #if 0
@@ -511,7 +513,7 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
 	return running;
 }
 
-static int chanspy_exec(struct opbx_channel *chan, void *data)
+static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct opbx_channel *peer=NULL, *prev=NULL;
@@ -519,15 +521,11 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 		peer_name[OPBX_NAME_STRLEN + 5],
 		*args,
 		*ptr = NULL,
-		*options = NULL,
-		*spec = NULL,
-		*argv[5],
 		*mygroup = NULL,
 		*recbase = NULL;
 	int res = -1,
 		volfactor = 0,
 		silent = 0,
-		argc = 0,
 		bronly = 0,
 		chosen = 0,
 		count=0,
@@ -539,8 +537,8 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 	struct opbx_flags flags;
 	signed char zero_volume = 0;
 
-	if (!(args = opbx_strdupa((char *)data))) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
+	if (argc < 1 || argc > 2) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", chanspy_syntax);
 		return -1;
 	}
 
@@ -564,19 +562,12 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 
 	opbx_set_flag(chan, OPBX_FLAG_SPYING); /* so nobody can spy on us while we are spying */
 
-	if ((argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		spec = argv[0];
-		if ( argc > 1) {
-			options = argv[1];
-		}
-		if (opbx_strlen_zero(spec) || !strcmp(spec, "all")) {
-			spec = NULL;
-		}
-	}
+	if (argc < 2 || !argv[1][0] || !strcmp(argv[1], "all"))
+		argv[1] = NULL;
 	
-	if (options) {
+	if (argv[1]) {
 		char *opts[3];
-		opbx_parseoptions(chanspy_opts, &flags, opts, options);
+		opbx_parseoptions(chanspy_opts, &flags, opts, argv[1]);
 		if (opbx_test_flag(&flags, OPTION_GROUP)) {
 			mygroup = opts[1];
 		}
@@ -642,8 +633,8 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 					}
 				}
 				
-				if (igrp && (!spec || ((strlen(spec) < strlen(peer->name) &&
-							!strncasecmp(peer->name, spec, strlen(spec)))))) {
+				if (igrp && (!argv[0] || ((strlen(argv[0]) < strlen(peer->name) &&
+							!strncasecmp(peer->name, argv[0], strlen(argv[0])))))) {
 					if (peer && (!bronly || opbx_bridged_channel(peer)) &&
 					    !opbx_check_hangup(peer) && !opbx_test_flag(peer, OPBX_FLAG_SPYING)) {
 						int x = 0;
@@ -676,8 +667,8 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 						res = channel_spy(chan, peer, &volfactor, fd);
 						if (res == -1) {
 							break;
-						} else if (res > 1 && spec) {
-							snprintf(name, OPBX_NAME_STRLEN, "%s/%d", spec, res);
+						} else if (res > 1 && argv[0]) {
+							snprintf(name, OPBX_NAME_STRLEN, "%s/%d", argv[0], res);
 							if ((peer = local_get_channel_begin_name(name))) {
 								chosen = 1;
 							}
@@ -715,18 +706,21 @@ static int chanspy_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(chanspy_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, chanspy_exec, synopsis, desc);
+	chanspy_app = opbx_register_application(chanspy_name, chanspy_exec, chanspy_synopsis, chanspy_syntax, chanspy_desc);
+	return 0;
 }
 
 char *description(void)
 {
-	return (char *) synopsis;
+	return (char *)chanspy_synopsis;
 }
 
 int usecount(void)

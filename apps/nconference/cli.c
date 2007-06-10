@@ -36,39 +36,33 @@ LOCAL_USER_DECL;
  * ************************************************************************/
 /*
 
-static char *app_admin = "NConferenceAdmin";
-static char *descr_admin =
-"  NConference(confno[|var]): Plays back the number of users in the specified\n"
+static void *admin_app;
+static char *admin_name = "NConferenceAdmin";
+static char *admin_synopsis= "NConference participant count";
+static char *admin_syntax = "NConference(confno[, var])";
+static char *admin_description =
+"Plays back the number of users in the specified\n"
 "conference. If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Returns 0.\n";
 
 // TODO - Do it if someone needs it
 
-static char *synopsis_admin = "NConference participant count";
-
-static int app_admin_exec(struct opbx_channel *chan, void *data)
+static int app_admin_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct opbx_conference *conf;
 
-	if (data && !opbx_strlen_zero(data)) {		
-		params = opbx_strdupa((char *) data);
-		confno = strsep(&params, "|");
-		command = strsep(&params, "|");
-		caller = strsep(&params, "|");
-
-		if (!command) {
-			opbx_log(LOG_WARNING, "requires a command!\n");
-			return -1;
-		}
-
-		// Find the right conference 
-		if (!(conf = find_conf(argv[2]))) {
-			return -1;
-		}
-
-//			opbx_mutex_unlock(&conflock);
+	if (argc < 2 || argc > 3 || !argv[0][0] || !argv[1][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", admin_syntax);
+		return -1;
 	}
+
+	// Find the right conference 
+	if (!(conf = find_conf(argv[0]))) {
+		return -1;
+	}
+
+//	opbx_mutex_unlock(&conflock);
 
 	LOCAL_USER_ADD(u);
 	LOCAL_USER_REMOVE(u);
@@ -81,37 +75,35 @@ static int app_admin_exec(struct opbx_channel *chan, void *data)
  * ***************************************************************/
 
 
-static char *app_count = "NConferenceCount";
-static char *descr_count =
-"  NConference(confno[|var]): Plays back the number of users in the specified\n"
+static void *count_app;
+static char *count_name = "NConferenceCount";
+static char *count_synopsis= "NConference members count";
+static char *count_syntax = "NConferenceCount(confno[, var])";
+static char *count_description =
+"Plays back the number of users in the specified\n"
 "conference to the conference members. \n"
 "If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Returns 0.\n";
 
-static char *synopsis_count = "NConference members count";
 
-static int app_count_exec(struct opbx_channel *chan, void *data)
+static int app_count_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
-	
+
 	int res = 0;
 	struct opbx_conference *conf;
 	int count;
 	char *confnum, *localdata;
 	char val[80] = "0"; 
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "NConferenceCount requires an argument (conference number)\n");
+	if (argc < 1 || argc > 2 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", count_syntax);
 		return -1;
 	}
 
-	localdata = opbx_strdupa(data);
-
 	LOCAL_USER_ADD(u);
 
-	confnum = strsep(&localdata, "|");       
-
-	conf = find_conf(confnum);
+	conf = find_conf(argv[0]);
 
 	if (conf) {
 		opbx_mutex_lock(&conf->lock);
@@ -121,11 +113,9 @@ static int app_count_exec(struct opbx_channel *chan, void *data)
 	else
 		count = 0;
 
-	if (localdata && !opbx_strlen_zero(localdata)){
-		pbx_builtin_setvar_helper(chan, localdata, "");
-		/* have var so load it and exit */
+	if (argc > 1 && argv[1][0]) {
 		snprintf(val, sizeof(val), "%i", count);
-		pbx_builtin_setvar_helper(chan, localdata, val);
+		pbx_builtin_setvar_helper(chan, argv[1], val);
 	} else if (conf != NULL) {
 		char buf[10];
 		snprintf(buf, sizeof(buf), "%d", count);
@@ -386,14 +376,14 @@ static char *nconference_admin_complete(char *line, char *word, int pos, int sta
 void register_conference_cli( void ) 
 {
 	opbx_cli_register( &nconference_admin_cli ) ;
-	opbx_register_application(app_count, app_count_exec, synopsis_count, descr_count);
-	//opbx_register_application(app_admin, app_admin_exec, synopsis_admin, descr_admin);
+	count_app = opbx_register_application(count_name, app_count_exec, count_synopsis, count_syntax, count_description);
+	//admin_app = opbx_register_application(admin_name, app_admin_exec, admin_synopsis, admin_syntax, admin_description);
 }
 
 void unregister_conference_cli( void )
 {
 	opbx_cli_unregister( &nconference_admin_cli ) ;
-	opbx_unregister_application(app_count);
+	opbx_unregister_application(count_app);
 	//opbx_unregister_application(app_admin);
 }
 

@@ -43,12 +43,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Block Telemarketers with Special Information Tone";
 
-static char *app = "Zapateller";
-
-static char *synopsis = "Block telemarketers with SIT";
-
-static char *descrip = 
-"  Zapateller(options):  Generates special information tone to block\n"
+static void *zapateller_app;
+static const char *zapateller_name = "Zapateller";
+static const char *zapateller_synopsis = "Block telemarketers with SIT";
+static const char *zapateller_syntax = "Zapateller(options)";
+static const char *zapateller_descrip = 
+"Generates special information tone to block\n"
 "telemarketers from calling you.  Returns 0 normally or -1 on hangup.\n"
 "Options is a pipe-delimited list of options.  The following options\n"
 "are available: 'answer' causes the line to be answered before playing\n"
@@ -60,30 +60,25 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int zapateller_exec(struct opbx_channel *chan, void *data)
+static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 0;
 	struct localuser *u;
 	int answer = 0, nocallerid = 0;
 	char *c;
 	char *stringp=NULL;
-	
+
 	LOCAL_USER_ADD(u);
 
-	stringp=data;
-        c = strsep(&stringp, "|");
-        while(!opbx_strlen_zero(c)) {
-		if (!strcasecmp(c, "answer"))
+	for(; argc; argv++, argc--) {
+		if (!strcasecmp(argv[0], "answer"))
 			answer = 1;
-		else if (!strcasecmp(c, "nocallerid"))
+		else if (!strcasecmp(argv[0], "nocallerid"))
 			nocallerid = 1;
-
-                c = strsep(&stringp, "|");
         }
 
 	opbx_stopstream(chan);
 	if (chan->_state != OPBX_STATE_UP) {
-
 		if (answer) 
 			res = opbx_answer(chan);
 		if (!res) {
@@ -108,13 +103,16 @@ static int zapateller_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(zapateller_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, zapateller_exec, synopsis, descrip);
+	zapateller_app = opbx_register_application(zapateller_name, zapateller_exec, zapateller_synopsis, zapateller_syntax, zapateller_descrip);
+	return 0;
 }
 
 char *description(void)

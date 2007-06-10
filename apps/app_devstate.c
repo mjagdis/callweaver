@@ -36,11 +36,11 @@
 static char type[] = "DS";
 static char tdesc[] = "Application for sending device state messages";
 
-static char app[] = "DevState";
-
-static char synopsis[] = "Generate a device state change event given the input parameters";
-
-static char descrip[] = " DevState(device|state):  Generate a device state change event given the input parameters. Returns 0. State values match the callweaver device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
+static void *devstate_app;
+static const char *devstate_name = "DevState";
+static const char *devstate_synopsis = "Generate a device state change event given the input parameters";
+static const char *devstate_syntax = "DevState(device, state)";
+static const char *devstate_descrip = "Generate a device state change event given the input parameters. Returns 0. State values match the callweaver device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
 
 static char devstate_cli_usage[] = 
 "Usage: DevState device state\n" 
@@ -69,34 +69,22 @@ static int devstate_cli(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int devstate_exec(struct opbx_channel *chan, void *data)
+static int devstate_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
-    char *device, *state, *info;
-    if (!(info = opbx_strdupa(data))) {
-            opbx_log(LOG_WARNING, "Unable to dupe data :(\n");
-            return -1;
-    }
-    LOCAL_USER_ADD(u);
-    
-    device = info;
-    state = strchr(info, '|');
-    if (state) {
-        *state = '\0';
-        state++;
-    }
-    else
-    {
-        opbx_log(LOG_DEBUG, "No state argument supplied\n");
+
+    if (argc != 2) {
+        opbx_log(LOG_ERROR, "Syntax: %s\n", devstate_syntax);
         return -1;
     }
 
-    if (opbx_db_put("DEVSTATES", device, state))
-    {
+    LOCAL_USER_ADD(u);
+    
+    if (opbx_db_put("DEVSTATES", argv[0], argv[1])) {
         opbx_log(LOG_DEBUG, "opbx_db_put failed\n");
     }
 
-    opbx_device_state_changed("DS/%s", device);
+    opbx_device_state_changed("DS/%s", argv[0]);
 
     LOCAL_USER_REMOVE(u);
     return 0;
@@ -183,7 +171,8 @@ int load_module(void)
     }
     opbx_cli_register(&cli_dev_state);  
     opbx_manager_register2( "Devstate", EVENT_FLAG_CALL, action_devstate, "Change a device state", mandescr_devstate );
-    return opbx_register_application(app, devstate_exec, synopsis, descrip);
+    devstate_app = opbx_register_application(devstate_name, devstate_exec, devstate_synopsis, devstate_syntax, devstate_descrip);
+    return 0;
 }
 
 int unload_module(void)
@@ -192,7 +181,7 @@ int unload_module(void)
     STANDARD_HANGUP_LOCALUSERS;
     opbx_manager_unregister( "Devstate");
     opbx_cli_unregister(&cli_dev_state);
-    res = opbx_unregister_application(app);
+    res |= opbx_unregister_application(devstate_app);
     opbx_channel_unregister(&devstate_tech);    
     return res;
 }

@@ -65,6 +65,16 @@ size_t gStackChunkSize = 8192;
 #include <curl/curl.h>
 #endif
 
+
+static void *js_function;
+static const char *js_func_name = "JS";
+static const char *js_func_synopsis = "Executes a JavaScript function.";
+static const char *js_func_syntax = "JS(<path/to/script>)";
+static const char *js_func_desc = "Executes JavaScript Code\n"
+	"If the script sets the channel variable JSFUNC\n"
+	"that val will be returned to the dialplan.";
+
+
 static jsuword gStackBase;
 int gExitCode = 0;
 JSBool gQuitting = JS_FALSE;
@@ -79,8 +89,12 @@ JSClass global_class = {
 };
 
 static char *tdesc = "Embedded JavaScript Application";
-static char *app = "JavaScript";
-static char *synopsis = "Embedded JavaScript Application";
+
+static void *app;
+static const char *name = "JavaScript";
+static const char *synopsis = "Embedded JavaScript Application";
+static const char *syntax = NULL;
+
 static char global_dir[128] = "/usr/local/callweaver/logic";
 
 
@@ -473,7 +487,10 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 			
 		}
 		if ((appS = pbx_findapp(app))) {
-			*rval = BOOLEAN_TO_JSVAL ( pbx_exec(jc->chan, appS, data, 1) ? JS_FALSE : JS_TRUE );
+			data = strdup(data ? data : "");
+			*rval = BOOLEAN_TO_JSVAL ( pbx_exec(jc->chan, appS, data) ? JS_FALSE : JS_TRUE );
+			if (data)
+				free(data);
 		} else 
 			*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
 
@@ -585,16 +602,16 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
         return JS_FALSE;
 
 	if (filename && (prefix = pbx_builtin_getvar_helper(jc->chan, "private_sound_dir"))) {
-		snprintf(path_info, sizeof(path_info), "%s/%s|%s|%s|%s", prefix, filename, silence, maxduration, options);
+		snprintf(path_info, sizeof(path_info), "%s/%s,%s,%s,%s", prefix, filename, silence, maxduration, options);
 	} else if (filename) {
-		snprintf(path_info, sizeof(path_info), "%s|%s|%s|%s", filename, silence, maxduration, options);
+		snprintf(path_info, sizeof(path_info), "%s,%s,%s,%s", filename, silence, maxduration, options);
 	} else {
 		opbx_log(LOG_ERROR, "Invalid Arguements.\n");
 		return JS_FALSE;
 	}
 	
 	if ((appS = pbx_findapp("Record"))) {
-		*rval = BOOLEAN_TO_JSVAL ( pbx_exec(jc->chan, appS, path_info, 1) ? JS_FALSE : JS_TRUE );
+		*rval = BOOLEAN_TO_JSVAL ( pbx_exec(jc->chan, appS, path_info) ? JS_FALSE : JS_TRUE );
 	} else 
 		*rval = BOOLEAN_TO_JSVAL( JS_FALSE );
 	
@@ -1267,7 +1284,7 @@ static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct opbx_channel *ch
 	return NULL;
 }
 
-static int js_exec(struct opbx_channel *chan, void *data)
+static int js_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	char *code, *next, *arg, *nextarg;
 	int res=-1;
@@ -1281,36 +1298,23 @@ static int js_exec(struct opbx_channel *chan, void *data)
 	char *options = NULL;
 	int flags = 0;
 
-	if (!data) {
-		opbx_log(LOG_WARNING, "js requires an argument (filename|code)\n");
+	if (argc < 1 || !argc[0][0]) {
+		opbx_log(LOG_ERROR, "js requires an argument (filename|code)\n");
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
-	code = opbx_strdupa((char *)data);
-	if (code[0] == '-') {
-		if ((next = strchr(code, '|'))) {
-			*next = '\0';
-			next++;
-		}
-		code++;
-		options = opbx_strdupa(code);
-		code = next;
-	}
-	
-	if (!code) {
-		opbx_log(LOG_WARNING, "js requires an argument (filename|code)\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-	
-	if (options) {
-		if (strchr(options, 's'))
-			flags |= JC_SECURE_FLAG;
-		if (strchr(options, 'f'))
-			flags |= JC_BREACH_FATAL|JC_SECURE_FLAG;
-	}
-	
 
+	LOCAL_USER_ADD(u);
+
+	if (argv[0][0] == '-') {
+		argv[0]++;
+		for (; argv[0][0]; argv[0]++) {
+			switch (argv[0][0]) {
+				case 'f': flags |= JS_BREACH_FATAL | JS_SECURE_FLAG; break;
+				case 's': flags |= JS_SECURE_FLAG; break;
+			}
+		}
+		argv++, argc--;
+	}
 
     if ((cx = JS_NewContext(rt, gStackChunkSize))) {
 		JS_SetErrorReporter(cx, js_error);
@@ -1322,15 +1326,11 @@ static int js_exec(struct opbx_channel *chan, void *data)
 			JS_SetPrivate(cx, glob, chan);
 			res = 0;
 	
-			do {
-				if ((next = strchr(code, '|'))) {
-					*next = '\0';
-					next++;
-				}
-				if ((arg = strchr(code, ':'))) {
+			for (; argc; argv++, argc--) {
+				if ((arg = strchr(argv[0], ':'))) {
 					for (y=0;(arg=strchr(arg, ':'));y++)
 						arg++;
-					arg = strchr(code, ':');
+					arg = strchr(argv[0], ':');
 					*arg = '\0';
 					arg++;
 					snprintf(buf, sizeof(buf), "~var Argv = new Array(%d);", y);
@@ -1347,11 +1347,10 @@ static int js_exec(struct opbx_channel *chan, void *data)
 						arg = nextarg;
 					} while (arg);
 				}
-				if ((res=eval_some_js(code, cx, glob, &rval)) < 0) {
+				if ((res=eval_some_js(argv[0], cx, glob, &rval)) < 0) {
 					break;
 				} 
-				code = next;
-			} while (code);
+			}
 		}
 	}
 	
@@ -1363,27 +1362,21 @@ static int js_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static char *function_js_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *function_js_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
 	char *ret;
 
-	if (data && js_exec(chan, data) > -1 && (ret = pbx_builtin_getvar_helper(chan, "JSFUNC"))) {
+	if (argc < 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", js_func_syntax);
+		return NULL;
+	}
+
+	if (js_exec(chan, argc, argv) > -1 && (ret = pbx_builtin_getvar_helper(chan, "JSFUNC"))) {
 		opbx_copy_string(buf, ret, len);
 		return buf;
 	}
 	return NULL;
 }
-
-static struct opbx_custom_function js_function = {
-	.name = "JS",
-	.desc = "Executes JavaScript Code",
-	.syntax = "JS(<path/to/script>)",
-	.synopsis = "Executes a JavaScript function.",
-	.desc = "If the script sets the channel variable JSFUNC\n"
-	"that val will be returned to the dialplan."
-	"",
-	.read = function_js_read
-};
 
 int reload(void) {
 	return process_config();
@@ -1391,12 +1384,14 @@ int reload(void) {
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
 	if (rt)
 		JS_DestroyRuntime(rt);
     JS_ShutDown();
-	opbx_custom_function_unregister(&js_function); 
-	return opbx_unregister_application(app);
+	opbx_unregister_function(js_function); 
+	res |= opbx_unregister_application(app);
+	return res;
 }
 
 int load_module(void)
@@ -1412,8 +1407,9 @@ int load_module(void)
         return -1;
 
 	process_config();
-	opbx_custom_function_register(&js_function); 
-	return opbx_register_application(app, js_exec, synopsis, tdesc);
+	js_function = opbx_register_function(js_func_name, function_js_read, NULL, js_func_synopsis, js_func_syntax, js_func_desc); 
+	app = opbx_register_application(name, js_exec, synopsis, syntax, tdesc);
+	return 0;
 }
 
 char *description(void)

@@ -42,14 +42,15 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/module.h"
 
 static char *tdesc = "Fork The CDR into 2 separate entities.";
-static char *app = "ForkCDR";
-static char *synopsis = 
-"Forks the Call Data Record";
-static char *descrip = 
-"  ForkCDR([options]):  Causes the Call Data Record to fork an additional\n"
-	"cdr record starting from the time of the fork call\n"
-"If the option 'v' is passed all cdr variables will be passed along also.\n"
-"";
+
+static void *forkcdr_app;
+static char *forkcdr_name = "ForkCDR";
+static char *forkcdr_synopsis = "Forks the Call Data Record";
+static char *forkcdr_syntax = "ForkCDR([options])";
+static char *forkcdr_descrip = 
+"Causes the Call Data Record to fork an additional\n"
+"cdr record starting from the time of the fork call\n"
+"If the option 'v' is passed all cdr variables will be passed along also.\n";
 
 
 STANDARD_LOCAL_USER;
@@ -73,13 +74,15 @@ static void opbx_cdr_fork(struct opbx_channel *chan)
 	opbx_set_flag(cdr, OPBX_CDR_FLAG_CHILD | OPBX_CDR_FLAG_LOCKED);
 }
 
-static int forkcdr_exec(struct opbx_channel *chan, void *data)
+static int forkcdr_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
 	struct localuser *u;
+	int res=0;
+
 	LOCAL_USER_ADD(u);
-	if (!opbx_strlen_zero(data))
-		opbx_set2_flag(chan->cdr, strchr((char *)data, 'v'), OPBX_CDR_FLAG_KEEP_VARS);
+
+	if (argc > 0)
+		opbx_set2_flag(chan->cdr, strchr(argv[0], 'v'), OPBX_CDR_FLAG_KEEP_VARS);
 	
 	opbx_cdr_fork(chan);
 
@@ -89,13 +92,16 @@ static int forkcdr_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(forkcdr_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, forkcdr_exec, synopsis, descrip);
+	forkcdr_app = opbx_register_application(forkcdr_name, forkcdr_exec, forkcdr_synopsis, forkcdr_syntax, forkcdr_descrip);
+	return 0;
 }
 
 char *description(void)

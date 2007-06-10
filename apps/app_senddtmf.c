@@ -46,50 +46,38 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Send DTMF digits Application";
 
-static char *app = "SendDTMF";
-
-static char *synopsis = "Sends arbitrary DTMF digits";
-
-static char *descrip = 
-"  SendDTMF(digits[|timeout_ms]): Sends DTMF digits on a channel. \n"
-"  Accepted digits: 0-9, *#abcd\n"
+static void *senddtmf_app;
+static const char *senddtmf_name = "SendDTMF";
+static const char *senddtmf_synopsis = "Sends arbitrary DTMF digits";
+static const char *senddtmf_syntax = "SendDTMF(digits[, timeout_ms])";
+static const char *senddtmf_descrip = 
+"Sends DTMF digits on a channel. \n"
+" Accepted digits: 0-9, *#abcd\n"
 " Returns 0 on success or -1 on a hangup.\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int senddtmf_exec(struct opbx_channel *chan, void *data)
+static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 0;
 	struct localuser *u;
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
-		return 0;
+	if (argc < 1 || argc > 2 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", senddtmf_syntax);
+		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	digits = opbx_strdupa(data);
-	if (!digits) {
-		opbx_log(LOG_ERROR, "Out of Memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	if ((to = strchr(digits,'|'))) {
-		*to = '\0';
-		to++;
-		timeout = atoi(to);
-	}
-		
-	if(timeout <= 0)
+	timeout = (argc > 1 ? atoi(argv[1]) : 0);
+	if (timeout <= 0)
 		timeout = 250;
 
-	res = opbx_dtmf_stream(chan,NULL,digits,timeout);
+	res = opbx_dtmf_stream(chan, NULL, argv[0], timeout);
 		
 	LOCAL_USER_REMOVE(u);
 
@@ -98,13 +86,16 @@ static int senddtmf_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(senddtmf_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, senddtmf_exec, synopsis, descrip);
+	senddtmf_app = opbx_register_application(senddtmf_name, senddtmf_exec, senddtmf_synopsis, senddtmf_syntax, senddtmf_descrip);
+	return 0;
 }
 
 char *description(void)

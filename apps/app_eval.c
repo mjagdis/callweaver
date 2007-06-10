@@ -46,13 +46,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Reevaluates strings";
 
-static char *app_eval = "Eval";
-
+static void *eval_app;
+static char *eval_name = "Eval";
 static char *eval_synopsis = "Evaluates a string";
-
+static char *eval_syntax = "Eval(newvar=somestring)";
 static char *eval_descrip =
-"Usage: Eval(newvar=somestring)\n"
-"  Normally CallWeaver evaluates variables inline.  But what if you want to\n"
+"Normally CallWeaver evaluates variables inline.  But what if you want to\n"
 "store variable offsets in a database, to be evaluated later?  Eval is\n"
 "the answer, by allowing a string to be evaluated twice in the dialplan,\n"
 "the first time as part of the normal dialplan, and the second using Eval.\n";
@@ -61,33 +60,27 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int eval_exec(struct opbx_channel *chan, void *data)
+static int eval_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
-	struct localuser *u;
-	char *s, *newvar=NULL, tmp[MAXRESULT];
 	static int dep_warning = 0;
+	char tmp[MAXRESULT];
+	struct localuser *u;
+	char *s, *newvar = NULL;
+	int res = 0;
 
-	LOCAL_USER_ADD(u);
-	
 	if (!dep_warning) {
 		opbx_log(LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
 		dep_warning = 1;
 	}
 
+	LOCAL_USER_ADD(u);
+	
 	/* Check and parse arguments */
-	if (data) {
-		s = opbx_strdupa((char *)data);
-		if (s) {
-			newvar = strsep(&s, "=");
-			if (newvar && (newvar[0] != '\0')) {
-				memset(tmp, 0, MAXRESULT);
-				pbx_substitute_variables_helper(chan, s, tmp, MAXRESULT - 1);
-				pbx_builtin_setvar_helper(chan, newvar, tmp);
-			}
-		} else {
-			opbx_log(LOG_ERROR, "Out of memory\n");
-			res = -1;
+	if (argv[0]) {
+		newvar = strsep(&argv[0], "=");
+		if (newvar && (newvar[0] != '\0')) {
+			pbx_substitute_variables_helper(chan, argv[0], tmp, sizeof(tmp));
+			pbx_builtin_setvar_helper(chan, newvar, tmp);
 		}
 	}
 
@@ -97,13 +90,16 @@ static int eval_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app_eval);
+	res |= opbx_unregister_application(eval_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app_eval, eval_exec, eval_synopsis, eval_descrip);
+	eval_app = opbx_register_application(eval_name, eval_exec, eval_synopsis, eval_syntax, eval_descrip);
+	return 0;
 }
 
 char *description(void)

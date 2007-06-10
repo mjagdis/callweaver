@@ -213,7 +213,7 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 			a = pbx_findapp(app);
 			if (a) {
 				if(!opbx_strlen_zero(tmp))
-				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
+				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata));
                 if (option_verbose > 2)
 					opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
 					    opbx_term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
@@ -229,7 +229,7 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 							  "Uniqueid: %s\r\n",
 							  chan->name, chan->context, chan->exten, chan->priority, app, appdata ? appdata : "(NULL)", chan->uniqueid);
 				
-				res = pbx_exec(chan, a, appdata, newstack);
+				res = pbx_exec(chan, a, appdata);
 			} else
 				opbx_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
 		}

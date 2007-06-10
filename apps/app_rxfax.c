@@ -42,12 +42,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "Trivial FAX Receive Application";
 
-static char *app = "RxFAX";
-
-static char *synopsis = "Receive a FAX to a file";
-
-static char *descrip = 
-"  RxFAX(filename[|caller][|debug][|ecm]): Receives a FAX from the channel into the\n"
+static void *rxfax_app;
+static const char *rxfax_name = "RxFAX";
+static const char *rxfax_synopsis = "Receive a FAX to a file";
+static const char *rxfax_syntax = "RxFAX(filename[, caller][, debug][, ecm])";
+static const char *rxfax_descrip = 
+"Receives a FAX from the channel into the\n"
 "given filename. If the file exists it will be overwritten. The file\n"
 "should be in TIFF/F format.\n"
 "The \"caller\" option makes the application behave as a calling machine,\n"
@@ -582,13 +582,12 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_exec(struct opbx_channel *chan, void *data)
+static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     fax_state_t 	fax;
     t38_terminal_state_t t38;
 
     int res = 0;
-    char template_file[256];
     char target_file[256];
     char *s;
     char *t;
@@ -613,18 +612,14 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
 
     /* Basic initial checkings */
 
-    if (chan == NULL)
-    {
+    if (chan == NULL) {
         opbx_log(LOG_WARNING, "Fax transmit channel is NULL. Giving up.\n");
         return -1;
     }
 
-    /* The next few lines of code parse out the filename and header from the input string */
-    if (data == NULL)
-    {
-        /* No data implies no filename or anything is present */
-        opbx_log(LOG_WARNING, "Rxfax requires an argument (filename)\n");
-        return -1;
+    if (argc < 1 || argc > 4) {
+	opbx_log(LOG_ERROR, "Syntax: %s\n", rxfax_syntax);
+	return -1;
     }
 
     /* Resetting channel variables related to T38 */
@@ -640,49 +635,23 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
     
     calling_party = FALSE;
     verbose = FALSE;
-    target_file[0] = '\0'; 
 
-    for (option = 0, v = s = data;  v;  option++, s++)
-    {
-        t = s;
-        v = strchr(s, '|');
-        s = (v)  ?  v  :  s + strlen(s);
-        strncpy((char *) buf, t, s - t);
-        buf[s - t] = '\0';
-        if (option == 0)
-        {
-            /* The first option is always the file name */
-            len = s - t;
-            if (len > 255)
-                len = 255;
-            strncpy(target_file, t, len);
-            target_file[len] = '\0';
-            /* Allow the use of %d in the file name for a wild card of sorts, to
-               create a new file with the specified name scheme */
-            if ((x = strchr(target_file, '%'))  &&  x[1] == 'd')
-            {
-                strcpy(template_file, target_file);
-                i = 0;
-                do
-                {
-                    snprintf(target_file, 256, template_file, 1);
-                    i++;
-                }
-                while (opbx_fileexists(target_file, "", chan->language) != -1);
-            }
-        }
-        else if (strncmp("caller", t, s - t) == 0)
-        {
-            calling_party = TRUE;
-        }
-        else if (strncmp("debug", t, s - t) == 0)
-        {
-            verbose = TRUE;
-        }
-        else if (strncmp("ecm", t, s - t) == 0)
-        {
-            ecm = TRUE;
-        }
+    if ((x = strstr(argv[0], "%d"))) {
+         i = 0;
+         do {
+             snprintf(target_file, 256, argv[0], i++);
+         } while (opbx_fileexists(target_file, "", chan->language) != -1);
+    } else {
+	 opbx_copy_string(target_file, argv[0], sizeof(target_file));
+    }
+
+    while (argv++, --argc) {
+	    if (!strcmp(argv[0], "caller"))
+		    calling_party = TRUE;
+	    else if (!strcmp(argv[0], "debug"))
+		    verbose = TRUE;
+	    else if (!strcmp(argv[0], "ecm"))
+		    ecm = TRUE;
     }
 
     /* Done parsing */
@@ -779,14 +748,17 @@ static int rxfax_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+    int res = 0;
     STANDARD_HANGUP_LOCALUSERS;
-    return opbx_unregister_application(app);
+    res |= opbx_unregister_application(rxfax_app);
+    return res;
 }
 /*- End of function --------------------------------------------------------*/
 
 int load_module(void)
 {
-    return opbx_register_application(app, rxfax_exec, synopsis, descrip);
+    rxfax_app = opbx_register_application(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
+    return 0;
 }
 /*- End of function --------------------------------------------------------*/
 

@@ -72,6 +72,15 @@
 
 static char *qdesc = "Intelligent Call Distribution System";
 
+static void *icd_customer_app;
+static void *icd_queue_app;
+static void *icd_agent_app;
+static void *icd_logout_app;
+static void *icd_add_member_app;
+static void *icd_remove_member_app;
+static void *icd_agent_callback_app;
+static void *icd_customer_callback_app;
+
 static char *icd_customer_app_name = "icd_customer";
 static char *icd_queue_app_name = "icd_queue";
 static char *icd_agent_app_name = "icd_agent";
@@ -89,16 +98,24 @@ static char *app_icd_logout_synopsis = "ICD Agent Logout";
 static char *app_icd_add_member_synopsis = "ICD dynamicaly add member to a queue";
 static char *app_icd_remove_member_synopsis = "ICD remove a member from a queue";
 
+static char *app_icd_customer_syntax = "icd_customer(queue=[queueid][,option])";
+static char *app_icd_customer_callback_syntax = "icd_customer_callback";
+static char *app_icd_agent_syntax = "icd_agent(agent=[agentid or dynamic][,option])";
+static char *app_icd_agent_callback_syntax = "icd_agent_callback";
+static char *app_icd_logout_syntax = "icd_logout(agent=[agentid])";
+static char *app_icd_add_member_syntax = "icd_add_member";
+static char *app_icd_remove_member_syntax = "icd_remove_member";
+
 static char *app_icd_customer_desc =
-"   icd_customer(queue=[queueid][,option])\nCreates a distributor for a outside caller (customer) for a queue.\n\nThe option string may contain zero or more of the following:\n\tname=[name for the customer] -- a identifier for this customer access\n\tinfo=[any string] -- free form comment on this customer distributor\n\tpriority=[number] -- a priority for sorting the customer into the queue\n\nIn the ICD system queues get created in the definition files but queue distributors per extension or customer get created in the dialplan. So you have to first define a queue and can than add different kinds of customer access to it, which you define by utilising icd_customer\n\n\t\t---\n\n   icd_customer(conference=[conference or query or autoscan][,option])\nA customer distributor can also be defined via conferences. In that case the option string can be zero or more of:\n\tspy=[1 or 0] -- mute the customer in the conference\n\tconference=[conference,autoscan or query] -- conferecne will place the customer in that conference, autoscan will round robin through the available conferences and if used in combination wity spy=1 behave like zapscan, meaning via pressing the * key you could listen in on conferences one after the other.Query will ask for the customer to enter a conference id.";
-static char *app_icd_customer_callback_desc = "icd_customer_callback\n";
+"Creates a distributor for a outside caller (customer) for a queue.\n\nThe option string may contain zero or more of the following:\n\tname=[name for the customer] -- a identifier for this customer access\n\tinfo=[any string] -- free form comment on this customer distributor\n\tpriority=[number] -- a priority for sorting the customer into the queue\n\nIn the ICD system queues get created in the definition files but queue distributors per extension or customer get created in the dialplan. So you have to first define a queue and can than add different kinds of customer access to it, which you define by utilising icd_customer\n\n\t\t---\n\n   icd_customer(conference=[conference or query or autoscan][,option])\nA customer distributor can also be defined via conferences. In that case the option string can be zero or more of:\n\tspy=[1 or 0] -- mute the customer in the conference\n\tconference=[conference,autoscan or query] -- conferecne will place the customer in that conference, autoscan will round robin through the available conferences and if used in combination wity spy=1 behave like zapscan, meaning via pressing the * key you could listen in on conferences one after the other.Query will ask for the customer to enter a conference id.";
+static char *app_icd_customer_callback_desc = "";
 static char *app_icd_agent_desc =
-"   icd_agent(agent=[agentid or dynamic][,option]):\nLogs an ageent into an ICD queue or icd queues. While logged in, the agent can receive calls.\n\nThe option string may contain zero or more of the following:\n\tqueue=[queueid or space separated list of queues] -- which queues the agent should be a member off\n\tpriority=[priority] -- the priority in the queue of the agent (for priority ditribution = priority)\n\tnoauth=[1 or 0] - if we should authenticate the agent\n\tdunamic=[yes or no] -- if this is a dynamically created agent\n\nDefinitions in the dialplan override definitions in the icd_agent.conf file\n";
-static char *app_icd_agent_callback_desc = "icd_agent_callback\n";
-static char *app_icd_logout_desc = "   icd_logout(agent=[agentid])\nLogs an agent out of the ICD system\n";
-static char *app_icd_add_member_desc = "icd_add_member\n  Let's you dynamically add members to icd queues";
-static char *app_icd_remove_member_desc =
-"icd_remove_member\n   Dynamically deletes a queue member from an ICD queue";
+"Logs an ageent into an ICD queue or icd queues. While logged in, the agent can receive calls.\n\nThe option string may contain zero or more of the following:\n\tqueue=[queueid or space separated list of queues] -- which queues the agent should be a member off\n\tpriority=[priority] -- the priority in the queue of the agent (for priority ditribution = priority)\n\tnoauth=[1 or 0] - if we should authenticate the agent\n\tdunamic=[yes or no] -- if this is a dynamically created agent\n\nDefinitions in the dialplan override definitions in the icd_agent.conf file\n";
+static char *app_icd_agent_callback_desc = "";
+static char *app_icd_logout_desc = "Logs an agent out of the ICD system\n";
+static char *app_icd_add_member_desc = "Let's you dynamically add members to icd queues";
+static char *app_icd_remove_member_desc = "Dynamically deletes a queue member from an ICD queue";
+
 
 #ifdef ICD_TRAP_CORE
 static int core_count = 0;
@@ -111,10 +128,10 @@ int icd_verbose=2;
 int icd_debug = 0;
 
 /* delimiter for lists of options in icd conf files */
-char icd_delimiter = '|';
+char icd_delimiter = ',';
 
 /* delimiter for args in interface to callweaver _exec functions */
-char opbx_delimiter = '|';
+char opbx_delimiter = ',';
 
 /* This is the module mask (icd.conf module_mask=) for what module events to show in the default icd cli.*/
 int module_mask[ICD_MAX_MODULES];
@@ -261,21 +278,21 @@ int load_module(void)
     reload_app_icd(APP_ICD);
 
     opbx_cli_register(&icd_command_cli_struct);
-    opbx_register_application(icd_queue_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
-                             app_icd_customer_desc);
-    opbx_register_application(icd_customer_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
-                             app_icd_customer_desc);
-    opbx_register_application(icd_customer_callback_app_name, app_icd__customer_callback_login,
-                             app_icd_customer_callback_synopsis, app_icd_customer_callback_desc);
-    opbx_register_application(icd_agent_app_name, app_icd__agent_exec, app_icd_agent_synopsis, app_icd_agent_desc);
-    opbx_register_application(icd_agent_callback_app_name, app_icd__agent_callback_login,
-                             app_icd_agent_callback_synopsis, app_icd_agent_callback_desc);
-    opbx_register_application(icd_logout_app_name, app_icd__logout_exec, app_icd_logout_synopsis,
-                             app_icd_logout_desc);
-    opbx_register_application(icd_add_member_app_name, app_icd__add_member_exec, app_icd_add_member_synopsis,
-                             app_icd_add_member_desc);
-    opbx_register_application(icd_remove_member_app_name, app_icd__remove_member_exec,
-                             app_icd_remove_member_synopsis, app_icd_remove_member_desc);
+    icd_queue_app= opbx_register_application(icd_queue_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
+                             app_icd_customer_syntax, app_icd_customer_desc);
+    icd_customer_app= opbx_register_application(icd_customer_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
+                             app_icd_customer_syntax, app_icd_customer_desc);
+    icd_customer_callback_app= opbx_register_application(icd_customer_callback_app_name, app_icd__customer_callback_login,
+                             app_icd_customer_callback_synopsis, app_icd_customer_callback_syntax, app_icd_customer_callback_desc);
+    icd_agent_app= opbx_register_application(icd_agent_app_name, app_icd__agent_exec, app_icd_agent_synopsis, app_icd_agent_syntax, app_icd_agent_desc);
+    icd_agent_callback_app= opbx_register_app(icd_agent_callback_app_name, app_icd__agent_callback_login,
+                             app_icd_agent_callback_synopsis, app_icd_agent_callback_syntax, app_icd_agent_callback_desc);
+    icd_logout_app= opbx_register_application(icd_logout_app_name, app_icd__logout_exec, app_icd_logout_synopsis,
+                             app_icd_logout_syntax, app_icd_logout_desc);
+    icd_add_member_app= opbx_register_application(icd_add_member_app_name, app_icd__add_member_exec, app_icd_add_member_synopsis,
+                             app_icd_add_member_desc, app_icd_add_member_desc);
+    icd_remove_member_app= opbx_register_application(icd_remove_member_app_name, app_icd__remove_member_exec,
+                             app_icd_remove_member_synopsis, app_icd_remove_member_syntax, app_icd_remove_member_desc);
 
     /* If this is the best place to come back to then there is nothing we can do but die.
        if(setjmp(env) == SIGSEGV) {
@@ -294,6 +311,7 @@ int unload_module(void)
     char *curr_key;
     icd_queue *queue;
     icd_agent *agent;
+    int res = 0;
 
     ICD_UNINIT;
     opbx_log(LOG_WARNING, "ICD unloading from CallWeaver.org, all callers will be lost!\n");
@@ -334,19 +352,19 @@ int unload_module(void)
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
 
-    opbx_unregister_application(icd_queue_app_name);
-    opbx_unregister_application(icd_logout_app_name);
-    opbx_unregister_application(icd_add_member_app_name);
-    opbx_unregister_application(icd_remove_member_app_name);
-    opbx_unregister_application(icd_agent_app_name);
-    opbx_unregister_application(icd_agent_callback_app_name);
-    opbx_unregister_application(icd_customer_app_name);
-    opbx_unregister_application(icd_customer_callback_app_name);
+    res |= opbx_unregister_application(icd_queue_app);
+    res |= opbx_unregister_application(icd_logout_app);
+    res |= opbx_unregister_application(icd_add_member_app);
+    res |= opbx_unregister_application(icd_remove_member_app);
+    res |= opbx_unregister_application(icd_agent_app);
+    res |= opbx_unregister_application(icd_agent_callback_app);
+    res |= opbx_unregister_application(icd_customer_app);
+    res |= opbx_unregister_application(icd_customer_callback_app);
 
     opbx_cli_unregister(&icd_command_cli_struct);
     destroy_command_hash();
 
-    return 0;
+    return res;
 }
 
 /* This returns a count of the channels we are currently controlling */
@@ -528,7 +546,7 @@ icd_status autologin(void)
 /* this is where the customer enters the queue. Assumes channel already available. */
 /* TBD - All these _exec() functions have the same building blocks. These need to be
    refactored out. */
-int app_icd__customer_exec(struct opbx_channel *chan, void *data)
+int app_icd__customer_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     icd_customer *customer;
     char custname[256];
@@ -548,7 +566,8 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -810,7 +829,7 @@ int app_icd__customer_exec(struct opbx_channel *chan, void *data)
  * Its also is intended to be used by external api that just want to schedule customer for callbacks
  *
  * */
-int app_icd__customer_callback_login(struct opbx_channel *chan, void *data)
+int app_icd__customer_callback_login(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
     icd_customer *customer;
@@ -833,7 +852,8 @@ int app_icd__customer_callback_login(struct opbx_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -1002,7 +1022,7 @@ int app_icd__customer_callback_login(struct opbx_channel *chan, void *data)
 }
 
 /* this is where the agent logs in */
-int app_icd__agent_exec(struct opbx_channel *chan, void *data)
+int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -1025,7 +1045,8 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -1251,7 +1272,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, void *data)
 }
 
 /* this is where the agent becomes a member of a queue */
-int app_icd__add_member_exec(struct opbx_channel *chan, void *data)
+int app_icd__add_member_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
     icd_queue *queue = NULL;
@@ -1259,7 +1280,8 @@ int app_icd__add_member_exec(struct opbx_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -1294,13 +1316,14 @@ int app_icd__add_member_exec(struct opbx_channel *chan, void *data)
 }
 
 /* this is where the agent drops membership in a queue */
-int app_icd__remove_member_exec(struct opbx_channel *chan, void *data)
+int app_icd__remove_member_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -1313,7 +1336,7 @@ int app_icd__remove_member_exec(struct opbx_channel *chan, void *data)
 }
 
 /* This is intended to duplicate the AgentCallbackLogin function from chan_agent */
-int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
+int app_icd__agent_callback_login(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
     icd_agent *agent;
@@ -1343,7 +1366,8 @@ int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -1658,7 +1682,7 @@ int app_icd__agent_callback_login(struct opbx_channel *chan, void *data)
 }
 
 /* this is where the agent logs out */
-int app_icd__logout_exec(struct opbx_channel *chan, void *data)
+int app_icd__logout_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -1667,7 +1691,8 @@ int app_icd__logout_exec(struct opbx_channel *chan, void *data)
 
     void_hash_table *arghash = vh_init("args");
 
-    vh_carve_data(arghash, data, opbx_delimiter);
+    for (; argc; argv++, argc--)
+	    split_and_add(arghash, argv[0]);
 
     LOCAL_USER_ADD(u);
 
@@ -2154,8 +2179,8 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                     /* We can carve up fieldval directly because we free it here anyway */
                     queuesleft = fieldval;
                     while (queuesleft != NULL) {
-                        /* This has been normalized to use only a "|" to separate queue names */
-                        currqueue = strsep(&queuesleft, "|");
+                        /* This has been normalized to use only a '|' or ',' to separate queue names */
+                        currqueue = strsep(&queuesleft, "|,");
                         if (currqueue != NULL && strlen(currqueue) > 0) {
                             queue = icd_fieldset__get_value(queues, currqueue);
                             if (queue != NULL) {
@@ -2222,7 +2247,7 @@ static int clear_queue_from_registry(void *listener, icd_event * event, void *ex
  * and safely tokenizes them (the original string is preserved). It then adds
  * the queuename to the list of queues that the agent is a member for. This
  * list of queues is itself a string with the queue names separated by a
- * "|" symbol.
+ * "," symbol.
  * \param agents a string listing the agents for this queue, spearated by ",", ";", "|", or spaces
  * \param queuename the name of the queue the agents belong to
  * \param map place where the associations are kept
@@ -2260,7 +2285,7 @@ static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_f
         available_len = queue_entry_len - strlen(currqueuelist);
         if (available_len >= required_len) {
             if (strlen(currqueuelist) != 0) {
-                strcat(currqueuelist, "|");
+                strcat(currqueuelist, ",");
             }
             strcat(currqueuelist, queuename);
             icd_fieldset__set_value(map, curragent, currqueuelist);
@@ -2279,7 +2304,7 @@ static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_f
  * and safely tokenizes them (the original string is preserved). It then adds
  * the queue to the list of queues that the agent is a member for. This
  * list of queues is itself a string with the queue names separated by a
- * "|" symbol.
+ * "," symbol.
  * \param queues a string listing the queues for this agent, spearated by ",", ";", "|", or spaces
  * \param agentname the name of the agent that belongs to the queue
  * \param map place where the associations are kept
@@ -2313,7 +2338,7 @@ static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_f
         available_len = queue_entry_len - strlen(currqueuelist);
         if (currqueue != NULL && strlen(currqueue) > 0 && available_len > strlen(currqueue)) {
             if (strlen(currqueuelist) != 0) {
-                strcat(currqueuelist, "|");
+                strcat(currqueuelist, ",");
             }
             strcat(currqueuelist, currqueue);
             altered = 1;

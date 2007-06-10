@@ -40,12 +40,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "Trivial FAX Transmit Application";
 
-static char *app = "TxFAX";
-
-static char *synopsis = "Send a FAX file";
-
-static char *descrip = 
-"  TxFAX(filename[|caller][|debug][|ecm]):  Send a given TIFF file to the channel as a FAX.\n"
+static void *txfax_app;
+static const char *txfax_name = "TxFAX";
+static const char *txfax_synopsis = "Send a FAX file";
+static const char *txfax_syntax = "TxFAX(filename[, caller][, debug][, ecm])";
+static const char *txfax_descrip = 
+"Send a given TIFF file to the channel as a FAX.\n"
 "The \"caller\" option makes the application behave as a calling machine,\n"
 "rather than the answering machine. The default behaviour is to behave as\n"
 "an answering machine.\n"
@@ -502,13 +502,12 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_exec(struct opbx_channel *chan, void *data)
+static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     fax_state_t 	fax;
     t38_terminal_state_t t38;
 
     int res = 0;
-    char source_file[256];
     char *s;
     char *t;
     char *v;
@@ -536,11 +535,9 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
         return -1;
     }
 
-    /* The next few lines of code parse out the filename and header from the input string */
-    if (data == NULL)
+    if (argc < 1)
     {
-        /* No data implies no filename or anything is present */
-        opbx_log(LOG_WARNING, "Txfax requires an argument (filename)\n");
+        opbx_log(LOG_ERROR, "Syntax: %s\n", txfax_syntax);
         return -1;
     }
 
@@ -557,41 +554,25 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
     
     calling_party = FALSE;
     verbose = FALSE;
-    source_file[0] = '\0'; 
 
-    for (option = 0, v = s = data;  v;  option++, s++)
-    {
-        t = s;
-        v = strchr(s, '|');
-        s = (v)  ?  v  :  s + strlen(s);
-        strncpy((char *) buf, t, s - t);
-        buf[s - t] = '\0';
-        if (option == 0)
-        {
-            /* The first option is always the file name */
-            len = s - t;
-            if (len > 255)
-                len = 255;
-            strncpy(source_file, t, len);
-            source_file[len] = '\0';
-        }
-        else if (strncmp("caller", t, s - t) == 0)
+    while (argv++, --argc) {
+        if (strcmp("caller", argv[0]) == 0)
         {
             calling_party = TRUE;
         }
-        else if (strncmp("debug", t, s - t) == 0)
+        else if (strcmp("debug", argv[0]) == 0)
         {
             verbose = TRUE;
         }
-        else if (strncmp("ecm", t, s - t) == 0)
+        else if (strcmp("ecm", argv[0]) == 0)
         {
             ecm = TRUE;
         }
-        else if (strncmp("start", t, s - t) == 0)
+        else if (strcmp("start", argv[0]) == 0)
         {
             /* TODO: handle this */
         }
-        else if (strncmp("end", t, s - t) == 0)
+        else if (strcmp("end", argv[0]) == 0)
         {
             /* TODO: handle this */
         }
@@ -652,11 +633,11 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 
 
         if ( ready && chan->t38mode_enabled!=1 ) {
-	    ready = txfax_audio( chan, &fax, source_file, calling_party, verbose, ecm);
+	    ready = txfax_audio( chan, &fax, argv[0], calling_party, verbose, ecm);
 	}
 
         if ( ready && chan->t38mode_enabled==1 ) {
-	    ready = txfax_t38  ( chan, &t38, source_file, calling_party, verbose, ecm);
+	    ready = txfax_t38  ( chan, &t38, argv[0], calling_party, verbose, ecm);
 	}
 
 	ready = 0; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
@@ -690,14 +671,17 @@ static int txfax_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+    int res = 0;
     STANDARD_HANGUP_LOCALUSERS;
-    return opbx_unregister_application(app);
+    res |= opbx_unregister_application(txfax_app);
+    return res;
 }
 /*- End of function --------------------------------------------------------*/
 
 int load_module(void)
 {
-    return opbx_register_application(app, txfax_exec, synopsis, descrip);
+    txfax_app = opbx_register_application(txfax_name, txfax_exec, txfax_synopsis, txfax_syntax, txfax_descrip);
+    return 0;
 }
 /*- End of function --------------------------------------------------------*/
 

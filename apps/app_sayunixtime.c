@@ -44,13 +44,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Say time";
 
-static char *app_sayunixtime = "SayUnixTime";
-static char *app_datetime = "DateTime";
-
+static void *sayunixtime_app;
+static char *sayunixtime_name = "SayUnixTime";
 static char *sayunixtime_synopsis = "Says a specified time in a custom format";
-
+static char *sayunixtime_syntax = "SayUnixTime([unixtime][, timezone[, format]])";
 static char *sayunixtime_descrip =
-"SayUnixTime([unixtime][|[timezone][|format]])\n"
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -58,8 +56,11 @@ static char *sayunixtime_descrip =
 "  format:   a format the time is to be said in.  See voicemail.conf.\n"
 "              defaults to \"ABdY 'digits/at' IMp\"\n"
 "  Returns 0 or -1 on hangup.\n";
+
+static void *datetime_app;
+static char *datetime_name = "DateTime";
+static char *datetime_syntax = "DateTime([unixtime][, timezone[, format]])";
 static char *datetime_descrip =
-"DateTime([unixtime][|[timezone][|format]])\n"
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -72,56 +73,43 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int sayunixtime_exec(struct opbx_channel *chan, void *data)
+static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
-	struct localuser *u;
-	char *s,*zone=NULL,*timec,*format;
-	time_t unixtime;
 	struct timeval tv;
-	
+	time_t unixtime;
+	struct localuser *u;
+	char *s, *format;
+	int res=0;
+
+	if (argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", sayunixtime_syntax);
+		return -1;
+	}
+
 	LOCAL_USER_ADD(u);
 
-	tv = opbx_tvnow();
-	unixtime = (time_t)tv.tv_sec;
+	if (argc > 0) {
+		unixtime = (time_t)atol(argv[0]);
+	} else {
+		tv = opbx_tvnow();
+		unixtime = (time_t)tv.tv_sec;
+	}
 
-	if( !strcasecmp(chan->language, "da" ) ) {
+	if (argc > 2 && argv[2][0]) {
+		format = argv[2];
+	} else if (!strcasecmp(chan->language, "da")) {
 		format = "A dBY HMS";
-	} else if ( !strcasecmp(chan->language, "de" ) ) {
+	} else if (!strcasecmp(chan->language, "de")) {
 		format = "A dBY HMS";
 	} else {
 		format = "ABdY 'digits/at' IMp";
 	} 
 
-	if (data) {
-		s = data;
-		s = opbx_strdupa(s);
-		if (s) {
-			timec = strsep(&s,"|");
-			if ((timec) && (*timec != '\0')) {
-				long timein;
-				if (sscanf(timec,"%ld",&timein) == 1) {
-					unixtime = (time_t)timein;
-				}
-			}
-			if (s) {
-				zone = strsep(&s,"|");
-				if (zone && (*zone == '\0'))
-					zone = NULL;
-				if (s) {
-					format = s;
-				}
-			}
-		} else {
-			opbx_log(LOG_ERROR, "Out of memory error\n");
-		}
-	}
-
-	if (chan->_state != OPBX_STATE_UP) {
+	if (chan->_state != OPBX_STATE_UP)
 		res = opbx_answer(chan);
-	}
+
 	if (!res)
-		res = opbx_say_date_with_format(chan, unixtime, OPBX_DIGIT_ANY, chan->language, format, zone);
+		res = opbx_say_date_with_format(chan, unixtime, OPBX_DIGIT_ANY, chan->language, format, (argc > 1 && argv[1][0] ? argv[1] : NULL));
 
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -129,23 +117,18 @@ static int sayunixtime_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int res;
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = opbx_unregister_application(app_sayunixtime);
-	if (! res)
-		return opbx_unregister_application(app_datetime);
-	else
-		return res;
+	res |= opbx_unregister_application(sayunixtime_app);
+	res |= opbx_unregister_application(datetime_app);
+	return res;
 }
 
 int load_module(void)
 {
-	int res;
-	res = opbx_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
-	if (! res)
-		return opbx_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
-	else
-		return res;
+	sayunixtime_app = opbx_register_application(sayunixtime_name, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_syntax, sayunixtime_descrip);
+	datetime_app = opbx_register_application(datetime_name, sayunixtime_exec, sayunixtime_synopsis, datetime_syntax, datetime_descrip);
+	return 0;
 }
 
 char *description(void)

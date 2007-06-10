@@ -45,12 +45,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static const char *tdesc = "Send Text Applications";
 
-static const char *app = "SendText";
-
-static const char *synopsis = "Send a Text Message";
-
-static const char *descrip = 
-"  SendText(text): Sends text to current channel (callee).\n"
+static void *sendtext_app;
+static const char *sendtext_name = "SendText";
+static const char *sendtext_synopsis = "Send a Text Message";
+static const char *sendtext_syntax = "SendText(text)";
+static const char *sendtext_descrip = 
+"Sends text to current channel (callee).\n"
 "Otherwise, execution will continue at the next priority level.\n"
 "Result of transmission will be stored in the SENDTEXTSTATUS\n"
 "channel variable:\n"
@@ -69,14 +69,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int sendtext_exec(struct opbx_channel *chan, void *data)
+static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res = 0;
+	int res;
 	struct localuser *u;
 	char *status = "UNSUPPORTED";
 		
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "SendText requires an argument (text)\n");
+	if (argc == 0) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", sendtext_syntax);
 		return -1;
 	}
 	
@@ -91,26 +91,30 @@ static int sendtext_exec(struct opbx_channel *chan, void *data)
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-	status = "FAILURE";
 	opbx_mutex_unlock(&chan->lock);
-	res = opbx_sendtext(chan, (char *)data);
-	if (!res)
-		status = "SUCCESS";
-	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
+
+	res = 0;
+	for (; !res && argc; argv++, argc--)
+		res = opbx_sendtext(chan, argv[0]);
+
+	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", (res ? "FAILURE" : "SUCCESS"));
+
 	LOCAL_USER_REMOVE(u);
 	return 0;
 }
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(sendtext_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, sendtext_exec, synopsis, descrip);
+	sendtext_app = opbx_register_application(sendtext_name, sendtext_exec, sendtext_synopsis, sendtext_syntax, sendtext_descrip);
+	return 0;
 }
 
 char *description(void)

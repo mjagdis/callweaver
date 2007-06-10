@@ -52,14 +52,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "CallWeaver ADSI Programming Application";
 
-static char *app = "ADSIProg";
-
-static char *synopsis = "Load CallWeaver ADSI Scripts into phone";
-
-/* #define DUMP_MESSAGES */
-
-static char *descrip =
-"  ADSIProg(script): Programs an ADSI Phone with the given script.\n"
+static void *adsi_app;
+static const char *adsi_name = "ADSIProg";
+static const char *adsi_synopsis = "Load CallWeaver ADSI Scripts into phone";
+static const char *adsi_syntax = "ADSIProg(script)";
+static const char *adsi_descrip =
+"Programs an ADSI Phone with the given script.\n"
 "If none is specified, the default is used.  Returns 0 unless CPE\n" 
 "is hungup.\n";
 
@@ -1553,15 +1551,15 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	return 0;
 }
 
-static int adsi_exec(struct opbx_channel *chan, void *data)
+static int adsi_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
 
 	LOCAL_USER_ADD(u);
 	
-	if (opbx_strlen_zero(data))
-		data = "callweaver.adsi";
+	if (argc == 0)
+		argv[0] = "callweaver.adsi";
 	
 	if (!adsi_available(chan)) {
 		if (option_verbose > 2)
@@ -1569,7 +1567,8 @@ static int adsi_exec(struct opbx_channel *chan, void *data)
 	} else {
 		if (option_verbose > 2)
 			opbx_verbose(VERBOSE_PREFIX_3 "ADSI Available on CPE.  Attempting Upload.\n");
-		res = adsi_prog(chan, data);
+		for (; argc; argv++, argc--)
+			res = adsi_prog(chan, argv[0]);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -1579,13 +1578,16 @@ static int adsi_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(adsi_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, adsi_exec, synopsis, descrip);
+	adsi_app = opbx_register_application(adsi_name, adsi_exec, adsi_synopsis, adsi_syntax, adsi_descrip);
+	return 0;
 }
 
 char *description(void)

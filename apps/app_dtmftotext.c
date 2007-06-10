@@ -53,8 +53,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
 
 static char *tdesc = "Assign entered string to a given variable";
 
-static char *descrip =
-"  DTMFToText(variable=initial digits|max chars|max time): Assigns a string\n"
+static void *dtmftotext_app;
+static char *dtmftotext_name = "DTMFToText";
+static char *dtmftotext_synopsis = "Text entry, by DTMF, to a given variable";
+static char *dtmftotext_syntax = "DTMFToText(variable=initial digits, max chars, max time)";
+static char *dtmftotext_descrip =
+"  DTMFToText(variable=initial digits,max chars,max time): Assigns a string\n"
 "entered by someone, using DTMF.\n"
 "\n"
 "This provides functionality somewhat like text entry on a cellphone, but\n"
@@ -108,9 +112,6 @@ static char *descrip =
 "8     \\    88    |    888   8\n"
 "9     _    99    ~    999   9\n";
 
-static char *app = "DTMFToText";
-
-static char *synopsis = "Text entry, by DTMF, to a given variable";
 
 STANDARD_LOCAL_USER;
 
@@ -385,7 +386,7 @@ static int festival_exec(struct opbx_channel *chan, char *vdata)
 	}
 	
 	strncpy(data, vdata, sizeof(data) - 1);
-	if ((intstr = strchr(data, '|')))
+	if ((intstr = strchr(data, ',')))
     {
 		*intstr = '\0';
 		intstr++;
@@ -983,72 +984,48 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
     return  res;
 }
 
-static int dtmftotext_exec(struct opbx_channel *chan, void *data)
+static int dtmftotext_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-    char *variable_name;
     char *initial_digits;
-    char *max_chars;
-    char *max_time;
     char *stringp;
     int imax_chars;
     int imax_time;
     int res;
     struct localuser *u;
-    
-    LOCAL_USER_ADD(u);
-    res = 0;
-    stringp = alloca(strlen(data) + 1);
-    strncpy(stringp, data, strlen(data) + 1);
-    if (strchr(stringp, '|')  &&  strchr(stringp, '='))
-    {
-        variable_name = strsep(&stringp, "=");
-        initial_digits = strsep(&stringp, "|");
-        max_chars = strsep(&stringp, "|");
-        max_time = strsep(&stringp, "\0");
-        if (variable_name == NULL  ||  initial_digits == NULL  ||  max_chars == NULL  ||  max_time == NULL)
-        {
-            opbx_log(LOG_WARNING, "Ignoring, since there is no argument: variable, initial digits, max chars, or timeout\n");
-        }
-        else
-        {
-            imax_chars = atoi(max_chars);
-            imax_time = atoi(max_time);
-            if (variable_name  &&  initial_digits)
-            {
-                if (chan->_state != OPBX_STATE_UP)
-                {
-                    /* Shouldn't need this, but checking to see if channel is already answered
-                     * Theoretically asterisk should already have answered before running the app */
-                    res = opbx_answer(chan);
-                }
-                /*endif*/
-                if (res == 0)
-                    res = get_input_text(chan, variable_name, initial_digits, imax_chars, imax_time);
-                /*endif*/
-            }
-            /*endif*/
-        }
-        /*endif*/
-    }
-    else
-    {
-        opbx_log(LOG_WARNING, "Ignoring, no parameters\n");
-    }
-    /*endif*/
-    opbx_log(LOG_WARNING, "Done!\n");
+
+	if (argc != 3 || argv[0][0] == '=' || !(initial_digits = strchr(argv[0], '='))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", dtmftotext_syntax);
+		return -1;
+	}
+
+	*(initial_digits++) = '\0';
+	imax_chars = atoi(argv[1]);
+	imax_time = atoi(argv[2]);
+
+	LOCAL_USER_ADD(u);
+
+	res = 0;
+	if (chan->_state != OPBX_STATE_UP)
+		res = opbx_answer(chan);
+	if (res == 0)
+		res = get_input_text(chan, argv[0], initial_digits, imax_chars, imax_time);
+
 	LOCAL_USER_REMOVE(u);
-    return res;
+	return res;
 }
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(dtmftotext_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, dtmftotext_exec, synopsis, descrip);
+	dtmftotext_app = opbx_register_application(dtmftotext_name, dtmftotext_exec, dtmftotext_synopsis, dtmftotext_syntax, dtmftotext_descrip);
+	return 0;
 }
 
 char *description(void)

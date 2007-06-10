@@ -205,12 +205,13 @@ struct opbx_context
 /* opbx_app: An application */
 struct opbx_app
 {
-    int (*execute)(struct opbx_channel *chan, void *data);
-    unsigned int hash;            /* Hashed application name */
-    const char *synopsis;        /* Synopsis text for 'show applications' */
-    const char *description;    /* Description (help text) for 'show application <name>' */
     struct opbx_app *next;        /* Next app in list */
-    char name[0];                /* Name of the application */
+    unsigned int hash;            /* Hashed application name */
+    int (*execute)(struct opbx_channel *chan, int argc, char **argv);
+    const char *name;             /* Name of the application */
+    const char *synopsis;         /* Synopsis text for 'show applications' */
+    const char *syntax;           /* Syntax text for 'show applications' */
+    const char *description;      /* Description (help text) for 'show application <name>' */
 };
 
 /* opbx_state_cb: An extension state notify */
@@ -233,38 +234,38 @@ struct opbx_hint
 
 int opbx_pbx_outgoing_cdr_failed(void);
 
-static int pbx_builtin_prefix(struct opbx_channel *, void *);
-static int pbx_builtin_suffix(struct opbx_channel *, void *);
-static int pbx_builtin_stripmsd(struct opbx_channel *, void *);
-static int pbx_builtin_answer(struct opbx_channel *, void *);
-static int pbx_builtin_goto(struct opbx_channel *, void *);
-static int pbx_builtin_hangup(struct opbx_channel *, void *);
-static int pbx_builtin_background(struct opbx_channel *, void *);
-static int pbx_builtin_dtimeout(struct opbx_channel *, void *);
-static int pbx_builtin_rtimeout(struct opbx_channel *, void *);
-static int pbx_builtin_atimeout(struct opbx_channel *, void *);
-static int pbx_builtin_wait(struct opbx_channel *, void *);
-static int pbx_builtin_waitexten(struct opbx_channel *, void *);
-static int pbx_builtin_setlanguage(struct opbx_channel *, void *);
-static int pbx_builtin_resetcdr(struct opbx_channel *, void *);
-static int pbx_builtin_setaccount(struct opbx_channel *, void *);
-static int pbx_builtin_setamaflags(struct opbx_channel *, void *);
-static int pbx_builtin_ringing(struct opbx_channel *, void *);
-static int pbx_builtin_progress(struct opbx_channel *, void *);
-static int pbx_builtin_congestion(struct opbx_channel *, void *);
-static int pbx_builtin_busy(struct opbx_channel *, void *);
-static int pbx_builtin_setglobalvar(struct opbx_channel *, void *);
-static int pbx_builtin_noop(struct opbx_channel *, void *);
-static int pbx_builtin_gotoif(struct opbx_channel *, void *);
-static int pbx_builtin_gotoiftime(struct opbx_channel *, void *);
-static int pbx_builtin_execiftime(struct opbx_channel *, void *);
-static int pbx_builtin_saynumber(struct opbx_channel *, void *);
-static int pbx_builtin_saydigits(struct opbx_channel *, void *);
-static int pbx_builtin_saycharacters(struct opbx_channel *, void *);
-static int pbx_builtin_sayphonetic(struct opbx_channel *, void *);
-static int pbx_builtin_setvar_old(struct opbx_channel *, void *);
-int pbx_builtin_setvar(struct opbx_channel *, void *);
-static int pbx_builtin_importvar(struct opbx_channel *, void *);
+static int pbx_builtin_prefix(struct opbx_channel *, int, char **);
+static int pbx_builtin_suffix(struct opbx_channel *, int, char **);
+static int pbx_builtin_stripmsd(struct opbx_channel *, int, char **);
+static int pbx_builtin_answer(struct opbx_channel *, int, char **);
+static int pbx_builtin_goto(struct opbx_channel *, int, char **);
+static int pbx_builtin_hangup(struct opbx_channel *, int, char **);
+static int pbx_builtin_background(struct opbx_channel *, int, char **);
+static int pbx_builtin_dtimeout(struct opbx_channel *, int, char **);
+static int pbx_builtin_rtimeout(struct opbx_channel *, int, char **);
+static int pbx_builtin_atimeout(struct opbx_channel *, int, char **);
+static int pbx_builtin_wait(struct opbx_channel *, int, char **);
+static int pbx_builtin_waitexten(struct opbx_channel *, int, char **);
+static int pbx_builtin_setlanguage(struct opbx_channel *, int, char **);
+static int pbx_builtin_resetcdr(struct opbx_channel *, int, char **);
+static int pbx_builtin_setaccount(struct opbx_channel *, int, char **);
+static int pbx_builtin_setamaflags(struct opbx_channel *, int, char **);
+static int pbx_builtin_ringing(struct opbx_channel *, int, char **);
+static int pbx_builtin_progress(struct opbx_channel *, int, char **);
+static int pbx_builtin_congestion(struct opbx_channel *, int, char **);
+static int pbx_builtin_busy(struct opbx_channel *, int, char **);
+static int pbx_builtin_setglobalvar(struct opbx_channel *, int, char **);
+static int pbx_builtin_noop(struct opbx_channel *, int, char **);
+static int pbx_builtin_gotoif(struct opbx_channel *, int, char **);
+static int pbx_builtin_gotoiftime(struct opbx_channel *, int, char **);
+static int pbx_builtin_execiftime(struct opbx_channel *, int, char **);
+static int pbx_builtin_saynumber(struct opbx_channel *, int, char **);
+static int pbx_builtin_saydigits(struct opbx_channel *, int, char **);
+static int pbx_builtin_saycharacters(struct opbx_channel *, int, char **);
+static int pbx_builtin_sayphonetic(struct opbx_channel *, int, char **);
+static int pbx_builtin_setvar_old(struct opbx_channel *, int, char **);
+static int pbx_builtin_setvar(struct opbx_channel *, int, char **);
+static int pbx_builtin_importvar(struct opbx_channel *, int, char **);
 
 static struct varshead globals;
 
@@ -273,13 +274,14 @@ static int autofallthrough = 0;
 OPBX_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
 
-OPBX_MUTEX_DEFINE_STATIC(acflock);         /* Lock for the custom function list */
-static struct opbx_custom_function *acf_root = NULL;
+OPBX_MUTEX_DEFINE_STATIC(funcs_lock);         /* Lock for the custom function list */
+static struct opbx_custom_function *funcs_head = NULL;
 
 static struct pbx_builtin {
-    char name[OPBX_MAX_APP];
-    int (*execute)(struct opbx_channel *chan, void *data);
+    char *name;
+    int (*execute)(struct opbx_channel *chan, int argc, char **argv);
     char *synopsis;
+    char *syntax;
     char *description;
 } builtins[] = 
 {
@@ -288,14 +290,16 @@ static struct pbx_builtin {
 
     { "AbsoluteTimeout", pbx_builtin_atimeout,
     "Set absolute maximum time of call",
-    "  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
-    "for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" 
+    "AbsoluteTimeout(seconds)",
+    "Set the absolute maximum amount of time permitted for a call.\n"
+    "A setting of 0 disables the timeout.  Always returns 0.\n" 
     "AbsoluteTimeout has been deprecated in favor of Set(TIMEOUT(absolute)=timeout)\n"
     },
 
     { "Answer", pbx_builtin_answer, 
     "Answer a channel if ringing", 
-    "  Answer([delay]): If the channel is ringing, answer it, otherwise do nothing. \n"
+    "Answer([delay])",
+    "If the channel is ringing, answer it, otherwise do nothing. \n"
     "If delay is specified, callweaver will pause execution for the specified amount\n"
     "of milliseconds if an answer is required, in order to give audio a chance to\n"
     "become ready. Returns 0 unless it tries to answer the channel and fails.\n"   
@@ -303,7 +307,7 @@ static struct pbx_builtin {
 
     { "Background", pbx_builtin_background,
     "Play a file while awaiting extension",
-    "  Background(filename1[&filename2...][|options[|langoverride][|context]]):\n"
+    "Background(filename1[&filename2...][, options[, langoverride][, context]])",
     "Plays given files, while simultaneously waiting for the user to begin typing\n"
     "an extension. The timeouts do not count until the last BackGround\n"
     "application has ended. Options may also be included following a pipe \n"
@@ -324,22 +328,25 @@ static struct pbx_builtin {
 
     { "Busy", pbx_builtin_busy,
     "Indicate busy condition and stop",
-    "  Busy([timeout]): Requests that the channel indicate busy condition and\n"
-    "then waits for the user to hang up or the optional timeout to expire.\n"
+    "Busy([timeout])",
+    "Requests that the channel indicate busy condition and then waits\n"
+    "for the user to hang up or the optional timeout to expire.\n"
     "Always returns -1." 
     },
 
     { "Congestion", pbx_builtin_congestion,
     "Indicate congestion and stop",
-    "  Congestion([timeout]): Requests that the channel indicate congestion\n"
-    "and then waits for the user to hang up or for the optional timeout to\n"
-    "expire.  Always returns -1." 
+    "Congestion([timeout])",
+    "Requests that the channel indicate congestion and then waits for\n"
+    "the user to hang up or for the optional timeout to expire.\n"
+    "Always returns -1." 
     },
 
     { "DigitTimeout", pbx_builtin_dtimeout,
     "Set maximum timeout between digits",
-    "  DigitTimeout(seconds): Set the maximum amount of time permitted between\n"
-    "digits when the user is typing in an extension. When this timeout expires,\n"
+    "DigitTimeout(seconds)",
+    "Set the maximum amount of time permitted between digits when the\n"
+    "user is typing in an extension. When this timeout expires,\n"
     "after the user has started to type in an extension, the extension will be\n"
     "considered complete, and will be interpreted. Note that if an extension\n"
     "typed in is valid, it will not have to timeout to be tested, so typically\n"
@@ -350,9 +357,19 @@ static struct pbx_builtin {
     "DigitTimeout has been deprecated in favor of Set(TIMEOUT(digit)=timeout)\n"
     },
 
+    { "ExecIfTime", pbx_builtin_execiftime,
+    "Conditional application execution on current time",
+    "ExecIfTime(times, weekdays, mdays, months ? appname[, arg, ...])",
+    "If the current time matches the specified time, then execute the specified\n"
+    "application. Each of the elements may be specified either as '*' (for always)\n"
+    "or as a range. See the 'include' syntax for details. It will return whatever\n"
+    "<appname> returns, or a non-zero value if the application is not found.\n"
+    },
+
     { "Goto", pbx_builtin_goto, 
     "Goto a particular priority, extension, or context",
-    "  Goto([[context|]extension|]priority):  Set the  priority to the specified\n"
+    "Goto([[context, ]extension, ]priority)",
+    "Set the  priority to the specified\n"
     "value, optionally setting the extension and optionally the context as well.\n"
     "The extension BYEXTENSION is special in that it uses the current extension,\n"
     "thus  permitting you to go to a different context, without specifying a\n"
@@ -362,7 +379,8 @@ static struct pbx_builtin {
 
     { "GotoIf", pbx_builtin_gotoif,
     "Conditional goto",
-    "  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
+    "GotoIf(condition ? [context, [exten, ]]priority|label [: [context, [exten, ]]priority|label])",
+    "Go to label 1 if condition is\n"
     "true, to label2 if condition is false. Either label1 or label2 may be\n"
     "omitted (in that case, we just don't take the particular branch) but not\n"
     "both. Look for the condition syntax in examples or documentation." 
@@ -370,35 +388,42 @@ static struct pbx_builtin {
 
     { "GotoIfTime", pbx_builtin_gotoiftime,
     "Conditional goto on current time",
-    "  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]extension|]pri):\n"
+    "GotoIfTime(times, weekdays, mdays, months ? [[context, ]extension, ]priority|label)",
     "If the current time matches the specified time, then branch to the specified\n"
     "extension. Each of the elements may be specified either as '*' (for always)\n"
     "or as a range. See the 'include' syntax for details." 
     },
 
-    { "ExecIfTime", pbx_builtin_execiftime,
-    "Conditional application execution on current time",
-    "  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?<appname>[|<appdata>]):\n"
-    "If the current time matches the specified time, then execute the specified\n"
-    "application. Each of the elements may be specified either as '*' (for always)\n"
-    "or as a range. See the 'include' syntax for details. It will return whatever\n"
-    "<appname> returns, or a non-zero value if the application is not found.\n"
-    },
-    
     { "Hangup", pbx_builtin_hangup,
     "Unconditional hangup",
-    "  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" 
+    "Hangup()",
+    "Unconditionally hangs up a given channel by returning -1 always.\n" 
+    },
+
+    { "ImportVar", pbx_builtin_importvar,
+    "Import a variable from a channel into a new variable",
+    "ImportVar(newvar=channelname, variable)",
+    "This application imports a\n"
+    "variable from the specified channel (as opposed to the current one)\n"
+    "and stores it as a variable in the current channel (the channel that\n"
+    "is calling this application). If the new variable name is prefixed by\n"
+    "a single underscore \"_\", then it will be inherited into any channels\n"
+    "created from this one. If it is prefixed with two underscores,then\n"
+    "the variable will have infinite inheritance, meaning that it will be\n"
+    "present in any descendent channel of this one.\n"
     },
 
     { "NoOp", pbx_builtin_noop,
     "No operation",
-    "  NoOp(): No-operation; Does nothing except relaxing the dialplan and \n"
+    "NoOp()",
+    "No-operation; Does nothing except relaxing the dialplan and \n"
     "re-scheduling over threads. It's necessary and very useful in tight loops." 
     },
 
     { "Prefix", pbx_builtin_prefix, 
     "Prepend leading digits",
-    "  Prefix(digits): Prepends the digit string specified by digits to the\n"
+    "Prefix(digits)",
+    "Prepends the digit string specified by digits to the\n"
     "channel's associated extension. For example, the number 1212 when prefixed\n"
     "with '555' will become 5551212. This app always returns 0, and the PBX will\n"
     "continue processing at the next priority for the *new* extension.\n"
@@ -410,13 +435,15 @@ static struct pbx_builtin {
 
     { "Progress", pbx_builtin_progress,
     "Indicate progress",
-    "  Progress(): Request that the channel indicate in-band progress is \n"
+    "Progress()",
+    "Request that the channel indicate in-band progress is \n"
     "available to the user.\nAlways returns 0.\n" 
     },
 
     { "ResetCDR", pbx_builtin_resetcdr,
     "Resets the Call Data Record",
-    "  ResetCDR([options]):  Causes the Call Data Record to be reset, optionally\n"
+    "ResetCDR([options])",
+    "Causes the Call Data Record to be reset, optionally\n"
     "storing the current CDR before zeroing it out\b"
     " - if 'w' option is specified record will be stored.\n"
     " - if 'a' option is specified any stacked records will be stored.\n"
@@ -426,7 +453,8 @@ static struct pbx_builtin {
 
     { "ResponseTimeout", pbx_builtin_rtimeout,
     "Set maximum timeout awaiting response",
-    "  ResponseTimeout(seconds): Set the maximum amount of time permitted after\n"
+    "ResponseTimeout(seconds)",
+    "Set the maximum amount of time permitted after\n"
     "falling through a series of priorities for a channel in which the user may\n"
     "begin typing an extension. If the user does not type an extension in this\n"
     "amount of time, control will pass to the 't' extension if it exists, and\n"
@@ -437,67 +465,40 @@ static struct pbx_builtin {
 
     { "Ringing", pbx_builtin_ringing,
     "Indicate ringing tone",
-    "  Ringing(): Request that the channel indicate ringing tone to the user.\n"
+    "Ringing()",
+    "Request that the channel indicate ringing tone to the user.\n"
     "Always returns 0.\n" 
-    },
-
-    { "SayNumber", pbx_builtin_saynumber,
-    "Say Number",
-    "  SayNumber(digits[,gender]): Says the passed number. SayNumber is using\n" 
-    "the current language setting for the channel. (See app SetLanguage).\n"
-    },
-
-    { "SayDigits", pbx_builtin_saydigits,
-    "Say Digits",
-    "  SayDigits(digits): Says the passed digits. SayDigits is using the\n" 
-    "current language setting for the channel. (See app setLanguage)\n"
     },
 
     { "SayAlpha", pbx_builtin_saycharacters,
     "Say Alpha",
-    "  SayAlpha(string): Spells the passed string\n" 
+    "SayAlpha(string)",
+    "Spells the passed string\n" 
+    },
+
+    { "SayDigits", pbx_builtin_saydigits,
+    "Say Digits",
+    "SayDigits(digits)",
+    "Says the passed digits. SayDigits is using the\n" 
+    "current language setting for the channel. (See app setLanguage)\n"
+    },
+
+    { "SayNumber", pbx_builtin_saynumber,
+    "Say Number",
+    "SayNumber(digits[, gender])",
+    "Says the passed number. SayNumber is using\n" 
+    "the current language setting for the channel. (See app SetLanguage).\n"
     },
 
     { "SayPhonetic", pbx_builtin_sayphonetic,
     "Say Phonetic",
-    "  SayPhonetic(string): Spells the passed string with phonetic alphabet\n" 
-    },
-
-    { "SetAccount", pbx_builtin_setaccount,
-    "Sets account code",
-    "  SetAccount([account]): Set the channel account code for billing\n"
-    "purposes. Always returns 0.\n"
-    },
-
-    { "SetAMAFlags", pbx_builtin_setamaflags,
-    "Sets AMA Flags",
-    "  SetAMAFlags([flag]): Set the channel AMA Flags for billing\n"
-    "purposes. Always returns 0.\n"
-    },
-
-    { "SetGlobalVar", pbx_builtin_setglobalvar,
-    "Set global variable to value",
-    "  SetGlobalVar(#n=value): Sets global variable n to value. Global\n" 
-    "variable are available across channels.\n"
-    },
-
-    { "SetLanguage", pbx_builtin_setlanguage,
-    "Sets channel language",
-    "  SetLanguage(language): Set the channel language to 'language'. This\n"
-    "information is used for the syntax in generation of numbers, and to choose\n"
-    "a natural language file when available.\n"
-    "  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
-    "requested to be played, if the file 'fr/demo-congrats' exists, then\n"
-    "it will play that file, and if not will play the normal 'demo-congrats'.\n"
-    "For some language codes, SetLanguage also changes the syntax of some\n"
-    "CallWeaver functions, like SayNumber.\n"
-    "Always returns 0.\n"
-    "SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
+    "SayPhonetic(string)",
+    "Spells the passed string with phonetic alphabet\n" 
     },
 
     { "Set", pbx_builtin_setvar,
       "Set channel variable(s) or function value(s)",
-      "  Set(name1=value1|name2=value2|..[|options])\n"
+      "Set(name1=value1, name2=value2, ...[, options])",
       "This function can be used to set the value of channel variables\n"
       "or dialplan functions. It will accept up to 24 name/value pairs.\n"
       "When setting variables, if the variable name is prefixed with _,\n"
@@ -511,27 +512,52 @@ static struct pbx_builtin {
       "      (applies only to variables, not functions)\n"
     },
 
-    { "SetVar", pbx_builtin_setvar_old,
-      "Set channel variable(s)",
-      "  SetVar(name1=value1|name2=value2|..[|options])\n"
-      "SetVar has been deprecated in favor of Set.\n"
+    { "SetAccount", pbx_builtin_setaccount,
+    "Sets account code",
+    "SetAccount([account])",
+    "Set the channel account code for billing\n"
+    "purposes. Always returns 0.\n"
     },
 
-    { "ImportVar", pbx_builtin_importvar,
-    "Import a variable from a channel into a new variable",
-    "  ImportVar(newvar=channelname|variable): This application imports a\n"
-    "variable from the specified channel (as opposed to the current one)\n"
-    "and stores it as a variable in the current channel (the channel that\n"
-    "is calling this application). If the new variable name is prefixed by\n"
-    "a single underscore \"_\", then it will be inherited into any channels\n"
-    "created from this one. If it is prefixed with two underscores,then\n"
-    "the variable will have infinite inheritance, meaning that it will be\n"
-    "present in any descendent channel of this one.\n"
+    { "SetAMAFlags", pbx_builtin_setamaflags,
+    "Sets AMA Flags",
+    "SetAMAFlags([flag])",
+    "Set the channel AMA Flags for billing\n"
+    "purposes. Always returns 0.\n"
+    },
+
+    { "SetGlobalVar", pbx_builtin_setglobalvar,
+    "Set global variable to value",
+    "SetGlobalVar(#n=value)",
+    "Sets global variable n to value. Global\n" 
+    "variable are available across channels.\n"
+    },
+
+    { "SetLanguage", pbx_builtin_setlanguage,
+    "Sets channel language",
+    "SetLanguage(language)",
+    "Set the channel language to 'language'. This\n"
+    "information is used for the syntax in generation of numbers, and to choose\n"
+    "a natural language file when available.\n"
+    "  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
+    "requested to be played, if the file 'fr/demo-congrats' exists, then\n"
+    "it will play that file, and if not will play the normal 'demo-congrats'.\n"
+    "For some language codes, SetLanguage also changes the syntax of some\n"
+    "CallWeaver functions, like SayNumber.\n"
+    "Always returns 0.\n"
+    "SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
+    },
+
+    { "SetVar", pbx_builtin_setvar_old,
+      "Set channel variable(s)",
+      "SetVar(name1=value1, name2=value2, ...[, options])",
+      "SetVar has been deprecated in favor of Set.\n"
     },
 
     { "StripMSD", pbx_builtin_stripmsd,
     "Strip leading digits",
-    "  StripMSD(count): Strips the leading 'count' digits from the channel's\n"
+    "StripMSD(count)",
+    "Strips the leading 'count' digits from the channel's\n"
     "associated extension. For example, the number 5551212 when stripped with a\n"
     "count of 3 would be changed to 1212. This app always returns 0, and the PBX\n"
     "will continue processing at the next priority for the *new* extension.\n"
@@ -543,7 +569,8 @@ static struct pbx_builtin {
 
     { "Suffix", pbx_builtin_suffix, 
     "Append trailing digits",
-    "  Suffix(digits): Appends the digit string specified by digits to the\n"
+    "Suffix(digits)",
+    "Appends the digit string specified by digits to the\n"
     "channel's associated extension. For example, the number 555 when suffixed\n"
     "with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
     "continue processing at the next priority for the *new* extension.\n"
@@ -555,13 +582,15 @@ static struct pbx_builtin {
 
     { "Wait", pbx_builtin_wait, 
     "Waits for some time", 
-    "  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
+    "Wait(seconds)",
+    "Waits for a specified number of seconds, then returns 0.\n"
     "seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" 
     },
 
     { "WaitExten", pbx_builtin_waitexten, 
     "Waits for an extension to be entered", 
-    "  WaitExten([seconds][|options]): Waits for the user to enter a new extension for the \n"
+    "WaitExten([seconds][, options])",
+    "Waits for the user to enter a new extension for the \n"
     "specified number of seconds, then returns 0. Seconds can be passed with\n"
     "fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
     "default extension timeout will be used.\n"
@@ -569,13 +598,13 @@ static struct pbx_builtin {
     "    'm[(x)]' - Provide music on hold to the caller while waiting for an extension.\n"
     "               Optionally, specify the class for music on hold within parenthesis.\n"
     },
-
 };
+
 
 static struct opbx_context *contexts = NULL;
 OPBX_MUTEX_DEFINE_STATIC(conlock);         /* Lock for the opbx_context list */
-static struct opbx_app *apps = NULL;
-OPBX_MUTEX_DEFINE_STATIC(applock);         /* Lock for the application list */
+static struct opbx_app *apps_head = NULL;
+OPBX_MUTEX_DEFINE_STATIC(apps_lock);         /* Lock for the application list */
 
 struct opbx_switch *switches = NULL;
 OPBX_MUTEX_DEFINE_STATIC(switchlock);        /* Lock for switches */
@@ -585,42 +614,42 @@ static int stateid = 1;
 struct opbx_hint *hints = NULL;
 struct opbx_state_cb *statecbs = NULL;
 
-int pbx_exec(struct opbx_channel *c,         /* Channel */
-        struct opbx_app *app,        /* Application */
-        void *data,            /* Data for execution */
-        int newstack)            /* Force stack increment */
+int pbx_exec_argv(struct opbx_channel *c, struct opbx_app *app, int argc, char **argv)
 {
-    /* This function is special. It saves the stack so that no matter
-       how many times it is called, it returns to the same place */
-    int res;
+	const char *saved_c_appl;
+	int res;
+
+	/* save channel values - for the sake of debug output from DumpChan and the CLI <bleurgh> */
+	saved_c_appl= c->appl;
+	c->appl = app->name;
+
+	res = (*app->execute)(c, argc, argv);
+
+	/* restore channel values */
+	c->appl= saved_c_appl;
+
+	return res;
+}
+
+int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data)
+{
+	char *argv[100]; /* No app can take more than 100 args unless it parses them itself */
+	const char *saved_c_appl;
+	int res;
     
-    char *saved_c_appl;
-    char *saved_c_data;
-    
-    int (*execute)(struct opbx_channel *chan, void *data) = app->execute; 
+	if (c->cdr)
+		opbx_cdr_setapp(c->cdr, app->name, data);
 
-    if (newstack)
-    {
-        if (c->cdr)
-            opbx_cdr_setapp(c->cdr, app->name, data);
+	/* save channel values - for the sake of debug output from DumpChan and the CLI <bleurgh> */
+	saved_c_appl= c->appl;
+	c->appl = app->name;
 
-        /* save channel values */
-        saved_c_appl= c->appl;
-        saved_c_data= c->data;
+	res = (*app->execute)(c, opbx_separate_app_args(data, ',', arraysize(argv), argv), argv);
 
-        c->appl = app->name;
-        c->data = data;        
-        res = execute(c, data);
-        /* restore channel values */
-        c->appl= saved_c_appl;
-        c->data= saved_c_data;
-        return res;
-    }
-    else
-    {
-        opbx_log(LOG_WARNING, "You really didn't want to call this function with newstack set to 0\n");
-    }
-    return -1;
+	/* restore channel values */
+	c->appl= saved_c_appl;
+
+	return res;
 }
 
 
@@ -636,23 +665,18 @@ int pbx_exec(struct opbx_channel *c,         /* Channel */
 
 struct opbx_app *pbx_findapp(const char *app) 
 {
-    struct opbx_app *tmp;
-    unsigned int hash = opbx_hash_app_name(app);
+	struct opbx_app *tmp;
+	unsigned int hash = opbx_hash_app_name(app);
 
-    if (opbx_mutex_lock(&applock))
-    {
-        opbx_log(LOG_WARNING, "Unable to obtain application lock\n");
-        return NULL;
-    }
-    tmp = apps;
-    while (tmp)
-    {
-        if (hash == tmp->hash)
-            break;
-        tmp = tmp->next;
-    }
-    opbx_mutex_unlock(&applock);
-    return tmp;
+	if (opbx_mutex_lock(&apps_lock)) {
+		opbx_log(LOG_WARNING, "Unable to obtain application lock\n");
+		return NULL;
+	}
+
+	for (tmp = apps_head; tmp && hash != tmp->hash; tmp = tmp->next);
+
+	opbx_mutex_unlock(&apps_lock);
+	return tmp;
 }
 
 static struct opbx_switch *pbx_findswitch(const char *sw)
@@ -1020,7 +1044,7 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
                 {
                     /* Substitute variables now */
                     if (sw->eval) 
-                        pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
+                        pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH);
                     if (action == HELPER_CANMATCH)
                         res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
                     else if (action == HELPER_MATCHMORE)
@@ -1477,7 +1501,7 @@ static int handle_show_functions(int fd, int argc, char *argv[])
     int count_acf = 0;
 
     opbx_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
-    for (acf = acf_root;  acf;  acf = acf->next)
+    for (acf = funcs_head;  acf;  acf = acf->next)
     {
         opbx_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
         count_acf++;
@@ -1548,13 +1572,13 @@ static char *complete_show_function(char *line, char *word, int pos, int state)
     int which = 0;
 
     /* try to lock functions list ... */
-    if (opbx_mutex_lock(&acflock))
+    if (opbx_mutex_lock(&funcs_lock))
     {
         opbx_log(LOG_ERROR, "Unable to lock function list\n");
         return NULL;
     }
 
-    acf = acf_root;
+    acf = funcs_head;
     while (acf)
     {
         if (!strncasecmp(word, acf->name, strlen(word)))
@@ -1562,182 +1586,189 @@ static char *complete_show_function(char *line, char *word, int pos, int state)
             if (++which > state)
             {
                 char *ret = strdup(acf->name);
-                opbx_mutex_unlock(&acflock);
+                opbx_mutex_unlock(&funcs_lock);
                 return ret;
             }
         }
         acf = acf->next; 
     }
 
-    opbx_mutex_unlock(&acflock);
+    opbx_mutex_unlock(&funcs_lock);
     return NULL; 
 }
 
-struct opbx_custom_function* opbx_custom_function_find(char *name) 
+struct opbx_custom_function* opbx_custom_function_find(const char *name) 
 {
-    struct opbx_custom_function *acfptr;
+	struct opbx_custom_function *p;
+	unsigned int hash = opbx_hash_app_name(name);
 
-    /* try to lock functions list ... */
-    if (opbx_mutex_lock(&acflock))
-    {
-        opbx_log(LOG_ERROR, "Unable to lock function list\n");
-        return NULL;
-    }
+	if (opbx_mutex_lock(&funcs_lock)) {
+		opbx_log(LOG_ERROR, "Unable to lock function list\n");
+		return NULL;
+	}
 
-    for (acfptr = acf_root;  acfptr;  acfptr = acfptr->next)
-    {
-        if (!strcmp(name, acfptr->name))
-            break;
-    }
+	for (p = funcs_head; p; p = p->next) {
+		if (p->hash == hash)
+			break;
+	}
 
-    opbx_mutex_unlock(&acflock);
+	opbx_mutex_unlock(&funcs_lock);
+	return p;
+}
+
+int opbx_unregister_function(void *func) 
+{
+	struct opbx_custom_function **p;
+	int ret;
     
-    return acfptr;
+	if (!func)
+		return 0;
+
+	if (opbx_mutex_lock(&funcs_lock)) {
+		opbx_log(LOG_ERROR, "Unable to lock function list\n");
+		return -1;
+	}
+
+	ret = -1;
+	for (p = &funcs_head; *p; p = &((*p)->next)) {
+		if (*p == func) {
+			*p = (*p)->next;
+			ret = 0;
+			break;
+		}
+	}
+
+	opbx_mutex_unlock(&funcs_lock);
+
+	if (!ret) {
+		if (option_verbose > 1)
+			opbx_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", ((struct opbx_custom_function *)func)->name);
+		free(func);
+	}
+
+	return ret;
 }
 
-int opbx_custom_function_unregister(struct opbx_custom_function *acf) 
+void *opbx_register_function(const char *name,
+	char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len),
+	void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value),
+	const char *synopsis, const char *syntax, const char *description)
 {
-    struct opbx_custom_function *acfptr, *lastacf = NULL;
-    int res = -1;
+	char tmps[80];
+	struct opbx_custom_function *p;
+	unsigned int hash;
+ 
+	if (opbx_mutex_lock(&funcs_lock)) {
+		opbx_log(LOG_ERROR, "Unable to lock function list. Failed registering function %s\n", name);
+		return NULL;
+	}
 
-    if (!acf)
-        return -1;
+	hash = opbx_hash_app_name(name);
 
-    /* try to lock functions list ... */
-    if (opbx_mutex_lock(&acflock))
-    {
-        opbx_log(LOG_ERROR, "Unable to lock function list\n");
-        return -1;
-    }
+	for (p = funcs_head; p; p = p->next) {
+		if (!strcmp(p->name, name)) {
+			opbx_log(LOG_ERROR, "Function %s already registered.\n", name);
+			opbx_mutex_unlock(&funcs_lock);
+			return NULL;
+		}
+		if (p->hash == hash) {
+			opbx_log(LOG_ERROR, "Hash for function %s collides with %s.\n", name, p->name);
+			opbx_mutex_unlock(&funcs_lock);
+			return NULL;
+		}
+	}
 
-    for (acfptr = acf_root;  acfptr;  acfptr = acfptr->next)
-    {
-        if (acfptr == acf)
-        {
-            if (lastacf)
-                lastacf->next = acf->next;
-            else
-                acf_root = acf->next;
-            res = 0;
-            break;
-        }
-        lastacf = acfptr;
-    }
+	if (!(p = malloc(sizeof(*p)))) {
+		opbx_log(LOG_ERROR, "malloc: %s\n", strerror(errno));
+		opbx_mutex_unlock(&funcs_lock);
+		return NULL;
+	}
 
-    opbx_mutex_unlock(&acflock);
+	p->hash = hash;
+	p->read = read;
+	p->write = write;
+	p->name = name;
+	p->synopsis = synopsis;
+	p->syntax = syntax;
+	p->desc = description;
+	p->next = funcs_head;
+	funcs_head = p;
 
-    if (!res && (option_verbose > 1))
-        opbx_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
+	opbx_mutex_unlock(&funcs_lock);
 
-    return res;
+	if (option_verbose > 1)
+		opbx_verbose(VERBOSE_PREFIX_2 "Registered custom function '%s'\n", opbx_term_color(tmps, name, COLOR_BRCYAN, 0, sizeof(tmps)));
+
+	return p;
 }
 
-int opbx_custom_function_register(struct opbx_custom_function *acf) 
-{
-    if (!acf)
-        return -1;
-
-    /* try to lock functions list ... */
-    if (opbx_mutex_lock(&acflock)) {
-        opbx_log(LOG_ERROR, "Unable to lock function list. Failed registering function %s\n", acf->name);
-        return -1;
-    }
-
-    if (opbx_custom_function_find(acf->name))
-    {
-        opbx_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
-        opbx_mutex_unlock(&acflock);
-        return -1;
-    }
-
-    acf->next = acf_root;
-    acf_root = acf;
-
-    opbx_mutex_unlock(&acflock);
-
-    if (option_verbose > 1)
-        opbx_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
-
-    return 0;
-}
 
 char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace, size_t len)
 {
-    char *args = NULL, *function, *p;
-    char *ret = "0";
-    struct opbx_custom_function *acfptr;
+	char *argv[100]; /* No function can take more than 100 args unless it parses them itself */
+	char *args = NULL, *function, *p;
+	char *ret = "0";
+	struct opbx_custom_function *acfptr;
 
-    function = opbx_strdupa(in);
-    if (!function)
-    {
-        opbx_log(LOG_ERROR, "Out of memory\n");
-        return ret;
-    }
-    if ((args = strchr(function, '(')))
-    {
-        *args = '\0';
-        args++;
-        if ((p = strrchr(args, ')')))
-            *p = '\0';
-        else
-            opbx_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-    }
-    else
-    {
-        opbx_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
-    }
+	function = opbx_strdupa(in);
+	if (!function) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		return ret;
+	}
 
-    if ((acfptr = opbx_custom_function_find(function)))
-    {
-        /* run the custom function */
-        if (acfptr->read)
-            return acfptr->read(chan, function, args, workspace, len);
-        opbx_log(LOG_ERROR, "Function %s cannot be read\n", function);
-    }
-    else
-    {
-        opbx_log(LOG_ERROR, "Function %s not registered\n", function);
-    }
-    return ret;
+	if ((args = strchr(function, '('))) {
+		*(args++) = '\0';
+		if ((p = strrchr(args, ')')))
+			*p = '\0';
+		else
+			opbx_log(LOG_WARNING, "Can't find trailing parenthesis in \"%s\"?\n", args);
+	} else {
+		opbx_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+	}
+
+	if ((acfptr = opbx_custom_function_find(function))) {
+        	if (acfptr->read)
+			return (*acfptr->read)(chan, function, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, workspace, len);
+		opbx_log(LOG_ERROR, "Function %s cannot be read\n", function);
+	} else {
+		opbx_log(LOG_ERROR, "Function %s not registered\n", function);
+	}
+
+	return ret;
 }
 
 void opbx_func_write(struct opbx_channel *chan, const char *in, const char *value)
 {
-    char *args = NULL, *function, *p;
-    struct opbx_custom_function *acfptr;
+	char *argv[100]; /* No function can take more than 100 args unless it parses them itself */
+	char *args = NULL, *function, *p;
+	struct opbx_custom_function *acfptr;
 
-    function = opbx_strdupa(in);
-    if (!function)
-    {
-        opbx_log(LOG_ERROR, "Out of memory\n");
-        return;
-    }
-    if ((args = strchr(function, '(')))
-    {
-        *args = '\0';
-        args++;
-        if ((p = strrchr(args, ')')))
-            *p = '\0';
-        else
-            opbx_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-    }
-    else
-    {
-        opbx_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
-    }
+	/* FIXME: unnecessary dup? */
+	function = opbx_strdupa(in);
+	if (!function) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		return;
+	}
 
-    if ((acfptr = opbx_custom_function_find(function)))
-    {
-        /* run the custom function */
-        if (acfptr->write)
-            acfptr->write(chan, function, args, value);
-        else
-            opbx_log(LOG_ERROR, "Function %s is read-only, it cannot be written to\n", function);
-    }
-    else
-    {
-        opbx_log(LOG_ERROR, "Function %s not registered\n", function);
-    }
+	if ((args = strchr(function, '('))) {
+		*(args++) = '\0';
+		if ((p = strrchr(args, ')')))
+			*p = '\0';
+		else
+			opbx_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
+	} else {
+		opbx_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+	}
+
+	if ((acfptr = opbx_custom_function_find(function))) {
+		if (acfptr->write) {
+			(*acfptr->write)(chan, function, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, value);
+			return;
+		}
+		opbx_log(LOG_ERROR, "Function %s is read-only, it cannot be written to\n", function);
+	} else {
+		opbx_log(LOG_ERROR, "Function %s not registered\n", function);
+	}
 }
 
 static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
@@ -1751,8 +1782,11 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
     char *vars, *vare;
     int pos, brackets, needsub, len;
     
-    /* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
-       zero-filled */
+    /* Substitutes variables into cp2, based on string cp1 */
+
+    /* Save the last byte for a terminating '\0' */
+    count--;
+
     whereweare =
     tmp = cp1;
     while (!opbx_strlen_zero(whereweare)  &&  count)
@@ -1840,8 +1874,7 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
                 if (!ltmp)
                     ltmp = alloca(VAR_BUF_SIZE);
 
-                memset(ltmp, 0, VAR_BUF_SIZE);
-                pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
+                pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE);
                 vars = ltmp;
             }
             else
@@ -1928,7 +1961,6 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
                 if (!ltmp)
                     ltmp = alloca(VAR_BUF_SIZE);
 
-                memset(ltmp, 0, VAR_BUF_SIZE);
                 pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
                 vars = ltmp;
             }
@@ -1951,6 +1983,7 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
             break;
         }
     }
+    *cp2 = '\0';
 }
 
 void pbx_substitute_variables_helper(struct opbx_channel *c, const char *cp1, char *cp2, int count)
@@ -1965,15 +1998,13 @@ void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, 
 
 static void pbx_substitute_variables(char *passdata, int datalen, struct opbx_channel *c, struct opbx_exten *e)
 {
-    memset(passdata, 0, datalen);
-        
     /* No variables or expressions in e->data, so why scan it? */
     if (!strchr(e->data, '$') && !strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
         opbx_copy_string(passdata, e->data, datalen);
         return;
     }
     
-    pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
+    pbx_substitute_variables_helper(c, e->data, passdata, datalen);
 }                                                        
 
 static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action) 
@@ -2057,7 +2088,7 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
                     "AppData: %s\r\n"
                     "Uniqueid: %s\r\n",
                     c->name, c->context, c->exten, c->priority, app->name, passdata ? passdata : "(NULL)", c->uniqueid);
-                res = pbx_exec(c, app, passdata, newstack);
+                res = pbx_exec(c, app, passdata);
                 return res;
             }
             opbx_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
@@ -2882,11 +2913,11 @@ static int __opbx_pbx_run(struct opbx_channel *c)
                     opbx_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
 
                 if (hash == OPBX_KEYWORD_BUSY)
-                    res = pbx_builtin_busy(c, "10");
+                    res = pbx_builtin_busy(c, 1, (char **)&"10");
                 else if (hash == OPBX_KEYWORD_CHANUNAVAIL)
-                    res = pbx_builtin_congestion(c, "10");
+                    res = pbx_builtin_congestion(c, 1, (char **)&"10");
                 else if (hash == OPBX_KEYWORD_CONGESTION)
-                    res = pbx_builtin_congestion(c, "10");
+                    res = pbx_builtin_congestion(c, 1, (char **)&"10");
                 goto out;
             }
         }
@@ -3363,83 +3394,100 @@ int opbx_context_remove_extension2(struct opbx_context *con, const char *extensi
 }
 
 
-int opbx_register_application(const char *app, int (*execute)(struct opbx_channel *, void *), const char *synopsis, const char *description)
+void *opbx_register_application(const char *name, int (*execute)(struct opbx_channel *, int, char **), const char *synopsis, const char *syntax, const char *description)
 {
-    struct opbx_app *tmp, *prev, *cur;
-    char tmps[80];
-    int length;
-    unsigned int hash = opbx_hash_app_name(app);
+	char tmps[80];
+	struct opbx_app *p, **q;
+	unsigned int hash;
     
-    length = sizeof(struct opbx_app);
-    length += strlen(app) + 1;
-    if (opbx_mutex_lock(&applock))
-    {
-        opbx_log(LOG_ERROR, "Unable to lock application list\n");
-        return -1;
-    }
-    tmp = apps;
-    while (tmp)
-    {
-        if (hash == tmp->hash)
-        {
-            opbx_log(LOG_WARNING, "Application '%s' already exists\n", app);
-            opbx_mutex_unlock(&applock);
-            return -1;
-        }
-        tmp = tmp->next;
-    }
-    if ((tmp = malloc(length)))
-    {
-        memset(tmp, 0, length);
-        tmp->hash = hash;
-        strcpy(tmp->name, app);
-        tmp->execute = execute;
-        tmp->synopsis = synopsis;
-        tmp->description = description;
-        
-        /* Store in alphabetical order */
-        
-        // One more reason why the CLI should be removed from the daemon
-        // and moved instead into a separate standalone command line utility
-        // Alphabetic order is only needed for CLI output and this slows down
-        // the daemon's performance unneccessarily, need to revisit later
-        
-        cur = apps;
-        prev = NULL;
-        while (cur)
-        {
-#ifdef OPBX_USE_CASE_INSENSITIVE_APP_NAMES
-            if (strcasecmp(tmp->name, cur->name) < 0)
-                break;
-#else
-            if (strcmp(tmp->name, cur->name) < 0)
-                break;
-#endif
-            prev = cur;
-            cur = cur->next;
-        }
-        if (prev)
-        {
-            tmp->next = prev->next;
-            prev->next = tmp;
-        }
-        else
-        {
-            tmp->next = apps;
-            apps = tmp;
-        }
-    }
-    else
-    {
-        opbx_log(LOG_ERROR, "Out of memory\n");
-        opbx_mutex_unlock(&applock);
-        return -1;
-    }
-    if (option_verbose > 1)
-        opbx_verbose( VERBOSE_PREFIX_2 "Registered application '%s'\n", opbx_term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
-    opbx_mutex_unlock(&applock);
-    return 0;
+	if (opbx_mutex_lock(&apps_lock)) {
+		opbx_log(LOG_ERROR, "Unable to lock application list\n");
+		return NULL;
+	}
+
+	hash = opbx_hash_app_name(name);
+
+	for (p = apps_head; p; p = p->next) {
+		if (!strcmp(p->name, name)) {
+			opbx_log(LOG_WARNING, "Application '%s' already registered\n", name);
+			opbx_mutex_unlock(&apps_lock);
+			return NULL;
+		}
+		if (p->hash == hash) {
+			opbx_log(LOG_WARNING, "Hash for application '%s' collides with %s\n", name, p->name);
+			opbx_mutex_unlock(&apps_lock);
+			return NULL;
+		}
+	}
+
+	if (!(p = malloc(sizeof(*p)))) {
+		opbx_log(LOG_ERROR, "Out of memory\n");
+		opbx_mutex_unlock(&apps_lock);
+		return NULL;
+	}
+
+	p->execute = execute;
+	p->hash = hash;
+	p->name = name;
+	p->synopsis = synopsis;
+	p->syntax = syntax;
+	p->description = description;
+ 
+	/* Store in alphabetical order */
+
+	// One more reason why the CLI should be removed from the daemon
+	// and moved instead into a separate standalone command line utility
+	// Alphabetic order is only needed for CLI output and this slows down
+	// the daemon's performance unneccessarily, need to revisit later
+	for (q = &apps_head; ; q = &((*q)->next)) {
+		if (!*q || strcmp(name, (*q)->name) < 0) {
+			p->next = *q;
+			*q = p;
+			break;
+		}
+	}
+
+	if (option_verbose > 1)
+		opbx_verbose(VERBOSE_PREFIX_2 "Registered application '%s'\n", opbx_term_color(tmps, name, COLOR_BRCYAN, 0, sizeof(tmps)));
+
+	opbx_mutex_unlock(&apps_lock);
+	return p;
 }
+
+
+int opbx_unregister_application(void *app) 
+{
+	struct opbx_app **p;
+	int ret;
+    
+	if (!app)
+		return 0;
+
+	if (opbx_mutex_lock(&apps_lock)) {
+		opbx_log(LOG_ERROR, "Unable to lock application list\n");
+		return -1;
+	}
+
+	ret = -1;
+	for (p = &apps_head; *p; p = &((*p)->next)) {
+		if (*p == app) {
+			*p = (*p)->next;
+			ret = 0;
+			break;
+		}
+	}
+
+	opbx_mutex_unlock(&apps_lock);
+
+	if (!ret) {
+		if (option_verbose > 1)
+			opbx_verbose(VERBOSE_PREFIX_2 "Unregistered application %s\n", ((struct opbx_app *)app)->name);
+		free(app);
+	}
+
+	return ret;
+}
+
 
 int opbx_register_switch(struct opbx_switch *sw)
 {
@@ -3555,14 +3603,14 @@ static char *complete_show_application(char *line, char *word,
     int which = 0;
 
     /* try to lock applications list ... */
-    if (opbx_mutex_lock(&applock))
+    if (opbx_mutex_lock(&apps_lock))
     {
         opbx_log(LOG_ERROR, "Unable to lock application list\n");
         return NULL;
     }
 
     /* ... walk all applications ... */
-    a = apps; 
+    a = apps_head; 
     while (a)
     {
         /* ... check if word matches this application ... */
@@ -3572,7 +3620,7 @@ static char *complete_show_application(char *line, char *word,
             if (++which > state)
             {
                 char *ret = strdup(a->name);
-                opbx_mutex_unlock(&applock);
+                opbx_mutex_unlock(&apps_lock);
                 return ret;
             }
         }
@@ -3580,7 +3628,7 @@ static char *complete_show_application(char *line, char *word,
     }
 
     /* no application match */
-    opbx_mutex_unlock(&applock);
+    opbx_mutex_unlock(&apps_lock);
     return NULL; 
 }
 
@@ -3592,14 +3640,14 @@ static int handle_show_application(int fd, int argc, char *argv[])
     if (argc < 3) return RESULT_SHOWUSAGE;
 
     /* try to lock applications list ... */
-    if (opbx_mutex_lock(&applock))
+    if (opbx_mutex_lock(&apps_lock))
     {
         opbx_log(LOG_ERROR, "Unable to lock application list\n");
         return -1;
     }
 
     /* ... go through all applications ... */
-    a = apps; 
+    a = apps_head; 
     while (a)
     {
         /* ... compare this application name with all arguments given
@@ -3609,9 +3657,9 @@ static int handle_show_application(int fd, int argc, char *argv[])
             if (!strcasecmp(a->name, argv[app]))
             {
                 /* Maximum number of characters added by terminal coloring is 22 */
-                char infotitle[64 + OPBX_MAX_APP + 22], syntitle[40], destitle[40];
-                char info[64 + OPBX_MAX_APP], *synopsis = NULL, *description = NULL;
-                int synopsis_size, description_size;
+                char infotitle[64 + OPBX_MAX_APP + 22], synopsistitle[40], syntaxtitle[40], destitle[40];
+                char info[64 + OPBX_MAX_APP], *synopsis = NULL, *syntax = NULL, *description = NULL;
+                int synopsis_size, syntax_size, description_size;
 
                 no_registered_app = 0;
 
@@ -3621,43 +3669,43 @@ static int handle_show_application(int fd, int argc, char *argv[])
                     synopsis_size = strlen("Not available") + 23;
                 synopsis = alloca(synopsis_size);
 
+                if (a->syntax)
+                    syntax_size = strlen(a->syntax) + 23;
+                else
+                    syntax_size = strlen("Not available") + 23;
+                syntax = alloca(syntax_size);
+
                 if (a->description)
                     description_size = strlen(a->description) + 23;
                 else
                     description_size = strlen("Not available") + 23;
                 description = alloca(description_size);
 
-                if (synopsis && description)
-                {
-                    snprintf(info, 64 + OPBX_MAX_APP, "\n  -= Info about application '%s' =- \n\n", a->name);
-                    opbx_term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + OPBX_MAX_APP + 22);
-                    opbx_term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-                    opbx_term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-                    opbx_term_color(synopsis,
-                                    a->synopsis ? a->synopsis : "Not available",
-                                    COLOR_CYAN, 0, synopsis_size);
-                    opbx_term_color(description,
-                                    a->description ? a->description : "Not available",
-                                    COLOR_CYAN, 0, description_size);
+                snprintf(info, 64 + OPBX_MAX_APP, "\n  -= Info about application '%s' =- \n\n", a->name);
+                opbx_term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + OPBX_MAX_APP + 22);
+                opbx_term_color(synopsistitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+                opbx_term_color(syntaxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+                opbx_term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
+                opbx_term_color(synopsis,
+                                a->synopsis ? a->synopsis : "Not available",
+                                COLOR_CYAN, 0, synopsis_size);
+                opbx_term_color(syntax,
+                                a->syntax ? a->syntax : "Not available",
+                                COLOR_CYAN, 0, syntax_size);
+                opbx_term_color(description,
+                                a->description ? a->description : "Not available",
+                                COLOR_CYAN, 0, description_size);
 
-                    opbx_cli(fd,"%s%s%s\n\n%s%s\n", infotitle, syntitle, synopsis, destitle, description);
-                }
-                else
-                {
-                    /* ... one of our applications, show info ...*/
-                    opbx_cli(fd,"\n  -= Info about application '%s' =- \n\n"
-                        "[Synopsis]\n  %s\n\n"
-                        "[Description]\n%s\n",
-                        a->name,
-                        a->synopsis ? a->synopsis : "Not available",
-                        a->description ? a->description : "Not available");
-                }
+                opbx_cli(fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle,
+				synopsistitle, synopsis,
+				syntaxtitle, syntax,
+				destitle, description);
             }
         }
         a = a->next; 
     }
 
-    opbx_mutex_unlock(&applock);
+    opbx_mutex_unlock(&apps_lock);
 
     /* we found at least one app? no? */
     if (no_registered_app) {
@@ -3744,17 +3792,17 @@ static int handle_show_applications(int fd, int argc, char *argv[])
     int total_apps = 0;     /* Number of apps registered */
     
     /* try to lock applications list ... */
-    if (opbx_mutex_lock(&applock))
+    if (opbx_mutex_lock(&apps_lock))
     {
         opbx_log(LOG_ERROR, "Unable to lock application list\n");
         return -1;
     }
 
     /* ... have we got at least one application (first)? no? */
-    if (!apps)
+    if (!apps_head)
     {
         opbx_cli(fd, "There are no registered applications\n");
-        opbx_mutex_unlock(&applock);
+        opbx_mutex_unlock(&apps_lock);
         return -1;
     }
 
@@ -3779,7 +3827,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
     }
 
     /* ... go through all applications ... */
-    for (a = apps;  a;  a = a->next)
+    for (a = apps_head;  a;  a = a->next)
     {
         /* ... show information about applications ... */
         int printapp=0;
@@ -3826,7 +3874,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
         opbx_cli(fd, "    -= %d Applications Matching =-\n", total_match);
     
     /* ... unlock and return */
-    opbx_mutex_unlock(&applock);
+    opbx_mutex_unlock(&apps_lock);
 
     return RESULT_SUCCESS;
 }
@@ -4232,37 +4280,6 @@ static struct opbx_cli_entry pbx_cli[] = {
       "Show dialplan hints", show_hints_help },
 };
 
-int opbx_unregister_application(const char *app) 
-{
-    struct opbx_app *tmp, *tmpl = NULL;
-    unsigned int hash = opbx_hash_app_name(app);
-    
-    if (opbx_mutex_lock(&applock))
-    {
-        opbx_log(LOG_ERROR, "Unable to lock application list\n");
-        return -1;
-    }
-    tmp = apps;
-    while (tmp)
-    {
-        if (hash == tmp->hash)
-        {
-            if (tmpl)
-                tmpl->next = tmp->next;
-            else
-                apps = tmp->next;
-            if (option_verbose > 1)
-                opbx_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s' (%#x)\n", tmp->name, tmp->hash);
-            free(tmp);
-            opbx_mutex_unlock(&applock);
-            return 0;
-        }
-        tmpl = tmp;
-        tmp = tmp->next;
-    }
-    opbx_mutex_unlock(&applock);
-    return -1;
-}
 
 struct opbx_context *opbx_context_create(struct opbx_context **extcontexts, const char *name, const char *registrar)
 {
@@ -4482,7 +4499,7 @@ int opbx_context_add_include(const char *context, const char *include, const cha
 #define FIND_NEXT \
 do { \
     c = info; \
-    while(*c && (*c != '|')) c++; \
+    while(*c && (*c != ',')) c++; \
     if (*c) { *c = '\0'; c++; } else c = NULL; \
 } while(0)
 
@@ -4889,7 +4906,7 @@ int opbx_context_add_include2(struct opbx_context *con,
     strcpy(new_include->rname, value);
     c = new_include->rname;
     /* Strip off timing info */
-    while (*c  &&  (*c != '|')) 
+    while (*c  &&  (*c != ',')) 
         c++; 
     /* Process if it's there */
     if (*c)
@@ -5285,6 +5302,42 @@ int opbx_explicit_goto(struct opbx_channel *chan, const char *context, const cha
     }
     
     return 0;
+}
+
+int opbx_explicit_gotolabel(struct opbx_channel *chan, const char *context, const char *exten, const char *priority)
+{
+    int npriority;
+    
+    if (!chan || !priority || !*priority)
+        return -1;
+
+    if (exten && (!*exten || opbx_hash_app_name(exten) == OPBX_KEYWORD_BYEXTENSION))
+        exten = NULL;
+
+    if (isdigit(*priority) || ((*priority == '+' || *priority == '-') && isdigit(priority[1]))) {
+        switch (*priority) {
+	    case '-':
+		    npriority = chan->priority - atoi(priority+1);
+		    break;
+	    case '+':
+		    npriority = chan->priority + atoi(priority+1);
+		    break;
+	    default:
+		    npriority = atoi(priority);
+		    break;
+        }
+    } else {
+        if ((npriority = opbx_findlabel_extension(chan,
+		((context && *context) ?  context  :  chan->context),
+		((exten && *exten) ? exten : chan->exten),
+		priority, chan->cid.cid_num)) < 1
+	) {
+            opbx_log(LOG_WARNING, "Priority '%s' must be [+-]number, or a valid label\n", priority);
+            return -1;
+        }
+    }
+
+    return opbx_explicit_goto(chan, context, exten, npriority);
 }
 
 int opbx_async_goto(struct opbx_channel *chan, const char *context, const char *exten, int priority)
@@ -5700,7 +5753,7 @@ static void *async_wait(void *data)
             {
                 if (option_verbose > 2)
                     opbx_verbose(VERBOSE_PREFIX_3 "Launching %s(%s) on %s\n", as->app, as->appdata, chan->name);
-                pbx_exec(chan, app, as->appdata, 1);
+                pbx_exec(chan, app, as->appdata);
             }
             else
             {
@@ -5966,7 +6019,7 @@ static void *opbx_pbx_run_app(void *data)
     {
         if (option_verbose > 3)
             opbx_verbose(VERBOSE_PREFIX_4 "Launching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
-        pbx_exec(tmp->chan, app, tmp->data, 1);
+        pbx_exec(tmp->chan, app, tmp->data);
     }
     else
     {
@@ -6270,39 +6323,39 @@ static void wait_for_hangup(struct opbx_channel *chan, void *data)
     }
 }
 
-static int pbx_builtin_progress(struct opbx_channel *chan, void *data)
+static int pbx_builtin_progress(struct opbx_channel *chan, int argc, char **argv)
 {
     opbx_indicate(chan, OPBX_CONTROL_PROGRESS);
     return 0;
 }
 
-static int pbx_builtin_ringing(struct opbx_channel *chan, void *data)
+static int pbx_builtin_ringing(struct opbx_channel *chan, int argc, char **argv)
 {
     opbx_indicate(chan, OPBX_CONTROL_RINGING);
     return 0;
 }
 
-static int pbx_builtin_busy(struct opbx_channel *chan, void *data)
+static int pbx_builtin_busy(struct opbx_channel *chan, int argc, char **argv)
 {
     opbx_indicate(chan, OPBX_CONTROL_BUSY);        
     if (chan->_state != OPBX_STATE_UP)
         opbx_setstate(chan, OPBX_STATE_BUSY);
-    wait_for_hangup(chan, data);
+    wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
     return -1;
 }
 
-static int pbx_builtin_congestion(struct opbx_channel *chan, void *data)
+static int pbx_builtin_congestion(struct opbx_channel *chan, int argc, char **argv)
 {
     opbx_indicate(chan, OPBX_CONTROL_CONGESTION);
     if (chan->_state != OPBX_STATE_UP)
         opbx_setstate(chan, OPBX_STATE_BUSY);
-    wait_for_hangup(chan, data);
+    wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
     return -1;
 }
 
-static int pbx_builtin_answer(struct opbx_channel *chan, void *data)
+static int pbx_builtin_answer(struct opbx_channel *chan, int argc, char **argv)
 {
-    int delay = atoi(data);
+    int delay = (argc > 0 ? atoi(argv[0]) : 0);
     int res;
     
     if (chan->_state == OPBX_STATE_UP)
@@ -6315,7 +6368,7 @@ static int pbx_builtin_answer(struct opbx_channel *chan, void *data)
     return res;
 }
 
-static int pbx_builtin_setlanguage(struct opbx_channel *chan, void *data)
+static int pbx_builtin_setlanguage(struct opbx_channel *chan, int argc, char **argv)
 {
     static int deprecation_warning = 0;
 
@@ -6326,238 +6379,194 @@ static int pbx_builtin_setlanguage(struct opbx_channel *chan, void *data)
     }
 
     /* Copy the language as specified */
-    if (data)
-        opbx_copy_string(chan->language, (char *) data, sizeof(chan->language));
+    if (argc > 0)
+        opbx_copy_string(chan->language, argv[0], sizeof(chan->language));
 
     return 0;
 }
 
-static int pbx_builtin_resetcdr(struct opbx_channel *chan, void *data)
+static int pbx_builtin_resetcdr(struct opbx_channel *chan, int argc, char **argv)
 {
-    int flags = 0;
+	char *p;
+	int flags = 0;
 
-    /* Reset the CDR as specified */
-    if (data)
-    {
-        if (strchr((char *)data, 'w'))
-            flags |= OPBX_CDR_FLAG_POSTED;
-        if (strchr((char *)data, 'a'))
-            flags |= OPBX_CDR_FLAG_LOCKED;
-        if (strchr((char *)data, 'v'))
-            flags |= OPBX_CDR_FLAG_KEEP_VARS;
-    }
+	for (; argc; argv++, argc--) {
+		for (p = argv[0]; *p; p++) {
+			switch (*p) {
+				case 'a':
+					flags |= OPBX_CDR_FLAG_LOCKED;
+					break;
+				case 'v':
+					flags |= OPBX_CDR_FLAG_KEEP_VARS;
+					break;
+				case 'w':
+					flags |= OPBX_CDR_FLAG_POSTED;
+					break;
+			}
+		}
+	}
 
-    opbx_cdr_reset(chan->cdr, flags);
-    return 0;
+	opbx_cdr_reset(chan->cdr, flags);
+	return 0;
 }
 
-static int pbx_builtin_setaccount(struct opbx_channel *chan, void *data)
+static int pbx_builtin_setaccount(struct opbx_channel *chan, int argc, char **argv)
 {
-    /* Copy the account code  as specified */
-    if (data)
-        opbx_cdr_setaccount(chan, (char *)data);
-    else
-        opbx_cdr_setaccount(chan, "");
-    return 0;
+	opbx_cdr_setaccount(chan, (argc > 0 ? argv[0] : ""));
+	return 0;
 }
 
-static int pbx_builtin_setamaflags(struct opbx_channel *chan, void *data)
+static int pbx_builtin_setamaflags(struct opbx_channel *chan, int argc, char **argv)
 {
-    /* Copy the AMA Flags as specified */
-    if (data)
-        opbx_cdr_setamaflags(chan, (char *)data);
-    else
-        opbx_cdr_setamaflags(chan, "");
-    return 0;
+	opbx_cdr_setamaflags(chan, (argc > 0 ? argv[0] : ""));
+	return 0;
 }
 
-static int pbx_builtin_hangup(struct opbx_channel *chan, void *data)
+static int pbx_builtin_hangup(struct opbx_channel *chan, int argc, char **argv)
 {
-    if (data && atoi(data) > 0)
-        chan->hangupcause = atoi(data);
+    int n;
+    if (argc > 0 && (n = atoi(argv[0])) > 0)
+        chan->hangupcause = n;
     /* Just return non-zero and it will hang up */
     return -1;
 }
 
-static int pbx_builtin_stripmsd(struct opbx_channel *chan, void *data)
+static int pbx_builtin_stripmsd(struct opbx_channel *chan, int argc, char **argv)
 {
-    char newexten[OPBX_MAX_EXTENSION] = "";
+	int n;
 
-    if (!data  ||  !atoi(data))
-    {
-        opbx_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
-        return 0;
-    }
-    if (strlen(chan->exten) > atoi(data))
-    {
-        opbx_copy_string(newexten, chan->exten + atoi(data), sizeof(newexten));
-    }
-    opbx_copy_string(chan->exten, newexten, sizeof(chan->exten));
-    return 0;
+	if (argc != 1 || !(n = atoi(argv[0])) || n >= sizeof(chan->exten)) {
+		opbx_log(LOG_WARNING, "Syntax: StripMSD(n) where 0 < n < %d\n", sizeof(chan->exten));
+		return 0;
+	}
+
+	memmove(chan->exten, chan->exten + n, sizeof(chan->exten) - n);
+
+	if (option_verbose > 2)
+		opbx_verbose(VERBOSE_PREFIX_3 "Stripped %d, new extension is %s\n", n, chan->exten);
+
+	return 0;
 }
 
-static int pbx_builtin_prefix(struct opbx_channel *chan, void *data)
+static int pbx_builtin_prefix(struct opbx_channel *chan, int argc, char **argv)
 {
-    char newexten[OPBX_MAX_EXTENSION];
-
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_DEBUG, "Ignoring, since there is no prefix to add\n");
-        return 0;
-    }
-    snprintf(newexten, sizeof(newexten), "%s%s", (char *)data, chan->exten);
-    opbx_copy_string(chan->exten, newexten, sizeof(chan->exten));
-    if (option_verbose > 2)
-        opbx_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
-    return 0;
+	for (; argc; argv++, argc--) {
+		int n = strlen(argv[0]);
+		memmove(chan->exten + n, chan->exten, sizeof(chan->exten) - n - 1);
+		memcpy(chan->exten, argv[0], n);
+		if (option_verbose > 2)
+			opbx_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
+	}
+	return 0;
 }
 
-static int pbx_builtin_suffix(struct opbx_channel *chan, void *data)
+static int pbx_builtin_suffix(struct opbx_channel *chan, int argc, char **argv)
 {
-    char newexten[OPBX_MAX_EXTENSION];
+	int l = strlen(chan->exten);
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_DEBUG, "Ignoring, since there is no suffix to add\n");
-        return 0;
-    }
-    snprintf(newexten, sizeof(newexten), "%s%s", chan->exten, (char *)data);
-    opbx_copy_string(chan->exten, newexten, sizeof(chan->exten));
-    if (option_verbose > 2)
-        opbx_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
-    return 0;
+	for (; argc; argv++, argc--) {
+		int n = strlen(argv[0]);
+		if (n > sizeof(chan->exten) - l - 1)
+			n = sizeof(chan->exten) - l - 1;
+		memcpy(chan->exten + l, argv[0], n);
+		if (option_verbose > 2)
+			opbx_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
+	}
+	return 0;
 }
 
-static int pbx_builtin_gotoiftime(struct opbx_channel *chan, void *data)
+static int pbx_builtin_gotoiftime(struct opbx_channel *chan, int argc, char **argv)
 {
-    int res=0;
-    char *s, *ts;
     struct opbx_timing timing;
+    char *s;
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?[[context|]extension|]priority\n");
+    s = NULL;
+    if (argc > 3) {
+    	s = strchr(argv[3], '?');
+    	if (s) while (isspace(*(++s)));
+    }
+
+    if (!s || !*s || argc > 6) {
+        opbx_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
         return -1;
     }
 
-    if ((s = opbx_strdupa((char *) data)))
-    {
-        ts = s;
+    get_timerange(&timing, argv[0]);
+    timing.dowmask = get_dow(argv[1]);
+    timing.daymask = get_day(argv[2]);
+    timing.monthmask = get_month(argv[3]);
 
-        /* Separate the Goto path */
-        strsep(&ts,"?");
+    if (opbx_check_timing(&timing)) {
+    	argv[3] = s;
+	argv += 3;
+    	argc -= 3;
+	return pbx_builtin_goto(chan, argc, argv);
+    }
 
-        /* struct opbx_include include contained garbage here, fixed by zeroing it on get_timerange */
-        if (opbx_build_timing(&timing, s) && opbx_check_timing(&timing))
-            res = pbx_builtin_goto(chan, (void *)ts);
-    }
-    else
-    {
-        opbx_log(LOG_ERROR, "Memory Error!\n");
-    }
-    return res;
+    return 0;
 }
 
-static int pbx_builtin_execiftime(struct opbx_channel *chan, void *data)
+static int pbx_builtin_execiftime(struct opbx_channel *chan, int argc, char **argv)
 {
-    int res = 0;
-    char *ptr1, *ptr2;
     struct opbx_timing timing;
-    struct opbx_app *app;
-    const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
+    char *s;
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "%s\n", usage);    
+    s = NULL;
+    if (argc > 3) {
+    	s = strchr(argv[3], '?');
+    	if (s) while (isspace(*(++s)));
+    }
+
+    if (!s || !*s) {
+        opbx_log(LOG_WARNING, "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<appname>[(<args>)]\n");
         return -1;
     }
 
-    ptr1 = opbx_strdupa(data);
+    get_timerange(&timing, argv[0]);
+    timing.dowmask = get_dow(argv[1]);
+    timing.daymask = get_day(argv[2]);
+    timing.monthmask = get_month(argv[3]);
 
-    if (!ptr1)
-    {
-        opbx_log(LOG_ERROR, "Out of Memory!\n");
-        return -1;    
+    if (opbx_check_timing(&timing)) {
+        struct opbx_app *app = pbx_findapp(s);
+	if (app) {
+		if ((s = strchr(s, '('))) {
+			argv[0] = s + 1;
+			if ((s = strrchr(s + 1, ')')))
+				*s = '\0';
+			return pbx_exec(chan, app, argv[0]);
+		} else {
+			return pbx_exec_argv(chan, app, argc - 4, argv + 5);
+		}
+	} else {
+		opbx_log(LOG_WARNING, "Cannot locate application %s\n", s);
+		return -1;
+	}
     }
 
-    ptr2 = ptr1;
-    /* Separate the Application data ptr1 is the time spec ptr2 is the app|data */
-    strsep(&ptr2, "?");
-    if (!opbx_build_timing(&timing, ptr1))
-    {
-        opbx_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
-        res = -1;
-    }
-        
-    if (!res  &&  opbx_check_timing(&timing))
-    {
-        if (!ptr2)
-        {
-            opbx_log(LOG_WARNING, "%s\n", usage);
-        }
-
-        /* ptr2 is now the app name 
-           we're done with ptr1 now so recycle it and use it to point to the app args */
-        if ((ptr1 = strchr(ptr2, '|')))
-        {
-            *ptr1 = '\0';
-            ptr1++;
-        }
-        
-        if ((app = pbx_findapp(ptr2)))
-        {
-            res = pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
-        }
-        else
-        {
-            opbx_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
-            res = -1;
-        }
-    }
-    
-    return res;
+    return 0;
 }
 
-static int pbx_builtin_wait(struct opbx_channel *chan, void *data)
+static int pbx_builtin_wait(struct opbx_channel *chan, int argc, char **argv)
 {
-    int ms;
+    double ms;
 
     /* Wait for "n" seconds */
-    if (data  &&  atof((char *) data))
-    {
-        ms = atof((char *) data) * 1000;
-        return opbx_safe_sleep(chan, ms);
-    }
+    if (argc > 0 && (ms = atof(argv[0])))
+        return opbx_safe_sleep(chan, (int)(ms * 1000.0));
     return 0;
 }
 
-static int pbx_builtin_waitexten(struct opbx_channel *chan, void *data)
+static int pbx_builtin_waitexten(struct opbx_channel *chan, int argc, char **argv)
 {
-    int ms, res, argc;
-    char *args;
-    char *argv[2];
-    char *options = NULL; 
-    char *mohclass = NULL;
-    char *timeout = NULL;
     struct opbx_flags flags = {0};
+    char *mohclass = NULL;
+    int ms, res;
 
-    args = opbx_strdupa(data);
-
-    if ((argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]))))
-    {
-        if (argc > 0)
-        {
-            timeout = argv[0];
-            if (argc > 1)
-                options = argv[1];
-        }
-    }
-
-    if (options)
-    {
+    if (argc > 1) {
         char *opts[1];
-    
-        opbx_parseoptions(waitexten_opts, &flags, opts, options);
+
+        opbx_parseoptions(waitexten_opts, &flags, opts, argv[1]);
         if (opbx_test_flag(&flags, WAITEXTEN_MOH))
             mohclass = opts[0];
     }
@@ -6566,12 +6575,9 @@ static int pbx_builtin_waitexten(struct opbx_channel *chan, void *data)
         opbx_moh_start(chan, mohclass);
 
     /* Wait for "n" seconds */
-    if (timeout && atof((char *)timeout)) 
-        ms = atof((char *)timeout) * 1000;
-    else if (chan->pbx)
-        ms = chan->pbx->rtimeout * 1000;
-    else
-        ms = 10000;
+    if (argc < 0 || !(ms = (atof(argv[0]) * 1000.0))) 
+        ms = (chan->pbx ? chan->pbx->rtimeout * 1000 : 10000);
+
     res = opbx_waitfordigit(chan, ms);
     if (!res)
     {
@@ -6600,12 +6606,9 @@ static int pbx_builtin_waitexten(struct opbx_channel *chan, void *data)
     return res;
 }
 
-static int pbx_builtin_background(struct opbx_channel *chan, void *data)
+static int pbx_builtin_background(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
-    int argc;
-    char *parse;
-    char *argv[4];
     char *options = NULL; 
     char *filename = NULL;
     char *front = NULL, *back = NULL;
@@ -6614,26 +6617,21 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
     struct opbx_flags flags = {0};
     unsigned int hash = 0;
 
-    parse = opbx_strdupa(data);
-
-    if ((argc = opbx_separate_app_args(parse, '|', argv, sizeof(argv) / sizeof(argv[0]))))
+    switch (argc)
     {
-        switch (argc)
-        {
-        case 4:
-            context = argv[3];
-        case 3:
-            lang = argv[2];
-        case 2:
-            options = argv[1];
-            hash = opbx_hash_app_name(options);
-        case 1:
-            filename = argv[0];
-            break;
-        default:
-            opbx_log(LOG_WARNING, "Background requires an argument (filename)\n");
-            return -1;
-        }
+    case 4:
+        context = argv[3];
+    case 3:
+        lang = argv[2];
+    case 2:
+        options = argv[1];
+        hash = opbx_hash_app_name(options);
+    case 1:
+        filename = argv[0];
+        break;
+    default:
+        opbx_log(LOG_WARNING, "Background requires an argument (filename)\n");
+        return -1;
     }
 
     if (!lang)
@@ -6692,7 +6690,7 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
             }
             else
             {
-                opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, (char*)data);
+                opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s, %s, %s, %s\n", chan->name, argv[0], argv[1], argv[2], argv[3]);
                 res = 0;
                 break;
             }
@@ -6709,10 +6707,10 @@ static int pbx_builtin_background(struct opbx_channel *chan, void *data)
     return res;
 }
 
-static int pbx_builtin_atimeout(struct opbx_channel *chan, void *data)
+static int pbx_builtin_atimeout(struct opbx_channel *chan, int argc, char **argv)
 {
     static int deprecation_warning = 0;
-    int x = atoi((char *) data);
+    int x = (argc > 0 ? atoi(argv[0]) : 0);
 
     if (!deprecation_warning)
     {
@@ -6721,13 +6719,13 @@ static int pbx_builtin_atimeout(struct opbx_channel *chan, void *data)
     }
             
     /* Set the absolute maximum time how long a call can be connected */
-    opbx_channel_setwhentohangup(chan,x);
+    opbx_channel_setwhentohangup(chan, x);
     if (option_verbose > 2)
         opbx_verbose( VERBOSE_PREFIX_3 "Set Absolute Timeout to %d\n", x);
     return 0;
 }
 
-static int pbx_builtin_rtimeout(struct opbx_channel *chan, void *data)
+static int pbx_builtin_rtimeout(struct opbx_channel *chan, int argc, char **argv)
 {
     static int deprecation_warning = 0;
 
@@ -6742,13 +6740,13 @@ static int pbx_builtin_rtimeout(struct opbx_channel *chan, void *data)
         return 0;
 
     /* Set the timeout for how long to wait between digits */
-    chan->pbx->rtimeout = atoi((char *)data);
+    chan->pbx->rtimeout = atoi(argv[0]);
     if (option_verbose > 2)
         opbx_verbose( VERBOSE_PREFIX_3 "Set Response Timeout to %d\n", chan->pbx->rtimeout);
     return 0;
 }
 
-static int pbx_builtin_dtimeout(struct opbx_channel *chan, void *data)
+static int pbx_builtin_dtimeout(struct opbx_channel *chan, int argc, char **argv)
 {
     static int deprecation_warning = 0;
 
@@ -6763,19 +6761,24 @@ static int pbx_builtin_dtimeout(struct opbx_channel *chan, void *data)
         return 0;
 
     /* Set the timeout for how long to wait between digits */
-    chan->pbx->dtimeout = atoi((char *)data);
+    chan->pbx->dtimeout = atoi(argv[0]);
     if (option_verbose > 2)
         opbx_verbose( VERBOSE_PREFIX_3 "Set Digit Timeout to %d\n", chan->pbx->dtimeout);
     return 0;
 }
 
-static int pbx_builtin_goto(struct opbx_channel *chan, void *data)
+static int pbx_builtin_goto(struct opbx_channel *chan, int argc, char **argv)
 {
-    int res;
-    res = opbx_parseable_goto(chan, (const char *) data);
-    if (!res && (option_verbose > 2))
-        opbx_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
-    return res;
+	char *context, *exten;
+	int res;
+
+	context = exten = NULL;
+	if (argc > 2) context = (argv++)[0];
+	if (argc > 1) exten = (argv++)[0];
+	res = opbx_explicit_gotolabel(chan, context, exten, argv[0]);
+	if (!res && option_verbose > 2)
+		opbx_verbose(VERBOSE_PREFIX_3 "Goto (%s, %s, %d)\n", chan->context, chan->exten, chan->priority + 1);
+	return res;
 }
 
 
@@ -6908,7 +6911,7 @@ void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, cons
     }
 }
 
-int pbx_builtin_setvar_old(struct opbx_channel *chan, void *data)
+static int pbx_builtin_setvar_old(struct opbx_channel *chan, int argc, char **argv)
 {
     static int deprecation_warning = 0;
 
@@ -6918,113 +6921,81 @@ int pbx_builtin_setvar_old(struct opbx_channel *chan, void *data)
         deprecation_warning = 1;
     }
 
-    return pbx_builtin_setvar(chan, data);
+    return pbx_builtin_setvar(chan, argc, argv);
 }
 
-int pbx_builtin_setvar(struct opbx_channel *chan, void *data)
+static int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv)
 {
-    char *name, *value, *mydata;
-    int argc;
-    char *argv[24];        /* this will only support a maximum of 24 variables being set in a single operation */
-    int global = 0;
-    int x;
+	if (argc < 1) {
+		opbx_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
+		return 0;
+	}
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
-        return 0;
-    }
+	/* check for a trailing flags argument */
+	if ((argc > 1)  &&  !strchr(argv[argc-1], '=')) {
+		argc--;
+		if (strchr(argv[argc], 'g'))
+			chan = NULL;
+	}
 
-    mydata = opbx_strdupa(data);
-    argc = opbx_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	for (; argc; argv++, argc--) {
+ 		char *value;
+		if ((value = strchr(argv[0], '='))) {
+			*(value++) = '\0';
+			pbx_builtin_setvar_helper(chan, argv[0], value);
+		} else {
+			opbx_log(LOG_WARNING, "Ignoring entry '%s' with no '=' (and not last 'options' entry)\n", argv[0]);
+		}
+	}
 
-    /* check for a trailing flags argument */
-    if ((argc > 1)  &&  !strchr(argv[argc-1], '='))
-    {
-        argc--;
-        if (strchr(argv[argc], 'g'))
-            global = 1;
-    }
-
-    for (x = 0;  x < argc;  x++)
-    {
-        name = argv[x];
-        if ((value = strchr(name, '=')))
-        {
-            *value = '\0';
-            value++;
-            pbx_builtin_setvar_helper((global) ? NULL : chan, name, value);
-        }
-        else
-        {
-            opbx_log(LOG_WARNING, "Ignoring entry '%s' with no = (and not last 'options' entry)\n", name);
-            
-        }
-    }
-
-    return(0);
+	return 0;
 }
 
-int pbx_builtin_importvar(struct opbx_channel *chan, void *data)
+int pbx_builtin_importvar(struct opbx_channel *chan, int argc, char **argv)
 {
-    char *name;
-    char *value;
-    char *stringp=NULL;
-    char *channel;
-    struct opbx_channel *chan2;
-    char tmp[VAR_BUF_SIZE]="";
-    char *s;
+	char tmp[VAR_BUF_SIZE];
+	struct opbx_channel *chan2;
+	char *channel, *s;
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
-        return 0;
-    }
+	if (argc != 2 || !(channel = strchr(argv[0], '='))) {
+		opbx_log(LOG_WARNING, "Syntax: ImportVar(newvar=channelname,variable)\n");
+		return 0;
+	}
 
-    stringp = opbx_strdupa(data);
-    name = strsep(&stringp,"=");
-    channel = strsep(&stringp,"|"); 
-    value = strsep(&stringp,"\0");
-    if (channel  &&  value  &&  name)
-    {
-        chan2 = opbx_get_channel_by_name_locked(channel);
-        if (chan2)
-        {
-            if ((s = alloca(strlen(value) + 4)))
-            {
-                sprintf(s, "${%s}", value);
-                pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp) - 1);
-            }
-            opbx_mutex_unlock(&chan2->lock);
-        }
-        pbx_builtin_setvar_helper(chan, name, tmp);
-    }
+	s = channel;
+	do { *(s--) = '\0'; } while (isspace(*s));
+	do { channel++; } while (isspace(*channel));
 
-    return(0);
+	tmp[0] = '\0';
+	chan2 = opbx_get_channel_by_name_locked(channel);
+	if (chan2) {
+		if ((s = alloca(strlen(argv[1]) + 4))) {
+			sprintf(s, "${%s}", argv[1]);
+			pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp));
+		}
+		opbx_mutex_unlock(&chan2->lock);
+	}
+	pbx_builtin_setvar_helper(chan, argv[0], tmp);
+
+	return(0);
 }
 
-static int pbx_builtin_setglobalvar(struct opbx_channel *chan, void *data)
+static int pbx_builtin_setglobalvar(struct opbx_channel *chan, int argc, char **argv)
 {
-    char *name;
-    char *value;
-    char *stringp = NULL;
+	for (; argc; argv++, argc--) {
+ 		char *value;
+		if ((value = strchr(argv[0], '='))) {
+			*(value++) = '\0';
+			pbx_builtin_setvar_helper(NULL, argv[0], value);
+		} else {
+			opbx_log(LOG_WARNING, "Ignoring entry '%s' with no '='\n", argv[0]);
+		}
+	}
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
-        return 0;
-    }
-
-    stringp = data;
-    name = strsep(&stringp, "=");
-    value = strsep(&stringp, "\0"); 
-
-    pbx_builtin_setvar_helper(NULL, name, value);
-
-    return(0);
+	return(0);
 }
 
-static int pbx_builtin_noop(struct opbx_channel *chan, void *data)
+static int pbx_builtin_noop(struct opbx_channel *chan, int argc, char **argv)
 {
     // The following is added to relax dialplan execution.
     // When doing small loops with lots of iteration, this
@@ -7070,93 +7041,89 @@ static int pbx_checkcondition(char *condition)
     return 0;
 }
 
-static int pbx_builtin_gotoif(struct opbx_channel *chan, void *data)
+static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv)
 {
-    char *condition;
-    char *branch1;
-    char *branch2;
-    char *branch;
-    char *s;
-    int rc;
-    char *stringp = NULL;
+	char *s, *q;
+	int i;
 
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "Ignoring, since there is no variable to check\n");
-        return 0;
-    }
-    
-    s = opbx_strdupa(data);
-    stringp = s;
-    condition = strsep(&stringp,"?");
-    branch1 = strsep(&stringp,":");
-    branch2 = strsep(&stringp,"");
-    branch = pbx_checkcondition(condition) ? branch1 : branch2;
-    
-    if (opbx_strlen_zero(branch))
-    {
-        opbx_log(LOG_DEBUG, "Not taking any branch\n");
-        return(0);
-    }
-    
-    rc = pbx_builtin_goto(chan, branch);
+	/* First argument is "<condition ? ..." */
+	if (argc > 0) {
+		q = s = strchr(argv[0], '?');
+		if (s) {
+			/* Trim trailing space from the condition */
+			do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
-    return(rc);
+			if (pbx_checkcondition(argv[0])) {
+				/* True: we want everything between '?' and ':' */
+				do { *(s++) = '\0'; } while (isspace(*s));
+				argv[0] = s;
+				for (i = 0; i < argc; i++) {
+					if ((s = strchr(argv[i], ':'))) {
+						do { *(s--) = '\0'; } while (s >= argv[i] && isspace(*s));
+						argc = i + 1;
+						break;
+					}
+				}
+				return pbx_builtin_goto(chan, argc, argv);
+			} else {
+				/* False: we want everything after ':' (if anything) */
+				for (i = 0; i < argc; i++) {
+					if ((s = strchr(argv[i], ':'))) {
+						do { *(s++) = '\0'; } while (isspace(*s));
+						argv[i] = s;
+						return pbx_builtin_goto(chan, argc - i, argv + i);
+					}
+				}
+				/* No ": ..." so we just drop through */
+				return 0;
+			}
+		}
+	}
+    
+	opbx_log(LOG_WARNING, "Syntax: GotoIf(boolean ? [[context,]exten,]priority : [[context,]exten,]priority)\n");
+	return 0;
 }           
 
-static int pbx_builtin_saynumber(struct opbx_channel *chan, void *data)
+static int pbx_builtin_saynumber(struct opbx_channel *chan, int argc, char **argv)
 {
-    int res = 0;
-    char tmp[256];
-    char *number = (char *) NULL;
-    char *options = (char *) NULL;
-
-    
-    if (opbx_strlen_zero(data))
-    {
+    if (argc < 1) {
         opbx_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
         return -1;
     }
-    opbx_copy_string(tmp, (char *) data, sizeof(tmp));
-    number=tmp;
-    strsep(&number, "|");
-    options = strsep(&number, "|");
-    if (options)
-    { 
-        if (strcasecmp(options, "f")  &&  strcasecmp(options,"m") && 
-            strcasecmp(options, "c")  &&  strcasecmp(options, "n"))
-        {
+    if (argc > 1) { 
+        argv[1][0] = tolower(argv[1][0]);
+        if (!strchr("fmcn", argv[1][0])) {
             opbx_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
             return -1;
         }
     }
-    return res = opbx_say_number(chan, atoi((char *) tmp), "", chan->language, options);
+    return opbx_say_number(chan, atoi(argv[0]), "", chan->language, (argc > 1 ? argv[1] : NULL));
 }
 
-static int pbx_builtin_saydigits(struct opbx_channel *chan, void *data)
+static int pbx_builtin_saydigits(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
 
-    if (data)
-        res = opbx_say_digit_str(chan, (char *)data, "", chan->language);
+    for (; !res && argc; argv++, argc--)
+        res = opbx_say_digit_str(chan, argv[0], "", chan->language);
     return res;
 }
     
-static int pbx_builtin_saycharacters(struct opbx_channel *chan, void *data)
+static int pbx_builtin_saycharacters(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
 
-    if (data)
-        res = opbx_say_character_str(chan, (char *)data, "", chan->language);
+    for (; !res && argc; argv++, argc--)
+        res = opbx_say_character_str(chan, argv[0], "", chan->language);
     return res;
 }
     
-static int pbx_builtin_sayphonetic(struct opbx_channel *chan, void *data)
+static int pbx_builtin_sayphonetic(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
 
-    if (data)
-        res = opbx_say_phonetic_str(chan, (char *)data, "", chan->language);
+    for (; !res && argc; argv++, argc--)
+        res = opbx_say_phonetic_str(chan, argv[0], "", chan->language);
     return res;
 }
     
@@ -7174,16 +7141,15 @@ int load_pbx(void)
     opbx_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(pbx_cli[0]));
 
     /* Register builtin applications */
-    for (x = 0;  x < sizeof(builtins)/sizeof(struct pbx_builtin);  x++)
-    {
+    for (x = 0;  x < arraysize(builtins);  x++) {
         if (option_verbose)
             opbx_verbose( VERBOSE_PREFIX_1 "[%s]\n", builtins[x].name);
-        if (opbx_register_application(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description))
-        {
+        if (!opbx_register_application(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].syntax, builtins[x].description)) {
             opbx_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -7401,128 +7367,53 @@ int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *ex
 }
 
 
-// this function parses the arguments of a Goto(), it removes leading and
-// trailing spaces for each argument and it ignores any arguments after the
-// maximum number of arguments (GOTO_MAX_ARGS). If no arguments were passed
-// to the Goto(), it will return -1 which will lead to a dialplan execution
-// error.
-
-#define GOTO_MAX_ARGS 3 /* maximum number of arguments for Goto() */
-
 int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string) 
 {
-    int argc = 0;
-    char *argv = NULL;
-    char *arg[GOTO_MAX_ARGS];
-    char *context = NULL, *exten = NULL, *prio = NULL;
-    int ipri, mode = 0;
-    unsigned int hash = 0;
+	char *argv[3 + 1];
+	char *context = NULL, *exten = NULL, *prio = NULL;
+	int argc;
+	int ipri, mode = 0;
 
-    if (opbx_strlen_zero(goto_string))
-    {
-        opbx_log(LOG_WARNING, "Goto requires an argument, usage is Goto([[context|]extension|]priority)\n");
-        return -1;
-    }
-    
-    argv = opbx_strdupa(goto_string);
-    
-    // parse argument string and obtain all its arguments
-    
-    while ((*argv != 0) && (argc < GOTO_MAX_ARGS))
-    {
-        // skip over any leading spaces
-        while (*argv == 32)
-            argv++;
-        
-        // remember start of this substring
-        arg[argc] = argv;
-        
-        // find end of this substring
-        while ((*argv != 32) && (*argv != '|') && (*argv != 0))
-            argv++;
-        
-        if (*argv == '|')
-        {
-            // terminate this substring
-            *argv = 0;
-            // move past this delimiter
-            argv++;
-        }
-        else if (*argv == 32)
-        {
-            // terminate this substring
-            *argv = 0;
-            // skip over any trailing spaces and following characters
-            // until next delimiter or end of string has been reached
-            while ((*argv != '|') && (*argv != 0))
-                argv++;
-            if (*argv == '|')
-                argv++;
-        }    
-        // increase argument counter
-        argc++;
-        
-    }
-    
-    switch (argc)
-    {
-    case 1 :
-        prio = arg[0];
-        break;
-        case 2 :
-        exten = arg[0];
-        prio = arg[1];
-        hash = opbx_hash_app_name(exten);
-        break;
-    case 3 :
-        context = arg[0];
-        exten = arg[1];
-        prio = arg[2];
-        hash = opbx_hash_app_name(exten);
-        break;
-    default :
-        opbx_log(LOG_WARNING, "invalid number of arguments in Goto statement\n");
-        return -1;
-    }
-    
-    if (*prio == '+')
-    {
-        mode = 1;
-        prio++;
-    }
-    else if (*prio == '-')
-    {
-        mode = -1;
-        prio++;
-    }
-    
-    if (sscanf(prio, "%d", &ipri) != 1)
-    {
-        if ((ipri = opbx_findlabel_extension(chan,
-                                             context  ?  context  :  chan->context,
-                                             (exten  &&  (hash != OPBX_KEYWORD_BYEXTENSION))  ?  exten  :  chan->exten,
-                                             prio,
-                                             chan->cid.cid_num)) < 1)
-        {
-            opbx_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", prio);
-            return -1;
-        }
-        else
-        {
-            mode = 0;
-        }
-    }
-    
-    /* At this point we have a priority and maybe an extension and a context */
+	if (!goto_string || !(prio = opbx_strdupa(goto_string))
+	|| (argc = opbx_separate_app_args(prio, ',', arraysize(argv), argv)) < 1 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: Goto([[context,]extension,]priority)\n");
+		return -1;
+	}
 
-    if (exten  &&  (hash == OPBX_KEYWORD_BYEXTENSION))
-        exten = NULL;
+	prio = argv[argc - 1];
+	exten = (argc > 1 ? argv[argc - 2] : NULL);
+	context = (argc > 2 ? argv[0] : NULL);
 
-    if (mode) 
-        ipri = chan->priority + (ipri * mode);
+	if (exten && opbx_hash_app_name(exten) == OPBX_KEYWORD_BYEXTENSION) {
+ 		opbx_log(LOG_WARNING, "Use of BYEXTENSTION in Goto is deprecated. Use ${EXTEN} instead\n");
+		exten = chan->exten;
+	}
 
-    opbx_explicit_goto(chan, context, exten, ipri);
-    opbx_cdr_update(chan);
+	if (*prio == '+') {
+		mode = 1;
+		prio++;
+	} else if (*prio == '-') {
+		mode = -1;
+		prio++;
+	}
+    
+	if (sscanf(prio, "%d", &ipri) != 1) {
+		ipri = opbx_findlabel_extension(chan,
+			(context ? context : chan->context),
+			(exten ? exten : chan->exten),
+			prio, chan->cid.cid_num);
+		if (ipri < 1) {
+			opbx_log(LOG_ERROR, "Priority '%s' must be a number > 0, or valid label\n", prio);
+			return -1;
+		}
+		mode = 0;
+	}
+    
+	if (mode) 
+		ipri = chan->priority + (ipri * mode);
 
-    return 0;
+	opbx_explicit_goto(chan, context, exten, ipri);
+	opbx_cdr_update(chan);
+
+	return 0;
 }

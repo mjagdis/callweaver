@@ -42,6 +42,23 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/app.h"
 #include "callweaver/config.h"
 
+
+static void *math_function;
+static const char *math_func_name = "MATH";
+static const char *math_func_synopsis = "Performs Mathematical Functions";
+static const char *math_func_syntax = "MATH(number1 op number2[, type_of_result])";
+static const char *math_func_desc =
+	"Perform calculation on number 1 to number 2. Valid ops are: \n"
+        "    +,-,/,*,%,<,>,>=,<=,==\n"
+	"and behave as their C equivalents.\n"
+	"<type_of_result> - wanted type of result:\n"
+	"	f, float - float(default)\n"
+	"	i, int - integer,\n"
+	"	h, hex - hex,\n"
+	"	c, char - char\n"
+	"Example: Set(i=${MATH(123 % 16, int)}) - sets var i=11";
+
+
 enum TypeOfFunctions
 {
     ADDFUNCTION,
@@ -66,11 +83,8 @@ enum TypeOfResult
 };
 
 
-static char *builtin_function_math(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_math(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
-	int argc;
-	char *argv[2];
-	char *args;
 	float fnum1;
 	float fnum2;
 	float ftmp = 0;
@@ -82,17 +96,9 @@ static char *builtin_function_math(struct opbx_channel *chan, char *cmd, char *d
 	char user_result[30];
 
 	char *mvalue1, *mvalue2=NULL, *mtype_of_result;
-		
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
-		return NULL;
-	}
 
-	args = opbx_strdupa(data);	
-	argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	if (argc < 1) {
-		opbx_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
+	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", math_func_syntax);
 		return NULL;
 	}
 
@@ -235,32 +241,18 @@ static char *builtin_function_math(struct opbx_channel *chan, char *cmd, char *d
 	return buf;
 }
 
-static struct opbx_custom_function math_function = {
-	.name = "MATH",
-	.synopsis = "Performs Mathematical Functions",
-	.syntax = "MATH(<number1><op><number 2>[,<type_of_result>])",
-	.desc = "Perform calculation on number 1 to number 2. Valid ops are: \n"
-    	    "    +,-,/,*,%,<,>,>=,<=,==\n"
-		"and behave as their C equivalents.\n"
-		"<type_of_result> - wanted type of result:\n"
-		"	f, float - float(default)\n"
-		"	i, int - integer,\n"
-		"	h, hex - hex,\n"
-		"	c, char - char\n"
-		"Example: Set(i=${MATH(123%16,int)}) - sets var i=11",
-	.read = builtin_function_math
-};
 
 static char *tdesc = "math functions";
 
 int unload_module(void)
 {
-        return opbx_custom_function_unregister(&math_function);
+        return opbx_unregister_function(math_function);
 }
 
 int load_module(void)
 {
-        return opbx_custom_function_register(&math_function);
+        math_function = opbx_register_function(math_func_name, builtin_function_math, NULL, math_func_synopsis, math_func_syntax, math_func_desc);
+	return 0;
 }
 
 char *description(void)

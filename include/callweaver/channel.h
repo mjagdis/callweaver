@@ -233,10 +233,8 @@ struct opbx_channel {
 	const char *blockproc;			
 
 	/*! Current application */
-	char *appl;				
-	/*! Data passed to current application */
-	char *data;				
-	
+	const char *appl;
+
 	/*! Which fd had an event detected on */
 	int fdno;				
 	/*! Schedule context */

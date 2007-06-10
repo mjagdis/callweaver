@@ -101,13 +101,14 @@ typedef int (*opbx_state_cb_type)(char *context, char* id, enum opbx_extension_s
 
 /*! Data structure associated with a custom function */
 struct opbx_custom_function {
-	char *name;
-	char *synopsis;
-	char *desc;
-	char *syntax;
-	char *(*read)(struct opbx_channel *, char *, char *, char *, size_t);
-	void (*write)(struct opbx_channel *, char *, char *, const char *);
 	struct opbx_custom_function *next;
+	unsigned int hash;
+	char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len);
+	void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value);
+	const char *name;
+	const char *synopsis;
+	const char *syntax;
+	const char *desc;
 };
 
 /*! Data structure associated with an callweaver switch */
@@ -181,13 +182,23 @@ extern struct opbx_app *pbx_findapp(const char *app);
  * \param c channel to execute on
  * \param app which app to execute
  * \param data the data passed into the app
- * \param newstack stack pointer
- * This application executes an application on a given channel.  It
- * saves the stack and executes the given appliation passing in
- * the given data.
+ * This application executes an application on a given channel
+ * passing in the given data.
  * It returns 0 on success, and -1 on failure
  */
-int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data, int newstack);
+int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data);
+
+/*! executes an application */
+/*!
+ * \param c channel to execute on
+ * \param app which app to execute
+ * \param argv the arguments passed into the app
+ * \param argc the number of arguments passed into the app
+ * This application executes an application on a given channel
+ * passing in the given data.
+ * It returns 0 on success, and -1 on failure
+ */
+int pbx_exec_argv(struct opbx_channel *c, struct opbx_app *app, int argc, char **argv);
 
 /*! Register a new context */
 /*!
@@ -280,25 +291,26 @@ int opbx_add_extension2(struct opbx_context *con,
   \param app Short name of the application
   \param execute a function callback to execute the application
   \param synopsis a short description of the application
+  \param syntax a description of the application's calling syntax
   \param description long description of the application
-   Include a one-line synopsis (e.g. 'hangs up a channel') and a more lengthy, multiline
+   Include a one-line synopsis (e.g. 'hangs up a channel') and a more lengthy, multi-line
    description with more detail, including under what conditions the application
    will return 0 or -1.
    This registers an application with callweavers internal application list.  Please note:
    The individual applications themselves are responsible for registering and unregistering
    CLI commands.
-   It returns 0 on success, -1 on failure.
+   It returns an opaque app reference suitable for use with opbx_unregister_application on success, NULL on failure.
 */
-int opbx_register_application(const char *app, int (*execute)(struct opbx_channel *, void *),
-			     const char *synopsis, const char *description);
+void *opbx_register_application(const char *name, int (*execute)(struct opbx_channel *, int, char **), const char *synopsis, const char *syntax, const char *description);
+
 
 /*! Remove an application */
 /*!
- * \param app name of the application (does not have to be the same string as the one that was registered)
+ * \param app an opaque app reference as returned by opbx_register_application
  * This unregisters an application from callweaver's internal registration mechanisms.
  * It returns 0 on success, and -1 on failure.
  */
-int opbx_unregister_application(const char *app);
+int opbx_unregister_application(void *app);
 
 /*! Uses hint and devicestate callback to get the state of an extension */
 /*!
@@ -630,7 +642,6 @@ extern void pbx_builtin_pushvar_helper(struct opbx_channel *chan, const char *na
 extern void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, const char *value);
 extern void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
 extern void pbx_builtin_clear_globals(void);
-extern int pbx_builtin_setvar(struct opbx_channel *chan, void *data);
 extern void pbx_substitute_variables_helper(struct opbx_channel *c,const char *cp1,char *cp2,int count);
 extern void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 
@@ -644,11 +655,15 @@ int opbx_goto_if_exists(struct opbx_channel *chan, char* context, char *exten, i
 /* I can find neither parsable nor parseable at dictionary.com, but google gives me 169000 hits for parseable and only 49,800 for parsable */
 int opbx_parseable_goto(struct opbx_channel *chan, const char *goto_string);
 int opbx_explicit_goto(struct opbx_channel *chan, const char *context, const char *exten, int priority);
+int opbx_explicit_gotolabel(struct opbx_channel *chan, const char *context, const char *exten, const char *priority);
 int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *exten, int priority);
 
-struct opbx_custom_function* opbx_custom_function_find(char *name);
-int opbx_custom_function_unregister(struct opbx_custom_function *acf);
-int opbx_custom_function_register(struct opbx_custom_function *acf);
+extern struct opbx_custom_function *opbx_custom_function_find(const char *name);
+extern int opbx_unregister_function(void *function);
+extern void *opbx_register_function(const char *name,
+		char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len),
+		void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value),
+		const char *synopsis, const char *syntax, const char *desc);
 
 /* Number of active calls */
 int opbx_active_calls(void);

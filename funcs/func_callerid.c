@@ -42,27 +42,37 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/options.h"
 #include "callweaver/callerid.h"
 
-static char *callerid_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+
+static void *callerid_function;
+static const char *callerid_func_name = "CALLERID";
+static const char *callerid_func_synopsis = "Gets or sets Caller*ID data on the channel.";
+static const char *callerid_func_syntax = "CALLERID(datatype)";
+static const char *callerid_func_desc =
+	"Gets or sets Caller*ID data on the channel.  The allowable datatypes\n"
+	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n";
+
+
+static char *callerid_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
-	if (!strncasecmp("all", data, 3)) {
+	if (!strncasecmp("all", argv[0], 3)) {
 		snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
-	} else if (!strncasecmp("name", data, 4)) {
+	} else if (!strncasecmp("name", argv[0], 4)) {
 		if (chan->cid.cid_name) {
 			opbx_copy_string(buf, chan->cid.cid_name, len);
 		}
-	} else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
+	} else if (!strncasecmp("num", argv[0], 3) || !strncasecmp("number", argv[0], 6)) {
 		if (chan->cid.cid_num) {
 			opbx_copy_string(buf, chan->cid.cid_num, len);
 		}
-	} else if (!strncasecmp("ani", data, 3)) {
+	} else if (!strncasecmp("ani", argv[0], 3)) {
 		if (chan->cid.cid_ani) {
 			opbx_copy_string(buf, chan->cid.cid_ani, len);
 		}
-	} else if (!strncasecmp("dnid", data, 4)) {
+	} else if (!strncasecmp("dnid", argv[0], 4)) {
 		if (chan->cid.cid_dnid) {
 			opbx_copy_string(buf, chan->cid.cid_dnid, len);
 		}
-	} else if (!strncasecmp("rdnis", data, 5)) {
+	} else if (!strncasecmp("rdnis", argv[0], 5)) {
 		if (chan->cid.cid_rdnis) {
 			opbx_copy_string(buf, chan->cid.cid_rdnis, len);
 		}
@@ -73,28 +83,28 @@ static char *callerid_read(struct opbx_channel *chan, char *cmd, char *data, cha
 	return buf;
 }
 
-static void callerid_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
+static void callerid_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
 {
 	if (!value)
                 return;
 	
-	if (!strncasecmp("all", data, 3)) {
+	if (!strncasecmp("all", argv[0], 3)) {
 		char name[256];
 		char num[256];
 		if (!opbx_callerid_split(value, name, sizeof(name), num, sizeof(num)))
 			opbx_set_callerid(chan, num, name, num);	
-        } else if (!strncasecmp("name", data, 4)) {
+        } else if (!strncasecmp("name", argv[0], 4)) {
                 opbx_set_callerid(chan, NULL, value, NULL);
-        } else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
+        } else if (!strncasecmp("num", argv[0], 3) || !strncasecmp("number", argv[0], 6)) {
                 opbx_set_callerid(chan, value, NULL, NULL);
-        } else if (!strncasecmp("ani", data, 3)) {
+        } else if (!strncasecmp("ani", argv[0], 3)) {
                 opbx_set_callerid(chan, NULL, NULL, value);
-        } else if (!strncasecmp("dnid", data, 4)) {
+        } else if (!strncasecmp("dnid", argv[0], 4)) {
                 /* do we need to lock chan here? */
                 if (chan->cid.cid_dnid)
                         free(chan->cid.cid_dnid);
                 chan->cid.cid_dnid = opbx_strlen_zero(value) ? NULL : strdup(value);
-        } else if (!strncasecmp("rdnis", data, 5)) {
+        } else if (!strncasecmp("rdnis", argv[0], 5)) {
                 /* do we need to lock chan here? */
                 if (chan->cid.cid_rdnis)
                         free(chan->cid.cid_rdnis);
@@ -104,26 +114,18 @@ static void callerid_write(struct opbx_channel *chan, char *cmd, char *data, con
         }
 }
 
-static struct opbx_custom_function callerid_function = {
-	.name = "CALLERID",
-	.synopsis = "Gets or sets Caller*ID data on the channel.",
-	.syntax = "CALLERID(datatype)",
-	.desc = "Gets or sets Caller*ID data on the channel.  The allowable datatypes\n"
-	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n",
-	.read = callerid_read,
-	.write = callerid_write,
-};
 
 static char *tdesc = "Caller ID related dialplan function";
 
 int unload_module(void)
 {
-        return opbx_custom_function_unregister(&callerid_function);
+        return opbx_unregister_function(callerid_function);
 }
 
 int load_module(void)
 {
-        return opbx_custom_function_register(&callerid_function);
+        callerid_function = opbx_register_function(callerid_func_name, callerid_read, callerid_write, callerid_func_synopsis, callerid_func_syntax, callerid_func_desc);
+	return 0;
 }
 
 char *description(void)

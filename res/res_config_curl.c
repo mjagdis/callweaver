@@ -42,10 +42,11 @@ static int global_cache_time = 0;
 static int global_no_cache_neg = 1;
 static char *global_config_file = "curl.conf";
 
-static char *app_1 = "URLFetch";
-static char *synopsis_1 = "Fetch Data from a URL";
-static char *desc_1 = "  URLFetch(<url>)\n"
-"load a url that returns opbx_config and set according chanvars\n"
+static void *app_1;
+static const char *name_1 = "URLFetch";
+static const char *synopsis_1 = "Fetch Data from a URL";
+static const char *syntax_1 = "URLFetch(<url>)";
+static const char *desc_1 = "load a url that returns opbx_config and set according chanvars\n"
 ;
 
 
@@ -231,13 +232,13 @@ static struct opbx_variable *realtime_curl(const char *database, const char *tab
 	return config_data.vars;
 }
 
-static int realtime_exec(struct opbx_channel *chan, void *data) 
+static int realtime_exec(struct opbx_channel *chan, int argc, char **argv) 
 {
 	struct config_data config_data;
 	struct opbx_variable *v;
 
 	memset(&config_data, 0, sizeof(config_data));
-	config_data.database = (char *) data;
+	config_data.database = argv[0];
 	config_data.action = "realtime_lookup";
 	config_data.skip_prep = 1;
 	curl_process(&config_data);
@@ -349,12 +350,13 @@ int reload(void) {
 
 int unload_module (void)
 {
+	res = 0;
 	opbx_config_engine_deregister(&curl_engine);
 	if (option_verbose)
 		opbx_verbose(VERBOSE_PREFIX_1 "res_config_curl unloaded.\n");
-	opbx_unregister_application(app_1);
+	res |= opbx_unregister_application(app_1);
 	STANDARD_HANGUP_LOCALUSERS;
-	return 0;
+	return res;
 }
 
 
@@ -365,7 +367,7 @@ int load_module (void)
 	system(cmd);
 	load_config();
 	opbx_config_engine_register(&curl_engine);
-	opbx_register_application(app_1, realtime_exec, synopsis_1, desc_1);
+	app_1 = opbx_register_application(name_1, realtime_exec, synopsis_1, syntax_1, desc_1);
 	if (option_verbose)
 		opbx_verbose(VERBOSE_PREFIX_1 "res_config_curl loaded.\n");
 	return 0;

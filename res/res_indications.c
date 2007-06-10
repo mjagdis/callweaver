@@ -73,6 +73,9 @@ static char help_show_indications[] =
 "       Show either a condensed for of all country/indications, or the\n"
 "       indications for the specified countries.\n";
 
+static void *playtones_app;
+static void *stopplaytones_app;
+
 char *playtones_desc=
 "PlayTones(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
 "while the tones continue to play.\n"
@@ -219,21 +222,21 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 /*
  * Playtones command stuff
  */
-static int handle_playtones(struct opbx_channel *chan, void *data)
+static int handle_playtones(struct opbx_channel *chan, int argc, char **argv)
 {
     struct tone_zone_sound *ts;
     int res;
 
-    if (data == NULL  ||  ((char *) data)[0] == 0)
+    if (argc < 1 || !argv[0][0])
     {
         opbx_log(LOG_NOTICE,"Nothing to play\n");
         return -1;
     }
-    ts = opbx_get_indication_tone(chan->zone, (const char*)data);
+    ts = opbx_get_indication_tone(chan->zone, argv[0]);
     if (ts  &&  ts->data[0])
         res = opbx_playtones_start(chan, 0, ts->data, 0);
     else
-        res = opbx_playtones_start(chan, 0, (const char*)data, 0);
+        res = opbx_playtones_start(chan, 0, argv[0], 0);
     if (res)
         opbx_log(LOG_NOTICE,"Unable to start playtones\n");
     return res;
@@ -242,7 +245,7 @@ static int handle_playtones(struct opbx_channel *chan, void *data)
 /*
  * StopPlaylist command stuff
  */
-static int handle_stopplaytones(struct opbx_channel *chan, void *data)
+static int handle_stopplaytones(struct opbx_channel *chan, int argc, char **argv)
 {
     opbx_playtones_stop(chan);
     return 0;
@@ -417,6 +420,8 @@ static struct opbx_cli_entry show_indications_cli =
  */
 int unload_module(void)
 {
+    int res = 0;
+
     /* remove the registed indications... */
     opbx_unregister_indication_country(NULL);
 
@@ -424,9 +429,9 @@ int unload_module(void)
     opbx_cli_unregister(&add_indication_cli);
     opbx_cli_unregister(&remove_indication_cli);
     opbx_cli_unregister(&show_indications_cli);
-    opbx_unregister_application("PlayTones");
-    opbx_unregister_application("StopPlayTones");
-    return 0;
+    res |= opbx_unregister_application(playtones_app);
+    res |= opbx_unregister_application(stopplaytones_app);
+    return res;
 }
 
 int load_module(void)
@@ -436,8 +441,8 @@ int load_module(void)
     opbx_cli_register(&add_indication_cli);
     opbx_cli_register(&remove_indication_cli);
     opbx_cli_register(&show_indications_cli);
-    opbx_register_application("PlayTones", handle_playtones, "Play a tone list", playtones_desc);
-    opbx_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list","Stop playing a tone list");
+    playtones_app = opbx_register_application("PlayTones", handle_playtones, "Play a tone list", NULL, playtones_desc);
+    stopplaytones_app = opbx_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list", NULL, "Stop playing a tone list");
 
     return 0;
 }

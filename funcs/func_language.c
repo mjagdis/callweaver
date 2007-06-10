@@ -39,45 +39,46 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 
-static char *builtin_function_language_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	opbx_copy_string(buf, chan->language, len);
 
-	return buf;
-}
-
-static void builtin_function_language_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
-{
-	if (value)
-		opbx_copy_string(chan->language, value, sizeof(chan->language));
-}
-
-static struct opbx_custom_function language_function = {
-	.name = "LANGUAGE",
-	.synopsis = "Gets or sets the channel's language.",
-	.syntax = "LANGUAGE()",
-	.desc = "Gets or sets the channel language.  This information is used for the\n"
+static void *language_function;
+static const char *language_func_name = "LANGUAGE";
+static const char *language_func_synopsis = "Gets or sets the channel's language.";
+static const char *language_func_syntax = "LANGUAGE()";
+static const char *language_func_desc =
+	"Gets or sets the channel language.  This information is used for the\n"
 	"syntax in generation of numbers, and to choose a natural language file\n"
 	"when available.  For example, if language is set to 'fr' and the file\n"
 	"'demo-congrats' is requested to be played, if the file\n"
 	"'fr/demo-congrats' exists, then it will play that file, and if not\n"
 	"will play the normal 'demo-congrats'.  For some language codes,\n"
 	"changing the language also changes the syntax of some CallWeaver\n"
-	"functions, like SayNumber.\n",
-	.read = builtin_function_language_read,
-	.write = builtin_function_language_write,
-};
+	"functions, like SayNumber.\n";
+
+
+static char *builtin_function_language_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+{
+	opbx_copy_string(buf, chan->language, len);
+
+	return buf;
+}
+
+static void builtin_function_language_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+{
+	if (value)
+		opbx_copy_string(chan->language, value, sizeof(chan->language));
+}
 
 static char *tdesc = "language functions";
 
 int unload_module(void)
 {
-        return opbx_custom_function_unregister(&language_function);
+        return opbx_unregister_function(language_function);
 }
 
 int load_module(void)
 {
-        return opbx_custom_function_register(&language_function);
+        language_function =  opbx_register_function(language_func_name, builtin_function_language_read, builtin_function_language_write, language_func_synopsis, language_func_syntax, language_func_desc);
+	return 0;
 }
 
 char *description(void)

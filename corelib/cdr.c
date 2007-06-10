@@ -557,7 +557,7 @@ void opbx_cdr_setdestchan(struct opbx_cdr *cdr, char *chann)
 	}
 }
 
-void opbx_cdr_setapp(struct opbx_cdr *cdr, char *app, char *data)
+void opbx_cdr_setapp(struct opbx_cdr *cdr, const char *app, const char *data)
 {
 	char *chan; 
 

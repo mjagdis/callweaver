@@ -117,11 +117,10 @@ static int custom_log(struct opbx_cdr *cdr)
 	if (opbx_strlen_zero(master))
 		return 0;
 
-	memset(buf, 0 , sizeof(buf));
 	/* Quite possibly the first use of a static struct opbx_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
 	dummy.cdr = cdr;
-	pbx_substitute_variables_helper(&dummy, format, buf, sizeof(buf) - 1);
+	pbx_substitute_variables_helper(&dummy, format, buf, sizeof(buf));
 
 	/* because of the absolutely unconditional need for the
 	   highest reliability possible in writing billing records,

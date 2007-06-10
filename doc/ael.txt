@@ -211,37 +211,37 @@ be included on a single line. Whatever you think is best!
 
 You can just as easily say,
 
-if(${x}=1) { NoOp(hello!); goto s|3; } else { NoOp(Goodbye!); goto s|12; }
+if(${x}=1) { NoOp(hello!); goto s,3; } else { NoOp(Goodbye!); goto s,12; }
 
 as you can say:
 
 if(${x}=1)
 {
        NoOp(hello!);
-   goto s|3;
+   goto s,3;
 }
 else
 {
        NoOp(Goodbye!);
-       goto s|12;
+       goto s,12;
 }
 
 or:
 
 if(${x}=1) {
        NoOp(hello!);
-   goto s|3;
+   goto s,3;
 } else {
        NoOp(Goodbye!);
-       goto s|12;
+       goto s,12;
 }
 
 or:
 
 if (${x}=1) {
-       NoOp(hello!); goto s|3;
+       NoOp(hello!); goto s,3;
 } else {
-       NoOp(Goodbye!); goto s|12;
+       NoOp(Goodbye!); goto s,12;
 }
 
 or even:
@@ -250,12 +250,12 @@ if
 (${x}=1)
 {
 NoOp(hello!);
-goto s|3;
+goto s,3;
 }
 else
 {
 NoOp(Goodbye!);
-goto s|12;
+goto s,12;
 }
 
 
@@ -416,8 +416,8 @@ First, some basic objects
 
 <random_head> :== 'random' '(' <collected-word> ')'
 
-<ifTime_head> :== 'ifTime' '(' <word3-list> ':' <word3-list> ':' <word3-list> '|' <word3-list> '|' <word3-list> '|' <word3-list> ')'
-                       | 'ifTime' '(' <word> '|' <word3-list> '|' <word3-list> '|' <word3-list> ')'
+<ifTime_head> :== 'ifTime' '(' <word3-list> ':' <word3-list> ':' <word3-list> ',' <word3-list> ',' <word3-list> ',' <word3-list> ')'
+                       | 'ifTime' '(' <word> ',' <word3-list> ',' <word3-list> ',' <word3-list> ')'
 
 
 <word3-list> :== <word>
@@ -451,9 +451,9 @@ First, some basic objects
        | ';'
 
 <target> :== <word>
-       | <word> '|' <word>
-       | <word> '|' <word> '|' <word>
-       | 'default' '|' <word> '|' <word>
+       | <word> ',' <word>
+       | <word> ',' <word> ',' <word>
+       | 'default' ',' <word> ',' <word>
        | <word> ',' <word>
        | <word> ',' <word> ',' <word>
        | 'default' ',' <word> ',' <word>
@@ -505,11 +505,11 @@ First, some basic objects
        | <switchlist> <word> ';'
 
 <includeslist> :== <includedname> ';'
-       | <includedname> '|' <word3-list> ':' <word3-list> ':' <word3-list> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
-       | <includedname> '|' <word> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
+       | <includedname> ',' <word3-list> ':' <word3-list> ':' <word3-list> ',' <word3-list> ',' <word3-list> ',' <word3-list> ';'
+       | <includedname> ',' <word> ',' <word3-list> ',' <word3-list> ',' <word3-list> ';'
        | <includeslist> <includedname> ';'
-       | <includeslist> <includedname> '|' <word3-list> ':' <word3-list> ':' <word3-list> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
-       | <includeslist> <includedname> '|' <word> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
+       | <includeslist> <includedname> ',' <word3-list> ':' <word3-list> ':' <word3-list> ',' <word3-list> ',' <word3-list> ',' <word3-list> ';'
+       | <includeslist> <includedname> ',' <word> ',' <word3-list> ',' <word3-list> ',' <word3-list> ';'
 
 <includedname> :== <word>
         | 'default'
@@ -645,7 +645,7 @@ GotoIfTime.
 context default {
     includes {
          local;
-         longdistance|16:00-23:59|mon-fri|*|*;
+         longdistance,16:00-23:59,mon-fri,*,*;
          international;
     }
 }
@@ -800,15 +800,15 @@ context conditional {
          if ("${DIALSTATUS}" = "BUSY")
          {
               NoOp(yessir);
-              Voicemail(${EXTEN}|b);
+              Voicemail(${EXTEN},b);
          }
          else
-              Voicemail(${EXTEN}|u);
-         ifTime (14:00-25:00|sat-sun|*|*) 
-              Voicemail(${EXTEN}|b);
+              Voicemail(${EXTEN},u);
+         ifTime (14:00-25:00,sat-sun,*,*) 
+              Voicemail(${EXTEN},b);
          else
          {
-              Voicemail(${EXTEN}|u);
+              Voicemail(${EXTEN},u);
               NoOp(hi, there!);
          }
          random(51) NoOp(This should appear 51% of the time);
@@ -912,17 +912,17 @@ begin:
          goto begin;    // go to label in same extension
     }
     3 => {
-            goto s|begin;   // go to label in different extension
+            goto s,begin;   // go to label in different extension
      }
      4 => {
-            goto gotoexample|s|begin;  // overkill go to label in same context
+            goto gotoexample,s,begin;  // overkill go to label in same context
      }
 }
 
 context gotoexample2 {
      s =>  {
    end: 
-           goto gotoexample|s|begin;   // go to label in different context
+           goto gotoexample,s,begin;   // go to label in different context
      }
 }
 
@@ -965,9 +965,9 @@ NOTE: goto labels follow the same requirements as the Goto()
       application, except the last value has to be a label. If the
       label does not exist, you will have run-time errors. If the
       label exists, but in a different extension, you have to specify
-      both the extension name and label in the goto, as in: goto s|z;
+      both the extension name and label in the goto, as in: goto s,z;
       if the label is in a different context, you specify
-      context|extension|label. There is a note about using goto's in a
+      context,extension,label. There is a note about using goto's in a
       switch statement below...
 
 NOTE  AEL introduces the special label "1", which is the beginning
@@ -1040,31 +1040,31 @@ instructions:
     }
     2 => {
          Background(demo-moreinfo);
-         goto s|instructions;
+         goto s,instructions;
     }
     3 => {
          LANGUAGE()=fr;
-         goto s|restart;
+         goto s,restart;
     }
 
     500 => {
          Playback(demo-abouttotry);
          Dial(IAX2/guest@misery.digium.com);
          Playback(demo-nogo);
-         goto s|instructions;
+         goto s,instructions;
     }
     600 => {
          Playback(demo-echotest);
          Echo();
          Playback(demo-echodone);
-         goto s|instructions;
+         goto s,instructions;
     }
     # => {
 hangup:
          Playback(demo-thanks);
          Hangup();
     }
-    t => goto #|hangup;
+    t => goto #,hangup;
     i => Playback(invalid);
 }
 
@@ -1165,8 +1165,8 @@ Differences with the original version of AEL
       AEL README.
   11. Added the "return" keyword, which will jump to the end of an
       extension/Proc.
-  12. Added the ifTime (<time range>|<days of week>|<days of
-      month>|<months> ) {} [else {}] construct, which executes much
+  12. Added the ifTime (<time range>,<days of week>,<days of
+      month>,<months> ) {} [else {}] construct, which executes much
       like an if () statement, but the decision is based on the
       current time, and the time spec provided in the ifTime. See the
       example above. (Note: all the other time-dependent Applications

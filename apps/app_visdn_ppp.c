@@ -29,11 +29,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 878 $")
 #include "../channels/chan_visdn.h"
 
 static char *tdesc = "vISDN ppp RAS module";
-static char *app = "vISDNppp";
-static char *synopsis = "Runs pppd and connects channel to visdn-ppp gateway";
 
-static char *descrip = 
-"  vISDNppp(args): Executes a RAS server using pppd on the given channel.\n"
+static void *visdn_ppp_app;
+static const char *visdn_ppp_name = "vISDNppp";
+static const char *visdn_ppp_synopsis = "Runs pppd and connects channel to visdn-ppp gateway";
+static const char *visdn_ppp_syntax = "vISDNppp(args)";
+static const char *visdn_ppp_descrip = 
+"Executes a RAS server using pppd on the given channel.\n"
 "The channel must be a clear channel (i.e. PRI source) and a Zaptel\n"
 "channel to be able to use this function (No modem emulation is included).\n"
 "Your pppd must be patched to be zaptel aware. Arguments should be\n"
@@ -61,10 +63,7 @@ static int get_max_fds(void)
 #endif
 }
 
-static pid_t spawn_ppp(
-	struct opbx_channel *chan,
-	const char *argv[],
-	int argc)
+static pid_t spawn_ppp(struct opbx_channel *chan, const char *argv[])
 {
 	/* Start by forking */
 	pid_t pid = fork();
@@ -89,11 +88,14 @@ static pid_t spawn_ppp(
 }
 
 
-static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
+static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=-1;
+	struct visdn_chan *visdn_chan;
+	const char **nargv;
 	struct localuser *u;
 	struct opbx_frame *f;
+	int res=-1;
+
 	LOCAL_USER_ADD(u);
 
 	if (chan->_state != OPBX_STATE_UP)
@@ -110,7 +112,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	struct visdn_chan *visdn_chan = chan->tech_pvt;
+	visdn_chan = chan->tech_pvt;
 
 	if (!strlen(visdn_chan->visdn_chanid)) {
 		opbx_log(LOG_WARNING,
@@ -119,28 +121,20 @@ static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 		return -1;
 	}
 
-	const char *argv[PPP_MAX_ARGS] = { };
-	int argc = 0;
-
-	argv[argc++] = PPP_EXEC;
-	argv[argc++] = "nodetach";
-
-	char *stringp = strdup(data);
-	char *arg;
-	while((arg = strsep(&stringp, "|"))) {
-
-		if (!strlen(arg))
-			break;
-
-		if (argc >= PPP_MAX_ARGS - 4)
-			break;
-
-		argv[argc++] = arg;
+	nargv = alloca((2 + argc + 3 + 1) * sizeof(nargv[0]));
+	if (!nargv) {
+		opbx_log(LOG_ERROR, "Malloc failed: %s\n", strerror(errno));
+		opbx_mutex_unlock(&chan->lock);
+		return -1;
 	}
 
-	argv[argc++] = "plugin";
-	argv[argc++] = "visdn.so";
-	argv[argc++] = visdn_chan->visdn_chanid;
+	nargv[0] = PPP_EXEC;
+	nargv[1] = "nodetach";
+	memcpy(nargv + 2, argc, argv * sizeof(argv[0]));
+	nargv[2 + argc + 0] = "plugin";
+	nargv[2 + argc + 1] = "visdn.so";
+	nargv[2 + argc + 2] = visdn_chan->visdn_chanid;
+	nargv[2 + argc + 3] = NULL;
 
 	opbx_mutex_unlock(&chan->lock);
 
@@ -153,7 +147,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 
 	signal(SIGCHLD, SIG_DFL);
 
-	pid_t pid = spawn_ppp(chan, argv, argc);
+	pid_t pid = spawn_ppp(chan, nargv);
 	if (pid < 0) {
 		opbx_log(LOG_WARNING, "Failed to spawn pppd\n");
 		return -1;
@@ -209,13 +203,16 @@ static int visdn_ppp_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(visdn_ppp_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, visdn_ppp_exec, synopsis, descrip);
+	visdn_ppp_app = opbx_register_application(visdn_ppp_name, visdn_ppp_exec, visdn_ppp_synopsis, visdn_ppp_syntax, visdn_ppp_descrip);
+	return 0;
 }
 
 char *description(void)

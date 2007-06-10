@@ -25,6 +25,7 @@
 #include "confdefs.h"
 #endif
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -614,11 +615,11 @@ int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const 
 	fmts = opbx_strdupa(fmt);
 
 	stringp=fmts;
-	strsep(&stringp, "|");
+	strsep(&stringp, "|,");
 	opbx_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
 	sfmt[0] = opbx_strdupa(fmts);
 
-	while((fmt = strsep(&stringp, "|"))) {
+	while((fmt = strsep(&stringp, "|,"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
 			opbx_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
@@ -839,11 +840,11 @@ int opbx_play_and_prepend(struct opbx_channel *chan, char *playfile, char *recor
 	fmts = opbx_strdupa(fmt);
 	
 	stringp=fmts;
-	strsep(&stringp, "|");
+	strsep(&stringp, "|,");
 	opbx_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
 	sfmt[0] = opbx_strdupa(fmts);
 	
-	while((fmt = strsep(&stringp, "|"))) {
+	while((fmt = strsep(&stringp, "|,"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
 			opbx_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
@@ -1125,39 +1126,87 @@ int opbx_app_group_match_get_count(char *groupmatch, char *category)
 	return count;
 }
 
-int opbx_separate_app_args(char *buf, char delim, char **array, int arraylen)
+int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 {
+	char *start;
 	int argc;
-	char *scan;
-	int paren = 0;
+	char c;
 
-	if (!buf || !array || !arraylen)
-		return 0;
+	if (option_debug && option_verbose > 2)
+		opbx_log(LOG_DEBUG, "delim=%c, args: %s\n", delim, buf);
 
-	memset(array, 0, arraylen * sizeof(*array));
+	/* The last argv is reserved for NULL. This is required if you want
+	 * to hand off an argv to exec(2) for example.
+	 */
+	max_args--;
 
-	scan = buf;
+	argc = 0;
+	if (buf) {
+		start = buf;
+		do {
+			char *next, *end;
+			int parens, inquote;
 
-	for (argc = 0; *scan && (argc < arraylen - 1); argc++) {
-		array[argc] = scan;
-		for (; *scan; scan++) {
-			if (*scan == '(')
-				paren++;
-			else if (*scan == ')') {
-				if (paren)
-					paren--;
-			} else if ((*scan == delim) && !paren) {
-				*scan++ = '\0';
-				break;
+			/* Skip leading white space */
+			while (isspace(*start)) start++;
+
+			next = end = start;
+
+			/* Find the end of this arg. Backslash removes any special
+			 * meaning from the next character. Otherwise quotes
+			 * enclose strings and parentheses (outside any quoted
+			 * string) must balance.
+			 */
+			inquote = parens = 0;
+			for (; *next; next++) {
+				if (*next == '\\') {
+					if (!*(++next)) break;
+				} else if (*next == '"') {
+					inquote = !inquote;
+					continue;
+				} else if (*next == '(')
+					parens++;
+				else if (*next == ')')
+					parens--;
+				else if (*next == delim && !parens)
+					break;
+
+				*(end++) = *next;
 			}
-		}
+
+			/* Note whether we hit a delimiter or '\0' in case
+			 * we're about to overwrite it
+			 */
+			c = *next;
+
+			/* Terminate and backtrack trimming off trailing whitespace */
+			*end = '\0';
+			while (end > start && isspace(end[-1]))
+				*(--end) = '\0';
+
+			/* Save the arg and its length if wanted */
+			argv[argc] = start;
+#if 0
+			if (argl) argl[argc] = end - start;
+#endif
+			argc++;
+
+			start = next + 1;
+		} while (c && argc < max_args);
 	}
 
-	if (*scan)
-		array[argc++] = scan;
+	argv[argc] = NULL;
+
+	if (option_debug && option_verbose > 2) {
+		int i;
+		opbx_log(LOG_DEBUG, "argc: %d\n", argc);
+		for (i=0; i<argc; i++)
+			opbx_log(LOG_DEBUG, "argv[%d]: %s\n", i, argv[i]);
+	}
 
 	return argc;
 }
+
 
 enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 {

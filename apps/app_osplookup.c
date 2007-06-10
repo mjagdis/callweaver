@@ -49,16 +49,24 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "OSP Lookup";
 
-static char *app = "OSPLookup";
-static char *app2 = "OSPNext";
-static char *app3 = "OSPFinish";
+static void *app;
+static void *app2;
+static void *app3;
 
-static char *synopsis = "Lookup number in OSP";
-static char *synopsis2 = "Lookup next OSP entry";
-static char *synopsis3 = "Record OSP entry";
+static const char *name = "OSPLookup";
+static const char *name2 = "OSPNext";
+static const char *name3 = "OSPFinish";
 
-static char *descrip = 
-"  OSPLookup(exten[|provider[|options]]):  Looks up an extension via OSP and sets\n"
+static const char *synopsis = "Lookup number in OSP";
+static const char *synopsis2 = "Lookup next OSP entry";
+static const char *synopsis3 = "Record OSP entry";
+
+static const char *syntax = "OSPLookup(exten[, provider[, options]])";
+static const char *syntax2 = "OSPNext";
+static const char *syntax3 = "OSPFinish(status)";
+
+static const char *descrip = 
+"Looks up an extension via OSP and sets\n"
 "the variables, where 'n' is the number of the result beginning with 1:\n"
 " ${OSPTECH}:   The technology to use for the call\n"
 " ${OSPDEST}:   The destination to use for the call\n"
@@ -69,15 +77,15 @@ static char *descrip =
 "If the lookup was *not* successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-static char *descrip2 = 
-"  OSPNext:  Looks up the next OSP Destination for ${OSPHANDLE}\n"
+static const char *descrip2 = 
+"Looks up the next OSP Destination for ${OSPHANDLE}\n"
 "See OSPLookup for more information\n"
 "\n"
 "If the lookup was *not* successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-static char *descrip3 = 
-"  OSPFinish(status):  Records call state for ${OSPHANDLE}, according to\n"
+static const char *descrip3 = 
+"Records call state for ${OSPHANDLE}, according to\n"
 "status, which should be one of BUSY, CONGESTION, ANSWER, NOANSWER, or NOCHANAVAIL\n"
 "or coincidentally, just what the Dial application stores in its ${DIALSTATUS}\n"
 "\n"
@@ -106,41 +114,25 @@ static int str2cause(char *cause)
 	return OPBX_CAUSE_NORMAL;
 }
 
-static int osplookup_exec(struct opbx_channel *chan, void *data)
+static int osplookup_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
-	struct localuser *u;
-	char *temp;
-	char *provider, *opts=NULL;
 	struct opbx_osp_result result;
-	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "OSPLookup requires an argument (extension)\n");
+	struct localuser *u;
+	char *provider;
+	int res = 0;
+
+	if (argc < 1 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	temp = opbx_strdupa(data);
-	if (!temp) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	provider = (argc > 1 && argv[1][0] ? argv[1] : NULL);
+	/* There are no options supported?!? */
 
-	provider = strchr(temp, '|');
-	if (provider) {
-		*provider = '\0';
-		provider++;
-		opts = strchr(provider, '|');
-		if (opts) {
-			*opts = '\0';
-			opts++;
-		}
-	}
-	
-	opbx_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", temp, provider ? provider : "<default>");
-	if ((res = opbx_osp_lookup(chan, provider, temp, chan->cid.cid_num, &result)) > 0) {
+	opbx_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", argv[0], provider ? provider : "<default>");
+	if ((res = opbx_osp_lookup(chan, provider, argv[0], chan->cid.cid_num, &result)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", result.handle);
 		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
@@ -152,9 +144,9 @@ static int osplookup_exec(struct opbx_channel *chan, void *data)
 
 	} else {
 		if (!res)
-			opbx_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", temp, provider ? provider : "<default>");
+			opbx_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", argv[0], provider ? provider : "<default>");
 		else
-			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, temp, provider ? provider : "<default>" );
+			opbx_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, argv[0], provider ? provider : "<default>" );
 	}
 	if (!res) {
 		/* Look for a "busy" place */
@@ -165,22 +157,22 @@ static int osplookup_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static int ospnext_exec(struct opbx_channel *chan, void *data)
+static int ospnext_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
+	struct opbx_osp_result result;
 	struct localuser *u;
 	char *temp;
 	int cause;
-	struct opbx_osp_result result;
+	int res = 0;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "OSPNext should have an argument (cause)\n");
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax2);
 		return -1;
 	}
 	
 	LOCAL_USER_ADD(u);
 
-	cause = str2cause((char *)data);
+	cause = str2cause(argv[0]);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (!opbx_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
@@ -212,17 +204,17 @@ static int ospnext_exec(struct opbx_channel *chan, void *data)
 	return res;
 }
 
-static int ospfinished_exec(struct opbx_channel *chan, void *data)
+static int ospfinished_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
+	struct opbx_osp_result result;
 	struct localuser *u;
 	char *temp;
-	int cause;
 	time_t start=0, duration=0;
-	struct opbx_osp_result result;
+	int cause;
+	int res=0;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "OSPFinish should have an argument (cause)\n");
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax3);
 		return -1;
 	}
 
@@ -237,7 +229,7 @@ static int ospfinished_exec(struct opbx_channel *chan, void *data)
 	} else
 		opbx_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	
-	cause = str2cause((char *)data);
+	cause = str2cause(argv[0]);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (!opbx_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
@@ -266,9 +258,9 @@ static int ospfinished_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int res;
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = opbx_unregister_application(app3);
+	res |= opbx_unregister_application(app3);
 	res |= opbx_unregister_application(app2);
 	res |= opbx_unregister_application(app);
 	return res;
@@ -276,17 +268,10 @@ int unload_module(void)
 
 int load_module(void)
 {
-	int res;
-	res = opbx_register_application(app, osplookup_exec, synopsis, descrip);
-	if (res)
-		return(res);
-	res = opbx_register_application(app2, ospnext_exec, synopsis2, descrip2);
-	if (res)
-		return(res);
-	res = opbx_register_application(app3, ospfinished_exec, synopsis3, descrip3);
-	if (res)
-		return(res);
-	return(0);
+	app = opbx_register_application(name, osplookup_exec, synopsis, syntax, descrip);
+	app2 = opbx_register_application(name2, ospnext_exec, synopsis2, syntax2, descrip2);
+	app3 = opbx_register_application(name3, ospfinished_exec, synopsis3, syntax3, descrip3);
+	return 0;
 }
 
 int reload(void)

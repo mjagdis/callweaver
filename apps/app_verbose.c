@@ -24,6 +24,7 @@
 #include "confdefs.h"
 #endif
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -42,12 +43,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Send verbose output";
 
-static char *app_verbose = "Verbose";
-
-static char *verbose_synopsis = "Send arbitrary text to verbose output";
-
-static char *verbose_descrip =
-"Verbose([<level>|]<message>)\n"
+static void *verbose_app;
+static const char *verbose_name = "Verbose";
+static const char *verbose_synopsis = "Send arbitrary text to verbose output";
+static const char *verbose_syntax = "Verbose([level, ]message)";
+static const char *verbose_descrip =
 "  level must be an integer value.  If not specified, defaults to 0."
 "  Always returns 0.\n";
 
@@ -55,50 +55,31 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int verbose_exec(struct opbx_channel *chan, void *data)
+static int verbose_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *vtext;
-	int vsize;
+	static char *prefix[] = {
+		"",
+		VERBOSE_PREFIX_1,
+		VERBOSE_PREFIX_2,
+		VERBOSE_PREFIX_3,
+		VERBOSE_PREFIX_4,
+	};
+	int level;
 	struct localuser *u;
 
-	LOCAL_USER_ADD(u);
-
-	if (data) {
-		vtext = opbx_strdupa((char *)data);
-		if (vtext) {
-			char *tmp = strsep(&vtext, "|,");
-			if (vtext) {
-				if (sscanf(tmp, "%d", &vsize) != 1) {
-					vsize = 0;
-					opbx_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
-				}
-			} else {
-				vtext = tmp;
-				vsize = 0;
-			}
-			if (option_verbose >= vsize) {
-				switch (vsize) {
-				case 0:
-					opbx_verbose("%s\n", vtext);
-					break;
-				case 1:
-					opbx_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
-					break;
-				case 2:
-					opbx_verbose(VERBOSE_PREFIX_2 "%s\n", vtext);
-					break;
-				case 3:
-					opbx_verbose(VERBOSE_PREFIX_3 "%s\n", vtext);
-					break;
-				default:
-					opbx_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
-				}
-			}
-		} else {
-			opbx_log(LOG_ERROR, "Out of memory\n");
-		}
+	level = 0;
+	if (argc == 2 && isdigit(argv[0][0])) {
+		level = atoi(argv[0]);
+		argv++, argc--;
 	}
 
+	if (argc != 1 || level < 0 || level >= arraysize(prefix)) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", verbose_syntax);
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+	opbx_verbose("%s%s\n", prefix[level], argv[0]);
 	LOCAL_USER_REMOVE(u);
 
 	return 0;
@@ -106,13 +87,16 @@ static int verbose_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app_verbose);
+	res |= opbx_unregister_application(verbose_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app_verbose, verbose_exec, verbose_synopsis, verbose_descrip);
+	verbose_app = opbx_register_application(verbose_name, verbose_exec, verbose_synopsis, verbose_syntax, verbose_descrip);
+	return 0;
 }
 
 char *description(void)

@@ -1,4 +1,4 @@
-    /*
+/*
  * CallWeaver -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
@@ -42,16 +42,47 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/app.h"
 #include "callweaver/options.h"
 
-static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+
+static void *timeout_function;
+static const char *timeout_func_name = "TIMEOUT";
+static const char *timeout_func_synopsis = "Gets or sets timeouts on the channel.";
+static const char *timeout_func_syntax = "TIMEOUT(timeouttype)";
+static const char *timeout_func_desc =
+	"Gets or sets various channel timeouts. The timeouts that can be\n"
+	"manipulated are:\n"
+	"\n"
+	"absolute: The absolute maximum amount of time permitted for a call.  A\n"
+	"	   setting of 0 disables the timeout.\n"
+	"\n"
+	"digit:    The maximum amount of time permitted between digits when the\n"
+	"          user is typing in an extension.  When this timeout expires,\n"
+	"          after the user has started to type in an extension, the\n"
+	"          extension will be considered complete, and will be\n"
+	"          interpreted.  Note that if an extension typed in is valid,\n"
+	"          it will not have to timeout to be tested, so typically at\n"
+	"          the expiry of this timeout, the extension will be considered\n"
+	"          invalid (and thus control would be passed to the 'i'\n"
+	"          extension, or if it doesn't exist the call would be\n"
+	"          terminated).  The default timeout is 5 seconds.\n"
+	"\n"
+	"response: The maximum amount of time permitted after falling through a\n"
+	"	   series of priorities for a channel in which the user may\n"
+	"	   begin typing an extension.  If the user does not type an\n"
+	"	   extension in this amount of time, control will pass to the\n"
+	"	   't' extension if it exists, and if not the call would be\n"
+	"	   terminated.  The default timeout is 10 seconds.\n";
+
+
+static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
 	time_t myt;
 
-	if (!data) {
-		opbx_log(LOG_ERROR, "Must specify type of timeout to get.\n");
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", timeout_func_syntax);
                 return NULL;
 	}
 	
-	switch(*data) {
+	switch(argv[0][0]) {
 	case 'a':
 	case 'A':
 		if (chan->whentohangup == 0) {
@@ -84,29 +115,28 @@ static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd,
 	return buf;
 }
 
-static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
+static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
 {
 	int x;
 	char timestr[64];
 	struct tm myt;
 
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", timeout_func_syntax);
+                return;
+	}
+	
         if (!chan) {
-                opbx_log(LOG_ERROR, "No channel! Timeout only works on "
-                         "channels\n");
+                opbx_log(LOG_ERROR, "No channel! Timeout only works on channels\n");
                 return;
         }
 
-	if (!data) {
-		opbx_log(LOG_ERROR, "Must specify type of timeout to set.\n");
-		return;
-	}        
-	
 	if (!value)
 		return;
 
 	x = atoi(value);
 
-	switch(*data) {
+	switch (argv[0][0]) {
 	case 'a':
 	case 'A':
 		opbx_channel_setwhentohangup(chan, x);
@@ -144,47 +174,18 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd,
 	}
 }
 
-static struct opbx_custom_function timeout_function = {
-	.name = "TIMEOUT",
-	.synopsis = "Gets or sets timeouts on the channel.",
-	.syntax = "TIMEOUT(timeouttype)",
-	.desc = "Gets or sets various channel timeouts. The timeouts that can be\n"
-	"manipulated are:\n"
-	"\n"
-	"absolute: The absolute maximum amount of time permitted for a call.  A\n"
-	"	   setting of 0 disables the timeout.\n"
-	"\n"
-	"digit:    The maximum amount of time permitted between digits when the\n"
-	"          user is typing in an extension.  When this timeout expires,\n"
-	"          after the user has started to type in an extension, the\n"
-	"          extension will be considered complete, and will be\n"
-	"          interpreted.  Note that if an extension typed in is valid,\n"
-	"          it will not have to timeout to be tested, so typically at\n"
-	"          the expiry of this timeout, the extension will be considered\n"
-	"          invalid (and thus control would be passed to the 'i'\n"
-	"          extension, or if it doesn't exist the call would be\n"
-	"          terminated).  The default timeout is 5 seconds.\n"
-	"\n"
-	"response: The maximum amount of time permitted after falling through a\n"
-	"	   series of priorities for a channel in which the user may\n"
-	"	   begin typing an extension.  If the user does not type an\n"
-	"	   extension in this amount of time, control will pass to the\n"
-	"	   't' extension if it exists, and if not the call would be\n"
-	"	   terminated.  The default timeout is 10 seconds.\n",
-	.read = builtin_function_timeout_read,
-	.write = builtin_function_timeout_write,
-};
 
 static char *tdesc = "string functions";
 
 int unload_module(void)
 {
-        return opbx_custom_function_unregister(&timeout_function);
+        return opbx_unregister_function(timeout_function);
 }
 
 int load_module(void)
 {
-        return opbx_custom_function_register(&timeout_function);
+        timeout_function = opbx_register_function(timeout_func_name, builtin_function_timeout_read, builtin_function_timeout_write, timeout_func_synopsis, timeout_func_syntax, timeout_func_desc);
+	return 0;
 }
 
 char *description(void)

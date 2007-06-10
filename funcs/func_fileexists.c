@@ -34,9 +34,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 594 $")
 
-#ifndef BUILTIN_FUNC
 #include "callweaver/module.h"
-#endif /* BUILTIN_FUNC */
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/logger.h"
@@ -44,62 +42,39 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 594 $")
 #include "callweaver/app.h"
 #include "callweaver/cdr.h"
 
-static char *builtin_function_fileexists(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static void *fileexists_function;
+static const char *fileexists_func_name = "FILEEXISTS";
+static const char *fileexists_func_synopsis = "Checks if a file exists";
+static const char *fileexists_func_syntax = "FILEEXISTS(filename)";
+static const char *fileexists_func_desc= "Returns the file status. Results are 'EXISTS' if the file exists and 'NONEXISTENT' if the file does not exist.\n";
+
+
+static char *builtin_function_fileexists(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
 	char *ret;
 	char *args;
-	int argc;
-	char *argv[2];
-	int FileStatus = 0;
 
-	if (!data || opbx_strlen_zero(data))
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", fileexists_func_syntax);
 		return NULL;
-
-	/* Parse some options */	
-	args = opbx_strdupa(data);
-	argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	/* Attempt to check if the file already exists. */
-	FileStatus = access(argv[0],F_OK);
-
-	/* If the file does exists, Proceed with the following */
-	if ( FileStatus == 0 ) {
-
-		/* The file does exist so let's set the system variable. */
-		ret="EXISTS";
-
-	} else {
-
-		/* The file does not exist. */
-		ret="NONEXISTENT";
 	}
 
-	/* Returns the File Status */
-	return ret;
+	strncpy(buf, (access(argv[0], F_OK) ? "EXISTS" : "NONEXISTENT"), len);
+	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct opbx_custom_function fileexists_function = {
-	.name = "FILEEXISTS",
-	.synopsis = "Checks if a file exists",
-	.desc= "Returns the file status. Results are 'EXISTS' if the file exists and 'NONEXISTENT' if the file does not exist.\n",
-	.syntax = "FILEEXISTS(<filename>)",
-	.read = builtin_function_fileexists,
-};
 
-#ifndef BUILTIN_FUNC
 static char *tdesc = "file existence dialplan function";
 
 int unload_module(void)
 {
-        return opbx_custom_function_unregister(&fileexists_function);
+        return opbx_unregister_function(fileexists_function);
 }
 
 int load_module(void)
 {
-        return opbx_custom_function_register(&fileexists_function);
+        fileexists_function = opbx_register_function(fileexists_func_name, builtin_function_fileexists, NULL, fileexists_func_synopsis, fileexists_func_syntax, fileexists_func_desc);
+	return 0;
 }
 
 char *description(void)
@@ -112,8 +87,6 @@ int usecount(void)
 	return 0;
 }
 
-
-#endif /* BUILTIN_FUNC */
 
 /*
 Local Variables:

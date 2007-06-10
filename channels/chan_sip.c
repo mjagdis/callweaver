@@ -158,6 +158,61 @@ static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
 
+
+static void *sipheader_function;
+static const char *sipheader_func_name = "SIP_HEADER";
+static const char *sipheader_func_synopsis = "Gets or sets the specified SIP header";
+static const char *sipheader_func_syntax = "SIP_HEADER(<name>)";
+static const char *sipheader_func_desc = "";
+
+static void *sippeer_function;
+static const char *sippeer_func_name = "SIPPEER";
+static const char *sippeer_func_synopsis = "Gets SIP peer information";
+static const char *sippeer_func_syntax = "SIPPEER(<peername>[:item])";
+static const char *sippeer_func_desc =
+	"Valid items are:\n"
+	"- ip (default)          The IP address.\n"
+	"- mailbox               The configured mailbox.\n"
+	"- context               The configured context.\n"
+	"- expire                The epoch time of the next expire.\n"
+	"- dynamic               Is it dynamic? (yes/no).\n"
+	"- callerid_name         The configured Caller ID name.\n"
+	"- callerid_num          The configured Caller ID number.\n"
+	"- codecs                The configured codecs.\n"
+	"- status                Status (if qualify=yes).\n"
+	"- regexten              Registration extension\n"
+	"- limit                 Call limit (call-limit)\n"
+	"- curcalls              Current amount of calls \n"
+	"                        Only available if call-limit is set\n"
+	"- language              Default language for peer\n"
+	"- useragent             Current user agent id for peer\n"
+	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"\n";
+
+static void *sipchaninfo_function;
+static const char *sipchaninfo_func_name = "SIPCHANINFO";
+static const char *sipchaninfo_func_synopsis = "Gets the specified SIP parameter from the current channel";
+static const char *sipchaninfo_func_syntax = "SIPCHANINFO(item)";
+static const char *sipchaninfo_func_desc =
+	"Valid items are:\n"
+	"- peerip                The IP address of the peer.\n"
+	"- recvip                The source IP address of the peer.\n"
+	"- from                  The URI from the From: header.\n"
+	"- uri                   The URI from the Contact: header.\n"
+	"- useragent             The useragent.\n"
+	"- peername              The name of the peer.\n";
+
+static void *checksipdomain_function;
+static const char *checksipdomain_func_name = "CHECKSIPDOMAIN";
+static const char *checksipdomain_func_synopsis = "Checks if domain is a local domain";
+static const char *checksipdomain_func_syntax = "CHECKSIPDOMAIN(<domain|IP>)";
+static const char *checksipdomain_func_desc =
+	"This function checks if the domain in the argument is configured\n"
+        "as a local SIP domain that this CallWeaver server is configured to handle.\n"
+        "Returns the domain name if it is locally handled, otherwise an empty string.\n"
+        "Check the domain= configuration in sip.conf\n";
+
+
 #define RTP     1
 #define NO_RTP    0
 
@@ -10518,7 +10573,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
                 break;
             opbx_cli(fd, "%s", opbx_getformatname(codec));
             if (x < 31 && opbx_codec_pref_index(pref,x+1))
-                opbx_cli(fd, "|");
+                opbx_cli(fd, ",");
         }
 
         if (!x)
@@ -11656,18 +11711,18 @@ static char show_settings_usage[] =
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-static char *func_header_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *func_header_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     char *content;
     
-    if (!data)
-    {
-        opbx_log(LOG_WARNING, "This function requires a header name.\n");
-        return NULL;
+    if (argc != 1 || !argv[0][0]) {
+	    opbx_log(LOG_ERROR, "Syntax: %s\n", sipheader_func_syntax);
+	    return NULL;
     }
 
     opbx_mutex_lock(&chan->lock);
+
     if (chan->type != channeltype)
     {
         opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
@@ -11684,7 +11739,7 @@ static char *func_header_read(struct opbx_channel *chan, char *cmd, char *data, 
         return NULL;
     }
 
-    content = get_header(&p->initreq, data);
+    content = get_header(&p->initreq, argv[0]);
 
     if (opbx_strlen_zero(content))
     {
@@ -11699,55 +11754,36 @@ static char *func_header_read(struct opbx_channel *chan, char *cmd, char *data, 
 }
 
 
-static struct opbx_custom_function sip_header_function = {
-    .name = "SIP_HEADER",
-    .synopsis = "Gets or sets the specified SIP header",
-    .syntax = "SIP_HEADER(<name>)",
-    .read = func_header_read,
-};
-
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
-static char *func_check_sipdomain(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *func_check_sipdomain(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
-    if (opbx_strlen_zero(data))
-    {
-        opbx_log(LOG_WARNING, "CHECKSIPDOMAIN requires an argument - A domain name\n");
-        return buf;
-    }
-    if (check_sip_domain(data, NULL, 0))
-        opbx_copy_string(buf, data, len);
-    else
-        buf[0] = '\0';
-    return buf;
-}
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", checksipdomain_func_syntax);
+		return NULL;
+	}
 
-static struct opbx_custom_function checksipdomain_function = {
-    .name = "CHECKSIPDOMAIN",
-    .synopsis = "Checks if domain is a local domain",
-    .syntax = "CHECKSIPDOMAIN(<domain|IP>)",
-    .read = func_check_sipdomain,
-    .desc = "This function checks if the domain in the argument is configured\n"
-        "as a local SIP domain that this CallWeaver server is configured to handle.\n"
-        "Returns the domain name if it is locally handled, otherwise an empty string.\n"
-        "Check the domain= configuration in sip.conf\n",
-};
+	if (check_sip_domain(argv[0], NULL, 0))
+		opbx_copy_string(buf, argv[0], len);
+	else
+		buf[0] = '\0';
+	return buf;
+}
 
 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-static char *function_sippeer(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_sippeer(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
     char *ret = NULL;
     struct sip_peer *peer;
     char *peername, *colname;
     char iabuf[INET_ADDRSTRLEN];
 
-    if (!(peername = opbx_strdupa(data)))
-    {
-        opbx_log(LOG_ERROR, "Memory Error!\n");
-        return ret;
+    if (argc != 1 || !argv[0][0]) {
+	    opbx_log(LOG_ERROR, "Syntax: %s\n", sippeer_func_syntax);
+	    return NULL;
     }
 
-    if ((colname = strchr(peername, ':')))
+    if ((colname = strchr(argv[0], ':')))
     {
         *colname = '\0';
         colname++;
@@ -11756,7 +11792,7 @@ static char *function_sippeer(struct opbx_channel *chan, char *cmd, char *data, 
     {
         colname = "ip";
     }
-    if (!(peer = find_peer(peername, NULL, 1)))
+    if (!(peer = find_peer(argv[0], NULL, 1)))
         return ret;
 
     if (!strcasecmp(colname, "ip"))
@@ -11840,45 +11876,19 @@ static char *function_sippeer(struct opbx_channel *chan, char *cmd, char *data, 
     return ret;
 }
 
-/* Structure to declare a dialplan function: SIPPEER */
-struct opbx_custom_function sippeer_function = {
-    .name = "SIPPEER",
-    .synopsis = "Gets SIP peer information",
-    .syntax = "SIPPEER(<peername>[:item])",
-    .read = function_sippeer,
-    .desc = "Valid items are:\n"
-    "- ip (default)          The IP address.\n"
-    "- mailbox               The configured mailbox.\n"
-    "- context               The configured context.\n"
-    "- expire                The epoch time of the next expire.\n"
-    "- dynamic               Is it dynamic? (yes/no).\n"
-    "- callerid_name         The configured Caller ID name.\n"
-    "- callerid_num          The configured Caller ID number.\n"
-    "- codecs                The configured codecs.\n"
-    "- status                Status (if qualify=yes).\n"
-    "- regexten              Registration extension\n"
-    "- limit                 Call limit (call-limit)\n"
-    "- curcalls              Current amount of calls \n"
-    "                        Only available if call-limit is set\n"
-    "- language              Default language for peer\n"
-    "- useragent             Current user agent id for peer\n"
-    "- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
-    "\n"
-};
 
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static char *function_sipchaninfo_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *function_sipchaninfo_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     char iabuf[INET_ADDRSTRLEN];
 
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", sipchaninfo_func_syntax);
+		return NULL;
+	}
+
     *buf = 0;
-    
-    if (!data)
-    {
-        opbx_log(LOG_WARNING, "This function requires a parameter name.\n");
-        return NULL;
-    }
 
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
@@ -11888,7 +11898,7 @@ static char *function_sipchaninfo_read(struct opbx_channel *chan, char *cmd, cha
         return NULL;
     }
 
-/*     opbx_verbose("function_sipchaninfo_read: %s\n", data); */
+/*     opbx_verbose("function_sipchaninfo_read: %s\n", argv[0]); */
     p = chan->tech_pvt;
 
     /* If there is no private structure, this channel is no longer alive */
@@ -11898,27 +11908,27 @@ static char *function_sipchaninfo_read(struct opbx_channel *chan, char *cmd, cha
         return NULL;
     }
 
-    if (!strcasecmp(data, "peerip"))
+    if (!strcasecmp(argv[0], "peerip"))
     {
         opbx_copy_string(buf, p->sa.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr) : "", len);
     }
-    else  if (!strcasecmp(data, "recvip"))
+    else  if (!strcasecmp(argv[0], "recvip"))
     {
         opbx_copy_string(buf, p->recv.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr) : "", len);
     }
-    else  if (!strcasecmp(data, "from"))
+    else  if (!strcasecmp(argv[0], "from"))
     {
         opbx_copy_string(buf, p->from, len);
     }
-    else  if (!strcasecmp(data, "uri"))
+    else  if (!strcasecmp(argv[0], "uri"))
     {
         opbx_copy_string(buf, p->uri, len);
     }
-    else  if (!strcasecmp(data, "useragent"))
+    else  if (!strcasecmp(argv[0], "useragent"))
     {
         opbx_copy_string(buf, p->useragent, len);
     }
-    else  if (!strcasecmp(data, "peername"))
+    else  if (!strcasecmp(argv[0], "peername"))
     {
         opbx_copy_string(buf, p->peername, len);
     }
@@ -11931,22 +11941,6 @@ static char *function_sipchaninfo_read(struct opbx_channel *chan, char *cmd, cha
 
     return buf;
 }
-
-/* Structure to declare a dialplan function: SIPCHANINFO */
-static struct opbx_custom_function sipchaninfo_function = {
-    .name = "SIPCHANINFO",
-    .synopsis = "Gets the specified SIP parameter from the current channel",
-    .syntax = "SIPCHANINFO(item)",
-    .read = function_sipchaninfo_read,
-    .desc = "Valid items are:\n"
-    "- peerip                The IP address of the peer.\n"
-    "- recvip                The source IP address of the peer.\n"
-    "- from                  The URI from the From: header.\n"
-    "- uri                   The URI from the Contact: header.\n"
-    "- useragent             The useragent.\n"
-    "- peername              The name of the peer.\n"
-};
-
 
 
 /*! \brief  parse_moved_contact: Parse 302 Moved temporalily response */
@@ -16604,47 +16598,49 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
     }
 }
 
-static char *synopsis_dtmfmode = "Change the DTMF mode for a SIP call";
-static char *descrip_dtmfmode = "SipDTMFMode(inband|info|rfc2833): Changes the DTMF mode for a SIP call\n";
-static char *app_dtmfmode = "SipDTMFMode";
+static void *dtmfmode_app;
+static char *dtmfmode_name = "SipDTMFMode";
+static char *dtmfmode_synopsis = "Change the DTMF mode for a SIP call";
+static char *dtmfmode_syntax = "SipDTMFMode(inband|info|rfc2833)";
+static char *dtmfmode_description = "Changes the DTMF mode for a SIP call\n";
 
-static char *app_sipaddheader = "SipAddHeader";
-static char *synopsis_sipaddheader = "Add a SIP header to the outbound call";
-static char *descrip_sipaddheader = ""
-"  SipAddHeader(Header: Content)\n"
+static void *sipaddheader_app;
+static char *sipaddheader_name = "SipAddHeader";
+static char *sipaddheader_synopsis= "Add a SIP header to the outbound call";
+static char *sipaddheader_syntax = "SipAddHeader(Header: Content)";
+static char *sipaddheader_description =
 "Adds a header to a SIP call placed with DIAL.\n"
 "Remember to user the X-header if you are adding non-standard SIP\n"
 "headers, like \"X-CallWeaver-Accountcode:\". Use this with care.\n"
 "Adding the wrong headers may jeopardize the SIP dialog.\n"
 "Always returns 0\n";
 
-static char *app_sipgetheader = "SipGetHeader";
-static char *synopsis_sipgetheader = "Get a SIP header from an incoming call";
- 
-static char *descrip_sipgetheader = ""
-"  SipGetHeader(var=headername): \n"
+static void *sipgetheader_app;
+static char *sipgetheader_name= "SipGetHeader";
+static char *sipgetheader_synopsis= "Get a SIP header from an incoming call";
+static char *sipgetheader_syntax = "SipGetHeader(var=headername)";
+static char *sipgetheader_description =
 "Sets a channel variable to the content of a SIP header\n"
 "Skips to priority+101 if header does not exist\n"
 "Otherwise returns 0\n";
 
-
-static char *app_sipt38switchover = "SipT38SwitchOver";
-static char *synopsis_sipt38switchover = "Forces a T38 switchover on a non-bridged channel.";
-static char *descrip_sipt38switchover = ""
-"  SipT38SwitchOver()\n"
-"Forces a T38 switchover on a non-bridged channel.\n"
-"\n";
+static void *sipt38switchover_app;
+static char *sipt38switchover_name = "SipT38SwitchOver";
+static char *sipt38switchover_synopsis= "Forces a T38 switchover on a non-bridged channel.";
+static char *sipt38switchover_syntax= "SipT38SwitchOver()";
+static char *sipt38switchover_description= ""
+"Forces a T38 switchover on a non-bridged channel.\n";
 
 
 /*! \brief  app_sipt38switchover: forces a T38 Switchover on a sip channel. */
-static int sip_t38switchover(struct opbx_channel *chan, void *data) 
+static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv) 
 {
     struct sip_pvt *p;
 /*
-    if (!data)
+    if (argc < 1 || !argv[0][0])
     {
-        opbx_log(LOG_WARNING, "This function requires a header name.\n");
-        return 0;
+        opbx_log(LOG_ERROR, "Syntax: %s\n", sipt38switchover_syntax);
+        return -1;
     }
 */
     opbx_mutex_lock(&chan->lock);
@@ -16704,25 +16700,20 @@ static int sip_t38switchover(struct opbx_channel *chan, void *data)
 }
 
 static int sip_do_t38switchover(const struct opbx_channel *chan) {
-    return sip_t38switchover( (struct opbx_channel*) chan,NULL);
+    return sip_t38switchover( (struct opbx_channel*) chan, 0, NULL);
 }
 
 
 
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) */
-static int sip_dtmfmode(struct opbx_channel *chan, void *data)
+static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv)
 {
     struct sip_pvt *p;
-    char *mode;
-    
-    if (data)
+
+    if (argc != 1 || !argv[0][0])
     {
-        mode = (char *) data;
-    }
-    else
-    {
-        opbx_log(LOG_WARNING, "This application requires the argument: info, inband, rfc2833\n");
-        return 0;
+        opbx_log(LOG_ERROR, "Syntax: %s\n", dtmfmode_syntax);
+        return -1;
     }
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
@@ -16738,23 +16729,23 @@ static int sip_dtmfmode(struct opbx_channel *chan, void *data)
         return 0;
     }
     opbx_mutex_lock(&p->lock);
-    if (!strcasecmp(mode,"info"))
+    if (!strcasecmp(argv[0],"info"))
     {
         opbx_clear_flag(p, SIP_DTMF);
         opbx_set_flag(p, SIP_DTMF_INFO);
     }
-    else if (!strcasecmp(mode,"rfc2833"))
+    else if (!strcasecmp(argv[0],"rfc2833"))
     {
         opbx_clear_flag(p, SIP_DTMF);
         opbx_set_flag(p, SIP_DTMF_RFC2833);
     }
-    else if (!strcasecmp(mode,"inband"))
+    else if (!strcasecmp(argv[0],"inband"))
     { 
         opbx_clear_flag(p, SIP_DTMF);
         opbx_set_flag(p, SIP_DTMF_INBAND);
     }
     else
-        opbx_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
+        opbx_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n", argv[0]);
     if (opbx_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND)
     {
         if (!p->vad)
@@ -16777,19 +16768,17 @@ static int sip_dtmfmode(struct opbx_channel *chan, void *data)
 }
 
 /*! \brief  sip_addheader: Add a SIP header */
-static int sip_addheader(struct opbx_channel *chan, void *data)
+static int sip_addheader(struct opbx_channel *chan, int argc, char **argv)
 {
-    int arglen;
+    char varbuf[128];
+    char *content = (char *) NULL;
     int no = 0;
     int ok = 0;
-    char *content = (char *) NULL;
-    char varbuf[128];
     
-    arglen = strlen(data);
-    if (!arglen)
+    if (argc < 1 || !argv[0][0])
     {
-        opbx_log(LOG_WARNING, "This application requires the argument: Header\n");
-        return 0;
+        opbx_log(LOG_ERROR, "Syntax: %s\n", sipaddheader_syntax);
+        return -1;
     }
     opbx_mutex_lock(&chan->lock);
 
@@ -16805,9 +16794,9 @@ static int sip_addheader(struct opbx_channel *chan, void *data)
     }
     if (ok)
     {
-        pbx_builtin_setvar_helper (chan, varbuf, data);
+        pbx_builtin_setvar_helper (chan, varbuf, argv[0]);
         if (sipdebug)
-            opbx_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", (char *) data, varbuf);
+            opbx_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", argv[0], varbuf);
     }
     else
     {
@@ -16818,11 +16807,11 @@ static int sip_addheader(struct opbx_channel *chan, void *data)
 }
 
 /*! \brief  sip_getheader: Get a SIP header (dialplan app) */
-static int sip_getheader(struct opbx_channel *chan, void *data)
+static int sip_getheader(struct opbx_channel *chan, int argc, char **argv)
 {
     static int dep_warning = 0;
     struct sip_pvt *p;
-    char *argv, *varname = NULL, *header = NULL, *content;
+    char *header, *content;
     
     if (!dep_warning)
     {
@@ -16830,25 +16819,11 @@ static int sip_getheader(struct opbx_channel *chan, void *data)
         dep_warning = 1;
     }
 
-    argv = opbx_strdupa(data);
-    if (!argv)
-    {
-        opbx_log(LOG_DEBUG, "Memory allocation failed\n");
-        return 0;
+    if (argc != 1 || !(header = strchr(argv[0], '='))) {
+        opbx_log(LOG_ERROR, "Syntax: %s\n", sipgetheader_syntax);
+        return -1;
     }
-
-    if (strchr (argv, '='))
-    {
-        /* Pick out argumenet */
-        varname = strsep (&argv, "=");
-        header = strsep (&argv, "\0");
-    }
-
-    if (!varname  ||  !header)
-    {
-        opbx_log(LOG_DEBUG, "SipGetHeader: Ignoring command, Syntax error in argument\n");
-        return 0;
-    }
+    *(header++) = '\0';
 
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
@@ -16862,11 +16837,11 @@ static int sip_getheader(struct opbx_channel *chan, void *data)
     content = get_header(&p->initreq, header);    /* Get the header */
     if (!opbx_strlen_zero(content))
     {
-        pbx_builtin_setvar_helper(chan, varname, content);
+        pbx_builtin_setvar_helper(chan, argv[0], content);
     }
     else
     {
-        opbx_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, varname);
+        opbx_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, argv[0]);
         opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
     }
     
@@ -17153,19 +17128,19 @@ int load_module(void)
     //opbx_tpkt_proto_register(&sip_tpkt);
 
     /* Register dialplan applications */
-    opbx_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
-    opbx_register_application(app_sipt38switchover, sip_t38switchover, synopsis_sipt38switchover, descrip_sipt38switchover);
+    dtmfmode_app = opbx_register_application(dtmfmode_name, sip_dtmfmode, dtmfmode_synopsis, dtmfmode_syntax, dtmfmode_description);
+    sipt38switchover_app = opbx_register_application(sipt38switchover_name, sip_t38switchover, sipt38switchover_synopsis, sipt38switchover_syntax, sipt38switchover_description);
     opbx_install_t38_functions(sip_do_t38switchover);
 
     /* These will be removed soon */
-    opbx_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
-    opbx_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
+    sipaddheader_app = opbx_register_application(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
+    sipgetheader_app = opbx_register_application(sipgetheader_name, sip_getheader, sipgetheader_synopsis, sipgetheader_syntax, sipgetheader_description);
 
     /* Register dialplan functions */
-    opbx_custom_function_register(&sip_header_function);
-    opbx_custom_function_register(&sippeer_function);
-    opbx_custom_function_register(&sipchaninfo_function);
-    opbx_custom_function_register(&checksipdomain_function);
+    sipheader_function = opbx_register_function(sipheader_func_name, func_header_read, NULL, sipheader_func_synopsis, sipheader_func_syntax, sipheader_func_desc);
+    sippeer_function = opbx_register_function(sippeer_func_name, function_sippeer, NULL, sippeer_func_synopsis, sippeer_func_syntax, sippeer_func_desc);
+    sipchaninfo_function = opbx_register_function(sipchaninfo_func_name, function_sipchaninfo_read, NULL, sipchaninfo_func_synopsis, sipchaninfo_func_syntax, sipchaninfo_func_desc);
+    checksipdomain_function = opbx_register_function(checksipdomain_func_name, func_check_sipdomain, NULL, checksipdomain_func_synopsis, checksipdomain_func_syntax, checksipdomain_func_desc);
 
     /* Register manager commands */
     opbx_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -17185,20 +17160,21 @@ int load_module(void)
 int unload_module(void)
 {
     struct sip_pvt *p, *pl;
+    int res = 0;
     
     /* First, take us out of the channel type list */
     opbx_channel_unregister(&sip_tech);
 
-    opbx_custom_function_unregister(&sipchaninfo_function);
-    opbx_custom_function_unregister(&sippeer_function);
-    opbx_custom_function_unregister(&sip_header_function);
-    opbx_custom_function_unregister(&checksipdomain_function);
+    opbx_unregister_function(checksipdomain_function);
+    opbx_unregister_function(sipchaninfo_function);
+    opbx_unregister_function(sippeer_function);
+    opbx_unregister_function(sipheader_function);
 
-    opbx_unregister_application(app_sipt38switchover);
+    res |= opbx_unregister_application(sipt38switchover_app);
     opbx_uninstall_t38_functions();
-    opbx_unregister_application(app_dtmfmode);
-    opbx_unregister_application(app_sipaddheader);
-    opbx_unregister_application(app_sipgetheader);
+    res |= opbx_unregister_application(dtmfmode_app);
+    res |= opbx_unregister_application(sipaddheader_app);
+    res |= opbx_unregister_application(sipgetheader_app);
 
     opbx_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
@@ -17277,7 +17253,7 @@ int unload_module(void)
     close(sipsock);
     sched_context_destroy(sched);
         
-    return 0;
+    return res;
 }
 
 int usecount()

@@ -52,32 +52,29 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1055 $")
 
 static char *tdesc = "Get state for given extension in a context (show hints)";
 
-static char *g_app = "GetExtState";
-
+static void *g_app;
+static char *g_name = "GetExtState";
+static char *g_synopsis = "Get state for given extension in a context (show hints)";
+static char *g_syntax = "GetExtState(extensions1[&extension2], context)";
 static char *g_descrip =
-	"  GetExtState(extensions1[&extension2]|context): \n"
 	"Report the extension state for given extension in a context and saves it in EXTSTATE variable. \n"
 	"Valid EXTSTATE values are:\n"
 	"0 = idle, 1 = inuse; 2 = busy, \n"
 	"4 = unavail, 8 = ringing; -1 unknown; \n"
-	"Example: GetExtState(715&523|default)\n";
+	"Example: GetExtState(715&523, default)\n";
 
-static char *g_synopsis = "Get state for given extension in a context (show hints)";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int get_extstate(struct opbx_channel *chan, void *data)
+static int get_extstate(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *argv;
 	struct localuser *u;
 
 	int res=-1;
 	char resc[8]="-1";
 
-	char *exten,*ext;
-	char *context;
 	char hint[OPBX_MAX_EXTENSION] = "";
 	char hints[1024] = "";
 
@@ -85,46 +82,14 @@ static int get_extstate(struct opbx_channel *chan, void *data)
 	int allunavailable = 1, allbusy = 1, allfree = 1;
 	int busy = 0, inuse = 0, ring = 0;
 			
+	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", g_syntax);
+		return -1;
+	}
+
 	LOCAL_USER_ADD(u);
 
-	argv = opbx_strdupa(data);
-	
-	if (!argv) {
-		opbx_log(LOG_ERROR, "Memory allocation failed\n");
-		pbx_builtin_setvar_helper(chan, "EXTSTATE", resc );	
-		LOCAL_USER_REMOVE(u);
-		return RESULT_FAILURE;
-	}
-
-	exten   = argv;
-	context = strchr(argv, '|');
-	if (context) {
-            *context = '\0';
-	    context++;
-	} else {
-	    opbx_log(LOG_ERROR, "Ignoring, no context\n");
-	    pbx_builtin_setvar_helper(chan, "EXTSTATE", resc );	
-	    LOCAL_USER_REMOVE(u);
-	    return RESULT_FAILURE;
-	}
-
-        if (opbx_strlen_zero(exten)) {
-	    opbx_log(LOG_ERROR, "Ignoring, no extension\n");
-	    pbx_builtin_setvar_helper(chan, "EXTSTATE", resc );	
-	    LOCAL_USER_REMOVE(u);
-	    return RESULT_FAILURE;
-	}
-
-
-	ext = opbx_strdupa(exten);
-	if (!ext) {
-		opbx_log(LOG_ERROR, "Memory allocation failed\n");
-		pbx_builtin_setvar_helper(chan, "EXTSTATE", resc );	
-		LOCAL_USER_REMOVE(u);
-		return RESULT_FAILURE;
-	}
-	
-	cur=ext;
+	cur = argv[0];
 
 	do {
 		rest = strchr(cur, '&');
@@ -132,8 +97,8 @@ static int get_extstate(struct opbx_channel *chan, void *data)
 			*rest = 0;
 			rest++;
 		}
-	    opbx_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, cur);
-	    //opbx_log(LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,context,cur);
+	    opbx_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, argv[1], cur);
+	    //opbx_log(LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,argv[1],cur);
 	    if (!opbx_strlen_zero(hint)) {
 		//let's concat hints!
 		if ( strlen(hint)+strlen(hints)+2<sizeof(hints) ) {
@@ -209,7 +174,7 @@ static int get_extstate(struct opbx_channel *chan, void *data)
 	else 	res=-1;
 	
         opbx_log(LOG_DEBUG, "app_getextstate setting EXTSTATE to %d for extension %s in context %s\n",
-               res, exten, context);
+               res, argv[0], argv[1]);
 	snprintf(resc,sizeof(resc),"%d",res);
 	pbx_builtin_setvar_helper(chan, "EXTSTATE", resc );	
 
@@ -220,21 +185,17 @@ static int get_extstate(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int retval;
+	int res = 0;
 
 	STANDARD_HANGUP_LOCALUSERS;
-	retval = opbx_unregister_application(g_app);
-
-	return retval;
+	res |= opbx_unregister_application(g_app);
+	return res;
 }
 
 int load_module(void)
 {
-	int retval;
-
-	retval = opbx_register_application(g_app, get_extstate, g_synopsis, g_descrip);
-	
-	return retval;
+	g_app = opbx_register_application(g_name, get_extstate, g_synopsis, g_syntax, g_descrip);
+	return 0;
 }
 
 char *description(void)

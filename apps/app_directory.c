@@ -46,11 +46,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/utils.h"
 
 static char *tdesc = "Extension Directory";
-static char *app = "Directory";
 
-static char *synopsis = "Provide directory of voicemail extensions";
-static char *descrip =
-"  Directory(vm-context[|dial-context[|options]]): Presents the user with a directory\n"
+static void *directory_app;
+static char *directory_name = "Directory";
+static char *directory_synopsis = "Provide directory of voicemail extensions";
+static char *directory_syntax = "Directory(vm-context[, dial-context[, options]])";
+static char *directory_descrip =
+"Presents the user with a directory\n"
 "of extensions from which they  may  select  by name. The  list  of  names \n"
 "and  extensions  is discovered from  voicemail.conf. The  vm-context  argument\n"
 "is required, and specifies  the  context  of voicemail.conf to use.  The\n"
@@ -406,35 +408,25 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 	return res;
 }
 
-static int directory_exec(struct opbx_channel *chan, void *data)
+static int directory_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res = 0;
 	struct localuser *u;
 	struct opbx_config *cfg;
-	int last = 1;
 	char *context, *dialcontext, *dirintro, *options;
+	int res = 0;
+	int last = 1;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
+	if (argc < 1 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", directory_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	context = opbx_strdupa(data);
-	dialcontext = strchr(context, '|');
-	if (dialcontext) {
-		*dialcontext = '\0';
-		dialcontext++;
-		options = strchr(dialcontext, '|');
-		if (options) {
-			*options = '\0';
-			options++; 
-			if (strchr(options, 'f'))
-				last = 0;
-		}
-	} else	
-		dialcontext = context;
+	context = argv[0];
+	dialcontext = (argc > 1 && argv[1][0] ? argv[1] : context);
+	if (argc > 2 && strchr(argv[2], 'f'))
+		last = 0;
 
 	cfg = realtime_directory(context);
 	if (!cfg) {
@@ -479,13 +471,16 @@ static int directory_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(directory_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, directory_exec, synopsis, descrip);
+	directory_app = opbx_register_application(directory_name, directory_exec, directory_synopsis, directory_syntax, directory_descrip);
+	return 0;
 }
 
 char *description(void)

@@ -47,12 +47,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Set RDNIS Number";
 
-static char *app = "SetRDNIS";
-
-static char *synopsis = "Set RDNIS Number";
-
-static char *descrip = 
-"  SetRDNIS(cnum): Set RDNIS Number on a call to a new\n"
+static void *setrdnis_app;
+static const char *setrdnis_name = "SetRDNIS";
+static const char *setrdnis_synopsis = "Set RDNIS Number";
+static const char *setrdnis_syntax = "SetRDNIS(cnum)";
+static const char *setrdnis_descrip = 
+"Set RDNIS Number on a call to a new\n"
 "value.  Always returns 0\n"
 "SetRDNIS has been deprecated in favor of the function\n"
 "CALLERID(rdnis)\n";
@@ -61,31 +61,21 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int setrdnis_exec(struct opbx_channel *chan, void *data)
+static int setrdnis_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
-	char *opt, *n, *l;
-	char *tmp = NULL;
+	char *n, *l;
 	static int deprecation_warning = 0;
 
-	LOCAL_USER_ADD(u);
-	
 	if (!deprecation_warning) {
 		opbx_log(LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 
-	if (data)
-		tmp = opbx_strdupa(data);
-	else
-		tmp = "";	
+	LOCAL_USER_ADD(u);
 
-	opt = strchr(tmp, '|');
-	if (opt)
-		*opt = '\0';
-	
 	n = l = NULL;
-	opbx_callerid_parse(tmp, &n, &l);
+	opbx_callerid_parse(argv[0], &n, &l);
 	if (l) {
 		opbx_shrink_phone_number(l);
 		opbx_mutex_lock(&chan->lock);
@@ -102,13 +92,16 @@ static int setrdnis_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(setrdnis_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, setrdnis_exec, synopsis, descrip);
+	setrdnis_app = opbx_register_application(setrdnis_name, setrdnis_exec, setrdnis_synopsis, setrdnis_syntax, setrdnis_descrip);
+	return 0;
 }
 
 char *description(void)

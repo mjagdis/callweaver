@@ -175,9 +175,8 @@ void icd_plugable__create_standard_fns(icd_plugable_fn_list * that, icd_config *
         queuelist = icd_config__get_value(data, "queue");
     opbx_log(LOG_NOTICE, "QueueLIST[%s]\n", queuelist);
     while (queuelist != NULL) {
-        /* This has been normalized to use only a "|" to separate queue names */
-        currqueue = strsep(&queuelist, "|");
-        //currqueue = strsep(&queuelist, ",");
+        /* This has been normalized to use only a '|' or ',' to separate queue names */
+        currqueue = strsep(&queuelist, "|,");
         if (currqueue != NULL && strlen(currqueue) > 0) {
             queue = icd_fieldset__get_value(queues, currqueue);
             if (queue != NULL) {

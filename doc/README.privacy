@@ -95,7 +95,7 @@ exten => s,107,Background(tt-monkeysintro)
 exten => s,108,Background(tt-monkeys)
 exten => s,109,Background(tt-weasels)
 exten => s,110,Hangup
-exten => s,5,GotoIf($[ "${CALLERIDNUM}"  = "7773334444" &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+exten => s,5,GotoIf($[ "${CALLERIDNUM}"  = "7773334444" &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
 
 I suggest using Zapateller at the beginning of the context, before
 anything else, on incoming calls.This can be followed by the
@@ -181,15 +181,15 @@ There are some variations, and these will be explained in due course.
 
 To use these options, set your Dial to something like:
 
-exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmPA(beep))
+exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmPA(beep))
 
 or 
 
-exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmP(something)A(beep))
+exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmP(something)A(beep))
 
 or 
 
-exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmpA(beep))
+exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmpA(beep))
 
 
 The 't' allows the dialed party to transfer the call using '#'. It's
@@ -265,13 +265,13 @@ having to supply their name, which shortens their call a bit.
 Next of all, these intros can be used in voicemail, played over
 loudspeakers, and perhaps other nifty things. For instance:
 
-exten => s,7,System(/usr/bin/play /var/lib/callweaver/sounds/priv-callerintros/${CALLERIDNUM}.gsm&|0) 
+exten => s,7,System(/usr/bin/play /var/lib/callweaver/sounds/priv-callerintros/${CALLERIDNUM}.gsm&,0) 
 
 When a call comes in at the house, the above priority gets executed,
 and the callers intro is played over the phone systems speakers. This
 gives us a hint who is calling.
 
-(Note: the |0 option at the end of the System command above, is a
+(Note: the ,0 option at the end of the System command above, is a
 local mod I made to the System command. It forces a 0 result code to
 be returned, whether the play command successfully completed or
 not. Therefore, I don't have to ensure that the file exists or
@@ -282,7 +282,7 @@ handle it a little more intelligently)
 And one other thing. You can easily supply your callers with an option
 to listen to, and re-record their introductions. Here's what I did in
 the home system's extensions.conf. (assume that a
-Goto(home-introduction|s|1) exists somewhere in your main menu as an
+Goto(home-introduction,s,1) exists somewhere in your main menu as an
 option):
 
 [home-introduction]
@@ -345,7 +345,7 @@ exten => 1,2,Goto(2,1)
 exten => 2,1,Background,intro-start
                                 ;;  OK, here we go! After the beep, please give your introduction.
 exten => 2,2,Background,beep
-exten => 2,3,Record,priv-callerintros/${CALLERIDNUM}:gsm|4
+exten => 2,3,Record,priv-callerintros/${CALLERIDNUM}:gsm,4
 exten => 2,4,Background,priv-callerintros/${CALLERIDNUM}
 exten => 2,5,Goto(home-introduction,s,1)
 exten => t,1,Goto(s,1)

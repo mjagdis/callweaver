@@ -43,89 +43,81 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/app.h"
 
 static char *tdesc = "Trivial skeleton Application";
-static char *app = "Skel";
-static char *synopsis = 
-"Skeleton application.";
-static char *descrip = "This application is a template to build other applications from.\n"
+
+static void *skel_app = NULL;
+static const char *skel_name = "Skel";
+static const char *skel_synopsis = "Skeleton application.";
+static const char *skel_syntax = "Skel()";
+static const char *skel_descrip = "This application is a template to build other applications from.\n"
  " It shows you the basic structure to create your own CallWeaver applications.\n";
 
-#define OPTION_A	(1 << 0)	/* Option A */
-#define OPTION_B	(1 << 1)	/* Option B(n) */
-#define OPTION_C	(1 << 2)	/* Option C(str) */
-#define OPTION_NULL	(1 << 3)	/* Dummy Termination */
-
-OPBX_DECLARE_OPTIONS(app_opts,{
-	['a'] = { OPTION_A },
-	['b'] = { OPTION_B, 1 },
-	['c'] = { OPTION_C, 2 }
-});
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int app_exec(struct opbx_channel *chan, void *data)
+static int skel_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 0;
-	struct opbx_flags flags;
 	struct localuser *u;
-	char *options=NULL;
-	char *dummy = NULL;
-	char *args;
-	int argc = 0;
-	char *opts[2];
-	char *argv[2];
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n",app);
-		LOCAL_USER_REMOVE(u);
+	/* Check the argument count is within range and any
+	 * required arguments are none blank.
+	 */
+	if (argc < 1 || argc > 2 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", skel_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 	
-	/* Do our thing here */
-
-	/* We need to make a copy of the input string if we are going to modify it! */
-	args = opbx_strdupa(data);	
-	if (!args) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-	
-	if ((argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		dummy = argv[0];
-		options = argv[1];
-		opbx_parseoptions(app_opts, &flags, opts, options);
-	}
-
-	if (!opbx_strlen_zero(dummy)) 
-		opbx_log(LOG_NOTICE, "Dummy value is : %s\n", dummy);
-
-	if (opbx_test_flag(&flags, OPTION_A))
-		opbx_log(LOG_NOTICE, "Option A is set\n");
-
-	if (opbx_test_flag(&flags, OPTION_B))
-		opbx_log(LOG_NOTICE,"Option B is set with : %s\n", opts[0] ? opts[0] : "<unspecified>");
-
-	if (opbx_test_flag(&flags, OPTION_C))
-		opbx_log(LOG_NOTICE,"Option C is set with : %s\n", opts[1] ? opts[1] : "<unspecified>");
+	/* Do our thing here.
+	 * The argv array is private and modifiable as are the strings
+	 * pointed to by the argv[] elements (but don't assume they are
+	 * contiguous and can be glued together by overwriting the
+	 * terminating nulls!)
+	 * If you pass argv data to something outside your control
+	 * you should assume it has been trashed and is unusable
+	 * on return. If you want to preserve it either malloc
+	 * and copy or use opbx_strdupa()
+	 */
 
 	LOCAL_USER_REMOVE(u);
 	
 	return res;
 }
 
+
+/* \brief unload this module (CallWeaver continues running)
+ * 
+ * This is _only_ called if the module is explicitly unloaded.
+ * It is _not_ called if CallWeaver exits completely. If you need
+ * to perform clean up on exit you should register functions
+ * using opbx_register_atexit - and remember to remove them
+ * with opbx_unregister_atexit in your unload_module and
+ * call them yourself if necessary.
+ */
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+
+	/* Unregister _everything_ that you registered in your
+	 * load_module routine. Return zero if unregistering was
+	 * successful and you are happy for the module to be
+	 * removed. Otherwise return non-zero.
+	 * If you allow the module to be removed while things
+	 * are still registered you _will_ crash CallWeaver!
+	 */
+	if (skel_app)
+		res |= opbx_unregister_application(skel_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, app_exec, synopsis, descrip);
+	skel_app = opbx_register_application(skel_name, skel_exec, skel_synopsis, skel_syntax, skel_descrip);
+	return 0;
 }
 
 char *description(void)

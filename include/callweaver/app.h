@@ -146,7 +146,7 @@ int opbx_control_streamfile(struct opbx_channel *chan, const char *file, const c
 /*! Play a stream and wait for a digit, returning the digit that was pressed */
 int opbx_play_and_wait(struct opbx_channel *chan, const char *fn);
 
-/*! Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum */
+/*! Record a file for a max amount of time (in seconds), in a given list of formats separated by ',', outputting the duration of the recording, and with a maximum */
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. 
      calls opbx_unlock_path() on 'path' if passed */
 int opbx_play_and_record(struct opbx_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
@@ -189,61 +189,20 @@ int opbx_app_group_get_count(char *group, char *category);
 /*! Get the current channel count of all groups that match the specified pattern and category. */
 int opbx_app_group_match_get_count(char *groupmatch, char *category);
 
-/*!
-  \brief Define an application argument
-  \param name The name of the argument
-*/
-#define OPBX_APP_ARG(name) char *name
 
-/*!
-  \brief Declare a structure to hold the application's arguments.
-  \param name The name of the structure
-  \param arglist The list of arguments, defined using OPBX_APP_ARG
-
-  This macro defines a structure intended to be used in a call
-  to opbx_separate_app_args(). The structure includes all the
-  arguments specified, plus an argv array that overlays them and an
-  argc argument counter. The arguments must be declared using OPBX_APP_ARG,
-  and they will all be character pointers (strings).
-
-  Note: The structure is <b>not</b> initialized, as the call to
-  opbx_separate_app_args() will perform that function before parsing
-  the arguments.
- */
-#define OPBX_DECLARE_APP_ARGS(name, arglist) \
-	struct { \
-		int argc; \
-		char *argv[0]; \
-		arglist \
-	} name;
-
-/*!
-  \brief Performs the 'standard' argument separation process for an application.
-  \param args An argument structure defined using OPBX_DECLARE_APP_ARGS
-  \param parse A modifiable buffer containing the input to be parsed
-
-  This function will separate the input string using the standard argument
-  separator character '|' and fill in the provided structure, including
-  the argc argument counter field.
- */
-#define OPBX_STANDARD_APP_ARGS(args, parse) \
-	args.argc = opbx_separate_app_args(parse, '|', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
-	
 /*!
   \brief Separate a string into arguments in an array
   \param buf The string to be parsed (this must be a writable copy, as it will be modified)
   \param delim The character to be used to delimit arguments
-  \param array An array of 'char *' to be filled in with pointers to the found arguments
-  \param arraylen The number of elements in the array (i.e. the number of arguments you will accept)
+  \param argv An array of 'char *' to be filled in with pointers to the found arguments
+  \param max_args The number of elements in the array (i.e. the number of arguments you will accept)
 
-  Note: if there are more arguments in the string than the array will hold, the last element of
-  the array will contain the remaining arguments, not separated.
-
-  The array will be completely zeroed by this function before it populates any entries.
+  Note: if there are more arguments in the string than the array will hold, trailing
+  arguments will be discarded
 
   \return The number of arguments found, or zero if the function arguments are not valid.
 */
-int opbx_separate_app_args(char *buf, char delim, char **array, int arraylen);
+int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 int opbx_app_dtget(struct opbx_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);

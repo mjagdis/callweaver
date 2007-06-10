@@ -42,30 +42,31 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 
-static char *synopsis = "Soft Hangup Application";
-
 static char *tdesc = "Hangs up the requested channel";
 
-static char *desc = "  SoftHangup(|Technology/resource|options)\n"
+static void *softhangup_app;
+static const char *softhangup_name = "SoftHangup";
+static const char *softhangup_synopsis = "Soft Hangup Application";
+static const char *softhangup_syntax = "SoftHangup([Technology/resource[, options]])";
+static const char *softhangup_descrip =
 "Hangs up the requested channel.  Always returns 0\n"
 "- 'options' may contain the following letter:\n"
 "     'a' : hang up all channels on a specified device instead of a single resource\n";
 
-static char *app = "SoftHangup";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int softhangup_exec(struct opbx_channel *chan, void *data)
+static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct opbx_channel *c=NULL;
-	char *options, *cut, *cdata, *match;
+	char *cut;
 	char name[OPBX_CHANNEL_NAME] = "";
 	int all = 0;
 	
-	if (opbx_strlen_zero(data)) {
+	if (argc == 0) {
 		if (chan){
 			opbx_log(LOG_WARNING, "Soft hanging %s up.\n",chan->name);
 			opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
@@ -77,15 +78,11 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 
-	cdata = opbx_strdupa(data);
-	match = strsep(&cdata, "|");
-	options = strsep(&cdata, "|");
-	all = options && strchr(options,'a');
+	all = (argc > 1 && strchr(argv[1], 'a'));
+
 	c = opbx_channel_walk_locked(NULL);
 	while (c) {
 		strncpy(name, c->name, sizeof(name)-1);
-		opbx_mutex_unlock(&c->lock);
-		/* XXX watch out, i think it is wrong to access c-> after unlocking! */
 		if (all) {
 			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
 			if (!strcmp(c->type,"CAPI")) 
@@ -97,7 +94,8 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 			if (cut)
 				*cut = 0;
 		}
-		if (!strcasecmp(name, match)) {
+		opbx_mutex_unlock(&c->lock);
+		if (!strcasecmp(name, argv[0])) {
 			opbx_log(LOG_WARNING, "Soft hanging %s up.\n",c->name);
 			opbx_softhangup(c, OPBX_SOFTHANGUP_EXPLICIT);
 			if(!all)
@@ -113,13 +111,16 @@ static int softhangup_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(softhangup_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, softhangup_exec, synopsis, desc);
+	softhangup_app = opbx_register_application(softhangup_name, softhangup_exec, softhangup_synopsis, softhangup_syntax, softhangup_descrip);
+	return 0;
 }
 
 char *description(void)

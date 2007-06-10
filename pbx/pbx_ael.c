@@ -261,7 +261,7 @@ static void print_pval(FILE *fin, pval *item, int depth)
 			}
 			fprintf(fin,"%s", lp->u1.str); /* usually, words are encapsulated in something else */
 			if ( lp->u2.arglist )
-				fprintf(fin,"|%s|%s|%s|%s", 
+				fprintf(fin,",%s,%s,%s,%s", 
 						lp->u2.arglist->u1.str,
 						lp->u2.arglist->next->u1.str,
 						lp->u2.arglist->next->next->u1.str,
@@ -293,9 +293,9 @@ static void print_pval(FILE *fin, pval *item, int depth)
 	case PV_GOTO:
 		fprintf(fin,"goto %s", item->u1.list->u1.str);
 		if ( item->u1.list->next )
-			fprintf(fin,"|%s", item->u1.list->next->u1.str);
+			fprintf(fin,",%s", item->u1.list->next->u1.str);
 		if ( item->u1.list->next && item->u1.list->next->next )
-			fprintf(fin,"|%s", item->u1.list->next->next->u1.str);
+			fprintf(fin,",%s", item->u1.list->next->next->u1.str);
 		fprintf(fin,"\n");
 		break;
 			
@@ -330,7 +330,7 @@ static void print_pval(FILE *fin, pval *item, int depth)
 	case PV_IF:
 		if ( item->type == PV_IFTIME ) {
 			
-			fprintf(fin,"ifTime ( %s|%s|%s|%s )\n", 
+			fprintf(fin,"ifTime ( %s,%s,%s,%s )\n", 
 					item->u1.list->u1.str, 
 					item->u1.list->next->u1.str, 
 					item->u1.list->next->next->u1.str, 
@@ -1046,7 +1046,7 @@ static void check_goto(pval *item)
 			&& !strstr(item->u1.list->next->u1.str,"${") ) /* Don't try to match variables */ {
 			struct pval *x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str);
 			if (!x) {
-				opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s|%s exists in the current context, or any of its inclusions!\n",
+				opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s,%s exists in the current context, or any of its inclusions!\n",
 						item->filename, item->startline, item->endline, item->u1.list->u1.str, item->u1.list->next->u1.str );
 				errs++;
 			}
@@ -1100,7 +1100,7 @@ static void check_goto(pval *item)
 						}
 					}
 					if (!found) {
-						opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s|%s exists in the context %s or its inclusions!\n",
+						opbx_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s,%s exists in the context %s or its inclusions!\n",
 								item->filename, item->startline, item->endline, item->u1.list->next->u1.str, item->u1.list->next->next->u1.str, item->u1.list->u1.str );
 						errs++;
 					}
@@ -2565,16 +2565,16 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 				if (!mother_exten)
 					pr->appargs = strdup(p->u1.list->u1.str);
 				else {  /* for the case of simple within-extension gotos in case/pattern/default statement blocks: */ 
-					snprintf(buf1,sizeof(buf1),"%s|%s", mother_exten->name, p->u1.list->u1.str);
+					snprintf(buf1,sizeof(buf1),"%s,%s", mother_exten->name, p->u1.list->u1.str);
 					pr->appargs = strdup(buf1);
 				}
 				
 			} else if (p->u1.list->next && !p->u1.list->next->next) /* two */ {
-				snprintf(buf1,sizeof(buf1),"%s|%s", p->u1.list->u1.str, p->u1.list->next->u1.str);
+				snprintf(buf1,sizeof(buf1),"%s,%s", p->u1.list->u1.str, p->u1.list->next->u1.str);
 				pr->app = strdup("Goto");
 				pr->appargs = strdup(buf1);
 			} else if (p->u1.list->next && p->u1.list->next->next) {
-				snprintf(buf1,sizeof(buf1),"%s|%s|%s", p->u1.list->u1.str, 
+				snprintf(buf1,sizeof(buf1),"%s,%s,%s", p->u1.list->u1.str, 
 						p->u1.list->next->u1.str,
 						p->u1.list->next->next->u1.str);
 				pr->app = strdup("Goto");
@@ -2926,7 +2926,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			pr->type = AEL_APPCALL;
 			snprintf(buf1,sizeof(buf1),"%s", p->u1.str);
 			for (p2 = p->u2.arglist; p2; p2 = p2->next) {
-				strcat(buf1,"|");
+				strcat(buf1,",");
 				strcat(buf1,p2->u1.str);
 			}
 			pr->app = strdup("Proc");
@@ -2941,7 +2941,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			buf1[0] = 0;
 			for (p2 = p->u2.arglist; p2; p2 = p2->next) {
 				if (p2 != p->u2.arglist )
-					strcat(buf1,"|");
+					strcat(buf1,",");
 				strcat(buf1,p2->u1.str);
 			}
 			pr->app = strdup(p->u1.str);
@@ -3022,7 +3022,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			
 			if_test = new_prio();
 			if_test->type = AEL_IFTIME_CONTROL;
-			snprintf(buf1,sizeof(buf1),"%s|%s|%s|%s",
+			snprintf(buf1,sizeof(buf1),"%s,%s,%s,%s",
 					 p->u1.list->u1.str, 
 					 p->u1.list->next->u1.str, 
 					 p->u1.list->next->next->u1.str, 
@@ -3223,7 +3223,7 @@ void add_extensions(struct ael_extension *exten, struct opbx_context *context)
 				/* simple, unconditional goto. */
 				strcpy(app,"Goto");
 				if (pr->goto_true->origin && pr->goto_true->origin->type == PV_SWITCH ) {
-					snprintf(appargs,sizeof(appargs),"%s|%d", pr->goto_true->exten->name, pr->goto_true->priority_num);
+					snprintf(appargs,sizeof(appargs),"%s,%d", pr->goto_true->exten->name, pr->goto_true->priority_num);
 				} else if (pr->goto_true->origin && pr->goto_true->origin->type == PV_IFTIME && pr->goto_true->origin->u3.else_statements ) {
 					snprintf(appargs,sizeof(appargs),"%d", pr->goto_true->priority_num+1);
 				} else
@@ -3329,11 +3329,8 @@ void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 			
 		case PV_GLOBALS:
 			/* just VARDEC elements */
-			for (p2=p->u1.list; p2; p2=p2->next) {
-				char buf2[2000];
-				snprintf(buf2,sizeof(buf2),"%s=%s", p2->u1.str, p2->u2.val);
-				pbx_builtin_setvar(NULL, buf2);
-			}
+			for (p2=p->u1.list; p2; p2=p2->next)
+				pbx_builtin_setvar(NULL, p2->u1.str, p2->u2.val);
 			break;
 			
 		case PV_CONTEXT:
@@ -3389,7 +3386,7 @@ void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 				case PV_INCLUDES:
 					for (p3 = p2->u1.list; p3 ;p3=p3->next) {
 						if ( p3->u2.arglist ) {
-							snprintf(buf,sizeof(buf), "%s|%s|%s|%s|%s", 
+							snprintf(buf,sizeof(buf), "%s,%s,%s,%s,%s", 
 									 p3->u1.str,
 									 p3->u2.arglist->u1.str,
 									 p3->u2.arglist->next->u1.str,

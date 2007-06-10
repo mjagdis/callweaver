@@ -29,7 +29,7 @@ struct opbx_imager {
 	char *name;						
 	/*! Description */
 	char *desc;						
-	/*! Extension(s) (separated by '|' ) */
+	/*! Extension(s) (separated by ',' ) */
 	char *exts;						
 	/*! Image format */
 	int format;						

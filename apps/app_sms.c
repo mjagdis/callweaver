@@ -66,12 +66,12 @@ static volatile unsigned int seq;       /* arbitrary message sequence number for
 static char log_file[255];
 static char spool_dir[255];
 
-static char *app = "SMS";
-
-static char *synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
-
-static char *descrip =
-    "  SMS(name|[a][s]):  SMS handles exchange of SMS data with a call to/from SMS capabale\n"
+static void *sms_app;
+static const char *sms_name = "SMS";
+static const char *sms_synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
+static const char *sms_syntax = "SMS(name, [a][s])";
+static const char *sms_descrip =
+    "SMS handles exchange of SMS data with a call to/from SMS capabale\n"
     "phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
     "Works to ETSI ES 201 912 compatible with BT SMS PSTN service in UK\n"
     "Typical usage is to use to handle called from the SMS service centre CLI,\n"
@@ -416,7 +416,7 @@ static int sms_protocol2_exec(struct opbx_channel *chan, void *data)
         return -1;
     }
     
-    for (i = 0;  vdata[i]  &&  (vdata[i] != ':')  &&  (vdata[i] != '|');  i++)
+    for (i = 0;  vdata[i]  &&  (vdata[i] != ':')  &&  (vdata[i] != ',');  i++)
     {
         if ((vdata[i] == '%')  &&  (vdata[i + 1] == 'd'))
             percentflag = 1;                      /* the wildcard is used */
@@ -431,7 +431,7 @@ static int sms_protocol2_exec(struct opbx_channel *chan, void *data)
     msg[i] = '\0';
 
 printf("Message is '%s'\n", msg);
-    if (vdata[i] == '|')
+    if (vdata[i] == ',')
     {
         i++;
     }
@@ -1724,58 +1724,45 @@ static struct opbx_generator smsgen =
     generate:sms_generate,
 };
 
-static int sms_exec(struct opbx_channel *chan, void *data)
+static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
 {
+    sms_t h = { 0 };
     int res = -1;
     struct localuser *u;
     struct opbx_frame *f;
+    char *d;
+    int answer;
     int original_read_fmt;
     int original_write_fmt;
-    sms_t h = { 0 };
-    
+
+    if (argc < 1 || argc > 2) {
+    	opbx_log(LOG_ERROR, "Syntax: %s\n", sms_syntax);
+	return -1;
+    }
+
     LOCAL_USER_ADD(u);
 
     h.ipc0 = h.ipc1 = 20;          /* phase for cosine */
     h.dcs = 0xF1;                     /* default */
-    if (!data)
-    {
-        opbx_log (LOG_ERROR, "Requires queue name at least\n");
-        LOCAL_USER_REMOVE(u);
-        return -1;
-    }
 
     if (chan->cid.cid_num)
         opbx_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
 
-    {
-        unsigned char *p;
-        unsigned char *d = data,
+    answer = 0;
 
-        answer = 0;
-        if (*d == '\0'  ||  *d == '|')
-        {
-            opbx_log (LOG_ERROR, "Requires queue name\n");
-            LOCAL_USER_REMOVE(u);
-            return -1;
-        }
-        for (p = d;  *p  &&  *p != '|';  p++)
-            /*dummy loop*/;
-        if (p - d >= sizeof (h.queue))
-        {
-            opbx_log (LOG_ERROR, "Queue name too long\n");
-            LOCAL_USER_REMOVE(u);
-            return -1;
-        }
-        strncpy (h.queue, (char *)d, p - d);
-        if (*p == '|')
-            p++;
-        d = p;
-        for (p = (unsigned char *) h.queue;  *p;  p++)
-        {
-            if (!isalnum (*p))
-                *p = '-';              /* make very safe for filenames */
-        }
-        while (*d  &&  *d != '|')
+    if (strlen(argv[0]) >= sizeof (h.queue)) {
+        opbx_log (LOG_ERROR, "Queue name too long\n");
+        LOCAL_USER_REMOVE(u);
+        return -1;
+    }
+    strcpy (h.queue, argv[0]);
+    for (d = (unsigned char *)h.queue; *d; d++) {
+        if (!isalnum (*d))
+            *d = '-';              /* make very safe for filenames */
+    }
+
+    if (argc > 1) {
+        for (d = argv[1]; *d; d++)
         {
             switch (*d)
             {
@@ -1802,52 +1789,53 @@ static int sms_exec(struct opbx_channel *chan, void *data)
                 h.pid = 0x40 + (*d & 0xF);
                 break;
             }
-            d++;
         }
-        if (*d == '|')
+    }
+
+    if (argc > 2)
+    {
+        unsigned char *p;
+        /* submitting a message, not taking call. */
+        /* deprecated, use smsq instead */
+        d = argv[2];
+        h.scts = time (0);
+        for (p = d; *p && *p != ','; p++);
+        if (*p)
+            *p++ = 0;
+        if (strlen ((char *)d) >= sizeof (h.oa))
         {
-            /* submitting a message, not taking call. */
-            /* deprecated, use smsq instead */
-            d++;
-            h.scts = time (0);
-            for (p = d; *p && *p != '|'; p++);
-            if (*p)
-                *p++ = 0;
-            if (strlen ((char *)d) >= sizeof (h.oa))
-            {
-                opbx_log (LOG_ERROR, "Address too long %s\n", d);
-                return 0;
-            }
-            if (h.smsc)
-                opbx_copy_string(h.oa, (char *) d, sizeof(h.oa));
-            else
-                opbx_copy_string(h.da, (char *) d, sizeof(h.da));
-            if (!h.smsc)
-                opbx_copy_string(h.oa, h.cli, sizeof (h.oa));
-            d = p;
-            h.udl = 0;
-            while (*p && h.udl < SMSLEN)
-                h.ud[h.udl++] = utf8decode(&p);
-            if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
-                opbx_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
-            if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
-                opbx_log (LOG_WARNING, "Invalid 8 bit data\n");
-            if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
-                opbx_log (LOG_WARNING, "Invalid 16 bit data\n");
-            h.rx = 0;                  /* sent message */
-            h.mr = -1;
-            sms_writefile (&h);
-            LOCAL_USER_REMOVE(u);
+            opbx_log (LOG_ERROR, "Address too long %s\n", d);
             return 0;
         }
+        if (h.smsc)
+            opbx_copy_string(h.oa, (char *) d, sizeof(h.oa));
+        else
+            opbx_copy_string(h.da, (char *) d, sizeof(h.da));
+        if (!h.smsc)
+            opbx_copy_string(h.oa, h.cli, sizeof (h.oa));
+        d = p;
+        h.udl = 0;
+        while (*p && h.udl < SMSLEN)
+            h.ud[h.udl++] = utf8decode(&p);
+        if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+            opbx_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
+        if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+            opbx_log (LOG_WARNING, "Invalid 8 bit data\n");
+        if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+            opbx_log (LOG_WARNING, "Invalid 16 bit data\n");
+        h.rx = 0;                  /* sent message */
+        h.mr = -1;
+        sms_writefile (&h);
+        LOCAL_USER_REMOVE(u);
+        return 0;
+    }
 
-        if (answer)
-        {
-            /* Set up SMS_EST initial message */
-            h.omsg[0] = 0x80 | DLL_SMS_P1_EST;
-            h.omsg[1] = 0;
-            sms_messagetx (&h);
-        }
+    if (answer)
+    {
+        /* Set up SMS_EST initial message */
+        h.omsg[0] = 0x80 | DLL_SMS_P1_EST;
+        h.omsg[1] = 0;
+        sms_messagetx (&h);
     }
 
     if (chan->_state != OPBX_STATE_UP)
@@ -1915,11 +1903,10 @@ static int sms_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-    int res;
+    int res = 0;
     
     STANDARD_HANGUP_LOCALUSERS;
-
-    res = opbx_unregister_application(app);
+    res |= opbx_unregister_application(sms_app);
     return res;    
 }
 
@@ -1927,12 +1914,13 @@ int load_module(void)
 {
     snprintf(log_file, sizeof (log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
     snprintf(spool_dir, sizeof (spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
-    return opbx_register_application(app, sms_exec, synopsis, descrip);
+    sms_app = opbx_register_application(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
+    return 0;
 }
 
 char *description(void)
 {
-    return synopsis;
+    return (char *)sms_synopsis;
 }
 
 int usecount(void)

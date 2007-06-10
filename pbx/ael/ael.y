@@ -304,6 +304,11 @@ timespec : timerange BAR word3_list BAR word3_list BAR word3_list {
 		$$->next = nword($3, &@3);
 		$$->next->next = nword($5, &@5);
 		$$->next->next->next = nword($7, &@7); }
+	| timerange COMMA word3_list COMMA word3_list COMMA word3_list {
+		$$ = nword($1, &@1);
+		$$->next = nword($3, &@3);
+		$$->next->next = nword($5, &@5);
+		$$->next->next->next = nword($7, &@7); }
 	;
 
 /* expression used in if, random, while, switch */
@@ -578,6 +583,10 @@ switchlist : /* empty */ { $$ = NULL; }
 
 included_entry : context_name { $$ = nword($1, &@1); }
 	| context_name BAR timespec {
+		$$ = nword($1, &@1);
+		$$->u2.arglist = $3;
+		prev_word=0; /* XXX sure ? */ }
+	| context_name COMMA timespec {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = $3;
 		prev_word=0; /* XXX sure ? */ }

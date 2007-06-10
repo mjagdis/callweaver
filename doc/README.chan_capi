@@ -117,36 +117,36 @@ With this application, special capi commands and features can be used.
 Call Deflection:
     Forwards an unanswered call to another number.
         Example:
-        exten => s,1,capicommand(deflect|12345678)
+        exten => s,1,capicommand(deflect,12345678)
   
 Fax receive:
     Receive a fax using CAPI.
         Example:
-        exten => s,1,capicommand(receivefax|/tmp/${UNIQUEID}|+49 6137 555123|CallWeaver)
+        exten => s,1,capicommand(receivefax,/tmp/${UNIQUEID},+49 6137 555123,CallWeaver)
 	(more see below)
 
 Fax send:
     Send a fax using CAPI.
         Example:
-        exten => s,1,capicommand(sendfax|/path/to/faxfile.sff|+49 6137 555123|CallWeaver)
+        exten => s,1,capicommand(sendfax,/path/to/faxfile.sff,+49 6137 555123,CallWeaver)
 	(more see below)
 
 Enable/Disable echosquelch:
     Enable or disable a very primitive echo suppressor.
     Disable this before you start recording voicemail or your files may get choppy.
         Example:
-        exten => s,1,capicommand(echosquelch|yes)
+        exten => s,1,capicommand(echosquelch,yes)
           or
-        exten => s,1,capicommand(echosquelch|no)
+        exten => s,1,capicommand(echosquelch,no)
 
 Enable/Disable echocancel:
     Enable or disable echo-cancel provided by CAPI driver/hardware.
     You may need to disable echo-cancel when e.g. data/fax transmission handled
     by non-CAPI application.
         Example:
-        exten => s,1,capicommand(echocancel|yes)
+        exten => s,1,capicommand(echocancel,yes)
           or
-        exten => s,1,capicommand(echocancel|no)
+        exten => s,1,capicommand(echocancel,no)
 
 Malicious Call Identification:
     Report a call of malicious nature.
@@ -161,18 +161,18 @@ Hold:
         Example:
         exten => s,1,capicommand(hold)
          or
-        exten => s,1,capicommand(hold|MYHOLDVAR)
+        exten => s,1,capicommand(hold,MYHOLDVAR)
 
 Holdtype:
     Set the type of 'hold'. When CallWeaver wants to put the call on hold, the specified method
     will be used.
         Example:
-        exten => s,1,capicommand(holdtype|local)  ;no hold, CallWeaver can play MOH
+        exten => s,1,capicommand(holdtype,local)  ;no hold, CallWeaver can play MOH
          or
-        exten => s,1,capicommand(holdtype|hold)   ;ISDN-HOLD 
+        exten => s,1,capicommand(holdtype,hold)   ;ISDN-HOLD 
          or
         ; not yet implemented
-        exten => s,1,capicommand(holdtype|notify) ;notify the peer only, CallWeaver can play MOH
+        exten => s,1,capicommand(holdtype,notify) ;notify the peer only, CallWeaver can play MOH
 
        
 Retrieve:
@@ -181,12 +181,12 @@ Retrieve:
         Example:
         exten => s,1,capicommand(retrieve)
          or
-        exten => s,1,capicommand(retrieve|${MYHOLDVAR})
+        exten => s,1,capicommand(retrieve,${MYHOLDVAR})
 
 ECT:
     Explicit call transfer of the call on hold (must put call on hold first!)
         Example:
-        exten => s,1,capicommand(ect|${MYHOLDVAR})
+        exten => s,1,capicommand(ect,${MYHOLDVAR})
          or
         [macro-capiect]
         exten => s,1,capicommand(ect)
@@ -254,12 +254,12 @@ Short HOWTO of capicommand(receivefax...) and capicommand(sendfax...):
 For those of you who have a CAPI card with an on-board DSP (like some Eicon and
 DIVA Server), this allows you to receive/send faxes.
 
-capicommand(receivefax|<filename>[|<stationid>|<headline>]):
+capicommand(receivefax,<filename>[,<stationid>,<headline>]):
 ------------------------------------------------------------
-If you want to answer a channel in fax mode, use capicommand(receivefax|...)
+If you want to answer a channel in fax mode, use capicommand(receivefax,...)
 instead of Answer()
 If you use Answer(), you will be in voice mode. If the hardware DSP detects 
-fax tone, you can switch from voice to fax mode by calling capicommand(receivefax|...).
+fax tone, you can switch from voice to fax mode by calling capicommand(receivefax,...).
 The parameter <filename> is mandatory and the parameters <stationid> and
 <headline> are optional.
 To enable fax tone detection and redirect to extension 'fax', use config variable
@@ -276,11 +276,11 @@ exten => 124,1,Goto(handle_fax,s,1)
 exten => fax,1,Goto(handle_fax,s,1)
 
 [handle_fax]
-exten => s,1,capicommand(receivefax|/tmp/${UNIQUEID}[|<stationid>|<headline>])
+exten => s,1,capicommand(receivefax,/tmp/${UNIQUEID}[,<stationid>,<headline>])
 exten => s,2,Hangup()
 exten => h,1,deadogi,fax.php // Run sfftobmp and mail it.
 
-The output of capicommand(receivefax|...) is a SFF file.
+The output of capicommand(receivefax,...) is a SFF file.
 Use sfftobmp to convert it.
 With a DIVA Server, following features are provided:
  - fax up to 33600
@@ -288,7 +288,7 @@ With a DIVA Server, following features are provided:
  - Color Fax 
  - JPEG Compression is disabled (not tested yet)
 
-capicommand(sendfax|<filename>[|<stationid>|<headline>]):
+capicommand(sendfax,<filename>[,<stationid>,<headline>]):
 ------------------------------------------------------------
 To send a fax, you can use the same mechanism like with receivefax.
 Just replace the <filename> with the path to the .SFF file to send.
@@ -336,7 +336,7 @@ BCHANNELINFO
      '2' : neither B nor D channel is used (e.g. call waiting)
     Call-Waiting: an incoming call with BCHANNELINFO not '0' cannot be accepted.
     Another connection must be dropped before accepting or use
-    capicommand(deflect|<number>) to initiate call deflection to another destination.
+    capicommand(deflect,<number>) to initiate call deflection to another destination.
 
 CALLEDTON
     The 'type of number' value of the called number is saved in this variable on

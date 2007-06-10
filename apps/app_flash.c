@@ -48,15 +48,16 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Flash zap trunk application";
 
-static char *app = "Flash";
-
-static char *synopsis = "Flashes a Zap Trunk";
-
-static char *descrip = 
-"  Flash(): Sends a flash on a zap trunk.  This is only a hack for\n"
+static void *flash_app;
+static char *flash_name = "Flash";
+static char *flash_synopsis = "Flashes a Zap Trunk";
+static char *flash_syntax = "Flash()";
+static char *flash_descrip =
+"Sends a flash on a zap trunk.  This is only a hack for\n"
 "people who want to perform transfers and such via OGI and is generally\n"
 "quite useless otherwise.  Returns 0 on success or -1 if this is not\n"
 "a zap trunk\n";
+
 
 STANDARD_LOCAL_USER;
 
@@ -72,12 +73,13 @@ static inline int zt_wait_event(int fd)
 	return j;
 }
 
-static int flash_exec(struct opbx_channel *chan, void *data)
+static int flash_exec(struct opbx_channel *chan, int argc, char **argv)
 {
+	struct zt_params ztp;
+	struct localuser *u;
 	int res = -1;
 	int x;
-	struct localuser *u;
-	struct zt_params ztp;
+
 	LOCAL_USER_ADD(u);
 	if (!strcasecmp(chan->type, "Zap")) {
 		memset(&ztp, 0, sizeof(ztp));
@@ -108,13 +110,16 @@ static int flash_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(flash_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, flash_exec, synopsis, descrip);
+	flash_app = opbx_register_application(flash_name, flash_exec, flash_synopsis, flash_syntax, flash_descrip);
+	return 0;
 }
 
 char *description(void)

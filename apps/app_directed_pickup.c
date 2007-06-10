@@ -43,34 +43,36 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/app.h"
 
 static const char *tdesc = "Directed Call Pickup Application";
-static const char *app = "Pickup";
-static const char *synopsis = "Directed Call Pickup application.";
-static const char *descrip =
-" Pickup(extension@context):\n"
+
+static void *pickup_app;
+static const char *pickup_name = "Pickup";
+static const char *pickup_synopsis = "Directed Call Pickup application.";
+static const char *pickup_syntax = "Pickup(extension[@context])";
+static const char *pickup_descrip =
 "Steals any calls to a specified extension that are in a ringing state and bridges them to the current channel. Context is an optional argument.\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int pickup_exec(struct opbx_channel *chan, void *data)
+static int pickup_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res = 0, locked = 0;
+	char workspace[256] = "";
 	struct localuser *u = NULL;
 	struct opbx_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL;
-	char workspace[256] = "";
+	int res = 0, locked = 0;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Pickup requires an argument (extension) !\n");
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", pickup_syntax);
 		return -1;	
 	}
 
 	LOCAL_USER_ADD(u);
 	
 	/* Get the extension and context if present */
-	exten = data;
-	context = strchr(data, '@');
+	exten = argv[0];
+	context = strchr(argv[0], '@');
 	if (context) {
 		*context = '\0';
 		context++;
@@ -136,14 +138,16 @@ static int pickup_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(pickup_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, pickup_exec, synopsis, descrip);
+	pickup_app = opbx_register_application(pickup_name, pickup_exec, pickup_synopsis, pickup_syntax, pickup_descrip);
+	return 0;
 }
 
 char *description(void)

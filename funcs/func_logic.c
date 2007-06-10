@@ -41,153 +41,194 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/app.h"
 #include "callweaver/config.h"		/* for opbx_true */
 
-static char *builtin_function_isnull(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static void *isnull_function;
+static const char *isnull_func_name = "ISNULL";
+static const char *isnull_func_synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise";
+static const char *isnull_func_syntax = "ISNULL(data)";
+static const char *isnull_func_desc = "";
+
+static void *set_function;
+static const char *set_func_name = "SET";
+static const char *set_func_synopsis = "SET assigns a value to a channel variable";
+static const char *set_func_syntax = "SET(varname=[value])";
+static const char *set_func_desc = "";
+
+static void *exists_function;
+static const char *exists_func_name = "EXISTS";
+static const char *exists_func_synopsis = "Existence Test: Returns 1 if exists, 0 otherwise";
+static const char *exists_func_syntax = "EXISTS(data)";
+static const char *exists_func_desc = "";
+
+static void *if_function;
+static const char *if_func_name = "IF";
+static const char *if_func_synopsis = "Conditional: Returns the data following '?' if true else the data following ':'";
+static const char *if_func_syntax = "IF(expr ? [true] [: false])";
+static const char *if_func_desc = "";
+
+static void *if_time_function;
+static const char *if_time_func_name = "IFTIME";
+static const char *if_time_func_synopsis = "Temporal Conditional: Returns the data following '?' if true else the data following ':'";
+static const char *if_time_func_syntax = "IFTIME(timespec ? [true] [: false])";
+static const char *if_time_func_desc = "";
+
+
+static char *builtin_function_isnull(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
-	return data && *data ? "0" : "1";
+	return (argc > 0 && argv[0][0] ? "0" : "1");
 }
 
-static char *builtin_function_exists(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_exists(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
-	return data && *data ? "1" : "0";
+	return (argc > 0 && argv[0][0] ? "1" : "0");
 }
 
-static char *builtin_function_iftime(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_iftime(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
 	struct opbx_timing timing;
-	char *ret;
-	char *expr;
-	char *iftrue;
-	char *iffalse;
+	char *s, *q, **a;
+	int i, n, l, first;
 
-	if (!(data = opbx_strdupa(data))) {
-		opbx_log(LOG_WARNING, "Memory Error!\n");
+	/* First argument is "<timespec ? ..." */
+	if (argc < 1 || !(s = strchr(argv[0], '?'))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", if_time_func_syntax);
 		return NULL;
 	}
 
-	data = opbx_strip_quoted(data, "\"", "\"");
-	expr = strsep(&data, "?");
-	iftrue = strsep(&data, ":");
-	iffalse = data;
+	/* Trim trailing space from the timespec */
+	q = s;
+	do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
-	if (!expr || opbx_strlen_zero(expr) || !(iftrue || iffalse)) {
-		opbx_log(LOG_WARNING, "Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
+	if (!opbx_build_timing(&timing, argv[0])) {
+		opbx_log(LOG_ERROR, "Invalid time specification\n");
 		return NULL;
 	}
 
-	if (!opbx_build_timing(&timing, expr)) {
-		opbx_log(LOG_WARNING, "Invalid Time Spec.\n");
-		return NULL;
+	n = 0;
+	if (opbx_check_timing(&timing)) {
+		/* True: we want everything between '?' and ':' */
+		do { *(s++) = '\0'; } while (isspace(*s));
+		argv[0] = s;
+		a = argv;
+		for (i = 0; i < argc; i++) {
+			if ((s = strchr(argv[i], ':'))) {
+				do { *(s--) = '\0'; } while (s >= argv[i] && isspace(*s));
+				n = i + 1;
+				break;
+			}
+		}
+	} else {
+		/* False: we want everything after ':' (if anything) */
+		for (i = 0; i < argc; i++) {
+			if ((s = strchr(argv[i], ':'))) {
+				do { *(s++) = '\0'; } while (isspace(*s));
+				argv[i] = s;
+				a = argv + i;
+				n = argc - i;
+				break;
+			}
+		}
+		/* No ": ..." so we just drop through */
 	}
 
-	if (iftrue)
-		iftrue = opbx_strip_quoted(iftrue, "\"", "\"");
-	if (iffalse)
-		iffalse = opbx_strip_quoted(iffalse, "\"", "\"");
-
-	if ((ret = opbx_check_timing(&timing) ? iftrue : iffalse)) {
-		opbx_copy_string(buf, ret, len);
-		ret = buf;
-	} 
-	
-	return ret;
-}
-
-static char *builtin_function_if(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret;
-	char *expr;
-	char *iftrue;
-	char *iffalse;
-
-	if (!(data = opbx_strdupa(data))) {
-		opbx_log(LOG_WARNING, "Memory Error!\n");
-		return NULL;
+	len--; /* one for the terminating null */
+	q = buf;
+	for (i = 0; len && i < n; i++) {
+		if (len > 0 && !first) {
+			*(q++) = ',';
+			len--;
+		} else
+			first = 0;
+		l = strlen(a[i]);
+		if (l > len)
+			l = len;
+		memcpy(q, a[i], l);
+		q += l;
+		len -= l;
 	}
-
-	data = opbx_strip_quoted(data, "\"", "\"");
-	expr = strsep(&data, "?");
-	iftrue = strsep(&data, ":");
-	iffalse = data;
-
-	if (!expr || opbx_strlen_zero(expr) || !(iftrue || iffalse)) {
-		opbx_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
-		return NULL;
-	}
-
-	expr = opbx_strip(expr);
-	if (iftrue)
-		iftrue = opbx_strip_quoted(iftrue, "\"", "\"");
-	if (iffalse)
-		iffalse = opbx_strip_quoted(iffalse, "\"", "\"");
-
-	if ((ret = opbx_true(expr) ? iftrue : iffalse)) {
-		opbx_copy_string(buf, ret, len);
-		ret = buf;
-	} 
-	
-	return ret;
-}
-
-static char *builtin_function_set(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *varname;
-	char *val;
-
-	if (!(data = opbx_strdupa(data))) {
-		opbx_log(LOG_WARNING, "Memory Error!\n");
-		return NULL;
-	}
-
-	varname = strsep(&data, "=");
-	val = data;
-
-	if (!varname || opbx_strlen_zero(varname) || !val) {
-		opbx_log(LOG_WARNING, "Syntax SET(<varname>=[<value>])\n");
-		return NULL;
-	}
-
-	varname = opbx_strip(varname);
-	val = opbx_strip(val);
-	pbx_builtin_setvar_helper(chan, varname, val);
-	opbx_copy_string(buf, val, len);
+	*q = '\0';
 
 	return buf;
 }
 
-static struct opbx_custom_function isnull_function = {
-	.name = "ISNULL",
-	.synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise",
-	.syntax = "ISNULL(<data>)",
-	.read = builtin_function_isnull,
-};
+static char *builtin_function_if(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+{
+	char *s, *q, **a;
+	int i, n, l, first;
 
-static struct opbx_custom_function set_function = {
-	.name = "SET",
-	.synopsis = "SET assigns a value to a channel variable",
-	.syntax = "SET(<varname>=[<value>])",
-	.read = builtin_function_set,
-};
+	/* First argument is "<condition ? ..." */
+	if (argc < 1 || !(s = strchr(argv[0], '?'))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", if_func_syntax);
+		return NULL;
+	}
 
-static struct opbx_custom_function exists_function = {
-	.name = "EXISTS",
-	.synopsis = "Existence Test: Returns 1 if exists, 0 otherwise",
-	.syntax = "EXISTS(<data>)",
-	.read = builtin_function_exists,
-};
+	/* Trim trailing space from the condition */
+	q = s;
+	do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
-static struct opbx_custom_function if_function = {
-	.name = "IF",
-	.synopsis = "Conditional: Returns the data following '?' if true else the data following ':'",
-	.syntax = "IF(<expr>?[<true>][:<false>])",
-	.read = builtin_function_if,
-};
+	n = 0;
+	if (opbx_true(argv[0])) {
+		/* True: we want everything between '?' and ':' */
+		do { *(s++) = '\0'; } while (isspace(*s));
+		argv[0] = s;
+		a = argv;
+		for (i = 0; i < argc; i++) {
+			if ((s = strchr(argv[i], ':'))) {
+				do { *(s--) = '\0'; } while (s >= argv[i] && isspace(*s));
+				n = i + 1;
+				break;
+			}
+		}
+	} else {
+		/* False: we want everything after ':' (if anything) */
+		for (i = 0; i < argc; i++) {
+			if ((s = strchr(argv[i], ':'))) {
+				do { *(s++) = '\0'; } while (isspace(*s));
+				argv[i] = s;
+				a = argv + i;
+				n = argc - i;
+				break;
+			}
+		}
+		/* No ": ..." so we just drop through */
+	}
 
-static struct opbx_custom_function if_time_function = {
-	.name = "IFTIME",
-	.synopsis = "Temporal Conditional: Returns the data following '?' if true else the data following ':'",
-	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",
-	.read = builtin_function_iftime,
-};
+	len--; /* one for the terminating null */
+	q = buf;
+	for (i = 0; len && i < n; i++) {
+		if (len > 0 && !first) {
+			*(q++) = ',';
+			len--;
+		} else
+			first = 0;
+		l = strlen(a[i]);
+		if (l > len)
+			l = len;
+		memcpy(q, a[i], l);
+		q += l;
+		len -= l;
+	}
+	*q = '\0';
+
+	return buf;
+}
+
+static char *builtin_function_set(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+{
+	char *p, *q;
+
+	if (argc != 1 || !argv[0][0] || !(p = strchr(argv[0], '='))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", set_func_syntax);
+		return NULL;
+	}
+
+	*(p++) = '\0';
+
+	pbx_builtin_setvar_helper(chan, argv[0], p);
+	opbx_copy_string(buf, p, len);
+
+	return buf;
+}
+
 
 static char *tdesc = "logic functions";
 
@@ -195,44 +236,22 @@ int unload_module(void)
 {
         int res = 0;
 
-        if (opbx_custom_function_unregister(&isnull_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_unregister(&set_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_unregister(&exists_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_unregister(&if_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_unregister(&if_time_function) < 0)
-                res = -1;
-
+	res |= opbx_unregister_function(isnull_function);
+	res |= opbx_unregister_function(set_function);
+	res |= opbx_unregister_function(exists_function);
+	res |= opbx_unregister_function(if_function);
+	res |= opbx_unregister_function(if_time_function);
         return res;
 }
 
 int load_module(void)
 {
-        int res = 0;
-
-        if (opbx_custom_function_register(&isnull_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_register(&set_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_register(&exists_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_register(&if_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_register(&if_time_function) < 0)
-                res = -1;
-        
-        return res;
+	isnull_function = opbx_register_function(isnull_func_name, builtin_function_isnull, NULL, isnull_func_synopsis, isnull_func_syntax, isnull_func_desc);
+        set_function = opbx_register_function(set_func_name, builtin_function_set, NULL, set_func_synopsis, set_func_syntax, set_func_desc);
+        exists_function = opbx_register_function(exists_func_name, builtin_function_exists, NULL, exists_func_synopsis, exists_func_syntax, exists_func_desc);
+        if_function = opbx_register_function(if_func_name, builtin_function_if, NULL, if_func_synopsis, if_func_syntax, if_func_desc);
+        if_time_function = opbx_register_function(if_time_func_name, builtin_function_iftime, NULL, if_time_func_synopsis, if_time_func_syntax, if_time_func_desc);
+        return 0;
 }
 
 char *description(void)

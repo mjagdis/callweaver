@@ -52,46 +52,36 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1055 $")
 
 static char *tdesc = "Gets device state (show hints)";
 
-static char *g_app = "GetDevState";
-
+static void *g_app;
+static char *g_name = "GetDevState";
+static char *g_synopsis = "Gets the device state";
+static char *g_syntax = "GetDevState(device)";
 static char *g_descrip =
-	"  GetDevState(device): \n"
 	"Get the device state and saves it in DEVSTATE variable. Valid values are:\n"
 	"0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing"
 	"Example: GetDevState(SIP/715)\n";
 
-static char *g_synopsis = "Gets the device state";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int get_devstate(struct opbx_channel *chan, void *data)
+static int get_devstate(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *argv;
 	struct localuser *u;
 	int res=-1;
 	char resc[8]="-1";
 	
 	LOCAL_USER_ADD(u);
 
-	argv = opbx_strdupa(data);
-	if (!argv) {
-		opbx_log(LOG_ERROR, "Memory allocation failed\n");
-		LOCAL_USER_REMOVE(u);
-		pbx_builtin_setvar_helper(chan, "DEVSTATE", resc );	
-		return RESULT_FAILURE;
-	}
-
-	if ( strlen(argv) )
-	{
-		res=opbx_device_state(argv);	
-	} else {
+	if (argc > 0 && argv[0][0])
+		res = opbx_device_state(argv[0]);	
+	else
 		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
-	}
 
         opbx_log(LOG_DEBUG, "app_getdevstate setting DEVSTATE to %d for device %s \n",
-               res, argv);
+               res, argv[0]);
+
 	snprintf(resc,sizeof(resc),"%d",res);
 	pbx_builtin_setvar_helper(chan, "DEVSTATE", resc );	
 
@@ -102,21 +92,17 @@ static int get_devstate(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int retval;
+	int res = 0;
 
 	STANDARD_HANGUP_LOCALUSERS;
-	retval = opbx_unregister_application(g_app);
-
-	return retval;
+	res |= opbx_unregister_application(g_app);
+	return res;
 }
 
 int load_module(void)
 {
-	int retval;
-
-	retval = opbx_register_application(g_app, get_devstate, g_synopsis, g_descrip);
-	
-	return retval;
+	g_app = opbx_register_application(g_name, get_devstate, g_synopsis, g_syntax, g_descrip);
+	return 0;
 }
 
 char *description(void)

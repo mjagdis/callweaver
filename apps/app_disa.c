@@ -52,12 +52,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "DISA (Direct Inward System Access) Application";
 
-static char *app = "DISA";
-
-static char *synopsis = "DISA (Direct Inward System Access)";
-
-static char *descrip = 
-	"DISA(<numeric passcode>[|<context>]) or disa(<filename>)\n"
+static void *disa_app;
+static const char *disa_name = "DISA";
+static const char *disa_synopsis = "DISA (Direct Inward System Access)";
+static const char *disa_syntax = "DISA(numeric passcode[, context]) or disa(filename)";
+static const char *disa_descrip = 
 	"The DISA, Direct Inward System Access, application allows someone from \n"
 	"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
 	"dialtone and to place calls from it as if they were placing a call from \n"
@@ -116,7 +115,7 @@ static void play_dialtone(struct opbx_channel *chan, char *mailbox)
 		opbx_tonepair_start(chan, 350, 440, 0, 0);
 }
 
-static int disa_exec(struct opbx_channel *chan, void *data)
+static int disa_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int i;
     int j;
@@ -126,8 +125,6 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct localuser *u;
-	char *tmp;
-    char arg2[256] = "";
     char exten[OPBX_MAX_EXTENSION];
     char acctcode[20] = "";
 	char *ourcontext;
@@ -143,28 +140,24 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 	char *stringp = NULL;
 	char inbuf[128];
 
-	if (opbx_strlen_zero(data))
-    {
-		opbx_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
+	if (argc < 1 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", disa_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 	
-	if (chan->pbx)
-    {
+	if (chan->pbx) {
 		firstdigittimeout = chan->pbx->rtimeout*1000;
 		digittimeout = chan->pbx->dtimeout*1000;
 	}
 	
-	if (opbx_set_write_format(chan,OPBX_FORMAT_ULAW))
-    {
+	if (opbx_set_write_format(chan,OPBX_FORMAT_ULAW)) {
 		opbx_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	if (opbx_set_read_format(chan,OPBX_FORMAT_ULAW))
-    {
+	if (opbx_set_read_format(chan,OPBX_FORMAT_ULAW)) {
 		opbx_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
@@ -173,34 +166,10 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 	opbx_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
 	opbx_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
 
-	if ((tmp = opbx_strdupa(data)) == NULL)
-	{
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}	
+	ourcontext = (argc > 1 && argv[1][0] ? argv[1] : "disa");
+	ourcallerid = (argc > 2 && argv[2][0] ? argv[2] : NULL);
+	mailbox = (argc > 3 && argv[3][0] ? argv[3] : "");
 
-	stringp = tmp;
-	strsep(&stringp, "|");
-	ourcontext = strsep(&stringp, "|");
-	/* if context specified, save 2nd arg and parse third */
-	if (ourcontext)
-    {
-		opbx_copy_string(arg2, ourcontext, sizeof(arg2));
-		ourcallerid = strsep(&stringp,"|");
-	}
-	else
-    {
-        /* if context not specified, use "disa" */
-		arg2[0] = 0;
-		ourcallerid = NULL;
-		ourcontext = "disa";
-	}
-	mailbox = strsep(&stringp, "|");
-	if (!mailbox)
-		mailbox = "";
-	opbx_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
-	
 	if (chan->_state != OPBX_STATE_UP)
     {
 		/* answer */
@@ -214,7 +183,7 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 
 	opbx_log(LOG_DEBUG, "Context: %s\n",ourcontext);
 
-	if (!strcasecmp(tmp, "no-password"))
+	if (!strcasecmp(argv[0], "no-password"))
     {
 		k |= 1; /* We have the password */
 		opbx_log(LOG_DEBUG, "DISA no-password login success\n");
@@ -281,16 +250,16 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 				if (j == '#') /* end of password */
 				{
 					  /* see if this is an integer */
-					if (sscanf(tmp, "%d", &j) < 1)
+					if (isdigit(argv[0][0]))
 					{
                         /* nope, it must be a filename */
-						if ((fp = fopen(tmp,"r")) == NULL)
+						if ((fp = fopen(argv[0],"r")) == NULL)
 						{
-							opbx_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",tmp,chan->name);
+							opbx_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",argv[0],chan->name);
 							LOCAL_USER_REMOVE(u);
 							return -1;
 						}
-						tmp[0] = 0;
+						argv[0][0] = 0;
 						while (fgets(inbuf,sizeof(inbuf) - 1,fp))
 						{
 							char *stringp = NULL;
@@ -308,19 +277,18 @@ static int disa_exec(struct opbx_channel *chan, void *data)
 							if (inbuf[0] == ';')
                                 continue;
 							stringp = inbuf;
-							strsep(&stringp, "|");
-							stringp2 = strsep(&stringp, "|");
+							strsep(&stringp, "|,");
+							stringp2 = strsep(&stringp, "|,");
 							if (stringp2)
                             {
 								ourcontext = stringp2;
-								stringp2 = strsep(&stringp, "|");
+								stringp2 = strsep(&stringp, "|,");
 								if (stringp2)
                                     ourcallerid = stringp2;
 							}
-							mailbox = strsep(&stringp, "|");
+							mailbox = strsep(&stringp, "|,");
 							if (!mailbox)
 								mailbox = "";
-							opbx_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
 
 						    /* password must be in valid format (numeric) */
 							if (sscanf(inbuf, "%d", &j) < 1)
@@ -429,13 +397,16 @@ reorder:
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(disa_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, disa_exec, synopsis, descrip);
+	disa_app = opbx_register_application(disa_name, disa_exec, disa_synopsis, disa_syntax, disa_descrip);
+	return 0;
 }
 
 char *description(void)

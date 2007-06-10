@@ -45,12 +45,12 @@ LOCAL_USER_DECL;
 
 #define EXTRA_LOG 0
 
-static char *app = "MYSQL";
-
-static char *synopsis = "Do several mySQLy things";
-
-static char *descrip = 
-"MYSQL():  Do several mySQLy things\n"
+static void *app;
+static const char *name = "MYSQL";
+static const char *synopsis = "Do several mySQLy things";
+static const char *syntax = "MYSQL()";
+static const char *descrip = 
+"Do several mySQLy things\n"
 "Syntax:\n"
 "  MYSQL(Connect connid dhhost dbuser dbpass dbname)\n"
 "    Connects to a database.  Arguments contain standard MySQL parameters\n"
@@ -378,38 +378,38 @@ static int aMYSQL_disconnect(struct opbx_channel *chan, char *data) {
 	return 0;
 }
 
-static int MYSQL_exec(struct opbx_channel *chan, void *data)
+static int MYSQL_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	int result;
 	char sresult[10];
 
-#if EXTRA_LOG
-	fprintf(stderr,"MYSQL_exec: data=%s\n",(char*)data);
-#endif
-
-	if (!data) {
+	if (argc == 0 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "APP_MYSQL requires an argument (see manual)\n");
 		return -1;
 	}
+
+#if EXTRA_LOG
+	fprintf(stderr,"MYSQL_exec: arg=%s\n", argv[0]);
+#endif
 
 	LOCAL_USER_ADD(u);
 	result=0;
 
 	opbx_mutex_lock(&_mysql_mutex);
 
-	if (strncasecmp("connect",data,strlen("connect"))==0) {
-		result=aMYSQL_connect(chan,opbx_strdupa(data));
-	} else 	if (strncasecmp("query",data,strlen("query"))==0) {
-		result=aMYSQL_query(chan,opbx_strdupa(data));
-	} else 	if (strncasecmp("fetch",data,strlen("fetch"))==0) {
-		result=aMYSQL_fetch(chan,opbx_strdupa(data));
-	} else 	if (strncasecmp("clear",data,strlen("clear"))==0) {
-		result=aMYSQL_clear(chan,opbx_strdupa(data));
-	} else 	if (strncasecmp("disconnect",data,strlen("disconnect"))==0) {
-		result=aMYSQL_disconnect(chan,opbx_strdupa(data));
+	if (strncasecmp("connect",argv[0],strlen("connect"))==0) {
+		result=aMYSQL_connect(chan,opbx_strdupa(argv[0]));
+	} else 	if (strncasecmp("query",argv[0],strlen("query"))==0) {
+		result=aMYSQL_query(chan,opbx_strdupa(argv[0]));
+	} else 	if (strncasecmp("fetch",argv[0],strlen("fetch"))==0) {
+		result=aMYSQL_fetch(chan,opbx_strdupa(argv[0]));
+	} else 	if (strncasecmp("clear",argv[0],strlen("clear"))==0) {
+		result=aMYSQL_clear(chan,opbx_strdupa(argv[0]));
+	} else 	if (strncasecmp("disconnect",argv[0],strlen("disconnect"))==0) {
+		result=aMYSQL_disconnect(chan,opbx_strdupa(argv[0]));
 	} else {
-		opbx_log(LOG_WARNING, "Unknown argument to MYSQL application : %s\n",(char *)data);
+		opbx_log(LOG_WARNING, "Unknown argument to MYSQL application : %s\n", argv[0]);
 		result=-1;	
 	}
 		
@@ -423,15 +423,18 @@ static int MYSQL_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(app);
+	return res;
 }
 
 int load_module(void)
 {
 	struct MYSQLidshead *headp = &_mysql_ids_head;
 	OPBX_LIST_HEAD_INIT(headp);
-	return opbx_register_application(app, MYSQL_exec, synopsis, descrip);
+	app = opbx_register_application(name, MYSQL_exec, synopsis, syntax, descrip);
+	return 0;
 }
 
 char *description(void)

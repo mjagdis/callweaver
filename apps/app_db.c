@@ -48,54 +48,63 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 
 static char *tdesc = "Database access functions for CallWeaver extension logic";
 
-static char *g_descrip =
-	"  DBget(varname=family/key): Retrieves a value from the CallWeaver\n"
-	"database and stores it in the given variable.  Always returns 0.  If the\n"
-	"requested key is not found, jumps to priority n+101 if available.\n";
+static void *g_app;
+static void *p_app;
+static void *d_app;
+static void *dt_app;
 
-static char *p_descrip =
-	"  DBput(family/key=value): Stores the given value in the CallWeaver\n"
-	"database.  Always returns 0.\n";
-
-static char *d_descrip =
-	"  DBdel(family/key): Deletes a key from the CallWeaver database.  Always\n"
-	"returns 0.\n";
-
-static char *dt_descrip =
-	"  DBdelTree(family[/keytree]): Deletes a family or keytree from the CallWeaver\n"
-	"database.  Always returns 0.\n";
-
-static char *g_app = "DBget";
-static char *p_app = "DBput";
-static char *d_app = "DBdel";
-static char *dt_app = "DBdelTree";
+static char *g_name = "DBget";
+static char *p_name = "DBput";
+static char *d_name = "DBdel";
+static char *dt_name = "DBdelTree";
 
 static char *g_synopsis = "Retrieve a value from the database";
 static char *p_synopsis = "Store a value in the database";
 static char *d_synopsis = "Delete a key from the database";
 static char *dt_synopsis = "Delete a family or keytree from the database";
 
+static char *g_syntax = "DBget(varname=family/key)";
+static char *p_syntax = "DBput(family/key=value)";
+static char *d_syntax = "DBdel(family/key)";
+static char *dt_syntax = "DBdelTree(family[/keytree])";
+
+static char *g_descrip =
+	"Retrieves a value from the CallWeaver\n"
+	"database and stores it in the given variable.  Always returns 0.  If the\n"
+	"requested key is not found, jumps to priority n+101 if available.\n";
+
+static char *p_descrip =
+	"Stores the given value in the CallWeaver\n"
+	"database.  Always returns 0.\n";
+
+static char *d_descrip =
+	"Deletes a key from the CallWeaver database.  Always\n"
+	"returns 0.\n";
+
+static char *dt_descrip =
+	"Deletes a family or keytree from the CallWeaver\n"
+	"database.  Always returns 0.\n";
+
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int deltree_exec(struct opbx_channel *chan, void *data)
+static int deltree_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *argv, *family, *keytree;
+	char *family, *keytree;
 	struct localuser *u;
+
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", dt_syntax);
+		return -1;
+	}
 
 	LOCAL_USER_ADD(u);
 
-	argv = opbx_strdupa(data);
-	if (!argv) {
-		opbx_log(LOG_ERROR, "Memory allocation failed\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
-
-	if (strchr(argv, '/')) {
-		family = strsep(&argv, "/");
-		keytree = strsep(&argv, "\0");
+	if (strchr(argv[0], '/')) {
+		family = strsep(&argv[0], "/");
+		keytree = strsep(&argv[0], "\0");
 			if (!family || !keytree) {
 				opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 				LOCAL_USER_REMOVE(u);
@@ -104,7 +113,7 @@ static int deltree_exec(struct opbx_channel *chan, void *data)
 		if (opbx_strlen_zero(keytree))
 			keytree = 0;
 	} else {
-		family = argv;
+		family = argv[0];
 		keytree = 0;
 	}
 
@@ -125,23 +134,21 @@ static int deltree_exec(struct opbx_channel *chan, void *data)
 	return 0;
 }
 
-static int del_exec(struct opbx_channel *chan, void *data)
+static int del_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *argv, *family, *key;
+	char *family, *key;
 	struct localuser *u;
+
+	if (argc != 1) {
+		opbx_log (LOG_ERROR, "Syntax: %s\n", d_syntax);
+		return -1;
+	}
 
 	LOCAL_USER_ADD(u);
 
-	argv = opbx_strdupa(data);
-	if (!argv) {
-		opbx_log (LOG_ERROR, "Memory allocation failed\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
-
-	if (strchr(argv, '/')) {
-		family = strsep(&argv, "/");
-		key = strsep(&argv, "\0");
+	if (strchr(argv[0], '/')) {
+		family = strsep(&argv[0], "/");
+		key = strsep(&argv[0], "\0");
 		if (!family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
@@ -162,30 +169,28 @@ static int del_exec(struct opbx_channel *chan, void *data)
 	return 0;
 }
 
-static int put_exec(struct opbx_channel *chan, void *data)
+static int put_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *argv, *value, *family, *key;
+	char *value, *family, *key;
 	static int dep_warning = 0;
 	struct localuser *u;
-
-	LOCAL_USER_ADD(u);
 
 	if (!dep_warning) {
 		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
 	
-	argv = opbx_strdupa(data);
-	if (!argv) {
-		opbx_log(LOG_ERROR, "Memory allocation failed\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", p_syntax);
+		return -1;
 	}
 
-	if (strchr(argv, '/') && strchr(argv, '=')) {
-		family = strsep(&argv, "/");
-		key = strsep(&argv, "=");
-		value = strsep(&argv, "\0");
+	LOCAL_USER_ADD(u);
+
+	if (strchr(argv[0], '/') && strchr(argv[0], '=')) {
+		family = strsep(&argv[0], "/");
+		key = strsep(&argv[0], "=");
+		value = strsep(&argv[0], "\0");
 		if (!value || !family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
@@ -207,31 +212,29 @@ static int put_exec(struct opbx_channel *chan, void *data)
 	return 0;
 }
 
-static int get_exec(struct opbx_channel *chan, void *data)
+static int get_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *argv, *varname, *family, *key;
+	char *varname, *family, *key;
 	char dbresult[256];
 	static int dep_warning = 0;
 	struct localuser *u;
-
-	LOCAL_USER_ADD(u);
 
 	if (!dep_warning) {
 		opbx_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
 		dep_warning = 1;
 	}
-	
-	argv = opbx_strdupa(data);
-	if (!argv) {
-		opbx_log(LOG_ERROR, "Memory allocation failed\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
+
+	if (argc != 1) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", g_syntax);
+		return -1;
 	}
 
-	if (strchr(argv, '=') && strchr(argv, '/')) {
-		varname = strsep(&argv, "=");
-		family = strsep(&argv, "/");
-		key = strsep(&argv, "\0");
+	LOCAL_USER_ADD(u);
+
+	if (strchr(argv[0], '=') && strchr(argv[0], '/')) {
+		varname = strsep(&argv[0], "=");
+		family = strsep(&argv[0], "/");
+		key = strsep(&argv[0], "\0");
 		if (!varname || !family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
@@ -260,27 +263,23 @@ static int get_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
-	int retval;
+	int res = 0;
 
 	STANDARD_HANGUP_LOCALUSERS;
-	retval = opbx_unregister_application(dt_app);
-	retval |= opbx_unregister_application(d_app);
-	retval |= opbx_unregister_application(p_app);
-	retval |= opbx_unregister_application(g_app);
-
-	return retval;
+	res |= opbx_unregister_application(dt_app);
+	res |= opbx_unregister_application(d_app);
+	res |= opbx_unregister_application(p_app);
+	res |= opbx_unregister_application(g_app);
+	return res;
 }
 
 int load_module(void)
 {
-	int retval;
-
-	retval = opbx_register_application(g_app, get_exec, g_synopsis, g_descrip);
-	retval |= opbx_register_application(p_app, put_exec, p_synopsis, p_descrip);
-	retval |= opbx_register_application(d_app, del_exec, d_synopsis, d_descrip);
-	retval |= opbx_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
-	
-	return retval;
+	g_app = opbx_register_application(g_name, get_exec, g_synopsis, g_syntax, g_descrip);
+	p_app = opbx_register_application(p_name, put_exec, p_synopsis, p_syntax, p_descrip);
+	d_app = opbx_register_application(d_name, del_exec, d_synopsis, d_syntax, d_descrip);
+	dt_app = opbx_register_application(dt_name, deltree_exec, dt_synopsis, dt_syntax, dt_descrip);
+	return 0;
 }
 
 char *description(void)

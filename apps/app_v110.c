@@ -32,12 +32,12 @@
 
 static char *tdesc = "v.110 dialin Application";
 
-static char *app = "V110";
-
-static char *synopsis = "Accept v.110 dialin connection.";
-
-static char *descrip = 
-	"  V110(): Check the incoming call type. For v.110 data calls on an mISDN\n"
+static void *v110_app;
+static const char *v110_name = "V110";
+static const char *v110_synopsis = "Accept v.110 dialin connection.";
+static const char *v110_syntax = "V110()";
+static const char *v110_descrip = 
+	"Check the incoming call type. For v.110 data calls on an mISDN\n"
 	"channel, answer the call, assign a pseudotty and start a login process.\n"
 	"For non-v.110 calls, the V110() application does nothing, and immediately\n"
 	"passes on to the next item in the dialplan.\n";
@@ -147,7 +147,7 @@ static struct opbx_generator v110_gen = {
 };
 
 
-static int login_v110(struct opbx_channel *chan, void *data)
+static int login_v110(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=-1;
 	struct localuser *u;
@@ -344,12 +344,6 @@ static int login_v110(struct opbx_channel *chan, void *data)
 	close(vs->ptyfd);
 	LOCAL_USER_REMOVE(u);
 	return res;
-}
-
-int unload_module(void)
-{
-	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
 }
 
 void v110_process_frame(struct v110_state *vs) 
@@ -800,9 +794,18 @@ int loginpty(char *source)
 	exit(1);
 }
 
+int unload_module(void)
+{
+	int res = 0;
+	STANDARD_HANGUP_LOCALUSERS;
+	res |= opbx_unregister_application(v110_app);
+	return res;
+}
+
 int load_module(void)
 {
-	return opbx_register_application(app, login_v110, synopsis, descrip);
+	v110_app = opbx_register_application(v110_name, login_v110, v110_synopsis, v110_syntax, v110_descrip);
+	return 0;
 }
 
 char *description(void)

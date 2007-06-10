@@ -45,16 +45,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/adsi.h"
 #include "callweaver/options.h"
 
-static char *tdesc = "Get ADSI CPE ID";
+static const char *tdesc = "Get ADSI CPE ID";
 
-static char *app = "GetCPEID";
-
-static char *synopsis = "Get ADSI CPE ID";
-
-static char *descrip =
-"  GetCPEID: Obtains and displays ADSI CPE ID and other information in order\n"
+static void *getcpeid_app;
+static const char *getcpeid_name = "GetCPEID";
+static const char *getcpeid_synopsis = "Get ADSI CPE ID";
+static const char *getcpeid_syntax = "GetCPEID";
+static const char *getcpeid_descrip =
+"Obtains and displays ADSI CPE ID and other information in order\n"
 "to properly setup zapata.conf for on-hook operations.\n"
 "Returns -1 on hangup only.\n";
+
 
 STANDARD_LOCAL_USER;
 
@@ -71,16 +72,16 @@ static int cpeid_setstatus(struct opbx_channel *chan, char *stuff[], int voice)
 	return adsi_print(chan, tmp, justify, voice);
 }
 
-static int cpeid_exec(struct opbx_channel *chan, void *idata)
+static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=0;
-	struct localuser *u;
+	char data[4][80];
+	char *stuff[4];
 	unsigned char cpeid[4];
+	struct localuser *u;
 	int gotgeometry = 0;
 	int gotcpeid = 0;
 	int width, height, buttons;
-	char data[4][80];
-	char *stuff[4];
+	int res=0;
 
 	LOCAL_USER_ADD(u);
 	stuff[0] = data[0];
@@ -140,13 +141,16 @@ static int cpeid_exec(struct opbx_channel *chan, void *idata)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(getcpeid_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, cpeid_exec, synopsis, descrip);
+	getcpeid_app = opbx_register_application(getcpeid_name, cpeid_exec, getcpeid_synopsis, getcpeid_syntax, getcpeid_descrip);
+	return 0;
 }
 
 char *description(void)

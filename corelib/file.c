@@ -329,7 +329,7 @@ static int exts_compare(const char *exts, const char *type)
 
 	opbx_copy_string(tmp, exts, sizeof(tmp));
 	stringp = tmp;
-	while ((ext = strsep(&stringp, "|"))) {
+	while ((ext = strsep(&stringp, "|,"))) {
 		if (!strcmp(ext, type)) {
 			return 1;
 		}
@@ -376,7 +376,7 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 			exts = opbx_strdupa(f->exts);
 			/* Try each kind of extension */
 			stringp=exts;
-			ext = strsep(&stringp, "|");
+			ext = strsep(&stringp, "|,");
 			do {
 				fn = build_filename(filename, ext);
 				if (fn) {
@@ -447,7 +447,7 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 					}
 					free(fn);
 				}
-				ext = strsep(&stringp, "|");
+				ext = strsep(&stringp, "|,");
 			} while(ext);
 			
 		}

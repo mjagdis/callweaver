@@ -45,12 +45,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Playback with Talk and Fax Detection";
 
-static char *app = "BackgroundDetect";
-
-static char *synopsis = "Background a file with Talk and Fax detect";
-
-static char *descrip = 
-" BackgroundDetect(filename[|options[|sil[|min|[max]]]]): \n"
+static void *background_detect_app;
+static const char *background_detect_name = "BackgroundDetect";
+static const char *background_detect_synopsis = "Background a file with Talk and Fax detect";
+static const char *background_detect_syntax = "BackgroundDetect(filename[, options[, sildur[, mindur|, maxdur]]]])";
+static const char *background_detect_descrip = 
 "Parameters:\n"
 "      filename: File to play in the background.\n"
 "      options:\n"
@@ -94,32 +93,29 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int background_detect_exec(struct opbx_channel *chan, void *data)
+static int background_detect_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res = 0;
+	char dtmf_did[256] = "\0";
+	struct timeval start = { 0, 0};
+	struct opbx_dsp *dsp;
 	struct localuser *u;
 	char *tmp;
-	char *options;
-	char *parms;
-	char *stringp;
-	struct opbx_frame *fr=NULL, *fr2=NULL;
-	int notsilent=0;
-	struct timeval start = { 0, 0};
-	int sil = 1000;
-	int min = 100;
-	int max = -1;
+	struct opbx_frame *fr = NULL, *fr2 = NULL;
+	int res = 0;
+	int notsilent = 0;
+	int sil;
+	int min;
+	int max;
 	int x;
-	int origrformat=0;
-	struct opbx_dsp *dsp;
+	int origrformat = 0;
 	int skipanswer = 0;
 	int ignoredtmf = 0;
 	int ignorefax = 0;
 	int ignoretalk = 0;
 	int ignorejump = 0;
 	int features = 0;
-	int noextneeded=0;
+	int noextneeded = 0;
 	int longdtmf = 1;
-	char dtmf_did[256] = "\0";
 
 	pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "0");
 	pbx_builtin_setvar_helper(chan, "FAXEXTEN", "unknown");
@@ -127,62 +123,31 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "TALK_DETECTED", "0");
 	pbx_builtin_setvar_helper(chan, "DTMF_DID", "");
 	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
+	if (argc < 1 || argc > 5) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", background_detect_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	tmp = opbx_strdupa(data);
-	if (!tmp) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}	
-
-
-	stringp=tmp;
-	strsep(&stringp, "|");
-	options = strsep(&stringp, "|");
-	parms   = strsep(&stringp, "|");
-
-	if (options) {
-		if (strchr(options, 'n'))
-			skipanswer = 1;
-		if (strchr(options, 'x'))
-			noextneeded = 1;
-		if (strchr(options, 'd'))
-			ignoredtmf = 1;
-		if (strchr(options, 'D')) {
-			longdtmf = 1;
-			ignoredtmf = 0;
-		}
-		if (strchr(options, 'f'))
-			ignorefax = 1;
-		if (strchr(options, 't'))
-			ignoretalk = 1;
-		if (strchr(options, 'j'))
-			ignorejump = 1;
-	}
-
-	if (parms) {
-		if ((sscanf(parms, "%d", &x) == 1) && (x > 0))
-			sil = x;
-		parms = strsep(&stringp, "|");
-		if (parms) {
-			if ((sscanf(parms, "%d", &x) == 1) && (x > 0))
-				min = x;
-			parms = strsep(&stringp, "|");
-			if (parms) {
-				if ((sscanf(parms, "%d", &x) == 1) && (x > 0))
-					max = x;
-			}
+	for (; argv[1][0]; argv[1]++) {
+		switch (argv[1][0]) {
+			case 'n': skipanswer = 1; break;
+			case 'x': noextneeded = 1; break;
+			case 'd': ignoredtmf = 1; break;
+			case 'D': ignoredtmf = 0; longdtmf = 1; break;
+			case 'f': ignorefax = 1; break;
+			case 't': ignoretalk = 1; break;
+			case 'j': ignorejump = 1; break;
 		}
 	}
 
-	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", 
-						tmp, sil, min, max);
+	sil = (argc > 2 ? atoi(argv[2]) : 1000);
+	min = (argc > 3 ? atoi(argv[3]) : 100);
+	max = (argc > 4 ? atoi(argv[4]) : -1);
+
+	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", tmp, sil, min, max);
+
 	if (chan->_state != OPBX_STATE_UP && !skipanswer) {
 		// Otherwise answer unless we're supposed to send this while on-hook 
 		res = opbx_answer(chan);
@@ -365,7 +330,7 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 			}
 			opbx_stopstream(chan);
 		} else {
-			opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, (char *)data);
+			opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, argv[0]);
 			res = 0;
 		}
 	}
@@ -383,13 +348,16 @@ static int background_detect_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(background_detect_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, background_detect_exec, synopsis, descrip);
+	background_detect_app = opbx_register_application(background_detect_name, background_detect_exec, background_detect_synopsis, background_detect_syntax, background_detect_descrip);
+	return 0;
 }
 
 char *description(void)

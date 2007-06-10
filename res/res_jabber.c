@@ -52,9 +52,13 @@ OPBX_MUTEX_DEFINE_STATIC(port_lock);
 OPBX_MUTEX_DEFINE_STATIC(callid_lock);
 
 static char *tdesc = "res_jabber";
-static char *app_name = "NextGen";
-static char *synopsis = "res_jabber";
-static char *desc = "";
+
+static void *app;
+static const char *name = "NextGen";
+static const char *synopsis = "res_jabber";
+static const char *syntax = "";
+static const char *desc = "";
+
 static char *configfile = "res_jabber.conf";
 
 STANDARD_LOCAL_USER;
@@ -196,7 +200,7 @@ static void jabber_profile_init(struct jabber_profile *profile, char *resource, 
 static void jabber_profile_destroy(struct jabber_profile *profile);
 static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
-static int res_jabber_exec(struct opbx_channel *chan, void *data);
+static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv);
 static void init_globals(int do_free); 
 static int config_jabber(int reload); 
 static void *cli_command_thread(void *cli_command);
@@ -877,11 +881,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		
 		if ((APP = pbx_findapp(app))) {
 			opbx_log(LOG_DEBUG, "Executing App %s(%s) on %s\n", app, data, chan->name);
-			chan->appl = app;
-			chan->data = data;
-			res = pbx_exec(chan, APP, data, 1);
-			chan->appl = app_name;
-			chan->data = NULL;
+			res = pbx_exec(chan, APP, data);
 			if ((node = jabber_message_node_printf(profile->master,
 												   "Event",
 												   "EVENT ENDAPP\n"
@@ -1268,7 +1268,7 @@ static void setup_cdr(struct opbx_channel *chan)
 		opbx_cdr_init(chan->cdr, chan);
 	}
 	if (chan->cdr) {
-		opbx_cdr_setapp(chan->cdr, app_name, "");
+		opbx_cdr_setapp(chan->cdr, name, "");
 		opbx_cdr_update(chan);
 		opbx_cdr_start(chan->cdr);
 		opbx_cdr_end(chan->cdr);
@@ -1311,8 +1311,7 @@ static void *jabber_pbx_session(void *obj)
 	}
 
 	g_main_context_ref(profile->context);
-	chan->appl = app_name;
-	chan->data = NULL;
+	chan->appl = (char *)name;
 	readformat = chan->readformat;
 	writeformat = chan->writeformat;
 	state = chan->_state;
@@ -1924,7 +1923,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 
 
-static int res_jabber_exec(struct opbx_channel *chan, void *data)
+static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct jabber_message_node *node;
@@ -1945,12 +1944,7 @@ static int res_jabber_exec(struct opbx_channel *chan, void *data)
 	name = chan->uniqueid;
 
 	jabber_profile_init(&profile, name, name, chan, JFLAG_SUB);
-	if(!opbx_strlen_zero(data)) {
-		master = opbx_strdupa(data);
-	} else {
-		master = profile.master;
-	}
-
+	master = (argc > 1 && argv[0][0] ? argv[0] : profile.master);
 
 	if ((node = jabber_message_node_printf(master, 
 										   "EVENT",
@@ -2006,7 +2000,7 @@ int unload_module(void)
 		sched_yield();
 	}
 	jabber_profile_destroy(&global_profile);
-	return opbx_unregister_application(app_name);
+	return opbx_unregister_application(app);
 }
 
 static void init_globals(int do_free) 
@@ -2093,7 +2087,8 @@ int load_module(void)
 		add_manager_hook(&jabber_hook);
 	}
 #endif
-	return opbx_register_application(app_name, res_jabber_exec, synopsis, desc);
+	app = opbx_register_application(name, res_jabber_exec, synopsis, syntax, desc);
+	return 0;
 }
 
 char *description(void)

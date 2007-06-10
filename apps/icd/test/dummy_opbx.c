@@ -249,11 +249,11 @@ int opbx_cli_register ( struct opbx_cli_entry * e ) {
     return 0; 
 }
 
-int opbx_register_application ( char * app, int(* execute)(struct opbx_channel *, void *), char * synopsis, char * description) {
+int opbx_register_application( char * name, int(* execute)(struct opbx_channel *, char **, int), char * synopsis, char * syntax, char * description) {
     return 0;
 }
 
-int opbx_unregister_application(char *app) {
+int opbx_unregister_application(void *app) {
     return 0;
 }
 
@@ -312,7 +312,7 @@ struct opbx_app *pbx_findapp(char *app) {
  return NULL;
 } 
 
-int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data, int newstrck) {
+int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data) {
  return 0;
 }
  

@@ -47,10 +47,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/app.h"
 
 static char *tdesc = "Virtual Dictation Machine";
-static char *app = "Dictate";
-static char *synopsis = "Virtual Dictation Machine";
-static char *desc = "  Dictate([<base_dir>])\n"
-"Start dictation machine using optional base dir for files.\n";
+
+static void *dictate_app;
+static char *dictate_name = "Dictate";
+static char *dictate_synopsis = "Virtual Dictation Machine";
+static char *dictate_syntax = "Dictate([base_dir])";
+static char *dictate_descrip = "Start dictation machine using optional base dir for files.\n";
 
 
 STANDARD_LOCAL_USER;
@@ -80,9 +82,9 @@ static int play_and_wait(struct opbx_channel *chan, char *file, char *digits)
 	return res;
 }
 
-static int dictate_exec(struct opbx_channel *chan, void *data)
+static int dictate_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *mydata, *argv[2], *path = NULL, filein[256];
+	char *mydata, *path = NULL, filein[256];
 	char dftbase[256];
 	char *base;
 	struct opbx_flags flags = {0};
@@ -91,7 +93,6 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 	struct localuser *u;
 	int ffactor = 320 * 80,
 		res = 0,
-		argc = 0,
 		done = 0,
 		oldr = 0,
 		lastop = 0,
@@ -105,15 +106,8 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", opbx_config_OPBX_SPOOL_DIR);
-	if (!opbx_strlen_zero(data) && (mydata = opbx_strdupa(data))) {
-		argc = opbx_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
-	}
 	
-	if (argc) {
-		base = argv[0];
-	} else {
-		base = dftbase;
-	}
+	base = (argc > 0 && argv[0][0] ? argv[0] : dftbase);
 
 	oldr = chan->readformat;
 	if ((res = opbx_set_read_format(chan, OPBX_FORMAT_SLINEAR)) < 0) {
@@ -325,13 +319,16 @@ static int dictate_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(dictate_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, dictate_exec, synopsis, desc);
+	dictate_app = opbx_register_application(dictate_name, dictate_exec, dictate_synopsis, dictate_syntax, dictate_descrip);
+	return 0;
 }
 
 char *description(void)

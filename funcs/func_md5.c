@@ -41,92 +41,76 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 
-static char *builtin_function_md5(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+
+static void *md5_function;
+static const char *md5_func_name = "MD5";
+static const char *md5_func_synopsis = "Computes an MD5 digest";
+static const char *md5_func_syntax = "MD5(data)";
+static const char *md5_func_desc = "";
+
+static void *checkmd5_function;
+static const char *checkmd5_func_name = "CHECK_MD5";
+static const char *checkmd5_func_synopsis = "Checks an MD5 digest";
+static const char *checkmd5_func_syntax = "CHECK_MD5(digest, data)";
+static const char *checkmd5_func_desc = "Returns 1 on a match, 0 otherwise\n";
+
+
+static char *builtin_function_md5(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
 	char md5[33];
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Syntax: MD5(<data>) - missing argument!\n");
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", md5_func_syntax);
 		return NULL;
 	}
 
-	opbx_md5_hash(md5, data);
+	opbx_md5_hash(md5, argv[0]);
 	opbx_copy_string(buf, md5, len);
-	
+
 	return buf;
 }
 
-static char *builtin_function_checkmd5(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *builtin_function_checkmd5(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
-	int argc;
-	char *argv[2];
-	char *args;
 	char newmd5[33];
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
+	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", checkmd5_func_syntax);
 		return NULL;
 	}
 
-	args = opbx_strdupa(data);	
-	argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	if (argc < 2) {
-		opbx_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
+	if (len < 2) {
+		opbx_log(LOG_ERROR, "Out of space in return buffer\n");
 		return NULL;
 	}
 
 	opbx_md5_hash(newmd5, argv[1]);
 
-	if (!strcasecmp(newmd5, argv[0]))	/* they match */
-		opbx_copy_string(buf, "1", len);
-	else
-		opbx_copy_string(buf, "0", len);
-	
+	buf[0] = (strcasecmp(newmd5, argv[0]) ? '0' : '1');
+	buf[1] = '\0';
+
 	return buf;
 }
 
-static struct opbx_custom_function md5_function = {
-	.name = "MD5",
-	.synopsis = "Computes an MD5 digest",
-	.syntax = "MD5(<data>)",
-	.read = builtin_function_md5,
-};
 
-static struct opbx_custom_function checkmd5_function = {
-	.name = "CHECK_MD5",
-	.synopsis = "Checks an MD5 digest",
-	.desc = "Returns 1 on a match, 0 otherwise\n",
-	.syntax = "CHECK_MD5(<digest>,<data>)",
-	.read = builtin_function_checkmd5,
-};
-
-static char *tdesc = "math functions";
+static char *tdesc = "MD5 functions";
 
 int unload_module(void)
 {
         int res = 0;
 
-        if (opbx_custom_function_unregister(&md5_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_unregister(&checkmd5_function) < 0)
-                res = -1;
+	res |= opbx_unregister_function(md5_function);
+	res |= opbx_unregister_function(checkmd5_function);
 
         return res;
 }
 
 int load_module(void)
 {
-        int res = 0;
+        md5_function = opbx_register_function(md5_func_name, builtin_function_md5, NULL, md5_func_synopsis, md5_func_syntax, md5_func_desc);
+        checkmd5_function = opbx_register_function(checkmd5_func_name, builtin_function_checkmd5, NULL, checkmd5_func_synopsis, checkmd5_func_syntax, checkmd5_func_desc);
 
-        if (opbx_custom_function_register(&md5_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_register(&checkmd5_function) < 0)
-                res = -1;
-
-        return res;
+        return 0;
 }
 
 char *description(void)

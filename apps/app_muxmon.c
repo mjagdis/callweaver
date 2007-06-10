@@ -50,10 +50,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0 
 
 static char *tdesc = "Native Channel Monitoring Module";
-static char *app = "MuxMon";
-static char *synopsis = "Record A Call Natively";
-static char *desc = ""
-"  MuxMon(<file>.<ext>[|<options>[|<command>]])\n\n"
+
+static void *muxmon_app;
+static char *muxmon_name = "MuxMon";
+static char *muxmon_synopsis = "Record A Call Natively";
+static char *muxmon_syntax = "MuxMon(file.ext[, options[, command]])";
+static char *muxmon_descrip =
 "Records The audio on the current channel to the specified file.\n\n"
 "Valid Options:\n"
 " b    - Only save audio to the file while the channel is bridged. *does not include conferences*\n"
@@ -335,7 +337,7 @@ static void *muxmon_thread(void *obj)
 				*p = '$';
 			}
 		}
-		pbx_substitute_variables_helper(muxmon->chan, muxmon->post_process, post_process, sizeof(post_process) - 1);
+		pbx_substitute_variables_helper(muxmon->chan, muxmon->post_process, post_process, sizeof(post_process));
 		free(muxmon->post_process);
 		muxmon->post_process = NULL;
 	}
@@ -403,45 +405,22 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
 }
 
 
-static int muxmon_exec(struct opbx_channel *chan, void *data)
+static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res = 0, x = 0, readvol = 0, writevol = 0;
-	struct localuser *u;
 	struct opbx_flags flags = {0};
-	int argc;
-	char *options = NULL,
-		*args,
-		*argv[3],
-		*filename = NULL,
-		*post_process = NULL;
-	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "muxmon requires an argument\n");
+	struct localuser *u;
+	int res = 0, x = 0, readvol = 0, writevol = 0;
+
+	if (argc < 1 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", muxmon_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	args = opbx_strdupa(data);
-	if (!args) {
-		opbx_log(LOG_WARNING, "Memory Error!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-	
-	if ((argc = opbx_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		filename = argv[0];
-		if (argc > 1) {
-			options = argv[1];
-		}
-		if (argc > 2) {
-			post_process = argv[2];
-		}
-	}
-	
-	if (options) {
+	if (argc > 1 && argv[1][0]) {
 		char *opts[3] = {};
-		opbx_parseoptions(muxmon_opts, &flags, opts, options);
+		opbx_parseoptions(muxmon_opts, &flags, opts, argv[1]);
 
 		if (opbx_test_flag(&flags, MUXFLAG_READVOLUME) && opts[0]) {
 			if (sscanf(opts[0], "%d", &x) != 1)
@@ -475,15 +454,10 @@ static int muxmon_exec(struct opbx_channel *chan, void *data)
 			}
 		}
 	}
-	pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);
 
-	if (filename) {
-		pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);
-		launch_monitor_thread(chan, filename, flags.flags, readvol, writevol, post_process);
-	} else {
-		opbx_log(LOG_WARNING, "muxmon requires an argument\n");
-        return -1;
-	}
+	pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", argv[0]);
+	launch_monitor_thread(chan, argv[0], flags.flags, readvol, writevol, argv[2]);
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -519,16 +493,12 @@ static struct opbx_channel *local_get_channel_begin_name(char *name)
 
 static int muxmon_cli(int fd, int argc, char **argv) 
 {
-	char *op, *chan_name = NULL, *args = NULL;
+	char *op, *chan_name = NULL;
 	struct opbx_channel *chan;
 
 	if (argc > 2) {
 		op = argv[1];
 		chan_name = argv[2];
-
-		if (argv[3]) {
-			args = argv[3];
-		}
 
 		if (!(chan = local_get_channel_begin_name(chan_name))) {
 			opbx_cli(fd, "Invalid Channel!\n");
@@ -536,7 +506,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 		}
 
 		if (!strcasecmp(op, "start")) {
-			muxmon_exec(chan, args);
+			muxmon_exec(chan, argc - 3, argv + 3);
 		} else if (!strcasecmp(op, "stop")) {
 			struct opbx_channel_spy *cptr=NULL;
 			int count=0;
@@ -572,15 +542,18 @@ static struct opbx_cli_entry cli_muxmon = {
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
 	opbx_cli_unregister(&cli_muxmon);
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(muxmon_app);
+	return res;
 }
 
 int load_module(void)
 {
 	opbx_cli_register(&cli_muxmon);
-	return opbx_register_application(app, muxmon_exec, synopsis, desc);
+	muxmon_app = opbx_register_application(muxmon_name, muxmon_exec, muxmon_synopsis, muxmon_syntax, muxmon_descrip);
+	return 0;
 }
 
 char *description(void)

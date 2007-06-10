@@ -43,12 +43,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2627 $")
 
 static char *tdesc = "Random goto";
 
-static char *app_random = "Random";
-
-static char *random_synopsis = "Conditionally branches, based upon a probability";
-
-static char *random_descrip =
-"Random([probability]:[[context|]extension|]priority)\n"
+static void *random_app;
+static const char *random_name = "Random";
+static const char *random_synopsis = "Conditionally branches, based upon a probability";
+static const char *random_syntax = "Random([probability]:[[context, ]extension, ]priority)";
+static const char *random_descrip =
+"Conditionally branches, based upon a probability\n"
 "  probability := INTEGER in the range 1 to 100\n";
 
 STANDARD_LOCAL_USER;
@@ -57,53 +57,52 @@ LOCAL_USER_DECL;
 
 static char random_state[256];
 
-static int random_exec(struct opbx_channel *chan, void *data)
+static int random_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
-
-	char *s;
-	char *prob;
+	char *s, *context, *exten;
 	int probint;
 	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
+	if (argc < 1 || argc > 3) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", random_syntax);
 		return -1;
 	}
 	
 	LOCAL_USER_ADD(u);
 
-	s = opbx_strdupa(data);
-	if (!s) {
-		opbx_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
+	if ((s = strchr(argv[0], ':'))) {
+		probint = atoi(argv[0]);
+		argv[0] = s + 1;
 	}
 
-	prob = strsep(&s,":");
-	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
-		probint = 0;
-
+	/* FIXME: is this really what was intended? */
 	if ((random() % 100) + probint > 100) {
-		res = opbx_parseable_goto(chan, s);
-		if (option_verbose > 2)
+		exten = (argc > 1 ? argv[argc-2] : NULL);
+		context = (argc > 2 ? argv[argc-3] : NULL);
+		res = opbx_explicit_gotolabel(chan, context, exten, argv[argc-1]);
+		if (!res && option_verbose > 2)
 			opbx_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
 				chan->context,chan->exten, chan->priority+1);
 	}
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app_random);
+	res |= opbx_unregister_application(random_app);
+	return res;
 }
 
 int load_module(void)
 {
 	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
-	return opbx_register_application(app_random, random_exec, random_synopsis, random_descrip);
+	random_app = opbx_register_application(random_name, random_exec, random_synopsis, random_syntax, random_descrip);
+	return 0;
 }
 
 char *description(void)

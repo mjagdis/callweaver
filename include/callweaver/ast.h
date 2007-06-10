@@ -180,8 +180,8 @@
 #define ast_ctime opbx_ctime
 #define ast_ctime_r opbx_ctime_r
 #define ast_custom_function_find opbx_custom_function_find
-#define ast_custom_function_register opbx_custom_function_register
-#define ast_custom_function_unregister opbx_custom_function_unregister
+#define ast_custom_function_register opbx_register_function
+#define ast_custom_function_unregister opbx_unregister_function
 #define ast_db_del opbx_db_del
 #define ast_db_deltree opbx_db_deltree
 #define ast_db_freetree opbx_db_freetree
@@ -430,7 +430,7 @@
 #define ast_record_review opbx_record_review
 #define ast_recvchar opbx_recvchar
 #define ast_recvtext opbx_recvtext
-#define ast_register_application opbx_register_application
+#define ast_register_application ast_register_application_incompatible_api
 #define ast_register_atexit opbx_register_atexit
 #define ast_register_feature opbx_register_feature
 #define ast_register_file_version opbx_register_file_version
@@ -571,7 +571,7 @@
 #define ast_senddigit opbx_senddigit
 #define ast_send_image opbx_send_image
 #define ast_sendtext opbx_sendtext
-#define ast_separate_app_args opbx_separate_app_args
+#define ast_separate_app_args ast_separate_app_args_incompatible_with_callweaver
 #define ast_set_callerid opbx_set_callerid
 #define ast_set_indication_country opbx_set_indication_country
 #define ast_set_priority opbx_set_priority
@@ -648,7 +648,7 @@
 #define ast_unlock_context opbx_unlock_context
 #define ast_unlock_contexts opbx_unlock_contexts
 #define ast_unlock_path opbx_unlock_path
-#define ast_unregister_application opbx_unregister_application
+#define ast_unregister_application ast_unregister_application_incompatible_api
 #define ast_unregister_atexit opbx_unregister_atexit
 #define ast_unregister_feature opbx_unregister_feature
 #define ast_unregister_file_version opbx_unregister_file_version

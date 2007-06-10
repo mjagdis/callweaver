@@ -43,24 +43,31 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Simple Echo Application";
 
-static char *app = "Echo";
-
-static char *synopsis = "Echo audio read back to the user";
-
-static char *descrip = 
-"  Echo():  Echo audio read from channel back to the channel. Returns 0\n"
+static void *echo_app;
+static const char *echo_name = "Echo";
+static const char *echo_synopsis = "Echo audio read back to the user";
+static const char *echo_syntax = "Echo()";
+static const char *echo_descrip = 
+"Echo audio read from channel back to the channel. Returns 0\n"
 "if the user exits with the '#' key, or -1 if the user hangs up.\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int echo_exec(struct opbx_channel *chan, void *data)
+static int echo_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	int res=-1;
 	struct localuser *u;
 	struct opbx_frame *f;
+	int res = -1;
+
+	if (argc != 0) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", echo_syntax);
+		return -1;
+	}
+
 	LOCAL_USER_ADD(u);
+
 	opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));
 	opbx_set_read_format(chan, opbx_best_codec(chan->nativeformats));
 	/* Do our thing here */
@@ -86,19 +93,23 @@ static int echo_exec(struct opbx_channel *chan, void *data)
 		}
 		opbx_fr_free(f);
 	}
+
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(echo_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, echo_exec, synopsis, descrip);
+	echo_app = opbx_register_application(echo_name, echo_exec, echo_synopsis, echo_syntax, echo_descrip);
+	return 0;
 }
 
 char *description(void)

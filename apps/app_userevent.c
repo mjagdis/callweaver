@@ -43,12 +43,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Custom User Event Application";
 
-static char *app = "UserEvent";
-
-static char *synopsis = "Send an arbitrary event to the manager interface";
-
-static char *descrip = 
-"  UserEvent(eventname[|body]): Sends an arbitrary event to the\n"
+static void *userevent_app;
+static const char *userevent_name = "UserEvent";
+static const char *userevent_synopsis = "Send an arbitrary event to the manager interface";
+static const char *userevent_syntax = "UserEvent(eventname[, body])";
+static const char *userevent_descrip = 
+"Sends an arbitrary event to the\n"
 "manager interface, with an optional body representing additional\n"
 "arguments.  The format of the event will be:\n"
 "    Event: UserEvent<specified event name>\n"
@@ -62,39 +62,26 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int userevent_exec(struct opbx_channel *chan, void *data)
+static int userevent_exec(struct opbx_channel *chan, int argc, char **argv)
 {
+	char eventname[512];
 	struct localuser *u;
 	char *info;
-	char eventname[512];
-	char *eventbody;
 
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
+	if (argc < 1 || argc > 2 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", userevent_syntax);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	info = opbx_strdupa(data);
-	if (!info) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	snprintf(eventname, sizeof(eventname), "UserEvent%s", argv[0]);
 
-	snprintf(eventname, sizeof(eventname), "UserEvent%s", info);
-	eventbody = strchr(eventname, '|');
-	if (eventbody) {
-		*eventbody = '\0';
-		eventbody++;
-	}
-	
-	if(eventbody) {
-            opbx_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, eventbody);
+	if (argc > 1 && argv[1][0]) {
+            opbx_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, argv[1]);
             manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n%s\r\n",
-			chan->name, chan->uniqueid, eventbody);
+			chan->name, chan->uniqueid, argv[1]);
 	} else {
             opbx_log(LOG_DEBUG, "Sending user event: %s\n", eventname);
             manager_event(EVENT_FLAG_USER, eventname, 
@@ -107,13 +94,16 @@ static int userevent_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(userevent_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, userevent_exec, synopsis, descrip);
+	userevent_app = opbx_register_application(userevent_name, userevent_exec, userevent_synopsis, userevent_syntax, userevent_descrip);
+	return 0;
 }
 
 char *description(void)

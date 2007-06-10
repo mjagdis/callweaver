@@ -50,16 +50,19 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/options.h"
 
 static char *tdesc = "Wait For Silence";
-static char *app = "WaitForSilence";
-static char *synopsis = "Waits for a specified amount of silence";
-static char *descrip = 
-"  WaitForSilence(x[|y]) Wait for Silence: Waits for up to 'x' \n"
+
+static void *waitforsilence_app;
+static const char *waitforsilence_name = "WaitForSilence";
+static const char *waitforsilence_synopsis = "Waits for a specified amount of silence";
+static const char *waitforsilence_syntax = "WaitForSilence(x[, y])";
+static const char *waitforsilence_descrip = 
+"Wait for Silence: Waits for up to 'x' \n"
 "milliseconds of silence, 'y' times or 1 if omitted\n"
 "Set the channel variable WAITSTATUS with to one of these values:"
 "SILENCE - if silence of x ms was detected"
 "TIMEOUT - if silence of x ms was not detected."
 "Examples:\n"
-"  - WaitForSilence(500,2) will wait for 1/2 second of silence, twice\n"
+"  - WaitForSilence(500, 2) will wait for 1/2 second of silence, twice\n"
 "  - WaitForSilence(1000) will wait for 1 second of silence, once\n";
 
 STANDARD_LOCAL_USER;
@@ -149,29 +152,33 @@ static int do_waiting(struct opbx_channel *chan, int maxsilence) {
 	return gotsilence;
 }
 
-static int waitforsilence_exec(struct opbx_channel *chan, void *data)
+static int waitforsilence_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 1;
 	struct localuser *u;
-	int maxsilence = 1000;
+	int maxsilence;
 	int iterations = 1, i;
 
-	LOCAL_USER_ADD(u);
-	
-	res = opbx_answer(chan); /* Answer the channel */
-
-	if (!data || ((sscanf(data, "%d|%d", &maxsilence, &iterations) != 2) &&
-		(sscanf(data, "%d", &maxsilence) != 1))) {
-		opbx_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration\n");
+	if (argc < 0 || argc > 2 || (argc > 0 && !isdigit(argv[0][0])) || (argc == 2 && !isdigit(argv[1][0]))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", waitforsilence_syntax);
+		return -1;
 	}
+
+	maxsilence = (argc > 0 ? atoi(argv[0]) : 1000);
+	iterations = (argc > 1 ? atoi(argv[1]) : 1);
+
+	LOCAL_USER_ADD(u);
+
+	res = opbx_answer(chan); /* Answer the channel */
 
 	if (option_verbose > 2)
 		opbx_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, maxsilence);
-	
+
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
 		res = do_waiting(chan, maxsilence);
 	}
+
 	LOCAL_USER_REMOVE(u);
 	if (res > 0)
 		res = 0;
@@ -180,13 +187,16 @@ static int waitforsilence_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(waitforsilence_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, waitforsilence_exec, synopsis, descrip);
+	waitforsilence_app = opbx_register_application(waitforsilence_name, waitforsilence_exec, waitforsilence_synopsis, waitforsilence_syntax, waitforsilence_descrip);
+	return 0;
 }
 
 char *description(void)

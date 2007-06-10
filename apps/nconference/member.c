@@ -330,7 +330,7 @@ struct opbx_generator membergen =
 	HANDLING MEMBERS    
    ****************************************************************************/
 
-int member_exec( struct opbx_channel* chan, void* data ) {
+int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
     int left = 0 ;
     int res;
 
@@ -347,7 +347,7 @@ int member_exec( struct opbx_channel* chan, void* data ) {
     	    return -1 ;
 	}
 
-    member = create_member( chan, (const char*)( data ) ) ;
+    member = create_member( chan, argc, argv ) ;
 
     // unable to create member, return an error
     if ( member == NULL ) 
@@ -609,7 +609,7 @@ int member_exec( struct opbx_channel* chan, void* data ) {
 	CREATE/ DESTROY MEMBERS    
    ****************************************************************************/
 
-struct opbx_conf_member *create_member( struct opbx_channel *chan, const char* data ) {
+struct opbx_conf_member *create_member( struct opbx_channel *chan, int argc, char **argv ) {
 
     if ( chan == NULL )
     {
@@ -642,7 +642,7 @@ struct opbx_conf_member *create_member( struct opbx_channel *chan, const char* d
     char *stringp, *token ;
 
     // copy the passed data
-    strncpy( argstr, data, sizeof(argstr) - 1 ) ;
+    strncpy( argstr, argv[0], sizeof(argstr) - 1 ) ;
 
     // point to the copied data
     stringp = argstr ;

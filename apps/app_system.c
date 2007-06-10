@@ -47,18 +47,22 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 
 static char *tdesc = "Generic System() application";
 
-static char *app = "System";
+static void *app;
+static void *app2;
 
-static char *app2 = "TrySystem";
+static const char *name = "System";
+static const char *name2 = "TrySystem";
 
-static char *synopsis = "Execute a system command";
+static const char *synopsis = "Execute a system command";
+static const char *synopsis2 = "Try executing a system command";
 
-static char *synopsis2 = "Try executing a system command";
+static const char *chanvar = "SYSTEMSTATUS";
 
-static char *chanvar = "SYSTEMSTATUS";
+static const char *syntax = "System(command)";
+static const char *syntax2 = "TrySystem(command)";
 
-static char *descrip =
-"  System(command): Executes a command  by  using  system(). Returns -1 on\n"
+static const char *descrip =
+"Executes a command  by  using  system(). Returns -1 on\n"
 "failure to execute the specified command. \n"
 "Result of execution is returned in the SYSTEMSTATUS channel variable:\n"
 "   FAILURE	Could not execute the specified command\n"
@@ -72,8 +76,8 @@ static char *descrip =
 "if the global priority jumping option is enabled in extensions.conf.\n"
 " Otherwise, System returns 0.\n";
 
-static char *descrip2 =
-"  TrySystem(command): Executes a command  by  using  system(). Returns 0\n"
+static const char *descrip2 =
+"Executes a command  by  using  system(). Returns 0\n"
 "on any situation.\n"
 "Result of execution is returned in the SYSTEMSTATUS channel variable:\n"
 "   FAILURE	Could not execute the specified command\n"
@@ -89,27 +93,26 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int system_exec_helper(struct opbx_channel *chan, void *data, int failmode)
+static int system_exec_helper(struct opbx_channel *chan, int argc, char **argv, int failmode)
 {
 	int res=0;
 	struct localuser *u;
 	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "System requires an argument(command)\n");
-		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
-		return failmode;
+	if (argc != 1 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax);
+		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
 	/* Do our thing here */
-	res = opbx_safe_system((char *)data);
+	res = opbx_safe_system(argv[0]);
 	if ((res < 0) && (errno != ECHILD)) {
-		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
+		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		res = failmode;
 	} else if (res == 127) {
-		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
+		opbx_log(LOG_WARNING, "Unable to execute '%s'\n", argv[0]);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		res = failmode;
 	} else {
@@ -130,27 +133,30 @@ static int system_exec_helper(struct opbx_channel *chan, void *data, int failmod
 	return res;
 }
 
-static int system_exec(struct opbx_channel *chan, void *data)
+static int system_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	return system_exec_helper(chan, data, -1);
+	return system_exec_helper(chan, argc, argv, -1);
 }
 
-static int trysystem_exec(struct opbx_channel *chan, void *data)
+static int trysystem_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	return system_exec_helper(chan, data, 0);
+	return system_exec_helper(chan, argc, argv, 0);
 }
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	opbx_unregister_application(app2);
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(app2);
+	res |= opbx_unregister_application(app);
+	return res;
 }
 
 int load_module(void)
 {
-	opbx_register_application(app2, trysystem_exec, synopsis2, descrip2);
-	return opbx_register_application(app, system_exec, synopsis, descrip);
+	app2 = opbx_register_application(name2, trysystem_exec, synopsis2, syntax2, descrip2);
+	app = opbx_register_application(name, system_exec, synopsis, syntax, descrip);
+	return 0;
 }
 
 char *description(void)

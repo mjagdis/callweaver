@@ -46,12 +46,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 
 static char *tdesc = "Authentication Application";
 
-static char *app = "Authenticate";
-
-static char *synopsis = "Authenticate a user";
-
-static char *descrip =
-"  Authenticate(password[|options]): Requires a user to enter a"
+static void *auth_app;
+static const char *auth_name = "Authenticate";
+static const char *auth_synopsis = "Authenticate a user";
+static const char *auth_syntax = "Authenticate(password[, options])";
+static const char *auth_descrip =
+"Requires a user to enter a"
 "given password in order to continue execution.  If the\n"
 "password begins with the '/' character, it is interpreted as\n"
 "a file which contains a list of valid passwords (1 per line).\n"
@@ -77,19 +77,17 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int auth_exec(struct opbx_channel *chan, void *data)
+static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	int jump = 0;
 	int retries;
 	struct localuser *u;
-	char password[256]="";
 	char passwd[256];
-	char *opts;
 	char *prompt;
 	
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
+	if (argc < 1 || argc > 2) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", auth_syntax);
 		return -1;
 	}
 	
@@ -103,14 +101,7 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 		}
 	}
 	
-	strncpy(password, data, sizeof(password) - 1);
-	opts=strchr(password, '|');
-	if (opts) {
-		*opts = 0;
-		opts++;
-	} else
-		opts = "";
-	if (strchr(opts, 'j'))
+	if (argc > 1 && strchr(argv[1], 'j'))
 		jump = 1;
 	/* Start asking for password */
 	prompt = "agent-pass";
@@ -119,21 +110,21 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 		if (res < 0)
 			break;
 		res = 0;
-		if (password[0] == '/') {
-			if (strchr(opts, 'd')) {
+		if (argv[0][0] == '/') {
+			if (argc > 1 && strchr(argv[1], 'd')) {
 				char tmp[256];
 				/* Compare against a database key */
-				if (!opbx_db_get(password + 1, passwd, tmp, sizeof(tmp))) {
+				if (!opbx_db_get(argv[0] + 1, passwd, tmp, sizeof(tmp))) {
 					/* It's a good password */
-					if (strchr(opts, 'r')) {
-						opbx_db_del(password + 1, passwd);
+					if (argc > 1 && strchr(argv[1], 'r')) {
+						opbx_db_del(argv[0] + 1, passwd);
 					}
 					break;
 				}
 			} else {
 				/* Compare against a file */
 				FILE *f;
-				f = fopen(password, "r");
+				f = fopen(argv[0], "r");
 				if (f) {
 					char buf[256] = "";
 					char md5passwd[33] = "";
@@ -143,7 +134,7 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 						fgets(buf, sizeof(buf), f);
 						if (!feof(f) && !opbx_strlen_zero(buf)) {
 							buf[strlen(buf) - 1] = '\0';
-							if (strchr(opts, 'm')) {
+							if (argc > 1 && strchr(argv[1], 'm')) {
 								md5secret = strchr(buf, ':');
 								if (md5secret == NULL)
 									continue;
@@ -151,13 +142,13 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 								md5secret++;
 								opbx_md5_hash(md5passwd, passwd);
 								if (!strcmp(md5passwd, md5secret)) {
-									if (strchr(opts, 'a'))
+									if (argc > 1 && strchr(argv[1], 'a'))
 										opbx_cdr_setaccount(chan, buf);
 									break;
 								}
 							} else {
 								if (!strcmp(passwd, buf)) {
-									if (strchr(opts, 'a'))
+									if (argc > 1 && strchr(argv[1], 'a'))
 										opbx_cdr_setaccount(chan, buf);
 									break;
 								}
@@ -166,7 +157,7 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 					}
 					fclose(f);
 					if (!opbx_strlen_zero(buf)) {
-						if (strchr(opts, 'm')) {
+						if (argc > 1 && strchr(argv[1], 'm')) {
 							if (md5secret && !strcmp(md5passwd, md5secret))
 								break;
 						} else {
@@ -175,17 +166,17 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 						}
 					}
 				} else 
-					opbx_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));
+					opbx_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", argv[0], strerror(errno));
 			}
 		} else {
 			/* Compare against a fixed password */
-			if (!strcmp(passwd, password)) 
+			if (!strcmp(passwd, argv[0])) 
 				break;
 		}
 		prompt="auth-incorrect";
 	}
 	if ((retries < 3) && !res) {
-		if (strchr(opts, 'a') && !strchr(opts, 'm')) 
+		if (argc > 1 && strchr(argv[1], 'a') && !strchr(argv[1], 'm')) 
 			opbx_cdr_setaccount(chan, passwd);
 		res = opbx_streamfile(chan, "auth-thankyou", chan->language);
 		if (!res)
@@ -205,13 +196,16 @@ static int auth_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(auth_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, auth_exec, synopsis, descrip);
+	auth_app = opbx_register_application(auth_name, auth_exec, auth_synopsis, auth_syntax, auth_descrip);
+	return 0;
 }
 
 char *description(void)

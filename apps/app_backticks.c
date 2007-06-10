@@ -46,13 +46,20 @@
 
 
 static char *tdesc = "backticks";
-static char *app = "BackTicks";
-static char *synopsis = "Execute a shell command and save the result as a variable.";
-static char *desc = ""
-"  BackTicks(<VARNAME>|<command>)\n\n"
-"Be sure to include a full path!\n"
 
-;
+static void *backticks_app;
+static char *backticks_name = "BackTicks";
+static char *backticks_synopsis = "Execute a shell command and save the result as a variable.";
+static char *backticks_syntax = "BackTicks(varname, command)";
+static char *backticks_descrip =
+	"Be sure to include a full path!\n";
+
+static void *backticks_function;
+static const char *backticks_func_name = "BACKTICKS",
+static const char *backticks_func_synopsis = "Executes a shell command.",
+static const char *backticks_func_syntax = "BACKTICKS(command)",
+static const char *backticks_func_descrip =
+	"Executes a shell command and evaluates to the result.",
 
 STANDARD_LOCAL_USER;
 
@@ -112,75 +119,57 @@ static char *do_backticks(char *command, char *buf, size_t len)
         return buf;
 }
 
-static int backticks_exec(struct opbx_channel *chan, void *data)
+static int backticks_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-        int res = 0;
-        struct localuser *u;
-        const char *usage = "Usage: Backticks(<VARNAME>|<command>)";
-        char buf[1024], *argv[2], *mydata;
-        int argc = 0;
+	char buf[1024];
+	struct localuser *u;
+	int ret;
 
-        if (!data) {
-                opbx_log(LOG_WARNING, "%s\n", usage);
-                return -1;
-        }
+	if (argc != 2) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", backticks_syntax);
+		return -1;
+	}
 
+	LOCAL_USER_ADD(u);
 
-        LOCAL_USER_ADD(u);
-        /* Do our thing here */
+	ret = 0;
+	if (do_backticks(argv[1], buf, sizeof(buf))) {
+		pbx_builtin_setvar_helper(chan, argv[0], buf);
+	} else {
+		opbx_log(LOG_WARNING, "No Data!\n");
+		ret = -1;
+	}
 
-        if (!(mydata = opbx_strdupa(data))) {
-                opbx_log(LOG_ERROR, "Memory Error!\n");
-                res = -1;
-        } else {
-                if((argc = opbx_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]))) < 2) {
-                        opbx_log(LOG_WARNING, "%s\n", usage);
-                        res = -1;
-                }
-
-                if (do_backticks(argv[1], buf, sizeof(buf))) {
-                        pbx_builtin_setvar_helper(chan, argv[0], buf);
-                } else {
-                        opbx_log(LOG_WARNING, "No Data!\n");
-                        res = -1;
-                }
-        }
-        LOCAL_USER_REMOVE(u);
-        return res;
+	LOCAL_USER_REMOVE(u);
+	return ret;
 }
 
 
-static char *function_backticks(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_backticks(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
         char *ret = NULL;
 
-        if (do_backticks(data, buf, len)) {
+        if (argc > 0 && do_backticks(argv[0], buf, len))
                 ret = buf;
-        }
 
         return ret;
 }
 
-static struct opbx_custom_function backticks_function = {
-        .name = "BACKTICKS",
-        .desc = "Executes a shell command and evaluates to the result.",
-        .syntax = "BACKTICKS(<command>)",
-        .synopsis = "Executes a shell command.",
-        .read = function_backticks
-};
-
 
 int unload_module(void)
 {
+	int res = 0;
         STANDARD_HANGUP_LOCALUSERS;
-        opbx_custom_function_unregister(&backticks_function);
-        return opbx_unregister_application(app);
+        opbx_unregister_function(backticks_function);
+        res |= opbx_unregister_application(backticks_app);
+	return res;
 }
 
 int load_module(void)
 {
-        opbx_custom_function_register(&backticks_function);
-        return opbx_register_application(app, backticks_exec, synopsis, desc);
+        backticks_function = opbx_register_function(backticks_func_name, function_backticks, NULL, backticks_func_synopsis, backticks_func_syntax, backticks_func_descrip);
+        backticks_app = opbx_register_application(backticks_name, backticks_exec, backticks_synopsis, backticks_syntax, backticks_descrip);
+	return 0;
 }
 
 char *description(void)

@@ -90,7 +90,6 @@ static char *loopback_helper(char *buf, int buflen, const char *exten, const cha
 	char tmp[80];
 
 	snprintf(tmp, sizeof(tmp), "%d", priority);
-	memset(buf, 0, buflen);
 	OPBX_LIST_HEAD_INIT_NOLOCK(&headp);
 	newvariable = opbx_var_assign("EXTEN", exten);
 	OPBX_LIST_INSERT_HEAD(&headp, newvariable, entries);

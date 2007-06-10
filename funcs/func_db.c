@@ -45,32 +45,44 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
 #include "callweaver/app.h"
 #include "callweaver/callweaver_db.h"
 
-static char *function_db_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+
+static void *db_exists_function;
+static const char *db_exists_func_name = "DB_EXISTS";
+static const char *db_exists_func_synopsis = "Check to see if a key exists in the CallWeaver database";
+static const char *db_exists_func_syntax = "DB_EXISTS(family/key)";
+static const char *db_exists_func_desc =
+	"This function will check to see if a key exists in the CallWeaver\n"
+	"database. If it exists, the function will return \"1\". If not,\n"
+	"it will return \"0\".  Checking for existence of a database key will\n"
+	"also set the variable DB_RESULT to the key's value if it exists.\n";
+
+
+static void *db_function;
+static const char *db_func_name = "DB";
+static const char *db_func_synopsis = "Read or Write from/to the CallWeaver database";
+static const char *db_func_syntax = "DB(family/key)";
+static const char *db_func_desc =
+	"This function will read or write a value from/to the CallWeaver database.\n"
+	"DB(...) will read a value from the database, while DB(...)=value\n"
+	"will write a value to the database.  On a read, this function\n"
+	"returns the value from the database, or NULL if it does not exist.\n"
+	"On a write, this function will always return NULL.  Reading a database value\n"
+	"will also set the variable DB_RESULT.\n";
+
+
+static char *function_db_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
-	int argc;	
-	char *args;
-	char *argv[2];
-	char *family;
 	char *key;
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
-		return buf;
+	if (argc != 1 || !argv[0][0] || !(key = strchr(argv[0], '/'))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", db_func_syntax);
+		return NULL;
 	}
 
-	args = opbx_strdupa(data);
-	argc = opbx_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
-	
-	if (argc > 1) {
-		family = argv[0];
-		key = argv[1];
-	} else {
-		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
-		return buf;
-	}
+	*(key++) = '\0';
 
-	if (opbx_db_get(family, key, buf, len-1)) {
-		opbx_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", family, key);
+	if (opbx_db_get(argv[0], argv[1], buf, len-1)) {
+		opbx_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], argv[1]);
 	} else
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 
@@ -78,93 +90,50 @@ static char *function_db_read(struct opbx_channel *chan, char *cmd, char *data, 
 	return buf;
 }
 
-static void function_db_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
+static void function_db_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
 {
-	int argc;	
-	char *args;
-	char *argv[2];
-	char *family;
 	char *key;
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=<value>\n");
+	if (argc != 1 || !argv[0][0] || !(key = strchr(argv[0], '/'))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", db_func_syntax);
 		return;
 	}
 
-	args = opbx_strdupa(data);
-	argc = opbx_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
-	
-	if (argc > 1) {
-		family = argv[0];
-		key = argv[1];
-	} else {
-		opbx_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=value\n");
-		return;
-	}
+	*(key++) = '\0';
 
-	if (opbx_db_put(family, key, (char*)value)) {
+	if (opbx_db_put(argv[0], argv[1], (char *)value)) {
 		opbx_log(LOG_WARNING, "DB: Error writing value to database.\n");
 	}
 }
 
-static struct opbx_custom_function db_function = {
-	.name = "DB",
-	.synopsis = "Read or Write from/to the CallWeaver database",
-	.syntax = "DB(<family>/<key>)",
-	.desc = "This function will read or write a value from/to the CallWeaver database.\n"
-		"DB(...) will read a value from the database, while DB(...)=value\n"
-		"will write a value to the database.  On a read, this function\n"
-		"returns the value from the database, or NULL if it does not exist.\n"
-		"On a write, this function will always return NULL.  Reading a database value\n"
-		"will also set the variable DB_RESULT.\n",
-	.read = function_db_read,
-	.write = function_db_write,
-};
 
-static char *function_db_exists(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *function_db_exists(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
 {
-	int argc;	
-	char *args;
-	char *argv[2];
-	char *family;
 	char *key;
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
-		return buf;
+	if (argc != 1 || !argv[0][0] || !(key = strchr(argv[0], '/'))) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", db_exists_func_syntax);
+		return NULL;
 	}
 
-	args = opbx_strdupa(data);
-	argc = opbx_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
-	
-	if (argc > 1) {
-		family = argv[0];
-		key = argv[1];
-	} else {
-		opbx_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
-		return buf;
+	if (len < 2) {
+		opbx_log(LOG_ERROR, "Out of space in return buffer\n");
+		return NULL;
 	}
 
-	if (opbx_db_get(family, key, buf, len-1))
-		opbx_copy_string(buf, "0", len);	
+	*(key++) = '\0';
+
+	if (opbx_db_get(argv[0], argv[1], buf, len-1))
+		buf[0] = '0';
 	else {
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
-		opbx_copy_string(buf, "1", len);
+		buf[0] = '1';
 	}
+	buf[1] = '\0';
 	
 	return buf;
 }
 
-static struct opbx_custom_function db_exists_function = {
-	.name = "DB_EXISTS",
-	.synopsis = "Check to see if a key exists in the CallWeaver database",
-	.syntax = "DB_EXISTS(<family>/<key>)",
-	.desc = "This function will check to see if a key exists in the CallWeaver\n"
-		"database. If it exists, the function will return \"1\". If not,\n"
-		"it will return \"0\".  Checking for existence of a database key will\n"
-		"also set the variable DB_RESULT to the key's value if it exists.\n",
-	.read = function_db_exists,
-};
 
 static char *tdesc = "database functions";
 
@@ -172,26 +141,18 @@ int unload_module(void)
 {
         int res = 0;
 
-        if (opbx_custom_function_unregister(&db_exists_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_unregister(&db_function) < 0)
-                res = -1;
+        res |= opbx_unregister_function(db_exists_function);
+        res |= opbx_unregister_function(db_function);
 
         return res;
 }
 
 int load_module(void)
 {
-        int res = 0;
+        db_exists_function = opbx_register_function(db_exists_func_name, function_db_exists, NULL, db_exists_func_synopsis, db_exists_func_syntax, db_exists_func_desc);
+        db_function = opbx_register_function(db_func_name, function_db_read, function_db_write, db_func_synopsis, db_func_syntax, db_func_desc);
 
-        if (opbx_custom_function_register(&db_exists_function) < 0)
-                res = -1;
-
-        if (opbx_custom_function_register(&db_function) < 0)
-                res = -1;
-
-        return res;
+        return 0;
 }
 
 char *description(void)

@@ -44,37 +44,38 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/options.h"
 #include "callweaver/lock.h"
 
-static char *synopsis = "Wait for Ring Application";
+static const char *tdesc = "Waits until first ring after time";
 
-static char *tdesc = "Waits until first ring after time";
-
-static char *desc = "  WaitForRing(timeout)\n"
+static void *waitforring_app;
+static const char *waitforring_name = "WaitForRing";
+static const char *waitforring_synopsis = "Wait for Ring Application";
+static const char *waitforring_syntax = "WaitForRing(timeout)";
+static const char *waitforring_descrip =
 "Returns 0 after waiting at least timeout seconds. and\n"
 "only after the next ring has completed.  Returns 0 on\n"
 "success or -1 on hangup\n";
 
-static char *app = "WaitForRing";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int waitforring_exec(struct opbx_channel *chan, void *data)
+static int waitforring_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct opbx_frame *f;
 	int res = 0;
 	int ms;
 
-	if (!data || (sscanf(data, "%d", &ms) != 1)) {
-                opbx_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
+	if (argc != 1 || !isdigit(argv[0][0])) {
+                opbx_log(LOG_ERROR, "Syntax: %s\n", waitforring_syntax);
 		return 0;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	ms *= 1000;
-	while(ms > 0) {
+	ms = atoi(argv[0]) * 1000;
+	while (ms > 0) {
 		ms = opbx_waitfor(chan, ms);
 		if (ms < 0) {
 			res = ms;
@@ -125,13 +126,16 @@ static int waitforring_exec(struct opbx_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(waitforring_app);
+	return res;
 }
 
 int load_module(void)
 {
-	return opbx_register_application(app, waitforring_exec, synopsis, desc);
+	waitforring_app = opbx_register_application(waitforring_name, waitforring_exec, waitforring_synopsis, waitforring_syntax, waitforring_descrip);
+	return 0;
 }
 
 char *description(void)

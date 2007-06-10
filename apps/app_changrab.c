@@ -38,9 +38,12 @@ CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.47 $")
 #include "callweaver/manager.h"
 
 static char *tdesc = "Take over an existing channel and bridge to it.";
-static char *app = "ChanGrab";
-static char *synopsis = "ChanGrab(<Channel Name>|[flags])\n"
-"\nTake over the specified channel (ending any call it is currently\n"
+
+static void *changrab_app;
+static const char *changrab_name = "ChanGrab";
+static const char *changrab_syntax = "ChanGrab(channel[, flags])";
+static const char *changrab_description =
+"Take over the specified channel (ending any call it is currently\n"
 "involved in.) and bridge that channel to the caller.\n\n"
 "Flags:\n\n"
 "   -- 'b' Indicates that you want to grab the channel that the\n"
@@ -64,43 +67,32 @@ static struct opbx_channel *my_opbx_get_channel_by_name_locked(char *channame) {
 	return NULL;
 }
 
-static int changrab_exec(struct opbx_channel *chan, void *data)
+static int changrab_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
 	struct localuser *u;
 	struct opbx_channel *newchan;
 	struct opbx_channel *oldchan;
-    struct opbx_frame *f;
+	struct opbx_frame *f;
 	struct opbx_bridge_config config;
-	char *info=NULL;
-	char *flags=NULL;
 
-	if (!data || opbx_strlen_zero(data)) {
-		opbx_log(LOG_WARNING, "changrab requires an argument (chan)\n");
+	if (argc < 1 || argc > 2) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", changrab_syntax);
 		return -1;
 	}
 
-	if((info = opbx_strdupa((char *)data))) {
-		if((flags = strchr(info,'|'))) {
-
-			*flags = '\0';
-			flags++;
-		}
-	}
-	
-	if((oldchan = my_opbx_get_channel_by_name_locked(info))) {
+	if ((oldchan = my_opbx_get_channel_by_name_locked(argv[0]))) {
 		opbx_mutex_unlock(&oldchan->lock);
 	} else {
-		opbx_log(LOG_WARNING, "No Such Channel: %s\n",(char *) data);
+		opbx_log(LOG_WARNING, "No Such Channel: %s\n", argv[0]);
 		return -1;
 	}
 	
-	if(flags && oldchan->_bridge && strchr(flags,'b')) {
-		oldchan = oldchan->_bridge;
-	}
-
-	if(flags && strchr(flags,'r') && oldchan->_state == OPBX_STATE_UP) {
-		return -1;
+	if (argc > 1) {
+		if (oldchan->_bridge && strchr(argv[1], 'b'))
+			oldchan = oldchan->_bridge;
+		if (strchr(argv[1],'r') && oldchan->_state == OPBX_STATE_UP)
+			return -1;
 	}
 	
 	LOCAL_USER_ADD(u);
@@ -140,9 +132,7 @@ static void *opbx_bridge_call_thread(void *data)
 {
 	struct opbx_bridge_thread_obj *tobj = data;
 	tobj->chan->appl = "Redirected Call";
-	tobj->chan->data = tobj->peer->name;
 	tobj->peer->appl = "Redirected Call";
-	tobj->peer->data = tobj->chan->name;
 	if (tobj->chan->cdr) {
 		opbx_cdr_reset(tobj->chan->cdr,0);
 		opbx_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
@@ -741,17 +731,20 @@ static struct opbx_cli_entry  cli_originate = { { "originate", NULL }, originate
 
 int unload_module(void)
 {
+	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
 	opbx_cli_unregister(&cli_changrab);
 	opbx_cli_unregister(&cli_originate);
-	return opbx_unregister_application(app);
+	res |= opbx_unregister_application(changrab_app);
+	return res;
 }
 
 int load_module(void)
 {
 	opbx_cli_register(&cli_changrab);
 	opbx_cli_register(&cli_originate);
-	return opbx_register_application(app, changrab_exec, tdesc, synopsis);
+	changrab_app = opbx_register_application(changrab_name, changrab_exec, tdesc, changrab_syntax, changrab_description);
+	return 0;
 }
 
 char *description(void)

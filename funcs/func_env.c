@@ -39,12 +39,20 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 
-static char *builtin_function_env_read(struct opbx_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+
+static void *env_function;
+static const char *env_func_name = "ENV";
+static const char *env_func_synopsis = "Gets or sets the environment variable specified";
+static const char *env_func_syntax = "ENV(envname)";
+static const char *env_func_desc = "";
+
+
+static char *builtin_function_env_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
 {
 	char *ret = "";
 
-	if (data) {
-		ret = getenv(data);
+	if (argv[0]) {
+		ret = getenv(argv[0]);
 		if (!ret)
 			ret = "";
 	}
@@ -53,35 +61,28 @@ static char *builtin_function_env_read(struct opbx_channel *chan, char *cmd, cha
 	return buf;
 }
 
-static void builtin_function_env_write(struct opbx_channel *chan, char *cmd, char *data, const char *value) 
+static void builtin_function_env_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
 {
-	if (data && !opbx_strlen_zero(data)) {
-		if (value && !opbx_strlen_zero(value)) {
-			setenv(data, value, 1);
+	if (argc > 0 && argv[0][0]) {
+		if (value && *value) {
+			setenv(argv[0], value, 1);
 		} else {
-			unsetenv(data);
+			unsetenv(argv[0]);
 		}
 	}
 }
-
-static struct opbx_custom_function env_function = {
-	.name = "ENV",
-	.synopsis = "Gets or sets the environment variable specified",
-	.syntax = "ENV(<envname>)",
-	.read = builtin_function_env_read,
-	.write = builtin_function_env_write,
-};
 
 static char *tdesc = "Get or set environment variables.";
 
 int unload_module(void)
 {
-       return opbx_custom_function_unregister(&env_function);
+       return opbx_unregister_function(env_function);
 }
 
 int load_module(void)
 {
-       return opbx_custom_function_register(&env_function);
+       env_function = opbx_register_function(env_func_name, builtin_function_env_read, builtin_function_env_write, env_func_synopsis, env_func_syntax, env_func_desc);
+       return 0;
 }
 
 char *description(void)

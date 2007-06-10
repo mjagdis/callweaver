@@ -288,9 +288,9 @@ static char *addesc = "Comedian Mail";
 static char *synopsis_vm =
 "Leave a voicemail message";
 
+static char *syntax_vm = "VoiceMail(mailbox[@context][&mailbox[@context]][...][, options])";
 static char *descrip_vm =
-"  VoiceMail(mailbox[@context][&mailbox[@context]][...][|options]):  Leaves"
-"voicemail for a given mailbox (must be configured in voicemail.conf).\n"
+"Leaves voicemail for a given mailbox (must be configured in voicemail.conf).\n"
 " If the options contain: \n"
 "* 's'    instructions for leaving the message will be skipped.\n"
 "* 'u'    the \"unavailable\" greeting will be played.\n"
@@ -313,8 +313,9 @@ static char *descrip_vm =
 static char *synopsis_vmain =
 "Enter voicemail system";
 
+static char *syntax_vmain = "VoiceMailMain([mailbox][@context][, options])";
 static char *descrip_vmain =
-"  VoiceMailMain([mailbox][@context][|options]): Enters the main voicemail system\n"
+"Enters the main voicemail system\n"
 "for the checking of voicemail. The mailbox can be passed in,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
 "If the options contain: \n"
@@ -330,15 +331,17 @@ static char *descrip_vmain =
 static char *synopsis_vm_box_exists =
 "Check if vmbox exists";
 
+static char *syntax_vm_box_exists = "MailboxExists(mailbox[@context][, options])";
 static char *descrip_vm_box_exists =
-"  MailboxExists(mailbox[@context]): Conditionally branches to priority n+101\n"
+"Conditionally branches to priority n+101\n"
 "if the specified voice mailbox exists.\n";
 
 static char *synopsis_vmauthenticate =
 "Authenticate off voicemail passwords";
 
+static char *syntax_vmauthenticate = "VMAuthenticate([mailbox][@context][, options])";
 static char *descrip_vmauthenticate =
-"  VMAuthenticate([mailbox][@context][|options]): Behaves identically to\n"
+"Behaves identically to\n"
 "the Authenticate application, with the exception that the passwords are\n"
 "taken from voicemail.conf.\n"
 "  If the mailbox is specified, only that mailbox's password will be considered\n"
@@ -347,13 +350,17 @@ static char *descrip_vmauthenticate =
 "If the options contain 's' then no initial prompts will be played.\n";
 
 /* Leave a message */
-static char *app = "VoiceMail";
+static void *app;
+static char *name = "VoiceMail";
 
 /* Check mail, control, etc */
-static char *app2 = "VoiceMailMain";
+static void *app2;
+static char *name2 = "VoiceMailMain";
 
-static char *app3 = "MailboxExists";
-static char *app4 = "VMAuthenticate";
+static void *app3;
+static char *name3 = "MailboxExists";
+static void *app4;
+static char *name4 = "VMAuthenticate";
 
 OPBX_MUTEX_DEFINE_STATIC(vmlock);
 struct opbx_vm_user *users;
@@ -495,7 +502,7 @@ static void apply_options(struct opbx_vm_user *vmu, const char *options)
 	char *s;
 	char *var, *value;
 	stringp = opbx_strdupa(options);
-	while ((s = strsep(&stringp, "|"))) {
+	while ((s = strsep(&stringp, "|,"))) {
 		value = s;
 		if ((var = strsep(&value, "=")) && value) {
 			apply_option(vmu, var, value);
@@ -782,7 +789,9 @@ static int retrieve_file(char *dir, int msgnum)
 	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		opbx_copy_string(fmt, vmfmts, sizeof(fmt));
-		c = strchr(fmt, '|');
+		c = strchr(fmt, ',');
+		if (!c)
+			c = strchr(fmt, '|');
 		if (c)
 			*c = '\0';
 		if (!strcasecmp(fmt, "wav49"))
@@ -1139,7 +1148,9 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		opbx_copy_string(fmt, vmfmts, sizeof(fmt));
-		c = strchr(fmt, '|');
+		c = strchr(fmt, ',');
+		if (!c)
+			c = strchr(fmt, '|');
 		if (c)
 			*c = '\0';
 		if (!strcasecmp(fmt, "wav49"))
@@ -1636,7 +1647,6 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
@@ -1653,7 +1663,6 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				char *passdata;
 				int vmlen = strlen(emailsubject)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
 					fprintf(p, "Subject: %s\n",passdata);
@@ -1685,7 +1694,6 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 				char *passdata;
 				int vmlen = strlen(emailbody)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
 					fprintf(p, "%s\n",passdata);
@@ -1787,7 +1795,6 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
@@ -1804,7 +1811,6 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                                char *passdata;
                                int vmlen = strlen(pagersubject)*3 + 200;
                                if ((passdata = alloca(vmlen))) {
-                                       memset(passdata, 0, vmlen);
                                        prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
                                        pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
                                        fprintf(p, "Subject: %s\n\n",passdata);
@@ -1820,7 +1826,6 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                                char *passdata;
                                int vmlen = strlen(pagerbody)*3 + 200;
                                if ((passdata = alloca(vmlen))) {
-                                       memset(passdata, 0, vmlen);
                                        prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
                                        pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
                                        fprintf(p, "%s\n",passdata);
@@ -3246,7 +3251,7 @@ static int notify_new_message(struct opbx_channel *chan, struct opbx_vm_user *vm
 	fmt = opbx_strdupa(fmt);
 	if (fmt) {
 		stringp = fmt;
-		strsep(&stringp, "|");
+		strsep(&stringp, "|,");
 
 		if (!opbx_strlen_zero(vmu->email)) {
 			int attach_user_voicemail = opbx_test_flag((&globalflags), VM_ATTACH);
@@ -3352,21 +3357,23 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 			
 			app = pbx_findapp("Directory");
 			if (app) {
-				/* make mackup copies */
-				memcpy(old_context, chan->context, sizeof(chan->context));
-				memcpy(old_exten, chan->exten, sizeof(chan->exten));
-				old_priority = chan->priority;
-				
 				/* call the the Directory, changes the channel */
-				res = pbx_exec(chan, app, ((context)?context:chan->context), 1);
-				
-				opbx_copy_string(username, chan->exten, sizeof(username));
-				
-				/* restore the old context, exten, and priority */
-				memcpy(chan->context, old_context, sizeof(chan->context));
-				memcpy(chan->exten, old_exten, sizeof(chan->exten));
-				chan->priority = old_priority;
-				
+				if ((s = strdup(context ? context : chan->context))) {
+					memcpy(old_context, chan->context, sizeof(chan->context));
+					memcpy(old_exten, chan->exten, sizeof(chan->exten));
+					old_priority = chan->priority;
+
+					res = pbx_exec(chan, app, s);
+
+					opbx_copy_string(username, chan->exten, sizeof(username));
+
+					memcpy(chan->context, old_context, sizeof(chan->context));
+					memcpy(chan->exten, old_exten, sizeof(chan->exten));
+					chan->priority = old_priority;
+					free(s);
+				} else {
+					opbx_log(LOG_WARNING, "Could not call Directory application - insufficient memory\n");
+				}
 			} else {
 				opbx_log(LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
 				opbx_clear_flag((&globalflags), VM_DIRECFORWARD);	
@@ -3441,7 +3448,7 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 					todircount = res;
 				opbx_copy_string(tmp, fmt, sizeof(tmp));
 				stringp = tmp;
-				while ((s = strsep(&stringp, "|"))) {
+				while ((s = strsep(&stringp, "|,"))) {
 					/* XXX This is a hack -- we should use build_filename or similar XXX */
 					if (!strcasecmp(s, "wav49"))
 						s = "WAV";
@@ -4964,7 +4971,7 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 	return 0;
 }
 
-static int vm_execmain(struct opbx_channel *chan, void *data)
+static int vm_execmain(struct opbx_channel *chan, int argc, char **argv)
 {
 	/* XXX This is, admittedly, some pretty horrendus code.  For some
 	   reason it just seemed a lot easier to do with GOTO's.  I feel
@@ -4995,14 +5002,9 @@ static int vm_execmain(struct opbx_channel *chan, void *data)
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer(chan);
 
-	if (!opbx_strlen_zero(data)) {
-		char *tmp;
-		int argc;
-		char *argv[2];
+	if (argc) {
 		char *opts[OPT_ARG_ARRAY_SIZE];
 
-		tmp = opbx_strdupa(data);
-		argc = opbx_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 		if (argc == 2) {
 			if (opbx_parseoptions(vm_app_options, &flags, opts, argv[1])) {
 				LOCAL_USER_REMOVE(u);
@@ -5412,17 +5414,15 @@ out:
 	return res;
 }
 
-static int vm_exec(struct opbx_channel *chan, void *data)
+static int vm_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 0;
 	struct localuser *u;
 	char tmp[256];
 	struct leave_vm_options leave_options;
-	int argc;
-	char *argv[2];
 	struct opbx_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
-	
+
 	LOCAL_USER_ADD(u);
 	
 	memset(&leave_options, 0, sizeof(leave_options));
@@ -5430,9 +5430,7 @@ static int vm_exec(struct opbx_channel *chan, void *data)
 	if (chan->_state != OPBX_STATE_UP)
 		opbx_answer(chan);
 
-	if (!opbx_strlen_zero(data)) {
-		opbx_copy_string(tmp, data, sizeof(tmp));
-		argc = opbx_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	if (argc) {
 		if (argc == 2) {
 			if (opbx_parseoptions(vm_app_options, &flags, opts, argv[1])) {
 				LOCAL_USER_REMOVE(u);
@@ -5532,83 +5530,56 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
-static int vm_box_exists(struct opbx_channel *chan, void *data) 
+static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv) 
 {
 	struct localuser *u;
 	struct opbx_vm_user svm;
-	char *context, *box;
+	char *context;
 	int priority_jump = 0;
 
-	OPBX_DECLARE_APP_ARGS(args,
-		OPBX_APP_ARG(mbox);
-		OPBX_APP_ARG(options); 
-	);
-
-
-	if (opbx_strlen_zero(data)) {
-		opbx_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
+	if (argc < 1 || argc > 2 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax_vm_box_exists);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	box = opbx_strdupa(data);
-	if (!box) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	OPBX_STANDARD_APP_ARGS(args, box);
-
-	if (args.options && strchr(args.options, 'j'))
+	if (argc > 1 && strchr(argv[1], 'j'))
 		priority_jump = 1;
 
-	if ((context = strchr(box, '@'))) {
+	if ((context = strchr(argv[0], '@'))) {
 		*context = '\0';
 		context++;
 	}
 
-	if (find_user(&svm, context, box)) {
+	if (find_user(&svm, context, argv[0])) {
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
 		if (priority_jump || option_priority_jumping)
 			if (opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-				opbx_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
+				opbx_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", argv[0], context, chan->exten, chan->priority + 101);
 	} else
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
+
 	LOCAL_USER_REMOVE(u);
 	return 0;
 }
 
-static int vmauthenticate(struct opbx_channel *chan, void *data)
+static int vmauthenticate(struct opbx_channel *chan, int argc, char **argv)
 {
-	struct localuser *u;
-	char *s = data, *user=NULL, *context=NULL, mailbox[OPBX_MAX_EXTENSION];
+	char mailbox[OPBX_MAX_EXTENSION];
 	struct opbx_vm_user vmus;
-	char *options = NULL;
+	struct localuser *u;
+	char *context = NULL;
 	int silent = 0;
 	int res = -1;
 
 	LOCAL_USER_ADD(u);
-	
-	if (s) {
-		s = opbx_strdupa(s);
-		if (!s) {
-			opbx_log(LOG_ERROR, "Out of memory\n");
-			return -1;
-		}
-		user = strsep(&s, "|");
-		options = strsep(&s, "|");
-		if (user) {
-			s = user;
-			user = strsep(&s, "@");
-			context = strsep(&s, "");
-		}
-	}
 
-	if (options) {
-		silent = (strchr(options, 's')) != NULL;
-	}
+	if (argc > 0 && (context = strchr(argv[0], '@')))
+		*(context++) = '\0';
+
+	if (argc > 1)
+		silent = (strchr(argv[1], 's') != NULL);
 
 	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3, silent)) {
 		pbx_builtin_setvar_helper(chan, "AUTH_MAILBOX", mailbox);
@@ -6035,7 +6006,7 @@ static int load_config(void)
 							char *msg_format, *timezone;
 							msg_format = opbx_strdupa(var->value);
 							if (msg_format != NULL) {
-								timezone = strsep(&msg_format, "|");
+								timezone = strsep(&msg_format, "|,");
 								if (msg_format) {
 									opbx_copy_string(z->name, var->name, sizeof(z->name));
 									opbx_copy_string(z->timezone, timezone, sizeof(z->timezone));
@@ -6184,7 +6155,7 @@ int unload_module(void)
 {
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = opbx_unregister_application(app);
+	res |= opbx_unregister_application(app);
 	res |= opbx_unregister_application(app2);
 	res |= opbx_unregister_application(app3);
 	res |= opbx_unregister_application(app4);
@@ -6197,12 +6168,11 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-	res = opbx_register_application(app, vm_exec, synopsis_vm, descrip_vm);
-	res |= opbx_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
-	res |= opbx_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
-	res |= opbx_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
-	if (res)
-		return(res);
+
+	app = opbx_register_application(name, vm_exec, synopsis_vm, syntax_vm, descrip_vm);
+	app2 = opbx_register_application(name2, vm_execmain, synopsis_vmain, syntax_vmain, descrip_vmain);
+	app3 = opbx_register_application(name3, vm_box_exists, synopsis_vm_box_exists, syntax_vm_box_exists, descrip_vm_box_exists);
+	app4 = opbx_register_application(name4, vmauthenticate, synopsis_vmauthenticate, syntax_vmauthenticate, descrip_vmauthenticate);
 
 	if ((res=load_config())) {
 		return(res);

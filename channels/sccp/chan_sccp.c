@@ -1243,9 +1243,11 @@ static int reload_config(void) {
   return 0;
 }
 
-static char *sccp_setcalledparty_descrip = "  SetCalledParty(\"Name\" <ext>) sets the name and number of the called party for use with chan_sccp\n";
+static void *sccp_setcalledparty_app;
+static char *sccp_setcalledparty_syntax = "SetCalledParty(\"Name\" <ext>)";
+static char *sccp_setcalledparty_descrip = "Sets the name and number of the called party for use with chan_sccp\n";
 
-static int sccp_setcalledparty_exec(struct opbx_channel *chan, void *data) {
+static int sccp_setcalledparty_exec(struct opbx_channel *chan, int argc, char **argv) {
   char tmp[256] = "";
   char * num, * name;
   sccp_channel_t * c = CS_OPBX_CHANNEL_PVT(chan);
@@ -1253,12 +1255,10 @@ static int sccp_setcalledparty_exec(struct opbx_channel *chan, void *data) {
   if (strcasecmp(chan->type, "SCCP") != 0)
 	return 0;
 
-  if (!data || !c)
+  if (argc < 1 || !argv[0][0] || !c)
 	return 0;
 
-  opbx_copy_string(tmp, (char *)data, sizeof(tmp));
-  opbx_callerid_parse(tmp, &name, &num);
-
+  opbx_callerid_parse(argv[0], &name, &num);
   sccp_channel_set_calledparty(c, name, num);
 
   return 0;
@@ -1322,7 +1322,7 @@ int load_module() {
 	}
 
 	sccp_register_cli();
-	opbx_register_application("SetCalledParty", sccp_setcalledparty_exec, "Sets the name of the called party", sccp_setcalledparty_descrip);
+	sccp_setcalledparty_app = opbx_register_application("SetCalledParty", sccp_setcalledparty_exec, "Sets the name of the called party", sccp_setcalledparty_syntax, sccp_setcalledparty_descrip);
 	return 0;
 }
 
@@ -1332,9 +1332,10 @@ int unload_module() {
 	sccp_session_t * s;
 	sccp_hint_t *h;
 	char iabuf[INET_ADDRSTRLEN];
+	int res = 0;
 	
 	opbx_channel_unregister(&sccp_tech);
-	opbx_unregister_application("SetCalledParty");
+	res |= opbx_unregister_application(sccp_setcalledparty_app);
 	sccp_unregister_cli();
 
 	opbx_mutex_lock(&GLOB(channels_lock));
@@ -1404,7 +1405,7 @@ int unload_module() {
 
 	free(sccp_globals);
 
-	return 0;
+	return res;
 }
 
 int usecount() {
