@@ -2239,6 +2239,10 @@ AC_ARG_WITH([res_snmp],
 
 AM_CONDITIONAL([WANT_RES_SNMP],[test "${with_res_snmp}" = "yes"])
 
+if test "${with_res_snmp}" = "yes"; then
+   CHECK_SNMP
+fi
+
 dnl ###########################################################################
 
 AC_ARG_WITH(res_config_mysql,
