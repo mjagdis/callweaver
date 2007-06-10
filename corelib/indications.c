@@ -255,16 +255,14 @@ static struct opbx_generator playtones =
 int opbx_playtones_start(struct opbx_channel *chan, int vol, const char *playlst, int interruptible)
 {
 	char *s;
-    char *data = opbx_strdupa(playlst); /* cute */
+	char *data = opbx_strdupa(playlst);
 	struct playtones_def d = { vol, -1, 0, 1, NULL};
 	char *stringp = NULL;
 	char *separator;
 
-	if (data == NULL)
-		return -1;
 	if (vol >= 0)
 		d.vol = -13;
-    else
+	else
 		d.vol = vol;
 
 	d.interruptible = interruptible;

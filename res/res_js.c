@@ -516,8 +516,10 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 	if (argc > 1)
 		data = JS_GetStringBytes(JS_ValueToString(cx, argv[1]));
 	
-	if (fdata && (fname = opbx_strdupa(fdata))) {
+	if (fdata) {
 		char *ptr;
+
+		fname = opbx_strdupa(fdata);
 
 		if ((ptr = strchr(fname, '('))) {
 			*ptr = '\0';

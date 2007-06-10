@@ -636,10 +636,7 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
 	char *exten = NULL, *lotname = NULL;
 	struct opbx_channel *peer;
 
-	if(!data || !(exten = opbx_strdupa(data))) {
-        opbx_log(LOG_WARNING,"No Memory!\n");
-        return NULL;
-    }
+	exten = opbx_strdupa(data);
 	if((lotname=strchr(exten,':'))) {
         *lotname = '\0';
         *lotname++;

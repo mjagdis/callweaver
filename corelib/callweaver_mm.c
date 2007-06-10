@@ -404,12 +404,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
             }
             if (cur == NULL)
             {
-                if ((cur = alloca(sizeof(*cur))) == NULL)
-                {
-                    /* TODO: improve this */
-                    opbx_cli(fd, "Out of memory\n");
-                    return RESULT_SUCCESS;
-                }
+                cur = alloca(sizeof(*cur));
                 memset(cur, 0, sizeof(*cur));
                 opbx_copy_string(cur->fn, (fn)  ?  reg->func  :  reg->file, sizeof(cur->fn));
                 cur->next = list;

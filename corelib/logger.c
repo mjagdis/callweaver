@@ -878,10 +878,8 @@ void opbx_verbose(const char *fmt, ...)
 		localtime_r(&t, &tm);
 		strftime(date, sizeof(date), dateformat, &tm);
 		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
-		if (datefmt) {
-			sprintf(datefmt, "[%s] %s", date, fmt);
-			fmt = datefmt;
-		}
+		sprintf(datefmt, "[%s] %s", date, fmt);
+		fmt = datefmt;
 	}
 
 	/* this lock is also protecting against multiple threads

@@ -147,8 +147,7 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 	struct opbx_hostent ahp;
 
 	host = opbx_strdupa(ogiurl + 6);	/* Remove ogi:// */
-	if (!host)
-		return -1;
+
 	/* Strip off any script name */
 	if ((c = strchr(host, '/'))) {
 		*c = '\0';

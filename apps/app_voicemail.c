@@ -1646,11 +1646,10 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 			if (ast) {
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
-					fprintf(p, "From: %s <%s>\n",passdata,who);
-				} else opbx_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				passdata = alloca(vmlen);
+				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+				pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
+				fprintf(p, "From: %s <%s>\n",passdata,who);
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
@@ -1662,11 +1661,10 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 			if (ast) {
 				char *passdata;
 				int vmlen = strlen(emailsubject)*3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
-					fprintf(p, "Subject: %s\n",passdata);
-				} else opbx_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				passdata = alloca(vmlen);
+				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+				pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
+				fprintf(p, "Subject: %s\n",passdata);
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
@@ -1693,11 +1691,10 @@ static int sendmail(char *srcemail, struct opbx_vm_user *vmu, int msgnum, char *
 			if (ast) {
 				char *passdata;
 				int vmlen = strlen(emailbody)*3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
-					fprintf(p, "%s\n",passdata);
-				} else opbx_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				passdata = alloca(vmlen);
+				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+				pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
+				fprintf(p, "%s\n",passdata);
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else {
@@ -1794,12 +1791,10 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			if (ast) {
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-					pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
-					fprintf(p, "From: %s <%s>\n",passdata,who);
-				} else 
-					opbx_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				passdata = alloca(vmlen);
+				prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+				pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
+				fprintf(p, "From: %s <%s>\n",passdata,who);
 				opbx_channel_free(ast);
 			} else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
@@ -1810,11 +1805,10 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                        if (ast) {
                                char *passdata;
                                int vmlen = strlen(pagersubject)*3 + 200;
-                               if ((passdata = alloca(vmlen))) {
-                                       prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-                                       pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
-                                       fprintf(p, "Subject: %s\n\n",passdata);
-                               } else opbx_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+                               passdata = alloca(vmlen);
+                               prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+                               pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
+                               fprintf(p, "Subject: %s\n\n",passdata);
                                opbx_channel_free(ast);
                        } else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
                } else
@@ -1825,11 +1819,10 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                        if (ast) {
                                char *passdata;
                                int vmlen = strlen(pagerbody)*3 + 200;
-                               if ((passdata = alloca(vmlen))) {
-                                       prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
-                                       pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
-                                       fprintf(p, "%s\n",passdata);
-                               } else opbx_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+                               passdata = alloca(vmlen);
+                               prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+                               pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
+                               fprintf(p, "%s\n",passdata);
                                opbx_channel_free(ast);
                        } else opbx_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
                } else {
@@ -3249,27 +3242,23 @@ static int notify_new_message(struct opbx_channel *chan, struct opbx_vm_user *vm
 
 	/* Attach only the first format */
 	fmt = opbx_strdupa(fmt);
-	if (fmt) {
-		stringp = fmt;
-		strsep(&stringp, "|,");
+	stringp = fmt;
+	strsep(&stringp, "|,");
 
-		if (!opbx_strlen_zero(vmu->email)) {
-			int attach_user_voicemail = opbx_test_flag((&globalflags), VM_ATTACH);
-			char *myserveremail = serveremail;
-			attach_user_voicemail = opbx_test_flag(vmu, VM_ATTACH);
-			if (!opbx_strlen_zero(vmu->serveremail))
-				myserveremail = vmu->serveremail;
-			sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail);
-		}
+	if (!opbx_strlen_zero(vmu->email)) {
+		int attach_user_voicemail = opbx_test_flag((&globalflags), VM_ATTACH);
+		char *myserveremail = serveremail;
+		attach_user_voicemail = opbx_test_flag(vmu, VM_ATTACH);
+		if (!opbx_strlen_zero(vmu->serveremail))
+			myserveremail = vmu->serveremail;
+		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail);
+	}
 
-		if (!opbx_strlen_zero(vmu->pager)) {
-			char *myserveremail = serveremail;
-			if (!opbx_strlen_zero(vmu->serveremail))
-				myserveremail = vmu->serveremail;
-			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu);
-		}
-	} else {
-		opbx_log(LOG_ERROR, "Out of memory\n");
+	if (!opbx_strlen_zero(vmu->pager)) {
+		char *myserveremail = serveremail;
+		if (!opbx_strlen_zero(vmu->serveremail))
+			myserveremail = vmu->serveremail;
+		sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu);
 	}
 
 	if (opbx_test_flag(vmu, VM_DELETE)) {
@@ -6005,28 +5994,22 @@ static int load_config(void)
 						if (z != NULL) {
 							char *msg_format, *timezone;
 							msg_format = opbx_strdupa(var->value);
-							if (msg_format != NULL) {
-								timezone = strsep(&msg_format, "|,");
-								if (msg_format) {
-									opbx_copy_string(z->name, var->name, sizeof(z->name));
-									opbx_copy_string(z->timezone, timezone, sizeof(z->timezone));
-									opbx_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
-									z->next = NULL;
-									if (zones) {
-										zonesl->next = z;
-										zonesl = z;
-									} else {
-										zones = z;
-										zonesl = z;
-									}
+							timezone = strsep(&msg_format, "|,");
+							if (msg_format) {
+								opbx_copy_string(z->name, var->name, sizeof(z->name));
+								opbx_copy_string(z->timezone, timezone, sizeof(z->timezone));
+								opbx_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
+								z->next = NULL;
+								if (zones) {
+									zonesl->next = z;
+									zonesl = z;
 								} else {
-									opbx_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
-									free(z);
+									zones = z;
+									zonesl = z;
 								}
 							} else {
-								opbx_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
+								opbx_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
 								free(z);
-								return -1;
 							}
 						} else {
 							opbx_log(LOG_WARNING, "Out of memory while reading voicemail config\n");

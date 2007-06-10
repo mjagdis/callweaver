@@ -1217,11 +1217,7 @@ int opbx_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 	int spoint;
 	struct pollfd *pfds;
 	
-	if ((pfds = alloca(sizeof(struct pollfd) * n)) == NULL)
-    {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
+	pfds = alloca(sizeof(struct pollfd) * n);
 	if (*ms > 0)
 		start = opbx_tvnow();
 	y = 0;
@@ -1277,12 +1273,7 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 	long whentohangup = 0, havewhen = 0, diff;
 	struct opbx_channel *winner = NULL;
 
-	if ((pfds = alloca(sizeof(struct pollfd) * (n * OPBX_MAX_FDS + nfds))) == NULL)
-    {
-        opbx_log(LOG_ERROR, "Out of memory\n");
-		*outfd = -1;
-		return NULL;
-	}
+	pfds = alloca(sizeof(struct pollfd) * (n * OPBX_MAX_FDS + nfds));
 
 	if (outfd)
 		*outfd = -99999;
@@ -3700,7 +3691,6 @@ int opbx_tonepair(struct opbx_channel *chan, int freq1, int freq2, int duration,
 
 opbx_group_t opbx_get_group(char *s)
 {
-	char *copy;
 	char *piece;
 	char *c = NULL;
 	int start = 0;
@@ -3708,13 +3698,8 @@ opbx_group_t opbx_get_group(char *s)
     int x;
 	opbx_group_t group = 0;
 
-	if ((copy = opbx_strdupa(s)) == NULL)
-    {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		return 0;
-	}
-	c = copy;
-	
+	c = opbx_strdupa(s);
+
 	while ((piece = strsep(&c, ",")))
     {
 		if (sscanf(piece, "%d-%d", &start, &finish) == 2)

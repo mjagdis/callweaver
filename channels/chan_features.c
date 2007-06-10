@@ -415,14 +415,12 @@ static struct feature_pvt *features_alloc(char *data, int format)
 	struct opbx_channel *chan;
 	
 	tech = opbx_strdupa(data);
-	if (tech) {
-		dest = strchr(tech, '/');
-		if (dest) {
-			*dest = '\0';
-			dest++;
-		}
+	dest = strchr(tech, '/');
+	if (dest) {
+		*dest = '\0';
+		dest++;
 	}
-	if (!tech || !dest) {
+	if (!dest) {
 		opbx_log(LOG_NOTICE, "Format for feature channel is Feature/Tech/Dest ('%s' not valid)!\n", 
 			data);
 		return NULL;

@@ -1592,6 +1592,9 @@ static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 {
 	private_object *tech_pvt = self->tech_pvt;
 	char *workspace;
+	char *addr, *profile_name, *proto;
+	woomera_profile *profile;
+	int isprofile = 0;
 
 	if (globals.panic) {
 		return -1;
@@ -1605,47 +1608,44 @@ static int tech_call(struct opbx_channel *self, char *dest, int timeout)
 	if (self->cid.cid_num) {
 		strncpy(tech_pvt->cid_num, self->cid.cid_num, sizeof(tech_pvt->cid_num)-1);
 	}
-	if ((workspace = opbx_strdupa(dest))) {
-		char *addr, *profile_name, *proto;
-		woomera_profile *profile;
-		int isprofile = 0;
 
-		if ((addr = strchr(workspace, ':'))) {
-			proto = workspace;
-			*addr = '\0';
-			addr++;
-		} else {
-			proto = "H323";
-			addr = workspace;
-		}
-		
-		if ((profile_name = strchr(addr, '*'))) {
-			*profile_name = '\0';
-			profile_name++;
-			isprofile = 1;
-		} else {
-			profile_name = "default";
-		}
-		if (! (profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, profile_name))) {
-			profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, "default");
-		}
-		
-		if (!profile) {
-			opbx_log(LOG_ERROR, "Unable to find profile! Call Aborted!\n");
-			return -1;
-		}
+	workspace = opbx_strdupa(dest);
 
-		if (!opbx_test_flag(profile, PFLAG_OUTBOUND)) {
-			opbx_log(LOG_ERROR, "This profile is not allowed to make outbound calls! Call Aborted!\n");
-			return -1;
-		}
-
-		snprintf(tech_pvt->dest, sizeof(tech_pvt->dest), "%s", addr ? addr : "");
-
-		tech_pvt->timeout = timeout;
-		tech_init(tech_pvt, profile, TFLAG_OUTBOUND);
+	if ((addr = strchr(workspace, ':'))) {
+		proto = workspace;
+		*addr = '\0';
+		addr++;
+	} else {
+		proto = "H323";
+		addr = workspace;
 	}
 	
+	if ((profile_name = strchr(addr, '*'))) {
+		*profile_name = '\0';
+		profile_name++;
+		isprofile = 1;
+	} else {
+		profile_name = "default";
+	}
+	if (! (profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, profile_name))) {
+		profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, "default");
+	}
+	
+	if (!profile) {
+		opbx_log(LOG_ERROR, "Unable to find profile! Call Aborted!\n");
+		return -1;
+	}
+
+	if (!opbx_test_flag(profile, PFLAG_OUTBOUND)) {
+		opbx_log(LOG_ERROR, "This profile is not allowed to make outbound calls! Call Aborted!\n");
+		return -1;
+	}
+
+	snprintf(tech_pvt->dest, sizeof(tech_pvt->dest), "%s", addr ? addr : "");
+
+	tech_pvt->timeout = timeout;
+	tech_init(tech_pvt, profile, TFLAG_OUTBOUND);
+
 	return 0;
 }
 

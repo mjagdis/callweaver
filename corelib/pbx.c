@@ -1711,10 +1711,6 @@ char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace,
 	struct opbx_custom_function *acfptr;
 
 	function = opbx_strdupa(in);
-	if (!function) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		return ret;
-	}
 
 	if ((args = strchr(function, '('))) {
 		*(args++) = '\0';
@@ -1745,10 +1741,6 @@ void opbx_func_write(struct opbx_channel *chan, const char *in, const char *valu
 
 	/* FIXME: unnecessary dup? */
 	function = opbx_strdupa(in);
-	if (!function) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		return;
-	}
 
 	if ((args = strchr(function, '('))) {
 		*(args++) = '\0';
@@ -4202,7 +4194,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
     {
         char *splitter = opbx_strdupa(argv[2]);
         /* is there a '@' character? */
-        if (splitter && strchr(argv[2], '@'))
+        if (strchr(argv[2], '@'))
         {
             /* yes, split into exten & context ... */
             exten   = strsep(&splitter, "@");

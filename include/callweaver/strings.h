@@ -219,7 +219,7 @@ struct opbx_realloca {
 			strcpy((ra)->ptr, s); \
 		} else { \
 			(ra)->ptr = alloca(strlen(s) + 1 - (ra)->alloclen); \
-			if ((ra)->ptr) (ra)->alloclen = strlen(s) + 1; \
+			(ra)->alloclen = strlen(s) + 1; \
 		} \
 		(ra)->ptr; \
 	})

@@ -493,14 +493,9 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 {
 	if (replace) {
 		char *t = alloca(strlen(s) + 2);
-		if (t) {
-			sprintf(t, "\r%s", s);
-			if (complete)
-				opbx_network_puts(t);
-		} else {
-			opbx_log(LOG_ERROR, "Out of memory\n");
-			opbx_network_puts(s);
-		}
+		sprintf(t, "\r%s", s);
+		if (complete)
+			opbx_network_puts(t);
 	} else {
 		if (complete)
 			opbx_network_puts(s);

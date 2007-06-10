@@ -230,7 +230,7 @@ static struct opbx_config *realtime_multi_mysql(const char *database, const char
 	}
 
 	initfield = opbx_strdupa(newparam);
-	if(initfield && (op = strchr(initfield, ' '))) {
+	if ((op = strchr(initfield, ' '))) {
 		*op = '\0';
 	}
 

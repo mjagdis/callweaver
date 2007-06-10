@@ -229,12 +229,7 @@ static char *function_cut(struct opbx_channel *chan, char *cmd, int argc, char *
 	}
 
 	tmp = alloca(strlen(argv[0]) + 4);
-	if (tmp) {
-		snprintf(tmp, strlen(argv[0]) + 4, "${%s}", argv[0]);
-	} else {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		return buf;
-	}
+	snprintf(tmp, strlen(argv[0]) + 4, "${%s}", argv[0]);
 
 	d = (argc > 1 && argv[1][0] ? argv[1][0] : '-');
 	field = (argc > 2 && argv[2] ? argv[2] : "1");
@@ -326,11 +321,6 @@ static char *function_sort(struct opbx_channel *chan, char *cmd, int argc, char 
 	}
 
 	sortable_keys = alloca(argc * sizeof(struct sortable_keys));
-	if (!sortable_keys) {
-		opbx_log(LOG_ERROR, "Out of memory\n");
-		return NULL;
-	}
-
 	memset(sortable_keys, 0, argc * sizeof(struct sortable_keys));
 
 	/* Parse each into a struct */

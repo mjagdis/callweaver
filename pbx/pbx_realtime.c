@@ -88,26 +88,23 @@ static char *tdesc = "Realtime Switch";
 	int res=-1; \
 	struct opbx_variable *var=NULL; \
 	buf = opbx_strdupa(data); \
-	if (buf) { \
-		opts = strchr(buf, '/'); \
-		if (opts) { \
-			*opts='\0'; \
-			opts++; \
-		} else \
-			opts=""; \
-		table = strchr(buf, '@'); \
-		if (table) { \
-			*table = '\0'; \
-			table++;\
-			cxt = buf; \
-		} else cxt = NULL; \
-		if (!cxt || opbx_strlen_zero(cxt)) \
-			cxt = context;\
-		if (!table || opbx_strlen_zero(table)) \
-			table = "extensions"; \
-		var = realtime_switch_common(table, cxt, exten, priority, mode); \
+	opts = strchr(buf, '/'); \
+	if (opts) { \
+		*opts='\0'; \
+		opts++; \
 	} else \
-		res = -1; 
+		opts=""; \
+	table = strchr(buf, '@'); \
+	if (table) { \
+		*table = '\0'; \
+		table++;\
+		cxt = buf; \
+	} else cxt = NULL; \
+	if (!cxt || opbx_strlen_zero(cxt)) \
+		cxt = context;\
+	if (!table || opbx_strlen_zero(table)) \
+		table = "extensions"; \
+	var = realtime_switch_common(table, cxt, exten, priority, mode);
 
 static struct opbx_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {

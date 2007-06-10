@@ -469,8 +469,6 @@ int opbx_osp_validate(char *provider, char *token, int *handle, unsigned int *ti
 		provider = "default";
 
 	token2 = opbx_strdupa(token);
-	if (!token2)
-		return -1;
 	tokenlen = opbx_base64decode(token2, token, strlen(token));
 	*handle = -1;
 	if (!callerid)

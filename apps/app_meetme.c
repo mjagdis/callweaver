@@ -1610,23 +1610,22 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
 					/* Separate the PIN */
 					char *pin, *pinadmin, *conf;
 
-					if ((pinadmin = opbx_strdupa(var->value))) {
-						conf = strsep(&pinadmin, "|,");
-						pin = strsep(&pinadmin, "|,");
-						if (!strcasecmp(conf, confno)) {
-							/* Bingo it's a valid conference */
-							if (pin)
-								if (pinadmin)
-									cnf = build_conf(confno, pin, pinadmin, make, dynamic);
-								else
-									cnf = build_conf(confno, pin, "", make, dynamic);
+					pinadmin = opbx_strdupa(var->value);
+					conf = strsep(&pinadmin, "|,");
+					pin = strsep(&pinadmin, "|,");
+					if (!strcasecmp(conf, confno)) {
+						/* Bingo it's a valid conference */
+						if (pin)
+							if (pinadmin)
+								cnf = build_conf(confno, pin, pinadmin, make, dynamic);
 							else
-								if (pinadmin)
-									cnf = build_conf(confno, "", pinadmin, make, dynamic);
-								else
-									cnf = build_conf(confno, "", "", make, dynamic);
-							break;
-						}
+								cnf = build_conf(confno, pin, "", make, dynamic);
+						else
+							if (pinadmin)
+								cnf = build_conf(confno, "", pinadmin, make, dynamic);
+							else
+								cnf = build_conf(confno, "", "", make, dynamic);
+						break;
 					}
 				}
 				var = var->next;
@@ -1756,44 +1755,40 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv)
 					while(var) {
 						if (!strcasecmp(var->name, "conf")) {
 							char *stringp = opbx_strdupa(var->value);
-							if (stringp) {
-								char *confno_tmp = strsep(&stringp, "|,");
-								int found = 0;
-								if (sscanf(confno_tmp, "%d", &confno_int) == 1) {
-									if ((confno_int >= 0) && (confno_int < 1024)) {
-										if (stringp && empty_no_pin) {
-											map[confno_int]++;
-										}
+							char *confno_tmp = strsep(&stringp, "|,");
+							int found = 0;
+							if (sscanf(confno_tmp, "%d", &confno_int) == 1) {
+								if ((confno_int >= 0) && (confno_int < 1024)) {
+									if (stringp && empty_no_pin) {
+										map[confno_int]++;
 									}
 								}
-								if (! dynamic) {
-									/* For static:  run through the list and see if this conference is empty */
-									opbx_mutex_lock(&conflock);
-									cnf = confs;
-									while (cnf) {
-										if (!strcmp(confno_tmp, cnf->confno)) {
-											/* The conference exists, therefore it's not empty */
-											found = 1;
-											break;
-										}
-										cnf = cnf->next;
+							}
+							if (! dynamic) {
+								/* For static:  run through the list and see if this conference is empty */
+								opbx_mutex_lock(&conflock);
+								cnf = confs;
+								while (cnf) {
+									if (!strcmp(confno_tmp, cnf->confno)) {
+										/* The conference exists, therefore it's not empty */
+										found = 1;
+										break;
 									}
-									opbx_mutex_unlock(&conflock);
-									if (!found) {
-										/* At this point, we have a confno_tmp (static conference) that is empty */
-										if ((empty_no_pin && ((!stringp) || (stringp && (stringp[0] == '\0')))) || (!empty_no_pin)) {
-										/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
-										 * Case 2:  empty_no_pin and pin is blank (but not NULL)
-										 * Case 3:  not empty_no_pin
-										 */
-											opbx_copy_string(confno, confno_tmp, sizeof(confno));
-											break;
-											/* XXX the map is not complete (but we do have a confno) */
-										}
+									cnf = cnf->next;
+								}
+								opbx_mutex_unlock(&conflock);
+								if (!found) {
+									/* At this point, we have a confno_tmp (static conference) that is empty */
+									if ((empty_no_pin && ((!stringp) || (stringp && (stringp[0] == '\0')))) || (!empty_no_pin)) {
+									/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
+									 * Case 2:  empty_no_pin and pin is blank (but not NULL)
+									 * Case 3:  not empty_no_pin
+									 */
+										opbx_copy_string(confno, confno_tmp, sizeof(confno));
+										break;
+										/* XXX the map is not complete (but we do have a confno) */
 									}
 								}
-							} else {
-								opbx_log(LOG_ERROR, "Out of memory\n");
 							}
 						}
 						var = var->next;

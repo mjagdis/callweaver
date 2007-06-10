@@ -979,20 +979,11 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         break;
     case OPBX_FORMAT_ULAW:
         shortdata = alloca(af->datalen*sizeof(int16_t));
-        if (!shortdata) {
-            opbx_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
-            return af;
-        }
         for (x = 0;  x < len;  x++) 
             shortdata[x] = OPBX_MULAW(odata[x]);
         break;
     case OPBX_FORMAT_ALAW:
         shortdata = alloca(af->datalen*sizeof(int16_t));
-        if (!shortdata)
-        {
-            opbx_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
-            return af;
-        }
         for (x = 0;  x < len;  x++) 
             shortdata[x] = OPBX_ALAW(odata[x]);
         break;

@@ -1778,9 +1778,6 @@ static void launch_cli_thread(char *cli_command)
 
     if(!opbx_strlen_zero(cli_command)) {
         cli_command_dup = opbx_strdupa(cli_command);
-        if (!cli_command_dup){
-        	return;
-        }
     }
     else {
     	return;

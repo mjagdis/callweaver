@@ -189,10 +189,6 @@ struct opbx_netsock *opbx_netsock_bind(struct opbx_netsock_list *list, struct io
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(defaultport);
 	tmp = opbx_strdupa(bindinfo);
-	if (!tmp) {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
-		return NULL;
-	}
 
 	host = strsep(&tmp, ":");
 	port = tmp;

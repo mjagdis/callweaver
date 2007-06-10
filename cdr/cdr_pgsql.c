@@ -161,28 +161,22 @@ static int pgsql_log(struct opbx_cdr *cdr)
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
 	/* maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
-	if ((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
-		PQescapeString(clid, cdr->clid, strlen(cdr->clid));
-	if ((dcontext = alloca(strlen(cdr->dcontext) * 2 + 1)) != NULL)
-		PQescapeString(dcontext, cdr->dcontext, strlen(cdr->dcontext));
-	if ((channel = alloca(strlen(cdr->channel) * 2 + 1)) != NULL)
-		PQescapeString(channel, cdr->channel, strlen(cdr->channel));
-	if ((dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1)) != NULL)
-		PQescapeString(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
-	if ((lastapp = alloca(strlen(cdr->lastapp) * 2 + 1)) != NULL)
-		PQescapeString(lastapp, cdr->lastapp, strlen(cdr->lastapp));
-	if ((lastdata = alloca(strlen(cdr->lastdata) * 2 + 1)) != NULL)
-		PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
-	if ((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
-		PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
-	if ((userfield = alloca(strlen(cdr->userfield) * 2 + 1)) != NULL)
-		PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
-
-	/* check for all alloca() failures above */
-	if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid) || (!userfield)) {
-		opbx_log(LOG_ERROR, "Out of memory error (insert fails)\n");
-		return -1;
-	}
+	clid = alloca(strlen(cdr->clid) * 2 + 1);
+	PQescapeString(clid, cdr->clid, strlen(cdr->clid));
+	dcontext = alloca(strlen(cdr->dcontext) * 2 + 1);
+	PQescapeString(dcontext, cdr->dcontext, strlen(cdr->dcontext));
+	channel = alloca(strlen(cdr->channel) * 2 + 1);
+	PQescapeString(channel, cdr->channel, strlen(cdr->channel));
+	dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1);
+	PQescapeString(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+	lastapp = alloca(strlen(cdr->lastapp) * 2 + 1);
+	PQescapeString(lastapp, cdr->lastapp, strlen(cdr->lastapp));
+	lastdata = alloca(strlen(cdr->lastdata) * 2 + 1);
+	PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
+	uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1);
+	PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+	userfield = alloca(strlen(cdr->userfield) * 2 + 1);
+	PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
 
 	opbx_log(LOG_DEBUG,"Inserting a CDR record.\n");
 

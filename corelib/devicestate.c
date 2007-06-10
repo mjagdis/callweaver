@@ -115,9 +115,7 @@ int opbx_device_state(const char *device)
 	buf = opbx_strdupa(device);
 	tech = strsep(&buf, "/");
 	number = buf;
-	if (!number)
-		return OPBX_DEVICE_INVALID;
-		
+
 	chan_tech = opbx_get_channel_tech(tech);
 	if (!chan_tech)
 		return OPBX_DEVICE_INVALID;

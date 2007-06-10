@@ -15198,7 +15198,7 @@ static struct sip_user *build_user(const char *name, struct opbx_variable *v, in
         else if (!strcasecmp(v->name, "setvar"))
         {
             varname = opbx_strdupa(v->value);
-            if (varname && (varval = strchr(varname, '=')))
+            if ((varval = strchr(varname, '=')))
             {
                 *varval = '\0';
                 varval++;
@@ -15630,7 +15630,7 @@ static struct sip_peer *build_peer(const char *name, struct opbx_variable *v, in
         {
             /* Set peer channel variable */
             varname = opbx_strdupa(v->value);
-            if (varname  &&  (varval = strchr(varname, '=')))
+            if ((varval = strchr(varname, '=')))
             {
                 *varval = '\0';
                 varval++;
@@ -16860,11 +16860,6 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     char tmp[80];
     
     cdest = opbx_strdupa(dest);
-    if (!cdest)
-    {
-        opbx_log(LOG_ERROR, "Problem allocating the memory\n");
-        return -1;
-    }
     extension = strsep(&cdest, "@");
     host = strsep(&cdest, ":");
     port = strsep(&cdest, ":");
@@ -16910,20 +16905,8 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
                 return -1;
             }
             host = opbx_strdupa(lhost);
-            if (!host)
-            {
-                opbx_log(LOG_ERROR, "Problem allocating the memory\n");
-                return -1;
-            }
             if (!opbx_strlen_zero(lport))
-            {
                 port = opbx_strdupa(lport);
-                if (!port)
-                {
-                    opbx_log(LOG_ERROR, "Problem allocating the memory\n");
-                    return -1;
-                }
-            }
         }
       } // else If the device is not registered
     }

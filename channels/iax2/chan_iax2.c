@@ -2083,12 +2083,10 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		char *key = NULL;
 
 		family = opbx_strdupa(peer->dbsecret);
-		if (family) {
-			key = strchr(family, '/');
-			if (key)
-				*key++ = '\0';
-		}
-		if (!family || !key || opbx_db_get(family, key, cai->secret, sizeof(cai->secret))) {
+		key = strchr(family, '/');
+		if (key)
+			*key++ = '\0';
+		if (!key || opbx_db_get(family, key, cai->secret, sizeof(cai->secret))) {
 			opbx_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
 			if (opbx_test_flag(peer, IAX_TEMPONLY))
 				destroy_peer(peer);
@@ -3132,8 +3130,6 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct opbx_iax2_full_hdr *fh, str
 	unsigned char *workspace;
 
 	workspace = alloca(*datalen);
-	if (!workspace)
-		return -1;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct opbx_iax2_full_enc_hdr *efh = (struct opbx_iax2_full_enc_hdr *)fh;
 
@@ -3178,8 +3174,6 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct opbx_iax2_full_hdr *fh, un
 	int padding;
 	unsigned char *workspace;
 	workspace = alloca(*datalen + 32);
-	if (!workspace)
-		return -1;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct opbx_iax2_full_enc_hdr *efh = (struct opbx_iax2_full_enc_hdr *)fh;
 		if (option_debug && iaxdebug)
@@ -4118,14 +4112,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (!opbx_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
 			family = opbx_strdupa(user->dbsecret);
-			if (family) {
-				key = strchr(family, '/');
-				if (key) {
-					*key = '\0';
-					key++;
-				}
+			key = strchr(family, '/');
+			if (key) {
+				*key = '\0';
+				key++;
 			}
-			if (!family || !key || opbx_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (!key || opbx_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
 				opbx_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (opbx_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
@@ -7193,11 +7185,6 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	char *portstr;
 
 	tmp = opbx_strdupa(srcaddr);
-	if (!tmp) {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
-		return -1;
-	}
-
 	addr = strsep(&tmp, ":");
 	portstr = tmp;
 

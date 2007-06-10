@@ -181,34 +181,25 @@ db_reconnect:
 	   spool file for later restoration.
 	   So the question is, what's the best way to handle this?  This works for now.
 	*/
-	if ((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
-		mysql_escape_string(clid, cdr->clid, strlen(cdr->clid));
-	if ((dcontext = alloca(strlen(cdr->dcontext) * 2 + 1)) != NULL)
-		mysql_escape_string(dcontext, cdr->dcontext, strlen(cdr->dcontext));
-	if ((channel = alloca(strlen(cdr->channel) * 2 + 1)) != NULL)
-		mysql_escape_string(channel, cdr->channel, strlen(cdr->channel));
-	if ((dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1)) != NULL)
-		mysql_escape_string(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
-	if ((lastapp = alloca(strlen(cdr->lastapp) * 2 + 1)) != NULL)
-		mysql_escape_string(lastapp, cdr->lastapp, strlen(cdr->lastapp));
-	if ((lastdata = alloca(strlen(cdr->lastdata) * 2 + 1)) != NULL)
-		mysql_escape_string(lastdata, cdr->lastdata, strlen(cdr->lastdata));
+	clid = alloca(strlen(cdr->clid) * 2 + 1);
+	mysql_escape_string(clid, cdr->clid, strlen(cdr->clid));
+	dcontext = alloca(strlen(cdr->dcontext) * 2 + 1);
+	mysql_escape_string(dcontext, cdr->dcontext, strlen(cdr->dcontext));
+	channel = alloca(strlen(cdr->channel) * 2 + 1);
+	mysql_escape_string(channel, cdr->channel, strlen(cdr->channel));
+	dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1);
+	mysql_escape_string(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+	lastapp = alloca(strlen(cdr->lastapp) * 2 + 1);
+	mysql_escape_string(lastapp, cdr->lastapp, strlen(cdr->lastapp));
+	lastdata = alloca(strlen(cdr->lastdata) * 2 + 1);
+	mysql_escape_string(lastdata, cdr->lastdata, strlen(cdr->lastdata));
 #ifdef MYSQL_LOGUNIQUEID
-	if ((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
-		mysql_escape_string(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+	uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1);
+	mysql_escape_string(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
 #endif
-	if (userfield && ((userfielddata = alloca(strlen(cdr->userfield) * 2 + 1)) != NULL))
+	if (userfield) {
+		userfielddata = alloca(strlen(cdr->userfield) * 2 + 1);
 		mysql_escape_string(userfielddata, cdr->userfield, strlen(cdr->userfield));
-
-	/* Check for all alloca failures above at once */
-#ifdef MYSQL_LOGUNIQUEID
-	if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid)) {
-#else
-	if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata)) {
-#endif
-		opbx_log(LOG_ERROR, "cdr_mysql:  Out of memory error (insert fails)\n");
-		opbx_mutex_unlock(&mysql_lock);
-		return -1;
 	}
 
 	opbx_log(LOG_DEBUG, "cdr_mysql: inserting a CDR record.\n");

@@ -1219,11 +1219,6 @@ enum OPBX_LOCK_RESULT opbx_lock_path(const char *path)
 	s = alloca(strlen(path) + 10);
 	fs = alloca(strlen(path) + 20);
 
-	if (!fs || !s) {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
-		return OPBX_LOCK_FAILURE;
-	}
-
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, opbx_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
@@ -1255,13 +1250,7 @@ int opbx_unlock_path(const char *path)
 	int res;
 
 	s = alloca(strlen(path) + 10);
-	if (!s) {
-		opbx_log(LOG_WARNING, "Out of memory!\n");
-		return -1;
-	}
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
-	opbx_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
-//	return unlink(s);
 
 	if ((res = unlink(s)))
 		opbx_log(LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
@@ -1433,12 +1422,10 @@ static int ivr_dispatch(struct opbx_channel *chan, struct opbx_ivr_option *optio
 	case OPBX_ACTION_BACKLIST:
 		res = 0;
 		c = opbx_strdupa(option->adata);
-		if (c) {
-			while((n = strsep(&c, ";")))
-				if ((res = opbx_streamfile(chan, n, chan->language)) || (res = opbx_waitstream(chan, (option->action == OPBX_ACTION_BACKLIST) ? OPBX_DIGIT_ANY : "")))
-					break;
-			opbx_stopstream(chan);
-		}
+		while((n = strsep(&c, ";")))
+			if ((res = opbx_streamfile(chan, n, chan->language)) || (res = opbx_waitstream(chan, (option->action == OPBX_ACTION_BACKLIST) ? OPBX_DIGIT_ANY : "")))
+				break;
+		opbx_stopstream(chan);
 		return res;
 	default:
 		opbx_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);

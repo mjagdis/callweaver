@@ -957,10 +957,7 @@ static int feature_exec_app(struct opbx_channel *chan, struct opbx_channel *peer
 		char *args;
 		if (opbx_test_flag(feature,OPBX_FEATURE_FLAG_CALLEE)) work=peer;
 		res = strlen(feature->app_args) + 1;
-		if (!(args = alloca(res))) {
-			opbx_log(LOG_WARNING, "Feature exec failed - insufficient memory\n");
-			return -1;
-		}
+		args = alloca(res);
 		memcpy(args, feature->app_args, res);
 		res = pbx_exec(work, app, feature->app_args);
 		if (res<0) return res; 
@@ -1028,9 +1025,6 @@ static int opbx_feature_interpret(struct opbx_channel *chan, struct opbx_channel
 		char *tmp = opbx_strdupa(dynamic_features);
 		char *tok;
 
-		if (!tmp)
-			return res;
-		
 		while ((tok = strsep(&tmp, "#")) != NULL) {
 			feature = find_feature(tok);
 			
@@ -1075,10 +1069,6 @@ static void set_config_flags(struct opbx_channel *chan, struct opbx_channel *pee
 			char *tmp = opbx_strdupa(dynamic_features);
 			char *tok;
 			struct opbx_call_feature *feature;
-
-			if (!tmp) {
-				return;
-			}
 
 			/* while we have a feature */
 			while (NULL != (tok = strsep(&tmp, "#"))) {

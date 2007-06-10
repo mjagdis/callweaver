@@ -238,7 +238,7 @@ static struct opbx_config *realtime_multi_odbc(const char *database, const char 
 		return NULL;
 	}
 	initfield = opbx_strdupa(newparam);
-	if (initfield && (op = strchr(initfield, ' '))) 
+	if ((op = strchr(initfield, ' '))) 
 		*op = '\0';
 	newval = va_arg(aq, const char *);
 	if (!strchr(newparam, ' ')) op = " ="; else op = "";

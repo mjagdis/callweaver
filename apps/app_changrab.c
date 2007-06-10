@@ -188,7 +188,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 	chan_name_1 = argv[x++];
 	if(chan_name_1[0] == '-') {
 		flags = opbx_strdupa(chan_name_1);
-		if(flags && (strchr(flags,'h'))) {
+		if (strchr(flags,'h')) {
 			chan_name_1 = argv[x++];
 			if((xferchan_1 = my_opbx_get_channel_by_name_locked(chan_name_1))) {
 				opbx_mutex_unlock(&xferchan_1->lock);
@@ -197,7 +197,7 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 				return 0;
 			} else 
 				return -1;
-		} else if(flags && (strchr(flags,'m') || strchr(flags,'M'))) {
+		} else if (strchr(flags,'m') || strchr(flags,'M')) {
 			chan_name_1 = argv[x++];
 			if((xferchan_1 = my_opbx_get_channel_by_name_locked(chan_name_1))) {
 				opbx_mutex_unlock(&xferchan_1->lock);

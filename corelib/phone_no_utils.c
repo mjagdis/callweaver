@@ -150,11 +150,6 @@ int opbx_callerid_split(const char *buf, char *name, int namelen, char *num, int
     char *n = NULL;
     
 	tmp = opbx_strdupa(buf);
-	if (!tmp) {
-		name[0] = '\0';
-		num[0] = '\0';
-		return -1;
-	}
 	opbx_callerid_parse(tmp, &n, &l);
 	if (n)
 		opbx_copy_string(name, n, namelen);

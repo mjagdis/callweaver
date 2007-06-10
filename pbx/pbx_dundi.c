@@ -1393,8 +1393,6 @@ static struct dundi_hdr *dundi_decrypt(struct dundi_transaction *trans, unsigned
 	struct dundi_hdr *h;
 	unsigned char *decrypt_space;
 	decrypt_space = alloca(srclen);
-	if (!decrypt_space)
-		return NULL;
 	decrypt_memcpy(decrypt_space, src->encdata, srclen, src->iv, &trans->dcx);
 	/* Setup header */
 	h = (struct dundi_hdr *)dst;
@@ -1421,59 +1419,57 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	unsigned char iv[16];
 	len = pack->datalen + pack->datalen / 100 + 42;
 	compress_space = alloca(len);
-	if (compress_space) {
-		memset(compress_space, 0, len);
-		/* We care about everthing save the first 6 bytes of header */
-		bytes = len;
-		res = compress(compress_space, &bytes, pack->data + 6, pack->datalen - 6);
-		if (res != Z_OK) {
-			opbx_log(LOG_DEBUG, "Ouch, compression failed!\n");
-			return -1;
-		}
-		memset(&ied, 0, sizeof(ied));
-		/* Say who we are */
-		if (!pack->h->iseqno && !pack->h->oseqno) {
-			/* Need the key in the first copy */
-			if (!(peer = find_peer(&trans->them_eid))) 
-				return -1;
-			if (update_key(peer))
-				return -1;
-			if (!peer->sentfullkey)
-				opbx_set_flag(trans, FLAG_SENDFULLKEY);	
-			/* Append key data */
-			dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
-			if (opbx_test_flag(trans, FLAG_SENDFULLKEY)) {
-				dundi_ie_append_raw(&ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
-				dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
-			} else {
-				dundi_ie_append_int(&ied, DUNDI_IE_KEYCRC32, peer->us_keycrc32);
-			}
-			/* Setup contexts */
-			trans->ecx = peer->us_ecx;
-			trans->dcx = peer->us_dcx;
-
-			/* We've sent the full key */
-			peer->sentfullkey = 1;
-		}
-		/* Build initialization vector */
-		build_iv(iv);
-		/* Add the field, rounded up to 16 bytes */
-		dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, iv, NULL, ((bytes + 15) / 16) * 16);
-		/* Copy the data */
-		if ((ied.pos + bytes) >= sizeof(ied.buf)) {
-			opbx_log(LOG_NOTICE, "Final packet too large!\n");
-			return -1;
-		}
-		encrypt_memcpy(ied.buf + ied.pos, compress_space, bytes, iv, &trans->ecx);
-		ied.pos += ((bytes + 15) / 16) * 16;
-		/* Reconstruct header */
-		pack->datalen = sizeof(struct dundi_hdr);
-		pack->h->cmdresp = DUNDI_COMMAND_ENCRYPT;
-		pack->h->cmdflags = 0;
-		memcpy(pack->h->ies, ied.buf, ied.pos);
-		pack->datalen += ied.pos;
-		return 0;
+	memset(compress_space, 0, len);
+	/* We care about everthing save the first 6 bytes of header */
+	bytes = len;
+	res = compress(compress_space, &bytes, pack->data + 6, pack->datalen - 6);
+	if (res != Z_OK) {
+		opbx_log(LOG_DEBUG, "Ouch, compression failed!\n");
+		return -1;
 	}
+	memset(&ied, 0, sizeof(ied));
+	/* Say who we are */
+	if (!pack->h->iseqno && !pack->h->oseqno) {
+		/* Need the key in the first copy */
+		if (!(peer = find_peer(&trans->them_eid))) 
+			return -1;
+		if (update_key(peer))
+			return -1;
+		if (!peer->sentfullkey)
+			opbx_set_flag(trans, FLAG_SENDFULLKEY);	
+		/* Append key data */
+		dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
+		if (opbx_test_flag(trans, FLAG_SENDFULLKEY)) {
+			dundi_ie_append_raw(&ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
+			dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
+		} else {
+			dundi_ie_append_int(&ied, DUNDI_IE_KEYCRC32, peer->us_keycrc32);
+		}
+		/* Setup contexts */
+		trans->ecx = peer->us_ecx;
+		trans->dcx = peer->us_dcx;
+
+		/* We've sent the full key */
+		peer->sentfullkey = 1;
+	}
+	/* Build initialization vector */
+	build_iv(iv);
+	/* Add the field, rounded up to 16 bytes */
+	dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, iv, NULL, ((bytes + 15) / 16) * 16);
+	/* Copy the data */
+	if ((ied.pos + bytes) >= sizeof(ied.buf)) {
+		opbx_log(LOG_NOTICE, "Final packet too large!\n");
+		return -1;
+	}
+	encrypt_memcpy(ied.buf + ied.pos, compress_space, bytes, iv, &trans->ecx);
+	ied.pos += ((bytes + 15) / 16) * 16;
+	/* Reconstruct header */
+	pack->datalen = sizeof(struct dundi_hdr);
+	pack->h->cmdresp = DUNDI_COMMAND_ENCRYPT;
+	pack->h->cmdflags = 0;
+	memcpy(pack->h->ies, ied.buf, ied.pos);
+	pack->datalen += ied.pos;
+	return 0;
 	return -1;
 }
 
@@ -1550,8 +1546,6 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	memset(&ies, 0, sizeof(ies));
 	if (datalen) {
 		bufcpy = alloca(datalen);
-		if (!bufcpy)
-			return -1;
 		/* Make a copy for parsing */
 		memcpy(bufcpy, hdr->ies, datalen);
 		opbx_log(LOG_DEBUG, "Got canonical message %d (%d), %d bytes data%s\n", cmd, hdr->oseqno, datalen, final ? " (Final)" : "");
@@ -3755,13 +3749,11 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	if (nummaps) {
 		maps = alloca(nummaps * sizeof(struct dundi_mapping));
 		nummaps = 0;
-		if (maps) {
-			cur = mappings;
-			while(cur) {
-				if (!strcasecmp(cur->dcontext, context))
-					maps[nummaps++] = *cur;
-				cur = cur->next;
-			}
+		cur = mappings;
+		while(cur) {
+			if (!strcasecmp(cur->dcontext, context))
+				maps[nummaps++] = *cur;
+			cur = cur->next;
 		}
 	}
 	opbx_mutex_unlock(&peerlock);
@@ -4091,72 +4083,70 @@ static void build_mapping(char *name, char *value)
 	int x;
 	int y;
 	t = opbx_strdupa(value);
-	if (t) {
-		map = mappings;
-		while(map) {
-			/* Find a double match */
-			if (!strcasecmp(map->dcontext, name) && 
-				(!strncasecmp(map->lcontext, value, strlen(map->lcontext)) && 
-				  (!value[strlen(map->lcontext)] || 
-				   (value[strlen(map->lcontext)] == ','))))
-				break;
-			map = map->next;
-		}
-		if (!map) {
-			map = malloc(sizeof(struct dundi_mapping));
-			if (map) {
-				memset(map, 0, sizeof(struct dundi_mapping));
-				map->next = mappings;
-				mappings = map;
-				map->dead = 1;
-			}
-		}
+	map = mappings;
+	while(map) {
+		/* Find a double match */
+		if (!strcasecmp(map->dcontext, name) && 
+			(!strncasecmp(map->lcontext, value, strlen(map->lcontext)) && 
+			  (!value[strlen(map->lcontext)] || 
+			   (value[strlen(map->lcontext)] == ','))))
+			break;
+		map = map->next;
+	}
+	if (!map) {
+		map = malloc(sizeof(struct dundi_mapping));
 		if (map) {
-			map->options = 0;
-			memset(fields, 0, sizeof(fields));
-			x = 0;
-			while(t && x < MAX_OPTS) {
-				fields[x++] = t;
-				t = strchr(t, ',');
-				if (t) {
-					*t = '\0';
-					t++;
-				}
-			} /* Russell was here, arrrr! */
-			if ((x == 1) && opbx_strlen_zero(fields[0])) {
-				/* Placeholder mapping */
-				opbx_copy_string(map->dcontext, name, sizeof(map->dcontext));
-				map->dead = 0;
-			} else if (x >= 4) {
-				opbx_copy_string(map->dcontext, name, sizeof(map->dcontext));
-				opbx_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
-				if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
-					opbx_copy_string(map->dest, fields[3], sizeof(map->dest));
-					if ((map->tech = str2tech(fields[2]))) {
-						map->dead = 0;
-					}
-				} else {
-					opbx_log(LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
-				}
-				for (y=4;y<x;y++) {
-					if (!strcasecmp(fields[y], "nounsolicited"))
-						map->options |= DUNDI_FLAG_NOUNSOLICITED;
-					else if (!strcasecmp(fields[y], "nocomunsolicit"))
-						map->options |= DUNDI_FLAG_NOCOMUNSOLICIT;
-					else if (!strcasecmp(fields[y], "residential"))
-						map->options |= DUNDI_FLAG_RESIDENTIAL;
-					else if (!strcasecmp(fields[y], "commercial"))
-						map->options |= DUNDI_FLAG_COMMERCIAL;
-					else if (!strcasecmp(fields[y], "mobile"))
-						map->options |= DUNDI_FLAG_MOBILE;
-					else if (!strcasecmp(fields[y], "nopartial"))
-						map->options |= DUNDI_FLAG_INTERNAL_NOPARTIAL;
-					else
-						opbx_log(LOG_WARNING, "Don't know anything about option '%s'\n", fields[y]);
-				}
-			} else 
-				opbx_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
+			memset(map, 0, sizeof(struct dundi_mapping));
+			map->next = mappings;
+			mappings = map;
+			map->dead = 1;
 		}
+	}
+	if (map) {
+		map->options = 0;
+		memset(fields, 0, sizeof(fields));
+		x = 0;
+		while(t && x < MAX_OPTS) {
+			fields[x++] = t;
+			t = strchr(t, ',');
+			if (t) {
+				*t = '\0';
+				t++;
+			}
+		} /* Russell was here, arrrr! */
+		if ((x == 1) && opbx_strlen_zero(fields[0])) {
+			/* Placeholder mapping */
+			opbx_copy_string(map->dcontext, name, sizeof(map->dcontext));
+			map->dead = 0;
+		} else if (x >= 4) {
+			opbx_copy_string(map->dcontext, name, sizeof(map->dcontext));
+			opbx_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
+			if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
+				opbx_copy_string(map->dest, fields[3], sizeof(map->dest));
+				if ((map->tech = str2tech(fields[2]))) {
+					map->dead = 0;
+				}
+			} else {
+				opbx_log(LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
+			}
+			for (y=4;y<x;y++) {
+				if (!strcasecmp(fields[y], "nounsolicited"))
+					map->options |= DUNDI_FLAG_NOUNSOLICITED;
+				else if (!strcasecmp(fields[y], "nocomunsolicit"))
+					map->options |= DUNDI_FLAG_NOCOMUNSOLICIT;
+				else if (!strcasecmp(fields[y], "residential"))
+					map->options |= DUNDI_FLAG_RESIDENTIAL;
+				else if (!strcasecmp(fields[y], "commercial"))
+					map->options |= DUNDI_FLAG_COMMERCIAL;
+				else if (!strcasecmp(fields[y], "mobile"))
+					map->options |= DUNDI_FLAG_MOBILE;
+				else if (!strcasecmp(fields[y], "nopartial"))
+					map->options |= DUNDI_FLAG_INTERNAL_NOPARTIAL;
+				else
+					opbx_log(LOG_WARNING, "Don't know anything about option '%s'\n", fields[y]);
+			}
+		} else 
+			opbx_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
 	}
 }
 

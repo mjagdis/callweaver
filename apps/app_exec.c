@@ -73,26 +73,21 @@ static int exec_exec(struct opbx_channel *chan, int argc, char **argv)
 	/* Check and parse arguments */
 	if (argc > 0) {
 		s = opbx_strdupa(argv[0]);
+		appname = strsep(&s, "(");
 		if (s) {
-			appname = strsep(&s, "(");
-			if (s) {
-				endargs = strrchr(s, ')');
-				if (endargs)
-					*endargs = '\0';
-				pbx_substitute_variables_helper(chan, s, args, sizeof(args));
+			endargs = strrchr(s, ')');
+			if (endargs)
+				*endargs = '\0';
+			pbx_substitute_variables_helper(chan, s, args, sizeof(args));
+		}
+		if (appname) {
+			app = pbx_findapp(appname);
+			if (app) {
+				res = pbx_exec(chan, app, args);
+			} else {
+				opbx_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+				res = -1;
 			}
-			if (appname) {
-				app = pbx_findapp(appname);
-				if (app) {
-					res = pbx_exec(chan, app, args);
-				} else {
-					opbx_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-					res = -1;
-				}
-			}
-		} else {
-			opbx_log(LOG_ERROR, "Out of memory\n");
-			res = -1;
 		}
 	}
 

@@ -322,8 +322,6 @@ struct opbx_variable *astman_get_variables(struct message *m)
 	for (x = 0; x < m->hdrcount; x++) {
 		if (!strncasecmp("Variable: ", m->headers[x], varlen)) {
 			var = val = opbx_strdupa(m->headers[x] + varlen);
-			if (!var)
-				return head;				
 			strsep(&val, "=");
 			if (!val || opbx_strlen_zero(var))
 				continue;

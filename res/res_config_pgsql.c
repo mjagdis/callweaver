@@ -249,9 +249,8 @@ static struct opbx_config *realtime_multi_pgsql(const char *database, const char
 	}
 
 	initfield = opbx_strdupa(newparam);
-	if (initfield && (op = strchr(initfield, ' '))) {
+	if ((op = strchr(initfield, ' ')))
 		*op = '\0';
-	}
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
