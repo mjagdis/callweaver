@@ -377,11 +377,23 @@ static inline int zt_wait_event(int fd)
 #define MASK_AVAIL		(1 << 0)		/* Channel available for PRI use */
 #define MASK_INUSE		(1 << 1)		/* Channel currently in use */
 
-#define CALLWAITING_SILENT_SAMPLES	( (300 * 8) / READ_SIZE) /* 300 ms */
-#define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /* 300 ms */
-#define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /* 500 ms */
-#define MIN_MS_SINCE_FLASH			( (2000) )	/* 2000 ms */
-#define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE)
+/* The zaptel driver currently makes this a fixed value but
+ * has comments suggesting it may one day be variable.
+ */
+#ifndef ZT_CHUNKSIZE
+#  define ZT_CHUNKSIZE	8
+#endif
+
+/* Convert milliseconds to samples, assuming the driver is
+ * sampling at a standard 64kbit/s.
+ */
+#define MS_TO_SAMPLES(X)	((X) * (64 / ZT_CHUNKSIZE))
+#define SAMPLES_TO_MS(X)	((X) / (64 / ZT_CHUNKSIZE))
+
+#define CALLWAITING_REPEAT_SAMPLES	MS_TO_SAMPLES(10000)	/* 10 s */
+#define CIDCW_EXPIRE_SAMPLES		MS_TO_SAMPLES(500)	/* 500 ms */
+#define DEFAULT_RINGT 			MS_TO_SAMPLES(8000)	/* 8 s */
+#define MIN_MS_SINCE_FLASH		MS_TO_SAMPLES(2000)	/* 2 s */
 
 struct zt_pvt;
 
@@ -1827,7 +1839,9 @@ static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout)
 				memmove(&rcad.ringcadence[2], &cadence->ringcadence[0],
 					sizeof(rcad.ringcadence) - 2 * sizeof(rcad.ringcadence[0]));
 				rcad.ringcadence[0] = 250;
-				rcad.ringcadence[1] = ((p->cidlen >> 3) > 1000 ? (p->cidlen >> 3) : 1000);
+				rcad.ringcadence[1] = SAMPLES_TO_MS(p->cidlen);
+				if (rcad.ringcadence[1] < 1000)
+					rcad.ringcadence[1] = 1000;
 				cadence = &rcad;
 				p->cidrings = 1;
 
@@ -3865,9 +3879,8 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 			case SIG_FXSLS:
 			case SIG_FXSGS:
 			case SIG_FXSKS:
-				if (opbx->_state == OPBX_STATE_RING) {
+				if (opbx->_state == OPBX_STATE_RING)
 					p->ringt = p->ringt_base;
-				}
 
 				/* If we get a ring then we cannot be in 
 				 * reversed polarity. So we reset to idle */
@@ -3921,9 +3934,8 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 			case SIG_FXSLS:
 			case SIG_FXSGS:
 			case SIG_FXSKS:
-				if (opbx->_state == OPBX_STATE_RING) {
+				if (opbx->_state == OPBX_STATE_RING)
 					p->ringt = p->ringt_base;
-				}
 				break;
 			}
 			break;
@@ -4394,12 +4406,6 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 		opbx_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
-	if (p->ringt == 1) {
-		opbx_mutex_unlock(&p->lock);
-		return NULL;
-	}
-	else if (p->ringt > 0) 
-		p->ringt--;
 
 	if (p->subs[index].needringing) {
 		/* Send ringing frame if requested */
@@ -4495,17 +4501,12 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 		opbx_mutex_unlock(&p->lock);
 		return f;
 	}
-	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
-		opbx_log(LOG_DEBUG, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
-		f = __zt_exception(opbx);
-		opbx_mutex_unlock(&p->lock);
-		return f;
-	}
+
 	if (p->tdd) {
 		int c;
 
 		/* if in TDD mode, see if we receive that */
-		c = tdd_feed(p->tdd, readbuf, READ_SIZE, OPBX_LAW(p));
+		c = tdd_feed(p->tdd, readbuf, res, OPBX_LAW(p));
 		if (c < 0) {
 			opbx_log(LOG_DEBUG,"tdd_feed failed\n");
 			opbx_mutex_unlock(&p->lock);
@@ -4523,25 +4524,42 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 			return &p->subs[index].f;
 		}
 	}
-	if (p->callwaitingrepeat)
-		p->callwaitingrepeat--;
-	if (p->cidcwexpire)
-		p->cidcwexpire--;
-	/* Repeat callwaiting */
-	if (p->callwaitingrepeat == 1) {
-		p->callwaitrings++;
-		zt_callwait(opbx);
+
+	p->subs[index].f.frametype = OPBX_FRAME_VOICE;
+	p->subs[index].f.subclass = opbx->rawreadformat;
+	p->subs[index].f.mallocd = 0;
+	p->subs[index].f.offset = OPBX_FRIENDLY_OFFSET;
+	p->subs[index].f.data = p->subs[index].buffer + OPBX_FRIENDLY_OFFSET/2;
+	p->subs[index].f.datalen = res;
+	p->subs[index].f.samples = (p->subs[index].linear ? res / 2 : res);
+
+	if (p->ringt > 0) {
+		p->ringt -= p->subs[index].f.samples;
+		if (p->ringt <= 0) {
+			opbx_mutex_unlock(&p->lock);
+			return NULL;
+		}
 	}
-	/* Expire CID/CW */
-	if (p->cidcwexpire == 1) {
-		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "CPE does not support Call Waiting Caller*ID.\n");
-		restore_conference(p);
+
+
+	if (p->callwaitingrepeat > 0) {
+		p->callwaitingrepeat -= p->subs[index].f.samples;
+		if (p->callwaitingrepeat <= 0) {
+			/* Repeat callwaiting */
+			p->callwaitrings++;
+			zt_callwait(opbx);
+		}
 	}
-	if (p->subs[index].linear) {
-		p->subs[index].f.datalen = READ_SIZE * 2;
-	} else 
-		p->subs[index].f.datalen = READ_SIZE;
+
+	if (p->cidcwexpire > 0) {
+		p->cidcwexpire -= p->subs[index].f.samples;
+		if (p->cidcwexpire <= 0) {
+			/* Expire CID/CW */
+			if (option_verbose > 2)
+				opbx_verbose(VERBOSE_PREFIX_3 "CPE does not support Call Waiting Caller*ID.\n");
+			restore_conference(p);
+		}
+	}
 
 	/* Handle CallerID Transmission */
 	if (p->owner == opbx && p->cidspill && (opbx->_state == OPBX_STATE_UP || p->cid_send_on != CID_START_RING || opbx->rings == p->cidrings)) {
@@ -4575,12 +4593,6 @@ struct opbx_frame  *zt_read(struct opbx_channel *opbx)
 		}
 	}
 
-	p->subs[index].f.frametype = OPBX_FRAME_VOICE;
-	p->subs[index].f.subclass = opbx->rawreadformat;
-	p->subs[index].f.samples = READ_SIZE;
-	p->subs[index].f.mallocd = 0;
-	p->subs[index].f.offset = OPBX_FRIENDLY_OFFSET;
-	p->subs[index].f.data = p->subs[index].buffer + OPBX_FRIENDLY_OFFSET/2;
 #if 0
 	opbx_log(LOG_DEBUG, "Read %d of voice on %s\n", p->subs[index].f.datalen, opbx->name);
 #endif	
@@ -5866,19 +5878,37 @@ static void *ss_thread(void *data)
 		receivedRingT = !p->usedistinctiveringdetection;
 		samples = 0;
 		chan->rings = chan->_state == OPBX_STATE_PRERING ? -1 : 0;
-		while (p->ringt
+		while (p->ringt > 0
 		&& (!receivedRingT || (p->adsi_rx1 && chan->rings < (int)arraysize(curRingData)-1))) {
-			i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
-			if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
-				opbx_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-				opbx_hangup(chan);
-				return NULL;
-			}
-			if (i & ZT_IOMUX_SIGEVENT) {
-				res = zt_get_event(p->subs[index].zfd);
-				if (option_debug)
-					opbx_log(LOG_DEBUG, "%s: Got event %d (%s)...\n", chan->name, res, event2str(res));
-				switch (res) {
+			struct pollfd pfd;
+			pfd.fd = p->subs[index].zfd;
+			pfd.events = POLLIN;
+			pfd.revents = 0;
+			/* N.B. The only reason we do poll before read is for the timeout... */
+			res = poll(&pfd, 1, SAMPLES_TO_MS(p->ringt));
+			if (res > 0) {
+				uint16_t lin[256];
+				uint8_t buf[256];
+				res = read(p->subs[index].zfd, buf, sizeof(buf));
+				if (res > 0) {
+					samples += res;
+					p->ringt -= res;
+
+					if (p->law == ZT_LAW_MULAW)
+						for (i = 0; i < res; i++)
+							lin[i] = OPBX_MULAW(buf[i]);
+					else
+						for (i = 0; i < res; i++)
+							lin[i] = OPBX_ALAW(buf[i]);
+					if (p->adsi_rx1) adsi_rx(p->adsi_rx1, lin, res);
+					if (p->adsi_rx2) adsi_rx(p->adsi_rx2, lin, res);
+				} else if (res == 0) {
+					opbx_log(LOG_WARNING, "%s: unexpected zero return from read\n", chan->name);
+				} else if (errno == ELAST) {
+					res = zt_get_event(p->subs[index].zfd);
+					if (option_debug)
+						opbx_log(LOG_DEBUG, "%s: Got event %d (%s)...\n", chan->name, res, event2str(res));
+					switch (res) {
 					case ZT_EVENT_RINGOFFHOOK:
 						if (p->adsi_rx1) adsi_rx_init(p->adsi_rx1, ADSI_STANDARD_CLASS, ss_thread_adsi_get1, p);
 						if (p->adsi_rx2) adsi_rx_init(p->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, p);
@@ -5886,15 +5916,15 @@ static void *ss_thread(void *data)
 					case ZT_EVENT_RINGBEGIN:
 						if (chan->rings >= 0 && !receivedRingT) {
 							int offset;
-							curRingData[chan->rings] = samples / 8;
+							curRingData[chan->rings] = SAMPLES_TO_MS(samples);
 							if (option_debug)
 								opbx_log(LOG_DEBUG, "%s: cadence=%d,%d,%d,%d,%d\n", chan->name, curRingData[0], curRingData[1], curRingData[2], curRingData[3], curRingData[4]);
 							len = 0;
 							counter = 0;
-								/* Perhaps distinctive ring follows an initial chirp+CID
-								 * (as for some UK cable co's that use US style CID with
-								 * UK cadence)
-								 */
+							/* Perhaps distinctive ring follows an initial chirp+CID
+							 * (as for some UK cable co's that use US style CID with
+							 * UK cadence)
+							 */
 							for (offset = 0; offset <= chan->rings && !counter && offset <= 2; offset += 2) {
 								for (i = 0; i < arraysize(p->drings.ringnum); i++) {
 									int j;
@@ -5945,31 +5975,20 @@ static void *ss_thread(void *data)
 						chan->rings++;
 						samples = 0;
 						break;
-				}
-			} else if (i & ZT_IOMUX_READ) {
-				int16_t lin[256];
-				uint8_t buf[256];
-				res = read(p->subs[index].zfd, buf, sizeof(buf));
-				if (res < 0) {
-					if (errno != ELAST) {
-						opbx_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-						opbx_hangup(chan);
-						return NULL;
 					}
-					break;
-				}
-
-				if (p->law == ZT_LAW_MULAW)
-					for (i = 0; i < res; i++)
-						lin[i] = OPBX_MULAW(buf[i]);
-				else
-					for (i = 0; i < res; i++)
-						lin[i] = OPBX_ALAW(buf[i]);
-				if (p->adsi_rx1) adsi_rx(p->adsi_rx1, lin, res);
-				if (p->adsi_rx2) adsi_rx(p->adsi_rx2, lin, res);
-				samples += res;
-
-				p->ringt--;
+				} else {
+					opbx_log(LOG_ERROR, "%s: read failed: %s\n", chan->name, strerror(errno));
+					opbx_hangup(chan);
+					return NULL;
+ 				}
+			} else if (res == 0) {
+				opbx_log(LOG_ERROR, "%s: ring timeout reached with no data or events?!?\n", chan->name);
+				opbx_hangup(chan);
+				return NULL;
+			} else if (res == -1) {
+				opbx_log(LOG_ERROR, "%s: poll failed: %s\n", chan->name, strerror(errno));
+				opbx_hangup(chan);
+				return NULL;
 			}
 		}
 		if (option_verbose > 2)
@@ -6345,25 +6364,17 @@ static void *do_monitor(void *data)
 					i = i->next;
 					continue;
 				}					
+
+				/* Careful: POLLPRI just means there is an event queued. If the zaptel
+				 * driver has support for in-order events we need to read data until
+				 * read gives ELAST to make sure that the sample counts for subsequent
+				 * distinctive ring detection are right. If the zaptel driver doesn't
+				 * have in-order events read will return ELAST immediately there is
+				 * an event in the queue and distinctive ring detection will be on
+				 * a wing and a prayer.
+				 */
 				pollres = opbx_fdisset(pfds, i->subs[SUB_REAL].zfd, count, &spoint);
-				if (pollres & POLLPRI) {
-					if (i->owner || i->subs[SUB_REAL].owner) {
-#ifdef ZAPATA_PRI
-						if (!i->pri)
-#endif						
-							opbx_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
-						i = i->next;
-						continue;
-					}
-					res = zt_get_event(i->subs[SUB_REAL].zfd);
-					if (option_debug)
-						opbx_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
-					/* Don't hold iflock while handling init events */
-					opbx_mutex_unlock(&iflock);
-					handle_init_event(i, res);
-					opbx_mutex_lock(&iflock);	
-				}
-				if (pollres & POLLIN) {
+				if (pollres & (POLLPRI | POLLIN)) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
 #ifdef ZAPATA_PRI
 						if (!i->pri)
@@ -6410,9 +6421,27 @@ static void *do_monitor(void *data)
 								opbx_mutex_lock(&iflock);	
 							}
 						}
-					} else {
+						continue;
+					} else if (res == 0 || errno != ELAST) {
 						opbx_log(LOG_WARNING, "Read failed with %d: %s\n", res, strerror(errno));
 					}
+				}
+				if (pollres & POLLPRI) {
+					if (i->owner || i->subs[SUB_REAL].owner) {
+#ifdef ZAPATA_PRI
+						if (!i->pri)
+#endif						
+							opbx_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
+						i = i->next;
+						continue;
+					}
+					res = zt_get_event(i->subs[SUB_REAL].zfd);
+					if (option_debug)
+						opbx_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
+					/* Don't hold iflock while handling init events */
+					opbx_mutex_unlock(&iflock);
+					handle_init_event(i, res);
+					opbx_mutex_lock(&iflock);	
 				}
 			}
 			i=i->next;
@@ -9983,26 +10012,20 @@ static int setup_zap(int reload)
 		} else if (!strcasecmp(v->name, "dring1")) { /* OBSOLETE */
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
-			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++) {
-				drings.ringnum[0].ring[i] *= 140;
-				drings.ringnum[0].ring[i] >>= 3;
-			}
+			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++)
+				drings.ringnum[0].ring[i] = SAMPLES_TO_MS(drings.ringnum[0].ring[i] * READ_SIZE);
 			opbx_log(LOG_NOTICE, "\"%s=%s\" is obsolete. Please replace with \"%scadence=%d,%d,%d\"\n", v->name, ringc, v->name, drings.ringnum[0].ring[0], drings.ringnum[0].ring[1], drings.ringnum[0].ring[2]);
 		} else if (!strcasecmp(v->name, "dring2")) { /* OBSOLETE */
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
-			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++) {
-				drings.ringnum[1].ring[i] *= 140;
-				drings.ringnum[1].ring[i] >>= 3;
-			}
+			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++)
+				drings.ringnum[0].ring[i] = SAMPLES_TO_MS(drings.ringnum[0].ring[i] * READ_SIZE);
 			opbx_log(LOG_NOTICE, "\"%s=%s\" is obsolete. Please replace with \"%scadence=%d,%d,%d\"\n", v->name, ringc, v->name, drings.ringnum[1].ring[0], drings.ringnum[1].ring[1], drings.ringnum[1].ring[2]);
 		} else if (!strcasecmp(v->name, "dring3")) { /* OBSOLETE */
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
-			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++) {
-				drings.ringnum[2].ring[i] *= 140;
-				drings.ringnum[2].ring[i] >>= 3;
-			}
+			for (i = 0; i < sizeof(drings.ringnum[0].ring)/sizeof(drings.ringnum[0].ring[0]); i++)
+				drings.ringnum[0].ring[i] = SAMPLES_TO_MS(drings.ringnum[0].ring[i] * READ_SIZE);
 			opbx_log(LOG_NOTICE, "\"%s=%s\" is obsolete. Please replace with \"%scadence=%d,%d,%d\"\n", v->name, ringc, v->name, drings.ringnum[2].ring[0], drings.ringnum[2].ring[1], drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			use_callerid = opbx_true(v->value);
@@ -10482,7 +10505,7 @@ static int setup_zap(int reload)
 					}
 				}
 			} else if (!strcasecmp(v->name, "ringtimeout")) {
-				ringt_base = (atoi(v->value) * 8) / READ_SIZE;
+				ringt_base = MS_TO_SAMPLES(atoi(v->value));
 			} else if (!strcasecmp(v->name, "prewink")) {
 				cur_prewink = atoi(v->value);
 			} else if (!strcasecmp(v->name, "preflash")) {
