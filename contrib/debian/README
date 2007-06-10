@@ -1,0 +1,7 @@
+# vim:tw=80:ft=txt
+
+Debian helper scripts. Added by Roy Sigurd Karlsbakk <roy@karlsbakk.net>. These
+are primarily written for Debian Etch 4.0, but may be compatible with other
+versions of debian or even Ubuntu
+
+roy
