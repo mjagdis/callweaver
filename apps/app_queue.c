@@ -2603,8 +2603,11 @@ static void reload_queue_members(void)
 	/* Each key in 'pm_family' is the name of a queue */
 	db_tree = opbx_db_gettree(pm_family, NULL);
 	for (entry = db_tree; entry; entry = entry->next) {
-
-		queue_name = entry->key + strlen(pm_family) + 2;
+		if (!strncmp(entry->key, pm_family, strlen(pm_family))){
+			queue_name = entry->key + strlen(pm_family) + 2;
+		} else {
+			queue_name = entry->key;
+		}
 
 		cur_queue = queues;
 		while (cur_queue) {
