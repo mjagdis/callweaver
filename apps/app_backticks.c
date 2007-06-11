@@ -27,6 +27,7 @@
 #include "confdefs.h"
 #endif
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -68,54 +69,40 @@ LOCAL_USER_DECL;
 
 static char *do_backticks(char *command, char *buf, size_t len)
 {
-        int fds[2], pid = 0;
-        char *ret = NULL;
-
-        memset(buf, 0, len);
+        int fds[2];
+	pid_t pid = 0;
+	int n;
 
         if (pipe(fds)) {
                 opbx_log(LOG_WARNING, "Pipe/Exec failed\n");
-        } else { /* good to go*/
-
+        } else {
                 pid = fork();
-
-                if (pid < 0) { /* ok maybe not */
+                if (pid < 0) {
                         opbx_log(LOG_WARNING, "Fork failed\n");
                         close(fds[0]);
                         close(fds[1]);
                 } else if (pid) { /* parent */
                         close(fds[1]);
-                        read(fds[0], buf, len);
-                        ret = buf;
+			/* Reserve the last for null */
+			len--;
+                        while (len && (n = read(fds[0], buf, len)) > 0) {
+				buf += n;
+				len -= n;
+			}
                 } else { /* child */
-                        char *argv[255] = {0};
-                        int argc = 0;
-                        char *p;
-                        char *mycmd = opbx_strdupa(command);
+                        close(fds[0]);
+                        dup2(fds[1], STDOUT_FILENO);
 
                         close(fds[0]);
                         dup2(fds[1], STDOUT_FILENO);
-                        argv[argc++] = mycmd;
 
-                        close(fds[0]);
-                        dup2(fds[1], STDOUT_FILENO);
-                        argv[argc++] = mycmd;
-
-                        do {
-                                if ((p = strchr(mycmd, ' '))) {
-                                        *p = '\0';
-                                        mycmd = ++p;
-                                        argv[argc++] = mycmd;
-                                }
-                        } while (p);
-
-                        execv(argv[0], argv);
-                        /* DoH! */
-                        opbx_log(LOG_ERROR, "exec of %s failed\n", argv[0]);
-                        exit(0);
+                        system(command);
+                        opbx_log(LOG_ERROR, "system(\"%s\") failed\n", command);
+                        _exit(0);
                 }
         }
 
+	*buf = '\0';
         return buf;
 }
 
