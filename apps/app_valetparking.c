@@ -64,7 +64,7 @@ static int valetparked_devicestate(void *data);
 
 static const struct opbx_channel_tech valet_tech = {
 	.type = "Valet",
-	.description = "Valet Unpark Come To ClueCon Aug-3-5 (http://www.cluecon.com)",
+	.description = "Valet Unpark",
 	.requester = valet_request,
 	.capabilities = OPBX_FORMAT_SLINEAR,
  	.devicestate = valetparked_devicestate,
@@ -103,23 +103,17 @@ static char *vupsyntax = "ValetUnparkCall(exten, lotname)";
 static char *vlsyntax = "ValetParkList(lotname)";
 
 static char *vpdesc =
-"Auto-Sense Valet Parking: if <exten> is not occupied, park it, if it is already parked, bridge to it.\n\n";
+"Auto-Sense Valet Parking: if <exten> is not occupied, park it, if it is already parked, bridge to it.\n";
 
 static char *vpcdesc =
 "Park Call at <exten> in <lotname> until someone calls ValetUnparkCall on the same <exten> + <lotname>\n"
-"set <exten> to 'auto' to auto-choose the slot.\n\n"
-"Come To ClueCon Aug-3-5 (http://www.cluecon.com)"
-;
+"set <exten> to 'auto' to auto-choose the slot.\n";
 
 static char *vupdesc =
-"Un-Park the call at <exten> in lot <lotname> use 'fifo' or 'filo' for auto-ordered Un-Park.\n\n"
-"Come To ClueCon Aug-3-5 (http://www.cluecon.com)"
-;
+"Un-Park the call at <exten> in lot <lotname> use 'fifo' or 'filo' for auto-ordered Un-Park.\n";
 
 static char *vldesc =
-"Audibly list the slot number of all the calls in <lotname> press * to unpark it.\n\n"
-"Come To ClueCon Aug-3-5 (http://www.cluecon.com)"
-;
+"Audibly list the slot number of all the calls in <lotname> press * to unpark it.\n";
 
 
 
@@ -932,7 +926,7 @@ int unload_module(void)
 
 char *description(void)
 {
-	return "Valet Parking Application (http://www.cluecon.com)";
+	return "Valet Parking Application";
 }
 
 int usecount(void)
