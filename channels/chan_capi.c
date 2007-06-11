@@ -2373,8 +2373,8 @@ static int pbx_capi_send_fax(struct opbx_channel *c, int argc, char **argv)
 
 	i->FaxState |= (CAPI_FAX_STATE_ACTIVE | CAPI_FAX_STATE_SENDMODE);
 	setup_b3_fax_config(&b3conf, FAX_SFF_FORMAT,
-			(argv > 1 && argv[1][0] ? argv[1] : ""),
-			(argv > 2 && argv[2][0] ? argv[2] : ""));
+			(argc > 1 && argv[1][0] ? argv[1] : ""),
+			(argc > 2 && argv[2][0] ? argv[2] : ""));
 
 	i->bproto = CC_BPROTO_FAXG3;
 
@@ -4377,8 +4377,8 @@ static int pbx_capi_hold(struct opbx_channel *c, int argc, char **argv)
 	i->isdnstate |= CAPI_ISDN_STATE_HOLD;
 
 	snprintf(buffer, sizeof(buffer) - 1, "%d", i->PLCI);
-	if (param) {
-		pbx_builtin_setvar_helper(i->owner, param, buffer);
+	if (argc > 0) {
+		pbx_builtin_setvar_helper(i->owner, argv[0], buffer);
 	}
 	pbx_builtin_setvar_helper(i->owner, "_CALLERHOLDID", buffer);
 
@@ -4528,7 +4528,7 @@ static int pbx_capi_signal_progress(struct opbx_channel *c, int argc, char **arg
  */
 static struct capicommands_s {
 	char *cmdname;
-	int (*cmd)(struct opbx_channel *, char *);
+	int (*cmd)(struct opbx_channel *, int, char **);
 	int capionly;
 } capicommands[] = {
 	{ "progress",     pbx_capi_signal_progress, 1 },
@@ -4548,7 +4548,7 @@ static struct capicommands_s {
 /*
  * capi command interface
  */
-static int pbx_capicommand_exec(struct opbx_channel *chan, char **argv, int exec)
+static int pbx_capicommand_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct capicommands_s *capicmd = &capicommands[0];
@@ -4579,7 +4579,7 @@ static int pbx_capicommand_exec(struct opbx_channel *chan, char **argv, int exec
 		return -1;
 	}
 
-	res = (capicmd->cmd)(chan, argv + 1, argc - 1);
+	res = (capicmd->cmd)(chan, argc - 1, argv + 1);
 	
 	LOCAL_USER_REMOVE(u);
 	return(res);
@@ -4617,7 +4617,7 @@ static int pbx_capi_indicate(struct opbx_channel *c, int condition)
 			if ((i->isdnstate & CAPI_ISDN_STATE_B3_UP)) {
 				ret = 0;
 			}
-			pbx_capi_signal_progress(c, NULL, 0);
+			pbx_capi_signal_progress(c, 0, NULL);
 			pbx_capi_alert(c);
 		} else {
 			ret = pbx_capi_alert(c);
@@ -4635,7 +4635,7 @@ static int pbx_capi_indicate(struct opbx_channel *c, int condition)
 			ret = 0;
 		}
 		if ((i->isdnstate & CAPI_ISDN_STATE_HOLD))
-			pbx_capi_retrieve(c, NULL, 0);
+			pbx_capi_retrieve(c, 0, NULL);
 		break;
 	case OPBX_CONTROL_CONGESTION:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested CONGESTION-Indication for %s\n",
@@ -4649,37 +4649,37 @@ static int pbx_capi_indicate(struct opbx_channel *c, int condition)
 			ret = 0;
 		}
 		if ((i->isdnstate & CAPI_ISDN_STATE_HOLD))
-			pbx_capi_retrieve(c, NULL, 0);
+			pbx_capi_retrieve(c, 0, NULL);
 		break;
 	case OPBX_CONTROL_PROGRESS:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested PROGRESS-Indication for %s\n",
 			i->vname, c->name);
-		if (i->ntmode) pbx_capi_signal_progress(c, NULL, 0);
+		if (i->ntmode) pbx_capi_signal_progress(c, 0, NULL);
 		break;
 	case OPBX_CONTROL_PROCEEDING:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested PROCEEDING-Indication for %s\n",
 			i->vname, c->name);
-		if (i->ntmode) pbx_capi_signal_progress(c, NULL, 0);
+		if (i->ntmode) pbx_capi_signal_progress(c, 0, NULL);
 		break;
 	case OPBX_CONTROL_HOLD:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested HOLD-Indication for %s\n",
 			i->vname, c->name);
 		if (i->doholdtype != CC_HOLDTYPE_LOCAL) {
-			ret = pbx_capi_hold(c, NULL, 0);
+			ret = pbx_capi_hold(c, 0, NULL);
 		}
 		break;
 	case OPBX_CONTROL_UNHOLD:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested UNHOLD-Indication for %s\n",
 			i->vname, c->name);
 		if (i->doholdtype != CC_HOLDTYPE_LOCAL) {
-			ret = pbx_capi_retrieve(c, NULL, 0);
+			ret = pbx_capi_retrieve(c, 0, NULL);
 		}
 		break;
 	case -1: /* stop indications */
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested Indication-STOP for %s\n",
 			i->vname, c->name);
 		if ((i->isdnstate & CAPI_ISDN_STATE_HOLD))
-			pbx_capi_retrieve(c, NULL, 0);
+			pbx_capi_retrieve(c, 0, NULL);
 		break;
 	default:
 		cc_verbose(3, 1, VERBOSE_PREFIX_2 "%s: Requested unknown Indication %d for %s\n",
