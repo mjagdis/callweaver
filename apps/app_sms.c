@@ -24,7 +24,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL", "$Revision: 41274 $")
+CALLWEAVER_FILE_VERSION("$HeadURL", "$Revision$")
 
 #include <stdlib.h>
 #include <stdio.h>

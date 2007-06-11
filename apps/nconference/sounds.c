@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 2308 $");
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
 
 static int conf_play_soundfile( struct opbx_conf_member *member, char * file ) 
 {

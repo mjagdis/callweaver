@@ -49,7 +49,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: http://svn.callweaver.org/callweaver/trunk/corelib/callerid.c $", "$Revision$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/ulaw.h"
 #include "callweaver/alaw.h"

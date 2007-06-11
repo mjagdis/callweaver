@@ -57,7 +57,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.21 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$")
 
 size_t gStackChunkSize = 8192;
 

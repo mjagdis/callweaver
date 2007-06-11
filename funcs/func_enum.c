@@ -30,7 +30,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2642 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/module.h"
 #include "callweaver/channel.h"

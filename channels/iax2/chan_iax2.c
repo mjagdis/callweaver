@@ -51,7 +51,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2646 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
      
 #include "callweaver/lock.h"
 #include "callweaver/frame.h" 

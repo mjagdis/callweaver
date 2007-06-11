@@ -37,7 +37,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 1589 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include <sys/types.h>
 #include <unistd.h>

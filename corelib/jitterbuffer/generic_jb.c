@@ -33,7 +33,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.1 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "callweaver/frame.h"
 #include "callweaver/channel.h"

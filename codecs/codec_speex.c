@@ -68,7 +68,7 @@ static float pp_dereverb_level = 0.3;
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision: 2615 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
 #include "callweaver/translate.h"

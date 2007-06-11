@@ -24,7 +24,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 37925 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/types.h>
 #include <stdlib.h>

@@ -46,7 +46,7 @@
 
 #include "callweaver.h"
 
-//CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1.53 $")
+//CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "callweaver/frame.h"
 #include "callweaver/logger.h"

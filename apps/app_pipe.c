@@ -35,7 +35,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 1 $")
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "callweaver/lock.h"
 #include "callweaver/file.h"

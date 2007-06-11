@@ -38,7 +38,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL: http://svn.callweaver.org/callweaver/trunk/cdr/cdr_sqlite3_custom.c $", "$Revision: 2757 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include <stdlib.h>
 #include <stdio.h>

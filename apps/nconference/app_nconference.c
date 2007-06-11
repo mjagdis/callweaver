@@ -25,7 +25,7 @@
 #include "member.h"
 #include "cli.h"
 
-CALLWEAVER_FILE_VERSION( __FILE__, "$Revision: 2308 $");
+CALLWEAVER_FILE_VERSION( __FILE__, "$Revision$");
 
 
 /************************************************************

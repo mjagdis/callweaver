@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision: 2308 $");
+CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
 
 // mutex for synchronizing access to conflist
 OPBX_MUTEX_DEFINE_EXPORTED(conflist_lock);
