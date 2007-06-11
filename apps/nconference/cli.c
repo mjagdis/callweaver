@@ -26,7 +26,7 @@
 #include "frame.h"
 #include "sounds.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
 STANDARD_LOCAL_USER ;
 LOCAL_USER_DECL;

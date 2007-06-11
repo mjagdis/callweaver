@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "dtmf.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
 int parse_dtmf_option( struct opbx_conf_member *member, int subclass ) {
 

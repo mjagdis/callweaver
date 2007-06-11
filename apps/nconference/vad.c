@@ -22,7 +22,7 @@
 #include "common.h"
 #include "vad.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
 #define THRESH	200
 

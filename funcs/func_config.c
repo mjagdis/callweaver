@@ -33,7 +33,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$headurl: svn+ssh://svn@svn.callweaver.org/callweaver/trunk/funcs/func_config.c $", "$revision: 2183 $")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/module.h"
 #include "callweaver/channel.h"

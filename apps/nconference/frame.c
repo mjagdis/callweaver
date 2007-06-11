@@ -22,7 +22,7 @@
 #include "member.h"
 #include "frame.h"
 
-CALLWEAVER_FILE_VERSION(__FILE__, "$Revision$");
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
 int vdebug = 0;
 
