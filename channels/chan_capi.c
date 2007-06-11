@@ -71,7 +71,7 @@ static const char channeltype[] = "CAPI";
 static const struct opbx_channel_tech capi_tech;
 
 static void *command_app;
-static char *commandsyntax = "See description"
+static char *commandsyntax = "See description";
 static char *commandtdesc = "CAPI command interface.\n"
 "The dial command:\n"
 "Dial(CAPI/g<group>/[<callerid>:]<destination>[/<params>])\n"
