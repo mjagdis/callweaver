@@ -350,7 +350,7 @@ int reload(void) {
 
 int unload_module (void)
 {
-	res = 0;
+	int res = 0;
 	opbx_config_engine_deregister(&curl_engine);
 	if (option_verbose)
 		opbx_verbose(VERBOSE_PREFIX_1 "res_config_curl unloaded.\n");
