@@ -137,7 +137,7 @@ static Hash extens;
 
 static const char *tdesc = "SQLite SQL Interface";
 
-static void *app:
+static void *app;
 static const char *name = "SQL";
 static const char *synopsis = "SQL(\"[sql statement]\"|[dbname])\n" 
 "[if it's a select it will auto-vivify chan vars matching the selected column names.]\n";
@@ -188,7 +188,7 @@ static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argv)
+static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc)
 {
 	struct localuser *u;
 	char *errmsg;
