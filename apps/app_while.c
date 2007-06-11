@@ -265,7 +265,6 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, int end
 	
 	size = strlen(chan->context) + strlen(chan->exten) + 32;
 	my_name = alloca(size);
-	memset(my_name, 0, size);
 	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
 	
 	if (opbx_strlen_zero(label)) {
@@ -310,7 +309,6 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, int end
 	if (!end && !while_pri) {
 		size = strlen(chan->context) + strlen(chan->exten) + 32;
 		goto_str = alloca(size);
-		memset(goto_str, 0, size);
 		snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority);
 		pbx_builtin_setvar_helper(chan, varname, goto_str);
 	} 
@@ -321,7 +319,6 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, int end
 		if (! pbx_builtin_getvar_helper(chan, end_varname)) {
 			size = strlen(chan->context) + strlen(chan->exten) + 32;
 			goto_str = alloca(size);
-			memset(goto_str, 0, size);
 			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);
 		}
