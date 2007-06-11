@@ -229,7 +229,9 @@ static pthread_t consolethread = OPBX_PTHREADT_NULL;
 struct file_version {
 	OPBX_LIST_ENTRY(file_version) list;
 	const char *file;
-	char *version;
+	const char *version;
+	size_t file_len;
+	size_t version_len;
 };
 
 static OPBX_LIST_HEAD_STATIC(file_versions, file_version);
@@ -237,23 +239,31 @@ static OPBX_LIST_HEAD_STATIC(file_versions, file_version);
 void opbx_register_file_version(const char *file, const char *version)
 {
 	struct file_version *new;
-	char *work;
-	size_t version_length;
 
-	work = opbx_strdupa(version);
-	work = opbx_strip(opbx_strip_quoted(work, "$", "$"));
-	version_length = strlen(work) + 1;
+	new = malloc(sizeof(*new));
+	if (new) {
+		while (*file && isspace(*file)) file++;
+		if (!strncmp(file, "$HeadURL: ", 10)) {
+			new->file = file + 10;
+			new->file_len = strlen(file + 10) - 2;
+		} else {
+			new->file = file;
+			new->file_len = strlen(file);
+		}
 
-	new = calloc(1, sizeof(*new) + version_length);
-	if (!new)
-		return;
+		while (*version && isspace(*version)) version++;
+		if (!strncmp(version, "$Revision: ", 11)) {
+			new->version = version + 11;
+			new->version_len = strlen(version + 11) - 2;
+		} else {
+			new->version = version;
+			new->version_len = strlen(version);
+		}
 
-	new->file = file;
-	new->version = (char *) new + sizeof(*new);
-	memcpy(new->version, work, version_length);
-	OPBX_LIST_LOCK(&file_versions);
-	OPBX_LIST_INSERT_HEAD(&file_versions, new, list);
-	OPBX_LIST_UNLOCK(&file_versions);
+		OPBX_LIST_LOCK(&file_versions);
+		OPBX_LIST_INSERT_HEAD(&file_versions, new, list);
+		OPBX_LIST_UNLOCK(&file_versions);
+	}
 }
 
 void opbx_unregister_file_version(const char *file)
@@ -281,7 +291,7 @@ static char show_version_files_help[] =
 /*! CLI command to list module versions */
 static int handle_show_version_files(int fd, int argc, char *argv[])
 {
-#define FORMAT "%-25.25s %-40.40s\n"
+#define FORMAT "%-8.*s %.*s\n"
 	struct file_version *iterator;
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -306,8 +316,8 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	}
 
-	opbx_cli(fd, FORMAT, "File", "Revision");
-	opbx_cli(fd, FORMAT, "----", "--------");
+	opbx_cli(fd, FORMAT, 8, "Revision", 8, "SVN Path");
+	opbx_cli(fd, FORMAT, 8, "--------", 8, "--------");
 	OPBX_LIST_LOCK(&file_versions);
 	OPBX_LIST_TRAVERSE(&file_versions, iterator, list) {
 		if (havename && strcasecmp(iterator->file, argv[3]))
@@ -316,7 +326,7 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
 			continue;
 
-		opbx_cli(fd, FORMAT, iterator->file, iterator->version);
+		opbx_cli(fd, FORMAT, iterator->version_len, iterator->version, iterator->file_len, iterator->file);
 		count_files++;
 		if (havename)
 			break;
