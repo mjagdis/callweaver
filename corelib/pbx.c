@@ -2015,8 +2015,6 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
     char tmp[80];
     char tmp2[80];
     char tmp3[EXT_DATA_SIZE];
-    char atmp[80];
-    char atmp2[EXT_DATA_SIZE+100];
 
     if (opbx_mutex_lock(&conlock))
     {
@@ -2058,13 +2056,6 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
                     opbx_copy_string(c->exten, exten, sizeof(c->exten));
                 c->priority = priority;
                 pbx_substitute_variables(passdata, sizeof(passdata), c, e);
-                if (option_debug)
-                {
-                        opbx_log(LOG_DEBUG, "Launching '%s'\n", app->name);
-                        snprintf(atmp, 80, "STACK-%s-%s-%d", context, exten, priority);
-                        snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, (!opbx_strlen_zero(passdata) ? (char *)passdata : ""), (newstack ? "in new stack" : "in same stack"));
-                        pbx_builtin_setvar_helper(c, atmp, atmp2);
-                }
                 if (option_verbose > 2)
                         opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
                                 opbx_term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
