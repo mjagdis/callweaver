@@ -6283,7 +6283,7 @@ static void *do_monitor(void *data)
 					if (i->use_callerid && !i->polarity_events) {
 						if (i->adsi_rx1 || (i->adsi_rx1 = malloc(sizeof(adsi_rx_state_t)))) {
 							adsi_rx_init(i->adsi_rx1, ADSI_STANDARD_CLIP, ss_thread_adsi_get1, i);
-							i->adsi_rx1->bitpos = -1;
+							i->adsi_rx1->bit_pos = -1;
 						}
 						if (i->adsi_rx2 || (i->adsi_rx2 = malloc(sizeof(adsi_rx_state_t))))
 							adsi_rx_init(i->adsi_rx2, ADSI_STANDARD_CLIP_DTMF, ss_thread_adsi_get2, i);
@@ -6414,7 +6414,7 @@ static void *do_monitor(void *data)
 									lin[res2] = OPBX_ALAW(buf[res2]);
 							if (i->adsi_rx1) adsi_rx(i->adsi_rx1, lin, res);
 							if (i->adsi_rx2) adsi_rx(i->adsi_rx2, lin, res);
-							if ((i->adsi_rx1 && i->adsi_rx1->bitpos == 0)
+							if ((i->adsi_rx1 && i->adsi_rx1->bit_pos == 0)
 							|| (i->adsi_rx2 && i->adsi_rx2->msg_len)) {
 								opbx_mutex_unlock(&iflock);
 								handle_init_event(i, ZT_EVENT_POLARITY);

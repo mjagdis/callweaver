@@ -7,7 +7,7 @@
 #endif
 #if !defined(CLIP_DTMF_C_CALLER_NUMBER)
     #define CLIP_DTMF_C_CALLER_NUMBER CLIP_DTMF_CALLER_NUMBER
-    #define adsi_tx_set_preamble(a,b,c,d) /**/
+    #define adsi_tx_set_preamble(a,b,c,d,e) /**/
 #endif
 
 /*
@@ -248,10 +248,10 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 			buf[2] = x + 1 - start;
 			memcpy(buf+3, msg[x], msglen[x]);
 			adsi_put_message(&adsi, buf, 3 + msglen[x]);
-            adsi_tx_set_preamble(&adsi, 0, -1, -1);
-			if (x + 1 - start != 1) {
-                adsi_tx_set_preamble(&adsi, 0, 0, -1);
-			}
+			if (x + 1 - start != 1)
+                adsi_tx_set_preamble(&adsi, 0, 0, -1, -1);
+            else
+                adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
 			/* We should suppress the trailing marks as well except for
 			 * the last message but this isn't possible. Is it a problem?
 			 */

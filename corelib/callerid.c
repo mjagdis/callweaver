@@ -7,7 +7,7 @@
 #endif
 #if !defined(CLIP_DTMF_C_CALLER_NUMBER)
     #define CLIP_DTMF_C_CALLER_NUMBER CLIP_DTMF_CALLER_NUMBER
-    #define adsi_tx_set_preamble(a,b,c,d) /**/
+    #define adsi_tx_set_preamble(a,b,c,d,e) /**/
 #endif
 
 /*
@@ -159,7 +159,7 @@ int mate_generate(uint8_t *outbuf, int outlen, const char *msg, int codec)
 	 */
 	for (adsi.msg_len = 0; msg[adsi.msg_len]; adsi.msg_len++)
 		adsi.msg[adsi.msg_len] = msg[adsi.msg_len];
-    adsi_tx_set_preamble(&adsi, 0, 80, -1);
+    adsi_tx_set_preamble(&adsi, 0, 80, -1, -1);
 
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
@@ -499,7 +499,7 @@ int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char 
 	adsi_tx_init(&adsi, ADSI_STANDARD_TDD);
 
 	adsi_put_message(&adsi, (uint8_t *) msg, strlen(msg));
-    adsi_tx_set_preamble(&adsi, 0, -1, -1);
+    adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
 
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);
