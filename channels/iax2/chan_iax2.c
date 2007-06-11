@@ -2204,8 +2204,12 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	   move it to the key field instead
 	*/
 	if (pds->password && (pds->password[0] == '[')) {
-		pds->key = opbx_strip_quoted(pds->password, "[", "]");
-		pds->password = NULL;
+		int l = strlen(pds->password) - 1;
+		if (pds->password[l] = ']') {
+			pds->key = pds->password + 1;
+			pds->password[l] = '\0';
+			pds->password = NULL;
+		}
 	}
 }
 

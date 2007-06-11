@@ -550,23 +550,6 @@ int opbx_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
-char *opbx_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
-{
-	char *e;
-	char *q;
-
-	s = opbx_strip(s);
-	if ((q = strchr(beg_quotes, *s))) {
-		e = s + strlen(s) - 1;
-		if (*e == *(end_quotes + (q - beg_quotes))) {
-			s++;
-			*e = '\0';
-		}
-	}
-
-	return s;
-}
-
 int opbx_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
 	int result;

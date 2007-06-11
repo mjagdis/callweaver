@@ -611,7 +611,7 @@
 #define ast_stream_rewind opbx_stream_rewind
 #define ast_strings_to_mask opbx_strings_to_mask
 #define ast_strip opbx_strip
-#define ast_strip_quoted opbx_strip_quoted
+#define ast_strip_quoted opbx_strip_quoted_incompatible_api
 #define ast_supports_images opbx_supports_images
 #define ast_swapcopy_samples opbx_swapcopy_samples
 #define ast_tdd_gen_ecdisa opbx_tdd_gen_ecdisa
