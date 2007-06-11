@@ -125,7 +125,7 @@ struct opbx_switch
 	
 	int (*canmatch)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 	
-	int (*exec)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data);
+	int (*exec)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 
 	int (*matchmore)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 };
@@ -427,18 +427,6 @@ const char *opbx_extension_match_to_str(int match);
  * \return one of the enum opbx_extension_match_conditions values
  */
 int opbx_extension_pattern_match(const char *destination, const char *pattern);
-
-/*! Launch a new extension (i.e. new stack) */
-/*!
- * \param c not important
- * \param context which context to generate the extension within
- * \param exten new extension to add
- * \param priority priority of new extension
- * \param callerid callerid of extension
- * This adds a new extension to the callweaver extension list.
- * It returns 0 on success, -1 on failure.
- */
-int opbx_spawn_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
 /*! Execute an extension. */
 /*!

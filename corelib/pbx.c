@@ -657,11 +657,10 @@ int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data)
 #define OPBX_PBX_MAX_STACK    128
 
 #define HELPER_EXISTS 0
-#define HELPER_SPAWN 1
-#define HELPER_EXEC 2
-#define HELPER_CANMATCH 3
-#define HELPER_MATCHMORE 4
-#define HELPER_FINDLABEL 5
+#define HELPER_EXEC 1
+#define HELPER_CANMATCH 2
+#define HELPER_MATCHMORE 3
+#define HELPER_FINDLABEL 4
 
 struct opbx_app *pbx_findapp(const char *app) 
 {
@@ -975,7 +974,6 @@ static struct opbx_exten *pbx_find_extension(struct opbx_channel *chan, struct o
                     switch (action)
                     {
                         case HELPER_EXISTS:
-                        case HELPER_SPAWN:
                         case HELPER_EXEC:
                         case HELPER_FINDLABEL:
                     	    /* We are only interested in exact matches */
@@ -2006,7 +2004,6 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
     struct opbx_switch *sw;
     char *data;
     const char *foundcontext=NULL;
-    int newstack = 0;
     int res;
     int status = 0;
     char *incstack[OPBX_PBX_MAX_STACK];
@@ -2042,9 +2039,6 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
         case HELPER_MATCHMORE:
             opbx_mutex_unlock(&conlock);
             return -1;
-        case HELPER_SPAWN:
-            newstack++;
-            /* Fall through */
         case HELPER_EXEC:
             app = pbx_findapp(e->app);
             opbx_mutex_unlock(&conlock);
@@ -2057,11 +2051,10 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
                 c->priority = priority;
                 pbx_substitute_variables(passdata, sizeof(passdata), c, e);
                 if (option_verbose > 2)
-                        opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
+                        opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n", 
                                 opbx_term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
                                 opbx_term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-                                opbx_term_color(tmp3, (!opbx_strlen_zero(passdata) ? (char *)passdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
-                                (newstack ? "in new stack" : "in same stack"));
+                                opbx_term_color(tmp3, (!opbx_strlen_zero(passdata) ? (char *)passdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
                 manager_event(EVENT_FLAG_CALL, "Newexten", 
                     "Channel: %s\r\n"
                     "Context: %s\r\n"
@@ -2097,14 +2090,11 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
         case HELPER_FINDLABEL:
             opbx_mutex_unlock(&conlock);
             return -1;
-        case HELPER_SPAWN:
-            newstack++;
-            /* Fall through */
         case HELPER_EXEC:
             opbx_mutex_unlock(&conlock);
             if (sw->exec)
             {
-                res = sw->exec(c, foundcontext ? foundcontext : context, exten, priority, callerid, newstack, data);
+                res = sw->exec(c, foundcontext ? foundcontext : context, exten, priority, callerid, data);
             }
             else
             {
@@ -2635,11 +2625,6 @@ int opbx_matchmore_extension(struct opbx_channel *c, const char *context, const 
     return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_MATCHMORE);
 }
 
-int opbx_spawn_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
-{
-    return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_SPAWN);
-}
-
 int opbx_exec_extension(struct opbx_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
 {
     return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXEC);
@@ -2711,7 +2696,7 @@ static int __opbx_pbx_run(struct opbx_channel *c)
         while (opbx_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))
         {
             memset(exten, 0, sizeof(exten));
-            if ((res = opbx_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)))
+            if ((res = opbx_exec_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)))
             {
                 /* Something bad happened, or a hangup has been requested. */
                 if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
@@ -2915,7 +2900,7 @@ out:
         c->priority = 1;
         while (opbx_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))
         {
-            if ((res = opbx_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)))
+            if ((res = opbx_exec_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)))
             {
                 /* Something bad happened, or a hangup has been requested. */
                 if (option_debug)

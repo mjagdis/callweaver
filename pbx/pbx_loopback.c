@@ -172,14 +172,11 @@ static int loopback_canmatch(struct opbx_channel *chan, const char *context, con
 	return res;
 }
 
-static int loopback_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int loopback_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
 
-	if (newstack)
-		res = opbx_spawn_extension(chan, newcontext, newexten, newpriority, callerid);
-	else
-		res = opbx_exec_extension(chan, newcontext, newexten, newpriority, callerid);
+	res = opbx_exec_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern)
     {
         switch (opbx_extension_pattern_match(exten, newpattern))

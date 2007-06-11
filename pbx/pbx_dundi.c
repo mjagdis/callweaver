@@ -4452,7 +4452,7 @@ static int dundi_canmatch(struct opbx_channel *chan, const char *context, const 
 	return dundi_helper(chan, context, exten, priority, data, DUNDI_FLAG_CANMATCH);
 }
 
-static int dundi_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int dundi_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	struct dundi_result results[MAX_RESULTS];
 	int res;

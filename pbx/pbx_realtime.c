@@ -185,7 +185,7 @@ static int realtime_canmatch(struct opbx_channel *chan, const char *context, con
 	return res > 0 ? res : 0;
 }
 
-static int realtime_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int realtime_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	char app[256];
 	char appdata[512]="";

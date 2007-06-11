@@ -210,7 +210,7 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv)
 	while(opbx_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
 		/* Reset the proc depth, if it was changed in the last iteration */
 		pbx_builtin_setvar_helper(chan, "PROC_DEPTH", depthc);
-		if ((res = opbx_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
+		if ((res = opbx_exec_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 			/* Something bad happened, or a hangup has been requested. */
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 		    	(res == '*') || (res == '#')) {

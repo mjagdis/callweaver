@@ -601,7 +601,7 @@
 #define ast_socket opbx_socket
 #define ast_softhangup_nolock opbx_softhangup_nolock
 #define ast_softhangup opbx_softhangup
-#define ast_spawn_extension opbx_spawn_extension
+#define ast_spawn_extension opbx_spawn_extension_incompatible_api
 #define ast_startuptime opbx_startuptime
 #define ast_state2str opbx_state2str
 #define ast_stopstream opbx_stopstream
