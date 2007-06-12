@@ -868,16 +868,16 @@ static int opbx_rtp_senddigit_continue(struct opbx_rtp * const rtp)
 	pkt[2] = htonl(rtp->ssrc); 
 	pkt[3] = htonl(rtp->senddtmf_payload | rtp->senddtmf_duration);
 
-	/* DTMF tone duration is fixed at 80ms (given the above
+	/* DTMF tone duration is fixed at 100ms (given the above
 	 * assumptions are true). The inter-digit time is fixed
-	 * at 60ms. However, note that we're not negotiating
+	 * at 80ms. However, note that we're not negotiating
 	 * back off with higher levels. If we're asked to send
 	 * back-to-back DTMF we'll simply send events with
 	 * timestamps in the future.
 	 */
 	repeat = 1;
-	if (rtp->senddtmf_duration >= 80*8) {
-		rtp->lastdigitts += rtp->senddtmf_duration + (60 * 8);
+	if (rtp->senddtmf_duration >= 100 * 8) {
+		rtp->lastdigitts += rtp->senddtmf_duration + (80 * 8);
 		/* End event packets are sent 3 times back-to-back */
 		rtp->senddtmf_rtphdr = 0;
 		pkt[3] |= htonl(1 << 23);
