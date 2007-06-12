@@ -327,7 +327,7 @@ static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
 static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv);
-static int misdn_facility_exec(struct opbx_channel *chan, void *data);
+static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv);
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
 
@@ -2006,7 +2006,7 @@ static int misdn_call(struct opbx_channel *ast, char *dest, int timeout)
 		
 		/* Finally The Options Override Everything */
 		if (opts)
-			misdn_set_opt_exec(ast, &opts, 1);
+			misdn_set_opt_exec(ast, 1, &opts);
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
