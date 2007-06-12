@@ -43,7 +43,7 @@ char *strtrim (char *string);
 
 static char *tdesc = "LDAP directory lookup function for CallWeaver extension logic.";
 
-static void *g_app;= "LDAPget";
+static void *g_app = "LDAPget";
 static const char *g_name = "LDAPget";
 static const char *g_synopsis = "Retrieve a value from an ldap directory";
 static const char *g_syntax = "LDAPget(varname=config-file-section/key)";
