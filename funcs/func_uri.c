@@ -59,7 +59,7 @@ static const char *urlencode_func_desc = "";
 
 
 /*! \brief builtin_function_uriencode: Encode URL according to RFC 2396 */
-static char *builtin_function_uriencode(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_uriencode(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char uri[BUFSIZ];
 
@@ -75,7 +75,7 @@ static char *builtin_function_uriencode(struct opbx_channel *chan, char *cmd, in
 }
 
 /*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
-static char *builtin_function_uridecode(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_uridecode(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	if (argc != 1 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", urldecode_func_syntax);

@@ -132,7 +132,7 @@ static int backticks_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 
 
-static char *function_backticks(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_backticks(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
         char *ret = NULL;
 

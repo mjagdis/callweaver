@@ -638,8 +638,8 @@ int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *ex
 extern struct opbx_func *opbx_function_find(const char *name);
 extern int opbx_unregister_function(void *function);
 extern void *opbx_register_function(const char *name,
-		char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len),
-		void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value),
+		char *(*read)(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len),
+		void (*write)(struct opbx_channel *chan, int argc, char **argv, const char *value),
 		const char *synopsis, const char *syntax, const char *desc);
 
 /* Number of active calls */

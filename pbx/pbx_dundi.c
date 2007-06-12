@@ -3911,7 +3911,7 @@ static int dundi_lookup_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static char *dundifunc_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *num;
 	char *context;

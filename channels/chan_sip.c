@@ -11711,7 +11711,7 @@ static char show_settings_usage[] =
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-static char *func_header_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *func_header_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     char *content;
@@ -11755,7 +11755,7 @@ static char *func_header_read(struct opbx_channel *chan, char *cmd, int argc, ch
 
 
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
-static char *func_check_sipdomain(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *func_check_sipdomain(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	if (argc != 1 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", checksipdomain_func_syntax);
@@ -11771,7 +11771,7 @@ static char *func_check_sipdomain(struct opbx_channel *chan, char *cmd, int argc
 
 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-static char *function_sippeer(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_sippeer(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     char *ret = NULL;
     struct sip_peer *peer;
@@ -11878,7 +11878,7 @@ static char *function_sippeer(struct opbx_channel *chan, char *cmd, int argc, ch
 
 
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static char *function_sipchaninfo_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *function_sipchaninfo_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     char iabuf[INET_ADDRSTRLEN];

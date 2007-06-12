@@ -72,17 +72,17 @@ static const char *if_time_func_syntax = "IFTIME(timespec ? [true] [: false])";
 static const char *if_time_func_desc = "";
 
 
-static char *builtin_function_isnull(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_isnull(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	return (argc > 0 && argv[0][0] ? "0" : "1");
 }
 
-static char *builtin_function_exists(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_exists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	return (argc > 0 && argv[0][0] ? "1" : "0");
 }
 
-static char *builtin_function_iftime(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_iftime(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	struct opbx_timing timing;
 	char *s, *q, **a;
@@ -150,7 +150,7 @@ static char *builtin_function_iftime(struct opbx_channel *chan, char *cmd, int a
 	return buf;
 }
 
-static char *builtin_function_if(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_if(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *s, *q, **a;
 	int i, n, l, first;
@@ -212,7 +212,7 @@ static char *builtin_function_if(struct opbx_channel *chan, char *cmd, int argc,
 	return buf;
 }
 
-static char *builtin_function_set(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_set(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *p, *q;
 

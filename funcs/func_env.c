@@ -47,7 +47,7 @@ static const char *env_func_syntax = "ENV(envname)";
 static const char *env_func_desc = "";
 
 
-static char *builtin_function_env_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_env_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *ret = "";
 
@@ -61,7 +61,7 @@ static char *builtin_function_env_read(struct opbx_channel *chan, char *cmd, int
 	return buf;
 }
 
-static void builtin_function_env_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void builtin_function_env_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	if (argc > 0 && argv[0][0]) {
 		if (value && *value) {

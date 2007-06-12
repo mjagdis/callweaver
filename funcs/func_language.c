@@ -55,14 +55,14 @@ static const char *language_func_desc =
 	"functions, like SayNumber.\n";
 
 
-static char *builtin_function_language_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_language_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	opbx_copy_string(buf, chan->language, len);
 
 	return buf;
 }
 
-static void builtin_function_language_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void builtin_function_language_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	if (value)
 		opbx_copy_string(chan->language, value, sizeof(chan->language));

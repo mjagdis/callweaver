@@ -72,7 +72,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static char *function_enum(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_enum(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
        char tech[80];
        struct localuser *u;
@@ -135,7 +135,7 @@ static char *function_enum(struct opbx_channel *chan, char *cmd, int argc, char 
        return buf;
 }
 
-static char *function_txtcidname(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_txtcidname(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res;
 	char tech[80];

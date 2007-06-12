@@ -53,7 +53,7 @@ static const char *config_func_desc = "This function will read configuration val
 
 
 /* function_config_read() {{{ */
-static char *function_config_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_config_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 /* These doesn't seem to be available outside callweaver.c
 	if (strcasecmp(argv[0], "cwrunuser") == 0) {
@@ -103,7 +103,7 @@ static char *function_config_read(struct opbx_channel *chan, char *cmd, int argc
 /* function_config_read() }}} */
 
 /* function_config_write() {{{ */
-static void function_config_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void function_config_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	opbx_log(LOG_WARNING, "This function cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 }

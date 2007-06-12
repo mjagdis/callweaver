@@ -49,7 +49,7 @@ static const char *cdr_func_syntax = "CDR(name[, options])";
 static const char *cdr_func_desc= "Option 'r' searches the entire stack of CDRs on the channel\n";
 
 
-static char *builtin_function_cdr_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_cdr_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *ret;
 	int recursive = 0;
@@ -74,7 +74,7 @@ static char *builtin_function_cdr_read(struct opbx_channel *chan, char *cmd, int
 	return ret;
 }
 
-static void builtin_function_cdr_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void builtin_function_cdr_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	int recursive = 0;
 

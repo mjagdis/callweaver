@@ -73,7 +73,7 @@ static const char *timeout_func_desc =
 	"	   terminated.  The default timeout is 10 seconds.\n";
 
 
-static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_timeout_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	time_t myt;
 
@@ -115,7 +115,7 @@ static char *builtin_function_timeout_read(struct opbx_channel *chan, char *cmd,
 	return buf;
 }
 
-static void builtin_function_timeout_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void builtin_function_timeout_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	int x;
 	char timestr[64];

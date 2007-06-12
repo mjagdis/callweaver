@@ -55,7 +55,7 @@ static const char *checkmd5_func_syntax = "CHECK_MD5(digest, data)";
 static const char *checkmd5_func_desc = "Returns 1 on a match, 0 otherwise\n";
 
 
-static char *builtin_function_md5(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_md5(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char md5[33];
 
@@ -70,7 +70,7 @@ static char *builtin_function_md5(struct opbx_channel *chan, char *cmd, int argc
 	return buf;
 }
 
-static char *builtin_function_checkmd5(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_checkmd5(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char newmd5[33];
 

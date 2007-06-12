@@ -83,7 +83,7 @@ enum TypeOfResult
 };
 
 
-static char *builtin_function_math(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_math(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	float fnum1;
 	float fnum2;

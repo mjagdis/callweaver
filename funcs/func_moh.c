@@ -46,14 +46,14 @@ static const char *moh_func_desc =
 	"This function will read or set the music on hold class for a channel.\n";
 
 
-static char *function_moh_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_moh_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	opbx_copy_string(buf, chan->musicclass, len);
 
 	return buf;
 }
 
-static void function_moh_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void function_moh_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	opbx_copy_string(chan->musicclass, value, MAX_MUSICCLASS);
 }

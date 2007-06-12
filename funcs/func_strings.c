@@ -112,7 +112,7 @@ struct sortable_keys {
 	float value;
 };
 
-static char *function_fieldqty(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_fieldqty(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *varval, workspace[256];
 	int fieldcount = 0;
@@ -130,7 +130,7 @@ static char *function_fieldqty(struct opbx_channel *chan, char *cmd, int argc, c
 }
 
 
-static char *builtin_function_regex(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *arg, *earg = NULL, *tmp, errstr[256] = "";
 	int errcode;
@@ -155,7 +155,7 @@ static char *builtin_function_regex(struct opbx_channel *chan, char *cmd, int ar
 
 	if ((errcode = regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB))) {
 		regerror(errcode, &regexbuf, errstr, sizeof(errstr));
-		opbx_log(LOG_WARNING, "Malformed input %s(%s): %s\n", cmd, argv[0], errstr);
+		opbx_log(LOG_WARNING, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
 	} else {
 		if (!regexec(&regexbuf, earg ? earg : "", 0, NULL, 0))
 			opbx_copy_string(buf, "1", len); 
@@ -166,7 +166,7 @@ static char *builtin_function_regex(struct opbx_channel *chan, char *cmd, int ar
 }
 
 
-static char *builtin_function_len(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_len(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	int length = 0;
 	if (argv[0]) {
@@ -177,7 +177,7 @@ static char *builtin_function_len(struct opbx_channel *chan, char *cmd, int argc
 }
 
 
-static char *acf_strftime(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *acf_strftime(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *format, *epoch, *timezone = NULL;
 	long epochi;
@@ -201,7 +201,7 @@ static char *acf_strftime(struct opbx_channel *chan, char *cmd, int argc, char *
 }
 
 
-static char *function_eval(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *function_eval(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	if (argc != 1 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", eval_func_syntax);
@@ -214,7 +214,7 @@ static char *function_eval(struct opbx_channel *chan, char *cmd, int argc, char 
 }
 
 
-static char *function_cut(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_cut(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char varvalue[MAXRESULT], *tmp2;
 	char *s, *field=NULL;
@@ -309,7 +309,7 @@ static int sort_subroutine(const void *arg1, const void *arg2)
 	}
 }
 
-static char *function_sort(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_sort(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct sortable_keys *sortable_keys;
 	char *p;

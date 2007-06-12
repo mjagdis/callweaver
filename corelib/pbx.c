@@ -218,8 +218,8 @@ struct opbx_app
 struct opbx_func {
 	struct opbx_func *next;
 	unsigned int hash;
-	char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len);
-	void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value);
+	char *(*read)(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
+	void (*write)(struct opbx_channel *chan, int argc, char **argv, const char *value);
 	const char *name;
 	const char *synopsis;
 	const char *syntax;
@@ -1660,8 +1660,8 @@ int opbx_unregister_function(void *func)
 }
 
 void *opbx_register_function(const char *name,
-	char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len),
-	void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value),
+	char *(*read)(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len),
+	void (*write)(struct opbx_channel *chan, int argc, char **argv, const char *value),
 	const char *synopsis, const char *syntax, const char *description)
 {
 	char tmps[80];
@@ -1734,7 +1734,7 @@ char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace,
 
 	if ((acfptr = opbx_function_find(function))) {
         	if (acfptr->read)
-			return (*acfptr->read)(chan, function, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, workspace, len);
+			return (*acfptr->read)(chan, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, workspace, len);
 		opbx_log(LOG_ERROR, "Function %s cannot be read\n", function);
 	} else {
 		opbx_log(LOG_ERROR, "Function %s not registered\n", function);
@@ -1764,7 +1764,7 @@ void opbx_func_write(struct opbx_channel *chan, const char *in, const char *valu
 
 	if ((acfptr = opbx_function_find(function))) {
 		if (acfptr->write) {
-			(*acfptr->write)(chan, function, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, value);
+			(*acfptr->write)(chan, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, value);
 			return;
 		}
 		opbx_log(LOG_ERROR, "Function %s is read-only, it cannot be written to\n", function);

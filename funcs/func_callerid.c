@@ -52,7 +52,7 @@ static const char *callerid_func_desc =
 	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n";
 
 
-static char *callerid_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *callerid_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	if (!strncasecmp("all", argv[0], 3)) {
 		snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
@@ -83,7 +83,7 @@ static char *callerid_read(struct opbx_channel *chan, char *cmd, int argc, char 
 	return buf;
 }
 
-static void callerid_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void callerid_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	if (!value)
                 return;

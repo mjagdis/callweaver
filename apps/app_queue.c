@@ -3093,7 +3093,7 @@ check_turns:
 	return res;
 }
 
-static char *queue_function_qac(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *queue_function_qac(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int count = 0;
 	struct opbx_call_queue *q;

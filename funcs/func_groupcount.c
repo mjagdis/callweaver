@@ -69,7 +69,7 @@ static const char *group_list_func_syntax = "GROUP_LIST()";
 static const char *group_list_func_desc = "Gets a list of the groups set on a channel.\n";
 
 
-static char *group_count_function_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *group_count_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	int count;
 	char group[80] = "";
@@ -91,7 +91,7 @@ static char *group_count_function_read(struct opbx_channel *chan, char *cmd, int
 	return buf;
 }
 
-static char *group_match_count_function_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *group_match_count_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	int count;
 	char group[80] = "";
@@ -107,7 +107,7 @@ static char *group_match_count_function_read(struct opbx_channel *chan, char *cm
 	return buf;
 }
 
-static char *group_function_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *group_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char varname[256];
 	char *group;
@@ -125,7 +125,7 @@ static char *group_function_read(struct opbx_channel *chan, char *cmd, int argc,
 	return buf;
 }
 
-static void group_function_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value)
+static void group_function_write(struct opbx_channel *chan, int argc, char **argv, const char *value)
 {
 	char grpcat[256];
 
@@ -139,7 +139,7 @@ static void group_function_write(struct opbx_channel *chan, char *cmd, int argc,
                 opbx_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
 }
 
-static char *group_list_function_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *group_list_function_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct opbx_var_t *current;
 	struct varshead *headp;

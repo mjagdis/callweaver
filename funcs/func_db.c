@@ -70,7 +70,7 @@ static const char *db_func_desc =
 	"will also set the variable DB_RESULT.\n";
 
 
-static char *function_db_read(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_db_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *key;
 
@@ -90,7 +90,7 @@ static char *function_db_read(struct opbx_channel *chan, char *cmd, int argc, ch
 	return buf;
 }
 
-static void function_db_write(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value) 
+static void function_db_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
 	char *key;
 
@@ -107,7 +107,7 @@ static void function_db_write(struct opbx_channel *chan, char *cmd, int argc, ch
 }
 
 
-static char *function_db_exists(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_db_exists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *key;
 

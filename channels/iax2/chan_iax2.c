@@ -8327,7 +8327,7 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 	return -1;
 }
 
-static char *function_iaxpeer(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *function_iaxpeer(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret = NULL;
 	struct iax2_peer *peer;

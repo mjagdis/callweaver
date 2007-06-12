@@ -49,7 +49,7 @@ static const char *fileexists_func_syntax = "FILEEXISTS(filename)";
 static const char *fileexists_func_desc= "Returns the file status. Results are 'EXISTS' if the file exists and 'NONEXISTENT' if the file does not exist.\n";
 
 
-static char *builtin_function_fileexists(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len) 
+static char *builtin_function_fileexists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
 	char *ret;
 	char *args;

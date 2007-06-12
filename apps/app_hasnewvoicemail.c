@@ -154,7 +154,7 @@ static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static char *acf_vmcount_exec(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len)
+static char *acf_vmcount_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 	char *args, *context, *box, *folder;
