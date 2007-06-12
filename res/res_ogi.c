@@ -1155,7 +1155,7 @@ static int handle_getvariable(struct opbx_channel *chan, OGI *ogi, int argc, cha
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	/* check if we want to execute an opbx_custom_function */
+	/* check if we want to execute a function */
 	if (!opbx_strlen_zero(argv[2]) && (argv[2][strlen(argv[2]) - 1] == ')')) {
 		ret = opbx_func_read(chan, argv[2], tempstr, sizeof(tempstr));
 	} else {

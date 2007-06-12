@@ -179,7 +179,7 @@
 #define ast_copy_string opbx_copy_string
 #define ast_ctime opbx_ctime
 #define ast_ctime_r opbx_ctime_r
-#define ast_custom_function_find opbx_custom_function_find
+#define ast_custom_function_find opbx_function_find
 #define ast_custom_function_register opbx_register_function
 #define ast_custom_function_unregister opbx_unregister_function
 #define ast_db_del opbx_db_del

@@ -214,6 +214,18 @@ struct opbx_app
     const char *description;      /* Description (help text) for 'show application <name>' */
 };
 
+/* opbx_func: A function */
+struct opbx_func {
+	struct opbx_func *next;
+	unsigned int hash;
+	char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len);
+	void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value);
+	const char *name;
+	const char *synopsis;
+	const char *syntax;
+	const char *desc;
+};
+
 /* opbx_state_cb: An extension state notify */
 struct opbx_state_cb
 {
@@ -275,7 +287,7 @@ OPBX_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
 
 OPBX_MUTEX_DEFINE_STATIC(funcs_lock);         /* Lock for the custom function list */
-static struct opbx_custom_function *funcs_head = NULL;
+static struct opbx_func *funcs_head = NULL;
 
 static struct pbx_builtin {
     char *name;
@@ -1495,7 +1507,7 @@ void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, 
 
 static int handle_show_functions(int fd, int argc, char *argv[])
 {
-    struct opbx_custom_function *acf;
+    struct opbx_func *acf;
     int count_acf = 0;
 
     opbx_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
@@ -1510,7 +1522,7 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 
 static int handle_show_function(int fd, int argc, char *argv[])
 {
-    struct opbx_custom_function *acf;
+    struct opbx_func *acf;
     /* Maximum number of characters added by terminal coloring is 22 */
     char infotitle[64 + OPBX_MAX_APP + 22], syntitle[40], destitle[40];
     char info[64 + OPBX_MAX_APP], *synopsis = NULL, *description = NULL;
@@ -1519,7 +1531,7 @@ static int handle_show_function(int fd, int argc, char *argv[])
 
     if (argc < 3) return RESULT_SHOWUSAGE;
 
-    if (!(acf = opbx_custom_function_find(argv[2])))
+    if (!(acf = opbx_function_find(argv[2])))
     {
         opbx_cli(fd, "No function by that name registered.\n");
         return RESULT_FAILURE;
@@ -1566,7 +1578,7 @@ static int handle_show_function(int fd, int argc, char *argv[])
 
 static char *complete_show_function(char *line, char *word, int pos, int state)
 {
-    struct opbx_custom_function *acf;
+    struct opbx_func *acf;
     int which = 0;
 
     /* try to lock functions list ... */
@@ -1595,9 +1607,9 @@ static char *complete_show_function(char *line, char *word, int pos, int state)
     return NULL; 
 }
 
-struct opbx_custom_function* opbx_custom_function_find(const char *name) 
+struct opbx_func* opbx_function_find(const char *name) 
 {
-	struct opbx_custom_function *p;
+	struct opbx_func *p;
 	unsigned int hash = opbx_hash_app_name(name);
 
 	if (opbx_mutex_lock(&funcs_lock)) {
@@ -1616,7 +1628,7 @@ struct opbx_custom_function* opbx_custom_function_find(const char *name)
 
 int opbx_unregister_function(void *func) 
 {
-	struct opbx_custom_function **p;
+	struct opbx_func **p;
 	int ret;
     
 	if (!func)
@@ -1640,7 +1652,7 @@ int opbx_unregister_function(void *func)
 
 	if (!ret) {
 		if (option_verbose > 1)
-			opbx_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", ((struct opbx_custom_function *)func)->name);
+			opbx_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", ((struct opbx_func *)func)->name);
 		free(func);
 	}
 
@@ -1653,7 +1665,7 @@ void *opbx_register_function(const char *name,
 	const char *synopsis, const char *syntax, const char *description)
 {
 	char tmps[80];
-	struct opbx_custom_function *p;
+	struct opbx_func *p;
 	unsigned int hash;
  
 	if (opbx_mutex_lock(&funcs_lock)) {
@@ -1706,7 +1718,7 @@ char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace,
 	char *argv[100]; /* No function can take more than 100 args unless it parses them itself */
 	char *args = NULL, *function, *p;
 	char *ret = "0";
-	struct opbx_custom_function *acfptr;
+	struct opbx_func *acfptr;
 
 	function = opbx_strdupa(in);
 
@@ -1720,7 +1732,7 @@ char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace,
 		opbx_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 	}
 
-	if ((acfptr = opbx_custom_function_find(function))) {
+	if ((acfptr = opbx_function_find(function))) {
         	if (acfptr->read)
 			return (*acfptr->read)(chan, function, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, workspace, len);
 		opbx_log(LOG_ERROR, "Function %s cannot be read\n", function);
@@ -1735,7 +1747,7 @@ void opbx_func_write(struct opbx_channel *chan, const char *in, const char *valu
 {
 	char *argv[100]; /* No function can take more than 100 args unless it parses them itself */
 	char *args = NULL, *function, *p;
-	struct opbx_custom_function *acfptr;
+	struct opbx_func *acfptr;
 
 	/* FIXME: unnecessary dup? */
 	function = opbx_strdupa(in);
@@ -1750,7 +1762,7 @@ void opbx_func_write(struct opbx_channel *chan, const char *in, const char *valu
 		opbx_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 	}
 
-	if ((acfptr = opbx_custom_function_find(function))) {
+	if ((acfptr = opbx_function_find(function))) {
 		if (acfptr->write) {
 			(*acfptr->write)(chan, function, opbx_separate_app_args(args, ',', arraysize(argv), argv), argv, value);
 			return;

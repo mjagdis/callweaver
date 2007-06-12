@@ -99,17 +99,6 @@ struct opbx_sw;
 
 typedef int (*opbx_state_cb_type)(char *context, char* id, enum opbx_extension_states state, void *data);
 
-/*! Data structure associated with a custom function */
-struct opbx_custom_function {
-	struct opbx_custom_function *next;
-	unsigned int hash;
-	char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len);
-	void (*write)(struct opbx_channel *chan, char *cmd, int argc, char **argv, const char *value);
-	const char *name;
-	const char *synopsis;
-	const char *syntax;
-	const char *desc;
-};
 
 /*! Data structure associated with an callweaver switch */
 struct opbx_switch
@@ -646,7 +635,7 @@ int opbx_explicit_goto(struct opbx_channel *chan, const char *context, const cha
 int opbx_explicit_gotolabel(struct opbx_channel *chan, const char *context, const char *exten, const char *priority);
 int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *exten, int priority);
 
-extern struct opbx_custom_function *opbx_custom_function_find(const char *name);
+extern struct opbx_func *opbx_function_find(const char *name);
 extern int opbx_unregister_function(void *function);
 extern void *opbx_register_function(const char *name,
 		char *(*read)(struct opbx_channel *chan, char *cmd, int argc, char **argv, char *buf, size_t len),

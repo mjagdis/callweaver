@@ -184,6 +184,14 @@ fi
 dnl check for host compiler when cross compiling
 if test "$host" = "$build"; then
 	HOST_CC="${CC}"
+	case "${host}" in
+	x86_64-*)
+		# X86_64 Linux machines may have both 64 bit and 32 bit libraries. We need to choose the right set
+		AC_CHECK_FILE([/usr/lib64], [TESTLIBS="$TESTLIBS -L/usr/lib64"], AC_CHECK_FILE([/usr/lib], [TESTLIBS="$TESTLIBS -L/usr/lib"]))
+		AC_CHECK_FILE([/usr/local/lib64], [TESTLIBS="$TESTLIBS -L/usr/local/lib64"], AC_CHECK_FILE([/usr/local/lib], [TESTLIBS="$TESTLIBS -L/usr/local/lib"]))
+		AC_CHECK_FILE([/usr/X11R6/lib64], [TESTLIBS="$TESTLIBS -L/usr/X11R6/lib64"], AC_CHECK_FILE([/usr/X11R6/lib], [TESTLIBS="$TESTLIBS -L/usr/X11R6/lib"]))
+		;;
+	esac
 else
 	HOST_CC="${HOST_CC-gcc}"
 fi
