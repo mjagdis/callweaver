@@ -1,6 +1,6 @@
 # vim:tw=80:ft=txt
 
-These are known issues with CallWeaver.Org
+These are known issues with CallWeaver
 
 
 SPEAKUP JITTERBUFFER
@@ -26,3 +26,8 @@ APP_QUEUE CDR LOGGING
     To have callweaver log CDRs correctly, change this to member =>
     Local/somenumber@somecontext and add [somecontext] to your extensions.conf for
     chan_local use.
+
+OTHER BUGS
+
+  For more info about unsolved and solved bugs, please see
+  http://callweaver.org/tickets
