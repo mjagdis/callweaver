@@ -11,7 +11,7 @@
 
 #include "callweaver.h"
 
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision:$")
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -296,14 +296,8 @@ static u_char *opbx_var_channels_table(struct variable *vp, oid *name, size_t *l
 				ret = NULL;
 			break;
 		case OPBXCHANDATA:
-			if (chan->data) {
-				strncpy(string_ret, chan->data, sizeof(string_ret));
-				string_ret[sizeof(string_ret) - 1] = '\0';
-				*var_len = strlen(string_ret);
-				ret = (u_char *)string_ret;
-			}
-			else
-				ret = NULL;
+			opbx_log(LOG_WARNING, "OPBXCHANDATA doesn't exist anymore\n");
+			ret = NULL;
 			break;
 		case OPBXCHANCONTEXT:
 			strncpy(string_ret, chan->context, sizeof(string_ret));
