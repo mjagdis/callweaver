@@ -2907,6 +2907,9 @@ static int __opbx_pbx_run(struct opbx_channel *c)
 out:
     if ((res != OPBX_PBX_KEEPALIVE) && opbx_exists_extension(c, c->context, "h", 1, c->cid.cid_num))
     {
+		if (c->cdr && opbx_end_cdr_before_h_exten)
+			opbx_cdr_end(c->cdr);
+
         c->exten[0] = 'h';
         c->exten[1] = '\0';
         c->priority = 1;

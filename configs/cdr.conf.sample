@@ -49,3 +49,5 @@
 ; is "yes".
 ;safeshutdown=yes
 
+; End CDR before h extension
+;endbeforehexten=yes

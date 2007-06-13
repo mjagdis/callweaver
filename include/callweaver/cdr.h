@@ -279,6 +279,8 @@ extern int opbx_cdr_update(struct opbx_channel *chan);
 
 extern int opbx_default_amaflags;
 
+extern int opbx_end_cdr_before_h_exten;
+
 extern char opbx_default_accountcode[OPBX_MAX_ACCOUNT_CODE];
 
 extern struct opbx_cdr *opbx_cdr_append(struct opbx_cdr *cdr, struct opbx_cdr *newcdr);

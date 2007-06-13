@@ -52,6 +52,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 
 int opbx_default_amaflags = OPBX_CDR_DOCUMENTATION;
+int opbx_end_cdr_before_h_exten;
 char opbx_default_accountcode[OPBX_MAX_ACCOUNT_CODE] = "";
 
 struct opbx_cdr_beitem {
@@ -653,6 +654,11 @@ void opbx_cdr_end(struct opbx_cdr *cdr)
 			opbx_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
 		if (opbx_tvzero(cdr->end))
 			cdr->end = opbx_tvnow();
+		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
+		if (!opbx_tvzero(cdr->answer))
+			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
+		else
+			cdr->billsec = 0;
 		cdr = cdr->next;
 	}
 }
@@ -796,11 +802,6 @@ static void post_cdr(struct opbx_cdr *cdr)
 			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
 		if (opbx_tvzero(cdr->start))
 			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
-		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
-		if (!opbx_tvzero(cdr->answer))
-			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
-		else
-			cdr->billsec = 0;
 		opbx_set_flag(cdr, OPBX_CDR_FLAG_POSTED);
 		OPBX_LIST_LOCK(&be_list);
 		OPBX_LIST_TRAVERSE(&be_list, i, list) {
@@ -1086,6 +1087,7 @@ static int do_reload(void)
 	struct opbx_config *config;
 	const char *enabled_value;
 	const char *batched_value;
+	const char *end_before_h_value;
 	const char *scheduleronly_value;
 	const char *batchsafeshutdown_value;
 	const char *size_value;
@@ -1106,6 +1108,7 @@ static int do_reload(void)
 	was_batchmode = batchmode;
 	enabled = 1;
 	batchmode = 0;
+	opbx_end_cdr_before_h_exten = 0;
 
 	/* don't run the next scheduled CDR posting while reloading */
 	if (cdr_sched > -1)
@@ -1114,6 +1117,9 @@ static int do_reload(void)
 	if ((config = opbx_config_load("cdr.conf"))) {
 		if ((enabled_value = opbx_variable_retrieve(config, "general", "enable"))) {
 			enabled = opbx_true(enabled_value);
+		}
+		if ((enabled_value = opbx_variable_retrieve(config, "general", "endbeforehexten"))) {
+			opbx_end_cdr_before_h_exten = opbx_true(end_before_h_value);
 		}
 		if ((batched_value = opbx_variable_retrieve(config, "general", "batch"))) {
 			batchmode = opbx_true(batched_value);
