@@ -2,14 +2,27 @@
 
 These are known issues with CallWeaver.Org
 
+
 SPEAKUP JITTERBUFFER
 
-Problem
-  - In some circumstances, the speakup jitterbuffer leaks memory as per call
-    (http://trac.callweaver.org/cgi-bin/trac.cgi/ticket/244).
-  - There have been reports of the speakup jitterbuffer causing threads to hang
-    using 100% CPU (http://trac.callweaver.org/cgi-bin/trac.cgi/ticket/248).
+  Problem
+    - In some circumstances, the speakup jitterbuffer leaks memory as per call
+      (http://trac.callweaver.org/cgi-bin/trac.cgi/ticket/244).
+    - There have been reports of the speakup jitterbuffer causing threads to hang
+      using 100% CPU (http://trac.callweaver.org/cgi-bin/trac.cgi/ticket/248).
 
-Solution
-  Use the 'fixed' jitterbuffer implementation instead of 'speakup'
+  Solution
+    Use the 'fixed' jitterbuffer implementation instead of 'speakup'
 
+
+APP_QUEUE CDR LOGGING
+
+  Problem
+    - If having members in a queue reachable via Zap like member =>
+      Zap/g1/somenumber the member is called up correctly, but the call never gets
+      logged to CDR.
+  
+  Solution
+    To have callweaver log CDRs correctly, change this to member =>
+    Local/somenumber@somecontext and add [somecontext] to your extensions.conf for
+    chan_local use.
