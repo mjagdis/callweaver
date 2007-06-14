@@ -130,7 +130,7 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 
 	LOCAL_USER_ADD(u);
 
-	for (; argv[1][0]; argv[1]++) {
+	if (argc > 1) for (; argv[1][0]; argv[1]++) {
 		switch (argv[1][0]) {
 			case 'n': skipanswer = 1; break;
 			case 'x': noextneeded = 1; break;
