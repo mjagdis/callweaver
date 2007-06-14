@@ -998,6 +998,9 @@ dnl ##########################################################################
 AC_ARG_ENABLE([ssl],
 	[AC_HELP_STRING([--enable-ssl],[Enable support for SSL (default=yes)])],,[enable_ssl="yes"])
 
+AC_ARG_WITH([ssl],
+       [AC_HELP_STRING([--with-ssl=PATH],[Location of OpenSSL installation])],,[withval=""])
+
 if test "${enable_ssl}" = "yes"; then
    CHECK_SSL
 fi
