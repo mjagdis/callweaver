@@ -557,8 +557,6 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
     verbose = FALSE;
 
     source_file = argv[0];
-    argv++;
-    argc--;
 
     while (argv++, --argc) {
         if (strcmp("caller", argv[0]) == 0)
