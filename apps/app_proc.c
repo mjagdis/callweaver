@@ -203,7 +203,6 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv)
 		if (oldargs[x])
 			oldargs[x] = strdup(oldargs[x]);
 		pbx_builtin_setvar_helper(chan, varname, argv[x]);
-		x++;
 	}
 	autoloopflag = opbx_test_flag(chan, OPBX_FLAG_IN_AUTOLOOP);
 	opbx_set_flag(chan, OPBX_FLAG_IN_AUTOLOOP);
