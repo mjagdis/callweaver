@@ -507,6 +507,7 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
     fax_state_t 	fax;
     t38_terminal_state_t t38;
 
+    char *source_file;
     int res = 0;
     char *s;
     char *t;
@@ -550,10 +551,14 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
     pbx_builtin_setvar_helper(chan, "PHASEESTATUS", "");
     pbx_builtin_setvar_helper(chan, "PHASEESTRING", "");
 
-    /* Parsig parameters */
+    /* Parsing parameters */
     
     calling_party = FALSE;
     verbose = FALSE;
+
+    source_file = argv[0];
+    argv++;
+    argc--;
 
     while (argv++, --argc) {
         if (strcmp("caller", argv[0]) == 0)
@@ -633,11 +638,11 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
 
 
         if ( ready && chan->t38mode_enabled!=1 ) {
-	    ready = txfax_audio( chan, &fax, argv[0], calling_party, verbose, ecm);
+	    ready = txfax_audio( chan, &fax, source_file, calling_party, verbose, ecm);
 	}
 
         if ( ready && chan->t38mode_enabled==1 ) {
-	    ready = txfax_t38  ( chan, &t38, argv[0], calling_party, verbose, ecm);
+	    ready = txfax_t38  ( chan, &t38, source_file, calling_party, verbose, ecm);
 	}
 
 	ready = 0; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
