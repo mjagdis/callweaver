@@ -1292,11 +1292,17 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 			argv[3] = NULL;
 			if ((argv[0] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FORMAT"))) {
 				argv[1] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_BASE");
+				argv[1] = (argv[1] ? argv[1] : "");
 				argv[2] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_OPTS");
+				argv[2] = (argv[2] ? argv[2] : "");
+				argv[3] = NULL;
 				pbx_exec_argv(chan, monitor_app, 3, argv);
 			} else if ((argv[0] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FORMAT"))) {
 				argv[1] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_BASE");
+				argv[1] = (argv[1] ? argv[1] : "");
 				argv[2] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_OPTS");
+				argv[2] = (argv[2] ? argv[2] : "");
+				argv[3] = NULL;
 				pbx_exec_argv(peer, monitor_app, 3, argv);
 			}
 		}
