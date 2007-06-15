@@ -1168,7 +1168,7 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 					parens++;
 				else if (*next == ')')
 					parens--;
-				else if (*next == delim && !parens)
+				else if (*next == delim && !parens && !inquote)
 					break;
 
 				*(end++) = *next;
