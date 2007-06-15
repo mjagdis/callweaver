@@ -2892,12 +2892,13 @@ static int __opbx_pbx_run(struct opbx_channel *c)
                 if (option_verbose > 2)
                     opbx_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
 
+		status = "10";
                 if (hash == OPBX_KEYWORD_BUSY)
-                    res = pbx_builtin_busy(c, 1, (char **)&"10");
+                    res = pbx_builtin_busy(c, 1, &status);
                 else if (hash == OPBX_KEYWORD_CHANUNAVAIL)
-                    res = pbx_builtin_congestion(c, 1, (char **)&"10");
+                    res = pbx_builtin_congestion(c, 1, &status);
                 else if (hash == OPBX_KEYWORD_CONGESTION)
-                    res = pbx_builtin_congestion(c, 1, (char **)&"10");
+                    res = pbx_builtin_congestion(c, 1, &status);
                 goto out;
             }
         }
