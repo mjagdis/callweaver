@@ -99,7 +99,6 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	struct timeval start = { 0, 0};
 	struct opbx_dsp *dsp;
 	struct localuser *u;
-	char *tmp;
 	struct opbx_frame *fr = NULL, *fr2 = NULL;
 	int res = 0;
 	int notsilent = 0;
@@ -146,7 +145,7 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	min = (argc > 3 ? atoi(argv[3]) : 100);
 	max = (argc > 4 ? atoi(argv[4]) : -1);
 
-	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", tmp, sil, min, max);
+	opbx_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", argv[0], sil, min, max);
 
 	if (chan->_state != OPBX_STATE_UP && !skipanswer) {
 		// Otherwise answer unless we're supposed to send this while on-hook 
@@ -177,7 +176,7 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 
 	if (!res) {
 		opbx_stopstream(chan);
-		res = opbx_streamfile(chan, tmp, chan->language);
+		res = opbx_streamfile(chan, argv[0], chan->language);
 		if (!res) {
 			while(chan->stream) {
 				res = opbx_sched_wait(chan->sched);
