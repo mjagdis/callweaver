@@ -563,7 +563,6 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
 {
     int silence;
     int res;
-    int digit;
     int x;
     int16_t *amp;
     uint8_t *odata;
@@ -576,7 +575,6 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         return NULL;
     if (af->frametype != OPBX_FRAME_VOICE)
         return af;
-    digit = 0;
     odata = af->data;
     len = af->datalen;
     /* Make sure we have short data */
@@ -618,17 +616,19 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     {
         if ((dsp->digitmode & DSP_DIGITMODE_MF))
         {
-            /* This is kinda dirty, since it assumes a maximum of one digit detected per block. In
-               practice this should be OK. */
             bell_mf_rx(&dsp->bell_mf_rx, amp, len);
-            bell_mf_rx_get(&dsp->bell_mf_rx, buf, 1);
-            digit = buf[0];
+            if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
+            {
+                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, digit_buf[0], NULL);
+                if (chan)
+                    opbx_queue_frame(chan, af);
+                opbx_fr_free(af);
+                return &dsp->f;
+            }
         }
         else
         {
             dtmf_rx(&dsp->dtmf_rx, amp, len);
-            dtmf_rx_get(&dsp->dtmf_rx, buf, 1);
-            digit = buf[0];
             /* TODO: Avoid probing inside the DTMF rx object */
             if (dsp->dtmf_rx.in_digit)
                 dsp->mute_lag = 5;
@@ -637,70 +637,17 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                 memset(amp, 0, sizeof(int16_t)*len);
                 writeback = TRUE;
             }
-        }
-        if ((dsp->features & DSP_FEATURE_FAX_DETECT))
-        {
-            modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
-            if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
-                digit = 'f';
-        }
-        if ((dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
-        {
-            if (!dsp->thinkdigit)
+            /* TODO: Avoid probing inside the DTMF rx object */
+            if ((dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
             {
-                if (digit)
+                if (dsp->thinkdigit == 0)
                 {
-                    /* Looks like we might have something.  
-                     * Request a conference mute for the moment */
-                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
-                    FIX_INF(af);
-                    if (chan)
-                        opbx_queue_frame(chan, af);
-                    opbx_fr_free(af);
-                    return &dsp->f;
-                }
-            }
-            else
-            {
-                if (digit)
-                {
-                    /* Thought we saw one last time.  Pretty sure we really have now */
-                    if (dsp->thinkdigit)
+                    if (dsp->dtmf_rx.last_hit)
                     {
-                        if ((dsp->thinkdigit != 'x')  &&  (dsp->thinkdigit != digit))
-                        {
-                            /* If we found a digit, and we're changing digits, go
-                               ahead and send this one, but DON'T stop confmute because
-                               we're detecting something else, too... */
-                            opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, dsp->thinkdigit, NULL);
-                            FIX_INF(af);
-                            if (chan)
-                                opbx_queue_frame(chan, af);
-                            opbx_fr_free(af);
-                        }
-                        dsp->thinkdigit = digit;
-                        return &dsp->f;
-                    }
-                    dsp->thinkdigit = digit;
-                }
-                else
-                {
-                    if (dsp->thinkdigit)
-                    {
-                        opbx_fr_init(&dsp->f);
-                        if (dsp->thinkdigit != 'x')
-                        {
-                            /* If we found a digit, send it now */
-                            dsp->f.frametype = OPBX_FRAME_DTMF;
-                            dsp->f.subclass = dsp->thinkdigit;
-                            dsp->thinkdigit = 0;
-                        }
-                        else
-                        {
-                            dsp->f.frametype = OPBX_FRAME_DTMF;
-                            dsp->f.subclass = 'u';
-                            dsp->thinkdigit = 0;
-                        }
+                        /* Looks like we might have something.  
+                         * Request a conference mute for the moment */
+                        dsp->thinkdigit = 'x';
+                        opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
                         FIX_INF(af);
                         if (chan)
                             opbx_queue_frame(chan, af);
@@ -708,35 +655,78 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                         return &dsp->f;
                     }
                 }
+                else
+                {
+                    if (dsp->dtmf_rx.in_digit)
+                    {
+                        /* Thought we saw one last time.  Pretty sure we really have now */
+                        if (dsp->thinkdigit)
+                        {
+                            if ((dsp->thinkdigit != 'x')  &&  (dsp->thinkdigit != dsp->dtmf_rx.in_digit))
+                            {
+                                /* If we found a digit, and we're changing digits, go
+                                   ahead and send this one, but DON'T stop confmute because
+                                   we're detecting something else, too... */
+                                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, dsp->thinkdigit, NULL);
+                                FIX_INF(af);
+                                if (chan)
+                                    opbx_queue_frame(chan, af);
+                                opbx_fr_free(af);
+                            }
+                            dsp->thinkdigit = dsp->dtmf_rx.in_digit;
+                            return &dsp->f;
+                        }
+                        dsp->thinkdigit = dsp->dtmf_rx.in_digit;
+                    }
+                    else
+                    {
+                        if (dsp->thinkdigit)
+                        {
+                            opbx_fr_init(&dsp->f);
+                            if (dsp->thinkdigit != 'x')
+                            {
+                                /* If we found a digit, send it now */
+                                dsp->f.frametype = OPBX_FRAME_DTMF;
+                                dsp->f.subclass = dsp->thinkdigit;
+                                dsp->thinkdigit = 0;
+                            }
+                            else
+                            {
+                                dsp->f.frametype = OPBX_FRAME_DTMF;
+                                dsp->f.subclass = 'u';
+                                dsp->thinkdigit = 0;
+                            }
+                            FIX_INF(af);
+                            if (chan)
+                                opbx_queue_frame(chan, af);
+                            opbx_fr_free(af);
+                            return &dsp->f;
+                        }
+                    }
+                }
+            }
+            if (dtmf_rx_get(&dsp->dtmf_rx, buf, 1))
+            {
+                opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, buf[0], NULL);
+                FIX_INF(af);
+                if (chan)
+                    opbx_queue_frame(chan, af);
+                opbx_fr_free(af);
+                return &dsp->f;
             }
         }
-        else if (digit == 0)
+    }
+    if ((dsp->features & DSP_FEATURE_FAX_DETECT))
+    {
+        modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
+        if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
         {
-            /* Only check when there is *not* a hit... */
-            if (dsp->digitmode & DSP_DIGITMODE_MF)
-            {
-                if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
-                {
-                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, digit_buf[0], NULL);
-                    FIX_INF(af);
-                    if (chan)
-                        opbx_queue_frame(chan, af);
-                    opbx_fr_free(af);
-                    return &dsp->f;
-                }
-            }
-            else
-            {
-                if (dtmf_rx_get(&dsp->dtmf_rx, buf, 1))
-                {
-                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, buf[0], NULL);
-                    FIX_INF(af);
-                    if (chan)
-                        opbx_queue_frame(chan, af);
-                    opbx_fr_free(af);
-                    return &dsp->f;
-                }
-            }
+            opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'f', NULL);
+            FIX_INF(af);
+            if (chan)
+                opbx_queue_frame(chan, af);
+            opbx_fr_free(af);
+            return &dsp->f;
         }
     }
     if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
