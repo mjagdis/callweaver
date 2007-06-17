@@ -186,10 +186,13 @@ int opbx_format_unregister(const char *name)
 int opbx_stopstream(struct opbx_channel *tmp)
 {
 	/* Stop a running stream if there is one */
-	if (tmp->vstream)
+	if (tmp->vstream) {
 		opbx_closestream(tmp->vstream);
+		tmp->vstream = NULL;
+	}
 	if (tmp->stream) {
 		opbx_closestream(tmp->stream);
+		tmp->stream = NULL;
 		if (tmp->oldwriteformat && opbx_set_write_format(tmp, tmp->oldwriteformat))
 			opbx_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	}
