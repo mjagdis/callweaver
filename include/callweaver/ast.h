@@ -204,11 +204,9 @@
 #define ast_do_masquerade opbx_do_masquerade
 #define ast_dsp_busydetect opbx_dsp_busydetect
 #define ast_dsp_call_progress opbx_dsp_call_progress
-#define ast_dsp_digitdetect opbx_dsp_digitdetect
 #define ast_dsp_digitmode opbx_dsp_digitmode
 #define ast_dsp_digitreset opbx_dsp_digitreset
 #define ast_dsp_free opbx_dsp_free
-#define ast_dsp_getdigits opbx_dsp_getdigits
 #define ast_dsp_get_tcount opbx_dsp_get_tcount
 #define ast_dsp_get_tstate opbx_dsp_get_tstate
 #define ast_dsp_new opbx_dsp_new

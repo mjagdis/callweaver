@@ -85,9 +85,6 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
   opbx_dsp_silence has already been called */
 int opbx_dsp_busydetect(struct opbx_dsp *dsp);
 
-/*! \brief Return non-zero if DTMF hit was found */
-int opbx_dsp_digitdetect(struct opbx_dsp *dsp, struct opbx_frame *f);
-
 /*! \brief Reset total silence count */
 void opbx_dsp_reset(struct opbx_dsp *dsp);
 
@@ -96,9 +93,6 @@ void opbx_dsp_digitreset(struct opbx_dsp *dsp);
 
 /*! \brief Select feature set */
 void opbx_dsp_set_features(struct opbx_dsp *dsp, int features);
-
-/*! \brief Get pending DTMF/MF digits */
-int opbx_dsp_getdigits(struct opbx_dsp *dsp, char *buf, int max);
 
 /*! \brief Set digit mode */
 int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode);

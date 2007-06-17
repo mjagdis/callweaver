@@ -239,8 +239,12 @@ static void dtmf_detect_init(dtmf_detect_state_t *s)
     s->digits[0] = '\0';
 }
 
-static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples, 
-                       int digitmode, int *writeback, int faxdetect)
+static int dtmf_detect(dtmf_detect_state_t *s,
+                       int16_t amp[],
+                       int samples, 
+                       int digitmode,
+                       int *writeback,
+                       int faxdetect)
 {
     float row_energy[4];
     float col_energy[4];
@@ -443,61 +447,6 @@ static int dtmf_detect(dtmf_detect_state_t *s, int16_t amp[], int samples,
     return hit;
 }
 
-static int __opbx_dsp_digitdetect(struct opbx_dsp *dsp, int16_t amp[], int len, int *writeback)
-{
-    int res;
-    char buf[2];
-    
-    if ((dsp->digitmode & DSP_DIGITMODE_MF))
-    {
-        /* This is kinda dirty, since it assumes a maximum of one digit detected per block. In
-           practice this should be OK. */
-        bell_mf_rx(&dsp->td.bell_mf, amp, len);
-        bell_mf_rx_get(&dsp->td.bell_mf, buf, 1);
-        res = buf[0];
-    }
-    else
-    {
-        dtmf_rx(&dsp->dtmf_rx, amp, len);
-
-        res = dtmf_detect(&dsp->td.dtmf,
-                          amp,
-                          len,
-                          dsp->digitmode & DSP_DIGITMODE_RELAXDTMF,
-                          writeback,
-                          dsp->features & DSP_FEATURE_FAX_DETECT);
-    }
-    if ((dsp->features & DSP_FEATURE_FAX_DETECT))
-        modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
-    if (res)
-    {
-        memset(amp, 0, sizeof(int16_t)*len);
-        *writeback = TRUE;
-    }
-    return res;
-}
-
-int opbx_dsp_digitdetect(struct opbx_dsp *dsp, struct opbx_frame *inf)
-{
-    short *s;
-    int len;
-    int ign=0;
-
-    if (inf->frametype != OPBX_FRAME_VOICE)
-    {
-        opbx_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
-        return 0;
-    }
-    if (inf->subclass != OPBX_FORMAT_SLINEAR)
-    {
-        opbx_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
-        return 0;
-    }
-    s = inf->data;
-    len = inf->datalen / 2;
-    return __opbx_dsp_digitdetect(dsp, s, len, &ign);
-}
-
 static inline int pair_there(float p1, float p2, float i1, float i2, float e)
 {
     /* See if p1 and p2 are there, relative to i1 and i2 and total energy */
@@ -516,22 +465,6 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
         return 0;
     /* Guess it's there... */
     return 1;
-}
-
-int opbx_dsp_getdigits(struct opbx_dsp *dsp, char *buf, int max)
-{
-    if (dsp->digitmode & DSP_DIGITMODE_MF)
-        return bell_mf_rx_get(&dsp->td.bell_mf, buf, max);
-    if (max > dsp->td.dtmf.current_digits)
-        max = dsp->td.dtmf.current_digits;
-    if (max > 0)
-    {
-        memcpy (buf, dsp->td.dtmf.digits, max);
-        memmove (dsp->td.dtmf.digits, dsp->td.dtmf.digits + max, dsp->td.dtmf.current_digits - max);
-        dsp->td.dtmf.current_digits -= max;
-    }
-    buf[max] = '\0';
-    return  max;
 }
 
 static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
@@ -662,9 +595,6 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
             }
             else
             {
-#if 0
-                printf("Newstate: %d\n", newstate);
-#endif
                 dsp->tstate = newstate;
                 dsp->tcount = 1;
             }
@@ -676,10 +606,6 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
             dsp->genergy = 0.0;
         }
     }
-#if 0
-    if (res)
-        printf("Returning %d\n", res);
-#endif        
     return res;
 }
 
@@ -719,10 +645,7 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *tota
             /* Move and save history */
             memmove(dsp->historicnoise + DSP_HISTORY - dsp->busycount, dsp->historicnoise + DSP_HISTORY - dsp->busycount +1, dsp->busycount*sizeof(dsp->historicnoise[0]));
             dsp->historicnoise[DSP_HISTORY - 1] = dsp->totalnoise;
-/* we don't want to check for busydetect that frequently */
-#if 0
-            dsp->busymaybe = 1;
-#endif
+            /* we don't want to check for busydetect that frequently */
         }
         dsp->totalnoise = 0;
         res = 1;
@@ -839,25 +762,13 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
     if (res && (dsp->busy_tonelength > 0))
     {
         if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100))
-        {
-#if 0
-            opbx_log(LOG_NOTICE, "busy detector: avgtone of %d not close enough to desired %d\n",
-                        avgtone, dsp->busy_tonelength);
-#endif
             res = 0;
-        }
     }
     /* If we know the expected busy tone silent-period length, check we are in the range */
     if (res && (dsp->busy_quietlength > 0))
     {
         if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100))
-        {
-#if 0
-            opbx_log(LOG_NOTICE, "busy detector: avgsilence of %d not close enough to desired %d\n",
-                        avgsilence, dsp->busy_quietlength);
-#endif
             res = 0;
-        }
     }
 #if 1
     if (res)
@@ -871,26 +782,18 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 {
     int x;
-    int res = 0;
-    int max, min;
+    int res;
+    int max;
+    int min;
 
-#if 0
-    if (dsp->busy_hits > 5);
-    return 0;
-#endif
+    res = 0;
     if (dsp->busymaybe)
     {
-#if 0
-        printf("Maybe busy!\n");
-#endif        
         dsp->busymaybe = 0;
         min = 9999;
         max = 0;
         for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
         {
-#if 0
-            printf("Silence: %d, Noise: %d\n", dsp->historicsilence[x], dsp->historicnoise[x]);
-#endif            
             if (dsp->historicsilence[x] < min)
                 min = dsp->historicsilence[x];
             if (dsp->historicnoise[x] < min)
@@ -901,15 +804,7 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
                 max = dsp->historicnoise[x];
         }
         if ((max - min < BUSY_THRESHOLD) && (max < BUSY_MAX) && (min > BUSY_MIN))
-        {
-#if 0
-            printf("Busy!\n");
-#endif            
             res = 1;
-        }
-#if 0
-        printf("Min: %d, max: %d\n", min, max);
-#endif        
     }
     return res;
 }
@@ -935,34 +830,40 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
     return __opbx_dsp_silence(dsp, s, len, totalsilence);
 }
 
+#define FIX_INF(inf) \
+do \
+{ \
+    if (writeback) \
+    { \
+        switch(inf->subclass) \
+        { \
+        case OPBX_FORMAT_SLINEAR: \
+            break; \
+        case OPBX_FORMAT_ULAW: \
+            for (x = 0;  x < len;  x++) \
+                odata[x] = OPBX_LIN2MU((int16_t) amp[x]); \
+            break; \
+        case OPBX_FORMAT_ALAW: \
+            for (x = 0;  x < len;  x++) \
+                odata[x] = OPBX_LIN2A((int16_t) amp[x]); \
+            break; \
+        } \
+    } \
+} \
+while(0) 
+
 struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *dsp, struct opbx_frame *af)
 {
     int silence;
     int res;
     int digit;
     int x;
-    int16_t *shortdata;
+    int16_t *amp;
     uint8_t *odata;
     int len;
     int writeback = 0;
     char digit_buf[10];
-
-#define FIX_INF(inf) do { \
-        if (writeback) { \
-            switch(inf->subclass) { \
-            case OPBX_FORMAT_SLINEAR: \
-                break; \
-            case OPBX_FORMAT_ULAW: \
-                for (x=0;x<len;x++) \
-                    odata[x] = OPBX_LIN2MU((unsigned short)shortdata[x]); \
-                break; \
-            case OPBX_FORMAT_ALAW: \
-                for (x=0;x<len;x++) \
-                    odata[x] = OPBX_LIN2A((unsigned short)shortdata[x]); \
-                break; \
-            } \
-        } \
-    } while(0) 
+    char buf[2];
 
     if (!af)
         return NULL;
@@ -974,24 +875,24 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     switch (af->subclass)
     {
     case OPBX_FORMAT_SLINEAR:
-        shortdata = af->data;
+        amp = af->data;
         len = af->datalen / 2;
         break;
     case OPBX_FORMAT_ULAW:
-        shortdata = alloca(af->datalen*sizeof(int16_t));
+        amp = alloca(af->datalen*sizeof(int16_t));
         for (x = 0;  x < len;  x++) 
-            shortdata[x] = OPBX_MULAW(odata[x]);
+            amp[x] = OPBX_MULAW(odata[x]);
         break;
     case OPBX_FORMAT_ALAW:
-        shortdata = alloca(af->datalen*sizeof(int16_t));
+        amp = alloca(af->datalen*sizeof(int16_t));
         for (x = 0;  x < len;  x++) 
-            shortdata[x] = OPBX_ALAW(odata[x]);
+            amp[x] = OPBX_ALAW(odata[x]);
         break;
     default:
         opbx_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
         return af;
     }
-    silence = __opbx_dsp_silence(dsp, shortdata, len, NULL);
+    silence = __opbx_dsp_silence(dsp, amp, len, NULL);
     if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence)
     {
         opbx_fr_init(&dsp->f);
@@ -1007,7 +908,33 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     }
     if ((dsp->features & DSP_FEATURE_DTMF_DETECT))
     {
-        digit = __opbx_dsp_digitdetect(dsp, shortdata, len, &writeback);
+        if ((dsp->digitmode & DSP_DIGITMODE_MF))
+        {
+            /* This is kinda dirty, since it assumes a maximum of one digit detected per block. In
+               practice this should be OK. */
+            bell_mf_rx(&dsp->td.bell_mf, amp, len);
+            bell_mf_rx_get(&dsp->td.bell_mf, buf, 1);
+            res = buf[0];
+        }
+        else
+        {
+            dtmf_rx(&dsp->dtmf_rx, amp, len);
+
+            res = dtmf_detect(&dsp->td.dtmf,
+                              amp,
+                              len,
+                              dsp->digitmode & DSP_DIGITMODE_RELAXDTMF,
+                              writeback,
+                              dsp->features & DSP_FEATURE_FAX_DETECT);
+        }
+        if ((dsp->features & DSP_FEATURE_FAX_DETECT))
+            modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
+        if (res)
+        {
+            memset(amp, 0, sizeof(int16_t)*len);
+            writeback = TRUE;
+        }
+        digit = res;
         if (dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX))
         {
             if (!dsp->thinkdigit)
@@ -1107,7 +1034,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     }
     if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
     {
-        res = __opbx_dsp_call_progress(dsp, shortdata, len);
+        res = __opbx_dsp_call_progress(dsp, amp, len);
         if (res)
         {
             switch (res)

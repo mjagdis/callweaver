@@ -104,12 +104,15 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 
     struct opbx_dsp *dsp = NULL;
 
-    if ( !( dsp = opbx_dsp_new() ) )
+    if ((dsp = opbx_dsp_new()) == NULL)
+    {
         opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
-    else {
-	opbx_dsp_set_threshold(dsp, 256); 
-	opbx_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
-	opbx_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+    }
+    else
+    {
+        opbx_dsp_set_threshold(dsp, 256); 
+        opbx_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+        opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
     }
 
     channels[0] = chan;
@@ -123,10 +126,10 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             if ((f = opbx_read(active)))
             {
 
-		if ( ( active == chan ) && dsp )
-		    fr2 = opbx_frdup(f);
-		else
-		    fr2=NULL;
+                if ((active == chan)  &&  dsp)
+                    fr2 = opbx_frdup(f);
+                else
+                    fr2 = NULL;
 
                 f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
                 opbx_write(inactive, f);
@@ -134,24 +137,24 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                 channels[0] = inactive;
                 channels[1] = active;
 
-		if ( ( active == chan ) && fr2 && dsp) {
-        	    fr2 = opbx_dsp_process(active, dsp, fr2);
-        	    if (fr2) {
-        		if (fr2->frametype == OPBX_FRAME_DTMF)
-        		{
-            		    if (fr2->subclass == 'f')
-            		    {
-    				opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
-                		opbx_app_request_t38(active);
-			    }
-			}
-		    }
-		}
-		if (f != fr2) {
-		    if (fr2)
-            		opbx_fr_free(fr2);
-		    fr2=NULL;
-		}
+                if ( ( active == chan ) && fr2 && dsp) {
+                    fr2 = opbx_dsp_process(active, dsp, fr2);
+                    if (fr2) {
+                        if (fr2->frametype == OPBX_FRAME_DTMF)
+                        {
+                                if (fr2->subclass == 'f')
+                                {
+                                    opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
+                                opbx_app_request_t38(active);
+                            }
+                        }
+                    }
+                }
+                if (f != fr2) {
+                    if (fr2)
+                            opbx_fr_free(fr2);
+                    fr2=NULL;
+                }
             }
             else
             {
@@ -161,7 +164,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
         /* Check if we need to change to gateway operation */
         if (chan->t38mode_enabled != peer->t38mode_enabled) {
             break;
-	}
+        }
     }
 
     if (dsp)
@@ -335,9 +338,10 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
     struct opbx_channel *other = NULL;
     struct opbx_channel *channels[2];
     
-    if (argc < 1 || argc > 3 || !argv[0][0]) {
-	opbx_log(LOG_ERROR, "Syntax: %s\n", t38gateway_syntax);
-	return -1;
+    if (argc < 1  ||  argc > 3  ||  !argv[0][0])
+    {
+        opbx_log(LOG_ERROR, "Syntax: %s\n", t38gateway_syntax);
+        return -1;
     }
 
     LOCAL_USER_ADD(u);
@@ -358,40 +362,40 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
             ALL_DONE(u, 0);
         }
 
-	if (peer)
-	{
-	  opbx_channel_inherit_variables(chan, peer);
-	  peer->appl = "AppT38GW (Outgoing Line)";
-	  peer->whentohangup = 0;
-	  if (peer->cid.cid_num)
-	    free(peer->cid.cid_num);
-	  peer->cid.cid_num = NULL;
-	  if (peer->cid.cid_name)
-	    free(peer->cid.cid_name);
-	  peer->cid.cid_name = NULL;
-	  if (peer->cid.cid_ani)
-	    free(peer->cid.cid_ani);
-	  peer->cid.cid_ani = NULL;
-	  peer->transfercapability = chan->transfercapability;
-	  peer->adsicpe = chan->adsicpe;
-	  peer->cid.cid_tns = chan->cid.cid_tns;
-	  peer->cid.cid_ton = chan->cid.cid_ton;
-	  peer->cid.cid_pres = chan->cid.cid_pres;
-	  peer->cdrflags = chan->cdrflags;
-	  if (chan->cid.cid_rdnis)
-		peer->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
-	  if (chan->cid.cid_num) 
-		peer->cid.cid_num = strdup(chan->cid.cid_num);
-          if (chan->cid.cid_name) 
-		peer->cid.cid_name = strdup(chan->cid.cid_name);
-          if (chan->cid.cid_ani) 
-		peer->cid.cid_ani = strdup(chan->cid.cid_ani);
-	  opbx_copy_string(peer->language, chan->language, sizeof(peer->language));
-	  opbx_copy_string(peer->accountcode, chan->accountcode, sizeof(peer->accountcode));
-	  peer->cdrflags = chan->cdrflags;
-	  if (opbx_strlen_zero(peer->musicclass))
-			opbx_copy_string(peer->musicclass, chan->musicclass, sizeof(peer->musicclass));	
-	}
+        if (peer)
+        {
+            opbx_channel_inherit_variables(chan, peer);
+            peer->appl = "AppT38GW (Outgoing Line)";
+            peer->whentohangup = 0;
+            if (peer->cid.cid_num)
+                free(peer->cid.cid_num);
+            peer->cid.cid_num = NULL;
+            if (peer->cid.cid_name)
+                free(peer->cid.cid_name);
+            peer->cid.cid_name = NULL;
+            if (peer->cid.cid_ani)
+                free(peer->cid.cid_ani);
+            peer->cid.cid_ani = NULL;
+            peer->transfercapability = chan->transfercapability;
+            peer->adsicpe = chan->adsicpe;
+            peer->cid.cid_tns = chan->cid.cid_tns;
+            peer->cid.cid_ton = chan->cid.cid_ton;
+            peer->cid.cid_pres = chan->cid.cid_pres;
+            peer->cdrflags = chan->cdrflags;
+            if (chan->cid.cid_rdnis)
+                peer->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
+            if (chan->cid.cid_num) 
+                peer->cid.cid_num = strdup(chan->cid.cid_num);
+            if (chan->cid.cid_name) 
+                peer->cid.cid_name = strdup(chan->cid.cid_name);
+            if (chan->cid.cid_ani) 
+                peer->cid.cid_ani = strdup(chan->cid.cid_ani);
+            opbx_copy_string(peer->language, chan->language, sizeof(peer->language));
+            opbx_copy_string(peer->accountcode, chan->accountcode, sizeof(peer->accountcode));
+            peer->cdrflags = chan->cdrflags;
+            if (opbx_strlen_zero(peer->musicclass))
+                opbx_copy_string(peer->musicclass, chan->musicclass, sizeof(peer->musicclass));        
+        }
         if (argc > 2 && strchr(argv[2], 'r'))
             opbx_indicate(chan, OPBX_CONTROL_RINGING);
     }
@@ -494,7 +498,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
         {
             opbx_answer(chan);
             peer->appl = t38gateway_app;
-			/* FIXME original patch removes the if line below - trying with it before removing it */
+            /* FIXME original patch removes the if line below - trying with it before removing it */
             if (argc > 2 && strchr(argv[2], 'r'))
                 opbx_indicate(chan, -1);
 
