@@ -2,16 +2,12 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-inherit eutils subversion
+inherit eutils
 
 DESCRIPTION="CallWeaver is a community-driven vendor-independent cross-platform Open Source PBX software project."
 HOMEPAGE="http://www.callweaver.org/"
-
-ESVN_REPO_URI="http://svn.callweaver.org/callweaver/trunk"
-ESVN_BOOTSTRAP="./bootstrap.sh"
-
-S="${WORKDIR}/${PN}"
-
+SRC_URI="http://devs.callweaver.org/trunk_snapshots/${P}.tar.gz"
+                
 SLOT="0"
 LICENSE="GPL-2"
 KEYWORDS="~x86"
@@ -21,12 +17,11 @@ KEYWORDS="~x86"
 IUSE="misdn speex postgres zap"
 
 RDEPEND="!net-misc/callweaver-svn
-    >=media-libs/spandsp-0.0.4_pre3
-    misdn? ( =net-dialup/misdn-1.1.2 =net-dialup/misdnuser-1.1.2 )
-    speex? ( media-libs/speex )
-    postgres? ( dev-db/postgresql )
-    zap? ( net-misc/zaptel )"
-
+	>=media-libs/spandsp-0.0.4_pre3
+	misdn? ( =net-dialup/misdn-1.1.2 =net-dialup/misdnuser-1.1.2 )
+	speex? ( media-libs/speex )
+	postgres? ( dev-db/postgresql )
+	zap? ( net-misc/zaptel )"
 
 DEPEND="${RDEPEND}
         sys-devel/flex
@@ -34,13 +29,6 @@ DEPEND="${RDEPEND}
         >=sys-devel/automake-1.9.6
         >=sys-devel/autoconf-2.59
         >=sys-devel/libtool-1.5.20"
-
-
-src_unpack() {
-        subversion_fetch
-        cd "${S}"
-        subversion_bootstrap
-}
 
 
 src_compile() {
