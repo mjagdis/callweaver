@@ -438,7 +438,7 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
     {
 		if ((res = fread(msdata, 1, 65, s->f)) != 65)
         {
-			if (res && (res != 1))
+			if (res  &&  (res != 1))
 				opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 			return NULL;
 		}
@@ -457,35 +457,47 @@ static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
 	char msdata[66];
 	int len =0;
 	int alreadyms=0;
-	if (f->frametype != OPBX_FRAME_VOICE) {
+
+	if (f->frametype != OPBX_FRAME_VOICE)
+    {
 		opbx_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != OPBX_FORMAT_GSM) {
+	if (f->subclass != OPBX_FORMAT_GSM)
+    {
 		opbx_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
 	if (!(f->datalen % 65)) 
 		alreadyms = 1;
-	while(len < f->datalen) {
-		if (alreadyms) {
+	while (len < f->datalen)
+    {
+		if (alreadyms)
+        {
 			fs->secondhalf = 0;
-			if ((res = fwrite(f->data + len, 1, 65, fs->f)) != 65) {
+			if ((res = fwrite(f->data + len, 1, 65, fs->f)) != 65)
+            {
 				opbx_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 				return -1;
 			}
 			update_header(fs->f);
 			len += 65;
-		} else {
-			if (fs->secondhalf) {
+		}
+        else
+        {
+			if (fs->secondhalf)
+            {
 				memcpy(fs->gsm + 33, f->data + len, 33);
 				conv66(fs->gsm, msdata);
-				if ((res = fwrite(msdata, 1, 65, fs->f)) != 65) {
+				if ((res = fwrite(msdata, 1, 65, fs->f)) != 65)
+                {
 					opbx_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 					return -1;
 				}
 				update_header(fs->f);
-			} else {
+			}
+            else
+            {
 				/* Copy the data and do nothing */
 				memcpy(fs->gsm, f->data + len, 33);
 			}
@@ -498,30 +510,38 @@ static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
 
 static int wav_seek(struct opbx_filestream *fs, long sample_offset, int whence)
 {
-	off_t offset=0,distance,cur,min,max;
-	min = 60;
+	off_t offset = 0;
+    off_t distance;
+    off_t cur;
+    off_t min;
+    off_t max;
+	
+    min = 60;
 	cur = ftell(fs->f);
 	fseek(fs->f, 0, SEEK_END);
 	max = ftell(fs->f);
 	/* I'm getting sloppy here, I'm only going to go to even splits of the 2
 	 * frames, if you want tighter cuts use format_gsm, format_pcm, or format_wav */
-	distance = (sample_offset/320) * 65;
-	if(whence == SEEK_SET)
+	distance = (sample_offset/320)*65;
+	if (whence == SEEK_SET)
 		offset = distance + min;
-	else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
+	else if(whence == SEEK_CUR  ||  whence == SEEK_FORCECUR)
 		offset = distance + cur;
 	else if(whence == SEEK_END)
 		offset = max - distance;
 	/* always protect against seeking past end of header */
-	offset = (offset < min)?min:offset;
-	if (whence != SEEK_FORCECUR) {
-		offset = (offset > max)?max:offset;
-	} else if (offset > max) {
+	offset = (offset < min)  ?  min  :  offset;
+	if (whence != SEEK_FORCECUR)
+    {
+		offset = (offset > max)  ?  max  :  offset;
+	}
+    else if (offset > max)
+    {
 		int i;
+
 		fseek(fs->f, 0, SEEK_END);
-		for (i=0; i< (offset - max) / 65; i++) {
+		for (i = 0;  i < (offset - max)/65;  i++)
 			fwrite(msgsm_silence, 1, 65, fs->f);
-		}
 	}
 	fs->secondhalf = 0;
 	return fseek(fs->f, offset, SEEK_SET);
@@ -537,6 +557,7 @@ static int wav_trunc(struct opbx_filestream *fs)
 static long wav_tell(struct opbx_filestream *fs)
 {
 	off_t offset;
+
 	offset = ftell(fs->f);
 	/* since this will most likely be used later in play or record, lets stick
 	 * to that level of resolution, just even frames boundaries */
@@ -548,9 +569,11 @@ static char *wav_getcomment(struct opbx_filestream *s)
 	return NULL;
 }
 
-int load_module()
+int load_module(void)
 {
-	return opbx_format_register(name, exts, OPBX_FORMAT_GSM,
+	return opbx_format_register(name,
+                                exts,
+                                OPBX_FORMAT_GSM,
 								wav_open,
 								wav_rewrite,
 								wav_write,
@@ -560,24 +583,19 @@ int load_module()
 								wav_read,
 								wav_close,
 								wav_getcomment);
-								
-								
 }
 
-int unload_module()
+int unload_module(void)
 {
 	return opbx_format_unregister(name);
 }	
 
-int usecount()
+int usecount(void)
 {
 	return glistcnt;
 }
 
-char *description()
+char *description(void)
 {
 	return desc;
 }
-
-
-

@@ -370,19 +370,25 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 			return -1;
 	}
 	f = formats;
-	while(f) {
-		if (!fmt || exts_compare(f->exts, fmt)) {
+	while (f)
+    {
+		if (!fmt  ||  exts_compare(f->exts, fmt))
+        {
 			char *stringp=NULL;
 			exts = opbx_strdupa(f->exts);
 			/* Try each kind of extension */
 			stringp=exts;
 			ext = strsep(&stringp, "|,");
-			do {
+			do
+            {
 				fn = build_filename(filename, ext);
-				if (fn) {
+				if (fn)
+                {
 					res = stat(fn, &st);
-					if (!res) {
-						switch(action) {
+					if (!res)
+                    {
+						switch(action)
+                        {
 						case ACTION_EXISTS:
 							ret |= f->format;
 							break;
@@ -393,14 +399,18 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 							break;
 						case ACTION_RENAME:
 							nfn = build_filename(filename2, ext);
-							if (nfn) {
+							if (nfn)
+                            {
 								res = rename(fn, nfn);
 								if (res)
 									opbx_log(LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 								free(nfn);
-							} else
+							}
+                            else
+                            {
 								opbx_log(LOG_WARNING, "Out of memory\n");
-							break;
+							}
+                            break;
 						case ACTION_COPY:
 							nfn = build_filename(filename2, ext);
 							if (nfn) {
@@ -408,17 +418,22 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 								if (res)
 									opbx_log(LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 								free(nfn);
-							} else
+							}
+                            else
+                            {
 								opbx_log(LOG_WARNING, "Out of memory\n");
-							break;
+							}
+                            break;
 						case ACTION_OPEN:
 							if ((ret < 0) && ((chan->writeformat & f->format) ||
 										((f->format >= OPBX_FORMAT_MAX_AUDIO) && fmt))) {
 								bfile = fopen(fn, "r");
-								if (bfile) {
+								if (bfile)
+                                {
 									ret = 1;
 									s = f->open(bfile);
-									if (s) {
+									if (s)
+                                    {
 										s->lasttimeout = -1;
 										s->fmt = f;
 										s->trans = NULL;
@@ -427,12 +442,16 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 											chan->stream = s;
 										else
 											chan->vstream = s;
-									} else {
+									}
+                                    else
+                                    {
 										fclose(bfile);
 										opbx_log(LOG_WARNING, "Unable to open file on %s\n", fn);
 										ret = -1;
 									}
-								} else{
+								}
+                                else
+                                {
 									opbx_log(LOG_WARNING, "Couldn't open file %s\n", fn);
 									ret = -1;
 								}
@@ -440,6 +459,7 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 							break;
 						default:
 							opbx_log(LOG_WARNING, "Unknown helper %d\n", action);
+							break;
 						}
 						/* Conveniently this logic is the same for all */
 						if (res)
@@ -458,6 +478,7 @@ static int opbx_filehelper(const char *filename, const char *filename2, const ch
 		res = ret ? ret : -1;
 	return res;
 }
+
 struct opbx_filestream *opbx_openstream(struct opbx_channel *chan, const char *filename, const char *preflang)
 {
 	return opbx_openstream_full(chan, filename, preflang, 0);
@@ -475,7 +496,6 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	   5) See what we can actually support
 	   6) Choose the one with the least costly translator path and
 	       set it up.
-		   
 	*/
 	int fmts = -1;
 	char filename2[256]="";
