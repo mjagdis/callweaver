@@ -5,9 +5,6 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * Goertzel routines are borrowed from Steve Underwood's tremendous work on the
- * DTMF detector.
- *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
@@ -74,10 +71,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* For UK mode */
 #define HZ_400  0
 
-static struct progalias {
+static struct progalias
+{
     char *name;
     int mode;
-} aliases[] = {
+} aliases[] =
+{
     { "us", PROG_MODE_NA },
     { "ca", PROG_MODE_NA },
     { "cr", PROG_MODE_CR },
@@ -85,10 +84,12 @@ static struct progalias {
     { "uk", PROG_MODE_UK },
 };
 
-static struct progress {
+static struct progress
+{
     int size;
     int freqs[7];
-} modes[] = {
+} modes[] =
+{
     { GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },    /* North America */
     { GSAMP_SIZE_CR, { 425 } },
     { GSAMP_SIZE_UK, { 400 } },
@@ -105,80 +106,14 @@ static struct progress {
 /* Remember last 15 units */
 #define DSP_HISTORY         15
 
-/* Define if you want the fax detector -- NOT RECOMMENDED IN -STABLE */
-#define FAX_DETECT
-
-#define TONE_THRESH         10.0    /* How much louder the tone should be than channel energy */
-#define TONE_MIN_THRESH     1e8        /* How much tone there should be at least to attempt */
-#define COUNT_THRESH        3        /* Need at least 50ms of stuff to count it */
-#define UK_HANGUP_THRESH    60        /* This is the threshold for the UK */
-
-
-#define MAX_DTMF_DIGITS     128
-
-/* Basic DTMF specs:
- *
- * Minimum tone on = 40ms
- * Minimum tone off = 50ms
- * Maximum digit rate = 10 per second
- * Normal twist <= 8dB accepted
- * Reverse twist <= 4dB accepted
- * S/N >= 15dB will detect OK
- * Attenuation <= 26dB will detect OK
- * Frequency tolerance +- 1.5% will detect, +-3.5% will reject
- */
-
-#define DTMF_THRESHOLD              8.0e7
-#define FAX_THRESHOLD               7.0e7
-#define DTMF_NORMAL_TWIST           6.3     /* 8dB */
-#ifdef RADIO_RELAX
-#define DTMF_REVERSE_TWIST          ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 6.3 : 2.5)     /* 8dB relaxed, 4dB normal */
-#else
-#define DTMF_REVERSE_TWIST          ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 4.0 : 2.5)     /* 6dB relaxed, 4dB normal */
-#endif
-#define DTMF_RELATIVE_PEAK_ROW      6.3     /* 8dB */
-#define DTMF_RELATIVE_PEAK_COL      6.3     /* 8dB */
-#define DTMF_TO_TOTAL_ENERGY        42.0
+#define TONE_THRESH         10.0f   /* How much louder the tone should be than channel energy */
+#define TONE_MIN_THRESH     1.0e8f  /* How much tone there should be at least to attempt */
+#define COUNT_THRESH        3       /* Need at least 50ms of stuff to count it */
+#define UK_HANGUP_THRESH    60      /* This is the threshold for the UK */
 
 #if !defined(BUSYDETECT_MARTIN)  &&  !defined(BUSYDETECT)  &&  !defined(BUSYDETECT_TONEONLY)  &&  !defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
 #define BUSYDETECT_MARTIN
 #endif
-
-typedef struct
-{
-    goertzel_state_t row_out[4];
-    goertzel_state_t col_out[4];
-    int hits[3];
-    int mhit;
-    float energy;
-    int current_sample;
-
-    char digits[MAX_DTMF_DIGITS + 1];
-    
-    int current_digits;
-    int detected_digits;
-    int lost_digits;
-    int digit_hits[16];
-#ifdef FAX_DETECT
-    goertzel_state_t fax_tone;
-    int fax_hits;
-#endif
-} dtmf_detect_state_t;
-
-static float dtmf_row[] =
-{
-    697.0,  770.0,  852.0,  941.0
-};
-static float dtmf_col[] =
-{
-    1209.0, 1336.0, 1477.0, 1633.0
-};
-
-#ifdef FAX_DETECT
-static float fax_freq = 1100.0;
-#endif
-
-static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 
 struct opbx_dsp
 {
@@ -202,250 +137,12 @@ struct opbx_dsp
     int tcount;
     int digitmode;
     int thinkdigit;
+    int mute_lag;
     float genergy;
     dtmf_rx_state_t dtmf_rx;
     modem_connect_tones_rx_state_t fax_cng_rx;
-    union
-    {
-        dtmf_detect_state_t dtmf;
-        bell_mf_rx_state_t bell_mf;
-    } td;
+    bell_mf_rx_state_t bell_mf_rx;
 };
-
-static void dtmf_detect_init(dtmf_detect_state_t *s)
-{
-    int i;
-    goertzel_descriptor_t desc;
-
-    s->hits[0] = s->hits[1] = s->hits[2] = 0;
-    for (i = 0;  i < 4;  i++)
-    {
-        make_goertzel_descriptor(&desc, dtmf_row[i], 102);
-        goertzel_init(&s->row_out[i], &desc);
-        make_goertzel_descriptor(&desc, dtmf_col[i], 102);
-        goertzel_init(&s->col_out[i], &desc);
-        s->energy = 0.0;
-    }
-#ifdef FAX_DETECT
-    /* Same for the fax detector */
-    make_goertzel_descriptor(&desc, fax_freq, 102);
-    goertzel_init(&s->fax_tone, &desc);
-#endif /* FAX_DETECT */
-    s->current_sample = 0;
-    s->detected_digits = 0;
-    s->current_digits = 0;
-    memset(&s->digits, 0, sizeof(s->digits));
-    s->lost_digits = 0;
-    s->digits[0] = '\0';
-}
-
-static int dtmf_detect(dtmf_detect_state_t *s,
-                       int16_t amp[],
-                       int samples, 
-                       int digitmode,
-                       int *writeback,
-                       int faxdetect)
-{
-    float row_energy[4];
-    float col_energy[4];
-#ifdef FAX_DETECT
-    float fax_energy;
-#endif /* FAX_DETECT */
-    float famp;
-    float v1;
-    int i;
-    int j;
-    int sample;
-    int best_row;
-    int best_col;
-    int hit;
-    int limit;
-
-    hit = 0;
-    for (sample = 0;  sample < samples;  sample = limit)
-    {
-        /* 102 is optimised to meet the DTMF specs. */
-        if ((samples - sample) >= (102 - s->current_sample))
-            limit = sample + (102 - s->current_sample);
-        else
-            limit = samples;
-        /* The following unrolled loop takes only 35% (rough estimate) of the 
-           time of a rolled loop on the machine on which it was developed */
-        for (j = sample;  j < limit;  j++)
-        {
-            famp = amp[j];
-            s->energy += famp*famp;
-            /* With GCC 2.95, the following unrolled code seems to take about 35%
-               (rough estimate) as long as a neat little 0-3 loop */
-            v1 = s->row_out[0].v2;
-            s->row_out[0].v2 = s->row_out[0].v3;
-            s->row_out[0].v3 = s->row_out[0].fac*s->row_out[0].v2 - v1 + famp;
-            v1 = s->col_out[0].v2;
-            s->col_out[0].v2 = s->col_out[0].v3;
-            s->col_out[0].v3 = s->col_out[0].fac*s->col_out[0].v2 - v1 + famp;
-            v1 = s->row_out[1].v2;
-            s->row_out[1].v2 = s->row_out[1].v3;
-            s->row_out[1].v3 = s->row_out[1].fac*s->row_out[1].v2 - v1 + famp;
-            v1 = s->col_out[1].v2;
-            s->col_out[1].v2 = s->col_out[1].v3;
-            s->col_out[1].v3 = s->col_out[1].fac*s->col_out[1].v2 - v1 + famp;
-            v1 = s->row_out[2].v2;
-            s->row_out[2].v2 = s->row_out[2].v3;
-            s->row_out[2].v3 = s->row_out[2].fac*s->row_out[2].v2 - v1 + famp;
-            v1 = s->col_out[2].v2;
-            s->col_out[2].v2 = s->col_out[2].v3;
-            s->col_out[2].v3 = s->col_out[2].fac*s->col_out[2].v2 - v1 + famp;
-            v1 = s->row_out[3].v2;
-            s->row_out[3].v2 = s->row_out[3].v3;
-            s->row_out[3].v3 = s->row_out[3].fac*s->row_out[3].v2 - v1 + famp;
-            v1 = s->col_out[3].v2;
-            s->col_out[3].v2 = s->col_out[3].v3;
-            s->col_out[3].v3 = s->col_out[3].fac*s->col_out[3].v2 - v1 + famp;
-#ifdef FAX_DETECT
-            /* Update fax tone */
-            v1 = s->fax_tone.v2;
-            s->fax_tone.v2 = s->fax_tone.v3;
-            s->fax_tone.v3 = s->fax_tone.fac*s->fax_tone.v2 - v1 + famp;
-#endif /* FAX_DETECT */
-        }
-        s->current_sample += (limit - sample);
-        if (s->current_sample < 102)
-        {
-            if (hit  &&  !((digitmode & DSP_DIGITMODE_NOQUELCH)))
-            {
-                /* If we had a hit last time, go ahead and clear this out since likely it
-                   will be another hit */
-                for (i = sample;  i < limit;  i++) 
-                    amp[i] = 0;
-                *writeback = 1;
-            }
-            continue;
-        }
-#ifdef FAX_DETECT
-        /* Detect the fax energy, too */
-        fax_energy = goertzel_result(&s->fax_tone);
-#endif
-        /* We are at the end of a DTMF detection block */
-        /* Find the peak row and the peak column */
-        row_energy[0] = goertzel_result(&s->row_out[0]);
-        col_energy[0] = goertzel_result(&s->col_out[0]);
-
-        for (best_row = best_col = 0, i = 1;  i < 4;  i++) {
-            row_energy[i] = goertzel_result(&s->row_out[i]);
-            if (row_energy[i] > row_energy[best_row])
-                best_row = i;
-            col_energy[i] = goertzel_result(&s->col_out[i]);
-            if (col_energy[i] > col_energy[best_col])
-                best_col = i;
-        }
-        hit = 0;
-        /* Basic signal level test and the twist test */
-        if (row_energy[best_row] >= DTMF_THRESHOLD && 
-            col_energy[best_col] >= DTMF_THRESHOLD &&
-            col_energy[best_col] < row_energy[best_row]*DTMF_REVERSE_TWIST &&
-            col_energy[best_col]*DTMF_NORMAL_TWIST > row_energy[best_row])
-        {
-            /* Relative peak test */
-            for (i = 0;  i < 4;  i++)
-            {
-                if ((i != best_col
-                    &&
-                    col_energy[i]*DTMF_RELATIVE_PEAK_COL > col_energy[best_col]) ||
-                    (i != best_row 
-                     && row_energy[i]*DTMF_RELATIVE_PEAK_ROW > row_energy[best_row]))
-                {
-                    break;
-                }
-            }
-            /* ... and fraction of total energy test */
-            if (i >= 4
-                &&
-                (row_energy[best_row] + col_energy[best_col]) > DTMF_TO_TOTAL_ENERGY*s->energy)
-            {
-                /* Got a hit */
-                hit = dtmf_positions[(best_row << 2) + best_col];
-                if (!(digitmode & DSP_DIGITMODE_NOQUELCH))
-                {
-                    /* Zero out frame data if this is part DTMF */
-                    for (i = sample;  i < limit;  i++) 
-                        amp[i] = 0;
-                    *writeback = 1;
-                }
-                /* Look for two successive similar results */
-                /* The logic in the next test is:
-                   We need two successive identical clean detects, with
-                   something different preceeding it. This can work with
-                   back to back differing digits. More importantly, it
-                   can work with nasty phones that give a very wobbly start
-                   to a digit */
-                if (hit == s->hits[2]  &&  hit != s->hits[1]  &&  hit != s->hits[0])
-                {
-                    s->mhit = hit;
-                    s->digit_hits[(best_row << 2) + best_col]++;
-                    s->detected_digits++;
-                    if (s->current_digits < MAX_DTMF_DIGITS)
-                    {
-                        s->digits[s->current_digits++] = hit;
-                        s->digits[s->current_digits] = '\0';
-                    }
-                    else
-                    {
-                        s->lost_digits++;
-                    }
-                }
-            }
-        } 
-#ifdef FAX_DETECT
-        if (!hit && (fax_energy >= FAX_THRESHOLD) && 
-            (fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy) &&
-            (faxdetect))
-        {
-            /* XXX Probably need better checking than just this the energy XXX */
-            hit = 'f';
-            s->fax_hits++;
-        }
-        else
-        {
-            if (s->fax_hits > 5)
-            {
-                hit = 'f';
-                s->mhit = 'f';
-                s->detected_digits++;
-                if (s->current_digits < MAX_DTMF_DIGITS)
-                {
-                    s->digits[s->current_digits++] = hit;
-                    s->digits[s->current_digits] = '\0';
-                }
-                else
-                {
-                    s->lost_digits++;
-                }
-            }
-            s->fax_hits = 0;
-        }
-#endif
-        s->hits[0] = s->hits[1];
-        s->hits[1] = s->hits[2];
-        s->hits[2] = hit;
-        /* Reinitialise the detector for the next block */
-        for (i = 0;  i < 4;  i++)
-        {
-            goertzel_reset(&s->row_out[i]);
-            goertzel_reset(&s->col_out[i]);
-        }
-#ifdef FAX_DETECT
-        goertzel_reset(&s->fax_tone);
-#endif
-        s->energy = 0.0;
-        s->current_sample = 0;
-    }
-    if ((!s->mhit) || (s->mhit != hit))
-    {
-        s->mhit = 0;
-        return  0;
-    }
-    return hit;
-}
 
 static inline int pair_there(float p1, float p2, float i1, float i2, float e)
 {
@@ -458,10 +155,10 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
     i1 *= TONE_THRESH;
     e *= TONE_THRESH;
     /* Check first tone */
-    if ((p1 < i1) || (p1 < i2) || (p1 < e))
+    if ((p1 < i1)  ||  (p1 < i2)  ||  (p1 < e))
         return 0;
     /* And second */
-    if ((p2 < i1) || (p2 < i2) || (p2 < e))
+    if ((p2 < i1)  ||  (p2 < i2)  ||  (p2 < e))
         return 0;
     /* Guess it's there... */
     return 1;
@@ -472,10 +169,13 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
     int x;
     int y;
     int pass;
-    int newstate = DSP_TONE_STATE_SILENCE;
-    int res = 0;
-    int thresh = (dsp->progmode == PROG_MODE_UK) ? UK_HANGUP_THRESH : COUNT_THRESH;
+    int newstate;
+    int res;
+    int thresh;
 
+    newstate = DSP_TONE_STATE_SILENCE;
+    res = 0;
+    thresh = (dsp->progmode == PROG_MODE_UK)  ?  UK_HANGUP_THRESH  :  COUNT_THRESH;
     while (len)
     {
         /* Take the lesser of the number of samples we need and what we have */
@@ -603,7 +303,7 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
             for (x = 0;  x < 7;  x++)
                 goertzel_reset(&dsp->freqs[x]);
             dsp->gsamps = 0;
-            dsp->genergy = 0.0;
+            dsp->genergy = 0.0f;
         }
     }
     return res;
@@ -687,11 +387,14 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *tota
 #ifdef BUSYDETECT_MARTIN
 int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 {
-    int res = 0, x;
+    int res = 0;
+    int x;
 #ifndef BUSYDETECT_TONEONLY
-    int avgsilence = 0, hitsilence = 0;
+    int avgsilence = 0;
+    int hitsilence = 0;
 #endif
-    int avgtone = 0, hittone = 0;
+    int avgtone = 0;
+    int hittone = 0;
 
     if (!dsp->busymaybe)
         return res;
@@ -732,9 +435,13 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
         }
     }
 #ifndef BUSYDETECT_TONEONLY
-    if ((hittone >= dsp->busycount - 1) && (hitsilence >= dsp->busycount - 1) && 
-        (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX) && 
-        (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX))
+    if ((hittone >= dsp->busycount - 1)
+        &&
+        (hitsilence >= dsp->busycount - 1)
+        && 
+        (avgtone >= BUSY_MIN  &&  avgtone <= BUSY_MAX)
+        && 
+        (avgsilence >= BUSY_MIN  &&  avgsilence <= BUSY_MAX))
     {
 #else
     if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX))
@@ -861,14 +568,15 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     int16_t *amp;
     uint8_t *odata;
     int len;
-    int writeback = 0;
+    int writeback = FALSE;
     char digit_buf[10];
     char buf[2];
 
-    if (!af)
+    if (af == NULL)
         return NULL;
     if (af->frametype != OPBX_FRAME_VOICE)
         return af;
+    digit = 0;
     odata = af->data;
     len = af->datalen;
     /* Make sure we have short data */
@@ -899,7 +607,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         dsp->f.frametype = OPBX_FRAME_NULL;
         return &dsp->f;
     }
-    if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && opbx_dsp_busydetect(dsp))
+    if ((dsp->features & DSP_FEATURE_BUSY_DETECT)  &&  opbx_dsp_busydetect(dsp))
     {
         chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
         opbx_fr_init_ex(&dsp->f, OPBX_FRAME_CONTROL, OPBX_CONTROL_BUSY, NULL);
@@ -912,30 +620,31 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
         {
             /* This is kinda dirty, since it assumes a maximum of one digit detected per block. In
                practice this should be OK. */
-            bell_mf_rx(&dsp->td.bell_mf, amp, len);
-            bell_mf_rx_get(&dsp->td.bell_mf, buf, 1);
-            res = buf[0];
+            bell_mf_rx(&dsp->bell_mf_rx, amp, len);
+            bell_mf_rx_get(&dsp->bell_mf_rx, buf, 1);
+            digit = buf[0];
         }
         else
         {
             dtmf_rx(&dsp->dtmf_rx, amp, len);
-
-            res = dtmf_detect(&dsp->td.dtmf,
-                              amp,
-                              len,
-                              dsp->digitmode & DSP_DIGITMODE_RELAXDTMF,
-                              writeback,
-                              dsp->features & DSP_FEATURE_FAX_DETECT);
+            dtmf_rx_get(&dsp->dtmf_rx, buf, 1);
+            digit = buf[0];
+            /* TODO: Avoid probing inside the DTMF rx object */
+            if (dsp->dtmf_rx.in_digit)
+                dsp->mute_lag = 5;
+            if (dsp->mute_lag  &&  --dsp->mute_lag)
+            {
+                memset(amp, 0, sizeof(int16_t)*len);
+                writeback = TRUE;
+            }
         }
         if ((dsp->features & DSP_FEATURE_FAX_DETECT))
-            modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
-        if (res)
         {
-            memset(amp, 0, sizeof(int16_t)*len);
-            writeback = TRUE;
+            modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
+            if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
+                digit = 'f';
         }
-        digit = res;
-        if (dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX))
+        if ((dsp->digitmode & (DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX)))
         {
             if (!dsp->thinkdigit)
             {
@@ -958,7 +667,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                     /* Thought we saw one last time.  Pretty sure we really have now */
                     if (dsp->thinkdigit)
                     {
-                        if ((dsp->thinkdigit != 'x') && (dsp->thinkdigit != digit))
+                        if ((dsp->thinkdigit != 'x')  &&  (dsp->thinkdigit != digit))
                         {
                             /* If we found a digit, and we're changing digits, go
                                ahead and send this one, but DON'T stop confmute because
@@ -1001,12 +710,12 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                 }
             }
         }
-        else if (!digit)
+        else if (digit == 0)
         {
             /* Only check when there is *not* a hit... */
             if (dsp->digitmode & DSP_DIGITMODE_MF)
             {
-                if (bell_mf_rx_get(&dsp->td.bell_mf, digit_buf, 1))
+                if (bell_mf_rx_get(&dsp->bell_mf_rx, digit_buf, 1))
                 {
                     opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, digit_buf[0], NULL);
                     FIX_INF(af);
@@ -1018,11 +727,9 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             }
             else
             {
-                if (dsp->td.dtmf.current_digits)
+                if (dtmf_rx_get(&dsp->dtmf_rx, buf, 1))
                 {
-                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, dsp->td.dtmf.digits[0], NULL);
-                    memmove(dsp->td.dtmf.digits, dsp->td.dtmf.digits + 1, dsp->td.dtmf.current_digits);
-                    dsp->td.dtmf.current_digits--;
+                    opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, buf[0], NULL);
                     FIX_INF(af);
                     if (chan)
                         opbx_queue_frame(chan, af);
@@ -1088,14 +795,15 @@ struct opbx_dsp *opbx_dsp_new(void)
         dsp->threshold = DEFAULT_THRESHOLD;
         dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
         dsp->busycount = DSP_HISTORY;
-        /* Initialize DTMF detector */
+
         dtmf_rx_init(&dsp->dtmf_rx, NULL, NULL);
+        dsp->mute_lag = 0;
+
         modem_connect_tones_rx_init(&dsp->fax_cng_rx,
                                     MODEM_CONNECT_TONES_FAX_CNG,
                                     NULL,
                                     NULL);
 
-        dtmf_detect_init(&dsp->td.dtmf);
         /* Initialize initial DSP progress detect parameters */
         opbx_dsp_prog_reset(dsp);
     }
@@ -1135,39 +843,16 @@ void opbx_dsp_set_busy_pattern(struct opbx_dsp *dsp, int tonelength, int quietle
 
 void opbx_dsp_digitreset(struct opbx_dsp *dsp)
 {
-    int i;
-    
     dsp->thinkdigit = 0;
     if (dsp->digitmode & DSP_DIGITMODE_MF)
-    {
-        bell_mf_rx_init(&dsp->td.bell_mf, NULL, NULL);
-    }
+        bell_mf_rx_init(&dsp->bell_mf_rx, NULL, NULL);
     else
-    {
         dtmf_rx_init(&dsp->dtmf_rx, NULL, NULL);
-        modem_connect_tones_rx_init(&dsp->fax_cng_rx,
-                                    MODEM_CONNECT_TONES_FAX_CNG,
-                                    NULL,
-                                    NULL);
-
-        memset(dsp->td.dtmf.digits, 0, sizeof(dsp->td.dtmf.digits));
-        dsp->td.dtmf.current_digits = 0;
-        /* Reinitialise the detector for the next block */
-        for (i = 0;  i < 4;  i++)
-        {
-            goertzel_reset(&dsp->td.dtmf.row_out[i]);
-            goertzel_reset(&dsp->td.dtmf.col_out[i]);
-        }
-#ifdef FAX_DETECT
-        goertzel_reset(&dsp->td.dtmf.fax_tone);
-#endif
-        dsp->td.dtmf.hits[2] =
-        dsp->td.dtmf.hits[1] =
-        dsp->td.dtmf.hits[0] =
-        dsp->td.dtmf.mhit = 0;
-        dsp->td.dtmf.energy = 0.0;
-        dsp->td.dtmf.current_sample = 0;
-    }
+    dsp->mute_lag = 0;
+    modem_connect_tones_rx_init(&dsp->fax_cng_rx,
+                                MODEM_CONNECT_TONES_FAX_CNG,
+                                NULL,
+                                NULL);
 }
 
 void opbx_dsp_reset(struct opbx_dsp *dsp)
@@ -1193,9 +878,14 @@ int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode)
     {
         /* Must initialize structures if switching from MF to DTMF or vice-versa */
         if ((new & DSP_DIGITMODE_MF))
-            bell_mf_rx_init(&dsp->td.bell_mf, NULL, NULL);
+            bell_mf_rx_init(&dsp->bell_mf_rx, NULL, NULL);
         else
-            dtmf_detect_init(&dsp->td.dtmf);
+            dtmf_rx_init(&dsp->dtmf_rx, NULL, NULL);
+        dsp->mute_lag = 0;
+        modem_connect_tones_rx_init(&dsp->fax_cng_rx,
+                                    MODEM_CONNECT_TONES_FAX_CNG,
+                                    NULL,
+                                    NULL);
     }
     if ((digitmode & DSP_DIGITMODE_RELAXDTMF))
         dtmf_rx_parms(&dsp->dtmf_rx, FALSE, 8, 8);
