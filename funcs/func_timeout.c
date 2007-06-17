@@ -143,9 +143,9 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, int argc, 
 		if (option_verbose > 2) {
 			if (chan->whentohangup) {
 				strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S UTC", gmtime_r(&chan->whentohangup, &myt));
-				opbx_verbose( VERBOSE_PREFIX_3 "Channel will hangup at %s.\n", timestr);
+				opbx_verbose( VERBOSE_PREFIX_3 "%s will hangup at %s.\n", chan->name, timestr);
 			} else {
-				opbx_verbose( VERBOSE_PREFIX_3 "Channel hangup cancelled.\n");
+				opbx_verbose( VERBOSE_PREFIX_3 "%s hangup cancelled.\n", chan->name);
 			} 
 		}
 		break;
@@ -155,7 +155,7 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, int argc, 
 		if (chan->pbx) {
 			chan->pbx->rtimeout = x;
 			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3 "Response timeout set to %d\n", chan->pbx->rtimeout);
+				opbx_verbose( VERBOSE_PREFIX_3 "%s response timeout set to %d\n", chan->name, chan->pbx->rtimeout);
 		}
 		break;
 
@@ -164,7 +164,7 @@ static void builtin_function_timeout_write(struct opbx_channel *chan, int argc, 
 		if (chan->pbx) {
 			chan->pbx->dtimeout = x;
 			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3 "Digit timeout set to %d\n", chan->pbx->dtimeout);
+				opbx_verbose( VERBOSE_PREFIX_3 "%s digit timeout set to %d\n", chan->name, chan->pbx->dtimeout);
 		}
 		break;
 
