@@ -17,7 +17,7 @@ KEYWORDS="~x86"
 IUSE="misdn speex postgres zap t38"
 
 RDEPEND="!net-misc/callweaver-svn
-	>=media-libs/spandsp-0.0.3_pre26
+	=media-libs/spandsp-0.0.4_pre3
 	misdn? ( =net-dialup/misdn-1.1.2 =net-dialup/misdnuser-1.1.2 )
 	speex? ( media-libs/speex )
 	postgres? ( dev-db/postgresql )
