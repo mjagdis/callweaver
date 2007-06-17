@@ -81,11 +81,10 @@ static char *function_db_read(struct opbx_channel *chan, int argc, char **argv, 
 
 	*(key++) = '\0';
 
-	if (opbx_db_get(argv[0], argv[1], buf, len-1)) {
-		opbx_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], argv[1]);
+	if (opbx_db_get(argv[0], key, buf, len-1)) {
+		opbx_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
 	} else
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
-
 	
 	return buf;
 }
@@ -101,7 +100,7 @@ static void function_db_write(struct opbx_channel *chan, int argc, char **argv, 
 
 	*(key++) = '\0';
 
-	if (opbx_db_put(argv[0], argv[1], (char *)value)) {
+	if (opbx_db_put(argv[0], key, (char *)value)) {
 		opbx_log(LOG_WARNING, "DB: Error writing value to database.\n");
 	}
 }
@@ -123,7 +122,7 @@ static char *function_db_exists(struct opbx_channel *chan, int argc, char **argv
 
 	*(key++) = '\0';
 
-	if (opbx_db_get(argv[0], argv[1], buf, len-1))
+	if (opbx_db_get(argv[0], key, buf, len-1))
 		buf[0] = '0';
 	else {
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
