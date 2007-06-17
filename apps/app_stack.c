@@ -62,7 +62,7 @@ static const char *return_synopsis = "Return from gosub routine";
 static const char *pop_synopsis = "Remove one address from gosub stack";
 
 static const char *gosub_syntax = "Gosub([[context, ]exten, ]label|priority[(arg,...)])";
-static const char *gosubif_syntax = "Gosub(condition ? [[context, ]exten, ]label|priority[(arg, ...)] [: [[context, ]exten, ]label|priority][(arg, ...)])";
+static const char *gosubif_syntax = "GosubIf(condition ? [[context, ]exten, ]label|priority[(arg, ...)] [: [[context, ]exten, ]label|priority][(arg, ...)])";
 static const char *return_syntax = "Return()";
 static const char *pop_syntax = "StackPop()";
 
