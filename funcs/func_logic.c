@@ -103,10 +103,11 @@ static char *builtin_function_iftime(struct opbx_channel *chan, int argc, char *
 		return NULL;
 	}
 
+	do { *(s++) = '\0'; } while (isspace(*s));
+
 	n = 0;
 	if (opbx_check_timing(&timing)) {
 		/* True: we want everything between '?' and ':' */
-		do { *(s++) = '\0'; } while (isspace(*s));
 		argv[0] = s;
 		a = argv;
 		for (i = 0; i < argc; i++) {
@@ -118,6 +119,7 @@ static char *builtin_function_iftime(struct opbx_channel *chan, int argc, char *
 		}
 	} else {
 		/* False: we want everything after ':' (if anything) */
+		argv[0] = s;
 		for (i = 0; i < argc; i++) {
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));
@@ -165,10 +167,11 @@ static char *builtin_function_if(struct opbx_channel *chan, int argc, char **arg
 	q = s;
 	do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
+	do { *(s++) = '\0'; } while (isspace(*s));
+
 	n = 0;
 	if (opbx_true(argv[0])) {
 		/* True: we want everything between '?' and ':' */
-		do { *(s++) = '\0'; } while (isspace(*s));
 		argv[0] = s;
 		a = argv;
 		for (i = 0; i < argc; i++) {
@@ -180,6 +183,7 @@ static char *builtin_function_if(struct opbx_channel *chan, int argc, char **arg
 		}
 	} else {
 		/* False: we want everything after ':' (if anything) */
+		argv[0] = s;
 		for (i = 0; i < argc; i++) {
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));

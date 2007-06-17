@@ -323,9 +323,10 @@ static int procif_exec(struct opbx_channel *chan, int argc, char **argv)
 	q = s;
 	do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
 
+	do { *(s++) = '\0'; } while (isspace(*s));
+
 	if (pbx_checkcondition(argv[0])) {
 		/* True: we want everything between '?' and ':' */
-		do { *(s++) = '\0'; } while (isspace(*s));
 		argv[0] = s;
 		for (i = 0; i < argc; i++) {
 			if ((s = strchr(argv[i], ':'))) {
@@ -337,6 +338,7 @@ static int procif_exec(struct opbx_channel *chan, int argc, char **argv)
 		return proc_exec(chan, argc, argv);
 	} else {
 		/* False: we want everything after ':' (if anything) */
+		argv[0] = s;
 		for (i = 0; i < argc; i++) {
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));
