@@ -1810,6 +1810,9 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
                 nextexp = nextthing;
                 pos = nextexp - whereweare;
                 break;
+            default:
+                pos = nextthing - whereweare + 1;
+                break;
             }
         }
 
@@ -1979,10 +1982,6 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
                 count -= length;
                 cp2 += length;
             }
-        }
-        else
-        {
-            break;
         }
     }
     *cp2 = '\0';
