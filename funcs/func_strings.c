@@ -140,7 +140,7 @@ static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **
 	regex_t regexbuf;
 	int i;
 
-	if (argc < 2 || !argv[0][0] || !argv[1][0]) {
+	if (argc < 2 || !argv[0][0]) {
 		opbx_LOG(LOG_ERROR, "Syntax: %s\n", regex_func_syntax);
 		return NULL;
 	}
