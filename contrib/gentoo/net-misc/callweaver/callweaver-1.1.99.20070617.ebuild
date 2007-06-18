@@ -10,14 +10,15 @@ SRC_URI="http://devs.callweaver.org/trunk_snapshots/${P}.tar.gz"
                 
 SLOT="0"
 LICENSE="GPL-2"
-KEYWORDS="~x86"
+KEYWORDS="~x86 ~amd64"
 
 # IUSE experimental, not tested appropriately!
 #IUSE="speex jabber postgres odbc zap misdn mgr2 fax t38 exosip"
-IUSE="misdn speex postgres zap"
+IUSE="misdn speex postgres zap t38"
 
 RDEPEND="!net-misc/callweaver-svn
 	>=media-libs/spandsp-0.0.4_pre3
+    >=sys-libs/libcap-1.10
 	misdn? ( =net-dialup/misdn-1.1.2 =net-dialup/misdnuser-1.1.2 )
 	speex? ( media-libs/speex )
 	postgres? ( dev-db/postgresql )
@@ -29,7 +30,7 @@ DEPEND="${RDEPEND}
         >=sys-devel/automake-1.9.6
         >=sys-devel/autoconf-2.59
         >=sys-devel/libtool-1.5.20"
-
+		
 
 src_compile() {
         ewarn "ALL IUSE ARE EXPERIMENTAL,"
