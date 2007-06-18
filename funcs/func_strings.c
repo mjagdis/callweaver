@@ -122,7 +122,7 @@ static char *function_fieldqty(struct opbx_channel *chan, int argc, char **argv,
 	int fieldcount = 0;
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
-		opbx_LOG(LOG_ERROR, "Syntax: %s\n", fieldqty_func_syntax);
+		opbx_log(LOG_ERROR, "Syntax: %s\n", fieldqty_func_syntax);
 		return NULL;
 	}
 
@@ -141,7 +141,7 @@ static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **
 	int i;
 
 	if (argc < 2 || !argv[0][0]) {
-		opbx_LOG(LOG_ERROR, "Syntax: %s\n", regex_func_syntax);
+		opbx_log(LOG_ERROR, "Syntax: %s\n", regex_func_syntax);
 		return NULL;
 	}
 
