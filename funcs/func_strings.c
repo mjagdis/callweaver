@@ -55,9 +55,13 @@ static const char *fieldqty_func_desc = "";
 
 static void *regex_function;
 static const char *regex_func_name = "REGEX";
-static const char *regex_func_synopsis = "Regular Expression: Returns 1 if data matches regular expression.";
-static const char *regex_func_syntax = "REGEX(\"regular expression\" data)";
-static const char *regex_func_desc = "";
+static const char *regex_func_synopsis = "Match data against a regular expression";
+static const char *regex_func_syntax = "REGEX(\"regular expression\", \"data\"[, ...])";
+static const char *regex_func_desc =
+"Test each item of data against the given regular expression.\n"
+"If the first item matches return 1, if the second item matches\n"
+"return 2, etc. In general, if the nth item matches return n.\n"
+"If no data item matches return 0\n";
 
 static void *len_function;
 static const char *len_func_name = "LEN";
@@ -132,36 +136,40 @@ static char *function_fieldqty(struct opbx_channel *chan, int argc, char **argv,
 
 static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
-	char *arg, *earg = NULL, *tmp, errstr[256] = "";
-	int errcode;
+	char *tmp, errstr[256] = "";
 	regex_t regexbuf;
+	int i;
 
-	opbx_copy_string(buf, "0", len);
-	
-	/* Regex in quotes */
-	arg = strchr(argv[0], '"');
-	if (arg) {
-		arg++;
-		earg = strrchr(arg, '"');
-		if (earg) {
-			*earg++ = '\0';
-			/* Skip over any spaces before the data we are checking */
-			while (*earg == ' ')
-				earg++;
+	if (argc < 2 || !argv[0][0] || !argv[1][0]) {
+		opbx_LOG(LOG_ERROR, "Syntax: %s\n", regex_func_syntax);
+		return NULL;
+	}
+
+	if (!buf) {
+		opbx_log(LOG_ERROR, "%s should only be used in an expression context\n");
+		return NULL;
+	}
+
+	if ((i = regcomp(&regexbuf, argv[0], REG_EXTENDED | REG_NOSUB))) {
+		regerror(i, &regexbuf, errstr, sizeof(errstr));
+		opbx_log(LOG_ERROR, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
+		return NULL;
+	}
+
+	if (len > 0) {
+		buf[0] = '0';
+		if (len > 1)
+			buf[1] = '\0';
+	}
+
+	for (i = 1; i < argc; i++) {
+		if (!regexec(&regexbuf, argv[i], 0, NULL, 0)) {
+			snprintf(buf, len, "%d", i);
+			break;
 		}
-	} else {
-		arg = argv[0];
 	}
 
-	if ((errcode = regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB))) {
-		regerror(errcode, &regexbuf, errstr, sizeof(errstr));
-		opbx_log(LOG_WARNING, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
-	} else {
-		if (!regexec(&regexbuf, earg ? earg : "", 0, NULL, 0))
-			opbx_copy_string(buf, "1", len); 
-	}
 	regfree(&regexbuf);
-
 	return buf;
 }
 
