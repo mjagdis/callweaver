@@ -221,6 +221,13 @@ jb->hist_pointer : JB_HISTORY_SIZE-1;
   if (max_index>1) {
     pointer = find_pointer(&jb->hist_sorted_delay[0], max_index, 
 jb->current);
+    /* If jb->current occurs more than once in the history, we must
+     * check that pointer is advanced beyond all positions equal to
+     * jb->current
+     */
+    while (pointer <= max_index && jb->current == jb->hist_sorted_delay[pointer]) {
+	pointer++;
+   }  
     jb->info.losspct = ((max_index - pointer)*100/max_index);
     if (jb->info.losspct < 0) {
       jb->info.losspct = 0;
@@ -445,12 +452,11 @@ static long find_pointer(long *array, long max_index, long value)
     mid= (low+high)/2;
     if (array[mid] < value) {
       low = mid+1;
-    } else {
+    } else if (array[mid] > value) {
       high = mid-1;
+    } else {
+      return mid;
     }
-  }
-  while(low < max_index && (array[low]==array[(low+1)]) ) {
-    low++;
   }
   return low;
 }
@@ -656,7 +662,7 @@ static void put_history(speakup_jitterbuffer *jb, long ts, long now, long ms, in
  */
 static void calculate_info(speakup_jitterbuffer *jb, long ts, long now, int codec) 
 {
-  long diff, size, max_index, d, d1, d2, n;
+  long diff, size, max_index, d, d1, d2, n, max_n;
   float p, p1, p2, A, B;
   //size = how many items there in the history
   size = (jb->hist_pointer < JB_HISTORY_SIZE) ? jb->hist_pointer : JB_HISTORY_SIZE;
@@ -714,9 +720,11 @@ static void calculate_info(speakup_jitterbuffer *jb, long ts, long now, int code
   } else if (jb->info.iqr >50){ 
     p1=11;
   } 
+
+  max_n = p1 * size / 100;
   
   //find the optimum delay..
-  while(max_index>10 && (B >= A ||p2<p1)) { 
+  while(max_index>10 && n < max_n) { 
     //the packetloss with this delay
     p2 =(n*100/size);
     // estimate MOS-value
@@ -729,16 +737,16 @@ static void calculate_info(speakup_jitterbuffer *jb, long ts, long now, int code
     d1 = d2;
     //find next delay != delay so the same delay isn't calculated twice
     //don't look further if we have seen half of the history
-    while((d2>=d1) && ((n*2)<max_index) ) {
+    do {
       n++;
       d2 = jb->hist_sorted_delay[(max_index-n)] - jb->min;
-    }
+    } while((d2>=d1) && ((n*2)<max_index) );
   }
   //the targeted size of the jitterbuffer
   if (jb->settings.min_jb && (jb->settings.min_jb > d) ) {
     jb->target = jb->min + jb->settings.min_jb; 
-  } else if (jb->settings.max_jb && (jb->settings.max_jb > d) ){
-    jb->min + jb->settings.max_jb;
+  } else if (jb->settings.max_jb && (jb->settings.max_jb < d) ){
+    jb->target = jb->min + jb->settings.max_jb;
   } else {
     jb->target = jb->min + d; 
   }
