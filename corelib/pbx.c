@@ -2062,7 +2062,7 @@ static int pbx_extension_helper(struct opbx_channel *c, struct opbx_context *con
                 c->priority = priority;
                 pbx_substitute_variables(passdata, sizeof(passdata), c, e);
                 if (option_verbose > 2)
-                        opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n", 
+                        opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", %s)\n", 
                                 opbx_term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
                                 opbx_term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
                                 opbx_term_color(tmp3, (!opbx_strlen_zero(passdata) ? (char *)passdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
