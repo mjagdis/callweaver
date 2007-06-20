@@ -1133,7 +1133,7 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 	char c;
 
 	if (option_debug && option_verbose > 2)
-		opbx_log(LOG_DEBUG, "delim=%c, args: %s\n", delim, buf);
+		opbx_log(LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
 
 	/* The last argv is reserved for NULL. This is required if you want
 	 * to hand off an argv to exec(2) for example.
