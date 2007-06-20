@@ -61,6 +61,11 @@ static int echo_exec(struct opbx_channel *chan, int argc, char **argv)
 	struct opbx_frame *f;
 	int res = -1;
 
+	if (argc != 0) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", echo_syntax);
+		return -1;
+	}
+
 	LOCAL_USER_ADD(u);
 
 	opbx_set_write_format(chan, opbx_best_codec(chan->nativeformats));

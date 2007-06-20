@@ -1195,6 +1195,9 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 		} while (c && argc < max_args);
 	}
 
+	if (argc == 1 && !argv[0][0])
+		argc--;
+
 	argv[argc] = NULL;
 
 	if (option_debug && option_verbose > 2) {
