@@ -88,9 +88,7 @@ static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv)
 
 	LOCAL_USER_ADD(u);
 
-	if (argc > 0) {
-		unixtime = (time_t)atol(argv[0]);
-	} else {
+	if (argc > 0 && !(unixtime = (time_t)atol(argv[0]))) {
 		tv = opbx_tvnow();
 		unixtime = (time_t)tv.tv_sec;
 	}
