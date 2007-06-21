@@ -2352,6 +2352,22 @@ AC_ARG_WITH(res_sqlite,
 AM_CONDITIONAL([WANT_RES_SQLITE],[test "${with_res_sqlite}" = "yes"])
 
 dnl ###########################################################################
+
+AC_ARG_WITH(efence,
+        [AC_HELP_STRING([--with-efence],[Build with electric fence (default=no)])],,[with_efence="no"])
+if test x${with_efence} = xyes ; then
+  AC_MSG_CHECKING([for efence])
+  AC_CHECK_LIB(efence,EF_Print,
+    AC_MSG_RESULT([ok])
+    LIBS="$LIBS -lefence",
+    AC_MSG_RESULT([library missing])
+  )
+fi
+
+dnl ###########################################################################
+
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Documentation
