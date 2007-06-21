@@ -115,7 +115,6 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	// Free the frame.
 	if ( f != NULL ) {
 	    opbx_fr_free( f ) ;
-	    f = NULL ;
 	}
 	res = conf_play_soundqueue( member ); 
 	if (res != 0) {
@@ -197,14 +196,12 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	parse_dtmf_option( member, f->subclass);
 
 	opbx_fr_free(f);
-	f = NULL;
     }
     else if (  (member->type == MEMBERTYPE_LISTENER) || (member->talk_mute) )
     {
 	// this is a listen-only user, or it's muted. 	
 	// Ignore the frame
 	opbx_fr_free( f ) ;
-	f = NULL ;
     }
     else if ( f->frametype == OPBX_FRAME_VOICE ) 
     {			
@@ -261,14 +258,12 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 
 	// free the original frame
 	opbx_fr_free( f ) ;
-	f = NULL ;
     }
     else if ( f->frametype == OPBX_FRAME_CONTROL && f->subclass == OPBX_CONTROL_HANGUP ) 
     {
 	// hangup received, queue silence && free the frame 
 	queue_incoming_silent_frame(member,2);
 	opbx_fr_free( f ) ;
-	f = NULL ;
     }
     else
     {
@@ -277,7 +272,6 @@ int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f)
 	opbx_log(LOG_WARNING,"Freeing unknown frame: type %d  member %s \n", f->frametype, member->chan->name );
 #endif
 	opbx_fr_free( f ) ;
-	f = NULL ;
     }
 
     return 0;
@@ -470,6 +464,8 @@ int member_exec( struct opbx_channel* chan, int argc, char **argv ) {
 	int waittime = ( member->framelen == 0 ) ? OPBX_CONF_WAITFOR_TIME : member->framelen;
 
 	left = opbx_waitfor( chan, waittime ) ;
+
+	f = NULL;
 
 	if ( left < 0 )
 	{
