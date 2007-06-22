@@ -1395,7 +1395,7 @@ static int attempt_transmit(void *data)
                             opbx_fr_init_ex(&fr, OPBX_FRAME_CONTROL, OPBX_CONTROL_HANGUP, NULL);
 							iax2_queue_frame(f->callno, &fr);
 							/* Remember, owner could disappear */
-							if (iaxs[f->callno]->owner)
+							if (iaxs[f->callno] && iaxs[f->callno]->owner)
 								iaxs[f->callno]->owner->hangupcause = OPBX_CAUSE_DESTINATION_OUT_OF_ORDER;
 						} else {
 							if (iaxs[f->callno]->reg) {
@@ -5663,7 +5663,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 										fr.ts = duped_fr->ts; */
 									}
 #endif
-									if (iaxs[fr.callno]->last < fr.ts) {
+									if (iaxs[fr.callno] && iaxs[fr.callno]->last < fr.ts) {
 										iaxs[fr.callno]->last = fr.ts;
 #if 1
 										if (option_debug)
@@ -6227,28 +6227,30 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_REJECT:
-                opbx_fr_init_ex(&f, OPBX_FRAME_CONTROL, OPBX_CONTROL_CONGESTION, NULL);
+				opbx_fr_init_ex(&f, OPBX_FRAME_CONTROL, OPBX_CONTROL_CONGESTION, NULL);
 
 				/* Set hangup cause according to remote */
 				if (ies.causecode && iaxs[fr.callno]->owner)
 					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
 
 				iax2_queue_frame(fr.callno, &f);
-				if (opbx_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
+				if (iaxs[fr.callno]) {
+					if (opbx_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
+						/* Send ack immediately, before we destroy */
+						send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+						iax2_destroy_nolock(fr.callno);
+						break;
+					}
+					if (iaxs[fr.callno]->owner) {
+						if (authdebug)
+							opbx_log(LOG_WARNING, "Call rejected by %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
+					}
+					opbx_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
 					/* Send ack immediately, before we destroy */
 					send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+					iaxs[fr.callno]->error = EPERM;
 					iax2_destroy_nolock(fr.callno);
-					break;
 				}
-				if (iaxs[fr.callno]->owner) {
-					if (authdebug)
-						opbx_log(LOG_WARNING, "Call rejected by %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
-				}
-				opbx_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
-				/* Send ack immediately, before we destroy */
-				send_command_immediate(iaxs[fr.callno], OPBX_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				iaxs[fr.callno]->error = EPERM;
-				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
 				if (iaxs[fr.callno]->owner && opbx_bridged_channel(iaxs[fr.callno]->owner) && ies.called_number) {
@@ -6870,7 +6872,7 @@ retryowner2:
 	}
 #endif
 
-	if (iaxs[fr.callno]->last < fr.ts) {
+	if (iaxs[fr.callno] && iaxs[fr.callno]->last < fr.ts) {
 		iaxs[fr.callno]->last = fr.ts;
 #if 1
 		if (option_debug && iaxdebug)
