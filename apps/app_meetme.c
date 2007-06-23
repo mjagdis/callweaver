@@ -1045,7 +1045,7 @@ zapretry:
 			opbx_channel_setoption(chan,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}
 		/* Find a pointer to the ogi app and execute the script */
-		app = pbx_findapp("ogi");
+		app = pbx_findapp("OGI");
 		if (app) {
 			/* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
 			  or use default filename of conf-background.ogi */
