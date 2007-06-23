@@ -600,8 +600,8 @@ static struct opbx_format_list_s opbx_format_list[] =
     { 1, OPBX_FORMAT_G729A, "g729", "G.729A", 8000},
     { 1, OPBX_FORMAT_SPEEX, "speex", "SpeeX", 8000},
     { 1, OPBX_FORMAT_ILBC, "ilbc", "iLBC", 8000},
-    { 0, OPBX_FORMAT_OKI_ADPCM, "oki", "OKI-ADPCM", 8000},
-    { 0, OPBX_FORMAT_G722, "g722", "G.722", 16000},
+    { 1, OPBX_FORMAT_OKI_ADPCM, "oki", "OKI-ADPCM", 8000},
+    { 1, OPBX_FORMAT_G722, "g722", "G.722", 16000},
     { 0, 0, "nothing", "undefined", 8000},
     { 0, 0, "nothing", "undefined", 8000},
     { 0, OPBX_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format", 8000},
@@ -768,7 +768,7 @@ static int show_codecs(int fd, int argc, char *argv[])
     if ((argc == 2)  ||  (!strcasecmp(argv[1], "audio")))
     {
         found = 1;
-        for (i = 0;  i < 11;  i++)
+        for (i = 0;  i <= 12;  i++)
         {
             snprintf(hex,25,"(0x%x)", 1 << i);
             opbx_cli(fd, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n", 1 << i, i, hex, opbx_getformatname(1 << i), opbx_codec2str(1 << i));
