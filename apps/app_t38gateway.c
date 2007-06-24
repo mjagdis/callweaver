@@ -98,10 +98,10 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     struct opbx_channel *active = NULL;
     struct opbx_channel *inactive = NULL;
     struct opbx_channel *channels[2];
-    struct opbx_frame *f, *fr2;
+    struct opbx_frame *f;
+    struct opbx_frame *fr2;
     int timeout = -1;
     int running = RUNNING;
-
     struct opbx_dsp *dsp = NULL;
 
     if ((dsp = opbx_dsp_new()) == NULL)
@@ -137,23 +137,25 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                 channels[0] = inactive;
                 channels[1] = active;
 
-                if ( ( active == chan ) && fr2 && dsp) {
-                    fr2 = opbx_dsp_process(active, dsp, fr2);
-                    if (fr2) {
+                if ((active == chan)  &&  fr2  &&  dsp)
+                {
+                    if ((fr2 = opbx_dsp_process(active, dsp, fr2)))
+                    {
                         if (fr2->frametype == OPBX_FRAME_DTMF)
                         {
-                                if (fr2->subclass == 'f')
-                                {
-                                    opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
+                            if (fr2->subclass == 'f')
+                            {
+                                opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
                                 opbx_app_request_t38(active);
                             }
                         }
                     }
                 }
-                if (f != fr2) {
+                if (f != fr2)
+                {
                     if (fr2)
-                            opbx_fr_free(fr2);
-                    fr2=NULL;
+                        opbx_fr_free(fr2);
+                    fr2 = NULL;
                 }
             }
             else
@@ -162,9 +164,8 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             }
         }
         /* Check if we need to change to gateway operation */
-        if (chan->t38mode_enabled != peer->t38mode_enabled) {
+        if (chan->t38mode_enabled != peer->t38mode_enabled)
             break;
-        }
     }
 
     if (dsp)
@@ -182,7 +183,7 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     opbx_fr_init_ex(&outf, OPBX_FRAME_MODEM, OPBX_MODEM_T38, "T38Gateway");
     outf.datalen = len;
     outf.data = (uint8_t *) buf;
-opbx_log(LOG_DEBUG, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
+    opbx_log(LOG_DEBUG, "t38_tx_packet_handler: Sending %d copies of frame\n", count);
     outf.tx_copies = count;
     if (opbx_write(chan, &outf) < 0)
         opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
@@ -415,81 +416,79 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
         active = opbx_waitfor_n(channels, 2, &timeout);
         if (active)
         {
-        /* Timed out, so we are done trying */
-        if (timeout == 0)
-        {
-            strncpy(status, "NOANSWER", sizeof(status) - 1);
-            opbx_log(LOG_NOTICE, "Timeout on peer\n");
-            break;
-        }
-        /* -1 means go forever */
-        if (timeout > -1)
-        {
-            /* res holds the number of milliseconds remaining */
-            if (timeout < 0)
+          /* Timed out, so we are done trying */
+            if (timeout == 0)
             {
-                timeout = 0;
                 strncpy(status, "NOANSWER", sizeof(status) - 1);
-            }
-        }
-        if (active == peer)
-        {
-           f = opbx_read(active);
-           if (f == NULL)
-           {
-              state = OPBX_CONTROL_HANGUP;
-              res = 0;
-              break;
-           }
-           if (f->frametype == OPBX_FRAME_CONTROL)
-           {
-              if (f->subclass == OPBX_CONTROL_RINGING)
-              {
-                 state = f->subclass;
-                 opbx_indicate(chan, OPBX_CONTROL_RINGING);
-              }
-              else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
-              {
-                 state = f->subclass;
-                 opbx_fr_free(f);
-                 break;
-              }
-              else if (f->subclass == OPBX_CONTROL_ANSWER)
-              {
-                 /* This is what we are hoping for */
-                 state = f->subclass;
-                 opbx_fr_free(f);
-                 ready = 1;
-                 break;
-              } 
-              /* else who cares */
-           }
-        }
-        else
-        {
-          /* orig channel reports something */
-          f = opbx_read(active);
-          if (f == NULL)
-          {
-            state = OPBX_CONTROL_HANGUP;
-            opbx_log(LOG_DEBUG, "Hangup from remote channel\n");
-            res = 0;
-            break;
-          }
-          if (f->frametype == OPBX_FRAME_CONTROL)
-          {
-             if (f->subclass == OPBX_CONTROL_HANGUP)
-             {
-                state = f->subclass;
-                res = 0;
-                opbx_fr_free(f);
+                opbx_log(LOG_NOTICE, "Timeout on peer\n");
                 break;
-             }          
-          }
-        } /* else */
-        opbx_fr_free(f);
-       } /* if (active9 */
-    } /* while ... */
+            }
+            /* -1 means go forever */
+            if (timeout > -1)
+            {
+                /* res holds the number of milliseconds remaining */
+                if (timeout < 0)
+                {
+                    timeout = 0;
+                    strncpy(status, "NOANSWER", sizeof(status) - 1);
+                }
+            }
+            if (active == peer)
+            {
+               if ((f = opbx_read(active)) == NULL)
+               {
+                  state = OPBX_CONTROL_HANGUP;
+                  res = 0;
+                  break;
+               }
+               if (f->frametype == OPBX_FRAME_CONTROL)
+               {
+                  if (f->subclass == OPBX_CONTROL_RINGING)
+                  {
+                     state = f->subclass;
+                     opbx_indicate(chan, OPBX_CONTROL_RINGING);
+                  }
+                  else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
+                  {
+                     state = f->subclass;
+                     opbx_fr_free(f);
+                     break;
+                  }
+                  else if (f->subclass == OPBX_CONTROL_ANSWER)
+                  {
+                     /* This is what we are hoping for */
+                     state = f->subclass;
+                     opbx_fr_free(f);
+                     ready = 1;
+                     break;
+                  }
+                  /* else who cares */
+               }
+            }
+            else
+            {
+                /* orig channel reports something */
+                if ((f = opbx_read(active)) == NULL)
+                {
+                    state = OPBX_CONTROL_HANGUP;
+                    opbx_log(LOG_DEBUG, "Hangup from remote channel\n");
+                    res = 0;
+                    break;
+                }
+                if (f->frametype == OPBX_FRAME_CONTROL)
+                {
+                    if (f->subclass == OPBX_CONTROL_HANGUP)
+                    {
+                        state = f->subclass;
+                        res = 0;
+                        opbx_fr_free(f);
+                        break;
+                    }
+                }
+            }
+            opbx_fr_free(f);
+        }
+    }
 
     res = 1;
     if (ready  &&  ready_to_talk(chan, peer))
@@ -499,7 +498,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
             opbx_answer(chan);
             peer->appl = t38gateway_app;
             /* FIXME original patch removes the if line below - trying with it before removing it */
-            if (argc > 2 && strchr(argv[2], 'r'))
+            if (argc > 2  &&  strchr(argv[2], 'r'))
                 opbx_indicate(chan, -1);
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
@@ -516,7 +515,6 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
                 opbx_log(LOG_NOTICE, "Doing T.38 gateway\n");
                 res = opbx_t38_gateway(chan, peer, verbose);
             }
-
         }
         else
         {
@@ -541,12 +539,13 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
         opbx_hangup(peer);
 
     /* Hangup if the call worked and you spec the h flag */
-    ALL_DONE(u, (!res && (argc > 2 && strchr(argv[2], 'h')))  ?  -1  :  0);
+    ALL_DONE(u, (!res  &&  (argc > 2  &&  strchr(argv[2], 'h')))  ?  -1  :  0);
 }
 
 int unload_module(void)
 {
     int res = 0;
+
     STANDARD_HANGUP_LOCALUSERS;
     res |= opbx_unregister_application(t38gateway_app);
     return res;
