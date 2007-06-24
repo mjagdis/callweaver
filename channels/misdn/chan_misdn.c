@@ -4534,8 +4534,14 @@ static void *misdn_facility_app;
 int load_module(void)
 {
 	int i, port;
-	
 	char ports[256]="";
+
+
+        char *test = opbx_pickup_ext();
+	if ( test == NULL ) {
+    	    opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", misdn_type);
+    	    return -1;
+	}
 
 	max_ports=misdn_lib_maxports_get();
 	
