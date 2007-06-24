@@ -4731,7 +4731,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
 	
-    char *t38_disabled = pbx_builtin_getvar_helper(p->owner, "T38_DISABLE");
+	char *t38_disabled = pbx_builtin_getvar_helper(p->owner, "T38_DISABLE");
 
         if (p->udptl && t38udptlsupport && (t38_disabled == NULL)
             && 
@@ -4794,7 +4794,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
         if (!found )
-            opbx_log(LOG_WARNING, "Unknown SDP media type in offer: %s\n", m);
+            opbx_log(LOG_WARNING, "Unknown or ignored SDP media type in offer: %s\n", m);
     }
     if (portno == -1  &&  vportno == -1  &&  udptlportno == -1)
     {
@@ -16648,7 +16648,7 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv)
     char *tmp_var = NULL;
 
     if ( ( tmp_var=pbx_builtin_getvar_helper(chan, "T38_DISABLE")) != NULL ) {
-        opbx_log(LOG_WARNING, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
+        opbx_log(LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
         return 0;
     }
 /*
