@@ -589,14 +589,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
 
     int res = 0;
     char target_file[256];
-    char *s;
-    char *t;
-    char *v;
-    char *x;
-    int option;
-    int len;
     int ready;
-    int i;
 
     int calling_party;
     int verbose;
@@ -606,9 +599,6 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
 
     int original_read_fmt;
     int original_write_fmt;
-
-    uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
-    uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
     /* Basic initial checkings */
 
@@ -636,14 +626,7 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
     calling_party = FALSE;
     verbose = FALSE;
 
-    if ((x = strstr(argv[0], "%d"))) {
-         i = 0;
-         do {
-             snprintf(target_file, 256, argv[0], i++);
-         } while (opbx_fileexists(target_file, "", chan->language) != -1);
-    } else {
-	 opbx_copy_string(target_file, argv[0], sizeof(target_file));
-    }
+    opbx_copy_string(target_file, argv[0], sizeof(target_file));
 
     while (argv++, --argc) {
 	    if (!strcmp(argv[0], "caller"))
