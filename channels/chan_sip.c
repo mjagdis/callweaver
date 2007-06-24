@@ -13820,7 +13820,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                     return 0;
                 }
 		if (option_debug > 2) {
-		    struct cfsubscription_types * st = find_subscription_type(p->subscribed);
+		    const struct cfsubscription_types *st = find_subscription_type(p->subscribed);
 		    if ( st != NULL )
 			opbx_log(LOG_DEBUG, "Subscription type: Event: %s Format: %s\n",  st->event, st->mediatype);
 		}		    
@@ -17083,6 +17083,7 @@ static struct opbx_cli_entry  my_clis[] =
 /*! \brief  load_module: PBX load module - initialization */
 int load_module(void)
 {
+
     ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
     ASTOBJ_CONTAINER_INIT(&peerl);    /* Peer object list */
     ASTOBJ_CONTAINER_INIT(&regl);    /* Registry object list */
@@ -17092,6 +17093,12 @@ int load_module(void)
 
     if ((io = io_context_create()) == NULL)
         opbx_log(LOG_WARNING, "Unable to create I/O context\n");
+
+    char *test = opbx_pickup_ext();
+    if ( test == NULL ) {
+        opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", channeltype);
+        return 0;
+    }
 
     reload_config();    /* Load the configuration from sip.conf */
 
