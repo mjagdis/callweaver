@@ -4673,7 +4673,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     char s[256];
     int old = 0;
 
-
     if (!p->rtp)
     {
         opbx_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
@@ -4731,7 +4730,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
                 codecs = opbx_skip_blanks(codecs + len);
             }
         }
-        if (p->udptl && t38udptlsupport
+	
+    char *t38_disabled = pbx_builtin_getvar_helper(p->owner, "T38_DISABLE");
+
+        if (p->udptl && t38udptlsupport && (t38_disabled == NULL)
             && 
                 ((sscanf(m, "image %d udptl t38 %n", &x, &len) == 1)
                 ||
@@ -4744,7 +4746,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
             opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 0);
-    	    if (t38udptlsupport && p->udptl)
+    	    if (t38udptlsupport && p->udptl && (t38_disabled == NULL) )
         	opbx_udptl_set_active(p->udptl, 1);
             p->udptl_active = 1;
             
@@ -4764,7 +4766,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             opbx_log(LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 1);
-    	    if (t38udptlsupport &&p->udptl)
+    	    if (t38udptlsupport &&p->udptl )
         	opbx_udptl_set_active(p->udptl, 0);
             p->udptl_active = 0;
         }
@@ -4871,8 +4873,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             }
         }
     }
+    
     /* Setup UDPTL port number */
-    if (udptlportno != -1)
+    if (udptlportno != -1 )
     {
         sin.sin_port = htons(udptlportno);
         if (p->udptl  &&  t38udptlsupport  &&  sin.sin_port)
@@ -6555,7 +6558,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
     opbx_set_flag(p, SIP_OUTGOING);
 
     opbx_log(LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
-    if (t38udptlsupport  &&  p->udptl)
+    if (t38udptlsupport  &&  p->udptl )
     {
         opbx_rtp_set_active(p->rtp, 0);
     	opbx_udptl_set_active(p->udptl, 1);
@@ -12114,6 +12117,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 if (!strcasecmp(bridgepeer->type, "SIP"))
                 {
                     bridgepvt = (struct sip_pvt *)(bridgepeer->tech_pvt);
+		    
                     if (bridgepvt && bridgepvt->udptl)
                     {
                         if (p->t38state == 4)
@@ -16640,6 +16644,13 @@ static char *sipt38switchover_description= ""
 static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv) 
 {
     struct sip_pvt *p;
+    
+    char *tmp_var = NULL;
+
+    if ( ( tmp_var=pbx_builtin_getvar_helper(chan, "T38_DISABLE")) != NULL ) {
+        opbx_log(LOG_WARNING, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
+        return 0;
+    }
 /*
     if (argc < 1 || !argv[0][0])
     {
