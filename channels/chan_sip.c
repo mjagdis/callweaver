@@ -13819,8 +13819,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		    opbx_set_flag(p, SIP_NEEDDESTROY);
                     return 0;
                 }
-		if (option_debug > 2)
-		    opbx_log(LOG_DEBUG, "Subscription type: Event: %s Format: %s\n",  subscription_types[p->subscribed].event, subscription_types[p->subscribed].mediatype);
+		if (option_debug > 2) {
+		    struct cfsubscription_types * st = find_subscription_type(p->subscribed);
+		    if ( st != NULL )
+			opbx_log(LOG_DEBUG, "Subscription type: Event: %s Format: %s\n",  st->event, st->mediatype);
+		}		    
+		    
             }
             else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary"))
             {
