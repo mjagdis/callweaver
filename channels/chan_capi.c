@@ -5733,6 +5733,12 @@ int load_module(void)
 	char *config = "capi.conf";
 	int res = 0;
 
+        char *test = opbx_pickup_ext();
+	if ( test == NULL ) {
+    	    opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", channeltype);
+    	    return 0;
+	}
+
 	cfg = opbx_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately, well no */

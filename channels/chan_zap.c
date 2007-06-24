@@ -10602,6 +10602,12 @@ int load_module(void)
 {
 	int res;
 
+	char *test = opbx_pickup_ext();
+	if ( test == NULL ) {
+    	    opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", type);
+    	    return 0;
+	}
+
 #ifdef ZAPATA_PRI
 	int y,i;
 	memset(pris, 0, sizeof(pris));

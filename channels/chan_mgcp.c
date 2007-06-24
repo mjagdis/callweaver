@@ -4268,6 +4268,13 @@ int load_module()
 {
 	int res;
 
+        char *test = opbx_pickup_ext();
+	if ( test == NULL ) {
+    	    opbx_log(LOG_ERROR, "Unable to register channel type %s. res_features is not loaded.\n", type);
+    	    return 0;
+	}
+
+
 	sched = sched_context_create();
 	if (!sched) {
 		opbx_log(LOG_WARNING, "Unable to create schedule context\n");
