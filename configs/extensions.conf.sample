@@ -358,7 +358,7 @@ exten => s,n,Hangup()
 exten => h,1,NoOp(RxFAX completed)
 exten => h,n,NoOp(RX: REMOTESTATIONID is ${REMOTESTATIONID})
 exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTATUS})
-exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTRING})
+exten => h,n,NoOp(TX: PHASESTRING is ${PHASEESTRING})
 
 [faxout]
 exten => s,1,Set(LOCALSTATIONID=Callweaver FAX)
