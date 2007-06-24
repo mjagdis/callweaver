@@ -368,7 +368,7 @@ exten => s,n,SipDTMFMode(inband)
 exten => s,n,TxFAX(${FAXFILE},caller,debug,ecm)
 exten => h,1,NoOp(TX: REMOTESTATIONID is ${REMOTESTATIONID})
 exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTATUS})
-exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTRING})
+exten => h,n,NoOp(TX: PHASEESTRING is ${PHASEESTRING})
 
 [detectfax]
 exten => s,1,FaxDetect(8000)
@@ -380,7 +380,7 @@ exten => fax,n,RxFAX(/tmp/${UNIQUEID}.tiff)
 exten => fax,n,Hangup()
 exten => h,1,NoOp(RX: REMOTESTATIONID is ${REMOTESTATIONID})
 exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTATUS})
-exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTRING})
+exten => h,n,NoOp(RX: PHASEESTRING is ${PHASEESTRING})
 
 [myfax]
 exten => 800,1,Goto(faxin,s,1);
