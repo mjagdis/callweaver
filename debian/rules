@@ -51,8 +51,9 @@ ifeq ($(ENABLE_DEBUG), yes)
     --enable-debug=yes \
     --enable-debug-scheduler=yes \
     --enable-stack-backtraces=yes \
-    --disable-optimization
-    --with-directory-layout=lsb
+    --disable-optimization \
+    --with-directory-layout=lsb \
+    --with-debug_malloc=yes
 endif
 
 check-ilbc:
