@@ -8,7 +8,9 @@
 # You may redistribute it and/or modify it under the terms of the
 # GNU General Public License (GPL) version 2 as published by the
 # Free Software Foundation, but not any later version of the GPL.
-
+#
+# $Id$
+#
 ###########
 # GENERAL #
 ###########
@@ -35,11 +37,11 @@ libexec_PROGRAMS = callweaver
 
 callweaver_SOURCES = main.c
 
-callweaver_LDADD	= ${top_builddir}/corelib/libcallweaver.la $(LIBLTDL)
-callweaver_LDADD	+= -lreadline
+callweaver_LDADD = ${top_builddir}/corelib/libcallweaver.la $(LIBLTDL)
+callweaver_LDADD += -lreadline
 
-callweaver_CFLAGS 	=  -fomit-frame-pointer -Wall -Wstrict-prototypes 
-callweaver_CFLAGS	+= -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
+callweaver_CFLAGS =  -fomit-frame-pointer -Wall -Wstrict-prototypes 
+callweaver_CFLAGS += -Wmissing-prototypes -Wmissing-declarations -I$(top_srcdir)/include $(AM_CFLAGS)
 
 #############
 # UTILITIES #

@@ -148,4 +148,8 @@ void opbx_unregister_file_version(const char *file);
 #define CALLWEAVER_FILE_VERSION(file, x)
 #endif /* __GNUC__ */
 
+#if defined(__OPBX_DEBUG_MALLOC)  &&  !defined(_CALLWEAVER_CALLWEAVER_MM_H)
+#include "callweaver/callweaver_mm.h"
+#endif
+
 #endif

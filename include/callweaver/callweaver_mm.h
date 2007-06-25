@@ -20,15 +20,13 @@
  * CallWeaver memory usage debugging
  */
 
-#ifndef NO_OPBX_MM
 #ifndef _CALLWEAVER_CALLWEAVER_MM_H
 #define _CALLWEAVER_CALLWEAVER_MM_H
-
-#define __OPBX_DEBUG_MALLOC
 
 /* Include these now to prevent them from being needed later */
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -74,6 +72,5 @@ void __opbx_mm_init(void);
 	__opbx_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
-#error "NEVER INCLUDE astmm.h DIRECTLY!!"
-#endif
+#error "NEVER INCLUDE callweaver_mm.h DIRECTLY!!"
 #endif

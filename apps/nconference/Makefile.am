@@ -1,3 +1,9 @@
+#
+# CallWeaver.org
+#
+#
+# $Id$
+#
 AUTOMAKE_OPTS                   = gnu
 opbxmod_LTLIBRARIES             =
 
@@ -10,3 +16,4 @@ app_nconference_la_LIBADD               = ${top_builddir}/corelib/libcallweaver.
 app_nconference_la_CFLAGS		= $(AM_CFLAGS) 
 #app_nconference_la_CFLAGS		+= -DDETECT_DEADLOCKS -DTHREAD_CRASH -DDEBUG_THREADS
 
+INCLUDES = -I$(top_srcdir)/include

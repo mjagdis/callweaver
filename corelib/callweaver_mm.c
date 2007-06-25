@@ -41,7 +41,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/strings.h"
 #include "callweaver/unaligned.h"
-#include "callweaver/callweaver_mm.h"
 
 #define SOME_PRIME      563
 

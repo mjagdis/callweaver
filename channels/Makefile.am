@@ -1,3 +1,9 @@
+#
+# CallWeaver.org
+#
+#
+# $Id$
+#
 AUTOMAKE_OPTS			= gnu
 
 opbxmod_LTLIBRARIES 		=

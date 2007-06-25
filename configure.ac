@@ -2287,9 +2287,8 @@ dnl ###########################################################################
 AC_ARG_WITH([debug_malloc],
 	[AC_HELP_STRING([--with-debug_malloc],[Enable debug malloc (default=no)])],,[with_debug_malloc="no"])
 
-if test "${with_debug_malloc}" == "yes"
-then
-    AC_DEFINE([__OPBX_DEBUG_MALLOC],"1",[We want malloc debug ...])
+if test "$with_debug_malloc" = yes ; then
+    AC_DEFINE([__OPBX_DEBUG_MALLOC], [1], [We want malloc debug ...])
 fi
 
 dnl ###########################################################################
