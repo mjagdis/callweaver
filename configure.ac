@@ -251,10 +251,10 @@ isavail_directory_layout() {
         return 0;
    fi
 # test parameter against each profile name found
-   profilelist=`ls -1 layout.*`
+   profilelist=`ls -1 ${srcdir}/layout.*`
    for file in $profilelist;
         do
-             if test "layout.$1" = "$file"; then
+             if test "${srcdir}/layout.$1" = "$file"; then
 		return 1;
 	     fi
         done
@@ -334,12 +334,12 @@ load_directory_profile() {
    fi
 #
 # for future use - extract the help string from the profile
-#   helpstr=`${CAT} layout.$1 | ${GREP} "^helpstring=*" | ${SED} -e 's/^helpstring=//'`
+#   helpstr=`${CAT} ${srcdir}/layout.$1 | ${GREP} "^helpstring=*" | ${SED} -e 's/^helpstring=//'`
 #   helpstr=`echo $helpstr | ${SED} -e 's/^"//' | ${SED} -e 's/"$//'`
 #
 # read all directory variables from the profile
-#   profile=`${CAT} layout.$1 | ${SED} -e 's/#.*//' -e 's/\s*=\s*/=/' -e 's/\\\\ /|/g' -e 's/^\s*//' -e 's/\s.*//' | ${GREP} "^opbx.*="`
-   profile=`${CAT} layout.$1 | ${SED} -e 's/#.*//' -e 's/[[:blank:]]*=[[:blank:]]*/=/' -e 's/\\\\ /|/g' -e 's/^[[:blank:]]*//' -e 's/[[:blank:]].*//' | ${GREP} "^opbx.*="`
+#   profile=`${CAT} ${srcdir}/layout.$1 | ${SED} -e 's/#.*//' -e 's/\s*=\s*/=/' -e 's/\\\\ /|/g' -e 's/^\s*//' -e 's/\s.*//' | ${GREP} "^opbx.*="`
+   profile=`${CAT} ${srcdir}/layout.$1 | ${SED} -e 's/#.*//' -e 's/[[:blank:]]*=[[:blank:]]*/=/' -e 's/\\\\ /|/g' -e 's/^[[:blank:]]*//' -e 's/[[:blank:]].*//' | ${GREP} "^opbx.*="`
 
    for line in $profile;
    do
@@ -347,7 +347,7 @@ load_directory_profile() {
         value=`echo "$line" | ${SED} -e 's/^[[a-z]]*=[['\''"]]*//' -e 's/[['\''"]]$//' -e 's/|/ /g'`;
         is_opbx_dir ${key}
         if test $? -ne 1; then
-             echo "ignoring '${key}' in layout.$1 because it is not a valid install directory variable" >&2;
+             echo "ignoring '${key}' in ${srcdir}/layout.$1 because it is not a valid install directory variable" >&2;
         else
              eval ${key}="'${value}'"
         fi
