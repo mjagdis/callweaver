@@ -719,7 +719,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
             timer -= f->samples;
             total_timer -= f->samples;
 
-            new = dtmf_get(&dtmf_state, &digval[digits], 128 - digits);
+            new = dtmf_rx_get(&dtmf_state, &digval[digits], 128 - digits);
             i = -1;
             if (new)
             {
