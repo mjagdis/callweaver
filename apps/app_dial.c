@@ -102,7 +102,7 @@ static const char *dial_descrip =
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
 "                      with the specified class.\n"
 "      'M(x[^arg])' -- Executes the Proc (x with ^ delim arg list) upon connect of the call.\n"
-"                      Also, the Proc can set the Proc_RESULT variable to do the following:\n"
+"                      Also, the Proc can set the PROC_RESULT variable to do the following:\n"
 "                     -- ABORT - Hangup both legs of the call.\n"
 "                     -- CONGESTION - Behave as if line congestion was encountered.\n"
 "                     -- BUSY - Behave as if a busy signal was encountered. (n+101)\n"
