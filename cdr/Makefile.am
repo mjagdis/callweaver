@@ -33,6 +33,14 @@ cdr_pgsql_la_LDFLAGS	= -module -avoid-version -no-undefined
 cdr_pgsql_la_LIBADD	= @PQLIBPATH@ -lpq ${top_builddir}/corelib/libcallweaver.la
 endif WANT_CDR_PGSQL
 
+if WANT_CDR_PGSQL_CUSTOM
+opbxmod_LTLIBRARIES     += cdr_pgsql_custom.la
+cdr_pgsql_custom_la_SOURCES    = cdr_pgsql_custom.c
+cdr_pgsql_custom_la_CFLAGS     = $(AM_CFLAGS) @PQINCPATH@
+cdr_pgsql_custom_la_LDFLAGS    = -module -avoid-version -no-undefined
+cdr_pgsql_custom_la_LIBADD     = @PQLIBPATH@ -lpq ${top_builddir}/corelib/libcallweaver.la
+endif WANT_CDR_PGSQL_CUSTOM
+
 if WANT_CDR_MANAGER
 opbxmod_LTLIBRARIES     += cdr_manager.la
 cdr_manager_la_SOURCES    = cdr_manager.c
