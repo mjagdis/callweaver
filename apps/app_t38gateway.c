@@ -102,17 +102,28 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     struct opbx_frame *fr2;
     int timeout = -1;
     int running = RUNNING;
-    struct opbx_dsp *dsp = NULL;
+    struct opbx_dsp *dsp_cng = NULL;
+    struct opbx_dsp *dsp_ced = NULL;
 
-    if ((dsp = opbx_dsp_new()) == NULL)
+    if ((dsp_cng = opbx_dsp_new()) == NULL)
     {
         opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
     }
     else
     {
-        opbx_dsp_set_threshold(dsp, 256); 
-        opbx_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
-        opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+        opbx_dsp_set_threshold(dsp_cng, 256); 
+        opbx_dsp_set_features(dsp_cng, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+        opbx_dsp_digitmode(dsp_cng, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+    }
+
+    if ((dsp_ced = opbx_dsp_new()) == NULL)
+    {
+        opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
+    }
+    else
+    {
+        opbx_dsp_set_threshold(dsp_ced, 256); 
+        opbx_dsp_set_features(dsp_ced, DSP_FEATURE_FAX_CED_DETECT);
     }
 
     channels[0] = chan;
@@ -126,7 +137,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             if ((f = opbx_read(active)))
             {
 
-                if ((active == chan)  &&  dsp)
+                if ((active == chan)  &&  dsp_cng)
                     fr2 = opbx_frdup(f);
                 else
                     fr2 = NULL;
@@ -137,16 +148,38 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                 channels[0] = inactive;
                 channels[1] = active;
 
-                if ((active == chan)  &&  fr2  &&  dsp)
+                if (active == chan)
                 {
-                    if ((fr2 = opbx_dsp_process(active, dsp, fr2)))
+                    /* Look for FAX CNG tone */
+                    if (fr2  &&  dsp_cng)
                     {
-                        if (fr2->frametype == OPBX_FRAME_DTMF)
+                        if ((fr2 = opbx_dsp_process(active, dsp_cng, fr2)))
                         {
-                            if (fr2->subclass == 'f')
+                            if (fr2->frametype == OPBX_FRAME_DTMF)
                             {
-                                opbx_log(LOG_DEBUG, "Fax detected in T38 Gateway !!!\n");
-                                opbx_app_request_t38(active);
+                                if (fr2->subclass == 'f')
+                                {
+                                    opbx_log(LOG_DEBUG, "FAX CNG detected in T38 Gateway !!!\n");
+                                    opbx_app_request_t38(active);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    /* Look for FAX CED tone or V.21 preamble */
+                    if (fr2  &&  dsp_ced)
+                    {
+                        if ((fr2 = opbx_dsp_process(active, dsp_ced, fr2)))
+                        {
+                            if (fr2->frametype == OPBX_FRAME_DTMF)
+                            {
+                                if (fr2->subclass == 'F')
+                                {
+                                    opbx_log(LOG_DEBUG, "FAX CED detected in T38 Gateway !!!\n");
+                                    opbx_app_request_t38(active);
+                                }
                             }
                         }
                     }
@@ -168,8 +201,10 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             break;
     }
 
-    if (dsp)
-        opbx_dsp_free(dsp);
+    if (dsp_cng)
+        opbx_dsp_free(dsp_cng);
+    if (dsp_ced)
+        opbx_dsp_free(dsp_ced);
 
     return running;
 }
