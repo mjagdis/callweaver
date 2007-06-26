@@ -23,34 +23,35 @@
 #ifndef _CALLWEAVER_DSP_H
 #define _CALLWEAVER_DSP_H
 
-#define DSP_FEATURE_SILENCE_SUPPRESS	(1 << 0)
-#define DSP_FEATURE_BUSY_DETECT		(1 << 1)
-#define DSP_FEATURE_DTMF_DETECT		(1 << 3)
-#define DSP_FEATURE_FAX_DETECT		(1 << 4)
+#define DSP_FEATURE_SILENCE_SUPPRESS    (1 << 0)
+#define DSP_FEATURE_BUSY_DETECT         (1 << 1)
+#define DSP_FEATURE_DTMF_DETECT         (1 << 3)
+#define DSP_FEATURE_FAX_CNG_DETECT      (1 << 4)
+#define DSP_FEATURE_FAX_CED_DETECT      (1 << 5)
 
-#define	DSP_DIGITMODE_DTMF			0				/*! \brief Detect DTMF digits */
-#define DSP_DIGITMODE_MF			1				/*! \brief Detect MF digits */
+#define    DSP_DIGITMODE_DTMF       0               /*! \brief Detect DTMF digits */
+#define DSP_DIGITMODE_MF            1               /*! \brief Detect MF digits */
 
-#define DSP_DIGITMODE_NOQUELCH		(1 << 8)		/*! \brief Do not quelch DTMF from in-band */
-#define DSP_DIGITMODE_MUTECONF		(1 << 9)		/*! \brief Mute conference */
-#define DSP_DIGITMODE_MUTEMAX		(1 << 10)		/*! \brief Delay audio by a frame to try to extra quelch */
-#define DSP_DIGITMODE_RELAXDTMF		(1 << 11)		/*! \brief "Radio" mode (relaxed DTMF) */
+#define DSP_DIGITMODE_NOQUELCH      (1 << 8)        /*! \brief Do not quelch DTMF from in-band */
+#define DSP_DIGITMODE_MUTECONF      (1 << 9)        /*! \brief Mute conference */
+#define DSP_DIGITMODE_MUTEMAX       (1 << 10)       /*! \brief Delay audio by a frame to try to extra quelch */
+#define DSP_DIGITMODE_RELAXDTMF     (1 << 11)       /*! \brief "Radio" mode (relaxed DTMF) */
 
-#define DSP_PROGRESS_TALK		(1 << 16)		/*! \brief Enable talk detection */
-#define DSP_PROGRESS_RINGING		(1 << 17)		/*! \brief Enable calling tone detection */
-#define DSP_PROGRESS_BUSY		(1 << 18)		/*! \brief Enable busy tone detection */
-#define DSP_PROGRESS_CONGESTION		(1 << 19)		/*! \brief Enable congestion tone detection */
-#define DSP_FEATURE_CALL_PROGRESS	(DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
+#define DSP_PROGRESS_TALK           (1 << 16)       /*! \brief Enable talk detection */
+#define DSP_PROGRESS_RINGING        (1 << 17)       /*! \brief Enable calling tone detection */
+#define DSP_PROGRESS_BUSY           (1 << 18)       /*! \brief Enable busy tone detection */
+#define DSP_PROGRESS_CONGESTION     (1 << 19)       /*! \brief Enable congestion tone detection */
+#define DSP_FEATURE_CALL_PROGRESS   (DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
 
-#define DSP_TONE_STATE_SILENCE  0
-#define DSP_TONE_STATE_RINGING  1 
-#define DSP_TONE_STATE_DIALTONE 2
-#define DSP_TONE_STATE_TALKING  3
-#define DSP_TONE_STATE_BUSY     4
-#define DSP_TONE_STATE_SPECIAL1	5
-#define DSP_TONE_STATE_SPECIAL2 6
-#define DSP_TONE_STATE_SPECIAL3 7
-#define DSP_TONE_STATE_HUNGUP 	8
+#define DSP_TONE_STATE_SILENCE      0
+#define DSP_TONE_STATE_RINGING      1
+#define DSP_TONE_STATE_DIALTONE     2
+#define DSP_TONE_STATE_TALKING      3
+#define DSP_TONE_STATE_BUSY         4
+#define DSP_TONE_STATE_SPECIAL1     5
+#define DSP_TONE_STATE_SPECIAL2     6
+#define DSP_TONE_STATE_SPECIAL3     7
+#define DSP_TONE_STATE_HUNGUP       8
 
 struct opbx_dsp;
 

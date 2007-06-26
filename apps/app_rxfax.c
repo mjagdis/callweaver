@@ -410,7 +410,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
         opbx_log(LOG_WARNING, "Unable to allocate DSP!\n");
     else {
 	opbx_dsp_set_threshold(dsp, 256); 
-	opbx_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+	opbx_dsp_set_features (dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 	opbx_dsp_digitmode    (dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
     }
 

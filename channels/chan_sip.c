@@ -3788,9 +3788,9 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     if (opbx_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND)
     {
         i->vad = opbx_dsp_new();
-        opbx_dsp_set_features(i->vad,   DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+        opbx_dsp_set_features(i->vad,   DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
         i->vadtx = opbx_dsp_new();
-        opbx_dsp_set_features(i->vadtx, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+        opbx_dsp_set_features(i->vadtx, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
         if (relaxdtmf)
         {
             opbx_dsp_digitmode(i->vad  , DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);

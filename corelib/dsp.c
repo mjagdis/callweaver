@@ -50,7 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA       183     /* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
 #define GSAMP_SIZE_CR       188     /* Costa Rica, Brazil - Only care about 425 Hz */
-#define GSAMP_SIZE_UK       160     /* UK disconnect goertzel feed - should trigger 400hz */
+#define GSAMP_SIZE_UK       160     /* UK disconnect goertzel feed - should trigger 400Hz */
 
 #define PROG_MODE_NA        0
 #define PROG_MODE_CR        1
@@ -122,7 +122,7 @@ struct opbx_dsp
     int totalsilence;
     int totalnoise;
     int features;
-    int busymaybe;
+    int busy_maybe;
     int busycount;
     int busy_tonelength;
     int busy_quietlength;
@@ -140,6 +140,7 @@ struct opbx_dsp
     int mute_lag;
     float genergy;
     dtmf_rx_state_t dtmf_rx;
+    modem_connect_tones_rx_state_t fax_ced_rx;
     modem_connect_tones_rx_state_t fax_cng_rx;
     bell_mf_rx_state_t bell_mf_rx;
 };
@@ -164,7 +165,7 @@ static inline int pair_there(float p1, float p2, float i1, float i2, float e)
     return 1;
 }
 
-static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
+static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, int16_t *s, int len)
 {
     int x;
     int y;
@@ -235,7 +236,9 @@ static int __opbx_dsp_call_progress(struct opbx_dsp *dsp, short *s, int len)
                     newstate = DSP_TONE_STATE_TALKING;
                 }
                 else
+                {
                     newstate = DSP_TONE_STATE_SILENCE;
+                }
                 break;
             case PROG_MODE_CR:
                 if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH)
@@ -324,17 +327,17 @@ int opbx_dsp_call_progress(struct opbx_dsp *dsp, struct opbx_frame *inf)
     return __opbx_dsp_call_progress(dsp, inf->data, inf->datalen / 2);
 }
 
-static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *totalsilence)
+static int __opbx_dsp_silence(struct opbx_dsp *dsp, int16_t amp[], int len, int *totalsilence)
 {
     int accum;
     int x;
-    int res = 0;
+    int res;
 
     if (!len)
         return 0;
     accum = 0;
     for (x = 0;  x < len;  x++) 
-        accum += abs(s[x]);
+        accum += abs(amp[x]);
     accum /= len;
     if (accum < dsp->threshold)
     {
@@ -345,10 +348,10 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *tota
             /* Move and save history */
             memmove(dsp->historicnoise + DSP_HISTORY - dsp->busycount, dsp->historicnoise + DSP_HISTORY - dsp->busycount +1, dsp->busycount*sizeof(dsp->historicnoise[0]));
             dsp->historicnoise[DSP_HISTORY - 1] = dsp->totalnoise;
-            /* we don't want to check for busydetect that frequently */
+            /* We don't want to check for busydetect that frequently */
         }
         dsp->totalnoise = 0;
-        res = 1;
+        res = TRUE;
     }
     else
     {
@@ -363,21 +366,12 @@ static int __opbx_dsp_silence(struct opbx_dsp *dsp, short *s, int len, int *tota
             dsp->historicsilence[DSP_HISTORY - 1] = dsp->totalsilence;
             /* check if the previous sample differs only by BUSY_PERCENT from the one before it */
             if (silence1 < silence2)
-            {
-                if (silence1 + silence1*BUSY_PERCENT/100 >= silence2)
-                    dsp->busymaybe = 1;
-                else 
-                    dsp->busymaybe = 0;
-            }
+                dsp->busy_maybe = (silence1 + silence1*BUSY_PERCENT/100 >= silence2);
             else
-            {
-                if (silence1 - silence1*BUSY_PERCENT/100 <= silence2)
-                    dsp->busymaybe = 1;
-                else 
-                    dsp->busymaybe = 0;
-            }
+                dsp->busy_maybe = (silence1 - silence1*BUSY_PERCENT/100 <= silence2);
         }
         dsp->totalsilence = 0;
+        res = FALSE;
     }
     if (totalsilence)
         *totalsilence = dsp->totalsilence;
@@ -396,7 +390,7 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
     int avgtone = 0;
     int hittone = 0;
 
-    if (!dsp->busymaybe)
+    if (!dsp->busy_maybe)
         return res;
     for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
     {
@@ -494,9 +488,9 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
     int min;
 
     res = 0;
-    if (dsp->busymaybe)
+    if (dsp->busy_maybe)
     {
-        dsp->busymaybe = 0;
+        dsp->busy_maybe = FALSE;
         min = 9999;
         max = 0;
         for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
@@ -519,22 +513,38 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 
 int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilence)
 {
-    short *s;
+    int16_t *amp;
+    uint8_t *data;
     int len;
-    
+    int x;
+
     if (f->frametype != OPBX_FRAME_VOICE)
     {
         opbx_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
         return 0;
     }
-    if (f->subclass != OPBX_FORMAT_SLINEAR)
+    data = f->data;
+    switch (f->subclass)
     {
-        opbx_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
+    case OPBX_FORMAT_SLINEAR:
+        amp = f->data;
+        len = f->datalen/2;
+        break;
+    case OPBX_FORMAT_ULAW:
+        amp = alloca(f->datalen*sizeof(int16_t));
+        for (x = 0;  x < len;  x++) 
+            amp[x] = OPBX_MULAW(data[x]);
+        break;
+    case OPBX_FORMAT_ALAW:
+        amp = alloca(f->datalen*sizeof(int16_t));
+        for (x = 0;  x < len;  x++) 
+            amp[x] = OPBX_ALAW(data[x]);
+        break;
+    default:
+        opbx_log(LOG_WARNING, "Silence detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(f->subclass));
         return 0;
     }
-    s = f->data;
-    len = f->datalen/2;
-    return __opbx_dsp_silence(dsp, s, len, totalsilence);
+    return __opbx_dsp_silence(dsp, amp, len, totalsilence);
 }
 
 #define FIX_INF(inf) \
@@ -544,15 +554,13 @@ do \
     { \
         switch(inf->subclass) \
         { \
-        case OPBX_FORMAT_SLINEAR: \
-            break; \
         case OPBX_FORMAT_ULAW: \
             for (x = 0;  x < len;  x++) \
-                odata[x] = OPBX_LIN2MU((int16_t) amp[x]); \
+                odata[x] = OPBX_LIN2MU(amp[x]); \
             break; \
         case OPBX_FORMAT_ALAW: \
             for (x = 0;  x < len;  x++) \
-                odata[x] = OPBX_LIN2A((int16_t) amp[x]); \
+                odata[x] = OPBX_LIN2A(amp[x]); \
             break; \
         } \
     } \
@@ -582,7 +590,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
     {
     case OPBX_FORMAT_SLINEAR:
         amp = af->data;
-        len = af->datalen / 2;
+        len = af->datalen/2;
         break;
     case OPBX_FORMAT_ULAW:
         amp = alloca(af->datalen*sizeof(int16_t));
@@ -595,11 +603,11 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             amp[x] = OPBX_ALAW(odata[x]);
         break;
     default:
-        opbx_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
+        opbx_log(LOG_WARNING, "Tone detection is not supported on codec %s. Use RFC2833\n", opbx_getformatname(af->subclass));
         return af;
     }
     silence = __opbx_dsp_silence(dsp, amp, len, NULL);
-    if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS) && silence)
+    if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS)  &&  silence)
     {
         opbx_fr_init(&dsp->f);
         dsp->f.frametype = OPBX_FRAME_NULL;
@@ -645,7 +653,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                     if (dsp->dtmf_rx.last_hit)
                     {
                         /* Looks like we might have something.  
-                         * Request a conference mute for the moment */
+                           Request a conference mute for the moment */
                         dsp->thinkdigit = 'x';
                         opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'm', NULL);
                         FIX_INF(af);
@@ -659,7 +667,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
                 {
                     if (dsp->dtmf_rx.in_digit)
                     {
-                        /* Thought we saw one last time.  Pretty sure we really have now */
+                        /* Thought we saw one last time. It is now confirmed. */
                         if (dsp->thinkdigit)
                         {
                             if ((dsp->thinkdigit != 'x')  &&  (dsp->thinkdigit != dsp->dtmf_rx.in_digit))
@@ -716,7 +724,7 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             }
         }
     }
-    if ((dsp->features & DSP_FEATURE_FAX_DETECT))
+    if ((dsp->features & DSP_FEATURE_FAX_CNG_DETECT))
     {
         modem_connect_tones_rx(&dsp->fax_cng_rx, amp, len);
         if (modem_connect_tones_rx_get(&dsp->fax_cng_rx))
@@ -729,10 +737,22 @@ struct opbx_frame *opbx_dsp_process(struct opbx_channel *chan, struct opbx_dsp *
             return &dsp->f;
         }
     }
+    if ((dsp->features & DSP_FEATURE_FAX_CED_DETECT))
+    {
+        modem_connect_tones_rx(&dsp->fax_ced_rx, amp, len);
+        if (modem_connect_tones_rx_get(&dsp->fax_ced_rx))
+        {
+            opbx_fr_init_ex(&dsp->f, OPBX_FRAME_DTMF, 'F', NULL);
+            FIX_INF(af);
+            if (chan)
+                opbx_queue_frame(chan, af);
+            opbx_fr_free(af);
+            return &dsp->f;
+        }
+    }
     if ((dsp->features & DSP_FEATURE_CALL_PROGRESS))
     {
-        res = __opbx_dsp_call_progress(dsp, amp, len);
-        if (res)
+        if ((res = __opbx_dsp_call_progress(dsp, amp, len)))
         {
             switch (res)
             {
@@ -793,6 +813,10 @@ struct opbx_dsp *opbx_dsp_new(void)
                                     MODEM_CONNECT_TONES_FAX_CNG,
                                     NULL,
                                     NULL);
+        modem_connect_tones_rx_init(&dsp->fax_ced_rx,
+                                    MODEM_CONNECT_TONES_FAX_CED,
+                                    NULL,
+                                    NULL);
 
         /* Initialize initial DSP progress detect parameters */
         opbx_dsp_prog_reset(dsp);
@@ -843,6 +867,10 @@ void opbx_dsp_digitreset(struct opbx_dsp *dsp)
                                 MODEM_CONNECT_TONES_FAX_CNG,
                                 NULL,
                                 NULL);
+    modem_connect_tones_rx_init(&dsp->fax_ced_rx,
+                                MODEM_CONNECT_TONES_FAX_CED,
+                                NULL,
+                                NULL);
 }
 
 void opbx_dsp_reset(struct opbx_dsp *dsp)
@@ -859,21 +887,25 @@ void opbx_dsp_reset(struct opbx_dsp *dsp)
 
 int opbx_dsp_digitmode(struct opbx_dsp *dsp, int digitmode)
 {
-    int new;
-    int old;
+    int new_mode;
+    int old_mode;
     
-    old = dsp->digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
-    new = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
-    if (old != new)
+    old_mode = dsp->digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
+    new_mode = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
+    if (old_mode != new_mode)
     {
         /* Must initialize structures if switching from MF to DTMF or vice-versa */
-        if ((new & DSP_DIGITMODE_MF))
+        if ((new_mode & DSP_DIGITMODE_MF))
             bell_mf_rx_init(&dsp->bell_mf_rx, NULL, NULL);
         else
             dtmf_rx_init(&dsp->dtmf_rx, NULL, NULL);
         dsp->mute_lag = 0;
         modem_connect_tones_rx_init(&dsp->fax_cng_rx,
                                     MODEM_CONNECT_TONES_FAX_CNG,
+                                    NULL,
+                                    NULL);
+        modem_connect_tones_rx_init(&dsp->fax_ced_rx,
+                                    MODEM_CONNECT_TONES_FAX_CED,
                                     NULL,
                                     NULL);
     }

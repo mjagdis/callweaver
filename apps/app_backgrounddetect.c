@@ -165,7 +165,7 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 		if (!ignoretalk)
 			; // features |= DSP_FEATURE_SILENCE_SUPPRESS; 
 		if (!ignorefax)
-			features |= DSP_FEATURE_FAX_DETECT;
+			features |= DSP_FEATURE_FAX_CNG_DETECT;
 		//if (!ignoredtmf)
 			features |= DSP_FEATURE_DTMF_DETECT;
 

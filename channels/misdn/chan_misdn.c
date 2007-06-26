@@ -1887,7 +1887,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		if (!ch->dsp)
 			ch->dsp = opbx_dsp_new();
 		if (ch->dsp)
-			opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+			opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
 			ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ALAW);
 	}
@@ -4980,10 +4980,14 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv)
 		config_jitterbuffer(ch);
 	
 	
-	if (ch->faxdetect || ch->opbx_dsp) {
-		if (!ch->dsp) ch->dsp = opbx_dsp_new();
-		if (ch->dsp) opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT| DSP_FEATURE_FAX_DETECT);
-		if (!ch->trans) ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ALAW);
+	if (ch->faxdetect || ch->opbx_dsp)
+    {
+		if (!ch->dsp)
+            ch->dsp = opbx_dsp_new();
+		if (ch->dsp)
+            opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+		if (!ch->trans)
+            ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ALAW);
 	}
 
 	if (ch->opbx_dsp) {

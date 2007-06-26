@@ -207,7 +207,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
         if (!ignoretalk)
             ; /* features |= DSP_FEATURE_SILENCE_SUPPRESS; */
         if (!ignorefax)
-            features |= DSP_FEATURE_FAX_DETECT;
+            features |= DSP_FEATURE_FAX_CNG_DETECT;
 
         features |= DSP_FEATURE_DTMF_DETECT;
             

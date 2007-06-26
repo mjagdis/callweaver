@@ -111,7 +111,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
     else
     {
         opbx_dsp_set_threshold(dsp, 256); 
-        opbx_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+        opbx_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
         opbx_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
     }
 

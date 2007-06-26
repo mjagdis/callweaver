@@ -5050,7 +5050,7 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 		}
 		if ((!i->outgoing && (i->callprogress & 4)) || 
 		    (i->outgoing && (i->callprogress & 2))) {
-			features |= DSP_FEATURE_FAX_DETECT;
+			features |= DSP_FEATURE_FAX_CNG_DETECT;
 		}
 #ifdef ZT_TONEDETECT
 		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
