@@ -6461,18 +6461,16 @@ static int pbx_builtin_suffix(struct opbx_channel *chan, int argc, char **argv)
 static int pbx_builtin_gotoiftime(struct opbx_channel *chan, int argc, char **argv)
 {
     struct opbx_timing timing;
-    char *s;
+    char *s, *q;
 
-    s = NULL;
-    if (argc > 3) {
-    	s = strchr(argv[3], '?');
-    	if (s) while (isspace(*(++s)));
-    }
-
-    if (!s || !*s || argc > 6) {
+    if (argc < 4 || argc > 6 || !(s = strchr(argv[3], '?'))) {
         opbx_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
         return -1;
     }
+
+    /* Trim trailing space from the timespec */
+    q = s;
+    do { *(q--) = '\0'; } while (q >= argv[3] && isspace(*q));
 
     get_timerange(&timing, argv[0]);
     timing.dowmask = get_dow(argv[1]);
@@ -6480,6 +6478,7 @@ static int pbx_builtin_gotoiftime(struct opbx_channel *chan, int argc, char **ar
     timing.monthmask = get_month(argv[3]);
 
     if (opbx_check_timing(&timing)) {
+        do { *(s++) = '\0'; } while (isspace(*s));
     	argv[3] = s;
 	argv += 3;
     	argc -= 3;
@@ -6492,18 +6491,16 @@ static int pbx_builtin_gotoiftime(struct opbx_channel *chan, int argc, char **ar
 static int pbx_builtin_execiftime(struct opbx_channel *chan, int argc, char **argv)
 {
     struct opbx_timing timing;
-    char *s;
+    char *s, *q;
 
-    s = NULL;
-    if (argc > 3) {
-    	s = strchr(argv[3], '?');
-    	if (s) while (isspace(*(++s)));
-    }
-
-    if (!s || !*s) {
+    if (argc < 4 || !(s = strchr(argv[3], '?'))) {
         opbx_log(LOG_WARNING, "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<appname>[(<args>)]\n");
         return -1;
     }
+
+    /* Trim trailing space from the timespec */
+    q = s;
+    do { *(q--) = '\0'; } while (q >= argv[3] && isspace(*q));
 
     get_timerange(&timing, argv[0]);
     timing.dowmask = get_dow(argv[1]);
@@ -6511,7 +6508,9 @@ static int pbx_builtin_execiftime(struct opbx_channel *chan, int argc, char **ar
     timing.monthmask = get_month(argv[3]);
 
     if (opbx_check_timing(&timing)) {
-        struct opbx_app *app = pbx_findapp(s);
+        struct opbx_app *app;
+        do { *(s++) = '\0'; } while (isspace(*s));
+        app = pbx_findapp(s);
 	if (app) {
 		if ((s = strchr(s, '('))) {
 			argv[0] = s + 1;
@@ -6519,7 +6518,7 @@ static int pbx_builtin_execiftime(struct opbx_channel *chan, int argc, char **ar
 				*s = '\0';
 			return pbx_exec(chan, app, argv[0]);
 		} else {
-			return pbx_exec_argv(chan, app, argc - 4, argv + 5);
+			return pbx_exec_argv(chan, app, argc - 4, argv + 4);
 		}
 	} else {
 		opbx_log(LOG_WARNING, "Cannot locate application %s\n", s);
