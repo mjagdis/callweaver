@@ -137,7 +137,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             if ((f = opbx_read(active)))
             {
 
-                if ((active == chan)  &&  dsp_cng)
+                if (dsp_ced  &&  dsp_cng)
                     fr2 = opbx_frdup(f);
                 else
                     fr2 = NULL;
@@ -160,7 +160,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                                 if (fr2->subclass == 'f')
                                 {
                                     opbx_log(LOG_DEBUG, "FAX CNG detected in T38 Gateway !!!\n");
-                                    opbx_app_request_t38(active);
+                                    opbx_app_request_t38(chan);
                                 }
                             }
                         }
@@ -178,7 +178,7 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                                 if (fr2->subclass == 'F')
                                 {
                                     opbx_log(LOG_DEBUG, "FAX CED detected in T38 Gateway !!!\n");
-                                    opbx_app_request_t38(active);
+                                    opbx_app_request_t38(chan);
                                 }
                             }
                         }
