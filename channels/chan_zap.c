@@ -3283,19 +3283,32 @@ static enum opbx_bridge_result zt_bridge(struct opbx_channel *c0, struct opbx_ch
 		opbx_mutex_unlock(&c0->lock);
 		opbx_mutex_unlock(&c1->lock);
 
-		if (!timeoutms || 
-		    (op0 != p0) ||
-		    (op1 != p1) || 
-		    (ofd0 != c0->fds[0]) || 
-		    (ofd1 != c1->fds[0]) ||
-		    (p0->subs[SUB_REAL].owner && (os0 > -1) && (os0 != p0->subs[SUB_REAL].owner->_state)) || 
-		    (p1->subs[SUB_REAL].owner && (os1 > -1) && (os1 != p1->subs[SUB_REAL].owner->_state)) || 
-		    (oc0 != p0->owner) || 
-		    (oc1 != p1->owner) ||
-		    (t0 != p0->subs[SUB_REAL].inthreeway) ||
-		    (t1 != p1->subs[SUB_REAL].inthreeway) ||
-		    (oi0 != i0) ||
-		    (oi1 != i0)) {
+		if (!timeoutms
+            || 
+		    (op0 != p0)
+            ||
+		    (op1 != p1)
+            ||
+		    (ofd0 != c0->fds[0])
+            ||
+		    (ofd1 != c1->fds[0])
+            ||
+		    (p0->subs[SUB_REAL].owner && (os0 > -1) && (os0 != p0->subs[SUB_REAL].owner->_state))
+            ||
+		    (p1->subs[SUB_REAL].owner && (os1 > -1) && (os1 != p1->subs[SUB_REAL].owner->_state))
+            ||
+		    (oc0 != p0->owner)
+            ||
+		    (oc1 != p1->owner)
+            ||
+		    (t0 != p0->subs[SUB_REAL].inthreeway)
+            ||
+		    (t1 != p1->subs[SUB_REAL].inthreeway)
+            ||
+		    (oi0 != i0)
+            ||
+		    (oi1 != i1))
+        {
 			opbx_log(LOG_DEBUG, "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
 				op0->channel, oi0, op1->channel, oi1);
 			res = OPBX_BRIDGE_RETRY;
