@@ -755,32 +755,6 @@ dnl ###
 dnl ###########################################################################
 dnl ###########################################################################
 
-dnl select busydetect method
-AC_ARG_ENABLE(busydetect,
-	[AC_HELP_STRING([--enable-busydetect=TYPE],[select which busydetect version to use: none (default) toneonly martin compare_tone_and_silence])],,[enable_busydetect="none"])
-
-AC_MSG_CHECKING([for busydetect type])
-if test "x$enable_busydetect" != "xnone" ; then
-   	case $enable_busydetect in
-		toneonly)
-			BUSYDETECT=BUSYDETECT_TONEONLY
-			;;
-		martin)
-			BUSYDETECT=BUSYDETECT_MARTIN
-			;;
-		tone_and_silence)
-			BUSYDETECT=BUSYDETECT_TONE_AND_SILENCE
-			;;
-		*)	
-			AC_MSG_ERROR([Unknown busydetect type "$enable_busydetect"])
-			;;
-	esac
-fi
-AC_MSG_RESULT([$enable_busydetect])
-
-AC_SUBST([BUSYDETECT])
-AC_DEFINE_UNQUOTED([BUSYDETECT],"${BUSYDETECT}",[Select method for detecting busy signals.])
-
 dnl Optimize for host cpu version
 AC_ARG_ENABLE(optimization,     
 	[AC_HELP_STRING([--disable-optimization],[no detection or tuning flags for cpu version])],
@@ -2484,7 +2458,6 @@ echo ""
 echo "CFLAGS: 		$CFLAGS"
 echo "LIBS: 		$LIBS"
 echo "LDFLAGS: 		$LDFLAGS"
-echo "BUSYDETECT: 	${BUSYDETECT}"
 echo "CPU_OPTIONS: 	${CPU_OPTIONS}"
 echo "BUILD_OS: 	${BUILD_OS}"
 echo "BUILD_MACHINE: 	${BUILD_MACHINE}"

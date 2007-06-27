@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief Convenience Signal Processing routines
+ * \brief Tone detection routines
  *
  */
 
@@ -111,7 +111,9 @@ static struct progress
 #define COUNT_THRESH        3       /* Need at least 50ms of stuff to count it */
 #define UK_HANGUP_THRESH    60      /* This is the threshold for the UK */
 
-#if !defined(BUSYDETECT_MARTIN)  &&  !defined(BUSYDETECT)  &&  !defined(BUSYDETECT_TONEONLY)  &&  !defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
+#define BUSYDETECT
+
+#if !defined(BUSYDETECT_MARTIN)  &&  !defined(BUSYDETECT)  &&  !defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
 #define BUSYDETECT_MARTIN
 #endif
 
@@ -383,10 +385,8 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
 {
     int res = 0;
     int x;
-#ifndef BUSYDETECT_TONEONLY
     int avgsilence = 0;
     int hitsilence = 0;
-#endif
     int avgtone = 0;
     int hittone = 0;
 
@@ -394,18 +394,13 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
         return res;
     for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
     {
-#ifndef BUSYDETECT_TONEONLY
         avgsilence += dsp->historicsilence[x];
-#endif
         avgtone += dsp->historicnoise[x];
     }
-#ifndef BUSYDETECT_TONEONLY
     avgsilence /= dsp->busycount;
-#endif
     avgtone /= dsp->busycount;
     for (x = DSP_HISTORY - dsp->busycount;  x < DSP_HISTORY;  x++)
     {
-#ifndef BUSYDETECT_TONEONLY
         if (avgsilence > dsp->historicsilence[x])
         {
             if (avgsilence - (avgsilence*BUSY_PERCENT/100) <= dsp->historicsilence[x])
@@ -416,7 +411,6 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
             if (avgsilence + (avgsilence*BUSY_PERCENT/100) >= dsp->historicsilence[x])
                 hitsilence++;
         }
-#endif
         if (avgtone > dsp->historicnoise[x])
         {
             if (avgtone - (avgtone*BUSY_PERCENT/100) <= dsp->historicnoise[x])
@@ -428,7 +422,6 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
                 hittone++;
         }
     }
-#ifndef BUSYDETECT_TONEONLY
     if ((hittone >= dsp->busycount - 1)
         &&
         (hitsilence >= dsp->busycount - 1)
@@ -437,14 +430,7 @@ int opbx_dsp_busydetect(struct opbx_dsp *dsp)
         && 
         (avgsilence >= BUSY_MIN  &&  avgsilence <= BUSY_MAX))
     {
-#else
-    if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX))
-    {
-#endif
 #ifdef BUSYDETECT_COMPARE_TONE_AND_SILENCE
-#ifdef BUSYDETECT_TONEONLY
-#error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
-#endif
         if (avgtone > avgsilence)
         {
             if (avgtone - avgtone*BUSY_PERCENT/100 <= avgsilence)
