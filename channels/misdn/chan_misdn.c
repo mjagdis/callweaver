@@ -2612,15 +2612,6 @@ static int misdn_write(struct opbx_channel *ast, struct opbx_frame *frame)
 		/*transmit without jitterbuffer*/
 		i=misdn_lib_tx2misdn_frm(ch->bc, frame->data, frame->samples);
 	}
-
-	
-	int len=misdn_jb_empty(ch->jb_rx, ch->opbx_rd_buf, frame->samples);
-	if (len>0) { 
-		trigger_read(ch, ch->opbx_rd_buf, len);
-	} else {
-		cb_log(0,ch->bc->port,"jb_read underrun: %d\n",len);
-	}
-
 	
 	return 0;
 }
@@ -4357,6 +4348,15 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
  			if (l<0) {
  				cb_log(0,bc->port,"jb_fill overflow:%d\n",l);
 			}
+
+			int len = misdn_jb_empty(ch->jb_rx, ch->opbx_rd_buf,
+						 bc->bframe_len);
+			if (len > 0) { 
+				trigger_read(ch, ch->opbx_rd_buf, len);
+			} else {
+				cb_log(0,ch->bc->port,"jb_read underrun: %d\n",len);
+			}
+
 		}
 	}
 	break;
