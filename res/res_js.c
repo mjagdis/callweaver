@@ -1300,7 +1300,7 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv)
 	char *options = NULL;
 	int flags = 0;
 
-	if (argc < 1 || !argc[0][0]) {
+	if (argc < 1 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "js requires an argument (filename|code)\n");
 		return -1;
 	}
@@ -1311,8 +1311,8 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv)
 		argv[0]++;
 		for (; argv[0][0]; argv[0]++) {
 			switch (argv[0][0]) {
-				case 'f': flags |= JS_BREACH_FATAL | JS_SECURE_FLAG; break;
-				case 's': flags |= JS_SECURE_FLAG; break;
+				case 'f': flags |= JC_BREACH_FATAL | JC_SECURE_FLAG; break;
+				case 's': flags |= JC_SECURE_FLAG; break;
 			}
 		}
 		argv++, argc--;
