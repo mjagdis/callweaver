@@ -393,7 +393,7 @@ static inline int zt_wait_event(int fd)
 #define CALLWAITING_REPEAT_SAMPLES	MS_TO_SAMPLES(10000)	/* 10 s */
 #define CIDCW_EXPIRE_SAMPLES		MS_TO_SAMPLES(500)	/* 500 ms */
 #define DEFAULT_RINGT 			MS_TO_SAMPLES(8000)	/* 8 s */
-#define MIN_MS_SINCE_FLASH		MS_TO_SAMPLES(2000)	/* 2 s */
+#define MIN_MS_SINCE_FLASH		2000			/* 2 s */
 
 struct zt_pvt;
 
