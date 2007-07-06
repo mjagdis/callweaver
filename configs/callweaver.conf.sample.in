@@ -1,24 +1,24 @@
 [general]
 ;user to run callweaver (this can not be root/UID 0)
-opbxrunuser => @opbxrunuser@
+cwrunuser => @opbxrunuser@
 ;group to run callweaver (this can not be root wheel or GID 0)
-opbxrungroup => @opbxrunuser@
+cwrungroup => @opbxrunuser@
 
 [directories]
-opbxetcdir => @opbxconfdir@
-opbxmoddir => @opbxmoddir@
-opbxvarlibdir => @opbxvardir@
-opbxdbdir => @opbxdbdir@
-opbxogidir => @opbxogidir@
-opbxspooldir => @opbxspooldir@
-opbxrundir => @opbxrundir@
-opbxlogdir => @opbxlogdir@
-opbxsoundsdir => @opbxsoundsdir@
+cwetcdir => @opbxconfdir@
+cwmoddir => @opbxmoddir@
+cwvarlibdir => @opbxvardir@
+cwdbdir => @opbxdbdir@
+cwogidir => @opbxogidir@
+cwspooldir => @opbxspooldir@
+cwrundir => @opbxrundir@
+cwlogdir => @opbxlogdir@
+cwsoundsdir => @opbxsoundsdir@
 
 ; Changing the following lines may compromise your security.
 ;[files]
-;opbxctlpermissions = 0660
-;opbxctlowner = root
-;opbxctlgroup = apache
-;opbxctl = callweaver.ctl
-;opbxdb = @opbxdbfile@
+;cwctlpermissions = 0660
+;cwctlowner = root
+;cwctlgroup = apache
+;cwctl = callweaver.ctl
+;cwdb = @opbxdbfile@
