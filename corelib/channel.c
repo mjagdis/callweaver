@@ -96,10 +96,12 @@ static struct opbx_channel *channels = NULL;
  */
 OPBX_MUTEX_DEFINE_STATIC(chlock);
 
-const struct opbx_cause {
+const struct opbx_cause
+{
 	int cause;
 	const char *desc;
-} causes[] = {
+} causes[] =
+{
 	{ OPBX_CAUSE_UNALLOCATED, "Unallocated (unassigned) number" },
 	{ OPBX_CAUSE_NO_ROUTE_TRANSIT_NET, "No route to specified transmit network" },
 	{ OPBX_CAUSE_NO_ROUTE_DESTINATION, "No route to destination" },
@@ -147,10 +149,12 @@ const struct opbx_cause {
 };
 
 /* Control frame types */
-const struct opbx_control {
+const struct opbx_control
+{
 	int control;
 	const char *desc;
-} controles[] = {
+} controles[] =
+{
 	{OPBX_CONTROL_HANGUP, "Other end has hungup"},
 	{OPBX_CONTROL_RING, "Local ring"},
 	{OPBX_CONTROL_RINGING, "Remote end is ringing"},
@@ -174,8 +178,11 @@ const struct opbx_control {
 /* this code is broken - if someone knows how to rewrite the list traversal, please tell */
 struct opbx_variable *opbx_channeltype_list(void)
 {
+#if 0
 	struct chanlist *cl;
-	struct opbx_variable *var=NULL, *prev = NULL;
+	struct opbx_variable *var = NULL;
+	struct opbx_variable *prev = NULL;
+#endif
 
 	opbx_log(LOG_WARNING, "opbx_channeltype_list() called (probably by res_snmp.so). This is not implemented yet.\n");
 	return NULL;
@@ -183,11 +190,15 @@ struct opbx_variable *opbx_channeltype_list(void)
 /*	OPBX_LIST_TRAVERSE(&backends, cl, list) {  <-- original line from asterisk */
 
 #if 0
-	OPBX_LIST_TRAVERSE(&backends, cl, next) {
-		if (prev)  {
+	OPBX_LIST_TRAVERSE(&backends, cl, next)
+    {
+		if (prev)
+        {
 			if ((prev->next = opbx_variable_new(cl->tech->type, cl->tech->description)))
 				prev = prev->next;
-		} else {
+		}
+        else
+        {
 			var = opbx_variable_new(cl->tech->type, cl->tech->description);
 			prev = var;
 		}
@@ -1051,7 +1062,8 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 
 	if (count > 1000)
     {
-		struct opbx_frame *freef, *headf;
+		struct opbx_frame *freef;
+		struct opbx_frame *headf;
 
 		opbx_log(LOG_ERROR, "Too many frames queued at once, flushing cache.\n");
 		headf = spy->queue[pos];
@@ -1348,13 +1360,14 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 		do
         {
 			int kbrms = rms;
+
 			if (kbrms > 600000)
 				kbrms = 600000;
 			res = poll(pfds, max, kbrms);
 			if (!res)
 				rms -= kbrms;
 		}
-        while (!res && (rms > 0));
+        while (!res  &&  (rms > 0));
 	}
     else
     {
@@ -1367,8 +1380,10 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 			opbx_clear_flag(c[x], OPBX_FLAG_BLOCKING);
 		/* Simulate a timeout if we were interrupted */
 		if (errno != EINTR)
+        {
 			*ms = -1;
-		else
+		}
+        else
         {
 			/* Just an interrupt */
 #if 0
@@ -3822,12 +3837,14 @@ int opbx_carefulwrite(int fd, char *s, int len, int timeoutms)
 	   before timing out */
 	int res=0;
 	struct pollfd fds[1];
-	while(len) {
+	
+    while (len)
+    {
 		res = write(fd, s, len);
-		if ((res < 0) && (errno != EAGAIN)) {
+		if ((res < 0) && (errno != EAGAIN))
 			return -1;
-		}
-		if (res < 0) res = 0;
+		if (res < 0)
+            res = 0;
 		len -= res;
 		s += res;
 		fds[0].fd = fd;
@@ -3840,15 +3857,16 @@ int opbx_carefulwrite(int fd, char *s, int len, int timeoutms)
 	return res;
 }
 
-/*! \brief Unlock OPBX channel (and print debugging output) 
-res_snmp needs these for some reason */
+#if defined(DEBUG_CHANNEL_LOCKS)
 int opbx_channel_unlock(struct opbx_channel *chan)
 {
 	int res = 0;
+
 	if (option_debug > 2) 
 		opbx_log(LOG_DEBUG, "::::==== Unlocking OPBX channel %s\n", chan->name);
 	
-	if (!chan) {
+	if (!chan)
+    {
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
 		return 0;
@@ -3856,31 +3874,33 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 
 	res = opbx_mutex_unlock(&chan->lock);
 
-	if (option_debug > 2) {
+	if (option_debug > 2)
+    {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock.reentrancy))
+		
+        if ((count = chan->lock.reentrancy))
 			opbx_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
-			if (res == EINVAL) {
-				if (option_debug)
-					opbx_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
-			}
+		if (res == EINVAL)
+        {
+			if (option_debug)
+				opbx_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
 		}
-		if (res == EPERM) {
-			/* We had no lock, so okay any way*/
-			if (option_debug > 3)
-				opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
+	}
+	if (res == EPERM)
+    {
+		/* We had no lock, so okay any way*/
+		if (option_debug > 3)
+			opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
 		res = 0;
 	}
 	return res;
 }
 
-/*! \brief Lock OPBX channel (and print debugging output)
-\note You need to enable DEBUG_CHANNEL_LOCKS for this function */
 int opbx_channel_lock(struct opbx_channel *chan)
 {
 	int res;
@@ -3890,20 +3910,24 @@ int opbx_channel_lock(struct opbx_channel *chan)
 
 	res = opbx_mutex_lock(&chan->lock);
 
-	if (option_debug > 3) {
+	if (option_debug > 3)
+    {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock.reentrancy))
+	
+    	if ((count = chan->lock.reentrancy))
 			opbx_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)
 			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
-		if (res == EDEADLK) {
-		/* We had no lock, so okey any way */
-		if (option_debug > 3)
-			opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
+		if (res == EDEADLK)
+        {
+		    /* We had no lock, so okey any way */
+		    if (option_debug > 3)
+			    opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
 		}
-		if (res == EINVAL) {
+		if (res == EINVAL)
+        {
 			if (option_debug > 3)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 		}
@@ -3911,8 +3935,6 @@ int opbx_channel_lock(struct opbx_channel *chan)
 	return res;
 }
 
-/*! \brief Lock OPBX channel (and print debugging output)
-\note	You need to enable DEBUG_CHANNEL_LOCKS for this function */
 int opbx_channel_trylock(struct opbx_channel *chan)
 {
 	int res;
@@ -3922,20 +3944,24 @@ int opbx_channel_trylock(struct opbx_channel *chan)
 
 	res = opbx_mutex_trylock(&chan->lock);
 
-	if (option_debug > 2) {
+	if (option_debug > 2)
+    {
 #ifdef DEBUG_THREADS
 		int count = 0;
+
 		if ((count = chan->lock.reentrancy))
 			opbx_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)
 			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
-		if (res == EBUSY) {
+		if (res == EBUSY)
+        {
 			/* We failed to lock */
 			if (option_debug > 2)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
 		}
-		if (res == EDEADLK) {
+		if (res == EDEADLK)
+        {
 			/* We had no lock, so okey any way*/
 			if (option_debug > 2)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
@@ -3945,4 +3971,4 @@ int opbx_channel_trylock(struct opbx_channel *chan)
 	}
 	return res;
 }
-
+#endif

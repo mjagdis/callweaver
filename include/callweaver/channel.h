@@ -1013,20 +1013,41 @@ void opbx_set_variables(struct opbx_channel *chan, struct opbx_variable *vars);
    have a need to wait.  This way, we get better performance. */
 int opbx_carefulwrite(int fd, char *s, int len, int timeoutms);
 
+struct opbx_variable *opbx_channeltype_list(void);
+
 /* Helper function for migrating select to poll */
 static inline int opbx_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 {
 	int x;
-	for (x=start ? *start : 0;x<max;x++)
-		if (pfds[x].fd == fd) {
-			if (start) {
-				if (x==*start)
+	
+    for (x = start  ?  *start  :  0;  x < max;  x++)
+	{
+    	if (pfds[x].fd == fd)
+        {
+			if (start)
+            {
+				if (x == *start)
 					(*start)++;
 			}
 			return pfds[x].revents;
 		}
-	return 0;
+	}
+    return 0;
 }
+
+#if defined(DEBUG_CHANNEL_LOCKS)
+/*! \brief Unlock OPBX channel (and print debugging output)
+    \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int opbx_channel_unlock(struct opbx_channel *chan);
+
+/*! \brief Lock OPBX channel (and print debugging output)
+    \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int opbx_channel_lock(struct opbx_channel *chan);
+
+/*! \brief Lock OPBX channel (and print debugging output)
+    \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int opbx_channel_trylock(struct opbx_channel *chan)
+#endif
 
 #ifdef SOLARIS
 static inline void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff)

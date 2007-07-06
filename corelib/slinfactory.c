@@ -70,7 +70,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 {
 	struct opbx_frame *frame, *frame_ptr;
 
-	if (!f)
+	if (f == NULL)
 		return 0;
 	opbx_mutex_lock(&(sf->lock));
 	if (f->subclass != OPBX_FORMAT_SLINEAR)
@@ -80,7 +80,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 			opbx_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
-		if (!sf->trans)
+		if (sf->trans == NULL)
         {
 			if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, f->subclass)) == NULL)
             {

@@ -18,16 +18,16 @@
  * termination is requested by resetting the flag in
  * \ref res_snmp_dontStop.
  */
-void	*agent_thread(void *);
+void *agent_thread(void *);
 
 /*!
  * \internal
  * Flag saying whether we run as a Subagent or full Agent
  */
-extern int res_snmp_agentx_subagent;
+int res_snmp_agentx_subagent;
 
 /*!
  * \internal
  * Flag stating the agent thread should not terminate
  */
-extern int res_snmp_dont_stop;
+int res_snmp_dont_stop;

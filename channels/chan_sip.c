@@ -5030,7 +5030,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             /* Some cisco equipment returns nothing beside c= and m= lines in 200 OK T38 SDP */ 
             p->t38peercapability = peert38capability;
-            p->t38jointcapability = (peert38capability & 255); /* Put everything beside supported speeds settings */
+            p->t38jointcapability = (peert38capability & 0xFF); /* Put everything beside supported speeds settings */
             peert38capability &= (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400); /* Mask speeds only */ 
             p->t38jointcapability |= (peert38capability & p->t38capability); /* Put the lower of our's and peer's speed */
         }
@@ -6150,9 +6150,10 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
         add_line(resp, a_modem, SIP_DL_DONTCARE);
     snprintf(a_modem, sizeof(a_modem), "a=T38FaxMaxDatagram:%d",x);
         add_line(resp, a_modem, SIP_DL_DONTCARE);
-    if ((p->t38jointcapability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY))) {
+    if ((p->t38jointcapability & (T38FAX_UDP_EC_FEC | T38FAX_UDP_EC_REDUNDANCY)))
+    {
         snprintf(a_modem, sizeof(a_modem), "a=T38FaxUdpEC:%s", (p->t38jointcapability & T38FAX_UDP_EC_FEC)  ?  "t38UDPFEC"  :  "t38UDPRedundancy");
-	add_line(resp, a_modem, SIP_DL_DONTCARE);
+        add_line(resp, a_modem, SIP_DL_DONTCARE);
     }
     /* Update lastrtprx when we send our SDP */
     time(&p->lastrtprx);
@@ -16522,7 +16523,8 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
 
     /* Setup everything on the other side like offered/responded from first side */
     opbx_mutex_lock(&p->lock);
-    p->t38jointcapability = p->t38peercapability = pvt->t38jointcapability; 
+    p->t38jointcapability =
+    p->t38peercapability = pvt->t38jointcapability; 
     opbx_udptl_set_far_max_datagram(p->udptl, opbx_udptl_get_local_max_datagram(pvt->udptl));
     opbx_udptl_set_local_max_datagram(p->udptl, opbx_udptl_get_local_max_datagram(pvt->udptl));
     opbx_udptl_set_error_correction_scheme(p->udptl, opbx_udptl_get_error_correction_scheme(pvt->udptl));
