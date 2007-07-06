@@ -699,9 +699,9 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv)
 
                 if (igrp
                     &&
-                    (argv[0] == '\0'  ||  ((strlen(argv[0]) < strlen(peer->name)
+                    (argv[0] == NULL  ||  ((strlen(argv[0]) < strlen(peer->name)
                     &&
-                    strncasecmp(peer->name, argv[0], strlen(argv[0]) == 0)))))
+                    strncasecmp(peer->name, argv[0], strlen(argv[0])) == 0))))
                 {
                     if (peer
                         &&
