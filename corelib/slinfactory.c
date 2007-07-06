@@ -68,7 +68,8 @@ void opbx_slinfactory_destroy(struct opbx_slinfactory *sf)
 
 int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 {
-	struct opbx_frame *frame, *frame_ptr;
+	struct opbx_frame *frame;
+	struct opbx_frame *frame_ptr;
 
 	if (f == NULL)
 		return 0;
@@ -102,7 +103,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 
 		frame->next = NULL;
 
-		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr=frame_ptr->next)
+		for (frame_ptr = sf->queue;  frame_ptr  &&  frame_ptr->next;  frame_ptr=frame_ptr->next)
 			x++;
 		if (frame_ptr)
 			frame_ptr->next = frame;
@@ -118,11 +119,14 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
 	return 0;
 }
 
-int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes) 
+int opbx_slinfactory_read(struct opbx_slinfactory *sf, int16_t *buf, size_t bytes) 
 {
 	struct opbx_frame *frame_ptr;
-	int sofar = 0, ineed, remain;
-	short *frame_data, *offset = buf;
+	int sofar = 0;
+	int ineed;
+	int remain;
+	int16_t *frame_data;
+	int16_t *offset = buf;
 	
 	opbx_mutex_lock(&(sf->lock));
 
@@ -136,7 +140,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
             {
 				memcpy(offset, sf->hold, sf->holdlen);
 				sofar += sf->holdlen;
-				offset += (sf->holdlen/sizeof(short));
+				offset += (sf->holdlen/sizeof(int16_t));
 				sf->holdlen = 0;
 				sf->offset = sf->hold;
 			}
@@ -145,7 +149,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 				remain = sf->holdlen - ineed;
 				memcpy(offset, sf->offset, ineed);
 				sofar += ineed;
-				sf->offset += (ineed / sizeof(short));
+				sf->offset += (ineed / sizeof(int16_t));
 				sf->holdlen = remain;
 			}
 			continue;
@@ -160,7 +164,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
             {
 				memcpy(offset, frame_data, frame_ptr->datalen);
 				sofar += frame_ptr->datalen;
-				offset += (frame_ptr->datalen/sizeof(short));
+				offset += (frame_ptr->datalen/sizeof(int16_t));
 			}
             else
             {
@@ -168,7 +172,7 @@ int opbx_slinfactory_read(struct opbx_slinfactory *sf, short *buf, size_t bytes)
 
 				memcpy(offset, frame_data, ineed);
 				sofar += ineed;
-				frame_data += (ineed / sizeof(short));
+				frame_data += (ineed / sizeof(int16_t));
 				memcpy(sf->hold, frame_data, remain);
 				sf->holdlen = remain;
 			}

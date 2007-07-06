@@ -373,10 +373,12 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
                     //When a fax gets in with RTP. 
                     //The CNG is detected, faxdetect gotos to fax extension
                     //and if we are on a SIP channel the T38 switchover is done.
-                    fr3 = opbx_frdup(fr);
-                    memset(fr3->data, 0, fr3->datalen);
-                    opbx_write(chan, fr3);
-                    opbx_fr_free(fr3);
+                    if ((fr3 = opbx_frdup(fr)))
+                    {
+                        memset(fr3->data, 0, fr3->datalen);
+                        opbx_write(chan, fr3);
+                        opbx_fr_free(fr3);
+                    }
                 }
 
 

@@ -485,6 +485,7 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 	char *body;
 	struct jabber_profile *profile;
 	struct opbx_frame fr = {OPBX_FRAME_NULL};
+	struct opbx_frame *frx;
 
 	profile = (struct jabber_profile *) user_data;
 	lmnode = lm_message_node_get_child (m->node, "body");
@@ -498,8 +499,12 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 	}
 
 
-	if (profile->chan) {
-		opbx_queue_frame(profile->chan, opbx_frdup(&fr));
+	if (profile->chan)
+    {
+        if ((frx = opbx_frdup(&fr)))
+    		opbx_queue_frame(profile->chan, frx);
+        else
+    		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
 	}
 
 
@@ -785,6 +790,7 @@ static void *media_receive_thread(void *obj)
 	int fromlen;
 	int socket = profile->media_socket;
 	char *name = opbx_strdupa(chan->name);
+	struct opbx_frame *frx;
 
 	opbx_set_flag(profile, JFLAG_RECEIVEMEDIA);
 	opbx_log(LOG_DEBUG, "MEDIA UP %s\n", name);
@@ -802,7 +808,8 @@ static void *media_receive_thread(void *obj)
 			break;
 		}
 
-		if((res = recvfrom(socket, buf, sizeof(buf), 0, (struct sockaddr *) &profile->media_recv_addr, &fromlen)) > -1) {
+		if ((res = recvfrom(socket, buf, sizeof(buf), 0, (struct sockaddr *) &profile->media_recv_addr, &fromlen)) > -1)
+        {
 			//opbx_verbose("PACKET\n");
 			if (res == 6 && !strncmp(buf, "HANGUP", 6)) {
 				opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
@@ -813,8 +820,13 @@ static void *media_receive_thread(void *obj)
 			write_frame.data = buf;
 			write_frame.datalen = res;
 			write_frame.samples = res / 2;
-			jabber_profile_queue_frame(profile, opbx_frdup(&write_frame));
-		} else {
+            if ((frx = opbx_frdup(&write_frame)))
+    			jabber_profile_queue_frame(profile, frx);
+            else
+        		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
+		}
+        else
+        {
 			err++;
 			break;
 		}

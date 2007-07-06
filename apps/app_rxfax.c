@@ -439,8 +439,8 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
             break;
         }
 
-        dspf = opbx_frdup(inf);
-        dspf = opbx_dsp_process(chan, dsp, dspf);
+        if ((dspf = opbx_frdup(inf)))
+            dspf = opbx_dsp_process(chan, dsp, dspf);
 
 	if (dspf && dspf->frametype == OPBX_FRAME_DTMF)
         {
@@ -539,8 +539,8 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
         	break;
     	    }
 
-    	    dspf = opbx_frdup(inf);
-    	    dspf = opbx_dsp_process(chan, dsp, dspf);
+    	    if ((dspf = opbx_frdup(inf)))
+        	    dspf = opbx_dsp_process(chan, dsp, dspf);
 
 	    if (dspf && dspf->frametype == OPBX_FRAME_DTMF)
     	    {

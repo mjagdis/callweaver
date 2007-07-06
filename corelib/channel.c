@@ -274,11 +274,14 @@ static int opbx_check_hangup_locked(struct opbx_channel *chan)
 void opbx_begin_shutdown(int hangup)
 {
 	struct opbx_channel *c;
-	shutting_down = 1;
-	if (hangup) {
+	
+    shutting_down = 1;
+	if (hangup)
+    {
 		opbx_mutex_lock(&chlock);
 		c = channels;
-		while(c) {
+		while (c)
+        {
 			opbx_softhangup(c, OPBX_SOFTHANGUP_SHUTDOWN);
 			c = c->next;
 		}
@@ -291,9 +294,11 @@ int opbx_active_channels(void)
 {
 	struct opbx_channel *c;
 	int cnt = 0;
-	opbx_mutex_lock(&chlock);
+	
+    opbx_mutex_lock(&chlock);
 	c = channels;
-	while(c) {
+	while (c)
+    {
 		cnt++;
 		c = c->next;
 	}
@@ -662,31 +667,35 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	int qlen = 0;
 
 	/* Build us a copy and free the original one */
-	f = opbx_frdup(fin);
-	if (!f) {
+	if ((f = opbx_frdup(fin)) == NULL)
+    {
 		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
 		return -1;
 	}
 	opbx_mutex_lock(&chan->lock);
 	prev = NULL;
-	cur = chan->readq;
-	while(cur) {
-		if ((cur->frametype == OPBX_FRAME_CONTROL) && (cur->subclass == OPBX_CONTROL_HANGUP)) {
+	for (cur = chan->readq;  cur;  cur = cur->next)
+    {
+		if ((cur->frametype == OPBX_FRAME_CONTROL) && (cur->subclass == OPBX_CONTROL_HANGUP))
+        {
 			/* Don't bother actually queueing anything after a hangup */
 			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
 			return 0;
 		}
 		prev = cur;
-		cur = cur->next;
 		qlen++;
 	}
 	/* Allow up to 96 voice frames outstanding, and up to 128 total frames */
-	if (((fin->frametype == OPBX_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128)) {
-		if (fin->frametype != OPBX_FRAME_VOICE) {
+	if (((fin->frametype == OPBX_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128))
+    {
+		if (fin->frametype != OPBX_FRAME_VOICE)
+        {
 			opbx_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
 			CRASH;
-		} else {
+		}
+        else
+        {
 			opbx_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
 			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
@@ -697,7 +706,8 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 		prev->next = f;
 	else
 		chan->readq = f;
-	if (chan->alertpipe[1] > -1) {
+	if (chan->alertpipe[1] > -1)
+    {
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			opbx_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
@@ -868,13 +878,15 @@ int opbx_safe_sleep_conditional(	struct opbx_channel *chan, int ms,
 {
 	struct opbx_frame *f;
 
-	while(ms > 0) {
-		if( cond && ((*cond)(data) == 0 ) )
+	while (ms > 0)
+    {
+		if (cond  &&  ((*cond)(data) == 0))
 			return 0;
 		ms = opbx_waitfor(chan, ms);
 		if (ms <0)
 			return -1;
-		if (ms > 0) {
+		if (ms > 0)
+        {
 			f = opbx_read(chan);
 			if (!f)
 				return -1;
@@ -888,11 +900,14 @@ int opbx_safe_sleep_conditional(	struct opbx_channel *chan, int ms,
 int opbx_safe_sleep(struct opbx_channel *chan, int ms)
 {
 	struct opbx_frame *f;
-	while(ms > 0) {
+	
+    while (ms > 0)
+    {
 		ms = opbx_waitfor(chan, ms);
 		if (ms < 0)
 			return -1;
-		if (ms > 0) {
+		if (ms > 0)
+        {
 			f = opbx_read(chan);
 			if (!f)
 				return -1;
@@ -930,8 +945,10 @@ void opbx_channel_free(struct opbx_channel *chan)
 	
 	opbx_mutex_lock(&chlock);
 	cur = channels;
-	while(cur) {
-		if (cur == chan) {
+	while (cur)
+    {
+		if (cur == chan)
+        {
 			if (last)
 				last->next = cur->next;
 			else
@@ -1082,10 +1099,16 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 	}
 
 	if (tmpf)
-		tmpf->next = opbx_frdup(f);
-	else
-		spy->queue[pos] = opbx_frdup(f);
-	opbx_mutex_unlock(&spy->lock);
+    {
+		if ((tmpf->next = opbx_frdup(f)) == NULL)
+    		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
+	}
+    else
+	{
+    	if ((spy->queue[pos] = opbx_frdup(f)) == NULL)
+    		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
+	}
+    opbx_mutex_unlock(&spy->lock);
 }
 
 static void free_translation(struct opbx_channel *clone)
@@ -2265,7 +2288,7 @@ struct opbx_channel *__opbx_request_and_dial(const char *type, int format, void 
 
 		if (!opbx_call(chan, data, 0))
         {
-			while(timeout && (chan->_state != OPBX_STATE_UP))
+			while (timeout  &&  (chan->_state != OPBX_STATE_UP))
             {
 				if ((res = opbx_waitfor(chan, timeout)) < 0)
                 {
@@ -3835,7 +3858,7 @@ int opbx_carefulwrite(int fd, char *s, int len, int timeoutms)
 {
 	/* Try to write string, but wait no more than ms milliseconds
 	   before timing out */
-	int res=0;
+	int res = 0;
 	struct pollfd fds[1];
 	
     while (len)
@@ -3883,9 +3906,11 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 			opbx_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
+        {
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
-		if (res == EINVAL)
+		}
+        if (res == EINVAL)
         {
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);

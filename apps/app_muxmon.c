@@ -289,25 +289,21 @@ static void *muxmon_thread(void *obj)
                 }
 
                 if ((len0 = opbx_slinfactory_read(&slinfactory[0], buf0, framelen)))
-                    samp0 = len0/2;
+                    samp0 = len0/sizeof(int16_t);
                 if((len1 = opbx_slinfactory_read(&slinfactory[1], buf1, framelen)))
-                    samp1 = len1/2;
+                    samp1 = len1/sizeof(int16_t);
                 
                 if (opbx_test_flag(muxmon, MUXFLAG_VOLUME))
                 {
-                    if (samp0 && muxmon->readvol > 0)
+                    if (samp0  &&  muxmon->readvol > 0)
                     {
                         for (x = 0;  x < samp0/2;  x++)
-                        {
                             buf0[x] *= muxmon->readvol;
-                        }
                     }
-                    else if (samp0 && muxmon->readvol < 0)
+                    else if (samp0  &&  muxmon->readvol < 0)
                     {
                         for (x = 0;  x < samp0/2;  x++)
-                        {
                             buf0[x] /= muxmon->readvol;
-                        }
                     }
                     if (samp1  &&  muxmon->writevol > 0)
                     {
@@ -321,7 +317,7 @@ static void *muxmon_thread(void *obj)
                     }
                 }
                 
-                maxsamp = (samp0 > samp1) ? samp0 : samp1;
+                maxsamp = (samp0 > samp1)  ?  samp0  :  samp1;
 
                 if (samp0  &&  samp1)
                 {
