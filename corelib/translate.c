@@ -210,9 +210,8 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
         opbx_fr_free(f);
     while (p)
     {
-        out = p->step->frameout(p->state);
         /* If we get nothing out, return NULL */
-        if (!out)
+        if ((out = p->step->frameout(p->state)) == NULL)
             return NULL;
         /* If there is a next state, feed it in there.  If not,
            return this frame  */
@@ -260,19 +259,20 @@ struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame
     return NULL;
 }
 
-static void calc_cost(struct opbx_translator *t,int samples)
+static void calc_cost(struct opbx_translator *t, int secs)
 {
-    int sofar = 0;
+    int sofar;
     struct opbx_translator_pvt *pvt;
-    struct opbx_frame *f, *out;
+    struct opbx_frame *f;
+    struct opbx_frame *out;
     struct timeval start;
     int cost;
 
-    if (samples < 1)
-        samples = 1;
+    if (secs < 1)
+        secs = 1;
     
     /* If they don't make samples, give them a terrible score */
-    if (!t->sample)
+    if (t->sample == NULL)
     {
         opbx_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
         t->cost = 99999;
@@ -285,8 +285,8 @@ static void calc_cost(struct opbx_translator *t,int samples)
         return;
     }
     start = opbx_tvnow();
-    /* Call the encoder until we've processed one second of time */
-    while (sofar < samples*8000)
+    /* Call the encoder until we've processed "secs" seconds of data */
+    for (sofar = 0;  sofar < secs*t->dst_rate;  )
     {
         if ((f = t->sample()) == NULL)
         {
@@ -305,8 +305,8 @@ static void calc_cost(struct opbx_translator *t,int samples)
     }
     cost = opbx_tvdiff_ms(opbx_tvnow(), start);
     t->destroy(pvt);
-    t->cost = cost/samples;
-    if (!t->cost)
+    t->cost = cost/secs;
+    if (t->cost <= 0)
         t->cost = 1;
 }
 
@@ -341,28 +341,27 @@ static void rebuild_matrix(int samples)
     {
         changed = 0;
         /* Don't you just love O(N^3) operations? */
-        for (x = 0;  x < MAX_FORMAT;  x++)                /* For each source format */
+        for (x = 0;  x < MAX_FORMAT;  x++)
         {
-            for (y = 0;  y < MAX_FORMAT;  y++)             /* And each destination format */
+            for (y = 0;  y < MAX_FORMAT;  y++)
             {
-                if (x != y)                            /* Except ourselves, of course */
+                if (x != y)
                 {
-                    for (z = 0;  z < MAX_FORMAT;  z++)     /* And each format it might convert to */
+                    for (z = 0;  z < MAX_FORMAT;  z++)
                     {
-                        if ((x != z)  &&  (y != z))         /* Don't ever convert back to us */
+                        if ((x != z)  &&  (y != z))
                         {
-                            if (tr_matrix[x][y].step && /* We can convert from x to y */
-                                tr_matrix[y][z].step && /* And from y to z and... */
-                                (!tr_matrix[x][z].step ||     /* Either there isn't an x->z conversion */
-                                (tr_matrix[x][y].cost + 
-                                 tr_matrix[y][z].cost <    /* Or we're cheaper than the existing */
-                                 tr_matrix[x][z].cost)  /* solution */
-                                 ))
+                            if (tr_matrix[x][y].step
+                                &&
+                                tr_matrix[y][z].step
+                                &&
+                                    (!tr_matrix[x][z].step
+                                    ||
+                                    (tr_matrix[x][y].cost + tr_matrix[y][z].cost < tr_matrix[x][z].cost)))
                             {
                                 /* We can get from x to z via y with a cost that
                                    is the sum of the transition from x to y and
                                    from y to z */
-                                 
                                 tr_matrix[x][z].step = tr_matrix[x][y].step;
                                 tr_matrix[x][z].cost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
                                 if (option_debug)

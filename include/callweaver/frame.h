@@ -43,27 +43,27 @@ struct opbx_codec_pref
 typedef struct opbx_frame
 {
     /*! Kind of frame */
-    int frametype;                
+    int frametype;
     /*! Subclass, frame dependent */
-    int subclass;                
+    int subclass;
     /*! Length of data */
-    int datalen;                
+    int datalen;
     /*! Number of samples in this frame */
-    int samples;                
+    int samples;
     /*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
-    int mallocd;                
+    int mallocd;
     /*! How many bytes exist _before_ "data" that can be used if needed */
-    int offset;                
+    int offset;
     /*! Optional source of frame for debugging */
-    const char *src;                
+    const char *src;
     /*! Pointer to actual data */
-    void *data;        
+    void *data;
     /*! Global delivery time */        
     struct timeval delivery;
     /*! Next/Prev for linking stand alone frames */
-    struct opbx_frame *prev;            
+    struct opbx_frame *prev;
     /*! Next/Prev for linking stand alone frames */
-    struct opbx_frame *next;            
+    struct opbx_frame *next;
     /*! Timing data flag */
     int has_timing_info;
     /*! Timestamp in milliseconds */

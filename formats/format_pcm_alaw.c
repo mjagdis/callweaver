@@ -278,15 +278,16 @@ static long pcm_tell(struct opbx_filestream *fs)
 	return offset;
 }
 
-
 static char *pcm_getcomment(struct opbx_filestream *s)
 {
 	return NULL;
 }
 
-int load_module()
+int load_module(void)
 {
-	return opbx_format_register(name, exts, OPBX_FORMAT_ALAW,
+	return opbx_format_register(name,
+                                exts,
+                                OPBX_FORMAT_ALAW,
 								pcm_open,
 								pcm_rewrite,
 								pcm_write,
@@ -298,20 +299,17 @@ int load_module()
 								pcm_getcomment);
 }
 
-int unload_module()
+int unload_module(void)
 {
 	return opbx_format_unregister(name);
 }	
 
-int usecount()
+int usecount(void)
 {
 	return glistcnt;
 }
 
-char *description()
+char *description(void)
 {
 	return desc;
 }
-
-
-

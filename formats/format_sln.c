@@ -47,7 +47,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define BUF_SIZE 320		/* 320 samples */
 
-struct opbx_filestream {
+struct opbx_filestream
+{
 	void *reserved[OPBX_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
 	FILE *f; /* Descriptor */
@@ -207,9 +208,11 @@ static char *slinear_getcomment(struct opbx_filestream *s)
 	return NULL;
 }
 
-int load_module()
+int load_module(void)
 {
-	return opbx_format_register(name, exts, OPBX_FORMAT_SLINEAR,
+	return opbx_format_register(name,
+                                exts,
+                                OPBX_FORMAT_SLINEAR,
 								slinear_open,
 								slinear_rewrite,
 								slinear_write,
@@ -219,24 +222,19 @@ int load_module()
 								slinear_read,
 								slinear_close,
 								slinear_getcomment);
-								
-								
 }
 
-int unload_module()
+int unload_module(void)
 {
 	return opbx_format_unregister(name);
 }	
 
-int usecount()
+int usecount(void)
 {
 	return glistcnt;
 }
 
-char *description()
+char *description(void)
 {
 	return desc;
 }
-
-
-

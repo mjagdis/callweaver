@@ -635,6 +635,7 @@ int opbx_codec_sample_rate(struct opbx_frame *f)
     return opbx_format_list[top_bit(codec)].sample_rate;
 }
 
+#if 0
 struct opbx_format_list_s *opbx_get_format_list_index(int index)
 {
     return &opbx_format_list[index];
@@ -645,6 +646,7 @@ struct opbx_format_list_s *opbx_get_format_list(size_t *size)
     *size = (sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s));
     return opbx_format_list;
 }
+#endif
 
 char *opbx_getformatname(int format)
 {

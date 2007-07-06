@@ -50,93 +50,95 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
 
-
 static struct opbx_frame *jpeg_read_image(int fd, int len)
 {
-	struct opbx_frame fr;
-	int res;
-	char buf[65536];
-	
-    if (len > sizeof(buf) || len < 0)
+    struct opbx_frame fr;
+    int res;
+    char buf[65536];
+    
+    if (len > sizeof(buf)  ||  len < 0)
     {
-		opbx_log(LOG_WARNING, "JPEG image too large to read\n");
-		return NULL;
-	}
-	if ((res = read(fd, buf, len)) < len)
+        opbx_log(LOG_WARNING, "JPEG image too large to read\n");
+        return NULL;
+    }
+    if ((res = read(fd, buf, len)) < len)
     {
-		opbx_log(LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
-	}
+        opbx_log(LOG_WARNING, "Only read %d of %d bytes: %s\n", res, len, strerror(errno));
+    }
     opbx_fr_init_ex(&fr, OPBX_FRAME_IMAGE, OPBX_FORMAT_JPEG, "JPEG Read");
-	fr.data = buf;
-	fr.datalen = len;
-	return opbx_frisolate(&fr);
+    fr.data = buf;
+    fr.datalen = len;
+    return opbx_frisolate(&fr);
 }
 
 static int jpeg_identify(int fd)
 {
-	char buf[10];
-	int res;
-	res = read(fd, buf, sizeof(buf));
-	if (res < sizeof(buf))
-		return 0;
-	if (memcmp(buf + 6, "JFIF", 4))
-		return 0;
-	return 1;
+    char buf[10];
+    int res;
+
+    res = read(fd, buf, sizeof(buf));
+    if (res < sizeof(buf))
+        return 0;
+    if (memcmp(buf + 6, "JFIF", 4))
+        return 0;
+    return 1;
 }
 
 static int jpeg_write_image(int fd, struct opbx_frame *fr)
 {
-	int res=0;
+    int res = 0;
 
-	if (fr->frametype != OPBX_FRAME_IMAGE) {
-		opbx_log(LOG_WARNING, "Not an image\n");
-		return -1;
-	}
-	if (fr->subclass != OPBX_FORMAT_JPEG) {
-		opbx_log(LOG_WARNING, "Not a jpeg image\n");
-		return -1;
-	}
-	if (fr->datalen) {
-		res = write(fd, fr->data, fr->datalen);
-		if (res != fr->datalen) {
-			opbx_log(LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
-			return -1;
-		}
-	}
-	return res;
+    if (fr->frametype != OPBX_FRAME_IMAGE)
+    {
+        opbx_log(LOG_WARNING, "Not an image\n");
+        return -1;
+    }
+    if (fr->subclass != OPBX_FORMAT_JPEG)
+    {
+        opbx_log(LOG_WARNING, "Not a jpeg image\n");
+        return -1;
+    }
+    if (fr->datalen)
+    {
+        res = write(fd, fr->data, fr->datalen);
+        if (res != fr->datalen)
+        {
+            opbx_log(LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
+            return -1;
+        }
+    }
+    return res;
 }
 
-static struct opbx_imager jpeg_format = {
-	"jpg",
-	"JPEG (Joint Picture Experts Group)",
-	"jpg|jpeg",
-	OPBX_FORMAT_JPEG,
-	jpeg_read_image,
-	jpeg_identify,
-	jpeg_write_image,
+static struct opbx_imager jpeg_format =
+{
+    "jpg",
+    "JPEG (Joint Picture Experts Group)",
+    "jpg|jpeg",
+    OPBX_FORMAT_JPEG,
+    jpeg_read_image,
+    jpeg_identify,
+    jpeg_write_image,
 };
 
-int load_module()
+int load_module(void)
 {
-	return opbx_image_register(&jpeg_format);
+    return opbx_image_register(&jpeg_format);
 }
 
-int unload_module()
+int unload_module(void)
 {
-	opbx_image_unregister(&jpeg_format);
-	return 0;
-}	
+    opbx_image_unregister(&jpeg_format);
+    return 0;
+}    
 
-int usecount()
+int usecount(void)
 {
-	/* We never really have any users */
-	return 0;
+    /* We never really have any users */
+    return 0;
 }
 
-char *description()
+char *description(void)
 {
-	return desc;
+    return desc;
 }
-
-
-
