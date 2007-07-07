@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
+#include <spandsp.h>
 
 #include "callweaver.h"
 
@@ -45,9 +47,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/options.h"
 
-#define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
-#define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0 
-
 static char *tdesc = "Native Channel Monitoring Module";
 
 static void *muxmon_app;
@@ -59,9 +58,9 @@ static char *muxmon_descrip =
 "Valid Options:\n"
 " b    - Only save audio to the file while the channel is bridged. *does not include conferences*\n"
 " a    - Append to the file instead of overwriting it.\n"
-" v(<x>) - Adjust the heard volume by a factor of <x> -4/4.\n"    
-" V(<x>) - Adjust the spoken volume by a factor of <x> -4/4.\n"    
-" W(<x>) - Adjust the overall volume by a factor of <x> -4/4.\n\n"    
+" v(<x>) - Adjust the heard volume by <x>dB (-24 to 24).\n"    
+" V(<x>) - Adjust the spoken volume by <x>dB (-24 to 24).\n"    
+" W(<x>) - Adjust the overall volume by <x>dB (-24 to 24).\n\n"    
 "<command> will be executed when the recording is over\n"
 "Any strings matching ^{X} will be unescaped to ${X} and \n"
 "all variables will be evaluated at that time.\n"
@@ -102,6 +101,19 @@ OPBX_DECLARE_OPTIONS(muxmon_opts,{
     ['W'] = { MUXFLAG_VOLUME, 3 },
 });
 
+static __inline__ int minmax(int x, int y)
+{
+    if (x > y)
+        return y;
+    if (x < -y)
+        return -y;
+    return x;
+}
+
+static __inline__ int db_to_scaling_factor(int db)
+{
+    return (int) (powf(10.0f, db/10.0f)*32768.0f);
+}
 
 static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy) 
 {
@@ -201,13 +213,20 @@ static int spy_queue_translate(struct opbx_channel_spy *spy,
 static void *muxmon_thread(void *obj) 
 {
 
-    int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, framelen, maxsamp = 0, x = 0;
+    int len0 = 0;
+    int len1 = 0;
+    int samp0 = 0;
+    int samp1 = 0;
+    int framelen;
+    int minsamp;
+    int x = 0;
     short buf0[1280], buf1[1280], buf[1280];
     struct opbx_frame frame;
     struct muxmon *muxmon = obj;
     struct opbx_channel_spy spy;
     struct opbx_filestream *fs = NULL;
-    char *ext, *name;
+    char *ext;
+    char *name;
     unsigned int oflags;
     struct opbx_slinfactory slinfactory[2];
     char post_process[1024] = "";
@@ -222,7 +241,7 @@ static void *muxmon_thread(void *obj)
     opbx_slinfactory_init(&slinfactory[0]);
     opbx_slinfactory_init(&slinfactory[1]);
 
-    /* for efficiency, use a flag to bypass volume logic when it's not needed */
+    /* For efficiency, use a flag to bypass volume logic when it's not needed */
     if (muxmon->readvol  ||  muxmon->writevol)
         opbx_set_flag(muxmon, MUXFLAG_VOLUME);
 
@@ -288,53 +307,32 @@ static void *muxmon_thread(void *obj)
                     continue;
                 }
 
-                if ((len0 = opbx_slinfactory_read(&slinfactory[0], buf0, framelen)))
-                    samp0 = len0/sizeof(int16_t);
-                if((len1 = opbx_slinfactory_read(&slinfactory[1], buf1, framelen)))
-                    samp1 = len1/sizeof(int16_t);
-                
+                len0 = opbx_slinfactory_read(&slinfactory[0], buf0, framelen);
+                samp0 = len0/sizeof(int16_t);
+                len1 = opbx_slinfactory_read(&slinfactory[1], buf1, framelen);
+                samp1 = len1/sizeof(int16_t);
                 if (opbx_test_flag(muxmon, MUXFLAG_VOLUME))
                 {
-                    if (samp0  &&  muxmon->readvol > 0)
-                    {
-                        for (x = 0;  x < samp0/2;  x++)
-                            buf0[x] *= muxmon->readvol;
-                    }
-                    else if (samp0  &&  muxmon->readvol < 0)
-                    {
-                        for (x = 0;  x < samp0/2;  x++)
-                            buf0[x] /= muxmon->readvol;
-                    }
-                    if (samp1  &&  muxmon->writevol > 0)
-                    {
-                        for (x = 0;  x < samp1/2;  x++)
-                            buf1[x] *= muxmon->writevol;
-                    }
-                    else if (muxmon->writevol < 0)
-                    {
-                        for (x = 0;  x < samp1/2;  x++)
-                            buf1[x] /= muxmon->writevol;
-                    }
+                    for (x = 0;  x < samp0;  x++)
+                        buf0[x] = saturate((buf0[x]*muxmon->readvol) >> 11);
+                    for (x = 0;  x < samp1;  x++)
+                        buf1[x] = saturate((buf1[x]*muxmon->writevol) >> 11);
                 }
                 
-                maxsamp = (samp0 > samp1)  ?  samp0  :  samp1;
-
                 if (samp0  &&  samp1)
                 {
-                    for (x = 0;  x < maxsamp;  x++)
+                    minsamp = (samp0 < samp1)  ?  samp0  :  samp1;
+                    for (x = 0;  x < minsamp;  x++)
+                        buf[x] = buf0[x] + buf1[x];
+                    if (samp0 > samp1)
                     {
-                        if (x < samp0  &&  x < samp1)
-                        {
-                            buf[x] = buf0[x] + buf1[x];
-                        }
-                        else if (x < samp0)
-                        {
+                        for (  ;  x < samp0;  x++)
                             buf[x] = buf0[x];
-                        }
-                        else if (x < samp1)
-                        {
+                    }
+                    else
+                    {
+                        for (  ;  x < samp1;  x++)
                             buf[x] = buf1[x];
-                        }
                     }
                 }
                 else if (samp0)
@@ -349,7 +347,7 @@ static void *muxmon_thread(void *obj)
                 }
 
                 frame.samples = x;
-                frame.datalen = x * 2;
+                frame.datalen = x*sizeof(int16_t);
                 opbx_writestream(fs, &frame);
         
                 usleep(1000);
@@ -401,7 +399,7 @@ static void *muxmon_thread(void *obj)
     return NULL;
 }
 
-static void launch_monitor_thread(struct opbx_channel *chan, char *filename, unsigned int flags, int readvol , int writevol, char *post_process) 
+static void launch_monitor_thread(struct opbx_channel *chan, char *filename, unsigned int flags, int readvol, int writevol, char *post_process) 
 {
     pthread_attr_t attr;
     int result = 0;
@@ -436,7 +434,10 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     struct opbx_flags flags = {0};
     struct localuser *u;
-    int res = 0, x = 0, readvol = 0, writevol = 0;
+    int res = 0;
+    int x = 0;
+    int readvol = 0;
+    int writevol = 0;
 
     if (argc < 1  ||  argc > 3)
     {
@@ -451,47 +452,32 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv)
         char *opts[3] = {};
         opbx_parseoptions(muxmon_opts, &flags, opts, argv[1]);
 
-        if (opbx_test_flag(&flags, MUXFLAG_READVOLUME) && opts[0])
+        if (opbx_test_flag(&flags, MUXFLAG_READVOLUME)  &&  opts[0])
         {
             if (sscanf(opts[0], "%d", &x) != 1)
-            {
-                opbx_log(LOG_NOTICE, "volume must be a number between -4 and 4\n");
-            }
+                opbx_log(LOG_NOTICE, "volume must be a number between -24 and 24\n");
             else
-            {
-                readvol = minmax(x, 4);
-                x = get_volfactor(readvol);
-                readvol = minmax(x, 16);
-            }
+                readvol = db_to_scaling_factor(minmax(x, 24)) >> 4;
         }
         
         if (opbx_test_flag(&flags, MUXFLAG_WRITEVOLUME)  &&  opts[1])
         {
             if (sscanf(opts[1], "%d", &x) != 1)
-            {
-                opbx_log(LOG_NOTICE, "volume must be a number between -4 and 4\n");
-            }
+                opbx_log(LOG_NOTICE, "volume must be a number between -24 and 24\n");
             else
-            {
-                writevol = minmax(x, 4);
-                x = get_volfactor(writevol);
-                writevol = minmax(x, 16);
-            }
+                writevol = db_to_scaling_factor(minmax(x, 24)) >> 4;
         }
 
-        if (opbx_test_flag(&flags, MUXFLAG_VOLUME) && opts[2])
+        if (opbx_test_flag(&flags, MUXFLAG_VOLUME)  &&  opts[2])
         {
             if (sscanf(opts[2], "%d", &x) != 1)
             {
-                opbx_log(LOG_NOTICE, "volume must be a number between -4 and 4\n");
+                opbx_log(LOG_NOTICE, "volume must be a number between -24 and 24\n");
             }
             else
             {
-                readvol = writevol = minmax(x, 4);
-                x = get_volfactor(readvol);
-                readvol = minmax(x, 16);
-                x = get_volfactor(writevol);
-                writevol = minmax(x, 16);
+                readvol =
+                writevol = db_to_scaling_factor(minmax(x, 24)) >> 4;
             }
         }
     }
