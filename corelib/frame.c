@@ -1517,16 +1517,16 @@ int opbx_codec_get_len(int format, int samples)
     switch (format)
     {
     case OPBX_FORMAT_ILBC:
-        len = (samples / 240) * 50;
+        len = (samples/240)*50;
         break;
     case OPBX_FORMAT_GSM:
-        len = (samples / 160) * 33;
+        len = (samples/160)*33;
         break;
     case OPBX_FORMAT_G729A:
-        len = samples / 8;
+        len = samples/8;
         break;
     case OPBX_FORMAT_SLINEAR:
-        len = samples * 2;
+        len = samples*sizeof(int16_t);
         break;
     case OPBX_FORMAT_ULAW:
     case OPBX_FORMAT_ALAW:
@@ -1534,7 +1534,7 @@ int opbx_codec_get_len(int format, int samples)
         break;
     case OPBX_FORMAT_DVI_ADPCM:
     case OPBX_FORMAT_G726:
-        len = samples / 2;
+        len = samples/2;
         break;
     default:
         opbx_log(LOG_WARNING, "Unable to calculate sample length for format %s\n", opbx_getformatname(format));
@@ -1546,22 +1546,23 @@ int opbx_codec_get_len(int format, int samples)
 int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment)
 {
     int count;
-    short *fdata = f->data;
-    short adjust_value = abs(adjustment);
+    int16_t *fdata = f->data;
+    int16_t adjust_value;
 
-    if ((f->frametype != OPBX_FRAME_VOICE) || (f->subclass != OPBX_FORMAT_SLINEAR))
+    if ((f->frametype != OPBX_FRAME_VOICE)  ||  (f->subclass != OPBX_FORMAT_SLINEAR))
         return -1;
 
-    if (!adjustment)
+    if (adjustment == 0)
         return 0;
 
+    adjust_value = abs(adjustment);
+    if (adjustment > 0)
+        adjust_value = adjustment << 11;
+    else
+        adjust_value = (1 << 11)/(-adjustment);
+    
     for (count = 0;  count < f->samples;  count++)
-    {
-        if (adjustment > 0)
-            opbx_slinear_saturated_multiply(&fdata[count], &adjust_value);
-        else if (adjustment < 0)
-            opbx_slinear_saturated_divide(&fdata[count], &adjust_value);
-    }
+        fdata[count] = saturate(((int32_t) fdata[count]*(int32_t) adjust_value) >> 11);
 
     return 0;
 }
@@ -1569,22 +1570,19 @@ int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment)
 int opbx_frame_slinear_sum(struct opbx_frame *f1, struct opbx_frame *f2)
 {
     int count;
-    short *data1, *data2;
+    int16_t *data1;
+    int16_t *data2;
 
-    if ((f1->frametype != OPBX_FRAME_VOICE) || (f1->subclass != OPBX_FORMAT_SLINEAR))
+    if ((f1->frametype != OPBX_FRAME_VOICE)  ||  (f1->subclass != OPBX_FORMAT_SLINEAR))
         return -1;
 
-    if ((f2->frametype != OPBX_FRAME_VOICE) || (f2->subclass != OPBX_FORMAT_SLINEAR))
+    if ((f2->frametype != OPBX_FRAME_VOICE)  ||  (f2->subclass != OPBX_FORMAT_SLINEAR))
         return -1;
 
     if (f1->samples != f2->samples)
         return -1;
 
-    for (count = 0, data1 = f1->data, data2 = f2->data;
-         count < f1->samples;
-         count++, data1++, data2++)
-    {
-        opbx_slinear_saturated_add(data1, data2);
-    }
+    for (data1 = (int16_t *) f1->data, data2 = (int16_t *) f2->data, count = 0;  count < f1->samples;  count++)
+        data1[count] = saturate((int) data1[count] + (int) data2[count]);
     return 0;
 }

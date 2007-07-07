@@ -189,37 +189,6 @@ char *opbx_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
  */
 void opbx_uri_decode(char *s);
 
-static inline void opbx_slinear_saturated_add(short *input, short *value)
-{
-	int res;
-
-	res = (int) *input + *value;
-	if (res > 32767)
-		*input = 32767;
-	else if (res < -32767)
-		*input = -32767;
-	else
-		*input = (short) res;
-}
-	
-static inline void opbx_slinear_saturated_multiply(short *input, short *value)
-{
-	int res;
-
-	res = (int) *input * *value;
-	if (res > 32767)
-		*input = 32767;
-	else if (res < -32767)
-		*input = -32767;
-	else
-		*input = (short) res;
-}
-
-static inline void opbx_slinear_saturated_divide(short *input, short *value)
-{
-	*input /= *value;
-}
-
 extern int test_for_thread_safety(void);
 
 extern const char *opbx_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
@@ -253,8 +222,6 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 #define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(a,b,c,d,0)
 extern int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
-#endif /* _CALLWEAVER_UTILS_H */
-
 #ifdef linux
 #define opbx_random random
 #else
@@ -276,3 +243,4 @@ long int opbx_random(void);
  */
 void opbx_enable_packet_fragmentation(int sock);
 
+#endif /* _CALLWEAVER_UTILS_H */
