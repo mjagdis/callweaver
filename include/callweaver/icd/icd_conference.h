@@ -26,7 +26,7 @@
  * at the top of the source tree.
  */
  
-#include <linux/zaptel.h>
+#include <zaptel/zaptel.h>
 #ifndef ICD_CONFERENCE_H
 #define ICD_CONFERENCE_H
 
