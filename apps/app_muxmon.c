@@ -54,18 +54,18 @@ static char *muxmon_name = "MuxMon";
 static char *muxmon_synopsis = "Record A Call Natively";
 static char *muxmon_syntax = "MuxMon(file.ext[, options[, command]])";
 static char *muxmon_descrip =
-"Records The audio on the current channel to the specified file.\n\n"
-"Valid Options:\n"
-" b    - Only save audio to the file while the channel is bridged. *does not include conferences*\n"
-" a    - Append to the file instead of overwriting it.\n"
-" v(<x>) - Adjust the heard volume by <x>dB (-24 to 24).\n"    
-" V(<x>) - Adjust the spoken volume by <x>dB (-24 to 24).\n"    
-" W(<x>) - Adjust the overall volume by <x>dB (-24 to 24).\n\n"    
-"<command> will be executed when the recording is over\n"
-"Any strings matching ^{X} will be unescaped to ${X} and \n"
-"all variables will be evaluated at that time.\n"
-"The variable MUXMON_FILENAME will be present as well.\n"
-"";
+    "Records The audio on the current channel to the specified file.\n\n"
+    "Valid Options:\n"
+    " b      - Only save audio to the file while the channel is bridged. *does not include conferences*\n"
+    " a      - Append to the file instead of overwriting it.\n"
+    " v(<x>) - Adjust the heard volume by <x>dB (-24 to 24).\n"    
+    " V(<x>) - Adjust the spoken volume by <x>dB (-24 to 24).\n"    
+    " W(<x>) - Adjust the overall volume by <x>dB (-24 to 24).\n\n"    
+    "<command> will be executed when the recording is over\n"
+    "Any strings matching ^{X} will be unescaped to ${X} and \n"
+    "all variables will be evaluated at that time.\n"
+    "The variable MUXMON_FILENAME will be present as well.\n"
+    "";
 
 STANDARD_LOCAL_USER;
 

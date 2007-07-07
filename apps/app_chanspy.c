@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
+#include <spandsp.h>
 
 #include "callweaver.h"
 
@@ -52,7 +54,6 @@ OPBX_MUTEX_DEFINE_STATIC(modlock);
 
 #define OPBX_NAME_STRLEN 256
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
-#define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
 static void *chanspy_app;
 static const char *chanspy_name = "ChanSpy";
@@ -62,8 +63,8 @@ static const char *chanspy_desc =
     "Valid Options:\n"
     " - q: quiet, don't announce channels beep, etc.\n"
     " - b: bridged, only spy on channels involved in a bridged call.\n"
-    " - v([-4..4]): adjust the initial volume. (negative is quieter)\n"
-    " - g(grp): enforce group.  Match only calls where their ${SPYGROUP} is 'grp'.\n"
+    " - v(<x>):  adjust the heard volume by <x>dB (-24 to 24).\n"    
+    " - g(<grp>): enforce group.  Match only calls where their ${SPYGROUP} is 'grp'.\n"
     " - r[(basename)]: Record session to monitor spool dir (with optional basename, default is 'chanspy')\n\n"
     "If <scanspec> is specified, only channel names *beginning* with that string will be scanned.\n"
     "('all' or an empty string are also both valid <scanspec>)\n\n"
@@ -74,19 +75,19 @@ static const char *chanspy_desc =
     "(e.g. run Chanspy(Agent) and dial 1234# while spying to jump to channel Agent/1234)\n\n"
     "";
 
-#define OPTION_QUIET	 (1 << 0)	/* Quiet, no announcement */
-#define OPTION_BRIDGED   (1 << 1)	/* Only look at bridged calls */
-#define OPTION_VOLUME    (1 << 2)	/* Specify initial volume */
+#define OPTION_QUIET     (1 << 0)   /* Quiet, no announcement */
+#define OPTION_BRIDGED   (1 << 1)   /* Only look at bridged calls */
+#define OPTION_VOLUME    (1 << 2)   /* Specify initial volume */
 #define OPTION_GROUP     (1 << 3)   /* Only look at channels in group */
 #define OPTION_RECORD    (1 << 4)   /* Record */
 
 OPBX_DECLARE_OPTIONS(chanspy_opts,{
-                         ['q'] = { OPTION_QUIET },
-                         ['b'] = { OPTION_BRIDGED },
-                         ['v'] = { OPTION_VOLUME, 1 },
-                         ['g'] = { OPTION_GROUP, 2 },
-                         ['r'] = { OPTION_RECORD, 3 },
-                     });
+    ['q'] = { OPTION_QUIET },
+    ['b'] = { OPTION_BRIDGED },
+    ['v'] = { OPTION_VOLUME, 1 },
+    ['g'] = { OPTION_GROUP, 2 },
+    ['r'] = { OPTION_RECORD, 3 },
+});
 
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
@@ -113,6 +114,10 @@ static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy)
 static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd);
 static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv);
 
+static __inline__ int db_to_scaling_factor(int db)
+{
+    return (int) (powf(10.0f, db/10.0f)*32768.0f);
+}
 
 #if 0
 static struct opbx_channel *local_get_channel_by_name(char *name)
@@ -157,7 +162,6 @@ static struct opbx_channel *local_get_channel_begin_name(char *name)
     return ret;
 }
 
-
 static void spy_release(struct opbx_channel *chan, void *data)
 {
     struct chanspy_translation_helper *csth = data;
@@ -180,7 +184,7 @@ static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum
 {
     struct opbx_frame *f;
 
-    if (qnum < 0 || qnum > 1)
+    if (qnum < 0  ||  qnum > 1)
         return NULL;
 
     f = spy->queue[qnum];
@@ -191,7 +195,6 @@ static struct opbx_frame *spy_queue_shift(struct opbx_channel_spy *spy, int qnum
     }
     return NULL;
 }
-
 
 static void opbx_flush_spy_queue(struct opbx_channel_spy *spy)
 {
@@ -247,7 +250,6 @@ static int extract_audio(short *buf, size_t len, struct opbx_trans_pvt *trans, s
     return retlen;
 }
 
-
 static int spy_queue_ready(struct opbx_channel_spy *spy)
 {
     int res = 0;
@@ -271,8 +273,16 @@ static int spy_generate(struct opbx_channel *chan, void *data, int sample)
 
     struct chanspy_translation_helper *csth = data;
     struct opbx_frame frame, *f;
-    int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, len, x, vf, maxsamp;
-    short buf0[1280], buf1[1280], buf[1280];
+    int len0 = 0;
+    int len1 = 0;
+    int samp0 = 0;
+    int samp1 = 0;
+    int len;
+    int x;
+    int vf;
+    int minsamp;
+    int maxsamp;
+    int16_t buf0[1280], buf1[1280], buf[1280];
 
     if (csth->spy.status == CHANSPY_DONE)
     {
@@ -304,67 +314,47 @@ static int spy_generate(struct opbx_channel *chan, void *data, int sample)
         return 0;
     }
 
-    if ((len0 = opbx_slinfactory_read(&csth->slinfactory[0], buf0, len)))
-    {
-        samp0 = len0 / 2;
-    }
-    if ((len1 = opbx_slinfactory_read(&csth->slinfactory[1], buf1, len)))
-    {
-        samp1 = len1 / 2;
-    }
+    len0 = opbx_slinfactory_read(&csth->slinfactory[0], buf0, len);
+    samp0 = len0/sizeof(int16_t);
+    len1 = opbx_slinfactory_read(&csth->slinfactory[1], buf1, len);
+    samp1 = len1/sizeof(int16_t);
 
-    maxsamp = (samp0 > samp1) ? samp0 : samp1;
-    vf = get_volfactor(csth->volfactor);
+    vf = db_to_scaling_factor(csth->volfactor) >> 4;
 
-    for(x=0; x < maxsamp; x++)
+    /* Volume Control */
+    for (x = 0;  x < samp0;  x++)
+        buf0[x] = saturate((buf0[x]*vf) >> 11);
+    for (x = 0;  x < samp1;  x++)
+        buf1[x] = saturate((buf1[x]*vf) >> 11);
+
+    minsamp = (samp0 < samp1)  ?  samp0  :  samp1;
+    maxsamp = (samp0 > samp1)  ?  samp0  :  samp1;
+
+    /* Mixing 2 way remote audio */
+    if (samp0  &&  samp1)
     {
-        /* Volume Control */
-        if (vf < 0)
+        for (x = 0;  x < minsamp;  x++)
+            buf[x] = buf0[x] + buf1[x];
+        if (samp0 > samp1)
         {
-            if (samp0)
-            {
-                buf0[x] /= abs(vf);
-            }
-            if (samp1)
-            {
-                buf1[x] /= abs(vf);
-            }
-        }
-        else if (vf > 0)
-        {
-            if (samp0)
-            {
-                buf0[x] *= vf;
-            }
-            if (samp1)
-            {
-                buf1[x] *= vf;
-            }
-        }
-        /* Mixing 2 way remote audio */
-        if (samp0  &&  samp1)
-        {
-            if (x < samp0  &&  x < samp1)
-            {
-                buf[x] = buf0[x] + buf1[x];
-            }
-            else if (x < samp0)
-            {
+            for (  ;  x < samp0;  x++)
                 buf[x] = buf0[x];
-            }
-            else if (x < samp1)
-            {
+        }
+        else
+        {
+            for (  ;  x < samp1;  x++)
                 buf[x] = buf1[x];
-            }
         }
-        else if (x < samp0)
-        {
-            buf[x] = buf0[x];
-        }
-        else if (x < samp1)
-        {
-            buf[x] = buf1[x];
-        }
+    }
+    else if (samp0)
+    {
+        memcpy(buf, buf0, len0);
+        x = samp0;
+    }
+    else if (samp1)
+    {
+        memcpy(buf, buf1, len1);
+        x = samp1;
     }
 
     opbx_fr_init_ex(&frame, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
@@ -444,30 +434,20 @@ static void stop_spying(struct opbx_channel *chan, struct opbx_channel_spy *spy)
     opbx_mutex_unlock(&chan->lock);
 }
 
-/* Map 'volume' levels from -4 through +4 into
-   decibel (dB) settings for channel drivers
-*/
-static signed char volfactor_map[] =
-{
-    -24,
-    -18,
-    -12,
-     -6,
-      0,
-      6,
-     12,
-     18,
-     24,
-};
-
 /* attempt to set the desired gain adjustment via the channel driver;
    if successful, clear it out of the csth structure so the
    generator will not attempt to do the adjustment itself
 */
 static void set_volume(struct opbx_channel *chan, struct chanspy_translation_helper *csth)
 {
-    signed char volume_adjust = volfactor_map[csth->volfactor + 4];
+    signed char volume_adjust;
 
+    if (csth->volfactor > 24)
+        volume_adjust = 24;
+    else if (csth->volfactor < -24)
+        volume_adjust = -24;
+    else
+        volume_adjust = csth->volfactor;
     if (!opbx_channel_setoption(chan, OPBX_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0))
         csth->volfactor = 0;
 }
@@ -475,9 +455,11 @@ static void set_volume(struct opbx_channel *chan, struct chanspy_translation_hel
 static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, int *volfactor, int fd)
 {
     struct chanspy_translation_helper csth;
-    int running = 1, res = 0, x = 0;
+    int running = 1;
+    int res = 0;
+    int x = 0;
     char inp[24] = "";
-    char *name=NULL;
+    char *name = NULL;
     struct opbx_frame *f = NULL;
 
     if ((chan  &&  opbx_check_hangup(chan)) || (spyee  &&  opbx_check_hangup(spyee)))
@@ -497,18 +479,23 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
         set_volume(chan, &csth);
 
         if (fd)
-        {
             csth.fd = fd;
-        }
         start_spying(spyee, chan, &csth.spy);
         opbx_generator_activate(chan, &spygen, &csth);
 
-        while (csth.spy.status == CHANSPY_RUNNING &&
-                chan  &&  !opbx_check_hangup(chan) &&
-                spyee &&
-                !opbx_check_hangup(spyee) &&
-                running == 1 &&
-                (res = opbx_waitfor(chan, -1) > -1))
+        while (csth.spy.status == CHANSPY_RUNNING
+               &&
+               chan
+               &&
+               !opbx_check_hangup(chan)
+               &&
+               spyee
+               &&
+               !opbx_check_hangup(spyee)
+               &&
+               running == 1
+               &&
+               (res = opbx_waitfor(chan, -1) > -1))
         {
             if ((f = opbx_read(chan)) == NULL)
                 break;
@@ -523,10 +510,8 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
             if (res < 0)
                 running = -1;
             if (res == 0)
-            {
                 continue;
-            }
-            else if (res == '*')
+            if (res == '*')
             {
                 running = 0;
             }
@@ -537,15 +522,15 @@ static int channel_spy(struct opbx_channel *chan, struct opbx_channel *spyee, in
                     running = x ? atoi(inp) : -1;
                     break;
                 }
-                (*volfactor)++;
-                if (*volfactor > 4)
-                    *volfactor = -4;
+                *volfactor += 6;
+                if (*volfactor > 24)
+                    *volfactor = -24;
                 if (option_verbose > 2)
                     opbx_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
                 csth.volfactor = *volfactor;
                 set_volume(chan, &csth);
             }
-            else if (res >= 48  &&  res <= 57)
+            else if (res >= '0'  &&  res <= '9')
             {
                 inp[x++] = res;
             }
@@ -618,7 +603,7 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv)
 
     opbx_set_flag(chan, OPBX_FLAG_SPYING); /* so nobody can spy on us while we are spying */
 
-    if (argc < 2 || !argv[1][0] || !strcmp(argv[1], "all"))
+    if (argc < 2  ||  !argv[1][0]  ||  !strcmp(argv[1], "all"))
         argv[1] = NULL;
 
     if (argv[1])
@@ -639,8 +624,8 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv)
         {
             int vol;
 
-            if ((sscanf(opts[0], "%d", &vol) != 1)  ||  (vol > 4)  ||  (vol < -4))
-                opbx_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
+            if ((sscanf(opts[0], "%d", &vol) != 1)  ||  (vol > 24)  ||  (vol < -24))
+                opbx_log(LOG_NOTICE, "Volume factor must be a number between -24dB and 24dB\n");
             else
                 volfactor = vol;
         }
@@ -760,7 +745,7 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv)
             if ((peer = local_channel_walk(peer)) == NULL)
                 break;
         }
-        waitms = count  ?  100  :  5000;
+        waitms = (count)  ?  100  :  5000;
     }
 
     if (fd > 0)
