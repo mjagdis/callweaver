@@ -235,7 +235,7 @@ struct opbx_frame *opbx_smoother_read(struct opbx_smoother *s)
     if (s->len)
     {
         /* In principle this should all be fine because if we are sending
-           G.729 VAD, the next timestamp will take over anyawy */
+           G.729 VAD, the next timestamp will take over anyway */
         memmove(s->data, s->data + len, s->len);
         if (!opbx_tvzero(s->delivery))
         {
@@ -666,7 +666,6 @@ char *opbx_getformatname(int format)
 
 char *opbx_getformatname_multiple(char *buf, size_t size, int format)
 {
-
     int x = 0;
     unsigned len;
     char *end = buf;
@@ -751,7 +750,7 @@ char *opbx_codec2str(int codec)
     int x = 0;
     char *ret = "unknown";
 
-    for (x = 0 ; x < sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s) ; x++)
+    for (x = 0;  x < sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);  x++)
     {
         if (opbx_format_list[x].visible && opbx_format_list[x].bits == codec)
         {
@@ -988,6 +987,7 @@ void opbx_frame_dump(char *name, struct opbx_frame *f, char *prefix)
         break;
     default:
         snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
+        break;
     }
     if (!opbx_strlen_zero(moreinfo))
     {
@@ -1089,8 +1089,11 @@ int init_framer(void)
 
 void opbx_codec_pref_convert(struct opbx_codec_pref *pref, char *buf, size_t size, int right)
 {
-    int x = 0, differential = (int) 'A', mem = 0;
-    char *from = NULL, *to = NULL;
+    int x = 0;
+    int differential = (int) 'A';
+    int mem = 0;
+    char *from = NULL;
+    char *to = NULL;
 
     if (right)
     {
@@ -1140,15 +1143,15 @@ int opbx_codec_pref_string(struct opbx_codec_pref *pref, char *buf, size_t size)
             strncat(buf,formatname,total_len);
             total_len -= slen;
         }
-        if (total_len && x < 31 && opbx_codec_pref_index(pref , x + 1))
+        if (total_len  &&  x < 31  &&  opbx_codec_pref_index(pref, x + 1))
         {
-            strncat(buf,",",total_len);
+            strncat(buf, ",", total_len);
             total_len--;
         }
     }
     if (total_len)
     {
-        strncat(buf,")",total_len);
+        strncat(buf, ")", total_len);
         total_len--;
     }
 
@@ -1169,7 +1172,8 @@ int opbx_codec_pref_index(struct opbx_codec_pref *pref, int index)
 void opbx_codec_pref_remove(struct opbx_codec_pref *pref, int format)
 {
     struct opbx_codec_pref oldorder;
-    int x=0, y=0;
+    int x = 0;
+    int y = 0;
     size_t size = 0;
     int slot = 0;
 
@@ -1195,7 +1199,8 @@ void opbx_codec_pref_remove(struct opbx_codec_pref *pref, int format)
 int opbx_codec_pref_append(struct opbx_codec_pref *pref, int format)
 {
     size_t size = 0;
-    int x = 0, newindex = -1;
+    int x = 0;
+    int newindex = -1;
 
     opbx_codec_pref_remove(pref, format);
     size = sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);
@@ -1224,12 +1229,13 @@ int opbx_codec_pref_append(struct opbx_codec_pref *pref, int format)
     return x;
 }
 
-
 /*--- sip_codec_choose: Pick a codec ---*/
 int opbx_codec_choose(struct opbx_codec_pref *pref, int formats, int find_best)
 {
     size_t size = 0;
-    int x = 0, ret = 0, slot = 0;
+    int x = 0;
+    int ret = 0;
+    int slot = 0;
 
     size = sizeof(opbx_format_list)/sizeof(struct opbx_format_list_s);
     for (x = 0;  x < size;  x++)
@@ -1253,7 +1259,8 @@ int opbx_codec_choose(struct opbx_codec_pref *pref, int formats, int find_best)
 void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const char *list, int allowing)
 {
     int format_i = 0;
-    char *next_format = NULL, *last_format = NULL;
+    char *next_format = NULL;
+    char *last_format = NULL;
 
     last_format = opbx_strdupa(list);
     while (last_format)
@@ -1281,7 +1288,9 @@ void opbx_parse_allow_disallow(struct opbx_codec_pref *pref, int *mask, const ch
                     opbx_codec_pref_remove(pref, format_i);
             }
             else if (!allowing) /* disallow all must clear your prefs or it makes no sense */
+            {
                 memset(pref, 0, sizeof(struct opbx_codec_pref));
+            }
         }
         else
         {
@@ -1297,18 +1306,15 @@ static int g723_len(unsigned char buf)
     {
     case TYPE_DONTSEND:
         return 0;
-        break;
     case TYPE_SILENCE:
         return 4;
-        break;
     case TYPE_HIGH:
         return 24;
-        break;
     case TYPE_LOW:
         return 20;
-        break;
     default:
         opbx_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+        break;
     }
     return -1;
 }
@@ -1362,30 +1368,23 @@ static int speex_get_wb_sz_at(unsigned char *data, int len, int bit)
     int off = bit;
     unsigned char c;
 
-    /* skip up to two wideband frames */
-    if (((len * 8 - off) >= 5)
-        &&
-        get_n_bits_at(data, 1, off))
+    /* Skip up to two wideband frames */
+    if (((len * 8 - off) >= 5)  &&  get_n_bits_at(data, 1, off))
     {
         c = get_n_bits_at(data, 3, off + 1);
         off += SpeexWBSubModeSz[c];
 
-        if (((len * 8 - off) >= 5)
-            &&
-            get_n_bits_at(data, 1, off))
+        if (((len * 8 - off) >= 5)  &&  get_n_bits_at(data, 1, off))
         {
             c = get_n_bits_at(data, 3, off + 1);
             off += SpeexWBSubModeSz[c];
 
-            if (((len * 8 - off) >= 5)
-                &&
-                get_n_bits_at(data, 1, off))
+            if (((len * 8 - off) >= 5)  &&  get_n_bits_at(data, 1, off))
             {
                 opbx_log(LOG_WARNING, "Encountered corrupt speex frame; too many wideband frames in a row.\n");
                 return -1;
             }
         }
-
     }
     return off - bit;
 }
@@ -1437,7 +1436,8 @@ static int speex_samples(unsigned char *data, int len)
             /* terminator */
             break;
         }
-        else if (c == 14)
+        
+        if (c == 14)
         {
             /* in-band signal; next 4 bits contain signal id */
             c = get_n_bits_at(data, 4, bit);
@@ -1505,6 +1505,7 @@ int opbx_codec_get_samples(struct opbx_frame *f)
         break;
     default:
         opbx_log(LOG_WARNING, "Unable to calculate samples for format %s\n", opbx_getformatname(f->subclass));
+        break;
     }
     return samples;
 }
@@ -1538,6 +1539,7 @@ int opbx_codec_get_len(int format, int samples)
         break;
     default:
         opbx_log(LOG_WARNING, "Unable to calculate sample length for format %s\n", opbx_getformatname(format));
+        break;
     }
 
     return len;
@@ -1555,7 +1557,6 @@ int opbx_frame_adjust_volume(struct opbx_frame *f, int adjustment)
     if (adjustment == 0)
         return 0;
 
-    adjust_value = abs(adjustment);
     if (adjustment > 0)
         adjust_value = adjustment << 11;
     else
