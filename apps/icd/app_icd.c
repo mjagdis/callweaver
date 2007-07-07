@@ -81,14 +81,14 @@ static void *icd_remove_member_app;
 static void *icd_agent_callback_app;
 static void *icd_customer_callback_app;
 
-static char *icd_customer_app_name = "icd_customer";
-static char *icd_queue_app_name = "icd_queue";
-static char *icd_agent_app_name = "icd_agent";
-static char *icd_logout_app_name = "icd_logout";
-static char *icd_add_member_app_name = "icd_add_member";
-static char *icd_remove_member_app_name = "icd_remove_member";
-static char *icd_agent_callback_app_name = "icd_agent_callback";
-static char *icd_customer_callback_app_name = "icd_customer_callback";
+static char *icd_customer_app_name = "ICD_Customer";
+static char *icd_queue_app_name = "ICD_Queue";
+static char *icd_agent_app_name = "ICD_Agent";
+static char *icd_logout_app_name = "ICD_Logout";
+static char *icd_add_member_app_name = "ICD_Add_Member";
+static char *icd_remove_member_app_name = "ICD_Remove_Member";
+static char *icd_agent_callback_app_name = "ICD_Agent_Callback";
+static char *icd_customer_callback_app_name = "ICD_Customer_Callback";
 
 static char *app_icd_customer_synopsis = "ICD Customer distribution definition";
 static char *app_icd_customer_callback_synopsis = "ICD Customer Callback distribution definition";
