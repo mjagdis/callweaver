@@ -1,6 +1,6 @@
 AUTOMAKE_OPTS			= gnu
 opbxmod_LTLIBRARIES		= 
-SUBDIRS = nconference
+SUBDIRS = nconference icd
 
 if WANT_APP_ADSIPROG
 opbxmod_LTLIBRARIES			+= app_adsiprog.la

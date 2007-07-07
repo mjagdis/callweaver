@@ -33,7 +33,7 @@
 #include <sys/ioctl.h>
 #include <math.h>
 #include <ctype.h>
-#include <linux/zaptel.h>
+#include ZAPTEL_H
 
 #include <spandsp.h>
 #include <libsupertone.h>

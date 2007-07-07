@@ -1901,7 +1901,14 @@ AC_ARG_WITH([chan_zap],
 
 AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${enable_zaptel}" = "yes" -a "${with_chan_zap}" = "yes" -a -n "${HAVE_LIBTONEZONE}"])
 
-dnl app_icd
+dnl ###########################################################################
+
+AC_ARG_WITH([app_icd],
+	[AC_HELP_STRING([--with-app_icd],[Build and install app_icd (default=yes)])],,
+	[with_app_icd="yes"])
+
+AM_CONDITIONAL([WANT_APP_ICD],[test "${with_app_icd}" = "yes"])
+
 #app_icd = "no"
 #AC_ARG_WITH(app_icd,
 #	[ --with-app_icd=no			use app_icd, a full blown inteligent call distribution system (default=no) *** HIGHLY EXPERIMENTAL FOR THE MOMENT ****],,[with_app_icd="no"])

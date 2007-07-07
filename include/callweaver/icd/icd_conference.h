@@ -26,11 +26,13 @@
  * at the top of the source tree.
  */
  
-#include <zaptel/zaptel.h>
-#ifndef ICD_CONFERENCE_H
+#if !defined(ICD_CONFERENCE_H)
 #define ICD_CONFERENCE_H
 
-struct icd_conference {
+#include ZAPTEL_H
+
+struct icd_conference
+{
     char name[ICD_STRING_LEN];
     char pin[ICD_STRING_LEN];
     int fd;

@@ -278,21 +278,46 @@ int load_module(void)
     reload_app_icd(APP_ICD);
 
     opbx_cli_register(&icd_command_cli_struct);
-    icd_queue_app= opbx_register_application(icd_queue_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
-                             app_icd_customer_syntax, app_icd_customer_desc);
-    icd_customer_app= opbx_register_application(icd_customer_app_name, app_icd__customer_exec, app_icd_customer_synopsis,
-                             app_icd_customer_syntax, app_icd_customer_desc);
-    icd_customer_callback_app= opbx_register_application(icd_customer_callback_app_name, app_icd__customer_callback_login,
-                             app_icd_customer_callback_synopsis, app_icd_customer_callback_syntax, app_icd_customer_callback_desc);
-    icd_agent_app= opbx_register_application(icd_agent_app_name, app_icd__agent_exec, app_icd_agent_synopsis, app_icd_agent_syntax, app_icd_agent_desc);
-    icd_agent_callback_app= opbx_register_app(icd_agent_callback_app_name, app_icd__agent_callback_login,
-                             app_icd_agent_callback_synopsis, app_icd_agent_callback_syntax, app_icd_agent_callback_desc);
-    icd_logout_app= opbx_register_application(icd_logout_app_name, app_icd__logout_exec, app_icd_logout_synopsis,
-                             app_icd_logout_syntax, app_icd_logout_desc);
-    icd_add_member_app= opbx_register_application(icd_add_member_app_name, app_icd__add_member_exec, app_icd_add_member_synopsis,
-                             app_icd_add_member_desc, app_icd_add_member_desc);
-    icd_remove_member_app= opbx_register_application(icd_remove_member_app_name, app_icd__remove_member_exec,
-                             app_icd_remove_member_synopsis, app_icd_remove_member_syntax, app_icd_remove_member_desc);
+    icd_queue_app = opbx_register_application(icd_queue_app_name,
+                                              app_icd__customer_exec,
+                                              app_icd_customer_synopsis,
+                                              app_icd_customer_syntax,
+                                              app_icd_customer_desc);
+    icd_customer_app = opbx_register_application(icd_customer_app_name,
+                                                 app_icd__customer_exec,
+                                                 app_icd_customer_synopsis,
+                                                 app_icd_customer_syntax,
+                                                 app_icd_customer_desc);
+    icd_customer_callback_app = opbx_register_application(icd_customer_callback_app_name,
+                                                          app_icd__customer_callback_login,
+                                                          app_icd_customer_callback_synopsis,
+                                                          app_icd_customer_callback_syntax,
+                                                          app_icd_customer_callback_desc);
+    icd_agent_app = opbx_register_application(icd_agent_app_name,
+                                              app_icd__agent_exec,
+                                              app_icd_agent_synopsis,
+                                              app_icd_agent_syntax,
+                                              app_icd_agent_desc);
+    icd_agent_callback_app = opbx_register_application(icd_agent_callback_app_name,
+                                                       app_icd__agent_callback_login,
+                                                       app_icd_agent_callback_synopsis,
+                                                       app_icd_agent_callback_syntax,
+                                                       app_icd_agent_callback_desc);
+    icd_logout_app = opbx_register_application(icd_logout_app_name,
+                                               app_icd__logout_exec,
+                                               app_icd_logout_synopsis,
+                                               app_icd_logout_syntax,
+                                               app_icd_logout_desc);
+    icd_add_member_app = opbx_register_application(icd_add_member_app_name,
+                                                   app_icd__add_member_exec,
+                                                   app_icd_add_member_synopsis,
+                                                   app_icd_add_member_desc,
+                                                   app_icd_add_member_desc);
+    icd_remove_member_app = opbx_register_application(icd_remove_member_app_name,
+                                                      app_icd__remove_member_exec,
+                                                      app_icd_remove_member_synopsis,
+                                                      app_icd_remove_member_syntax,
+                                                      app_icd_remove_member_desc);
 
     /* If this is the best place to come back to then there is nothing we can do but die.
        if(setjmp(env) == SIGSEGV) {
@@ -1145,9 +1170,12 @@ int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv)
     if (agent == NULL && agentname == NULL) {
         loginstring = vh_read(arghash, "identify");
         /* icd_agent() == icd_agent(identify=1) */
+#if 0
+/* TODO: fudged to compile */
         if ((loginstring != NULL && opbx_true(loginstring)) || (data == NULL || !strlen(data))) {
             agent = app_icd__dtmf_login(chan, NULL, NULL, 3);
         }
+#endif
         if (agent != NULL) {
             agentname = icd_caller__get_param((icd_caller *) agent, "name");
             opbx_log(LOG_WARNING, "\n\nagent_name: [%s]\n\n", agentname);

@@ -1066,10 +1066,12 @@ static void *icd_command_login_thread(void *arg) {
     }	 
   	sprintf(buf, "agent=%s", agent_id);
   	passwd = icd_caller__get_param(agent, "login_password");
-  	if(passwd){
+  	if (passwd)
   		sprintf(buf + strlen(buf), "|password=%s", passwd);  			
-    }
+#if 0
+/* TODO: fudged to compile */
     app_icd__agent_exec(chan, buf);
+#endif
     icd_caller__del_param(agent, "LogInProgress");
     opbx_log(LOG_NOTICE, "Agent login: External thread for Agent [%s] ending\n", agent_id);
 /*    icd_bridge__safe_hangup(agent);*/

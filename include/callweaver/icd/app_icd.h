@@ -103,69 +103,71 @@ extern "C" {
 
 /***** Behaviours *****/
 
-    icd_queue *app_icd__new_queue(icd_config * config);
-    icd_queue *app_icd__new_unconfigured_queue(char *name);
-    icd_queue *app_icd__get_queue(char *name);
-    icd_distributor *app_icd__get_distributor(char *name);
+icd_queue *app_icd__new_queue(icd_config * config);
+icd_queue *app_icd__new_unconfigured_queue(char *name);
+icd_queue *app_icd__get_queue(char *name);
+icd_distributor *app_icd__get_distributor(char *name);
 
-    icd_customer *app_icd__new_customer_to_queue(icd_config * cust_config, char *queue);
-    icd_agent *app_icd__new_agent_to_queue(icd_config * agent_config, char *queue);
-    icd_customer *app_icd__new_customer_to_queues(icd_config * cust_config, char **queues, int qcount);
-    icd_agent *app_icd__new_agent_to_queues(icd_config * agent_config, char **queues, int qcount);
+icd_customer *app_icd__new_customer_to_queue(icd_config * cust_config, char *queue);
+icd_agent *app_icd__new_agent_to_queue(icd_config * agent_config, char *queue);
+icd_customer *app_icd__new_customer_to_queues(icd_config * cust_config, char **queues, int qcount);
+icd_agent *app_icd__new_agent_to_queues(icd_config * agent_config, char **queues, int qcount);
 
-    icd_status app_icd__add_customer_to_queue(icd_customer * cust, char *queue);
-    icd_status app_icd__add_agent_to_queue(icd_agent * agent, char *queue);
+icd_status app_icd__add_customer_to_queue(icd_customer * cust, char *queue);
+icd_status app_icd__add_agent_to_queue(icd_agent * agent, char *queue);
 
 /* Configuration through conf files. If filename NULL use default. Use these as a pair. */
 /*icd general system options */
-    icd_status app_icd__read_icd_config(char *icd_config_name);
+icd_status app_icd__read_icd_config(char *icd_config_name);
+
 /* conference options */
-    icd_status app_icd__read_conference_config(char *conference_config_name);
+icd_status app_icd__read_conference_config(char *conference_config_name);
+
 /*queues config */
-    icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_name,
+icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_name,
         icd_fieldset * outstanding_members);
 /* agents config */
-    icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config_name, icd_fieldset * queues,
+icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config_name, icd_fieldset * queues,
         icd_fieldset * outstanding_members);
 
 /* Adds a customer to the ICD system */
-    int app_icd__customer_exec(struct opbx_channel *chan, void *data);
+int app_icd__customer_exec(struct opbx_channel *chan, int argc, char **argv);
 
 /* Starts up an agent in the ICD system */
-    int app_icd__agent_exec(struct opbx_channel *chan, void *data);
+int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv);
 
 /* Logs out an agent in the ICD system */
-    int app_icd__logout_exec(struct opbx_channel *chan, void *data);
+int app_icd__logout_exec(struct opbx_channel *chan, int argc, char **argv);
 
 /* Add an agent as a member to a queue */
-    int app_icd__add_member_exec(struct opbx_channel *chan, void *data);
+int app_icd__add_member_exec(struct opbx_channel *chan, int argc, char **argv);
 
 /* Remove an agent as a member of a queue */
-    int app_icd__remove_member_exec(struct opbx_channel *chan, void *data);
+int app_icd__remove_member_exec(struct opbx_channel *chan, int argc, char **argv);
 
 /* Agent callback login */
-    int app_icd__agent_callback_login(struct opbx_channel *chan, void *data);
+int app_icd__agent_callback_login(struct opbx_channel *chan, int argc, char **argv);
 
 /* Customer callback login */
-    int app_icd__customer_callback_login(struct opbx_channel *chan, void *data);
+int app_icd__customer_callback_login(struct opbx_channel *chan, int argc, char **argv);
 
 /* dunno where this belongs but useful every where : */
-    int icd_instr(char *bigstr, char *smallstr, char delimit);
+int icd_instr(char *bigstr, char *smallstr, char delimit);
 
 /***** Getters and Setters *****/
 
-    icd_status app_icd__set_default_queue_file(char *filename);
-    char *app_icd__get_default_queue_file(void);
+icd_status app_icd__set_default_queue_file(char *filename);
+char *app_icd__get_default_queue_file(void);
 
-    icd_status app_icd__set_default_agent_file(char *filename);
-    char *app_icd__get_default_agent_file(void);
+icd_status app_icd__set_default_agent_file(char *filename);
+char *app_icd__get_default_agent_file(void);
 
 /**** Listener functions ****/
 
-    icd_status app_icd__add_listener(icd_agent * that, void *listener, int (*lstn_fn) (icd_agent * that, void *msg,
+icd_status app_icd__add_listener(icd_agent * that, void *listener, int (*lstn_fn) (icd_agent * that, void *msg,
             void *extra), void *extra);
 
-    icd_status app_icd__remove_listener(icd_agent * that, void *listener);
+icd_status app_icd__remove_listener(icd_agent * that, void *listener);
 
 #ifdef __cplusplus
 }
