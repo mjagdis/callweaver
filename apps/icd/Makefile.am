@@ -9,16 +9,16 @@ app_icd_la_SOURCES		= app_icd.c icd_agent.c icd_bridge.c icd_caller.c icd_caller
 app_icd_la_LDFLAGS						= -module -avoid-version -no-undefined
 app_icd_la_LIBADD						= ${top_builddir}/corelib/libcallweaver.la
 
-opbxicdmod_LTLIBRARIES	= icd_mod_agent_priority_groups.la icd_mod_event_astmgr.la \
+opbxicdmod_LTLIBRARIES	= icd_mod_agent_priority_groups.la icd_mod_event_cwmgr.la \
 			icd_mod_event_cli.la icd_mod_external.la icd_mod_matchagent.la
 			
 icd_mod_agent_priority_groups_la_SOURCES	= icd_mod_agent_priority_groups.c
 icd_mod_agent_priority_groups_la_LDFLAGS	= -module -avoid-version -no-undefined
 icd_mod_agent_priority_groups_la_LIBADD	= ${top_builddir}/corelib/libcallweaver.la 
 
-icd_mod_event_astmgr_la_SOURCES 			= icd_mod_event_astmgr.c
-icd_mod_event_astmgr_la_LDFLAGS			= -module -avoid-version -no-undefined
-icd_mod_event_astmgr_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la 
+icd_mod_event_cwmgr_la_SOURCES 			= icd_mod_event_cwmgr.c
+icd_mod_event_cwmgr_la_LDFLAGS			= -module -avoid-version -no-undefined
+icd_mod_event_cwmgr_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la 
 
 icd_mod_event_cli_la_SOURCES				= icd_mod_event_cli.c
 icd_mod_event_cli_la_LDFLAGS				= -module -avoid-version -no-undefined

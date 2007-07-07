@@ -27,7 +27,7 @@
  */
  
  /*! \file
-  *  \brief icd_mod_event_astmgr.c - interface to send events to the callweaver.org manager
+  *  \brief icd_mod_event_cwmgr.c - interface to send events to the callweaver.org manager
   */
  
 #ifdef HAVE_CONFIG_H
@@ -40,9 +40,9 @@
 
 /* Private implemenations */
 static int module_id = 0;
-static char *module_name = "event_astmgr";
+static char *module_name = "event_cwmgr";
 
-static int icd_module__event_astmgr(void *listener, icd_event * factory_event, void *extra);
+static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, void *extra);
 
 
 int icd_module_load(icd_config_registry * registry)
@@ -54,7 +54,7 @@ int icd_module_load(icd_config_registry * registry)
     if (module_id == 0)
         opbx_log(LOG_WARNING, "Unable to register Module Name[%s]", module_name);
     else {
-        icd_event_factory__add_listener(event_factory, queues, icd_module__event_astmgr, NULL);
+        icd_event_factory__add_listener(event_factory, queues, icd_module__event_cwmgr, NULL);
         opbx_verbose(VERBOSE_PREFIX_3 "Registered ICD Module[%s]!\n",module_name);
     }
     return 0;
@@ -68,7 +68,7 @@ int icd_module_unload(void)
 }
 
 /* This can act as a listener on all events in the system, or on selected events. */
-static int icd_module__event_astmgr(void *listener, icd_event * factory_event, void *extra)
+static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, void *extra)
 {
     char *smsg;
     icd_caller *caller = NULL;
