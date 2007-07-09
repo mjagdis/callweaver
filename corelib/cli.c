@@ -773,7 +773,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"   Pickup Group: %d\n"
 		"    Application: %s\n"
 		"    Blocking in: %s\n"
-		"    T38 mode on: %s\n",
+		"    T38 mode on: %d\n",
 		c->name, c->type, c->uniqueid,
 		(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 		(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
@@ -790,7 +790,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->context, c->exten, c->priority, (int)c->callgroup, 
 		(int)c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 		(opbx_test_flag(c, OPBX_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"),
-		(c->t38mode_enabled ? "Yes" : "No")
+		c->t38_status
 		);
 	
 	if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))

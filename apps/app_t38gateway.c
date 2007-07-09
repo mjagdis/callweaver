@@ -131,6 +131,9 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
 
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
+
+//opbx_log(LOG_NOTICE, "br: t38 status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+
         if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
             inactive = (active == channels[0])  ?   channels[1]  :  channels[0];
@@ -197,8 +200,14 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
             }
         }
         /* Check if we need to change to gateway operation */
-        if (chan->t38mode_enabled != peer->t38mode_enabled)
+        if ( 
+	        ( chan->t38_status != T38_NEGOTIATING ) 
+	     && ( peer->t38_status != T38_NEGOTIATING )
+	     && ( chan->t38_status != peer->t38_status) 
+	   ) {
+            opbx_log(LOG_DEBUG, "Stop bridging frames. [ %d,%d]\n", chan->t38_status, peer->t38_status);
             break;
+	}
     }
 
     if (dsp_cng)
@@ -243,7 +252,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
-    if (chan->t38mode_enabled)
+    if ( chan->t38_status == T38_NEGOTIATED )
     {
         channels[0] = chan;
         channels[1] = peer;
@@ -256,7 +265,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
 
     original_read_fmt = channels[1]->readformat;
     original_write_fmt = channels[1]->writeformat;
-    if (!channels[1]->t38mode_enabled)
+    if ( channels[1]->t38_status != T38_NEGOTIATED)
     {
         if (original_read_fmt != OPBX_FORMAT_SLINEAR)
         {
@@ -298,6 +307,8 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
 
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
+//opbx_log(LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+
         if ((active = opbx_waitfor_n(channels, 2, &timeout)))
         {
             if (active == channels[0])
@@ -371,7 +382,6 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
     int verbose;
     char status[256];
     struct opbx_channel *active = NULL;
-    struct opbx_channel *other = NULL;
     struct opbx_channel *channels[2];
     
     if (argc < 1  ||  argc > 3  ||  !argv[0][0])
@@ -532,22 +542,26 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
         {
             opbx_answer(chan);
             peer->appl = t38gateway_app;
+	    
             /* FIXME original patch removes the if line below - trying with it before removing it */
             if (argc > 2  &&  strchr(argv[2], 'r'))
                 opbx_indicate(chan, -1);
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
 
-            if (res  &&  chan->t38mode_enabled == peer->t38mode_enabled)
+            if ( res && ( chan->t38_status == peer->t38_status ) )
             {
                 // Same on both sides, so just bridge 
-                opbx_log(LOG_NOTICE, "Bridging frames\n");
+                opbx_log(LOG_DEBUG, "Bridging frames [ %d,%d]\n", chan->t38_status, peer->t38_status);
                 res = opbx_bridge_frames(chan, peer);
             }
-            if (res  &&  chan->t38mode_enabled != peer->t38mode_enabled)
+	    
+            if ( res  
+		&& ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( chan->t38_status != T38_STATUS_UNKNOWN ) )
+		&& ( chan->t38_status != peer->t38_status ) )
             {
                 // Different on each side, so gateway 
-                opbx_log(LOG_NOTICE, "Doing T.38 gateway\n");
+                opbx_log(LOG_DEBUG, "Doing T.38 gateway [ %d,%d]\n", chan->t38_status, peer->t38_status);
                 res = opbx_t38_gateway(chan, peer, verbose);
             }
         }

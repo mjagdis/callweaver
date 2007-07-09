@@ -473,6 +473,17 @@ static pthread_t monitor_thread = OPBX_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
+/* T.38 channel status */
+typedef enum {
+    SIP_T38_OFFER_REJECTED		= -1,
+    SIP_T38_STATUS_UNKNOWN		= 0,
+    SIP_T38_OFFER_SENT_DIRECT		= 1,
+    SIP_T38_OFFER_SENT_REINVITE		= 2,
+    SIP_T38_OFFER_RECEIVED_DIRECT	= 3,
+    SIP_T38_OFFER_RECEIVED_REINVITE 	= 4,
+    SIP_T38_NEGOTIATED			= 5
+} sip_t38_status_t;
+
 /* T.38 set of flags */
 #define T38FAX_FILL_BIT_REMOVAL            (1 << 0)     /*!< Default: 0 (unset)*/
 #define T38FAX_TRANSCODING_MMR            (1 << 1)    /*!< Default: 0 (unset)*/
@@ -829,7 +840,14 @@ static struct sip_pvt {
     int t38capability;            /*!< Our T38 capability */
     int t38peercapability;            /*!< Peers T38 capability */
     int t38jointcapability;            /*!< Supported T38 capability at both ends */
-    int t38state;                /*!< T.38 state : 0 not enabled, 1 offered from local - direct, 2 - offered from local - reinvite, 3 - offered from peer - direct, 4 offered from peer - reinvite, 5 negotiated (enabled) */
+    sip_t38_status_t t38state; 	/*!< T.38 state : 
+				    0 - not enabled, 
+					1 - offered from local - direct, 
+					2 - offered from local - reinvite, 
+					3 - offered from peer - direct, 
+					4 - offered from peer - reinvite, 
+					5 - negotiated (enabled) 
+				*/
     struct sockaddr_in udptlredirip;    /*!< Where our T.38 UDPTL should be going if not to us */
     struct opbx_dsp *vadtx;            /*!< Voice Activation Detection dsp on TX */
     int udptl_active;            /*!<  */
@@ -2875,7 +2893,7 @@ static int sip_call(struct opbx_channel *ast, char *dest, int timeout)
         else if (!strncasecmp(opbx_var_name(current), "T38CALL", strlen("T38CALL")))
         {
             /* Check whether there is a variable with a name starting with T38CALL */
-            p->t38state = 1;
+            p->t38state = SIP_T38_OFFER_SENT_DIRECT;
             opbx_log(LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
         }
         
@@ -3433,13 +3451,13 @@ static int sip_answer(struct opbx_channel *ast)
         if (option_debug)
             opbx_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
 
-        if (p->t38state == 3)
+        if (p->t38state == SIP_T38_OFFER_RECEIVED_DIRECT)
         {
-            p->t38state = 5;
+            p->t38state = SIP_T38_NEGOTIATED;
             opbx_log(LOG_DEBUG,"T38State change to %d on channel %s\n",p->t38state, ast->name);
-            ast->t38mode_enabled = 1;
             opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", ast->name);
             res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 2);
+            opbx_channel_set_t38_status(ast, T38_NEGOTIATED);
         }
         else
         {
@@ -3710,20 +3728,20 @@ static enum opbx_bridge_result sip_bridge(struct opbx_channel *c0, struct opbx_c
     opbx_mutex_lock(&c0->lock);
     if (c0->tech->bridge == sip_bridge)
     {
-        res1 = c0->t38mode_enabled;
-        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c0->name, res1  ?  "enabled\n"  :  "not enabled\n");
+        res1 = opbx_channel_get_t38_status(c0);
+        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c0->name, ( res1 == T38_NEGOTIATED )  ?  "enabled\n"  :  "not enabled\n");
     }
     opbx_mutex_unlock(&c0->lock);
     opbx_mutex_lock(&c1->lock);
     if (c1->tech->bridge == sip_bridge)
     {
-        res1 = c1->t38mode_enabled;
-        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c1->name, res2  ?  "enabled\n"  :  "not enabled\n");
+        res2 = opbx_channel_get_t38_status(c1);
+        opbx_log(LOG_DEBUG, "T38 on channel %s is: %s", c1->name, ( res2 == T38_NEGOTIATED ) ?  "enabled\n"  :  "not enabled\n");
     }
     opbx_mutex_unlock(&c1->lock);
 
     /* If they are both in T.38 mode try a native UDPTL bridge */
-    if (res1  &&  res2)
+    if ( (res1 == T38_NEGOTIATED)  &&  (res2 == T38_NEGOTIATED) )
         return opbx_udptl_bridge(c0, c1, flag, fo, rc);
 
     /* If they are in mixed modes, don't try any bridging */
@@ -4746,19 +4764,20 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
             opbx_log(LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
             opbx_rtp_set_active(p->rtp, 0);
-    	    if (t38udptlsupport && p->udptl && (t38_disabled == NULL) )
+    	    if (t38udptlsupport && p->udptl && (t38_disabled == NULL) ) {
         	opbx_udptl_set_active(p->udptl, 1);
-            p->udptl_active = 1;
-            
+    		p->udptl_active = 1;
+		opbx_channel_set_t38_status(p->owner,T38_NEGOTIATED);
+	    }
+	    
             if (p->owner  &&  p->lastinvite)
             {
-                p->t38state = 4; /* T38 Offered in re-invite from remote party */
-		p->owner->t38mode_enabled = 1;
+                p->t38state = SIP_T38_OFFER_RECEIVED_REINVITE; /* T38 Offered in re-invite from remote party */
                 opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>" );
             }
             else
             {
-                p->t38state = 3; /* T38 Offered directly from peer in first invite */
+                p->t38state = SIP_T38_OFFER_RECEIVED_DIRECT; /* T38 Offered directly from peer in first invite */
                 opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
             }                
         }
@@ -5042,7 +5061,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     }
     else
     {
-        p->t38state = 0;
+        p->t38state = SIP_T38_STATUS_UNKNOWN;
         opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
     }
 
@@ -6564,6 +6583,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
         opbx_rtp_set_active(p->rtp, 0);
     	opbx_udptl_set_active(p->udptl, 1);
         p->udptl_active = 1;
+	opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
     }
 
     return send_request(p, &req, 1, p->ocseq);
@@ -6972,7 +6992,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
             }
         }
     }
-    if (sdp  &&  p->udptl  &&  (p->t38state == 1))
+    if (sdp  &&  p->udptl  &&  (p->t38state == SIP_T38_OFFER_SENT_DIRECT))
     {
         opbx_udptl_offered_from_local(p->udptl, 1);
         opbx_log(LOG_DEBUG, "T38 is in state %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
@@ -12121,14 +12141,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		    
                     if (bridgepvt && bridgepvt->udptl)
                     {
-                        if (p->t38state == 4)
+                        if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE)
                         { 
                             /* This is 200 OK to re-invite where T38 was offered on channel so we need to send 200 OK with T38 the other side of the bridge */
                             /* Send response with T38 SDP to the other side of the bridge */
-                            p->owner->t38mode_enabled = 1;
                             sip_handle_t38_reinvite(bridgepeer, p, 0);
+                            opbx_channel_set_t38_status(p->owner, T38_NEGOTIATING);
                         }
-                        else if (p->t38state == 0  &&  bridgepeer  &&  (bridgepvt->t38state == 5))
+                        else if (p->t38state == SIP_T38_STATUS_UNKNOWN  &&  bridgepeer  &&  (bridgepvt->t38state == SIP_T38_NEGOTIATED))
                         { /* This is case of RTP re-invite after T38 session */
                             opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
@@ -12139,10 +12159,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                     {
                             opbx_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
                             opbx_mutex_lock(&bridgepvt->lock);
-                            bridgepvt->t38state = 0;
+                            bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
                             opbx_mutex_unlock(&bridgepvt->lock);
                             opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
-                            p->t38state = 0;
+                            p->t38state = SIP_T38_STATUS_UNKNOWN;
                             opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                     }
                 }
@@ -12150,7 +12170,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 {
                         /* Other side is not a SIP channel */ 
                         opbx_log(LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
-                        p->t38state = 0;
+                        p->t38state = SIP_T38_STATUS_UNKNOWN;
                         opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                 }
             }
@@ -12159,14 +12179,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 opbx_log(LOG_DEBUG, "Channel Bridge information is non-existant. T38 Termination requested.\n");
             }
         }
-        if ((p->t38state == 2)  ||  (p->t38state == 1))
+        if ((p->t38state == SIP_T38_OFFER_SENT_REINVITE)  ||  (p->t38state == SIP_T38_OFFER_SENT_DIRECT))
         {
             /* If there was T38 reinvite and we are supposed to answer with 200 OK than this should set us to T38 negotiated mode */
-            p->t38state = 5;
+            p->t38state = SIP_T38_NEGOTIATED;
             opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, p->owner ? p->owner->name : "<none>");
             if (p->owner)
             {
-                p->owner->t38mode_enabled=1;
+                opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
                 opbx_log(LOG_DEBUG, "T38mode enabled for channel %s\n", p->owner->name);
             }
         }        
@@ -13341,7 +13361,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             transmit_response(p, "180 Ringing", req);
             break;
         case OPBX_STATE_UP:
-            if (p->t38state == 4)
+            if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE)
             {
                 struct opbx_channel *bridgepeer = NULL;
                 struct sip_pvt *bridgepvt = NULL;
@@ -13354,23 +13374,24 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     {
                         /* If we are bridged to SIP channel */
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-                        if (!(bridgepvt->t38state))
+                        if ( bridgepvt->t38state > SIP_T38_STATUS_UNKNOWN )
                         {
                             if (bridgepvt->udptl)
                             {
                                 /* If everything is OK with other side's udptl struct */
                                 /* Send re-invite to the bridged channel */ 
                                 sip_handle_t38_reinvite(bridgepeer,p,1);
+				opbx_channel_set_t38_status(bridgepeer, T38_NEGOTIATING);
                             }
                             else
                             {
                                 /* Something is wrong with peers udptl struct */
                                 opbx_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
                                 opbx_mutex_lock(&bridgepvt->lock);
-                                bridgepvt->t38state = 0;
+                                bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
                                 opbx_mutex_unlock(&bridgepvt->lock);
                                 opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
-                                p->t38state = 0;
+                                p->t38state = SIP_T38_STATUS_UNKNOWN;
                                 opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                                     if (ignore)
                                     transmit_response(p, "415 Unsupported Media Type", req);
@@ -13387,7 +13408,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                             transmit_response(p, "415 Unsupported Media Type", req);
                         else 
                                 transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
-                        p->t38state = 0;
+                        p->t38state = SIP_T38_STATUS_UNKNOWN;
                         opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                         opbx_set_flag(p, SIP_NEEDDESTROY);        
                     }    
@@ -13396,16 +13417,16 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 {
                     /* we are not bridged in a call */ 
                     transmit_response_with_t38_sdp(p, "200 OK", req, 1);
-                    p->t38state = 5;
+                    p->t38state = SIP_T38_NEGOTIATED;
                     opbx_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                     if (p->owner)
                     {
-                        p->owner->t38mode_enabled=1;
+                        opbx_channel_set_t38_status(p->owner, T38_NEGOTIATED);
                         opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
                     }
                 }
             }
-            else if (p->t38state == 0)
+            else if (p->t38state == SIP_T38_STATUS_UNKNOWN)
             {
                 /* Channel doesn't have T38 offered or enabled */
                 /* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
@@ -13417,7 +13438,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		{
                     {
                         bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-                        if (bridgepvt->t38state == 5)
+                        if (bridgepvt->t38state == SIP_T38_NEGOTIATED)
                         {
                             opbx_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
@@ -16594,11 +16615,11 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
             else
                 opbx_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, opbx_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
         }
-        pvt->t38state = 5;
-        p->t38state = 5;
+        pvt->t38state = SIP_T38_NEGOTIATED;
+        p->t38state = SIP_T38_NEGOTIATED;
         opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
         opbx_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
-        chan->t38mode_enabled=1;
+        opbx_channel_set_t38_status(chan, T38_NEGOTIATED);
         opbx_log(LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
         transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
         time(&p->lastrtprx);
@@ -16641,7 +16662,6 @@ static char *sipt38switchover_syntax= "SipT38SwitchOver()";
 static char *sipt38switchover_description= ""
 "Forces a T38 switchover on a non-bridged channel.\n";
 
-
 /*! \brief  app_sipt38switchover: forces a T38 Switchover on a sip channel. */
 static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv) 
 {
@@ -16649,18 +16669,13 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv)
     
     char *tmp_var = NULL;
 
+    opbx_mutex_lock(&chan->lock);
     if ( ( tmp_var=pbx_builtin_getvar_helper(chan, "T38_DISABLE")) != NULL ) {
         opbx_log(LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
+        opbx_mutex_unlock(&chan->lock);
         return 0;
     }
-/*
-    if (argc < 1 || !argv[0][0])
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", sipt38switchover_syntax);
-        return -1;
-    }
-*/
-    opbx_mutex_lock(&chan->lock);
+
     if (chan->type != channeltype)
     {
         opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
@@ -16679,7 +16694,7 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv)
 
     if ( 
 	    t38udptlsupport 
-	    && (p->t38state == 0) 
+	    && (p->t38state == SIP_T38_STATUS_UNKNOWN) 
 	    //&& !(opbx_bridged_channel(chan))
        )
     {
@@ -16689,7 +16704,8 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv)
             {
                 if (option_debug > 2)
                     opbx_log(LOG_DEBUG, "Forcing reinvite on SIP (%s) for T.38 negotiation.\n",chan->name);
-                p->t38state = 2;
+                p->t38state = SIP_T38_OFFER_SENT_REINVITE;
+		opbx_channel_set_t38_status(p->owner, T38_NEGOTIATING);
                 transmit_reinvite_with_t38_sdp(p);
                 opbx_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,chan->name);
             }

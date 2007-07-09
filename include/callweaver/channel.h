@@ -179,6 +179,14 @@ struct opbx_channel_spy {
 };
 
 
+/*! T.38 channel status */
+typedef enum {
+    T38_OFFER_REJECTED		= -1,
+    T38_STATUS_UNKNOWN		= 0,
+    T38_NEGOTIATING		= 1,
+    T38_NEGOTIATED		= 2
+} t38_status_t;
+
 /*! Main Channel structure associated with a channel. */
 /*! 
  * This is the side of it mostly used by the pbx and call management.
@@ -347,7 +355,7 @@ struct opbx_channel {
 	struct opbx_jb jb;
 
 	/*! T38 mode enabled for this channel  */
-	int t38mode_enabled;
+	t38_status_t t38_status;
 };
 
 /* Channel tech properties: */
@@ -469,6 +477,13 @@ struct outgoing_helper {
 	extension "s"
  */
 struct opbx_channel *opbx_channel_alloc(int needalertpipe);
+
+/*! Sets the T38 channel status */
+#define opbx_channel_set_t38_status(c,s) opbx_channel_perform_set_t38_status(c,s, __FILE__, __LINE__)
+void opbx_channel_perform_set_t38_status( struct opbx_channel *tmp, t38_status_t status, const char *file, int line );
+
+/*! Gets the T38 channel status */
+t38_status_t opbx_channel_get_t38_status( struct opbx_channel *tmp );
 
 /*! Queue an outgoing frame */
 int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *f);

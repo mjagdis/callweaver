@@ -648,7 +648,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	opbx_copy_string(tmp->accountcode, opbx_default_accountcode, sizeof(tmp->accountcode));
 
 	tmp->tech = &null_tech;
-	tmp->t38mode_enabled = 0;
+	tmp->t38_status = T38_STATUS_UNKNOWN;
 
 	opbx_mutex_lock(&chlock);
 	tmp->next = channels;
@@ -657,6 +657,28 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	opbx_mutex_unlock(&chlock);
 	return tmp;
 }
+
+/* Sets the channel t38 status */
+void opbx_channel_perform_set_t38_status( struct opbx_channel *tmp, t38_status_t status, const char *file, int line )
+{
+    if ( !tmp ) {
+	opbx_log(LOG_NOTICE,"opbx_channel_set_t38_status called with NULL channel at %s:%d\n", file, line);
+	return;
+    }
+    opbx_log(LOG_NOTICE,"Setting t38 status to %d at %s:%d\n", status, file, line);
+    tmp->t38_status = status;
+}
+
+/* Gets the channel t38 status */
+t38_status_t opbx_channel_get_t38_status( struct opbx_channel *tmp ) 
+{
+    if ( !tmp )
+	return T38_STATUS_UNKNOWN;
+    else
+	return tmp->t38_status;
+}
+
+
 
 /*--- opbx_queue_frame: Queue an outgoing media frame */
 int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)

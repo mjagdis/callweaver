@@ -290,7 +290,7 @@ static int txfax_t38(struct opbx_channel *chan, t38_terminal_state_t *t38, char 
     while ( ready && ready_to_talk(chan) )
     {
     
-	if ( !chan->t38mode_enabled )
+	if ( chan->t38_status != T38_NEGOTIATED )
 	    break;
 
         if ((res = opbx_waitfor(chan, 20)) < 0) {
@@ -381,7 +381,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
     while ( ready && ready_to_talk(chan) )
     {
     
-	if ( chan->t38mode_enabled )
+	if ( chan->t38_status == T38_NEGOTIATED )
 	    break;
 
         if ((res = opbx_waitfor(chan, 20)) < 0) {
@@ -461,7 +461,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 
 	while ( ready && ready_to_talk(chan) ) {
 
-	    if ( chan->t38mode_enabled )
+	    if ( chan->t38_status == T38_NEGOTIATED )
 		break;
 
 	    if ((res = opbx_waitfor(chan, 20)) < 0) {
@@ -635,19 +635,20 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
     {
 
 
-        if ( ready && chan->t38mode_enabled!=1 ) {
+        if ( ready && chan->t38_status != T38_NEGOTIATED ) {
 	    ready = txfax_audio( chan, &fax, source_file, calling_party, verbose, ecm);
 	}
 
-        if ( ready && chan->t38mode_enabled==1 ) {
+        if ( ready && chan->t38_status == T38_NEGOTIATED ) {
 	    ready = txfax_t38  ( chan, &t38, source_file, calling_party, verbose, ecm);
 	}
 
-	ready = 0; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
+	if ( chan->t38_status != T38_NEGOTIATING )
+	    ready = 0; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
 
     }
 
-    if (!chan->t38mode_enabled)
+    if (!chan->t38_status)
 	t30_terminate(&fax.t30_state);
     else
 	t30_terminate(&t38.t30_state);

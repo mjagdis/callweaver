@@ -186,7 +186,7 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 				}
 
 				/* Check for a T38 switchover */
-				if (chan->t38mode_enabled==1 && !ignorefax) {
+				if (chan->t38_status == T38_NEGOTIATED && !ignorefax) {
 				    opbx_log(LOG_DEBUG, "Fax detected on %s. T38 switchover completed.\n", chan->name);
 				    pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "1");
 				    pbx_builtin_setvar_helper(chan,"FAXEXTEN",chan->exten);
