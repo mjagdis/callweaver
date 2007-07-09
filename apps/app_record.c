@@ -103,8 +103,8 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv)
 	int rfmt = 0;
 	int flags;
 	
-	if (argc < 2 || argc > 4 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", record_syntax);
+	if (argc < 1 || argc > 4 || !argv[0][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s (argc == %i, argv[0][0] == %08x\n", record_syntax, argc, argv[0][0]);
 		return -1;
 	}
 
