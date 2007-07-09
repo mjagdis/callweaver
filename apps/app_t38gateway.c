@@ -30,6 +30,7 @@
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+#include "callweaver/causes.h"
 #include "callweaver/dsp.h"
 #include "callweaver/app.h"
 #include "callweaver/pbx.h"
