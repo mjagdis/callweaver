@@ -493,6 +493,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
                if ((f = opbx_read(active)) == NULL)
                {
                   state = OPBX_CONTROL_HANGUP;
+		  chan->hangupcause = peer->hangupcause;
                   res = 0;
                   break;
                }
@@ -506,6 +507,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
                   else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
                   {
                      state = f->subclass;
+		     chan->hangupcause = peer->hangupcause;
                      opbx_fr_free(f);
                      break;
                   }
@@ -558,7 +560,8 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
                 opbx_indicate(chan, -1);
 
             opbx_set_callerid(peer, chan->cid.cid_name, chan->cid.cid_num, chan->cid.cid_num);
-
+	    chan->hangupcause = OPBX_CAUSE_NORMAL_CLEARING;
+	    
             if ( res && ( chan->t38_status == peer->t38_status ) )
             {
                 // Same on both sides, so just bridge 
