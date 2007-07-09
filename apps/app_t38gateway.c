@@ -146,7 +146,17 @@ static int opbx_bridge_frames(struct opbx_channel *chan, struct opbx_channel *pe
                     fr2 = NULL;
 
                 f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
-                opbx_write(inactive, f);
+		
+    		if ( ( chan->t38_status == T38_NEGOTIATING ) || ( peer->t38_status == T38_NEGOTIATING ) ) {
+		/*  TODO 
+		    This is a very BASIC method to mute a channel. It should be improved
+		    and we should send EMPTY frames (not just avoid sending them) 
+		*/
+		    opbx_log(LOG_NOTICE, "channels are muted.\n");
+		}
+		else
+            	    opbx_write(inactive, f);
+		    
                 clean_frame(f);
                 channels[0] = inactive;
                 channels[1] = active;
