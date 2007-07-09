@@ -357,8 +357,11 @@ exten => s,n,RxFAX(${FAXFILE},ecm)
 exten => s,n,Hangup()
 exten => h,1,NoOp(RxFAX completed)
 exten => h,n,NoOp(RX: REMOTESTATIONID is ${REMOTESTATIONID})
+exten => h,1,NoOp(RX: FAXPAGES is ${FAXPAGES})
+exten => h,n,NoOp(RX: FAXRESOLUTION  is ${FAXRESOLUTION})
+exten => h,n,NoOp(RX: FAXBITRATE is ${FAXBITRATE})
 exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTATUS})
-exten => h,n,NoOp(TX: PHASESTRING is ${PHASEESTRING})
+exten => h,n,NoOp(RX: PHASESTRING is ${PHASEESTRING})
 
 [faxout]
 exten => s,1,Set(LOCALSTATIONID=Callweaver FAX)
@@ -367,9 +370,15 @@ exten => s,n,Set(FAXFILE=/tmp/${UNIQUEID}.tif)
 exten => s,n,Set(SIP_CODEC=alaw)
 exten => s,n,SipDTMFMode(inband)
 exten => s,n,TxFAX(${FAXFILE},caller,debug,ecm)
+exten => s,n,Hangup()
 exten => h,1,NoOp(TX: REMOTESTATIONID is ${REMOTESTATIONID})
+exten => h,1,NoOp(TX: FAXPAGES is ${FAXPAGES})
+exten => h,n,NoOp(TX: FAXRESOLUTION  is ${FAXRESOLUTION})
+exten => h,n,NoOp(TX: FAXBITRATE is ${FAXBITRATE})
 exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTATUS})
 exten => h,n,NoOp(TX: PHASEESTRING is ${PHASEESTRING})
+
+
 
 [detectfax]
 exten => s,1,FaxDetect(8000)
