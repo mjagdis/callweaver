@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile (
         NAME		=> 'callweaver-perl',
-        VERSION_FROM	=> 'lib/callweaver.pm',
+        VERSION_FROM	=> 'lib/CallWeaver.pm',
         AUTHOR		=> 'James Golovich <james@gnuinter.net>',
         ABSTRACT	=> 'callweaver.org Perl Interface',
 	PMLIBDIRS	=> [ 'lib' ],
