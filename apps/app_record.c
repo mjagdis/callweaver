@@ -49,7 +49,7 @@ static char *tdesc = "Trivial Record Application";
 static void *record_app;
 static const char *record_name = "Record";
 static const char *record_synopsis = "Record to a file";
-static const char *record_syntax = "Record(filename.format, silence[, maxduration[, options]])";
+static const char *record_syntax = "Record(filename.format[, silence[, maxduration[, options]]])";
 static const char *record_descrip = 
 "Records from the channel into a given filename. If the file exists it will\n"
 "be overwritten.\n"
@@ -104,7 +104,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv)
 	int flags;
 	
 	if (argc < 1 || argc > 4 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s (argc == %i, argv[0][0] == %08x\n", record_syntax, argc, argv[0][0]);
+		opbx_log(LOG_ERROR, "Syntax: %s\n", record_syntax);
 		return -1;
 	}
 
