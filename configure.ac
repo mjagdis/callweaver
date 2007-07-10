@@ -1904,10 +1904,10 @@ AM_CONDITIONAL([WANT_CHAN_ZAP], [test "${enable_zaptel}" = "yes" -a "${with_chan
 dnl ###########################################################################
 
 AC_ARG_WITH([app_icd],
-	[AC_HELP_STRING([--with-app_icd],[Build and install app_icd (default=yes)])],,
-	[with_app_icd="yes"])
+	[AC_HELP_STRING([--with-app_icd],[Build and install app_icd (default=no)])],,
+	[with_app_icd="no"])
 
-AM_CONDITIONAL([WANT_APP_ICD],[test "${with_app_icd}" = "yes"])
+AM_CONDITIONAL([WANT_APP_ICD],[test "${with_app_icd}" = "no"])
 
 #app_icd = "no"
 #AC_ARG_WITH(app_icd,
