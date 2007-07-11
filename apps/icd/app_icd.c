@@ -81,14 +81,14 @@ static void *icd_remove_member_app;
 static void *icd_agent_callback_app;
 static void *icd_customer_callback_app;
 
-static char *icd_customer_app_name = "ICD_Customer";
-static char *icd_queue_app_name = "ICD_Queue";
-static char *icd_agent_app_name = "ICD_Agent";
-static char *icd_logout_app_name = "ICD_Logout";
-static char *icd_add_member_app_name = "ICD_Add_Member";
-static char *icd_remove_member_app_name = "ICD_Remove_Member";
-static char *icd_agent_callback_app_name = "ICD_Agent_Callback";
-static char *icd_customer_callback_app_name = "ICD_Customer_Callback";
+static char *icd_customer_app_name = "ICDCustomer";
+static char *icd_queue_app_name = "ICDQueue";
+static char *icd_agent_app_name = "ICDAgent";
+static char *icd_logout_app_name = "ICDLogout";
+static char *icd_add_member_app_name = "ICDAddMember";
+static char *icd_remove_member_app_name = "ICDRemoveMember";
+static char *icd_agent_callback_app_name = "ICDAgentCallback";
+static char *icd_customer_callback_app_name = "ICDCustomerCallback";
 
 static char *app_icd_customer_synopsis = "ICD Customer distribution definition";
 static char *app_icd_customer_callback_synopsis = "ICD Customer Callback distribution definition";
@@ -98,13 +98,13 @@ static char *app_icd_logout_synopsis = "ICD Agent Logout";
 static char *app_icd_add_member_synopsis = "ICD dynamicaly add member to a queue";
 static char *app_icd_remove_member_synopsis = "ICD remove a member from a queue";
 
-static char *app_icd_customer_syntax = "icd_customer(queue=[queueid][,option])";
-static char *app_icd_customer_callback_syntax = "icd_customer_callback";
-static char *app_icd_agent_syntax = "icd_agent(agent=[agentid or dynamic][,option])";
-static char *app_icd_agent_callback_syntax = "icd_agent_callback";
-static char *app_icd_logout_syntax = "icd_logout(agent=[agentid])";
-static char *app_icd_add_member_syntax = "icd_add_member";
-static char *app_icd_remove_member_syntax = "icd_remove_member";
+static char *app_icd_customer_syntax = "ICDCustomer(queue=[queueid][,option])";
+static char *app_icd_customer_callback_syntax = "ICDCustomerCallback";
+static char *app_icd_agent_syntax = "ICDAgent(agent=[agentid or dynamic][,option])";
+static char *app_icd_agent_callback_syntax = "ICDAgentCallback";
+static char *app_icd_logout_syntax = "ICDLogout(agent=[agentid])";
+static char *app_icd_add_member_syntax = "IRCAddMember";
+static char *app_icd_remove_member_syntax = "ICDRemoveMmember";
 
 static char *app_icd_customer_desc =
 "Creates a distributor for a outside caller (customer) for a queue.\n\nThe option string may contain zero or more of the following:\n\tname=[name for the customer] -- a identifier for this customer access\n\tinfo=[any string] -- free form comment on this customer distributor\n\tpriority=[number] -- a priority for sorting the customer into the queue\n\nIn the ICD system queues get created in the definition files but queue distributors per extension or customer get created in the dialplan. So you have to first define a queue and can than add different kinds of customer access to it, which you define by utilising icd_customer\n\n\t\t---\n\n   icd_customer(conference=[conference or query or autoscan][,option])\nA customer distributor can also be defined via conferences. In that case the option string can be zero or more of:\n\tspy=[1 or 0] -- mute the customer in the conference\n\tconference=[conference,autoscan or query] -- conferecne will place the customer in that conference, autoscan will round robin through the available conferences and if used in combination wity spy=1 behave like zapscan, meaning via pressing the * key you could listen in on conferences one after the other.Query will ask for the customer to enter a conference id.";
