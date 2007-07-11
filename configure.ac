@@ -1907,7 +1907,7 @@ AC_ARG_WITH([app_icd],
 	[AC_HELP_STRING([--with-app_icd],[Build and install app_icd (default=no)])],,
 	[with_app_icd="no"])
 
-AM_CONDITIONAL([WANT_APP_ICD],[test "${with_app_icd}" = "no"])
+AM_CONDITIONAL([WANT_APP_ICD],[test "${with_app_icd}" = "yes"])
 
 #app_icd = "no"
 #AC_ARG_WITH(app_icd,
@@ -2268,7 +2268,7 @@ dnl ###########################################################################
 AC_ARG_WITH([debug_malloc],
 	[AC_HELP_STRING([--with-debug_malloc],[Enable debug malloc (default=no)])],,[with_debug_malloc="no"])
 
-if test "$with_debug_malloc" = yes ; then
+if test "$with_debug_malloc" = "yes" ; then
     AC_DEFINE([__OPBX_DEBUG_MALLOC], [1], [We want malloc debug ...])
 fi
 
@@ -2335,7 +2335,8 @@ dnl ###########################################################################
 
 AC_ARG_WITH(efence,
         [AC_HELP_STRING([--with-efence],[Build with electric fence (default=no)])],,[with_efence="no"])
-if test x${with_efence} = xyes ; then
+
+if test "x${with_efence}" = "xyes" ; then
   AC_MSG_CHECKING([for efence])
   AC_CHECK_LIB(efence,EF_Print,
     AC_MSG_RESULT([ok])
