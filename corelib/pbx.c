@@ -6557,7 +6557,7 @@ static int pbx_builtin_waitexten(struct opbx_channel *chan, int argc, char **arg
         opbx_moh_start(chan, mohclass);
 
     /* Wait for "n" seconds */
-    if (argc < 0 || !(ms = (atof(argv[0]) * 1000.0))) 
+    if (argc < 1 || !(ms = (atof(argv[0]) * 1000.0))) 
         ms = (chan->pbx ? chan->pbx->rtimeout * 1000 : 10000);
 
     res = opbx_waitfordigit(chan, ms);
