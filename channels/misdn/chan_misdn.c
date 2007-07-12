@@ -4532,7 +4532,7 @@ static void *misdn_set_opt_app;
 static void *misdn_facility_app;
 
 static char *misdn_set_opt_app_name = "MISDNSetOpt";
-static char *misdn_facility_app_name = "MISDNFacilityOpt";
+static char *misdn_facility_app_name = "MISDNFacility";
 
 int load_module(void)
 {
