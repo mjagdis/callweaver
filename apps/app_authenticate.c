@@ -49,29 +49,27 @@ static char *tdesc = "Authentication Application";
 static void *auth_app;
 static const char *auth_name = "Authenticate";
 static const char *auth_synopsis = "Authenticate a user";
-static const char *auth_syntax = "Authenticate(password[, options])";
+static const char *auth_syntax = "Authenticate(password[,options[,trylimit]])";
+static const char *auth_chanvar = "AUTH_STATUS";
 static const char *auth_descrip =
-"Requires a user to enter a"
-"given password in order to continue execution.  If the\n"
-"password begins with the '/' character, it is interpreted as\n"
+"Requires a user to enter a given password in order to continue execution.\n"
+"If the password begins with the '/' character, it is interpreted as\n"
 "a file which contains a list of valid passwords (1 per line).\n"
-"an optional set of options may be provided by concatenating any\n"
+"An optional set of options may be provided by concatenating any\n"
 "of the following letters:\n"
 "     a - Set account code to the password that is entered\n"
 "     d - Interpret path as database key, not literal file\n"
+"     D - Turn on debug output\n"
 "     m - Interpret path as a file which contains a list of\n"
 "         account codes and password hashes delimited with ':'\n"
 "         one per line. When password matched, corresponding\n"
 "         account code will be set\n"
-"     j - Support jumping to n+101\n"
 "     r - Remove database key upon successful entry (valid with 'd' only)\n"
 "\n"
-"When using a database key, the value associated with the key can be\n"
-"anything.\n"
-"Returns 0 if the user enters a valid password within three\n"
-"tries, or -1 on hangup.  If the priority n+101 exists and invalid\n"
-"authentication was entered, and the 'j' flag was specified, processing\n"
-"will jump to n+101 and 0 will be returned.\n";
+"When using a database key, the value associated with the key can be anything.\n"
+"The variable AUTH_STATUS is set on exit to either SUCCESS or FAILURE\n"
+"trylimit allows you to specify the number of times to try authentication.\n"
+"Default is 3, and if set to 0, no limit is enforced\n";
 
 STANDARD_LOCAL_USER;
 
@@ -80,13 +78,16 @@ LOCAL_USER_DECL;
 static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res=0;
-	int jump = 0;
-	int retries;
+	int retries, trylimit=3, nolimit=0;
 	struct localuser *u;
 	char passwd[256];
 	char *prompt;
+	int debug=0;
+	int i;
+
+	pbx_builtin_setvar_helper(chan, auth_chanvar, "FAILURE"); /* default to fail */
 	
-	if (argc < 1 || argc > 2) {
+	if (argc < 1 || argc > 3) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", auth_syntax);
 		return -1;
 	}
@@ -101,11 +102,25 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
 		}
 	}
 	
-	if (argc > 1 && strchr(argv[1], 'j'))
-		jump = 1;
+	if (argc > 1 && strchr(argv[1], 'D'))
+		debug = 1;
+
+	if(argc>2) {
+		i = atoi(argv[2]);
+		if (i == 0)
+			nolimit++;
+		else if (i > 0)
+			trylimit = i;
+		else
+			opbx_log(LOG_ERROR,"Can't set a negative limit.\n");
+	}
+	
 	/* Start asking for password */
 	prompt = "agent-pass";
-	for (retries = 0; retries < 3; retries++) {
+    if (debug)
+        opbx_verbose("Starting %s with retry limit set to %i\n", auth_name, trylimit);
+	
+	for (retries = 0; retries < trylimit || nolimit; retries++) {
 		res = opbx_app_getdata(chan, prompt, passwd, sizeof(passwd) - 2, 0);
 		if (res < 0)
 			break;
@@ -175,20 +190,13 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
 		}
 		prompt="auth-incorrect";
 	}
-	if ((retries < 3) && !res) {
+	if ((retries < trylimit) && !res) {
 		if (argc > 1 && strchr(argv[1], 'a') && !strchr(argv[1], 'm')) 
 			opbx_cdr_setaccount(chan, passwd);
 		res = opbx_streamfile(chan, "auth-thankyou", chan->language);
+		pbx_builtin_setvar_helper(chan, auth_chanvar, "SUCCESS"); /* default to fail */
 		if (!res)
 			res = opbx_waitstream(chan, "");
-	} else {
-		if (jump && opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0 ) {
-			res = 0;
-		} else {
-			if (!opbx_streamfile(chan, "vm-goodbye", chan->language))
-				res = opbx_waitstream(chan, "");
-			res = -1;
-		}
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
