@@ -218,8 +218,9 @@ int opbx_rtp_set_framems(struct opbx_rtp *rtp, int ms);
 #define MIKEY_SRTP_AALG_SHA1HMAC 1
 
 typedef struct opbx_policy opbx_policy_t;
-typedef int (*rtp_generate_key_cb)(struct opbx_rtp *rtp, unsigned long ssrc,
-				   void *data);
+typedef int (*rtp_generate_key_cb)(struct opbx_rtp *rtp,
+                                   uint32_t ssrc,
+                                   void *data);
 
 unsigned int opbx_rtp_get_ssrc(struct opbx_rtp *rtp);
 void opbx_rtp_set_generate_key_cb(struct opbx_rtp *rtp,
@@ -238,8 +239,10 @@ void opbx_policy_set_srtp_auth_taglen(opbx_policy_t *policy, int autht);
 void opbx_policy_set_srtp_encr_enable(opbx_policy_t *policy, int enable);
 void opbx_policy_set_srtcp_encr_enable(opbx_policy_t *policy, int enable);
 void opbx_policy_set_srtp_auth_enable(opbx_policy_t *policy, int enable);
-void opbx_policy_set_ssrc(opbx_policy_t *policy, struct opbx_rtp *rtp, 
-			  unsigned long ssrc, int inbound);
+void opbx_policy_set_ssrc(opbx_policy_t *policy,
+                          struct opbx_rtp *rtp, 
+			              uint32_t ssrc,
+                          int inbound);
     
 void opbx_policy_destroy(opbx_policy_t *policy);
 int opbx_get_random(unsigned char *key, size_t len);

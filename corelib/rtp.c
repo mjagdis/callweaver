@@ -120,7 +120,7 @@ static struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, in
     struct rtp_codec_table *ent = NULL;
 
     *len = 0;
-    for (x = 0;  RTP_CODEC_TABLE[x].format ;  x++)
+    for (x = 0;  RTP_CODEC_TABLE[x].format;  x++)
     {
         if (RTP_CODEC_TABLE[x].format == format)
         {
@@ -469,7 +469,7 @@ void opbx_policy_set_ssrc(opbx_policy_t *policy,
                           uint32_t ssrc,
                           int inbound)
 {
-    if (!ssrc  &&  !inbound  &&  rtp)
+    if (ssrc == 0  &&  !inbound  &&  rtp)
         ssrc = rtp->ssrc;
 
     if (ssrc)
@@ -1411,7 +1411,7 @@ char *opbx_rtp_lookup_mime_subtype(const int is_opbx_format, const int code)
 char *opbx_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_opbx_format)
 {
     int format;
-    unsigned len;
+    unsigned int len;
     char *end = buf;
     char *start = buf;
 
@@ -1485,7 +1485,7 @@ struct opbx_rtp *opbx_rtp_new_with_bindaddr(struct sched_context *sched, struct 
 
 int opbx_rtp_set_active(struct opbx_rtp *rtp, int active)
 {
-    if (!rtp)
+    if (rtp == NULL)
        return 0;
 
     if (rtp->sched  &&  rtp->io)
