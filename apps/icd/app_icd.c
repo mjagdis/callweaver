@@ -103,7 +103,7 @@ static char *app_icd_customer_callback_syntax = "ICDCustomerCallback";
 static char *app_icd_agent_syntax = "ICDAgent(agent=[agentid or dynamic][,option])";
 static char *app_icd_agent_callback_syntax = "ICDAgentCallback";
 static char *app_icd_logout_syntax = "ICDLogout(agent=[agentid])";
-static char *app_icd_add_member_syntax = "IRCAddMember";
+static char *app_icd_add_member_syntax = "ICDAddMember";
 static char *app_icd_remove_member_syntax = "ICDRemoveMmember";
 
 static char *app_icd_customer_desc =
