@@ -4531,6 +4531,9 @@ static int g_config_initialized=0;
 static void *misdn_set_opt_app;
 static void *misdn_facility_app;
 
+static char *misdn_set_opt_app_name = "MISDNSetOpt";
+static char *misdn_facility_opt_app_name = "MISDNFacilityOpt";
+
 int load_module(void)
 {
 	int i, port;
@@ -4638,8 +4641,8 @@ int load_module(void)
 	opbx_cli_register(&cli_reload);
 
   
-	misdn_set_opt_app = opbx_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
-				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..)",
+	misdn_set_opt_app = opbx_register_application(misdn_set_opt_app_name, misdn_set_opt_exec, misdn_set_opt_app_name,
+				 "MISDNSetOpt(:<opt><optarg>:<opt><optarg>..)",
 				 "Sets mISDN opts. and optargs\n"
 				 "\n"
 				 "The available options are:\n"
@@ -4655,8 +4658,8 @@ int load_module(void)
 		);
 
 	
-	misdn_facility_app = opbx_register_application("misdn_facility", misdn_facility_exec, "misdn_facility",
-				 "misdn_facility(<FACILITY_TYPE>|<ARG1>|..)",
+	misdn_facility_app = opbx_register_application(misdn_facility_app_name, misdn_facility_exec, misdn_facility_app_name,
+				 "MISDN_Facility(<FACILITY_TYPE>|<ARG1>|..)",
 				 "Sends the Facility Message FACILITY_TYPE with \n"
 				 "the given Arguments to the current ISDN Channel\n"
 				 "Supported Facilities are:\n"
