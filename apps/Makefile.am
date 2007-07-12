@@ -14,13 +14,6 @@ app_adsiprog_la_LDFLAGS			= -module -avoid-version -no-undefined
 app_adsiprog_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la
 endif WANT_APP_ADSIPROG
 
-if WANT_APP_ADSIPROG
-opbxmod_LTLIBRARIES			+= app_adsiprog.la
-app_adsiprog_la_SOURCES			= app_adsiprog.c
-app_adsiprog_la_LDFLAGS			= -module -avoid-version -no-undefined
-app_adsiprog_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la
-endif WANT_APP_ADSIPROG
-
 if WANT_APP_PIPE
 opbxmod_LTLIBRARIES        += app_pipe.la
 app_pipe_la_SOURCES       = app_pipe.c
