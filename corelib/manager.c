@@ -266,10 +266,12 @@ static struct opbx_cli_entry show_manconn_cli =
 static void free_session(struct mansession *s)
 {
 	struct eventqent *eqe;
+
 	if (s->fd > -1)
 		close(s->fd);
 	opbx_mutex_destroy(&s->__lock);
-	while(s->eventq) {
+	while (s->eventq)
+    {
 		eqe = s->eventq;
 		s->eventq = s->eventq->next;
 		free(eqe);
@@ -279,36 +281,45 @@ static void free_session(struct mansession *s)
 
 static void destroy_session(struct mansession *s)
 {
-	struct mansession *cur, *prev = NULL;
-	opbx_mutex_lock(&sessionlock);
+	struct mansession *cur;
+	struct mansession *prev = NULL;
+	
+    opbx_mutex_lock(&sessionlock);
 	cur = sessions;
-	while(cur) {
+	while (cur)
+    {
 		if (cur == s)
 			break;
 		prev = cur;
 		cur = cur->next;
 	}
-	if (cur) {
+	if (cur)
+    {
 		if (prev)
 			prev->next = cur->next;
 		else
 			sessions = cur->next;
 		free_session(s);
-	} else
-		opbx_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
-	opbx_mutex_unlock(&sessionlock);
-	
+	}
+    else
+	{
+    	opbx_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
+	}
+    opbx_mutex_unlock(&sessionlock);
 }
 
 char *astman_get_header(struct message *m, char *var)
 {
 	char cmp[80];
 	int x;
+
 	snprintf(cmp, sizeof(cmp), "%s: ", var);
-	for (x=0;x<m->hdrcount;x++)
+	for (x = 0;  x < m->hdrcount;  x++)
+    {
 		if (!strncasecmp(cmp, m->headers[x], strlen(cmp)))
 			return m->headers[x] + strlen(cmp);
-	return "";
+	}
+    return "";
 }
 
 struct opbx_variable *astman_get_variables(struct message *m)
@@ -319,18 +330,24 @@ struct opbx_variable *astman_get_variables(struct message *m)
 	
 	varlen = strlen("Variable: ");	
 
-	for (x = 0; x < m->hdrcount; x++) {
-		if (!strncasecmp("Variable: ", m->headers[x], varlen)) {
+	for (x = 0;  x < m->hdrcount;  x++)
+    {
+		if (!strncasecmp("Variable: ", m->headers[x], varlen))
+        {
 			var = val = opbx_strdupa(m->headers[x] + varlen);
 			strsep(&val, "=");
 			if (!val || opbx_strlen_zero(var))
 				continue;
 			cur = opbx_variable_new(var, val);
-			if (head) {
+			if (head)
+            {
 				cur->next = head;
 				head = cur;
-			} else
+			}
+            else
+            {
 				head = cur;
+            }
 		}
 	}
 
@@ -432,20 +449,29 @@ static int opbx_strings_to_mask(char *string)
 	int x, ret = -1;
 	
 	x = opbx_is_number(string);
-
-	if (x) {
+	if (x)
+    {
 		ret = x;
-	} else if (opbx_strlen_zero(string)) {
+	}
+    else if (opbx_strlen_zero(string))
+    {
 		ret = -1;
-	} else if (opbx_false(string)) {
+	}
+    else if (opbx_false(string))
+    {
 		ret = 0;
-	} else if (opbx_true(string)) {
+	}
+    else if (opbx_true(string))
+    {
 		ret = 0;
-		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
+		for (x = 0;  x < sizeof(perms) / sizeof(perms[0]);  x++)
 			ret |= perms[x].num;		
-	} else {
+	}
+    else
+    {
 		ret = 0;
-		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
+		for (x = 0;  x < sizeof(perms) / sizeof(perms[0]);  x++)
+        {
 			if (opbx_instring(string, perms[x].label, ',')) 
 				ret |= perms[x].num;		
 		}
@@ -486,21 +512,32 @@ static int authenticate(struct mansession *s, struct message *m)
 	if (!cfg)
 		return -1;
 	cat = opbx_category_browse(cfg, NULL);
-	while(cat) {
-		if (strcasecmp(cat, "general")) {
+	while (cat)
+    {
+		if (strcasecmp(cat, "general"))
+        {
 			/* This is a user */
-			if (!strcasecmp(cat, user)) {
+			if (!strcasecmp(cat, user))
+            {
 				struct opbx_variable *v;
 				struct opbx_ha *ha = NULL;
 				char *password = NULL;
+
 				v = opbx_variable_browse(cfg, cat);
-				while (v) {
-					if (!strcasecmp(v->name, "secret")) {
+				while (v)
+                {
+					if (!strcasecmp(v->name, "secret"))
+                    {
 						password = v->value;
-					} else if (!strcasecmp(v->name, "permit") ||
-						   !strcasecmp(v->name, "deny")) {
+					}
+                    else if (!strcasecmp(v->name, "permit")
+                             ||
+						     !strcasecmp(v->name, "deny"))
+                    {
 						ha = opbx_append_ha(v->name, v->value, ha);
-					} else if (!strcasecmp(v->name, "writetimeout")) {
+					}
+                    else if (!strcasecmp(v->name, "writetimeout"))
+                    {
 						int val = atoi(v->value);
 
 						if (val < 100)
@@ -511,27 +548,35 @@ static int authenticate(struct mansession *s, struct message *m)
 				    		
 					v = v->next;
 				}
-				if (ha && !opbx_apply_ha(ha, &(s->sin))) {
+				if (ha && !opbx_apply_ha(ha, &(s->sin)))
+                {
 					opbx_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 					opbx_free_ha(ha);
 					opbx_config_destroy(cfg);
 					return -1;
-				} else if (ha)
-					opbx_free_ha(ha);
-				if (!strcasecmp(authtype, "MD5")) {
-					if (!opbx_strlen_zero(key) && s->challenge) {
+				}
+                else if (ha)
+				{
+                	opbx_free_ha(ha);
+				}
+                if (!strcasecmp(authtype, "MD5"))
+                {
+					if (!opbx_strlen_zero(key) && s->challenge)
+                    {
 						char md5key[256] = "";
 						opbx_md5_hash_two(md5key, s->challenge, password);
 						if (!strcmp(md5key, key))
 							break;
-						else {
-							opbx_config_destroy(cfg);
-							return -1;
-						}
+						opbx_config_destroy(cfg);
+						return -1;
 					}
-				} else if (password && !strcasecmp(password, pass)) {
+				}
+                else if (password && !strcasecmp(password, pass))
+                {
 					break;
-				} else {
+				}
+                else
+                {
 					opbx_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 					opbx_config_destroy(cfg);
 					return -1;
@@ -540,7 +585,8 @@ static int authenticate(struct mansession *s, struct message *m)
 		}
 		cat = opbx_category_browse(cfg, cat);
 	}
-	if (cat) {
+	if (cat)
+    {
 		opbx_copy_string(s->username, cat, sizeof(s->username));
 		s->readperm = get_perm(opbx_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(opbx_variable_retrieve(cfg, cat, "write"));
@@ -633,12 +679,14 @@ static int action_hangup(struct mansession *s, struct message *m)
 {
 	struct opbx_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
+
 	if (opbx_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
 	c = opbx_get_channel_by_name_locked(name);
-	if (!c) {
+	if (!c)
+    {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
@@ -730,13 +778,12 @@ static int action_getvar(struct mansession *s, struct message *m)
 	return 0;
 }
 
-
 /*! \brief  action_status: Manager "status" command to show channels */
 /* Needs documentation... */
 static int action_status(struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
-    	char *name = astman_get_header(m,"Channel");
+  	char *name = astman_get_header(m,"Channel");
 	char idText[256] = "";
 	struct opbx_channel *c;
 	char bridge[256];
@@ -745,77 +792,84 @@ static int action_status(struct mansession *s, struct message *m)
 	int all = opbx_strlen_zero(name); /* set if we want all channels */
 
 	astman_send_ack(s, m, "Channel status will follow");
-        if (!opbx_strlen_zero(id))
-                snprintf(idText,256,"ActionID: %s\r\n",id);
+    if (!opbx_strlen_zero(id))
+        snprintf(idText, 256, "ActionID: %s\r\n", id);
 	if (all)
-		c = opbx_channel_walk_locked(NULL);
-	else {
+	{
+    	c = opbx_channel_walk_locked(NULL);
+	}
+    else
+    {
 		c = opbx_get_channel_by_name_locked(name);
-		if (!c) {
+		if (!c)
+        {
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
 	}
 	/* if we look by name, we break after the first iteration */
-	while(c) {
+	while (c)
+    {
 		if (c->_bridge)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
 		else
 			bridge[0] = '\0';
-		if (c->pbx) {
-			if (c->cdr) {
+		if (c->pbx)
+        {
+			if (c->cdr)
 				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
-			}
 			opbx_cli(s->fd,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Account: %s\r\n"
-			"State: %s\r\n"
-			"Context: %s\r\n"
-			"Extension: %s\r\n"
-			"Priority: %d\r\n"
-			"Seconds: %ld\r\n"
-			"%s"
-			"Uniqueid: %s\r\n"
-			"%s"
-			"\r\n",
-			c->name, 
-			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
-			c->accountcode,
-			opbx_state2str(c->_state), c->context,
-			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
-		} else {
-			opbx_cli(s->fd,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Account: %s\r\n"
-			"State: %s\r\n"
-			"%s"
-			"Uniqueid: %s\r\n"
-			"%s"
-			"\r\n",
-			c->name, 
-			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
-			c->accountcode,
-			opbx_state2str(c->_state), bridge, c->uniqueid, idText);
+        			"Event: Status\r\n"
+        			"Privilege: Call\r\n"
+        			"Channel: %s\r\n"
+        			"CallerID: %s\r\n"
+        			"CallerIDName: %s\r\n"
+        			"Account: %s\r\n"
+        			"State: %s\r\n"
+        			"Context: %s\r\n"
+        			"Extension: %s\r\n"
+        			"Priority: %d\r\n"
+        			"Seconds: %ld\r\n"
+        			"%s"
+        			"Uniqueid: %s\r\n"
+        			"%s"
+        			"\r\n",
+        			c->name, 
+        			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
+        			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
+        			c->accountcode,
+        			opbx_state2str(c->_state), c->context,
+        			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
 		}
+        else
+        {
+    		opbx_cli(s->fd,
+        			"Event: Status\r\n"
+        			"Privilege: Call\r\n"
+        			"Channel: %s\r\n"
+        			"CallerID: %s\r\n"
+        			"CallerIDName: %s\r\n"
+        			"Account: %s\r\n"
+        			"State: %s\r\n"
+        			"%s"
+        			"Uniqueid: %s\r\n"
+        			"%s"
+        			"\r\n",
+        			c->name, 
+        			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
+        			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
+        			c->accountcode,
+        			opbx_state2str(c->_state), bridge, c->uniqueid, idText);
+        }
 		opbx_mutex_unlock(&c->lock);
 		if (!all)
 			break;
 		c = opbx_channel_walk_locked(c);
 	}
 	opbx_cli(s->fd,
-	"Event: StatusComplete\r\n"
-	"%s"
-	"\r\n",idText);
+         	 "Event: StatusComplete\r\n"
+        	 "%s"
+        	 "\r\n",idText);
 	return 0;
 }
 
@@ -841,17 +895,21 @@ static int action_redirect(struct mansession *s, struct message *m)
 	int pi = 0;
 	int res;
 
-	if (opbx_strlen_zero(name)) {
+	if (opbx_strlen_zero(name))
+    {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!opbx_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!opbx_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1))
+    {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
 	chan = opbx_get_channel_by_name_locked(name);
-	if (!chan) {
+	if (!chan)
+    {
 		char buf[BUFSIZ];
+
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
 		astman_send_error(s, m, buf);
 		return 0;
@@ -859,8 +917,10 @@ static int action_redirect(struct mansession *s, struct message *m)
 	if (!opbx_strlen_zero(name2))
 		chan2 = opbx_get_channel_by_name_locked(name2);
 	res = opbx_async_goto(chan, context, exten, pi);
-	if (!res) {
-		if (!opbx_strlen_zero(name2)) {
+	if (!res)
+    {
+		if (!opbx_strlen_zero(name2))
+        {
 			if (chan2)
 				res = opbx_async_goto(chan2, context, exten, pi);
 			else
@@ -869,9 +929,11 @@ static int action_redirect(struct mansession *s, struct message *m)
 				astman_send_ack(s, m, "Dual Redirect successful");
 			else
 				astman_send_error(s, m, "Secondary redirect failed");
-		} else
+		}
+        else
 			astman_send_ack(s, m, "Redirect successful");
-	} else
+	}
+    else
 		astman_send_error(s, m, "Redirect failed");
 	if (chan)
 		opbx_mutex_unlock(&chan->lock);
@@ -891,6 +953,7 @@ static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
 	char *id = astman_get_header(m, "ActionID");
+
 	opbx_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!opbx_strlen_zero(id))
 		opbx_cli(s->fd, "ActionID: %s\r\n", id);
@@ -919,6 +982,7 @@ static void *fopbx_originate(void *data)
 			in->vars, &chan);
 	}   
 	if (!res)
+    {
 		manager_event(EVENT_FLAG_CALL,
 			"OriginateSuccess",
 			"%s"
@@ -928,8 +992,10 @@ static void *fopbx_originate(void *data)
 			"Reason: %d\r\n"
 			"Uniqueid: %s\r\n",
 			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
-	else
-		manager_event(EVENT_FLAG_CALL,
+	}
+    else
+	{
+    	manager_event(EVENT_FLAG_CALL,
 			"OriginateFailure",
 			"%s"
 			"Channel: %s/%s\r\n"
@@ -938,7 +1004,7 @@ static void *fopbx_originate(void *data)
 			"Reason: %d\r\n"
 			"Uniqueid: %s\r\n",
 			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
-
+    }
 	/* Locked by opbx_pbx_outgoing_exten or opbx_pbx_outgoing_app */
 	if (chan)
 		opbx_mutex_unlock(&chan->lock);
@@ -987,49 +1053,61 @@ static int action_originate(struct mansession *s, struct message *m)
 	
 	pthread_t th;
 	pthread_attr_t attr;
-	if (!name) {
+	
+    if (!name)
+    {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!opbx_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!opbx_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1))
+    {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
-	if (!opbx_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!opbx_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1))
+    {
 		astman_send_error(s, m, "Invalid timeout\n");
 		return 0;
 	}
 	opbx_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
-	if (!data) {
+	if (!data)
+    {
 		astman_send_error(s, m, "Invalid channel\n");
 		return 0;
 	}
-	*data = '\0';
-	data++;
+	*data++ = '\0';
 	opbx_copy_string(tmp2, callerid, sizeof(tmp2));
 	opbx_callerid_parse(tmp2, &n, &l);
-	if (n) {
+	if (n)
+    {
 		if (opbx_strlen_zero(n))
 			n = NULL;
 	}
-	if (l) {
+	if (l)
+    {
 		opbx_shrink_phone_number(l);
 		if (opbx_strlen_zero(l))
 			l = NULL;
 	}
-	if (account) {
+	if (account)
+    {
 		struct opbx_variable *newvar;
 		newvar = opbx_variable_new("CDR(accountcode|r)", account);
 		newvar->next = vars;
 		vars = newvar;
 	}
-	if (opbx_true(async)) {
+	if (opbx_true(async))
+    {
 		struct fopbx_originate_helper *fast = malloc(sizeof(struct fopbx_originate_helper));
-		if (!fast) {
+
+		if (!fast)
+        {
 			res = -1;
-		} else {
+		}
+        else
+        {
 			memset(fast, 0, sizeof(struct fopbx_originate_helper));
 			if (!opbx_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
@@ -1048,20 +1126,29 @@ static int action_originate(struct mansession *s, struct message *m)
 			fast->priority = pi;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(&th, &attr, fopbx_originate, fast)) {
+			if (opbx_pthread_create(&th, &attr, fopbx_originate, fast))
+            {
 				free(fast);
 				res = -1;
-			} else {
+			}
+            else
+            {
 				res = 0;
 			}
-			
 		}
-	} else if (!opbx_strlen_zero(app)) {
-        	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
-    	} else {
+	}
+    else if (!opbx_strlen_zero(app))
+    {
+      	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
+    }
+    else
+    {
 		if (exten && context && pi)
-	        	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
-		else {
+	    {
+           	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
+		}
+        else
+        {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
 		}
@@ -1089,12 +1176,14 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int ret;
-	if (opbx_strlen_zero(mailbox)) {
+
+	if (opbx_strlen_zero(mailbox))
+    {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-        if (!opbx_strlen_zero(id))
-                snprintf(idText,256,"ActionID: %s\r\n",id);
+    if (!opbx_strlen_zero(id))
+        snprintf(idText, 256, "ActionID: %s\r\n", id);
 	ret = opbx_app_has_voicemail(mailbox, NULL);
 	opbx_cli(s->fd, "Response: Success\r\n"
 				   "%s"
@@ -1121,14 +1210,15 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int newmsgs = 0, oldmsgs = 0;
-	if (opbx_strlen_zero(mailbox)) {
+	
+    if (opbx_strlen_zero(mailbox))
+    {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
 	opbx_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-	if (!opbx_strlen_zero(id)) {
-		snprintf(idText,256,"ActionID: %s\r\n",id);
-	}
+	if (!opbx_strlen_zero(id))
+		snprintf(idText, 256, "ActionID: %s\r\n", id);
 	opbx_cli(s->fd, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Message Count\r\n"
@@ -1159,7 +1249,9 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	char hint[256] = "";
 	int status;
-	if (opbx_strlen_zero(exten)) {
+	
+    if (opbx_strlen_zero(exten))
+    {
 		astman_send_error(s, m, "Extension not specified");
 		return 0;
 	}
@@ -1167,9 +1259,8 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 		context = "default";
 	status = opbx_extension_state(NULL, context, exten);
 	opbx_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
-        if (!opbx_strlen_zero(id)) {
-                snprintf(idText,256,"ActionID: %s\r\n",id);
-        }
+    if (!opbx_strlen_zero(id))
+        snprintf(idText, 256, "ActionID: %s\r\n", id);
 	opbx_cli(s->fd, "Response: Success\r\n"
 			           "%s"
 				   "Message: Extension Status\r\n"
@@ -1193,16 +1284,19 @@ static int action_timeout(struct mansession *s, struct message *m)
 	struct opbx_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	int timeout = atoi(astman_get_header(m, "Timeout"));
-	if (opbx_strlen_zero(name)) {
+	if (opbx_strlen_zero(name))
+    {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if (!timeout) {
+	if (!timeout)
+    {
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
 	c = opbx_get_channel_by_name_locked(name);
-	if (!c) {
+	if (!c)
+    {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
@@ -1221,20 +1315,24 @@ static int process_message(struct mansession *s, struct message *m)
 	char iabuf[INET_ADDRSTRLEN];
 
 	opbx_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
-	opbx_log( LOG_DEBUG, "Manager received command '%s'\n", action );
+	opbx_log(LOG_DEBUG, "Manager received command '%s'\n", action);
 
-	if (opbx_strlen_zero(action)) {
+	if (opbx_strlen_zero(action))
+    {
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (!opbx_strlen_zero(id)) {
-                snprintf(idText,256,"ActionID: %s\r\n",id);
-        }
-	if (!s->authenticated) {
-		if (!strcasecmp(action, "Challenge")) {
+    if (!opbx_strlen_zero(id))
+        snprintf(idText, 256, "ActionID: %s\r\n", id);
+	if (!s->authenticated)
+    {
+		if (!strcasecmp(action, "Challenge"))
+        {
 			char *authtype;
+
 			authtype = astman_get_header(m, "AuthType");
-			if (!strcasecmp(authtype, "MD5")) {
+			if (!strcasecmp(authtype, "MD5"))
+            {
 				if (opbx_strlen_zero(s->challenge))
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
 				opbx_mutex_lock(&s->__lock);
@@ -1243,43 +1341,60 @@ static int process_message(struct mansession *s, struct message *m)
 						"Challenge: %s\r\n\r\n",
 						idText,s->challenge);
 				opbx_mutex_unlock(&s->__lock);
-				return 0;
-			} else {
-				astman_send_error(s, m, "Must specify AuthType");
-				return 0;
 			}
-		} else if (!strcasecmp(action, "Login")) {
-			if (authenticate(s, m)) {
+            else
+            {
+				astman_send_error(s, m, "Must specify AuthType");
+			}
+		    return 0;
+		}
+        else if (!strcasecmp(action, "Login"))
+        {
+			if (authenticate(s, m))
+            {
 				sleep(1);
 				astman_send_error(s, m, "Authentication failed");
 				return -1;
-			} else {
+			}
+            else
+            {
 				s->authenticated = 1;
-				if (option_verbose > 3) {
-					if ( displayconnects ) {
+				if (option_verbose > 3)
+                {
+					if (displayconnects)
 						opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
-					}
 				}
 				opbx_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
-		} else if (!strcasecmp(action, "Logoff")) {
+		}
+        else if (!strcasecmp(action, "Logoff"))
+        {
 			astman_send_ack(s, m, "See ya");
 			return -1;
-		} else
+		}
+        else
 			astman_send_error(s, m, "Authentication Required");
-	} else {
-		int ret=0;
+	}
+    else
+    {
+		int ret = 0;
 		struct eventqent *eqe;
+
 		opbx_mutex_lock(&s->__lock);
 		s->busy = 1;
 		opbx_mutex_unlock(&s->__lock);
-		while( tmp ) { 		
-			if (!strcasecmp(action, tmp->action)) {
-				if ((s->writeperm & tmp->authority) == tmp->authority) {
+		while (tmp)
+        {
+			if (!strcasecmp(action, tmp->action))
+            {
+				if ((s->writeperm & tmp->authority) == tmp->authority)
+                {
 					if (tmp->func(s, m))
 						ret = -1;
-				} else {
+				}
+                else
+                {
 					astman_send_error(s, m, "Permission denied");
 				}
 				break;
@@ -1290,8 +1405,10 @@ static int process_message(struct mansession *s, struct message *m)
 			astman_send_error(s, m, "Invalid/unknown command");
 		opbx_mutex_lock(&s->__lock);
 		s->busy = 0;
-		while(s->eventq) {
-			if (opbx_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout)) {
+		while (s->eventq)
+        {
+			if (opbx_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout))
+            {
 				ret = -1;
 				break;
 			}
@@ -1312,8 +1429,11 @@ static int get_input(struct mansession *s, char *output)
 	int x;
 	struct pollfd fds[1];
 	char iabuf[INET_ADDRSTRLEN];
-	for (x=1;x<s->inlen;x++) {
-		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
+
+	for (x = 1;  x < s->inlen;  x++)
+    {
+		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r'))
+        {
 			/* Copy output data up to and including \r\n */
 			memcpy(output, s->inbuf, x + 1);
 			/* Add trailing \0 */
@@ -1324,23 +1444,29 @@ static int get_input(struct mansession *s, char *output)
 			return 1;
 		}
 	} 
-	if (s->inlen >= sizeof(s->inbuf) - 1) {
+	if (s->inlen >= sizeof(s->inbuf) - 1)
+    {
 		opbx_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
-	do {
+	do
+    {
 		res = poll(fds, 1, -1);
-		if (res < 0) {
-			if (errno == EINTR) {
+		if (res < 0)
+        {
+			if (errno == EINTR)
+            {
 				if (s->dead)
 					return -1;
 				continue;
 			}
 			opbx_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 	 		return -1;
-		} else if (res > 0) {
+		}
+        else if (res > 0)
+        {
 			opbx_mutex_lock(&s->__lock);
 			res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
 			opbx_mutex_unlock(&s->__lock);
@@ -1348,7 +1474,7 @@ static int get_input(struct mansession *s, char *output)
 				return -1;
 			break;
 		}
-	} while(1);
+	} while (1);
 	s->inlen += res;
 	s->inbuf[s->inlen] = '\0';
 	return 0;
@@ -1365,31 +1491,45 @@ static void *session_do(void *data)
 	opbx_cli(s->fd, "CallWeaver Call Manager/1.0\r\n");
 	opbx_mutex_unlock(&s->__lock);
 	memset(&m, 0, sizeof(m));
-	for (;;) {
+	for (;;)
+    {
 		res = get_input(s, m.headers[m.hdrcount]);
-		if (res > 0) {
+		if (res > 0)
+        {
 			/* Strip trailing \r\n */
 			if (strlen(m.headers[m.hdrcount]) < 2)
 				continue;
 			m.headers[m.hdrcount][strlen(m.headers[m.hdrcount]) - 2] = '\0';
-			if (opbx_strlen_zero(m.headers[m.hdrcount])) {
+			if (opbx_strlen_zero(m.headers[m.hdrcount]))
+            {
 				if (process_message(s, &m))
 					break;
 				memset(&m, 0, sizeof(m));
-			} else if (m.hdrcount < MAX_HEADERS - 1)
+			}
+            else if (m.hdrcount < MAX_HEADERS - 1)
+            {
 				m.hdrcount++;
-		} else if (res < 0)
+            }
+		}
+        else if (res < 0)
+        {
 			break;
+        }
 	}
-	if (s->authenticated) {
-		if (option_verbose > 3) {
+	if (s->authenticated)
+    {
+		if (option_verbose > 3)
+        {
 			if (displayconnects) 
 				opbx_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
 		}
 		opbx_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
-	} else {
-		if (option_verbose > 2) {
-			if ( displayconnects )
+	}
+    else
+    {
+		if (option_verbose > 2)
+        {
+			if (displayconnects)
 				opbx_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		}
 		opbx_log(LOG_EVENT, "Failed attempt from %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
@@ -1412,21 +1552,23 @@ static void *accept_thread(void *ignore)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-	for (;;) {
+	for (;;)
+    {
 		sinlen = sizeof(sin);
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
-		if (as < 0) {
+		if (as < 0)
+        {
 			opbx_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
 		p = getprotobyname("tcp");
-		if (p) {
-			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
+		if (p)
+        {
+			if (setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg)) < 0)
 				opbx_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
-			}
 		}
-		s = malloc(sizeof(struct mansession));
-		if (!s) {
+		if ((s = malloc(sizeof(struct mansession))) == NULL)
+		{
 			opbx_log(LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
 			continue;
 		} 
@@ -1434,7 +1576,8 @@ static void *accept_thread(void *ignore)
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
 
-		if(! block_sockets) {
+		if (!block_sockets)
+        {
 			/* For safety, make sure socket is non-blocking */
 			flags = fcntl(as, F_GETFL);
 			fcntl(as, F_SETFL, flags | O_NONBLOCK);
@@ -1455,22 +1598,24 @@ static void *accept_thread(void *ignore)
 
 static int append_event(struct mansession *s, const char *str)
 {
-	struct eventqent *tmp, *prev=NULL;
-	tmp = malloc(sizeof(struct eventqent) + strlen(str));
-	if (tmp) {
-		tmp->next = NULL;
-		strcpy(tmp->eventdata, str);
-		if (s->eventq) {
-			prev = s->eventq;
-			while(prev->next) 
-				prev = prev->next;
-			prev->next = tmp;
-		} else {
-			s->eventq = tmp;
-		}
-		return 0;
+	struct eventqent *tmp;
+    struct eventqent *prev = NULL;
+
+	if ((tmp = malloc(sizeof(struct eventqent) + strlen(str))) == NULL)
+        return -1;
+    tmp->next = NULL;
+	strcpy(tmp->eventdata, str);
+	if (s->eventq)
+    {
+		for (prev = s->eventq;  prev->next;  prev = prev->next) 
+			;
+		prev->next = tmp;
 	}
-	return -1;
+    else
+    {
+	    s->eventq = tmp;
+	}
+	return 0;
 }
 
 /*! \brief  manager_event: Send AMI event to client */
@@ -1484,14 +1629,16 @@ int manager_event(int category, char *event, char *fmt, ...)
 	va_list ap;
 
 	opbx_mutex_lock(&sessionlock);
-	for (s = sessions; s; s = s->next) {
+	for (s = sessions;  s;  s = s->next)
+    {
 		if ((s->readperm & category) != category)
 			continue;
 
 		if ((s->send_events & category) != category)
 			continue;
 
-		if (opbx_strlen_zero(tmp)) {
+		if (opbx_strlen_zero(tmp))
+        {
 			opbx_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
 					 event, authority_to_str(category, auth, sizeof(auth)-1));
 			va_start(ap, fmt);
@@ -1503,9 +1650,12 @@ int manager_event(int category, char *event, char *fmt, ...)
 		}
 
 		opbx_mutex_lock(&s->__lock);
-		if (s->busy) {
+		if (s->busy)
+        {
 			append_event(s, tmp);
-		} else if (opbx_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
+		}
+        else if (opbx_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0)
+        {
 			opbx_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 			s->dead = 1;
 			pthread_kill(s->t, SIGURG);
@@ -1514,10 +1664,12 @@ int manager_event(int category, char *event, char *fmt, ...)
 	}
 	opbx_mutex_unlock(&sessionlock);
 
-	if (manager_hooks) {
+	if (manager_hooks)
+    {
 		struct manager_custom_hook *hookp;
 		char *p;
 		int len;
+
 		opbx_mutex_lock(&hooklock);
 		snprintf(tmp, sizeof(tmp)-1, "Event: %s\r\nPrivilege: %s\r\n", event, authority_to_str(category, auth, sizeof(auth)-1));
 		len = strlen(tmp);
@@ -1525,23 +1677,24 @@ int manager_event(int category, char *event, char *fmt, ...)
 		va_start(ap, fmt);
 		vsnprintf(p, sizeof(tmp) - len - 1, fmt, ap);
 		va_end(ap);
-		for (hookp = manager_hooks ; hookp; hookp = hookp->next) {
+		for (hookp = manager_hooks ;  hookp;  hookp = hookp->next)
 			hookp->helper(category, event, tmp);
-		}
 		opbx_mutex_unlock(&hooklock);
 	}
-
 
 	return 0;
 }
 
-int opbx_manager_unregister( char *action ) 
+int opbx_manager_unregister(char *action) 
 {
-	struct manager_action *cur = first_action, *prev = first_action;
+	struct manager_action *cur;
+	struct manager_action *prev;
 
 	opbx_mutex_lock(&actionlock);
-	while( cur ) { 		
-		if (!strcasecmp(action, cur->action)) {
+	for (cur = prev = first_action;  cur;  prev = cur, cur = cur->next)
+    {
+		if (!strcasecmp(action, cur->action))
+        {
 			prev->next = cur->next;
 			free(cur);
 			if (option_verbose > 2) 
@@ -1549,8 +1702,6 @@ int opbx_manager_unregister( char *action )
 			opbx_mutex_unlock(&actionlock);
 			return 0;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
 	opbx_mutex_unlock(&actionlock);
 	return 0;
@@ -1569,18 +1720,26 @@ static int opbx_manager_register_struct(struct manager_action *act)
 	int ret;
 
 	opbx_mutex_lock(&actionlock);
-	while(cur) { /* Walk the list of actions */
+	while (cur)
+    {
+        /* Walk the list of actions */
 		ret = strcasecmp(cur->action, act->action);
-		if (ret == 0) {
+		if (ret == 0)
+        {
 			opbx_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
 			opbx_mutex_unlock(&actionlock);
 			return -1;
-		} else if (ret > 0) {
+		}
+        else if (ret > 0)
+        {
 			/* Insert these alphabetically */
-			if (prev) {
+			if (prev)
+            {
 				act->next = prev->next;
 				prev->next = act;
-			} else {
+			}
+            else
+            {
 				act->next = first_action;
 				first_action = act;
 			}
@@ -1590,7 +1749,8 @@ static int opbx_manager_register_struct(struct manager_action *act)
 		cur = cur->next;
 	}
 	
-	if (!cur) {
+	if (!cur)
+    {
 		if (prev)
 			prev->next = act;
 		else
@@ -1608,8 +1768,8 @@ int opbx_manager_register2(const char *action, int auth, int (*func)(struct mans
 {
 	struct manager_action *cur;
 
-	cur = malloc(sizeof(struct manager_action));
-	if (!cur) {
+	if ((cur = malloc(sizeof(struct manager_action))) == NULL)
+    {
 		opbx_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
 		opbx_mutex_unlock(&actionlock);
 		return -1;
@@ -1635,7 +1795,9 @@ int init_manager(void)
 	int oldportno = portno;
 	static struct sockaddr_in ba;
 	int x = 1;
-	if (!registered) {
+	
+    if (!registered)
+    {
 		/* Register default actions */
 		opbx_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
 		opbx_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
@@ -1662,7 +1824,8 @@ int init_manager(void)
 	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
 	cfg = opbx_config_load("manager.conf");
-	if (!cfg) {
+	if (!cfg)
+    {
 		opbx_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
 	}
@@ -1672,39 +1835,45 @@ int init_manager(void)
 		enabled = opbx_true(val);
 
 	val = opbx_variable_retrieve(cfg, "general", "block-sockets");
-	if(val)
+	if (val)
 		block_sockets = opbx_true(val);
 
-	if ((val = opbx_variable_retrieve(cfg, "general", "port"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
+	if ((val = opbx_variable_retrieve(cfg, "general", "port")))
+    {
+		if (sscanf(val, "%d", &portno) != 1)
+        {
 			opbx_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
-	} else if ((val = opbx_variable_retrieve(cfg, "general", "portno"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
+	}
+    else if ((val = opbx_variable_retrieve(cfg, "general", "portno")))
+    {
+		if (sscanf(val, "%d", &portno) != 1)
+        {
 			opbx_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
 		opbx_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
 	}
 	/* Parsing the displayconnects */
-	if ((val = opbx_variable_retrieve(cfg, "general", "displayconnects"))) {
-			displayconnects = opbx_true(val);;
-	}
+	if ((val = opbx_variable_retrieve(cfg, "general", "displayconnects")))
+		displayconnects = opbx_true(val);
 				
 	
 	ba.sin_family = AF_INET;
 	ba.sin_port = htons(portno);
 	memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 	
-	if ((val = opbx_variable_retrieve(cfg, "general", "bindaddr"))) {
+	if ((val = opbx_variable_retrieve(cfg, "general", "bindaddr")))
+    {
 		if (!inet_aton(val, &ba.sin_addr)) { 
 			opbx_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
 			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 		}
 	}
 	
-	if ((asock > -1) && ((portno != oldportno) || !enabled)) {
+	if ((asock > -1)  &&  ((portno != oldportno) || !enabled))
+    {
 #if 0
 		/* Can't be done yet */
 		close(asock);
@@ -1716,23 +1885,25 @@ int init_manager(void)
 	opbx_config_destroy(cfg);
 	
 	/* If not enabled, do nothing */
-	if (!enabled) {
+	if (!enabled)
 		return 0;
-	}
-	if (asock < 0) {
-		asock = socket(AF_INET, SOCK_STREAM, 0);
-		if (asock < 0) {
+	if (asock < 0)
+    {
+		if ((asock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        {
 			opbx_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 			return -1;
 		}
 		setsockopt(asock, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-		if (bind(asock, (struct sockaddr *)&ba, sizeof(ba))) {
+		if (bind(asock, (struct sockaddr *) &ba, sizeof(ba)))
+        {
 			opbx_log(LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;
 			return -1;
 		}
-		if (listen(asock, 2)) {
+		if (listen(asock, 2))
+        {
 			opbx_log(LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;
