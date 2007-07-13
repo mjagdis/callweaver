@@ -20,6 +20,7 @@
 #
 ######
 
+
 AC_PREREQ(2.59)
 AC_INIT(CallWeaver,svn-trunk,callweaver-dev@callweaver.org)
 AM_INIT_AUTOMAKE(CallWeaver,svn-trunk)
@@ -55,6 +56,7 @@ AM_PROG_LEX
 AX_SYS_PERLSHARPBANG
 AC_PROG_INSTALL
 AC_FUNC_STRERROR_R
+
 
 dnl SVN Revision number, needed for OPBX_VERSION and inclusion into files version number
 if test -n "$SVNVERSION" ; then
@@ -1725,7 +1727,7 @@ AM_CONDITIONAL([WANT_CHAN_AGENT],[test "${with_chan_agent}" = "yes"])
 
 dnl ###########################################################################
 
-MISDN_CFLAGS=-I/usr/include/mISDNuser
+MISDN_CFLAGS=-I/usr/include/
 MISDN_LDFLAGS=
 
 AC_ARG_WITH([misdn-includes],

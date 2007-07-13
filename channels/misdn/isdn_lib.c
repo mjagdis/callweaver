@@ -14,7 +14,7 @@
 
 #include <syslog.h>
 #include "isdn_lib_intern.h"
-#include <mISDNuser/isdn_debug.h>
+#include <isdn_debug.h>
 
 void misdn_join_conf(struct misdn_bchannel *bc, int conf_id);
 void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
@@ -148,8 +148,8 @@ enum global_states {
 static enum global_states  global_state=MISDN_INITIALIZING;
 
 
-#include <mISDNuser/net_l2.h>
-#include <mISDNuser/tone.h>
+#include <i4lnet/net_l2.h>
+#include <tone.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <pthread.h>

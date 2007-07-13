@@ -89,7 +89,8 @@ config.status: check-ilbc patch-stamp configure
 				--with-res_config_odbc=yes --with-res_odbc=yes \
 				--with-chan_bluetooth=yes \
 				--enable-mysql=yes --with-app_sql_mysql=yes --with-cdr_mysql=yes \
-				--with-res_config_mysql=yes 
+				--with-res_config_mysql=yes  --with-chan_zap=yes --enable-zaptel \
+				--with-chan_misdn
 
 build: build-stamp
 

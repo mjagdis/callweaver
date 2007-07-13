@@ -2,10 +2,10 @@
 #define ISDN_LIB_INTERN
 
 
-#include <mISDNuser/mISDNlib.h>
-#include <mISDNuser/isdn_net.h>
-#include <mISDNuser/l3dss1.h>
-#include <mISDNuser/net_l3.h>
+#include <mISDNlib.h>
+#include <isdn_net.h>
+#include <l3dss1.h>
+#include <i4lnet/net_l3.h>
 
 #include <pthread.h>
 
