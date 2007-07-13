@@ -1407,7 +1407,7 @@ static int process_message(struct mansession *s, struct message *m)
 		s->busy = 0;
 		while (s->eventq)
         {
-			if (opbx_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout))
+			if (opbx_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout) < 0)
             {
 				ret = -1;
 				break;
