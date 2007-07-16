@@ -3,3 +3,5 @@ usr/lib/callweaver/libo*.so
 usr/lib/callweaver/lib*.la
 usr/lib/lib*.la
 usr/lib/callweaver/modules/*.la
+usr/lib/callweaver/modules/icd/*.la
+

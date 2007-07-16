@@ -29,6 +29,7 @@ usr/lib/callweaver/modules/app_getdevstate.so
 usr/lib/callweaver/modules/app_getextstate.so
 usr/lib/callweaver/modules/app_groupcount.so
 usr/lib/callweaver/modules/app_hasnewvoicemail.so
+usr/lib/callweaver/modules/app_icd.so
 usr/lib/callweaver/modules/app_lookupblacklist.so
 usr/lib/callweaver/modules/app_lookupcidname.so
 usr/lib/callweaver/modules/app_milliwatt.so
@@ -117,7 +118,6 @@ usr/lib/callweaver/modules/func_moh.so
 usr/lib/callweaver/modules/func_strings.so
 usr/lib/callweaver/modules/func_timeout.so
 usr/lib/callweaver/modules/func_uri.so
-usr/lib/callweaver/modules/icd
 usr/lib/callweaver/modules/pbx_ael.so
 usr/lib/callweaver/modules/pbx_config.so
 usr/lib/callweaver/modules/pbx_dundi.so
@@ -135,6 +135,7 @@ usr/lib/callweaver/modules/res_monitor.so
 usr/lib/callweaver/modules/res_musiconhold.so
 usr/lib/callweaver/modules/res_ogi.so
 usr/lib/callweaver/modules/res_sqlite.so
+usr/lib/callweaver/modules/icd/*.so
 usr/sbin
 usr/bin
 etc/callweaver
