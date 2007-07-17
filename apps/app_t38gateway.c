@@ -60,7 +60,7 @@ static int opbx_check_hangup_locked(struct opbx_channel *chan)
 }
 
 #define clean_frame(f) if(f) {opbx_fr_free(f); f = NULL;}
-#define ALL_DONE(u,ret) {opbx_indicate(chan, -1); LOCAL_USER_REMOVE(u) ; return ret;}
+#define ALL_DONE(u,ret) {pbx_builtin_setvar_helper(chan, "DIALSTATUS", status); opbx_indicate(chan, -1); LOCAL_USER_REMOVE(u) ; return ret;}
 
 #define ready_to_talk(chan,peer) ((!chan  ||  !peer  ||  opbx_check_hangup_locked(chan)  ||  opbx_check_hangup_locked(peer))  ?  0  :  1)
 
@@ -415,6 +415,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
 
         if (!(peer = opbx_request(argv[0], format, dest, &cause)))
         {
+            strncpy(status, "CHANUNAVAIL", sizeof(status) - 1); /* assume as default */
             opbx_log(LOG_ERROR, "Error creating channel %s/%s\n", argv[0], dest);
             ALL_DONE(u, 0);
         }
