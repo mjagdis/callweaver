@@ -148,7 +148,7 @@ enum global_states {
 static enum global_states  global_state=MISDN_INITIALIZING;
 
 
-#include <i4lnet/net_l2.h>
+#include <net_l2.h>
 #include <tone.h>
 #include <unistd.h>
 #include <semaphore.h>

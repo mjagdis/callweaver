@@ -5,7 +5,7 @@
 #include <mISDNlib.h>
 #include <isdn_net.h>
 #include <l3dss1.h>
-#include <i4lnet/net_l3.h>
+#include <net_l3.h>
 
 #include <pthread.h>
 
