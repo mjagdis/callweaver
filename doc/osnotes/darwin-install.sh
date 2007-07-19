@@ -1,13 +1,14 @@
-# vim:ft=txt:tw=80
-******************************************************************************** 
+#!/bin/sh
+# vim:tw=80:ts=4
+################################################################################ 
                      HOW TO BUILD CALLWEAVER.ORG ON MAC OSX 
      Tested with CallWeaver.org 1.2 (rel.2119) on iMac PPC 800 and OSX 10.4
-********************************************************************************
+################################################################################
 
 # open a terminal (i prefer iTerm rather than terminal)
 # or enable ssh and login from a remote host.
 
-************************************************************************** BEGIN
+########################################################################## BEGIN
 
 # We will install callweaver in /usr/local/callweaver.
 # everithing will be contained in that directory.
@@ -20,7 +21,7 @@ $ sudo mkdir -p /usr/local/callweaver
 $ mkdir dev
 $ cd dev
 
-************************************************************************ LIBTIFF
+######################################################################## LIBTIFF
 
 # download libtiff
 
@@ -32,7 +33,7 @@ $ CFLAGS="-I/usr/local/callweaver/include" LDFLAGS="-L/usr/local/callweaver/lib"
 $ make
 $ sudo make install
 
-********************************************************************* LIBSPANDSP
+##################################################################### LIBSPANDSP
 
 # download spandsp-20061122.tar.gz
 
@@ -44,7 +45,7 @@ $ CFLAGS="-I/usr/local/callweaver/include" LDFLAGS="-L/usr/local/callweaver/lib"
 $ make
 $ sudo make install
 
-******************************************************************** GNU READLINE
+#################################################################### GNU READLINE
 
 # download GNU readline
 
@@ -57,7 +58,7 @@ $ CFLAGS="-I/usr/local/callweaver/include" LDFLAGS="-L/usr/local/callweaver/lib"
 $ make
 $ sudo make install
 
-****************************************************************** CALLWEAVER
+################################################################## CALLWEAVER
 # and again:
 
 $ CFLAGS="-I/usr/local/callweaver/include" LDFLAGS="-L/usr/local/callweaver/lib" \
@@ -100,7 +101,7 @@ $ sudo niutil -createprop / /users/callweaver passwd "*"
 
 $ sudo make install
 
-****************************************************************** LAST STEP
+################################################################## LAST STEP
 
 # Let's become root
 
@@ -122,7 +123,7 @@ $ ./callweaver -rvvv
 # using "./callweaver -c -g" and read the console output
 
 
-******************************************************************
+##################################################################
 
 Written by Massimo "CtRiX" Cetra
 Thanks to Navynet SRL - http://www.navynet.it

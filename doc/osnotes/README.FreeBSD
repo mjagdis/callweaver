@@ -1,4 +1,4 @@
-
+# vim:tw=80:ft=txt
 ***********************************************************************************
 INSTALLING CALLWEAVER ON FREEBSD
 ***********************************************************************************
@@ -19,14 +19,12 @@ Having this done, the ./bootstrap.sh works. Then, after installing libtiff,
 available under /usr/ports/graphics/tiff, you need to set a couple of variables
 to have spandsp and callweaver find libtiff.
 
-# CFLAGS="-I/usr/local/include"
-# LDFLAGS="-L/usr/local/lib"
-# export CFLAGS LDFLAGS
+run this:
 
-now make install, and it'll quite possibly end up with a compile error since
-the porting process isn't quite finished... :)
+# CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" make all install
 
-
+and it'll quite possibly end up with a compile error since the porting process
+isn't quite finished... :)
 
 -----------------------------------------------------------------------------------
 COMPILING 
