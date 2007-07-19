@@ -649,7 +649,7 @@ int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data)
 	const char *saved_c_appl;
 	int res;
     
-	if (c->cdr)
+	if (c->cdr && !opbx_check_hangup(chan))
 		opbx_cdr_setapp(c->cdr, app->name, data);
 
 	/* save channel values - for the sake of debug output from DumpChan and the CLI <bleurgh> */
