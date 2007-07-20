@@ -12068,7 +12068,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         /* Trying */
         if (!ignore)
             sip_cancel_destroy(p);
-	check_pendings(p);
+        check_pendings(p);
+        opbx_set_flag(p, SIP_CAN_BYE);
         break;
     case 180:
         /* 180 Ringing */
@@ -12081,7 +12082,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	            opbx_setstate(p->owner, OPBX_STATE_RINGING);
         }
 //        if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp"))
-	if (find_sdp(req))
+        if (find_sdp(req))
         {
             process_sdp(p, req);
             if (!ignore && p->owner)
@@ -12090,8 +12091,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
                 opbx_queue_control(p->owner, OPBX_CONTROL_PROGRESS);
             }
         }
-	opbx_set_flag(p, SIP_CAN_BYE);
-	check_pendings(p);
+        opbx_set_flag(p, SIP_CAN_BYE);
+        check_pendings(p);
         break;
     case 183:
         /* Session progress */
@@ -12100,13 +12101,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp"))
         {
             process_sdp(p, req);
-	    if (!ignore && p->owner) {
-		/* Queue a progress frame */
-        	opbx_queue_control(p->owner, OPBX_CONTROL_PROGRESS);
-	    }
+            if (!ignore && p->owner)
+            {
+                /* Queue a progress frame */
+                opbx_queue_control(p->owner, OPBX_CONTROL_PROGRESS);
+            }
         }
-	opbx_set_flag(p, SIP_CAN_BYE);
-	check_pendings(p);
+        opbx_set_flag(p, SIP_CAN_BYE);
+        check_pendings(p);
         break;
     case 200:    /* 200 OK on invite - someone's answering our call */
         if (!ignore)
@@ -12128,7 +12130,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
             build_route(p, req, 1);
         }
         if (p->owner && (p->owner->_state == OPBX_STATE_UP))
-	        {
+        {
             /* if this is a re-invite */ 
             struct opbx_channel *bridgepeer = NULL;
             struct sip_pvt *bridgepvt = NULL;
@@ -12216,8 +12218,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         }
         /* If I understand this right, the branch is different for a non-200 ACK only */
         transmit_request(p, SIP_ACK, seqno, 0, 1);
-	opbx_set_flag(p, SIP_CAN_BYE);
-	check_pendings(p);
+        opbx_set_flag(p, SIP_CAN_BYE);
+        check_pendings(p);
         break;
     case 407: /* Proxy authentication */
     case 401: /* Www auth */
@@ -12265,21 +12267,21 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
         break;
     case 487: /* Cancelled transaction */
 		/* We have sent CANCEL on an outbound INVITE 
-		This transaction is already scheduled to be killed by sip_hangup().
+           This transaction is already scheduled to be killed by sip_hangup().
 		*/
-	transmit_request(p, SIP_ACK, seqno, 0, 0);
-	if (p->owner && !ignore)
-		opbx_queue_hangup(p->owner);
-	else if (!ignore)
-		update_call_counter(p, DEC_CALL_LIMIT);
-	break;
+        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        if (p->owner && !ignore)
+        	opbx_queue_hangup(p->owner);
+        else if (!ignore)
+        	update_call_counter(p, DEC_CALL_LIMIT);
+        break;
     case 491: /* Pending */
         /* we have to wait a while, then retransmit */
         /* Transmission is rescheduled, so everything should be taken care of.
-            We should support the retry-after at some point */
+           We should support the retry-after at some point */
         break;
     case 501: /* Not implemented */
-	transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_request(p, SIP_ACK, seqno, 0, 0);
         if (p->owner)
             opbx_queue_control(p->owner, OPBX_CONTROL_CONGESTION);
         break;
@@ -12291,8 +12293,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 {
     int expires, expires_ms;
     struct sip_registry *r;
-    r=p->registry;
 
+    r = p->registry;
     switch (resp)
     {
     case 401:
