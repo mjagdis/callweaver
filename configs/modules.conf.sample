@@ -42,6 +42,10 @@ noload => chan_woomera.so
 ; configured prevents callweaver from working.
 noload => chan_capi.so
 
+; Don't load chan_misdn by default.  Loading it without having
+; configured prevents callweaver from working.
+noload => chan_misdn.so
+
 ; Jabber wont work without config
 noload => res_jabber.so
 
