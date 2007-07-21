@@ -76,6 +76,14 @@ cw_xml_t cwxml_idx(cw_xml_t xml, int idx)
     return xml;
 }
 
+// returns the value of the requested tag attribute or "" if not found
+const char *cwxml_attr_soft(cw_xml_t xml, const char *attr)
+{
+        const char *ret = cwxml_attr(xml, attr);
+
+        return ret ? ret : "";
+}
+
 // returns the value of the requested tag attribute or NULL if not found
 const char *cwxml_attr(cw_xml_t xml, const char *attr)
 {

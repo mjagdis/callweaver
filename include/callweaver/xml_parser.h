@@ -90,6 +90,9 @@ cw_xml_t cwxml_idx(cw_xml_t xml, int idx);
 // returns the given tag's character content or empty string if none
 #define cw_xml_txt(xml) ((xml) ? xml->txt : "")
 
+// returns the value of the requested tag attribute, or "" if not found
+const char *cwxml_attr_soft(cw_xml_t xml, const char *attr);
+
 // returns the value of the requested tag attribute, or NULL if not found
 const char *cwxml_attr(cw_xml_t xml, const char *attr);
 

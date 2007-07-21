@@ -1766,3 +1766,22 @@ const char	*mpool_strerror(const int error)
   
   return "invalid error code";
 }
+
+char *mpool_strdup(mpool_t *mp_p, char *fromstr) {
+    int err, len;
+    char *new = NULL;
+
+    len = strlen(fromstr)+1;
+
+    new = mpool_alloc(mp_p, len, &err);
+
+    if (new) {
+        memcpy (new, fromstr, len);
+	return new;
+    }
+    else {
+	return NULL;
+    }
+
+    return NULL;
+}
