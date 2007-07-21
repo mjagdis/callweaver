@@ -1,7 +1,7 @@
 Source: callweaver
 Priority: optional
 Section: comm
-Maintainer: @MAINTAINER@
+Maintainer: Massimo Cetra <devel@navynet.it>
 Build-Depends: debhelper (>= 4.1.0), dpatch, libcap-dev, libspandsp-dev (>= 0.0.4), libssl-dev, libncurses-dev, libpq-dev, libmysqlclient15-dev, libspeex-dev, libcurl3-dev, unixodbc-dev, libcapi20-dev, zaptel-source, libreadline-dev, libbluetooth2-dev
 Standards-Version: 3.6.2
 
@@ -43,17 +43,6 @@ Description: documentation for Callweaver
  This package contains the source documentation needed if you wish to
  extend the callweaver package.
 
-Package: callweaver-misdn
-Depends: callweaver
-Section: comm
-Architecture: all
-Description: mISDN module for Callweaver
- Callweaver is an Open Source PBX and telephony toolkit
- .
- This Package contains the Callweaver mISDN Module, which is needed to
- let Callweaver talk to mISDN kernelmodules.
- You will also need mISDN-user and mISDN-kernel-module to actually use this.
-
 Package: callweaver-zaptel
 Depends: callweaver
 Section: comm
@@ -65,3 +54,4 @@ Description: zaptel module for Callweaver
  let Callweaver talk to zaptel kernelmodules.
  You will also need kernel support, which can be achieved by running
  module-assistant install zaptel
+

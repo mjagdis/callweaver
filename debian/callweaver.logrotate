@@ -6,6 +6,6 @@
         rotate 30
         sharedscripts
         postrotate
-                /usr/sbin/invoke-rc.d callweaver logger-reload
+        /usr/sbin/invoke-rc.d callweaver logger-reload
         endscript
 }

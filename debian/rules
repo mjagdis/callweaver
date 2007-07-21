@@ -90,9 +90,9 @@ config.status: check-ilbc patch-stamp configure
 				--with-chan_bluetooth=yes \
 				--enable-mysql=yes --with-app_sql_mysql=yes --with-cdr_mysql=yes \
 				--with-res_config_mysql=yes  --with-chan_zap=yes \
-				--enable-zaptel --with-app_icd=no 
-				
-#				--with-chan_misdn 
+				--enable-zaptel \
+				--with-app_icd=no \
+				--with-chan_misdn=no
 
 build: build-stamp
 
@@ -129,7 +129,7 @@ install: build
 	dh_clean -k 
 	dh_installdirs
 	
-	# Add here commands to install the package into debian/yate.
+	# Add here commands to install the package into debian/tmp.
 	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
 #	sed -e "s,__OPENPBX_SBIN_DIR__,/usr/sbin," contrib/scripts/safe_callweaver > \
 #	        debian/tmp/usr/sbin/safe_callweaver
@@ -161,6 +161,10 @@ binary-arch: install
 	dh_installdocs -a
 	dh_installexamples -a
 	dh_install -a --sourcedir=debian/tmp
+	rm -f debian/callweaver/etc/callweaver/zapata.conf
+	rm -f debian/callweaver/usr/lib/callweaver/modules/chan_zap.so
+	rm -f debian/callweaver/etc/callweaver/misdn.conf
+	rm -f debian/callweaver/usr/lib/callweaver/modules/chan_misdn.so
 #	dh_installmenu -a
 #	dh_installdebconf -a
 #	dh_installlogrotate -a
