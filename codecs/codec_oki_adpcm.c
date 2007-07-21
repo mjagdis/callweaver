@@ -49,7 +49,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/channel.h"
 
-#define BUFFER_SIZE   8096	/* size for the translation buffers */
+#define BUFFER_SIZE   8096    /* size for the translation buffers */
 
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
@@ -62,26 +62,26 @@ static int useplc = 0;
 /* Sample 10ms of linear frame data */
 static int16_t slin_ex[] =
 {
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
 /* Sample 10ms of ADPCM frame data */
 static uint8_t adpcm_ex[] =
 {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 /*
@@ -103,8 +103,8 @@ struct oki_adpcm_encoder_pvt
 struct oki_adpcm_decoder_pvt
 {
     struct opbx_frame f;
-    char offset[OPBX_FRIENDLY_OFFSET];	/* Space to build offset */
-    int16_t outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
+    char offset[OPBX_FRIENDLY_OFFSET];    /* Space to build offset */
+    int16_t outbuf[BUFFER_SIZE];    /* Decoded signed linear values */
     oki_adpcm_state_t oki_state;
     int tail;
     plc_state_t plc;
@@ -125,15 +125,14 @@ static struct opbx_translator_pvt *okiadpcmtolin_new(void)
 {
     struct oki_adpcm_decoder_pvt *tmp;
   
-    if ((tmp = malloc(sizeof(*tmp))))
-    {
-	    memset(tmp, 0, sizeof(*tmp));
-        oki_adpcm_init(&tmp->oki_state, 32000);
-        tmp->tail = 0;
-        plc_init(&tmp->plc);
-        localusecnt++;
-        opbx_update_use_count ();
-    }
+    if ((tmp = malloc(sizeof(*tmp))) == NULL)
+        return NULL;
+    memset(tmp, 0, sizeof(*tmp));
+    oki_adpcm_init(&tmp->oki_state, 32000);
+    tmp->tail = 0;
+    plc_init(&tmp->plc);
+    localusecnt++;
+    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -151,14 +150,13 @@ static struct opbx_translator_pvt *lintookiadpcm_new(void)
 {
     struct oki_adpcm_encoder_pvt *tmp;
   
-    if ((tmp = malloc(sizeof(*tmp))))
-    {
-	    memset(tmp, 0, sizeof(*tmp));
-        oki_adpcm_init(&tmp->oki_state, 32000);
-        tmp->tail = 0;
-        localusecnt++;
-        opbx_update_use_count ();
-    }
+    if ((tmp = malloc(sizeof(*tmp))) == NULL)
+        return NULL;
+    memset(tmp, 0, sizeof(*tmp));
+    oki_adpcm_init(&tmp->oki_state, 32000);
+    tmp->tail = 0;
+    localusecnt++;
+    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -189,15 +187,15 @@ static int okiadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_fr
         if (useplc)
         {
             plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
-	        tmp->tail += 160;
-	    }
+            tmp->tail += 160;
+        }
         return 0;
     }
 
     if (f->datalen*4 + tmp->tail*2 > sizeof(tmp->outbuf))
     {
-  	    opbx_log(LOG_WARNING, "Out of buffer space\n");
-	    return -1;
+        opbx_log(LOG_WARNING, "Out of buffer space\n");
+        return -1;
     }
 
     tmp->tail += oki_adpcm_decode(&tmp->oki_state, tmp->outbuf + tmp->tail, f->data, f->datalen);
@@ -352,7 +350,7 @@ static void adpcm_destroy(struct opbx_translator_pvt *pvt)
 {
     free (pvt);
     localusecnt--;
-    opbx_update_use_count ();
+    opbx_update_use_count();
 }
 
 /*
@@ -456,6 +454,6 @@ int usecount(void)
 {
     int res;
     
-    STANDARD_USECOUNT (res);
+    STANDARD_USECOUNT(res);
     return res;
 }

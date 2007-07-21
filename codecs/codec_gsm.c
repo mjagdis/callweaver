@@ -104,17 +104,17 @@ static struct opbx_translator_pvt *gsm_new(void)
 {
     struct gsm_coder_pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct gsm_coder_pvt))))
+    if ((tmp = malloc(sizeof(struct gsm_coder_pvt))) == NULL)
+        return NULL;
+    memset(tmp, 0, sizeof(*tmp));
+    if ((tmp->gsm = gsm0610_init(NULL, GSM0610_PACKING_VOIP)) == NULL)
     {
-	    memset(tmp, 0, sizeof(*tmp));
-        if ((tmp->gsm = gsm0610_init(NULL, GSM0610_PACKING_VOIP)) == NULL)
-        {
-            free(tmp);
-            return NULL;
-        }
-        plc_init(&tmp->plc);
-        localusecnt++;
+        free(tmp);
+        return NULL;
     }
+    plc_init(&tmp->plc);
+    localusecnt++;
+    opbx_update_use_count();
     return tmp;
 }
 
@@ -144,8 +144,9 @@ static struct opbx_frame *gsmtolin_sample(void)
 
 static struct opbx_frame *gsmtolin_frameout(struct opbx_translator_pvt *tmp)
 {
-    if (!tmp->tail)
+    if (tmp->tail == 0)
         return NULL;
+
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
     opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
@@ -301,6 +302,7 @@ static void gsm_destroy_stuff(struct opbx_translator_pvt *pvt)
         gsm0610_release(pvt->gsm);
     free(pvt);
     localusecnt--;
+    opbx_update_use_count();
 }
 
 static struct opbx_translator gsmtolin =

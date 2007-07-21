@@ -362,8 +362,8 @@ struct opbx_translator_pvt
     /* Enough to store a full second */
     spx_int16_t buf[8000];
 #else
-    short outbuf[8000];
-    short buf[8000];
+    int16_t outbuf[8000];
+    int16_t buf[8000];
 #endif
 
     int tail;
@@ -376,54 +376,50 @@ static struct opbx_translator_pvt *lintospeex_new(void)
 {
     struct speex_coder_pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct speex_coder_pvt))))
+    if ((tmp = malloc(sizeof(struct speex_coder_pvt))) == NULL)
+        return NULL;
+    if ((tmp->speex = speex_encoder_init(&speex_nb_mode)) == NULL)
     {
-        if (!(tmp->speex = speex_encoder_init(&speex_nb_mode)))
-        {
-            free(tmp);
-            tmp = NULL;
-        }
-        else
-        {
-            speex_bits_init(&tmp->bits);
-            speex_bits_reset(&tmp->bits);
-            speex_encoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
-            speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
-#ifdef _SPEEX_TYPES_H
-            if (preproc)
-            {
-                tmp->pp = speex_preprocess_state_init(tmp->framesize, 8000);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_VAD, &pp_vad);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC, &pp_agc);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC_LEVEL, &pp_agc_level);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DENOISE, &pp_denoise);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB, &pp_dereverb);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB_DECAY, &pp_dereverb_decay);
-                speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB_LEVEL, &pp_dereverb_level);
-            }
-#endif
-            if (!abr  &&  !vbr)
-            {
-                speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
-                if (vad)
-                    speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
-            }
-            if (vbr)
-            {
-                speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
-                speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &vbr_quality);
-            }
-            if (abr)
-            {
-                speex_encoder_ctl(tmp->speex, SPEEX_SET_ABR, &abr);
-            }
-            if (dtx)
-                speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
-            tmp->tail = 0;
-            tmp->silent_state = 0;
-        }
-        localusecnt++;
+        free(tmp);
+        return NULL;
     }
+    speex_bits_init(&tmp->bits);
+    speex_bits_reset(&tmp->bits);
+    speex_encoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
+    speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
+#ifdef _SPEEX_TYPES_H
+    if (preproc)
+    {
+        tmp->pp = speex_preprocess_state_init(tmp->framesize, 8000);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_VAD, &pp_vad);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC, &pp_agc);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC_LEVEL, &pp_agc_level);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DENOISE, &pp_denoise);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB, &pp_dereverb);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB_DECAY, &pp_dereverb_decay);
+        speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB_LEVEL, &pp_dereverb_level);
+    }
+#endif
+    if (!abr  &&  !vbr)
+    {
+        speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
+        if (vad)
+            speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
+    }
+    if (vbr)
+    {
+        speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
+        speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &vbr_quality);
+    }
+    if (abr)
+    {
+        speex_encoder_ctl(tmp->speex, SPEEX_SET_ABR, &abr);
+    }
+    if (dtx)
+        speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
+    tmp->tail = 0;
+    tmp->silent_state = 0;
+    localusecnt++;
     return tmp;
 }
 
@@ -431,23 +427,19 @@ static struct opbx_translator_pvt *speextolin_new(void)
 {
     struct speex_coder_pvt *tmp;
 
-    if ((tmp = malloc(sizeof(struct speex_coder_pvt))))
+    if ((tmp = malloc(sizeof(struct speex_coder_pvt))) == NULL)
+        return NULL;
+    if (!(tmp->speex = speex_decoder_init(&speex_nb_mode)))
     {
-        if (!(tmp->speex = speex_decoder_init(&speex_nb_mode)))
-        {
-            free(tmp);
-            tmp = NULL;
-        }
-        else
-        {
-            speex_bits_init(&tmp->bits);
-            speex_decoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
-            if (enhancement)
-                speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
-            tmp->tail = 0;
-        }
-        localusecnt++;
+        free(tmp);
+        return NULL;
     }
+    speex_bits_init(&tmp->bits);
+    speex_decoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
+    if (enhancement)
+        speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
+    tmp->tail = 0;
+    localusecnt++;
     return tmp;
 }
 
@@ -477,8 +469,9 @@ static struct opbx_frame *speextolin_sample(void)
 
 static struct opbx_frame *speextolin_frameout(struct opbx_translator_pvt *tmp)
 {
-    if (!tmp->tail)
+    if (tmp->tail == 0)
         return NULL;
+
     /* Signed linear is no particular frame size, so just send whatever
        we have in the buffer in one lump sum */
     opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
@@ -631,9 +624,7 @@ static struct opbx_frame *lintospeex_frameout(struct opbx_translator_pvt *tmp)
     if (!is_speech)
     {
         if (tmp->silent_state)
-        {
             return NULL;
-	}
         tmp->silent_state = 1;
         speex_bits_reset(&tmp->bits);
         tmp->f.frametype = OPBX_FRAME_CNG;

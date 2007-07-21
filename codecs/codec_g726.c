@@ -48,8 +48,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/channel.h"
 
-#define BUFFER_SIZE   8096	/* size for the translation buffers */
-#define BUF_SHIFT	5
+#define BUFFER_SIZE     8096    /* size for the translation buffers */
+#define BUF_SHIFT       5
 
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
@@ -63,26 +63,26 @@ static int useplc = 0;
 /* Sample 10ms of linear frame data */
 static const int16_t slin_ex[] =
 {
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
 /* 10ms of G.726 at 32kbps */
 static const uint8_t g726_ex[] =
 {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 /*
@@ -104,8 +104,8 @@ struct g726_encoder_pvt
 struct g726_decoder_pvt
 {
     struct opbx_frame f;
-    uint8_t offset[OPBX_FRIENDLY_OFFSET];	/* Space to build offset */
-    int16_t outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
+    uint8_t offset[OPBX_FRIENDLY_OFFSET];    /* Space to build offset */
+    int16_t outbuf[BUFFER_SIZE];    /* Decoded signed linear values */
     g726_state_t g726_state;
     int tail;
     plc_state_t plc;
@@ -124,14 +124,13 @@ static struct opbx_translator_pvt *g726tolin_new(void)
 {
     struct g726_decoder_pvt *tmp;
   
-    if ((tmp = malloc(sizeof (struct g726_decoder_pvt))))
-    {
-	    memset(tmp, 0, sizeof(*tmp));
-        g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
-        plc_init(&tmp->plc);
-        localusecnt++;
-        opbx_update_use_count();
-    }
+    if ((tmp = malloc(sizeof (struct g726_decoder_pvt))) == NULL)
+        return NULL;
+    memset(tmp, 0, sizeof(*tmp));
+    g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
+    plc_init(&tmp->plc);
+    localusecnt++;
+    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -149,13 +148,12 @@ static struct opbx_translator_pvt *lintog726_new(void)
 {
     struct g726_encoder_pvt *tmp;
   
-    if ((tmp = malloc(sizeof (struct g726_encoder_pvt))))
-    {
-	    memset(tmp, 0, sizeof(*tmp));
-        g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
-        localusecnt++;
-        opbx_update_use_count();
-    }
+    if ((tmp = malloc(sizeof (struct g726_encoder_pvt))) == NULL)
+        return NULL;
+    memset(tmp, 0, sizeof(*tmp));
+    g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
+    localusecnt++;
+    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -183,9 +181,9 @@ static int g726tolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame 
         }
         if (useplc)
         {
-	        plc_fillin(&tmp->plc, tmp->outbuf + tmp->tail, 160);
-	        tmp->tail += 160;
-	    }
+            plc_fillin(&tmp->plc, tmp->outbuf + tmp->tail, 160);
+            tmp->tail += 160;
+        }
     }
     else
     {
@@ -218,7 +216,7 @@ static struct opbx_frame *g726tolin_frameout(struct opbx_translator_pvt *pvt)
 {
     struct g726_decoder_pvt *tmp = (struct g726_decoder_pvt *) pvt;
 
-    if (!tmp->tail)
+    if (tmp->tail == 0)
         return NULL;
 
     opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, __PRETTY_FUNCTION__);
@@ -270,8 +268,8 @@ static struct opbx_frame *lintog726_frameout(struct opbx_translator_pvt *pvt)
 {
     struct g726_encoder_pvt *tmp = (struct g726_encoder_pvt *) pvt;
   
-    if (!tmp->tail)
-  	    return NULL;
+    if (tmp->tail == 0)
+        return NULL;
     opbx_fr_init_ex(&tmp->f, OPBX_FRAME_VOICE, OPBX_FORMAT_G726, __PRETTY_FUNCTION__);
     tmp->f.samples = tmp->tail*2;
     tmp->f.offset = OPBX_FRIENDLY_OFFSET;
