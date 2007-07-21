@@ -127,10 +127,9 @@ static struct opbx_translator_pvt *g726tolin_new(void)
     if ((tmp = malloc(sizeof (struct g726_decoder_pvt))))
     {
 	    memset(tmp, 0, sizeof(*tmp));
-        localusecnt++;
-        tmp->tail = 0;
-        plc_init(&tmp->plc);
         g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
+        plc_init(&tmp->plc);
+        localusecnt++;
         opbx_update_use_count();
     }
     return (struct opbx_translator_pvt *) tmp;
@@ -153,9 +152,8 @@ static struct opbx_translator_pvt *lintog726_new(void)
     if ((tmp = malloc(sizeof (struct g726_encoder_pvt))))
     {
 	    memset(tmp, 0, sizeof(*tmp));
-        localusecnt++;
-        tmp->tail = 0;
         g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
+        localusecnt++;
         opbx_update_use_count();
     }
     return (struct opbx_translator_pvt *) tmp;

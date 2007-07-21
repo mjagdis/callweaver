@@ -106,12 +106,12 @@ static struct opbx_translator_pvt *gsm_new(void)
 
     if ((tmp = malloc(sizeof(struct gsm_coder_pvt))))
     {
+	    memset(tmp, 0, sizeof(*tmp));
         if ((tmp->gsm = gsm0610_init(NULL, GSM0610_PACKING_VOIP)) == NULL)
         {
             free(tmp);
-            tmp = NULL;
+            return NULL;
         }
-        tmp->tail = 0;
         plc_init(&tmp->plc);
         localusecnt++;
     }
