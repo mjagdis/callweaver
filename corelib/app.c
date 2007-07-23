@@ -1132,7 +1132,7 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 	int argc;
 	char c;
 
-	if (option_debug && option_verbose > 2)
+	if (option_debug && option_verbose > 6)
 		opbx_log(LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
 
 	/* The last argv is reserved for NULL. This is required if you want
@@ -1200,7 +1200,7 @@ int opbx_separate_app_args(char *buf, char delim, int max_args, char **argv)
 
 	argv[argc] = NULL;
 
-	if (option_debug && option_verbose > 2) {
+	if (option_debug && option_verbose > 5) {
 		int i;
 		opbx_log(LOG_DEBUG, "argc: %d\n", argc);
 		for (i=0; i<argc; i++)

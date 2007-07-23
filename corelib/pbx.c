@@ -1897,7 +1897,8 @@ static void pbx_substitute_variables_helper_full(struct opbx_channel *c, struct 
                 /* Evaluate function */
                 cp4 = opbx_func_read(c, vars, workspace, VAR_BUF_SIZE);
 
-                opbx_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+		if (option_debug && option_verbose > 5)
+            	    opbx_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
             }
             else
             {
