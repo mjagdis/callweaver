@@ -1279,7 +1279,7 @@ int opbx_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 		start = opbx_tvnow();
 	y = 0;
 	for (x = 0;  x < n;  x++)
-    {
+	{
 		if (fds[x] > -1)
         {
 			pfds[y].fd = fds[x];
@@ -1289,18 +1289,18 @@ int opbx_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 	}
 	res = poll(pfds, y, *ms);
 	if (res < 0)
-    {
+	{
 		/* Simulate a timeout if we were interrupted */
 		*ms = (errno != EINTR)  ?  -1  :  0;
 		return -1;
 	}
 	spoint = 0;
 	for (x = 0;  x < n;  x++)
-    {
-		if (fds[x] > -1)
-        {
+	{
+	    	if (fds[x] > -1)
+    		{
 			if ((res = opbx_fdisset(pfds, fds[x], y, &spoint)))
-            {
+        		{
 				winner = fds[x];
 				if (exception)
 					*exception = (res & POLLPRI)?  -1  :  0;
@@ -1308,7 +1308,7 @@ int opbx_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 		}
 	}
 	if (*ms > 0)
-    {
+	{
 		*ms -= opbx_tvdiff_ms(opbx_tvnow(), start);
 		if (*ms < 0)
 			*ms = 0;
@@ -1339,23 +1339,23 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 	
 	/* Perform any pending masquerades */
 	for (x = 0;  x < n;  x++)
-    {
+	{
 		opbx_mutex_lock(&c[x]->lock);
 		if (c[x]->whentohangup)
-        {
+    		{
 			if (!havewhen)
 				time(&now);
 			diff = c[x]->whentohangup - now;
 			if (!havewhen || (diff < whentohangup))
-            {
+        		{
 				havewhen++;
 				whentohangup = diff;
 			}
 		}
 		if (c[x]->masq)
-        {
+    		{
 			if (opbx_do_masquerade(c[x]))
-            {
+        		{
 				opbx_log(LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
 				opbx_mutex_unlock(&c[x]->lock);
@@ -1368,17 +1368,17 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 	rms = *ms;
 	
 	if (havewhen)
-    {
+	{
 		if ((*ms < 0) || (whentohangup * 1000 < *ms))
 			rms = whentohangup * 1000;
 	}
 	max = 0;
 	for (x = 0;  x < n;  x++)
-    {
+	{
 		for (y = 0;  y < OPBX_MAX_FDS;  y++)
-        {
+    		{
 			if (c[x]->fds[y] > -1)
-            {
+        		{
 				pfds[max].fd = c[x]->fds[y];
 				pfds[max].events = POLLIN | POLLPRI;
 				pfds[max].revents = 0;
@@ -1388,9 +1388,9 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 		CHECK_BLOCKING(c[x]);
 	}
 	for (x = 0;  x < nfds;  x++)
-    {
+	{
 		if (fds[x] > -1)
-        {
+    		{
 			pfds[max].fd = fds[x];
 			pfds[max].events = POLLIN | POLLPRI;
 			pfds[max].revents = 0;
@@ -1401,9 +1401,9 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 		start = opbx_tvnow();
 	
 	if (sizeof(int) == 4)
-    {
+	{
 		do
-        {
+    		{
 			int kbrms = rms;
 
 			if (kbrms > 600000)
@@ -1412,33 +1412,33 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 			if (!res)
 				rms -= kbrms;
 		}
-        while (!res  &&  (rms > 0));
+    	    while (!res  &&  (rms > 0));
 	}
-    else
-    {
-		res = poll(pfds, max, rms);
+	else
+	{
+	    res = poll(pfds, max, rms);
 	}
 	
 	if (res < 0)
-    {
+	{
 		for (x = 0;  x < n;  x++) 
 			opbx_clear_flag(c[x], OPBX_FLAG_BLOCKING);
 		/* Simulate a timeout if we were interrupted */
 		if (errno != EINTR)
-        {
+    		{
 			*ms = -1;
 		}
-        else
-        {
-			/* Just an interrupt */
+    		else
+    		{
+		    /* Just an interrupt */
 #if 0
-			*ms = 0;
+		    *ms = 0;
 #endif			
 		}
 		return NULL;
-    }
-    else
-    {
+	}
+	else
+	{
        	/* If no fds signalled, then timeout. So set ms = 0
 		   since we may not have an exact timeout. */
 		if (res == 0)
@@ -1447,22 +1447,23 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 
 	if (havewhen)
 		time(&now);
+		
 	spoint = 0;
 	for (x = 0;  x < n;  x++)
-    {
+	{
 		opbx_clear_flag(c[x], OPBX_FLAG_BLOCKING);
 		if (havewhen && c[x]->whentohangup && (now > c[x]->whentohangup))
-        {
+    		{
 			c[x]->_softhangup |= OPBX_SOFTHANGUP_TIMEOUT;
 			if (!winner)
 				winner = c[x];
 		}
 		for (y = 0;  y < OPBX_MAX_FDS;  y++)
-        {
+    		{
 			if (c[x]->fds[y] > -1)
-            {
+        		{
 				if ((res = opbx_fdisset(pfds, c[x]->fds[y], max, &spoint)))
-                {
+            			{
 					if (res & POLLPRI)
 						opbx_set_flag(c[x], OPBX_FLAG_EXCEPTION);
 					else
@@ -1474,15 +1475,15 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 		}
 	}
 	for (x = 0;  x < nfds;  x++)
-    {
-		if (fds[x] > -1)
-        {
+	{
+	    if (fds[x] > -1)
+    	    {
 			if ((res = opbx_fdisset(pfds, fds[x], max, &spoint)))
-            {
+        		{
 				if (outfd)
 					*outfd = fds[x];
 				if (exception)
-                {	
+            			{	
 					if (res & POLLPRI) 
 						*exception = -1;
 					else
@@ -1490,10 +1491,10 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 				}
 				winner = NULL;
 			}
-		}	
+	    }	
 	}
 	if (*ms > 0)
-    {
+        {
 		*ms -= opbx_tvdiff_ms(opbx_tvnow(), start);
 		if (*ms < 0)
 			*ms = 0;
@@ -1534,24 +1535,24 @@ int opbx_waitfordigit(struct opbx_channel *c, int ms)
 
 	/* Wait for a digit, no more than ms milliseconds total. */
 	while (ms && !result)
-    {
+	{
 		ms = opbx_waitfor(c, ms);
 		if (ms < 0) /* Error */
 			result = -1; 
 		else if (ms > 0)
-        {
+    		{
 			/* Read something */
 			f = opbx_read(c);
 			if (f)
-            {
+        		{
 				if (f->frametype == OPBX_FRAME_DTMF) 
 					result = f->subclass;
 				opbx_fr_free(f);
 			}
-            else
-            {
+        		else
+        		{
 				result = -1;
-            }
+        		}
 		}
 	}
 	return result;
@@ -3486,7 +3487,7 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 		/* Stop if we're a zombie or need a soft hangup */
 		if (opbx_test_flag(c0, OPBX_FLAG_ZOMBIE) || opbx_check_hangup_locked(c0) ||
 		    opbx_test_flag(c1, OPBX_FLAG_ZOMBIE) || opbx_check_hangup_locked(c1))
-        {
+    		{
 			*fo = NULL;
 			if (who)
 				*rc = who;
@@ -3504,14 +3505,14 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers)
-        {
+    		{
 			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 
 				opbx_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			opbx_set_flag(c0, OPBX_FLAG_NBRIDGE);
 			opbx_set_flag(c1, OPBX_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == OPBX_BRIDGE_COMPLETE)
-            {
+        		{
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -3533,15 +3534,16 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 
 				return res;
 			}
-            else
-            {
+        		else
+        		{
 				opbx_clear_flag(c0, OPBX_FLAG_NBRIDGE);
 				opbx_clear_flag(c1, OPBX_FLAG_NBRIDGE);
 			}
+			
 			if (res == OPBX_BRIDGE_RETRY)
 				continue;
 			switch (res)
-            {
+        		{
 			case OPBX_BRIDGE_RETRY:
 /*				continue; */
 				break;
@@ -3557,9 +3559,9 @@ enum opbx_bridge_result opbx_channel_bridge(struct opbx_channel *c0, struct opbx
 		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) ||
 		    (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
 		    !(opbx_generator_is_active(c0) || opbx_generator_is_active(c1)))
-        {
+    		{
 			if (opbx_channel_make_compatible(c0, c1))
-            {
+        		{
 				opbx_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
                                 manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
