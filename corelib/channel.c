@@ -1264,7 +1264,10 @@ int opbx_answer(struct opbx_channel *chan)
 	return 0;
 }
 
-/*--- opbx_waitfor_n_fd: Wait for x amount of time on a file descriptor to have input.  */
+/*--- opbx_waitfor_n_fd: Wait for x amount of time on a file descriptor to have input.  
+      Please note that this is used only by DUNDI, at current date (Tue Jul 24, 2007).
+*/
+
 int opbx_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 {
 	struct timeval start = { 0 , 0 };
@@ -1514,7 +1517,7 @@ int opbx_waitfor(struct opbx_channel *c, int ms)
 
 	chan = opbx_waitfor_n(&c, 1, &ms);
 	if (ms < 0)
-    {
+	{
 		if (oldms < 0)
 			return 0;
 		else
@@ -1626,29 +1629,29 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	int blah;
 	int prestate;
 	static struct opbx_frame null_frame =
-    {
+	{
 		OPBX_FRAME_NULL,
 	};
 	
 	opbx_mutex_lock(&chan->lock);
 	if (chan->masq)
-    {
+	{
 		if (opbx_do_masquerade(chan))
-        {
+    		{
 			opbx_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		}
-        else
-        {
-			f =  &null_frame;
+    		else
+    		{
+		    f =  &null_frame;
 		}
-        opbx_mutex_unlock(&chan->lock);
+    		opbx_mutex_unlock(&chan->lock);
 		return f;
 	}
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE)  ||  opbx_check_hangup(chan))
-    {
+	{
 		opbx_mutex_unlock(&chan->lock);
 		opbx_generator_deactivate(chan);
 		return NULL;
@@ -1656,9 +1659,9 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	prestate = chan->_state;
 
 	if (!opbx_test_flag(chan, OPBX_FLAG_DEFER_DTMF) && !opbx_strlen_zero(chan->dtmfq))
-    {
+	{
 		/* We have DTMF that has been deferred.  Return it now */
-        opbx_fr_init_ex(&chan->dtmff, OPBX_FRAME_DTMF, chan->dtmfq[0], NULL);
+    		opbx_fr_init_ex(&chan->dtmff, OPBX_FRAME_DTMF, chan->dtmfq[0], NULL);
 		/* Drop first digit */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
 		opbx_mutex_unlock(&chan->lock);
@@ -1672,35 +1675,35 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 
 	/* Check for pending read queue */
 	if (chan->readq)
-    {
+	{
 		f = chan->readq;
 		chan->readq = f->next;
 		/* Interpret hangup and return NULL */
 		if ((f->frametype == OPBX_FRAME_CONTROL)  &&  (f->subclass == OPBX_CONTROL_HANGUP))
-        {
+    		{
 			opbx_fr_free(f);
 			f = NULL;
 		}
 	}
-    else
-    {
+	else
+	{
 		chan->blocker = pthread_self();
 		if (opbx_test_flag(chan, OPBX_FLAG_EXCEPTION))
-        {
+    		{
 			if (chan->tech->exception) 
 			{
-            	f = chan->tech->exception(chan);
+            		    f = chan->tech->exception(chan);
 			}
-            else
-            {
+        		else
+        		{
 				opbx_log(LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
 				f = &null_frame;
 			}
 			/* Clear the exception flag */
 			opbx_clear_flag(chan, OPBX_FLAG_EXCEPTION);
 		}
-        else
-        {
+    		else
+    		{
 			if (chan->tech->read)
 				f = chan->tech->read(chan);
 			else
@@ -1709,12 +1712,12 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	}
 
 	if (f)
-    {
+	{
 		/* If the channel driver returned more than one frame, stuff the excess
 		   into the readq for the next opbx_read call */
 		if (f->next)
-        {
-            /* We can safely assume the read queue is empty, or we wouldn't be here */
+    		{
+        		/* We can safely assume the read queue is empty, or we wouldn't be here */
 			chan->readq = f->next;
 			f->next = NULL;
 		}
@@ -1722,63 +1725,64 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
     	if ((f->frametype == OPBX_FRAME_VOICE))
         {
     		if (!(f->subclass & chan->nativeformats))
-            {
+        	{
     			/* This frame can't be from the current native formats -- drop it on the floor */
     			opbx_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, opbx_getformatname(f->subclass), opbx_getformatname(chan->nativeformats));
     			opbx_fr_free(f);
     			f = &null_frame;
     		}
-            else
-            {
+        	else
+        	{
     			if (chan->spiers)
-                {
+            		{
     				struct opbx_channel_spy *spying;
 
     				for (spying = chan->spiers;  spying;  spying = spying->next)
     					opbx_queue_spy_frame(spying, f, 0);
     			}
     			if (chan->monitor && chan->monitor->read_stream)
-                {
+            		{
 #ifndef MONITOR_CONSTANT_DELAY
     				int jump = chan->outsmpl - chan->insmpl - 2 * f->samples;
 
     				if (jump >= 0)
-                    {
+                		{
     					if (opbx_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
     						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
     					chan->insmpl += jump + 2 * f->samples;
     				}
-                    else
-                    {
+                		else
+                		{
 	    				chan->insmpl+= f->samples;
-                    }
+                		}
 #else
     				int jump = chan->outsmpl - chan->insmpl;
 
 	    			if (jump - MONITOR_DELAY >= 0)
-                    {
+                		{
 			    		if (opbx_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
     						opbx_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
 	    				chan->insmpl += jump;
 		    		}
-                    else
-                    {
+                		else
+                		{
     					chan->insmpl += f->samples;
-                    }
+                		}
 #endif
 		    		if (opbx_writestream(chan->monitor->read_stream, f) < 0)
 			    		opbx_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
     			}
+			
 	    		if (chan->readtrans)
-                {
+            		{
     				if ((f = opbx_translate(chan->readtrans, f, 1)) == NULL)
 	    				f = &null_frame;
 		    	}
-    		}
-	    }
+    	    }
+	}
     }
 
-	if (!f)
+    if (!f)
     {
     	/* Make sure we always return NULL in the future */
 		chan->_softhangup |= OPBX_SOFTHANGUP_DEV;
@@ -1786,7 +1790,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			opbx_cdr_end(chan->cdr);
-	}
+    }
     else if (opbx_test_flag(chan, OPBX_FLAG_DEFER_DTMF) && f->frametype == OPBX_FRAME_DTMF)
     {
 		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
@@ -1794,11 +1798,11 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		else
 			opbx_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &null_frame;
-	}
+    }
     else if ((f->frametype == OPBX_FRAME_CONTROL) && (f->subclass == OPBX_CONTROL_ANSWER))
     {
 		if (prestate == OPBX_STATE_UP)
-        {
+    		{
 			opbx_log(LOG_DEBUG, "Dropping duplicate answer!\n");
 			f = &null_frame;
 		}
@@ -1806,6 +1810,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 		opbx_setstate(chan, OPBX_STATE_UP);
 		opbx_cdr_answer(chan->cdr);
     }
+
 
 	/* High bit prints debugging */
 	if (chan->fin & 0x80000000)
@@ -1819,7 +1824,7 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 	opbx_mutex_unlock(&chan->lock);
 	/** generator deactivate after channel unlock */
 	if (f == NULL  &&  opbx_generator_is_active(chan))
-    {
+	{
 	    if (option_debug)
 	    	opbx_log(LOG_DEBUG, "Generator not finished in previous deactivate attempt - trying deactivate after channel unlock (opbx_read function)\n");
 	    opbx_generator_deactivate(chan);
@@ -1830,75 +1835,75 @@ struct opbx_frame *opbx_read(struct opbx_channel *chan)
 
 int opbx_indicate(struct opbx_channel *chan, int condition)
 {
-	int res = -1;
+    int res = -1;
 
-	/* Stop if we're a zombie or need a soft hangup */
-	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) || opbx_check_hangup(chan)) 
-		return -1;
-	opbx_mutex_lock(&chan->lock);
-	if (chan->tech->indicate)
-		res = chan->tech->indicate(chan, condition);
-	opbx_mutex_unlock(&chan->lock);
-	if (!chan->tech->indicate  ||  res)
+    /* Stop if we're a zombie or need a soft hangup */
+    if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) || opbx_check_hangup(chan)) 
+    	return -1;
+    opbx_mutex_lock(&chan->lock);
+    if (chan->tech->indicate)
+    	res = chan->tech->indicate(chan, condition);
+    opbx_mutex_unlock(&chan->lock);
+    if (!chan->tech->indicate  ||  res)
     {
-		/*
-		 * Device does not support (that) indication, lets fake
-		 * it by doing our own tone generation. (PM2002)
-		 */
-		if (condition >= 0)
-        {
-			const struct tone_zone_sound *ts = NULL;
-			switch (condition)
-            {
-			case OPBX_CONTROL_RINGING:
-				ts = opbx_get_indication_tone(chan->zone, "ring");
-				break;
-			case OPBX_CONTROL_BUSY:
-				ts = opbx_get_indication_tone(chan->zone, "busy");
-				break;
-			case OPBX_CONTROL_CONGESTION:
-				ts = opbx_get_indication_tone(chan->zone, "congestion");
-				break;
-			}
-			if (ts  &&  ts->data[0])
-            {
-				opbx_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
-				opbx_playtones_start(chan,0,ts->data, 1);
-				res = 0;
-			}
+	/*
+	 * Device does not support (that) indication, lets fake
+	 * it by doing our own tone generation. (PM2002)
+	 */
+	if (condition >= 0)
+    	{
+	    const struct tone_zone_sound *ts = NULL;
+	    switch (condition)
+    	    {
+		case OPBX_CONTROL_RINGING:
+		    ts = opbx_get_indication_tone(chan->zone, "ring");
+		    break;
+		case OPBX_CONTROL_BUSY:
+		    ts = opbx_get_indication_tone(chan->zone, "busy");
+		    break;
+		case OPBX_CONTROL_CONGESTION:
+		    ts = opbx_get_indication_tone(chan->zone, "congestion");
+		    break;
+	    }
+	    if (ts  &&  ts->data[0])
+    	    {
+			opbx_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
+			opbx_playtones_start(chan,0,ts->data, 1);
+			res = 0;
+	    }
             else if (condition == OPBX_CONTROL_PROGRESS)
             {
 				/* opbx_playtones_stop(chan); */
-			}
+	    }
             else if (condition == OPBX_CONTROL_PROCEEDING)
             {
 				/* Do nothing, really */
-			}
+	    }
             else if (condition == OPBX_CONTROL_HOLD)
             {
 				/* Do nothing.... */
-			}
+	    }
             else if (condition == OPBX_CONTROL_UNHOLD)
             {
 				/* Do nothing.... */
-			}
+	    }
             else if (condition == OPBX_CONTROL_VIDUPDATE)
             {
 				/* Do nothing.... */
-			}
+	    }
             else
             {
 				/* not handled */
 				opbx_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
 				res = -1;
-			}
-		}
-		else
+	    }
+	}
+	else
         {
             opbx_playtones_stop(chan);
         }
-	}
-	return res;
+    }
+    return res;
 }
 
 int opbx_recvchar(struct opbx_channel *chan, int timeout)
@@ -1919,7 +1924,7 @@ char *opbx_recvtext(struct opbx_channel *chan, int timeout)
 	char *buf = NULL;
 	
 	while (!done)
-    {
+	{
 		struct opbx_frame *f;
 
 		if (opbx_check_hangup(chan))
@@ -1933,9 +1938,9 @@ char *opbx_recvtext(struct opbx_channel *chan, int timeout)
 		{
         	done = 1;	/* force a break */
 		}
-        else if (f->frametype == OPBX_FRAME_TEXT)
-        {
-        	/* what we want */
+    		else if (f->frametype == OPBX_FRAME_TEXT)
+    		{
+        	    /* what we want */
 			buf = strndup((char *) f->data, f->datalen);	/* dup and break */
 			done = 1;
 		}
