@@ -75,4 +75,9 @@ opbxinclude_HEADERS = acl.h \
                       unaligned.h \
                       utils.h \
                       vmodem.h \
-                      xlaw.h
+                      xlaw.h \
+		      eventlib.h \
+		      xml_parser.h \
+		      mpool.h \
+		      hashtable.h
+
