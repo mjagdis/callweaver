@@ -17203,6 +17203,8 @@ int unload_module(void)
 
     opbx_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
+    opbx_udptl_proto_unregister(&sip_udptl);
+
     opbx_rtp_proto_unregister(&sip_rtp);
 
     opbx_manager_unregister("SIPpeers");
