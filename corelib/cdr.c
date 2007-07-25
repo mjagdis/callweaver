@@ -655,10 +655,13 @@ void opbx_cdr_end(struct opbx_cdr *cdr)
 		if (opbx_tvzero(cdr->end))
 			cdr->end = opbx_tvnow();
 		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
-		if (!opbx_tvzero(cdr->answer))
+		if (!opbx_tvzero(cdr->answer)) {
 			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
-		else
+                }
+		else {
 			cdr->billsec = 0;
+			opbx_log(LOG_DEBUG, "CDR on channel '%s' has not been answered [billsec => 0]\n", chan);
+                }
 		cdr = cdr->next;
 	}
 }
