@@ -14862,7 +14862,7 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
         opbx_copy_string(p->username, ext, sizeof(p->username));
         p->fullcontact[0] = 0;    
     }
-#if 1
+#if 0
     printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
     p->prefcodec = format;
