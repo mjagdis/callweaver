@@ -616,6 +616,7 @@ AC_TRY_COMPILE([
 	asctime_r (&tm, buf, sizeof (buf));
 ], [
 	AC_DEFINE(ASCTIME_R_WITH_THREE_ARGS)
+        AC_DEFINE([ASCTIME_R_WITH_THREE_ARGS],[],[asctime_r needs 3 arguments])
 	AC_MSG_RESULT(yes)
 ], [
 	AC_MSG_RESULT(no)
