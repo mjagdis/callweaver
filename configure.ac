@@ -2432,7 +2432,6 @@ AC_OUTPUT([Makefile
                  channels/sccp/Makefile
                  channels/fax/Makefile
                  channels/misdn/Makefile
-                 channels/sofia/Makefile
                  codecs/Makefile
  		 corelib/Makefile
  		 corelib/jitterbuffer/Makefile
