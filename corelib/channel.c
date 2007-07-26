@@ -690,16 +690,16 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 
 	/* Build us a copy and free the original one */
 	if ((f = opbx_frdup(fin)) == NULL)
-    {
+	{
 		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
 		return -1;
 	}
 	opbx_mutex_lock(&chan->lock);
 	prev = NULL;
 	for (cur = chan->readq;  cur;  cur = cur->next)
-    {
+	{
 		if ((cur->frametype == OPBX_FRAME_CONTROL) && (cur->subclass == OPBX_CONTROL_HANGUP))
-        {
+    		{
 			/* Don't bother actually queueing anything after a hangup */
 			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
@@ -710,9 +710,9 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	}
 	/* Allow up to 96 voice frames outstanding, and up to 128 total frames */
 	if (((fin->frametype == OPBX_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128))
-    {
+	{
 		if (fin->frametype != OPBX_FRAME_VOICE)
-        {
+    		{
 			opbx_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
 			CRASH;
 		}
@@ -729,7 +729,7 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 	else
 		chan->readq = f;
 	if (chan->alertpipe[1] > -1)
-    {
+	{
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			opbx_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
@@ -901,14 +901,14 @@ int opbx_safe_sleep_conditional(	struct opbx_channel *chan, int ms,
 	struct opbx_frame *f;
 
 	while (ms > 0)
-    {
+	{
 		if (cond  &&  ((*cond)(data) == 0))
 			return 0;
 		ms = opbx_waitfor(chan, ms);
 		if (ms <0)
 			return -1;
 		if (ms > 0)
-        {
+    		{
 			f = opbx_read(chan);
 			if (!f)
 				return -1;
@@ -923,13 +923,13 @@ int opbx_safe_sleep(struct opbx_channel *chan, int ms)
 {
 	struct opbx_frame *f;
 	
-    while (ms > 0)
-    {
+	while (ms > 0)
+	{
 		ms = opbx_waitfor(chan, ms);
 		if (ms < 0)
 			return -1;
 		if (ms > 0)
-        {
+    		{
 			f = opbx_read(chan);
 			if (!f)
 				return -1;
@@ -968,9 +968,9 @@ void opbx_channel_free(struct opbx_channel *chan)
 	opbx_mutex_lock(&chlock);
 	cur = channels;
 	while (cur)
-    {
-		if (cur == chan)
-        {
+	{
+	    	if (cur == chan)
+    		{
 			if (last)
 				last->next = cur->next;
 			else
@@ -989,7 +989,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 		opbx_mutex_unlock(&cur->lock);
 	}
 	if (chan->tech_pvt)
-    {
+	{
 		opbx_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
 		free(chan->tech_pvt);
 	}
@@ -1024,7 +1024,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	f = chan->readq;
 	chan->readq = NULL;
 	while (f)
-    {
+	{
 		fp = f;
 		f = f->next;
 		opbx_fr_free(fp);
@@ -1034,7 +1034,7 @@ void opbx_channel_free(struct opbx_channel *chan)
 	/* no need to lock the list, as the channel is already locked */
 	
 	while (!OPBX_LIST_EMPTY(headp))
-    {
+	{
         /* List Deletion. */
 	    vardata = OPBX_LIST_REMOVE_HEAD(headp, entries);
 	    opbx_var_delete(vardata);
@@ -1055,7 +1055,7 @@ static void opbx_spy_detach(struct opbx_channel *chan)
 
 	/* Marking the spies as done is sufficient.  Chanspy or spy users will get the picture. */
 	for (chanspy = chan->spiers;  chanspy;  chanspy = chanspy->next)
-    {
+	{
 		if (chanspy->status == CHANSPY_RUNNING)
 			chanspy->status = CHANSPY_DONE;
 	}
@@ -1100,7 +1100,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 		count++;
 
 	if (count > 1000)
-    {
+	{
 		struct opbx_frame *freef;
 		struct opbx_frame *headf;
 
@@ -1111,7 +1111,7 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 		tmpf = headf;
 		/* Free the wasted frames */
 		while (tmpf)
-        {
+    		{
 			freef = tmpf;
 			tmpf = tmpf->next;
 			opbx_fr_free(freef);
@@ -1121,16 +1121,16 @@ static void opbx_queue_spy_frame(struct opbx_channel_spy *spy, struct opbx_frame
 	}
 
 	if (tmpf)
-    {
+	{
 		if ((tmpf->next = opbx_frdup(f)) == NULL)
     		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
 	}
-    else
+	else
 	{
     	if ((spy->queue[pos] = opbx_frdup(f)) == NULL)
     		opbx_log(LOG_WARNING, "Unable to duplicate frame\n");
 	}
-    opbx_mutex_unlock(&spy->lock);
+	opbx_mutex_unlock(&spy->lock);
 }
 
 static void free_translation(struct opbx_channel *clone)
@@ -1157,13 +1157,13 @@ int opbx_hangup(struct opbx_channel *chan)
 	opbx_spy_detach(chan);		/* get rid of spies */
 
 	if (chan->masq)
-    {
+	{
 		if (opbx_do_masquerade(chan)) 
 			opbx_log(LOG_WARNING, "Failed to perform masquerade\n");
 	}
 
 	if (chan->masq)
-    {
+	{
 		opbx_log(LOG_WARNING, "%s getting hung up, but someone is trying to masq into us?!?\n", chan->name);
 		opbx_mutex_unlock(&chan->lock);
 		return 0;
@@ -1171,7 +1171,7 @@ int opbx_hangup(struct opbx_channel *chan)
 	/* If this channel is one which will be masqueraded into something, 
 	   mark it as a zombie already, so we know to free it later */
 	if (chan->masqr)
-    {
+	{
 		opbx_set_flag(chan, OPBX_FLAG_ZOMBIE);
 		opbx_mutex_unlock(&chan->lock);
 		return 0;
@@ -1185,28 +1185,28 @@ int opbx_hangup(struct opbx_channel *chan)
 		sched_context_destroy(chan->sched);
 	
 	if (chan->cdr)
-    {
+	{
         /* End the CDR if it hasn't already */ 
 		opbx_cdr_end(chan->cdr);
 		opbx_cdr_detach(chan->cdr);	/* Post and Free the CDR */ 
 		chan->cdr = NULL;
 	}
 	if (opbx_test_flag(chan, OPBX_FLAG_BLOCKING))
-    {
+	{
 		opbx_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
 					(long)pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
 		CRASH;
 	}
 	if (!opbx_test_flag(chan, OPBX_FLAG_ZOMBIE))
-    {
+	{
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Hanging up channel '%s'\n", chan->name);
 		if (chan->tech->hangup)
 			res = chan->tech->hangup(chan);
 	}
-    else
-    {
+	else
+	{
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 	}
@@ -1239,14 +1239,14 @@ int opbx_answer(struct opbx_channel *chan)
 	opbx_mutex_lock(&chan->lock);
 	/* Stop if we're a zombie or need a soft hangup */
 	if (opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) || opbx_check_hangup(chan))
-    {
+	{
 		opbx_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	switch (chan->_state)
-    {
-	case OPBX_STATE_RINGING:
-	case OPBX_STATE_RING:
+	{
+	    case OPBX_STATE_RINGING:
+	    case OPBX_STATE_RING:
 		if (chan->tech->answer)
 			res = chan->tech->answer(chan);
 		opbx_setstate(chan, OPBX_STATE_UP);
@@ -1255,7 +1255,7 @@ int opbx_answer(struct opbx_channel *chan)
 		opbx_mutex_unlock(&chan->lock);
 		return res;
 		break;
-	case OPBX_STATE_UP:
+	    case OPBX_STATE_UP:
 		if (chan->cdr)
 			opbx_cdr_answer(chan->cdr);
 		break;
@@ -1573,45 +1573,45 @@ int opbx_waitfordigit_full(struct opbx_channel *c, int ms, int audiofd, int cmdf
 		return -1;
 	/* Wait for a digit, no more than ms milliseconds total. */
 	while (ms)
-    {
+	{
 		errno = 0;
 		rchan = opbx_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if ((!rchan) && (outfd < 0) && (ms))
-        { 
+    		{ 
 			if (errno == 0 || errno == EINTR)
 				continue;
 			opbx_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		}
-        else if (outfd > -1)
-        {
+    		else if (outfd > -1)
+    		{
 			/* The FD we were watching has something waiting */
 			return 1;
 		}
-        else if (rchan)
-        {
+    		else if (rchan)
+    		{
 			if ((f = opbx_read(c)) == 0)
 				return -1;
 			switch (f->frametype)
-            {
-			case OPBX_FRAME_DTMF:
+        		{
+			    case OPBX_FRAME_DTMF:
 				res = f->subclass;
 				opbx_fr_free(f);
 				return res;
-			case OPBX_FRAME_CONTROL:
+			    case OPBX_FRAME_CONTROL:
 				switch(f->subclass)
-                {
-				case OPBX_CONTROL_HANGUP:
+            			{
+				    case OPBX_CONTROL_HANGUP:
 					opbx_fr_free(f);
 					return -1;
-				case OPBX_CONTROL_RINGING:
-				case OPBX_CONTROL_ANSWER:
+				    case OPBX_CONTROL_RINGING:
+				    case OPBX_CONTROL_ANSWER:
 					/* Unimportant */
 					break;
 				default:
 					opbx_log(LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
 				}
-			case OPBX_FRAME_VOICE:
+			    case OPBX_FRAME_VOICE:
 				/* Write audio if appropriate */
 				if (audiofd > -1)
 					write(audiofd, f->data, f->datalen);
