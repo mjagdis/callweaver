@@ -557,11 +557,11 @@ int opbx_best_codec(int fmts)
 
 	/* Find the first prefered codec in the format given */
 	for (x = 0;  x < (sizeof(prefs)/sizeof(prefs[0]));  x++)
-    {
+	{
 		if (fmts & prefs[x])
 			return prefs[x];
 	}
-    opbx_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
+	opbx_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
 	return 0;
 }
 
@@ -2247,7 +2247,7 @@ static int set_format(struct opbx_channel *chan, int fmt, int *rawformat, int *f
 		res = opbx_translator_best_choice(&native, &fmt);
 
 	if (res < 0)
-    {
+	{
 		opbx_log(LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
 			opbx_getformatname(native), opbx_getformatname(fmt));
 		return -1;
@@ -2449,20 +2449,21 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 		cause = &foo;
 	*cause = OPBX_CAUSE_NOTDEFINED;
 	if (opbx_mutex_lock(&chlock))
-    {
+	{
 		opbx_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
+
 	chan = backends;
 	while (chan)
-    {
-		if (!strcasecmp(type, chan->tech->type))
-        {
+	{
+	    	if (!strcasecmp(type, chan->tech->type))
+    		{
 			capabilities = chan->tech->capabilities;
 			fmt = format;
 			res = opbx_translator_best_choice(&fmt, &capabilities);
 			if (res < 0)
-            {
+        		{
 				opbx_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
 				opbx_mutex_unlock(&chlock);
 				return NULL;
@@ -2471,9 +2472,9 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 			if (chan->tech->requester)
 				c = chan->tech->requester(type, capabilities, data, cause);
 			if (c)
-            {
+        		{
 				if (c->_state == OPBX_STATE_DOWN)
-                {
+            			{
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"
 					"State: %s\r\n"
@@ -2490,7 +2491,7 @@ struct opbx_channel *opbx_request(const char *type, int format, void *data, int 
 		chan = chan->next;
 	}
 	if (!chan)
-    {
+	{
 		opbx_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
 		*cause = OPBX_CAUSE_NOSUCHDRIVER;
 	}
@@ -2508,7 +2509,7 @@ int opbx_call(struct opbx_channel *chan, char *addr, int timeout)
 	/* Stop if we're a zombie or need a soft hangup */
 	opbx_mutex_lock(&chan->lock);
 	if (!opbx_test_flag(chan, OPBX_FLAG_ZOMBIE)  &&  !opbx_check_hangup(chan))
-    {
+	{
 		if (chan->tech->call)
 			res = chan->tech->call(chan, addr, timeout);
 	}
@@ -2525,17 +2526,17 @@ int opbx_transfer(struct opbx_channel *chan, char *dest)
 	/* Stop if we're a zombie or need a soft hangup */
 	opbx_mutex_lock(&chan->lock);
 	if (!opbx_test_flag(chan, OPBX_FLAG_ZOMBIE) && !opbx_check_hangup(chan))
-    {
+	{
 		if (chan->tech->transfer)
-        {
+    		{
 			res = chan->tech->transfer(chan, dest);
 			if (!res)
 				res = 1;
 		}
-        else
-        {
+    		else
+    		{
 			res = 0;
-        }
+    		}
 	}
 	opbx_mutex_unlock(&chan->lock);
 	return res;
@@ -2554,9 +2555,9 @@ int opbx_readstring(struct opbx_channel *c, char *s, int len, int timeout, int f
 	if (!len)
 		return -1;
 	for (;;)
-    {
+	{
 		if (c->stream)
-        {
+    		{
 			d = opbx_waitstream(c, OPBX_DIGIT_ANY);
 			opbx_stopstream(c);
 			usleep(1000);
@@ -2564,20 +2565,20 @@ int opbx_readstring(struct opbx_channel *c, char *s, int len, int timeout, int f
 				d = opbx_waitfordigit(c, to);
 		}
         else
-        {
+    		{
 			d = opbx_waitfordigit(c, to);
 		}
 		if (d < 0)
 			return -1;
 		if (d == 0)
-        {
+    		{
 			s[pos]='\0';
 			return 1;
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
 		if (strchr(enders, d)  ||  (pos >= len))
-        {
+    		{
 			s[pos]='\0';
 			return 0;
 		}
@@ -2599,35 +2600,35 @@ int opbx_readstring_full(struct opbx_channel *c, char *s, int len, int timeout, 
 	if (!len)
 		return -1;
 	for (;;)
-    {
+	{
 		if (c->stream)
-        {
+    		{
 			d = opbx_waitstream_full(c, OPBX_DIGIT_ANY, audiofd, ctrlfd);
 			opbx_stopstream(c);
 			usleep(1000);
 			if (!d)
 				d = opbx_waitfordigit_full(c, to, audiofd, ctrlfd);
 		}
-        else
-        {
+    		else
+    		{
 			d = opbx_waitfordigit_full(c, to, audiofd, ctrlfd);
 		}
 		if (d < 0)
 			return -1;
 		if (d == 0)
-        {
+    		{
 			s[pos]='\0';
 			return 1;
 		}
 		if (d == 1)
-        {
+    		{
 			s[pos]='\0';
 			return 2;
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
 		if (strchr(enders, d)  ||  (pos >= len))
-        {
+    		{
 			s[pos]='\0';
 			return 0;
 		}
@@ -3608,18 +3609,18 @@ int opbx_channel_setoption(struct opbx_channel *chan, int option, void *data, in
 	int res;
 
 	if (chan->tech->setoption)
-    {
+	{
 		res = chan->tech->setoption(chan, option, data, datalen);
 		if (res < 0)
 			return res;
 	}
-    else
-    {
+	else
+	{
 		errno = ENOSYS;
 		return -1;
 	}
 	if (block)
-    {
+	{
 		/* XXX Implement blocking -- just wait for our option frame reply, discarding
 		   intermediate packets. XXX */
 		opbx_log(LOG_ERROR, "XXX Blocking not implemented yet XXX\n");
@@ -3661,12 +3662,12 @@ static void *tonepair_alloc(struct opbx_channel *chan, void *params)
 	memset(ts, 0, sizeof(*ts));
 	ts->origwfmt = chan->writeformat;
 	if (opbx_set_write_format(chan, OPBX_FORMAT_SLINEAR))
-    {
+	{
 		opbx_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		tonepair_release(NULL, ts);
 		return NULL;
 	}
-    tone_gen_init(&ts->tone_state, &td->tone_desc);
+	tone_gen_init(&ts->tone_state, &td->tone_desc);
 	opbx_set_flag(chan, OPBX_FLAG_WRITE_INT);
 	return ts;
 }
@@ -3675,24 +3676,24 @@ static int tonepair_generate(struct opbx_channel *chan, void *data, int samples)
 {
 	struct tonepair_state *ts = data;
 	int len;
-    int x;
+	int x;
 
 	len = samples*sizeof(int16_t);
 	if (len > sizeof(ts->data)/sizeof(int16_t) - 1)
-    {
+	{
 		opbx_log(LOG_WARNING, "Can't generate that much data!\n");
 		return -1;
 	}
 	memset(&ts->f, 0, sizeof(ts->f));
-    opbx_fr_init_ex(&ts->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
+	opbx_fr_init_ex(&ts->f, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
 	ts->f.datalen = len;
 	ts->f.samples = samples;
 	ts->f.offset = OPBX_FRIENDLY_OFFSET;
 	ts->f.data = ts->data;
-    x = tone_gen(&ts->tone_state, ts->data, samples);
+        x = tone_gen(&ts->tone_state, ts->data, samples);
 	opbx_write(chan, &ts->f);
-    if (x < samples)
-		return -1;
+	if (x < samples)
+	    return -1;
 	return 0;
 }
 
@@ -3721,7 +3722,7 @@ int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int dur
                                  0,
                                  0,
                                  1);
-	}
+    }
     else
     {
         make_tone_gen_descriptor(&d.tone_desc,
@@ -3767,31 +3768,31 @@ opbx_group_t opbx_get_group(char *s)
 
 	c = opbx_strdupa(s);
 
-	while ((piece = strsep(&c, ",")))
+    while ((piece = strsep(&c, ",")))
     {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2)
-        {
-			/* Range */
-		}
+	if (sscanf(piece, "%d-%d", &start, &finish) == 2)
+    	{
+		/* Range */
+	}
         else if (sscanf(piece, "%d", &start))
         {
 			/* Just one */
 			finish = start;
-		}
+	}
         else
         {
 			opbx_log(LOG_ERROR, "Syntax error parsing group configuration '%s' at '%s'. Ignoring.\n", s, piece);
 			continue;
-		}
-		for (x = start;  x <= finish;  x++)
+	}
+	for (x = start;  x <= finish;  x++)
         {
 			if ((x > 63)  ||  (x < 0))
 				opbx_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
-            else
+        		else
 				group |= ((opbx_group_t) 1 << x);
-		}
 	}
-	return group;
+    }
+    return group;
 }
 
 static int (*opbx_moh_start_ptr)(struct opbx_channel *, char *) = NULL;
@@ -3918,7 +3919,7 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 		opbx_log(LOG_DEBUG, "::::==== Unlocking OPBX channel %s\n", chan->name);
 	
 	if (!chan)
-    {
+	{
 		if (option_debug)
 			opbx_log(LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
 		return 0;
@@ -3927,7 +3928,7 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 	res = opbx_mutex_unlock(&chan->lock);
 
 	if (option_debug > 2)
-    {
+	{
 #ifdef DEBUG_THREADS
 		int count = 0;
 		
@@ -3935,18 +3936,18 @@ int opbx_channel_unlock(struct opbx_channel *chan)
 			opbx_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
-        {
+    		{
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
 		}
         if (res == EINVAL)
-        {
+    		{
 			if (option_debug)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
 		}
 	}
 	if (res == EPERM)
-    {
+	{
 		/* We had no lock, so okay any way*/
 		if (option_debug > 3)
 			opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
@@ -3965,7 +3966,7 @@ int opbx_channel_lock(struct opbx_channel *chan)
 	res = opbx_mutex_lock(&chan->lock);
 
 	if (option_debug > 3)
-    {
+	{
 #ifdef DEBUG_THREADS
 		int count = 0;
 	
@@ -3975,13 +3976,13 @@ int opbx_channel_lock(struct opbx_channel *chan)
 		if (!res)
 			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
 		if (res == EDEADLK)
-        {
+    		{
 		    /* We had no lock, so okey any way */
 		    if (option_debug > 3)
 			    opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
 		}
 		if (res == EINVAL)
-        {
+    		{
 			if (option_debug > 3)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 		}
@@ -3999,7 +4000,7 @@ int opbx_channel_trylock(struct opbx_channel *chan)
 	res = opbx_mutex_trylock(&chan->lock);
 
 	if (option_debug > 2)
-    {
+	{
 #ifdef DEBUG_THREADS
 		int count = 0;
 
@@ -4009,13 +4010,13 @@ int opbx_channel_trylock(struct opbx_channel *chan)
 		if (!res)
 			opbx_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
 		if (res == EBUSY)
-        {
+    		{
 			/* We failed to lock */
 			if (option_debug > 2)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
 		}
 		if (res == EDEADLK)
-        {
+    		{
 			/* We had no lock, so okey any way*/
 			if (option_debug > 2)
 				opbx_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
