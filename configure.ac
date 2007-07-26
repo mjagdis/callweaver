@@ -602,7 +602,25 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday clock_getres inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf])  
+AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday clock_getres inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strsep strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol strtoq unsetenv utime vasprintf]) 
+
+# Check if asctime_r() takes three arguments.
+AC_MSG_CHECKING([if asctime_r() takes three arguments])
+AC_TRY_COMPILE([
+#include <stdio.h>
+#include <time.h>
+], [
+	struct tm tm;
+	char buf [r256];
+	
+	asctime_r (&tm, buf, sizeof (buf));
+], [
+	AC_DEFINE(ASCTIME_R_WITH_THREE_ARGS)
+	AC_MSG_RESULT(yes)
+], [
+	AC_MSG_RESULT(no)
+])
+
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
