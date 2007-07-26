@@ -696,7 +696,7 @@ static struct opbx_switch *pbx_findswitch(const char *sw)
 
     if (opbx_mutex_lock(&switchlock))
     {
-        opbx_log(LOG_WARNING, "Unable to obtain application lock\n");
+        opbx_log(LOG_WARNING, "Unable to obtain switch lock\n");
         return NULL;
     }
     asw = switches;
