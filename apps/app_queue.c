@@ -176,7 +176,7 @@ static const char *app_aqm_descrip =
     "     AQMSTATUS    The status of the attempt to add a queue member as a \n"
     "                     text string, one of\n"
     "           ADDED | MEMBERALREADY | NOSUCHQUEUE \n"
-    "Example: AddQueueMember(techsupport|SIP/3000)\n"
+    "Example: AddQueueMember(techsupport, SIP/3000)\n"
     "";
 
 static void *app_rqm;
@@ -193,7 +193,7 @@ static const char *app_rqm_descrip =
     "     RQMSTATUS      The status of the attempt to remove a queue member as a\n"
     "                     text string, one of\n"
     "           REMOVED | NOTINQUEUE | NOSUCHQUEUE \n"
-    "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
+    "Example: RemoveQueueMember(techsupport, SIP/3000)\n"
     "";
 
 static void *app_pqm;
@@ -217,7 +217,7 @@ static const char *app_pqm_descrip =
     "     PQMSTATUS      The status of the attempt to pause a queue member as a\n"
     "                     text string, one of\n"
     "           PAUSED | NOTFOUND\n"
-    "Example: PauseQueueMember(|SIP/3000)\n";
+    "Example: PauseQueueMember(, SIP/3000)\n";
 
 static void *app_upqm;
 static const char *name_upqm = "UnpauseQueueMember" ;
@@ -233,7 +233,7 @@ static const char *app_upqm_descrip =
     "     UPQMSTATUS       The status of the attempt to unpause a queue \n"
     "                      member as a text string, one of\n"
     "            UNPAUSED | NOTFOUND\n"
-    "Example: UnpauseQueueMember(|SIP/3000)\n";
+    "Example: UnpauseQueueMember(, SIP/3000)\n";
 
 /*! \brief Persistent Members opbxdb family */
 static const char *pm_family = "/Queue/PersistentMembers";
