@@ -154,6 +154,7 @@ case "${host}" in
         AC_DEFINE([SOLARIS],[1],[needed for optional declarations to be visible])
 	no_libcap=yes
 	ostype=solaris
+	force_generic_timers=yes
         ;;
   *)
         AC_MSG_RESULT(Unsupported operating system: ${host})
@@ -719,8 +720,11 @@ AC_CHECK_LIB([tiff],[TIFFGetVersion],[HAVE_LIBTIFF=1],[AC_MSG_ERROR(libtiff is r
 
 dnl ###########################################################################
 
+if test "${force_generic_timers}" != "yes"; then
 AC_CHECK_LIB([rt], [timer_create],[AC_DEFINE([HAVE_POSIX_TIMERS],[1],[yes there are real time libraries])],[AC_DEFINE([USE_GENERIC_TIMERS],[1],[forcing generic timers.])])
-
+else
+AC_DEFINE([USE_GENERIC_TIMERS],[1],[forcing generic timers according to the architecture.])
+fi
 dnl ###########################################################################
 
 if test "${no_libcap}" != "yes"; then
@@ -2428,6 +2432,7 @@ AC_OUTPUT([Makefile
                  channels/sccp/Makefile
                  channels/fax/Makefile
                  channels/misdn/Makefile
+                 channels/sofia/Makefile
                  codecs/Makefile
  		 corelib/Makefile
  		 corelib/jitterbuffer/Makefile
