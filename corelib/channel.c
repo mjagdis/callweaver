@@ -716,8 +716,8 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 			opbx_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
 			CRASH;
 		}
-        else
-        {
+    		else
+    		{	
 			opbx_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
 			opbx_fr_free(f);
 			opbx_mutex_unlock(&chan->lock);
@@ -728,11 +728,18 @@ int opbx_queue_frame(struct opbx_channel *chan, struct opbx_frame *fin)
 		prev->next = f;
 	else
 		chan->readq = f;
+
 	if (chan->alertpipe[1] > -1)
 	{
-		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
-			opbx_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
-				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
+	    if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
+		opbx_log(LOG_WARNING, 
+			    "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
+			    chan->name, 
+			    f->frametype, 
+			    f->subclass, 
+			    qlen, 
+			    strerror(errno)
+			);
 	} else if (opbx_test_flag(chan, OPBX_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
 	}
