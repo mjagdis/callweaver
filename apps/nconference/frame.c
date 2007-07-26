@@ -22,6 +22,8 @@
 #include "member.h"
 #include "frame.h"
 
+#include "spandsp/dc_restore.h"
+
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
 int vdebug = 0;
