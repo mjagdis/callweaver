@@ -9215,8 +9215,8 @@ static int zap_destroy_channel(int fd, int argc, char **argv)
 
 static int zap_show_channels(int fd, int argc, char **argv)
 {
-#define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
-#define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
+#define FORMAT "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
+#define FORMAT2 "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
 	struct zt_pvt *tmp = NULL;
 	char tmps[20] = "";
 	opbx_mutex_t *lock;
