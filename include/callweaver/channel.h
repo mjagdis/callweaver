@@ -356,6 +356,11 @@ struct opbx_channel {
 
 	/*! T38 mode enabled for this channel  */
 	t38_status_t t38_status;
+	
+	/* New event based read/write (not all channels supports it */
+	//TODO
+	
+	
 };
 
 /* Channel tech properties: */
