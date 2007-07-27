@@ -2647,7 +2647,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			
 			/* now, put the body of the for loop here */
 			exten->loop_break = for_end;
-			exten->loop_continue = for_test;
+			exten->loop_continue = for_inc;
 			
 			gen_prios(exten, new_label, p->u4.for_statements, mother_exten); /* this will link in all the statements here */
 			
