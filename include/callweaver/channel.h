@@ -359,8 +359,7 @@ struct opbx_channel {
 	
 	/* New event based read/write (not all channels supports it */
 	//TODO
-	
-	
+
 };
 
 /* Channel tech properties: */
@@ -1138,7 +1137,7 @@ static inline int opbx_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds
 
 #define CHECK_BLOCKING(c) { 	 \
 							if (opbx_test_flag(c, OPBX_FLAG_BLOCKING)) {\
-								opbx_log(LOG_WARNING, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), (c)->name, (long) (c)->blocker, (c)->blockproc); \
+								opbx_log(LOG_WARNING, "Thread %lu Blocking '%s', already blocked by thread %lu in procedure %s\n", (unsigned long) pthread_self(), (c)->name, (unsigned long) (c)->blocker, (c)->blockproc); \
 								CRASH; \
 							} else { \
 								(c)->blocker = pthread_self(); \
