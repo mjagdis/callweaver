@@ -2752,8 +2752,6 @@ static int dialtone_indicate(struct chan_list *cl)
 		cl->notxtone=0;
 		cl->norxtone=0;
 		opbx_playtones_start(ast,0, ts->data, 0);
-		chan_misdn_log(4,cl->bc->port,"Starting Playtones\n");
-		misdn_lib_tone_generator_start(cl->bc);
 	}
 
 	return 0;
