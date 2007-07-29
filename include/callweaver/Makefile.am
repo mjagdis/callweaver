@@ -79,5 +79,6 @@ opbxinclude_HEADERS = acl.h \
 		      eventlib.h \
 		      xml_parser.h \
 		      mpool.h \
-		      hashtable.h
+		      hashtable.h hashtable_helper.h
+
 

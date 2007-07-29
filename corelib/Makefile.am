@@ -13,7 +13,9 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
 	stubfunctions-monitor.c udp.c udptl.c udpfromto.c stun.c coef_in.h coef_out.h \
 	ecdisa.h aesopt.h callweaver_expr2.h timer.c jitterbuffer/libcwjb.la \
-	hashtable.c mpool.c xml_parser.c eventlib.c
+	hashtable.c mpool.c xml_parser.c eventlib.c \
+	hashtable_helper.c
+
 
 nodist_libcallweaver_la_SOURCES = defaults.h
 
