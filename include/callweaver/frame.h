@@ -188,6 +188,8 @@ typedef struct opbx_frame
 #define OPBX_FORMAT_MAX_VIDEO   (1 << 24)
 
 /* Control frame types */
+/*! Stop playing indications */
+#define OPBX_STATE_STOP_INDICATING  -1      
 /*! Other end has hungup */
 #define OPBX_CONTROL_HANGUP         1
 /*! Local ring */
