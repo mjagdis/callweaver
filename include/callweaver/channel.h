@@ -449,7 +449,13 @@ struct outgoing_helper {
 #define OPBX_SOFTHANGUP_EXPLICIT		(1 << 5)
 #define OPBX_SOFTHANGUP_UNBRIDGE     (1 << 6)
 
-/* Bits 0-15 of state are reserved for the state (up/down) of the line */
+/* 
+    Bits 0-15 of state are reserved for the state (up/down) of the line 
+    but it seems the old developers (the good (?) old times) didn't document it.
+    What a pity they didn't know enums.
+*/
+
+#define OPBX_STATE_STOP_INDICATING      -1      
 /*! Channel is down and available */
 #define OPBX_STATE_DOWN		0		
 /*! Channel is down, but reserved */
