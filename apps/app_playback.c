@@ -56,8 +56,7 @@ static char *playback_descrip =
 "specified, the application will return immediately should the channel not be\n"
 "off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
 "be answered before the sound is played. Not all channels support playing\n"
-"messages while still hook. Returns -1 if the channel was hung up.  If the\n"
-"file does not exist, will jump to priority n+101 if present."
+"messages while still hook. Returns -1 if the channel was hung up.\n"
 "The channel variable PLAYBACKSTATUS is set to SUCCESS or FAILED on termination."
 "\n";
 
@@ -114,9 +113,8 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv)
 				opbx_stopstream(chan);
 			} else {
 				opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s\n", chan->name, argv[0]);
-				opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 				res = 0;
-				mres=1;
+				mres = 1;
 			}
 			front = back;
 		}
