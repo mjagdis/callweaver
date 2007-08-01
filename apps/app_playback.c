@@ -80,7 +80,7 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv)
 
 	LOCAL_USER_ADD(u);
 
-        pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "");
+	pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "FAILED");
 
 	for (i = 1; i < argc; i++) {
 		if (!strcasecmp(argv[i], "skip"))
@@ -119,9 +119,7 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv)
 			front = back;
 		}
 	}
-	if (mres)
-		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "FAILED");
-	else
+	if (mres == 0)
 		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "SUCCESS");
 	LOCAL_USER_REMOVE(u);
 	return res;
