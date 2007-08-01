@@ -48,27 +48,16 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static char *tdesc = "Generic System() application";
 
 static void *app;
-static void *app2;
 
 static const char *name = "System";
-static const char *name2 = "TrySystem";
 
 static const char *synopsis = "Execute a system command";
-static const char *synopsis2 = "Try executing a system command";
 
 static const char *chanvar = "SYSTEMSTATUS";
 
 static const char *syntax = "System(command)";
-static const char *syntax2 = "TrySystem(command)";
 
 static const char *descrip =
-"Executes a command  by  using  system(). Returns -1 on\n"
-"failure to execute the specified command. \n"
-"Result of execution is returned in the SYSTEMSTATUS channel variable:\n"
-"   FAILURE	Could not execute the specified command\n"
-"   SUCCESS	Specified command successfully executed\n";
-
-static const char *descrip2 =
 "Executes a command  by  using  system(). Returns 0\n"
 "on any situation.\n"
 "Result of execution is returned in the SYSTEMSTATUS channel variable:\n"
@@ -131,14 +120,12 @@ int unload_module(void)
 {
 	int res = 0;
 	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(app2);
 	res |= opbx_unregister_application(app);
 	return res;
 }
 
 int load_module(void)
 {
-	app2 = opbx_register_application(name2, trysystem_exec, synopsis2, syntax2, descrip2);
 	app = opbx_register_application(name, system_exec, synopsis, syntax, descrip);
 	return 0;
 }
