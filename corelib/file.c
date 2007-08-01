@@ -549,6 +549,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
  	res = opbx_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
 	if (res >= 0)
 		return chan->stream;
+	opbx_set_write_format(chan, chan->oldwriteformat);
 	return NULL;
 }
 
