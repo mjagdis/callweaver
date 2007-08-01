@@ -3753,7 +3753,6 @@ static int play_message(struct opbx_channel *chan, struct opbx_vm_user *vmu, str
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
 		vms->heard[vms->curmsg] = 1;
-		printf("yay!\n");
 		res = wait_file(chan, vms, vms->fn);
 	}
 	DISPOSE(vms->curdir, vms->curmsg);
