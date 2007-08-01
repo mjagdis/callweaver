@@ -535,7 +535,6 @@ static struct opbx_vm_user *find_user_realtime(struct opbx_vm_user *ivm, const c
 		if (var) {
 			tmp = var;
 			while(tmp) {
-				printf("%s => %s\n", tmp->name, tmp->value);
 				if (!strcasecmp(tmp->name, "password")) {
 					opbx_copy_string(retval->password, tmp->value, sizeof(retval->password));
 				} else if (!strcasecmp(tmp->name, "uniqueid")) {
@@ -1184,7 +1183,6 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		}
 		fdlen = lseek(fd, 0, SEEK_END);
 		lseek(fd, 0, SEEK_SET);
-		printf("Length is %d\n", fdlen);
 		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
 		if (!fdm) {
 			opbx_log(LOG_WARNING, "Memory map failed!\n");

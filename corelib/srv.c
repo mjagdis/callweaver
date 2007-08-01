@@ -69,7 +69,7 @@ static int parse_srv(char *host, int hostlen, int *portno, char *answer, int len
 	char repl[256] = "";
 
 	if (len < sizeof(struct srv)) {
-		printf("Length too short\n");
+		opbx_log(LOG_WARNING, "Supplied buffer length too short (%d < %d)\n", len, sizeof(struct srv));
 		return -1;
 	}
 	answer += sizeof(struct srv);

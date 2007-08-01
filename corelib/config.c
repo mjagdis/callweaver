@@ -735,10 +735,7 @@ int config_text_file_save(const char *configfile, const struct opbx_config *cfg,
 			cat = cat->next;
 		}
 	} else {
-		if (option_debug)
-			printf("Unable to open for writing: %s\n", fn);
-		else if (option_verbose > 1)
-			printf( "Unable to write (%s)", strerror(errno));
+		opbx_log(LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
 		return -1;
 	}
 	fclose(f);

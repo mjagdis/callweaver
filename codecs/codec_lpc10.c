@@ -233,7 +233,7 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
         len += LPC10_BYTES_IN_COMPRESSED_FRAME;
     }
     if (len != f->datalen) 
-        printf("Decoded %d, expected %d\n", len, f->datalen);
+        opbx_log(LOG_WARNING, "Decoded %d, expected %d\n", len, f->datalen);
     return 0;
 }
 

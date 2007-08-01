@@ -487,7 +487,7 @@ int opbx_rtp_add_policy(struct opbx_rtp *rtp, opbx_policy_t *policy)
 {
     int res = 0;
 
-    printf("Adding SRTP policy: %d %d %d %d %d %d\n",
+    opbx_log(LOG_NOTICE, "Adding SRTP policy: %d %d %d %d %d %d\n",
            policy->sp.rtp.cipher_type,
            policy->sp.rtp.cipher_key_len,
            policy->sp.rtp.auth_type,
