@@ -734,11 +734,11 @@ int config_text_file_save(const char *configfile, const struct opbx_config *cfg,
 #endif
 			cat = cat->next;
 		}
+		fclose(f);
 	} else {
 		opbx_log(LOG_ERROR, "Unable to write '%s': %s\n", fn, strerror(errno));
 		return -1;
 	}
-	fclose(f);
 	return 0;
 }
 
