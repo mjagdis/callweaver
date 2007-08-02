@@ -86,7 +86,7 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 
 		if(opbx_generator_start_thread(chan)) {
 			/* Whoops! */
-			gen->release(gen_data);
+			gen->release(chan, gen_data);
 			opbx_mutex_unlock(&pgcd->lock);
 			opbx_log(LOG_ERROR, "Generator activation failed: unable to start generator thread\n");
 			return -1;
