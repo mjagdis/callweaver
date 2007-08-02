@@ -985,17 +985,6 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			res=0;
 			goto out;
 		}
-		else if( privdb_val == OPBX_PRIVACY_KILL ) {
-			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
-			res = 0;
-			goto out; /* Is this right? */
-		}
-		else if( privdb_val == OPBX_PRIVACY_TORTURE ) {
-			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
-			res = 0;
-			goto out; /* is this right??? */
-
-		}
 		else if( privdb_val == OPBX_PRIVACY_UNKNOWN ) {
 			/* Get the user's intro, store it in priv-callerintros/$CID, 
 			   unless it is already there-- this should be done before the 
@@ -1535,9 +1524,6 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if ((proc_result = pbx_builtin_getvar_helper(peer, "PROC_RESULT"))) {
 					if (!strcasecmp(proc_result, "BUSY")) {
 						opbx_copy_string(status, proc_result, sizeof(status));
-						if (!opbx_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
-							opbx_set_flag(peerflags, DIAL_GO_ON);
-						}
 						res = -1;
 					}
 					else if (!strcasecmp(proc_result, "CONGESTION") || !strcasecmp(proc_result, "CHANUNAVAIL")) {
