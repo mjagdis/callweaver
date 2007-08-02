@@ -58,7 +58,7 @@ struct visdn_ic
 	char abbreviated_prefix[10];
 
 	int tones_option;
-	char context[AST_MAX_EXTENSION];
+	char context[OPBX_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 
 	int clip_enabled;
@@ -104,7 +104,7 @@ struct visdn_intf
 	struct list_head ifs_node;
 
 	int refcnt;
-	ast_mutex_t lock;
+	opbx_mutex_t lock;
 
 	enum visdn_intf_status status;
 
@@ -130,7 +130,7 @@ void visdn_intf_put(struct visdn_intf *intf);
 struct visdn_intf *visdn_intf_get_by_name(const char *name);
 int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic);
 void visdn_intf_close(struct visdn_intf *intf);
-void visdn_intf_reload(struct ast_config *cfg);
+void visdn_intf_reload(struct opbx_config *cfg);
 
 struct visdn_ic *visdn_ic_alloc(void);
 struct visdn_ic *visdn_ic_get(struct visdn_ic *ic);

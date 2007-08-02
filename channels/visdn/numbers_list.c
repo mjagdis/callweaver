@@ -12,7 +12,7 @@
 
 #include <stdlib.h>
 
-#include <asterisk/pbx.h>
+#include <openpbx/pbx.h>
 
 #include <list.h>
 
@@ -51,7 +51,7 @@ int visdn_numbers_list_match(
 {
 	struct visdn_number *num;
 	list_for_each_entry(num, list, node) {
-		if (ast_extension_match(num->number, number))
+		if (opbx_extension_match(num->number, number))
 			return TRUE;
 	}
 

@@ -47,7 +47,7 @@ struct visdn_huntgroup
 	struct visdn_huntgroup_member *current_member;
 };
 
-void visdn_hg_reload(struct ast_config *cfg);
+void visdn_hg_reload(struct opbx_config *cfg);
 
 struct visdn_huntgroup *visdn_hg_get(struct visdn_huntgroup *hg);
 void visdn_hg_put(struct visdn_huntgroup *hg);

@@ -12,7 +12,7 @@
 
 #include <string.h>
 
-#include <asterisk/logger.h>
+#include <openpbx/logger.h>
 
 #include "ton.h"
 
@@ -31,7 +31,7 @@ enum visdn_type_of_number visdn_ton_from_string(const char *str)
 	else if (!strcasecmp(str, "abbreviated"))
 		return VISDN_TYPE_OF_NUMBER_ABBREVIATED;
 	else {
-		ast_log(LOG_ERROR,
+		opbx_log(LOG_ERROR,
 			"Unknown type_of_number '%s'\n",
 			str);
 

@@ -16,7 +16,7 @@
 #define assert(cond)							\
 	do {								\
 		if (!(cond)) {						\
-			ast_log(LOG_ERROR,				\
+			opbx_log(LOG_ERROR,				\
 				"assertion (" #cond ") failed\n");	\
 			abort();					\
 		}							\
@@ -35,7 +35,7 @@
 #ifdef DEBUG_CODE
 #define visdn_debug(format, arg...)			\
 	if (visdn.debug)				\
-		ast_verbose(VERBOSE_PREFIX_3		\
+		opbx_verbose(VERBOSE_PREFIX_3		\
 			format,				\
 			## arg)
 

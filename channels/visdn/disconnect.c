@@ -10,7 +10,7 @@
  *
  */
 
-//#include <asterisk/astmm.h>
+//#include <openpbx/astmm.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -20,23 +20,23 @@
 #include <stdarg.h>
 #include <ctype.h>
 
-#include <asterisk/lock.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/causes.h>
-#include <asterisk/version.h>
+#include <openpbx/lock.h>
+#include <openpbx/channel.h>
+#include <openpbx/config.h>
+#include <openpbx/logger.h>
+#include <openpbx/module.h>
+#include <openpbx/pbx.h>
+#include <openpbx/options.h>
+#include <openpbx/cli.h>
+#include <openpbx/causes.h>
+#include <openpbx/version.h>
 
 #include "chan_visdn.h"
 #include "disconnect.h"
 
-static int visdn_exec_disconnect(struct ast_channel *chan, void *data)
+static int visdn_exec_disconnect(struct opbx_channel *chan, void *data)
 {
-	ast_indicate(chan, AST_CONTROL_DISCONNECT);
+	opbx_indicate(chan, OPBX_CONTROL_DISCONNECT);
 
 	return 0;
 }
@@ -46,7 +46,7 @@ static char *visdn_disconnect_descr =
 
 void visdn_disconnect_register(void)
 {
-	ast_register_application(
+	opbx_register_application(
 		"Disconnect",
 		visdn_exec_disconnect,
 		"Send a Disconnect frame",
@@ -55,5 +55,5 @@ void visdn_disconnect_register(void)
 
 void visdn_disconnect_unregister(void)
 {
-	ast_unregister_application("Disconnect");
+	opbx_unregister_application("Disconnect");
 }

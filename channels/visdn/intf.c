@@ -10,7 +10,7 @@
  *
  */
 
-//#include <asterisk/astmm.h>
+//#include <openpbx/astmm.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -32,15 +32,15 @@
 #include <linux/if_ether.h>
 #include <net/if_arp.h>
 
-#include <asterisk/lock.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/version.h>
+#include <openpbx/lock.h>
+#include <openpbx/channel.h>
+#include <openpbx/config.h>
+#include <openpbx/logger.h>
+#include <openpbx/module.h>
+#include <openpbx/pbx.h>
+#include <openpbx/options.h>
+#include <openpbx/cli.h>
+#include <openpbx/version.h>
 
 #include <linux/lapd.h>
 #include <libq931/intf.h>
@@ -79,9 +79,9 @@ struct visdn_intf *visdn_intf_get(struct visdn_intf *intf)
 	assert(intf);
 	assert(intf->refcnt > 0);
 	
-	ast_mutex_lock(&visdn.usecnt_lock);
+	opbx_mutex_lock(&visdn.usecnt_lock);
 	intf->refcnt++;
-	ast_mutex_unlock(&visdn.usecnt_lock);
+	opbx_mutex_unlock(&visdn.usecnt_lock);
 
 	return intf;
 }
@@ -91,29 +91,29 @@ void visdn_intf_put(struct visdn_intf *intf)
 	assert(intf);
 	assert(intf->refcnt > 0);
 
-	ast_mutex_lock(&visdn.usecnt_lock);
+	opbx_mutex_lock(&visdn.usecnt_lock);
 	intf->refcnt--;
 
 	if (!intf->refcnt)
 		free(intf);
 
-	ast_mutex_unlock(&visdn.usecnt_lock);
+	opbx_mutex_unlock(&visdn.usecnt_lock);
 }
 
 struct visdn_intf *visdn_intf_get_by_name(const char *name)
 {
 	struct visdn_intf *intf;
 
-	ast_mutex_lock(&visdn.lock);
+	opbx_mutex_lock(&visdn.lock);
 	
 	list_for_each_entry(intf, &visdn.ifs, ifs_node) {
 		if (!strcasecmp(intf->name, name)) {
-			ast_mutex_unlock(&visdn.lock);
+			opbx_mutex_unlock(&visdn.lock);
 			return visdn_intf_get(intf);
 		}
 	}
 
-	ast_mutex_unlock(&visdn.lock);
+	opbx_mutex_unlock(&visdn.lock);
 
 	return NULL;
 }
@@ -141,9 +141,9 @@ struct visdn_ic *visdn_ic_get(struct visdn_ic *ic)
 	assert(ic);
 	assert(ic->refcnt > 0);
 	
-	ast_mutex_lock(&visdn.usecnt_lock);
+	opbx_mutex_lock(&visdn.usecnt_lock);
 	ic->refcnt++;
-	ast_mutex_unlock(&visdn.usecnt_lock);
+	opbx_mutex_unlock(&visdn.usecnt_lock);
 
 	return ic;
 }
@@ -153,7 +153,7 @@ void visdn_ic_put(struct visdn_ic *ic)
 	assert(ic);
 	assert(ic->refcnt > 0);
 
-	ast_mutex_lock(&visdn.usecnt_lock);
+	opbx_mutex_lock(&visdn.usecnt_lock);
 	ic->refcnt--;
 
 	if (!ic->refcnt) {
@@ -163,7 +163,7 @@ void visdn_ic_put(struct visdn_ic *ic)
 		free(ic);
 	}
 
-	ast_mutex_unlock(&visdn.usecnt_lock);
+	opbx_mutex_unlock(&visdn.usecnt_lock);
 }
 
 static enum q931_interface_network_role
@@ -180,7 +180,7 @@ static enum q931_interface_network_role
 	else if (!strcasecmp(str, "international"))
 		return Q931_INTF_NET_INTERNATIONAL;
 	else {
-		ast_log(LOG_ERROR,
+		opbx_log(LOG_ERROR,
 			"Unknown network_role '%s'\n",
 			str);
 
@@ -200,7 +200,7 @@ static enum visdn_clir_mode
 	else if (!strcasecmp(str, "restricted"))
 		return VISDN_CLIR_MODE_RESTRICTED;
 	else {
-		ast_log(LOG_ERROR,
+		opbx_log(LOG_ERROR,
 			"Unknown clir_mode '%s'\n",
 			str);
 
@@ -210,7 +210,7 @@ static enum visdn_clir_mode
 
 static int visdn_ic_from_var(
 	struct visdn_ic *ic,
-	struct ast_variable *var)
+	struct opbx_variable *var)
 {
 	if (!strcasecmp(var->name, "tei")) {
 		if (!strcasecmp(var->value, "dynamic"))
@@ -234,7 +234,7 @@ static int visdn_ic_from_var(
 			ic->force_outbound_cli_ton =
 				visdn_ton_from_string(var->value);
 	} else if (!strcasecmp(var->name, "cli_rewriting")) {
-		ic->cli_rewriting = ast_true(var->value);
+		ic->cli_rewriting = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "national_prefix")) {
 		strncpy(ic->national_prefix, var->value,
 			sizeof(ic->national_prefix));
@@ -251,7 +251,7 @@ static int visdn_ic_from_var(
 		strncpy(ic->abbreviated_prefix, var->value,
 			sizeof(ic->abbreviated_prefix));
 	} else if (!strcasecmp(var->name, "tones_option")) {
-		ic->tones_option = ast_true(var->value);
+		ic->tones_option = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "context")) {
 		strncpy(ic->context, var->value, sizeof(ic->context));
 	} else if (!strcasecmp(var->name, "language")) {
@@ -260,9 +260,9 @@ static int visdn_ic_from_var(
 		visdn_numbers_list_from_string(
 			&ic->trans_numbers_list, var->value);
 	} else if (!strcasecmp(var->name, "clip_enabled")) {
-		ic->clip_enabled = ast_true(var->value);
+		ic->clip_enabled = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "clip_override")) {
-		ic->clip_override = ast_true(var->value);
+		ic->clip_override = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "clip_default_name")) {
 		strncpy(ic->clip_default_name, var->value,
 			sizeof(ic->clip_default_name));
@@ -273,19 +273,19 @@ static int visdn_ic_from_var(
 		visdn_numbers_list_from_string(
 			&ic->clip_numbers_list, var->value);
 	} else if (!strcasecmp(var->name, "clip_special_arrangement")) {
-		ic->clip_special_arrangement = ast_true(var->value);
+		ic->clip_special_arrangement = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "clir_mode")) {
 		ic->clir_mode = visdn_string_to_clir_mode(var->value);
 	} else if (!strcasecmp(var->name, "overlap_sending")) {
-		ic->overlap_sending = ast_true(var->value);
+		ic->overlap_sending = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "overlap_receiving")) {
-		ic->overlap_receiving = ast_true(var->value);
+		ic->overlap_receiving = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "call_bumping")) {
-		ic->call_bumping = ast_true(var->value);
+		ic->call_bumping = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "autorelease_dlc")) {
 		ic->dlc_autorelease_time = atoi(var->value);
 	} else if (!strcasecmp(var->name, "echocancel")) {
-		ic->echocancel = ast_true(var->value);
+		ic->echocancel = opbx_true(var->value);
 	} else if (!strcasecmp(var->name, "echocancel_taps")) {
 		ic->echocancel_taps = atoi(var->value);
 	} else if (!strcasecmp(var->name, "t301")) {
@@ -401,7 +401,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 
 	intf->q931_intf = q931_intf_open(intf->name, 0, ic->tei);
 	if (!intf->q931_intf) {
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"Cannot open interface %s, skipping\n",
 			intf->name);
 
@@ -415,7 +415,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 
 	intf->mgmt_fd = socket(PF_LAPD, SOCK_SEQPACKET, LAPD_SAPI_MGMT);
 	if (intf->mgmt_fd < 0) {
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"Cannot open management socket: %s\n",
 			strerror(errno));
 
@@ -425,7 +425,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	if (setsockopt(intf->mgmt_fd, SOL_LAPD, SO_BINDTODEVICE, intf->name,
 					strlen(intf->name) + 1) < 0) {
 
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"Cannot bind management socket to %s: %s, skipping\n",
 			strerror(errno),
 			intf->name);
@@ -436,7 +436,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	int oldflags;
 	oldflags = fcntl(intf->mgmt_fd, F_GETFL, 0);
 	if (oldflags < 0) {
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"%s: fcntl(GETFL): %s\n",
 			intf->name,
 			strerror(errno));
@@ -444,7 +444,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	}
 
 	if (fcntl(intf->mgmt_fd, F_SETFL, oldflags | O_NONBLOCK) < 0) {
-		ast_log(LOG_WARNING,
+		opbx_log(LOG_WARNING,
 			"fcntl(F_SETFL): %s\n",
 			strerror(errno));
 
@@ -483,7 +483,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 			if (errno == ENOENT)
 				break;
 
-			ast_log(LOG_ERROR,
+			opbx_log(LOG_ERROR,
 				"cannot stat(%s): %s\n",
 				path,
 				strerror(errno));
@@ -499,7 +499,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	strncat(goodpath, "../..", sizeof(goodpath));
 
 	if (realpath(goodpath, intf->remote_port) < 0) {
-		ast_log(LOG_ERROR,
+		opbx_log(LOG_ERROR,
 			"cannot find realpath(%s): %s\n",
 			goodpath,
 			strerror(errno));
@@ -511,19 +511,19 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 
 	if (intf->q931_intf->role == LAPD_INTF_ROLE_NT) {
 		if (list_empty(&ic->clip_numbers_list)) {
-			ast_log(LOG_NOTICE,
+			opbx_log(LOG_NOTICE,
 				"Interface '%s' is configured in network"
 				" mode but clip_numbers is empty\n",
 				intf->name);
 		} else if (!strlen(ic->clip_default_number)) {
-			ast_log(LOG_NOTICE,
+			opbx_log(LOG_NOTICE,
 				"Interface '%s' is configured in network"
 				" mode but clip_default_number is empty\n",
 				intf->name);
 		} else if (!visdn_numbers_list_match(&ic->clip_numbers_list,
 					ic->clip_default_number)) {
 
-			ast_log(LOG_NOTICE,
+			opbx_log(LOG_NOTICE,
 				"Interface '%s' clip_numbers should contain "
 				"clip_default_number (%s)\n",
 				intf->name,
@@ -590,7 +590,7 @@ void visdn_ic_setdefault(struct visdn_ic *ic)
 }
 
 static void visdn_intf_reconfigure(
-	struct ast_config *cfg,
+	struct opbx_config *cfg,
 	const char *name)
 {
 	/* Allocate a new interface */
@@ -605,11 +605,11 @@ static void visdn_intf_reconfigure(
 	/* Now read the configuration from file */
 //	intf->configured = TRUE;
 
-	struct ast_variable *var;
-	var = ast_variable_browse(cfg, (char *)name);
+	struct opbx_variable *var;
+	var = opbx_variable_browse(cfg, (char *)name);
 	while (var) {
 		if (visdn_ic_from_var(ic, var) < 0) {
-			ast_log(LOG_WARNING,
+			opbx_log(LOG_WARNING,
 				"Unknown configuration "
 				"variable %s\n",
 				var->name);
@@ -618,13 +618,13 @@ static void visdn_intf_reconfigure(
 		var = var->next;
 	}
 
-	ast_mutex_lock(&visdn.lock);
+	opbx_mutex_lock(&visdn.lock);
 
 	struct visdn_intf *intf = visdn_intf_get_by_name(name);
 	if (!intf) {
 		intf = visdn_intf_alloc();
 		if (!intf) {
-			ast_mutex_unlock(&visdn.lock);
+			opbx_mutex_unlock(&visdn.lock);
 			return;
 		}
 
@@ -645,19 +645,19 @@ static void visdn_intf_reconfigure(
 
 	intf->current_ic = visdn_ic_get(ic);
 
-	ast_mutex_unlock(&visdn.lock);
+	opbx_mutex_unlock(&visdn.lock);
 }
 
-void visdn_intf_reload(struct ast_config *cfg)
+void visdn_intf_reload(struct opbx_config *cfg)
 {
-	ast_mutex_lock(&visdn.lock);
+	opbx_mutex_lock(&visdn.lock);
 
 	/* Read default interface configuration */
-	struct ast_variable *var;
-	var = ast_variable_browse(cfg, "global");
+	struct opbx_variable *var;
+	var = opbx_variable_browse(cfg, "global");
 	while (var) {
 		if (visdn_ic_from_var(visdn.default_ic, var) < 0) {
-			ast_log(LOG_WARNING,
+			opbx_log(LOG_WARNING,
 				"Unknown configuration variable %s\n",
 				var->name);
 		}
@@ -673,8 +673,8 @@ void visdn_intf_reload(struct ast_config *cfg)
 	}
 
 	const char *cat;
-	for (cat = ast_category_browse(cfg, NULL); cat;
-	     cat = ast_category_browse(cfg, (char *)cat)) {
+	for (cat = opbx_category_browse(cfg, NULL); cat;
+	     cat = opbx_category_browse(cfg, (char *)cat)) {
 
 		if (!strcasecmp(cat, "general") ||
 		    !strcasecmp(cat, "global") ||
@@ -685,7 +685,7 @@ void visdn_intf_reload(struct ast_config *cfg)
 		visdn_intf_reconfigure(cfg, cat);
 	}
 
-	ast_mutex_unlock(&visdn.lock);
+	opbx_mutex_unlock(&visdn.lock);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -772,29 +772,29 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 {
 	struct visdn_ic *ic = intf->current_ic;
 
-	ast_cli(fd, "\n-- %s --\n", intf->name);
-		ast_cli(fd, "Status                    : %s\n",
+	opbx_cli(fd, "\n-- %s --\n", intf->name);
+		opbx_cli(fd, "Status                    : %s\n",
 			visdn_intf_status_to_text(intf->status));
 
 	if (intf->q931_intf) {
-		ast_cli(fd, "Role                      : %s\n",
+		opbx_cli(fd, "Role                      : %s\n",
 			intf->q931_intf->role == LAPD_INTF_ROLE_NT ?
 				"NT" : "TE");
 
-		ast_cli(fd,
+		opbx_cli(fd,
 			"Mode                      : %s\n",
 			visdn_intf_mode_to_string(
 				intf->q931_intf->mode));
 
 		if (intf->q931_intf->tei != LAPD_DYNAMIC_TEI)
-			ast_cli(fd, "TEI                       : %d\n",
+			opbx_cli(fd, "TEI                       : %d\n",
 				intf->q931_intf->tei);
 		else
-			ast_cli(fd, "TEI                       : "
+			opbx_cli(fd, "TEI                       : "
 					"Dynamic\n");
 	}
 
-	ast_cli(fd,
+	opbx_cli(fd,
 		"Network role              : %s\n"
 		"Context                   : %s\n"
 		"Language                  : %s\n",
@@ -803,16 +803,16 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 		ic->context,
 		ic->language);
 
-	ast_cli(fd, "Transparent Numbers       : ");
+	opbx_cli(fd, "Transparent Numbers       : ");
 	{
 	struct visdn_number *num;
 	list_for_each_entry(num, &ic->clip_numbers_list, node) {
-		ast_cli(fd, "%s ", num->number);
+		opbx_cli(fd, "%s ", num->number);
 	}
 	}
-	ast_cli(fd, "\n");
+	opbx_cli(fd, "\n");
 
-	ast_cli(fd,
+	opbx_cli(fd,
 		"Echo canceller            : %s\n"
 		"Echo canceller taps       : %d (%d ms)\n"
 		"Tones option              : %s\n"
@@ -826,7 +826,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 		ic->overlap_receiving ? "Yes" : "No",
 		ic->call_bumping ? "Yes" : "No");
 
-	ast_cli(fd,
+	opbx_cli(fd,
 		"National prefix           : %s\n"
 		"International prefix      : %s\n"
 		"Newtork specific prefix   : %s\n"
@@ -840,7 +840,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 		ic->abbreviated_prefix,
 		ic->dlc_autorelease_time);
 
-	ast_cli(fd,
+	opbx_cli(fd,
 		"Outbound type of number   : %s\n\n"
 		"Forced CLI                : %s\n"
 		"Forced CLI type of number : %s\n"
@@ -863,35 +863,35 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 		ic->clip_default_number,
 		ic->clip_special_arrangement ? "Yes" : "No");
 
-	ast_cli(fd, "CLIP Numbers              : ");
+	opbx_cli(fd, "CLIP Numbers              : ");
 	{
 	struct visdn_number *num;
 	list_for_each_entry(num, &ic->clip_numbers_list, node) {
-		ast_cli(fd, "%s ", num->number);
+		opbx_cli(fd, "%s ", num->number);
 	}
 	}
-	ast_cli(fd, "\n\n");
+	opbx_cli(fd, "\n\n");
 
 	if (intf->q931_intf) {
 		if (intf->q931_intf->role == LAPD_INTF_ROLE_NT) {
-			ast_cli(fd, "DLCs                      : ");
+			opbx_cli(fd, "DLCs                      : ");
 
 			struct q931_dlc *dlc;
 			list_for_each_entry(dlc, &intf->q931_intf->dlcs,
 					intf_node) {
-				ast_cli(fd, "%d ", dlc->tei);
+				opbx_cli(fd, "%d ", dlc->tei);
 
 			}
 
-			ast_cli(fd, "\n\n");
+			opbx_cli(fd, "\n\n");
 
 #define TIMER_CONFIG(timer)					\
-	ast_cli(fd, #timer ": %3lld%-5s",			\
+	opbx_cli(fd, #timer ": %3lld%-5s",			\
 		intf->q931_intf->timer / 1000000LL,		\
 		ic->timer ? " (*)" : "");
 
 #define TIMER_CONFIG_LN(timer)					\
-	ast_cli(fd, #timer ": %3lld%-5s\n",			\
+	opbx_cli(fd, #timer ": %3lld%-5s\n",			\
 		intf->q931_intf->timer / 1000000LL,		\
 		ic->timer ? " (*)" : "");
 
@@ -902,7 +902,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 			TIMER_CONFIG(T304);
 			TIMER_CONFIG(T305);
 			TIMER_CONFIG(T306);
-			ast_cli(fd, "T307: %d\n", ic->T307);
+			opbx_cli(fd, "T307: %d\n", ic->T307);
 			TIMER_CONFIG(T308);
 			TIMER_CONFIG(T309);
 			TIMER_CONFIG(T310);
@@ -920,7 +920,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 			TIMER_CONFIG_LN(T304);
 			TIMER_CONFIG(T305);
 			TIMER_CONFIG(T306);
-			ast_cli(fd, "T307: %d\n", ic->T307);
+			opbx_cli(fd, "T307: %d\n", ic->T307);
 			TIMER_CONFIG_LN(T308);
 			TIMER_CONFIG(T309);
 			TIMER_CONFIG(T310);
@@ -938,7 +938,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 
 	}
 
-	ast_cli(fd, "\nParked calls:\n");
+	opbx_cli(fd, "\nParked calls:\n");
 	struct visdn_suspended_call *suspended_call;
 	list_for_each_entry(suspended_call, &intf->suspended_calls,
 		       					node) {
@@ -962,15 +962,15 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 		sane_str[i] = '\0';
 		hex_str[i*2] = '\0';
 
-		ast_cli(fd, "    %s (%s)\n",
+		opbx_cli(fd, "    %s (%s)\n",
 			sane_str,
 			hex_str);
 	}
 
-	ast_cli(fd, "\nChannels:\n");
+	opbx_cli(fd, "\nChannels:\n");
 	int i;
 	for (i=0; i<intf->q931_intf->n_channels; i++) {
-		ast_cli(fd, "  B%d: %s",
+		opbx_cli(fd, "  B%d: %s",
 			intf->q931_intf->channels[i].id + 1,
 			q931_channel_state_to_text(
 				intf->q931_intf->channels[i].state));
@@ -979,7 +979,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 			struct q931_call *call =
 				intf->q931_intf->channels[i].call;
 			
-			ast_cli(fd, "  Call: %5d.%c %s",
+			opbx_cli(fd, "  Call: %5d.%c %s",
 				call->call_reference,
 				(call->direction ==
 					Q931_CALL_DIRECTION_INBOUND)
@@ -987,7 +987,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 				q931_call_state_to_text(call->state));
 		}
 
-		ast_cli(fd, "\n");
+		opbx_cli(fd, "\n");
 	}
 }
 
@@ -995,17 +995,17 @@ char *visdn_intf_complete(char *line, char *word, int pos, int state)
 {
 	int which = 0;
 
-	ast_mutex_lock(&visdn.lock);
+	opbx_mutex_lock(&visdn.lock);
 	struct visdn_intf *intf;
 	list_for_each_entry(intf, &visdn.ifs, ifs_node) {
 		if (!strncasecmp(word, intf->name, strlen(word))) {
 			if (++which > state) {
-				ast_mutex_unlock(&visdn.lock);
+				opbx_mutex_unlock(&visdn.lock);
 				return strdup(intf->name);
 			}
 		}
 	}
-	ast_mutex_unlock(&visdn.lock);
+	opbx_mutex_unlock(&visdn.lock);
 
 	return NULL;
 }
@@ -1021,18 +1021,18 @@ static char *complete_show_visdn_interfaces(
 
 static int do_show_visdn_interfaces(int fd, int argc, char *argv[])
 {
-	ast_mutex_lock(&visdn.lock);
+	opbx_mutex_lock(&visdn.lock);
 
 	if (argc == 3) {
-		ast_cli(fd, "Interface  Role Mode TEI Status        Calls\n");
+		opbx_cli(fd, "Interface  Role Mode TEI Status        Calls\n");
 		
 		struct visdn_intf *intf;
 		list_for_each_entry(intf, &visdn.ifs, ifs_node) {
 
-			ast_mutex_lock(&intf->lock);
+			opbx_mutex_lock(&intf->lock);
 
 			if (!intf->q931_intf) {
-				ast_mutex_unlock(&intf->lock);
+				opbx_mutex_unlock(&intf->lock);
 				continue;
 			}
 
@@ -1051,7 +1051,7 @@ static int do_show_visdn_interfaces(int fd, int argc, char *argv[])
 				ncalls++;
 
 			
-			ast_cli(fd, "%-10s %-4s %-4s %-3s %-13s %d\n",
+			opbx_cli(fd, "%-10s %-4s %-4s %-3s %-13s %d\n",
 				intf->name,
 				intf->q931_intf->role == LAPD_INTF_ROLE_NT ?
 					"NT" : "TE",
@@ -1061,7 +1061,7 @@ static int do_show_visdn_interfaces(int fd, int argc, char *argv[])
 				visdn_intf_status_to_text(intf->status),
 				ncalls);
 
-			ast_mutex_unlock(&intf->lock);
+			opbx_mutex_unlock(&intf->lock);
 		}
 	} else if (argc == 4) {
 		struct visdn_intf *intf;
@@ -1074,7 +1074,7 @@ static int do_show_visdn_interfaces(int fd, int argc, char *argv[])
 	} else
 		return RESULT_SHOWUSAGE;
 
-	ast_mutex_unlock(&visdn.lock);
+	opbx_mutex_unlock(&visdn.lock);
 
 	return RESULT_SUCCESS;
 }
@@ -1084,7 +1084,7 @@ static char show_visdn_interfaces_help[] =
 "	Displays informations on vISDN's interfaces. If no interface name is\n"
 "	specified, shows a summary of all the interfaces.\n";
 
-static struct ast_cli_entry show_visdn_interfaces =
+static struct opbx_cli_entry show_visdn_interfaces =
 {
 	{ "show", "visdn", "interfaces", NULL },
 	do_show_visdn_interfaces,
@@ -1097,10 +1097,10 @@ static struct ast_cli_entry show_visdn_interfaces =
 
 void visdn_intf_cli_register(void)
 {
-	ast_cli_register(&show_visdn_interfaces);
+	opbx_cli_register(&show_visdn_interfaces);
 }
 
 void visdn_intf_cli_unregister(void)
 {
-	ast_cli_unregister(&show_visdn_interfaces);
+	opbx_cli_unregister(&show_visdn_interfaces);
 }
