@@ -23,12 +23,13 @@ noinst_HEADERS = \
 	overlap.h	\
 	disconnect.h	\
 	numbers_list.h	\
-	util.h
+	util.h		\
+	$(srcdir)/include/list.h
 
 chan_visdn_la_LIBADD		= -lq931 ${top_builddir}/corelib/libopenpbx.la
 chan_visdn_la_LDFLAGS = -module -avoid-version -no-undefined
 
 endif WANT_CHAN_VISDN
 
-INCLUDES = -I${top_srcdir}/corelib -I$(top_srcdir)/include
+INCLUDES = -I$(srcdir)/include -I${top_srcdir}/corelib -I$(top_srcdir)/include
 
