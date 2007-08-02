@@ -8,7 +8,7 @@ AUTOMAKE_OPTS			= gnu
 
 opbxmod_LTLIBRARIES 		=
 
-SUBDIRS				= iax2 sccp fax misdn
+SUBDIRS				= iax2 sccp fax misdn visdn
 
 if WANT_CHAN_ALSA
 opbxmod_LTLIBRARIES		+= chan_alsa.la
