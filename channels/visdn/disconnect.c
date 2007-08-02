@@ -14,7 +14,7 @@
  #include "confdefs.h"
 #endif
 
-//#include <openpbx/astmm.h>
+//#include <callweaver/astmm.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -24,15 +24,15 @@
 #include <stdarg.h>
 #include <ctype.h>
 
-#include <openpbx/lock.h>
-#include <openpbx/channel.h>
-#include <openpbx/config.h>
-#include <openpbx/logger.h>
-#include <openpbx/module.h>
-#include <openpbx/pbx.h>
-#include <openpbx/options.h>
-#include <openpbx/cli.h>
-#include <openpbx/causes.h>
+#include <callweaver/lock.h>
+#include <callweaver/channel.h>
+#include <callweaver/config.h>
+#include <callweaver/logger.h>
+#include <callweaver/module.h>
+#include <callweaver/pbx.h>
+#include <callweaver/options.h>
+#include <callweaver/cli.h>
+#include <callweaver/causes.h>
 
 #include "chan_visdn.h"
 #include "disconnect.h"

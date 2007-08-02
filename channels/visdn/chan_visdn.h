@@ -17,7 +17,7 @@
  #include "confdefs.h"
 #endif
 
-#include <openpbx/channel.h>
+#include <callweaver/channel.h>
 #include <libq931/list.h>
 
 #include "intf.h"

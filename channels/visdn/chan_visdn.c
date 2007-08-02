@@ -14,7 +14,7 @@
  #include "confdefs.h"
 #endif
 
-//#include <openpbx/astmm.h>
+//#include <callweaver/astmm.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -41,21 +41,21 @@
 #include <linux/if_ether.h>
 #include <net/if_arp.h>
 
-#include <openpbx/lock.h>
-#include <openpbx/channel.h>
-#include <openpbx/config.h>
-#include <openpbx/logger.h>
-#include <openpbx/module.h>
-#include <openpbx/pbx.h>
-#include <openpbx/options.h>
-#include <openpbx/utils.h>
-#include <openpbx/indications.h>
-#include <openpbx/cli.h>
-#include <openpbx/musiconhold.h>
-#include <openpbx/causes.h>
-#include <openpbx/dsp.h>
-#include <openpbx/devicestate.h>
-#include <openpbx/phone_no_utils.h>
+#include <callweaver/lock.h>
+#include <callweaver/channel.h>
+#include <callweaver/config.h>
+#include <callweaver/logger.h>
+#include <callweaver/module.h>
+#include <callweaver/pbx.h>
+#include <callweaver/options.h>
+#include <callweaver/utils.h>
+#include <callweaver/indications.h>
+#include <callweaver/cli.h>
+#include <callweaver/musiconhold.h>
+#include <callweaver/causes.h>
+#include <callweaver/dsp.h>
+#include <callweaver/devicestate.h>
+#include <callweaver/phone_no_utils.h>
 
 #include <linux/lapd.h>
 #include <linux/visdn/netdev.h>

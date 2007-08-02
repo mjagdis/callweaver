@@ -16,7 +16,7 @@
 
 #include <stdlib.h>
 
-#include <openpbx/pbx.h>
+#include <callweaver/pbx.h>
 
 #include <list.h>
 
