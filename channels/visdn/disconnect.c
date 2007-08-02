@@ -20,8 +20,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 
-#include "../config.h"
-
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>

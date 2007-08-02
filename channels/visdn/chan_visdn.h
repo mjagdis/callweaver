@@ -13,18 +13,15 @@
 #ifndef _CHAN_VISDN_H
 #define _CHAN_VISDN_H
 
-#include "../config.h"
-
-#include <asterisk/channel.h>
+#ifdef HAVE_CONFIG_H
+ #include "confdefs.h"
+#endif
 
 #ifdef HAVE_ASTERISK_VERSION_H
 #include <asterisk/version.h>
 #endif
 
-#ifndef ASTERISK_VERSION_NUM
-#include <asterisk/channel_pvt.h>
-#endif
-
+#include <asterisk/channel.h>
 #include <libq931/list.h>
 
 #include "intf.h"
@@ -37,9 +34,9 @@
 #define AST_CONTROL_DISCONNECT 43
 #endif
 
-#define VISDN_DESCRIPTION "VISDN Channel For Asterisk"
+#define VISDN_DESCRIPTION "VISDN Channel Driver for OpenPBX.org"
 #define VISDN_CHAN_TYPE "VISDN"
-#define VISDN_CONFIG_FILE "visdn.conf"
+#define VISDN_CONFIG_FILE "chan_visdn.conf"
 
 enum poll_info_type
 {

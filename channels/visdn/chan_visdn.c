@@ -37,8 +37,6 @@
 #include <linux/if_ether.h>
 #include <net/if_arp.h>
 
-#include "../config.h"
-
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
@@ -47,13 +45,13 @@
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
-#include <asterisk/callerid.h>
 #include <asterisk/indications.h>
 #include <asterisk/cli.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/causes.h>
 #include <asterisk/dsp.h>
 #include <asterisk/version.h>
+#include <openpbx/devicestate.h>
 
 #include <linux/lapd.h>
 #include <linux/visdn/netdev.h>
@@ -101,7 +99,7 @@ struct visdn_state visdn = {
 	.usecnt = 0,
 #ifdef DEBUG_DEFAULTS
 	.debug = TRUE,
-	.debug_q921 = FALSE,
+	.debug_q921 = TRUE,
 	.debug_q931 = TRUE,
 #else
 	.debug = FALSE,
@@ -1611,7 +1609,7 @@ static int visdn_setoption(
 }
 
 static int visdn_transfer(
-	struct ast_channel *ast,
+	struct ast_channel *opbx_chan,
 	const char *dest)
 {
 	ast_log(LOG_ERROR, "%s\n", __FUNCTION__);
@@ -5090,7 +5088,3 @@ char *description()
 	return VISDN_DESCRIPTION;
 }
 
-char *key()
-{
-	return ASTERISK_GPL_KEY;
-}
