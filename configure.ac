@@ -1051,7 +1051,7 @@ AC_ARG_ENABLE([visdn],
 	[AC_HELP_STRING([--enable-visdn],[Enable support for vISDN (default=no)])],,[enable_visdn="no"])
 
 if test "${enable_visdn}" = "yes"; then
-    AC_CHECK_HEADERS([visdn/visdn.h], [HAVE_VISDN_VISDN_H=1])
+    AC_CHECK_HEADERS([linux/visdn/router.h], [HAVE_LINUX_VISDN_ROUTER_H=1])
     AC_CHECK_LIB([q931], [main], [HAVE_LIBQ931=1])
 fi
 
@@ -1678,7 +1678,7 @@ AC_ARG_WITH([app_visdn_ppp],
 	[AC_HELP_STRING([--with-app_visdn_ppp],[Build and install app_visdn_ppp (default=yes)])],,
 	[with_app_visdn_ppp="yes"])
 
-AM_CONDITIONAL([WANT_APP_VISDN_PPP],[test "${with_app_visdn_ppp}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
+AM_CONDITIONAL([WANT_APP_VISDN_PPP],[test "${with_app_visdn_ppp}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_LINUX_VISDN_ROUTER_H}" -a -n "${HAVE_LIBQ931}"])
 
 dnl ###########################################################################
 
@@ -1896,7 +1896,7 @@ dnl ###########################################################################
 AC_ARG_WITH([chan_visdn],
 	[AC_HELP_STRING([--with-chan_visdn],[Build and install chan_visdn (default=no)])],,[with_chan_visdn="no"])
 
-AM_CONDITIONAL([WANT_CHAN_VISDN],[test "${with_chan_visdn}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_VISDN_VISDN_H}" -a -n "${HAVE_LIBQ931}"])
+AM_CONDITIONAL([WANT_CHAN_VISDN],[test "${with_chan_visdn}" = "yes" -a "${enable_visdn}" -a -n "${HAVE_LINUX_VISDN_ROUTER_H}" -a -n "${HAVE_LIBQ931}"])
 
 dnl ###########################################################################
 
