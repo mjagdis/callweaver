@@ -261,7 +261,7 @@ static int visdn_exec_overlap_dial(struct opbx_channel *chan, void *data)
 					 sizeof(called_number),
 					 f->subclass, &retval);
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 	}
 
 	LOCAL_USER_REMOVE(u);

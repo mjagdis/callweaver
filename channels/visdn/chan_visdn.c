@@ -1333,7 +1333,7 @@ static int visdn_bridge(
 				opbx_write(c0, f);
 		}
 
-		opbx_frfree(f);
+		opbx_fr_free(f);
 
 		// Braindead anyone?
 		struct opbx_channel *t;
