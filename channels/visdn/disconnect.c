@@ -37,7 +37,7 @@
 #include "chan_visdn.h"
 #include "disconnect.h"
 
-static int visdn_exec_disconnect(struct opbx_channel *chan, void *data)
+static int visdn_exec_disconnect(struct opbx_channel *chan, int argc, char **argv)
 {
 	opbx_indicate(chan, OPBX_CONTROL_DISCONNECT);
 
@@ -53,6 +53,7 @@ void visdn_disconnect_register(void)
 		"Disconnect",
 		visdn_exec_disconnect,
 		"Send a Disconnect frame",
+		"Disconnect()",
 		visdn_disconnect_descr);
 }
 

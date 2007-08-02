@@ -241,7 +241,7 @@ static int new_digit(
 	return FALSE;
 }
 
-static int visdn_exec_overlap_dial(struct opbx_channel *chan, void *data)
+static int visdn_exec_overlap_dial(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	int retval = -1;
@@ -277,6 +277,7 @@ void visdn_overlap_register(void)
 		"VISDNOverlapDial",
 		visdn_exec_overlap_dial,
 		"Plays dialtone and waits for digits",
+		"VISDNOverlapDial()",
 		visdn_overlap_dial_descr);
 }
 
