@@ -2,6 +2,7 @@
 #include "confdefs.h"
 #endif
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -26,7 +27,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/logger.h"
 
-#include "../channels/chan_visdn.h"
+#include "../channels/visdn/chan_visdn.h"
 
 static char *tdesc = "vISDN ppp RAS module";
 
@@ -35,11 +36,10 @@ static const char *visdn_ppp_name = "vISDNppp";
 static const char *visdn_ppp_synopsis = "Runs pppd and connects channel to visdn-ppp gateway";
 static const char *visdn_ppp_syntax = "vISDNppp(args)";
 static const char *visdn_ppp_descrip = 
-"Executes a RAS server using pppd on the given channel.\n"
-"The channel must be a clear channel (i.e. PRI source) and a Zaptel\n"
-"channel to be able to use this function (No modem emulation is included).\n"
-"Your pppd must be patched to be zaptel aware. Arguments should be\n"
-"separated by | characters.  Always returns -1.\n";
+"Spawns pppd and connects the channel to a newly created\n"
+" visdn-ppp channel. pppd must support visdn.so plugin.\n"
+"Arguments are passed to pppd and should be separated by | characters.\n"
+"Always returns -1.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -70,7 +70,7 @@ static pid_t spawn_ppp(struct opbx_channel *chan, const char *argv[])
 	if (pid)
 		return pid;
 
-	dup2(chan->fds[0], STDIN_FILENO);
+	close(0);
 
 	int i;
 	int max_fds = get_max_fds();
@@ -112,9 +112,9 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv)
 		return -1;
 	}
 
-	visdn_chan = chan->tech_pvt;
+	visdn_chan = to_visdn_chan(chan);
 
-	if (!strlen(visdn_chan->visdn_chanid)) {
+	if (!visdn_chan->bearer_channel_id) {
 		opbx_log(LOG_WARNING,
 			"vISDN crossconnector channel ID not present\n");
 		opbx_mutex_unlock(&chan->lock);
@@ -125,9 +125,14 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv)
 	nargv[0] = PPP_EXEC;
 	nargv[1] = "nodetach";
 	memcpy(nargv + 2, argc, argv * sizeof(argv[0]));
+
+	char chan_id_arg[10];
+	snprintf(chan_id_arg, sizeof(chan_id_arg),
+		"%06d", visdn_chan->bearer_channel_id);
+
 	nargv[2 + argc + 0] = "plugin";
 	nargv[2 + argc + 1] = "visdn.so";
-	nargv[2 + argc + 2] = visdn_chan->visdn_chanid;
+	nargv[2 + argc + 2] = chan_id_arg;
 	nargv[2 + argc + 3] = NULL;
 
 	opbx_mutex_unlock(&chan->lock);
