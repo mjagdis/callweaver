@@ -72,12 +72,8 @@ static const char *dial_descrip =
 "which first answered. All other calls placed by the Dial app will be hung up.\n"
 "If a timeout is not specified, the Dial application will wait indefinitely\n"
 "until either one of the called channels answers, the user hangs up, or all\n"
-"channels return busy or error. In general, the dialer will return 0 if it\n"
-"was unable to place the call, or the timeout expired. However, if all\n"
-"channels were busy, and there exists an extension with priority n+101 (where\n"
-"n is the priority of the dialer instance), then it will be the next\n"
-"executed extension (this allows you to setup different behavior on busy from\n"
-"no-answer).\n"
+"channels return busy or error. The dialer will return 0 if it\n"
+"was unable to place the call, or the timeout expired.\n"
 "  For the Privacy and Screening Modes, the DIALSTATUS variable will be set to DONTCALL, \n"
 "if the called party chooses to send the calling party to the 'Go Away' script, and \n"
 "the DIALSTATUS variable will be set to TORTURE, if the called party wants to send the caller to \n"
@@ -105,7 +101,7 @@ static const char *dial_descrip =
 "                      Also, the Proc can set the PROC_RESULT variable to do the following:\n"
 "                     -- ABORT - Hangup both legs of the call.\n"
 "                     -- CONGESTION - Behave as if line congestion was encountered.\n"
-"                     -- BUSY - Behave as if a busy signal was encountered. (n+101)\n"
+"                     -- BUSY - Behave as if a busy signal was encountered.\n"
 "                     -- CONTINUE - Hangup the called party and continue on in the dialplan.\n"
 "                     -- GOTO:<context>^<exten>^<priority> - Transfer the call.\n"
 "      'h' -- allow callee to hang up by hitting *.\n"
@@ -135,7 +131,6 @@ static const char *dial_descrip =
 "             * LIMIT_WARNING_FILE        File to play as warning if 'y' is defined.\n"
 "                        'timeleft' is a special sound macro to auto-say the time \n"
 "                        left and is the default.\n"
-"       'j' -- Jump to n+101 if all of the channels were busy.\n\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports it.\n"
@@ -287,7 +282,7 @@ static void senddialevent(struct opbx_channel *src, struct opbx_channel *dst)
 			   dst->uniqueid);
 }
 
-static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct localuser *outgoing, int *to, struct opbx_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
+static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct localuser *outgoing, int *to, struct opbx_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
 	struct localuser *o;
 	int found;
@@ -342,8 +337,6 @@ static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct loca
 					strcpy(status, "CONGESTION");
 				else if (numnochan)
 					strcpy(status, "CHANUNAVAIL");
-				if (option_priority_jumping || priority_jump)
-					opbx_goto_if_exists(in, in->context, in->exten, in->priority + 101);
 			} else {
 				if (option_verbose > 2)
 					opbx_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
@@ -695,7 +688,6 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	time_t start_time, answer_time, end_time;
 	struct opbx_app *app = NULL;
 	char *dblgoto = NULL;
-	int priority_jump = 0;
 
 	if (argc < 1 || argc > 4) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", dial_syntax);
@@ -929,8 +921,6 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			screen = 1;
 		} else if (strchr(options, 'C')) {
 			resetcdr = 1;
-		} else if (strchr(options, 'j')) {
-			priority_jump = 1;
 		}
 		if (strchr(options, 'n')) {
 			no_save_intros = 1;
@@ -1253,7 +1243,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		strcpy(status, "CHANUNAVAIL");
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, priority_jump, &result);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, &result);
 	
 	if (!peer) {
 		if (result) {
