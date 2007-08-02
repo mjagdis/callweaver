@@ -52,6 +52,7 @@
 #include <openpbx/dsp.h>
 #include <openpbx/version.h>
 #include <openpbx/devicestate.h>
+#include <openpbx/phone_no_utils.h>
 
 #include <linux/lapd.h>
 #include <linux/visdn/netdev.h>
