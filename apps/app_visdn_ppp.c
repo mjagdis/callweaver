@@ -124,7 +124,7 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv)
 	nargv = alloca((2 + argc + 3 + 1) * sizeof(nargv[0]));
 	nargv[0] = PPP_EXEC;
 	nargv[1] = "nodetach";
-	memcpy(nargv + 2, argc, argv * sizeof(argv[0]));
+	memcpy(nargv + 2, argv, argc * sizeof(argv[0]));
 
 	char chan_id_arg[10];
 	snprintf(chan_id_arg, sizeof(chan_id_arg),
