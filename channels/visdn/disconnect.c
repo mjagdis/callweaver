@@ -29,7 +29,6 @@
 #include <openpbx/options.h>
 #include <openpbx/cli.h>
 #include <openpbx/causes.h>
-#include <openpbx/version.h>
 
 #include "chan_visdn.h"
 #include "disconnect.h"

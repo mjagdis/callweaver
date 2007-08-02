@@ -50,7 +50,6 @@
 #include <openpbx/musiconhold.h>
 #include <openpbx/causes.h>
 #include <openpbx/dsp.h>
-#include <openpbx/version.h>
 #include <openpbx/devicestate.h>
 #include <openpbx/phone_no_utils.h>
 

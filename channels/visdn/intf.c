@@ -40,7 +40,6 @@
 #include <openpbx/pbx.h>
 #include <openpbx/options.h>
 #include <openpbx/cli.h>
-#include <openpbx/version.h>
 
 #include <linux/lapd.h>
 #include <libq931/intf.h>

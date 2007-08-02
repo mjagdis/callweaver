@@ -17,10 +17,6 @@
  #include "confdefs.h"
 #endif
 
-#ifdef HAVE_ASTERISK_VERSION_H
-#include <openpbx/version.h>
-#endif
-
 #include <openpbx/channel.h>
 #include <libq931/list.h>
 
