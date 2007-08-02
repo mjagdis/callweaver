@@ -67,13 +67,6 @@ chan_unicall_la_LIBADD 		= -lunicall -lsupertone ${top_builddir}/corelib/libcall
 chan_unicall_la_LDFLAGS 	= -module -avoid-version -no-undefined
 endif WANT_CHAN_UNICALL
 
-if WANT_CHAN_VISDN
-opbxmod_LTLIBRARIES		+= chan_visdn.la
-chan_visdn_la_SOURCES		= chan_visdn.c
-chan_visdn_la_LIBADD		= -lq931 ${top_builddir}/corelib/libcallweaver.la
-chan_visdn_la_LDFLAGS		= -module -avoid-version -no-undefined
-endif WANT_CHAN_VISDN
-
 if WANT_CHAN_WOOMERA
 opbxmod_LTLIBRARIES		+= chan_woomera.la
 chan_woomera_la_SOURCES		= chan_woomera.c
