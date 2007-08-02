@@ -45,7 +45,7 @@
 #else
 #define visdn_debug(format, arg...)		\
 	do {} while(0);
-#define FUNC_DEBUG() do {} while(0)
+#define FUNC_DEBUG(format, arg...) do {} while(0)                                                                                                                       
 #endif
 
 #endif
