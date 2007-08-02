@@ -3713,10 +3713,12 @@ static struct opbx_generator tonepair =
 
 int opbx_tonepair_start(struct opbx_channel *chan, int freq1, int freq2, int duration, int vol)
 {
-	struct tonepair_def d;
 
-	if (vol >= 0)
-		vol = -13;
+    struct tonepair_def d;
+
+    if (vol >= 0)
+	vol = -13;
+
     if (duration == 0)
     {
         make_tone_gen_descriptor(&d.tone_desc,
@@ -3761,7 +3763,9 @@ int opbx_tonepair(struct opbx_channel *chan, int freq1, int freq2, int duration,
 		return res;
 
 	/* Don't return to caller until after duration has passed */
-	return opbx_safe_sleep(chan, duration);
+	opbx_safe_sleep(chan, duration);
+        opbx_tonepair_stop(chan);
+        return 0;
 }
 
 opbx_group_t opbx_get_group(char *s)
