@@ -1920,13 +1920,7 @@ static struct opbx_frame *visdn_read(struct opbx_channel *opbx_chan)
 	f.delivery.tv_usec = 0;
 
 	if (visdn_chan->sp_fd < 0) {
-		f.frametype = OPBX_FRAME_NULL;
-		f.subclass = 0;
-		f.samples = 0;
-		f.datalen = 0;
-		f.data = NULL;
-		f.offset = 0;
-
+		opbx_fr_init(&f);
 		return &f;
 	}
 
@@ -1955,12 +1949,10 @@ opbx_verbose(VERBOSE_PREFIX_3 "R %.3f %02d %02x%02x%02x%02x%02x%02x%02x%02x %d\n
 	nread);
 #endif
 
-	f.frametype = OPBX_FRAME_VOICE;
-	f.subclass = OPBX_FORMAT_ALAW;
+	opbx_fr_init_ex(&f, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, "");
 	f.samples = nread;
 	f.datalen = nread;
 	f.data = visdn_chan->buf;
-	f.offset = 0;
 
 	struct opbx_frame *f2 = opbx_dsp_process(opbx_chan, visdn_chan->dsp, &f);
 
