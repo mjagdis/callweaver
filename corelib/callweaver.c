@@ -2127,6 +2127,9 @@ int callweaver_main(int argc, char *argv[])
 		cap_header->version = _LINUX_CAPABILITY_VERSION;
 		cap_header->pid = 0;
 		cap_data->effective = 1 << CAP_NET_ADMIN;
+#ifdef HAVE_LINUX_VISDN_ROUTER_H
+		cap_data->effective |= 1 << CAP_NET_BIND_SERVICE;
+#endif
 		cap_data->permitted = cap_data->effective;
 		cap_data->inheritable = 0;
 		/* set capabilities including NET_ADMIN */
@@ -2134,7 +2137,11 @@ int callweaver_main(int argc, char *argv[])
 
 		if (gr->gr_gid != getegid() )
 		    if (capset(cap_header, cap_data) == -1) {
-			opbx_log(LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN)\n");
+ 			opbx_log(LOG_ERROR, "Unable to set new capabilities (CAP_NET_ADMIN"
+#ifdef HAVE_LINUX_VISDN_ROUTER_H
+					"|CAP_NET_BIND_SERVICE"
+#endif
+					")\n");
 			exit(1);
 		    }
 #endif
