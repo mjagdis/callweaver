@@ -357,7 +357,6 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                             opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                             break;
                         }
-                        clean_frame(outf);
                     }
                     clean_frame(f);
                 }
