@@ -1862,7 +1862,7 @@ fi
 dnl ###########################################################################
 
 AC_ARG_WITH([chan_sccp],
-	[AC_HELP_STRING([--with-chan_sccp],[Build and install chan_sccp (default=yes)])],,[with_chan_sccp="no"])
+	[AC_HELP_STRING([--with-chan_sccp],[Build and install chan_sccp (default=no)])],,[with_chan_sccp="no"])
 
 AM_CONDITIONAL([WANT_CHAN_SCCP],[test "${with_chan_sccp}" = "yes"])
 
