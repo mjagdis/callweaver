@@ -37,8 +37,13 @@
 #include "callweaver/causes.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/translate.h"
+#include "callweaver/features.h"
+#include "callweaver/sched.h"
+#include "callweaver/io.h"
 
 static pthread_t socket_thread;
+struct sched_context *sched;
+struct io_context *io;
 
 /* ---------------------------------------------------- */
 
@@ -1270,6 +1275,10 @@ int reload(void) {
 
 int load_module() {
 
+       if ((sched = sched_context_create()) == NULL)
+               opbx_log(LOG_WARNING, "Unable to create schedule context\n");
+       if ((io = io_context_create()) == NULL)
+               opbx_log(LOG_WARNING, "Unable to create I/O context\n");
 
         char *test = opbx_pickup_ext();
 	if ( test == NULL ) {

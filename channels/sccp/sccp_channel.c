@@ -35,6 +35,9 @@
 #endif
 
 static uint32_t callCount = 1;
+extern struct sched_context *sched;
+extern struct io_context *io;
+
 OPBX_MUTEX_DEFINE_STATIC(callCountLock);
 
 sccp_channel_t * sccp_channel_allocate(sccp_line_t * l) {
@@ -676,7 +679,7 @@ void sccp_channel_start_rtp(sccp_channel_t * c) {
 /* No need to lock, because already locked in the sccp_indicate.c */
 /*	opbx_mutex_lock(&c->lock); */
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Creating rtp server connection at %s\n", c->device->id, opbx_inet_ntoa(iabuf, sizeof(iabuf), s->ourip));
-	c->rtp = opbx_rtp_new_with_bindaddr(NULL, NULL, 1, 0, s->ourip);
+	c->rtp = opbx_rtp_new_with_bindaddr(sched, io, 1, 0, s->ourip);
 	if (c->device->nat)
 		opbx_rtp_setnat(c->rtp, 1);
 
