@@ -2064,8 +2064,8 @@ AM_CONDITIONAL([WANT_FUNC_CALLERID],[test "${with_func_callerid}" = "yes"])
 dnl ###########################################################################
 
 AC_ARG_WITH([func_config],
-        [AC_HELP_STRING([--with-func_config],[Build and install func_config (default=no)])],,
-        [with_func_config="no"])
+        [AC_HELP_STRING([--with-func_config],[Build and install func_config (default=yes)])],,
+        [with_func_config="yes"])
 
 AM_CONDITIONAL([WANT_FUNC_CONFIG],[test "${with_func_config}" = "yes"])
 
