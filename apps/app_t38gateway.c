@@ -357,6 +357,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
                             opbx_log(LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
                             break;
                         }
+                        clean_frame(outf);
                     }
                     clean_frame(f);
                 }
@@ -501,12 +502,15 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
                   res = 0;
                   break;
                }
+
                if (f->frametype == OPBX_FRAME_CONTROL)
                {
                   if (f->subclass == OPBX_CONTROL_RINGING)
                   {
                      state = f->subclass;
                      opbx_indicate(chan, OPBX_CONTROL_RINGING);
+                     opbx_fr_free(f);
+                     break;
                   }
                   else if ((f->subclass == OPBX_CONTROL_BUSY)  ||  (f->subclass == OPBX_CONTROL_CONGESTION))
                   {
