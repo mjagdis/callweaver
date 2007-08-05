@@ -70,20 +70,23 @@ static char *dt_syntax = "DBdelTree(family[/keytree])";
 
 static char *g_descrip =
 	"Retrieves a value from the CallWeaver\n"
-	"database and stores it in the given variable.  Always returns 0.  If the\n"
-	"requested key is not found, jumps to priority n+101 if available.\n";
+	"database and stores it in the given variable. Always returns 0.\n"
+	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 static char *p_descrip =
 	"Stores the given value in the CallWeaver\n"
-	"database.  Always returns 0.\n";
+	"database.  Always returns 0.\n"
+	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 static char *d_descrip =
 	"Deletes a key from the CallWeaver database.  Always\n"
-	"returns 0.\n";
+	"returns 0.\n"
+	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 static char *dt_descrip =
 	"Deletes a family or keytree from the CallWeaver\n"
-	"database.  Always returns 0.\n";
+	"database. Always returns 0.\n"
+	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 
 STANDARD_LOCAL_USER;
@@ -127,6 +130,9 @@ static int deltree_exec(struct opbx_channel *chan, int argc, char **argv)
 	if (opbx_db_deltree(family, keytree)) {
 		if (option_verbose > 2)
 			opbx_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
+		} else {
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -159,6 +165,9 @@ static int del_exec(struct opbx_channel *chan, int argc, char **argv)
 		if (opbx_db_del(family, key)) {
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
+		} else {
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		}
 	} else {
 		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
@@ -201,6 +210,9 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv)
 		if (opbx_db_put(family, key, value)) {
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
+		} else {
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		}
 
 	} else	{
@@ -246,11 +258,11 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv)
 			pbx_builtin_setvar_helper(chan, varname, dbresult);
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
 		} else {
 			if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
-			/* Send the call to n+101 priority, where n is the current priority */
-			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+				opbx_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
+			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
 		}
 	} else {
 		opbx_log(LOG_DEBUG, "Ignoring, no parameters\n");
