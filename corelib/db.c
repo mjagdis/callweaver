@@ -317,7 +317,7 @@ retry_1:
 	return res;
 }
 
-static int opbx_db_del_main(const char *family, const char *keys, int like)
+static int opbx_db_del_main(const char *family, const char *keys, int like, const char *value)
 {
 	char *sql;
 	char *zErr = 0;
@@ -341,7 +341,10 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 		pct = "%";
 	}
 
-	if (family && keys) {
+	if (family && keys && value) {
+		sql = sqlite3_mprintf("delete from %q where family %s '%q%s' and keys %s '%q%s' AND value = '%q' ", 
+                                        globals.tablename, op, family, pct, op, keys, pct,  value );
+	} else if (family && keys) {
 		sql = sqlite3_mprintf("delete from %q where family %s '%q%s' and keys %s '%q%s'", globals.tablename, op, family, pct, op, keys, pct);
 	} else if (family) {
 		sql = sqlite3_mprintf("delete from %q where family %s '%q%s'", globals.tablename, op, family, pct);
@@ -349,6 +352,7 @@ static int opbx_db_del_main(const char *family, const char *keys, int like)
 		sql = sqlite3_mprintf("delete from %q", globals.tablename);
 	}
 
+opbx_log(LOG_DEBUG, "\n%s\n", sql);
 
 	if (sql) {
 retry_2:
@@ -395,12 +399,17 @@ retry_2:
 
 int opbx_db_del(const char *family, const char *keys)
 {
-	return opbx_db_del_main(family, keys, 0);
+	return opbx_db_del_main(family, keys, 0, NULL);
 }
 
 int opbx_db_deltree(const char *family, const char *keytree)
 {
-	return opbx_db_del_main(family, keytree, 1);
+	return opbx_db_del_main(family, keytree, 1, NULL);
+}
+
+int opbx_db_deltree_with_value(const char *family, const char *keytree, const char *value)
+{
+	return opbx_db_del_main(family, keytree, 1, value);
 }
 
 static int tree_callback(void *pArg, int argc, char **argv, char **columnNames) 
@@ -464,7 +473,7 @@ retry_3:
 		if (retry)
 			opbx_log(LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
 		else
-			opbx_log(LOG_DEBUG, "SQL [%s]\n", sql, retry);
+			opbx_log(LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   tree_callback,

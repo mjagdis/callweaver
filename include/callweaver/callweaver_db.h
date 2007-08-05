@@ -41,6 +41,8 @@ int opbx_db_del(const char *family, const char *key);
 
 int opbx_db_deltree(const char *family, const char *keytree);
 
+int opbx_db_deltree_with_value(const char *family, const char *keytree, const char *value);
+
 struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree);
 
 void opbx_db_freetree(struct opbx_db_entry *entry);
