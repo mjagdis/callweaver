@@ -352,8 +352,6 @@ static int opbx_db_del_main(const char *family, const char *keys, int like, cons
 		sql = sqlite3_mprintf("delete from %q", globals.tablename);
 	}
 
-opbx_log(LOG_DEBUG, "\n%s\n", sql);
-
 	if (sql) {
 retry_2:
 		if (retry)
