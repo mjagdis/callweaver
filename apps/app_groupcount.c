@@ -91,9 +91,9 @@ static char *group_check_descrip =
 "Usage: CheckGroup(max[@category])\n"
 "  Checks that the current number of total channels in the\n"
 "current channel's group does not exceed 'max'.  If the number\n"
-"does not exceed 'max', we continue to the next step. If the\n"
-"number does in fact exceed max, if priority n+101 exists, then\n"
-"execution continues at that step, otherwise -1 is returned.\n";
+"does not exceed 'max', set the GROUPSTATUS variable to OK.\n"
+"Otherwise set GROUPSTATUS to MAX_EXCEEDED.\n"
+"Always return 0\n";
 
 static char *group_match_count_descrip =
 "Usage: GetGroupMatchCount(groupmatch[@category])\n"
@@ -229,8 +229,9 @@ static int group_check_exec(struct opbx_channel *chan, int argc, char **argv)
  	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
 		count = opbx_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
-			if (!opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-				res = -1;
+			pbx_builtin_setvar_helper(chan, "GROUPSTATUS", "OK");
+		} else {
+			pbx_builtin_setvar_helper(chan, "GROUPSTATUS", "MAX_EXCEEDED");
 		}
 	} else
 		opbx_log(LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
