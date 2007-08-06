@@ -56,14 +56,12 @@ static char *privacy_name = "PrivacyManager";
 static char *privacy_synopsis = "Require phone number to be entered, if no CallerID sent";
 static char *privacy_syntax = "PrivacyManager()";
 static char *privacy_descrip =
-  "If no Caller*ID is sent, PrivacyManager answers the\n"
+  "If no Caller*ID was received, PrivacyManager answers the\n"
   "channel and asks the caller to enter their phone number.\n"
-  "The caller is given 3 attempts.  If after 3 attempts, they do not enter\n"
-  "at least a 10 digit phone number, and if there exists a priority n + 101,\n"
-  "where 'n' is the priority of the current instance, then  the\n"
-  "channel  will  be  setup  to continue at that priority level.\n"
-  "Otherwise, it returns 0.  Does nothing if Caller*ID was received on the\n"
-  "channel.\n"
+  "The caller is given the configured attempts.  If after the attempts, they do not enter\n"
+  "at least a configured count of digits of a number, PRIVACYMGRSTATUS is set to FAIL.\n"
+  "Otherwise, SUCCESS is flagged by PRIVACYMGRSTATUS.\n"
+  "Always returns 0.\n"
   "  Configuration file privacy.conf contains two variables:\n"
   "   maxretries  default 3  -maximum number of attempts the caller is allowed to input a callerid.\n"
   "   minlength   default 10 -minimum allowable digits in the input callerid number.\n"
@@ -92,13 +90,15 @@ static int privacy_exec (struct opbx_channel *chan, int argc, char **argv)
 	if (!opbx_strlen_zero(chan->cid.cid_num)) {
 		if (option_verbose > 2)
 			opbx_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
+		pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "SUCCESS");
 	} else {
 		/*Answer the channel if it is not already*/
 		if (chan->_state != OPBX_STATE_UP) {
 			res = opbx_answer(chan);
 			if (res) {
+				pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "FAIL");
 				LOCAL_USER_REMOVE(u);
-				return -1;
+				return 0;
 			}
 		}
 		/*Read in the config file*/
@@ -129,18 +129,13 @@ static int privacy_exec (struct opbx_channel *chan, int argc, char **argv)
 			
 		/*Ask for 10 digit number, give 3 attempts*/
 		for (retries = 0; retries < maxretries; retries++) {
-			if (!res)
-				res = opbx_streamfile(chan, "privacy-prompt", chan->language);
-			if (!res)
-				res = opbx_waitstream(chan, "");
-
 			if (!res ) 
-				res = opbx_readstring(chan, phone, sizeof(phone) - 1, /* digit timeout ms */ 3200, /* first digit timeout */ 5000, "#");
+				res = opbx_app_getdata(chan, "privacy-prompt", phone, sizeof(phone), 0);
 
 			if (res < 0)
 				break;
 
-			/*Make sure we get at least digits*/
+			/*Make sure we get at least our minimum of digits*/
 			if (strlen(phone) >= minlength ) 
 				break;
 			else {
@@ -158,9 +153,10 @@ static int privacy_exec (struct opbx_channel *chan, int argc, char **argv)
 			opbx_set_callerid (chan, phone, "Privacy Manager", NULL);
 			if (option_verbose > 2)
 				opbx_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",phone);
+			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "SUCCESS");
 		} else {
-			/* Send the call to n+101 priority, where n is the current priority  */
-			opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			/* Flag Failure  */
+			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "FAIL");
 		}
 		if (cfg) 
 			opbx_config_destroy(cfg);
