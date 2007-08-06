@@ -1,3 +1,4 @@
+; vim:ft=asterisk
 ;
 ; Static extension configuration file, used by
 ; the pbx_config module. This is where you configure all your 
@@ -298,20 +299,20 @@ include => iaxprovider
 ;
 ; eswitch => IAX2/context@${CURSERVER}
 
-[proc-stdexten];
+[proc-stdexten]
 ;
 ; Standard extension proc:
 ;   ${ARG1} - Extension  (we could have used ${PROC_EXTEN} here as well
 ;   ${ARG2} - Device(s) to ring
 ;
 exten => s,1,Dial(${ARG2},20)					; Ring the interface, 20 seconds maximum
-exten => s,2,Goto(s-${DIALSTATUS},1)				; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+exten => s,n,Goto(s-${DIALSTATUS},1)				; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
 exten => s-NOANSWER,1,VoiceMail(u${ARG1})		; If unavailable, send to voicemail w/ unavail announce
-exten => s-NOANSWER,2,Goto(default,s,1)			; If they press #, return to start
+exten => s-NOANSWER,n,Goto(default,s,1)			; If they press #, return to start
 
 exten => s-BUSY,1,VoiceMail(b${ARG1})			; If busy, send to voicemail w/ busy announce
-exten => s-BUSY,2,Goto(default,s,1)				; If they press #, return to start
+exten => s-BUSY,n,Goto(default,s,1)				; If they press #, return to start
 
 exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
@@ -326,13 +327,13 @@ exten => a,1,VoiceMailMain(${ARG1})				; If they press *, send the user into Voi
 ;   ${ARG4} - Optional TORTURE context name to jump to (assumes the s,1 extension-priority)`
 ;
 exten => s,1,Dial(${ARG2},20,p)					; Ring the interface, 20 seconds maximum, call screening option (or use P for databased call screening)
-exten => s,2,Goto(s-${DIALSTATUS},1)				; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+exten => s,n,Goto(s-${DIALSTATUS},1)				; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
 exten => s-NOANSWER,1,VoiceMail(u${ARG1})		; If unavailable, send to voicemail w/ unavail announce
-exten => s-NOANSWER,2,Goto(default,s,1)			; If they press #, return to start
+exten => s-NOANSWER,n,Goto(default,s,1)			; If they press #, return to start
 
 exten => s-BUSY,1,VoiceMail(b${ARG1})			; If busy, send to voicemail w/ busy announce
-exten => s-BUSY,2,Goto(default,s,1)				; If they press #, return to start
+exten => s-BUSY,n,Goto(default,s,1)				; If they press #, return to start
 
 exten => s-DONTCALL,1,Goto(${ARG3},s,1)               ; Callee chose to send this call to a polite "Don't call again" script.
 
@@ -357,7 +358,7 @@ exten => s,n,RxFAX(${FAXFILE},ecm)
 exten => s,n,Hangup()
 exten => h,1,NoOp(RxFAX completed)
 exten => h,n,NoOp(RX: REMOTESTATIONID is ${REMOTESTATIONID})
-exten => h,1,NoOp(RX: FAXPAGES is ${FAXPAGES})
+exten => h,n,NoOp(RX: FAXPAGES is ${FAXPAGES})
 exten => h,n,NoOp(RX: FAXRESOLUTION  is ${FAXRESOLUTION})
 exten => h,n,NoOp(RX: FAXBITRATE is ${FAXBITRATE})
 exten => h,n,NoOp(RX: PHASEESTATUS is ${PHASEESTATUS})
@@ -372,7 +373,7 @@ exten => s,n,SipDTMFMode(inband)
 exten => s,n,TxFAX(${FAXFILE},caller,debug,ecm)
 exten => s,n,Hangup()
 exten => h,1,NoOp(TX: REMOTESTATIONID is ${REMOTESTATIONID})
-exten => h,1,NoOp(TX: FAXPAGES is ${FAXPAGES})
+exten => h,n,NoOp(TX: FAXPAGES is ${FAXPAGES})
 exten => h,n,NoOp(TX: FAXRESOLUTION  is ${FAXRESOLUTION})
 exten => h,n,NoOp(TX: FAXBITRATE is ${FAXBITRATE})
 exten => h,n,NoOp(TX: PHASEESTATUS is ${PHASEESTATUS})
