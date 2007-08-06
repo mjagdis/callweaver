@@ -931,7 +931,7 @@ static int sqlite_log(struct opbx_cdr *cdr)
 #ifdef LOG_USERFIELD
 				",'%s'"
 #endif
-				")",cdr_table,
+				")\n",cdr_table,
 				cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
 				cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
 				startstr, answerstr, endstr,
