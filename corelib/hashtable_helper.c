@@ -32,9 +32,12 @@
 #include "callweaver.h"
 
 #include "callweaver/logger.h"
+#include "callweaver/options.h"
 #include "callweaver/hashtable.h"
 #include "callweaver/hashtable_helper.h"
 
+
+#define hash_log(lev,fmt,...) if ( option_debug > 5 ) opbx_log(lev,fmt, __VA_ARGS__ )
 
 /* ***************************************************************************
    ***************************************************************************
@@ -50,7 +53,7 @@ int opbx_core_hash_insert ( hash_table_t *hash, char *key, void *data ) {
         return 0;
     }
 
-    opbx_log(LOG_DEBUG,"Hash adding Hash Entry '%s' to table.\n",key);
+    hash_log(LOG_DEBUG,"Hash adding Hash Entry '%s' to table.\n",key);
 
     x = hash_create_entry(hash, key, &new);
 
@@ -66,17 +69,17 @@ int opbx_core_hash_insert ( hash_table_t *hash, char *key, void *data ) {
 int opbx_core_hash_get ( hash_table_t *hash, char *key, void **data ) {
     hash_entry_t *entry;
 
-    opbx_log(LOG_DEBUG, "Hash searching Key '%s'\n", key);
+    hash_log(LOG_DEBUG, "Hash searching Key '%s'\n", key);
 
     entry = hash_find_entry( hash, key );
 
     if ( (entry == NULL) )
     {
-        opbx_log(LOG_DEBUG,"Can't find hash identified by key '%s'\n", key);
+        hash_log(LOG_DEBUG,"Can't find hash identified by key '%s'\n", key);
 	*data = NULL;
         return 0;
     } else {
-        opbx_log(LOG_DEBUG,"Hashtable: found key '%s'\n", key);
+        hash_log(LOG_DEBUG,"Hashtable: found key '%s'\n", key);
 	*data = hash_get_value(entry);
 	return 1;
     }
@@ -92,7 +95,7 @@ int opbx_core_hash_delete (hash_table_t *hash, char *key, int mustfree ) {
         return 0;
     }
 
-    opbx_log(LOG_DEBUG, "Destroying hash with key '%s' from hashtable.\n", key);
+    hash_log(LOG_DEBUG, "Destroying hash with key '%s' from hashtable.\n", key);
 
     if ((entry = hash_find_entry(hash, (const void *) key)) == NULL)
     {
