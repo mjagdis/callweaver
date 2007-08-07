@@ -280,7 +280,7 @@ static void *opbx_generator_thread(void *data)
 			cur_gen_func = pgcd->gen_func;
 			cur_gen_free = pgcd->gen_free;
 			pgcd->gen_is_active = -1;
-			sleep_interval_ns = 1000000L * cur_gen_samp / 8;        // THIS IS BECAUSE It's HARDCODED TO 8000 samples per second. We should use the samples per second in the channel struct.
+			sleep_interval_ns = 1000000L * cur_gen_samp / ( pgcd->samples_per_second / 1000 );        // THIS IS BECAUSE It's HARDCODED TO 8000 samples per second. We should use the samples per second in the channel struct.
 			gettimeofday(&tv, NULL);
 			ts.tv_sec = tv.tv_sec;
 			ts.tv_nsec = 1000 * tv.tv_usec;
