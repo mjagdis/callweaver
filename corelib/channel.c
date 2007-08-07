@@ -661,6 +661,21 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	return tmp;
 }
 
+/* Sets the channel codec samples per seconds */
+void opbx_channel_set_samples_per_second( struct opbx_channel *tmp, int sps )
+{
+    //TODO should we check for sps to be correct ? (ie 8000, 16000 etccc)
+    //TODO: Should we stop the generator and reactivate it or simply check that it's not running ?
+    tmp->samples_per_second = sps;
+}
+
+/* Sets the channel generator samples per iteration */
+void opbx_channel_set_generator_samples( struct opbx_channel *tmp, int samp )
+{
+    //TODO: Should we stop the generator and reactivate it or simply check that it's not running ?
+    tmp->gen_samples = samp;
+}
+
 /* Sets the channel t38 status */
 void opbx_channel_perform_set_t38_status( struct opbx_channel *tmp, t38_status_t status, const char *file, int line )
 {

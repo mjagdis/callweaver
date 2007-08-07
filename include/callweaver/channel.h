@@ -490,6 +490,12 @@ struct outgoing_helper {
  */
 struct opbx_channel *opbx_channel_alloc(int needalertpipe);
 
+/* Sets the channel codec samples per seconds */
+void opbx_channel_set_samples_per_second( struct opbx_channel *tmp, int sps );
+
+/* Sets the channel generator samples per iteration */
+void opbx_channel_set_generator_samples( struct opbx_channel *tmp, int samp );
+
 /*! Sets the T38 channel status */
 #define opbx_channel_set_t38_status(c,s) opbx_channel_perform_set_t38_status(c,s, __FILE__, __LINE__)
 void opbx_channel_perform_set_t38_status( struct opbx_channel *tmp, t38_status_t status, const char *file, int line );
