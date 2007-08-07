@@ -53,6 +53,12 @@ static const char *fieldqty_func_synopsis = "Count the fields, with an arbitrary
 static const char *fieldqty_func_syntax = "FIELDQTY(varname, delim)";
 static const char *fieldqty_func_desc = "";
 
+static void *filter_function;
+static const char *filter_func_name = "FILTER";
+static const char *filter_func_synopsis = "Filter the string to include only the allowed characters";
+static const char *filter_func_syntax = "FILTER(<allowed-chars>|<string>)";
+static const char *filter_func_desc = "";
+
 static void *regex_function;
 static const char *regex_func_name = "REGEX";
 static const char *regex_func_synopsis = "Match data against a regular expression";
@@ -133,6 +139,29 @@ static char *function_fieldqty(struct opbx_channel *chan, int argc, char **argv,
 	return buf;
 }
 
+static char *function_filter(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+{
+
+	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
+		opbx_log(LOG_ERROR, "Syntax: %s\n", filter_func_syntax);
+		return NULL;
+	}
+	char *outbuf = buf;
+
+	char *allowed;
+	char *string;
+
+	allowed = argv[0];
+	string = argv[1];
+
+	for (; *(string) && (buf + len - 1 > outbuf); (string)++) {
+		if (strchr(allowed, *(string)))
+			*outbuf++ = *(string);
+	}
+	*outbuf = '\0';
+
+	return 0;
+}
 
 static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
@@ -377,6 +406,7 @@ int unload_module(void)
         int res = 0;
 
 	res |= opbx_unregister_function(fieldqty_function);
+	res |= opbx_unregister_function(filter_function);
 	res |= opbx_unregister_function(regex_function);
 	res |= opbx_unregister_function(len_function);
 	res |= opbx_unregister_function(strftime_function);
@@ -390,6 +420,7 @@ int unload_module(void)
 int load_module(void)
 {
 	fieldqty_function = opbx_register_function(fieldqty_func_name, function_fieldqty, NULL, fieldqty_func_synopsis, fieldqty_func_syntax, fieldqty_func_desc);
+	filter_function = opbx_register_function(filter_func_name, function_filter, NULL, filter_func_synopsis, filter_func_syntax, filter_func_desc);
 	regex_function = opbx_register_function(regex_func_name, builtin_function_regex, NULL, regex_func_synopsis, regex_func_syntax, regex_func_desc);
 	len_function = opbx_register_function(len_func_name, builtin_function_len, NULL, len_func_synopsis, len_func_syntax, len_func_desc);
 	strftime_function = opbx_register_function(strftime_func_name, acf_strftime, NULL, strftime_func_synopsis, strftime_func_syntax, strftime_func_desc);

@@ -496,7 +496,7 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
-	opbx_log(LOG_WARNING, "built-in log rotation is depricated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
+	opbx_log(LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
 	if(reload_logger(1)) {
 		opbx_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
