@@ -100,7 +100,11 @@ int opbx_generator_activate(struct opbx_channel *chan, struct opbx_generator *ge
 		/* Setup new request */
 		pgcd->gen_data = gen_data;
 		pgcd->gen_func = gen->generate;
-		pgcd->gen_samp = 160;
+                if ( chan->gen_samples )
+		    pgcd->gen_samp = chan->gen_samples;
+                else
+		    pgcd->gen_samp = 160;
+		pgcd->samples_per_second = chan->samples_per_second;
 		pgcd->gen_free = gen->release;
 
 		/* Signal generator thread to activate new generator */
@@ -276,7 +280,7 @@ static void *opbx_generator_thread(void *data)
 			cur_gen_func = pgcd->gen_func;
 			cur_gen_free = pgcd->gen_free;
 			pgcd->gen_is_active = -1;
-			sleep_interval_ns = 1000000L * cur_gen_samp / 8;
+			sleep_interval_ns = 1000000L * cur_gen_samp / 8;        // THIS IS BECAUSE It's HARDCODED TO 8000 samples per second. We should use the samples per second in the channel struct.
 			gettimeofday(&tv, NULL);
 			ts.tv_sec = tv.tv_sec;
 			ts.tv_nsec = 1000 * tv.tv_usec;

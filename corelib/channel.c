@@ -581,7 +581,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	        
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down)
-    {
+        {
 		opbx_log(LOG_NOTICE, "Refusing channel allocation due to active shutdown\n");
 		return NULL;
 	}
@@ -594,7 +594,7 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 	memset(tmp, 0, sizeof(*tmp));
 
 	if ((tmp->sched = sched_manual_context_create()) == NULL)
-    {
+        {
 		opbx_log(LOG_ERROR, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
 		return NULL;
@@ -604,9 +604,9 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 		tmp->fds[x] = -1;
 
 	if (needqueue)
-    {
-		if (pipe(tmp->alertpipe))
         {
+		if (pipe(tmp->alertpipe))
+                {
 			opbx_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 			free(tmp);
 			return NULL;
@@ -616,11 +616,11 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 		flags = fcntl(tmp->alertpipe[1], F_GETFL);
 		fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
 	}
-    else 
+        else 
 	{
     	/* Make sure we've got it done right if they don't */
 		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
-    }
+        }
 	/* Init channel generator data struct lock */
 	opbx_mutex_init(&tmp->gcd.lock);
 
@@ -649,6 +649,9 @@ struct opbx_channel *opbx_channel_alloc(int needqueue)
 
 	tmp->tech = &null_tech;
 	tmp->t38_status = T38_STATUS_UNKNOWN;
+
+        tmp->gen_samples = 160;
+        tmp->samples_per_second = 8000;
 
 	opbx_mutex_lock(&chlock);
 	tmp->next = channels;

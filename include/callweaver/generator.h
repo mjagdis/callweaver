@@ -74,6 +74,9 @@ struct opbx_generator_channel_data {
 	/*! How many samples to generate each time*/
 	int gen_samp;
 
+	/*! How is our codec supposed to be? What's the sample frequency ? */
+	int samples_per_second;
+
 	/*! New generator function */
 	int (*gen_func)(struct opbx_channel *chan, void *gen_data, int gen_samp);
 
