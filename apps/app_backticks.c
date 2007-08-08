@@ -56,11 +56,11 @@ static char *backticks_descrip =
 	"Be sure to include a full path!\n";
 
 static void *backticks_function;
-static const char *backticks_func_name = "BACKTICKS",
-static const char *backticks_func_synopsis = "Executes a shell command.",
-static const char *backticks_func_syntax = "BACKTICKS(command)",
+static const char *backticks_func_name = "BACKTICKS";
+static const char *backticks_func_synopsis = "Executes a shell command.";
+static const char *backticks_func_syntax = "BACKTICKS(command)";
 static const char *backticks_func_descrip =
-	"Executes a shell command and evaluates to the result.",
+	"Executes a shell command and evaluates to the result.";
 
 STANDARD_LOCAL_USER;
 
