@@ -560,7 +560,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
         if (!opbx_channel_make_compatible(chan, peer))
         {
             opbx_answer(chan);
-            peer->appl = t38gateway_app;
+            peer->appl = t38gateway_name;
 	    
             /* FIXME original patch removes the if line below - trying with it before removing it */
             if (argc > 2  &&  strchr(argv[2], 'r'))
