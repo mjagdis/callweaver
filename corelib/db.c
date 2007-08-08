@@ -342,8 +342,8 @@ static int opbx_db_del_main(const char *family, const char *keys, int like, cons
 	}
 
 	if (family && keys && value) {
-		sql = sqlite3_mprintf("delete from %q where family %s '%q%s' and keys %s '%q%s' AND value = '%q' ", 
-                                        globals.tablename, op, family, pct, op, keys, pct,  value );
+		sql = sqlite3_mprintf("delete from %q where family %s '%q%s' and keys %s '%q%s' AND value %s '%q%s' ", 
+                                        globals.tablename, op, family, pct, op, keys, pct, op, value, pct );
 	} else if (family && keys) {
 		sql = sqlite3_mprintf("delete from %q where family %s '%q%s' and keys %s '%q%s'", globals.tablename, op, family, pct, op, keys, pct);
 	} else if (family) {
