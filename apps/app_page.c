@@ -80,7 +80,7 @@ struct calloutdata {
 	char cidname[64];
 	char tech[64];
 	char resource[256];
-	char meetmeopts[64];
+	char nconferenceopts[64];
 	struct opbx_variable *variables;
 };
 
@@ -88,12 +88,12 @@ static void *page_thread(void *data)
 {
 	struct calloutdata *cd = data;
 	opbx_pbx_outgoing_app(cd->tech, OPBX_FORMAT_SLINEAR, cd->resource, 30000,
-		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL);
+		"NConference", cd->nconferenceopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL);
 	free(cd);
 	return NULL;
 }
 
-static void launch_page(struct opbx_channel *chan, const char *meetmeopts, const char *tech, const char *resource)
+static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, const char *tech, const char *resource)
 {
 	struct calloutdata *cd;
 	const char *varname;
@@ -108,7 +108,7 @@ static void launch_page(struct opbx_channel *chan, const char *meetmeopts, const
 		opbx_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
 		opbx_copy_string(cd->tech, tech, sizeof(cd->tech));
 		opbx_copy_string(cd->resource, resource, sizeof(cd->resource));
-		opbx_copy_string(cd->meetmeopts, meetmeopts, sizeof(cd->meetmeopts));
+		opbx_copy_string(cd->nconferenceopts, nconferenceopts, sizeof(cd->nconferenceopts));
 
 		OPBX_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
 			if (!(varname = opbx_var_full_name(varptr)))
@@ -145,7 +145,7 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	char *tech, *resource;
-	char meetmeopts[80];
+	char nconferenceopts[80];
 	unsigned char flags;
 	unsigned int confid = rand();
 	struct opbx_app *app;
@@ -158,8 +158,8 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(app = pbx_findapp("MeetMe"))) {
-		opbx_log(LOG_WARNING, "There is no MeetMe application available!\n");
+	if (!(app = pbx_findapp("NConference"))) {
+		opbx_log(LOG_WARNING, "There is no NConference application available!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	};
@@ -175,11 +175,11 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 		}
 	}
 
-	snprintf(meetmeopts, sizeof(meetmeopts), "%ud,%sqxdw", confid, ((flags & PAGE_DUPLEX) ? "" : "m"));
+	snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%q", confid, ((flags & PAGE_DUPLEX) ? "" : "L"));
 	while ((tech = strsep(&argv[0], "&"))) {
 		if ((resource = strchr(tech, '/'))) {
 			*resource++ = '\0';
-			launch_page(chan, meetmeopts, tech, resource);
+			launch_page(chan, nconferenceopts, tech, resource);
 		} else {
 			opbx_log(LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
 		}
@@ -190,8 +190,8 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 			res = opbx_waitstream(chan, "");
 	}
 	if (!res) {
-		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ((flags & PAGE_DUPLEX) ? "" : "t"));
-		pbx_exec(chan, app, meetmeopts);
+		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%q", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
+		pbx_exec(chan, app, nconferenceopts);
 	}
 
 	LOCAL_USER_REMOVE(u);
