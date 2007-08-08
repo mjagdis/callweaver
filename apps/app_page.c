@@ -190,8 +190,7 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 			res = opbx_waitstream(chan, "");
 	}
 	if (!res) {
-		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : 
-"T"));
+		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
 		pbx_exec(chan, app, nconferenceopts);
 	}
 
