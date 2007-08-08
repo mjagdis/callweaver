@@ -283,22 +283,6 @@ int opbx_stream_fastforward(struct opbx_filestream *fs, long ms);
  */
 int opbx_stream_rewind(struct opbx_filestream *fs, long ms);
 
-/*! Fast forward stream ms */
-/*!
- * \param opbx_filestream fs filestream to act on
- * \param ms milliseconds to move
- * Returns 0 for success, or -1 for error
- */
-int opbx_stream_fastforward(struct opbx_filestream *fs, long ms);
-
-/*! Rewind stream ms */
-/*!
- * \param opbx_filestream fs filestream to act on
- * \param ms milliseconds to move
- * Returns 0 for success, or -1 for error
- */
-int opbx_stream_rewind(struct opbx_filestream *fs, long ms);
-
 /*! Tell where we are in a stream */
 /*!
  * \param opbx_filestream fs to act on
