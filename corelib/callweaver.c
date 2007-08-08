@@ -280,6 +280,10 @@ void opbx_unregister_file_version(const char *file)
 {
     struct file_version *find;
 
+    while (*file && isspace(*file)) file++;
+    if (!strncmp(file, "$HeadURL: ", 10))
+        file += 10;
+
     OPBX_LIST_LOCK(&file_versions);
     OPBX_LIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list)
     {
