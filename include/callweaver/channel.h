@@ -367,6 +367,9 @@ struct opbx_channel {
 
 };
 
+typedef struct opbx_channel opbx_channel_t;
+
+
 /* Channel tech properties: */
 /* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
 #define OPBX_CHAN_TP_WANTSJITTER	(1 << 0)	
