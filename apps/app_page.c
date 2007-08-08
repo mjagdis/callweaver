@@ -175,7 +175,7 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 		}
 	}
 
-	snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%q", confid, ((flags & PAGE_DUPLEX) ? "" : "L"));
+	snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : "L"));
 	while ((tech = strsep(&argv[0], "&"))) {
 		if ((resource = strchr(tech, '/'))) {
 			*resource++ = '\0';
@@ -190,7 +190,8 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 			res = opbx_waitstream(chan, "");
 	}
 	if (!res) {
-		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%q", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
+		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : 
+"T"));
 		pbx_exec(chan, app, nconferenceopts);
 	}
 
