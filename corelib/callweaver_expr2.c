@@ -136,7 +136,6 @@
  * error messages, and then to fold in a flex scanner for the 
  * yylex operation.
  *
- * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
 
 #include "callweaver.h"
@@ -280,12 +279,12 @@ int		opbx_yyerror(const char *,YYLTYPE *, struct parse_io *);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 147 "callweaver_expr2.y"
+#line 142 "callweaver_expr2.y"
 {
 	struct val *val;
 }
-/* Line 193 of yacc.c.  */
-#line 293 "callweaver_expr2.c"
+/* Line 187 of yacc.c.  */
+#line 288 "callweaver_expr2.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -307,13 +306,13 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 151 "callweaver_expr2.y"
+#line 146 "callweaver_expr2.y"
 
 extern int		opbx_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
 /* Line 216 of yacc.c.  */
-#line 321 "callweaver_expr2.c"
+#line 316 "callweaver_expr2.c"
 
 #ifdef short
 # undef short
@@ -608,9 +607,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   175,   175,   183,   190,   191,   195,   199,   203,   207,
-     211,   215,   219,   223,   227,   231,   235,   239,   243,   247,
-     251,   255,   259,   263
+       0,   170,   170,   178,   185,   186,   190,   194,   198,   202,
+     206,   210,   214,   218,   222,   226,   230,   234,   238,   242,
+     246,   250,   254,   258
 };
 #endif
 
@@ -1258,114 +1257,114 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
   switch (yytype)
     {
       case 3: /* "TOK_COLONCOLON" */
-#line 169 "callweaver_expr2.y"
+#line 164 "callweaver_expr2.y"
+	{  free_value((yyvaluep->val)); };
+#line 1263 "callweaver_expr2.c"
+	break;
+      case 4: /* "TOK_COND" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1268 "callweaver_expr2.c"
 	break;
-      case 4: /* "TOK_COND" */
-#line 169 "callweaver_expr2.y"
+      case 5: /* "TOK_OR" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1273 "callweaver_expr2.c"
 	break;
-      case 5: /* "TOK_OR" */
-#line 169 "callweaver_expr2.y"
+      case 6: /* "TOK_AND" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1278 "callweaver_expr2.c"
 	break;
-      case 6: /* "TOK_AND" */
-#line 169 "callweaver_expr2.y"
+      case 7: /* "TOK_NE" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1283 "callweaver_expr2.c"
 	break;
-      case 7: /* "TOK_NE" */
-#line 169 "callweaver_expr2.y"
+      case 8: /* "TOK_LE" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1288 "callweaver_expr2.c"
 	break;
-      case 8: /* "TOK_LE" */
-#line 169 "callweaver_expr2.y"
+      case 9: /* "TOK_GE" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1293 "callweaver_expr2.c"
 	break;
-      case 9: /* "TOK_GE" */
-#line 169 "callweaver_expr2.y"
+      case 10: /* "TOK_LT" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1298 "callweaver_expr2.c"
 	break;
-      case 10: /* "TOK_LT" */
-#line 169 "callweaver_expr2.y"
+      case 11: /* "TOK_GT" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1303 "callweaver_expr2.c"
 	break;
-      case 11: /* "TOK_GT" */
-#line 169 "callweaver_expr2.y"
+      case 12: /* "TOK_EQ" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1308 "callweaver_expr2.c"
 	break;
-      case 12: /* "TOK_EQ" */
-#line 169 "callweaver_expr2.y"
+      case 13: /* "TOK_MINUS" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1313 "callweaver_expr2.c"
 	break;
-      case 13: /* "TOK_MINUS" */
-#line 169 "callweaver_expr2.y"
+      case 14: /* "TOK_PLUS" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1318 "callweaver_expr2.c"
 	break;
-      case 14: /* "TOK_PLUS" */
-#line 169 "callweaver_expr2.y"
+      case 15: /* "TOK_MOD" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1323 "callweaver_expr2.c"
 	break;
-      case 15: /* "TOK_MOD" */
-#line 169 "callweaver_expr2.y"
+      case 16: /* "TOK_DIV" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1328 "callweaver_expr2.c"
 	break;
-      case 16: /* "TOK_DIV" */
-#line 169 "callweaver_expr2.y"
+      case 17: /* "TOK_MULT" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1333 "callweaver_expr2.c"
 	break;
-      case 17: /* "TOK_MULT" */
-#line 169 "callweaver_expr2.y"
+      case 18: /* "TOK_COMPL" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1338 "callweaver_expr2.c"
 	break;
-      case 18: /* "TOK_COMPL" */
-#line 169 "callweaver_expr2.y"
+      case 19: /* "TOK_EQTILDE" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1343 "callweaver_expr2.c"
 	break;
-      case 19: /* "TOK_EQTILDE" */
-#line 169 "callweaver_expr2.y"
+      case 20: /* "TOK_COLON" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1348 "callweaver_expr2.c"
 	break;
-      case 20: /* "TOK_COLON" */
-#line 169 "callweaver_expr2.y"
+      case 21: /* "TOK_LP" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1353 "callweaver_expr2.c"
 	break;
-      case 21: /* "TOK_LP" */
-#line 169 "callweaver_expr2.y"
+      case 22: /* "TOK_RP" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1358 "callweaver_expr2.c"
 	break;
-      case 22: /* "TOK_RP" */
-#line 169 "callweaver_expr2.y"
+      case 23: /* "TOKEN" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1363 "callweaver_expr2.c"
 	break;
-      case 23: /* "TOKEN" */
-#line 169 "callweaver_expr2.y"
+      case 26: /* "expr" */
+#line 164 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
 #line 1368 "callweaver_expr2.c"
-	break;
-      case 26: /* "expr" */
-#line 169 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1373 "callweaver_expr2.c"
 	break;
 
       default:
@@ -1688,7 +1687,7 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 175 "callweaver_expr2.y"
+#line 170 "callweaver_expr2.y"
     { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = (yyvsp[(1) - (1)].val)->type;
               if( (yyvsp[(1) - (1)].val)->type == OPBX_EXPR_integer )
@@ -1696,178 +1695,178 @@ yyreduce:
               else
 				  ((struct parse_io *)parseio)->val->u.s = (yyvsp[(1) - (1)].val)->u.s; 
 			  free((yyvsp[(1) - (1)].val));
-			;}
+			}
     break;
 
   case 3:
-#line 183 "callweaver_expr2.y"
+#line 178 "callweaver_expr2.y"
     {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = OPBX_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
-			;}
+			}
     break;
 
   case 4:
-#line 190 "callweaver_expr2.y"
-    { (yyval.val)= (yyvsp[(1) - (1)].val);;}
+#line 185 "callweaver_expr2.y"
+    { (yyval.val)= (yyvsp[(1) - (1)].val);}
     break;
 
   case 5:
-#line 191 "callweaver_expr2.y"
+#line 186 "callweaver_expr2.y"
     { (yyval.val) = (yyvsp[(2) - (3)].val); 
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;
-							DESTROY((yyvsp[(1) - (3)].val)); DESTROY((yyvsp[(3) - (3)].val)); ;}
+							DESTROY((yyvsp[(1) - (3)].val)); DESTROY((yyvsp[(3) - (3)].val)); }
     break;
 
   case 6:
-#line 195 "callweaver_expr2.y"
+#line 190 "callweaver_expr2.y"
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						 (yyloc).first_line=0; (yyloc).last_line=0;;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 7:
-#line 199 "callweaver_expr2.y"
+#line 194 "callweaver_expr2.y"
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-                          (yyloc).first_line=0; (yyloc).last_line=0;;}
+                          (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 8:
-#line 203 "callweaver_expr2.y"
+#line 198 "callweaver_expr2.y"
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
-						 (yyloc).first_line=0; (yyloc).last_line=0;;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 9:
-#line 207 "callweaver_expr2.y"
+#line 202 "callweaver_expr2.y"
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
-						 (yyloc).first_line=0; (yyloc).last_line=0;;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 10:
-#line 211 "callweaver_expr2.y"
+#line 206 "callweaver_expr2.y"
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						 (yyloc).first_line=0; (yyloc).last_line=0;;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 11:
-#line 215 "callweaver_expr2.y"
+#line 210 "callweaver_expr2.y"
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 12:
-#line 219 "callweaver_expr2.y"
+#line 214 "callweaver_expr2.y"
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 13:
-#line 223 "callweaver_expr2.y"
+#line 218 "callweaver_expr2.y"
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 14:
-#line 227 "callweaver_expr2.y"
+#line 222 "callweaver_expr2.y"
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						   (yyloc).first_line=0; (yyloc).last_line=0;;}
+						   (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 15:
-#line 231 "callweaver_expr2.y"
+#line 226 "callweaver_expr2.y"
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;;}
+							(yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 16:
-#line 235 "callweaver_expr2.y"
+#line 230 "callweaver_expr2.y"
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;;}
+							(yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 17:
-#line 239 "callweaver_expr2.y"
+#line 234 "callweaver_expr2.y"
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;;}
+							(yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 18:
-#line 243 "callweaver_expr2.y"
+#line 238 "callweaver_expr2.y"
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						   (yyloc).first_line=0; (yyloc).last_line=0;;}
+						   (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 19:
-#line 247 "callweaver_expr2.y"
+#line 242 "callweaver_expr2.y"
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 20:
-#line 251 "callweaver_expr2.y"
+#line 246 "callweaver_expr2.y"
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 21:
-#line 255 "callweaver_expr2.y"
+#line 250 "callweaver_expr2.y"
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;;}
+							(yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 22:
-#line 259 "callweaver_expr2.y"
+#line 254 "callweaver_expr2.y"
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;;}
+							(yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
   case 23:
-#line 263 "callweaver_expr2.y"
+#line 258 "callweaver_expr2.y"
     { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)); 
 						DESTROY((yyvsp[(2) - (5)].val));	
 						DESTROY((yyvsp[(4) - (5)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (5)]).first_column; (yyloc).last_column = (yylsp[(3) - (5)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;;}
+							(yyloc).first_line=0; (yyloc).last_line=0;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1875 "callweaver_expr2.c"
+#line 1870 "callweaver_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2087,7 +2086,7 @@ yyreturn:
 }
 
 
-#line 270 "callweaver_expr2.y"
+#line 265 "callweaver_expr2.y"
 
 
 static struct val *

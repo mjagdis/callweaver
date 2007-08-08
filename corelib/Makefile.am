@@ -39,11 +39,17 @@ endif WANT_SRTP
 
 libcallweaver_la_LDFLAGS   = -no-undefined
 
-BUILT_SOURCES = defaults.h
+BUILT_SOURCES = defaults.h #callweaver_expr2.c callweaver_expr2.h callweaver_expr2f.c
 EXTRA_DIST = defaults.h.in
 CLEANFILES = defaults.h defaults.h.tmp
 
 @substitute@
+
+callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
+	$(YACC) -d --name-prefix=opbx_yy -o callweaver_expr2.c callweaver_expr2.y
+
+callweaver_expr2f.c: callweaver_expr2.l
+	$(LEX) --full -t callweaver_expr2.l > callweaver_expr2f.c
 
 defaults.h: defaults.h.in Makefile
 	rm -f defaults.h.tmp

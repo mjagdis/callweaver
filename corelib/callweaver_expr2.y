@@ -25,12 +25,11 @@
 #else
 #define quad_t int64_t
 #endif
-#endif
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
 
-#include "callweaver/opbx_expr.h"
+#include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
