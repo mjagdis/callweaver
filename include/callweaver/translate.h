@@ -96,7 +96,7 @@ extern int opbx_translator_best_choice(int *dsts, int *srcs);
  * Build a path (possibly NULL) from source to dest 
  * Returns opbx_trans_pvt on success, NULL on failure
  * */
-extern struct opbx_trans_pvt *opbx_translator_build_path(int dest, int source);
+extern struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int source, int source_rate);
 
 /*! Frees a translator path */
 /*!

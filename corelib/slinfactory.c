@@ -83,7 +83,7 @@ int opbx_slinfactory_feed(struct opbx_slinfactory *sf, struct opbx_frame *f)
         }
         if (sf->trans == NULL)
         {
-            if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, f->subclass)) == NULL)
+            if ((sf->trans = opbx_translator_build_path(OPBX_FORMAT_SLINEAR, 8000, f->subclass, 8000)) == NULL)
             {
                 opbx_log(LOG_WARNING, "Cannot build a path from %s to slin\n", opbx_getformatname(f->subclass));
                 opbx_mutex_unlock(&(sf->lock));

@@ -2256,8 +2256,14 @@ int opbx_write(struct opbx_channel *chan, struct opbx_frame *fr)
 	return res;
 }
 
-static int set_format(struct opbx_channel *chan, int fmt, int *rawformat, int *format,
-		      struct opbx_trans_pvt **trans, const int direction)
+static int set_format(
+                        struct opbx_channel *chan, 
+                        int fmt, 
+                        int *rawformat, 
+                        int *format,
+		        struct opbx_trans_pvt **trans, 
+                        const int direction
+                     )
 {
 	int native;
 	int res;
@@ -2296,10 +2302,10 @@ static int set_format(struct opbx_channel *chan, int fmt, int *rawformat, int *f
 	/* Build a translation path from the raw format to the desired format */
 	if (!direction)
 		/* reading */
-		*trans = opbx_translator_build_path(*format, *rawformat);
+		*trans = opbx_translator_build_path(*format, 8000, *rawformat, 8000);
 	else
 		/* writing */
-		*trans = opbx_translator_build_path(*rawformat, *format);
+		*trans = opbx_translator_build_path(*rawformat, 8000, *format, 8000);
 	opbx_mutex_unlock(&chan->lock);
 	if (option_debug)
     {

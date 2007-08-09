@@ -100,7 +100,7 @@ void opbx_translator_free_path(struct opbx_trans_pvt *p)
 }
 
 /* Build a set of translators based upon the given source and destination formats */
-struct opbx_trans_pvt *opbx_translator_build_path(int dest, int source)
+struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int source, int source_rate)
 {
     struct opbx_trans_pvt *tmpr = NULL;
     struct opbx_trans_pvt *tmp = NULL;
@@ -432,12 +432,82 @@ static int show_translation(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
+int opbx_translator_best_choice(int *dst, int *srcs)
+{
+    /* Calculate our best source format, given costs, and a desired destination */
+    int x;
+    int y;
+    int best = -1;
+    int bestdst = 0;
+    int cur = 1;
+    int besttime = INT_MAX;
+    int common;
+
+    if ((common = (*dst) & (*srcs)))
+    {
+        /* We have a format in common */
+        for (y = 0;  y < MAX_FORMAT;  y++)
+        {
+            if (cur & common)
+            {
+                /* This is a common format to both.  Pick it if we don't have one already */
+                besttime = 0;
+                bestdst = cur;
+                best = cur;
+            }
+            cur <<= 1;
+        }
+    }
+    else
+    {
+        /* We will need to translate */
+        opbx_mutex_lock(&list_lock);
+        for (y = 0;  y < MAX_FORMAT;  y++)
+        {
+            if (cur & *dst)
+            {
+                for (x = 0;  x < MAX_FORMAT;  x++)
+                {
+                    if ((*srcs & (1 << x))          /* x is a valid source format */
+                        &&
+                        tr_matrix[x][y].step        /* There's a step */
+                        &&
+                        (tr_matrix[x][y].cost < besttime))
+                    {
+                        /* It's better than what we have so far */
+                        best = 1 << x;
+                        bestdst = cur;
+                        besttime = tr_matrix[x][y].cost;
+                    }
+                }
+            }
+            cur <<= 1;
+        }
+        opbx_mutex_unlock(&list_lock);
+    }
+    if (best > -1)
+    {
+        *srcs = best;
+        *dst = bestdst;
+        best = 0;
+    }
+    return best;
+}
+
+
+
+
+
+
+
+/* ************************************************************************** */
+
 static int added_cli = 0;
 
 static char show_trans_usage[] =
 "Usage: show translation [recalc] [<recalc seconds>]\n"
 "       Displays known codec translators and the cost associated\n"
-"with each conversion.  if the arguement 'recalc' is supplied along\n"
+"with each conversion.  if the argument 'recalc' is supplied along\n"
 "with optional number of seconds to test a new test will be performed\n"
 "as the chart is being displayed.\n";
 
@@ -509,64 +579,4 @@ int opbx_unregister_translator(struct opbx_translator *t)
     return (u  ?  0  :  -1);
 }
 
-int opbx_translator_best_choice(int *dst, int *srcs)
-{
-    /* Calculate our best source format, given costs, and a desired destination */
-    int x;
-    int y;
-    int best = -1;
-    int bestdst = 0;
-    int cur = 1;
-    int besttime = INT_MAX;
-    int common;
 
-    if ((common = (*dst) & (*srcs)))
-    {
-        /* We have a format in common */
-        for (y = 0;  y < MAX_FORMAT;  y++)
-        {
-            if (cur & common)
-            {
-                /* This is a common format to both.  Pick it if we don't have one already */
-                besttime = 0;
-                bestdst = cur;
-                best = cur;
-            }
-            cur <<= 1;
-        }
-    }
-    else
-    {
-        /* We will need to translate */
-        opbx_mutex_lock(&list_lock);
-        for (y = 0;  y < MAX_FORMAT;  y++)
-        {
-            if (cur & *dst)
-            {
-                for (x = 0;  x < MAX_FORMAT;  x++)
-                {
-                    if ((*srcs & (1 << x))          /* x is a valid source format */
-                        &&
-                        tr_matrix[x][y].step        /* There's a step */
-                        &&
-                        (tr_matrix[x][y].cost < besttime))
-                    {
-                        /* It's better than what we have so far */
-                        best = 1 << x;
-                        bestdst = cur;
-                        besttime = tr_matrix[x][y].cost;
-                    }
-                }
-            }
-            cur <<= 1;
-        }
-        opbx_mutex_unlock(&list_lock);
-    }
-    if (best > -1)
-    {
-        *srcs = best;
-        *dst = bestdst;
-        best = 0;
-    }
-    return best;
-}

@@ -1889,7 +1889,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		if (ch->dsp)
 			opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
-			ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ALAW);
+			ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, 8000, OPBX_FORMAT_ALAW, 8000);
 	}
 
 	return 0;
@@ -4988,7 +4988,7 @@ static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv)
 		if (ch->dsp)
             opbx_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
 		if (!ch->trans)
-            ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, OPBX_FORMAT_ALAW);
+            ch->trans=opbx_translator_build_path(OPBX_FORMAT_SLINEAR, 8000, OPBX_FORMAT_ALAW, 8000);
 	}
 
 	if (ch->opbx_dsp) {
