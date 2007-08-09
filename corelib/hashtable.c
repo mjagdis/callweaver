@@ -27,7 +27,9 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#if !defined(__Darwin__) && !defined(__FreeBSD__)
 #include <malloc.h>
+#endif
 
 #include "callweaver/hashtable.h"
 
