@@ -50,6 +50,8 @@ typedef struct opbx_frame
     int datalen;
     /*! Number of samples in this frame */
     int samples;
+    /*! The sample rate of this frame (usually 8000 Hz */
+    int samplerate;
     /*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
     int mallocd;
     /*! How many bytes exist _before_ "data" that can be used if needed */
