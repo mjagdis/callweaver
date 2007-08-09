@@ -285,6 +285,7 @@ void opbx_fr_init(struct opbx_frame *fr)
     fr->subclass = 0;
     fr->datalen = 0;
     fr->samples = 0;
+    fr->samplerate = 8000;
     fr->mallocd = 0;
     fr->offset = 0;
     fr->src = "";
@@ -310,6 +311,7 @@ void opbx_fr_init_ex(struct opbx_frame *fr,
     fr->subclass = sub_type;
     fr->datalen = 0;
     fr->samples = 0;
+    fr->samplerate = 8000;
     fr->mallocd = 0;
     fr->offset = 0;
     fr->src = (src)  ?  src  :  "";
