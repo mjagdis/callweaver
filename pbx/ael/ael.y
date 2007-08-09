@@ -22,7 +22,7 @@
  *
  */
 
-#include "asterisk.h"
+#include "callweaver.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -526,7 +526,7 @@ application_call : application_call_head eval_arglist RP {
 	| application_call_head RP { $$ = update_last($1, &@2); }
 	;
 
-opt_word : word { $$ = $1 }
+opt_word : word { $$ = $1; }
 	| { $$ = strdup(""); }
 	;
 

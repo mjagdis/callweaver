@@ -20,7 +20,6 @@
  * \brief Flex scanner description of tokens used in AEL2 .
  *
  */
-
 /*
  * Start with flex options:
  *
@@ -57,17 +56,21 @@
 
 %{
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "callweaver.h"
+
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
-#include "ael/ael.tab.h"
+#include "ael/ael_tab.h"
 #include "callweaver/ael_structs.h"
-
-#include "callweaver.h"
 
 /*
  * A stack to keep track of matching brackets ( [ { } ] )

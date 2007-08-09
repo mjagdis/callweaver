@@ -1,5 +1,7 @@
 AUTOCONF_OPTS 		= gnu
 
+BUILT_SOURCES =
+
 opbxmod_LTLIBRARIES 	= pbx_spool.la pbx_loopback.la pbx_config.la
 
 pbx_config_la_SOURCES 	= pbx_config.c
@@ -27,10 +29,20 @@ pbx_realtime_la_LIBADD  = ${top_builddir}/corelib/libcallweaver.la
 endif WANT_PBX_REALTIME
 
 if WANT_PBX_AEL
-opbxmod_LTLIBRARIES 	+= pbx_ael.la
-pbx_ael_la_SOURCES = pbx_ael.c ael/ael_lex.c ael/ael.tab.c
-pbx_ael_la_LDFLAGS = -module -avoid-version -no-undefined
+opbxmod_LTLIBRARIES	+= pbx_ael.la
+pbx_ael_la_SOURCES	= pbx_ael.c ael/ael_lex.c ael/ael_tab.c
+pbx_ael_la_LDFLAGS	= -module -avoid-version -no-undefined
 pbx_ael_la_LIBADD	= ${top_builddir}/corelib/libcallweaver.la
+pbx_ael_la_CFLAGS	= $(AM_CFLAGS) -D_GNU_SOURCE=1
+
+BUILT_SOURCES += ael/ael_tab.c ael/ael_tab.h ael/ael_lex.c
+
+ael/ael_tab.c ael/ael_tab.h: ael/ael.y
+	$(YACC) -d -o ael/ael_tab.c ael/ael.y
+
+ael/ael_lex.c: ael/ael.l
+	$(LEX) -t ael/ael.l > ael/ael_lex.c
+
 endif WANT_PBX_AEL
 
 
