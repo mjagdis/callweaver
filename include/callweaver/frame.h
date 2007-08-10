@@ -27,10 +27,13 @@
 extern "C" {
 #endif
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <inttypes.h>
-#include "confdefs.h"
 
 struct opbx_codec_pref
 {
