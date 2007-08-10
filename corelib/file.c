@@ -240,7 +240,7 @@ int opbx_writestream(struct opbx_filestream *fs, struct opbx_frame *f)
 			fs->trans = NULL;
 		}
 		if (!fs->trans) 
-			fs->trans = opbx_translator_build_path(fs->fmt->format, f->subclass);
+			fs->trans = opbx_translator_build_path(fs->fmt->format, 8000, f->subclass, 8000);
 		if (!fs->trans)
 			opbx_log(LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, opbx_getformatname(f->subclass));
 		else {
