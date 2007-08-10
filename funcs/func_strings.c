@@ -141,22 +141,21 @@ static char *function_fieldqty(struct opbx_channel *chan, int argc, char **argv,
 
 static char *function_filter(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	char *outbuf = buf;
+	char *allowed;
+	char *string;
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", filter_func_syntax);
 		return NULL;
 	}
-	char *outbuf = buf;
-
-	char *allowed;
-	char *string;
 
 	allowed = argv[0];
 	string = argv[1];
 
 	for (; *(string) && (buf + len - 1 > outbuf); (string)++) {
-	if (strchr(allowed, *(string)))
-		*outbuf++ = *(string);
+		if (strchr(allowed, *(string)))
+			*(outbuf++) = *(string);
 	}
 	*outbuf = '\0';
 
