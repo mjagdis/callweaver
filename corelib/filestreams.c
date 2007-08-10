@@ -74,26 +74,30 @@ struct opbx_filestream_session {
         REGISTERING FUNCTIONS ( used by the core )
    ************************************************************************* */
 
-/*! \brief Registers a filestream format. 
-    \param implementation is the implementation to register
-    \return 0 on failure - not 0 on success
-*/
-int opbx_filestream_register( opbx_filestream_implementation_t *implementation );
+int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
+{
+    return -1;
+}
 
-
-/*! \brief Unregisters a filestream format */
-int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation );
+int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation )
+{
+    return -1;
+}
 
 
 /* *************************************************************************
         Creation and destruction of a filestream
    ************************************************************************* */
 
-/*! \brief basing on the channel read/write codec, this function */
-opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const char *uri );
+opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const char *uri )
+{
+    return NULL;
+}
 
-/*! \brief destroys our filestream */
-filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs );
+filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs ) 
+{
+    return FS_RESULT_SUCCESS;
+}
 
 
 /* *************************************************************************
@@ -101,26 +105,40 @@ filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs )
         ( only the ones relating with each implementation )
    ************************************************************************* */
 
-/*! \brief */
-struct opbx_frame       *opbx_filestream_readframe( opbx_filestream_session_t *s );
+struct opbx_frame       *opbx_filestream_readframe( opbx_filestream_session_t *s )
+{
+    return NULL;
+}
 
-/*! \brief Writes a frame to a file */
-filestream_result_value opbx_filestream_writeframe( opbx_filestream_session_t *fs, struct opbx_frame *f );
+filestream_result_value opbx_filestream_writeframe( opbx_filestream_session_t *fs, struct opbx_frame *f )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief */
-long                    opbx_filestream_tell( struct opbx_filestream *fs );
+long                    opbx_filestream_tell( struct opbx_filestream *fs )
+{
+    return -1;
+}
 
-/*! \brief Seeks into stream */
-filestream_result_value opbx_filestream_seek( opbx_filestream_session_t *fs, long sample_offset, filestream_seek whence );
+filestream_result_value opbx_filestream_seek( opbx_filestream_session_t *fs, long sample_offset, filestream_seek whence )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief Trunc stream at current location */
-filestream_result_value opbx_filestream_trunc( opbx_filestream_session_t *fs );
+filestream_result_value opbx_filestream_trunc( opbx_filestream_session_t *fs )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief */
-filestream_result_value opbx_filestream_fastforward( opbx_filestream_session_t *fs, long ms );
+filestream_result_value opbx_filestream_fastforward( opbx_filestream_session_t *fs, long ms )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief */
-filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, long ms );
+filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, long ms )
+{
+    return FS_RESULT_SUCCESS;
+}
 
 
 /* *************************************************************************
@@ -128,90 +146,53 @@ filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, l
         ( higher level functions )
    ************************************************************************* */
 
-/*! \brief */
-filestream_result_value opbx_filestream_wait( opbx_filestream_session_t *fs, const char *break_on_char );
+filestream_result_value opbx_filestream_wait( opbx_filestream_session_t *fs, const char *break_on_char )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief */
-filestream_result_value opbx_filestream_wait_valid_exten( opbx_filestream_session_t *fs, const char *context );
+filestream_result_value opbx_filestream_wait_valid_exten( opbx_filestream_session_t *fs, const char *context )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-filestream_result_value opbx_filestream_wait_controlling( opbx_filestream_session_t *fs, const char *break_on_char, const char *forward_char, const char *rewind_char, int ms );
+filestream_result_value opbx_filestream_wait_controlling( opbx_filestream_session_t *fs, const char *break_on_char, const char *forward_char, const char *rewind_char, int ms )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief */
-filestream_result_value opbx_filestream_full( opbx_filestream_session_t *fs, const char *break_on_char, int audiofd, int monfd );
+filestream_result_value opbx_filestream_full( opbx_filestream_session_t *fs, const char *break_on_char, int audiofd, int monfd )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief */
-filestream_result_value opbx_filestream_stream_start( opbx_filestream_session_t *fs, long ms );
+filestream_result_value opbx_filestream_stream_start( opbx_filestream_session_t *fs, long ms )
+{
+    return FS_RESULT_SUCCESS;
+}
 
-/*! \brief Stops playback */
-filestream_result_value opbx_filestream_stream_stop( opbx_filestream_session_t *fs );
+filestream_result_value opbx_filestream_stream_stop( opbx_filestream_session_t *fs )
+{
+    return FS_RESULT_SUCCESS;
+}
 
 /* *************************************************************************
         functions to manage simple files ...
         Check if those are needed or not.
    ************************************************************************* */
 
-/*! \brief */
-int opbx_filestream_rename(const char *oldname, const char *newname, const char *fmt);
-
-/*! \brief */
-int opbx_filestream_delete(const char *filename, const char *fmt);
-
-/*! \brief */
-int opbx_filestream_copy(const char *oldname, const char *newname, const char *fmt);
-
-
-
-
-// I need to check how those are used in the core to propose a more suitable API
-/*
-opbx_filestream_session_t *opbx_filestream_readfile(
-        const char *filename, 
-        const char *type, 
-        const char *comment, 
-        int flags, 
-        int check, 
-        mode_t mode );
-
-opbx_filestream_session_t *opbx_filestream_writefile(
-        const char *filename, 
-        const char *type, 
-        const char *comment, 
-        int flags, 
-        int check, 
-        mode_t mode);
-*/
-
-// The followings are part of the OLD interface.
-// Probably are not needed anymore.
-
-/*! \brief Like prepare??*/
-//opbx_filestream_session_t *opbx_filestream_open(struct opbx_channel *chan, const char *filename);
-//As opbx_filestream_open without _full but doesn't stops generator
-//struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const char *filename, const char *preflang, int asis);
-/*! \brief */
-//struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *filename, const char *preflang);
-/*! \brief Applies an open stream to a channel. */
-// Used only by OGI. rewirkable with higher levels
-//int opbx_applystream(struct opbx_channel *chan, struct opbx_filestream *s);
-/*! \brief play a open stream on a channel. */
-// Used only by OGI. rewirkable with higher levels
-//int opbx_playstream(struct opbx_filestream *s);
-
-/*! \brief Checks if a suitable file implementation exists for a given channel.
-    \param channel
-    \param filename without extension
-    \return file path if exists, null otherwise.
-    \remark channel structure already contains the preferred format, language and sample rate.
-*/
-//char * opbx_filestream_suitablefile_exists(opbx_channel_t *channel, const char *filename);
-
-
-/* ************************************************************************* */
-/*
-static int opbx_filestream_check_implementation_support( opbx_filestream_implementation_t *impl, char *filename ) {
-    // Check for URI support
-    // Check for sample rate support
-    // Check for file size support
+int opbx_filestream_rename(const char *oldname, const char *newname, const char *fmt)
+{
+    return FS_RESULT_SUCCESS;
 }
 
-*/
+int opbx_filestream_delete(const char *filename, const char *fmt)
+{
+    return FS_RESULT_SUCCESS;
+}
+
+int opbx_filestream_copy(const char *oldname, const char *newname, const char *fmt)
+{
+    return FS_RESULT_SUCCESS;
+}
+
