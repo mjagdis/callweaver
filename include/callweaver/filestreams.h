@@ -20,6 +20,25 @@
  * \brief Generic FileStreams Support.
  */
 
+
+/* 
+    NOTE: 
+        uri formats may be in the form
+            type://${destination}
+
+        "type" represents the type of stream. 
+        The file:// type identifies anaudio file on our server.
+        "type" can be even registered by a particular implementation so,
+        if you write a filestream implemention registers to handle the
+        shoutme:// "type", it will be the only one that will manage it.
+
+        The same type can be handled by different implementations.
+        The first that supports it without translations will be chosen.
+        If no one is found, then the 1st one handling the file with a translation
+        will be chosen.
+
+*/
+
 #ifndef _CALLWEAVER_FILESTREAMS_H
 #define _CALLWEAVER_FILESTREAMS_H
 
@@ -27,7 +46,8 @@
 /*!\brief Those flags indicate what the stream is doing. */
 typedef enum {
     FS_READ,
-    FS_WRITE
+    FS_WRITE,
+    FS_NEED_TRANSLATION
     // probably more needed
 } filestream_status_flags;
 
@@ -54,7 +74,7 @@ typedef struct opbx_filestream_implementation opbx_filestream_implementation_t;
 typedef struct opbx_filestream_session opbx_filestream_session_t;
 
 struct opbx_filestream_implementation {
-    char        *name;
+    char        *engine_name;
     char        *description;
 
     /* comma separated stream types like: "file://,http://,whateveryouwant:// */
@@ -65,10 +85,10 @@ struct opbx_filestream_implementation {
     int         codec_rate;
 
     /* Initializes a filestream session */
-    opbx_filestream_session_t *(*init)( opbx_mpool_t *pool, opbx_filestream_session_t *session, char *uri );
+    filestream_result_value (*init)( opbx_mpool_t *pool, opbx_filestream_session_t *session, const char *uri );
 
     /* Check if a suitable file exists and can be played with this implementation */
-    filestream_result_value *(*findsuitablefile)( const char *uri );
+    filestream_result_value (*findsuitablefile)( const char *uri );
 
     /* Read the next frame from the filestream (if available) and report back when to get next one (in ms) */
     struct opbx_frame *(*read)( int *whennext );
@@ -77,7 +97,7 @@ struct opbx_filestream_implementation {
     filestream_result_value (*write)( struct opbx_frame * );
 
     /* OLD API. Do we needit ? */
-    filestream_result_value *(*rewrite)( FILE *f );
+    filestream_result_value (*rewrite)( FILE *f );
 
 
     /* seek num samples into file, whence(think normal seek) */
@@ -133,7 +153,7 @@ filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs )
    ************************************************************************* */
 
 /*! \brief */
-struct opbx_frame       *opbx_filestream_readframe( opbx_filestream_session_t *s );
+struct opbx_frame       *opbx_filestream_readframe( opbx_filestream_session_t *fs );
 
 /*! \brief Writes a frame to a file */
 filestream_result_value opbx_filestream_writeframe( opbx_filestream_session_t *fs, struct opbx_frame *f );

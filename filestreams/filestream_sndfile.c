@@ -43,7 +43,7 @@ static int use_count = 0;
          SPECIFIC FILESTREAM IMPLEMENTATION FUNCTIONS
    *********************************************************************** */
 
-static opbx_filestream_session_t *fsi_init( opbx_mpool_t *pool, opbx_filestream_session_t *session, char *uri )
+static filestream_result_value   fsi_init( opbx_mpool_t *pool, opbx_filestream_session_t *session, const char *uri )
 {
     MODIFY_USECOUNT(1);
     return NULL;
