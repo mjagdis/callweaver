@@ -22,7 +22,9 @@
 #ifndef _CALLWEAVER_TIMER_H
 #define _CALLWEAVER_TIMER_H
 
+#ifdef HAVE_CONFIG_H
 #include "confdefs.h"
+#endif
 
 #ifdef __linux__
 #include <time.h>

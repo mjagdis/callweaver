@@ -23,12 +23,15 @@
 #ifndef _CALLWEAVER_STRINGS_H
 #define _CALLWEAVER_STRINGS_H
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
 #include <string.h>
 #include <stdarg.h>
 
 #include "callweaver/inline_api.h"
 #include "callweaver/compiler.h"
-#include "confdefs.h"
 
 static inline int opbx_strlen_zero(const char *s)
 {
