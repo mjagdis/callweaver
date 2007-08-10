@@ -135,8 +135,11 @@
 #ifndef _AESOPT_H
 #define _AESOPT_H
 
-#include "callweaver/aes.h"
+#ifdef HAVE_CONFIG_H
 #include "confdefs.h"
+#endif
+
+#include "callweaver/aes.h"
 
 /*  CONFIGURATION - USE OF DEFINES
 
