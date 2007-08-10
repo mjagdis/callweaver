@@ -18,7 +18,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include "callweaver.h"
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 
