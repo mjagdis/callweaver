@@ -14,6 +14,7 @@ cwspooldir => @opbxspooldir@
 cwrundir => @opbxrundir@
 cwlogdir => @opbxlogdir@
 cwsoundsdir => @opbxsoundsdir@
+cwkeydir => @opbxkeydir@
 
 ; Changing the following lines may compromise your security.
 ;[files]
