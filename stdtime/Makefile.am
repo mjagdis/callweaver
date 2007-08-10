@@ -1,5 +1,7 @@
 AM_OPTIONS = gnu
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 if FALSE
 noinst_PROGRAMS = test
 

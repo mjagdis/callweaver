@@ -1,4 +1,7 @@
 AUTOMAKE_OPTS = gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 SAMPLES = adsi.conf.sample \
 	adtranvofr.conf.sample \
 	cdr.conf.sample \

@@ -1,4 +1,7 @@
 AUTOMAKE_OPTS 		= gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES = format_au.la format_g723_1.la format_g726.la	\
 format_g729.la format_gsm.la format_h263.la format_pcm.la		\
 format_pcm_alaw.la format_sln.la format_wav.la format_wav_gsm.la

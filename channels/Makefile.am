@@ -6,6 +6,8 @@
 #
 AUTOMAKE_OPTS			= gnu
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES 		=
 
 SUBDIRS				= iax2 sccp fax misdn visdn

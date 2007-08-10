@@ -1,4 +1,7 @@
 AUTOMAKE_OPTS 			= gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxogi_PROGRAMS 		= eogi-sphinx-test eogi-test
 opbxogi_SCRIPTS 		= ogi-test.ogi fastogi-test
 eogi_sphinx_test_SOURCES 	= eogi-sphinx-test.c

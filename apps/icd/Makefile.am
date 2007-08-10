@@ -1,4 +1,7 @@
 AUTOMAKE_OPTS			= gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES		= app_icd.la
 
 app_icd_la_SOURCES		= app_icd.c icd_agent.c icd_bridge.c icd_caller.c icd_caller_list.c icd_command.c \

@@ -1,5 +1,7 @@
 AUTOMAKE_OPTS		= gnu foreign
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES	= codec_lpc10.la codec_dvi_adpcm.la codec_oki_adpcm.la \
 			  codec_ulaw.la codec_alaw.la codec_a_mu.la \
 			  codec_g722.la codec_g722_16k_8k.la codec_g726.la \

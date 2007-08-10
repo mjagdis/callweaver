@@ -1,5 +1,7 @@
 AUTOMAKE_OPTS = gnu
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES		=
 
 #pbx_functions_la_SOURCES	= pbx_functions.c pbx_functions.h

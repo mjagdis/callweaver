@@ -1,4 +1,7 @@
 AUTOMAKE_OPTS 			= gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES		= res_crypto.la res_musiconhold.la \
 				  res_indications.la res_ogi.la  res_monitor.la \
 				  res_features.la res_adsi.la

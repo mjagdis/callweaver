@@ -1,4 +1,7 @@
 AUTOMAKE_OPTS	= gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES	= cdr_csv.la cdr_custom.la
 
 cdr_csv_la_SOURCES	= cdr_csv.c

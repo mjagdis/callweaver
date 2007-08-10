@@ -1,3 +1,5 @@
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 SUBDIRS=jitterbuffer
 
 opbxlib_LTLIBRARIES = libcallweaver.la

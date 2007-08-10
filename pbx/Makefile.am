@@ -1,5 +1,7 @@
 AUTOCONF_OPTS 		= gnu
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 BUILT_SOURCES =
 
 opbxmod_LTLIBRARIES 	= pbx_spool.la pbx_loopback.la pbx_config.la

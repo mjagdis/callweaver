@@ -1,5 +1,7 @@
 AUTOMAKE_OPTS		= gnu foreign
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxlib_LTLIBRARIES	= libcwsqlite3.la
 
 libcwsqlite3_la_SOURCES = \

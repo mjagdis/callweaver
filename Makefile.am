@@ -26,6 +26,8 @@ SED = @SED@
 M4 = @M4@
 SVN = @SVN@
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 ## LDFLAGS		= --as-needed --enable-new-dtags
 
 ##########

@@ -1,5 +1,7 @@
 AUTOMAKE_OPTS = gnu
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 bin_PROGRAMS = streamplayer # check_expr 
 streamplayer_SOURCES = streamplayer.c ${top_srcdir}/corelib/strcompat.c
 # check_expr_SOURCES = check_expr.c ../opbx_expr2.c ../opbx_expr2f.c

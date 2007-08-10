@@ -1,5 +1,7 @@
 AUTOMAKE_OPTS = gnu
 
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxinclude_HEADERS = acl.h \
                       adsi.h \
                       aes.h \

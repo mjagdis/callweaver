@@ -5,6 +5,9 @@
 # $Id$
 #
 AUTOMAKE_OPTS                   = gnu
+
+DEFS += -include $(top_builddir)/include/confdefs.h
+
 opbxmod_LTLIBRARIES             =
 
 opbxmod_LTLIBRARIES                     += app_nconference.la
