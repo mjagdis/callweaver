@@ -633,7 +633,7 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
 	exten = opbx_strdupa(data);
 	if((lotname=strchr(exten,':'))) {
         *lotname = '\0';
-        *lotname++;
+        lotname++;
     }
 	if(!lotname) {
         opbx_log(LOG_WARNING,"Please specify a lotname in the dialplan.");
