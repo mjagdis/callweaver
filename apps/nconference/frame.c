@@ -44,7 +44,7 @@ static signed char gain_map[] =
       Ring buffer functions
  ******************************************************************************/
 
-void mix_slinear_frames(int16_t *dst, const int16_t *src, int samples, int startindex, int cbuffersize ) 
+static void mix_slinear_frames(int16_t *dst, const int16_t *src, int samples, int startindex, int cbuffersize ) 
 {
     int i=0;
     int i_dst = 0;
@@ -191,7 +191,7 @@ struct opbx_frame* get_outgoing_frame( struct opbx_conference *conf, struct opbx
 }
 
 
-void copy_frame_content( struct member_cbuffer *cbuf, struct opbx_frame *sfr ) 
+static void copy_frame_content( struct member_cbuffer *cbuf, struct opbx_frame *sfr ) 
 {
     int count=0;
 
