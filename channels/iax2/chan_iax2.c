@@ -2205,7 +2205,7 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	*/
 	if (pds->password && (pds->password[0] == '[')) {
 		int l = strlen(pds->password) - 1;
-		if (pds->password[l] = ']') {
+		if (pds->password[l] == ']') {
 			pds->key = pds->password + 1;
 			pds->password[l] = '\0';
 			pds->password = NULL;
@@ -8276,7 +8276,7 @@ static int iax2_matchmore(struct opbx_channel *chan, const char *context, const 
 }
 
 /*--- iax2_exec: Execute IAX2 dialplan switch */
-static int iax2_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int iax2_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	char odata[256];
 	char req[256];
