@@ -46,7 +46,7 @@
 
 
 //public functions
-jitterbuffer *jb_new();
+jitterbuffer *jb_new(void);
 void jb_reset(jitterbuffer *jb);
 void jb_reset_all(jitterbuffer *jb);
 void jb_destroy(jitterbuffer *jb);
@@ -95,7 +95,7 @@ void jb_setoutput(jb_output_function_t warn, jb_output_function_t err, jb_output
  * return NULL if malloc doesn't work
  * else return jb with default_settings.
  */
-jitterbuffer *jb_new() 
+jitterbuffer *jb_new(void) 
 {
   jitterbuffer *jb;
   

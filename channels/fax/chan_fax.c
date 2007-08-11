@@ -224,14 +224,14 @@ static const struct opbx_channel_tech technology = {
 
 /***************** Helper functions ****************/
 
-static void inline threadcount_inc()
+static void inline threadcount_inc(void)
 {
     opbx_mutex_lock(&threadcount_lock);
     THREADCOUNT++;
     opbx_mutex_unlock(&threadcount_lock);
 }
 
-static void inline threadcount_dec()
+static void inline threadcount_dec(void)
 {
     opbx_mutex_lock(&threadcount_lock);
     THREADCOUNT--;

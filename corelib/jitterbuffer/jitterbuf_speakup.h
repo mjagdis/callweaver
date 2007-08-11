@@ -105,7 +105,7 @@ typedef struct speakup_jitterbuffer {
  * Creates a new jitterbuffer and sets the default settings.
  * Always use this function for creating a new jitterbuffer. 
  */
-speakup_jitterbuffer *jb_speakup_new();
+speakup_jitterbuffer *jb_speakup_new(void);
 
 /*
  * The control frames and possible personal settings are kept. 
