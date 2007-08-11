@@ -153,7 +153,7 @@ static int sqlite3_log(struct opbx_cdr *cdr)
 	int res = 0;
 	char *zErr = 0;
 	char *sql_cmd;
-	struct opbx_channel dummy = { 0, };
+	struct opbx_channel dummy;
 	int count;
 
 	{ /* Make it obvious that only sql_cmd should be used outside of this block */
