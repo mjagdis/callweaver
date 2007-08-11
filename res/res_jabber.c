@@ -1779,6 +1779,7 @@ static void *cli_command_thread(void *cli_command)
    	fd = fileno(stderr);
    	opbx_cli_command(fd, (char *)cli_command);
 /*   	free(cli_command);	 */
+	return NULL;
 }	
 
 static void launch_cli_thread(char *cli_command) 
