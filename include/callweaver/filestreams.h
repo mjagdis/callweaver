@@ -28,6 +28,7 @@
 
         "type" represents the type of stream. 
         The file:// type identifies anaudio file on our server.
+
         "type" can be even registered by a particular implementation so,
         if you write a filestream implemention registers to handle the
         shoutme:// "type", it will be the only one that will manage it.
@@ -42,6 +43,7 @@
 #ifndef _CALLWEAVER_FILESTREAMS_H
 #define _CALLWEAVER_FILESTREAMS_H
 
+#include "callweaver/mpool.h"
 
 /*!\brief Those flags indicate what the stream is doing. */
 typedef enum {
@@ -62,11 +64,14 @@ typedef enum {
 typedef enum {
     FS_RESULT_SUCCESS,
     FS_RESULT_FAILURE_GENERIC,
-    FS_RESULT_FAILURE_UNSUPPORTED,
+    FS_RESULT_FAILURE_UNIMPLEMENTED,
     FS_RESULT_FAILURE_INTERRUPTED,
+    FS_RESULT_FAILURE_NOTFOUND,
+
     FS_RESULT_FILE_EXISTS_NATIVE,
     FS_RESULT_FILE_EXISTS_NON_NATIVE,
-    FS_RESULT_FILE_DONT_EXIST
+    FS_RESULT_FILE_NOT_FOUND
+
     // probably more needed
 } filestream_result_value ;
 
@@ -74,21 +79,25 @@ typedef struct opbx_filestream_implementation opbx_filestream_implementation_t;
 typedef struct opbx_filestream_session opbx_filestream_session_t;
 
 struct opbx_filestream_implementation {
-    char        *engine_name;
-    char        *description;
+    const char  *engine_name;
+    const char  *description;
 
     /* comma separated stream types like: "file://,http://,whateveryouwant:// */
-    char        *supported_stream_types;
+    const char  *supported_stream_types;
 
     /* audio format and rate to this implementation can read/write */
     int         codec_format;
     int         codec_rate;
 
     /* Initializes a filestream session */
-    filestream_result_value (*init)( opbx_mpool_t *pool, opbx_filestream_session_t *session, const char *uri );
+    //We need to parse a pointer to the implementation (basically itself) because any angine, with the
+    //same code, can be set up to work with different codecs/rates.
+    //Those informations are contained in the impl. structure so we want to have it.
+
+    filestream_result_value (*init)( opbx_filestream_session_t *session, opbx_filestream_implementation_t *impl );
 
     /* Check if a suitable file exists and can be played with this implementation */
-    filestream_result_value (*findsuitablefile)( const char *uri );
+    filestream_result_value (*findsuitablefile)( opbx_filestream_implementation_t *impl, char *type, char *file );
 
     /* Read the next frame from the filestream (if available) and report back when to get next one (in ms) */
     struct opbx_frame *(*read)( int *whennext );
@@ -134,6 +143,21 @@ int opbx_filestream_register( opbx_filestream_implementation_t *implementation )
 
 /*! \brief Unregisters a filestream format */
 int opbx_filestream_unregister( opbx_filestream_implementation_t *implementation );
+
+
+/* *************************************************************************
+        ACCESS TO PRIVATE DATA FUNCTIONS
+   ************************************************************************* */
+
+opbx_channel_t *opbx_filestream_session_get_channel( opbx_filestream_session_t *fs );
+
+const char *opbx_filestream_session_get_uri( opbx_filestream_session_t *fs );
+
+opbx_mpool_t *opbx_filestream_session_get_pool( opbx_filestream_session_t *fs );
+
+filestream_result_value opbx_filestream_session_set_pvt( opbx_filestream_session_t *fs, void *pvt );
+
+void *opbx_filestream_session_get_pvt( opbx_filestream_session_t *fs );
 
 
 /* *************************************************************************

@@ -24,11 +24,18 @@
 #include "confdefs.h"
 #endif
     
+#include "assert.h"
+
 #include "callweaver/mpool.h"
 #include "callweaver/channel.h"
+#include "callweaver/options.h"
 
 #include "callweaver/filestreams.h"
 #include "callweaver/frame.h"
+#include "callweaver/app.h"
+
+//#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(lev, fmt, __VA_ARGS__ )
+#define fse_log(lev,fmt,...) if ( option_debug > 3 ) opbx_log(LOG_WARNING,"Filestream Engine: " fmt, __VA_ARGS__ )
 
 /*
     !\brief opaque structure that holds what's needed to stream/record a file
@@ -154,22 +161,149 @@ done:
     return res;
 }
 
+/* *************************************************************************
+        ACCESS TO PRIVATE DATA FUNCTIONS
+   ************************************************************************* */
+
+opbx_channel_t *opbx_filestream_session_get_channel( opbx_filestream_session_t *fs ) {
+    return fs->channel;
+}
+
+const char *opbx_filestream_session_get_uri( opbx_filestream_session_t *fs ) {
+    return fs->uri;
+}
+
+opbx_mpool_t *opbx_filestream_session_get_pool( opbx_filestream_session_t *fs ) {
+    return fs->pool;
+}
+
+filestream_result_value opbx_filestream_session_set_pvt( opbx_filestream_session_t *fs, void *pvt ) {
+    fs->pvt = pvt;
+    return FS_RESULT_SUCCESS;
+}
+
+void *opbx_filestream_session_get_pvt( opbx_filestream_session_t *fs ) {
+    return (void*) fs->pvt;
+}
+
 
 /* *************************************************************************
         Creation and destruction of a filestream
    ************************************************************************* */
 
-static opbx_filestream_implementation_t *find_suitable_implementation( opbx_channel_t *chan, const char *uri, char *requested_impl ) {
+static opbx_filestream_implementation_t *find_suitable_implementation( opbx_filestream_session_t *fs, const char *uri, char *requested_impl, filestream_result_value *mode) {
+    char        *types[16], 
+                *tmp, *tmpuri, *type, *file;
+    int         maxsize = 15,
+                nstrings,
+                t;
+    opbx_filestream_implementation_t    *impl, 
+                                        *ret = NULL;;
+    filestream_result_value             match = FS_RESULT_FILE_NOT_FOUND,
+                                        ret_weight = FS_RESULT_FILE_NOT_FOUND;
 
-    return NULL;
+    fse_log(LOG_DEBUG,"Looking for a suitable implementation %s","\n");
+
+    impl = implementations;
+
+    tmpuri = opbx_mpool_strdup( fs->pool, (char *) uri );
+    type = tmpuri;
+
+    if ( (file = strcasestr( tmpuri, "://" )) ) {
+        *file = '\0';
+        file=file + 3;
+        type=tmpuri;
+    }
+    else
+    {
+        fse_log(LOG_DEBUG,"Bad URI format %s","\n");
+        return NULL;
+    }
+
+    while ( impl ) {
+        tmp = opbx_mpool_strdup( fs->pool, (char *) impl->supported_stream_types );
+
+        nstrings = opbx_separate_app_args( tmp, ',', maxsize, types );
+
+        for ( t=0; t<nstrings; t++ ) {
+            fse_log(LOG_DEBUG,"Comparing  '%s' to '%s' for file %s ]\n", types[t], type, file );
+
+            if ( !strncmp( types[t], type, strlen(types[t])) ) { 
+                fse_log(LOG_DEBUG,"Match found: %s. Now looking for compatibility.\n", impl->engine_name );
+                // Now compare codec && rate to find out if it's suitable
+
+/*                
+                if ( 
+                        ( fs->channel->nativeformats & impl->codec_format ) 
+                   ) 
+                {
+                    weight = 1;
+                    //codec formats match 
+                    if ( fs->channel->samples_per_second == impl->codec_rate )
+                        //as well as codec rate 
+                        weight = 2;
+                }
+*/
+                // Then do the checks for file or stream existance (and matching)
+
+                match = impl->findsuitablefile( impl, type, file);
+
+                switch ( match ) {
+                    case FS_RESULT_FILE_EXISTS_NATIVE:
+                        if ( ret_weight != FS_RESULT_FILE_EXISTS_NATIVE ) {
+                            ret = impl;
+                            ret_weight = match;
+                        }
+                        break;
+                    case FS_RESULT_FILE_EXISTS_NON_NATIVE:
+                        if ( (ret_weight != FS_RESULT_FILE_EXISTS_NATIVE ) && (ret_weight != FS_RESULT_FILE_EXISTS_NON_NATIVE ) ) {
+                            ret = impl;
+                            ret_weight = match;
+                        }
+                        break;
+                    case FS_RESULT_FILE_NOT_FOUND:
+                        // do nothing
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                }
+
+            }
+
+        }
+
+        impl = impl->next;
+    }
+
+    switch ( ret_weight ) {
+        case FS_RESULT_FILE_EXISTS_NATIVE:
+            opbx_log(LOG_DEBUG,"found suitable file native.\n");
+            break;
+        case FS_RESULT_FILE_EXISTS_NON_NATIVE:
+            opbx_log(LOG_DEBUG,"found suitable file non native.\n");
+            break;
+        case FS_RESULT_FILE_NOT_FOUND:
+            opbx_log(LOG_DEBUG,"not found suitable file\n");
+            // do nothing
+            break;
+        default:
+            assert(0);
+            return impl;
+    }
+
+    return ret;
 }
 
 opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const char *uri )
 {
     opbx_filestream_implementation_t *impl;
     opbx_filestream_session_t *fs;
+    filestream_result_value mode;
     opbx_mpool_t *pool;
     int pool_err;
+
+    fse_log(LOG_DEBUG,"Creating filestream session.%s","\n" );
 
     //create the pool then
     pool = opbx_mpool_open( 0, 0, NULL, &pool_err);
@@ -188,7 +322,7 @@ opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const c
     // then we check if we have a valid and suitable implementation to play the file.
     //TODO: find a way to request for a specific filestream implementation
 
-    impl = find_suitable_implementation( chan, uri, NULL );
+    impl = find_suitable_implementation( fs, uri, NULL, &mode );
 
     if ( !impl ) {
         opbx_log(LOG_ERROR,"Cannot find any suitable filestream to play requested uri: %s \n", uri);
@@ -196,7 +330,7 @@ opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const c
         return NULL;
     }
 
-    if (  ( impl->init( pool, fs, uri ) != FS_RESULT_SUCCESS ) ) {
+    if (  ( impl->init( fs, impl ) != FS_RESULT_SUCCESS ) ) {
         opbx_log(LOG_ERROR,"Cannot initialize filestream engine '%s' to play requested uri: %s \n", impl->engine_name ,uri);
         opbx_mpool_close( pool );
         return NULL;
@@ -210,6 +344,13 @@ opbx_filestream_session_t *opbx_filestream_create( opbx_channel_t *chan, const c
 filestream_result_value opbx_filestream_destroy( opbx_filestream_session_t *fs ) 
 {
     opbx_mpool_t *pool;
+
+    fse_log(LOG_DEBUG,"Closing filestream session.%s","\n" );
+
+    if ( !fs ) {
+        opbx_log(LOG_WARNING,"Cannot destroy NULL filestream.\n");
+        return FS_RESULT_FAILURE_GENERIC;
+    }
 
     //TODO check fs is not null
 
@@ -248,24 +389,52 @@ long                    opbx_filestream_tell( struct opbx_filestream *fs )
     return -1;
 }
 
+
+
 filestream_result_value opbx_filestream_seek( opbx_filestream_session_t *fs, long sample_offset, filestream_seek whence )
 {
-    return FS_RESULT_SUCCESS;
+    if ( fs && fs->implementation) {
+        if ( fs->implementation->seek )
+            return fs->implementation->seek(sample_offset, whence);
+        else
+            return FS_RESULT_FAILURE_UNIMPLEMENTED;
+    }
+    return FS_RESULT_FAILURE_GENERIC;
 }
 
 filestream_result_value opbx_filestream_trunc( opbx_filestream_session_t *fs )
 {
-    return FS_RESULT_SUCCESS;
+    if ( fs && fs->implementation) {
+        if ( fs->implementation->trunc )
+            return fs->implementation->trunc();
+        else
+            return FS_RESULT_FAILURE_UNIMPLEMENTED;
+    }
+    return FS_RESULT_FAILURE_GENERIC;
 }
 
 filestream_result_value opbx_filestream_fastforward( opbx_filestream_session_t *fs, long ms )
 {
-    return FS_RESULT_SUCCESS;
+    if ( fs && fs->implementation ) {
+        if ( fs->implementation->seek ) {
+            return fs->implementation->seek( ms, FS_SEEK_CUR);
+        }
+        else
+            return FS_RESULT_FAILURE_UNIMPLEMENTED;
+    }
+    return FS_RESULT_FAILURE_GENERIC;
 }
 
 filestream_result_value opbx_filestream_rewind( opbx_filestream_session_t *fs, long ms )
 {
-    return FS_RESULT_SUCCESS;
+    if ( fs && fs->implementation ) {
+        if ( fs->implementation->seek ) {
+            return fs->implementation->seek( -ms, FS_SEEK_CUR);
+        }
+        else
+            return FS_RESULT_FAILURE_UNIMPLEMENTED;
+    }
+    return FS_RESULT_FAILURE_GENERIC;
 }
 
 
