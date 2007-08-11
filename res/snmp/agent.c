@@ -756,8 +756,6 @@ static u_char *opbx_var_Modules(struct variable *vp,
 static u_char *opbx_var_Version(struct variable *vp, oid *name, size_t *length,
                                 int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
-
     if (header_generic(vp, name, length, exact, var_len, write_method))
         return NULL;
 

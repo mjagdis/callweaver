@@ -173,7 +173,6 @@ static struct opbx_translator_pvt *lintodviadpcm_new(void)
 static int dviadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
     struct dvi_adpcm_decoder_pvt *tmp = (struct dvi_adpcm_decoder_pvt *) pvt;
-    int x;
 
     if (f->datalen == 0)
     {
@@ -276,7 +275,6 @@ static struct opbx_frame *lintodviadpcm_frameout(struct opbx_translator_pvt *pvt
 {
     struct dvi_adpcm_encoder_pvt *tmp = (struct dvi_adpcm_encoder_pvt *) pvt;
     int i_max;
-    int i;
   
     if (tmp->tail < 2)
         return NULL;

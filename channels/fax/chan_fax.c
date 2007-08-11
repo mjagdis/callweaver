@@ -290,7 +290,6 @@ static volatile struct faxmodem *acquire_modem(int index)
 	if (index) {
 		fm = &FAXMODEM_POOL[index];
 	} else if (ring_strategy == RING_STRATEGY_FF) {
-	    int x;
 	    for (; rr_next < SOFT_MAX_FAXMODEMS; rr_next++) {
 		    opbx_verbose(VBPREFIX  "acquire considering: %d\n", rr_next);
 		    opbx_verbose(VBPREFIX  "%d state: %d\n", rr_next, FAXMODEM_POOL[rr_next].state);

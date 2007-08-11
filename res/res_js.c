@@ -667,7 +667,7 @@ static JSBool
 chan_dbdel(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 
-        char *family, *key, *name;
+        char *family, *key;
         JSString *str = NULL;
         int res;
 
@@ -691,7 +691,7 @@ chan_dbdel(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-        char *family, *key, *name, *value;
+        char *family, *key, *name;
         JSString *str = NULL;
         int res;
 
@@ -1288,7 +1288,7 @@ static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct opbx_channel *ch
 
 static int js_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *code, *next, *arg, *nextarg;
+	char *arg, *nextarg;
 	int res=-1;
 	jsval rval;
 	JSContext *cx;
@@ -1297,7 +1297,6 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv)
 	struct jchan jc;
 	int x = 0, y = 0;
 	char buf[512];
-	char *options = NULL;
 	int flags = 0;
 
 	if (argc < 1 || !argv[0][0]) {

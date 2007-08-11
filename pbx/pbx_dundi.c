@@ -3860,9 +3860,7 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 
 static int dundi_lookup_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *num;
 	char *context;
-	char *opts;
 	int results;
 	int x;
 	int bypass = 0;
@@ -3913,9 +3911,7 @@ static int dundi_lookup_exec(struct opbx_channel *chan, int argc, char **argv)
 
 static char *dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *num;
 	char *context;
-	char *opts;
 	int results;
 	int x;
 	int bypass = 0;

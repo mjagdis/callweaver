@@ -11799,7 +11799,7 @@ static char *function_sippeer(struct opbx_channel *chan, int argc, char **argv, 
 {
     char *ret = NULL;
     struct sip_peer *peer;
-    char *peername, *colname;
+    char *colname;
     char iabuf[INET_ADDRSTRLEN];
 
     if (argc != 1 || !argv[0][0]) {

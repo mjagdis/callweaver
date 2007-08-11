@@ -557,7 +557,6 @@ static int chanspy_exec(struct opbx_channel *chan, int argc, char **argv)
     struct opbx_channel *prev = NULL;
     char name[OPBX_NAME_STRLEN];
     char peer_name[OPBX_NAME_STRLEN + 5];
-    char *args;
     char *ptr = NULL;
     char *mygroup = NULL;
     char *recbase = NULL;

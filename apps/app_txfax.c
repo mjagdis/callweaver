@@ -509,11 +509,6 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
 
     char *source_file;
     int res = 0;
-    char *s;
-    char *t;
-    char *v;
-    int option;
-    int len;
     int ready;
 
     int calling_party;
@@ -524,9 +519,6 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
 
     int original_read_fmt;
     int original_write_fmt;
-
-    uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*OPBX_FRIENDLY_OFFSET];
-    uint8_t *buf = __buf + OPBX_FRIENDLY_OFFSET;
 
     /* Basic initial checkings */
 

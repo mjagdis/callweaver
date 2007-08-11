@@ -97,7 +97,6 @@ LOCAL_USER_DECL;
 static int proc_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	char *tmp;
-	char *cur, *rest;
 	char *proc;
 	char fullproc[80];
 	char varname[80];

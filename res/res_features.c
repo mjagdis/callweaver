@@ -1272,7 +1272,6 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 	struct timeval start = { 0 , 0 };
 	struct opbx_bridge_config backup_config;
 	int allowdisconnect_in, allowdisconnect_out, allowredirect_in, allowredirect_out;
-	char *monitor_exec;
 
 	memset(&backup_config, 0, sizeof(backup_config));
 

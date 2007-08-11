@@ -65,7 +65,7 @@ static int eval_exec(struct opbx_channel *chan, int argc, char **argv)
 	static int dep_warning = 0;
 	char tmp[MAXRESULT];
 	struct localuser *u;
-	char *s, *newvar = NULL;
+	char *newvar = NULL;
 	int res = 0;
 
 	if (!dep_warning) {

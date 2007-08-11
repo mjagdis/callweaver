@@ -65,8 +65,6 @@ static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv)
 	int res = 0;
 	struct localuser *u;
 	int answer = 0, nocallerid = 0;
-	char *c;
-	char *stringp=NULL;
 
 	LOCAL_USER_ADD(u);
 

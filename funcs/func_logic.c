@@ -219,7 +219,7 @@ static char *builtin_function_if(struct opbx_channel *chan, int argc, char **arg
 
 static char *builtin_function_set(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
-	char *p, *q;
+	char *p;
 
 	if (argc != 1 || !argv[0][0] || !(p = strchr(argv[0], '='))) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", set_func_syntax);

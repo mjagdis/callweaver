@@ -157,7 +157,7 @@ static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv)
 static char *acf_vmcount_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
-	char *args, *context, *box, *folder;
+	char *context;
 
 	if (argc < 1 || argc > 2 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", vmcount_func_syntax);

@@ -2152,9 +2152,7 @@ static int is_our_turn(struct queue_ent *qe)
 {
     struct queue_ent *ch;
     int res;
-    struct member *cur;
     struct queue_ent *cur_qe;
-    int found;
 
     /* Check if we have some agent available */
     /*

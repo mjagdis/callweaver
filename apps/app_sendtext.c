@@ -73,7 +73,6 @@ static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res;
 	struct localuser *u;
-	char *status = "UNSUPPORTED";
 		
 	if (argc == 0) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", sendtext_syntax);

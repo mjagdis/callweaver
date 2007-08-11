@@ -138,7 +138,6 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv)
 	int res;
 	time_t rstart;
 	FILE *fp;
-	char *stringp = NULL;
 	char inbuf[128];
 
 	if (argc < 1 || argc > 3) {

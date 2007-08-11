@@ -80,7 +80,6 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv)
 	int count = 0;
 	int percentflag = 0;
 	char *ext = NULL;
-	char *vdata, *p;
 	int i = 0;
 	char tmp[256];
 

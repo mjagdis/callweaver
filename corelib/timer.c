@@ -136,7 +136,6 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #endif /* USE_GENERIC_TIMERS*/
 {
 #ifdef HAVE_POSIX_TIMERS
-    char buf[128];
     struct sigevent evp;
 #endif /* HAVE_POSIX_TIMERS */
 
@@ -271,7 +270,6 @@ void opbx_timer_destroy(opbx_timer_t *t)
 int opbx_timer_start(opbx_timer_t *t)
 {
 #ifdef HAVE_POSIX_TIMERS
-    char buf[128];
     struct itimerspec spec;
     long nano, sec;
     
@@ -340,7 +338,6 @@ int opbx_timer_start(opbx_timer_t *t)
 int opbx_timer_stop(opbx_timer_t *t)
 {
 #ifdef HAVE_POSIX_TIMERS
-    char buf[128];
     struct itimerspec spec;
 
     /* Stop the timer by resetting it to zero-time */

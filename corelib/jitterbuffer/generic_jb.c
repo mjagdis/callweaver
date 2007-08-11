@@ -1070,8 +1070,6 @@ static void jb_destroy_speakup(void *jb)
 
 static int jb_put_first_speakup(void *jb, struct opbx_frame *fin, long now, int codec)
 {
-	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
-
 	return jb_put_speakup(jb, fin, now, codec);
 }
 
@@ -1079,7 +1077,6 @@ static int jb_put_first_speakup(void *jb, struct opbx_frame *fin, long now, int 
 static int jb_put_speakup(void *jb, struct opbx_frame *fin, long now, int codec)
 {
 	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
-	int res;
 	
 	jb_speakup_put(speakupjb, fin, JB_TYPE_VOICE, fin->len, fin->ts, now,
 		       codec);
@@ -1091,7 +1088,6 @@ static int jb_put_speakup(void *jb, struct opbx_frame *fin, long now, int codec)
 static int jb_get_speakup(void *jb, struct opbx_frame **fout, long now, long interpl)
 {
 	speakup_jitterbuffer *speakupjb = (speakup_jitterbuffer *) jb;
-	jb_frame frame;
 	int res;
 	
 	res = jb_speakup_get(speakupjb, (void**)fout, now, interpl);

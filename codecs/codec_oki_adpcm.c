@@ -174,7 +174,6 @@ static struct opbx_translator_pvt *lintookiadpcm_new(void)
 static int okiadpcmtolin_framein(struct opbx_translator_pvt *pvt, struct opbx_frame *f)
 {
     struct oki_adpcm_decoder_pvt *tmp = (struct oki_adpcm_decoder_pvt *) pvt;
-    int x;
 
     if (f->datalen == 0)
     {
@@ -278,7 +277,6 @@ static struct opbx_frame *lintookiadpcm_frameout(struct opbx_translator_pvt *pvt
 {
     struct oki_adpcm_encoder_pvt *tmp = (struct oki_adpcm_encoder_pvt *) pvt;
     int i_max;
-    int i;
   
     if (tmp->tail < 2)
         return NULL;

@@ -101,13 +101,11 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv)
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
-	int flags;
 	int owriteformat;
 	int oreadformat;
 	int timeout = 2000;
 	struct timeval last;
 	struct opbx_frame *f;
-	char *c;
 	struct myframe {
 		struct opbx_frame f;
 		char offset[OPBX_FRIENDLY_OFFSET];

@@ -63,7 +63,6 @@ static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	int res = 0;
 	struct localuser *u;
-	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
 	if (argc < 1 || argc > 2 || !argv[0][0]) {

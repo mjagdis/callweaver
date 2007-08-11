@@ -44,10 +44,6 @@
 #include <sys/types.h>
 #include <errno.h>
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 #define OPBX_MODULE "cdr_mysql"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
@@ -119,8 +115,6 @@ static struct opbx_cli_entry cdr_mysql_status_cli =
 static int mysql_log(struct opbx_cdr *cdr)
 {
 	struct tm tm;
-	struct timeval tv;
-	struct opbx_module_user *u;
 	char *userfielddata = NULL;
 	char sqlcmd[2048], timestr[128];
 	char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL;
@@ -477,7 +471,5 @@ char *description(void)
 
 int usecount(void)
 {
-        int res;
-        STANDARD_USECOUNT(res);
-        return res;
+        return 0;
 }

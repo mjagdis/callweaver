@@ -669,7 +669,6 @@ static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv)
 	int valetpark=-1;
 	int dres;
 	struct opbx_bridge_config config;
-	char *exten,*lotname;
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", vupsyntax);
@@ -728,8 +727,6 @@ static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv)
 static int opbx_valetparking(struct opbx_channel *chan, int argc, char **argv) 
 {
 	struct localuser *u;
-	struct opbx_app *app;
-	char *appname;	
 	int res=0;
 
 	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0]) {
@@ -756,7 +753,6 @@ static int valetpark_list(struct opbx_channel *chan, int argc, char **argv)
 	char buf[64];
 	char *nargv[3];
 	struct localuser *u;
-	struct opbx_app *app;
 	int res = 0;
 
 	if (argc != 1 || !argv[0][0]) {

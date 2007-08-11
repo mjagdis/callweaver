@@ -178,7 +178,6 @@ static int pgsql_reconnect(void)
 static int pgsql_log(struct opbx_cdr *cdr)
 {
 	PGresult *res;
-	struct tm tm;
 	char sql_insert_cmd[2048];
 	char sql_tmp_cmd[1024];
 

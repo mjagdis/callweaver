@@ -1101,8 +1101,6 @@ static int init_classes(void)
 
 int load_module(void)
 {
-	int res;
-
 	app0 = opbx_register_application(name0, moh0_exec, synopsis0, syntax0, descrip0);
 	opbx_register_atexit(opbx_moh_destroy);
 	opbx_cli_register(&cli_moh);

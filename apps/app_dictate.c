@@ -84,7 +84,7 @@ static int play_and_wait(struct opbx_channel *chan, char *file, char *digits)
 
 static int dictate_exec(struct opbx_channel *chan, int argc, char **argv)
 {
-	char *mydata, *path = NULL, filein[256];
+	char *path = NULL, filein[256];
 	char dftbase[256];
 	char *base;
 	struct opbx_flags flags = {0};

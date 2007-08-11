@@ -51,9 +51,6 @@ static const char *fileexists_func_desc= "Returns the file status. Results are '
 
 static char *builtin_function_fileexists(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
-	char *ret;
-	char *args;
-
 	if (argc != 1 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", fileexists_func_syntax);
 		return NULL;

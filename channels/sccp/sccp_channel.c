@@ -768,9 +768,6 @@ static void * sccp_channel_transfer_ringing_thread(void *data) {
 }
 
 void sccp_channel_transfer_complete(sccp_channel_t * c) {
-#ifndef CS_OPBX_CHANNEL_HAS_CID
-	char *name, *number, *cidtmp;
-#endif
 	struct opbx_channel	*transferred = NULL, *original_transferred=NULL,	*transferee = NULL, *destination = NULL;
 	sccp_channel_t * peer;
 	sccp_device_t * d = NULL;

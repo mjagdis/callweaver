@@ -83,9 +83,6 @@ LOCAL_USER_DECL;
 static int execif_exec(struct opbx_channel *chan, int argc, char **argv) {
 	int res=0;
 	struct localuser *u;
-	char *myapp = NULL;
-	char *mydata = NULL;
-	char *expr = NULL;
 	struct opbx_app *app = NULL;
 
 	if (argc < 2 || !argv[0][0] || !argv[1][0]) {

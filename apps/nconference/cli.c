@@ -93,7 +93,6 @@ static int app_count_exec(struct opbx_channel *chan, int argc, char **argv)
 	int res = 0;
 	struct opbx_conference *conf;
 	int count;
-	char *confnum, *localdata;
 	char val[80] = "0"; 
 
 	if (argc < 1 || argc > 2 || !argv[0][0]) {

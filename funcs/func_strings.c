@@ -166,7 +166,7 @@ static char *function_filter(struct opbx_channel *chan, int argc, char **argv, c
 
 static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
-	char *tmp, errstr[256] = "";
+	char errstr[256] = "";
 	regex_t regexbuf;
 	int i;
 
@@ -217,7 +217,7 @@ static char *builtin_function_len(struct opbx_channel *chan, int argc, char **ar
 
 static char *acf_strftime(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
-	char *format, *epoch, *timezone = NULL;
+	char *epoch;
 	long epochi;
 	struct tm time;
 
@@ -255,7 +255,7 @@ static char *function_eval(struct opbx_channel *chan, int argc, char **argv, cha
 static char *function_cut(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char varvalue[MAXRESULT], *tmp2;
-	char *s, *field=NULL;
+	char *field=NULL;
 	char *tmp;
 	char d, ds[2];
 	int curfieldnum;

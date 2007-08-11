@@ -1998,12 +1998,9 @@ static int ogi_exec_full(struct opbx_channel *chan, int argc, char **argv, int e
 {
 	int res=0;
 	struct localuser *u;
-	char buf[2048]="";
-	char *tmp = (char *)buf;
 	int fds[2];
 	int efd = -1;
 	int pid;
-        char *stringp;
 	OGI ogi;
 
 	if (argc < 1 || !argv[0][0]) {

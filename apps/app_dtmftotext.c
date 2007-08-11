@@ -987,7 +987,6 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
 static int dtmftotext_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     char *initial_digits;
-    char *stringp;
     int imax_chars;
     int imax_time;
     int res;

@@ -166,7 +166,6 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 
 	flags = 0;
 	if (argc > 1) {
-		char *p;
 		for (; *argv[1]; argv[1]++) {
 			switch (*argv[1]) {
 				case 'd': flags |= PAGE_DUPLEX; break;

@@ -49,15 +49,6 @@
 #include "callweaver/mpool.h"
 #include "mpool_loc.h"
 
-#ifdef __GNUC__
-#ident "$Id: mpool.c,v 1.5 2006/05/31 20:28:31 gray Exp $"
-#else
-static char *rcs_id = "$Id: mpool.c,v 1.5 2006/05/31 20:28:31 gray Exp $";
-#endif
-
-/* version */
-static	char *version = "mpool library version 2.1.0";
-
 /* local variables */
 static	int		enabled_b = 0;		/* lib initialized? */
 static	unsigned int	min_bit_free_next = 0;	/* min size of next pnt */

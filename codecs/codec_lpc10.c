@@ -192,10 +192,8 @@ static int lpc10tolin_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
 {
     /* Assuming there's space left, decode into the current buffer at
        the tail location */
-    int x;
     int len = 0;
     int16_t *sd;
-    int32_t bits[LPC10_BITS_IN_COMPRESSED_FRAME];
 
     if (f->datalen == 0)
     {
@@ -255,9 +253,7 @@ static int lintolpc10_framein(struct opbx_translator_pvt *tmp, struct opbx_frame
 
 static struct opbx_frame *lintolpc10_frameout(struct opbx_translator_pvt *tmp)
 {
-    int x;
     int consumed = 0;
-    int32_t bits[LPC10_BITS_IN_COMPRESSED_FRAME];
 
     /* We can't work on anything less than a frame in size */
     if (tmp->tail < LPC10_SAMPLES_PER_FRAME)

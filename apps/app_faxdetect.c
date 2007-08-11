@@ -106,9 +106,7 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
 {
     int res = 0;
     struct localuser *u;
-    char tmp[256] = "\0";
     char dtmf_did[256] = "\0";
-    char *p = NULL;
     char *tonestr = NULL;
     int totalsilence;            // working vars
     int ms_silence = 0;
@@ -132,7 +130,6 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
     int ignoretalk = 0;
     int ignorejump = 0;
     int longdtmf = 0;
-    int x = 0;
     int origrformat = 0;
     int origwformat = 0;
     int features = 0;

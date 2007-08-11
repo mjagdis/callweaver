@@ -412,7 +412,7 @@ static int directory_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct localuser *u;
 	struct opbx_config *cfg;
-	char *context, *dialcontext, *dirintro, *options;
+	char *context, *dialcontext, *dirintro;
 	int res = 0;
 	int last = 1;
 

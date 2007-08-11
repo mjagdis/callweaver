@@ -66,7 +66,6 @@ static int userevent_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	char eventname[512];
 	struct localuser *u;
-	char *info;
 
 	if (argc < 1 || argc > 2 || !argv[0][0]) {
 		opbx_log(LOG_ERROR, "Syntax: %s\n", userevent_syntax);

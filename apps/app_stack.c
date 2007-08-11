@@ -128,7 +128,6 @@ static int return_exec(struct opbx_channel *chan, int argc, char **argv)
 static int gosub_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	char buf[3 + 1 + OPBX_MAX_CONTEXT + 1 + OPBX_MAX_EXTENSION + 1 + 11 + 11];
-	struct localuser *u;
 	char *context, *exten, *p, *q;
 	int i;
 

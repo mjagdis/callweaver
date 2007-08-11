@@ -21,7 +21,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "snmp/agent.h"
 
 static char *tdesc = "SNMP [Sub]Agent for Callweaver";
-static char *global_config_file = "res_snmp.conf";
 
 static pthread_t thread = OPBX_PTHREADT_NULL;
 
@@ -36,9 +35,6 @@ static char *desc_1 = "  URLFetch(<url>)\n"
 "load a url that returns opbx_config and set according chanvars\n"
 ;
 */
-
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 static int load_config(void)
 {
@@ -129,9 +125,7 @@ int reload(void)
 
 int usecount(void)
 {
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
+	return 0;
 }
 
 char *description (void)

@@ -105,7 +105,6 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	int sil;
 	int min;
 	int max;
-	int x;
 	int origrformat = 0;
 	int skipanswer = 0;
 	int ignoredtmf = 0;

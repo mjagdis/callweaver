@@ -78,7 +78,7 @@ static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv)
 	struct timeval tv;
 	time_t unixtime;
 	struct localuser *u;
-	char *s, *format;
+	char *format;
 	int res=0;
 
 	if (argc > 3) {
