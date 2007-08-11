@@ -2562,7 +2562,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 	opbx_rtp_set_data(p->rtp, p);
 #endif		
 	/* Make a call*ID */
-        snprintf(sub->callid, sizeof(sub->callid), "%08x%s", opbx_random(), sub->txident);
+        snprintf(sub->callid, sizeof(sub->callid), "%08lx%s", opbx_random(), sub->txident);
 	/* Transmit the connection create */
 	transmit_connect_with_sdp(sub, NULL);
 	opbx_mutex_unlock(&sub->lock);
@@ -3728,7 +3728,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 					strncpy(e->language, language, sizeof(e->language) - 1);
 					strncpy(e->musicclass, musicclass, sizeof(e->musicclass) - 1);
 					strncpy(e->mailbox, mailbox, sizeof(e->mailbox) - 1);
-					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08x", opbx_random());
+					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", opbx_random());
 					e->msgstate = -1;
 					e->amaflags = amaflags;
 					e->capability = capability;
@@ -3754,7 +3754,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 					/* ASSUME we're onhook */
 					e->hookstate = MGCP_ONHOOK;
 					if (!ep_reload) {
-						/*snprintf(txident, sizeof(txident), "%08x", opbx_random());*/
+						/*snprintf(txident, sizeof(txident), "%08lx", opbx_random());*/
 						for (i = 0; i < MAX_SUBS; i++) {
 							sub = malloc(sizeof(struct mgcp_subchannel));
 							if (sub) {
@@ -3764,7 +3764,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 								opbx_mutex_init(&sub->cx_queue_lock);
 								sub->parent = e;
 								sub->id = i;
-								snprintf(sub->txident, sizeof(sub->txident), "%08x", opbx_random());
+								snprintf(sub->txident, sizeof(sub->txident), "%08lx", opbx_random());
 								/*stnrcpy(sub->txident, txident, sizeof(sub->txident) - 1);*/
 								sub->cxmode = MGCP_CX_INACTIVE;
 								sub->nat = nat;
@@ -3859,7 +3859,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 						e->onhooktime = time(NULL);
 						/* ASSUME we're onhook */
 						e->hookstate = MGCP_ONHOOK;
-						snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08x", opbx_random());
+						snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", opbx_random());
 					}
 
 					for (i = 0, sub = NULL; i < MAX_SUBS; i++) {
@@ -3881,7 +3881,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct opbx_variable *v)
 								strncpy(sub->magic, MGCP_SUBCHANNEL_MAGIC, sizeof(sub->magic) - 1);
 								sub->parent = e;
 								sub->id = i;
-								snprintf(sub->txident, sizeof(sub->txident), "%08x", opbx_random());
+								snprintf(sub->txident, sizeof(sub->txident), "%08lx", opbx_random());
 								sub->cxmode = MGCP_CX_INACTIVE;
 								sub->next = e->sub;
 								e->sub = sub;

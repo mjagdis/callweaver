@@ -1494,7 +1494,7 @@ static struct opbx_channel *woomera_new(const char *type, int format, void *data
 	if ((chan = opbx_channel_alloc(1))) {
 		chan->nativeformats = WFORMAT;
 		chan->type = type;
-		snprintf(chan->name, sizeof(chan->name), "%s/%s-%04x", chan->type, (char *)data, opbx_random() & 0xffff);
+		snprintf(chan->name, sizeof(chan->name), "%s/%s-%04lx", chan->type, (char *)data, opbx_random() & 0xffff);
 		chan->writeformat = chan->rawwriteformat = chan->readformat = WFORMAT;
 		chan->_state = OPBX_STATE_DOWN;
 		chan->_softhangup = 0;
