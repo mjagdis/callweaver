@@ -1038,7 +1038,7 @@ static char *complete_fn(char *line, char *word, int pos, int state)
         opbx_copy_string(filename, word, sizeof(filename));
     else
         snprintf(filename, sizeof(filename), "%s/%s", (char *) opbx_config_OPBX_MODULE_DIR, word);
-    c = (char *) filename_completion_function(filename, state);
+    c = (char *) rl_filename_completion_function(filename, state);
     if (c  &&  word[0] != '/')
         c += (strlen((char *) opbx_config_OPBX_MODULE_DIR) + 1);
     return c  ?  strdup(c)  :  c;
