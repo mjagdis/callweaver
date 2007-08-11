@@ -85,8 +85,9 @@ static int odbc_log(struct opbx_cdr *cdr)
 	SQLINTEGER ODBC_err;
 	short int ODBC_mlen;
 	int ODBC_res;
-	char ODBC_msg[200], ODBC_stat[10];
-	char sqlcmd[2048] = "", timestr[128];
+	unsigned char ODBC_msg[200], ODBC_stat[10];
+	unsigned char sqlcmd[2048] = "";
+	char timestr[128];
 	int res = 0;
 	struct tm tm;
 
@@ -99,12 +100,12 @@ static int odbc_log(struct opbx_cdr *cdr)
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	memset(sqlcmd,0,2048);
 	if (loguniqueid) {
-		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
+		snprintf((char *) sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
 		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
 		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
 	} else {
-		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
+		snprintf((char *) sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
 		"duration,billsec,disposition,amaflags,accountcode) "
 		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
@@ -376,7 +377,7 @@ static int odbc_do_query(void)
 	SQLINTEGER ODBC_err;
 	int ODBC_res;
 	short int ODBC_mlen;
-	char ODBC_msg[200], ODBC_stat[10];
+	unsigned char ODBC_msg[200], ODBC_stat[10];
 	
 	ODBC_res = SQLExecute(ODBC_stmt);
 	
@@ -400,7 +401,7 @@ static int odbc_init(void)
 	SQLINTEGER ODBC_err;
 	short int ODBC_mlen;
 	int ODBC_res;
-	char ODBC_msg[200], ODBC_stat[10];
+	unsigned char ODBC_msg[200], ODBC_stat[10];
 
 	if (ODBC_env == SQL_NULL_HANDLE || connected == 0) {
 		ODBC_res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &ODBC_env);

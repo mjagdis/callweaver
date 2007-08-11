@@ -201,7 +201,8 @@ int capi_write_rtp(struct opbx_channel *c, struct opbx_frame *f)
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
 	struct sockaddr_in us;
-	int len, uslen;
+	int len;
+	unsigned int uslen;
 	unsigned int *rtpheader;
 	unsigned char buf[256];
 

@@ -421,7 +421,7 @@ static void wav_close(struct opbx_filestream *s)
 static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 {
     int res;
-    char msdata[66];
+    unsigned char msdata[66];
     /* Send a frame from the file to the appropriate channel */
 
     opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, NULL);
@@ -453,7 +453,7 @@ static struct opbx_frame *wav_read(struct opbx_filestream *s, int *whennext)
 static int wav_write(struct opbx_filestream *fs, struct opbx_frame *f)
 {
     int res;
-    char msdata[66];
+    unsigned char msdata[66];
     int len =0;
     int alreadyms=0;
 

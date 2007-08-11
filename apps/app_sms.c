@@ -1756,7 +1756,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
         return -1;
     }
     strcpy (h.queue, argv[0]);
-    for (d = (unsigned char *)h.queue; *d; d++) {
+    for (d = h.queue; *d; d++) {
         if (!isalnum (*d))
             *d = '-';              /* make very safe for filenames */
     }
@@ -1794,7 +1794,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
 
     if (argc > 2)
     {
-        unsigned char *p;
+        char *p;
         /* submitting a message, not taking call. */
         /* deprecated, use smsq instead */
         d = argv[2];
@@ -1816,7 +1816,7 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
         d = p;
         h.udl = 0;
         while (*p && h.udl < SMSLEN)
-            h.ud[h.udl++] = utf8decode(&p);
+            h.ud[h.udl++] = utf8decode((unsigned char **)&p);
         if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
             opbx_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
         if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)

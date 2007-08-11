@@ -788,7 +788,7 @@ static void *media_receive_thread(void *obj)
 	struct opbx_frame write_frame = {OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR};
 	char buf[1024];
 	int err = 0;
-	int fromlen;
+	unsigned int fromlen;
 	int socket = profile->media_socket;
 	char *name = opbx_strdupa(chan->name);
 	struct opbx_frame *frx;

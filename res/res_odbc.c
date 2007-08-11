@@ -131,7 +131,7 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 {
 	int res = 0;
 
-	res = SQLExecDirect (stmt, sql, SQL_NTS);
+	res = SQLExecDirect (stmt, (unsigned char *) sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		opbx_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
 		opbx_mutex_lock(&obj->lock);
@@ -139,7 +139,7 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 		opbx_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
-		res = SQLExecDirect (stmt, sql, SQL_NTS);
+		res = SQLExecDirect (stmt, (unsigned char *) sql, SQL_NTS);
 	}
 	
 	return res;
@@ -157,7 +157,7 @@ int odbc_sanity_check(odbc_obj *obj)
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			obj->up = 0; /* Liar!*/
 		} else {
-			res = SQLPrepare(stmt, test_sql, SQL_NTS);
+		  res = SQLPrepare(stmt, (unsigned char *) test_sql, SQL_NTS);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				obj->up = 0; /* Liar!*/
 			} else {
@@ -494,7 +494,7 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 		   (SQLCHAR *) obj->password, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, (unsigned char *) stat, &err, (unsigned char *) msg, 100, &mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
 		opbx_mutex_unlock(&obj->lock);
 		opbx_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
