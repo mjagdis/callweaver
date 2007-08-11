@@ -86,4 +86,6 @@ void opbx_playtones_stop(struct opbx_channel *chan);
 extern struct tone_zone *tone_zones;
 extern opbx_mutex_t tzlock;
 
+struct tone_zone *opbx_walk_indications(const struct tone_zone *cur);
+
 #endif /* _CALLWEAVER_INDICATIONS_H */
