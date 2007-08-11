@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <ctype.h>
 
 #include "callweaver.h"
 

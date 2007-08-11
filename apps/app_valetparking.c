@@ -29,7 +29,7 @@
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
-
+#include <ctype.h>
 #include <pthread.h>
 
 #include "callweaver.h"

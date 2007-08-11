@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <sys/time.h>
+#include <ctype.h>
 
 #include "callweaver.h"
 
