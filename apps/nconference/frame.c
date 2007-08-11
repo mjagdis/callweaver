@@ -17,12 +17,11 @@
 #include "confdefs.h"  
 #endif  
 #include <stdio.h> 
+#include <spandsp.h>
 #include "common.h"
 #include "conference.h"
 #include "member.h"
 #include "frame.h"
-
-#include "spandsp/dc_restore.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
