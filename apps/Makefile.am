@@ -472,7 +472,8 @@ if WANT_APP_LDAP
 opbxmod_LTLIBRARIES			+= app_ldap.la
 app_ldap_la_SOURCES			= app_ldap.c
 app_ldap_la_LDFLAGS			= -module -avoid-version -no-undefined
-app_ldap_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la
+app_ldap_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la -lldap -llber
+app_ldap_la_CFLAGS			= $(AM_CFLAGS) -DLDAP_DEPRECATED
 endif WANT_APP_LDAP
 
 if WANT_APP_GETDEVSTATE

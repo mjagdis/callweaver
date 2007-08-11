@@ -217,10 +217,6 @@ int usecount (void) {
   return res;
 }
 
-char *key () {
-	return 0;
-}
-
 int ldap_lookup(char *host, int port, int version, int timeout, char *user, char *pass, 
 		char *base, char *scope, char *filter, char *attribute, char *result) {
   char *attrs[] = { NULL };
