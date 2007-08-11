@@ -1108,7 +1108,7 @@ int load_module(void)
 	opbx_cli_register(&cli_moh_classes_show);
 	app1 = opbx_register_application(name1, moh1_exec, synopsis1, syntax1, descrip1);
 	app2 = opbx_register_application(name2, moh2_exec, synopsis2, syntax2, descrip2);
-	app2 = opbx_register_application(name3, moh3_exec, synopsis3, syntax3, descrip3);
+	app3 = opbx_register_application(name3, moh3_exec, synopsis3, syntax3, descrip3);
 	app4 = opbx_register_application(name4, moh4_exec, synopsis4, syntax4, descrip4);
 
 	if (!init_classes()) { 	/* No music classes configured, so skip it */
