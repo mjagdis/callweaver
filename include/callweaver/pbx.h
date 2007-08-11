@@ -670,6 +670,10 @@ void opbx_func_write(struct opbx_channel *chan, const char *in, const char *valu
 
 void opbx_hint_state_changed(const char *device);
 
+int pbx_checkcondition(char *condition);
+
+int pbx_builtin_setvar(struct opbx_channel *, int, char **);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
