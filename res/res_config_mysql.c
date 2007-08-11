@@ -652,7 +652,7 @@ reconnect_tryagain:
 
 		if(mysql_select_db(&mysql, my_database) != 0) {
 			opbx_log(LOG_WARNING, "MySQL RealTime: Unable to select database: %s. Still Connected (%d).\n", my_database, mysql_errno(&mysql));
-			opbx_log(LOG_DEBUG, "MySQL RealTime: Database Select Failed (%d): %s\n", mysql_error(&mysql), mysql_errno(&mysql));
+			opbx_log(LOG_DEBUG, "MySQL RealTime: Database Select Failed (%d): %s\n", mysql_errno(&mysql), mysql_error(&mysql));
 			return 0;
 		}
 
