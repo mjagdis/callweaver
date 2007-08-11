@@ -106,7 +106,7 @@ static int process_outgoing( struct opbx_conf_member *member, int samples )
 	HANDLING INCOMING PACKETS
    ****************************************************************************/
 
-int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f) 
+static int process_incoming(struct opbx_conf_member *member, struct opbx_frame *f) 
 {
     int res;
 

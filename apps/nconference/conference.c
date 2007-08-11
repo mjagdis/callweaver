@@ -244,7 +244,7 @@ static void opbx_conf_command_execute( struct opbx_conference *conf ) {
      member-related functions
    *********************************************************************************************/
 
-void add_member( struct opbx_conference *conf, struct opbx_conf_member *member ) 
+static void add_member( struct opbx_conference *conf, struct opbx_conf_member *member ) 
 {
     char cnum[80];
 
@@ -286,7 +286,7 @@ void add_member( struct opbx_conference *conf, struct opbx_conf_member *member )
 }
 
 
-int remove_member(struct opbx_conference* conf, struct opbx_conf_member* member ) 
+static int remove_member(struct opbx_conference* conf, struct opbx_conf_member* member ) 
 {
     // check for member
     if ( member == NULL )
@@ -356,7 +356,7 @@ int remove_member(struct opbx_conference* conf, struct opbx_conf_member* member 
      conference-related functions
    *********************************************************************************************/
 
-void conference_exec( struct opbx_conference *conf ) 
+static void conference_exec( struct opbx_conference *conf ) 
 {
 
     struct opbx_conf_member *member, *temp_member ;
@@ -517,7 +517,7 @@ struct opbx_conference *find_conf( const char* name )
 
 }
 
-struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member )
+static struct opbx_conference* create_conf( char* name, struct opbx_conf_member* member )
 {
     opbx_log( OPBX_CONF_DEBUG, "entered create_conf, name => %s\n", name ) ;	
 
@@ -804,7 +804,7 @@ static void *fopbx_originate(void *data)
 }
 
 
-int conf_do_originate(struct opbx_conf_member *member, char *ext) {
+static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
     int res;
 
     pthread_t th;
@@ -887,7 +887,7 @@ int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 
 // **********************************************************************************
 
-int conference_set_pin(struct opbx_conf_member *member, char *pin) {
+static int conference_set_pin(struct opbx_conf_member *member, char *pin) {
 
     opbx_copy_string(member->conf->pin, pin, sizeof(member->conf->pin));
     opbx_log( OPBX_CONF_DEBUG, "Conference %s: PIN Set to %s\n",member->conf->name, member->conf->pin ) ;

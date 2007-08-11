@@ -71,7 +71,7 @@ status2str(blt_status_t status)
  * @param fd fd to operate on
  * @return pointer to rc of getsockopt
  */
-int sock_err(int fd)
+static int sock_err(int fd)
 {
   int ret;
   socklen_t len = (socklen_t) sizeof(ret);
@@ -89,7 +89,7 @@ int sock_err(int fd)
  * @param type
  * @return  currently unused
  */
-int parse_clip(const char * str, char *number, int number_len, char * name, int name_len, int *type)
+static int parse_clip(const char * str, char *number, int number_len, char * name, int name_len, int *type)
 {
   const char *c = str;
   const char *start;
@@ -248,8 +248,7 @@ set_cind(blt_dev_t * dev, int indicator, int val)
  * @param data_len
  * @return always 0
  */
-int
-set_buffer(char * ring, char * data, int circular_len, int * pos, int data_len)
+static int set_buffer(char * ring, char * data, int circular_len, int * pos, int data_len)
 {
   int start_pos = *(pos);
   int done = 0;
@@ -280,8 +279,7 @@ set_buffer(char * ring, char * data, int circular_len, int * pos, int data_len)
  * @param to_copy Size of buffer to copy
  * @return always 0
  */
-int
-get_buffer(char * dst, char * ring, int ring_size, int * head, int to_copy)
+static int get_buffer(char * dst, char * ring, int ring_size, int * head, int to_copy)
 {
   int copy;
 
@@ -1387,8 +1385,7 @@ ag_unsol_clip(blt_dev_t * dev, const char * data)
 
 
 /* -- Handle negotiation when we're a HS -- */
-void
-ag_unknown_response(blt_dev_t * dev, char * cmd)
+static void ag_unknown_response(blt_dev_t * dev, char * cmd)
 {
   opbx_log(LOG_DEBUG, "Got UNKN response: %s\n", cmd);
 
@@ -1397,8 +1394,7 @@ ag_unknown_response(blt_dev_t * dev, char * cmd)
 
 }
 
-void
-ag_cgmi_response(blt_dev_t * dev, char * cmd)
+static void ag_cgmi_response(blt_dev_t * dev, char * cmd)
 {
   // CGMM - Phone Model
   // CGMR - Phone Revision
@@ -1418,8 +1414,7 @@ ag_cgmi_response(blt_dev_t * dev, char * cmd)
   dev->cb = ag_unknown_response;
 }
 
-void
-ag_cgmi_valid_response(blt_dev_t * dev, char * cmd)
+static void ag_cgmi_valid_response(blt_dev_t * dev, char * cmd)
 {
   // send_atcmd(dev, "AT+WS46?");
   // send_atcmd(dev, "AT+CRC=1");
@@ -1433,15 +1428,13 @@ ag_cgmi_valid_response(blt_dev_t * dev, char * cmd)
   }
 }
 
-void
-ag_clip_response(blt_dev_t * dev, char * cmd)
+static void ag_clip_response(blt_dev_t * dev, char * cmd)
 {
   send_atcmd(dev, "AT+CGMI=?");
   dev->cb = ag_cgmi_valid_response;
 }
 
-void
-ag_cmer_response(blt_dev_t * dev, char * cmd)
+static void ag_cmer_response(blt_dev_t * dev, char * cmd)
 {
   dev->cb = ag_clip_response;
   dev->ready = 1;
@@ -1449,8 +1442,7 @@ ag_cmer_response(blt_dev_t * dev, char * cmd)
   send_atcmd(dev, "AT+CLIP=1");
 }
 
-void
-ag_cind_status_response(blt_dev_t * dev, char * cmd)
+static void ag_cind_status_response(blt_dev_t * dev, char * cmd)
 {
   // XXX:T: Handle response.
   dev->cb = ag_cmer_response;
@@ -1458,16 +1450,14 @@ ag_cind_status_response(blt_dev_t * dev, char * cmd)
   // Initiase SCO link!
 }
 
-void
-ag_cind_response(blt_dev_t * dev, char * cmd)
+static void ag_cind_response(blt_dev_t * dev, char * cmd)
 {
   dev->cb = ag_cind_status_response;
   dev->cind = 1;
   send_atcmd(dev, "AT+CIND?");
 }
 
-void
-ag_brsf_response(blt_dev_t * dev, char * cmd)
+static void ag_brsf_response(blt_dev_t * dev, char * cmd)
 {
   dev->cb = ag_cind_response;
   opbx_log(LOG_DEBUG, "Bluetooth features: %s\n", cmd);
@@ -2652,8 +2642,7 @@ complete_device_2_ag(char * line, char * word, int pos, int state)
   return complete_device(line, word, pos, state, 2, BLT_ROLE_AG);
 }
 
-void
-remove_sdp_records(void)
+static void remove_sdp_records(void)
 {
 
   sdp_session_t * sdp;

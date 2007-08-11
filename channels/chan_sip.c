@@ -6013,7 +6013,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, struct sip_request *res
 }
 
 /*! \brief  t38_get_rate: Get Max T.38 Transmision rate from T38 capabilities */
-int t38_get_rate(int t38cap)
+static int t38_get_rate(int t38cap)
 {
     int maxrate = (t38cap & (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400));
 

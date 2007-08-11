@@ -118,7 +118,7 @@ void jb_speakup_reset(speakup_jitterbuffer *jb)
  * reset statistics 
  * reset settings to default
  */
-void jb_reset_all(speakup_jitterbuffer *jb) 
+static void jb_reset_all(speakup_jitterbuffer *jb) 
 {
   jb_frame *frame;
   

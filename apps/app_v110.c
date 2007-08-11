@@ -349,7 +349,7 @@ static int login_v110(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-void v110_process_frame(struct v110_state *vs) 
+static void v110_process_frame(struct v110_state *vs) 
 {
 	int octet;
 
@@ -576,7 +576,7 @@ void v110_input_frame_x1(struct v110_state *vs, struct opbx_frame *f)
 static unsigned char helper1[] = { 0x81, 0x81, 0x81, 0xc1, 0xe1, 0xf1, 0xf9, 0xfd, 0xff };
 static unsigned char helper2[] = { 0x81, 0x83, 0x87, 0x8f, 0x9f, 0xbf };
 
-unsigned char v110_getline(struct v110_state *vs)
+static unsigned char v110_getline(struct v110_state *vs)
 {
 	unsigned char octet;
 	int line = vs->nextoline++;
@@ -701,7 +701,7 @@ void v110_fill_outframe_x1(struct v110_state *vs, int datalen)
 }
 
 /* This really ought to be a single syscall. It's slow */
-void closeall(int base)
+static void closeall(int base)
 {
 	int i = sysconf(_SC_OPEN_MAX);
 

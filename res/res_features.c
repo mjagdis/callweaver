@@ -163,6 +163,7 @@ static pthread_t parking_thread;
 
 /* Predeclare all statics to keep GCC 4.x happy */
 static char *__opbx_parking_ext(void);
+static char *__opbx_pickup_ext(void);
 static void *__opbx_bridge_call_thread(void *);
 static void __opbx_bridge_call_thread_launch(void *);
 static int __opbx_park_call(struct opbx_channel *, struct opbx_channel *, int, int *);
@@ -171,7 +172,7 @@ static void __opbx_register_feature(struct opbx_call_feature *);
 static void __opbx_unregister_feature(struct opbx_call_feature *);
 static void __opbx_unregister_features(void);
 static int __opbx_bridge_call(struct opbx_channel *,struct opbx_channel *,struct opbx_bridge_config *);
-
+static int __opbx_pickup_call(struct opbx_channel *chan);
 
 STANDARD_LOCAL_USER;
 
@@ -1935,7 +1936,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 }
 
 
-int __opbx_pickup_call(struct opbx_channel *chan)
+static int __opbx_pickup_call(struct opbx_channel *chan)
 {
 	struct opbx_channel *cur = NULL;
 	int res = -1;

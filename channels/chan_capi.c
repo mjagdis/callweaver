@@ -410,7 +410,7 @@ static MESSAGE_EXCHANGE_ERROR capi_wait_conf(struct capi_pvt *i, unsigned short 
  * write a capi message and wait for CONF
  * i->lock must be held
  */
-MESSAGE_EXCHANGE_ERROR _capi_put_cmsg_wait_conf(struct capi_pvt *i, _cmsg *CMSG)
+static MESSAGE_EXCHANGE_ERROR _capi_put_cmsg_wait_conf(struct capi_pvt *i, _cmsg *CMSG)
 {
 	MESSAGE_EXCHANGE_ERROR error;
 
@@ -4820,7 +4820,7 @@ static void capi_gains(struct cc_capi_gains *g, float rxgain, float txgain)
 /*
  * create new interface
  */
-int mkif(struct cc_capi_conf *conf)
+static int mkif(struct cc_capi_conf *conf)
 {
 	struct capi_pvt *tmp;
 	int i = 0;
