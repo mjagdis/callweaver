@@ -45,7 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/lock.h"
 
-static const char *tdesc = "Waits until first ring after time";
+static char *tdesc = "Waits until first ring after time";
 
 static void *waitforring_app;
 static const char *waitforring_name = "WaitForRing";

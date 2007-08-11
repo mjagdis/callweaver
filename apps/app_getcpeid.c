@@ -45,7 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/adsi.h"
 #include "callweaver/options.h"
 
-static const char *tdesc = "Get ADSI CPE ID";
+static char *tdesc = "Get ADSI CPE ID";
 
 static void *getcpeid_app;
 static const char *getcpeid_name = "GetCPEID";
