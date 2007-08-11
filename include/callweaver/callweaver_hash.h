@@ -90,7 +90,7 @@ unsigned int opbx_hash_string(const char *string);
 // calculated is limited to OPBXHASH_SIGNIFICANT_CHARS.
 // Returns 0 if 'string' is a zero-length string or NULL.
 
-unsigned int opbx_string_tolower(const char *string);
+unsigned int opbx_hash_string_tolower(const char *string);
 
 // --------------------------------------------------------------------------
 // function:  opbx_hash_string_toupper(string)
