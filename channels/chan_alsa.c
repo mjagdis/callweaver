@@ -3180,8 +3180,3 @@ int usecount()
 {
 	return usecnt;
 }
-
-char *key()
-{
-	return 0; //CALLWEAVER_GPL_KEY;
-}

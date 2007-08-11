@@ -1425,8 +1425,3 @@ int usecount(void)
 	STANDARD_USECOUNT(res);
 	return res;
 }
-
-char *key()
-{
-	return 0;// CALLWEAVER_GPL_KEY;
-}
