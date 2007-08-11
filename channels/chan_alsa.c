@@ -118,7 +118,7 @@ static short silence[FRAME_SIZE] = {0, };
 struct sound
 {
 	int ind;
-	short *data;
+	const short *data;
 	int datalen;
 	int samplen;
 	int silencelen;
