@@ -44,7 +44,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/sched.h"
 #include "callweaver/module.h"
-#include "confdefs.h"
 
 /* Some Ideas for this code came from makeh263e.c by Jeffrey Chilton */
 

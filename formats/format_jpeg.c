@@ -46,7 +46,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/image.h"
 #include "callweaver/lock.h"
-#include "confdefs.h"
 
 static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
 

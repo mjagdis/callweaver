@@ -11,7 +11,10 @@
  * the GNU General Public License
  */
 
+#ifdef HAVE_CONFIG_H
 #include "confdefs.h"
+#endif
+
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"

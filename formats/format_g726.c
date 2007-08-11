@@ -51,7 +51,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/sched.h"
 #include "callweaver/module.h"
-#include "confdefs.h"
 
 #define RATE_40 0
 #define RATE_32 1
