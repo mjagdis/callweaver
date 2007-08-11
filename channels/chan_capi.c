@@ -55,6 +55,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/chan_capi.h"
 #include "callweaver/chan_capi_rtp.h"
 
+#include "c20msg.h"
+
 #define CC_VERSION "cm-opbx-0.7"
 
 /*
@@ -174,9 +176,6 @@ static int capidebug = 0;
 
 /* local prototypes */
 static int pbx_capi_indicate(struct opbx_channel *c, int condition);
-
-/* external prototypes */
-extern char *capi_info_string(unsigned int info);
 
 /* */
 #define return_on_no_interface(x)                                       \

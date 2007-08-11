@@ -25,6 +25,7 @@
 #include "member.h"
 #include "frame.h"
 #include "sounds.h"
+#include "cli.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 

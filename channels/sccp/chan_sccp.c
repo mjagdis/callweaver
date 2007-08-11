@@ -40,6 +40,7 @@
 #include "callweaver/features.h"
 #include "callweaver/sched.h"
 #include "callweaver/io.h"
+#include "callweaver/phone_no_utils.h"
 
 static pthread_t socket_thread;
 struct sched_context *sched;

@@ -51,6 +51,7 @@
 #include "callweaver/config.h"
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
+#include "callweaver/callweaver_db.h"
 
 #define EXITCODE_RUNTIME_ERROR 3
 #define EXITCODE_FILE_NOT_FOUND 4

@@ -32,6 +32,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <spandsp.h>
+
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")

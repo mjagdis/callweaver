@@ -44,6 +44,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/image.h"
 #include "callweaver/callerid.h"
+#include "callweaver/phone_no_utils.h"
 
 static char *tdesc = "SetCallerPres Application";
 

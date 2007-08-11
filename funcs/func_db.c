@@ -44,6 +44,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 #include "callweaver/callweaver_db.h"
+#include "callweaver/module.h"
 
 
 static void *db_exists_function;

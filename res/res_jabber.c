@@ -29,6 +29,7 @@
 #include "callweaver/manager.h"
 #include "callweaver/musiconhold.h"
 #include "callweaver/lock.h"
+#include "callweaver/cli.h"
 
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
 

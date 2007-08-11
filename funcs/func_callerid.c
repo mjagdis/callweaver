@@ -41,7 +41,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/options.h"
 #include "callweaver/callerid.h"
-
+#include "callweaver/phone_no_utils.h"
 
 static void *callerid_function;
 static const char *callerid_func_name = "CALLERID";

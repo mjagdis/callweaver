@@ -40,7 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 #include "callweaver/cdr.h"
-
+#include "callweaver/module.h"
 
 static void *cdr_function;
 static const char *cdr_func_name = "CDR";

@@ -42,6 +42,7 @@
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/config.h"
+#include "callweaver/app.h"
 
 #define STACKVAR	"~GOSUB~STACK~"
 
