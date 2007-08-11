@@ -25,6 +25,7 @@
 #endif /* (CAPI_STACK_VERSION < 204) */
 
 #else /* BSD */
+#define CAPI_OS_HINT 0
 #include <linux/capi.h>
 #include <capiutils.h>
 #endif /* BSD */
