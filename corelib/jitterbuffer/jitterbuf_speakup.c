@@ -303,7 +303,7 @@ int jb_speakup_has_frames(speakup_jitterbuffer *jb)
   jb_dbg("H");
   if (jb == NULL) {
     jb_err("no jitterbuffer in jb_has_frames()\n");
-    return;
+    return JB_EMPTY;
   }
   
   if(jb->controlframes || jb->voiceframes) {
@@ -380,7 +380,7 @@ int jb_speakup_get(speakup_jitterbuffer *jb, void **data, long now, long interpl
   jb_dbg("A");
   if (jb == NULL) {
     jb_err("no jitterbuffer in jb_get()\n");
-    return;
+    return JB_EMPTY;
   }
   
   result = get_control(jb, data);
