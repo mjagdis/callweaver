@@ -176,7 +176,7 @@ static char *builtin_function_regex(struct opbx_channel *chan, int argc, char **
 	}
 
 	if (!buf) {
-		opbx_log(LOG_ERROR, "%s should only be used in an expression context\n");
+		opbx_log(LOG_ERROR, "%s should only be used in an expression context\n", regex_func_name);
 		return NULL;
 	}
 
