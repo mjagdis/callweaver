@@ -87,12 +87,12 @@ void *resample_open(int highQuality, double minFactor, double maxFactor)
 
    /* Just exit if we get invalid factors */
    if (minFactor <= 0.0 || maxFactor <= 0.0 || maxFactor < minFactor) {
-      #if DEBUG
+#ifdef DEBUG
       fprintf(stderr,
               "libresample: "
               "minFactor and maxFactor must be positive real numbers,\n"
               "and maxFactor should be larger than minFactor.\n");
-      #endif
+#endif /* DEBUG */
       return 0;
    }
 
@@ -187,22 +187,22 @@ int resample_process(void   *handle,
    int Nx;
    int i, len;
 
-   #if DEBUG
+#ifdef DEBUG
    fprintf(stderr, "resample_process: in=%d, out=%d lastFlag=%d\n",
            inBufferLen, outBufferLen, lastFlag);
-   #endif
+#endif /* DEBUG */
 
    /* Initialize inBufferUsed and outSampleCount to 0 */
    *inBufferUsed = 0;
    outSampleCount = 0;
 
    if (factor < hp->minFactor || factor > hp->maxFactor) {
-      #if DEBUG
+#ifdef DEBUG
       fprintf(stderr,
               "libresample: factor %f is not between "
               "minFactor=%f and maxFactor=%f",
               factor, hp->minFactor, hp->maxFactor);
-      #endif
+#endif /* DEBUG */
       return -1;
    }
 
@@ -232,10 +232,10 @@ int resample_process(void   *handle,
       /* This is the maximum number of samples we can process
          per loop iteration */
 
-      #ifdef DEBUG
+#ifdef DEBUG
       printf("XSize: %d Xoff: %d Xread: %d Xp: %d lastFlag: %d\n",
              hp->XSize, hp->Xoff, hp->Xread, hp->Xp, lastFlag);
-      #endif
+#endif /* DEBUG */
 
       /* Copy as many samples as we can from the input buffer into X */
       len = hp->XSize - hp->Xread;
@@ -260,9 +260,9 @@ int resample_process(void   *handle,
       else
          Nx = hp->Xread - 2 * hp->Xoff;
 
-      #ifdef DEBUG
+#ifdef DEBUG
       fprintf(stderr, "new len=%d Nx=%d\n", len, Nx);
-      #endif
+#endif /* DEBUG */
 
       if (Nx <= 0)
          break;
@@ -277,9 +277,9 @@ int resample_process(void   *handle,
                          Nwing, LpScl, Imp, ImpD, interpFilt);
       }
 
-      #ifdef DEBUG
+#ifdef DEBUG
       printf("Nout: %d\n", Nout);
-      #endif
+#endif /* DEBUG */
       
       hp->Time -= Nx;         /* Move converter Nx samples back in time */
       hp->Xp += Nx;           /* Advance by number of samples processed */
@@ -297,18 +297,18 @@ int resample_process(void   *handle,
       for (i=0; i<Nreuse; i++)
          hp->X[i] = hp->X[i + (hp->Xp - hp->Xoff)];
 
-      #ifdef DEBUG
+#ifdef DEBUG
       printf("New Xread=%d\n", Nreuse);
-      #endif
+#endif /* DEBUG */
 
       hp->Xread = Nreuse;  /* Pos in input buff to read new data into */
       hp->Xp = hp->Xoff;
       
       /* Check to see if output buff overflowed (shouldn't happen!) */
       if (Nout > hp->YSize) {
-         #ifdef DEBUG
+#ifdef DEBUG
          printf("Nout: %d YSize: %d\n", Nout, hp->YSize);
-         #endif
+#endif /* DEBUG */
          fprintf(stderr, "libresample: Output array overflow!\n");
          return -1;
       }
