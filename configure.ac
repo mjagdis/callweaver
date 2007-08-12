@@ -2366,6 +2366,31 @@ fi
 
 dnl ###########################################################################
 
+AC_PATH_PROG( PKGCONFIG, pkg-config, no, $PATH:/usr/bin:/usr/local/bin)
+
+if test "$PKGCONFIG" != "no" ; then
+    AC_MSG_CHECKING([sndfile with pkg-config])
+
+    $PKGCONFIG --exists sndfile
+    SNDFILE_EXISTS=$?
+
+    if test "$SNDFILE_EXISTS" -eq "0"; then
+	SNDFILE_LIBS=`$PKGCONFIG --libs-only-l sndfile 2>/dev/null`
+	SNDFILE_LDFLAGS=`$PKGCONFIG --libs-only-L sndfile 2>/dev/null`
+	SNDFILE_CFLAGS=`$PKGCONFIG --cflags-only-I sndfile 2>/dev/null`
+
+	AC_DEFINE([HAVE_SNDFILE],[1],[sndfile library avalaible])
+
+        AC_MSG_RESULT([found])
+        AC_SUBST(SNDFILE_LIBS)
+        AC_SUBST(SNDFILE_LDFLAGS)
+        AC_SUBST(SNDFILE_CFLAGS)
+    else
+        AC_MSG_RESULT([no])
+    fi
+fi
+
+AM_CONDITIONAL([WANT_FILESTREAM_SNDFILE],[test "$SNDFILE_EXISTS" -eq "0"])
 
 dnl ###########################################################################
 dnl ###########################################################################
@@ -2447,7 +2472,6 @@ AC_OUTPUT([Makefile
                  codecs/Makefile
  		 corelib/Makefile
  		 corelib/jitterbuffer/Makefile
-                 formats/Makefile
                  funcs/Makefile
                  pbx/Makefile
                  res/Makefile
@@ -2457,7 +2481,11 @@ AC_OUTPUT([Makefile
 		 configs/Makefile
  		 ogi/ogi-test.ogi
 		 ogi/fastogi-test
+                 formats/Makefile
+                 filestreams/Makefile
 ])
+
+dnl ##                 channels/sofia/Makefile
 
 if test "${builtin_sqlite3}" = "yes"; then
 	AC_OUTPUT([	 sqlite3-embedded/Makefile
