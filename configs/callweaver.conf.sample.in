@@ -16,6 +16,10 @@ cwlogdir => @opbxlogdir@
 cwsoundsdir => @opbxsoundsdir@
 cwkeydir => @opbxkeydir@
 
+[options]
+systemname => mycallweaverbox
+enablespaghetticode => no
+
 ; Changing the following lines may compromise your security.
 ;[files]
 ;cwctlpermissions = 0660
