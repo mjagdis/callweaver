@@ -2472,6 +2472,7 @@ AC_OUTPUT([Makefile
                  codecs/Makefile
  		 corelib/Makefile
  		 corelib/jitterbuffer/Makefile
+ 		 corelib/resample/Makefile
                  funcs/Makefile
                  pbx/Makefile
                  res/Makefile
@@ -2485,7 +2486,7 @@ AC_OUTPUT([Makefile
                  filestreams/Makefile
 ])
 
-dnl ##                 channels/sofia/Makefile
+dnl #                 channels/sofia/Makefile
 
 if test "${builtin_sqlite3}" = "yes"; then
 	AC_OUTPUT([	 sqlite3-embedded/Makefile
