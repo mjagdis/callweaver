@@ -678,7 +678,7 @@ static enum opbx_bridge_result iax2_bridge(struct opbx_channel *c0, struct opbx_
 static int iax2_transfer(struct opbx_channel *c, const char *dest);
 static int iax2_fixup(struct opbx_channel *oldchannel, struct opbx_channel *newchan);
 
-static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
+/* static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset); */
 
 static const struct opbx_channel_tech iax2_tech = {
 	.type = channeltype,
@@ -1082,17 +1082,17 @@ static int __do_deliver(void *data)
 	return 0;
 }
 
-static int do_deliver(void *data)
-{
-	/* Locking version of __do_deliver */
-	struct iax_frame *fr = data;
-	int callno = fr->callno;
-	int res;
-	opbx_mutex_lock(&iaxsl[callno]);
-	res = __do_deliver(data);
-	opbx_mutex_unlock(&iaxsl[callno]);
-	return res;
-}
+/* static int do_deliver(void *data) */
+/* { */
+/* 	/\* Locking version of __do_deliver *\/ */
+/* 	struct iax_frame *fr = data; */
+/* 	int callno = fr->callno; */
+/* 	int res; */
+/* 	opbx_mutex_lock(&iaxsl[callno]); */
+/* 	res = __do_deliver(data); */
+/* 	opbx_mutex_unlock(&iaxsl[callno]); */
+/* 	return res; */
+/* } */
 
 static int handle_error(void)
 {
@@ -2937,45 +2937,45 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 }
 #endif
 
-static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
-{
-	/* Returns where in "receive time" we are.  That is, how many ms
-	   since we received (or would have received) the frame with timestamp 0 */
-	int ms;
-#ifdef IAXTESTS
-	int jit;
-#endif /* IAXTESTS */
-	/* Setup rxcore if necessary */
-	if (opbx_tvzero(p->rxcore)) {
-		p->rxcore = opbx_tvnow();
-		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
-					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset);
-		p->rxcore = opbx_tvsub(p->rxcore, opbx_samp2tv(offset, 1000));
-#if 1
-		if (option_debug && iaxdebug)
-			opbx_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n",
-					p->callno, (int)(p->rxcore.tv_sec),(int)( p->rxcore.tv_usec));
-#endif
-	}
-
-	ms = opbx_tvdiff_ms(opbx_tvnow(), p->rxcore);
-#ifdef IAXTESTS
-	if (test_jit) {
-		if (!test_jitpct || ((100.0 * opbx_random() / (RAND_MAX + 1.0)) < test_jitpct)) {
-			jit = (int)((float)test_jit * opbx_random() / (RAND_MAX + 1.0));
-			if ((int)(2.0 * opbx_random() / (RAND_MAX + 1.0)))
-				jit = -jit;
-			ms += jit;
-		}
-	}
-	if (test_late) {
-		ms += test_late;
-		test_late = 0;
-	}
-#endif /* IAXTESTS */
-	return ms;
-}
+/* static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset) */
+/* { */
+/* 	/\* Returns where in "receive time" we are.  That is, how many ms */
+/* 	   since we received (or would have received) the frame with timestamp 0 *\/ */
+/* 	int ms; */
+/* #ifdef IAXTESTS */
+/* 	int jit; */
+/* #endif /\* IAXTESTS *\/ */
+/* 	/\* Setup rxcore if necessary *\/ */
+/* 	if (opbx_tvzero(p->rxcore)) { */
+/* 		p->rxcore = opbx_tvnow(); */
+/* 		if (option_debug && iaxdebug) */
+/* 			opbx_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n", */
+/* 					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset); */
+/* 		p->rxcore = opbx_tvsub(p->rxcore, opbx_samp2tv(offset, 1000)); */
+/* #if 1 */
+/* 		if (option_debug && iaxdebug) */
+/* 			opbx_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n", */
+/* 					p->callno, (int)(p->rxcore.tv_sec),(int)( p->rxcore.tv_usec)); */
+/* #endif */
+/* 	} */
+/* */
+/* 	ms = opbx_tvdiff_ms(opbx_tvnow(), p->rxcore); */
+/* #ifdef IAXTESTS */
+/* 	if (test_jit) { */
+/* 		if (!test_jitpct || ((100.0 * opbx_random() / (RAND_MAX + 1.0)) < test_jitpct)) { */
+/* 			jit = (int)((float)test_jit * opbx_random() / (RAND_MAX + 1.0)); */
+/* 			if ((int)(2.0 * opbx_random() / (RAND_MAX + 1.0))) */
+/* 				jit = -jit; */
+/* 			ms += jit; */
+/* 		} */
+/* 	} */
+/* 	if (test_late) { */
+/* 		ms += test_late; */
+/* 		test_late = 0; */
+/* 	} */
+/* #endif /\* IAXTESTS *\/ */
+/* 	return ms; */
+/* } */
 
 static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 {
