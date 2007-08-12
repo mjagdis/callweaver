@@ -175,6 +175,7 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 		"CLOCK_REALTIME\n");
 	if (timer_create(CLOCK_REALTIME, &evp, &t->timer_id) == -1) {
 #if defined(HAVE_STRERROR_R)
+            char buf[128];
 #if defined(STRERROR_R_CHAR_P)
 	    opbx_log(LOG_ERROR, "Error creating monotonic timer: "
 			 "%s\n", strerror_r(errno, buf, 128));
@@ -310,6 +311,7 @@ int opbx_timer_start(opbx_timer_t *t)
     /* Actually start the timer */
     if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
 #if defined(HAVE_STRERROR_R)
+            char buf[128];
 #if defined(STRERROR_R_CHAR_P)
             opbx_log(LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", strerror_r(errno, buf, 128));
@@ -346,6 +348,7 @@ int opbx_timer_stop(opbx_timer_t *t)
     /* Actually stop the timer */
     if (timer_settime(t->timer_id, 0, &spec, 0) == -1) {
 #if defined(HAVE_STRERROR_R)
+            char buf[128];
 #if defined(STRERROR_R_CHAR_P)
             opbx_log(LOG_ERROR, "Error creating monotonic timer: "
                          "%s\n", strerror_r(errno, buf, 128));
