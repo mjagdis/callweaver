@@ -38,6 +38,7 @@
 #include "callweaver/mpool.h"
 #include "callweaver/channel.h"
 #include "callweaver/frame.h"
+#include "callweaver/module.h"
 
 #include "callweaver/filestreams.h"
 
