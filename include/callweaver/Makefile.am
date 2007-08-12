@@ -32,7 +32,6 @@ opbxinclude_HEADERS = acl.h \
                       dundi.h \
                       enum.h \
                       features.h \
-                      file.h \
                       frame.h \
                       generator.h \
                       generic_jb.h \
@@ -76,9 +75,11 @@ opbxinclude_HEADERS = acl.h \
                       utils.h \
                       vmodem.h \
                       xlaw.h \
+                      callweaver_resample.h \
 		      eventlib.h \
 		      xml_parser.h \
 		      mpool.h \
-		      hashtable.h hashtable_helper.h
+		      hashtable.h hashtable_helper.h \
+	              file.h filestreams.h
 
 
