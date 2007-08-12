@@ -1,10 +1,10 @@
 DEFS += -include $(top_builddir)/include/confdefs.h
 
-SUBDIRS=jitterbuffer
+SUBDIRS=jitterbuffer resample
 
 opbxlib_LTLIBRARIES = libcallweaver.la
 libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
-	generator.c translate.c file.c say.c pbx.c cli.c term.c \
+	generator.c translate.c say.c pbx.c cli.c term.c \
 	ulaw.c alaw.c phone_no_utils.c callerid.c image.c app.c \
 	cdr.c acl.c rtp.c manager.c callweaver_hash.c\
 	dsp.c chanvars.c indications.c autoservice.c db.c privacy.c \
@@ -16,8 +16,8 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	stubfunctions-monitor.c udp.c udptl.c udpfromto.c stun.c coef_in.h coef_out.h \
 	ecdisa.h aesopt.h callweaver_expr2.h timer.c jitterbuffer/libcwjb.la \
 	hashtable.c mpool.c xml_parser.c eventlib.c \
-	hashtable_helper.c
-
+	hashtable_helper.c \
+	file.c filestreams.c
 
 nodist_libcallweaver_la_SOURCES = defaults.h
 
@@ -33,6 +33,7 @@ libcallweaver_la_LIBADD	=  -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
 libcallweaver_la_LIBADD	+= @SQLITE3_THREADSAFE_LIBS@
 libcallweaver_la_LIBADD 	+= ${top_builddir}/stdtime/libtime.la 
 libcallweaver_la_LIBADD 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
+libcallweaver_la_LIBADD 	+= ${top_builddir}/corelib/resample/libcwresample.la
 libcallweaver_la_LIBADD	+= -lreadline
 
 if WANT_SRTP
