@@ -262,7 +262,7 @@ void jb_speakup_get_settings(speakup_jitterbuffer *jb, jb_speakup_settings *sett
  * please use the JB_CODEC_OTHER if you want to define your own formula
  * 
  */
-float jb_guess_mos(float p, long d, int codec) 
+float jb_speakup_guess_mos(float p, long d, int codec) 
 {
   float result;
   
@@ -298,7 +298,7 @@ float jb_guess_mos(float p, long d, int codec)
 /***********
  * if there are any frames left in JB returns JB_OK, otherwise returns JB_EMPTY
  */
-int jb_has_frames(speakup_jitterbuffer *jb)
+int jb_speakup_has_frames(speakup_jitterbuffer *jb)
 {
   jb_dbg("H");
   if (jb == NULL) {
@@ -728,7 +728,7 @@ static void calculate_info(speakup_jitterbuffer *jb, long ts, long now, int code
     //the packetloss with this delay
     p2 =(n*100/size);
     // estimate MOS-value
-    B = jb_guess_mos(p2,d2,codec);
+    B = jb_speakup_guess_mos(p2,d2,codec);
     if (B > A) {
       p = p2;
       d = d2;
