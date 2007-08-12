@@ -3910,7 +3910,7 @@ static int send_command_locked(unsigned short callno, char type, int command, un
 }
 
 #ifdef BRIDGE_OPTIMIZATION
-static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
+static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
 	return __send_command(iaxs[i->bridgecallno], type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
@@ -5646,9 +5646,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									iax_frame_wrap(&fr, &f);
 #ifdef BRIDGE_OPTIMIZATION
 									if (iaxs[fr.callno]->bridgecallno) {
-										forward_delivery(fr);
+										forward_delivery(&fr);
 									} else {
-										duped_fr = iaxfrdup2(fr);
+										duped_fr = iaxfrdup2(&fr);
 										if (duped_fr) {
 											schedule_delivery(duped_fr, updatehistory, 1);
 /* duped_fr doesn't exist any more        
@@ -6854,9 +6854,9 @@ retryowner2:
 	}
 #ifdef BRIDGE_OPTIMIZATION
 	if (iaxs[fr.callno]->bridgecallno) {
-		forward_delivery(fr);
+		forward_delivery(&fr);
 	} else {
-		duped_fr = iaxfrdup2(fr);
+		duped_fr = iaxfrdup2(&fr);
 		if (duped_fr) {
 			schedule_delivery(duped_fr, updatehistory, 0);
 /* duped_fr doesn't exist any more        
