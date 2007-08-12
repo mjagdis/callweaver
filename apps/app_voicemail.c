@@ -6134,6 +6134,12 @@ int reload(void)
 int unload_module(void)
 {
 	int res;
+
+	if (strcasecmp(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, "yes")) {
+		opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
+		return -1;
+	}
+    
 	STANDARD_HANGUP_LOCALUSERS;
 	res |= opbx_unregister_application(app);
 	res |= opbx_unregister_application(app2);

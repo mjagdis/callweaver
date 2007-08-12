@@ -3,19 +3,20 @@
  *
  * CallWeaver -- an open source telephony toolkit.
  *
- * copyright (c) 1999 - 2005, digium, inc.
+ * Copyright (c) 1999 - 2005, digium, inc.
  *
- * roy sigurd karlsbakk <roy@karlsbakk.net>
+ * Roy Sigurd Karlsbakk <roy@karlsbakk.net>
  *
- * see http://www.callweaver.org for more information about
- * the callweaver project. please do not directly contact
+ * See http://www.callweaver.org for more information about
+ * the callweaver project. Please do not directly contact
  * any of the maintainers of this project for assistance;
  * the project provides a web site, mailing lists and irc
  * channels for your use.
  *
- * this program is free software, distributed under the terms of
- * the gnu general public license version 2. see the license file
+ * This program is free software, distributed under the terms of
+ * the gnu general public license version 2. See the license file
  * at the top of the source tree.
+ *
  * }}} */
 
 /* includes and so on {{{ */
@@ -41,7 +42,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 /* }}} */
 
-
+/* globals {{{ */
 static void *config_function;
 static const char *config_func_name = "CONFIG";
 static const char *config_func_synopsis = "Read configuration values set in callweaver.conf";
@@ -50,7 +51,7 @@ static const char *config_func_desc = "This function will read configuration val
 			"Possible values include cwctlpermissions, cwctlowner, cwctlgroup,\n"
 			"cwctl, cwdb, cwetcdir, cwconfigdir, cwspooldir, cwvarlibdir,\n"
 			"cwvardir, cwdbdir, cwlogdir, cwogidir, cwsoundsdir, and cwrundir\n";
-
+/* }}} */
 
 /* function_config_read() {{{ */
 static char *function_config_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
@@ -94,6 +95,10 @@ static char *function_config_read(struct opbx_channel *chan, int argc, char **ar
 		opbx_copy_string(buf, opbx_config_OPBX_SOUNDS_DIR, len);
 	} else if (strcasecmp(argv[0], "cwrundir") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_DIR, len);
+	} else if (strcasecmp(argv[0], "systemname") == 0) {
+		opbx_copy_string(buf, opbx_config_OPBX_SYSTEM_NAME, len);
+	} else if (strcasecmp(argv[0], "allowspaghetticode") == 0) {
+		opbx_copy_string(buf, opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, len);
 	} else {
 		opbx_log(LOG_WARNING, "Config setting '%s' not known.\n", argv[0]);
 	}
@@ -105,7 +110,7 @@ static char *function_config_read(struct opbx_channel *chan, int argc, char **ar
 /* function_config_write() {{{ */
 static void function_config_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
 {
-	opbx_log(LOG_WARNING, "This function cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
+	opbx_log(LOG_WARNING, "This function currently cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 }
 /* function_config_write() }}} */
 

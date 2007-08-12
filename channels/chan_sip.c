@@ -17187,7 +17187,10 @@ int unload_module(void)
     struct sip_pvt *p, *pl;
     int res = 0;
 
-#ifdef __OPBX_UNSAFE_UNLOAD
+	if (strcasecmp(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, "yes")) {
+		opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
+		return -1;
+	}
     
     /* First, take us out of the channel type list */
     opbx_channel_unregister(&sip_tech);
@@ -17283,13 +17286,6 @@ int unload_module(void)
     sched_context_destroy(sched);
         
     return res;
-
-#else /* __OPBX_UNSAFE_UNLOAD */
-
-	opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
-	return -1;
-
-#endif /* __OPBX_UNSAFE_UNLOAD */
 }
 
 int usecount()

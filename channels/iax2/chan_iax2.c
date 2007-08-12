@@ -8567,7 +8567,6 @@ static struct opbx_cli_entry iax2_cli[] = {
 #endif /* IAXTESTS */
 };
 
-#ifdef __OPBX_UNSAFE_UNLOAD
 static int __unload_module(void)
 {
 	int x;
@@ -8597,22 +8596,17 @@ static int __unload_module(void)
 
 int unload_module()
 {
+	if (strcasecmp(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, "yes")) {
+		opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
+		return -1;
+	}
+
 	opbx_mutex_destroy(&iaxq.lock);
 	opbx_mutex_destroy(&userl.lock);
 	opbx_mutex_destroy(&peerl.lock);
 	opbx_unregister_function(iaxpeer_func);
 	return __unload_module();
 }
-
-#else /* __OPBX_UNSAFE_UNLOAD */
-
-int unload_module()
-{
-	opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
-	return -1;
-}
-
-#endif /* __OPBX_UNSAFE_UNLOAD */
 
 /*--- load_module: Load IAX2 module, load configuraiton ---*/
 int load_module(void)

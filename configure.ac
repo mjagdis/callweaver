@@ -2293,15 +2293,6 @@ fi
 
 dnl ###########################################################################
 
-AC_ARG_WITH([unsafe_unload],
-	[AC_HELP_STRING([--with-unsafe_unload],[Enable unloading modules known not to handle this correctly (default=no)])],,[with_unsafe_unload="no"])
-
-if test "$with_unsafe_unload" = "yes" ; then
-    AC_DEFINE([__OPBX_UNSAFE_UNLOAD], [1], [Disabled by default])
-fi
-
-dnl ###########################################################################
-
 dnl res_osp ... open settlement protocol handling
 dnl look for Transnexus OSP Toolkit (stolen from the OpenH323 configure.ac)
 
