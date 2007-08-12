@@ -47,6 +47,11 @@ struct opbx_db_entry *opbx_db_gettree(const char *family, const char *keytree);
 
 void opbx_db_freetree(struct opbx_db_entry *entry);
 
+
+#define opbx_db_mprintf sqlite3_mprintf
+#define opbx_db_free sqlite3_free
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
