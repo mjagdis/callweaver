@@ -48,6 +48,7 @@
 #include "callweaver/icd/icd_bridge.h"
 #include "callweaver/icd/icd_agent.h"
 #include "callweaver/icd/icd_caller.h"
+#include "callweaver/icd/icd_caller_list.h"
 #include "callweaver/icd/icd_caller_private.h"
 #include "callweaver/icd/icd_plugable_fn.h"
 #include "callweaver/icd/icd_plugable_fn_list.h"
@@ -365,7 +366,6 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
 {
     icd_caller *that;
     icd_plugable_fn *icd_run;
-    icd_list_iterator *iter;
     icd_caller *associate;
     icd_status result;
     icd_caller_state state;

@@ -694,7 +694,6 @@ icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, int fd, voi
 icd_status icd_queue__show(icd_queue * that, int verbosity, int fd)
 {
 #define FMT_QUEUE_DATA "%-18s %-8d %-14d %-15d %-10d %-18d\n"
-    static char *indent = "    ";
 
     assert(that != NULL);
     //vh_keylist *keys;

@@ -225,7 +225,6 @@ int icd_command_cli(int fd, int argc, char **argv)
     char **newargv;
     int newargc;
     int x = 0, y = 0;
-    int mem = 0;
 
     func = NULL;
 
@@ -819,7 +818,6 @@ static icd_status icd_command_dump_agent(int fd, int argc, char **argv)
 {
     icd_fieldset_iterator *iter;
     char *curr_key;
-    icd_queue *queue;
     icd_agent *agent = NULL;
     icd_caller *caller = NULL;
 
@@ -1062,7 +1060,7 @@ static void *icd_command_login_thread(void *arg) {
 /* More detailed check why there is no answer probably needed in the future. */	 
         opbx_hangup(chan);
         icd_caller__del_param(agent, "LogInProgress");
-	    return;
+	    return NULL;
     }	 
   	sprintf(buf, "agent=%s", agent_id);
   	passwd = icd_caller__get_param(agent, "login_password");
@@ -1082,17 +1080,16 @@ static void *icd_command_login_thread(void *arg) {
         opbx_hangup(chan);
         icd_caller__set_channel(agent, NULL);
     }	
+    return NULL;
 }
 
 int icd_command_login (int fd, int argc, char **argv)
 {
-    struct opbx_channel *chan;
     icd_caller *agent = NULL;
     char *agent_id;
     char *passwd=NULL;
     char *channelstring;
     int logFlag=1;
-    int res;
 	pthread_t thread;
 	pthread_attr_t attr;
 	int result;
@@ -1334,7 +1331,7 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
             break;
 
         default:
-            return;
+            return -1;
     }
 
         conf = ((icd_caller *)agent)->conference;
@@ -1465,9 +1462,9 @@ int icd_command_record(int fd, int argc, char **argv)
    }
    strcpy(buf + strlen(buf), " ");
    strncpy(rec_directory_buf, argv[3],sizeof(rec_directory_buf)-1);
-   if(rec_format=strchr(rec_directory_buf,'.')){
+   if((rec_format=strchr(rec_directory_buf,'.'))){
       *rec_format='\0';
-      *rec_format++;
+      rec_format++;
       rec_format_buf[0]='.';
       strncpy(rec_format_buf+1, rec_format, sizeof(rec_format_buf)-2);
    }   
@@ -1566,7 +1563,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
               icd_list__lock((icd_list *) (agent->memberships));
 	      if(queue){ 
 	       if(agent->memberships) 
-	           if(member = icd_member_list__get_for_queue(agent->memberships, queue)){ 
+	           if((member = icd_member_list__get_for_queue(agent->memberships, queue))){ 
 	                if(icd_caller__get_active_member(agent) == member){ 
 	                     icd_caller__set_active_member (agent, NULL); 
 	                }   
@@ -1598,9 +1595,6 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     icd_caller * associated_caller;
     char * agent_id;
     icd_conference * conf;
-    int len;
-    int res;
-    unsigned char * data;
     char * key;
     struct opbx_frame write_frame;
     int count;

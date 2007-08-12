@@ -655,7 +655,6 @@ icd_status icd_caller__clear(icd_caller * that)
 /* Clear the caller (logout) so that it can login again. */
 icd_status icd_caller__clear_suspend(icd_caller * that)
 {
-    icd_status vetoed;
     icd_member *member;
     icd_list_iterator *iter;
     icd_queue * queue;
@@ -2565,14 +2564,14 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
  *
 */
     icd_caller *that;
-    char *action;
-    char *entertain;
-    char *wakeup;
-    char *wait;
-    int waittime;
-    char res;
-    char *pos = NULL;
-    int cleanup_required = 0;
+/*     char *action; */
+/*     char *entertain; */
+/*     char *wakeup; */
+/*     char *wait; */
+/*     int waittime; */
+/*     char res; */
+/*     char *pos = NULL; */
+/*     int cleanup_required = 0; */
     int ret;
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE))
@@ -2654,8 +2653,8 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
 int icd_caller__standard_state_conference(icd_event * event, void *extra)
 {
     icd_caller *caller;
-    icd_queue *queue;
-    icd_member *member;
+/*     icd_queue *queue; */
+/*     icd_member *member; */
     
     caller = (icd_caller *) icd_event__get_source(event);
     assert(caller != NULL);

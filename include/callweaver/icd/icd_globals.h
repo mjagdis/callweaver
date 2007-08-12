@@ -39,9 +39,12 @@ extern int icd_debug;
 /* turn this flag via the cli in icd_command to enable  verbosity of the icd show and dump cmds */
 extern int icd_verbose;
 
-/* extern char *icd_delimiter; */
+extern char icd_delimiter;
 
 extern icd_config_registry *app_icd_config_registry;
+
+/* This is the lock customers add, remove and seek */
+extern opbx_mutex_t customers_lock;
 
 /* %TC should this not be in here rather than icd_event.h
 extern icd_event_factory *event_factory;

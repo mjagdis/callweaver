@@ -39,6 +39,7 @@
 #include "callweaver/icd/icd_common.h"
 #include "callweaver/icd/icd_conference.h"
 #include "callweaver/icd/icd_caller.h"
+#include "callweaver/icd/icd_caller_list.h"
 #include "callweaver/icd/icd_caller_private.h"
 #include <sys/ioctl.h>
 #include <errno.h>

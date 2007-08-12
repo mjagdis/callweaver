@@ -44,7 +44,7 @@ extern icd_fieldset *agents;
 extern int icd_verbose;
 icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, void *extra);
                                            
-void *icd_distributor__match_agent_run(void *that) 
+static void *icd_distributor__match_agent_run(void *that) 
 { 
 	    icd_distributor *dist; 
 	    icd_status result; 

@@ -56,7 +56,7 @@
 extern "C" {
 #endif
 
-    icd_status icd_caller_load_module();
+    icd_status icd_caller_load_module(void);
 /***** Init - Destroyer *****/
 
 /* Create a caller. data is a parsable string of parameters. */
@@ -506,14 +506,15 @@ extern "C" {
     int icd_caller__owns_channel(icd_caller * that);
     void icd_caller__params_to_astheader(icd_caller * that, char *prefix, char *buf, size_t size);
 
-    void icd_caller__init_group_registry();
-    void icd_caller__destroy_group_registry();
+    void icd_caller__init_group_registry(void);
+    void icd_caller__destroy_group_registry(void);
     icd_caller_group *create_icd_caller_group(char *name, icd_caller * owner);
     void destroy_icd_caller_group(icd_caller_group ** group);
     icd_status icd_caller__rem_group_pointer(icd_caller * caller, icd_caller_group * group);
     icd_status icd_caller__add_group_pointer(icd_caller * caller, icd_caller_group * group);
     icd_status icd_caller__join_group(icd_caller * caller, icd_caller_group * group);
     icd_status icd_caller__leave_group(icd_caller * caller, icd_caller_group * group);
+    icd_status icd_caller__join_group_by_name(icd_caller * caller, char *name);
     icd_status icd_caller__leave_group_by_name(icd_caller * caller, char *name);
     void icd_caller__group_chanup(icd_caller_group * group);
     int icd_caller__del_param(icd_caller * that, char *param);

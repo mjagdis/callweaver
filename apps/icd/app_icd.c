@@ -63,8 +63,10 @@
 #include "callweaver/icd/icd_agent.h"
 #include "callweaver/icd/icd_bridge.h"
 #include "callweaver/icd/icd_caller.h"
+#include "callweaver/icd/icd_caller_list.h"
 #include "callweaver/icd/icd_config.h"
 #include "callweaver/icd/icd_member.h"
+#include "callweaver/icd/icd_member_list.h"
 #include "callweaver/icd/icd_event.h"
 #include "callweaver/app.h"
 #include <pthread.h>
@@ -311,7 +313,7 @@ int load_module(void)
     icd_add_member_app = opbx_register_application(icd_add_member_app_name,
                                                    app_icd__add_member_exec,
                                                    app_icd_add_member_synopsis,
-                                                   app_icd_add_member_desc,
+                                                   app_icd_add_member_syntax,
                                                    app_icd_add_member_desc);
     icd_remove_member_app = opbx_register_application(icd_remove_member_app_name,
                                                       app_icd__remove_member_exec,

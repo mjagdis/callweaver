@@ -44,6 +44,8 @@
 #include "callweaver/icd/icd_caller_list.h"
 #include "callweaver/icd/icd_list.h"
 #include "callweaver/icd/icd_distributor.h"
+#include "callweaver/icd/icd_command.h"
+
 #ifndef  OPBX_FLAG_NONATIVE
 #define  OPBX_FLAG_NONATIVE (1 << 7)
 #endif

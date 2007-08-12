@@ -312,10 +312,10 @@ int icd_customer__standard_state_call_end(icd_event * event, void *extra)
 {
     icd_caller *that;
     icd_plugable_fn *icd_run;
-    icd_list_iterator *iter;
-    icd_caller *associate;
-    icd_status result;
-    icd_caller_state state;
+/*     icd_list_iterator *iter; */
+/*     icd_caller *associate; */
+/*     icd_status result; */
+/*     icd_caller_state state; */
     
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);

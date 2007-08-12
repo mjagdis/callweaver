@@ -137,7 +137,7 @@ int vh_destroy(void_hash_table ** hash)
 int vh_write_store(void_hash_table * hash, hash_storage * new)
 {
     hash_storage *store, *last;
-    unsigned long key = VH_ElfHash(new->var) & VOID_HASH_TABLE_KEY_SIZE;
+    unsigned long key = VH_ElfHash((unsigned char *) new->var) & VOID_HASH_TABLE_KEY_SIZE;
     int ow = 0;
 
     store = last = NULL;
@@ -169,7 +169,7 @@ int vh_write_store(void_hash_table * hash, hash_storage * new)
 int vh_write(void_hash_table * hash, char *name, void *value)
 {
     hash_storage *store, *last;
-    unsigned long key = VH_ElfHash(name) & VOID_HASH_TABLE_KEY_SIZE;
+    unsigned long key = VH_ElfHash((unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
     int ow = 0;
 
     store = last = NULL;
@@ -234,7 +234,7 @@ int vh_write_cp_string(void_hash_table * hash, char *key, char *string)
 
 void *vh_read(void_hash_table * hash, char *name)
 {
-    unsigned long key = VH_ElfHash(name) & VOID_HASH_TABLE_KEY_SIZE;
+    unsigned long key = VH_ElfHash((unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
     hash_storage *store;
 
     store = hash->data[key];
@@ -251,7 +251,7 @@ void *vh_read(void_hash_table * hash, char *name)
 
 int vh_delete(void_hash_table * hash, char *name)
 {
-    unsigned long key = VH_ElfHash(name) & VOID_HASH_TABLE_KEY_SIZE;
+    unsigned long key = VH_ElfHash((unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
     hash_storage *store = NULL, *last = NULL;
     int ret = 0;
 
@@ -301,7 +301,7 @@ int split_and_add(void_hash_table * hash, char *pair)
     char helper[50];
     int x = 0, y = 0;
 
-    for (val = pair; val && y <= strlen(pair); val++ && y++) {
+    for (val = pair; val && y <= strlen(pair); val++, y++) {
         if (val[0] == '=') {
             val[0] = '\0';
             val++;
