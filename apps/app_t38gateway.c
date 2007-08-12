@@ -577,7 +577,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
             }
 	    
             if ( res  
-		&& ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( chan->t38_status != T38_STATUS_UNKNOWN ) )
+		&& ( ( chan->t38_status == T38_STATUS_UNKNOWN ) || ( peer->t38_status != T38_STATUS_UNKNOWN ) )
 		&& ( chan->t38_status != peer->t38_status ) )
             {
                 // Different on each side, so gateway 
