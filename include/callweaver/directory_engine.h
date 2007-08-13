@@ -20,8 +20,8 @@
  * \brief Directory engine core
  */
 
-#ifndef _SOFIA_DIRENGINE_H
-#define _SOFIA_DIRENGINE_H
+#ifndef _DIRENGINE_H
+#define _DIRENGINE_H
 
 #include <assert.h>
 #include <strings.h>
@@ -34,15 +34,15 @@
     Hopefully those things will end up in the core in the future. 
 */
 
-typedef struct sofia_directory_entry_attribute_s sofia_directory_entry_attribute_t;
+typedef struct directory_entry_attribute_s directory_entry_attribute_t;
 
-struct sofia_directory_entry_attribute_s {
+struct directory_entry_attribute_s {
     char				*name;
     char				*value;
-    sofia_directory_entry_attribute_t 	*next;    
+    directory_entry_attribute_t 	*next;    
 };
 
-struct sofia_directory_entry_s {
+struct directory_entry_s {
     char 				*user;
     char 				*domain;
     char 				*password;
@@ -59,14 +59,14 @@ struct sofia_directory_entry_s {
     opbx_group_t                        pickupgroup;
 */
 
-    sofia_directory_entry_attribute_t 	*attributes;    // linked list of attributes
+    directory_entry_attribute_t 	*attributes;    // linked list of attributes
     void 				*next;          // Next entry if there are more than one.
 };
 
-typedef struct sofia_directory_entry_s sofia_directory_entry_t;
+typedef struct directory_entry_s directory_entry_t;
 
 
-struct sofia_directory_domain_s {
+struct directory_domain_s {
     char 				*name;
     char 				*context;
     char 				*language;
@@ -74,69 +74,69 @@ struct sofia_directory_domain_s {
     hash_table_t 	                entries;
 };
 
-typedef struct sofia_directory_domain_s sofia_directory_domain_t;
+typedef struct directory_domain_s directory_domain_t;
 
 
 /* *************************************************************************
                              Engine structures
    ************************************************************************* */
 
-typedef int (*sofia_directory_init_function_t)(char *);
-typedef int (*sofia_directory_release_function_t)(void);
-typedef int (*sofia_directory_reload_function_t)(void);
+typedef int (*directory_init_function_t)(char *);
+typedef int (*directory_release_function_t)(void);
+typedef int (*directory_reload_function_t)(void);
 
-typedef sofia_directory_domain_t *(*sofia_directory_search_domain_function_t)( char *);
-typedef sofia_directory_entry_t  *(*sofia_directory_search_user_function_t)( char *, char *);
+typedef directory_domain_t *(*directory_search_domain_function_t)( char *);
+typedef directory_entry_t  *(*directory_search_user_function_t)( char *, char *);
 
-typedef int (*sofia_directory_user_add_attribute_function_t)( char *, char *, char *, char *, int );
-typedef int (*sofia_directory_user_del_attribute_function_t)( char *, char *, char *, char *, int );
+typedef int (*directory_user_add_attribute_function_t)( char *, char *, char *, char *, int );
+typedef int (*directory_user_del_attribute_function_t)( char *, char *, char *, char *, int );
 
-struct sofia_direngine_s {
+struct direngine_s {
     char *name;
-    sofia_directory_init_function_t             init;
-    sofia_directory_release_function_t          release;
-    sofia_directory_reload_function_t           reload;
+    directory_init_function_t             init;
+    directory_release_function_t          release;
+    directory_reload_function_t           reload;
 
-    sofia_directory_search_domain_function_t    search_domain;
-    sofia_directory_search_user_function_t      search_user;
+    directory_search_domain_function_t    search_domain;
+    directory_search_user_function_t      search_user;
 
-    sofia_directory_user_add_attribute_function_t attribute_add;
-    sofia_directory_user_del_attribute_function_t attribute_delete;
+    directory_user_add_attribute_function_t attribute_add;
+    directory_user_del_attribute_function_t attribute_delete;
 };
 
-typedef struct sofia_direngine_s sofia_direngine_t ;
+typedef struct direngine_s direngine_t ;
 
 /* *************************************************************************
                              access functions
    ************************************************************************* */
 
 
-int sofia_direngine_list_init(void);
-int sofia_direngine_list_destroy(void);
+int direngine_list_init(void);
+int direngine_list_destroy(void);
 
-int sofia_direngine_engine_add( sofia_direngine_t *de, char *conf );
-int sofia_direngine_engine_release( char *name );
+int direngine_engine_add( direngine_t *de, char *conf );
+int direngine_engine_release( char *name );
 
-sofia_directory_domain_t *sofia_direngine_domain_search    ( char *domain );
-void sofia_direngine_release_domain_result(sofia_directory_domain_t *item);
+directory_domain_t *direngine_domain_search    ( char *domain );
+void direngine_release_domain_result(directory_domain_t *item);
 
-sofia_directory_entry_t  *sofia_direngine_user_search      ( char *domain, char *user );
-void sofia_direngine_release_user_result(sofia_directory_entry_t *item);
+directory_entry_t  *direngine_user_search      ( char *domain, char *user );
+void direngine_release_user_result(directory_entry_t *item);
 
-sofia_directory_entry_attribute_t  *sofia_direngine_attribute_search ( char *domain, char *user, char *attrname );
-void sofia_direngine_release_attr_result(sofia_directory_entry_attribute_t *attr);
+directory_entry_attribute_t  *direngine_attribute_search ( char *domain, char *user, char *attrname );
+void direngine_release_attr_result(directory_entry_attribute_t *attr);
 
 //-------------------------------
 
-int __sofia_direngine_user_add_attribute( char *domain, char *user, char *name, char *value, int persistant );
-#define sofia_direngine_user_add_attribute(d,u,n,v) __sofia_direngine_user_add_attribute(d,u,n,v,0)
-#define sofia_direngine_user_add_attribute_persistant(d,u,n,v) __sofia_direngine_user_add_attribute(d,u,n,v,1)
+int __direngine_user_add_attribute( char *domain, char *user, char *name, char *value, int persistant );
+#define direngine_user_add_attribute(d,u,n,v) __direngine_user_add_attribute(d,u,n,v,0)
+#define direngine_user_add_attribute_persistant(d,u,n,v) __direngine_user_add_attribute(d,u,n,v,1)
 
-int sofia_direngine_user_del_attribute( char *domain, char *user, char *name, char *value, int partial_compare );
+int direngine_user_del_attribute( char *domain, char *user, char *name, char *value, int partial_compare );
 
-char *sofia_direngine_attribute_search_from_entry ( sofia_directory_entry_t *entry, char *name );
+char *direngine_attribute_search_from_entry ( directory_entry_t *entry, char *name );
 
-extern sofia_direngine_t directory_embedded_engine;
-extern sofia_direngine_t directory_sqlite_engine;
+extern direngine_t directory_embedded_engine;
+extern direngine_t directory_sqlite_engine;
 
 #endif //_SOFIA_DIRENGINE_H

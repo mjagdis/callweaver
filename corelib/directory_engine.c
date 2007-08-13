@@ -29,7 +29,6 @@
 #include <string.h>
 #include <unistd.h>
 
-//#include "headers_common.h"
 #include "callweaver/directory_engine.h"
 #include "callweaver/xml_parser.h"
 #include "callweaver/mpool.h"
@@ -48,13 +47,13 @@
 hash_table_t 	direngine_hash;
 opbx_mutex_t	direngine_mutex;
 
-int sofia_direngine_list_init(void) {
+int direngine_list_init(void) {
     hash_init_table( &direngine_hash, HASH_STRING_KEYS );
     opbx_mutex_init( &direngine_mutex);
     return 1;
 }
 
-int sofia_direngine_list_destroy(void) {
+int direngine_list_destroy(void) {
     // TODO loop through all engines and shut them off.
 
     hash_delete_table( &direngine_hash );
@@ -62,7 +61,7 @@ int sofia_direngine_list_destroy(void) {
     return 1;
 }
 
-int sofia_direngine_engine_add( sofia_direngine_t *de, char *conf ) {
+int direngine_engine_add( direngine_t *de, char *conf ) {
     int new;
     hash_entry_t *x;
     
@@ -98,9 +97,9 @@ int sofia_direngine_engine_add( sofia_direngine_t *de, char *conf ) {
     return 0;
 }
 
-int sofia_direngine_engine_release( char *name ) {
+int direngine_engine_release( char *name ) {
     hash_entry_t *entry;
-    sofia_direngine_t *de;
+    direngine_t *de;
 
     entry = hash_find_entry( &direngine_hash, name );
     
@@ -124,14 +123,14 @@ int sofia_direngine_engine_release( char *name ) {
 
 /* ************************************************************************* */
 
-sofia_directory_domain_t *sofia_direngine_domain_search(  char *domain ) {
+directory_domain_t *direngine_domain_search(  char *domain ) {
     int totengines = 0;
     hash_table_t *hash;
     hash_search_t search;
     hash_entry_t *entry;
     char *key;
-    sofia_direngine_t *value;
-    sofia_directory_domain_t *item = NULL;
+    direngine_t *value;
+    directory_domain_t *item = NULL;
 
 //    opbx_mutex_lock(&direngine_mutex);
 
@@ -142,7 +141,7 @@ sofia_directory_domain_t *sofia_direngine_domain_search(  char *domain ) {
          entry = hash_next_entry(&search))
     {
         key = (char *) hash_get_key(hash, entry);
-        value = (sofia_direngine_t *) hash_get_value(entry);
+        value = (direngine_t *) hash_get_value(entry);
 	if (value) {
 	    totengines++;
 	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", value->name);
@@ -164,14 +163,14 @@ done:
 
 /* ************************************************************************* */
 
-sofia_directory_entry_t *sofia_direngine_user_search( char *domain, char *user ) {
+directory_entry_t *direngine_user_search( char *domain, char *user ) {
     int totengines = 0;
     hash_table_t *hash;
     hash_search_t search;
     hash_entry_t *entry;
     char *key;
-    sofia_direngine_t *value;
-    sofia_directory_entry_t *item = NULL;
+    direngine_t *value;
+    directory_entry_t *item = NULL;
 
 //    opbx_mutex_lock(&direngine_mutex);
 
@@ -182,7 +181,7 @@ sofia_directory_entry_t *sofia_direngine_user_search( char *domain, char *user )
          entry = hash_next_entry(&search))
     {
         key = (char *) hash_get_key(hash, entry);
-        value = (sofia_direngine_t *) hash_get_value(entry);
+        value = (direngine_t *) hash_get_value(entry);
 	if (value) {
 	    totengines++;
 	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", value->name);
@@ -204,12 +203,12 @@ done:
 
 /* ************************************************************************* */
 
-void sofia_direngine_release_domain_result(sofia_directory_domain_t *item) {
+void direngine_release_domain_result(directory_domain_t *item) {
     safe_free(item);
 }
 
-void sofia_direngine_release_attr_result(sofia_directory_entry_attribute_t *attr) {
-    sofia_directory_entry_attribute_t *tmp;
+void direngine_release_attr_result(directory_entry_attribute_t *attr) {
+    directory_entry_attribute_t *tmp;
 
     while (attr) {
         tmp=attr;
@@ -221,8 +220,8 @@ void sofia_direngine_release_attr_result(sofia_directory_entry_attribute_t *attr
 
 /* ************************************************************************* */
 
-void sofia_direngine_release_user_result(sofia_directory_entry_t *item) {
-    sofia_directory_entry_attribute_t *attr, *tmp_attr;
+void direngine_release_user_result(directory_entry_t *item) {
+    directory_entry_attribute_t *attr, *tmp_attr;
 
     attr = item->attributes;
 
@@ -237,13 +236,13 @@ void sofia_direngine_release_user_result(sofia_directory_entry_t *item) {
 
 /* ************************************************************************* */
 
-sofia_directory_entry_attribute_t  *sofia_direngine_attribute_search ( char *domain, char *user, char *attrname ) {
+directory_entry_attribute_t  *direngine_attribute_search ( char *domain, char *user, char *attrname ) {
 
-    sofia_directory_entry_t *item = NULL;
-    sofia_directory_entry_attribute_t *ret = NULL, *tmp = NULL;
+    directory_entry_t *item = NULL;
+    directory_entry_attribute_t *ret = NULL, *tmp = NULL;
 
     // first, let's find our directory entry
-    item = sofia_direngine_user_search( domain, user );
+    item = direngine_user_search( domain, user );
 
     // if it's not found, return NULL
     if ( !item ) {
@@ -251,14 +250,14 @@ sofia_directory_entry_attribute_t  *sofia_direngine_attribute_search ( char *dom
     }
 
     // Otherwise, let's manage the list
-    sofia_directory_entry_attribute_t *attr;
+    directory_entry_attribute_t *attr;
 
     attr = item->attributes;
 
     while ( attr ) {
         if ( !strcmp(attr->name, attrname) ) {
 //TODO should handle more.
-            tmp = malloc( sizeof(sofia_directory_entry_attribute_t) );
+            tmp = malloc( sizeof(directory_entry_attribute_t) );
             if ( tmp ) {
                 tmp->name =strdup( attr->name );
                 tmp->value=strdup( attr->value );
@@ -269,21 +268,21 @@ sofia_directory_entry_attribute_t  *sofia_direngine_attribute_search ( char *dom
         attr=attr->next;
     }
 
-    sofia_direngine_release_user_result( item );
+    direngine_release_user_result( item );
     
     return ret;
 }
 
 /* ************************************************************************* */
 
-int __sofia_direngine_user_add_attribute( char *domain, char *user, char *name, char *value, int persistant ) {
+int __direngine_user_add_attribute( char *domain, char *user, char *name, char *value, int persistant ) {
     int totengines = 0;
     hash_table_t *hash;
     hash_search_t search;
     hash_entry_t *entry;
     char *key;
-    sofia_direngine_t *engine;
-    sofia_directory_entry_t *item = NULL;
+    direngine_t *engine;
+    directory_entry_t *item = NULL;
 
 //    opbx_mutex_lock(&direngine_mutex);
 
@@ -294,7 +293,7 @@ int __sofia_direngine_user_add_attribute( char *domain, char *user, char *name, 
          entry = hash_next_entry(&search))
     {
         key = (char *) hash_get_key(hash, entry);
-        engine = (sofia_direngine_t *) hash_get_value(entry);
+        engine = (direngine_t *) hash_get_value(entry);
 	if (engine) {
 	    totengines++;
 	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", engine->name);
@@ -302,7 +301,7 @@ int __sofia_direngine_user_add_attribute( char *domain, char *user, char *name, 
 	    if ( item ) {
 		opbx_log(LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
                 int tot = engine->attribute_add(domain, user, name, value, persistant);
-                sofia_direngine_release_user_result(item);
+                direngine_release_user_result(item);
 		return tot;
 	    }
 	}
@@ -318,15 +317,15 @@ int __sofia_direngine_user_add_attribute( char *domain, char *user, char *name, 
 
 /* ************************************************************************* */
 
-int sofia_direngine_user_del_attribute( char *domain, char *user, char *name, char *value, int partial_compare ) {
+int direngine_user_del_attribute( char *domain, char *user, char *name, char *value, int partial_compare ) {
 
     int totengines = 0;
     hash_table_t *hash;
     hash_search_t search;
     hash_entry_t *entry;
     char *key;
-    sofia_direngine_t *engine;
-    sofia_directory_entry_t *item = NULL;
+    direngine_t *engine;
+    directory_entry_t *item = NULL;
 
 //    opbx_mutex_lock(&direngine_mutex);
 
@@ -337,7 +336,7 @@ int sofia_direngine_user_del_attribute( char *domain, char *user, char *name, ch
          entry = hash_next_entry(&search))
     {
         key = (char *) hash_get_key(hash, entry);
-        engine = (sofia_direngine_t *) hash_get_value(entry);
+        engine = (direngine_t *) hash_get_value(entry);
 	if (engine) {
 	    totengines++;
 	    opbx_log(LOG_DEBUG,"Directory searching... (module %s)\n", engine->name);
@@ -345,7 +344,7 @@ int sofia_direngine_user_del_attribute( char *domain, char *user, char *name, ch
 	    if ( item ) {
 		opbx_log(LOG_DEBUG," FOUND '%s@%s'\n", item->user, item->domain );
                 int tot = engine->attribute_delete(domain, user, name, value, partial_compare);
-                sofia_direngine_release_user_result(item);
+                direngine_release_user_result(item);
 		return tot;
 	    }
 	}
@@ -361,7 +360,7 @@ int sofia_direngine_user_del_attribute( char *domain, char *user, char *name, ch
 
 /* ************************************************************************* */
 
-char *sofia_direngine_attribute_search_from_entry ( sofia_directory_entry_t *entry, char *name ) {
+char *direngine_attribute_search_from_entry ( directory_entry_t *entry, char *name ) {
     return 0;
 }
 
