@@ -50,7 +50,7 @@ opbx_mutex_t	direngine_mutex;
 int direngine_list_init(void) {
     hash_init_table( &direngine_hash, HASH_STRING_KEYS );
     opbx_mutex_init( &direngine_mutex);
-    return 1;
+    return 0;
 }
 
 int direngine_list_destroy(void) {
@@ -58,7 +58,7 @@ int direngine_list_destroy(void) {
 
     hash_delete_table( &direngine_hash );
     opbx_mutex_destroy( &direngine_mutex);
-    return 1;
+    return 0;
 }
 
 int direngine_engine_add( direngine_t *de, char *conf ) {
@@ -363,5 +363,3 @@ int direngine_user_del_attribute( char *domain, char *user, char *name, char *va
 char *direngine_attribute_search_from_entry ( directory_entry_t *entry, char *name ) {
     return 0;
 }
-
-

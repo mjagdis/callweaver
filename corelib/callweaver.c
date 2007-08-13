@@ -118,6 +118,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/linkedlists.h"
 #include "callweaver/devicestate.h"
+#include "callweaver/directory_engine.h"
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -2643,6 +2644,12 @@ int callweaver_main(int argc, char *argv[])
     opbx_rtp_init();
     opbx_udptl_init();
     opbx_stun_init();
+
+    if ( direngine_list_init() )
+    {
+        opbx_exit(1);
+    }
+
     if (opbx_image_init())
     {
         opbx_exit(1);

@@ -84,7 +84,6 @@ static int edir_init(char *config_file) {
     opbx_log(LOG_DEBUG,"Initializing Embedded directory engine engine\n");
 
     opbx_mutex_init(&edir_mutex);
-    opbx_mutex_init(&edir_mutex);
     hash_init_table( &edir_domain_hash, HASH_STRING_KEYS );
 
     edir_pool = opbx_mpool_open(pool_flags, 0, NULL, &pool_ret);
