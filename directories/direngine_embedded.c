@@ -564,13 +564,13 @@ direngine_t directory_embedded_engine = {
 
 int load_module(void)
 {
-    return direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/directory.xml" ); 
+    return !direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/directory.xml" ); 
     //TODO it's hardcoded fix it.
 }
 
 int unload_module(void)
 {
-    return direngine_engine_release( directory_embedded_engine.name );
+    return !direngine_engine_release( directory_embedded_engine.name );
 }
 
 int usecount(void)
@@ -584,21 +584,6 @@ char *description(void)
     return DESC;
 }
 
-
-
-
-
-/*
-        This is what should be done to initialize the core, the directory engine and how to add a pluggable engine.
-        ------------------------------------
-
-        sofia_direngine_list_init();
-        sofia_direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/conf_sofia.xml" ); //TODO
-
-        sofia_direngine_engine_release( directory_embedded_engine.name );
-        sofia_direngine_list_destroy();
-
-*/
 
 
 // THE FOLLOWING CODE IS FOR DEBUGGING PURPOSES ONLY.
