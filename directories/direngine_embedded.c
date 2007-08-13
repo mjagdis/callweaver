@@ -39,6 +39,7 @@
 #include "callweaver/hashtable_helper.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
+#include "callweaver/module.h"
 
 /* **************************************************************************
 	EMBEDDED DIRECTORY ENGINE
@@ -555,6 +556,35 @@ direngine_t directory_embedded_engine = {
         edir_user_add_attribute,
         edir_user_del_attribute
 };
+
+/* **************************************************************************
+         GENERAL MODULE STUFF (loading/unloading/usecount/description)
+   *********************************************************************** */
+
+#define DESC               "Embedded directory engine"
+
+int load_module(void)
+{
+    return direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/directory.xml" ); 
+    //TODO it's hardcoded fix it.
+}
+
+int unload_module(void)
+{
+    return direngine_engine_release( directory_embedded_engine.name );
+}
+
+int usecount(void)
+{
+    return 1; //TODO should we allow to unload this ?
+    //return use_count;
+}
+
+char *description(void)
+{
+    return DESC;
+}
+
 
 
 
