@@ -556,3 +556,84 @@ direngine_t directory_embedded_engine = {
         edir_user_del_attribute
 };
 
+
+
+
+/*
+        This is what should be done to initialize the core, the directory engine and how to add a pluggable engine.
+        ------------------------------------
+
+        sofia_direngine_list_init();
+        sofia_direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/conf_sofia.xml" ); //TODO
+
+        sofia_direngine_engine_release( directory_embedded_engine.name );
+        sofia_direngine_list_destroy();
+
+*/
+
+
+// THE FOLLOWING CODE IS FOR DEBUGGING PURPOSES ONLY.
+// IT IS HERE ONLY TO GIVE SOME HINTS ON HOW TO USE.
+// DOCUMENTATION WILL FOLLOW.
+
+/*
+sofia_directory_entry_attribute_t *a;
+sofia_directory_entry_t  *user = NULL;
+sofia_directory_domain_t *domain = NULL;
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+domain = sofia_direngine_domain_search("navynet.it");
+opbx_log(LOG_DEBUG,"------------> %s\n", domain->name);
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+user = sofia_direngine_user_search("navynet.it","523");
+opbx_log(LOG_DEBUG,"------------> %s\n", user->user);
+a = user->attributes;
+while ( a ) {
+    opbx_log(LOG_DEBUG,"       -----> %s = %s\n", a->name, a->value);
+    a=a->next;
+}
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+a=sofia_direngine_attribute_search("navynet.it","523","accountno");
+if (a) {
+    opbx_log(LOG_DEBUG," search-----> %s = %s\n", a->name, a->value);
+}
+sofia_direngine_release_attr_result(a);
+
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+sofia_direngine_user_add_attribute_persistant("navynet.it","523","foo","bar");
+sofia_direngine_user_add_attribute("navynet.it","523","foo3","bar3");
+sofia_direngine_user_add_attribute("navynet.it","523","foo","bar2");
+opbx_log(LOG_WARNING,"---------------------\n");
+sofia_direngine_user_del_attribute("navynet.it","523","foo","bar");
+
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+user   = sofia_direngine_user_search("navynet.it","523");
+opbx_log(LOG_DEBUG,"------------> %s\n", user->user);
+a = user->attributes;
+while ( a ) {
+    opbx_log(LOG_DEBUG,"       -----> %s = %s\n", a->name, a->value);
+    a=a->next;
+}
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+a=sofia_direngine_attribute_search("navynet.it","523","foo");
+if (a) {
+    while (a) {
+        opbx_log(LOG_DEBUG," search-----> %s = %s\n", a->name, a->value);
+        a=a->next;
+    }
+}
+sofia_direngine_release_attr_result(a);
+
+
+
+opbx_log(LOG_DEBUG,"\n\n\n\n");
+sofia_direngine_release_user_result(user);
+sofia_direngine_release_domain_result(domain);
+        return -1;
+
+*/
