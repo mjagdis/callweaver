@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#include <time.h>
+
 #define OPBX_CACHE_DIR_LEN 512
 #define OPBX_FILENAME_MAX	80
 
