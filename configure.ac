@@ -2482,6 +2482,7 @@ AC_OUTPUT([Makefile
 		 configs/Makefile
  		 ogi/ogi-test.ogi
 		 ogi/fastogi-test
+                 directories/Makefile
                  formats/Makefile
                  filestreams/Makefile
 ])
