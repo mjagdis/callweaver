@@ -392,7 +392,7 @@ static directory_entry_t *edir_search_user( char *user, char *domain ) {
     return NULL;
 }
 
-int edir_user_add_attribute( char *domain, char *user, char *name, char *val, int persistant) {
+static int edir_user_add_attribute( char *domain, char *user, char *name, char *val, int persistant) {
 
     // key is $domain/$user/$varname/$random[4]
 
@@ -451,7 +451,7 @@ int edir_user_add_attribute( char *domain, char *user, char *name, char *val, in
     return 0;
 }
 
-int edir_user_del_attribute( char *domain, char *user, char *name, char *value, int partial_compare) {
+static int edir_user_del_attribute( char *domain, char *user, char *name, char *value, int partial_compare) {
 
     /* 
         It works this way:
