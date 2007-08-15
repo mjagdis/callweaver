@@ -15,7 +15,7 @@
 **********************************************************************/
 
 /* External interface */
-#include "callweaver/callweaver_resample.h"
+#include "callweaver_resample.h"
 
 /* Definitions */
 #include "resample_defs.h"
@@ -46,7 +46,7 @@ typedef struct {
    double  Time;
 } rsdata;
 
-void *resample_dup(const void *	handle)
+opbx_core_resampler_t *resample_dup(const opbx_core_resampler_t *handle)
 {
    const rsdata *cpy = (const rsdata *)handle;
    rsdata *hp = (rsdata *)malloc(sizeof(rsdata));
@@ -77,7 +77,7 @@ void *resample_dup(const void *	handle)
    return (void *)hp;
 }
 
-void *resample_open(int highQuality, double minFactor, double maxFactor)
+opbx_core_resampler_t *resample_open(int highQuality, double minFactor, double maxFactor)
 {
    double *Imp64;
    double Rolloff, Beta;
@@ -161,13 +161,13 @@ void *resample_open(int highQuality, double minFactor, double maxFactor)
    return (void *)hp;
 }
 
-int resample_get_filter_width(const void   *handle)
+int resample_get_filter_width(const opbx_core_resampler_t *handle)
 {
    const rsdata *hp = (const rsdata *)handle;
    return hp->Xoff;
 }
 
-int resample_process(void   *handle,
+int resample_process(opbx_core_resampler_t   *handle,
                      double  factor,
                      float  *inBuffer,
                      int     inBufferLen,
@@ -335,7 +335,7 @@ int resample_process(void   *handle,
    return outSampleCount;
 }
 
-void resample_close(void *handle)
+void resample_close(opbx_core_resampler_t *handle)
 {
    rsdata *hp = (rsdata *)handle;
    free(hp->X);
