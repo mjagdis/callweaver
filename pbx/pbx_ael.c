@@ -3330,7 +3330,7 @@ void opbx_compile_ael2(struct opbx_context **local_contexts, struct pval *root)
 		case PV_GLOBALS:
 			/* just VARDEC elements */
 			for (p2=p->u1.list; p2; p2=p2->next)
-				pbx_builtin_setvar(NULL, p2->u1.str, p2->u2.val);
+				pbx_builtin_setvar_helper(NULL, p2->u1.str, p2->u2.val);
 			break;
 			
 		case PV_CONTEXT:

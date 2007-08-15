@@ -672,8 +672,6 @@ void opbx_hint_state_changed(const char *device);
 
 int pbx_checkcondition(char *condition);
 
-int pbx_builtin_setvar(struct opbx_channel *, int, char **);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

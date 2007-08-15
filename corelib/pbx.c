@@ -276,6 +276,7 @@ static int pbx_builtin_saydigits(struct opbx_channel *, int, char **);
 static int pbx_builtin_saycharacters(struct opbx_channel *, int, char **);
 static int pbx_builtin_sayphonetic(struct opbx_channel *, int, char **);
 static int pbx_builtin_setvar_old(struct opbx_channel *, int, char **);
+static int pbx_builtin_setvar(struct opbx_channel *, int, char **);
 static int pbx_builtin_importvar(struct opbx_channel *, int, char **);
 
 static struct varshead globals;
@@ -6906,7 +6907,7 @@ static int pbx_builtin_setvar_old(struct opbx_channel *chan, int argc, char **ar
     return pbx_builtin_setvar(chan, argc, argv);
 }
 
-int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv)
+static int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv)
 {
 	if (argc < 1) {
 		opbx_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
