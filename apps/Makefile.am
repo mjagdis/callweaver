@@ -440,6 +440,13 @@ app_voicemail_la_LDFLAGS		= -module -avoid-version -no-undefined
 app_voicemail_la_LIBADD			= ${top_builddir}/corelib/libcallweaver.la
 endif WANT_APP_VOICEMAIL
 
+if WANT_APP_WAITFORDIGITS
+opbxmod_LTLIBRARIES			+= app_waitfordigits.la
+app_waitfordigits_la_SOURCES		= app_waitfordigits.c
+app_waitfordigits_la_LDFLAGS		= -module -avoid-version -no-undefined
+app_waitfordigits_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la
+endif WANT_APP_WAITFORDIGITS
+
 if WANT_APP_WAITFORSILENCE
 opbxmod_LTLIBRARIES			+= app_waitforsilence.la
 app_waitforsilence_la_SOURCES		= app_waitforsilence.c

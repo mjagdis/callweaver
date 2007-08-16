@@ -1698,6 +1698,14 @@ AM_CONDITIONAL([WANT_APP_WAITFORRING],[test "${with_app_waitforring}" = "yes"])
 
 dnl ###########################################################################
 
+AC_ARG_WITH([app_waitfordigits],
+	[AC_HELP_STRING([--with-app_waitfordigits],[Build and install app_waitfordigits (default=yes)])],,
+	[with_app_waitfordigits="yes"])
+
+AM_CONDITIONAL([WANT_APP_WAITFORDIGITS],[test "${with_app_waitfordigits}" = "yes"])
+
+dnl ###########################################################################
+
 AC_ARG_WITH([app_waitforsilence],
 	[AC_HELP_STRING([--with-app_waitforsilence],[Build and install app_waitforsilence (default=yes)])],,
 	[with_app_waitforsilence="yes"])
