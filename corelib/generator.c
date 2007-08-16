@@ -261,7 +261,7 @@ static void *opbx_generator_thread(void *data)
 				opbx_cond_wait(&pgcd->gen_req_cond, &pgcd->lock);
 		}
 
-		/* If there is an activate generator, free its
+		/* If there is an activated generator, free its
 		 * resources because its existence is over. */
 		if (pgcd->gen_is_active) {
 			cur_gen_free(chan, cur_gen_data);
@@ -286,7 +286,10 @@ static void *opbx_generator_thread(void *data)
 			ts.tv_nsec = 1000 * tv.tv_usec;
 		} else if (pgcd->gen_req == gen_req_shutdown) {
 			/* Shutdown requests. */
-
+			/* Just break the loop */
+			break;
+		} else if (pgcd->gen_req == gen_req_deactivate) {
+			/* Shutdown requests. */
 			/* Just break the loop */
 			break;
 		} else if (pgcd->gen_req != gen_req_deactivate) {
