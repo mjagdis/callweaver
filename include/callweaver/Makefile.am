@@ -75,7 +75,7 @@ opbxinclude_HEADERS = acl.h \
                       utils.h \
                       vmodem.h \
                       xlaw.h \
-                      callweaver_resample.h \
+                      resample.h \
                       directory_engine.h \
 		      eventlib.h \
 		      xml_parser.h \
