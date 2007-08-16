@@ -52,6 +52,8 @@ static const char *waitfordigits_syntax = "WaitForDigits(milliseconds,[maxnum],a
 static const char *waitfordigits_descrip =
 " WaitForDigits(milliseconds,[maxnum],addexten,[control],[priority]):\n"
 " Waits for given milliseconds for digits which are dialed in overlap mode.\n" 
+" Upon exit, sets the variable NEWEXTEN to the new extension (old + new digits)\n"
+" The original EXTEN is not touched\n"
 "\n"
 " [maxnum] -	waitfordigits waits only until [maxnum] digits are dialed\n"
 " 		then it exits immediately\n"
@@ -219,7 +221,6 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv)
 	  
 	/** Posting Exten to Var: NEWEXTEN **/
 	pbx_builtin_setvar_helper(chan,"NEWEXTEN",numsubst);
-  
   
 	if (chan->_state != OPBX_STATE_UP && (control>0) ) {
 		opbx_verbose( "Sending CONTROL: %d  to Channel %s\n",control, chan->exten);
