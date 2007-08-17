@@ -23,7 +23,6 @@
  * \author Mark Spencer <markster@digium.com>
  * \ingroup applications
  *
- * ----- THIS APPLICATION IS EXPERIMENTAL -----
  *
  */
 
