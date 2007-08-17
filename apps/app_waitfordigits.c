@@ -211,7 +211,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv)
 	/** Restoring Extension if requested **/
 	if (addexten)
 	{
-		pbx_verbose("Overwriting extension:%s with new Number: %s\n",chan->exten, numsubst);
+		opbx_verbose("Overwriting extension:%s with new Number: %s\n",chan->exten, numsubst);
 		strcpy(chan->exten, numsubst);
 	}
 	else
