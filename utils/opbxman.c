@@ -18,7 +18,7 @@
 
 /*
  *
- * ASTerisk MANager
+ * CallWeaver MANager
  *
  */
  
@@ -38,6 +38,7 @@
 #include <stdlib.h>
 
 #include "callweaver/manager.h"
+#include "callweaver/utils.h"
 
 #undef gethostbyname
 
@@ -293,7 +294,8 @@ static int get_input(struct opbx_mansession *s, char *output)
 		}
 	} 
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
-		fprintf(stderr, "Dumping long line with no return from %s: %s\n", inet_ntoa(s->sin.sin_addr), s->inbuf);
+		char tmp[32];
+		fprintf(stderr, "Dumping long line with no return from %s: %s\n", opbx_inet_ntoa(tmp, sizeof(tmp), s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
 	FD_ZERO(&fds);
@@ -589,7 +591,7 @@ static int login(char *hostname)
 	newtComponent ulabel;
 	newtComponent plabel;
 	const char *user;
-	const char *pass;
+	char *pass;
 	struct message *m;
 	struct newtExitStruct es;
 	char tmp[55];
