@@ -22,7 +22,6 @@ opbxinclude_HEADERS = acl.h \
                       config.h \
                       crypto.h \
                       devicestate.h \
-                      dlfcn-compat.h \
                       dns.h \
                       dnsmgr.h \
                       dsp.h \
