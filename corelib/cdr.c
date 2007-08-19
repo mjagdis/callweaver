@@ -1087,14 +1087,14 @@ static struct opbx_cli_entry cli_status = {
 
 static int do_reload(void)
 {
-	struct opbx_config *config;
-	const char *enabled_value;
-	const char *batched_value;
-	const char *end_before_h_value;
-	const char *scheduleronly_value;
-	const char *batchsafeshutdown_value;
-	const char *size_value;
-	const char *time_value;
+	struct opbx_config *config = NULL;
+	const char *enabled_value = NULL;
+	const char *batched_value = NULL;
+	const char *end_before_h_value = NULL;
+	const char *scheduleronly_value = NULL;
+	const char *batchsafeshutdown_value = NULL;
+	const char *size_value = NULL;
+	const char *time_value = NULL;
 	int cfg_size;
 	int cfg_time;
 	int was_enabled;

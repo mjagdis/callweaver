@@ -6133,7 +6133,7 @@ int reload(void)
 
 int unload_module(void)
 {
-	int res;
+	int res = 0;
 
 	if (strcasecmp(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, "yes")) {
 		opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
@@ -6153,7 +6153,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	int res;
+	int res = 0;
 
 	app = opbx_register_application(name, vm_exec, synopsis_vm, syntax_vm, descrip_vm);
 	app2 = opbx_register_application(name2, vm_execmain, synopsis_vmain, syntax_vmain, descrip_vmain);

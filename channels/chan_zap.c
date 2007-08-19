@@ -1740,7 +1740,7 @@ static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout)
 	struct tone_zone *tzone;
 	struct zt_pvt *p = opbx->tech_pvt;
 	int x, res, index;
-	char *c, *n, *l, *t;
+	char *c, *n, *l;
 #ifdef ZAPATA_PRI
 	char *s=NULL;
 #endif
@@ -5241,16 +5241,16 @@ static void *ss_thread(void *data)
 	struct zt_pvt *p = chan->tech_pvt;
 	char exten[OPBX_MAX_EXTENSION]="";
 	char exten2[OPBX_MAX_EXTENSION]="";
-	unsigned char buf[256];
+//	unsigned char buf[256];
 	char dtmfbuf[300];
-	char *name=NULL, *number=NULL;
+//	char *name=NULL, *number=NULL;
 	int curRingData[2 + arraysize(drings.ringnum[0].ring)];
 	int receivedRingT;
-	int counter1;
+//	int counter1;
 	int counter;
 	int samples = 0;
 
-	int flags;
+//	int flags;
 	int i;
 	int timeout;
 	int getforward=0;
@@ -5900,7 +5900,7 @@ static void *ss_thread(void *data)
 			/* N.B. The only reason we do poll before read is for the timeout... */
 			res = poll(&pfd, 1, SAMPLES_TO_MS(p->ringt));
 			if (res > 0) {
-				uint16_t lin[256];
+				int16_t lin[256];
 				uint8_t buf[256];
 				res = read(p->subs[index].zfd, buf, sizeof(buf));
 				if (res > 0) {

@@ -501,8 +501,8 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
 {
     int16_t *amp;
     uint8_t *data;
-    int len;
-    int x;
+    int len = 0;
+    int x = 0;
 
     if (f->frametype != OPBX_FRAME_VOICE)
     {
@@ -514,15 +514,17 @@ int opbx_dsp_silence(struct opbx_dsp *dsp, struct opbx_frame *f, int *totalsilen
     {
     case OPBX_FORMAT_SLINEAR:
         amp = f->data;
-        len = f->datalen/2;
+        len = f->datalen / sizeof(int16_t);
         break;
     case OPBX_FORMAT_ULAW:
         amp = alloca(f->datalen*sizeof(int16_t));
+        len = f->datalen;
         for (x = 0;  x < len;  x++) 
             amp[x] = OPBX_MULAW(data[x]);
         break;
     case OPBX_FORMAT_ALAW:
         amp = alloca(f->datalen*sizeof(int16_t));
+        len = f->datalen;
         for (x = 0;  x < len;  x++) 
             amp[x] = OPBX_ALAW(data[x]);
         break;

@@ -595,7 +595,7 @@ static void *faxmodem_media_thread(void *obj)
 {
 	struct private_object *tech_pvt = obj;
 	volatile struct faxmodem *fm = tech_pvt->fm;
-	struct timeval last, lastdtedata, now, reference;
+	struct timeval last = {0,0}, lastdtedata = {0,0}, now = {0,0}, reference = {0,0};
 	int ms = 0;
 	int avail, lastmodembufsize = 0, flowoff = 0;
 	char modembuf[DSP_BUFFER_MAXSIZE];

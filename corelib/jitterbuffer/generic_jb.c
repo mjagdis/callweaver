@@ -795,17 +795,17 @@ void opbx_jb_get_config(struct opbx_channel *chan, struct opbx_jb_conf *conf)
 void opbx_jb_get_info(struct opbx_channel *chan, opbx_jb_info *info)
 {
 	struct opbx_jb *jb;
-	struct opbx_jb_impl *jbimpl;
-	void *jbobj;
+	struct opbx_jb_impl *jbimpl = NULL;
+	void *jbobj = NULL;
 
 	if (chan) {
 		jb = &chan->jb;	
 		jbimpl = jb->impl;
 		jbobj = jb->jbobj;
+	        jbimpl->info(jbobj, info);
 	} else 
 		opbx_log(LOG_ERROR, "Channel/jitterbuffer data is broken!\n");
 
-	jbimpl->info(jbobj, info);
 }
 
 int opbx_jb_is_active(struct opbx_channel *chan)

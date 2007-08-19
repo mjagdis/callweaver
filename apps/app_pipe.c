@@ -268,7 +268,7 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv)
 
 int unload_module(void)
 {
-	int res;
+	int res = 0;
 	res |= opbx_unregister_application(pipe_app);
 	STANDARD_HANGUP_LOCALUSERS;
 	return res;
