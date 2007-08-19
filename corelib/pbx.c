@@ -49,7 +49,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/cdr.h"
 #include "callweaver/config.h"
-#include "callweaver/term.h"
 #include "callweaver/manager.h"
 #include "callweaver/callweaver_expr.h"
 #include "callweaver/linkedlists.h"
@@ -61,6 +60,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/callweaver_hash.h"
 #include "callweaver/callweaver_keywords.h"
+
+#include "core/term.h"
 
 /*!
  * \note I M P O R T A N T :

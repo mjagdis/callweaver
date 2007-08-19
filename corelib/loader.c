@@ -40,13 +40,15 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
-#include "callweaver/term.h"
 #include "callweaver/manager.h"
 #include "callweaver/cdr.h"
 #include "callweaver/enum.h"
 #include "callweaver/lock.h"
 #include "callweaver/rtp.h"
 #include "libltdl/ltdl.h"
+
+#include "core/term.h"
+
 
 #ifndef RTLD_NOW
 #define RTLD_NOW 0

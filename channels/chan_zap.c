@@ -77,7 +77,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callweaver_db.h"
 #include "callweaver/manager.h"
 #include "callweaver/causes.h"
-#include "callweaver/term.h"
 #include "callweaver/utils.h"
 #include "callweaver/transcap.h"
 
@@ -9414,21 +9413,21 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 	int i, j;
 	for (i=0;i<num_cadence;i++) {
 		char output[1024];
-		char tmp[16], tmp2[64];
-		snprintf(tmp, sizeof(tmp), "r%d: ", i + 1);
-		opbx_term_color(output, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(output));
+		char tmp[16];
+
+		snprintf(output, sizeof(output), "r%d: ", i + 1);
 
 		for (j=0;j<16;j++) {
+
 			if (cadences[i].ringcadence[j] == 0)
 				break;
+
 			snprintf(tmp, sizeof(tmp), "%d", cadences[i].ringcadence[j]);
-			if (cidrings[i] * 2 - 1 == j)
-				opbx_term_color(tmp2, tmp, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp2) - 1);
-			else
-				opbx_term_color(tmp2, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(tmp2) - 1);
+
 			if (j != 0)
 				strncat(output, ",", sizeof(output) - strlen(output) - 1);
-			strncat(output, tmp2, sizeof(output) - strlen(output) - 1);
+
+			strncat(output, tmp, sizeof(output) - strlen(output) - 1);
 		}
 		opbx_cli(fd,"%s\n",output);
 	}

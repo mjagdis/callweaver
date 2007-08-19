@@ -38,7 +38,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/frame.h"
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"
-#include "callweaver/term.h"
 #include "callweaver/options.h"
 #include "callweaver/utils.h"
 
@@ -46,6 +45,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "jitterbuf_scx.h"
 #include "jitterbuf_stevek.h"
 #include "jitterbuf_speakup.h"
+
+#include "core/term.h"
 
 
 /* Internal jb flags */

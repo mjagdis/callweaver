@@ -66,10 +66,11 @@ static int syslog_level_map[] = {
 #include "callweaver/options.h"
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
-#include "callweaver/term.h"
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
 #include "callweaver/manager.h"
+
+#include "core/term.h"
 
 #define MAX_MSG_QUEUE 200
 

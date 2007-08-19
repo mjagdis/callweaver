@@ -769,14 +769,13 @@ static inline void show_config_description (int fd, enum misdn_cfg_elements elem
 	char def[BUFFERSIZE];
 	char tmp[BUFFERSIZE];
 
-	misdn_cfg_get_name(elem, tmp, sizeof(tmp));
-	opbx_term_color(name, tmp, COLOR_BRWHITE, 0, sizeof(tmp));
+	misdn_cfg_get_name(elem, name, sizeof(tmp));
 	misdn_cfg_get_desc(elem, desc, sizeof(desc), def, sizeof(def));
 
 	if (elem < MISDN_CFG_LAST)
-		opbx_term_color(section, "PORTS SECTION", COLOR_YELLOW, 0, sizeof(section));
+		snprintf(section, "PORTS SECTION", sizeof(section));
 	else
-		opbx_term_color(section, "GENERAL SECTION", COLOR_YELLOW, 0, sizeof(section));
+		snprintf(section, "GENERAL SECTION", sizeof(section));
 
 	if (*def)
 		opbx_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);

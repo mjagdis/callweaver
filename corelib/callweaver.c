@@ -98,7 +98,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/module.h"
 #include "callweaver/image.h"
-#include "callweaver/term.h"
 #include "callweaver/manager.h"
 #include "callweaver/cdr.h"
 #include "callweaver/pbx.h"
@@ -120,6 +119,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "core/ulaw.h"
 #include "core/alaw.h"
+#include "core/term.h"
 
 #include <readline/readline.h>
 #include <readline/history.h>

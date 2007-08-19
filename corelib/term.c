@@ -40,10 +40,11 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/term.h"
 #include "callweaver/options.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
+
+#include "core/term.h"
 
 static int vt100compat = 0;
 

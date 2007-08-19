@@ -43,8 +43,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/channel.h"
 #include "callweaver/cli.h"
-#include "callweaver/term.h"
 #include "callweaver/utils.h"
+
+#include "core/term.h"
 
 #ifdef TRACE_FRAMES
 static int headers = 0;

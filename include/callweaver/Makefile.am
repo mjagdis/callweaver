@@ -56,7 +56,6 @@ opbxinclude_HEADERS = acl.h \
                       srv.h \
                       strings.h \
                       stun.h \
-                      term.h \
                       time.h \
                       transcap.h \
                       translate.h \

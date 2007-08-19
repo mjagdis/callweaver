@@ -47,7 +47,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/frame.h"
-#include "callweaver/term.h"
 #include "callweaver/manager.h"
 #include "callweaver/cli.h"
 #include "callweaver/linkedlists.h"
@@ -190,9 +189,7 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 	char app[256];
 	char appdata[512]="";
 	char *tmp="";
-    char tmp1[80];
-    char tmp2[80];
-    char tmp3[EXT_DATA_SIZE];
+
 	struct opbx_app *a;
 	struct opbx_variable *v;
 	REALTIME_COMMON(MODE_MATCH);
@@ -212,10 +209,11 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 				if(!opbx_strlen_zero(tmp))
 				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata));
                 if (option_verbose > 2)
-					opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
-					    opbx_term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
-					    opbx_term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-					    opbx_term_color(tmp3, (!opbx_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
+		    opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
+			            app,
+				    chan->name,
+				    (!opbx_strlen_zero(appdata) ? (char *)appdata : "")
+                                );
                 manager_event(EVENT_FLAG_CALL, "Newexten",
 							  "Channel: %s\r\n"
 							  "Context: %s\r\n"
