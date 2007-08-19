@@ -32,6 +32,30 @@
 extern "C" {
 #endif
 
+/* 
+    This is what we will use in the future: 
+    a pluggable engine so that languages each language has it's module.
+    We don't use the language as it will be grabbed from the channel language.
+*/
+/*
+struct opbx_intl_say_engine_s {
+    int (*say_number)(opbx_channel_t *chan, int num, const char *break_char);
+    int (*say_enumeration)(opbx_channel_t *chan, int num, const char *break_char);
+    int (*say_digits)(opbx_channel_t *chan, int num, const char *break_char);
+    int (*say_digit_str)(opbx_channel_t *chan, const char *num, const char *break_char);
+    int (*say_character_str)(opbx_channel_t *chan, const char *num, const char *break_char);
+    int (*say_phonetic_str)(opbx_channel_t *chan, const char *num, const char *break_char);
+    //TODO... date time here ...
+};
+
+typedef struct opbx_intl_say_engine_s opbx_intl_say_engine_t;
+
+    TODO 
+    add functions to add/remove languages.
+
+*/
+
+
 /* says a number
  * \param chan channel to say them number on
  * \param num number to say on the channel
