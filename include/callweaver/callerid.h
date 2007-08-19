@@ -44,6 +44,7 @@
 
 #include <spandsp.h>
 
+#include "callweaver/channel.h"
 
 /*! Maximum length (in samples) of a buffer used for caller ID data.
  *  32000 is 4s - which should be enough for more than 20 DTMF digits

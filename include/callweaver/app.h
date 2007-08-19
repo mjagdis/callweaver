@@ -27,6 +27,12 @@
 extern "C" {
 #endif
 
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
+#include "callweaver/channel.h"
+
 /* IVR stuff */
 
 /* Callback function for IVR, returns 0 on completion, -1 on hangup or digit if
