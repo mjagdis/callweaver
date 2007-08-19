@@ -63,6 +63,8 @@ struct opbx_translator {
 	struct opbx_translator *next;
 };
 
+typedef struct opbx_translator opbx_translator_t;
+
 struct opbx_trans_pvt;
 
 /*! Register a translator */
