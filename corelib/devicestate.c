@@ -45,6 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 
 static const char *devstatestring[] = {
+	/*-1 OPBX_DEVICE_FAILURE */	"FAILURE",	/* Valid, but unknown state */
 	/* 0 OPBX_DEVICE_UNKNOWN */	"Unknown",	/* Valid, but unknown state */
 	/* 1 OPBX_DEVICE_NOT_INUSE */	"Not in use",	/* Not used */
 	/* 2 OPBX_DEVICE IN USE */	"In use",	/* In use */
@@ -80,14 +81,16 @@ const char *devstate2str(int devstate)
 }
 
 /*--- opbx_parse_device_state: Find out if device is active in a call or not */
-int opbx_parse_device_state(const char *device)
+opbx_devicestate_t opbx_parse_device_state(const char *device)
 {
 	struct opbx_channel *chan;
 	char match[OPBX_CHANNEL_NAME] = "";
 	int res;
 
 	opbx_copy_string(match, device, sizeof(match)-1);
+
 	strcat(match, "-");
+
 	chan = opbx_get_channel_by_name_prefix_locked(match, strlen(match));
 
 	if (!chan)
@@ -104,17 +107,19 @@ int opbx_parse_device_state(const char *device)
 }
 
 /*--- opbx_device_state: Check device state through channel specific function or generic function */
-int opbx_device_state(const char *device)
+opbx_devicestate_t opbx_device_state(const char *device)
 {
 	char *buf;
 	char *tech;
 	char *number;
 	const struct opbx_channel_tech *chan_tech;
-	int res = 0;
+
+	int res = OPBX_DEVICE_UNKNOWN;
 	
 	buf = opbx_strdupa(device);
 	tech = strsep(&buf, "/");
 	number = buf;
+
 
 	chan_tech = opbx_get_channel_tech(tech);
 	if (!chan_tech)
@@ -136,6 +141,7 @@ int opbx_device_state(const char *device)
 		} else
 			return res;
 	}
+        
 }
 
 /*--- opbx_devstate_add: Add device state watcher */

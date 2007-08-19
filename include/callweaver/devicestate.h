@@ -27,27 +27,32 @@
 extern "C" {
 #endif
 
-/*! Device is valid but channel didn't know state */
-#define OPBX_DEVICE_UNKNOWN	0
-/*! Device is not used */
-#define OPBX_DEVICE_NOT_INUSE	1
-/*! Device is in use */
-#define OPBX_DEVICE_INUSE	2
-/*! Device is busy */
-#define OPBX_DEVICE_BUSY	3
-/*! Device is invalid */
-#define OPBX_DEVICE_INVALID	4
-/*! Device is unavailable */
-#define OPBX_DEVICE_UNAVAILABLE	5
-/*! Device is ringing */
-#define OPBX_DEVICE_RINGING	6
+
+typedef enum {
+    /*! FAILURE WHEN RETURNING THIS ENUM */
+    OPBX_DEVICE_FAILURE = -1,
+    /*! Device is valid but channel didn't know state */
+    OPBX_DEVICE_UNKNOWN = 0,
+    /*! Device is not used */
+    OPBX_DEVICE_NOT_INUSE = 1,
+    /*! Device is in use */
+    OPBX_DEVICE_INUSE = 2,
+    /*! Device is busy */
+    OPBX_DEVICE_BUSY = 3,
+    /*! Device is invalid */
+    OPBX_DEVICE_INVALID = 4,
+    /*! Device is unavailable */
+    OPBX_DEVICE_UNAVAILABLE = 5,
+    /*! Device is ringing */
+    OPBX_DEVICE_RINGING = 6
+} opbx_devicestate_t;
 
 typedef int (*opbx_devstate_cb_type)(const char *dev, int state, void *data);
 
 /*! \brief Convert device state to text string for output 
  * \param devstate Current device state 
  */
-const char *devstate2str(int devstate);
+const char *devstate2str(opbx_devicestate_t devstate);
 
 /*! \brief Search the Channels by Name
  * \param device like a dialstring
@@ -56,7 +61,7 @@ const char *devstate2str(int devstate);
  * Returns an OPBX_DEVICE_UNKNOWN if no channel found or
  * OPBX_DEVICE_INUSE if a channel is found
  */
-int opbx_parse_device_state(const char *device);
+opbx_devicestate_t opbx_parse_device_state(const char *device);
 
 /*! \brief Asks a channel for device state
  * \param device like a dialstring
@@ -66,9 +71,9 @@ int opbx_parse_device_state(const char *device);
  * active channels list for the device.
  * Returns an OPBX_DEVICE_??? state -1 on failure
  */
-int opbx_device_state(const char *device);
+opbx_devicestate_t opbx_device_state(const char *device);
 
-/*! \brief Tells CallWeaver the State for Device is changed
+/*! \brief Tells CallWeaver that the State for a Device has changed
  * \param fmt devicename like a dialstring with format parameters
  * CallWeaver polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
