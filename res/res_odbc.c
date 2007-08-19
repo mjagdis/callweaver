@@ -48,7 +48,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/cli.h"
 #include "callweaver/lock.h"
-#include "callweaver/res_odbc.h"
+
+#include "include/res_odbc.h"
 #define MAX_ODBC_HANDLES 25
 
 struct odbc_list

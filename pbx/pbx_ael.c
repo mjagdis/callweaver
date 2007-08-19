@@ -42,11 +42,12 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/app.h"
 #include "callweaver/callerid.h"
-#include "callweaver/ael_structs.h"
 #include "callweaver/lock.h"
 #ifdef AAL_ARGCHECK
 #include "callweaver/argdesc.h"
 #endif
+
+#include "ael/ael_structs.h"
 
 static char expr_output[2096];
 

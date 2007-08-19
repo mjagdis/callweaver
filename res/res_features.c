@@ -60,7 +60,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/manager.h"
 #include "callweaver/utils.h"
-#include "callweaver/adsi.h"
+
+#include "callweaver_addon/adsi.h"
 
 #ifdef __OPBX_DEBUG_MALLOC
 	 static void FREE(void *ptr)

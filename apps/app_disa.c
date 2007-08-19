@@ -48,7 +48,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
-#include "callweaver/ulaw.h"
 #include "callweaver/phone_no_utils.h"
 
 static char *tdesc = "DISA (Direct Inward System Access) Application";

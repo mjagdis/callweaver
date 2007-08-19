@@ -36,9 +36,10 @@
 #include "callweaver/utils.h"
 #include "callweaver/rtp.h"
 #include "callweaver/strings.h"
-#include "callweaver/chan_capi20.h"
-#include "callweaver/chan_capi.h"
-#include "callweaver/chan_capi_rtp.h"
+
+#include "chan_capi20.h"
+#include "chan_capi.h"
+#include "chan_capi_rtp.h"
 
 /* RTP settings / NCPI RTP struct */
 

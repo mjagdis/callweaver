@@ -54,15 +54,15 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/ulaw.h"
-#include "callweaver/alaw.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
-#include "callweaver/adsi.h"
 #include "callweaver/module.h"
 #include "callweaver/config.h"
 #include "callweaver/file.h"
+
+#include "callweaver_addon/adsi.h"
+#include "callweaver/callweaver_pcm.h"
 
 #define DEFAULT_ADSI_MAX_RETRIES 3
 

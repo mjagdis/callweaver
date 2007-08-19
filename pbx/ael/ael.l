@@ -70,7 +70,8 @@
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
 #include "ael/ael_tab.h"
-#include "callweaver/ael_structs.h"
+
+#include "ael_structs.h"
 
 /*
  * A stack to keep track of matching brackets ( [ { } ] )

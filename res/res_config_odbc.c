@@ -44,8 +44,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 #include "callweaver/options.h"
-#include "callweaver/res_odbc.h"
 #include "callweaver/utils.h"
+
+#include "include/res_odbc.h"
 
 static char *tdesc = "ODBC Configuration";
 STANDARD_LOCAL_USER;

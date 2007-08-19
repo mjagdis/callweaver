@@ -10,7 +10,7 @@ DEFS += -include $(top_builddir)/include/confdefs.h
 
 opbxmod_LTLIBRARIES 		=
 
-SUBDIRS				= iax2 sccp fax misdn visdn
+SUBDIRS				= iax2 sccp fax misdn visdn capi
 
 if WANT_CHAN_ALSA
 opbxmod_LTLIBRARIES		+= chan_alsa.la
@@ -26,13 +26,6 @@ chan_agent_la_SOURCES		= chan_agent.c
 chan_agent_la_LDFLAGS		= -module -avoid-version -no-undefined
 chan_agent_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la  
 endif WANT_CHAN_AGENT
-
-if WANT_CHAN_CAPI
-opbxmod_LTLIBRARIES  		+= chan_capi.la
-chan_capi_la_SOURCES 		= chan_capi.c c20msg.c chan_capi_rtp.c
-chan_capi_la_LIBADD  		= -lcapi20 ${top_builddir}/corelib/libcallweaver.la
-chan_capi_la_LDFLAGS 		= -module -avoid-version -no-undefined
-endif WANT_CHAN_CAPI
 
 if WANT_CHAN_FEATURES
 opbxmod_LTLIBRARIES		+= chan_features.la

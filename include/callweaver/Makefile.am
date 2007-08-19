@@ -3,9 +3,7 @@ AUTOMAKE_OPTS = gnu
 DEFS += -include $(top_builddir)/include/confdefs.h
 
 opbxinclude_HEADERS = acl.h \
-                      adsi.h \
                       aes.h \
-                      alaw.h \
                       app.h \
                       astobj.h \
                       astosp.h \
@@ -16,8 +14,6 @@ opbxinclude_HEADERS = acl.h \
                       callweaver_mm.h \
                       causes.h \
                       cdr.h \
-                      chan_capi.h \
-                      chan_capi20.h \
                       channel.h \
                       chanvars.h \
                       cli.h \
@@ -29,7 +25,6 @@ opbxinclude_HEADERS = acl.h \
                       dns.h \
                       dnsmgr.h \
                       dsp.h \
-                      dundi.h \
                       enum.h \
                       features.h \
                       frame.h \
@@ -54,8 +49,6 @@ opbxinclude_HEADERS = acl.h \
                       phone_no_utils.h \
                       poll-compat.h \
                       privacy.h \
-                      res_odbc.h \
-                      resonator.h \
                       rtp.h \
                       say.h \
                       sched.h \
@@ -70,11 +63,8 @@ opbxinclude_HEADERS = acl.h \
                       udp.h \
                       udpfromto.h \
                       udptl.h \
-                      ulaw.h \
                       unaligned.h \
                       utils.h \
-                      vmodem.h \
-                      xlaw.h \
                       resample.h \
                       directory_engine.h \
 		      eventlib.h \

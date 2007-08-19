@@ -51,8 +51,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/ulaw.h"
-#include "callweaver/alaw.h"
 #include "callweaver/frame.h"
 #include "callweaver/channel.h"
 #include "callweaver/options.h"
@@ -60,6 +58,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
 #include "callweaver/callerid.h"
+
+#include "include/ulaw.h"
+#include "include/alaw.h"
 
 struct tdd_state {
     adsi_rx_state_t rx;

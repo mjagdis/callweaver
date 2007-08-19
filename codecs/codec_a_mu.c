@@ -43,8 +43,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
 #include "callweaver/channel.h"
-#include "callweaver/alaw.h"
-#include "callweaver/ulaw.h"
+
+#include "callweaver/callweaver_pcm.h"
 
 #define BUFFER_SIZE   8096    /* size for the translation buffers */
 

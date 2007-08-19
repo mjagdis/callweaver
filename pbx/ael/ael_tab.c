@@ -192,7 +192,8 @@
 #include <string.h>
 
 #include "callweaver/logger.h"
-#include "callweaver/ael_structs.h"
+
+#include "ael_structs.h"
 
 static pval * linku1(pval *head, pval *tail);
 
@@ -231,14 +232,14 @@ static char *ael_token_subst(char *mess);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 52 "ael/ael.y"
+#line 53 "ael/ael.y"
 {
 	int	intval;		/* integer value, typically flags */
 	char	*str;		/* strings */
 	struct pval *pval;	/* full objects */
 }
 /* Line 187 of yacc.c.  */
-#line 242 "ael/ael_tab.c"
+#line 243 "ael/ael_tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -260,7 +261,7 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 58 "ael/ael.y"
+#line 59 "ael/ael.y"
 
 	/* declaring these AFTER the union makes things a lot simpler! */
 void yyerror(YYLTYPE *locp, struct parse_io *parseio, char const *s);
@@ -283,7 +284,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 
 /* Line 216 of yacc.c.  */
-#line 287 "ael/ael_tab.c"
+#line 288 "ael/ael_tab.c"
 
 #ifdef short
 # undef short
@@ -626,20 +627,20 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   183,   183,   186,   187,   188,   191,   192,   193,   194,
-     197,   198,   201,   209,   210,   213,   218,   223,   224,   225,
-     228,   228,   235,   236,   237,   238,   241,   242,   243,   246,
-     247,   248,   249,   250,   251,   252,   253,   256,   261,   265,
-     270,   275,   285,   286,   287,   293,   298,   302,   307,   315,
-     315,   319,   322,   325,   336,   337,   344,   345,   350,   358,
-     359,   363,   369,   378,   381,   382,   385,   388,   391,   392,
-     393,   391,   399,   403,   404,   405,   406,   409,   409,   442,
-     443,   444,   445,   449,   452,   453,   456,   457,   460,   463,
-     467,   471,   475,   481,   482,   486,   489,   495,   495,   500,
-     508,   508,   519,   526,   529,   530,   533,   534,   537,   540,
-     541,   544,   548,   552,   558,   559,   562,   563,   569,   574,
-     579,   580,   581,   584,   585,   589,   596,   597,   598,   601,
-     604
+       0,   184,   184,   187,   188,   189,   192,   193,   194,   195,
+     198,   199,   202,   210,   211,   214,   219,   224,   225,   226,
+     229,   229,   236,   237,   238,   239,   242,   243,   244,   247,
+     248,   249,   250,   251,   252,   253,   254,   257,   262,   266,
+     271,   276,   286,   287,   288,   294,   299,   303,   308,   316,
+     316,   320,   323,   326,   337,   338,   345,   346,   351,   359,
+     360,   364,   370,   379,   382,   383,   386,   389,   392,   393,
+     394,   392,   400,   404,   405,   406,   407,   410,   410,   443,
+     444,   445,   446,   450,   453,   454,   457,   458,   461,   464,
+     468,   472,   476,   482,   483,   487,   490,   496,   496,   501,
+     509,   509,   520,   527,   530,   531,   534,   535,   538,   541,
+     542,   545,   549,   553,   559,   560,   563,   564,   570,   575,
+     580,   581,   582,   585,   586,   590,   597,   598,   599,   602,
+     605
 };
 #endif
 
@@ -1437,321 +1438,321 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
   switch (yytype)
     {
       case 41: /* "word" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1443 "ael/ael_tab.c"
+#line 1444 "ael/ael_tab.c"
 	break;
       case 44: /* "objects" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1451 "ael/ael_tab.c"
+#line 1452 "ael/ael_tab.c"
 	break;
       case 45: /* "object" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1459 "ael/ael_tab.c"
+#line 1460 "ael/ael_tab.c"
 	break;
       case 46: /* "context_name" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1464 "ael/ael_tab.c"
+#line 1465 "ael/ael_tab.c"
 	break;
       case 47: /* "context" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1472 "ael/ael_tab.c"
+#line 1473 "ael/ael_tab.c"
 	break;
       case 49: /* "proc" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1480 "ael/ael_tab.c"
+#line 1481 "ael/ael_tab.c"
 	break;
       case 50: /* "globals" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1488 "ael/ael_tab.c"
+#line 1489 "ael/ael_tab.c"
 	break;
       case 51: /* "global_statements" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1496 "ael/ael_tab.c"
+#line 1497 "ael/ael_tab.c"
 	break;
       case 52: /* "assignment" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1504 "ael/ael_tab.c"
+#line 1505 "ael/ael_tab.c"
 	break;
       case 54: /* "arglist" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1512 "ael/ael_tab.c"
+#line 1513 "ael/ael_tab.c"
 	break;
       case 55: /* "elements" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1520 "ael/ael_tab.c"
+#line 1521 "ael/ael_tab.c"
 	break;
       case 56: /* "element" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1528 "ael/ael_tab.c"
+#line 1529 "ael/ael_tab.c"
 	break;
       case 57: /* "ignorepat" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1536 "ael/ael_tab.c"
+#line 1537 "ael/ael_tab.c"
 	break;
       case 58: /* "extension" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1544 "ael/ael_tab.c"
+#line 1545 "ael/ael_tab.c"
 	break;
       case 59: /* "statements" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1552 "ael/ael_tab.c"
+#line 1553 "ael/ael_tab.c"
 	break;
       case 60: /* "timerange" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1557 "ael/ael_tab.c"
+#line 1558 "ael/ael_tab.c"
 	break;
       case 61: /* "timespec" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1565 "ael/ael_tab.c"
+#line 1566 "ael/ael_tab.c"
 	break;
       case 62: /* "test_expr" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1570 "ael/ael_tab.c"
+#line 1571 "ael/ael_tab.c"
 	break;
       case 64: /* "if_like_head" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1578 "ael/ael_tab.c"
+#line 1579 "ael/ael_tab.c"
 	break;
       case 65: /* "word_list" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1583 "ael/ael_tab.c"
+#line 1584 "ael/ael_tab.c"
 	break;
       case 66: /* "word3_list" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1588 "ael/ael_tab.c"
+#line 1589 "ael/ael_tab.c"
 	break;
       case 67: /* "goto_word" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1593 "ael/ael_tab.c"
+#line 1594 "ael/ael_tab.c"
 	break;
       case 68: /* "switch_statement" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1601 "ael/ael_tab.c"
+#line 1602 "ael/ael_tab.c"
 	break;
       case 69: /* "statement" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1609 "ael/ael_tab.c"
+#line 1610 "ael/ael_tab.c"
 	break;
       case 74: /* "opt_else" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1617 "ael/ael_tab.c"
+#line 1618 "ael/ael_tab.c"
 	break;
       case 75: /* "target" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1625 "ael/ael_tab.c"
+#line 1626 "ael/ael_tab.c"
 	break;
       case 76: /* "opt_pri" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1630 "ael/ael_tab.c"
+#line 1631 "ael/ael_tab.c"
 	break;
       case 77: /* "jumptarget" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1638 "ael/ael_tab.c"
+#line 1639 "ael/ael_tab.c"
 	break;
       case 78: /* "proc_call" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1646 "ael/ael_tab.c"
+#line 1647 "ael/ael_tab.c"
 	break;
       case 80: /* "application_call_head" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1654 "ael/ael_tab.c"
+#line 1655 "ael/ael_tab.c"
 	break;
       case 82: /* "application_call" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1662 "ael/ael_tab.c"
+#line 1663 "ael/ael_tab.c"
 	break;
       case 83: /* "opt_word" */
-#line 175 "ael/ael.y"
+#line 176 "ael/ael.y"
 	{ free((yyvaluep->str));};
-#line 1667 "ael/ael_tab.c"
+#line 1668 "ael/ael_tab.c"
 	break;
       case 84: /* "eval_arglist" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1675 "ael/ael_tab.c"
+#line 1676 "ael/ael_tab.c"
 	break;
       case 85: /* "case_statements" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1683 "ael/ael_tab.c"
+#line 1684 "ael/ael_tab.c"
 	break;
       case 86: /* "case_statement" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1691 "ael/ael_tab.c"
+#line 1692 "ael/ael_tab.c"
 	break;
       case 87: /* "proc_statements" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1699 "ael/ael_tab.c"
+#line 1700 "ael/ael_tab.c"
 	break;
       case 88: /* "proc_statement" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1707 "ael/ael_tab.c"
+#line 1708 "ael/ael_tab.c"
 	break;
       case 89: /* "switches" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1715 "ael/ael_tab.c"
+#line 1716 "ael/ael_tab.c"
 	break;
       case 90: /* "eswitches" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1723 "ael/ael_tab.c"
+#line 1724 "ael/ael_tab.c"
 	break;
       case 91: /* "switchlist" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1731 "ael/ael_tab.c"
+#line 1732 "ael/ael_tab.c"
 	break;
       case 92: /* "included_entry" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1739 "ael/ael_tab.c"
+#line 1740 "ael/ael_tab.c"
 	break;
       case 93: /* "includeslist" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1747 "ael/ael_tab.c"
+#line 1748 "ael/ael_tab.c"
 	break;
       case 94: /* "includes" */
-#line 162 "ael/ael.y"
+#line 163 "ael/ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1755 "ael/ael_tab.c"
+#line 1756 "ael/ael_tab.c"
 	break;
 
       default:
@@ -2074,57 +2075,57 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 183 "ael/ael.y"
+#line 184 "ael/ael.y"
     { (yyval.pval) = parseio->pval = (yyvsp[(1) - (1)].pval); }
     break;
 
   case 3:
-#line 186 "ael/ael.y"
+#line 187 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
   case 4:
-#line 187 "ael/ael.y"
+#line 188 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); }
     break;
 
   case 5:
-#line 188 "ael/ael.y"
+#line 189 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 6:
-#line 191 "ael/ael.y"
-    {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
-    break;
-
-  case 7:
 #line 192 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 8:
+  case 7:
 #line 193 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 9:
+  case 8:
 #line 194 "ael/ael.y"
+    {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
+    break;
+
+  case 9:
+#line 195 "ael/ael.y"
     {(yyval.pval)=0;/* allow older docs to be read */}
     break;
 
   case 10:
-#line 197 "ael/ael.y"
+#line 198 "ael/ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str); }
     break;
 
   case 11:
-#line 198 "ael/ael.y"
+#line 199 "ael/ael.y"
     { (yyval.str) = strdup("default"); }
     break;
 
   case 12:
-#line 201 "ael/ael.y"
+#line 202 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_CONTEXT, &(yylsp[(1) - (6)]), &(yylsp[(6) - (6)]));
 		(yyval.pval)->u1.str = (yyvsp[(3) - (6)].str);
@@ -2133,51 +2134,51 @@ yyreduce:
     break;
 
   case 13:
-#line 209 "ael/ael.y"
+#line 210 "ael/ael.y"
     { (yyval.intval) = 1; }
     break;
 
   case 14:
-#line 210 "ael/ael.y"
+#line 211 "ael/ael.y"
     { (yyval.intval) = 0; }
     break;
 
   case 15:
-#line 213 "ael/ael.y"
+#line 214 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_PROC, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (8)].str); (yyval.pval)->u2.arglist = (yyvsp[(4) - (8)].pval); (yyval.pval)->u3.proc_statements = (yyvsp[(7) - (8)].pval); }
     break;
 
   case 16:
-#line 218 "ael/ael.y"
+#line 219 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_GLOBALS, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
 		(yyval.pval)->u1.statements = (yyvsp[(3) - (4)].pval);}
     break;
 
   case 17:
-#line 223 "ael/ael.y"
+#line 224 "ael/ael.y"
     { (yyval.pval) = NULL; }
     break;
 
   case 18:
-#line 224 "ael/ael.y"
+#line 225 "ael/ael.y"
     {(yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); }
     break;
 
   case 19:
-#line 225 "ael/ael.y"
+#line 226 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 20:
-#line 228 "ael/ael.y"
+#line 229 "ael/ael.y"
     { reset_semicount(parseio->scanner); }
     break;
 
   case 21:
-#line 228 "ael/ael.y"
+#line 229 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_VARDEC, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (5)].str);
@@ -2185,89 +2186,89 @@ yyreduce:
     break;
 
   case 22:
-#line 235 "ael/ael.y"
+#line 236 "ael/ael.y"
     { (yyval.pval) = NULL; }
     break;
 
   case 23:
-#line 236 "ael/ael.y"
+#line 237 "ael/ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); }
     break;
 
   case 24:
-#line 237 "ael/ael.y"
+#line 238 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval), nword((yyvsp[(3) - (3)].str), &(yylsp[(3) - (3)]))); }
     break;
 
   case 25:
-#line 238 "ael/ael.y"
+#line 239 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 26:
-#line 241 "ael/ael.y"
+#line 242 "ael/ael.y"
     {(yyval.pval)=0;}
     break;
 
   case 27:
-#line 242 "ael/ael.y"
+#line 243 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); }
     break;
 
   case 28:
-#line 243 "ael/ael.y"
+#line 244 "ael/ael.y"
     { (yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 29:
-#line 246 "ael/ael.y"
-    {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
-    break;
-
-  case 30:
 #line 247 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 31:
+  case 30:
 #line 248 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 32:
+  case 31:
 #line 249 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 33:
+  case 32:
 #line 250 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 34:
+  case 33:
 #line 251 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
-  case 35:
+  case 34:
 #line 252 "ael/ael.y"
+    {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
+    break;
+
+  case 35:
+#line 253 "ael/ael.y"
     {free((yyvsp[(1) - (2)].str)); (yyval.pval)=0;}
     break;
 
   case 36:
-#line 253 "ael/ael.y"
+#line 254 "ael/ael.y"
     {(yyval.pval)=0;/* allow older docs to be read */}
     break;
 
   case 37:
-#line 256 "ael/ael.y"
+#line 257 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_IGNOREPAT, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
 		(yyval.pval)->u1.str = (yyvsp[(3) - (4)].str);}
     break;
 
   case 38:
-#line 261 "ael/ael.y"
+#line 262 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (3)].str);
@@ -2275,7 +2276,7 @@ yyreduce:
     break;
 
   case 39:
-#line 265 "ael/ael.y"
+#line 266 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (4)].str);
@@ -2284,7 +2285,7 @@ yyreduce:
     break;
 
   case 40:
-#line 270 "ael/ael.y"
+#line 271 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (7)]), &(yylsp[(7) - (7)]));
 		(yyval.pval)->u1.str = (yyvsp[(5) - (7)].str);
@@ -2293,7 +2294,7 @@ yyreduce:
     break;
 
   case 41:
-#line 275 "ael/ael.y"
+#line 276 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
 		(yyval.pval)->u1.str = (yyvsp[(6) - (8)].str);
@@ -2303,22 +2304,22 @@ yyreduce:
     break;
 
   case 42:
-#line 285 "ael/ael.y"
+#line 286 "ael/ael.y"
     { (yyval.pval) = NULL; }
     break;
 
   case 43:
-#line 286 "ael/ael.y"
+#line 287 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); }
     break;
 
   case 44:
-#line 287 "ael/ael.y"
+#line 288 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 45:
-#line 293 "ael/ael.y"
+#line 294 "ael/ael.y"
     {
 		asprintf(&(yyval.str), "%s:%s:%s", (yyvsp[(1) - (5)].str), (yyvsp[(3) - (5)].str), (yyvsp[(5) - (5)].str));
 		free((yyvsp[(1) - (5)].str));
@@ -2327,12 +2328,12 @@ yyreduce:
     break;
 
   case 46:
-#line 298 "ael/ael.y"
+#line 299 "ael/ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str); }
     break;
 
   case 47:
-#line 302 "ael/ael.y"
+#line 303 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (7)].str), &(yylsp[(1) - (7)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (7)].str), &(yylsp[(3) - (7)]));
@@ -2341,7 +2342,7 @@ yyreduce:
     break;
 
   case 48:
-#line 307 "ael/ael.y"
+#line 308 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (7)].str), &(yylsp[(1) - (7)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (7)].str), &(yylsp[(3) - (7)]));
@@ -2350,31 +2351,31 @@ yyreduce:
     break;
 
   case 49:
-#line 315 "ael/ael.y"
+#line 316 "ael/ael.y"
     { reset_parencount(parseio->scanner); }
     break;
 
   case 50:
-#line 315 "ael/ael.y"
+#line 316 "ael/ael.y"
     { (yyval.str) = (yyvsp[(3) - (4)].str); }
     break;
 
   case 51:
-#line 319 "ael/ael.y"
+#line 320 "ael/ael.y"
     {
 		(yyval.pval)= npval2(PV_IF, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (2)].str); }
     break;
 
   case 52:
-#line 322 "ael/ael.y"
+#line 323 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_RANDOM, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
 		(yyval.pval)->u1.str=(yyvsp[(2) - (2)].str);}
     break;
 
   case 53:
-#line 325 "ael/ael.y"
+#line 326 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_IFTIME, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
 		(yyval.pval)->u1.list = (yyvsp[(3) - (4)].pval);
@@ -2382,12 +2383,12 @@ yyreduce:
     break;
 
   case 54:
-#line 336 "ael/ael.y"
+#line 337 "ael/ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str);}
     break;
 
   case 55:
-#line 337 "ael/ael.y"
+#line 338 "ael/ael.y"
     {
 		asprintf(&((yyval.str)), "%s%s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str));
 		free((yyvsp[(1) - (2)].str));
@@ -2396,12 +2397,12 @@ yyreduce:
     break;
 
   case 56:
-#line 344 "ael/ael.y"
+#line 345 "ael/ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str);}
     break;
 
   case 57:
-#line 345 "ael/ael.y"
+#line 346 "ael/ael.y"
     {
 		asprintf(&((yyval.str)), "%s%s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str));
 		free((yyvsp[(1) - (2)].str));
@@ -2410,7 +2411,7 @@ yyreduce:
     break;
 
   case 58:
-#line 350 "ael/ael.y"
+#line 351 "ael/ael.y"
     {
 		asprintf(&((yyval.str)), "%s%s%s", (yyvsp[(1) - (3)].str), (yyvsp[(2) - (3)].str), (yyvsp[(3) - (3)].str));
 		free((yyvsp[(1) - (3)].str));
@@ -2420,12 +2421,12 @@ yyreduce:
     break;
 
   case 59:
-#line 358 "ael/ael.y"
+#line 359 "ael/ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str);}
     break;
 
   case 60:
-#line 359 "ael/ael.y"
+#line 360 "ael/ael.y"
     {
 		asprintf(&((yyval.str)), "%s%s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str));
 		free((yyvsp[(1) - (2)].str));
@@ -2433,7 +2434,7 @@ yyreduce:
     break;
 
   case 61:
-#line 363 "ael/ael.y"
+#line 364 "ael/ael.y"
     {
 		asprintf(&((yyval.str)), "%s:%s", (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str));
 		free((yyvsp[(1) - (3)].str));
@@ -2441,7 +2442,7 @@ yyreduce:
     break;
 
   case 62:
-#line 369 "ael/ael.y"
+#line 370 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_SWITCH, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (5)].str);
@@ -2449,55 +2450,55 @@ yyreduce:
     break;
 
   case 63:
-#line 378 "ael/ael.y"
+#line 379 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_STATEMENTBLOCK, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.list = (yyvsp[(2) - (3)].pval); }
     break;
 
   case 64:
-#line 381 "ael/ael.y"
+#line 382 "ael/ael.y"
     { (yyval.pval) = (yyvsp[(1) - (1)].pval); }
     break;
 
   case 65:
-#line 382 "ael/ael.y"
+#line 383 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_GOTO, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.list = (yyvsp[(2) - (3)].pval);}
     break;
 
   case 66:
-#line 385 "ael/ael.y"
+#line 386 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_GOTO, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.list = (yyvsp[(2) - (3)].pval);}
     break;
 
   case 67:
-#line 388 "ael/ael.y"
+#line 389 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_LABEL, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (2)].str); }
     break;
 
   case 68:
-#line 391 "ael/ael.y"
-    {reset_semicount(parseio->scanner);}
-    break;
-
-  case 69:
 #line 392 "ael/ael.y"
     {reset_semicount(parseio->scanner);}
     break;
 
-  case 70:
+  case 69:
 #line 393 "ael/ael.y"
+    {reset_semicount(parseio->scanner);}
+    break;
+
+  case 70:
+#line 394 "ael/ael.y"
     {reset_parencount(parseio->scanner);}
     break;
 
   case 71:
-#line 393 "ael/ael.y"
+#line 394 "ael/ael.y"
     { /* XXX word_list maybe ? */
 		(yyval.pval) = npval2(PV_FOR, &(yylsp[(1) - (12)]), &(yylsp[(12) - (12)]));
 		(yyval.pval)->u1.for_init = (yyvsp[(4) - (12)].str);
@@ -2507,7 +2508,7 @@ yyreduce:
     break;
 
   case 72:
-#line 399 "ael/ael.y"
+#line 400 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_WHILE, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (3)].str);
@@ -2515,34 +2516,34 @@ yyreduce:
     break;
 
   case 73:
-#line 403 "ael/ael.y"
+#line 404 "ael/ael.y"
     { (yyval.pval) = (yyvsp[(1) - (1)].pval); }
     break;
 
   case 74:
-#line 404 "ael/ael.y"
+#line 405 "ael/ael.y"
     { (yyval.pval) = update_last((yyvsp[(2) - (3)].pval), &(yylsp[(2) - (3)])); }
     break;
 
   case 75:
-#line 405 "ael/ael.y"
+#line 406 "ael/ael.y"
     { (yyval.pval) = update_last((yyvsp[(1) - (2)].pval), &(yylsp[(2) - (2)])); }
     break;
 
   case 76:
-#line 406 "ael/ael.y"
+#line 407 "ael/ael.y"
     {
 		(yyval.pval)= npval2(PV_APPLICATION_CALL, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (2)].str);}
     break;
 
   case 77:
-#line 409 "ael/ael.y"
+#line 410 "ael/ael.y"
     {reset_semicount(parseio->scanner);}
     break;
 
   case 78:
-#line 409 "ael/ael.y"
+#line 410 "ael/ael.y"
     {
 		char *bufx;
 		int tot=0;
@@ -2579,22 +2580,22 @@ yyreduce:
     break;
 
   case 79:
-#line 442 "ael/ael.y"
+#line 443 "ael/ael.y"
     { (yyval.pval) = npval2(PV_BREAK, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)])); }
     break;
 
   case 80:
-#line 443 "ael/ael.y"
+#line 444 "ael/ael.y"
     { (yyval.pval) = npval2(PV_RETURN, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)])); }
     break;
 
   case 81:
-#line 444 "ael/ael.y"
+#line 445 "ael/ael.y"
     { (yyval.pval) = npval2(PV_CONTINUE, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)])); }
     break;
 
   case 82:
-#line 445 "ael/ael.y"
+#line 446 "ael/ael.y"
     {
 		(yyval.pval) = update_last((yyvsp[(1) - (3)].pval), &(yylsp[(2) - (3)]));
 		(yyval.pval)->u2.statements = (yyvsp[(2) - (3)].pval);
@@ -2602,41 +2603,41 @@ yyreduce:
     break;
 
   case 83:
-#line 449 "ael/ael.y"
+#line 450 "ael/ael.y"
     { (yyval.pval)=0; }
     break;
 
   case 84:
-#line 452 "ael/ael.y"
+#line 453 "ael/ael.y"
     { (yyval.pval) = (yyvsp[(2) - (2)].pval); }
     break;
 
   case 85:
-#line 453 "ael/ael.y"
+#line 454 "ael/ael.y"
     { (yyval.pval) = NULL ; }
     break;
 
   case 86:
-#line 456 "ael/ael.y"
+#line 457 "ael/ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); }
     break;
 
   case 87:
-#line 457 "ael/ael.y"
+#line 458 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (3)].str), &(yylsp[(3) - (3)])); }
     break;
 
   case 88:
-#line 460 "ael/ael.y"
+#line 461 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (3)].str), &(yylsp[(3) - (3)])); }
     break;
 
   case 89:
-#line 463 "ael/ael.y"
+#line 464 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (5)].str), &(yylsp[(1) - (5)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (5)].str), &(yylsp[(3) - (5)]));
@@ -2644,7 +2645,7 @@ yyreduce:
     break;
 
   case 90:
-#line 467 "ael/ael.y"
+#line 468 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (5)].str), &(yylsp[(1) - (5)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (5)].str), &(yylsp[(3) - (5)]));
@@ -2652,7 +2653,7 @@ yyreduce:
     break;
 
   case 91:
-#line 471 "ael/ael.y"
+#line 472 "ael/ael.y"
     {
 		(yyval.pval) = nword(strdup("default"), &(yylsp[(1) - (5)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (5)].str), &(yylsp[(3) - (5)]));
@@ -2660,7 +2661,7 @@ yyreduce:
     break;
 
   case 92:
-#line 475 "ael/ael.y"
+#line 476 "ael/ael.y"
     {
 		(yyval.pval) = nword(strdup("default"), &(yylsp[(1) - (5)]));
 		(yyval.pval)->next = nword((yyvsp[(3) - (5)].str), &(yylsp[(3) - (5)]));
@@ -2668,24 +2669,24 @@ yyreduce:
     break;
 
   case 93:
-#line 481 "ael/ael.y"
+#line 482 "ael/ael.y"
     { (yyval.str) = strdup("1"); }
     break;
 
   case 94:
-#line 482 "ael/ael.y"
+#line 483 "ael/ael.y"
     { (yyval.str) = (yyvsp[(2) - (2)].str); }
     break;
 
   case 95:
-#line 486 "ael/ael.y"
+#line 487 "ael/ael.y"
     {			/* ext[, pri] default 1 */
 		(yyval.pval) = nword((yyvsp[(1) - (2)].str), &(yylsp[(1) - (2)]));
 		(yyval.pval)->next = nword((yyvsp[(2) - (2)].str), &(yylsp[(2) - (2)])); }
     break;
 
   case 96:
-#line 489 "ael/ael.y"
+#line 490 "ael/ael.y"
     {	/* context, ext, pri */
 		(yyval.pval) = nword((yyvsp[(4) - (4)].str), &(yylsp[(4) - (4)]));
 		(yyval.pval)->next = nword((yyvsp[(1) - (4)].str), &(yylsp[(1) - (4)]));
@@ -2693,12 +2694,12 @@ yyreduce:
     break;
 
   case 97:
-#line 495 "ael/ael.y"
+#line 496 "ael/ael.y"
     {reset_argcount(parseio->scanner);}
     break;
 
   case 98:
-#line 495 "ael/ael.y"
+#line 496 "ael/ael.y"
     {
 		/* XXX original code had @2 but i think we need @5 */
 		(yyval.pval) = npval2(PV_PROC_CALL, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
@@ -2707,19 +2708,19 @@ yyreduce:
     break;
 
   case 99:
-#line 500 "ael/ael.y"
+#line 501 "ael/ael.y"
     {
 		(yyval.pval)= npval2(PV_PROC_CALL, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.str = (yyvsp[(1) - (3)].str); }
     break;
 
   case 100:
-#line 508 "ael/ael.y"
+#line 509 "ael/ael.y"
     {reset_argcount(parseio->scanner);}
     break;
 
   case 101:
-#line 508 "ael/ael.y"
+#line 509 "ael/ael.y"
     {
 		if (strcasecmp((yyvsp[(1) - (3)].str),"goto") == 0) {
 			(yyval.pval) = npval2(PV_GOTO, &(yylsp[(1) - (3)]), &(yylsp[(2) - (3)]));
@@ -2732,7 +2733,7 @@ yyreduce:
     break;
 
   case 102:
-#line 519 "ael/ael.y"
+#line 520 "ael/ael.y"
     {
 		(yyval.pval) = update_last((yyvsp[(1) - (3)].pval), &(yylsp[(3) - (3)]));
  		if( (yyval.pval)->type == PV_GOTO )
@@ -2743,49 +2744,49 @@ yyreduce:
     break;
 
   case 103:
-#line 526 "ael/ael.y"
+#line 527 "ael/ael.y"
     { (yyval.pval) = update_last((yyvsp[(1) - (2)].pval), &(yylsp[(2) - (2)])); }
     break;
 
   case 104:
-#line 529 "ael/ael.y"
+#line 530 "ael/ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str); }
     break;
 
   case 105:
-#line 530 "ael/ael.y"
+#line 531 "ael/ael.y"
     { (yyval.str) = strdup(""); }
     break;
 
   case 106:
-#line 533 "ael/ael.y"
+#line 534 "ael/ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); }
     break;
 
   case 107:
-#line 534 "ael/ael.y"
+#line 535 "ael/ael.y"
     {
 		(yyval.pval)= npval(PV_WORD,0/*@1.first_line*/,0/*@1.last_line*/,0/* @1.first_column*/, 0/*@1.last_column*/);
 		(yyval.pval)->u1.str = strdup(""); }
     break;
 
   case 108:
-#line 537 "ael/ael.y"
+#line 538 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval), nword((yyvsp[(3) - (3)].str), &(yylsp[(3) - (3)]))); }
     break;
 
   case 109:
-#line 540 "ael/ael.y"
+#line 541 "ael/ael.y"
     { (yyval.pval) = NULL; }
     break;
 
   case 110:
-#line 541 "ael/ael.y"
+#line 542 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); }
     break;
 
   case 111:
-#line 544 "ael/ael.y"
+#line 545 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_CASE, &(yylsp[(1) - (4)]), &(yylsp[(3) - (4)])); /* XXX 3 or 4 ? */
 		(yyval.pval)->u1.str = (yyvsp[(2) - (4)].str);
@@ -2793,7 +2794,7 @@ yyreduce:
     break;
 
   case 112:
-#line 548 "ael/ael.y"
+#line 549 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_DEFAULT, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
 		(yyval.pval)->u1.str = NULL;
@@ -2801,7 +2802,7 @@ yyreduce:
     break;
 
   case 113:
-#line 552 "ael/ael.y"
+#line 553 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_PATTERN, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)])); /* XXX@3 or @4 ? */
 		(yyval.pval)->u1.str = (yyvsp[(2) - (4)].str);
@@ -2809,22 +2810,22 @@ yyreduce:
     break;
 
   case 114:
-#line 558 "ael/ael.y"
+#line 559 "ael/ael.y"
     { (yyval.pval) = NULL; }
     break;
 
   case 115:
-#line 559 "ael/ael.y"
+#line 560 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); }
     break;
 
   case 116:
-#line 562 "ael/ael.y"
+#line 563 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);}
     break;
 
   case 117:
-#line 563 "ael/ael.y"
+#line 564 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_CATCH, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
 		(yyval.pval)->u1.str = (yyvsp[(2) - (5)].str);
@@ -2832,41 +2833,41 @@ yyreduce:
     break;
 
   case 118:
-#line 569 "ael/ael.y"
+#line 570 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_SWITCHES, &(yylsp[(1) - (4)]), &(yylsp[(2) - (4)]));
 		(yyval.pval)->u1.list = (yyvsp[(3) - (4)].pval); }
     break;
 
   case 119:
-#line 574 "ael/ael.y"
+#line 575 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_ESWITCHES, &(yylsp[(1) - (4)]), &(yylsp[(2) - (4)]));
 		(yyval.pval)->u1.list = (yyvsp[(3) - (4)].pval); }
     break;
 
   case 120:
-#line 579 "ael/ael.y"
+#line 580 "ael/ael.y"
     { (yyval.pval) = NULL; }
     break;
 
   case 121:
-#line 580 "ael/ael.y"
+#line 581 "ael/ael.y"
     { (yyval.pval) = linku1(nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)])), (yyvsp[(3) - (3)].pval)); }
     break;
 
   case 122:
-#line 581 "ael/ael.y"
+#line 582 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 123:
-#line 584 "ael/ael.y"
+#line 585 "ael/ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); }
     break;
 
   case 124:
-#line 585 "ael/ael.y"
+#line 586 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
 		(yyval.pval)->u2.arglist = (yyvsp[(3) - (3)].pval);
@@ -2874,7 +2875,7 @@ yyreduce:
     break;
 
   case 125:
-#line 589 "ael/ael.y"
+#line 590 "ael/ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
 		(yyval.pval)->u2.arglist = (yyvsp[(3) - (3)].pval);
@@ -2882,36 +2883,36 @@ yyreduce:
     break;
 
   case 126:
-#line 596 "ael/ael.y"
+#line 597 "ael/ael.y"
     { (yyval.pval) = (yyvsp[(1) - (2)].pval); }
     break;
 
   case 127:
-#line 597 "ael/ael.y"
+#line 598 "ael/ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval), (yyvsp[(2) - (3)].pval)); }
     break;
 
   case 128:
-#line 598 "ael/ael.y"
+#line 599 "ael/ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);}
     break;
 
   case 129:
-#line 601 "ael/ael.y"
+#line 602 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_INCLUDES, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
 		(yyval.pval)->u1.list = (yyvsp[(3) - (4)].pval);}
     break;
 
   case 130:
-#line 604 "ael/ael.y"
+#line 605 "ael/ael.y"
     {
 		(yyval.pval) = npval2(PV_INCLUDES, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 2915 "ael/ael_tab.c"
+#line 2916 "ael/ael_tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -3131,7 +3132,7 @@ yyreturn:
 }
 
 
-#line 609 "ael/ael.y"
+#line 610 "ael/ael.y"
 
 
 static char *token_equivs1[] =

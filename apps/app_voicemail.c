@@ -64,7 +64,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/say.h"
 #include "callweaver/module.h"
-#include "callweaver/adsi.h"
 #include "callweaver/app.h"
 #include "callweaver/manager.h"
 #include "callweaver/dsp.h"
@@ -72,6 +71,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
 #include "callweaver/phone_no_utils.h"
+
+#include "callweaver_addon/adsi.h"
 
 #ifdef USE_ODBC_STORAGE
 #include "callweaver/res_odbc.h"

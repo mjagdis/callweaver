@@ -23,19 +23,6 @@
 #ifndef _CALLWEAVER_ALAW_H
 #define _CALLWEAVER_ALAW_H
 
-/*! Init the ulaw conversion stuff */
-/*!
- * To init the ulaw to slinear conversion stuff, this needs to be run.
- */
-extern void opbx_alaw_init(void);
-
-/*! converts signed linear to alaw */
-extern uint8_t __opbx_lin2a[8192];
-
-/*! converts alaw to signed linear */
-extern int16_t __opbx_alaw[256];
-
-#define OPBX_LIN2A(a) (__opbx_lin2a[((unsigned short)(a)) >> 3])
-#define OPBX_ALAW(a) (__opbx_alaw[(int)(a)])
+#include "callweaver/callweaver_pcm.h"
 
 #endif /* _CALLWEAVER_ALAW_H */

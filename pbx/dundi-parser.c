@@ -40,9 +40,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/frame.h"
 #include "callweaver/utils.h"
-#include "callweaver/dundi.h"
 #include "dundi-parser.h"
-#include "callweaver/dundi.h"
+
+#include "include/dundi.h"
 
 static void internaloutput(const char *str)
 {

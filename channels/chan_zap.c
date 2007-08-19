@@ -65,11 +65,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/options.h"
 #include "callweaver/file.h"
-#include "callweaver/ulaw.h"
-#include "callweaver/alaw.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/callerid.h"
-#include "callweaver/adsi.h"
 #include "callweaver/cli.h"
 #include "callweaver/cdr.h"
 #include "callweaver/features.h"
@@ -84,7 +81,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/transcap.h"
 
+#include "callweaver/callweaver_pcm.h"
+
 #include "callweaver/generic_jb.h"
+
+#include "callweaver_addon/adsi.h"
 
 static struct opbx_jb_conf global_jbconf;
 

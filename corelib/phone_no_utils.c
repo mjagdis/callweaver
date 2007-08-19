@@ -39,13 +39,14 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/ulaw.h"
-#include "callweaver/alaw.h"
 #include "callweaver/frame.h"
 #include "callweaver/channel.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
+
+//#include "callweaver/ulaw.h"
+//#include "callweaver/alaw.h"
 
 static struct {
 	int val;

@@ -40,7 +40,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/alaw.h"
+#include "include/alaw.h"
 
 uint8_t __opbx_lin2a[8192];
 int16_t __opbx_alaw[256];

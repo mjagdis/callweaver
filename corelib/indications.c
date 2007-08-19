@@ -49,7 +49,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
-#include "callweaver/resonator.h"
+
+#include "include/resonator.h"
 
 static int midi_tohz[128] =
 {

@@ -45,10 +45,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
-#include "callweaver/adsi.h"
 #include "callweaver/options.h"
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
+
+#include "callweaver_addon/adsi.h"
 
 static char *tdesc = "CallWeaver ADSI Programming Application";
 

@@ -44,8 +44,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"
 #include "callweaver/dsp.h"
-#include "callweaver/ulaw.h"
-#include "callweaver/alaw.h"
+
+#include "include/ulaw.h"
+#include "include/alaw.h"
 
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA       183     /* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */

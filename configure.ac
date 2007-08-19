@@ -2477,6 +2477,7 @@ AC_OUTPUT([Makefile
                  channels/fax/Makefile
                  channels/misdn/Makefile
                  channels/visdn/Makefile
+                 channels/capi/Makefile
                  codecs/Makefile
  		 corelib/Makefile
  		 corelib/jitterbuffer/Makefile

@@ -95,8 +95,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/cli.h"
 #include "callweaver/channel.h"
-#include "callweaver/ulaw.h"
-#include "callweaver/alaw.h"
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/module.h"
 #include "callweaver/image.h"
@@ -119,6 +117,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/linkedlists.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/directory_engine.h"
+
+#include "include/ulaw.h"
+#include "include/alaw.h"
 
 #include <readline/readline.h>
 #include <readline/history.h>

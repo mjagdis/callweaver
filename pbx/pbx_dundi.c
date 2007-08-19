@@ -62,7 +62,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/file.h"
 #include "callweaver/cli.h"
 #include "callweaver/lock.h"
-#include "callweaver/dundi.h"
 #include "callweaver/sched.h"
 #include "callweaver/io.h"
 #include "callweaver/utils.h"
@@ -70,6 +69,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callweaver_db.h"
 #include "callweaver/acl.h"
 #include "callweaver/aes.h"
+
+#include "include/dundi.h"
 
 #include "dundi-parser.h"
 

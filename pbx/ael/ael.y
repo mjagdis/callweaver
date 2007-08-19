@@ -29,7 +29,8 @@
 #include <string.h>
 
 #include "callweaver/logger.h"
-#include "callweaver/ael_structs.h"
+
+#include "ael_structs.h"
 
 static pval * linku1(pval *head, pval *tail);
 

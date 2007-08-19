@@ -50,12 +50,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/strings.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/dsp.h"
-#include "callweaver/xlaw.h"
-#include "callweaver/chan_capi20.h"
-#include "callweaver/chan_capi.h"
-#include "callweaver/chan_capi_rtp.h"
 
+
+#include "chan_capi20.h"
+#include "chan_capi.h"
+#include "chan_capi_rtp.h"
 #include "c20msg.h"
+#include "xlaw.h"
 
 #define CC_VERSION "cm-opbx-0.7"
 
