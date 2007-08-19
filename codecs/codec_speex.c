@@ -71,12 +71,14 @@ static float pp_dereverb_level = 0.3;
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
-#include "callweaver/translate.h"
 #include "callweaver/module.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 /* Sample signed 16-bit audio data. 500ms of speech at 8kHz to ensure DTX is not triggered */
 static int16_t slin_ex[] =
@@ -677,7 +679,7 @@ static void lintospeex_destroy(struct opbx_translator_pvt *pvt)
     localusecnt--;
 }
 
-static struct opbx_translator speextolin =
+static opbx_translator_t speextolin =
 {
     "speextolin", 
     OPBX_FORMAT_SPEEX, 
@@ -691,7 +693,7 @@ static struct opbx_translator speextolin =
     speextolin_sample
 };
 
-static struct opbx_translator lintospeex =
+static opbx_translator_t lintospeex =
 {
     "lintospeex", 
     OPBX_FORMAT_SLINEAR, 

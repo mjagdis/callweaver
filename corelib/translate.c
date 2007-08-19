@@ -41,12 +41,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"
-#include "callweaver/translate.h"
 #include "callweaver/options.h"
 #include "callweaver/frame.h"
 #include "callweaver/sched.h"
 #include "callweaver/cli.h"
 #include "callweaver/term.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 #define MAX_RECALC 200 /* max sample recalc */
 

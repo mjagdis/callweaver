@@ -45,8 +45,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
-#include "callweaver/translate.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 #define BUFFER_SIZE     8096    /* size for the translation buffers */
 #define BUF_SHIFT       5
@@ -322,7 +324,7 @@ static void g726_destroy(struct opbx_translator_pvt *pvt)
 /*
  * The complete translator for g726tolin.
  */
-static struct opbx_translator g726tolin =
+static opbx_translator_t g726tolin =
 {
     "g726tolin",
     OPBX_FORMAT_G726,
@@ -339,7 +341,7 @@ static struct opbx_translator g726tolin =
 /*
  * The complete translator for lintog726.
  */
-static struct opbx_translator lintog726 =
+static opbx_translator_t lintog726 =
 {
     "lintog726",
     OPBX_FORMAT_SLINEAR,

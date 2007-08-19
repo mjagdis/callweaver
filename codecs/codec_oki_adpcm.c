@@ -46,8 +46,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
-#include "callweaver/translate.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 #define BUFFER_SIZE   8096    /* size for the translation buffers */
 
@@ -354,7 +356,7 @@ static void adpcm_destroy(struct opbx_translator_pvt *pvt)
 /*
  * The complete translator for okiadpcmtoLin.
  */
-static struct opbx_translator okiadpcmtolin =
+static opbx_translator_t okiadpcmtolin =
 {
     "okiadpcmtolin",
     OPBX_FORMAT_OKI_ADPCM,
@@ -371,7 +373,7 @@ static struct opbx_translator okiadpcmtolin =
 /*
  * The complete translator for Lintookiadpcm.
  */
-static struct opbx_translator lintookiadpcm =
+static opbx_translator_t lintookiadpcm =
 {
     "lintookiadpcm",
     OPBX_FORMAT_SLINEAR,

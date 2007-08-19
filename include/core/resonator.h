@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _CALLWEAVER_RESONATOR_H
-#define _CALLWEAVER_RESONATOR_H
+#ifndef _CALLWEAVER_RESONATOR_PVT_H
+#define _CALLWEAVER_RESONATOR_PVT_H
 
 /* A digital resonator is a fast, efficient way of producing sinewaves */
 struct digital_resonator {

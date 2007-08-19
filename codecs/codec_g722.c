@@ -45,8 +45,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
-#include "callweaver/translate.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 #define BUFFER_SIZE     8096    /* size for the translation buffers */
 #define BUF_SHIFT       5
@@ -340,7 +342,7 @@ static void g722_destroy(struct opbx_translator_pvt *pvt)
 /*
  * The complete translator for g722tolin.
  */
-static struct opbx_translator g722tolin =
+static opbx_translator_t g722tolin =
 {
     "g722tolin",
     OPBX_FORMAT_G722,
@@ -358,7 +360,7 @@ static struct opbx_translator g722tolin =
 /*
  * The complete translator for lintog722.
  */
-static struct opbx_translator lintog722 =
+static opbx_translator_t lintog722 =
 {
     "lintog722",
     OPBX_FORMAT_SLINEAR,

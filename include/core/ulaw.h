@@ -17,12 +17,13 @@
  */
 
 /*! \file
- * \brief A-Law to Signed linear conversion
+ * \brief u-Law to Signed linear conversion
  */
 
-#ifndef _CALLWEAVER_ALAW_H
-#define _CALLWEAVER_ALAW_H
+#ifndef _CALLWEAVER_ULAW_PVT__H
+#define _CALLWEAVER_ULAW_PVT_H
 
 #include "callweaver/callweaver_pcm.h"
 
-#endif /* _CALLWEAVER_ALAW_H */
+
+#endif /* _CALLWEAVER_ULAW_H */

@@ -42,8 +42,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
-#include "callweaver/translate.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 #include "callweaver/callweaver_pcm.h"
 
@@ -336,7 +338,7 @@ static void ulaw_destroy(struct opbx_translator_pvt *pvt)
 /*!
  * \brief The complete translator for ulawtolin.
  */
-static struct opbx_translator ulawtolin =
+static opbx_translator_t ulawtolin =
 {
     "ulawtolin",
     OPBX_FORMAT_ULAW,
@@ -353,7 +355,7 @@ static struct opbx_translator ulawtolin =
 /*!
  * \brief The complete translator for lintoulaw.
  */
-static struct opbx_translator lintoulaw =
+static opbx_translator_t lintoulaw =
 {
     "lintoulaw",
     OPBX_FORMAT_SLINEAR,

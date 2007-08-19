@@ -38,12 +38,14 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
-#include "callweaver/translate.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 #include "../formats/msgsm.h"
 
@@ -305,7 +307,7 @@ static void gsm_destroy_stuff(struct opbx_translator_pvt *pvt)
     opbx_update_use_count();
 }
 
-static struct opbx_translator gsmtolin =
+static opbx_translator_t gsmtolin =
 {
     "gsmtolin", 
     OPBX_FORMAT_GSM,
@@ -319,7 +321,7 @@ static struct opbx_translator gsmtolin =
     gsmtolin_sample
 };
 
-static struct opbx_translator lintogsm =
+static opbx_translator_t lintogsm =
 {
     "lintogsm", 
     OPBX_FORMAT_SLINEAR,

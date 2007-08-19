@@ -44,7 +44,6 @@ opbxinclude_HEADERS = acl.h \
                       monitor.h \
                       musiconhold.h \
                       netsock.h \
-                      ogi.h \
                       options.h \
                       pbx.h \
                       phone_no_utils.h \

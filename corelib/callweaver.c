@@ -118,8 +118,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/directory_engine.h"
 
-#include "include/ulaw.h"
-#include "include/alaw.h"
+#include "core/ulaw.h"
+#include "core/alaw.h"
 
 #include <readline/readline.h>
 #include <readline/history.h>

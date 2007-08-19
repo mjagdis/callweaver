@@ -34,35 +34,6 @@ extern "C" {
 /* Declared by individual translators */
 struct opbx_translator_pvt;
 
-/*! data structure associated with a translator */
-struct opbx_translator {
-	/*! Name of translator */
-	char name[80];
-	/*! Source format */
-	int src_format;
-	/*! Source sample rate */
-	int src_rate;
-	/*! Destination format */
-	int dst_format;
-	/*! Destination sample rate */
-	int dst_rate;
-	/*! Private data associated with the translator */
-	struct opbx_translator_pvt *(*newpvt)(void);
-	/*! Input frame callback */
-	int (*framein)(struct opbx_translator_pvt *pvt, struct opbx_frame *in);
-	/*! Output frame callback */
-	struct opbx_frame * (*frameout)(struct opbx_translator_pvt *pvt);
-	/*! Destroy translator callback */
-	void (*destroy)(struct opbx_translator_pvt *pvt);
-	/* For performance measurements */
-	/*! Generate an example frame */
-	struct opbx_frame *(*sample)(void);
-	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
-	int cost;
-	/*! For linking, not to be modified by the translator */
-	struct opbx_translator *next;
-};
-
 typedef struct opbx_translator opbx_translator_t;
 
 struct opbx_trans_pvt;
@@ -73,7 +44,7 @@ struct opbx_trans_pvt;
  * This registers a codec translator with callweaver
  * Returns 0 on success, -1 on failure
  */
-extern int opbx_register_translator(struct opbx_translator *t);
+extern int opbx_register_translator(opbx_translator_t *t);
 
 /*! Unregister a translator */
 /*!
@@ -81,7 +52,7 @@ extern int opbx_register_translator(struct opbx_translator *t);
  * Unregisters the given tranlator
  * Returns 0 on success, -1 on failure
  */
-extern int opbx_unregister_translator(struct opbx_translator *t);
+extern int opbx_unregister_translator(opbx_translator_t *t);
 
 /*! Chooses the best translation path */
 /*! 

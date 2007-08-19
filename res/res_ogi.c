@@ -65,7 +65,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
 #include "callweaver/strings.h"
-#include "callweaver/ogi.h"
+
+#include "include/ogi.h"
 
 #define MAX_ARGS 128
 #define MAX_COMMANDS 128

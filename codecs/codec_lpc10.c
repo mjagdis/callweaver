@@ -42,12 +42,14 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
-#include "callweaver/translate.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+
+#include "core/translate.h"
+#include "callweaver/translate.h"
 
 /* Sample 22.5ms of linear frame data */
 static int16_t slin_ex[] =
@@ -300,7 +302,7 @@ static void lpc10_destroy(struct opbx_translator_pvt *pvt)
     localusecnt--;
 }
 
-static struct opbx_translator lpc10tolin =
+static opbx_translator_t lpc10tolin =
 {
     "lpc10tolin", 
     OPBX_FORMAT_LPC10,
@@ -314,7 +316,7 @@ static struct opbx_translator lpc10tolin =
     lpc10tolin_sample
 };
 
-static struct opbx_translator lintolpc10 =
+static opbx_translator_t lintolpc10 =
 {
     "lintolpc10", 
     OPBX_FORMAT_SLINEAR,
