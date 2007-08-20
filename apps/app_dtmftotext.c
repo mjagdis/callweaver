@@ -45,7 +45,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
-#include "callweaver/alaw.h"
 #include "callweaver/callerid.h"
 
 #define PRE_DIGIT_TIMEOUT   (8000*5)
