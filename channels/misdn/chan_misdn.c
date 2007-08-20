@@ -60,8 +60,9 @@
 #include "callweaver/indications.h"
 #include "callweaver/app.h"
 #include "callweaver/features.h"
-#include "callweaver/term.h"
 #include "callweaver/sched.h"
+
+#include "core/term.h"
 
 #include <chan_misdn_config.h>
 #include <isdn_lib.h>
@@ -4776,7 +4777,6 @@ char *description(void)
 static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
-	char *tok, *tokb;
 
 	chan_misdn_log(0,0,"TYPE: %s\n",chan->tech->type);
 	
