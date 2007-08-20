@@ -37,23 +37,36 @@ extern "C" {
     a pluggable engine so that languages each language has it's module.
     We don't use the language as it will be grabbed from the channel language.
 */
+
 /*
 struct opbx_intl_say_engine_s {
+    char *lang;                         // The lang we provide. 
+    char *name;                         // The name of this implementation
+    char *description;                  // A short description
+
     int (*say_number)(opbx_channel_t *chan, int num, const char *break_char);
     int (*say_enumeration)(opbx_channel_t *chan, int num, const char *break_char);
     int (*say_digits)(opbx_channel_t *chan, int num, const char *break_char);
     int (*say_digit_str)(opbx_channel_t *chan, const char *num, const char *break_char);
     int (*say_character_str)(opbx_channel_t *chan, const char *num, const char *break_char);
     int (*say_phonetic_str)(opbx_channel_t *chan, const char *num, const char *break_char);
-    //TODO... date time here ...
+    int (*say_datetime)(opbx_channel_t *chan, time_t t, const char *break_char);
+    int (*say_time)(opbx_channel_t *chan, time_t t, const char *break_char);
+    int (*say_date)(opbx_channel_t *chan, time_t t, const char *break_char);
+    int (*say_datetime_from_now)(opbx_channel_t *chan, time_t t, const char *break_char);
+    int (*_say_date_with_format)(opbx_channel_t *chan, time_t t, const char *break_char, const char *format, const char *timezone);
 };
 
 typedef struct opbx_intl_say_engine_s opbx_intl_say_engine_t;
 
-    TODO 
-    add functions to add/remove languages.
+ //OPBX_MUTEX_DEFINE_STATIC(intl_say_lock);
+ //hash_table_t intl_say_hashtable;
+
+int opbx_intl_say_register( opbx_intl_say_engine_t *implementation );
+int opbx_intl_say_unregister( opbx_intl_say_engine_t *implementation );
 
 */
+
 
 
 /* says a number
