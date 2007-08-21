@@ -28,21 +28,73 @@
 #include "callweaver/lock.h"
 
 
-#ifdef __linux__
+#if defined(__i386__)
 
-/* Atomic implementation using assembly optimizations from the kernel */
-
-/* x86_64 requires CONFIG_SMP to enable the lock prefixing, i386 does
- * it right. Sigh...
+/*
+ * Make sure gcc doesn't try to be clever and move things around
+ * on us. We need to use _exactly_ the address the user gave us,
+ * not some alias that contains the same information.
  */
-#define CONFIG_SMP
+typedef struct { volatile int counter; } atomic_t;
 
-#include <asm/atomic.h>
-
+#define atomic_set(v,i)		(((v)->counter) = (i))
 #define atomic_destroy(x)	/* No-op */
+#define atomic_read(v)		((v)->counter)
+
+static __inline__ void atomic_inc(atomic_t *v)
+{
+	__asm__ __volatile__(
+		"lock ; incl %0"
+		:"=m" (v->counter)
+		:"m" (v->counter));
+}
+
+static __inline__ int atomic_dec_and_test(atomic_t *v)
+{
+	unsigned char c;
+
+	__asm__ __volatile__(
+		"lock ; decl %0; sete %1"
+		:"=m" (v->counter), "=qm" (c)
+		:"m" (v->counter) : "memory");
+	return c != 0;
+}
 
 
-#else /* __linux__ */
+#elif defined(__x86_64__)
+
+/*
+ * Make sure gcc doesn't try to be clever and move things around
+ * on us. We need to use _exactly_ the address the user gave us,
+ * not some alias that contains the same information.
+ */
+typedef struct { volatile int counter; } atomic_t;
+
+#define atomic_set(v,i)		(((v)->counter) = (i))
+#define atomic_destroy(x)	/* No-op */
+#define atomic_read(v)		((v)->counter)
+
+static __inline__ void atomic_inc(atomic_t *v)
+{
+	__asm__ __volatile__(
+		"lock ; incl %0"
+		:"=m" (v->counter)
+		:"m" (v->counter));
+}
+
+static __inline__ int atomic_dec_and_test(atomic_t *v)
+{
+	unsigned char c;
+
+	__asm__ __volatile__(
+		"lock ; decl %0; sete %1"
+		:"=m" (v->counter), "=qm" (c)
+		:"m" (v->counter) : "memory");
+	return c != 0;
+}
+
+
+#else /* no arch specific support */
 
 /* Atomic implementation using pthread mutexes */
 
@@ -87,41 +139,10 @@ static inline void atomic_destroy(atomic_t *v)
 
 #define atomic_read(v)		((v)->counter)
 
-static inline void atomic_add(int i, atomic_t *v)
-{
-	pthread_spin_lock(&v->lock);
-	v->counter += i;
-	pthread_spin_unlock(&v->lock);
-}
-
-static inline void atomic_sub(int i, atomic_t *v)
-{
-	pthread_spin_lock(&v->lock);
-	v->counter -= i;
-	pthread_spin_unlock(&v->lock);
-}
-
-static inline int atomic_sub_and_test(int i, atomic_t *v)
-{
-	int ret;
-	pthread_spin_lock(&v->lock);
-	v->counter -= i;
-	ret = (v->counter == 0);
-	pthread_spin_unlock(&v->lock);
-	return ret;
-}
-
 static inline void atomic_inc(atomic_t *v)
 {
 	pthread_spin_lock(&v->lock);
 	v->counter++;
-	pthread_spin_unlock(&v->lock);
-}
-
-static inline void atomic_dec(atomic_t *v)
-{
-	pthread_spin_lock(&v->lock);
-	v->counter--;
 	pthread_spin_unlock(&v->lock);
 }
 
@@ -135,56 +156,6 @@ static inline int atomic_dec_and_test(atomic_t *v)
 	return ret;
 }
 
-static inline int atomic_inc_and_test(atomic_t *v)
-{
-	int ret;
-	pthread_spin_lock(&v->lock);
-	v->counter++;
-	ret = (v->counter == 0);
-	pthread_spin_unlock(&v->lock);
-	return ret;
-}
-
-static inline int atomic_add_negative(int i, atomic_t *v)
-{
-	int ret;
-	pthread_spin_lock(&v->lock);
-	v->counter += i;
-	ret = (v->counter < 0);
-	pthread_spin_unlock(&v->lock);
-	return ret;
-}
-
-static inline int atomic_add_return(int i, atomic_t *v)
-{
-	int ret;
-	pthread_spin_lock(&v->lock);
-	v->counter += i;
-	ret = v->counter;
-	pthread_spin_unlock(&v->lock);
-	return ret;
-}
-
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	return atomic_add_return(-i, v);
-}
-
-static inline int atomic_add_unless(atomic_t *v, int a, int u)
-{
-	int ret;
-	pthread_spin_lock(&v->lock);
-	ret = (v->counter != u);
-	if (ret)
-		v->counter += a;
-	pthread_spin_unlock(&v->lock);
-	return ret;
-}
-
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
-
-#define atomic_inc_return(v)  (atomic_add_return(1,v))
-#define atomic_dec_return(v)  (atomic_sub_return(1,v))
 
 #endif /* __linux__ */
 
