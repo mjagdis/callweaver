@@ -508,7 +508,7 @@ static int aPGSQL_debug(struct opbx_channel *chan, void *data) {
 static int PGSQL_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	int result;
+	int res;
 
 	if (argc == 0 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
@@ -519,29 +519,29 @@ static int PGSQL_exec(struct opbx_channel *chan, int argc, char **argv, char *re
 	printf("PRSQL_exec: arg=%s\n", argv[0]);
 #endif
 	LOCAL_USER_ADD(u);
-	result=0;
+	res=0;
 	
 	if (strncasecmp("connect",argv[0],strlen("connect"))==0) {
-		result=(aPGSQL_connect(chan,argv[0]));
+		res=(aPGSQL_connect(chan,argv[0]));
 	} else 	if (strncasecmp("query",argv[0],strlen("query"))==0) {
-		result=(aPGSQL_query(chan,argv[0]));
+		res=(aPGSQL_query(chan,argv[0]));
 	} else 	if (strncasecmp("fetch",argv[0],strlen("fetch"))==0) {
-		result=(aPGSQL_fetch(chan,argv[0]));
+		res=(aPGSQL_fetch(chan,argv[0]));
 	} else 	if (strncasecmp("reset",argv[0],strlen("reset"))==0) {
-		result=(aPGSQL_reset(chan,argv[0]));
+		res=(aPGSQL_reset(chan,argv[0]));
 	} else 	if (strncasecmp("clear",argv[0],strlen("clear"))==0) {
-		result=(aPGSQL_clear(chan,argv[0]));
+		res=(aPGSQL_clear(chan,argv[0]));
 	} else  if (strncasecmp("debug",argv[0],strlen("debug"))==0) {
-		result=(aPGSQL_debug(chan,argv[0]));
+		res=(aPGSQL_debug(chan,argv[0]));
 	} else 	if (strncasecmp("disconnect",argv[0],strlen("disconnect"))==0) {
-		result=(aPGSQL_disconnect(chan,argv[0]));
+		res=(aPGSQL_disconnect(chan,argv[0]));
 	} else {
 		opbx_log(LOG_WARNING, "Unknown APP_PGSQL argument : %s\n", argv[0]);
-		result=-1;	
+		res=-1;	
 	}
 		
 	LOCAL_USER_REMOVE(u);                                                                                
-	return result;
+	return res;
 
 }
 
