@@ -97,8 +97,8 @@ static char *function_config_read(struct opbx_channel *chan, int argc, char **ar
 		opbx_copy_string(buf, opbx_config_OPBX_RUN_DIR, len);
 	} else if (strcasecmp(argv[0], "systemname") == 0) {
 		opbx_copy_string(buf, opbx_config_OPBX_SYSTEM_NAME, len);
-	} else if (strcasecmp(argv[0], "allowspaghetticode") == 0) {
-		opbx_copy_string(buf, opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, len);
+	} else if (strcasecmp(argv[0], "allowunsafeunload") == 0) {
+		opbx_copy_string(buf, opbx_config_OPBX_ALLOW_UNSAFE_UNLOAD, len);
 	} else {
 		opbx_log(LOG_WARNING, "Config setting '%s' not known.\n", argv[0]);
 	}

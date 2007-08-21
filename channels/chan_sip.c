@@ -17187,7 +17187,7 @@ int unload_module(void)
     struct sip_pvt *p, *pl;
     int res = 0;
 
-	if (strcasecmp(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, "yes")) {
+	if (strcasecmp(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, "yes")) {
 		opbx_log(LOG_WARNING, "Unload disabled for this module due to spaghetti code\n");
 		return -1;
 	}

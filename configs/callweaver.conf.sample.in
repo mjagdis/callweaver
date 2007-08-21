@@ -18,7 +18,7 @@ cwkeydir => @opbxkeydir@
 
 [options]
 systemname => mycallweaverbox
-enablespaghetticode => no
+enableunsafeunload => no
 
 ; Changing the following lines may compromise your security.
 ;[files]

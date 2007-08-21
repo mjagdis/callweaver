@@ -224,7 +224,7 @@ char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH] = "\0";
 char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH] = "callweaver.ctl";
 char opbx_config_OPBX_SYSTEM_NAME[20] = "";
 char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
-char opbx_config_OPBX_ALLOW_SPAGHETTI_CODE[20] = "";
+char opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD[20] = "";
 
 static char *_argv[256];
 static int shuttingdown = 0;
@@ -2160,9 +2160,9 @@ static void opbx_readconfig(void)
         {
             opbx_copy_string(opbx_config_OPBX_SYSTEM_NAME, v->value, sizeof(opbx_config_OPBX_SYSTEM_NAME));
         }
-		else if (!strcasecmp(v->name, "enablespaghetticode"))
+		else if (!strcasecmp(v->name, "enableunsafeunload"))
 		{
-            opbx_copy_string(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE, v->value, sizeof(opbx_config_OPBX_ALLOW_SPAGHETTI_CODE));
+            opbx_copy_string(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, v->value, sizeof(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD));
 		}
         v = v->next;
     }
