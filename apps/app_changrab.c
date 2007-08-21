@@ -37,12 +37,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/manager.h"
 
-static char *tdesc = "Take over an existing channel and bridge to it.";
+
+static char tdesc[] = "Take over an existing channel and bridge to it.";
 
 static void *changrab_app;
-static const char *changrab_name = "ChanGrab";
-static const char *changrab_syntax = "ChanGrab(channel[, flags])";
-static const char *changrab_description =
+static const char changrab_name[] = "ChanGrab";
+static const char changrab_syntax[] = "ChanGrab(channel[, flags])";
+static const char changrab_description[] =
 "Take over the specified channel (ending any call it is currently\n"
 "involved in.) and bridge that channel to the caller.\n\n"
 "Flags:\n\n"
@@ -50,9 +51,6 @@ static const char *changrab_description =
 "          specified channel is Bridged to.\n\n"
 "   -- 'r' Only incercept the channel if the channel has not\n"
 "          been answered yet\n";
-
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 
 static struct opbx_channel *my_opbx_get_channel_by_name_locked(char *channame) {
@@ -67,7 +65,7 @@ static struct opbx_channel *my_opbx_get_channel_by_name_locked(char *channame) {
 	return NULL;
 }
 
-static int changrab_exec(struct opbx_channel *chan, int argc, char **argv)
+static int changrab_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res=0;
 	struct localuser *u;
@@ -76,10 +74,8 @@ static int changrab_exec(struct opbx_channel *chan, int argc, char **argv)
 	struct opbx_frame *f;
 	struct opbx_bridge_config config;
 
-	if (argc < 1 || argc > 2) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", changrab_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 2)
+		return opbx_function_syntax(changrab_syntax);
 
 	if ((oldchan = my_opbx_get_channel_by_name_locked(argv[0]))) {
 		opbx_mutex_unlock(&oldchan->lock);
@@ -168,7 +164,7 @@ static void opbx_bridge_call_thread_launch(struct opbx_channel *chan, struct opb
 		result = pthread_attr_init(&attr);
 		pthread_attr_setschedpolicy(&attr, SCHED_RR);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		result = opbx_pthread_create(&thread, &attr,opbx_bridge_call_thread, tobj);
+		result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, opbx_bridge_call_thread, tobj);
 		result = pthread_attr_destroy(&attr);
 	}
 }
@@ -438,7 +434,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr,originate,in);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, originate, in);
 	result = pthread_attr_destroy(&attr);	
 	return 0;
 }
@@ -726,36 +722,38 @@ static char *complete_org(char *line, char *word, int pos, int state)
 }
 
 
-static struct opbx_cli_entry  cli_changrab = { { "changrab", NULL}, changrab_cli, "ChanGrab", "ChanGrab", complete_cg };
-static struct opbx_cli_entry  cli_originate = { { "originate", NULL }, originate_cli, "Originate", "Originate", complete_org};
+static struct opbx_clicmd cli_changrab = {
+	.cmda = { "changrab", NULL},
+	.handler = changrab_cli,
+	.generator = complete_cg,
+	.summary = "ChanGrab",
+	.usage = "ChanGrab",
+};
+static struct opbx_clicmd cli_originate = {
+	.cmda = { "originate", NULL },
+	.handler = originate_cli,
+	.generator = complete_org,
+	.summary = "Originate",
+	.usage = "Originate",
+};
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
+
 	opbx_cli_unregister(&cli_changrab);
 	opbx_cli_unregister(&cli_originate);
-	res |= opbx_unregister_application(changrab_app);
+	res |= opbx_unregister_function(changrab_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	opbx_cli_register(&cli_changrab);
 	opbx_cli_register(&cli_originate);
-	changrab_app = opbx_register_application(changrab_name, changrab_exec, tdesc, changrab_syntax, changrab_description);
+	changrab_app = opbx_register_function(changrab_name, changrab_exec, tdesc, changrab_syntax, changrab_description);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

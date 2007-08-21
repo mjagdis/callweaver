@@ -46,62 +46,56 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callweaver_db.h"
 #include "callweaver/lock.h"
 
-static char *tdesc = "Database access functions for CallWeaver extension logic";
+static const char tdesc[] = "Database access functions for CallWeaver extension logic";
 
 static void *g_app;
 static void *p_app;
 static void *d_app;
 static void *dt_app;
 
-static char *g_name = "DBget";
-static char *p_name = "DBput";
-static char *d_name = "DBdel";
-static char *dt_name = "DBdelTree";
+static const char g_name[] = "DBget";
+static const char p_name[] = "DBput";
+static const char d_name[] = "DBdel";
+static const char dt_name[] = "DBdelTree";
 
-static char *g_synopsis = "Retrieve a value from the database";
-static char *p_synopsis = "Store a value in the database";
-static char *d_synopsis = "Delete a key from the database";
-static char *dt_synopsis = "Delete a family or keytree from the database";
+static const char g_synopsis[] = "Retrieve a value from the database";
+static const char p_synopsis[] = "Store a value in the database";
+static const char d_synopsis[] = "Delete a key from the database";
+static const char dt_synopsis[] = "Delete a family or keytree from the database";
 
-static char *g_syntax = "DBget(varname=family/key)";
-static char *p_syntax = "DBput(family/key=value)";
-static char *d_syntax = "DBdel(family/key)";
-static char *dt_syntax = "DBdelTree(family[/keytree])";
+static const char g_syntax[] = "DBget(varname=family/key)";
+static const char p_syntax[] = "DBput(family/key=value)";
+static const char d_syntax[] = "DBdel(family/key)";
+static const char dt_syntax[] = "DBdelTree(family[/keytree])";
 
-static char *g_descrip =
-	"Retrieves a value from the CallWeaver\n"
+static const char g_descrip[] =
+  	"Retrieves a value from the CallWeaver\n"
 	"database and stores it in the given variable. Always returns 0.\n"
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
-static char *p_descrip =
+static const char p_descrip[] =
 	"Stores the given value in the CallWeaver\n"
 	"database.  Always returns 0.\n"
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
-static char *d_descrip =
+static const char d_descrip[] =
 	"Deletes a key from the CallWeaver database.  Always\n"
 	"returns 0.\n"
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
-static char *dt_descrip =
+static const char dt_descrip[] =
 	"Deletes a family or keytree from the CallWeaver\n"
 	"database. Always returns 0.\n"
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int deltree_exec(struct opbx_channel *chan, int argc, char **argv)
+static int deltree_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *family, *keytree;
 	struct localuser *u;
 
-	if (argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", dt_syntax);
-		return -1;
-	}
+	if (argc != 1)
+		return opbx_function_syntax(dt_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -140,15 +134,13 @@ static int deltree_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int del_exec(struct opbx_channel *chan, int argc, char **argv)
+static int del_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *family, *key;
 	struct localuser *u;
 
-	if (argc != 1) {
-		opbx_log (LOG_ERROR, "Syntax: %s\n", d_syntax);
-		return -1;
-	}
+	if (argc != 1)
+		return opbx_function_syntax(d_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -178,9 +170,9 @@ static int del_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int put_exec(struct opbx_channel *chan, int argc, char **argv)
+static int put_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *value, *family, *key;
+	char *val, *family, *key;
 	static int dep_warning = 0;
 	struct localuser *u;
 
@@ -189,25 +181,23 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv)
 		dep_warning = 1;
 	}
 	
-	if (argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", p_syntax);
-		return -1;
-	}
+	if (argc != 1)
+		return opbx_function_syntax(p_syntax);
 
 	LOCAL_USER_ADD(u);
 
 	if (strchr(argv[0], '/') && strchr(argv[0], '=')) {
 		family = strsep(&argv[0], "/");
 		key = strsep(&argv[0], "=");
-		value = strsep(&argv[0], "\0");
-		if (!value || !family || !key) {
+		val = strsep(&argv[0], "\0");
+		if (!val || !family || !key) {
 			opbx_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 		if (option_verbose > 2)
-			opbx_verbose(VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, value);
-		if (opbx_db_put(family, key, value)) {
+			opbx_verbose(VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, val);
+		if (opbx_db_put(family, key, val)) {
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
 			pbx_builtin_setvar_helper(chan, "DBSTATUS", "FAIL");
@@ -224,7 +214,7 @@ static int put_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int get_exec(struct opbx_channel *chan, int argc, char **argv)
+static int get_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *varname, *family, *key;
 	char dbresult[256];
@@ -236,10 +226,8 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv)
 		dep_warning = 1;
 	}
 
-	if (argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", g_syntax);
-		return -1;
-	}
+	if (argc != 1)
+		return opbx_function_syntax(g_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -273,37 +261,25 @@ static int get_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(dt_app);
-	res |= opbx_unregister_application(d_app);
-	res |= opbx_unregister_application(p_app);
-	res |= opbx_unregister_application(g_app);
+	res |= opbx_unregister_function(dt_app);
+	res |= opbx_unregister_function(d_app);
+	res |= opbx_unregister_function(p_app);
+	res |= opbx_unregister_function(g_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	g_app = opbx_register_application(g_name, get_exec, g_synopsis, g_syntax, g_descrip);
-	p_app = opbx_register_application(p_name, put_exec, p_synopsis, p_syntax, p_descrip);
-	d_app = opbx_register_application(d_name, del_exec, d_synopsis, d_syntax, d_descrip);
-	dt_app = opbx_register_application(dt_name, deltree_exec, dt_synopsis, dt_syntax, dt_descrip);
+	g_app = opbx_register_function(g_name, get_exec, g_synopsis, g_syntax, g_descrip);
+	p_app = opbx_register_function(p_name, put_exec, p_synopsis, p_syntax, p_descrip);
+	d_app = opbx_register_function(d_name, del_exec, d_synopsis, d_syntax, d_descrip);
+	dt_app = opbx_register_function(dt_name, deltree_exec, dt_synopsis, dt_syntax, dt_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

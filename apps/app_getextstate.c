@@ -50,42 +50,33 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/cli.h"	//Needed to have RESULT_SUCCESS and RESULT_FAILURE
 
-static char *tdesc = "Get state for given extension in a context (show hints)";
+static const char tdesc[] = "Get state for given extension in a context (show hints)";
 
 static void *g_app;
-static char *g_name = "GetExtState";
-static char *g_synopsis = "Get state for given extension in a context (show hints)";
-static char *g_syntax = "GetExtState(extensions1[&extension2], context)";
-static char *g_descrip =
-	"Report the extension state for given extension in a context and saves it in EXTSTATE variable. \n"
-	"Valid EXTSTATE values are:\n"
-	"0 = idle, 1 = inuse; 2 = busy, \n"
-	"4 = unavail, 8 = ringing; -1 unknown; \n"
-	"Example: GetExtState(715&523, default)\n";
+static char g_name[] = "GetExtState";
+static char g_synopsis[] = "Get state for given extension in a context (show hints)";
+static char g_syntax[] = "GetExtState(extensions1[&extension2], context)";
+static char g_descrip[] =
+	"Return the extension state for given extension in a contexte.\n"
+	"Return values are:\n"
+	"    0 = idle, 1 = inuse; 2 = busy, \n"
+	"    4 = unavail, 8 = ringing; -1 unknown; \n"
+	"Example: Set(EXTSTATE=${GetExtState(715&523, default)}\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int get_extstate(struct opbx_channel *chan, int argc, char **argv)
+static int get_extstate(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	struct localuser *u;
-
-	int res=-1;
-	char resc[8]="-1";
-
-	char hint[OPBX_MAX_EXTENSION] = "";
+	static int deprecated_var = 0;
 	char hints[1024] = "";
-
+	char hint[OPBX_MAX_EXTENSION] = "";
+	struct localuser *u;
 	char *cur, *rest;
+	int res = -1;
 	int allunavailable = 1, allbusy = 1, allfree = 1;
 	int busy = 0, inuse = 0, ring = 0;
 			
-	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", g_syntax);
-		return -1;
-	}
+	if (argc != 2 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(g_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -173,40 +164,36 @@ static int get_extstate(struct opbx_channel *chan, int argc, char **argv)
 		res=2;
 	else 	res=-1;
 	
-        opbx_log(LOG_DEBUG, "app_getextstate setting EXTSTATE to %d for extension %s in context %s\n",
-               res, argv[0], argv[1]);
-	snprintf(resc,sizeof(resc),"%d",res);
-	pbx_builtin_setvar_helper(chan, "EXTSTATE", resc );	
+	if (buf) {
+		snprintf(buf, len, "%d", res);
+	} else {
+		char resc[8];
+		if (!deprecated_var) {
+			opbx_log(LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", g_name);
+			deprecated_var = 1;
+		}
+		snprintf(resc, sizeof(resc), "%d", res);
+		pbx_builtin_setvar_helper(chan, "EXTSTATE", resc);	
+	}
 
 	LOCAL_USER_REMOVE(u);
 
 	return RESULT_SUCCESS;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(g_app);
+	res |= opbx_unregister_function(g_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	g_app = opbx_register_application(g_name, get_extstate, g_synopsis, g_syntax, g_descrip);
+	g_app = opbx_register_function(g_name, get_extstate, g_synopsis, g_syntax, g_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

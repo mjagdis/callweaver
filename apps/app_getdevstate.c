@@ -50,23 +50,19 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/devicestate.h"
 #include "callweaver/cli.h"	//Needed to have RESULT_SUCCESS and RESULT_FAILURE
 
-static char *tdesc = "Gets device state (show hints)";
+static const char tdesc[] = "Gets device state (show hints)";
 
 static void *g_app;
-static char *g_name = "GetDevState";
-static char *g_synopsis = "Gets the device state";
-static char *g_syntax = "GetDevState(device)";
-static char *g_descrip =
+static const char g_name[] = "GetDevState";
+static const char g_synopsis[] = "Gets the device state";
+static const char g_syntax[] = "GetDevState(device)";
+static const char g_descrip[] =
 	"Get the device state and saves it in DEVSTATE variable. Valid values are:\n"
 	"0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing"
 	"Example: GetDevState(SIP/715)\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int get_devstate(struct opbx_channel *chan, int argc, char **argv)
+static int get_devstate(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res=-1;
@@ -90,30 +86,19 @@ static int get_devstate(struct opbx_channel *chan, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(g_app);
+	res |= opbx_unregister_function(g_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	g_app = opbx_register_application(g_name, get_devstate, g_synopsis, g_syntax, g_descrip);
+	g_app = opbx_register_function(g_name, get_devstate, g_synopsis, g_syntax, g_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -500,7 +500,6 @@ static struct opbx_channel *features_new(struct feature_pvt *p, int state, int i
 	opbx_mutex_lock(&usecnt_lock);
 	usecnt++;
 	opbx_mutex_unlock(&usecnt_lock);
-	opbx_update_use_count();
 	return tmp;
 }
 
@@ -542,11 +541,14 @@ static char show_features_usage[] =
 "Usage: feature show channels\n"
 "       Provides summary information on feature channels.\n";
 
-static struct opbx_cli_entry cli_show_features = {
-	{ "feature", "show", "channels", NULL }, features_show, 
-	"Show status of feature channels", show_features_usage, NULL };
+static struct opbx_clicmd cli_show_features = {
+	.cmda = { "feature", "show", "channels", NULL },
+	.handler = features_show, 
+	.summary = "Show status of feature channels",
+	.usage = show_features_usage,
+};
 
-int load_module()
+static int load_module(void)
 {
 	/* Make sure we can register our sip channel type */
 	if (opbx_channel_register(&features_tech)) {
@@ -557,12 +559,7 @@ int load_module()
 	return 0;
 }
 
-int reload()
-{
-	return 0;
-}
-
-int unload_module()
+static int unload_module()
 {
 	struct feature_pvt *p;
 	/* First, take us out of the channel loop */
@@ -590,8 +587,5 @@ int usecount()
 	return usecnt;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
 
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

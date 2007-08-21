@@ -42,13 +42,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/say.h"
 
 
-static char *tdesc = "Say time";
+static const char tdesc[] = "Say time";
 
 static void *sayunixtime_app;
-static char *sayunixtime_name = "SayUnixTime";
-static char *sayunixtime_synopsis = "Says a specified time in a custom format";
-static char *sayunixtime_syntax = "SayUnixTime([unixtime][, timezone[, format]])";
-static char *sayunixtime_descrip =
+static const char sayunixtime_name[] = "SayUnixTime";
+static const char sayunixtime_synopsis[] = "Says a specified time in a custom format";
+static const char sayunixtime_syntax[] = "SayUnixTime([unixtime][, timezone[, format]])";
+static const char sayunixtime_descrip[] =
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -58,9 +58,9 @@ static char *sayunixtime_descrip =
 "  Returns 0 or -1 on hangup.\n";
 
 static void *datetime_app;
-static char *datetime_name = "DateTime";
-static char *datetime_syntax = "DateTime([unixtime][, timezone[, format]])";
-static char *datetime_descrip =
+static const char datetime_name[] = "DateTime";
+static const char datetime_syntax[] = "DateTime([unixtime][, timezone[, format]])";
+static const char datetime_descrip[] =
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -69,11 +69,8 @@ static char *datetime_descrip =
 "              defaults to \"ABdY 'digits/at' IMp\"\n"
 "  Returns 0 or -1 on hangup.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv)
+static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct timeval tv;
 	time_t unixtime;
@@ -81,10 +78,8 @@ static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv)
 	char *format;
 	int res=0;
 
-	if (argc > 3) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", sayunixtime_syntax);
-		return -1;
-	}
+	if (argc > 3)
+		return opbx_function_syntax(sayunixtime_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -113,32 +108,21 @@ static int sayunixtime_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(sayunixtime_app);
-	res |= opbx_unregister_application(datetime_app);
+
+	res |= opbx_unregister_function(sayunixtime_app);
+	res |= opbx_unregister_function(datetime_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	sayunixtime_app = opbx_register_application(sayunixtime_name, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_syntax, sayunixtime_descrip);
-	datetime_app = opbx_register_application(datetime_name, sayunixtime_exec, sayunixtime_synopsis, datetime_syntax, datetime_descrip);
+	sayunixtime_app = opbx_register_function(sayunixtime_name, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_syntax, sayunixtime_descrip);
+	datetime_app = opbx_register_function(datetime_name, sayunixtime_exec, sayunixtime_synopsis, datetime_syntax, datetime_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

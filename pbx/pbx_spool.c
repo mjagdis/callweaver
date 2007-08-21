@@ -25,6 +25,7 @@
 #include "confdefs.h"
 #endif
 
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -56,7 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * The spool file contains a header 
  */
 
-static char *tdesc = "Outgoing Spool Support";
+static const char tdesc[] = "Outgoing Spool Support";
 static char qdir[255];
 
 struct outgoing {
@@ -290,7 +291,7 @@ static void launch_service(struct outgoing *o)
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(&t,&attr,attempt_thread, o) == -1) {
+	if (opbx_pthread_create(get_modinfo()->self, &t, &attr, attempt_thread, o) == -1) {
 		opbx_log(LOG_WARNING, "Unable to create thread :(\n");
 		free_outgoing(o);
 	}
@@ -357,81 +358,107 @@ static void *scan_thread(void *unused)
 	char fn[256];
 	int res;
 	time_t last = 0, next = 0, now;
-	for(;;) {
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	for (;;) {
 		/* Wait a sec */
+		pthread_testcancel();
 		sleep(1);
 		time(&now);
-		if (!stat(qdir, &st)) {
-			if ((st.st_mtime != last) || (next && (now > next))) {
-#if 0
-				printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
-				printf("Ooh, something changed / timeout\n");
-#endif				
-				next = 0;
-				last = st.st_mtime;
-				dir = opendir(qdir);
-				if (dir) {
-					while((de = readdir(dir))) {
-						snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
-						if (!stat(fn, &st)) {
-							if (S_ISREG(st.st_mode)) {
-								if (st.st_mtime <= now) {
-									res = scan_service(fn, now, st.st_atime);
-									if (res > 0) {
-										/* Update next service time */
-										if (!next || (res < next)) {
-											next = res;
-										}
-									} else if (res)
-										opbx_log(LOG_WARNING, "Failed to scan service '%s'\n", fn);
-								} else {
-									/* Update "next" update if necessary */
-									if (!next || (st.st_mtime < next))
-										next = st.st_mtime;
-								}
-							}
-						} else
-							opbx_log(LOG_WARNING, "Unable to stat %s: %s\n", fn, strerror(errno));
-					}
-					closedir(dir);
-				} else
-					opbx_log(LOG_WARNING, "Unable to open directory %s: %s\n", qdir, strerror(errno));
-			}
-		} else
+		pthread_testcancel();
+
+		if (stat(qdir, &st)) {
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			opbx_log(LOG_WARNING, "Unable to stat %s\n", qdir);
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			continue;
+		}
+
+		if ((st.st_mtime == last) && (!next || (now <= next)))
+			continue;
+#if 0
+		printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
+		printf("Ooh, something changed / timeout\n");
+#endif
+		next = 0;
+		last = st.st_mtime;
+		if (!(dir = opendir(qdir))) {
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			opbx_log(LOG_WARNING, "Unable to open directory %s: %s\n", qdir, strerror(errno));
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			continue;
+		}
+
+		pthread_cleanup_push((void (*)(void *))closedir, dir);
+
+		while ((de = readdir(dir))) {
+			snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
+			if (stat(fn, &st)) {
+				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				opbx_log(LOG_WARNING, "Unable to stat %s: %s\n", fn, strerror(errno));
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				continue;
+			}
+
+			if (S_ISREG(st.st_mode)) {
+				if (st.st_mtime <= now) {
+					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+					res = scan_service(fn, now, st.st_atime);
+					if (res > 0) {
+						/* Update next service time */
+						if (!next || (res < next))
+							next = res;
+					} else if (res)
+						opbx_log(LOG_WARNING, "Failed to scan service '%s'\n", fn);
+					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				} else {
+					/* Update "next" update if necessary */
+					if (!next || (st.st_mtime < next))
+						next = st.st_mtime;
+				}
+			}
+		}
+
+		pthread_cleanup_pop(1);
 	}
 	return NULL;
 }
 
-int unload_module(void)
+
+pthread_t scan_thread_id = OPBX_PTHREADT_NULL;
+
+static int unload_module(void)
 {
-	return -1;
+	int res = 0;
+
+	if (scan_thread_id != OPBX_PTHREADT_NULL) {
+		res |= pthread_cancel(scan_thread_id);
+    		res |= pthread_kill(scan_thread_id, SIGURG);
+		scan_thread_id = OPBX_PTHREADT_NULL;
+	}
+	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	pthread_t thread;
 	pthread_attr_t attr;
+
 	snprintf(qdir, sizeof(qdir), "%s/%s", opbx_config_OPBX_SPOOL_DIR, "outgoing");
 	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
 		opbx_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 		return 0;
 	}
+
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(&thread,&attr,scan_thread, NULL) == -1) {
+
+	if (opbx_pthread_create(get_modinfo()->self, &scan_thread_id, &attr, scan_thread, NULL) == -1) {
 		opbx_log(LOG_WARNING, "Unable to create thread :(\n");
 		return -1;
 	}
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	return 1;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

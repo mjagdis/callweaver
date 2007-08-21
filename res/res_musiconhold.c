@@ -52,6 +52,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/options.h"
+#include "callweaver/atexit.h"
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
 #include "callweaver/say.h"
@@ -59,6 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/config.h"
 #include "callweaver/utils.h"
 #include "callweaver/cli.h"
+
 
 #define MAX_MOHFILES 512
 #define MAX_MOHFILE_LEN 128
@@ -69,47 +71,47 @@ static void *app2;
 static void *app3;
 static void *app4;
 
-static const char *name0 = "MusicOnHold";
-static const char *name1 = "WaitMusicOnHold";
-static const char *name2 = "SetMusicOnHold";
-static const char *name3 = "StartMusicOnHold";
-static const char *name4 = "StopMusicOnHold";
+static const char name0[] = "MusicOnHold";
+static const char name1[] = "WaitMusicOnHold";
+static const char name2[] = "SetMusicOnHold";
+static const char name3[] = "StartMusicOnHold";
+static const char name4[] = "StopMusicOnHold";
 
-static const char *synopsis0 = "Play Music On Hold indefinitely";
-static const char *synopsis1 = "Wait, playing Music On Hold";
-static const char *synopsis2 = "Set default Music On Hold class";
-static const char *synopsis3 = "Play Music On Hold";
-static const char *synopsis4 = "Stop Playing Music On Hold";
+static const char synopsis0[] = "Play Music On Hold indefinitely";
+static const char synopsis1[] = "Wait, playing Music On Hold";
+static const char synopsis2[] = "Set default Music On Hold class";
+static const char synopsis3[] = "Play Music On Hold";
+static const char synopsis4[] = "Stop Playing Music On Hold";
 
-static const char *syntax0 = "MusicOnHold(class)";
-static const char *syntax1 = "WaitMusicOnHold(delay)";
-static const char *syntax2 = "SetMusicOnHold(class)";
-static const char *syntax3 = "StartMusicOnHold(class)";
-static const char *syntax4 = "StopMusicOnHold";
+static const char syntax0[] = "MusicOnHold(class)";
+static const char syntax1[] = "WaitMusicOnHold(delay)";
+static const char syntax2[] = "SetMusicOnHold(class)";
+static const char syntax3[] = "StartMusicOnHold(class)";
+static const char syntax4[] = "StopMusicOnHold";
 
-static const char *descrip0 =
+static const char descrip0[] =
 "Plays hold music specified by class.  If omitted, the default\n"
 "music source for the channel will be used. Set the default \n"
 "class with the SetMusicOnHold() application.\n"
 "Returns -1 on hangup.\n"
 "Never returns otherwise.\n";
 
-static const char *descrip1 =
+static const char descrip1[] =
 "Plays hold music specified number of seconds.  Returns 0 when\n"
 "done, or -1 on hangup.  If no hold music is available, the delay will\n"
 "still occur with no sound.\n";
 
-static const char *descrip2 =
+static const char descrip2[] =
 "Sets the default class for music on hold for a given channel.  When\n"
 "music on hold is activated, this class will be used to select which\n"
 "music is played.\n";
 
-static const char *descrip3 =
+static const char descrip3[] =
 "Starts playing music on hold, uses default music class for channel.\n"
 "Starts playing music specified by class.  If omitted, the default\n"
 "music source for the channel will be used.  Always returns 0.\n";
 
-static const char *descrip4 =
+static const char descrip4[] =
 "Stops playing music on hold.\n";
 
 static int respawn_time = 20;
@@ -210,7 +212,7 @@ static int opbx_moh_files_next(struct opbx_channel *chan)
 			state->pos %= state->class->total_files;
 
 			/* check to see if this file's format can be opened */
-			if (opbx_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
+			if (opbx_fileexists(state->class->filearray[state->pos], NULL, NULL))
 				break;
 
 		}
@@ -490,7 +492,7 @@ static void *monitor_custom_command(void *data)
 	return NULL;
 }
 
-static int moh0_exec(struct opbx_channel *chan, int argc, char **argv)
+static int moh0_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	if (opbx_moh_start(chan, argv[0])) {
 		opbx_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", argv[0], chan->name);
@@ -501,13 +503,12 @@ static int moh0_exec(struct opbx_channel *chan, int argc, char **argv)
 	return -1;
 }
 
-static int moh1_exec(struct opbx_channel *chan, int argc, char **argv)
+static int moh1_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res;
-	if (argc != 1 || !(res = atoi(argv[0]))) {
-		opbx_log(LOG_ERROR, "Syntax: WaitMusicOnHold(seconds)\n");
-		return -1;
-	}
+	if (argc != 1 || !(res = atoi(argv[0])))
+		return opbx_function_syntax("WaitMusicOnHold(seconds)");
+
 	if (opbx_moh_start(chan, NULL)) {
 		opbx_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", res, chan->name);
 		return -1;
@@ -517,17 +518,16 @@ static int moh1_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int moh2_exec(struct opbx_channel *chan, int argc, char **argv)
+static int moh2_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: SetMusicOnHold(class)\n");
-		return -1;
-	}
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax("SetMusicOnHold(class)");
+
 	strncpy(chan->musicclass, argv[0], sizeof(chan->musicclass) - 1);
 	return 0;
 }
 
-static int moh3_exec(struct opbx_channel *chan, int argc, char **argv)
+static int moh3_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *class = (argc > 1 && argv[0][0] ? argv[0] : "default");
 
@@ -537,7 +537,7 @@ static int moh3_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int moh4_exec(struct opbx_channel *chan, int argc, char **argv)
+static int moh4_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	opbx_moh_stop(chan);
 
@@ -757,7 +757,7 @@ static int moh_register(struct mohclass *moh)
 		opbx_set_flag(moh, MOH_CUSTOM);
 		
 		moh->srcfd = -1;
-		if (opbx_pthread_create(&moh->thread, NULL, monitor_custom_command, moh)) {
+		if (opbx_pthread_create(get_modinfo()->self, &moh->thread, NULL, monitor_custom_command, moh)) {
 			opbx_log(LOG_WARNING, "Unable to create moh...\n");
 			opbx_moh_free_class(&moh);
 			return -1;
@@ -1078,11 +1078,26 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static struct opbx_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On Hold", "Music On Hold", NULL};
+static struct opbx_clicmd cli_moh = {
+	.cmda = { "moh", "reload"},
+	.handler = moh_cli,
+	.summary = "Music On Hold",
+	.usage = "Music On Hold",
+};
 
-static struct opbx_cli_entry  cli_moh_classes_show = { { "moh", "classes", "show"}, moh_classes_show, "List MOH classes", "Lists all MOH classes", NULL};
+static struct opbx_clicmd cli_moh_classes_show = {
+	.cmda = { "moh", "classes", "show"},
+	.handler = moh_classes_show,
+	.summary = "List MOH classes",
+	.usage = "Lists all MOH classes",
+};
 
-static struct opbx_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
+static struct opbx_clicmd cli_moh_files_show = {
+	.cmda = { "moh", "files", "show"},
+	.handler = cli_files_show,
+	.summary = "List MOH file-based classes",
+	.usage = "Lists all loaded file-based MOH classes and their files",
+};
 
 static int init_classes(void) 
 {
@@ -1099,17 +1114,25 @@ static int init_classes(void)
 	return 1;
 }
 
-int load_module(void)
+static struct opbx_atexit moh_atexit = {
+	.name = "Music On Hold terminate",
+	.function = opbx_moh_destroy,
+};
+
+static int load_module(void)
 {
-	app0 = opbx_register_application(name0, moh0_exec, synopsis0, syntax0, descrip0);
-	opbx_register_atexit(opbx_moh_destroy);
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
+	app0 = opbx_register_function(name0, moh0_exec, synopsis0, syntax0, descrip0);
+	opbx_atexit_register(&moh_atexit);
 	opbx_cli_register(&cli_moh);
 	opbx_cli_register(&cli_moh_files_show);
 	opbx_cli_register(&cli_moh_classes_show);
-	app1 = opbx_register_application(name1, moh1_exec, synopsis1, syntax1, descrip1);
-	app2 = opbx_register_application(name2, moh2_exec, synopsis2, syntax2, descrip2);
-	app3 = opbx_register_application(name3, moh3_exec, synopsis3, syntax3, descrip3);
-	app4 = opbx_register_application(name4, moh4_exec, synopsis4, syntax4, descrip4);
+	app1 = opbx_register_function(name1, moh1_exec, synopsis1, syntax1, descrip1);
+	app2 = opbx_register_function(name2, moh2_exec, synopsis2, syntax2, descrip2);
+	app3 = opbx_register_function(name3, moh3_exec, synopsis3, syntax3, descrip3);
+	app4 = opbx_register_function(name4, moh4_exec, synopsis4, syntax4, descrip4);
 
 	if (!init_classes()) { 	/* No music classes configured, so skip it */
 		opbx_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
@@ -1120,7 +1143,7 @@ int load_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	if (init_classes())
 		opbx_install_music_functions(local_opbx_moh_start, local_opbx_moh_stop, local_opbx_moh_cleanup);
@@ -1128,25 +1151,10 @@ int reload(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	return -1;
 }
 
-char *description(void)
-{
-	return "Music On Hold Resource";
-}
 
-int usecount(void)
-{
-	/* Never allow Music On Hold to be unloaded
-	   unresolve needed symbols in the dialer */
-#if 0
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-#else
-	return 1;
-#endif
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Music On Hold Resource")

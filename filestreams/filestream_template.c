@@ -34,10 +34,6 @@
 
 #include "callweaver/filestreams.h"
 
-OPBX_MUTEX_DEFINE_STATIC(countlock);
-static int use_count = 0;
-
-#define MODIFY_USECOUNT(v) opbx_mutex_lock(&countlock); use_count=use_count+v;  opbx_mutex_unlock(&countlock);
 
 /* **************************************************************************
          SPECIFIC FILESTREAM IMPLEMENTATION FUNCTIONS
@@ -45,7 +41,6 @@ static int use_count = 0;
 
 static opbx_filestream_session_t *fsi_init( opbx_mpool_t *pool, opbx_filestream_session_t *session, char *uri )
 {
-    MODIFY_USECOUNT(1);
     return NULL;
 }
 
@@ -86,14 +81,13 @@ static filestream_result_value fsi_trunc( void )
 
 static filestream_result_value fsi_close( void )
 {
-    MODIFY_USECOUNT(-1);
     return FS_RESULT_SUCCESS;
 }
 
 
 
 /* **************************************************************************
-         GENERAL MODULE STUFF (loading/unloading/usecount/description)
+         GENERAL MODULE STUFF (loading/unloading)
    *********************************************************************** */
 
 #define FSI_NAME               "filestream_template"
@@ -118,23 +112,15 @@ static opbx_filestream_implementation_t sndfile_implementation = {
     NULL
 };
 
-int load_module(void)
+static int load_module(void)
 {
     return opbx_filestream_register( &sndfile_implementation );
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     return opbx_filestream_unregister( &sndfile_implementation );
 }
 
-int usecount(void)
-{
-    return use_count;
-}
 
-char *description(void)
-{
-    return FSI_DESC;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, FSI_DESC)

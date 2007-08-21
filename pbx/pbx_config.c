@@ -53,7 +53,7 @@ static void FREE(void *ptr)
 #define FREE free
 #endif
 
-static char *dtext = "Text Extension Configuration";
+static const char dtext[] = "Text Extension Configuration";
 static char *config = "extensions.conf";
 static char *registrar = "pbx_config";
 
@@ -1550,48 +1550,72 @@ static char *complete_context_remove_ignorepat(char *line, char *word,
 /*
  * CLI entries for commands provided by this module
  */
-static struct opbx_cli_entry context_dont_include_cli =
-	{ { "dont", "include", NULL }, handle_context_dont_include,
-		"Remove a specified include from context", context_dont_include_help,
-		complete_context_dont_include };
+static struct opbx_clicmd context_dont_include_cli = {
+	.cmda = { "dont", "include", NULL },
+	.handler = handle_context_dont_include,
+	.generator = complete_context_dont_include,
+	.summary = "Remove a specified include from context",
+	.usage = context_dont_include_help,
+};
 
-static struct opbx_cli_entry context_remove_extension_cli =
-	{ { "remove", "extension", NULL }, handle_context_remove_extension,
-		"Remove a specified extension", context_remove_extension_help,
-		complete_context_remove_extension };
+static struct opbx_clicmd context_remove_extension_cli = {
+	.cmda = { "remove", "extension", NULL },
+	.handler = handle_context_remove_extension,
+	.generator = complete_context_remove_extension,
+	.summary = "Remove a specified extension",
+	.usage = context_remove_extension_help,
+};
 
-static struct opbx_cli_entry context_add_include_cli =
-	{ { "include", "context", NULL }, handle_context_add_include,
-		"Include context in other context", context_add_include_help,
-		complete_context_add_include };
+static struct opbx_clicmd context_add_include_cli = {
+	.cmda = { "include", "context", NULL },
+	.handler = handle_context_add_include,
+	.generator = complete_context_add_include,
+	.summary = "Include context in other context",
+	.usage = context_add_include_help,
+};
 
-static struct opbx_cli_entry save_dialplan_cli =
-	{ { "save", "dialplan", NULL }, handle_save_dialplan,
-		"Save dialplan", save_dialplan_help };
+static struct opbx_clicmd save_dialplan_cli = {
+	.cmda = { "save", "dialplan", NULL },
+	.handler = handle_save_dialplan,
+	.summary = "Save dialplan",
+	.usage = save_dialplan_help,
+};
 
-static struct opbx_cli_entry context_add_extension_cli =
-	{ { "add", "extension", NULL }, handle_context_add_extension,
-		"Add new extension into context", context_add_extension_help,
-		complete_context_add_extension };
+static struct opbx_clicmd context_add_extension_cli = {
+	.cmda = { "add", "extension", NULL },
+	.handler = handle_context_add_extension,
+	.generator = complete_context_add_extension,
+	.summary = "Add new extension into context",
+	.usage = context_add_extension_help,
+};
 
-static struct opbx_cli_entry context_add_ignorepat_cli =
-	{ { "add", "ignorepat", NULL }, handle_context_add_ignorepat,
-		"Add new ignore pattern", context_add_ignorepat_help,
-		complete_context_add_ignorepat };
+static struct opbx_clicmd context_add_ignorepat_cli = {
+	.cmda = { "add", "ignorepat", NULL },
+	.handler = handle_context_add_ignorepat,
+	.generator = complete_context_add_ignorepat,
+	.summary = "Add new ignore pattern",
+	.usage = context_add_ignorepat_help,
+};
 
-static struct opbx_cli_entry context_remove_ignorepat_cli =
-	{ { "remove", "ignorepat", NULL }, handle_context_remove_ignorepat,
-		"Remove ignore pattern from context", context_remove_ignorepat_help,
-		complete_context_remove_ignorepat };
+static struct opbx_clicmd context_remove_ignorepat_cli = {
+	.cmda = { "remove", "ignorepat", NULL },
+	.handler = handle_context_remove_ignorepat,
+	.generator = complete_context_remove_ignorepat,
+	.summary = "Remove ignore pattern from context",
+	.usage = context_remove_ignorepat_help,
+};
 
-static struct opbx_cli_entry reload_extensions_cli = 
-	{ { "extensions", "reload", NULL}, handle_reload_extensions,
-		"Reload extensions and *only* extensions", reload_extensions_help };
+static struct opbx_clicmd reload_extensions_cli = {
+	.cmda = { "extensions", "reload", NULL},
+	.handler = handle_reload_extensions,
+	.summary = "Reload extensions and *only* extensions",
+	.usage = reload_extensions_help,
+};
 
 /*
  * Standard module functions ...
  */
-int unload_module(void)
+static int unload_module(void)
 {
 	opbx_cli_unregister(&context_add_extension_cli);
 	if (static_config && !write_protect_config)
@@ -1787,7 +1811,7 @@ static int pbx_load_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	if (pbx_load_module()) return -1;
  
@@ -1804,7 +1828,7 @@ int load_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	opbx_context_destroy(NULL, registrar);
 	if (clearglobalvars_config)
@@ -1813,14 +1837,5 @@ int reload(void)
 	return 0;
 }
 
-int usecount(void)
-{
-	return 0;
-}
 
-char *description(void)
-{
-	return dtext;
-}
-
-
+MODULE_INFO(load_module, reload_module, unload_module, NULL, dtext)

@@ -46,17 +46,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
 
-static char *tdesc = "Pipe Raw Audio to and from an External Process";
+static const char tdesc[] = "Pipe Raw Audio to and from an External Process";
 
 static void *pipe_app;
-static const char *pipe_name = "PIPE";
-static const char *pipe_synopsis = "Pipe Raw Audio to and from an External Process";
-static const char *pipe_syntax = "PIPE(1=in/0=out, program, argument)";
-static const char *pipe_descrip = "Pipe Raw Audio to and from an External Process";
+static const char pipe_name[] = "PIPE";
+static const char pipe_synopsis[] = "Pipe Raw Audio to and from an External Process";
+static const char pipe_syntax[] = "PIPE(1=in/0=out, program, argument)";
+static const char pipe_descrip[] = "Pipe Raw Audio to and from an External Process";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int pipeencode(char *filename, char *argument, int fdin, int fdout)
 {
@@ -94,7 +91,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 
 }
 
-static int pipe_exec(struct opbx_channel *chan, int argc, char **argv)
+static int pipe_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
@@ -115,10 +112,8 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv)
 	last.tv_usec = 0;
 	last.tv_sec = 0;
 
-	if (argc < 2 || argc > 3) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", pipe_syntax);
-		return -1;
-	}
+	if (argc < 2 || argc > 3)
+		return opbx_function_syntax(pipe_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -266,28 +261,19 @@ static int pipe_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	res |= opbx_unregister_application(pipe_app);
-	STANDARD_HANGUP_LOCALUSERS;
+
+	res |= opbx_unregister_function(pipe_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	pipe_app = opbx_register_application(pipe_name, pipe_exec, pipe_synopsis, pipe_syntax, pipe_descrip);
+	pipe_app = opbx_register_function(pipe_name, pipe_exec, pipe_synopsis, pipe_syntax, pipe_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

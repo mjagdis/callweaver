@@ -48,8 +48,8 @@
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *desc = "MySQL CDR Backend";
-static char *name = "mysql";
+static const char desc[] = "MySQL CDR Backend";
+static const char name[] = "mysql";
 static char *config = "cdr_mysql.conf";
 static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *dbsock = NULL, *dbtable = NULL;
 static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbtable_alloc = 0;
@@ -107,10 +107,12 @@ static int handle_cdr_mysql_status(int fd, int argc, char *argv[])
 	}
 }
 
-static struct opbx_cli_entry cdr_mysql_status_cli =
-	{ { "cdr", "mysql", "status", NULL },
-	handle_cdr_mysql_status, "Show connection status of cdr_mysql",
-	cdr_mysql_status_help, NULL };
+static struct opbx_clicmd cdr_mysql_status_cli = {
+	.cmda = { "cdr", "mysql", "status", NULL },
+	.handler = handle_cdr_mysql_status,
+	.summary = "Show connection status of cdr_mysql",
+	.usage = cdr_mysql_status_help,
+};
 
 static int mysql_log(struct opbx_cdr *cdr)
 {
@@ -228,9 +230,9 @@ db_reconnect:
 	return 0;
 }
 
-static int my_unload_module(void)
-{ 
-	opbx_cli_unregister(&cdr_mysql_status_cli);
+
+static void release(void)
+{
 	if (connected) {
 		mysql_close(&mysql);
 		connected = 0;
@@ -267,11 +269,25 @@ static int my_unload_module(void)
 		password_alloc = 0;
 	}
 	dbport = 0;
-	opbx_cdr_unregister(name);
 	return 0;
 }
 
-static int my_load_module(void)
+
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = mysql_log,
+};
+
+
+static int unload_module(void)
+{
+	opbx_cli_unregister(&cdr_mysql_status_cli);
+	opbx_cdrbe_unregister(&cdrbe);
+	return 0;
+}
+
+static int load_module(void)
 {
 	int res;
 	struct opbx_config *cfg;
@@ -281,13 +297,13 @@ static int my_load_module(void)
 	cfg = opbx_config_load(config);
 	if (!cfg) {
 		opbx_log(LOG_WARNING, "Unable to load config for mysql CDR's: %s\n", config);
-		return 0;
+		return -1;
 	}
 	
 	var = opbx_variable_browse(cfg, "global");
 	if (!var) {
 		/* nothing configured */
-		return 0;
+		return -1;
 	}
 
 	tmp = opbx_variable_retrieve(cfg, "global", "hostname");
@@ -432,44 +448,13 @@ static int my_load_module(void)
 		connect_time = time(NULL);
 	}
 
-	res = opbx_cdr_register(name, desc, mysql_log);
-	if (res) {
-		opbx_log(LOG_ERROR, "Unable to register MySQL CDR handling\n");
-	} else {
-		res = opbx_cli_register(&cdr_mysql_status_cli);
-	}
+	opbx_cdrbe_register(&cdrbe);
+	res = opbx_cli_register(&cdr_mysql_status_cli);
 
 	return res;
 }
 
-int load_module(void)
-{
-	return my_load_module();
-}
 
-int unload_module(void)
-{
-	return my_unload_module();
-}
-
-int reload(void)
-{
-	int ret;
-
-	opbx_mutex_lock(&mysql_lock);    
-	my_unload_module();
-	ret = my_load_module();
-	opbx_mutex_unlock(&mysql_lock);
-
-	return ret;
-}
-
-char *description(void)
-{
-	return "MySQL CDR Backend";
-}
-
-int usecount(void)
-{
-        return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, release,
+	"MySQL CDR Backend"
+)

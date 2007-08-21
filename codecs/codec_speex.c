@@ -347,7 +347,7 @@ static unsigned char speex_ex[] =
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "Speex to/from PCM16 translator";
+static const char tdesc[] = "Speex to/from PCM16 translator";
 
 struct opbx_translator_pvt
 {
@@ -681,30 +681,30 @@ static void lintospeex_destroy(struct opbx_translator_pvt *pvt)
 
 static opbx_translator_t speextolin =
 {
-    "speextolin", 
-    OPBX_FORMAT_SPEEX, 
-    8000,
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    speextolin_new,
-    speextolin_framein,
-    speextolin_frameout,
-    speextolin_destroy,
-    speextolin_sample
+    .name = "speextolin", 
+    .src_format = OPBX_FORMAT_SPEEX, 
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 8000,
+    .newpvt = speextolin_new,
+    .framein = speextolin_framein,
+    .frameout = speextolin_frameout,
+    .destroy = speextolin_destroy,
+    .sample = speextolin_sample
 };
 
 static opbx_translator_t lintospeex =
 {
-    "lintospeex", 
-    OPBX_FORMAT_SLINEAR, 
-    8000,
-    OPBX_FORMAT_SPEEX,
-    8000,
-    lintospeex_new,
-    lintospeex_framein,
-    lintospeex_frameout,
-    lintospeex_destroy,
-    lintospeex_sample
+    .name = "lintospeex", 
+    .src_format = OPBX_FORMAT_SLINEAR, 
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SPEEX,
+    .dst_rate = 8000,
+    .newpvt = lintospeex_new,
+    .framein = lintospeex_framein,
+    .frameout = lintospeex_frameout,
+    .destroy = lintospeex_destroy,
+    .sample = lintospeex_sample
 };
 
 static void parse_config(void) 
@@ -901,45 +901,32 @@ static void parse_config(void)
     }
 }
 
-int reload(void) 
+static int reload_module(void) 
 {
     parse_config();
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
+    int res = 0;
     opbx_mutex_lock(&localuser_lock);
-    res = opbx_unregister_translator(&lintospeex);
-    if (!res)
-        res = opbx_unregister_translator(&speextolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&speextolin);
+    opbx_translator_unregister(&lintospeex);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
     parse_config();
-    res=opbx_register_translator(&speextolin);
-    if (!res) 
-        res=opbx_register_translator(&lintospeex);
-    else
-        opbx_unregister_translator(&speextolin);
+    opbx_translator_register(&speextolin);
+    opbx_translator_register(&lintospeex);
     return res;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

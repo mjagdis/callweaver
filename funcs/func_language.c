@@ -41,10 +41,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *language_function;
-static const char *language_func_name = "LANGUAGE";
-static const char *language_func_synopsis = "Gets or sets the channel's language.";
-static const char *language_func_syntax = "LANGUAGE()";
-static const char *language_func_desc =
+static const char language_func_name[] = "LANGUAGE";
+static const char language_func_synopsis[] = "Gets or sets the channel's language.";
+static const char language_func_syntax[] = "LANGUAGE([value])";
+static const char language_func_desc[] =
 	"Gets or sets the channel language.  This information is used for the\n"
 	"syntax in generation of numbers, and to choose a natural language file\n"
 	"when available.  For example, if language is set to 'fr' and the file\n"
@@ -55,41 +55,36 @@ static const char *language_func_desc =
 	"functions, like SayNumber.\n";
 
 
-static char *builtin_function_language_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int builtin_function_language_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	opbx_copy_string(buf, chan->language, len);
+	if (argc > 1)
+		return opbx_function_syntax(language_func_syntax);
 
-	return buf;
+	if (chan) {
+		if (argc > 0)
+			opbx_copy_string(chan->language, argv[0], sizeof(chan->language));
+		if (buf)
+			opbx_copy_string(buf, chan->language, len);
+	}
+
+	return 0;
 }
 
-static void builtin_function_language_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
-{
-	if (value)
-		opbx_copy_string(chan->language, value, sizeof(chan->language));
-}
+static const char tdesc[] = "language functions";
 
-static char *tdesc = "language functions";
-
-int unload_module(void)
+static int unload_module(void)
 {
         return opbx_unregister_function(language_function);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-        language_function =  opbx_register_function(language_func_name, builtin_function_language_read, builtin_function_language_write, language_func_synopsis, language_func_syntax, language_func_desc);
+        language_function =  opbx_register_function(language_func_name, builtin_function_language_rw, language_func_synopsis, language_func_syntax, language_func_desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 /*
 Local Variables:

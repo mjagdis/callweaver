@@ -42,10 +42,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *settransfercapability_app;
-static const char *settransfercapability_name = "SetTransferCapability";
-static const char *settransfercapability_synopsis = "Set ISDN Transfer Capability";
-static const char *settransfercapability_syntax = "SetTransferCapability(transfercapability)";
-static const char *settransfercapability_descrip = 
+static const char settransfercapability_name[] = "SetTransferCapability";
+static const char settransfercapability_synopsis[] = "Set ISDN Transfer Capability";
+static const char settransfercapability_syntax[] = "SetTransferCapability(transfercapability)";
+static const char settransfercapability_descrip[] = 
 "Set the ISDN Transfer Capability of a call to a new value.\n"
 "Always returns 0.  Valid Transfer Capabilities are:\n"
 "\n"
@@ -59,10 +59,6 @@ static const char *settransfercapability_descrip =
 ;
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 static struct {	int val; char *name; } transcaps[] = {
 	{ OPBX_TRANS_CAP_SPEECH,				"SPEECH" },
 	{ OPBX_TRANS_CAP_DIGITAL,			"DIGITAL" },
@@ -72,7 +68,7 @@ static struct {	int val; char *name; } transcaps[] = {
 	{ OPBX_TRANS_CAP_VIDEO,				"VIDEO" },
 };
 
-static int settransfercapability_exec(struct opbx_channel *chan, int argc, char **argv)
+static int settransfercapability_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 	int x;
@@ -103,30 +99,19 @@ static int settransfercapability_exec(struct opbx_channel *chan, int argc, char 
 }
 
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(settransfercapability_app);
+
+	res |= opbx_unregister_function(settransfercapability_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	settransfercapability_app = opbx_register_application(settransfercapability_name, settransfercapability_exec, settransfercapability_synopsis, settransfercapability_syntax, settransfercapability_descrip);
+	settransfercapability_app = opbx_register_function(settransfercapability_name, settransfercapability_exec, settransfercapability_synopsis, settransfercapability_syntax, settransfercapability_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *)settransfercapability_synopsis;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, settransfercapability_synopsis)

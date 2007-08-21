@@ -44,31 +44,26 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 
-static char *tdesc = "Send DTMF digits Application";
+static const char tdesc[] = "Send DTMF digits Application";
 
 static void *senddtmf_app;
-static const char *senddtmf_name = "SendDTMF";
-static const char *senddtmf_synopsis = "Sends arbitrary DTMF digits";
-static const char *senddtmf_syntax = "SendDTMF(digits[, timeout_ms])";
-static const char *senddtmf_descrip = 
+static const char senddtmf_name[] = "SendDTMF";
+static const char senddtmf_synopsis[] = "Sends arbitrary DTMF digits";
+static const char senddtmf_syntax[] = "SendDTMF(digits[, timeout_ms])";
+static const char senddtmf_descrip[] = 
 "Sends DTMF digits on a channel. \n"
 " Accepted digits: 0-9, *#abcd\n"
 " Returns 0 on success or -1 on a hangup.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv)
+static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
 	int timeout = 250;
 
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", senddtmf_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(senddtmf_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -83,30 +78,19 @@ static int senddtmf_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(senddtmf_app);
+
+	res |= opbx_unregister_function(senddtmf_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	senddtmf_app = opbx_register_application(senddtmf_name, senddtmf_exec, senddtmf_synopsis, senddtmf_syntax, senddtmf_descrip);
+	senddtmf_app = opbx_register_function(senddtmf_name, senddtmf_exec, senddtmf_synopsis, senddtmf_syntax, senddtmf_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -63,6 +63,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver_addon/adsi.h"
 
+
 #ifdef __OPBX_DEBUG_MALLOC
 	 static void FREE(void *ptr)
 {
@@ -118,27 +119,28 @@ static int featuredigittimeout;
 static char *registrar = "res_features";
 
 static void *parkedcall_app;
-static const char *parkedcall_name = "ParkedCall";
-static const char *parkedcall_synopsis = "Answer a parked call";
-static const char *parkedcall_syntax = "ParkedCall(exten)";
-static const char *parkedcall_descrip =
+static const char parkedcall_name[] = "ParkedCall";
+static const char parkedcall_synopsis[] = "Answer a parked call";
+static const char parkedcall_syntax[] = "ParkedCall(exten)";
+static const char parkedcall_descrip[] =
 "Used to connect to a parked call.  This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
 static void *parkcall_app;
-static const char *parkcall_name = "Park";
-static const char *parkcall_synopsis = "Park yourself";
-static const char *parkcall_syntax = "Park(exten)";
-static const char *parkcall_descrip =
+static const char parkcall_name[] = "Park";
+static const char parkcall_synopsis[] = "Park yourself";
+static const char parkcall_syntax[] = "Park(exten)";
+static const char parkcall_descrip[] =
 "Used to park yourself (typically in combination with a supervised\n"
 "transfer to know the parking space). This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
-static struct opbx_app *monitor_app=NULL;
+static unsigned int hash_monitor;
+
 static int monitor_ok=1;
 
 struct parkeduser {
@@ -160,7 +162,7 @@ static struct parkeduser *parkinglot;
 
 OPBX_MUTEX_DEFINE_STATIC(parking_lock);
 
-static pthread_t parking_thread;
+static pthread_t parking_thread = OPBX_PTHREADT_NULL;
 
 /* Predeclare all statics to keep GCC 4.x happy */
 static char *__opbx_parking_ext(void);
@@ -175,9 +177,6 @@ static void __opbx_unregister_features(void);
 static int __opbx_bridge_call(struct opbx_channel *,struct opbx_channel *,struct opbx_bridge_config *);
 static int __opbx_pickup_call(struct opbx_channel *chan);
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static char *__opbx_parking_ext(void)
 {
@@ -266,7 +265,7 @@ static void __opbx_bridge_call_thread_launch(void *data)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr,__opbx_bridge_call_thread, data);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr,__opbx_bridge_call_thread, data);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -480,13 +479,6 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 		return -1;
 	}
 
-	if (!monitor_app) { 
-		if (!(monitor_app = pbx_findapp("Monitor"))) {
-			monitor_ok=0;
-			opbx_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
-			return -1;
-		}
-	}
 	if (!opbx_strlen_zero(courtesytone)) {
 		if (opbx_autoservice_start(callee_chan))
 			return -1;
@@ -533,10 +525,7 @@ static int builtin_automonitor(struct opbx_channel *chan, struct opbx_channel *p
 			if (args[x] == '/')
 				args[x] = '-';
 		
-		if (option_verbose > 3)
-			opbx_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
-
-		pbx_exec(callee_chan, monitor_app, args);
+		opbx_function_exec_str(callee_chan, hash_monitor, "Monitor", args, NULL, 0);
 		
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -938,8 +927,9 @@ static struct opbx_call_feature *find_feature(char *name)
 /* exec an app by feature */
 static int feature_exec_app(struct opbx_channel *chan, struct opbx_channel *peer, struct opbx_bridge_config *config, char *code, int sense)
 {
-	struct opbx_app *app;
 	struct opbx_call_feature *feature;
+	struct opbx_channel *work = chan;
+	char *args;
 	int res;
 
 	OPBX_LIST_LOCK(&feature_list);
@@ -953,20 +943,14 @@ static int feature_exec_app(struct opbx_channel *chan, struct opbx_channel *peer
 		return -1; 
 	}
 	
-	app = pbx_findapp(feature->app);
-	if (app) {
-		struct opbx_channel *work=chan;
-		char *args;
-		if (opbx_test_flag(feature,OPBX_FEATURE_FLAG_CALLEE)) work=peer;
-		res = strlen(feature->app_args) + 1;
-		args = alloca(res);
-		memcpy(args, feature->app_args, res);
-		res = pbx_exec(work, app, feature->app_args);
-		if (res<0) return res; 
-	} else {
-		opbx_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
-		res = -2;
-	}
+	if (opbx_test_flag(feature, OPBX_FEATURE_FLAG_CALLEE))
+		work = peer;
+	res = strlen(feature->app_args) + 1;
+	args = alloca(res);
+	memcpy(args, feature->app_args, res);
+	res = opbx_function_exec_str(work, opbx_hash_app_name(feature->app), feature->app, args, NULL, 0);
+	if (res < 0)
+		return res; 
 	
 	return FEATURE_RETURN_SUCCESS;
 }
@@ -1286,26 +1270,22 @@ static int __opbx_bridge_call(struct opbx_channel *chan,struct opbx_channel *pee
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
 
 	if (monitor_ok) {
-		if (!monitor_app && !(monitor_app = pbx_findapp("Monitor"))) {
-				monitor_ok=0;
-		} else {
-			char *argv[4];
+		char *argv[4];
+		argv[3] = NULL;
+		if ((argv[0] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FORMAT"))) {
+			argv[1] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_BASE");
+			argv[1] = (argv[1] ? argv[1] : "");
+			argv[2] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_OPTS");
+			argv[2] = (argv[2] ? argv[2] : "");
 			argv[3] = NULL;
-			if ((argv[0] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FORMAT"))) {
-				argv[1] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_BASE");
-				argv[1] = (argv[1] ? argv[1] : "");
-				argv[2] = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR_FNAME_OPTS");
-				argv[2] = (argv[2] ? argv[2] : "");
-				argv[3] = NULL;
-				pbx_exec_argv(chan, monitor_app, 3, argv);
-			} else if ((argv[0] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FORMAT"))) {
-				argv[1] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_BASE");
-				argv[1] = (argv[1] ? argv[1] : "");
-				argv[2] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_OPTS");
-				argv[2] = (argv[2] ? argv[2] : "");
-				argv[3] = NULL;
-				pbx_exec_argv(peer, monitor_app, 3, argv);
-			}
+			opbx_function_exec(chan, hash_monitor, "Monitor", 3, argv, NULL, 0);
+		} else if ((argv[0] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FORMAT"))) {
+			argv[1] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_BASE");
+			argv[1] = (argv[1] ? argv[1] : "");
+			argv[2] = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR_FNAME_OPTS");
+			argv[2] = (argv[2] ? argv[2] : "");
+			argv[3] = NULL;
+			opbx_function_exec(peer, hash_monitor, "Monitor", 3, argv, NULL, 0);
 		}
 	}
 	
@@ -1662,17 +1642,23 @@ std:					for (x=0; x<OPBX_MAX_FDS; x++) {
 			}
 		}
 		opbx_mutex_unlock(&parking_lock);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
+
 		rfds = nrfds;
 		efds = nefds;
 		tv = opbx_samp2tv(ms, 1000);
 		/* Wait for something to happen */
 		opbx_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+
 		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
 	return NULL;	/* Never reached */
 }
 
-static int park_call_exec(struct opbx_channel *chan, int argc, char **argv)
+static int park_call_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	/* Args are unused at the moment but could contain a parking
 	   lot context eventually */
@@ -1695,7 +1681,7 @@ static int park_call_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int park_exec(struct opbx_channel *chan, int argc, char **argv)
+static int park_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
@@ -1707,10 +1693,8 @@ static int park_exec(struct opbx_channel *chan, int argc, char **argv)
 	int dres;
 	struct opbx_bridge_config config;
 
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: Park(exten)\n");
-		return -1;
-	}
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax("Park(exten)");
 
 	LOCAL_USER_ADD(u);
 
@@ -1857,8 +1841,12 @@ static char showfeatures_help[] =
 "Usage: show features\n"
 "       Lists currently configured features.\n";
 
-static struct opbx_cli_entry showfeatures =
-	{ { "show", "features", NULL }, handle_showfeatures, "Lists configured features", showfeatures_help };
+static struct opbx_clicmd showfeatures = {
+	.cmda = { "show", "features", NULL },
+	.handler = handle_showfeatures,
+	.summary = "Lists configured features",
+	.usage = showfeatures_help,
+};
 
 static int handle_parkedcalls(int fd, int argc, char *argv[])
 {
@@ -1890,8 +1878,12 @@ static char showparked_help[] =
 "Usage: show parkedcalls\n"
 "       Lists currently parked calls.\n";
 
-static struct opbx_cli_entry showparked =
-{ { "show", "parkedcalls", NULL }, handle_parkedcalls, "Lists parked calls", showparked_help };
+static struct opbx_clicmd showparked = {
+	.cmda = { "show", "parkedcalls", NULL },
+	.handler = handle_parkedcalls,
+	.summary = "Lists parked calls",
+	.usage = showparked_help,
+};
 
 /* Dump lot status */
 static int manager_parking_status( struct mansession *s, struct message *m )
@@ -2150,14 +2142,18 @@ static int load_config(void)
 	return opbx_add_extension2(con, 1, __opbx_parking_ext(), 1, NULL, NULL, parkcall_name, strdup(""), FREE, registrar);
 }
 
-int reload(void) {
+static int reload_module(void) {
 	return load_config();
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	int res;
-	
+
+	opbx_module_get(get_modinfo()->self);
+
+	hash_monitor = opbx_hash_app_name("Monitor");
+
 	OPBX_LIST_HEAD_INIT(&feature_list);
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
@@ -2166,10 +2162,10 @@ int load_module(void)
 		return res;
 	opbx_cli_register(&showparked);
 	opbx_cli_register(&showfeatures);
-	opbx_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	opbx_pthread_create(get_modinfo()->self, &parking_thread, NULL, do_parking_thread, NULL);
 
-	parkedcall_app = opbx_register_application(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
-	parkcall_app = opbx_register_application(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);
+	parkedcall_app = opbx_register_function(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
+	parkcall_app = opbx_register_function(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);
 
 	opbx_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
 
@@ -2187,33 +2183,26 @@ int load_module(void)
 }
 
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
-	STANDARD_HANGUP_LOCALUSERS;
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
+	if (parking_thread != OPBX_PTHREADT_NULL) {
+		pthread_cancel(parking_thread);
+		pthread_kill(parking_thread, SIGURG);
+		pthread_join(parking_thread, NULL);
+		parking_thread = OPBX_PTHREADT_NULL;
+	}
 	opbx_manager_unregister("ParkedCalls");
 	opbx_cli_unregister(&showfeatures);
 	opbx_cli_unregister(&showparked);
-	res |= opbx_unregister_application(parkcall_app);
-	res |= opbx_unregister_application(parkedcall_app);
+	res |= opbx_unregister_function(parkcall_app);
+	res |= opbx_unregister_function(parkedcall_app);
 	return res;
 }
 
-char *description(void)
-{
-	return "Call Features Resource";
-}
 
-int usecount(void)
-{
-	/* Never allow parking to be unloaded because it will
-	   unresolve needed symbols in the dialer */
-#if 0
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-#else
-	return 1;
-#endif
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Call Features Resource")

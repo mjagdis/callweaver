@@ -252,7 +252,9 @@ int opbx_sched_wait(struct sched_context *con)
 #ifdef DEBUG_SCHED
 	DEBUG_LOG(opbx_log(LOG_DEBUG, "opbx_sched_wait()\n"));
 #endif
+	pthread_cleanup_push((void (*)(void *))opbx_mutex_unlock, &con->lock);
 	opbx_mutex_lock(&con->lock);
+
 	if (!con->schedq) {
 		ms = -1;
 	} else {
@@ -260,7 +262,8 @@ int opbx_sched_wait(struct sched_context *con)
 		if (ms < 0)
 			ms = 0;
 	}
-	opbx_mutex_unlock(&con->lock);
+
+	pthread_cleanup_pop(1);
 	return ms;
 	
 }

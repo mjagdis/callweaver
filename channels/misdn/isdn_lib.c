@@ -2923,12 +2923,15 @@ static void misdn_lib_isdn_event_catcher(void *arg)
 	int port=0;
 	
 	while (1) {
-		msg_t *msg = fetch_msg(midev); 
+		msg_t *msg;
 		iframe_t *frm;
-		
-		
-		if (!msg) continue;
-		
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		do {
+			msg = fetch_msg(midev); 
+		} while (!msg);
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		frm = (iframe_t*) msg->data;
 		
 		/** When we make a call from NT2Opbx we get this frames **/
@@ -3611,7 +3614,9 @@ void manager_event_handler(void *arg)
 		msg_t *msg;
     
 		/** wait for events **/
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		sem_wait(&glob_mgr->new_msg);
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     
 		for (msg=msg_dequeue(&glob_mgr->activatequeue);
 		     msg;

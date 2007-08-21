@@ -25,10 +25,41 @@
 
 #include "callweaver/sched.h"
 #include "callweaver/channel.h"
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
+#include "callweaver/function.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+
+/*!
+ * Function and variable names are no longer case insensitive. If the old behaviour
+ * is desired, this file should be compiled with the following macros defined:
+ *
+ *        o  OPBX_USE_CASE_INSENSITIVE_APP_NAMES
+ *        o  OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+ *
+ */
+
+#ifdef OPBX_USE_CASE_INSENSITIVE_APP_NAMES
+#define opbx_hash_app_name(x)    opbx_hash_string_toupper(x)
+#define OPBX_CASE_INFO_STRING_FOR_APP_NAMES    "insensitive"
+#else
+#define opbx_hash_app_name(x)    opbx_hash_string(x)
+#define OPBX_CASE_INFO_STRING_FOR_APP_NAMES    "sensitive"
+#endif
+
+#ifdef OPBX_USE_CASE_INSENSITIVE_VAR_NAMES
+#define opbx_hash_var_name(x)    opbx_hash_string_toupper(x)
+#define OPBX_CASE_INFO_STRING_FOR_VAR_NAMES    "insensitive"
+#else
+#define opbx_hash_var_name(x)    opbx_hash_string(x)
+#define OPBX_CASE_INFO_STRING_FOR_VAR_NAMES    "sensitive"
+#endif
+
 
 #define OPBX_PBX_KEEP    0
 #define OPBX_PBX_REPLACE 1
@@ -96,28 +127,10 @@ struct opbx_exten;
 struct opbx_include;
 struct opbx_ignorepat;
 struct opbx_sw;
+struct opbx_func;
 
 typedef int (*opbx_state_cb_type)(char *context, char* id, enum opbx_extension_states state, void *data);
 
-
-/*! Data structure associated with an callweaver switch */
-struct opbx_switch
-{
-	/*! NULL */
-	struct opbx_switch *next;	
-	/*! Name of the switch */
-	const char *name;				
-	/*! Description of the switch */
-	const char *description;		
-	
-	int (*exists)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	
-	int (*canmatch)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	
-	int (*exec)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-
-	int (*matchmore)(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-};
 
 struct opbx_timing
 {
@@ -139,55 +152,17 @@ struct opbx_pbx
 };
 
 
-/*! Register an alternative switch */
-/*!
- * \param sw switch to register
- * This function registers a populated opbx_switch structure with the
- * callweaver switching architecture.
- * It returns 0 on success, and other than 0 on failure
+/*! Interpret a condition variable
+ *!
+ * \param condition condition to interpret
+ * Interpret a condition variable. This does _not_ evaluate teh condition.
+ *     NULL and empty strings are false
+ *     Non-empty strings are true
+ *     Numbers are true if non-zero, false otherwise
+ * Returns zero for false, non-zero for true
  */
-extern int opbx_register_switch(struct opbx_switch *sw);
+extern int pbx_checkcondition(char *condition);
 
-/*! Unregister an alternative switch */
-/*!
- * \param sw switch to unregister
- * Unregisters a switch from callweaver.
- * Returns nothing
- */
-extern void opbx_unregister_switch(struct opbx_switch *sw);
-
-/*! Look up an application */
-/*!
- * \param app name of the app
- * This function searches for the opbx_app structure within
- * the apps that are registered for the one with the name
- * you passed in.
- * Returns the opbx_app structure that matches on success, or NULL on failure
- */
-extern struct opbx_app *pbx_findapp(const char *app);
-
-/*! executes an application */
-/*!
- * \param c channel to execute on
- * \param app which app to execute
- * \param data the data passed into the app
- * This application executes an application on a given channel
- * passing in the given data.
- * It returns 0 on success, and -1 on failure
- */
-int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data);
-
-/*! executes an application */
-/*!
- * \param c channel to execute on
- * \param app which app to execute
- * \param argv the arguments passed into the app
- * \param argc the number of arguments passed into the app
- * This application executes an application on a given channel
- * passing in the given data.
- * It returns 0 on success, and -1 on failure
- */
-int pbx_exec_argv(struct opbx_channel *c, struct opbx_app *app, int argc, char **argv);
 
 /*! Register a new context */
 /*!
@@ -274,32 +249,6 @@ int opbx_add_extension2(struct opbx_context *con,
 				      int replace, const char *extension, int priority, const char *label, const char *callerid, 
 					  const char *application, void *data, void (*datad)(void *),
 					  const char *registrar);
-
-/*! Add an application.  The function 'execute' should return non-zero if the line needs to be hung up.  */
-/*!
-  \param app Short name of the application
-  \param execute a function callback to execute the application
-  \param synopsis a short description of the application
-  \param syntax a description of the application's calling syntax
-  \param description long description of the application
-   Include a one-line synopsis (e.g. 'hangs up a channel') and a more lengthy, multi-line
-   description with more detail, including under what conditions the application
-   will return 0 or -1.
-   This registers an application with callweavers internal application list.  Please note:
-   The individual applications themselves are responsible for registering and unregistering
-   CLI commands.
-   It returns an opaque app reference suitable for use with opbx_unregister_application on success, NULL on failure.
-*/
-void *opbx_register_application(const char *name, int (*execute)(struct opbx_channel *, int, char **), const char *synopsis, const char *syntax, const char *description);
-
-
-/*! Remove an application */
-/*!
- * \param app an opaque app reference as returned by opbx_register_application
- * This unregisters an application from callweaver's internal registration mechanisms.
- * It returns 0 on success, and -1 on failure.
- */
-int opbx_unregister_application(void *app);
 
 /*! Uses hint and devicestate callback to get the state of an extension */
 /*!
@@ -619,8 +568,8 @@ extern void pbx_builtin_pushvar_helper(struct opbx_channel *chan, const char *na
 extern void pbx_builtin_setvar_helper(struct opbx_channel *chan, const char *name, const char *value);
 extern void pbx_retrieve_variable(struct opbx_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
 extern void pbx_builtin_clear_globals(void);
-extern void pbx_substitute_variables_helper(struct opbx_channel *c,const char *cp1,char *cp2,int count);
-extern void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
+extern int pbx_substitute_variables_helper(struct opbx_channel *c,const char *cp1,char *cp2,int count);
+extern int pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 
 int opbx_extension_patmatch(const char *pattern, const char *data);
 
@@ -635,39 +584,58 @@ int opbx_explicit_goto(struct opbx_channel *chan, const char *context, const cha
 int opbx_explicit_gotolabel(struct opbx_channel *chan, const char *context, const char *exten, const char *priority);
 int opbx_async_goto_if_exists(struct opbx_channel *chan, char* context, char *exten, int priority);
 
-extern struct opbx_func *opbx_function_find(const char *name);
-extern int opbx_unregister_function(void *function);
-extern void *opbx_register_function(const char *name,
-		char *(*read)(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len),
-		void (*write)(struct opbx_channel *chan, int argc, char **argv, const char *value),
-		const char *synopsis, const char *syntax, const char *desc);
+
+/*! \brief Logs a syntax error for a function
+ *
+ * \param syntax	the correct usage message
+ *
+ * \return -1. Propogating this back up the call chain will hang up the current call.
+ */
+extern int opbx_function_syntax(const char *syntax);
+
+/*! \brief Executes a function using an array of arguments
+ *
+ * Executes an application on a channel with the given arguments
+ * and returns any result as a string in the given result buffer.
+ *
+ * \param chan		channel to execute on
+ * \param hash		hash of the name of function to execute (from opbx_hash_app_name())
+ * \param name		name of function to execute
+ * \param argc		the number of arguments
+ * \param argv		an array of pointers to argument strings
+ * \param result	where to write any result
+ * \param result_max	how much space is available in out for a result
+ *
+ * \return 0 on success, -1 on failure
+ */
+extern int opbx_function_exec(struct opbx_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *result, size_t result_max);
+
+/*! \brief Executes a function using an argument string
+ *
+ * Executes an application on a channel with the given arguments
+ * and returns any result as a string in the given result buffer.
+ * The argument string contains zero or more comma separated
+ * arguments. Arguments may be quoted and/or contain backslash
+ * escaped characters as allowed by opbx_separate_app_args().
+ * They may NOT contain variables or expressions that require
+ * expansion - these should have been expanded prior to calling
+ * opbx_function_exec().
+ *
+ * \param chan		channel to execute on
+ * \param hash		hash of the name of function to execute (from opbx_hash_app_name())
+ * \param name		name of function to execute
+ * \param args		the argument string
+ * \param result	where to write any result
+ * \param result_max	how much space is available in out for a result
+ *
+ * \return 0 on success, -1 on failure
+ */
+extern int opbx_function_exec_str(struct opbx_channel *chan, unsigned int hash, const char *name, char *args, char *result, size_t result_max);
+
 
 /* Number of active calls */
 int opbx_active_calls(void);
 	
-/*! executes a read operation on a function */
-/*!
- * \param chan Channel to execute on
- * \param in Data containing the function call string
- * \param workspace A pointer to safe memory to use for a return value 
- * \param len the number of bytes in workspace
- * This application executes an function in read mode on a given channel.
- * It returns a pointer to workspace if the buffer contains any new data
- * or NULL if there was a problem.
- */
-	
-char *opbx_func_read(struct opbx_channel *chan, const char *in, char *workspace, size_t len);
-
-/*! executes a write operation on a function */
-/*!
- * \param chan Channel to execute on
- * \param in Data containing the function call string
- * \param value A value parameter to pass for writing
- * This application executes an function in write mode on a given channel.
- * It has no return value.
- */
-void opbx_func_write(struct opbx_channel *chan, const char *in, const char *value);
-
 void opbx_hint_state_changed(const char *device);
 
 int pbx_checkcondition(char *condition);

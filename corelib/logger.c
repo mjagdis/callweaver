@@ -45,10 +45,9 @@
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
 
-#include "callweaver.h"
-
-CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
-
+/* Callweaver includes are going to redefine these for opbx_log use
+ * so we need to build this map _before_ any callweaver includes.
+ */
 static int syslog_level_map[] = {
 	LOG_DEBUG,
 	LOG_INFO,    /* arbitrary equivalent of LOG_EVENT */
@@ -60,6 +59,10 @@ static int syslog_level_map[] = {
 };
 
 #define SYSLOG_NLEVELS 6
+
+#include "callweaver.h"
+
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"
@@ -565,20 +568,26 @@ static char logger_show_channels_help[] =
 "Usage: logger show channels\n"
 "       Show configured logger channels.\n";
 
-static struct opbx_cli_entry logger_show_channels_cli = 
-	{ { "logger", "show", "channels", NULL }, 
-	handle_logger_show_channels, "List configured log channels",
-	logger_show_channels_help };
+static struct opbx_clicmd logger_show_channels_cli = {
+	.cmda = { "logger", "show", "channels", NULL }, 
+	.handler = handle_logger_show_channels,
+	.summary = "List configured log channels",
+	.usage = logger_show_channels_help,
+};
 
-static struct opbx_cli_entry reload_logger_cli = 
-	{ { "logger", "reload", NULL }, 
-	handle_logger_reload, "Reopens the log files",
-	logger_reload_help };
+static struct opbx_clicmd reload_logger_cli = {
+	.cmda = { "logger", "reload", NULL }, 
+	.handler = handle_logger_reload,
+	.summary = "Reopens the log files",
+	.usage = logger_reload_help,
+};
 
-static struct opbx_cli_entry rotate_logger_cli = 
-	{ { "logger", "rotate", NULL }, 
-	handle_logger_rotate, "Rotates and reopens the log files",
-	logger_rotate_help };
+static struct opbx_clicmd rotate_logger_cli = {
+	.cmda = { "logger", "rotate", NULL }, 
+	.handler = handle_logger_rotate,
+	.summary = "Rotates and reopens the log files",
+	.usage = logger_rotate_help,
+};
 
 static int handle_SIGXFSZ(int sig) 
 {

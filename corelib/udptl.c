@@ -1230,14 +1230,26 @@ static char no_debug_usage[] =
   "Usage: udptl no debug\n"
   "       Disable all UDPTL debugging\n";
 
-static struct opbx_cli_entry  cli_debug_ip =
-{{ "udptl", "debug", "ip", NULL } , udptl_do_debug, "Enable UDPTL debugging on IP", debug_usage };
+static struct opbx_clicmd  cli_debug_ip = {
+	.cmda = { "udptl", "debug", "ip", NULL },
+	.handler = udptl_do_debug,
+	.summary = "Enable UDPTL debugging on IP",
+	.usage = debug_usage,
+};
 
-static struct opbx_cli_entry  cli_debug =
-{{ "udptl", "debug", NULL } , udptl_do_debug, "Enable UDPTL debugging", debug_usage };
+static struct opbx_clicmd  cli_debug = {
+	.cmda = { "udptl", "debug", NULL },
+	.handler = udptl_do_debug,
+	.summary = "Enable UDPTL debugging",
+	.usage = debug_usage,
+};
 
-static struct opbx_cli_entry  cli_no_debug =
-{{ "udptl", "no", "debug", NULL } , udptl_no_debug, "Disable UDPTL debugging", no_debug_usage };
+static struct opbx_clicmd  cli_no_debug = {
+	.cmda = { "udptl", "no", "debug", NULL },
+	.handler = udptl_no_debug,
+	.summary = "Disable UDPTL debugging",
+	.usage = no_debug_usage,
+};
 
 void opbx_udptl_reload(void)
 {

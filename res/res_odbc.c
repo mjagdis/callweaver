@@ -107,7 +107,7 @@ static void odbc_init(void)
 	}
 }
 
-static char *tdesc = "ODBC Resource";
+static const char tdesc[] = "ODBC Resource";
 /* internal stuff */
 
 int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt) 
@@ -320,28 +320,40 @@ static int odbc_connect_command(int fd, int argc, char **argv)
 }
 
 
-static char connect_usage[] =
+static const char connect_usage[] =
 "Usage: odbc connect <DSN>\n"
 "       Connect to ODBC DSN\n";
 
-static char disconnect_usage[] =
+static const char disconnect_usage[] =
 "Usage: odbc connect <DSN>\n"
 "       Disconnect from ODBC DSN\n";
 
-static char show_usage[] =
+static const char show_usage[] =
 "Usage: odbc show {DSN}\n"
 "       Show ODBC {DSN}\n"
 "       Specifying DSN will show that DSN else, all DSNs are shown\n";
 
-static struct opbx_cli_entry odbc_connect_struct =
-        { { "odbc", "connect", NULL }, odbc_connect_command, "Connect to ODBC DSN", connect_usage };
+static struct opbx_clicmd odbc_connect_struct = {
+	.cmda = { "odbc", "connect", NULL },
+	.handler = odbc_connect_command,
+	.summary = "Connect to ODBC DSN",
+	.usage = connect_usage,
+};
 
 
-static struct opbx_cli_entry odbc_disconnect_struct =
-        { { "odbc", "disconnect", NULL }, odbc_disconnect_command, "Disconnect from ODBC DSN", disconnect_usage };
+static struct opbx_clicmd odbc_disconnect_struct = {
+	.cmda = { "odbc", "disconnect", NULL },
+	.handler = odbc_disconnect_command,
+	.summary = "Disconnect from ODBC DSN",
+	.usage = disconnect_usage,
+};
 
-static struct opbx_cli_entry odbc_show_struct =
-        { { "odbc", "show", NULL }, odbc_show_command, "Show ODBC DSN(s)", show_usage };
+static struct opbx_clicmd odbc_show_struct = {
+	.cmda = { "odbc", "show", NULL },
+	.handler = odbc_show_command,
+	.summary = "Show ODBC DSN(s)",
+	.usage = show_usage,
+};
 
 /* api calls */
 
@@ -510,13 +522,9 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 	return ODBC_SUCCESS;
 }
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-int unload_module(void)
+static int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
 	odbc_destroy();
 	opbx_cli_unregister(&odbc_disconnect_struct);
 	opbx_cli_unregister(&odbc_connect_struct);
@@ -525,7 +533,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	odbc_init();
 	load_odbc_config();
@@ -536,14 +544,5 @@ int load_module(void)
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

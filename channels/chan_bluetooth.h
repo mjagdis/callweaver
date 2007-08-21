@@ -39,6 +39,7 @@
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
 #include "callweaver/logger.h"
+#include "callweaver/atexit.h"
 #include "callweaver/module.h"
 #include "callweaver/pbx.h"
 #include "callweaver/sched.h"
@@ -333,24 +334,37 @@ static char show_peers_usage[] =
 "Usage: bluetooth show peers\n"
 "       List all bluetooth peers and their status\n";
 
-static struct opbx_cli_entry
-cli_show_peers =
-    { { "bluetooth", "show", "peers", NULL }, blt_show_peers, "List Bluetooth Peers", show_peers_usage };
+static struct opbx_clicmd cli_show_peers =
+    {
+	    .cmda = { "bluetooth", "show", "peers", NULL },
+	    .handler = blt_show_peers,
+	    .summary = "List Bluetooth Peers",
+	    .usage = show_peers_usage,
+    };
 
 
 static char ag_sendcmd[] =
 "Usage: bluetooth ag <device> sendcmd <cmd>\n"
 "       Sends a AT cmd over the RFCOMM link, and print result (AG only)\n";
 
-static struct opbx_cli_entry
-cli_ag_sendcmd =
-    { { "bluetooth", "sendcmd", NULL }, blt_ag_sendcmd, "Send AG an AT command", ag_sendcmd, complete_device_2_ag };
+static struct opbx_clicmd cli_ag_sendcmd =
+    {
+	    .cmda = { "bluetooth", "sendcmd", NULL },
+	    .handler = blt_ag_sendcmd,
+	    .summary = "Send AG an AT command",
+	    .usage = ag_sendcmd,
+	    .generator = complete_device_2_ag,
+    };
 
 static char show_information[] =
 "Usage: bluetooth show information\n"
 "       Lists information about the bluetooth subsystem\n";
 
-static struct opbx_cli_entry
-cli_show_information =
-    { { "bluetooth", "show", "information", NULL }, blt_show_information, "List Bluetooth Info", show_information };
+static struct opbx_clicmd cli_show_information =
+    {
+	    .cmda = { "bluetooth", "show", "information", NULL },
+	    .handler = blt_show_information,
+	    .summary = "List Bluetooth Info",
+	    .usage = show_information,
+    };
 

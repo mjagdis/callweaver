@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -67,12 +66,10 @@ struct opbx_filestream
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(wav_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "wav";
-static char *desc = "Microsoft WAV format (8000hz Signed Linear)";
-static char *exts = "wav";
+static const char desc[] = "Microsoft WAV format (8000hz Signed Linear)";
+
 
 #define BLOCKSIZE 160
 
@@ -349,22 +346,13 @@ static struct opbx_filestream *wav_open(FILE *f)
             free(tmp);
             return NULL;
         }
-        if (opbx_mutex_lock(&wav_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock wav list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
         tmp->needsgain = 1;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, NULL);
         tmp->fr.data = tmp->buf;
         /* datalen will vary for each frame */
-        tmp->fr.src = name;
+        tmp->fr.src = format.name;
         tmp->bytes = 0;
-        glistcnt++;
-        opbx_mutex_unlock(&wav_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -384,16 +372,7 @@ static struct opbx_filestream *wav_rewrite(FILE *f, const char *comment)
             free(tmp);
             return NULL;
         }
-        if (opbx_mutex_lock(&wav_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock wav list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&wav_lock);
-        opbx_update_use_count();
     }
     else
     {
@@ -408,14 +387,6 @@ static void wav_close(struct opbx_filestream *s)
     
     if (s == NULL)
         return;
-    if (opbx_mutex_lock(&wav_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock wav list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&wav_lock);
-    opbx_update_use_count();
     if (s->f)
     {
         /* Pad to even length */
@@ -614,35 +585,34 @@ static char *wav_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "wav",
+	.exts = "wav",
+	.format = OPBX_FORMAT_SLINEAR,
+	.open = wav_open,
+	.rewrite = wav_rewrite,
+	.write = wav_write,
+	.seek = wav_seek,
+	.trunc = wav_trunc,
+	.tell = wav_tell,
+	.read = wav_read,
+	.close = wav_close,
+	.getcomment = wav_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_SLINEAR,
-                                wav_open,
-                                wav_rewrite,
-                                wav_write,
-                                wav_seek,
-                                wav_trunc,
-                                wav_tell,
-                                wav_read,
-                                wav_close,
-                                wav_getcomment);
-                                
-                                
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
+	opbx_format_unregister(&format);
+	return 0;
 }    
 
-int usecount(void)
-{
-    return glistcnt;
-}
 
-char *description(void)
-{
-    return desc;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

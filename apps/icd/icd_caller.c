@@ -75,6 +75,8 @@
 /*===== Private types and functions =====*/
 
 #include "callweaver/icd/icd_caller_private.h"
+
+
 /*standard func ptr struc when no custom function finder (get_plugable_fn) for func ptrs icd_plugable_fn  */
 static icd_plugable_fn icd_caller_plugable_fns;
 
@@ -2239,8 +2241,6 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
 
         /* A channel was created in the previous step or was already present */
         if (that->chan) {
-            /* update the usage count of channels */
-            opbx_update_use_count();
             /* Bring 'up' the channel if it is not already 'up' */
             result = icd_caller__dial_channel(that);
             if (icd_caller__has_role(that, ICD_AGENT_ROLE) && !icd_caller__get_onhook(that) &&
@@ -2296,9 +2296,6 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
 
             /* A channel was created in the previous step or was already present. */
             if (associate->chan) {
-
-                /* Update the usage count of channels. */
-                opbx_update_use_count();
                 /* Bring 'up' the channel if it is not already 'up'. */
                 result = icd_caller__dial_channel(associate);
             }
@@ -2959,7 +2956,7 @@ static icd_status icd_caller__create_thread(icd_caller * that)
     /* Adjust the thread state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = opbx_pthread_create(&(that->thread), &attr, icd_caller__run, that);
+    result = opbx_pthread_create(get_modinfo()->self, &(that->thread), &attr, icd_caller__run, that);
     that->using_caller_thread = 1;
     opbx_verbose(VERBOSE_PREFIX_2 "Spawn thread for Caller id[%d] [%s]\n", icd_caller__get_id(that),
         icd_caller__get_name(that));
@@ -3160,7 +3157,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
     char *verify_app, *verify_app_arg;
     int timeout;
     int result;
-    struct opbx_app *app;
+    struct opbx_func *app;
 
     assert(that != NULL);
     assert(that->chan != NULL);
@@ -3191,13 +3188,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
         verify_app_arg = icd_caller__get_param(that, "verify_app_arg");
         result = 0;
         if (verify_app) {
-            app = pbx_findapp(verify_app);
-            if (app) {
-                opbx_verbose(VERBOSE_PREFIX_2 "Calling Verify App: %s(%s)\n", verify_app,
-                    verify_app_arg ? verify_app_arg : "");
-                result = pbx_exec(that->chan, app, (verify_app_arg ? verify_app_arg : ""));
-            }
-
+            result = opbx_function_exec_str(that->chan, opbx_hash_app_name(verify_app), verify_app, verify_app_arg, NULL, 0);
         }
         if (result == 0 && that->chan) {
             return ICD_SUCCESS;
@@ -3650,6 +3641,11 @@ void *icd_caller__standard_run(void *ptr)
 
     assert(ptr != NULL);
     assert(((icd_caller *) ptr)->thread_state != ICD_THREAD_STATE_UNINITIALIZED);
+
+    /* FIXME: this is not cancellation safe even though it gets cancelled.
+     * It isn't clear where it is safe to check for cancellations though.
+     */
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
     that = (icd_caller *) ptr;
     last_state = ICD_CALLER_STATE_CREATED;

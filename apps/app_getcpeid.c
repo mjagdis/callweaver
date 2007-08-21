@@ -46,21 +46,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver_addon/adsi.h"
 
-static char *tdesc = "Get ADSI CPE ID";
+static const char tdesc[] = "Get ADSI CPE ID";
 
 static void *getcpeid_app;
-static const char *getcpeid_name = "GetCPEID";
-static const char *getcpeid_synopsis = "Get ADSI CPE ID";
-static const char *getcpeid_syntax = "GetCPEID";
-static const char *getcpeid_descrip =
+static const char getcpeid_name[] = "GetCPEID";
+static const char getcpeid_synopsis[] = "Get ADSI CPE ID";
+static const char getcpeid_syntax[] = "GetCPEID";
+static const char getcpeid_descrip[] =
 "Obtains and displays ADSI CPE ID and other information in order\n"
 "to properly setup zapata.conf for on-hook operations.\n"
 "Returns -1 on hangup only.\n";
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int cpeid_setstatus(struct opbx_channel *chan, char *stuff[], int voice)
 {
@@ -73,7 +69,7 @@ static int cpeid_setstatus(struct opbx_channel *chan, char *stuff[], int voice)
 	return adsi_print(chan, tmp, justify, voice);
 }
 
-static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv)
+static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char data[4][80];
 	char *stuff[4];
@@ -140,30 +136,19 @@ static int cpeid_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(getcpeid_app);
+
+	res |= opbx_unregister_function(getcpeid_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	getcpeid_app = opbx_register_application(getcpeid_name, cpeid_exec, getcpeid_synopsis, getcpeid_syntax, getcpeid_descrip);
+	getcpeid_app = opbx_register_function(getcpeid_name, cpeid_exec, getcpeid_synopsis, getcpeid_syntax, getcpeid_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -59,9 +59,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 OPBX_MUTEX_DEFINE_STATIC(lock);
 
-static char *desc = "Customizable Comma Separated Values CDR Backend";
+static const char desc[] = "Customizable Comma Separated Values CDR Backend";
 
-static char *name = "cdr-custom";
+static const char name[] = "cdr-custom";
 
 static FILE *mf = NULL;
 
@@ -138,41 +138,41 @@ static int custom_log(struct opbx_cdr *cdr)
 	return 0;
 }
 
-char *description(void)
+static void release(void)
 {
-	return desc;
+	if (mf) {
+		fclose(mf);
+		mf = NULL;
+	}
 }
 
-int unload_module(void)
+
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = custom_log,
+};
+
+
+static int unload_module(void)
 {
-	if (mf)
-		fclose(mf);
-	opbx_cdr_unregister(name);
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	int res = 0;
 
-	if (!load_config(0)) {
-		res = opbx_cdr_register(name, desc, custom_log);
-		if (res)
-			opbx_log(LOG_ERROR, "Unable to register custom CDR handling\n");
-		if (mf)
-			fclose(mf);
-	}
+	opbx_cdrbe_register(&cdrbe);
+	res |= load_config(0);
 	return res;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	return load_config(1);
 }
 
-int usecount(void)
-{
-	return 0;
-}
 
-
+MODULE_INFO(load_module, reload_module, unload_module, release, desc)

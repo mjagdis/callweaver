@@ -2268,14 +2268,26 @@ static char no_debug_usage[] =
     "Usage: rtp no debug\n"
     "       Disable all RTP debugging\n";
 
-static struct opbx_cli_entry  cli_debug_ip =
-{{ "rtp", "debug", "ip", NULL } , rtp_do_debug, "Enable RTP debugging on IP", debug_usage };
+static struct opbx_clicmd  cli_debug_ip = {
+	.cmda = { "rtp", "debug", "ip", NULL },
+	.handler = rtp_do_debug,
+	.summary = "Enable RTP debugging on IP",
+	.usage = debug_usage,
+};
 
-static struct opbx_cli_entry  cli_debug =
-{{ "rtp", "debug", NULL } , rtp_do_debug, "Enable RTP debugging", debug_usage };
+static struct opbx_clicmd  cli_debug = {
+	.cmda = { "rtp", "debug", NULL },
+	.handler = rtp_do_debug,
+	.summary = "Enable RTP debugging",
+	.usage = debug_usage,
+};
 
-static struct opbx_cli_entry  cli_no_debug =
-{{ "rtp", "no", "debug", NULL } , rtp_no_debug, "Disable RTP debugging", no_debug_usage };
+static struct opbx_clicmd  cli_no_debug = {
+	.cmda = { "rtp", "no", "debug", NULL },
+	.handler = rtp_no_debug,
+	.summary = "Disable RTP debugging",
+	.usage = no_debug_usage,
+};
 
 void opbx_rtp_reload(void)
 {

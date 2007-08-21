@@ -38,13 +38,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/manager.h"
 
-static char *tdesc = "Trivial FAX Transmit Application";
+static const char tdesc[] = "Trivial FAX Transmit Application";
 
 static void *txfax_app;
-static const char *txfax_name = "TxFAX";
-static const char *txfax_synopsis = "Send a FAX file";
-static const char *txfax_syntax = "TxFAX(filename[, caller][, debug][, ecm])";
-static const char *txfax_descrip = 
+static const char txfax_name[] = "TxFAX";
+static const char txfax_synopsis[] = "Send a FAX file";
+static const char txfax_syntax[] = "TxFAX(filename[, caller][, debug][, ecm])";
+static const char txfax_descrip[] = 
 "Send a given TIFF file to the channel as a FAX.\n"
 "The \"caller\" option makes the application behave as a calling machine,\n"
 "rather than the answering machine. The default behaviour is to behave as\n"
@@ -61,9 +61,6 @@ static const char *txfax_descrip =
 "Returns -1 when the user hangs up, or if the file does not exist.\n"
 "Returns 0 otherwise.\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define MAX_BLOCK_SIZE 240
 #define ready_to_talk(chan) ( (!chan ||  opbx_check_hangup(chan) )  ?  0  :  1)
@@ -502,7 +499,7 @@ static int txfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *source
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
+static int txfax_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_len)
 {
     fax_state_t 	fax;
     t38_terminal_state_t t38;
@@ -529,10 +526,7 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
     }
 
     if (argc < 1)
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", txfax_syntax);
-        return -1;
-    }
+        return opbx_function_syntax(txfax_syntax);
 
     /* Resetting channel variables related to T38 */
     
@@ -665,34 +659,23 @@ static int txfax_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 /*- End of function --------------------------------------------------------*/
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
-    STANDARD_HANGUP_LOCALUSERS;
-    res |= opbx_unregister_application(txfax_app);
+
+    res |= opbx_unregister_function(txfax_app);
     return res;
 }
 /*- End of function --------------------------------------------------------*/
 
-int load_module(void)
+static int load_module(void)
 {
-    txfax_app = opbx_register_application(txfax_name, txfax_exec, txfax_synopsis, txfax_syntax, txfax_descrip);
+    txfax_app = opbx_register_function(txfax_name, txfax_exec, txfax_synopsis, txfax_syntax, txfax_descrip);
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
 
-char *description(void)
-{
-    return tdesc;
-}
-/*- End of function --------------------------------------------------------*/
 
-int usecount(void)
-{
-    int res;
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
-    STANDARD_USECOUNT(res);
-    return res;
-}
-/*- End of function --------------------------------------------------------*/
 /*- End of file ------------------------------------------------------------*/

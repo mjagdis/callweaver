@@ -41,7 +41,7 @@ static int conf_play_soundfile( struct opbx_conf_member *member, char * file )
     queue_incoming_silent_frame(member,3);
 
     if (
-	    ( strrchr(file,'/')!=NULL ) || (opbx_fileexists(file, NULL, member->chan->language) > 0) 
+	    ( strrchr(file,'/')!=NULL ) || (opbx_fileexists(file, NULL, member->chan->language)) 
        )
     {
 	res = opbx_streamfile(member->chan, file, member->chan->language);

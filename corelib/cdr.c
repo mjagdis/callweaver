@@ -27,6 +27,7 @@
 #include "confdefs.h"
 #endif
 
+#include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,7 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/lock.h"
+#include "callweaver/registry.h"
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"
 #include "callweaver/logger.h"
@@ -49,20 +51,36 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/sched.h"
 #include "callweaver/config.h"
 #include "callweaver/cli.h"
-#include "callweaver/module.h"
+#include "callweaver/atexit.h"
+
+
+static const char *cdrbe_registry_obj_name(struct opbx_object *obj)
+{
+	struct opbx_cdrbe *it = container_of(obj, struct opbx_cdrbe, obj);
+	return it->name;
+}
+
+static int cdrbe_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+{
+	struct opbx_cdrbe *cdrbe_a = container_of(a, struct opbx_cdrbe, obj);
+	struct opbx_cdrbe *cdrbe_b = container_of(b, struct opbx_cdrbe, obj);
+
+	return strcmp(cdrbe_a->name, cdrbe_b->name);
+}
+
+
+struct opbx_registry cdrbe_registry = {
+	.name = "CDR back-end",
+	.obj_name = cdrbe_registry_obj_name,
+	.obj_cmp = cdrbe_registry_obj_cmp,
+	.lock = OPBX_MUTEX_INIT_VALUE,
+};
+
 
 int opbx_default_amaflags = OPBX_CDR_DOCUMENTATION;
 int opbx_end_cdr_before_h_exten;
 char opbx_default_accountcode[OPBX_MAX_ACCOUNT_CODE] = "";
 
-struct opbx_cdr_beitem {
-	char name[20];
-	char desc[80];
-	opbx_cdrbe be;
-	OPBX_LIST_ENTRY(opbx_cdr_beitem) list;
-};
-
-static OPBX_LIST_HEAD_STATIC(be_list, opbx_cdr_beitem);
 
 struct opbx_cdr_batch_item {
 	struct opbx_cdr *cdr;
@@ -96,69 +114,6 @@ OPBX_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 /* these are used to wake up the CDR thread when there's work to do */
 OPBX_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 
-/*
- * We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
- * through our fingers somehow.  If someone allocates a CDR, it must be completely handled normally
- * or a WARNING shall be logged, so that we can best keep track of any escape condition where the CDR
- * isn't properly generated and posted.
- */
-
-int opbx_cdr_register(char *name, char *desc, opbx_cdrbe be)
-{
-	struct opbx_cdr_beitem *i;
-
-	if (!name)
-		return -1;
-	if (!be) {
-		opbx_log(LOG_WARNING, "CDR engine '%s' lacks backend\n", name);
-		return -1;
-	}
-
-	OPBX_LIST_LOCK(&be_list);
-	OPBX_LIST_TRAVERSE(&be_list, i, list) {
-		if (!strcasecmp(name, i->name))
-			break;
-	}
-	OPBX_LIST_UNLOCK(&be_list);
-
-	if (i) {
-		opbx_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
-		return -1;
-	}
-
-	i = malloc(sizeof(*i));
-	if (!i) 	
-		return -1;
-
-	memset(i, 0, sizeof(*i));
-	i->be = be;
-	opbx_copy_string(i->name, name, sizeof(i->name));
-	opbx_copy_string(i->desc, desc, sizeof(i->desc));
-
-	OPBX_LIST_LOCK(&be_list);
-	OPBX_LIST_INSERT_HEAD(&be_list, i, list);
-	OPBX_LIST_UNLOCK(&be_list);
-
-	return 0;
-}
-
-void opbx_cdr_unregister(char *name)
-{
-	struct opbx_cdr_beitem *i = NULL;
-
-	OPBX_LIST_LOCK(&be_list);
-	OPBX_LIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
-		if (!strcasecmp(name, i->name)) {
-			OPBX_LIST_REMOVE_CURRENT(&be_list, list);
-			if (option_verbose > 1)
-				opbx_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
-			free(i);
-			break;
-		}
-	}
-	OPBX_LIST_TRAVERSE_SAFE_END;
-	OPBX_LIST_UNLOCK(&be_list);
-}
 
 struct opbx_cdr *opbx_cdr_dup(struct opbx_cdr *cdr) 
 {
@@ -792,10 +747,19 @@ int opbx_cdr_amaflags2int(const char *flag)
 	return -1;
 }
 
+
+static int post_cdrbe(struct opbx_object *obj, void *data)
+{
+	struct opbx_cdrbe *cdrbe = container_of(obj, struct opbx_cdrbe, obj);
+	struct opbx_cdr *cdr = data;
+
+	cdrbe->handler(cdr);
+	return 0;
+}
+
 static void post_cdr(struct opbx_cdr *cdr)
 {
 	char *chan;
-	struct opbx_cdr_beitem *i;
 
 	while (cdr) {
 		chan = !opbx_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
@@ -806,11 +770,9 @@ static void post_cdr(struct opbx_cdr *cdr)
 		if (opbx_tvzero(cdr->start))
 			opbx_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 		opbx_set_flag(cdr, OPBX_CDR_FLAG_POSTED);
-		OPBX_LIST_LOCK(&be_list);
-		OPBX_LIST_TRAVERSE(&be_list, i, list) {
-			i->be(cdr);
-		}
-		OPBX_LIST_UNLOCK(&be_list);
+
+		opbx_registry_iterate(&cdrbe_registry, post_cdrbe, cdr);
+
 		cdr = cdr->next;
 	}
 }
@@ -934,7 +896,7 @@ void opbx_cdr_submit_batch(int shutdown)
 	} else {
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
+		if (opbx_pthread_create(NULL, &batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
 			opbx_log(LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
 			do_batch_backend_process(oldbatchitems);
 		} else {
@@ -1022,11 +984,20 @@ void opbx_cdr_detach(struct opbx_cdr *cdr)
 }
 
 
+static int cdrbe_print(struct opbx_object *obj, void *data)
+{
+	struct opbx_cdrbe *cdrbe = container_of(obj, struct opbx_cdrbe, obj);
+	int *fd = data;
+
+	opbx_cli(*fd, "CDR registered backend: %s\n", cdrbe->name);
+	return 0;
+}
+
+
 static int handle_cli_status(int fd, int argc, char *argv[])
 {
-	struct opbx_cdr_beitem *beitem=NULL;
-	int cnt=0;
-	long nextbatchtime=0;
+	int cnt = 0;
+	long nextbatchtime = 0;
 
 	if (argc > 2)
 		return RESULT_SHOWUSAGE;
@@ -1046,11 +1017,8 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 			opbx_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, (batchtime != 1) ? "s" : "");
 			opbx_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, (nextbatchtime != 1) ? "s" : "");
 		}
-		OPBX_LIST_LOCK(&be_list);
-		OPBX_LIST_TRAVERSE(&be_list, beitem, list) {
-			opbx_cli(fd, "CDR registered backend: %s\n", beitem->name);
-		}
-		OPBX_LIST_UNLOCK(&be_list);
+
+		opbx_registry_iterate(&cdrbe_registry, cdrbe_print, &fd);
 	}
 
 	return 0;
@@ -1067,7 +1035,7 @@ static int handle_cli_submit(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static struct opbx_cli_entry cli_submit = {
+static struct opbx_clicmd cli_submit = {
 	.cmda = { "cdr", "submit", NULL },
 	.handler = handle_cli_submit,
 	.summary = "Posts all pending batched CDR data",
@@ -1076,13 +1044,18 @@ static struct opbx_cli_entry cli_submit = {
 	"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n"
 };
 
-static struct opbx_cli_entry cli_status = {
+static struct opbx_clicmd cli_status = {
 	.cmda = { "cdr", "status", NULL },
 	.handler = handle_cli_status,
 	.summary = "Display the CDR status",
 	.usage =
 	"Usage: cdr status\n"
 	"	Displays the Call Detail Record engine system status.\n"
+};
+
+static struct opbx_atexit cdr_atexit = {
+	.name = "CDR Engine Terminate",
+	.function = opbx_cdr_engine_term,
 };
 
 static int do_reload(void)
@@ -1164,14 +1137,14 @@ static int do_reload(void)
 	   if it does not exist */
 	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == OPBX_PTHREADT_NULL)) {
 		opbx_cli_register(&cli_submit);
-		opbx_register_atexit(opbx_cdr_engine_term);
+		opbx_atexit_register(&cdr_atexit);
 		res = 0;
 	/* if this reload disabled the CDR and/or batch mode and there is a background thread,
 	   kill it */
 	}else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && (cdr_thread != OPBX_PTHREADT_NULL)) {
 		cdr_thread = OPBX_PTHREADT_NULL;
 		opbx_cli_unregister(&cli_submit);
-		opbx_unregister_atexit(opbx_cdr_engine_term);
+		opbx_atexit_unregister(&cdr_atexit);
 		res = 0;
 		/* if leaving batch mode, then post the CDRs in the batch,
 		   and don't reschedule, since we are stopping CDR logging */

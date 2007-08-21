@@ -467,18 +467,20 @@ static char show_memory_summary_help[] =
 "       Summarizes heap memory allocations by file, or optionally\n"
 "by function, if a file is specified\n";
 
-static struct opbx_cli_entry show_memory_allocations_cli = 
+static struct opbx_clicmd show_memory_allocations_cli = 
 {
-    { "show", "memory", "allocations", NULL }, 
-    handle_show_memory, "Display outstanding memory allocations",
-    show_memory_help
+    .cmda = { "show", "memory", "allocations", NULL }, 
+    .handler = handle_show_memory,
+    .summary = "Display outstanding memory allocations",
+    .usage = show_memory_help,
 };
 
-static struct opbx_cli_entry show_memory_summary_cli = 
+static struct opbx_clicmd show_memory_summary_cli = 
 {
-    { "show", "memory", "summary", NULL }, 
-    handle_show_memory_summary, "Summarize outstanding memory allocations",
-    show_memory_summary_help
+    .cmda = { "show", "memory", "summary", NULL }, 
+    .handler = handle_show_memory_summary,
+    .summary = "Summarize outstanding memory allocations",
+    .usage = show_memory_summary_help,
 };
 
 void __opbx_mm_init(void)

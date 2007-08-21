@@ -43,84 +43,55 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 
 static void *cdr_function;
-static const char *cdr_func_name = "CDR";
-static const char *cdr_func_synopsis = "Gets or sets a CDR variable";
-static const char *cdr_func_syntax = "CDR(name[, options])";
-static const char *cdr_func_desc= "Option 'r' searches the entire stack of CDRs on the channel\n";
+static const char cdr_func_name[] = "CDR";
+static const char cdr_func_synopsis[] = "Gets or sets a CDR variable";
+static const char cdr_func_syntax[] = "CDR(name[, options[, value]])";
+static const char cdr_func_desc[] = "Option 'r' searches the entire stack of CDRs on the channel\n";
 
 
-static char *builtin_function_cdr_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int builtin_function_cdr_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret;
 	int recursive = 0;
 
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", cdr_func_syntax);
-		return NULL;
-	}
-
-	if (!chan->cdr)
-		return NULL;
+	if (argc < 1 || argc > 3 || !argv[0][0])
+		return opbx_function_syntax(cdr_func_syntax);
 
 	/* check for a trailing flags argument */
 	if (argc > 1) {
-		argc--;
-		if (strchr(argv[argc], 'r'))
+		if (strchr(argv[1], 'r'))
 			recursive = 1;
 	}
 
-	opbx_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
-
-	return ret;
-}
-
-static void builtin_function_cdr_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
-{
-	int recursive = 0;
-
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", cdr_func_syntax);
-		return;
+	if (argc > 2) {
+		if (!strcasecmp(argv[0], "accountcode"))
+			opbx_cdr_setaccount(chan, argv[2]);
+		else if (!strcasecmp(argv[0], "userfield"))
+			opbx_cdr_setuserfield(chan, argv[2]);
+		else if (chan->cdr)
+			opbx_cdr_setvar(chan->cdr, argv[0], argv[2], recursive);
 	}
 
-	/* check for a trailing flags argument */
-	if (argc > 1) {
-		argc--;
-		if (strchr(argv[argc], 'r'))
-			recursive = 1;
-	}
+	if (buf && chan->cdr)
+		opbx_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
 
-	if (!strcasecmp(argv[0], "accountcode"))
-		opbx_cdr_setaccount(chan, value);
-	else if (!strcasecmp(argv[0], "userfield"))
-		opbx_cdr_setuserfield(chan, value);
-	else if (chan->cdr)
-		opbx_cdr_setvar(chan->cdr, argv[0], value, recursive);
+	return 0;
 }
 
 
-static char *tdesc = "CDR related dialplan function";
-
-int unload_module(void)
+static int unload_module(void)
 {
         return opbx_unregister_function(cdr_function);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-        cdr_function = opbx_register_function(cdr_func_name, builtin_function_cdr_read, builtin_function_cdr_write, cdr_func_synopsis, cdr_func_syntax, cdr_func_desc);
+        cdr_function = opbx_register_function(cdr_func_name, builtin_function_cdr_rw, cdr_func_synopsis, cdr_func_syntax, cdr_func_desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, "CDR related dialplan function")
 
 /*
 Local Variables:

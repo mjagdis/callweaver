@@ -85,9 +85,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
   "userfield"		user field set via SetCDRUserField 
 ----------------------------------------------------------*/
 
-static char *desc = "Comma Separated Values CDR Backend";
+static const char desc[] = "Comma Separated Values CDR Backend";
 
-static char *name = "csv";
+static const char name[] = "csv";
 
 static FILE *mf = NULL;
 
@@ -254,40 +254,34 @@ static int csv_log(struct opbx_cdr *cdr)
 	return 0;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-int unload_module(void)
+static void release(void)
 {
-	if (mf)
+	if (mf) {
 		fclose(mf);
-	opbx_cdr_unregister(name);
-	return 0;
-}
-
-int load_module(void)
-{
-	int res;
-
-	res = opbx_cdr_register(name, desc, csv_log);
-	if (res) {
-		opbx_log(LOG_ERROR, "Unable to register CSV CDR handling\n");
-		if (mf)
-			fclose(mf);
+		mf = NULL;
 	}
-	return res;
 }
 
-int reload(void)
+
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = csv_log,
+};
+
+
+static int unload_module(void)
 {
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-int usecount(void)
+static int load_module(void)
 {
+	opbx_cdrbe_register(&cdrbe);
 	return 0;
 }
 
 
+MODULE_INFO(load_module, NULL, unload_module, release, desc)

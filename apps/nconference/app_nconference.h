@@ -14,4 +14,4 @@
  *
  */
 
-int app_conference_main( struct opbx_channel* chan, int argc, char **argv ) ;
+int app_conference_main( struct opbx_channel* chan, int argc, char **argv, char *result, size_t result_max) ;

@@ -272,7 +272,7 @@ static char odbc_table[80];
 #define RETRIEVE(a,b)
 #define DISPOSE(a,b)
 #define STORE(a,b,c,d)
-#define EXISTS(a,b,c,d) (opbx_fileexists(c,NULL,d) > 0)
+#define EXISTS(a,b,c,d) (opbx_fileexists(c,NULL,d))
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(g,h));
 #define DELETE(a,b,c) (vm_delete(c))
@@ -282,15 +282,15 @@ static char VM_SPOOL_DIR[OPBX_CONFIG_MAX_PATH];
 
 static char ext_pass_cmd[128];
 
-static char *tdesc = "Comedian Mail (Voicemail System)";
+static const char tdesc[] = "Comedian Mail (Voicemail System)";
 
-static char *addesc = "Comedian Mail";
+static const char addesc[] = "Comedian Mail";
 
-static char *synopsis_vm =
+static const char synopsis_vm[] =
 "Leave a voicemail message";
 
-static char *syntax_vm = "VoiceMail(mailbox[@context][&mailbox[@context]][...][, options])";
-static char *descrip_vm =
+static const char syntax_vm[] = "VoiceMail(mailbox[@context][&mailbox[@context]][...][, options])";
+static const char descrip_vm[] =
 "Leaves voicemail for a given mailbox (must be configured in voicemail.conf).\n"
 " If the options contain: \n"
 "* 's'    instructions for leaving the message will be skipped.\n"
@@ -311,11 +311,11 @@ static char *descrip_vm =
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
 "Otherwise, it returns 0.\n";
 
-static char *synopsis_vmain =
+static const char synopsis_vmain[] =
 "Enter voicemail system";
 
-static char *syntax_vmain = "VoiceMailMain([mailbox][@context][, options])";
-static char *descrip_vmain =
+static const char syntax_vmain[] = "VoiceMailMain([mailbox][@context][, options])";
+static const char descrip_vmain[] =
 "Enters the main voicemail system\n"
 "for the checking of voicemail. The mailbox can be passed in,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
@@ -329,19 +329,19 @@ static char *descrip_vmain =
 "If a context is specified, mailboxes are considered in that voicemail context only.\n"
 "Returns -1 if the user hangs up or 0 otherwise.\n";
 
-static char *synopsis_vm_box_exists =
+static const char synopsis_vm_box_exists[] =
 "Check if vmbox exists";
 
-static char *syntax_vm_box_exists = "MailboxExists(mailbox[@context][, options])";
-static char *descrip_vm_box_exists =
+static const char syntax_vm_box_exists[] = "MailboxExists(mailbox[@context][, options])";
+static const char descrip_vm_box_exists[] =
 "Conditionally branches to priority n+101\n"
 "if the specified voice mailbox exists.\n";
 
-static char *synopsis_vmauthenticate =
+static const char synopsis_vmauthenticate[] =
 "Authenticate off voicemail passwords";
 
-static char *syntax_vmauthenticate = "VMAuthenticate([mailbox][@context][, options])";
-static char *descrip_vmauthenticate =
+static const char syntax_vmauthenticate[] = "VMAuthenticate([mailbox][@context][, options])";
+static const char descrip_vmauthenticate[] =
 "Behaves identically to\n"
 "the Authenticate application, with the exception that the passwords are\n"
 "taken from voicemail.conf.\n"
@@ -350,18 +350,20 @@ static char *descrip_vmauthenticate =
 "be set with the authenticated mailbox.\n"
 "If the options contain 's' then no initial prompts will be played.\n";
 
+static unsigned int hash_directory;
+
 /* Leave a message */
 static void *app;
-static char *name = "VoiceMail";
+static const char name[] = "VoiceMail";
 
 /* Check mail, control, etc */
 static void *app2;
-static char *name2 = "VoiceMailMain";
+static const char name2[] = "VoiceMailMain";
 
 static void *app3;
-static char *name3 = "MailboxExists";
+static const char name3[] = "MailboxExists";
 static void *app4;
-static char *name4 = "VMAuthenticate";
+static const char name4[] = "VMAuthenticate";
 
 OPBX_MUTEX_DEFINE_STATIC(vmlock);
 struct opbx_vm_user *users;
@@ -407,9 +409,6 @@ static unsigned char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static void populate_defaults(struct opbx_vm_user *vmu)
 {
@@ -1410,7 +1409,7 @@ static int last_message_index(struct opbx_vm_user *vmu, char *dir)
 
 	for (x = 0; x < vmu->maxmsg; x++) {
 		make_file(fn, sizeof(fn), dir, x);
-		if (opbx_fileexists(fn, NULL, NULL) < 1)
+		if (!opbx_fileexists(fn, NULL, NULL))
 			break;
 	}
 	opbx_unlock_path(dir);
@@ -1854,7 +1853,7 @@ static int invent_message(struct opbx_channel *chan, char *context, char *ext, i
 	char fn[256];
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
 	RETRIEVE(fn, -1);
-	if (opbx_fileexists(fn, NULL, NULL) > 0) {
+	if (opbx_fileexists(fn, NULL, NULL)) {
 		res = opbx_streamfile(chan, fn, chan->language);
 		if (res) {
 			DISPOSE(fn, -1);
@@ -2355,7 +2354,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
 	RETRIEVE(tempfile, -1);
-	if (opbx_fileexists(tempfile, NULL, NULL) > 0)
+	if (opbx_fileexists(tempfile, NULL, NULL))
 		opbx_copy_string(prefile, tempfile, sizeof(prefile));
 	DISPOSE(tempfile, -1);
 	make_dir(dir, sizeof(dir), vmu->context, "", "");
@@ -2394,7 +2393,7 @@ static int leave_voicemail(struct opbx_channel *chan, char *ext, struct leave_vm
 	/* Play the beginning intro if desired */
 	if (!opbx_strlen_zero(prefile)) {
 		RETRIEVE(prefile, -1);
-		if (opbx_fileexists(prefile, NULL, NULL) > 0) {
+		if (opbx_fileexists(prefile, NULL, NULL)) {
 			if (opbx_streamfile(chan, prefile, chan->language) > -1) 
 				res = opbx_waitstream(chan, ecodes);
 		} else {
@@ -3340,31 +3339,28 @@ static int forward_message(struct opbx_channel *chan, char *context, char *dir, 
 			char old_context[sizeof(chan->context)];
 			char old_exten[sizeof(chan->exten)];
 			int old_priority;
-			struct opbx_app* app;
 
 			
-			app = pbx_findapp("Directory");
-			if (app) {
-				/* call the the Directory, changes the channel */
-				if ((s = strdup(context ? context : chan->context))) {
-					memcpy(old_context, chan->context, sizeof(chan->context));
-					memcpy(old_exten, chan->exten, sizeof(chan->exten));
-					old_priority = chan->priority;
+			/* call the the Directory, changes the channel */
+			if ((s = strdup(context ? context : chan->context))) {
+				memcpy(old_context, chan->context, sizeof(chan->context));
+				memcpy(old_exten, chan->exten, sizeof(chan->exten));
+				old_priority = chan->priority;
 
-					res = pbx_exec(chan, app, s);
-
+				res = opbx_function_exec_str(chan, hash_directory, "Directory", s, NULL, 0);
+				if (res < 0) {
+					opbx_log(LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
+					opbx_clear_flag((&globalflags), VM_DIRECFORWARD);	
+				} else {
 					opbx_copy_string(username, chan->exten, sizeof(username));
 
 					memcpy(chan->context, old_context, sizeof(chan->context));
 					memcpy(chan->exten, old_exten, sizeof(chan->exten));
 					chan->priority = old_priority;
-					free(s);
-				} else {
-					opbx_log(LOG_WARNING, "Could not call Directory application - insufficient memory\n");
 				}
+				free(s);
 			} else {
-				opbx_log(LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
-				opbx_clear_flag((&globalflags), VM_DIRECFORWARD);	
+				opbx_log(LOG_WARNING, "Could not call Directory application - insufficient memory\n");
 			}
 		} else 	{
 			/* Ask for an extension */
@@ -3628,7 +3624,7 @@ static int play_message_callerid(struct opbx_channel *chan, struct vm_state *vms
 				snprintf(prefile, sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, context, callerid);
 				if (!opbx_strlen_zero(prefile)) {
 				/* See if we can find a recorded name for this person instead of their extension number */
-					if (opbx_fileexists(prefile, NULL, NULL) > 0) {
+					if (opbx_fileexists(prefile, NULL, NULL)) {
 						opbx_verbose(VERBOSE_PREFIX_3 "Playing envelope info: CID number '%s' matches mailbox number, playing recorded name\n", callerid);
 						if (!callback)
 							res = wait_file2(chan, vms, "vm-from");
@@ -4699,7 +4695,7 @@ static int vm_tempgreeting(struct opbx_channel *chan, struct opbx_vm_user *vmu, 
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
-		if (opbx_fileexists(prefile, NULL, NULL) > 0) {
+		if (opbx_fileexists(prefile, NULL, NULL)) {
 			switch (cmd) {
 			case '1':
 				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
@@ -4713,7 +4709,7 @@ static int vm_tempgreeting(struct opbx_channel *chan, struct opbx_vm_user *vmu, 
 				cmd = 't';
 				break;
 			default:
-				if (opbx_fileexists(prefile, NULL, NULL) > 0) {
+				if (opbx_fileexists(prefile, NULL, NULL)) {
 					cmd = opbx_play_and_wait(chan,"vm-tempgreeting2");
 				} else {
 					cmd = opbx_play_and_wait(chan,"vm-tempgreeting");
@@ -4958,7 +4954,7 @@ static int vm_authenticate(struct opbx_channel *chan, char *mailbox, int mailbox
 	return 0;
 }
 
-static int vm_execmain(struct opbx_channel *chan, int argc, char **argv)
+static int vm_execmain(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	/* XXX This is, admittedly, some pretty horrendus code.  For some
 	   reason it just seemed a lot easier to do with GOTO's.  I feel
@@ -5401,7 +5397,7 @@ out:
 	return res;
 }
 
-static int vm_exec(struct opbx_channel *chan, int argc, char **argv)
+static int vm_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
@@ -5517,17 +5513,15 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
-static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv) 
+static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct opbx_vm_user svm;
 	char *context;
 	int priority_jump = 0;
 
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", syntax_vm_box_exists);
-		return -1;
-	}
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(syntax_vm_box_exists);
 
 	LOCAL_USER_ADD(u);
 
@@ -5551,7 +5545,7 @@ static int vm_box_exists(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int vmauthenticate(struct opbx_channel *chan, int argc, char **argv)
+static int vmauthenticate(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char mailbox[OPBX_MAX_EXTENSION];
 	struct opbx_vm_user vmus;
@@ -5689,15 +5683,20 @@ static char *complete_show_voicemail_users(char *line, char *word, int pos, int 
 	return NULL;
 }
 
-static struct opbx_cli_entry show_voicemail_users_cli =
-	{ { "show", "voicemail", "users", NULL },
-	handle_show_voicemail_users, "List defined voicemail boxes",
-	show_voicemail_users_help, complete_show_voicemail_users };
+static struct opbx_clicmd show_voicemail_users_cli = {
+	.cmda = { "show", "voicemail", "users", NULL },
+	.handler = handle_show_voicemail_users,
+	.summary = "List defined voicemail boxes",
+	.usage = show_voicemail_users_help,
+	.generator = complete_show_voicemail_users,
+};
 
-static struct opbx_cli_entry show_voicemail_zones_cli =
-	{ { "show", "voicemail", "zones", NULL },
-	handle_show_voicemail_zones, "List zone message formats",
-	show_voicemail_zones_help, NULL };
+static struct opbx_clicmd show_voicemail_zones_cli = {
+	.cmda = { "show", "voicemail", "zones", NULL },
+	.handler = handle_show_voicemail_zones,
+	.summary = "List zone message formats",
+	.usage = show_voicemail_zones_help,
+};
 
 static int load_config(void)
 {
@@ -6127,12 +6126,12 @@ static int load_config(void)
 	}
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	return(load_config());
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -6141,25 +6140,26 @@ int unload_module(void)
 		return -1;
 	}
     
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(app);
-	res |= opbx_unregister_application(app2);
-	res |= opbx_unregister_application(app3);
-	res |= opbx_unregister_application(app4);
+	res |= opbx_unregister_function(app);
+	res |= opbx_unregister_function(app2);
+	res |= opbx_unregister_function(app3);
+	res |= opbx_unregister_function(app4);
 	opbx_cli_unregister(&show_voicemail_users_cli);
 	opbx_cli_unregister(&show_voicemail_zones_cli);
 	opbx_uninstall_vm_functions();
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	int res = 0;
 
-	app = opbx_register_application(name, vm_exec, synopsis_vm, syntax_vm, descrip_vm);
-	app2 = opbx_register_application(name2, vm_execmain, synopsis_vmain, syntax_vmain, descrip_vmain);
-	app3 = opbx_register_application(name3, vm_box_exists, synopsis_vm_box_exists, syntax_vm_box_exists, descrip_vm_box_exists);
-	app4 = opbx_register_application(name4, vmauthenticate, synopsis_vmauthenticate, syntax_vmauthenticate, descrip_vmauthenticate);
+	hash_directory = opbx_hash_app_name("Directory");
+
+	app = opbx_register_function(name, vm_exec, synopsis_vm, syntax_vm, descrip_vm);
+	app2 = opbx_register_function(name2, vm_execmain, synopsis_vmain, syntax_vmain, descrip_vmain);
+	app3 = opbx_register_function(name3, vm_box_exists, synopsis_vm_box_exists, syntax_vm_box_exists, descrip_vm_box_exists);
+	app4 = opbx_register_function(name4, vmauthenticate, synopsis_vmauthenticate, syntax_vmauthenticate, descrip_vmauthenticate);
 
 	if ((res=load_config())) {
 		return(res);
@@ -6181,11 +6181,6 @@ int load_module(void)
 #endif
 
 	return res;
-}
-
-char *description(void)
-{
-	return tdesc;
 }
 
 static int dialout(struct opbx_channel *chan, struct opbx_vm_user *vmu, char *num, char *outgoing_context) 
@@ -6522,7 +6517,7 @@ static int play_record_review(struct opbx_channel *chan, char *playfile, char *r
  			cmd = opbx_play_and_wait(chan, "vm-deleted");
  			cmd = vm_delete(recordfile);
  			if (outsidecaller) {
- 				res = vm_exec(chan, NULL);
+ 				res = vm_exec(chan, 0, NULL, NULL, 0, NULL);
  				return res;
  			}
  			else
@@ -6585,12 +6580,4 @@ static int play_record_review(struct opbx_channel *chan, char *playfile, char *r
  }
  
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
-
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

@@ -49,8 +49,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define DATE_FORMAT 	"%Y-%m-%d %T"
 #define CONF_FILE	"cdr_manager.conf"
 
-static char *desc = "CallWeaver.org Call Manager CDR Backend";
-static char *name = "cdr_manager";
+static const char desc[] = "CallWeaver.org Call Manager CDR Backend";
+static const char name[] = "cdr_manager";
 
 static int enablecdr = 0;
 
@@ -139,39 +139,37 @@ static int manager_log(struct opbx_cdr *cdr)
 	return 0;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-int unload_module(void)
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = manager_log,
+};
+
+
+static int unload_module(void)
 {
-	opbx_cdr_unregister(name);
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	int res;
+	int res = 0;
+
+	opbx_cdrbe_register(&cdrbe);
 
 	/* Configuration file */
 	loadconfigurationfile();
-	
-	res = opbx_cdr_register(name, desc, manager_log);
-	if (res) {
-		opbx_log(LOG_ERROR, "Unable to register CallWeaver.org Call Manager CDR handling\n");
-	}
-	
+
 	return res;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	loadconfigurationfile();
 	return 0;
 }
 
-int usecount(void)
-{
-	return 0;
-}
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

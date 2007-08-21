@@ -44,7 +44,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -87,12 +86,11 @@ struct opbx_filestream
     char empty;
 };
 
-OPBX_MUTEX_DEFINE_STATIC(ogg_vorbis_lock);
-static int glistcnt = 0;
 
-static char *name = "ogg_vorbis";
-static char *desc = "OGG/Vorbis audio";
-static char *exts = "ogg";
+static struct opbx_format format;
+
+static const char desc[] = "OGG/Vorbis audio";
+
 
 /*!
  * \brief Create a new OGG/Vorbis filestream and set it up for reading.
@@ -141,7 +139,7 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         vorbis_comment_init(&tmp->vc);
 
         if (ogg_stream_pagein(&tmp->os, &tmp->og) < 0)
-        {
+        { 
             opbx_log(LOG_ERROR, "Error reading first page of Ogg bitstream data.\n");
             fclose(fp);
             ogg_stream_clear(&tmp->os);
@@ -262,23 +260,6 @@ static struct opbx_filestream *ogg_vorbis_open(FILE *fp)
         
         vorbis_synthesis_init(&tmp->vd, &tmp->vi);
         vorbis_block_init(&tmp->vd, &tmp->vb);
-
-        if (opbx_mutex_lock(&ogg_vorbis_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
-            fclose(fp);
-            ogg_stream_clear(&tmp->os);
-            vorbis_block_clear(&tmp->vb);
-            vorbis_dsp_clear(&tmp->vd);
-            vorbis_comment_clear(&tmp->vc);
-            vorbis_info_clear(&tmp->vi);
-            ogg_sync_clear(&tmp->oy);
-            free(tmp);
-            return NULL;
-        }
-        glistcnt++;
-        opbx_mutex_unlock(&ogg_vorbis_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -294,6 +275,7 @@ static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
     ogg_packet header;
     ogg_packet header_comm;
     ogg_packet header_code;
+
     struct opbx_filestream *tmp;
 
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
@@ -323,7 +305,7 @@ static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
         ogg_stream_init(&tmp->os, rand());
 
         vorbis_analysis_headerout(&tmp->vd, &tmp->vc, &header, &header_comm, &header_code);
-        ogg_stream_packetin(&tmp->os, &header);                            
+        ogg_stream_packetin(&tmp->os, &header);
         ogg_stream_packetin(&tmp->os, &header_comm);
         ogg_stream_packetin(&tmp->os, &header_code);
 
@@ -336,22 +318,6 @@ static struct opbx_filestream *ogg_vorbis_rewrite(FILE *fp, const char *comment)
             if (ogg_page_eos(&tmp->og))
                 tmp->eos = 1;
         }
-
-        if (opbx_mutex_lock(&ogg_vorbis_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
-            fclose(fp);
-            ogg_stream_clear(&tmp->os);
-            vorbis_block_clear(&tmp->vb);
-            vorbis_dsp_clear(&tmp->vd);
-            vorbis_comment_clear(&tmp->vc);
-            vorbis_info_clear(&tmp->vi);
-            free(tmp);
-            return NULL;
-        }
-        glistcnt++;
-        opbx_mutex_unlock(&ogg_vorbis_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -434,14 +400,6 @@ static int ogg_vorbis_write(struct opbx_filestream *s, struct opbx_frame *f)
  */
 static void ogg_vorbis_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&ogg_vorbis_lock)) {
-        opbx_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&ogg_vorbis_lock);
-    opbx_update_use_count();
-
     if (s->writing) {
         /* Tell the Vorbis encoder that the stream is finished
          * and write out the rest of the data */
@@ -608,7 +566,7 @@ static struct opbx_frame *ogg_vorbis_read(struct opbx_filestream *s, int *whenne
 
     if (samples_out > 0)
     {
-        opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, name);
+        opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
         s->fr.offset = OPBX_FRIENDLY_OFFSET;
         s->fr.datalen = samples_out*sizeof(int16_t);
         s->fr.data = s->buffer;
@@ -658,33 +616,34 @@ static char *ogg_vorbis_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "ogg_vorbis",
+	.exts = "ogg",
+	.format = OPBX_FORMAT_SLINEAR,
+	.open = ogg_vorbis_open,
+	.rewrite = ogg_vorbis_rewrite,
+	.write = ogg_vorbis_write,
+	.seek = ogg_vorbis_seek,
+	.trunc = ogg_vorbis_trunc,
+	.tell = ogg_vorbis_tell,
+	.read = ogg_vorbis_read,
+	.close = ogg_vorbis_close,
+	.getcomment = ogg_vorbis_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_SLINEAR,
-                                ogg_vorbis_open,
-                                ogg_vorbis_rewrite,
-                                ogg_vorbis_write,
-                                ogg_vorbis_seek,
-                                ogg_vorbis_trunc,
-                                ogg_vorbis_tell,
-                                ogg_vorbis_read,
-                                ogg_vorbis_close,
-                                ogg_vorbis_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount(void)
-{
-    return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description(void)
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

@@ -86,7 +86,7 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
 static int localusecnt = 0;
 
-static char *tdesc = "LPC10e to/from PCM16 (signed linear) translator";
+static const char tdesc[] = "LPC10e to/from PCM16 (signed linear) translator";
 
 static int useplc = 0;
 
@@ -304,96 +304,78 @@ static void lpc10_destroy(struct opbx_translator_pvt *pvt)
 
 static opbx_translator_t lpc10tolin =
 {
-    "lpc10tolin", 
-    OPBX_FORMAT_LPC10,
-    8000,
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    lpc10_dec_new,
-    lpc10tolin_framein,
-    lpc10tolin_frameout,
-    lpc10_destroy,
-    lpc10tolin_sample
+    .name = "lpc10tolin", 
+    .src_format = OPBX_FORMAT_LPC10,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 8000,
+    .newpvt = lpc10_dec_new,
+    .framein = lpc10tolin_framein,
+    .frameout = lpc10tolin_frameout,
+    .destroy = lpc10_destroy,
+    .sample = lpc10tolin_sample
 };
 
 static opbx_translator_t lintolpc10 =
 {
-    "lintolpc10", 
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    OPBX_FORMAT_LPC10,
-    8000,
-    lpc10_enc_new,
-    lintolpc10_framein,
-    lintolpc10_frameout,
-    lpc10_destroy,
-    lintolpc10_sample
+    .name = "lintolpc10", 
+    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_LPC10,
+    .dst_rate = 8000,
+    .newpvt = lpc10_enc_new,
+    .framein = lintolpc10_framein,
+    .frameout = lintolpc10_frameout,
+    .destroy = lpc10_destroy,
+    .sample = lintolpc10_sample
 };
 
 static void parse_config(void)
 {
-    struct opbx_config *cfg;
-    struct opbx_variable *var;
-
-    if ((cfg = opbx_config_load("codecs.conf")))
-    {
-        if ((var = opbx_variable_browse(cfg, "plc")))
-        {
-            while (var)
-            {
-                if (!strcasecmp(var->name, "genericplc"))
-                {
-                    useplc = opbx_true(var->value)  ?  1  :  0;
-                    if (option_verbose > 2)
-                        opbx_verbose(VERBOSE_PREFIX_3 "codec_lpc10: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+        struct opbx_config *cfg;
+        struct opbx_variable *var;
+        if ((cfg = opbx_config_load("codecs.conf"))) {
+                if ((var = opbx_variable_browse(cfg, "plc"))) {
+                        while (var) {
+                               if (!strcasecmp(var->name, "genericplc")) {
+                                       useplc = opbx_true(var->value) ? 1 : 0;
+                                       if (option_verbose > 2)
+                                               opbx_verbose(VERBOSE_PREFIX_3 "codec_lpc10: %susing generic PLC\n", useplc ? "" : "not ");
+                               }
+                               var = var->next;
+                        }
                 }
-                var = var->next;
-            }
-        }
         opbx_config_destroy(cfg);
-    }
+        }
 }
 
-int reload(void)
+static int reload_module(void)
 {
-    parse_config();
-    return 0;
+        parse_config();
+        return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
-    
+    int res = 0;
+
     opbx_mutex_lock(&localuser_lock);
-    if ((res = opbx_unregister_translator(&lintolpc10)) == 0)
-        res = opbx_unregister_translator(&lpc10tolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&lpc10tolin);
+    opbx_translator_unregister(&lintolpc10);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
-    
+    int res = 0;
     parse_config();
-    if ((res = opbx_register_translator(&lpc10tolin)) == 0)
-        res = opbx_register_translator(&lintolpc10);
-    else
-        opbx_unregister_translator(&lpc10tolin);
+    opbx_translator_register(&lpc10tolin);
+    opbx_translator_register(&lintolpc10);
     return res;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

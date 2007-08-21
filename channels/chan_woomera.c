@@ -49,7 +49,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define USE_ANSWER 0
 
 
-
 static const char desc[] = "Woomera Channel Driver";
 static const char type[] = "WOOMERA";
 static const char tdesc[] = "Woomera Channel Driver";
@@ -1227,7 +1226,7 @@ static void launch_woomera_thread(woomera_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&profile->thread, &attr, woomera_thread_run, profile);
+	result = opbx_pthread_create(get_modinfo()->self, &profile->thread, &attr, woomera_thread_run, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1240,7 +1239,7 @@ static void launch_tech_thread(private_object *tech_pvt)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&tech_pvt->thread, &attr, tech_monitor_thread, tech_pvt);
+	result = opbx_pthread_create(get_modinfo()->self, &tech_pvt->thread, &attr, tech_monitor_thread, tech_pvt);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1932,7 +1931,12 @@ static int woomera_cli(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static struct opbx_cli_entry  cli_woomera = { { "woomera", NULL }, woomera_cli, "Woomera", "Woomera" };
+static struct opbx_clicmd  cli_woomera = {
+	.cmda = { "woomera", NULL },
+	.handler = woomera_cli,
+	.summary = "Woomera",
+	.usage = "Woomera",
+};
 
 /******************************* CORE INTERFACE ********************************************
  * These are module-specific interface functions that are common to every module
@@ -1942,7 +1946,7 @@ static struct opbx_cli_entry  cli_woomera = { { "woomera", NULL }, woomera_cli, 
 
 
 
-int load_module()
+static int load_module(void)
 {
 	if (opbx_channel_register(&technology)) {
 		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
@@ -1971,12 +1975,7 @@ int load_module()
 	return 0;
 }
 
-int reload()
-{
-	return 0;
-}
-
-int unload_module()
+static int unload_module()
 {
 	time_t then, now;
 	woomera_profile *profile = NULL;
@@ -2021,9 +2020,5 @@ int usecount()
 	return res;
 }
 
-/* returns a descriptive string to the system console */
-char *description()
-{
-	return (char *) desc;
-}
 
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

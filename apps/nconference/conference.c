@@ -567,7 +567,7 @@ static struct opbx_conference* create_conf( char* name, struct opbx_conf_member*
     // acquire conference mutexes
     opbx_mutex_lock( &conf->lock ) ;
 	
-    if ( opbx_pthread_create( &conf->conference_thread, NULL, (void*)conference_exec, conf ) == 0 ) 
+    if ( opbx_pthread_create( get_modinfo()->self, &conf->conference_thread, NULL, (void*)conference_exec, conf ) == 0 ) 
     {
 	// detach the thread so it doesn't leak
 	pthread_detach( conf->conference_thread ) ;
@@ -869,7 +869,7 @@ static int conf_do_originate(struct opbx_conf_member *member, char *ext) {
 
         pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(&th, &attr, fopbx_originate, fast)) {
+	if (opbx_pthread_create(get_modinfo()->self, &th, &attr, fopbx_originate, fast)) {
     	    free(fast);
 	    res = -1;
 	} else {

@@ -684,20 +684,40 @@ static char database_deltree_usage[] =
 "       Deletes a family or specific keytree within a family\n"
 "in the CallWeaver database.\n";
 
-struct opbx_cli_entry cli_database_show =
-{ { "database", "show", NULL }, database_show, "Shows database contents", database_show_usage };
+struct opbx_clicmd cli_database_show = {
+	.cmda = { "database", "show", NULL },
+	.handler = database_show,
+	.summary = "Shows database contents",
+	.usage = database_show_usage,
+};
 
-struct opbx_cli_entry cli_database_get =
-{ { "database", "get", NULL }, database_get, "Gets database value", database_get_usage };
+struct opbx_clicmd cli_database_get = {
+	.cmda = { "database", "get", NULL },
+	.handler = database_get,
+	.summary = "Gets database value",
+	.usage = database_get_usage,
+};
 
-struct opbx_cli_entry cli_database_put =
-{ { "database", "put", NULL }, database_put, "Adds/updates database value", database_put_usage };
+struct opbx_clicmd cli_database_put = {
+	.cmda = { "database", "put", NULL },
+	.handler = database_put,
+	.summary = "Adds/updates database value",
+	.usage = database_put_usage,
+};
 
-struct opbx_cli_entry cli_database_del =
-{ { "database", "del", NULL }, database_del, "Removes database key/value", database_del_usage };
+struct opbx_clicmd cli_database_del = {
+	.cmda = { "database", "del", NULL },
+	.handler = database_del,
+	.summary = "Removes database key/value",
+	.usage = database_del_usage,
+};
 
-struct opbx_cli_entry cli_database_deltree =
-{ { "database", "deltree", NULL }, database_deltree, "Removes database keytree/values", database_deltree_usage };
+struct opbx_clicmd cli_database_deltree = {
+	.cmda = { "database", "deltree", NULL },
+	.handler = database_deltree,
+	.summary = "Removes database keytree/values",
+	.usage = database_deltree_usage,
+};
 
 int opbxdb_init(void)
 {

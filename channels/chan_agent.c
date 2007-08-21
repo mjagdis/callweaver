@@ -966,7 +966,6 @@ static struct opbx_channel *agent_new(struct agent_pvt *p, int state)
 		opbx_mutex_lock(&usecnt_lock);
 		usecnt++;
 		opbx_mutex_unlock(&usecnt_lock);
-		opbx_update_use_count();
 		tmp->priority = 1;
 		/* Wake up and wait for other applications (by definition the login app)
 		 * to release this channel). Takes ownership of the agent channel
@@ -1663,16 +1662,21 @@ static char agent_logoff_usage[] =
 "       Sets an agent as no longer logged in.\n"
 "       If 'soft' is specified, do not hangup existing calls.\n";
 
-static struct opbx_cli_entry cli_show_agents = {
-	{ "show", "agents", NULL }, agents_show, 
-	"Show status of agents", show_agents_usage, NULL };
+static struct opbx_clicmd cli_show_agents = {
+	.cmda = { "show", "agents", NULL },
+	.handler = agents_show, 
+	.summary = "Show status of agents",
+	.usage = show_agents_usage,
+};
 
-static struct opbx_cli_entry cli_agent_logoff = {
-	{ "agent", "logoff", NULL }, agent_logoff_cmd, 
-	"Sets an agent offline", agent_logoff_usage, complete_agent_logoff_cmd };
+static struct opbx_clicmd cli_agent_logoff = {
+	.cmda = { "agent", "logoff", NULL },
+	.handler = agent_logoff_cmd, 
+	.summary = "Sets an agent offline",
+	.usage = agent_logoff_usage,
+	.generator = complete_agent_logoff_cmd,
+};
 
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 /**
  * Log in agent application.
@@ -1682,7 +1686,7 @@ LOCAL_USER_DECL;
  * @param callbackmode
  * @returns 
  */
-static int __login_exec(struct opbx_channel *chan, int argc, char **argv, int callbackmode)
+static int __login_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max, int callbackmode)
 {
 	int res=0;
 	int tries = 0;
@@ -2119,9 +2123,9 @@ static int __login_exec(struct opbx_channel *chan, int argc, char **argv, int ca
  * @returns
  * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int login_exec(struct opbx_channel *chan, int argc, char **argv)
+static int login_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	return __login_exec(chan, argc, argv, 0);
+	return __login_exec(chan, argc, argv, result, result_max, 0);
 }
 
 /**
@@ -2132,9 +2136,9 @@ static int login_exec(struct opbx_channel *chan, int argc, char **argv)
  * @returns
  * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int callback_exec(struct opbx_channel *chan, int argc, char **argv)
+static int callback_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	return __login_exec(chan, argc, argv, 1);
+	return __login_exec(chan, argc, argv, result, result_max, 1);
 }
 
 /**
@@ -2230,7 +2234,7 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
  * @returns
  * @sa login_exec(), callback_login_exec(), load_module().
  */
-static int agentmonitoroutgoing_exec(struct opbx_channel *chan, int argc, char **argv)
+static int agentmonitoroutgoing_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int exitifnoagentid = 0;
 	int nowarnings = 0;
@@ -2429,7 +2433,7 @@ static int agent_devicestate(void *data)
  *
  * @returns int Always 0.
  */
-int load_module()
+static int load_module(void)
 {
 	/* Make sure we can register our agent channel type */
 	if (opbx_channel_register(&agent_tech)) {
@@ -2437,9 +2441,9 @@ int load_module()
 		return -1;
 	}
 	/* Dialplan applications */
-	agentlogin_app = opbx_register_application(app, login_exec, synopsis, syntax, descrip);
-	agentcallbacklogin_app = opbx_register_application(app2, callback_exec, synopsis2, syntax2, descrip2);
-	agentmonitoroutgoing_app = opbx_register_application(app3, agentmonitoroutgoing_exec, synopsis3, syntax3, descrip3);
+	agentlogin_app = opbx_register_function(app, login_exec, synopsis, syntax, descrip);
+	agentcallbacklogin_app = opbx_register_function(app2, callback_exec, synopsis2, syntax2, descrip2);
+	agentmonitoroutgoing_app = opbx_register_function(app3, agentmonitoroutgoing_exec, synopsis3, syntax3, descrip3);
 	/* Manager commands */
 	opbx_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
 	opbx_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
@@ -2454,7 +2458,7 @@ int load_module()
 	return 0;
 }
 
-int reload()
+static int reload_module()
 {
 	read_agent_config();
 	if (persistent_agents)
@@ -2462,7 +2466,7 @@ int reload()
 	return 0;
 }
 
-int unload_module()
+static int unload_module()
 {
 	struct agent_pvt *p;
 	int res = 0;
@@ -2472,9 +2476,9 @@ int unload_module()
 	opbx_cli_unregister(&cli_show_agents);
 	opbx_cli_unregister(&cli_agent_logoff);
 	/* Unregister dialplan applications */
-	res |= opbx_unregister_application(agentlogin_app);
-	res |= opbx_unregister_application(agentcallbacklogin_app);
-	res |= opbx_unregister_application(agentmonitoroutgoing_app);
+	res |= opbx_unregister_function(agentlogin_app);
+	res |= opbx_unregister_function(agentcallbacklogin_app);
+	res |= opbx_unregister_function(agentmonitoroutgoing_app);
 	/* Unregister manager command */
 	opbx_manager_unregister("Agents");
 	opbx_manager_unregister("AgentLogoff");
@@ -2503,8 +2507,5 @@ int usecount()
 	return usecnt;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
 
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

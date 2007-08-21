@@ -28,6 +28,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -46,49 +47,51 @@
 #include "callweaver/options.h"
 
 
-static char *tdesc = "backticks";
+static const char tdesc[] = "backticks";
 
 static void *backticks_app;
-static char *backticks_name = "BackTicks";
-static char *backticks_synopsis = "Execute a shell command and save the result as a variable.";
-static char *backticks_syntax = "BackTicks(varname, command)";
-static char *backticks_descrip =
+static const char backticks_name[] = "BackTicks";
+static const char backticks_synopsis[] = "Execute a shell command and save the result as a variable.";
+static const char backticks_syntax[] = "BackTicks(varname, command)";
+static const char backticks_descrip[] =
 	"Be sure to include a full path!\n";
 
 static void *backticks_function;
-static const char *backticks_func_name = "BACKTICKS";
-static const char *backticks_func_synopsis = "Executes a shell command.";
-static const char *backticks_func_syntax = "BACKTICKS(command)";
-static const char *backticks_func_descrip =
+static const char backticks_func_name[] = "BACKTICKS";
+static const char backticks_func_synopsis[] = "Executes a shell command.";
+static const char backticks_func_syntax[] = "BACKTICKS(command)";
+static const char backticks_func_descrip[] =
 	"Executes a shell command and evaluates to the result.";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-
-static char *do_backticks(char *command, char *buf, size_t len)
+static int do_backticks(char *command, char *buf, size_t len)
 {
         int fds[2];
 	pid_t pid = 0;
-	int n;
+	int n, ret = -1;
 
         if (pipe(fds)) {
-                opbx_log(LOG_WARNING, "Pipe/Exec failed\n");
+                opbx_log(LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
         } else {
                 pid = fork();
                 if (pid < 0) {
-                        opbx_log(LOG_WARNING, "Fork failed\n");
+                        opbx_log(LOG_ERROR, "Fork failed\n", strerror(errno));
                         close(fds[0]);
                         close(fds[1]);
                 } else if (pid) { /* parent */
                         close(fds[1]);
-			/* Reserve the last for null */
-			len--;
-                        while (len && (n = read(fds[0], buf, len)) > 0) {
-				buf += n;
-				len -= n;
+			if (buf) {
+				/* Reserve the last for null */
+				len--;
+                        	while (len && (n = read(fds[0], buf, len)) > 0) {
+					buf += n;
+					len -= n;
+				}
+				*buf = '\0';
 			}
+			/* Dump any remaining input */
+			while (read(fds[0], &n, sizeof(n)) > 0);
+			waitpid(pid, &ret, 0);
                 } else { /* child */
                         close(fds[0]);
                         dup2(fds[1], STDOUT_FILENO);
@@ -102,71 +105,51 @@ static char *do_backticks(char *command, char *buf, size_t len)
                 }
         }
 
-	*buf = '\0';
-        return buf;
-}
-
-static int backticks_exec(struct opbx_channel *chan, int argc, char **argv)
-{
-	char buf[1024];
-	struct localuser *u;
-	int ret;
-
-	if (argc != 2) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", backticks_syntax);
-		return -1;
-	}
-
-	LOCAL_USER_ADD(u);
-
-	ret = 0;
-	if (do_backticks(argv[1], buf, sizeof(buf))) {
-		pbx_builtin_setvar_helper(chan, argv[0], buf);
-	} else {
-		opbx_log(LOG_WARNING, "No Data!\n");
-		ret = -1;
-	}
-
-	LOCAL_USER_REMOVE(u);
-	return ret;
-}
-
-
-static char *function_backticks(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
-{
-        char *ret = NULL;
-
-        if (argc > 0 && do_backticks(argv[0], buf, len))
-                ret = buf;
-
         return ret;
 }
 
-
-int unload_module(void)
+static int backticks_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res = 0;
-        STANDARD_HANGUP_LOCALUSERS;
-        opbx_unregister_function(backticks_function);
-        res |= opbx_unregister_application(backticks_app);
-	return res;
-}
+	char buf[1024] = "";
+	struct localuser *u;
 
-int load_module(void)
-{
-        backticks_function = opbx_register_function(backticks_func_name, function_backticks, NULL, backticks_func_synopsis, backticks_func_syntax, backticks_func_descrip);
-        backticks_app = opbx_register_application(backticks_name, backticks_exec, backticks_synopsis, backticks_syntax, backticks_descrip);
+	if (argc != 2)
+		return opbx_function_syntax(backticks_syntax);
+
+	LOCAL_USER_ADD(u);
+
+	do_backticks(argv[1], buf, sizeof(buf));
+	pbx_builtin_setvar_helper(chan, argv[0], buf);
+
+	LOCAL_USER_REMOVE(u);
 	return 0;
 }
 
-char *description(void)
+
+static int function_backticks(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-        return tdesc;
+        if (argc > 0)
+		do_backticks(argv[0], buf, len);
+
+        return 0;
 }
 
-int usecount(void)
+
+static int unload_module(void)
 {
-        int res;
-        STANDARD_USECOUNT(res);
-        return res;
+	int res = 0;
+
+        opbx_unregister_function(backticks_function);
+        res |= opbx_unregister_function(backticks_app);
+	return res;
 }
+
+static int load_module(void)
+{
+        backticks_function = opbx_register_function(backticks_func_name, function_backticks, backticks_func_synopsis, backticks_func_syntax, backticks_func_descrip);
+        backticks_app = opbx_register_function(backticks_name, backticks_exec, backticks_synopsis, backticks_syntax, backticks_descrip);
+	return 0;
+}
+
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

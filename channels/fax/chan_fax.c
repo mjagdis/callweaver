@@ -33,11 +33,13 @@
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"
 #include "callweaver/astobj.h"
+#include "callweaver/atexit.h"
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 #include "callweaver/pbx.h"
 #include "callweaver/devicestate.h"
 #include "faxmodem.h"
+
 
 static const char desc[] = "Fax Modem Interface";
 static const char type[] = "Fax";
@@ -65,7 +67,7 @@ char *DEVICE_PREFIX;
 static char *CONTEXT = NULL;
 static int VBLEVEL = 0;
 
-static const char *TERMINATOR = "\r\n";
+static const char TERMINATOR[] = "\r\n";
 
 #define IO_READ "1"
 #define IO_HUP "0"
@@ -748,7 +750,7 @@ static void launch_faxmodem_media_thread(struct private_object *tech_pvt)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, faxmodem_media_thread, tech_pvt);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, faxmodem_media_thread, tech_pvt);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1140,7 +1142,7 @@ static void launch_faxmodem_thread(volatile struct faxmodem *fm)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, faxmodem_thread, 
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, faxmodem_thread, 
 				     (void*)fm);
 	result = pthread_attr_destroy(&attr);
 }
@@ -1252,7 +1254,12 @@ static int chan_fax_cli(int fd, int argc, char *argv[])
 }
 
 
-static struct opbx_cli_entry  cli_chan_fax = { { "fax", NULL }, chan_fax_cli, "Fax Channel", "Fax Channel" };
+static struct opbx_clicmd  cli_chan_fax = {
+	.cmda = { "fax", NULL },
+	.handler = chan_fax_cli,
+	.summary = "Fax Channel",
+	.usage = "Fax Channel",
+};
 
 /******************************* CORE INTERFACE ********************************************
  * These are module-specific interface functions that are common to every module
@@ -1269,6 +1276,13 @@ static int handle_SEGGY(int sig)
 }
 
 
+static void graceful_unload(void);
+
+static struct opbx_atexit fax_atexit = {
+	.name = "FAX Terminate",
+	.function = graceful_unload,
+};
+
 static void graceful_unload(void)
 {
 	if(READY) {
@@ -1281,10 +1295,11 @@ static void graceful_unload(void)
 	opbx_cli_unregister(&cli_chan_fax);
 
 	free(DEVICE_PREFIX);
+	opbx_atexit_unregister(&fax_atexit);
 }
 
 
-int load_module()
+static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&private_object_list);
 
@@ -1300,7 +1315,9 @@ int load_module()
 	if (VBLEVEL > 1) {
 		faxmodem_set_logger((faxmodem_logger_t) opbx_log, __LOG_ERROR, __LOG_WARNING, __LOG_NOTICE);
 	}
-	opbx_register_atexit(graceful_unload);
+
+	opbx_atexit_register(&fax_atexit);
+
 	activate_fax_modems();
 
 	if (opbx_channel_register(&technology)) {
@@ -1312,13 +1329,7 @@ int load_module()
 	return 0;
 }
 
-int reload()
-{
-	//parse_config(0);
-	return 0;
-}
-
-int unload_module()
+static int unload_module()
 {
 	graceful_unload();
 	return 0;
@@ -1333,9 +1344,5 @@ int usecount()
 	return res;
 }
 
-/* returns a descriptive string to the system console */
-char *description()
-{
-	return (char *) desc;
-}
 
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

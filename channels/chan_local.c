@@ -569,7 +569,6 @@ static struct opbx_channel *local_new(struct local_pvt *p, int state)
 	usecnt++;
 	usecnt++;
 	opbx_mutex_unlock(&usecnt_lock);
-	opbx_update_use_count();
 	opbx_copy_string(tmp->context, p->context, sizeof(tmp->context));
 	opbx_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
 	opbx_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
@@ -617,12 +616,15 @@ static char show_locals_usage[] =
 "Usage: local show channels\n"
 "       Provides summary information on active local proxy channels.\n";
 
-static struct opbx_cli_entry cli_show_locals = {
-	{ "local", "show", "channels", NULL }, locals_show, 
-	"Show status of local channels", show_locals_usage, NULL };
+static struct opbx_clicmd cli_show_locals = {
+	.cmda = { "local", "show", "channels", NULL },
+	.handler = locals_show, 
+	.summary = "Show status of local channels",
+	.usage = show_locals_usage,
+};
 
 /*--- load_module: Load module into PBX, register channel */
-int load_module()
+static int load_module(void)
 {
 	/* Make sure we can register our channel type */
 	if (opbx_channel_register(&local_tech)) {
@@ -633,14 +635,8 @@ int load_module()
 	return 0;
 }
 
-/*--- reload: Reload module */
-int reload()
-{
-	return 0;
-}
-
 /*--- unload_module: Unload the local proxy channel from CallWeaver */
-int unload_module()
+static int unload_module()
 {
 	struct local_pvt *p;
 
@@ -669,8 +665,5 @@ int usecount()
 	return usecnt;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
 
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

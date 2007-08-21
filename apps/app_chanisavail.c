@@ -46,13 +46,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/devicestate.h"
 
-static char *tdesc = "Check if channel is available";
+static const char tdesc[] = "Check if channel is available";
 
 static void *chanisavail_app;
-static const char *chanisavail_name = "ChanIsAvail";
-static const char *chanisavail_synopsis = "Check if channel is available";
-static const char *chanisavail_syntax = "ChanIsAvail(Technology/resource[&Technology2/resource2...][, option])";
-static const char *chanisavail_descrip = 
+static const char chanisavail_name[] = "ChanIsAvail";
+static const char chanisavail_synopsis[] = "Check if channel is available";
+static const char chanisavail_syntax[] = "ChanIsAvail(Technology/resource[&Technology2/resource2...][, option])";
+static const char chanisavail_descrip[] = 
 "Checks is any of the requested channels are available.  If none\n"
 "of the requested channels are available the new priority will be\n"
 "n+101 (unless such a priority does not exist or on error, in which\n"
@@ -65,11 +65,8 @@ static const char *chanisavail_descrip =
 "If the option 's' is specified (state), will consider channel unavailable\n"
 "when the channel is in use at all, even if it can take another call.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv)
+static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
 	struct localuser *u;
@@ -77,10 +74,8 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv)
 	int status;
 	int res=-1, inuse=-1, option_state=0;
 
-	if (argc < 0 || argc > 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", chanisavail_syntax);
-		return -1;
-	}
+	if (argc < 0 || argc > 1)
+		return opbx_function_syntax(chanisavail_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -146,30 +141,19 @@ static int chanavail_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(chanisavail_app);
+
+	res |= opbx_unregister_function(chanisavail_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	chanisavail_app = opbx_register_application(chanisavail_name, chanavail_exec, chanisavail_synopsis, chanisavail_syntax, chanisavail_descrip);
+	chanisavail_app = opbx_register_function(chanisavail_name, chanavail_exec, chanisavail_synopsis, chanisavail_syntax, chanisavail_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -52,6 +52,7 @@
 #include "callweaver/icd/icd_conference.h"
 #include "callweaver/icd/icd_play_dtmf.h"
 
+
 static int verbosity = 1;
 
 /* This is the lock customers add, remove and seek */
@@ -1150,7 +1151,7 @@ int icd_command_login (int fd, int argc, char **argv)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, icd_command_login_thread, agent);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, icd_command_login_thread, agent);
 	result = pthread_attr_destroy(&attr);	
     return 0;
 }

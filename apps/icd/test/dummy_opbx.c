@@ -100,7 +100,7 @@ int opbx_cdr_setcid(struct opbx_cdr *cdr, struct opbx_channel *chan) {
     return 0;
 }
 
-int opbx_cdr_register(char *name, char *desc, opbx_cdrbe be) {
+int opbx_cdr_register(struct module *module, struct opbx_cdrbe_entry *entry) {
     return 0;
 }
 
@@ -245,24 +245,21 @@ int opbx_channel_make_compatible(struct opbx_channel *c0, struct opbx_channel *c
 }
 
 
-int opbx_cli_register ( struct opbx_cli_entry * e ) { 
+int opbx_cli_register ( struct opbx_clicmd * e ) { 
     return 0; 
 }
 
-int opbx_register_application( char * name, int(* execute)(struct opbx_channel *, char **, int), char * synopsis, char * syntax, char * description) {
+int opbx_register_function( const char * name, int(* execute)(struct opbx_channel *, int, char **, char *, size_t, const char *), const char * synopsis, const char * syntax, const char * description) {
     return 0;
 }
 
-int opbx_unregister_application(void *app) {
+int opbx_unregister_function(void *app) {
     return 0;
 }
 
 
 int opbx_true(char *val) {
     return 0;
-}
-
-void opbx_update_use_count(void) {
 }
 
 int opbx_safe_sleep(struct opbx_channel *chan, int ms) {
@@ -308,11 +305,7 @@ int opbx_check_hangup(struct opbx_channel *chan) {
     return 0;
 }
 
-struct opbx_app *pbx_findapp(char *app) {
- return NULL;
-} 
-
-int pbx_exec(struct opbx_channel *c, struct opbx_app *app, void *data) {
+int opbx_function_exec_str(struct opbx_channel *chan, unsigned int hash, const char *name, char *args, char *out, size_t outlen) {
  return 0;
 }
  
@@ -324,6 +317,6 @@ struct opbx_channel *opbx_waitfor_nandfds(struct opbx_channel **c, int n, int *f
 	return NULL;
 }
 
-int opbx_cli_unregister(struct opbx_cli_entry *e) {
+int opbx_cli_unregister(struct opbx_clicmd *e) {
     return 0;
 }

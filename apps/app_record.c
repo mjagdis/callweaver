@@ -44,13 +44,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/app.h"
 
-static char *tdesc = "Trivial Record Application";
+static const char tdesc[] = "Trivial Record Application";
 
 static void *record_app;
-static const char *record_name = "Record";
-static const char *record_synopsis = "Record to a file";
-static const char *record_syntax = "Record(filename.format[, silence[, maxduration[, options]]])";
-static const char *record_descrip = 
+static const char record_name[] = "Record";
+static const char record_synopsis[] = "Record to a file";
+static const char record_syntax[] = "Record(filename.format[, silence[, maxduration[, options]]])";
+static const char record_descrip[] = 
 "Records from the channel into a given filename. If the file exists it will\n"
 "be overwritten.\n"
 "- 'format' is the format of the file type to be recorded (wav, gsm, etc).\n"
@@ -70,11 +70,8 @@ static const char *record_descrip =
 "User can press '#' to terminate the recording and continue to the next priority.\n\n"
 "Returns -1 when the user hangs up.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int record_exec(struct opbx_channel *chan, int argc, char **argv)
+static int record_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	int count = 0;
@@ -102,10 +99,8 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv)
 	int rfmt = 0;
 	int flags;
 	
-	if (argc < 1 || argc > 4 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", record_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 4 || !argv[0][0])
+		return opbx_function_syntax(record_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -191,7 +186,7 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv)
 				opbx_copy_string(tmp + tmplen, &(piece[i][1]), sizeof(tmp) - tmplen);
 			}
 			count++;
-		} while ( opbx_fileexists(tmp, ext, chan->language) != -1 );
+		} while ( opbx_fileexists(tmp, ext, chan->language) );
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
 		strncpy(tmp, argv[0], sizeof(tmp)-1);
@@ -340,30 +335,19 @@ static int record_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(record_app);
+
+	res |= opbx_unregister_function(record_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	record_app = opbx_register_application(record_name, record_exec, record_synopsis, record_syntax, record_descrip);
+	record_app = opbx_register_function(record_name, record_exec, record_synopsis, record_syntax, record_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

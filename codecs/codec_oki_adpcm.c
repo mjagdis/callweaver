@@ -57,7 +57,7 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
 static int localusecnt = 0;
 
-static char *tdesc = "Oki 32kbps ADPCM to/from PCM16 translator";
+static const char tdesc[] = "Oki 32kbps ADPCM to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -134,7 +134,6 @@ static struct opbx_translator_pvt *okiadpcmtolin_new(void)
     tmp->tail = 0;
     plc_init(&tmp->plc);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -158,7 +157,6 @@ static struct opbx_translator_pvt *lintookiadpcm_new(void)
     oki_adpcm_init(&tmp->oki_state, 32000);
     tmp->tail = 0;
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -350,7 +348,6 @@ static void adpcm_destroy(struct opbx_translator_pvt *pvt)
 {
     free (pvt);
     localusecnt--;
-    opbx_update_use_count();
 }
 
 /*
@@ -358,16 +355,16 @@ static void adpcm_destroy(struct opbx_translator_pvt *pvt)
  */
 static opbx_translator_t okiadpcmtolin =
 {
-    "okiadpcmtolin",
-    OPBX_FORMAT_OKI_ADPCM,
-    8000,
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    okiadpcmtolin_new,
-    okiadpcmtolin_framein,
-    okiadpcmtolin_frameout,
-    adpcm_destroy,
-    okiadpcmtolin_sample
+    .name = "okiadpcmtolin",
+    .src_format = OPBX_FORMAT_OKI_ADPCM,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 8000,
+    .newpvt = okiadpcmtolin_new,
+    .framein = okiadpcmtolin_framein,
+    .frameout = okiadpcmtolin_frameout,
+    .destroy = adpcm_destroy,
+    .sample = okiadpcmtolin_sample
 };
 
 /*
@@ -375,16 +372,16 @@ static opbx_translator_t okiadpcmtolin =
  */
 static opbx_translator_t lintookiadpcm =
 {
-    "lintookiadpcm",
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    OPBX_FORMAT_OKI_ADPCM,
-    8000,
-    lintookiadpcm_new,
-    lintookiadpcm_framein,
-    lintookiadpcm_frameout,
-    adpcm_destroy,
-    lintookiadpcm_sample
+    .name = "lintookiadpcm",
+    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_OKI_ADPCM,
+    .dst_rate = 8000,
+    .newpvt = lintookiadpcm_new,
+    .framein = lintookiadpcm_framein,
+    .frameout = lintookiadpcm_frameout,
+    .destroy = adpcm_destroy,
+    .sample = lintookiadpcm_sample
 };
 
 static void parse_config(void)
@@ -411,49 +408,34 @@ static void parse_config(void)
     }
 }
 
-int reload(void)
+static int reload_module(void)
 {
     parse_config();
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
+    int res = 0;
   
     opbx_mutex_lock(&localuser_lock);
-    if ((res = opbx_unregister_translator(&lintookiadpcm)) == 0)
-        res = opbx_unregister_translator(&okiadpcmtolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&okiadpcmtolin);
+    opbx_translator_unregister(&lintookiadpcm);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
   
     parse_config();
-    if ((res = opbx_register_translator(&okiadpcmtolin)) == 0)
-        res = opbx_register_translator(&lintookiadpcm);
-    else
-        opbx_unregister_translator(&okiadpcmtolin);
+    opbx_translator_register(&okiadpcmtolin);
+    opbx_translator_register(&lintookiadpcm);
     return res;
 }
 
-/*
- * Return a description of this module.
- */
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

@@ -41,21 +41,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cdr.h"
 #include "callweaver/module.h"
 
-static char *tdesc = "Fork The CDR into 2 separate entities.";
+static const char tdesc[] = "Fork The CDR into 2 separate entities.";
 
 static void *forkcdr_app;
-static char *forkcdr_name = "ForkCDR";
-static char *forkcdr_synopsis = "Forks the Call Data Record";
-static char *forkcdr_syntax = "ForkCDR([options])";
-static char *forkcdr_descrip = 
+static const char forkcdr_name[] = "ForkCDR";
+static const char forkcdr_synopsis[] = "Forks the Call Data Record";
+static const char forkcdr_syntax[] = "ForkCDR([options])";
+static const char forkcdr_descrip[] = 
 "Causes the Call Data Record to fork an additional\n"
 "cdr record starting from the time of the fork call\n"
 "If the option 'v' is passed all cdr variables will be passed along also.\n";
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static void opbx_cdr_fork(struct opbx_channel *chan) 
 {
@@ -74,7 +70,7 @@ static void opbx_cdr_fork(struct opbx_channel *chan)
 	opbx_set_flag(cdr, OPBX_CDR_FLAG_CHILD | OPBX_CDR_FLAG_LOCKED);
 }
 
-static int forkcdr_exec(struct opbx_channel *chan, int argc, char **argv)
+static int forkcdr_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res=0;
@@ -90,30 +86,19 @@ static int forkcdr_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(forkcdr_app);
+
+	res |= opbx_unregister_function(forkcdr_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	forkcdr_app = opbx_register_application(forkcdr_name, forkcdr_exec, forkcdr_synopsis, forkcdr_syntax, forkcdr_descrip);
+	forkcdr_app = opbx_register_function(forkcdr_name, forkcdr_exec, forkcdr_synopsis, forkcdr_syntax, forkcdr_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

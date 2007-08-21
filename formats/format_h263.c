@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -64,12 +63,10 @@ struct opbx_filestream
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(h263_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "h263";
-static char *desc = "Raw h263 data";
-static char *exts = "h263";
+static const char desc[] = "Raw h263 data";
+
 
 static struct opbx_filestream *h263_open(FILE *f)
 {
@@ -79,7 +76,6 @@ static struct opbx_filestream *h263_open(FILE *f)
     struct opbx_filestream *tmp;
     unsigned int ts;
     int res;
-
     if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts))
     {
         opbx_log(LOG_WARNING, "Empty file!\n");
@@ -89,19 +85,10 @@ static struct opbx_filestream *h263_open(FILE *f)
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&h263_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock h263 list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, name);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VIDEO, OPBX_FORMAT_H263, format.name);
         tmp->fr.data = tmp->h263;
         /* datalen will vary for each frame */
-        glistcnt++;
-        opbx_mutex_unlock(&h263_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -112,20 +99,11 @@ static struct opbx_filestream *h263_rewrite(FILE *f, const char *comment)
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
     struct opbx_filestream *tmp;
-    
+
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&h263_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock h263 list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&h263_lock);
-        opbx_update_use_count();
     }
     else
     {
@@ -136,14 +114,6 @@ static struct opbx_filestream *h263_rewrite(FILE *f, const char *comment)
 
 static void h263_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&h263_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock h263 list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&h263_lock);
-    opbx_update_use_count();
     fclose(s->f);
     free(s);
     s = NULL;
@@ -203,7 +173,7 @@ static int h263_write(struct opbx_filestream *fs, struct opbx_frame *f)
     unsigned short len;
     int subclass;
     int mark = 0;
-    
+
     if (f->frametype != OPBX_FRAME_VIDEO)
     {
         opbx_log(LOG_WARNING, "Asked to write non-video frame!\n");
@@ -265,35 +235,34 @@ static long h263_tell(struct opbx_filestream *fs)
     return (offset/20)*160;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "h263",
+	.exts = "h263",
+	.format = OPBX_FORMAT_H263,
+	.open = h263_open,
+	.rewrite = h263_rewrite,
+	.write = h263_write,
+	.seek = h263_seek,
+	.trunc = h263_trunc,
+	.tell = h263_tell,
+	.read = h263_read,
+	.close = h263_close,
+	.getcomment = h263_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_H263,
-                                h263_open,
-                                h263_rewrite,
-                                h263_write,
-                                h263_seek,
-                                h263_trunc,
-                                h263_tell,
-                                h263_read,
-                                h263_close,
-                                h263_getcomment);
-                                
-                                
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module()
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount()
-{
-    return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description()
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

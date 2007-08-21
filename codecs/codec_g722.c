@@ -56,7 +56,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "ITU G.722 to/from PCM16 translator";
+static const char tdesc[] = "ITU G.722 to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -148,7 +148,6 @@ static struct opbx_translator_pvt *g722tolin_new(void)
     g722_decode_init(&(tmp->g722_state), 64000, G722_PACKED);
     plc_init(&tmp->plc);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -171,7 +170,6 @@ static struct opbx_translator_pvt *lintog722_new(void)
     memset(tmp, 0, sizeof(*tmp));
     g722_encode_init(&(tmp->g722_state), 64000, G722_PACKED);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -336,7 +334,6 @@ static void g722_destroy(struct opbx_translator_pvt *pvt)
 {
     free(pvt);
     localusecnt--;
-    opbx_update_use_count();
 }
 
 /*
@@ -344,17 +341,16 @@ static void g722_destroy(struct opbx_translator_pvt *pvt)
  */
 static opbx_translator_t g722tolin =
 {
-    "g722tolin",
-    OPBX_FORMAT_G722,
-    16000,
-    OPBX_FORMAT_SLINEAR,
-    16000,
-    g722tolin_new,
-    g722tolin_framein,
-    g722tolin_frameout,
-    g722_destroy,
-    /* NULL */
-    g722tolin_sample
+    .name = "g722tolin",
+    .src_format = OPBX_FORMAT_G722,
+    .src_rate = 16000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 16000,
+    .newpvt = g722tolin_new,
+    .framein = g722tolin_framein,
+    .frameout = g722tolin_frameout,
+    .destroy = g722_destroy,
+    .sample = g722tolin_sample
 };
 
 /*
@@ -362,17 +358,16 @@ static opbx_translator_t g722tolin =
  */
 static opbx_translator_t lintog722 =
 {
-    "lintog722",
-    OPBX_FORMAT_SLINEAR,
-    16000,
-    OPBX_FORMAT_G722,
-    16000,
-    lintog722_new,
-    lintog722_framein,
-    lintog722_frameout,
-    g722_destroy,
-    /* NULL */
-    lintog722_sample
+    .name = "lintog722",
+    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_rate = 16000,
+    .dst_format = OPBX_FORMAT_G722,
+    .dst_rate = 16000,
+    .newpvt = lintog722_new,
+    .framein = lintog722_framein,
+    .frameout = lintog722_frameout,
+    .destroy = g722_destroy,
+    .sample = lintog722_sample
 };
 
 static void parse_config(void)
@@ -399,48 +394,34 @@ static void parse_config(void)
     }
 }
 
-int reload(void)
+static int reload_module(void)
 {
     parse_config();
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
+    int res = 0;
     
     opbx_mutex_lock(&localuser_lock);
-    if ((res = opbx_unregister_translator(&lintog722)) == 0)
-        res = opbx_unregister_translator(&g722tolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&g722tolin);
+    opbx_translator_unregister(&lintog722);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
  
     parse_config();
-    if ((res = opbx_register_translator(&g722tolin)) == 0)
-        res = opbx_register_translator(&lintog722);
-    else
-        opbx_unregister_translator(&g722tolin);
+    opbx_translator_register(&g722tolin);
+    opbx_translator_register(&lintog722);
     return res;
 }
 
-/*
- * Return a description of this module.
- */
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount (void)
-{
-    int res;
-    STANDARD_USECOUNT (res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

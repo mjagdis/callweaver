@@ -48,58 +48,46 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *execif_app;
-static const char *execif_name = "ExecIf";
-static const char *execif_synopsis = "Conditional exec";
-static const char *execif_syntax = "ExecIF (expr, app, arg, ...)";
-static const char *execif_desc = 
+static const char execif_name[] = "ExecIf";
+static const char execif_synopsis[] = "Conditional exec";
+static const char execif_syntax[] = "ExecIF (expr, app, arg, ...)";
+static const char execif_desc[] = 
 "If <expr> is true, execute and return the result of <app>(<arg>, ...).\n"
 "If <expr> is true, but <app> is not found, then the application\n"
 "will return a non-zero value.";
 
 static void *while_app;
-static const char *while_name = "While";
-static const char *while_synopsis = "Start A While Loop";
-static const char *while_syntax = "While(expr)";
-static const char *while_desc = 
+static const char while_name[] = "While";
+static const char while_synopsis[] = "Start A While Loop";
+static const char while_syntax[] = "While(expr)";
+static const char while_desc[] = 
 "Start a While Loop.  Execution will return to this point when\n"
 "EndWhile is called until expr is no longer true.\n";
 
 
 static void *endwhile_app;
-static const char *endwhile_name = "EndWhile";
-static const char *endwhile_synopsis = "End A While Loop";
-static const char *endwhile_syntax = "EndWhile()";
-static const char *endwhile_desc = 
+static const char endwhile_name[] = "EndWhile";
+static const char endwhile_synopsis[] = "End A While Loop";
+static const char endwhile_syntax[] = "EndWhile()";
+static const char endwhile_desc[] = 
 "Return to the previous called While\n\n";
 
-static char *tdesc = "While Loops and Conditional Execution";
+static const char tdesc[] = "While Loops and Conditional Execution";
 
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int execif_exec(struct opbx_channel *chan, int argc, char **argv) {
+static int execif_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
 	int res=0;
 	struct localuser *u;
-	struct opbx_app *app = NULL;
+	struct opbx_func *app = NULL;
 
-	if (argc < 2 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", execif_syntax);
-		return -1;
-	}
+	if (argc < 2 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(execif_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	if (opbx_true(argv[0])) { 
-		if ((app = pbx_findapp(argv[1]))) {
-			res = pbx_exec_argv(chan, app, argc - 2, argv + 2);
-		} else {
-			opbx_log(LOG_WARNING, "Count not find application! (%s)\n", argv[1]);
-			res = -1;
-		}
-	}
+	if (opbx_true(argv[0]))
+		res = opbx_function_exec(chan, opbx_hash_app_name(argv[1]), argv[1], argc - 2, argv + 2, NULL, 0);
 		
 	ALL_DONE(u,res);
 }
@@ -218,7 +206,7 @@ static int find_matching_endwhile(struct opbx_channel *chan)
 	return res;
 }
 
-static int _while_exec(struct opbx_channel *chan, int argc, char **argv, int end)
+static int _while_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max, int end)
 {
 	int res=0;
 	struct localuser *u;
@@ -231,10 +219,8 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, int end
 	int used_index_i = -1, x=0;
 	char used_index[VAR_SIZE] = "0", new_index[VAR_SIZE] = "0";
 
-	if (!end && argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", while_syntax);
-		return -1;
-	}
+	if (!end && argc != 1)
+		return opbx_function_syntax(while_syntax);
 
 	if (!chan) {
 		/* huh ? */
@@ -328,44 +314,32 @@ static int _while_exec(struct opbx_channel *chan, int argc, char **argv, int end
 	ALL_DONE(u, res);
 }
 
-static int while_start_exec(struct opbx_channel *chan, int argc, char **argv) {
-	return _while_exec(chan, argc, argv, 0);
+static int while_start_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) {
+	return _while_exec(chan, argc, argv, NULL, 0, 0);
 }
 
-static int while_end_exec(struct opbx_channel *chan, int argc, char **argv) {
-	return _while_exec(chan, argc, argv, 1);
+static int while_end_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) {
+	return _while_exec(chan, argc, argv, NULL, 0, 1);
 }
 
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(while_app);
-	res |= opbx_unregister_application(execif_app);
-	res |= opbx_unregister_application(endwhile_app);
+
+	res |= opbx_unregister_function(while_app);
+	res |= opbx_unregister_function(execif_app);
+	res |= opbx_unregister_function(endwhile_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	while_app = opbx_register_application(while_name, while_start_exec, while_synopsis, while_syntax, while_desc);
-	execif_app = opbx_register_application(execif_name, execif_exec, execif_synopsis, execif_syntax, execif_desc);
-	endwhile_app = opbx_register_application(endwhile_name, while_end_exec, endwhile_synopsis, endwhile_syntax, endwhile_desc);
+	while_app = opbx_register_function(while_name, while_start_exec, while_synopsis, while_syntax, while_desc);
+	execif_app = opbx_register_function(execif_name, execif_exec, execif_synopsis, execif_syntax, execif_desc);
+	endwhile_app = opbx_register_function(endwhile_name, while_end_exec, endwhile_synopsis, endwhile_syntax, endwhile_desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

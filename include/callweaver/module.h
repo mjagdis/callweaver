@@ -26,92 +26,26 @@
 #ifndef _CALLWEAVER_MODULE_H
 #define _CALLWEAVER_MODULE_H
 
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-/* Every module should provide these functions */
+struct module;
 
-/*! 
- * \brief Initialize the module.
- * 
- * This function is called at module load time.  Put all code in here
- * that needs to set up your module's hardware, software, registrations,
- * etc.
- *
- * \return This function should return 0 on success and non-zero on failure.
- * If the module is not loaded successfully, CallWeaver will call its
- * unload_module() function.
- */
-int load_module(void);
-
-/*! 
- * \brief Cleanup all module structures, sockets, etc.
- *
- * This is called at exit.  Any registrations and memory allocations need to be
- * unregistered and free'd here.  Nothing else will do these for you (until
- * exit).
- *
- * \return Zero on success, or non-zero on error.
- */
-int unload_module(void);
-
-/*! 
- * \brief Provides a usecount.
- *
- * This function will be called by various parts of callweaver.  Basically, all
- * it has to do is to return a usecount when called.  You will need to maintain
- * your usecount within the module somewhere.  The usecount should be how many
- * channels provided by this module are in use.
- *
- * \return The module's usecount.
- */
-int usecount(void);			/* How many channels provided by this module are in use? */
-
-/*! \brief Provides a description of the module.
- *
- * \return a short description of your module
- */
-char *description(void);		/* Description of this module */
-
-/*! 
- * \brief Reload stuff.
- *
- * This function is where any reload routines take place.  Re-read config files,
- * change signalling, whatever is appropriate on a reload.
- *
- * \return The return value is not used.
- */
-int reload(void);		/* reload configs */
 
 #define OPBX_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
 
-/*! 
- * \brief Softly unload a module.
- *
- * This flag signals opbx_unload_resource() to unload a module only if it is not
- * in use, according to the module's usecount.
- */
-#define OPBX_FORCE_SOFT 0
 
-/*! 
- * \brief Firmly unload a module.
- *
- * This flag signals opbx_unload_resource() to attempt to unload a module even
- * if it is in use.  It will attempt to use the module's unload_module
- * function.
+/*!
+ * \brief Get a reference to a module
  */
-#define OPBX_FORCE_FIRM 1
+extern struct module *opbx_module_get(struct module *mod);
 
-/*! 
- * \brief Unconditionally unload a module.
- *
- * This flag signals opbx_unload_resource() to first attempt to unload a module
- * using the module's unload_module function, then if that fails to unload the
- * module using dlclose.  The module will be unloaded even if it is still in
- * use.  Use of this flag is not recommended.
+/*!
+ * \brief Put a reference to a module
  */
-#define OPBX_FORCE_HARD 2
+extern void opbx_module_put(struct module *mod);
 
 /*! 
  * \brief Load a module.
@@ -128,60 +62,18 @@ int opbx_load_resource(const char *resource_name);
 /*! 
  * \brief Unloads a module.
  * \param resource_name The name of the module to unload.
- * \param force The force flag.  This should be set using one of the OPBX_FORCE*
- *        flags.
+ * \param hangup        If true any channels using or depending on the module
+ *                      will be hung up.
  *
- * This function unloads a module.  It will only unload modules that are not in
- * use (usecount not zero), unless #OPBX_FORCE_FIRM or #OPBX_FORCE_HARD is 
- * specified.  Setting #OPBX_FORCE_FIRM or #OPBX_FORCE_HARD will unload the
- * module regardless of consequences (NOT_RECOMMENDED).
+ * Deregister the module's functionality so that it will be unloaded as soon
+ * as it is no longer in use. Optionally hangup channels which are using or
+ * depending on the module's presence. The module will not be unloaded as
+ * long as channels are using it.
  *
  * \return Zero on success, -1 on error.
  */
-int opbx_unload_resource(const char *resource_name, int force);
+int opbx_unload_resource(const char *resource_name, int hangup);
 
-/*! 
- * \brief Notify when usecount has been changed.
- *
- * This function calulates use counts and notifies anyone trying to keep track
- * of them.  It should be called whenever your module's usecount changes.
- *
- * \note The LOCAL_USER macros take care of calling this function for you.
- */
-void opbx_update_use_count(void);
-
-/*! 
- * \brief Ask for a list of modules, descriptions, and use counts.
- * \param modentry A callback to an updater function.
- *
- * For each of the modules loaded, modentry will be executed with the resource,
- * description, and usecount values of each particular module.
- * 
- * \return the number of modules loaded
- */
-int opbx_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
-			   const char *like);
-
-/*! 
- * \brief Add a procedure to be run when modules have been updated.
- * \param updater The function to run when modules have been updated.
- *
- * This function adds the given function to a linked list of functions to be
- * run when the modules are updated. 
- *
- * \return Zero on success and -1 on failure.
- */
-int opbx_loader_register(int (*updater)(void));
-
-/*! 
- * \brief Remove a procedure to be run when modules are updated.
- * \param The updater function to unregister.
- *
- * This removes the given function from the updater list.
- * 
- * \return Zero on success, -1 on failure.
- */
-int opbx_loader_unregister(int (*updater)(void));
 
 int opbx_loader_init(void);
 
@@ -207,7 +99,7 @@ int opbx_module_reload(const char *name);
  * \brief Match modules names for the CallWeaver cli.
  * \param line Unused by this function, but this should be the line we are
  *        matching.
- * \param word The partial name to match. 
+ * \param wordstem The partial name to match. 
  * \param pos The position the word we are completing is in.
  * \param state The possible match to return.
  * \param rpos The position we should be matching.  This should be the same as
@@ -219,70 +111,112 @@ int opbx_module_reload(const char *name);
  * \return A possible completion of the partial match, or NULL if no matches
  * were found.
  */
-char *opbx_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload);
+char *opbx_module_helper(char *line, char *wordstem, int pos, int state, int rpos, int needsreload);
 
-/*! 
- * \brief Register a function to be executed before CallWeaver exits.
- * \param func The callback function to use.
- *
- * \return Zero on success, -1 on error.
- */
-int opbx_register_atexit(void (*func)(void));
 
-/*! 
- * \brief Unregister a function registered with opbx_register_atexit().
- * \param func The callback function to unregister.
- */
-void opbx_unregister_atexit(void (*func)(void));
+struct localuser;
+
+struct modinfo {
+	struct module *self;
+
+	/*!
+	 * \brief Initialize the module.
+	 * 
+	 * This function is called at module load time.  Put all code in here
+	 * that needs to set up your module's hardware, software, registrations,
+	 * etc.
+	 *
+	 * \return This function should return 0 on success and non-zero on failure.
+	 */
+	int (*init)(void);
+
+	/*!
+	 * \brief Reload the module's config
+	 *
+	 * This is called when the module is requested to reload its configuration.
+	 * Note that this may be called while the module is in use and it is up
+	 * to the module itself to decide what changes may be allowed to any
+	 * particular moment.
+	 */
+	int (*reconfig)(void);
+
+	/*! 
+	 * \brief Deregister the module's services
+	 *
+	 * This is called when the module is _requested_ to be removed.  The module
+	 * may not _actually_ be removed until later (and then only after a call to
+	 * the release function, if any, below) if there are current references to it.
+	 * Any registrations should be removed here. This will prevent anything else
+	 * making use of this module however current users are permitted to continue
+	 * until finished.
+	 *
+	 * \return Zero on success, or non-zero on error.
+	 */
+	int (*deregister)(void);
+
+	/*! 
+	 * \brief Cleanup all module structures, sockets, etc.
+	 *
+	 * This is called at just before the module is removed from the process.
+	 * Memory allocations need to be freed and descriptors closed here.  Nothing else
+	 * will do this for you!
+	 *
+	 * \return nothing
+	 */
+	void (*release)(void);
+
+	/*! \brief Provides a description of the module. */
+	const char *description;
+
+	opbx_mutex_t localuser_lock;
+	struct localuser *localusers;
+	int localusecnt;
+};
+
+extern struct modinfo *get_modinfo(void);
+
+#define MODULE_INFO(module_init, module_reconfig, module_deregister, module_release, module_description) \
+	static __attribute__((unused)) struct modinfo __modinfo = { \
+		.init = module_init, \
+		.reconfig = module_reconfig, \
+		.deregister = module_deregister, \
+		.release = module_release, \
+		.description = module_description, \
+	}; \
+	__attribute__((visibility("protected"))) struct modinfo *get_modinfo(void) \
+		{ return &__modinfo; }
+
 
 /* Local user routines keep track of which channels are using a given module
    resource.  They can help make removing modules safer, particularly if
    they're in use at the time they have been requested to be removed */
 
+struct localuser {
+	struct opbx_channel *chan;
+	struct localuser *next;
+};
+
+
 /*! 
- * \brief Standard localuser struct definition.
+ * \brief Add a channel as a user of a module.
+ * \param modinfo the modinfo of the module to add the user against
+ * \param chan the channel that will be using the module
+ * \param u pointer to a localuser struct to use
  *
- * This macro defines a localuser struct.  The channel.h file must be included
- * to use this macro because it refrences opbx_channel.
+ * Adds a channel to the list of users and increments the usecount.
+ *
+ * \return nothing
  */
-#define STANDARD_LOCAL_USER struct localuser { \
-						struct opbx_channel *chan; \
-						struct localuser *next; \
-					     }
-
-/*! 
- * \brief The localuser declaration.
- *
- * This macro should be used in combination with #STANDARD_LOCAL_USER.  It
- * creates a localuser mutex and several other variables used for keeping the
- * use count.
- *
- * <b>Sample Usage:</b>
- * \code
- * STANDARD_LOCAL_USER;
- * LOCAL_USER_DECL;
- * \endcode
- */
-#define LOCAL_USER_DECL OPBX_MUTEX_DEFINE_STATIC(localuser_lock); \
-						static struct localuser *localusers = NULL; \
-						static int localusecnt = 0;
-
-#define STANDARD_INCREMENT_USECOUNT \
-	opbx_mutex_lock(&localuser_lock); \
-	localusecnt++; \
-	opbx_mutex_unlock(&localuser_lock); \
-	opbx_update_use_count();
-
-#define STANDARD_DECREMENT_USECOUNT \
-	opbx_mutex_lock(&localuser_lock); \
-	localusecnt--; \
-	opbx_mutex_unlock(&localuser_lock); \
-	opbx_update_use_count();
-
-/*! 
- * \brief Add a localuser.
- * \param u a pointer to a localuser struct
- *
+static inline void opbx_module_user_add(struct modinfo *modinfo, struct opbx_channel *chan, struct localuser *u) {
+	opbx_mutex_lock(&modinfo->localuser_lock);
+	u->chan = chan;
+	u->next = modinfo->localusers;
+	modinfo->localusers = u;
+	modinfo->localusecnt++;
+	opbx_mutex_unlock(&modinfo->localuser_lock);
+}
+/*!
+ * [DEPRECATED]
  * This macro adds a localuser to the list of users and increments the
  * usecount.  It expects a variable named \p chan of type \p opbx_channel in the
  * current scope.
@@ -291,104 +225,44 @@ void opbx_unregister_atexit(void (*func)(void));
  * it will cause your function to return -1 to the caller.
  */
 #define LOCAL_USER_ADD(u) { \
- \
-	if (!(u=calloc(1,sizeof(*u)))) { \
+	if (!(u = malloc(sizeof(*u)))) { \
 		opbx_log(LOG_WARNING, "Out of memory\n"); \
 		return -1; \
 	} \
-	opbx_mutex_lock(&localuser_lock); \
-	u->chan = chan; \
-	u->next = localusers; \
-	localusers = u; \
-	localusecnt++; \
-	opbx_mutex_unlock(&localuser_lock); \
-	opbx_update_use_count(); \
-}
-
-#define LOCAL_USER_ACF_ADD(u) { \
- \
-	if (!(u=calloc(1,sizeof(*u)))) { \
-		opbx_log(LOG_WARNING, "Out of memory\n"); \
-		return ""; \
-	} \
-	opbx_mutex_lock(&localuser_lock); \
-	u->chan = chan; \
-	u->next = localusers; \
-	localusers = u; \
-	localusecnt++; \
-	opbx_mutex_unlock(&localuser_lock); \
-	opbx_update_use_count(); \
+	opbx_module_user_add(get_modinfo(), chan, u); \
 }
 
 /*! 
- * \brief Remove a localuser.
- * \param u the user to add, should be of type struct localuser
+ * \brief Remove a channel from a module's list of users.
+ * \param modinfo the modinfo of the module to remove the user from
+ * \param u pointer to the user's localuser struct
  *
+ * Removes a channel from the list of users and decrements the
+ * usecount.
+ */
+static inline void opbx_module_user_del(struct modinfo *modinfo, struct localuser *u) {
+	struct localuser **uc;
+	opbx_mutex_lock(&modinfo->localuser_lock);
+	for (uc = &modinfo->localusers; *uc; uc = &(*uc)->next) {
+		if (*uc == u) {
+			*uc = (*uc)->next;
+			break;
+		}
+	}
+	modinfo->localusecnt--;
+	opbx_mutex_unlock(&modinfo->localuser_lock);
+}
+/*!
+ * [DEPRECATED]
  * This macro removes a localuser from the list of users and decrements the
  * usecount.
  */
 #define LOCAL_USER_REMOVE(u) { \
-	struct localuser *uc, *ul = NULL; \
-	opbx_mutex_lock(&localuser_lock); \
-	uc = localusers; \
-	while (uc) { \
-		if (uc == u) { \
-			if (ul) \
-				ul->next = uc->next; \
-			else \
-				localusers = uc->next; \
-			break; \
-		} \
-		ul = uc; \
-		uc = uc->next; \
-	}\
+	opbx_module_user_del(get_modinfo(), u); \
 	free(u); \
-	localusecnt--; \
-	opbx_mutex_unlock(&localuser_lock); \
-	opbx_update_use_count(); \
 }
 
-/*! 
- * \brief Hangup all localusers.
- *
- * This macro hangs up on all current localusers and sets the usecount to zero
- * when finished.
- */
-#define STANDARD_HANGUP_LOCALUSERS { \
-	struct localuser *u, *ul; \
-	opbx_mutex_lock(&localuser_lock); \
-	u = localusers; \
-	while(u) { \
-		opbx_softhangup(u->chan, OPBX_SOFTHANGUP_APPUNLOAD); \
-		ul = u; \
-		u = u->next; \
-		free(ul); \
-	} \
-	localusecnt=0; \
-	opbx_mutex_unlock(&localuser_lock); \
-	opbx_update_use_count(); \
-}
 
-/*!
- * \brief Set the specfied integer to the current usecount.
- * \param res the integer variable to set.
- *
- * This macro sets the specfied integer variable to the local usecount.
- *
- * <b>Sample Usage:</b>
- * \code
- * int usecount(void)
- * {
- *    int res;
- *    STANDARD_USECOUNT(res);
- *    return res;
- * }
- * \endcode
- */
-#define STANDARD_USECOUNT(res) { \
-	res = localusecnt; \
-}
-	
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

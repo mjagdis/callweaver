@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -60,12 +59,10 @@ struct opbx_filestream
     struct timeval last;
 };
 
-OPBX_MUTEX_DEFINE_STATIC(pcm_lock);
-static int glistcnt = 0;
 
-static char *name = "pcm";
-static char *desc = "Raw uLaw 8khz Audio support (PCM)";
-static char *exts = "pcm|ulaw|ul|mu";
+static struct opbx_format format;
+
+static const char desc[] = "Raw uLaw 8khz Audio support (PCM)";
 
 static struct opbx_filestream *pcm_open(FILE *f)
 {
@@ -73,23 +70,14 @@ static struct opbx_filestream *pcm_open(FILE *f)
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
     struct opbx_filestream *tmp;
-    
+
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&pcm_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock pcm list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, name);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, format.name);
         tmp->fr.data = tmp->buf;
         /* datalen will vary for each frame */
-        glistcnt++;
-        opbx_mutex_unlock(&pcm_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -100,20 +88,11 @@ static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
        if we did, it would go here.  We also might want to check
        and be sure it's a valid file.  */
     struct opbx_filestream *tmp;
-    
+
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&pcm_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock pcm list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&pcm_lock);
-        opbx_update_use_count();
     }
     else
     {
@@ -124,14 +103,6 @@ static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
 
 static void pcm_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&pcm_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock pcm list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&pcm_lock);
-    opbx_update_use_count();
     fclose(s->f);
     free(s);
     s = NULL;
@@ -201,7 +172,7 @@ static int pcm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     if (whence != SEEK_FORCECUR)
         offset = (offset > max)  ?  max  :  offset;
     /* always protect against seeking past begining. */
-    offset = (offset < min)?min:offset;
+    offset = (offset < min)  ?  min  :  offset;
     return fseek(fs->f, offset, SEEK_SET);
 }
 
@@ -222,33 +193,34 @@ static char *pcm_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "pcm",
+	.exts = "pcm|ulaw|ul|mu",
+	.format = OPBX_FORMAT_ULAW,
+	.open = pcm_open,
+	.rewrite = pcm_rewrite,
+	.write = pcm_write,
+	.seek = pcm_seek,
+	.trunc = pcm_trunc,
+	.tell = pcm_tell,
+	.read = pcm_read,
+	.close = pcm_close,
+	.getcomment = pcm_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_ULAW,
-                                pcm_open,
-                                pcm_rewrite,
-                                pcm_write,
-                                pcm_seek,
-                                pcm_trunc,
-                                pcm_tell,
-                                pcm_read,
-                                pcm_close,
-                                pcm_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount(void)
-{
-    return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description(void)
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

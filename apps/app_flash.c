@@ -46,22 +46,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/image.h"
 #include "callweaver/options.h"
 
-static char *tdesc = "Flash zap trunk application";
+static const char tdesc[] = "Flash zap trunk application";
 
 static void *flash_app;
-static char *flash_name = "Flash";
-static char *flash_synopsis = "Flashes a Zap Trunk";
-static char *flash_syntax = "Flash()";
-static char *flash_descrip =
+static char flash_name[] = "Flash";
+static char flash_synopsis[] = "Flashes a Zap Trunk";
+static char flash_syntax[] = "Flash()";
+static char flash_descrip[] =
 "Sends a flash on a zap trunk.  This is only a hack for\n"
 "people who want to perform transfers and such via OGI and is generally\n"
 "quite useless otherwise.  Returns 0 on success or -1 if this is not\n"
 "a zap trunk\n";
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static inline int zt_wait_event(int fd)
 {
@@ -73,7 +69,7 @@ static inline int zt_wait_event(int fd)
 	return j;
 }
 
-static int flash_exec(struct opbx_channel *chan, int argc, char **argv)
+static int flash_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct zt_params ztp;
 	struct localuser *u;
@@ -108,30 +104,19 @@ static int flash_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(flash_app);
+
+	res |= opbx_unregister_function(flash_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	flash_app = opbx_register_application(flash_name, flash_exec, flash_synopsis, flash_syntax, flash_descrip);
+	flash_app = opbx_register_function(flash_name, flash_exec, flash_synopsis, flash_syntax, flash_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

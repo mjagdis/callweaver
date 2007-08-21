@@ -29,6 +29,11 @@ extern "C" {
 
 #include <stdarg.h>
 
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
+
+
 extern void opbx_cli(int fd, char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
@@ -42,58 +47,55 @@ extern void opbx_cli(int fd, char *fmt, ...)
 
 #define OPBX_CLI_COMPLETE_EOF	"_EOF_"
 
+
 /*! \brief A command line entry */ 
-struct opbx_cli_entry {
+struct opbx_clicmd {
+	struct opbx_object obj;
+	struct opbx_registry_entry clicmd_entry;
 	/*! Null terminated list of the words of the command */
 	char *cmda[OPBX_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of arguments, argument list).  Returns RESULT_SHOWUSAGE for improper arguments */
 	int (*handler)(int fd, int argc, char *argv[]);
 	/*! Summary of the command (< 60 characters) */
-	char *summary;
+	const char *summary;
 	/*! Detailed usage information */
-	char *usage;
+	const char *usage;
 	/*! Generate a list of possible completions for a given word */
 	char *(*generator)(char *line, char *word, int pos, int state);
-	/*! For linking */
-	struct opbx_cli_entry *next;
-	/*! For keeping track of usage */
-	int inuse;
 };
+
+
+extern struct opbx_registry clicmd_registry;
+
+
+#define opbx_cli_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
+	__ptr->clicmd_entry.obj = &__ptr->obj; \
+	opbx_registry_add(&clicmd_registry, &__ptr->clicmd_entry); \
+})
+#define opbx_cli_unregister(ptr)	opbx_registry_del(&clicmd_registry, &(ptr)->clicmd_entry)
+
+#define opbx_cli_register_multiple(array, count) do { \
+	const typeof(&(array)[0]) __aptr = &(array)[0]; \
+	int i, n = (count); \
+	for (i = 0; i < n; i++) \
+		opbx_cli_register(&__aptr[i]); \
+} while (0)
+
+#define opbx_cli_unregister_multiple(array, count) do { \
+	const typeof(&(array)[0]) __aptr = &(array)[0]; \
+	int i, n = (count); \
+	for (i = 0; i < n; i++) \
+		opbx_cli_unregister(&__aptr[i]); \
+} while (0)
+
 
 /*! \brief Interprets a command 
  * Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
 extern int opbx_cli_command(int fd, char *s);
-
-/*! \brief Registers a command or an array of commands 
- * \param e which cli entry to register
- * Register your own command
- * Returns 0 on success, -1 on failure
- */
-extern int opbx_cli_register(struct opbx_cli_entry *e);
-
-/*! 
- * \brief Register multiple commands
- * \param e pointer to first cli entry to register
- * \param len number of entries to register
- */
-extern void opbx_cli_register_multiple(struct opbx_cli_entry *e, int len);
-
-/*! \brief Unregisters a command or an array of commands
- *
- * \param e which cli entry to unregister
- * Unregister your own command.  You must pass a completed opbx_cli_entry structure
- * Returns 0.
- */
-extern int opbx_cli_unregister(struct opbx_cli_entry *e);
-
-/*!
- * \brief Unregister multiple commands
- * \param e pointer to first cli entry to unregister
- * \param len number of entries to unregister
- */
-extern void opbx_cli_unregister_multiple(struct opbx_cli_entry *e, int len);
 
 /*! \brief Readline madness 
  * Useful for readline, that's about it
@@ -103,6 +105,9 @@ extern char *opbx_cli_generator(char *, char *, int);
 
 extern int opbx_cli_generatornummatches(char *, char *);
 extern char **opbx_cli_completion_matches(char *, char *);
+
+extern void opbx_cli_init(void);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

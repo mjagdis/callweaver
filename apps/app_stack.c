@@ -46,55 +46,52 @@
 
 #define STACKVAR	"~GOSUB~STACK~"
 
-static const char *tdesc = "Stack Routines";
+static const char tdesc[] = "Stack Routines";
 
 static void *gosub_app;
 static void *gosubif_app;
 static void *return_app;
 static void *pop_app;
 
-static const char *gosub_name = "Gosub";
-static const char *gosubif_name = "GosubIf";
-static const char *return_name = "Return";
-static const char *pop_name = "StackPop";
+static const char gosub_name[] = "Gosub";
+static const char gosubif_name[] = "GosubIf";
+static const char return_name[] = "Return";
+static const char pop_name[] = "StackPop";
 
-static const char *gosub_synopsis = "Jump to label, saving return address";
-static const char *gosubif_synopsis = "Jump to label, saving return address";
-static const char *return_synopsis = "Return from gosub routine";
-static const char *pop_synopsis = "Remove one address from gosub stack";
+static const char gosub_synopsis[] = "Jump to label, saving return address";
+static const char gosubif_synopsis[] = "Jump to label, saving return address";
+static const char return_synopsis[] = "Return from gosub routine";
+static const char pop_synopsis[] = "Remove one address from gosub stack";
 
-static const char *gosub_syntax = "Gosub([[context, ]exten, ]label|priority[(arg,...)])";
-static const char *gosubif_syntax = "GosubIf(condition ? [[context, ]exten, ]label|priority[(arg, ...)] [: [[context, ]exten, ]label|priority][(arg, ...)])";
-static const char *return_syntax = "Return()";
-static const char *pop_syntax = "StackPop()";
+static const char gosub_syntax[] = "Gosub([[context, ]exten, ]label|priority[(arg,...)])";
+static const char gosubif_syntax[] = "GosubIf(condition ? [[context, ]exten, ]label|priority[(arg, ...)] [: [[context, ]exten, ]label|priority][(arg, ...)])";
+static const char return_syntax[] = "Return()";
+static const char pop_syntax[] = "StackPop()";
 
-static const char *gosub_descrip =
+static const char gosub_descrip[] =
 "  Jumps to the label specified, saving the return address.\n"
 "  Returns 0 if the label exists or -1 otherwise.\n";
-static const char *gosubif_descrip =
+static const char gosubif_descrip[] =
 "  If the condition is true, then jump to labeliftrue.  If false, jumps to\n"
 "labeliffalse, if specified.  In either case, a jump saves the return point\n"
 "in the dialplan, to be returned to with a Return.\n"
 "  Returns 0 if the label exists or -1 otherwise.\n";
-static const char *return_descrip =
+static const char return_descrip[] =
 "  Jumps to the last label in the stack, removing it.\n"
 "  Returns 0 if there's a label in the stack or -1 otherwise.\n";
-static const char *pop_descrip =
+static const char pop_descrip[] =
 "  Removes last label in the stack, discarding it.\n"
 "  Always returns 0, even if the stack is empty.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int pop_exec(struct opbx_channel *chan, int argc, char **argv)
+static int pop_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
 	return 0;
 }
 
-static int return_exec(struct opbx_channel *chan, int argc, char **argv)
+static int return_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char buf[3 + 3 + 1];
 	char *label;
@@ -126,26 +123,22 @@ static int return_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int gosub_exec(struct opbx_channel *chan, int argc, char **argv)
+static int gosub_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char buf[3 + 1 + OPBX_MAX_CONTEXT + 1 + OPBX_MAX_EXTENSION + 1 + 11 + 11];
 	char *context, *exten, *p, *q;
 	int i;
 
-	if (argc < 1 || argc > 3) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", gosub_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 3)
+		return opbx_function_syntax(gosub_syntax);
 
 	exten = (argc > 1 ? argv[argc-2] : NULL);
 	context = (argc > 2 ? argv[argc-3] : NULL);
 
 	if ((p = strchr(argv[argc-1], '('))) {
 		*(p++) = '\0';
-		if (!(q = strrchr(p, ')'))) {
-			opbx_log(LOG_ERROR, "Syntax: %s\n", gosub_syntax);
-			return -1;
-		}
+		if (!(q = strrchr(p, ')')))
+			return opbx_function_syntax(gosub_syntax);
 
 		*q = '\0';
 	}
@@ -169,16 +162,14 @@ static int gosub_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static int gosubif_exec(struct opbx_channel *chan, int argc, char **argv)
+static int gosubif_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *s, *q;
 	int i;
 
 	/* First argument is "<condition ? ..." */
-	if (argc < 1 || !(s = strchr(argv[0], '?'))) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", gosubif_syntax);
-		return -1;
-	}
+	if (argc < 1 || !(s = strchr(argv[0], '?')))
+		return opbx_function_syntax(gosubif_syntax);
 
 	/* Trim trailing space from the condition */
 	q = s;
@@ -196,7 +187,7 @@ static int gosubif_exec(struct opbx_channel *chan, int argc, char **argv)
 				break;
 			}
 		}
-		return gosub_exec(chan, argc, argv);
+		return gosub_exec(chan, argc, argv, NULL, 0);
 	} else {
 		/* False: we want everything after ':' (if anything) */
 		argv[0] = s;
@@ -204,7 +195,7 @@ static int gosubif_exec(struct opbx_channel *chan, int argc, char **argv)
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));
 				argv[i] = s;
-				return gosub_exec(chan, argc - i, argv + i);
+				return gosub_exec(chan, argc - i, argv + i, NULL, 0);
 			}
 		}
 		/* No ": ..." so we just drop through */
@@ -212,39 +203,27 @@ static int gosubif_exec(struct opbx_channel *chan, int argc, char **argv)
 	}
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_application(return_app);
-	res |= opbx_unregister_application(pop_app);
-	res |= opbx_unregister_application(gosubif_app);
-	res |= opbx_unregister_application(gosub_app);
+	res |= opbx_unregister_function(return_app);
+	res |= opbx_unregister_function(pop_app);
+	res |= opbx_unregister_function(gosubif_app);
+	res |= opbx_unregister_function(gosub_app);
 
-	STANDARD_HANGUP_LOCALUSERS;
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	pop_app = opbx_register_application(pop_name, pop_exec, pop_synopsis, pop_syntax, pop_descrip);
-	return_app = opbx_register_application(return_name, return_exec, return_synopsis, return_syntax, return_descrip);
-	gosubif_app = opbx_register_application(gosubif_name, gosubif_exec, gosubif_synopsis, gosubif_syntax, gosubif_descrip);
-	gosub_app = opbx_register_application(gosub_name, gosub_exec, gosub_synopsis, gosub_syntax, gosub_descrip);
+	pop_app = opbx_register_function(pop_name, pop_exec, pop_synopsis, pop_syntax, pop_descrip);
+	return_app = opbx_register_function(return_name, return_exec, return_synopsis, return_syntax, return_descrip);
+	gosubif_app = opbx_register_function(gosubif_name, gosubif_exec, gosubif_synopsis, gosubif_syntax, gosubif_descrip);
+	gosub_app = opbx_register_function(gosub_name, gosub_exec, gosub_synopsis, gosub_syntax, gosub_descrip);
 
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *) tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

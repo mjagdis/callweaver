@@ -50,13 +50,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define PRE_DIGIT_TIMEOUT   (8000*5)
 #define INTER_DIGIT_TIMEOUT (8000*3/2)
 
-static char *tdesc = "Assign entered string to a given variable";
+static const char tdesc[] = "Assign entered string to a given variable";
 
 static void *dtmftotext_app;
-static char *dtmftotext_name = "DTMFToText";
-static char *dtmftotext_synopsis = "Text entry, by DTMF, to a given variable";
-static char *dtmftotext_syntax = "DTMFToText(variable=initial digits, max chars, max time)";
-static char *dtmftotext_descrip =
+static char dtmftotext_name[] = "DTMFToText";
+static char dtmftotext_synopsis[] = "Text entry, by DTMF, to a given variable";
+static char dtmftotext_syntax[] = "DTMFToText(variable=initial digits, max chars, max time)";
+static char dtmftotext_descrip[] =
 "  DTMFToText(variable=initial digits,max chars,max time): Assigns a string\n"
 "entered by someone, using DTMF.\n"
 "\n"
@@ -111,10 +111,6 @@ static char *dtmftotext_descrip =
 "8     \\    88    |    888   8\n"
 "9     _    99    ~    999   9\n";
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #if 0
 #define FESTIVAL_CONFIG "festival.conf"
@@ -983,7 +979,7 @@ static int get_input_text(struct opbx_channel *chan, const char *variable_name, 
     return  res;
 }
 
-static int dtmftotext_exec(struct opbx_channel *chan, int argc, char **argv)
+static int dtmftotext_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     char *initial_digits;
     int imax_chars;
@@ -991,10 +987,8 @@ static int dtmftotext_exec(struct opbx_channel *chan, int argc, char **argv)
     int res;
     struct localuser *u;
 
-	if (argc != 3 || argv[0][0] == '=' || !(initial_digits = strchr(argv[0], '='))) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", dtmftotext_syntax);
-		return -1;
-	}
+	if (argc != 3 || argv[0][0] == '=' || !(initial_digits = strchr(argv[0], '=')))
+		return opbx_function_syntax(dtmftotext_syntax);
 
 	*(initial_digits++) = '\0';
 	imax_chars = atoi(argv[1]);
@@ -1012,29 +1006,19 @@ static int dtmftotext_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(dtmftotext_app);
+
+	res |= opbx_unregister_function(dtmftotext_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	dtmftotext_app = opbx_register_application(dtmftotext_name, dtmftotext_exec, dtmftotext_synopsis, dtmftotext_syntax, dtmftotext_descrip);
+	dtmftotext_app = opbx_register_function(dtmftotext_name, dtmftotext_exec, dtmftotext_synopsis, dtmftotext_syntax, dtmftotext_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

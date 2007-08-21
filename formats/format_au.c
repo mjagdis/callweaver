@@ -35,7 +35,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -68,12 +67,9 @@ struct opbx_filestream {
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(au_lock);
-static int localusecnt = 0;
+static struct opbx_format format;
 
-static char *name = "au";
-static char *desc = "Sun Microsystems AU format (signed linear)";
-static char *exts = "au";
+static const char desc[] = "Sun Microsystems AU format (signed linear)";
 
 
 #define AU_MAGIC 0x2e736e64
@@ -120,10 +116,10 @@ static int check_header(FILE *f)
     {
         opbx_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
     }
-/*    hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
+/*  hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
     if (hdr_size < AU_HEADER_SIZE)*/
     hdr_size = AU_HEADER_SIZE;
-/*    data_size = ltohl(header[AU_HDR_DATA_SIZE_OFF]); */
+/*  data_size = ltohl(header[AU_HDR_DATA_SIZE_OFF]); */
     encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
     if (encoding != AU_ENC_8BIT_ULAW)
     {
@@ -226,21 +222,11 @@ static struct opbx_filestream *au_open(FILE *f)
         free(tmp);
         return NULL;
     }
-    if (opbx_mutex_lock(&au_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock au count\n");
-        free(tmp);
-        return NULL;
-    }
     tmp->f = f;
     opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
     tmp->fr.data = tmp->buf;
     /* datalen will vary for each frame */
-    tmp->fr.src = name;
-
-    localusecnt++;
-    opbx_mutex_unlock(&au_lock);
-    opbx_update_use_count();
+    tmp->fr.src = format.name;
     return tmp;
 }
 
@@ -260,29 +246,12 @@ static struct opbx_filestream *au_rewrite(FILE *f, const char *comment)
         free(tmp);
         return NULL;
     }
-    if (opbx_mutex_lock(&au_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock au count\n");
-        free(tmp);
-        return NULL;
-    }
     tmp->f = f;
-    localusecnt++;
-    opbx_mutex_unlock(&au_lock);
-    opbx_update_use_count();
     return tmp;
 }
 
 static void au_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&au_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock au count\n");
-        return;
-    }
-    localusecnt--;
-    opbx_mutex_unlock(&au_lock);
-    opbx_update_use_count();
     fclose(s->f);
     free(s);
 }
@@ -291,7 +260,7 @@ static struct opbx_frame *au_read(struct opbx_filestream *s, int *whennext)
 {
     int res;
     int delay;
-    
+
     /* Send a frame from the file to the appropriate channel */
     opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ULAW, NULL);
     s->fr.offset = OPBX_FRIENDLY_OFFSET;
@@ -378,33 +347,34 @@ static char *au_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "au",
+	.exts = "au",
+	.format = OPBX_FORMAT_ULAW,
+	.open = au_open,
+	.rewrite = au_rewrite,
+	.write = au_write,
+	.seek = au_seek,
+	.trunc = au_trunc,
+	.tell = au_tell,
+	.read = au_read,
+	.close = au_close,
+	.getcomment = au_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_ULAW,
-                                au_open,
-                                au_rewrite,
-                                au_write,
-                                au_seek,
-                                au_trunc,
-                                au_tell,
-                                au_read,
-                                au_close,
-                                au_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-int usecount(void)
-{
-    return localusecnt;
-}
 
-char *description(void)
-{
-    return desc;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

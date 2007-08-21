@@ -42,17 +42,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/options.h"
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static const char *tdesc = "Transfer";
+static const char tdesc[] = "Transfer";
 
 static void *transfer_app;
-static const char *transfer_name = "Transfer";
-static const char *transfer_synopsis = "Transfer caller to remote extension";
-static const char *transfer_syntax = "Transfer([Tech/]dest)";
-static const char *transfer_descrip = 
+static const char transfer_name[] = "Transfer";
+static const char transfer_synopsis[] = "Transfer caller to remote extension";
+static const char transfer_syntax[] = "Transfer([Tech/]dest)";
+static const char transfer_descrip[] = 
 "Requests the remote caller be transfered\n"
 "to a given extension. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
 "an incoming call with the same channel technology will be transfered.\n"
@@ -71,7 +68,7 @@ static const char *transfer_descrip =
 "successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-static int transfer_exec(struct opbx_channel *chan, int argc, char **argv)
+static int transfer_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res;
 	int len;
@@ -81,10 +78,8 @@ static int transfer_exec(struct opbx_channel *chan, int argc, char **argv)
 	char *dest;
 	char *status;
 
-	if (argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", transfer_syntax);
-		return -1;
-	}
+	if (argc != 1)
+		return opbx_function_syntax(transfer_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -127,32 +122,19 @@ static int transfer_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(transfer_app);
+
+	res |= opbx_unregister_function(transfer_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	transfer_app = opbx_register_application(transfer_name, transfer_exec, transfer_synopsis, transfer_syntax, transfer_descrip);
+	transfer_app = opbx_register_function(transfer_name, transfer_exec, transfer_synopsis, transfer_syntax, transfer_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *) tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

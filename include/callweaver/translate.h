@@ -29,6 +29,9 @@
 extern "C" {
 #endif
 
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
 #include "callweaver/frame.h"
 
 /* Declared by individual translators */
@@ -36,23 +39,23 @@ struct opbx_translator_pvt;
 
 typedef struct opbx_translator opbx_translator_t;
 
+
+extern struct opbx_registry translator_registry;
+
+
+#define opbx_translator_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
+	__ptr->translator_entry.obj = &__ptr->obj; \
+	opbx_registry_add(&translator_registry, &__ptr->translator_entry); \
+})
+#define opbx_translator_unregister(ptr)	opbx_registry_del(&translator_registry, &(ptr)->translator_entry)
+
+
 struct opbx_trans_pvt;
 
-/*! Register a translator */
-/*! 
- * \param t populated opbx_translator structure
- * This registers a codec translator with callweaver
- * Returns 0 on success, -1 on failure
- */
-extern int opbx_register_translator(opbx_translator_t *t);
 
-/*! Unregister a translator */
-/*!
- * \param t translator to unregister
- * Unregisters the given tranlator
- * Returns 0 on success, -1 on failure
- */
-extern int opbx_unregister_translator(opbx_translator_t *t);
+extern int opbx_translator_init(void);
 
 /*! Chooses the best translation path */
 /*! 

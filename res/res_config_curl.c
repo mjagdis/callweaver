@@ -36,22 +36,19 @@
 #include "callweaver/options.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "CURL URL Based Configuration";
-static const char *global_tmp_prefix = "/var/tmp/res_config_curl/";
+static const char tdesc[] = "CURL URL Based Configuration";
+static const char global_tmp_prefix[] = "/var/tmp/res_config_curl/";
 static int global_cache_time = 0;
 static int global_no_cache_neg = 1;
-static char *global_config_file = "curl.conf";
+static char global_config_file[] = "curl.conf";
 
 static void *app_1;
-static const char *name_1 = "URLFetch";
-static const char *synopsis_1 = "Fetch Data from a URL";
-static const char *syntax_1 = "URLFetch(<url>)";
-static const char *desc_1 = "load a url that returns opbx_config and set according chanvars\n"
+static const char name_1[] = "URLFetch";
+static const char synopsis_1[] = "Fetch Data from a URL";
+static const char syntax_1[] = "URLFetch(<url>)";
+static const char desc_1[] = "load a url that returns opbx_config and set according chanvars\n"
 ;
 
-
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 struct config_data {
 	struct opbx_variable *vars;
@@ -232,7 +229,7 @@ static struct opbx_variable *realtime_curl(const char *database, const char *tab
 	return config_data.vars;
 }
 
-static int realtime_exec(struct opbx_channel *chan, int argc, char **argv) 
+static int realtime_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct config_data config_data;
 	struct opbx_variable *v;
@@ -343,44 +340,40 @@ static struct opbx_config_engine curl_engine = {
 };
 
 
-int reload(void) {
+static int reload_module(void) {
 	load_config();
 	return 0;
 }
 
-int unload_module (void)
+static int unload_module (void)
 {
 	int res = 0;
-	opbx_config_engine_deregister(&curl_engine);
-	if (option_verbose)
-		opbx_verbose(VERBOSE_PREFIX_1 "res_config_curl unloaded.\n");
-	res |= opbx_unregister_application(app_1);
-	STANDARD_HANGUP_LOCALUSERS;
+
+	opbx_config_engine_unregister(&curl_engine);
+	res |= opbx_unregister_function(app_1);
 	return res;
 }
 
 
-int load_module (void)
+static int load_module (void)
 {
 	char cmd[128];
+
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
 	snprintf(cmd, 128, "/bin/rm -fr %s ; /bin/mkdir -p %s", global_tmp_prefix, global_tmp_prefix);
 	system(cmd);
 	load_config();
 	opbx_config_engine_register(&curl_engine);
-	app_1 = opbx_register_application(name_1, realtime_exec, synopsis_1, syntax_1, desc_1);
-	if (option_verbose)
-		opbx_verbose(VERBOSE_PREFIX_1 "res_config_curl loaded.\n");
+	app_1 = opbx_register_function(name_1, realtime_exec, synopsis_1, syntax_1, desc_1);
 	return 0;
 }
 
 char *description (void)
 {
-	return tdesc;
+	return (char *)tdesc;
 }
 
-int usecount (void)
-{
-	/* never unload a config module */
-	return 1;
-}
 
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

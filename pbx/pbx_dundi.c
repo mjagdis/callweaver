@@ -25,6 +25,7 @@
 #include "confdefs.h"
 #endif
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -56,6 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
+#include "callweaver/switch.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/frame.h"
@@ -80,34 +82,21 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 extern char opbx_config_OPBX_KEY_DIR[];
 
-static char *tdesc = "Distributed Universal Number Discovery (DUNDi)";
-
-static void *dundi_app;
-static const char *dundi_lookup_name = "DUNDiLookup";
-static const char *dundi_lookup_synopsis = "Look up a number with DUNDi";
-static const char *dundi_lookup_syntax = "DUNDiLookup(number[,context[,options]])";
-static const char *dundi_lookup_descrip = 
-	"      Looks up a given number in the global context specified or in\n"
-	"the reserved 'e164' context if not specified.  Returns -1 if the channel\n"
-	"is hungup during the lookup or 0 otherwise.  On completion, the variable\n"
-	"${DUNDTECH} and ${DUNDDEST} will contain the technology and destination\n"
-	"of the appropriate technology and destination to access the number. If no\n"
-	"answer was found, and the priority n + 101 exists, execution will continue\n"
-	"at that location. Note that this will only occur if the global priority\n"
-	"jumping option is enabled in extensions.conf. If the 'b' option is specified,\n"
-	"the internal DUNDi cache will by bypassed.\n";
+static const char tdesc[] = "Distributed Universal Number Discovery (DUNDi)";
 
 static void *dundi_func;
-static const char *dundifunc_name = "DUNDILOOKUP";
-static const char *dundifunc_synopsis = "Do a DUNDi lookup of a phone number.";
-static const char *dundifunc_syntax = "DUNDILOOKUP(number[,context[,options]])";
-static const char *dundifunc_desc =
+static const char dundifunc_name[] = "DUNDILOOKUP";
+static const char dundifunc_synopsis[] = "Do a DUNDi lookup of a phone number.";
+static const char dundifunc_syntax[] = "DUNDILOOKUP(number[,context[,options]])";
+static const char dundifunc_desc[] =
 	"This will do a DUNDi lookup of the given phone number.\n"
 	"If no context is given, the default will be e164. The result of\n"
 	"this function will the Technology/Resource found in the DUNDi\n"
 	"lookup. If no results were found, the result will be blank.\n"
 	"If the 'b' option is specified, the internal DUNDi cache will\n"
 	"be bypassed.\n";
+
+static unsigned int hash_dial;
 
 #define DUNDI_MODEL_INBOUND		(1 << 0)
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
@@ -137,7 +126,9 @@ static const char *dundifunc_desc =
 
 static struct io_context *io;
 static struct sched_context *sched;
+static struct sockaddr_in sin;
 static int netsocket = -1;
+static int *netsocket_io_id = NULL;
 static pthread_t netthreadid = OPBX_PTHREADT_NULL;
 static pthread_t precachethreadid = OPBX_PTHREADT_NULL;
 static int tos = 0;
@@ -808,7 +799,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(&lookupthread, &attr, dundi_query_thread, st)) {
+		if (opbx_pthread_create(get_modinfo()->self, &lookupthread, &attr, dundi_query_thread, st)) {
 			trans->thread = 0;
 			opbx_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -1039,7 +1030,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(&lookupthread, &attr, dundi_precache_thread, st)) {
+		if (opbx_pthread_create(get_modinfo()->self, &lookupthread, &attr, dundi_precache_thread, st)) {
 			trans->thread = 0;
 			opbx_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -1131,7 +1122,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(&lookupthread, &attr, dundi_lookup_thread, st)) {
+		if (opbx_pthread_create(get_modinfo()->self, &lookupthread, &attr, dundi_lookup_thread, st)) {
 			trans->thread = 0;
 			opbx_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -2107,18 +2098,57 @@ static void check_password(void)
 	}
 }
 
+static void network_thread_cleanup(void *data)
+{
+	if (netsocket_io_id) {
+		opbx_io_remove(io, netsocket_io_id);
+		netsocket_io_id = NULL;
+	}
+
+	if (netsocket >= 0) {
+		close(netsocket);
+		netsocket = -1;
+	}
+}
+
 static void *network_thread(void *ignore)
 {
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
-	int res;
+	pthread_cleanup_push(network_thread_cleanup, NULL);
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	for (;;) {
+		pthread_testcancel();
+		if ((netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
+			if (!bind(netsocket, (struct sockaddr *)&sin, sizeof(sin)))
+				break;
+			close(netsocket);
+		}
+		sleep(1);
+	}
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+	if (option_verbose > 1)
+		opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
+
+	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))
+		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+
 	/* Establish I/O callback for socket read */
-	opbx_io_add(io, netsocket, socket_read, OPBX_IO_IN, NULL);
-	for(;;) {
+	netsocket_io_id = opbx_io_add(io, netsocket, socket_read, OPBX_IO_IN, NULL);
+	for (;;) {
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		/* 10s select timeout */
-		res = opbx_io_wait(io, 10000);
+		opbx_io_wait(io, 10000);
 		check_password();
 	}
+
+	pthread_cleanup_pop(1);
 	return NULL;
 }
 
@@ -2129,10 +2159,16 @@ static void *process_precache(void *ign)
 	char context[256];
 	char number[256];
 	int run;
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	for (;;) {
 		time(&now);
 		run = 0;
+
+		pthread_cleanup_push((void (*)(void *))opbx_mutex_unlock, &pclock);
 		opbx_mutex_lock(&pclock);
+
 		if (pcq) {
 			if (!pcq->expiration) {
 				/* Gone...  Remove... */
@@ -2147,20 +2183,17 @@ static void *process_precache(void *ign)
 				run = 1;
 			}
 		}
-		opbx_mutex_unlock(&pclock);
+
+		pthread_cleanup_pop(1);
+
 		if (run) {
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			dundi_precache(context, number);
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		} else
 			sleep(1);
 	}
 	return NULL;
-}
-
-static int start_network_thread(void)
-{
-	opbx_pthread_create(&netthreadid, NULL, network_thread, NULL);
-	opbx_pthread_create(&precachethreadid, NULL, process_precache, NULL);
-	return 0;
 }
 
 static int dundi_do_debug(int fd, int argc, char *argv[])
@@ -2732,54 +2765,112 @@ static char flush_usage[] =
 "'stats' is present, clears timer statistics instead of normal\n"
 "operation.\n";
 
-static struct opbx_cli_entry  cli_debug =
-	{ { "dundi", "debug", NULL }, dundi_do_debug, "Enable DUNDi debugging", debug_usage };
+static struct opbx_clicmd  cli_debug = {
+	.cmda = { "dundi", "debug", NULL },
+	.handler = dundi_do_debug,
+	.summary = "Enable DUNDi debugging",
+	.usage = debug_usage,
+};
 
-static struct opbx_cli_entry  cli_store_history =
-	{ { "dundi", "store", "history", NULL }, dundi_do_store_history, "Enable DUNDi historic records", store_history_usage };
+static struct opbx_clicmd  cli_store_history = {
+	.cmda = { "dundi", "store", "history", NULL },
+	.handler = dundi_do_store_history,
+	.summary = "Enable DUNDi historic records",
+	.usage = store_history_usage,
+};
 
-static struct opbx_cli_entry  cli_no_store_history =
-	{ { "dundi", "no", "store", "history", NULL }, dundi_no_store_history, "Disable DUNDi historic records", no_store_history_usage };
+static struct opbx_clicmd  cli_no_store_history = {
+	.cmda = { "dundi", "no", "store", "history", NULL },
+	.handler = dundi_no_store_history,
+	.summary = "Disable DUNDi historic records",
+	.usage = no_store_history_usage,
+};
 
-static struct opbx_cli_entry  cli_flush =
-	{ { "dundi", "flush", NULL }, dundi_flush, "Flush DUNDi cache", flush_usage };
+static struct opbx_clicmd  cli_flush = {
+	.cmda = { "dundi", "flush", NULL },
+	.handler = dundi_flush,
+	.summary = "Flush DUNDi cache",
+	.usage = flush_usage,
+};
 
-static struct opbx_cli_entry  cli_no_debug =
-	{ { "dundi", "no", "debug", NULL }, dundi_no_debug, "Disable DUNDi debugging", no_debug_usage };
+static struct opbx_clicmd  cli_no_debug = {
+	.cmda = { "dundi", "no", "debug", NULL },
+	.handler = dundi_no_debug,
+	.summary = "Disable DUNDi debugging",
+	.usage = no_debug_usage,
+};
 
-static struct opbx_cli_entry  cli_show_peers =
-	{ { "dundi", "show", "peers", NULL }, dundi_show_peers, "Show defined DUNDi peers", show_peers_usage };
+static struct opbx_clicmd  cli_show_peers = {
+	.cmda = { "dundi", "show", "peers", NULL },
+	.handler = dundi_show_peers,
+	.summary = "Show defined DUNDi peers",
+	.usage = show_peers_usage,
+};
 
-static struct opbx_cli_entry  cli_show_trans =
-	{ { "dundi", "show", "trans", NULL }, dundi_show_trans, "Show active DUNDi transactions", show_trans_usage };
+static struct opbx_clicmd  cli_show_trans = {
+	.cmda = { "dundi", "show", "trans", NULL },
+	.handler = dundi_show_trans,
+	.summary = "Show active DUNDi transactions",
+	.usage = show_trans_usage,
+};
 
-static struct opbx_cli_entry  cli_show_entityid =
-	{ { "dundi", "show", "entityid", NULL }, dundi_show_entityid, "Display Global Entity ID", show_entityid_usage };
+static struct opbx_clicmd  cli_show_entityid = {
+	.cmda = { "dundi", "show", "entityid", NULL },
+	.handler = dundi_show_entityid,
+	.summary = "Display Global Entity ID",
+	.usage = show_entityid_usage,
+};
 
-static struct opbx_cli_entry  cli_show_mappings =
-	{ { "dundi", "show", "mappings", NULL }, dundi_show_mappings, "Show DUNDi mappings", show_mappings_usage };
+static struct opbx_clicmd  cli_show_mappings = {
+	.cmda = { "dundi", "show", "mappings", NULL },
+	.handler = dundi_show_mappings,
+	.summary = "Show DUNDi mappings",
+	.usage = show_mappings_usage,
+};
 
-static struct opbx_cli_entry  cli_show_precache =
-	{ { "dundi", "show", "precache", NULL }, dundi_show_precache, "Show DUNDi precache", show_precache_usage };
+static struct opbx_clicmd  cli_show_precache = {
+	.cmda = { "dundi", "show", "precache", NULL },
+	.handler = dundi_show_precache,
+	.summary = "Show DUNDi precache",
+	.usage = show_precache_usage,
+};
 
-static struct opbx_cli_entry  cli_show_requests =
-	{ { "dundi", "show", "requests", NULL }, dundi_show_requests, "Show DUNDi requests", show_requests_usage };
+static struct opbx_clicmd  cli_show_requests = {
+	.cmda = { "dundi", "show", "requests", NULL },
+	.handler = dundi_show_requests,
+	.summary = "Show DUNDi requests",
+	.usage = show_requests_usage,
+};
 
-static struct opbx_cli_entry  cli_show_peer =
-	{ { "dundi", "show", "peer", NULL }, dundi_show_peer, "Show info on a specific DUNDi peer", show_peer_usage, complete_peer_4 };
+static struct opbx_clicmd  cli_show_peer = {
+	.cmda = { "dundi", "show", "peer", NULL },
+	.handler = dundi_show_peer,
+	.generator = complete_peer_4,
+	.summary = "Show info on a specific DUNDi peer",
+	.usage = show_peer_usage,
+};
 
-static struct opbx_cli_entry  cli_lookup =
-	{ { "dundi", "lookup", NULL }, dundi_do_lookup, "Lookup a number in DUNDi", lookup_usage };
+static struct opbx_clicmd  cli_lookup = {
+	.cmda = { "dundi", "lookup", NULL },
+	.handler = dundi_do_lookup,
+	.summary = "Lookup a number in DUNDi",
+	.usage = lookup_usage,
+};
 
-static struct opbx_cli_entry  cli_precache =
-	{ { "dundi", "precache", NULL }, dundi_do_precache, "Precache a number in DUNDi", precache_usage };
+static struct opbx_clicmd  cli_precache = {
+	.cmda = { "dundi", "precache", NULL },
+	.handler = dundi_do_precache,
+	.summary = "Precache a number in DUNDi",
+	.usage = precache_usage,
+};
 
-static struct opbx_cli_entry  cli_queryeid =
-	{ { "dundi", "query", NULL }, dundi_do_query, "Query a DUNDi EID", query_usage };
+static struct opbx_clicmd  cli_queryeid = {
+	.cmda = { "dundi", "query", NULL },
+	.handler = dundi_do_query,
+	.summary = "Query a DUNDi EID",
+	.usage = query_usage,
+};
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 {
@@ -3859,72 +3950,25 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
-static int dundi_lookup_exec(struct opbx_channel *chan, int argc, char **argv)
+
+static int dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	static int deprecated_app = 0;
+	static int deprecated_jump = 0;
 	char *context;
 	int results;
 	int x;
 	int bypass = 0;
 	struct localuser *u;
 	struct dundi_result dr[MAX_RESULTS];
-	static int dep_warning = 0;
+
+	if (argc < 1 || argc > 3 || !argv[0][0])
+		return opbx_function_syntax(dundifunc_syntax);
+
+	if (!buf)
+		return 0;
 
 	LOCAL_USER_ADD(u);
-
-	if (!dep_warning) {
-		opbx_log(LOG_WARNING, "This application has been deprecated in favor of the DUNDILOOKUP dialplan function.\n");
-		dep_warning = 1;
-	}
-
-	if (argc < 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", dundi_lookup_syntax);
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	context = (argc > 1 && argv[1][0] ? argv[1] : "e164");
-
-	if (argc > 2) {
-		for (; argv[2][0]; argv[2]++) {
-			switch (argv[2][0]) {
-				case 'b': bypass = 1; break;
-			}
-		}
-	}
-
-	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, argv[0], bypass);
-	if (results > 0) {
-		sort_results(dr, results);
-		for (x = 0; x < results; x++) {
-			if (opbx_test_flag(dr + x, DUNDI_FLAG_EXISTS)) {
-				pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
-				pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
-				break;
-			}
-		}
-	} else if (option_priority_jumping)
-		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-
-	LOCAL_USER_REMOVE(u);
-
-	return 0;
-}
-
-static char *dundifunc_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
-{
-	char *context;
-	int results;
-	int x;
-	int bypass = 0;
-	struct localuser *u;
-	struct dundi_result dr[MAX_RESULTS];
-
-	if (argc < 1 || argc > 3 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", dundifunc_syntax);
-		return NULL;
-	}
-
-	LOCAL_USER_ACF_ADD(u);
 
 	context = (argc > 1 && argv[1][0] ? argv[1] : "e164");
 
@@ -3936,21 +3980,50 @@ static char *dundifunc_read(struct opbx_channel *chan, int argc, char **argv, ch
 		}
 	}
 
-	buf[0] = '\0';
 	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, argv[0], bypass);
 	if (results > 0) {
 		sort_results(dr, results);
 		for (x = 0; x < results; x++) {
 			if (opbx_test_flag(dr + x, DUNDI_FLAG_EXISTS)) {
-				snprintf(buf, len, "%s/%s", dr[x].tech, dr[x].dest);
+				if (buf) {
+					snprintf(buf, len, "%s/%s", dr[x].tech, dr[x].dest);
+				} else {
+					/* DEPRECATED
+					 * When used as an app rather than a func we return
+					 * the result in variables
+					 */
+					if (!deprecated_app) {
+						deprecated_app = 1;
+						opbx_log(LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
+					}
+					pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
+					pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
+				}
 				break;
 			}
 		}
+	} else if (!buf && option_priority_jumping) {
+		/* DEPRECATED
+		 * When used as an app rather than a func we return
+		 * the result in variables
+		 */
+		if (!deprecated_app) {
+			deprecated_app = 1;
+			opbx_log(LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
+		}
+		/* DEPRECATED
+		 * When used as an app rather than a func we use
+		 * priority jumping (if enabled) on error
+		 */
+		if (!deprecated_jump) {
+			deprecated_jump = 1;
+			opbx_log(LOG_WARNING, "Priority jumping is deprecated. Use Set(varname=${%s(args)}) and test ${varname} instead\n", dundifunc_name);
+		}
+		opbx_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	}
 
 	LOCAL_USER_REMOVE(u);
-
-	return buf;
+	return 0;
 }
 
 static void mark_peers(void)
@@ -4455,8 +4528,7 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 	int res;
 	int x=0;
 	char req[1024];
-	struct opbx_app *dial;
-	
+
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
 			opbx_log(LOG_NOTICE, "Can't use Proc mode without a channel!\n");
@@ -4493,9 +4565,7 @@ static int dundi_exec(struct opbx_channel *chan, const char *context, const char
 	if (x < res) {
 		/* Got a hit! */
 		snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
-		dial = pbx_findapp("Dial");
-		if (dial)
-			res = pbx_exec(chan, dial, req);
+		res = opbx_function_exec_str(chan, hash_dial, "Dial", req, NULL, 0);
 	} else
 		res = -1;
 	return res;
@@ -4509,7 +4579,7 @@ static int dundi_matchmore(struct opbx_channel *chan, const char *context, const
 static struct opbx_switch dundi_switch =
 {
         name:                   "DUNDi",
-        description:    		"DUNDi Discovered Dialplan Switch",
+        description:    	"DUNDi Discovered Dialplan Switch",
         exists:                 dundi_exists,
         canmatch:               dundi_canmatch,
         exec:                   dundi_exec,
@@ -4670,10 +4740,29 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	return 0;
 }
 
-int unload_module(void)
+static int stop_threads(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
+
+	if (netthreadid != OPBX_PTHREADT_NULL) {
+		res |= pthread_cancel(netthreadid);
+    		res |= pthread_kill(netthreadid, SIGURG);
+		netthreadid = OPBX_PTHREADT_NULL;
+	}
+	if (precachethreadid != OPBX_PTHREADT_NULL) {
+		res |= pthread_cancel(precachethreadid);
+    		res |= pthread_kill(precachethreadid, SIGURG);
+		precachethreadid = OPBX_PTHREADT_NULL;
+	}
+	return res;
+}
+
+static int unload_module(void)
+{
+	int res = 0;
+
+	res |= stop_threads();
+	opbx_switch_unregister(&dundi_switch);
 	opbx_cli_unregister(&cli_debug);
 	opbx_cli_unregister(&cli_store_history);
 	opbx_cli_unregister(&cli_flush);
@@ -4689,31 +4778,39 @@ int unload_module(void)
 	opbx_cli_unregister(&cli_lookup);
 	opbx_cli_unregister(&cli_precache);
 	opbx_cli_unregister(&cli_queryeid);
-	opbx_unregister_switch(&dundi_switch);
 	res |= opbx_unregister_function(dundi_func);
-	res |= opbx_unregister_application(dundi_app);
 	return res;
 }
 
-int reload(void)
+static int reload_module(void)
 {
-	struct sockaddr_in sin;
-	set_config("dundi.conf",&sin);
-	return 0;
-}
+	stop_threads();
 
-int load_module(void)
-{
-	int res = 0;
-	struct sockaddr_in sin;
-	char iabuf[INET_ADDRSTRLEN];
-	
-	dundi_set_output(dundi_debug_output);
-	dundi_set_error(dundi_error_output);
-	
 	sin.sin_family = AF_INET;
 	sin.sin_port = ntohs(DUNDI_PORT);
 	sin.sin_addr.s_addr = INADDR_ANY;
+
+	set_config("dundi.conf", &sin);
+
+	if (opbx_pthread_create(get_modinfo()->self, &netthreadid, NULL, network_thread, NULL)
+	|| opbx_pthread_create(get_modinfo()->self, &precachethreadid, NULL, process_precache, NULL)) {
+		opbx_log(LOG_ERROR, "Unable to start network threads\n");
+		stop_threads();
+		return -1;
+	}
+
+	return 0;
+}
+
+static int load_module(void)
+{
+	int res = 0;
+	char iabuf[INET_ADDRSTRLEN];
+	
+	hash_dial = opbx_hash_app_name("Dial");
+
+	dundi_set_output(dundi_debug_output);
+	dundi_set_error(dundi_error_output);
 
 	/* Make a UDP socket */
 	io = io_context_create();
@@ -4724,35 +4821,12 @@ int load_module(void)
 		return -1;
 	}
 
-	set_config("dundi.conf",&sin);
-
-	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-	
-	if (netsocket < 0) {
-		opbx_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
-		return -1;
-	}
-	if (bind(netsocket,(struct sockaddr *)&sin, sizeof(sin))) {
-		opbx_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
-		return -1;
-	}
-
-	if (option_verbose > 1)
-		opbx_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
-
-	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-		opbx_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-	
-	res = start_network_thread();
-	if (res) {
-		opbx_log(LOG_ERROR, "Unable to start network thread\n");
-		close(netsocket);
-		return -1;
-	}
+	res |= reload_module();
 
 	if (option_verbose > 1)
 		opbx_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", opbx_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 
+	opbx_switch_register(&dundi_switch);
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_store_history);
 	opbx_cli_register(&cli_flush);
@@ -4768,24 +4842,10 @@ int load_module(void)
 	opbx_cli_register(&cli_lookup);
 	opbx_cli_register(&cli_precache);
 	opbx_cli_register(&cli_queryeid);
-	if (opbx_register_switch(&dundi_switch))
-		opbx_log(LOG_ERROR, "Unable to register DUNDi switch\n");
-	dundi_app = opbx_register_application(dundi_lookup_name, dundi_lookup_exec, dundi_lookup_synopsis, dundi_lookup_syntax, dundi_lookup_descrip);
-	dundi_func = opbx_register_function(dundifunc_name, dundifunc_read, NULL, dundifunc_synopsis, dundifunc_syntax, dundifunc_desc); 
+	dundi_func = opbx_register_function(dundifunc_name, dundifunc_read, dundifunc_synopsis, dundifunc_syntax, dundifunc_desc); 
 	
 	return res;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	/* XXX DUNDi cannot be unloaded XXX */
-	return 1;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

@@ -44,7 +44,6 @@
 #include "callweaver/icd/icd_caller_private.h"
 
 static icd_module module_id = ICD_QUEUE;
-static struct opbx_app *monitor_app = NULL;
 
 icd_queue_holdannounce *create_icd_queue_holdannounce(icd_config * config);
 icd_status init_icd_queue_holdannounce(icd_queue_holdannounce * that, icd_config * config);
@@ -755,12 +754,9 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
         strftime(buf, sizeof(buf), monitor_args, ptr);
 	strncpy(buf2, buf, sizeof(buf2));
         chan = icd_caller__get_channel(caller);
-        if (!monitor_app) {
-            monitor_app = pbx_findapp("Muxmon");
-        }
-        if (monitor_app && chan ) {
+        if (chan) {
             pbx_substitute_variables_helper(chan, buf, buf2, sizeof(buf2));
-            pbx_exec(chan, monitor_app, buf2);
+            opbx_function_exec_str(chan, opbx_hash_app_name("Muxmon"), "Muxmon", buf2, NULL, 0);
         }
       
     }

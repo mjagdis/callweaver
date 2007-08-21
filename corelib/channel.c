@@ -236,8 +236,12 @@ static char show_channeltypes_usage[] =
 "Usage: show channeltypes\n"
 "       Shows available channel types registered in your CallWeaver server.\n";
 
-static struct opbx_cli_entry cli_show_channeltypes = 
-	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
+static struct opbx_clicmd cli_show_channeltypes = {
+	.cmda = { "show", "channeltypes", NULL },
+	.handler = show_channeltypes,
+	.summary = "Show available channel types",
+	.usage = show_channeltypes_usage,
+};
 
 /*--- opbx_check_hangup: Checks to see if a channel is needing hang up */
 int opbx_check_hangup(struct opbx_channel *chan)

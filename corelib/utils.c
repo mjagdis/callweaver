@@ -48,6 +48,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
 #include "callweaver/config.h"
+#include "callweaver/module.h"
 
 #define OPBX_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "callweaver/strings.h"
@@ -260,7 +261,7 @@ int test_for_thread_safety(void)
 	lock_count += 1;
 	opbx_mutex_lock(&test_lock);
 	lock_count += 1;
-	opbx_pthread_create(&test_thread, NULL, test_thread_body, NULL); 
+	opbx_pthread_create(NULL, &test_thread, NULL, test_thread_body, NULL); 
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
@@ -509,17 +510,56 @@ int opbx_utils_init(void)
 	return 0;
 }
 
+
+struct opbx_pthread_wrapper_args {
+	struct module *module;
+	void *(*func)(void *);
+	void *param;
+};
+
+static void opbx_pthread_wrapper_cleanup(void *data)
+{
+	struct opbx_pthread_wrapper_args *args = data;
+
+	opbx_module_put(args->module);
+	free(args);
+}
+
+static void *opbx_pthread_wrapper(void *data)
+{
+	struct opbx_pthread_wrapper_args *args = data;
+	void *ret;
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	pthread_cleanup_push(opbx_pthread_wrapper_cleanup, args);
+	ret = args->func(args->param);
+	pthread_cleanup_pop(1);
+	return ret;
+}
+
 #ifndef __linux__
 #undef pthread_create /* For opbx_pthread_create function only */
 #endif /* !__linux__ */
 
-int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
+int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
 {
+	struct opbx_pthread_wrapper_args *args;
 	pthread_attr_t lattr;
+
+	if (!(args = malloc(sizeof(*args)))) {
+		opbx_log(LOG_ERROR, "malloc: %s\n", strerror(errno));
+		return -1;
+	}
+
+	args->module = opbx_module_get(module);
+	args->func = start_routine;
+	args->param = data;
+
 	if (!attr) {
 		pthread_attr_init(&lattr);
 		attr = &lattr;
 	}
+
 #ifdef __linux__
 	/* On Linux, pthread_attr_init() defaults to PTHREAD_EXPLICIT_SCHED,
 	   which is kind of useless. Change this here to
@@ -538,7 +578,8 @@ int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*s
 	errno = pthread_attr_setstacksize(attr, stacksize);
 	if (errno)
 		opbx_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
-	return pthread_create(thread, attr, start_routine, data); /* We're in opbx_pthread_create, so it's okay */
+
+	return pthread_create(thread, attr, opbx_pthread_wrapper, args); /* We're in opbx_pthread_create, so it's okay */
 }
 
 int opbx_wait_for_input(int fd, int ms)

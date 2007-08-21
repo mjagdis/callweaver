@@ -37,7 +37,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -60,12 +59,10 @@ struct opbx_filestream
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(slinear_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "sln";
-static char *desc = "Raw Signed Linear Audio support (SLN)";
-static char *exts = "sln|raw";
+static const char desc[] = "Raw Signed Linear Audio support (SLN)";
+
 
 static struct opbx_filestream *slinear_open(FILE *f)
 {
@@ -75,18 +72,10 @@ static struct opbx_filestream *slinear_open(FILE *f)
 	struct opbx_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
 		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&slinear_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock slinear list\n");
-			free(tmp);
-			return NULL;
-		}
 		tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, name);
+		opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_SLINEAR, format.name);
 		tmp->fr.data = tmp->buf;
 		/* datalen will vary for each frame */
-		glistcnt++;
-		opbx_mutex_unlock(&slinear_lock);
-		opbx_update_use_count();
 	}
 	return tmp;
 }
@@ -99,15 +88,7 @@ static struct opbx_filestream *slinear_rewrite(FILE *f, const char *comment)
 	struct opbx_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
 		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&slinear_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock slinear list\n");
-			free(tmp);
-			return NULL;
-		}
 		tmp->f = f;
-		glistcnt++;
-		opbx_mutex_unlock(&slinear_lock);
-		opbx_update_use_count();
 	} else
 		opbx_log(LOG_WARNING, "Out of memory\n");
 	return tmp;
@@ -115,13 +96,6 @@ static struct opbx_filestream *slinear_rewrite(FILE *f, const char *comment)
 
 static void slinear_close(struct opbx_filestream *s)
 {
-	if (opbx_mutex_lock(&slinear_lock)) {
-		opbx_log(LOG_WARNING, "Unable to lock slinear list\n");
-		return;
-	}
-	glistcnt--;
-	opbx_mutex_unlock(&slinear_lock);
-	opbx_update_use_count();
 	fclose(s->f);
 	free(s);
 	s = NULL;
@@ -207,33 +181,34 @@ static char *slinear_getcomment(struct opbx_filestream *s)
 	return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "sln",
+	.exts = "sln|raw",
+	.format = OPBX_FORMAT_SLINEAR,
+	.open = slinear_open,
+	.rewrite = slinear_rewrite,
+	.write = slinear_write,
+	.seek = slinear_seek,
+	.trunc = slinear_trunc,
+	.tell = slinear_tell,
+	.read = slinear_read,
+	.close = slinear_close,
+	.getcomment = slinear_getcomment,
+};
+
+
+static int load_module(void)
 {
-	return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_SLINEAR,
-								slinear_open,
-								slinear_rewrite,
-								slinear_write,
-								slinear_seek,
-								slinear_trunc,
-								slinear_tell,
-								slinear_read,
-								slinear_close,
-								slinear_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-	return opbx_format_unregister(name);
+	opbx_format_unregister(&format);
+	return 0;
 }	
 
-int usecount(void)
-{
-	return glistcnt;
-}
 
-char *description(void)
-{
-	return desc;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

@@ -82,7 +82,7 @@ static uint8_t gsm_ex[] =
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
-static char *tdesc = "GSM06.10/PCM16 (signed linear) codec translator";
+static const char tdesc[] = "GSM06.10/PCM16 (signed linear) codec translator";
 
 static int useplc = 0;
 
@@ -116,7 +116,6 @@ static struct opbx_translator_pvt *gsm_new(void)
     }
     plc_init(&tmp->plc);
     localusecnt++;
-    opbx_update_use_count();
     return tmp;
 }
 
@@ -304,35 +303,34 @@ static void gsm_destroy_stuff(struct opbx_translator_pvt *pvt)
         gsm0610_release(pvt->gsm);
     free(pvt);
     localusecnt--;
-    opbx_update_use_count();
 }
 
 static opbx_translator_t gsmtolin =
 {
-    "gsmtolin", 
-    OPBX_FORMAT_GSM,
-    8000,
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    gsm_new,
-    gsmtolin_framein,
-    gsmtolin_frameout,
-    gsm_destroy_stuff,
-    gsmtolin_sample
+    .name = "gsmtolin", 
+    .src_format = OPBX_FORMAT_GSM,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 8000,
+    .newpvt = gsm_new,
+    .framein = gsmtolin_framein,
+    .frameout = gsmtolin_frameout,
+    .destroy = gsm_destroy_stuff,
+    .sample = gsmtolin_sample
 };
 
 static opbx_translator_t lintogsm =
 {
-    "lintogsm", 
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    OPBX_FORMAT_GSM,
-    8000,
-    gsm_new,
-    lintogsm_framein,
-    lintogsm_frameout,
-    gsm_destroy_stuff,
-    lintogsm_sample
+    .name = "lintogsm", 
+    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_GSM,
+    .dst_rate = 8000,
+    .newpvt = gsm_new,
+    .framein = lintogsm_framein,
+    .frameout = lintogsm_frameout,
+    .destroy = gsm_destroy_stuff,
+    .sample = lintogsm_sample
 };
 
 static void parse_config(void)
@@ -348,9 +346,9 @@ static void parse_config(void)
             {
                if (!strcasecmp(var->name, "genericplc"))
                {
-                   useplc = opbx_true(var->value)  ?  1  :  0;
+                   useplc = opbx_true(var->value) ? 1 : 0;
                    if (option_verbose > 2)
-                       opbx_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", useplc  ?  ""  :  "not ");
+                       opbx_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", useplc ? "" : "not ");
                }
                var = var->next;
             }
@@ -359,48 +357,33 @@ static void parse_config(void)
     }
 }
 
-int reload(void)
+static int reload_module(void)
 {
     parse_config();
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
-
+    int res = 0;
     opbx_mutex_lock(&localuser_lock);
-    res = opbx_unregister_translator(&lintogsm);
-    if (!res)
-        res = opbx_unregister_translator(&gsmtolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&gsmtolin);
+    opbx_translator_unregister(&lintogsm);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
 
     parse_config();
-    res = opbx_register_translator(&gsmtolin);
-    if (!res) 
-        res=opbx_register_translator(&lintogsm);
-    else
-        opbx_unregister_translator(&gsmtolin);
+    opbx_translator_register(&gsmtolin);
+    opbx_translator_register(&lintogsm);
     return res;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

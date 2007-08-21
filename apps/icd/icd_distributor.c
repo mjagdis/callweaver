@@ -66,6 +66,7 @@
 #include "callweaver/icd/icd_bridge.h"
 #include <pthread.h>
 
+
 // ----------
 struct opbx_channel *agent_channel0 = NULL;
 // ----------
@@ -1106,7 +1107,7 @@ when the dist has no work to do we invoke opbx_cond_wait see icd_distributor__ru
     /* Adjust distributor state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = opbx_pthread_create(&(that->thread), &attr, icd_distributor__run, that);
+    result = opbx_pthread_create(get_modinfo()->self, &(that->thread), &attr, icd_distributor__run, that);
     opbx_verbose(VERBOSE_PREFIX_2 "Spawn Distributor [%s] run thread \n", 
                         icd_distributor__get_name(that));
     /* Clean up */
@@ -1152,6 +1153,11 @@ void *icd_distributor__standard_run(void *that) {
     assert(that != NULL);
     assert(((icd_distributor *)that)->customers != NULL);
     assert(((icd_distributor *)that)->agents != NULL);
+
+    /* FIXME: this is not cancellation safe even though it gets cancelled.
+     * It isn't clear where it is safe to check for cancellations though.
+     */
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
     dist = (icd_distributor *)that;
     

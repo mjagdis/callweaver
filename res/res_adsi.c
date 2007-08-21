@@ -1092,14 +1092,17 @@ static void adsi_load(void)
 	}
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	adsi_load();
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
 	adsi_load();
 	adsi_begin_download = __adsi_begin_download;
 	adsi_end_download = __adsi_end_download;
@@ -1133,19 +1136,10 @@ int load_module(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-	/* Can't unload this once we're loaded */
 	return -1;
 }
 
-char *description(void)
-{
-	return "ADSI Resource";
-}
 
-int usecount(void)
-{
-	/* We should never be unloaded */
-	return 1;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "ADSI Resource")

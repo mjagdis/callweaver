@@ -86,6 +86,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver_addon/adsi.h"
 
+
 static struct opbx_jb_conf global_jbconf;
 
 #if !defined(FALSE)
@@ -2718,7 +2719,6 @@ static int zt_hangup(struct opbx_channel *opbx)
 	if (usecnt < 0) 
 		opbx_log(LOG_WARNING, "Usecnt < 0???\n");
 	opbx_mutex_unlock(&usecnt_lock);
-	opbx_update_use_count();
 	if (option_verbose > 2) 
 		opbx_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", opbx->name);
 
@@ -4064,7 +4064,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 						p->owner = chan;
 						if (!chan) {
 							opbx_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
-						} else if (opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+						} else if (opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
 							opbx_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 							zt_enable_ec(p);
@@ -5162,7 +5162,6 @@ static struct opbx_channel *zt_new(struct zt_pvt *i, int state, int startpbx, in
 		opbx_mutex_lock(&usecnt_lock);
 		usecnt++;
 		opbx_mutex_unlock(&usecnt_lock);
-		opbx_update_use_count();
 		if (startpbx) {
 			if (opbx_pbx_start(tmp)) {
 				opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -6102,7 +6101,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
 						opbx_log(LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
-					if (opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+					if (opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
 						opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 						if (res < 0)
@@ -6132,7 +6131,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, OPBX_STATE_RING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
 					opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
@@ -6221,7 +6220,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				if (option_verbose > 1)
 					opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
 				chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
 					opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				}
 				break;
@@ -6251,10 +6250,6 @@ static void *do_monitor(void *data)
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
 #if 0
-	if (pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL)) {
-		opbx_log(LOG_WARNING, "Unable to set cancel type to asynchronous\n");
-		return NULL;
-	}
 	opbx_log(LOG_DEBUG, "Monitor starting...\n");
 #endif
 	for(;;) {
@@ -6311,14 +6306,20 @@ static void *do_monitor(void *data)
 		/* Okay, now that we know what to do, release the interface lock */
 		opbx_mutex_unlock(&iflock);
 		
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
+
 		/* Wait at least a second for something to happen */
 		res = poll(pfds, count, 1000);
+		res2 = errno;
+
 		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		/* Okay, poll has finished.  Let's see what happened.  */
 		if (res < 0) {
-			if ((errno != EAGAIN) && (errno != EINTR))
-				opbx_log(LOG_WARNING, "poll return %d: %s\n", res, strerror(errno));
+			if (res2 != EAGAIN && res2 != EINTR)
+				opbx_log(LOG_WARNING, "poll return %d: %s\n", res, strerror(res2));
 			continue;
 		}
 		/* Alright, lock the interface list again, and let's look and see what has
@@ -6495,7 +6496,7 @@ static int restart_monitor(void)
 #endif
 	} else {
 		/* Start a new monitor */
-		if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0) {
 			opbx_mutex_unlock(&monlock);
 			opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -7907,7 +7908,7 @@ static void *pri_dchannel(void *vpri)
 					idle = zt_request("Zap", OPBX_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
-						if (opbx_pthread_create(&p, NULL, do_idle_thread, idle)) {
+						if (opbx_pthread_create(get_modinfo()->self, &p, NULL, do_idle_thread, idle)) {
 							opbx_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
 							zt_hangup(idle);
 						}
@@ -7968,8 +7969,14 @@ static void *pri_dchannel(void *vpri)
 		}
 		opbx_mutex_unlock(&pri->lock);
 
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
+
 		e = NULL;
 		res = poll(fds, numdchans, lowest.tv_sec * 1000 + lowest.tv_usec / 1000);
+
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		opbx_mutex_lock(&pri->lock);
 		if (!res) {
@@ -8326,7 +8333,7 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 							opbx_mutex_lock(&pri->lock);
-							if (c && !opbx_pthread_create(&threadid, &attr, ss_thread, c)) {
+							if (c && !opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									opbx_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 										plancallingnum, !opbx_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
@@ -8913,7 +8920,7 @@ static int start_pri(struct zt_pri *pri)
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
 	pri->resetpos = -1;
-	if (opbx_pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
+	if (opbx_pthread_create(get_modinfo()->self, &pri->master, NULL, pri_dchannel, pri)) {
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;
@@ -9172,21 +9179,49 @@ static char pri_show_span_help[] =
 	"Usage: pri show span <span>\n"
 	"       Displays PRI Information\n";
 
-static struct opbx_cli_entry zap_pri_cli[] = {
-	{ { "pri", "debug", "span", NULL }, handle_pri_debug,
-	  "Enables PRI debugging on a span", pri_debug_help, complete_span_4 },
-	{ { "pri", "no", "debug", "span", NULL }, handle_pri_no_debug,
-	  "Disables PRI debugging on a span", pri_no_debug_help, complete_span_5 },
-	{ { "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug,
-	  "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span_5 },
-	{ { "pri", "show", "span", NULL }, handle_pri_show_span,
-	  "Displays PRI Information", pri_show_span_help, complete_span_4 },
-	{ { "pri", "show", "debug", NULL }, handle_pri_show_debug,
-	  "Displays current PRI debug settings" },
-	{ { "pri", "set", "debug", "file", NULL }, handle_pri_set_debug_file,
-	  "Sends PRI debug output to the specified file" },
-	{ { "pri", "unset", "debug", "file", NULL }, handle_pri_set_debug_file,
-	  "Ends PRI debug output to file" },
+static struct opbx_clicmd zap_pri_cli[] = {
+	{
+		.cmda = { "pri", "debug", "span", NULL },
+		.handler = handle_pri_debug,
+		.summary = "Enables PRI debugging on a span",
+		.usage = pri_debug_help,
+		.generator = complete_span_4,
+	},
+	{
+		.cmda = { "pri", "no", "debug", "span", NULL },
+		.handler = handle_pri_no_debug,
+		.summary = "Disables PRI debugging on a span",
+		.usage = pri_no_debug_help,
+		.generator = complete_span_5,
+	},
+	{
+		.cmda = { "pri", "intense", "debug", "span", NULL },
+		.handler = handle_pri_really_debug,
+		.summary = "Enables REALLY INTENSE PRI debugging",
+		.usage = pri_really_debug_help,
+		.generator = complete_span_5,
+	},
+	{
+		.cmda = { "pri", "show", "span", NULL },
+		.handler = handle_pri_show_span,
+		.summary = "Displays PRI Information",
+		.usage = pri_show_span_help,
+		.generator = complete_span_4,
+	},
+	{
+		.cmda = { "pri", "show", "debug", NULL },
+		.handler = handle_pri_show_debug,
+		.summary = "Displays current PRI debug settings" },
+	{
+		.cmda = { "pri", "set", "debug", "file", NULL },
+		.handler = handle_pri_set_debug_file,
+		.summary = "Sends PRI debug output to the specified file",
+	},
+	{
+		.cmda = { "pri", "unset", "debug", "file", NULL },
+		.handler = handle_pri_set_debug_file,
+		.summary = "Ends PRI debug output to file",
+	},
 };
 
 #endif /* ZAPATA_PRI */
@@ -9513,17 +9548,37 @@ static char destroy_channel_usage[] =
 	"Usage: zap destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 
-static struct opbx_cli_entry zap_cli[] = {
-	{ { "zap", "show", "cadences", NULL }, handle_zap_show_cadences,
-	  "List cadences", zap_show_cadences_help },
-	{ {"zap", "show", "channels", NULL}, zap_show_channels,
-	  "Show active zapata channels", show_channels_usage },
-	{ {"zap", "show", "channel", NULL}, zap_show_channel,
-	  "Show information on a channel", show_channel_usage },
-	{ {"zap", "destroy", "channel", NULL}, zap_destroy_channel,
-	  "Destroy a channel", destroy_channel_usage },
-	{ {"zap", "show", "status", NULL}, zap_show_status,
-	  "Show all Zaptel cards status", zap_show_status_usage },
+static struct opbx_clicmd zap_cli[] = {
+	{
+		.cmda = { "zap", "show", "cadences", NULL },
+		.handler = handle_zap_show_cadences,
+		.summary = "List cadences",
+		.usage = zap_show_cadences_help,
+	},
+	{
+		.cmda = {"zap", "show", "channels", NULL},
+		.handler = zap_show_channels,
+		.summary = "Show active zapata channels",
+		.usage = show_channels_usage,
+	},
+	{
+		.cmda = {"zap", "show", "channel", NULL},
+		.handler = zap_show_channel,
+		.summary = "Show information on a channel",
+		.usage = show_channel_usage,
+	},
+	{
+		.cmda = {"zap", "destroy", "channel", NULL},
+		.handler = zap_destroy_channel,
+		.summary = "Destroy a channel",
+		.usage = destroy_channel_usage,
+	},
+	{
+		.cmda = {"zap", "show", "status", NULL},
+		.handler = zap_show_status,
+		.summary = "Show all Zaptel cards status",
+		.usage = zap_show_status_usage,
+	},
 };
 
 #define TRANSFER	0
@@ -9784,7 +9839,7 @@ static int __unload_module(void)
 	return 0;
 }
 
-int unload_module()
+static int unload_module()
 {
 #ifdef ZAPATA_PRI		
 	int y;
@@ -10612,7 +10667,7 @@ static int setup_zap(int reload)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	int res;
 
@@ -10642,13 +10697,12 @@ int load_module(void)
 	}
 	if (opbx_channel_register(&zap_tech)) {
 		opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		__unload_module();
 		return -1;
 	}
 #ifdef ZAPATA_PRI
-	opbx_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
-#endif	
-	opbx_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
+	opbx_cli_register_multiple(zap_pri_cli, arraysize(zap_pri_cli));
+#endif
+	opbx_cli_register_multiple(zap_cli, arraysize(zap_cli));
 	
 	memset(round_robin, 0, sizeof(round_robin));
 	opbx_manager_register("ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
@@ -10742,7 +10796,7 @@ static int zt_sendtext(struct opbx_channel *c, const char *text)
 	return(0);
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	if (setup_zap(1))
 	{
@@ -10757,8 +10811,5 @@ int usecount()
 	return usecnt;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
 
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

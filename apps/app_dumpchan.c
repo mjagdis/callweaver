@@ -46,21 +46,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Dump Info About The Calling Channel";
+static const char tdesc[] = "Dump Info About The Calling Channel";
 
 static void *dumpchan_app;
-static char *dumpchan_name = "DumpChan";
-static char *dumpchan_synopsis = "Dump Info About The Calling Channel";
-static char *dumpchan_syntax = "DumpChan([min_verbose_level])";
-static char *dumpchan_descrip = 
+static const char dumpchan_name[] = "DumpChan";
+static const char dumpchan_synopsis[] = "Dump Info About The Calling Channel";
+static const char dumpchan_syntax[] = "DumpChan([min_verbose_level])";
+static const char dumpchan_descrip[] = 
 "Displays information on channel and listing of all channel\n"
 "variables. If min_verbose_level is specified, output is only\n"
 "displayed when the verbose level is currently set to that number\n"
 "or greater. Always returns 0.\n\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t size)
 {
@@ -134,7 +131,7 @@ static int opbx_serialize_showchan(struct opbx_channel *c, char *buf, size_t siz
 	return 0;
 }
 
-static int dumpchan_exec(struct opbx_channel *chan, int argc, char **argv)
+static int dumpchan_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static char *line = "================================================================================";
 	char vars[1024];
@@ -156,31 +153,19 @@ static int dumpchan_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(dumpchan_app);
+
+	res |= opbx_unregister_function(dumpchan_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	dumpchan_app = opbx_register_application(dumpchan_name, dumpchan_exec, dumpchan_synopsis, dumpchan_syntax, dumpchan_descrip);
+	dumpchan_app = opbx_register_function(dumpchan_name, dumpchan_exec, dumpchan_synopsis, dumpchan_syntax, dumpchan_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

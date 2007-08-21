@@ -43,19 +43,15 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 
-static char *tdesc = "Digital Milliwatt (mu-law) Test Application";
+static const char tdesc[] = "Digital Milliwatt (mu-law) Test Application";
 
 static void *milliwatt_app;
-static char *milliwatt_name = "Milliwatt";
-static char *milliwatt_synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
-static char *milliwatt_syntax = "Milliwatt()";
-static char *milliwatt_descrip = 
+static const char milliwatt_name[] = "Milliwatt";
+static const char milliwatt_synopsis[] = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
+static const char milliwatt_syntax[] = "Milliwatt()";
+static const char milliwatt_descrip[] = 
 "Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
@@ -108,7 +104,7 @@ static struct opbx_generator milliwattgen =
 	generate: milliwatt_generate,
 } ;
 
-static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv)
+static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 
@@ -133,30 +129,19 @@ static int milliwatt_exec(struct opbx_channel *chan, int argc, char **argv)
 	return -1;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(milliwatt_app);
+
+	res |= opbx_unregister_function(milliwatt_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	milliwatt_app = opbx_register_application(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
+	milliwatt_app = opbx_register_function(milliwatt_name, milliwatt_exec, milliwatt_synopsis, milliwatt_syntax, milliwatt_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

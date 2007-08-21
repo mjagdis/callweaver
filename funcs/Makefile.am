@@ -9,6 +9,12 @@ opbxmod_LTLIBRARIES		=
 #pbx_functions_la_CFLAGS              = $(AM_CFLAGS)
 #pbx_functions_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la
 
+opbxmod_LTLIBRARIES		+= func_core.la
+func_core_la_SOURCES		= func_core.c
+func_core_la_LDFLAGS		= -module -avoid-version -no-undefined
+func_core_la_CFLAGS		= $(AM_CFLAGS)
+func_core_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la
+
 if WANT_FUNC_CALLERID
 opbxmod_LTLIBRARIES		+= func_callerid.la
 func_callerid_la_SOURCES	= func_callerid.c

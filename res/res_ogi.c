@@ -74,21 +74,21 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* Recycle some stuff from the CLI interface */
 #define fdprintf ogi_debug_cli
 
-static char *tdesc = "CallWeaver Gateway Interface (OGI)";
+static const char tdesc[] = "CallWeaver Gateway Interface (OGI)";
 
 static void *app_app;
-static char *app_name = "OGI";
-static char *app_synopsis = "Executes an OGI compliant application";
+static const char app_name[] = "OGI";
+static const char app_synopsis[] = "Executes an OGI compliant application";
 
 static void *eapp_app;
-static char *eapp_name = "EOGI";
-static char *eapp_synopsis = "Executes an EOGI compliant application";
+static const char eapp_name[] = "EOGI";
+static const char eapp_synopsis[] = "Executes an EOGI compliant application";
 
 static void *deadapp_app;
-static char *deadapp_name = "DeadOGI";
-static char *deadapp_synopsis = "Executes OGI on a hungup channel";
+static const char deadapp_name[] = "DeadOGI";
+static const char deadapp_synopsis[] = "Executes OGI on a hungup channel";
 
-static char *descrip =
+static const char descrip[] =
 "  [E|Dead]OGI(command|args): Executes an CallWeaver Gateway Interface compliant\n"
 "program on a channel. OGI allows CallWeaver to launch external programs\n"
 "written in any language to control a telephony channel, play audio,\n"
@@ -101,10 +101,6 @@ static char *descrip =
 "Use the CLI command 'show ogi' to list available ogi commands\n";
 
 static int ogidebug = 0;
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 
 #define TONE_BLOCK_SIZE 200
@@ -1074,22 +1070,12 @@ static int handle_hangup(struct opbx_channel *chan, OGI *ogi, int argc, char **a
 static int handle_exec(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
-	struct opbx_app *app;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
-	if (option_verbose > 2)
-		opbx_verbose(VERBOSE_PREFIX_3 "OGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
+	res = opbx_function_exec_str(chan, opbx_hash_app_name(argv[1]), argv[1], argv[2], NULL, 0);
 
-	app = pbx_findapp(argv[1]);
-
-	if (app) {
-		res = pbx_exec(chan, app, argv[2]);
-	} else {
-		opbx_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
-		res = -2;
-	}
 	fdprintf(ogi->fd, "200 result=%d\n", res);
 
 	return res;
@@ -1150,15 +1136,17 @@ static int handle_setvariable(struct opbx_channel *chan, OGI *ogi, int argc, cha
 
 static int handle_getvariable(struct opbx_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	char *ret;
-	char tempstr[1024];
+	char *ret, *args;
+	char tempstr[1024] = "";
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	/* check if we want to execute a function */
-	if (!opbx_strlen_zero(argv[2]) && (argv[2][strlen(argv[2]) - 1] == ')')) {
-		ret = opbx_func_read(chan, argv[2], tempstr, sizeof(tempstr));
+	if ((args = strchr(argv[2], '(')) && (ret = strrchr(argv[2], ')'))) {
+		*(args++) = '\0';
+		*ret = '\0';
+		ret = (!opbx_function_exec_str(chan, opbx_hash_app_name(argv[2]), argv[2], args, tempstr, sizeof(tempstr)) ? tempstr : NULL);
 	} else {
 		pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
 	}
@@ -1318,11 +1306,19 @@ static int ogi_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry  cli_debug =
-	{ { "ogi", "debug", NULL }, ogi_do_debug, "Enable OGI debugging", debug_usage };
+static struct opbx_clicmd  cli_debug = {
+	.cmda = { "ogi", "debug", NULL },
+	.handler = ogi_do_debug,
+	.summary = "Enable OGI debugging",
+	.usage = debug_usage,
+};
 
-static struct opbx_cli_entry  cli_no_debug =
-	{ { "ogi", "no", "debug", NULL }, ogi_no_debug, "Disable OGI debugging", no_debug_usage };
+static struct opbx_clicmd  cli_no_debug = {
+	.cmda = { "ogi", "no", "debug", NULL },
+	.handler = ogi_no_debug,
+	.summary = "Disable OGI debugging",
+	.usage = no_debug_usage,
+};
 
 static int handle_noop(struct opbx_channel *chan, OGI *ogi, int arg, char *argv[])
 {
@@ -2004,10 +2000,8 @@ static int ogi_exec_full(struct opbx_channel *chan, int argc, char **argv, int e
 	int pid;
 	OGI ogi;
 
-	if (argc < 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: OGI(script[, args])\n");
-		return -1;
-	}
+	if (argc < 1 || !argv[0][0])
+		return opbx_function_syntax("OGI(script[, args])");
 
 	LOCAL_USER_ADD(u);
 #if 0
@@ -2035,14 +2029,14 @@ static int ogi_exec_full(struct opbx_channel *chan, int argc, char **argv, int e
 	return res;
 }
 
-static int ogi_exec(struct opbx_channel *chan, int argc, char **argv)
+static int ogi_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	if (chan->_softhangup)
 		opbx_log(LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
 	return ogi_exec_full(chan, argc, argv, 0, 0);
 }
 
-static int eogi_exec(struct opbx_channel *chan, int argc, char **argv)
+static int eogi_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int readformat;
 	int res;
@@ -2063,7 +2057,7 @@ static int eogi_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int deadogi_exec(struct opbx_channel *chan, int argc, char **argv)
+static int deadogi_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	return ogi_exec_full(chan, argc, argv, 0, 1);
 }
@@ -2079,46 +2073,45 @@ static char dumpogihtml_help[] =
 "Usage: dump ogihtml <filename>\n"
 "	Dumps the ogi command list in html format to given filename\n";
 
-static struct opbx_cli_entry showogi = 
-{ { "show", "ogi", NULL }, handle_showogi, "Show OGI commands or specific help", showogi_help };
+static struct opbx_clicmd showogi = {
+	.cmda = { "show", "ogi", NULL },
+	.handler = handle_showogi,
+	.summary = "Show OGI commands or specific help",
+	.usage = showogi_help,
+};
 
-static struct opbx_cli_entry dumpogihtml = 
-{ { "dump", "ogihtml", NULL }, handle_dumpogihtml, "Dumps a list of ogi command in html format", dumpogihtml_help };
+static struct opbx_clicmd dumpogihtml = {
+	.cmda = { "dump", "ogihtml", NULL },
+	.handler = handle_dumpogihtml,
+	.summary = "Dumps a list of ogi command in html format",
+	.usage = dumpogihtml_help,
+};
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
+
 	opbx_cli_unregister(&showogi);
 	opbx_cli_unregister(&dumpogihtml);
 	opbx_cli_unregister(&cli_debug);
 	opbx_cli_unregister(&cli_no_debug);
-	res |= opbx_unregister_application(eapp_app);
-	res |= opbx_unregister_application(deadapp_app);
-	res |= opbx_unregister_application(app_app);
+	res |= opbx_unregister_function(eapp_app);
+	res |= opbx_unregister_function(deadapp_app);
+	res |= opbx_unregister_function(app_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	opbx_cli_register(&showogi);
 	opbx_cli_register(&dumpogihtml);
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_no_debug);
-	deadapp_app = opbx_register_application(deadapp_name, deadogi_exec, deadapp_synopsis, NULL, descrip);
-	eapp_app = opbx_register_application(eapp_name, eogi_exec, eapp_synopsis, NULL, descrip);
-	app_app = opbx_register_application(app_name, ogi_exec, app_synopsis, NULL, descrip);
+	deadapp_app = opbx_register_function(deadapp_name, deadogi_exec, deadapp_synopsis, NULL, descrip);
+	eapp_app = opbx_register_function(eapp_name, eogi_exec, eapp_synopsis, NULL, descrip);
+	app_app = opbx_register_function(app_name, ogi_exec, app_synopsis, NULL, descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

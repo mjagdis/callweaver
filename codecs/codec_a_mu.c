@@ -53,7 +53,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "A-law to/from Mu-law translator";
+static const char tdesc[] = "A-law to/from Mu-law translator";
 
 static unsigned char mu2a[256];
 static unsigned char a2mu[256];
@@ -118,7 +118,6 @@ static struct opbx_translator_pvt *alawtoulaw_new(void)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -130,7 +129,6 @@ static struct opbx_translator_pvt *ulawtoalaw_new(void)
         return NULL;
     memset(tmp, 0, sizeof(*tmp));
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -258,7 +256,6 @@ static void alawtoulaw_destroy(struct opbx_translator_pvt *pvt)
 {
     free(pvt);
     localusecnt--;
-    opbx_update_use_count();
 }
 
 /*
@@ -266,16 +263,16 @@ static void alawtoulaw_destroy(struct opbx_translator_pvt *pvt)
  */
 static opbx_translator_t alawtoulaw =
 {
-    "alawtoulaw",
-    OPBX_FORMAT_ALAW,
-    8000,
-    OPBX_FORMAT_ULAW,
-    8000,
-    alawtoulaw_new,
-    alawtoulaw_framein,
-    alawtoulaw_frameout,
-    alawtoulaw_destroy,
-    alawtoulaw_sample
+    .name = "alawtoulaw",
+    .src_format = OPBX_FORMAT_ALAW,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_ULAW,
+    .dst_rate = 8000,
+    .newpvt = alawtoulaw_new,
+    .framein = alawtoulaw_framein,
+    .frameout = alawtoulaw_frameout,
+    .destroy = alawtoulaw_destroy,
+    .sample = alawtoulaw_sample
 };
 
 /*
@@ -283,34 +280,34 @@ static opbx_translator_t alawtoulaw =
  */
 static opbx_translator_t ulawtoalaw =
 {
-    "ulawtoalaw",
-    OPBX_FORMAT_ULAW,
-    8000,
-    OPBX_FORMAT_ALAW,
-    8000,
-    ulawtoalaw_new,
-    ulawtoalaw_framein,
-    ulawtoalaw_frameout,
-    alawtoulaw_destroy,
-    ulawtoalaw_sample
+    .name = "ulawtoalaw",
+    .src_format = OPBX_FORMAT_ULAW,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_ALAW,
+    .dst_rate = 8000,
+    .newpvt = ulawtoalaw_new,
+    .framein = ulawtoalaw_framein,
+    .frameout = ulawtoalaw_frameout,
+    .destroy = alawtoulaw_destroy,
+    .sample = ulawtoalaw_sample
 };
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
+    int res = 0;
   
     opbx_mutex_lock(&localuser_lock);
-    if ((res = opbx_unregister_translator(&ulawtoalaw)) == 0)
-        res = opbx_unregister_translator(&alawtoulaw);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&alawtoulaw);
+    opbx_translator_unregister(&ulawtoalaw);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
     int x;
 
     for (x = 0;  x < 256;  x++)
@@ -318,25 +315,10 @@ int load_module(void)
         mu2a[x] = ulaw_to_alaw(x);
         a2mu[x] = alaw_to_ulaw(x);
     }
-    if ((res = opbx_register_translator(&alawtoulaw)) == 0)
-        res = opbx_register_translator(&ulawtoalaw);
-    else
-        opbx_unregister_translator(&alawtoulaw);
+    opbx_translator_register(&alawtoulaw);
+    opbx_translator_register(&ulawtoalaw);
     return res;
 }
 
-/*
- * Return a description of this module.
- */
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

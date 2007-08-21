@@ -76,7 +76,7 @@ static char help_show_indications[] =
 static void *playtones_app;
 static void *stopplaytones_app;
 
-char *playtones_desc=
+char playtones_desc[] =
 "PlayTones(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
 "while the tones continue to play.\n"
 "Arg is either the tone name defined in the indications.conf configuration file, or a directly\n"
@@ -222,7 +222,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 /*
  * Playtones command stuff
  */
-static int handle_playtones(struct opbx_channel *chan, int argc, char **argv)
+static int handle_playtones(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct tone_zone_sound *ts;
     int res;
@@ -245,7 +245,7 @@ static int handle_playtones(struct opbx_channel *chan, int argc, char **argv)
 /*
  * StopPlaylist command stuff
  */
-static int handle_stopplaytones(struct opbx_channel *chan, int argc, char **argv)
+static int handle_stopplaytones(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     opbx_playtones_stop(chan);
     return 0;
@@ -400,25 +400,31 @@ out:            v = v->next;
 /*
  * CLI entries for commands provided by this module
  */
-static struct opbx_cli_entry add_indication_cli =
-    { { "indication", "add", NULL }, handle_add_indication,
-        "Add the given indication to the country", help_add_indication,
-        NULL };
+static struct opbx_clicmd add_indication_cli = {
+	.cmda = { "indication", "add", NULL },
+	.handler = handle_add_indication,
+        .summary = "Add the given indication to the country",
+	.usage = help_add_indication,
+};
 
-static struct opbx_cli_entry remove_indication_cli =
-    { { "indication", "remove", NULL }, handle_remove_indication,
-        "Remove the given indication from the country", help_remove_indication,
-        NULL };
+static struct opbx_clicmd remove_indication_cli = {
+	.cmda = { "indication", "remove", NULL },
+	.handler = handle_remove_indication,
+        .summary = "Remove the given indication from the country",
+	.usage = help_remove_indication,
+};
 
-static struct opbx_cli_entry show_indications_cli =
-    { { "show", "indications", NULL }, handle_show_indications,
-        "Show a list of all country/indications", help_show_indications,
-        NULL };
+static struct opbx_clicmd show_indications_cli = {
+	.cmda = { "show", "indications", NULL },
+	.handler = handle_show_indications,
+        .summary = "Show a list of all country/indications",
+	.usage = help_show_indications,
+};
 
 /*
  * Standard module functions ...
  */
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
 
@@ -429,25 +435,25 @@ int unload_module(void)
     opbx_cli_unregister(&add_indication_cli);
     opbx_cli_unregister(&remove_indication_cli);
     opbx_cli_unregister(&show_indications_cli);
-    res |= opbx_unregister_application(playtones_app);
-    res |= opbx_unregister_application(stopplaytones_app);
+    res |= opbx_unregister_function(playtones_app);
+    res |= opbx_unregister_function(stopplaytones_app);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
     if (ind_load_module()) return -1;
  
     opbx_cli_register(&add_indication_cli);
     opbx_cli_register(&remove_indication_cli);
     opbx_cli_register(&show_indications_cli);
-    playtones_app = opbx_register_application("PlayTones", handle_playtones, "Play a tone list", NULL, playtones_desc);
-    stopplaytones_app = opbx_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list", NULL, "Stop playing a tone list");
+    playtones_app = opbx_register_function("PlayTones", handle_playtones, "Play a tone list", NULL, playtones_desc);
+    stopplaytones_app = opbx_register_function("StopPlayTones", handle_stopplaytones, "Stop playing a tone list", NULL, "Stop playing a tone list");
 
     return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
     /* remove the registed indications... */
     opbx_unregister_indication_country(NULL);
@@ -455,13 +461,5 @@ int reload(void)
     return ind_load_module();
 }
 
-char *description(void)
-{
-    /* that the following cast is needed, is yuk! */
-    return (char*)dtext;
-}
 
-int usecount(void)
-{
-    return 0;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, dtext)

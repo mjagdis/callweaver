@@ -29,6 +29,11 @@ extern "C" {
 
 #include <stdarg.h>
 
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
+
+
 struct opbx_config;
 
 struct opbx_category;
@@ -51,6 +56,8 @@ typedef struct opbx_config *realtime_multi_get(const char *database, const char 
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 
 struct opbx_config_engine {
+	struct opbx_object obj;
+	struct opbx_registry_entry config_engine_entry;
 	char *name;
 	config_load_func *load_func;
 	realtime_var_get *realtime_func;
@@ -58,6 +65,19 @@ struct opbx_config_engine {
 	realtime_update *update_func;
 	struct opbx_config_engine *next;
 };
+
+
+extern struct opbx_registry config_engine_registry;
+
+
+#define opbx_config_engine_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
+	__ptr->config_engine_entry.obj = &__ptr->obj; \
+	opbx_registry_add(&config_engine_registry, &__ptr->config_engine_entry); \
+})
+#define opbx_config_engine_unregister(ptr)	opbx_registry_del(&config_engine_registry, &(ptr)->config_engine_entry)
+
 
 /*! \brief Load a config file 
  * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to OPBX_CONFIG_DIR
@@ -164,12 +184,6 @@ int opbx_check_realtime(const char *family);
  * This function frees a list of variables.
  */
 void opbx_variables_destroy(struct opbx_variable *var);
-
-/*! \brief Register config engine */
-int opbx_config_engine_register(struct opbx_config_engine *newconfig);
-
-/*! \brief Deegister config engine */
-int opbx_config_engine_deregister(struct opbx_config_engine *del);
 
 int register_config_cli(void);
 void read_config_maps(void);

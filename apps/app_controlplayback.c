@@ -42,13 +42,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/utils.h"
 
-static const char *tdesc = "Control Playback Application";
+static const char tdesc[] = "Control Playback Application";
 
 static void *controlplayback_app;
-static const char *controlplayback_name = "ControlPlayback";
-static const char *controlplayback_synopsis = "Play a file with fast forward and rewind";
-static const char *controlplayback_syntax = "ControlPlayback(filename[, skipms[, ffchar[, rewchar[, stopchar[, pausechar[, restartchar]]]]]])";
-static const char *controlplayback_descrip = 
+static const char controlplayback_name[] = "ControlPlayback";
+static const char controlplayback_synopsis[] = "Play a file with fast forward and rewind";
+static const char controlplayback_syntax[] = "ControlPlayback(filename[, skipms[, ffchar[, rewchar[, stopchar[, pausechar[, restartchar]]]]]])";
+static const char controlplayback_descrip[] = 
 "  Plays  back  a  given  filename (do not put extension). Options may also\n"
 "  be included following a pipe symbol.  You can use * and # to rewind and\n"
 "  fast forward the playback specified. If 'stopchar' is added the file will\n"
@@ -57,26 +57,21 @@ static const char *controlplayback_descrip =
 "  was hung up. if the file does not exist jumps to n+101 if it present.\n\n"
 "  Example:  exten => 1234,1, ControlPlayback(file, 4000, *, #, 1, 0, 5)\n\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int is_on_phonepad(char key)
 {
 	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
-static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv)
+static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	int skipms = 0;
 	struct localuser *u;
 	int i;
 
-	if (argc < 1 || argc > 7) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", controlplayback_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 7)
+		return opbx_function_syntax(controlplayback_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -107,32 +102,19 @@ static int controlplayback_exec(struct opbx_channel *chan, int argc, char **argv
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
-	res |= opbx_unregister_application(controlplayback_app);
-	STANDARD_HANGUP_LOCALUSERS;
+	res |= opbx_unregister_function(controlplayback_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	controlplayback_app = opbx_register_application(controlplayback_name, controlplayback_exec, controlplayback_synopsis, controlplayback_syntax, controlplayback_descrip);
+	controlplayback_app = opbx_register_function(controlplayback_name, controlplayback_exec, controlplayback_synopsis, controlplayback_syntax, controlplayback_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *) tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -22,6 +22,7 @@
 
 #include "chan_bluetooth.h"
 
+
 /* ---------------------------------- */
 
 /*! Bluetooth: Convert role enum into ascii string 
@@ -492,7 +493,7 @@ sco_start(blt_dev_t * dev, int fd)
 
   dev->sco_running = 1;
 
-  if (opbx_pthread_create(&(dev->sco_thread), NULL, sco_thread, dev) < 0) {
+  if (opbx_pthread_create(get_modinfo()->self, &(dev->sco_thread), NULL, sco_thread, dev) < 0) {
     opbx_log(LOG_ERROR, "Unable to start SCO thread.\n");
     dev->sco_running = -1;
     opbx_mutex_unlock(&(dev->sco_lock));
@@ -906,8 +907,6 @@ blt_new(blt_dev_t *dev, int state, const char *context, const char *number)
   opbx_mutex_lock(&usecnt_lock);
   usecnt++;
   opbx_mutex_unlock(&usecnt_lock);
-
-  opbx_update_use_count();
 
   if (state != OPBX_STATE_DOWN) {
     if (opbx_pbx_start(chan)) {
@@ -2253,7 +2252,16 @@ do_monitor(void * data)
 
   int res = 0;
   blt_dev_t * dev;
-  struct pollfd * pfds = malloc(sizeof(struct pollfd) * (ifcount + SRV_SOCK_CNT));
+  struct pollfd * pfds;
+
+  /* FIXME: no way is this actually cancellation-clean even though
+   * it get cancelled. Nor is it particularly clear how to make it
+   * not leak memory and descriptors on a reload. Hell, it even
+   * calls getpid just below even though this is a thread!
+   */
+  pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+  pfds = malloc(sizeof(struct pollfd) * (ifcount + SRV_SOCK_CNT));
 
   /* -- We start off by trying to connect all of our devices (non blocking) -- */
 
@@ -2413,7 +2421,7 @@ restart_monitor(void)
   } else {
 
     /* Start a new monitor */
-    if (opbx_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+    if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, NULL, do_monitor, NULL) < 0) {
       opbx_mutex_unlock(&monitor_lock);
       opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
       return -1;
@@ -2686,6 +2694,12 @@ static void remove_sdp_records(void)
 
 }
 
+
+static struct opbx_atexit bluetooth_atexit = {
+	.name = "Bluetooth Terminate",
+	.function = remove_sdp_records,
+};
+
 static int
 __unload_module(void)
 {
@@ -2726,13 +2740,13 @@ __unload_module(void)
     sco_socket = -1;
   }
   fprintf(stderr, "Removing sdp records\n");
-  opbx_unregister_atexit(remove_sdp_records);
   remove_sdp_records();
+  opbx_atexit_unregister(&bluetooth_atexit);
   return 0;
 }
 
 int
-load_module()
+static load_module(void)
 {
   sdp_session_t * sess;
   int dd;
@@ -2742,15 +2756,13 @@ load_module()
 
   if (blt_parse_config() != 0) {
     opbx_log(LOG_ERROR, "Bluetooth configuration error.  Bluetooth Disabled\n");
-    return unload_module();
+    return -1;
   }
 
   dd  = hci_open_dev(hcidev_id);
   if (dd == -1) {
     opbx_log(LOG_ERROR, "Unable to open interface hci%d: %s.\n", hcidev_id, strerror(errno));
-    //let's make openpb.x.org accept wrong configurations without dying
-    unload_module();
-    return 0;
+    return -1;
   }
 
   hci_read_voice_setting(dd, &vs, 1000);
@@ -2759,8 +2771,7 @@ load_module()
 
   if (vs != 0x0060) {
     opbx_log(LOG_ERROR, "Bluetooth voice setting must be 0x0060, not 0x%04x\n", vs);
-    unload_module();
-    return 0;
+    return -1;
   }
 
   if ((sched = sched_context_create()) == NULL) {
@@ -2776,44 +2787,34 @@ load_module()
 
   sess = sdp_connect(&local_bdaddr, BDADDR_LOCAL, SDP_RETRY_IF_BUSY);
 
-  if ((rfcomm_sock_ag = rfcomm_listen(&local_bdaddr, rfcomm_channel_ag)) < 0) {
-    unload_module();
+  if ((rfcomm_sock_ag = rfcomm_listen(&local_bdaddr, rfcomm_channel_ag)) < 0)
     return -1;
-  }
 
-  if ((rfcomm_sock_hs = rfcomm_listen(&local_bdaddr, rfcomm_channel_hs)) < 0) {
-    unload_module();
+  if ((rfcomm_sock_hs = rfcomm_listen(&local_bdaddr, rfcomm_channel_hs)) < 0)
     return -1;
-  }
 
-  if ((sco_socket = sco_listen(&local_bdaddr)) < 0) {
-    unload_module();
+  if ((sco_socket = sco_listen(&local_bdaddr)) < 0)
     return -1;
-  }
 
   if (!sess) {
     opbx_log(LOG_ERROR, "Failed to connect to SDP server: %s\n", 
       strerror(errno));
-    unload_module();
     return -1;
   }
 
   if (sdp_register(sess) != 0) {
     opbx_log(LOG_ERROR, "Failed to register HeadsetAudioGateway in SDP\n");
-    unload_module();
     return -1;
   }
 
   sdp_close(sess);
 
   if (restart_monitor() != 0) {
-    unload_module();
     return -1;
   }
 
   if (opbx_channel_register(&blt_tech)) {
     opbx_log(LOG_ERROR, "Unable to register channel class BLT\n");
-    __unload_module();
     return -1;
   }
 
@@ -2821,7 +2822,7 @@ load_module()
   opbx_cli_register(&cli_show_peers);
   opbx_cli_register(&cli_ag_sendcmd);
 
-  opbx_register_atexit(remove_sdp_records);
+  opbx_atexit_register(&bluetooth_atexit);
 
   opbx_log(LOG_NOTICE, "Loaded Bluetooth support\n");
 
@@ -2829,7 +2830,7 @@ load_module()
 }
 
 int
-unload_module(void)
+static unload_module(void)
 {
   opbx_cli_unregister(&cli_ag_sendcmd);
   opbx_cli_unregister(&cli_show_peers);
@@ -2840,7 +2841,6 @@ unload_module(void)
 int
 usecount()
 {
-  // FIXME LOCAL_USER_DECL
   int res;
   opbx_mutex_lock(&usecnt_lock);
   res = usecnt;
@@ -2848,7 +2848,5 @@ usecount()
   return res;
 }
 
-char *description()
-{
-	return (char *) BLT_DESCRIPTION;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, BLT_DESCRIPTION)

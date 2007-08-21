@@ -40,13 +40,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/manager.h"
 
-static char *tdesc = "Trivial FAX Receive Application";
+static const char tdesc[] = "Trivial FAX Receive Application";
 
 static void *rxfax_app;
-static const char *rxfax_name = "RxFAX";
-static const char *rxfax_synopsis = "Receive a FAX to a file";
-static const char *rxfax_syntax = "RxFAX(filename[, caller][, debug][, ecm])";
-static const char *rxfax_descrip = 
+static const char rxfax_name[] = "RxFAX";
+static const char rxfax_synopsis[] = "Receive a FAX to a file";
+static const char rxfax_syntax[] = "RxFAX(filename[, caller][, debug][, ecm])";
+static const char rxfax_descrip[] = 
 "Receives a FAX from the channel into the\n"
 "given filename. If the file exists it will be overwritten. The file\n"
 "should be in TIFF/F format.\n"
@@ -65,9 +65,6 @@ static const char *rxfax_descrip =
 "Returns -1 when the user hangs up.\n"
 "Returns 0 otherwise.\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define MAX_BLOCK_SIZE 240
 #define ready_to_talk(chan) ( (!chan ||  opbx_check_hangup(chan) )  ?  0  :  1)
@@ -582,7 +579,7 @@ static int rxfax_audio(struct opbx_channel *chan, fax_state_t *fax, char *file, 
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
+static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     fax_state_t 	fax;
     t38_terminal_state_t t38;
@@ -607,10 +604,8 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
         return -1;
     }
 
-    if (argc < 1 || argc > 4) {
-	opbx_log(LOG_ERROR, "Syntax: %s\n", rxfax_syntax);
-	return -1;
-    }
+    if (argc < 1 || argc > 4)
+	return opbx_function_syntax(rxfax_syntax);
 
     /* Resetting channel variables related to T38 */
     
@@ -730,34 +725,23 @@ static int rxfax_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 /*- End of function --------------------------------------------------------*/
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
-    STANDARD_HANGUP_LOCALUSERS;
-    res |= opbx_unregister_application(rxfax_app);
+
+    res |= opbx_unregister_function(rxfax_app);
     return res;
 }
 /*- End of function --------------------------------------------------------*/
 
-int load_module(void)
+static int load_module(void)
 {
-    rxfax_app = opbx_register_application(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
+    rxfax_app = opbx_register_function(rxfax_name, rxfax_exec, rxfax_synopsis, rxfax_syntax, rxfax_descrip);
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
 
-char *description(void)
-{
-    return tdesc;
-}
-/*- End of function --------------------------------------------------------*/
 
-int usecount(void)
-{
-    int res;
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
-    STANDARD_USECOUNT(res);
-    return res;
-}
-/*- End of function --------------------------------------------------------*/
 /*- End of file ------------------------------------------------------------*/

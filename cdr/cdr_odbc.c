@@ -62,8 +62,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *desc = "ODBC CDR Backend";
-static char *name = "ODBC";
+static const char desc[] = "ODBC CDR Backend";
+static const char name[] = "ODBC";
 static char *config = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
 static int loguniqueid = 0;
@@ -202,12 +202,8 @@ static int odbc_log(struct opbx_cdr *cdr)
 	return 0;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-static int odbc_unload_module(void)
+static void release(void)
 {
 	opbx_mutex_lock(&odbc_lock);
 	if (connected) {
@@ -240,17 +236,31 @@ static int odbc_unload_module(void)
 		free(table);
 	}
 
-	opbx_cdr_unregister(name);
 	opbx_mutex_unlock(&odbc_lock);
+}
+
+
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = odbc_log,
+};
+
+
+static int unload_module(void)
+{
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-static int odbc_load_module(void)
+static int load_module(void)
 {
 	int res = 0;
 	struct opbx_config *cfg;
 	struct opbx_variable *var;
 	char *tmp;
+
+	opbx_cdrbe_register(&cdrbe);
 
 	opbx_mutex_lock(&odbc_lock);
 
@@ -363,10 +373,6 @@ static int odbc_load_module(void)
 			opbx_verbose( VERBOSE_PREFIX_3 "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
 		}
 	}
-	res = opbx_cdr_register(name, desc, odbc_log);
-	if (res) {
-		opbx_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
-	}
 out:
 	opbx_mutex_unlock(&odbc_lock);
 	return res;
@@ -453,31 +459,5 @@ static int odbc_init(void)
 	return 0;
 }
 
-int load_module(void)
-{
-	return odbc_load_module();
-}
 
-int unload_module(void)
-{
-	return odbc_unload_module();
-}
-
-int reload(void)
-{
-	odbc_unload_module();
-	return odbc_load_module();
-}
-
-int usecount(void)
-{
-	/* Simplistic use count */
-	if (opbx_mutex_trylock(&odbc_lock)) {
-		return 1;
-	} else {
-		opbx_mutex_unlock(&odbc_lock);
-		return 0;
-	}
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, release, desc)

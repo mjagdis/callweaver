@@ -197,7 +197,7 @@ static int _timer_create(opbx_timer_t *t, opbx_timer_type_t type,
 #endif /* HAVE_POSIX_TIMERS */
 
 #ifdef USE_GENERIC_TIMERS
-    if ((ret = opbx_pthread_create(&t->opbx_timer_thread, NULL, _timer_thread, t))) {
+    if ((ret = opbx_pthread_create(NULL, &t->opbx_timer_thread, NULL, _timer_thread, t))) {
     	if(t->type == OPBX_TIMER_REPEATING)
 	    opbx_log(LOG_WARNING, "Failed to create thread for OPBX_TIMER_REPEATING: %s\n", strerror(ret));
 	else if(t->type == OPBX_TIMER_ONESHOT)
@@ -255,9 +255,6 @@ void opbx_timer_destroy(opbx_timer_t *t)
 #ifdef USE_GENERIC_TIMERS
 	t->active = 0;
 	pthread_cancel(t->opbx_timer_thread);
-	usleep(1);
-	free(t->opbx_timer_thread);
-	t->opbx_timer_thread = NULL;
 #endif /* USE_GENERIC_TIMERS */
     } else
 	opbx_log(LOG_DEBUG, "Attempted to destroy inactive timer "
@@ -408,53 +405,71 @@ int opbx_timer_newtime(opbx_timer_t *t, unsigned long interval)
 }
 
 #ifdef USE_GENERIC_TIMERS
+void _timer_thread_cleanup(void *data) 
+{
+    opbx_timer_t *t = (opbx_timer_t *)data;
+    free(t->opbx_timer_thread);
+    t->opbx_timer_thread = NULL;
+}
+
 void * _timer_thread(void *parg) 
 {
     opbx_timer_t *t = (opbx_timer_t *) parg;
     struct timespec ts;
-    
     struct timespec timetosleep = {0};
+
+    pthread_cleanup_push(_timer_thread_cleanup, t);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 #ifdef __OpenBSD__
     timetosleep.tv_nsec = 30000000L; /* 30 msec */
 #else
     timetosleep.tv_nsec = 1000000L; /* 1 msec */
 #endif
 
-    for(;;) {
-	if(t->active) {
+    for (;;) {
+	pthread_testcancel();
+
+	if (t->active) {
 	    ts.tv_nsec = (t->interval % 1000000) * 1000;
 	    ts.tv_sec = t->interval / 1000000;
-	    if(nanosleep(&ts, NULL)) {
-	        if(errno != EINTR )
+	    if (nanosleep(&ts, NULL)) {
+	        if (errno != EINTR ) {
+		    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	            opbx_log(LOG_WARNING, "Requested a timer with %ld "
 	        	"nanosecond interval, but system timer "
 	    		"couldn't handled!\n"
 			"Timing may be unreliable!\n", 
 			ts.tv_nsec);
+		    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		    pthread_testcancel();
+		}
 	    }
 
-	    if(t->type == OPBX_TIMER_SIMPLE || t->type == OPBX_TIMER_ONESHOT) {
+	    if (t->type == OPBX_TIMER_SIMPLE || t->type == OPBX_TIMER_ONESHOT)
                 t->active = 0;
-            }
 
-	    if(t->func) {
+	    if (t->func) {
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		t->func(t, t->user_data);
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	    }
 	    
-	    if(t->type == OPBX_TIMER_SIMPLE) {
-		    opbx_timer_destroy(t);
-		    break;
-	    }
 #ifdef TIMER_DEBUG
 	    opbx_log(LOG_DEBUG, "** Timer 0x%lx with type %d took %ld.%ld\n",
 	        (unsigned long)t, 
 	        t->type, 
 	        (long int)ts.tv_sec, ts.tv_nsec);
 #endif /* TIMER_DEBUG */
+
+	    if (t->type == OPBX_TIMER_SIMPLE)
+		    break;
 	} else {
     	    nanosleep(&timetosleep,NULL);	
 	}
     }
+
+    pthead_cleanup_pop(1);
 #ifdef TIMER_DEBUG
     opbx_log(LOG_DEBUG, "OPBX timer thread shut down on 0x%lx\n", (unsigned long)t);
 #endif

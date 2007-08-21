@@ -46,6 +46,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <stdio.h>
 
 #include "callweaver/channel.h"
+#include "callweaver/cdr.h"
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
@@ -57,8 +58,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* When you change the DATE_FORMAT, be sure to change the CHAR(19) below to something else */
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *desc = "SQLite CDR Backend";
-static char *name = "sqlite";
+static const char desc[] = "SQLite CDR Backend";
+static const char name[] = "sqlite";
 static struct sqlite3 *db = NULL;
 
 OPBX_MUTEX_DEFINE_STATIC(sqlite3_lock);
@@ -198,19 +199,26 @@ static int sqlite_log(struct opbx_cdr *cdr)
 }
 
 
-char *description(void)
-{
-	return desc;
-}
-
-int unload_module(void)
+static void release(void)
 {
 	if (db) sqlite3_close(db);
-	opbx_cdr_unregister(name);
+}
+
+
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = sqlite_log,
+};
+
+
+static int unload_module(void)
+{
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	char *zErr;
 	char fn[PATH_MAX];
@@ -238,13 +246,10 @@ int load_module(void)
 		/* TODO: here we should probably create an index */
 	}
 	
-	res = opbx_cdr_register(name, desc, sqlite_log);
-	if (res) {
-		opbx_log(LOG_ERROR, "Unable to register SQLite CDR handling\n");
-		goto err;
-	}
-
 	if (db) sqlite3_close(db);
+
+	opbx_cdrbe_register(&cdrbe);
+
 	return 0;
 
 err:
@@ -252,18 +257,5 @@ err:
 	return -1;
 }
 
-int reload(void)
-{
-	return 0;
-}
 
-int usecount(void)
-{
-	/* To be able to unload the module */
-	if ( opbx_mutex_trylock(&sqlite3_lock) ) {
-		return 1;
-	} else {
-		opbx_mutex_unlock(&sqlite3_lock);
-		return 0;
-	}
-}
+MODULE_INFO(load_module, NULL, unload_module, release, desc)

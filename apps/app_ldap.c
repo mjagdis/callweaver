@@ -41,24 +41,21 @@ int ldap_lookup(char *host, int port, int version, int timeout, char *user, char
 int strconvert(const char *incharset, const char *outcharset, char *in, char *out);
 char *strtrim (char *string);
 
-static char *tdesc = "LDAP directory lookup function for CallWeaver extension logic.";
+static const char tdesc[] = "LDAP directory lookup function for CallWeaver extension logic.";
 
 static void *g_app = "LDAPget";
-static const char *g_name = "LDAPget";
-static const char *g_synopsis = "Retrieve a value from an ldap directory";
-static const char *g_syntax = "LDAPget(varname=config-file-section/key)";
-static const char *g_descrip =
+static const char g_name[] = "LDAPget";
+static const char g_synopsis[] = "Retrieve a value from an ldap directory";
+static const char g_syntax[] = "LDAPget(varname=config-file-section/key)";
+static const char g_descrip[] =
 "Retrieves a value from an LDAP\n"
 "directory and stores it in the given variable. Always returns 0.  If the\n"
 "requested key is not found, jumps to priority n+101 if available.\n";
 
 
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
-
-static int ldap_exec(struct opbx_channel *chan, int argc, char **argv)
+static int ldap_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-  char result[2048];
+  char buf[2048];
   struct localuser *u;
   char *varname, *config, *keys = NULL, *key = NULL, *tail = NULL;
   char *result_conv;
@@ -68,10 +65,8 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv)
   char *temp, *host, *user, *pass, *base, *scope, *filter, *_filter, *attribute,
     *convert_from = NULL, *convert_to = NULL;
 
-  if (argc != 1) {
-	  opbx_log(LOG_ERROR, "Syntax: %s\n", g_syntax);
-	  return -1;
-  }
+  if (argc != 1)
+	  return opbx_function_syntax(g_syntax);
 
   LOCAL_USER_ADD(u);
 
@@ -159,25 +154,25 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv)
   if(option_verbose > 2)
     opbx_verbose (VERBOSE_PREFIX_3 "LDAPget: ldap://%s/%s?%s?%s?%s\n", host, base, attribute, scope, filter);
 
-  if(ldap_lookup(host, port, version, timeout, user, pass, base, scope, filter, attribute, result)) {
+  if(ldap_lookup(host, port, version, timeout, user, pass, base, scope, filter, attribute, buf)) {
 
     if(convert_from) {
       if(option_verbose > 2)
 	opbx_verbose(VERBOSE_PREFIX_3 "LDAPget: convert: %s -> %s\n", convert_from, convert_to);
-      result_conv = malloc(strlen(result) * 2);
-      strconvert(convert_from, convert_to, result, result_conv);
-      strcpy(result, result_conv);
+      result_conv = malloc(strlen(buf) * 2);
+      strconvert(convert_from, convert_to, buf, result_conv);
+      strcpy(buf, result_conv);
       free(result_conv);
     }
 		
     if(strcmp("CALLERIDNAME", varname)==0) {
-      opbx_set_callerid(chan, NULL, result, NULL);
+      opbx_set_callerid(chan, NULL, buf, NULL);
       if(option_verbose > 2)
-	opbx_verbose (VERBOSE_PREFIX_3 "LDAPget: set CIDNAME to \"%s\"\n", result);
+	opbx_verbose (VERBOSE_PREFIX_3 "LDAPget: set CIDNAME to \"%s\"\n", buf);
     } else {
       if(option_verbose > 2)
-	opbx_verbose (VERBOSE_PREFIX_3 "LDAPget: set %s='%s'\n", varname, result);
-      pbx_builtin_setvar_helper(chan, varname, result);
+	opbx_verbose (VERBOSE_PREFIX_3 "LDAPget: set %s='%s'\n", varname, buf);
+      pbx_builtin_setvar_helper(chan, varname, buf);
     }
 		
   } else {
@@ -195,27 +190,25 @@ static int ldap_exec(struct opbx_channel *chan, int argc, char **argv)
   return 0;
 }
 
-int unload_module (void) {
+static int unload_module (void) {
   int res = 0;
-  STANDARD_HANGUP_LOCALUSERS;
-  res |= opbx_unregister_application (g_app);
+
+  res |= opbx_unregister_function (g_app);
   return res;
 }
 
-int load_module (void) {
-  g_app = opbx_register_application(g_name, ldap_exec, g_synopsis, g_syntax, g_descrip);
+static int load_module (void) {
+  g_app = opbx_register_function(g_name, ldap_exec, g_synopsis, g_syntax, g_descrip);
   return 0;
 }
 
 char *description (void) {
-  return tdesc;
+  return (char *)tdesc;
 }
 
-int usecount (void) {
-  int res;
-  STANDARD_USECOUNT(res);
-  return res;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
+
 
 int ldap_lookup(char *host, int port, int version, int timeout, char *user, char *pass, 
 		char *base, char *scope, char *filter, char *attribute, char *result) {

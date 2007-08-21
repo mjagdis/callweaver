@@ -73,7 +73,34 @@ static struct opbx_config_map {
 } *config_maps = NULL;
 
 OPBX_MUTEX_DEFINE_STATIC(config_lock);
-static struct opbx_config_engine *config_engine_list;
+
+static const char *config_engine_registry_obj_name(struct opbx_object *obj)
+{
+	struct opbx_config_engine *it = container_of(obj, struct opbx_config_engine, obj);
+	return it->name;
+}
+
+static int config_engine_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+{
+	struct opbx_config_engine *config_engine_a = container_of(a, struct opbx_config_engine, obj);
+	struct opbx_config_engine *config_engine_b = container_of(b, struct opbx_config_engine, obj);
+
+	return strcmp(config_engine_a->name, config_engine_b->name);
+}
+
+static int config_engine_registry_obj_match(struct opbx_object *obj, const void *pattern)
+{
+	struct opbx_config_engine *ce = container_of(obj, struct opbx_config_engine, obj);
+	return strcasecmp(ce->name, pattern);
+}
+
+struct opbx_registry config_engine_registry = {
+	.name = "Config Engine",
+	.obj_name = config_engine_registry_obj_name,
+	.obj_cmp = config_engine_registry_obj_cmp,
+	.obj_match = config_engine_registry_obj_match,
+	.lock = OPBX_MUTEX_INIT_VALUE,
+};
 
 #define MAX_INCLUDE_LEVEL 10
 
@@ -848,52 +875,12 @@ void read_config_maps(void)
 	opbx_config_destroy(config);
 }
 
-int opbx_config_engine_register(struct opbx_config_engine *new) 
-{
-	struct opbx_config_engine *ptr;
-
-	opbx_mutex_lock(&config_lock);
-
-	if (!config_engine_list) {
-		config_engine_list = new;
-	} else {
-		for (ptr = config_engine_list; ptr->next; ptr=ptr->next);
-		ptr->next = new;
-	}
-
-	opbx_mutex_unlock(&config_lock);
-	opbx_log(LOG_NOTICE,"Registered Config Engine %s\n", new->name);
-
-	return 1;
-}
-
-int opbx_config_engine_deregister(struct opbx_config_engine *del) 
-{
-	struct opbx_config_engine *ptr, *last=NULL;
-
-	opbx_mutex_lock(&config_lock);
-
-	for (ptr = config_engine_list; ptr; ptr=ptr->next) {
-		if (ptr == del) {
-			if (last)
-				last->next = ptr->next;
-			else
-				config_engine_list = ptr->next;
-			break;
-		}
-		last = ptr;
-	}
-
-	opbx_mutex_unlock(&config_lock);
-
-	return 0;
-}
-
 /*--- find_engine: Find realtime engine for realtime family */
 static struct opbx_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
 {
-	struct opbx_config_engine *eng, *ret = NULL;
 	struct opbx_config_map *map;
+	struct opbx_config_engine *eng;
+	struct opbx_object *obj;
 
 	opbx_mutex_lock(&config_lock);
 
@@ -907,33 +894,27 @@ static struct opbx_config_engine *find_engine(const char *family, char *database
 		}
 	}
 
+	opbx_mutex_unlock(&config_lock);
+
 	/* Check if the required driver (engine) exist */
+	eng = NULL;
 	if (map) {
-		for (eng = config_engine_list; !ret && eng; eng = eng->next) {
-			if (!strcasecmp(eng->name, map->driver))
-				ret = eng;
-		}
+		obj = opbx_registry_find(&config_engine_registry, map->driver);
+		if (obj)
+			eng = container_of(obj, struct opbx_config_engine, obj);
+		else
+			opbx_log(LOG_WARNING, "Realtime mapping for '%s' requires engine '%s', but the engine is not available\n", map->name, map->driver);
 	}
 
-	opbx_mutex_unlock(&config_lock);
-	
-	/* if we found a mapping, but the engine is not available, then issue a warning */
-	if (map && !ret)
-		opbx_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
-
-	return ret;
+	return eng;
 }
 
-static struct opbx_config_engine text_file_engine = {
-	.name = "text",
-	.load_func = config_text_file_load,
-};
 
 struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_config *cfg)
 {
 	char db[256];
 	char table[256];
-	struct opbx_config_engine *loader = &text_file_engine;
+	struct opbx_config_engine *eng;
 	struct opbx_config *result;
 
 	if (cfg->include_level == cfg->max_include_level) {
@@ -943,22 +924,28 @@ struct opbx_config *opbx_config_internal_load(const char *filename, struct opbx_
 
 	cfg->include_level++;
 
-	if (strcmp(filename, extconfig_conf) && strcmp(filename, "callweaver.conf") && config_engine_list) {
-		struct opbx_config_engine *eng;
-
+	eng = NULL;
+	if (strcmp(filename, extconfig_conf) && strcmp(filename, "callweaver.conf")) {
 		eng = find_engine(filename, db, sizeof(db), table, sizeof(table));
+		if (eng && !eng->load_func) {
+			opbx_object_put(eng);
+			eng = NULL;
+		}
 
-
-		if (eng && eng->load_func) {
-			loader = eng;
-		} else {
+		if (!eng) {
 			eng = find_engine("global", db, sizeof(db), table, sizeof(table));
-			if (eng && eng->load_func)
-				loader = eng;
+			if (eng && !eng->load_func) {
+				opbx_object_put(eng);
+				eng = NULL;
+			}
 		}
 	}
 
-	result = loader->load_func(db, table, filename, cfg);
+	if (eng) {
+		result = eng->load_func(db, table, filename, cfg);
+		opbx_object_put(eng);
+	} else
+		result = config_text_file_load(db, table, filename, cfg);
 
 	if (result)
 		result->include_level--;
@@ -992,8 +979,11 @@ struct opbx_variable *opbx_load_realtime(const char *family, ...)
 
 	va_start(ap, family);
 	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
-	if (eng && eng->realtime_func) 
-		res = eng->realtime_func(db, table, ap);
+	if (eng) {
+		if (eng->realtime_func) 
+			res = eng->realtime_func(db, table, ap);
+		opbx_object_put(eng);
+	}
 	va_end(ap);
 
 	return res;
@@ -1005,8 +995,10 @@ int opbx_check_realtime(const char *family)
 	struct opbx_config_engine *eng;
 
 	eng = find_engine(family, NULL, 0, NULL, 0);
-	if (eng)
+	if (eng) {
+		opbx_object_put(eng);
 		return 1;
+	}
 	return 0;
 
 }
@@ -1021,8 +1013,11 @@ struct opbx_config *opbx_load_realtime_multientry(const char *family, ...)
 
 	va_start(ap, family);
 	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
-	if (eng && eng->realtime_multi_func) 
-		res = eng->realtime_multi_func(db, table, ap);
+	if (eng) {
+		if (eng->realtime_multi_func) 
+			res = eng->realtime_multi_func(db, table, ap);
+		opbx_object_put(eng);
+	}
 	va_end(ap);
 
 	return res;
@@ -1038,33 +1033,36 @@ int opbx_update_realtime(const char *family, const char *keyfield, const char *l
 
 	va_start(ap, lookup);
 	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
-	if (eng && eng->update_func) 
-		res = eng->update_func(db, table, keyfield, lookup, ap);
+	if (eng) {
+		if (eng->update_func) 
+			res = eng->update_func(db, table, keyfield, lookup, ap);
+		opbx_object_put(eng);
+	}
 	va_end(ap);
 
 	return res;
 }
 
+static int config_engine_print(struct opbx_object *obj, void *data)
+{
+	struct opbx_config_engine *eng = container_of(obj, struct opbx_config_engine, obj);
+	int *fd = data;
+	struct opbx_config_map *map;
+
+	opbx_cli(*fd, "Config Engine: %s\n", eng->name);
+	for (map = config_maps; map; map = map->next) {
+		if (!strcasecmp(map->driver, eng->name)) {
+			opbx_cli(*fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+				map->table ? map->table : map->name);
+		}
+	}
+	opbx_cli(*fd, "\n");
+	return 0;
+}
+
 static int config_command(int fd, int argc, char **argv) 
 {
-	struct opbx_config_engine *eng;
-	struct opbx_config_map *map;
-	
-	opbx_mutex_lock(&config_lock);
-
-	opbx_cli(fd, "\n\n");
-	for (eng = config_engine_list; eng; eng = eng->next) {
-		opbx_cli(fd, "\nConfig Engine: %s\n", eng->name);
-		for (map = config_maps; map; map = map->next)
-			if (!strcasecmp(map->driver, eng->name)) {
-				opbx_cli(fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
-					map->table ? map->table : map->name);
-			}
-	}
-	opbx_cli(fd,"\n\n");
-	
-	opbx_mutex_unlock(&config_lock);
-
+	opbx_registry_iterate(&config_engine_registry, config_engine_print, &fd);
 	return 0;
 }
 
@@ -1072,8 +1070,11 @@ static char show_config_help[] =
 	"Usage: show config mappings\n"
 	"	Shows the filenames to config engines.\n";
 
-static struct opbx_cli_entry config_command_struct = {
-	{ "show", "config", "mappings", NULL }, config_command, "Show Config mappings (file names to config engines)", show_config_help, NULL
+static struct opbx_clicmd config_command_struct = {
+	.cmda = { "show", "config", "mappings", NULL },
+	.handler = config_command,
+	.summary = "Show Config mappings (file names to config engines)",
+	.usage = show_config_help,
 };
 
 int register_config_cli() 

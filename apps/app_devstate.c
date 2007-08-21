@@ -34,25 +34,25 @@
 
 
 static char type[] = "DS";
-static char tdesc[] = "Application for sending device state messages";
+static const char tdesc[] = "Application for sending device state messages";
 
 static void *devstate_app;
-static const char *devstate_name = "DevState";
-static const char *devstate_synopsis = "Generate a device state change event given the input parameters";
-static const char *devstate_syntax = "DevState(device, state)";
-static const char *devstate_descrip = "Generate a device state change event given the input parameters. Returns 0. State values match the callweaver device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
+static const char devstate_name[] = "DevState";
+static const char devstate_synopsis[] = "Generate a device state change event given the input parameters";
+static const char devstate_syntax[] = "DevState(device, state)";
+static const char devstate_descrip[] = "Generate a device state change event given the input parameters. Returns 0. State values match the callweaver device states. They are 0 = unknown, 1 = not inuse, 2 = inuse, 3 = busy, 4 = invalid, 5 = unavailable, 6 = ringing\n";
 
 static char devstate_cli_usage[] = 
 "Usage: DevState device state\n" 
 "       Generate a device state change event given the input parameters.\n Mainly used for lighting the LEDs on the snoms.\n";
 
 static int devstate_cli(int fd, int argc, char *argv[]);
-static struct opbx_cli_entry  cli_dev_state =
-        { { "devstate", NULL }, devstate_cli, "Set the device state on one of the \"pseudo devices\".", devstate_cli_usage };
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
+static struct opbx_clicmd  cli_dev_state = {
+	.cmda = { "devstate", NULL },
+	.handler = devstate_cli,
+	.summary = "Set the device state on one of the \"pseudo devices\".",
+	.usage = devstate_cli_usage,
+};
 
 
 static int devstate_cli(int fd, int argc, char *argv[])
@@ -69,14 +69,12 @@ static int devstate_cli(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int devstate_exec(struct opbx_channel *chan, int argc, char **argv)
+static int devstate_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
 
-    if (argc != 2) {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", devstate_syntax);
-        return -1;
-    }
+    if (argc != 2)
+        return opbx_function_syntax(devstate_syntax);
 
     LOCAL_USER_ADD(u);
     
@@ -163,7 +161,7 @@ static int action_devstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
     if (opbx_channel_register(&devstate_tech)) {
         opbx_log(LOG_DEBUG, "Unable to register channel class %s\n", type);
@@ -171,29 +169,20 @@ int load_module(void)
     }
     opbx_cli_register(&cli_dev_state);  
     opbx_manager_register2( "Devstate", EVENT_FLAG_CALL, action_devstate, "Change a device state", mandescr_devstate );
-    devstate_app = opbx_register_application(devstate_name, devstate_exec, devstate_synopsis, devstate_syntax, devstate_descrip);
+    devstate_app = opbx_register_function(devstate_name, devstate_exec, devstate_synopsis, devstate_syntax, devstate_descrip);
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
-    STANDARD_HANGUP_LOCALUSERS;
+
     opbx_manager_unregister( "Devstate");
     opbx_cli_unregister(&cli_dev_state);
-    res |= opbx_unregister_application(devstate_app);
+    res |= opbx_unregister_function(devstate_app);
     opbx_channel_unregister(&devstate_tech);    
     return res;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

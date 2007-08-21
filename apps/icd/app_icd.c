@@ -72,7 +72,7 @@
 #include <pthread.h>
 #include "callweaver/icd/icd_caller_private.h"
 
-static char *qdesc = "Intelligent Call Distribution System";
+static const char qdesc[] = "Intelligent Call Distribution System";
 
 static void *icd_customer_app;
 static void *icd_queue_app;
@@ -83,40 +83,40 @@ static void *icd_remove_member_app;
 static void *icd_agent_callback_app;
 static void *icd_customer_callback_app;
 
-static char *icd_customer_app_name = "ICDCustomer";
-static char *icd_queue_app_name = "ICDQueue";
-static char *icd_agent_app_name = "ICDAgent";
-static char *icd_logout_app_name = "ICDLogout";
-static char *icd_add_member_app_name = "ICDAddMember";
-static char *icd_remove_member_app_name = "ICDRemoveMember";
-static char *icd_agent_callback_app_name = "ICDAgentCallback";
-static char *icd_customer_callback_app_name = "ICDCustomerCallback";
+static const char icd_customer_app_name[] = "ICDCustomer";
+static const char icd_queue_app_name[] = "ICDQueue";
+static const char icd_agent_app_name[] = "ICDAgent";
+static const char icd_logout_app_name[] = "ICDLogout";
+static const char icd_add_member_app_name[] = "ICDAddMember";
+static const char icd_remove_member_app_name[] = "ICDRemoveMember";
+static const char icd_agent_callback_app_name[] = "ICDAgentCallback";
+static const char icd_customer_callback_app_name[] = "ICDCustomerCallback";
 
-static char *app_icd_customer_synopsis = "ICD Customer distribution definition";
-static char *app_icd_customer_callback_synopsis = "ICD Customer Callback distribution definition";
-static char *app_icd_agent_synopsis = "ICD Agent Login";
-static char *app_icd_agent_callback_synopsis = "ICD Callback Agent Login";
-static char *app_icd_logout_synopsis = "ICD Agent Logout";
-static char *app_icd_add_member_synopsis = "ICD dynamicaly add member to a queue";
-static char *app_icd_remove_member_synopsis = "ICD remove a member from a queue";
+static const char app_icd_customer_synopsis[] = "ICD Customer distribution definition";
+static const char app_icd_customer_callback_synopsis[] = "ICD Customer Callback distribution definition";
+static const char app_icd_agent_synopsis[] = "ICD Agent Login";
+static const char app_icd_agent_callback_synopsis[] = "ICD Callback Agent Login";
+static const char app_icd_logout_synopsis[] = "ICD Agent Logout";
+static const char app_icd_add_member_synopsis[] = "ICD dynamicaly add member to a queue";
+static const char app_icd_remove_member_synopsis[] = "ICD remove a member from a queue";
 
-static char *app_icd_customer_syntax = "ICDCustomer(queue=[queueid][,option])";
-static char *app_icd_customer_callback_syntax = "ICDCustomerCallback";
-static char *app_icd_agent_syntax = "ICDAgent(agent=[agentid or dynamic][,option])";
-static char *app_icd_agent_callback_syntax = "ICDAgentCallback";
-static char *app_icd_logout_syntax = "ICDLogout(agent=[agentid])";
-static char *app_icd_add_member_syntax = "ICDAddMember";
-static char *app_icd_remove_member_syntax = "ICDRemoveMmember";
+static const char app_icd_customer_syntax[] = "ICDCustomer(queue=[queueid][,option])";
+static const char app_icd_customer_callback_syntax[] = "ICDCustomerCallback";
+static const char app_icd_agent_syntax[] = "ICDAgent(agent=[agentid or dynamic][,option])";
+static const char app_icd_agent_callback_syntax[] = "ICDAgentCallback";
+static const char app_icd_logout_syntax[] = "ICDLogout(agent=[agentid])";
+static const char app_icd_add_member_syntax[] = "ICDAddMember";
+static const char app_icd_remove_member_syntax[] = "ICDRemoveMmember";
 
-static char *app_icd_customer_desc =
+static const char app_icd_customer_desc[] =
 "Creates a distributor for a outside caller (customer) for a queue.\n\nThe option string may contain zero or more of the following:\n\tname=[name for the customer] -- a identifier for this customer access\n\tinfo=[any string] -- free form comment on this customer distributor\n\tpriority=[number] -- a priority for sorting the customer into the queue\n\nIn the ICD system queues get created in the definition files but queue distributors per extension or customer get created in the dialplan. So you have to first define a queue and can than add different kinds of customer access to it, which you define by utilising icd_customer\n\n\t\t---\n\n   icd_customer(conference=[conference or query or autoscan][,option])\nA customer distributor can also be defined via conferences. In that case the option string can be zero or more of:\n\tspy=[1 or 0] -- mute the customer in the conference\n\tconference=[conference,autoscan or query] -- conferecne will place the customer in that conference, autoscan will round robin through the available conferences and if used in combination wity spy=1 behave like zapscan, meaning via pressing the * key you could listen in on conferences one after the other.Query will ask for the customer to enter a conference id.";
-static char *app_icd_customer_callback_desc = "";
-static char *app_icd_agent_desc =
+static const char app_icd_customer_callback_desc[] = "";
+static const char app_icd_agent_desc[] =
 "Logs an ageent into an ICD queue or icd queues. While logged in, the agent can receive calls.\n\nThe option string may contain zero or more of the following:\n\tqueue=[queueid or space separated list of queues] -- which queues the agent should be a member off\n\tpriority=[priority] -- the priority in the queue of the agent (for priority ditribution = priority)\n\tnoauth=[1 or 0] - if we should authenticate the agent\n\tdunamic=[yes or no] -- if this is a dynamically created agent\n\nDefinitions in the dialplan override definitions in the icd_agent.conf file\n";
-static char *app_icd_agent_callback_desc = "";
-static char *app_icd_logout_desc = "Logs an agent out of the ICD system\n";
-static char *app_icd_add_member_desc = "Let's you dynamically add members to icd queues";
-static char *app_icd_remove_member_desc = "Dynamically deletes a queue member from an ICD queue";
+static const char app_icd_agent_callback_desc[] = "";
+static const char app_icd_logout_desc[] = "Logs an agent out of the ICD system\n";
+static const char app_icd_add_member_desc[] = "Let's you dynamically add members to icd queues";
+static const char app_icd_remove_member_desc[] = "Dynamically deletes a queue member from an ICD queue";
 
 
 #ifdef ICD_TRAP_CORE
@@ -160,17 +160,13 @@ opbx_mutex_t customers_lock;
 /*** For CallWeaver functions ***/
 
 /* Required for interacting with the CallWeaver.org CLI */
-static struct opbx_cli_entry icd_command_cli_struct = {
-    {"icd", NULL, NULL, NULL},
-    icd_command_cli, "Execute ICD Command",
-    "icd cmd <command>", NULL
+static struct opbx_clicmd icd_command_cli_struct = {
+    .cmda = {"icd", NULL, NULL, NULL},
+    .handler = icd_command_cli,
+    .summary = "Execute ICD Command",
+    .usage = "icd cmd <command>",
 };
 
-/* Creates a list of channels controlled by this module ("local" channels) */
-STANDARD_LOCAL_USER;
-
-/* Creates other variables that CallWeaver.org requires for the local channel list */
-LOCAL_USER_DECL;
 
 /*** For the ICD Module Initialization ***/
 static char *default_icd_config = "icd_config/icd.conf";
@@ -236,7 +232,7 @@ static int handle_core(int sig)
 /***** CallWeaver.org Required Module API Implementation *****/
 
 /* CallWeaver.org calls this when it loads a module. All of our initialization is here. */
-int load_module(void)
+static int load_module(void)
 {
     
     icd_status result;
@@ -280,46 +276,54 @@ int load_module(void)
     reload_app_icd(APP_ICD);
 
     opbx_cli_register(&icd_command_cli_struct);
-    icd_queue_app = opbx_register_application(icd_queue_app_name,
-                                              app_icd__customer_exec,
-                                              app_icd_customer_synopsis,
-                                              app_icd_customer_syntax,
-                                              app_icd_customer_desc);
-    icd_customer_app = opbx_register_application(icd_customer_app_name,
-                                                 app_icd__customer_exec,
-                                                 app_icd_customer_synopsis,
-                                                 app_icd_customer_syntax,
-                                                 app_icd_customer_desc);
-    icd_customer_callback_app = opbx_register_application(icd_customer_callback_app_name,
-                                                          app_icd__customer_callback_login,
-                                                          app_icd_customer_callback_synopsis,
-                                                          app_icd_customer_callback_syntax,
-                                                          app_icd_customer_callback_desc);
-    icd_agent_app = opbx_register_application(icd_agent_app_name,
-                                              app_icd__agent_exec,
-                                              app_icd_agent_synopsis,
-                                              app_icd_agent_syntax,
-                                              app_icd_agent_desc);
-    icd_agent_callback_app = opbx_register_application(icd_agent_callback_app_name,
-                                                       app_icd__agent_callback_login,
-                                                       app_icd_agent_callback_synopsis,
-                                                       app_icd_agent_callback_syntax,
-                                                       app_icd_agent_callback_desc);
-    icd_logout_app = opbx_register_application(icd_logout_app_name,
-                                               app_icd__logout_exec,
-                                               app_icd_logout_synopsis,
-                                               app_icd_logout_syntax,
-                                               app_icd_logout_desc);
-    icd_add_member_app = opbx_register_application(icd_add_member_app_name,
-                                                   app_icd__add_member_exec,
-                                                   app_icd_add_member_synopsis,
-                                                   app_icd_add_member_syntax,
-                                                   app_icd_add_member_desc);
-    icd_remove_member_app = opbx_register_application(icd_remove_member_app_name,
-                                                      app_icd__remove_member_exec,
-                                                      app_icd_remove_member_synopsis,
-                                                      app_icd_remove_member_syntax,
-                                                      app_icd_remove_member_desc);
+    icd_queue_app= opbx_register_function(
+                                          icd_queue_app_name,
+                                          app_icd__customer_exec,
+                                          app_icd_customer_synopsis,
+                                          app_icd_customer_syntax,
+                                          app_icd_customer_desc);
+    icd_customer_app= opbx_register_function(
+                                             icd_customer_app_name,
+                                             app_icd__customer_exec,
+                                             app_icd_customer_synopsis,
+                                             app_icd_customer_syntax,
+                                             app_icd_customer_desc);
+    icd_customer_callback_app= opbx_register_function(
+                                                      icd_customer_callback_app_name,
+                                                      app_icd__customer_callback_login,
+                                                      app_icd_customer_callback_synopsis,
+                                                      app_icd_customer_callback_syntax,
+                                                      app_icd_customer_callback_desc);
+    icd_agent_app= opbx_register_function(
+                                          icd_agent_app_name,
+                                          app_icd__agent_exec,
+                                          app_icd_agent_synopsis,
+                                          app_icd_agent_syntax,
+                                          app_icd_agent_desc);
+    icd_agent_callback_app= opbx_register_function(
+                                                   icd_agent_callback_app_name,
+                                                   app_icd__agent_callback_login,
+                                                   app_icd_agent_callback_synopsis,
+                                                   app_icd_agent_callback_syntax,
+                                                   app_icd_agent_callback_desc);
+    icd_logout_app= opbx_register_function(
+                                           icd_logout_app_name,
+                                           app_icd__logout_exec,
+                                           app_icd_logout_synopsis,
+                                           app_icd_logout_syntax,
+                                           app_icd_logout_desc);
+    icd_add_member_app= opbx_register_function(
+                                               icd_add_member_app_name,
+                                               app_icd__add_member_exec,
+                                               app_icd_add_member_synopsis,
+                                               app_icd_add_member_syntax,
+                                               app_icd_add_member_desc);
+    icd_remove_member_app= opbx_register_function(
+                                                  icd_remove_member_app_name,
+                                                  app_icd__remove_member_exec,
+                                                  app_icd_remove_member_synopsis,
+                                                  app_icd_remove_member_syntax,
+                                                  app_icd_remove_member_desc);
 
     /* If this is the best place to come back to then there is nothing we can do but die.
        if(setjmp(env) == SIGSEGV) {
@@ -332,7 +336,7 @@ int load_module(void)
 }
 
 /* CallWeaver.org calls this to unload a module. All our cleanup is in here. */
-int unload_module(void)
+static int unload_module(void)
 {
     icd_fieldset_iterator *iter;
     char *curr_key;
@@ -344,8 +348,6 @@ int unload_module(void)
     opbx_log(LOG_WARNING, "ICD unloading from CallWeaver.org, all callers will be lost!\n");
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
-
-    STANDARD_HANGUP_LOCALUSERS;
 
     iter = icd_fieldset__get_key_iterator(agents);
     while (icd_fieldset_iterator__has_more(iter)) {
@@ -379,14 +381,14 @@ int unload_module(void)
     destroy_icd_config_registry(&app_icd_config_registry);
     icd_conference__destroy_registry();
 
-    res |= opbx_unregister_application(icd_queue_app);
-    res |= opbx_unregister_application(icd_logout_app);
-    res |= opbx_unregister_application(icd_add_member_app);
-    res |= opbx_unregister_application(icd_remove_member_app);
-    res |= opbx_unregister_application(icd_agent_app);
-    res |= opbx_unregister_application(icd_agent_callback_app);
-    res |= opbx_unregister_application(icd_customer_app);
-    res |= opbx_unregister_application(icd_customer_callback_app);
+    res |= opbx_unregister_function(icd_queue_app);
+    res |= opbx_unregister_function(icd_logout_app);
+    res |= opbx_unregister_function(icd_add_member_app);
+    res |= opbx_unregister_function(icd_remove_member_app);
+    res |= opbx_unregister_function(icd_agent_app);
+    res |= opbx_unregister_function(icd_agent_callback_app);
+    res |= opbx_unregister_function(icd_customer_app);
+    res |= opbx_unregister_function(icd_customer_callback_app);
 
     opbx_cli_unregister(&icd_command_cli_struct);
     destroy_command_hash();
@@ -394,23 +396,9 @@ int unload_module(void)
     return res;
 }
 
-/* This returns a count of the channels we are currently controlling */
-int usecount(void)
-{
-    int channel_count;
-
-    STANDARD_USECOUNT(channel_count);
-    return channel_count;
-}
-
-/* Gives back a string describing our module */
-char *description(void)
-{
-    return qdesc;
-}
 
 /* CallWeaver.org calls this when we are reloaded. All reinitialization is here. */
-int reload(void)
+static int reload_module(void)
 {
     icd_status result;
 
@@ -421,6 +409,10 @@ int reload(void)
     return result;
 
 }
+
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, qdesc)
+
 
 icd_status reload_app_icd(icd_module module)
 {
@@ -573,7 +565,7 @@ icd_status autologin(void)
 /* this is where the customer enters the queue. Assumes channel already available. */
 /* TBD - All these _exec() functions have the same building blocks. These need to be
    refactored out. */
-int app_icd__customer_exec(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__customer_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     icd_customer *customer;
     char custname[256];
@@ -856,7 +848,7 @@ int app_icd__customer_exec(struct opbx_channel *chan, int argc, char **argv)
  * Its also is intended to be used by external api that just want to schedule customer for callbacks
  *
  * */
-int app_icd__customer_callback_login(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__customer_callback_login(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     icd_customer *customer;
@@ -1049,7 +1041,7 @@ int app_icd__customer_callback_login(struct opbx_channel *chan, int argc, char *
 }
 
 /* this is where the agent logs in */
-int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -1302,7 +1294,7 @@ int app_icd__agent_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 
 /* this is where the agent becomes a member of a queue */
-int app_icd__add_member_exec(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__add_member_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     icd_queue *queue = NULL;
@@ -1346,7 +1338,7 @@ int app_icd__add_member_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 
 /* this is where the agent drops membership in a queue */
-int app_icd__remove_member_exec(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__remove_member_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
 
@@ -1366,7 +1358,7 @@ int app_icd__remove_member_exec(struct opbx_channel *chan, int argc, char **argv
 }
 
 /* This is intended to duplicate the AgentCallbackLogin function from chan_agent */
-int app_icd__agent_callback_login(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__agent_callback_login(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     icd_agent *agent;
@@ -1712,7 +1704,7 @@ int app_icd__agent_callback_login(struct opbx_channel *chan, int argc, char **ar
 }
 
 /* this is where the agent logs out */
-int app_icd__logout_exec(struct opbx_channel *chan, int argc, char **argv)
+int app_icd__logout_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -2471,6 +2463,7 @@ int icd_instr(char *bigstr, char *smallstr, char delimit)
 
     return 0;
 }
+
 
 /* For Emacs:
  * Local Variables:

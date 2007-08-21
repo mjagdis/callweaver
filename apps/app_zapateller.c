@@ -41,13 +41,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
 
-static char *tdesc = "Block Telemarketers with Special Information Tone";
+static const char tdesc[] = "Block Telemarketers with Special Information Tone";
 
 static void *zapateller_app;
-static const char *zapateller_name = "Zapateller";
-static const char *zapateller_synopsis = "Block telemarketers with SIT";
-static const char *zapateller_syntax = "Zapateller(options)";
-static const char *zapateller_descrip = 
+static const char zapateller_name[] = "Zapateller";
+static const char zapateller_synopsis[] = "Block telemarketers with SIT";
+static const char zapateller_syntax[] = "Zapateller(options)";
+static const char zapateller_descrip[] = 
 "Generates special information tone to block\n"
 "telemarketers from calling you.  Returns 0 normally or -1 on hangup.\n"
 "Options is a pipe-delimited list of options.  The following options\n"
@@ -56,11 +56,8 @@ static const char *zapateller_descrip =
 "is no callerid information available.  Options should be separated by |\n"
 "characters\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv)
+static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
@@ -99,30 +96,19 @@ static int zapateller_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(zapateller_app);
+
+	res |= opbx_unregister_function(zapateller_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	zapateller_app = opbx_register_application(zapateller_name, zapateller_exec, zapateller_synopsis, zapateller_syntax, zapateller_descrip);
+	zapateller_app = opbx_register_function(zapateller_name, zapateller_exec, zapateller_synopsis, zapateller_syntax, zapateller_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

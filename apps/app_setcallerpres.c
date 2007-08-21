@@ -46,13 +46,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callerid.h"
 #include "callweaver/phone_no_utils.h"
 
-static char *tdesc = "SetCallerPres Application";
+static const char tdesc[] = "SetCallerPres Application";
 
 static void *setcallerid_pres_app;
-static const char *setcallerid_pres_name = "SetCallerPres";
-static const char *setcallerid_pres_synopsis = "Set CallerID Presentation";
-static const char *setcallerid_pres_syntax = "SetCallerPres(presentation)";
-static const char *setcallerid_pres_descrip = 
+static const char setcallerid_pres_name[] = "SetCallerPres";
+static const char setcallerid_pres_synopsis[] = "Set CallerID Presentation";
+static const char setcallerid_pres_syntax[] = "SetCallerPres(presentation)";
+static const char setcallerid_pres_descrip[] = 
 "Set Caller*ID presentation on a call.\n"
 "  Valid presentations are:\n"
 "\n"
@@ -68,11 +68,8 @@ static const char *setcallerid_pres_descrip =
 "\n"
 ;
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int setcallerid_pres_exec(struct opbx_channel *chan, int argc, char **argv)
+static int setcallerid_pres_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 	int pres = -1;
@@ -93,35 +90,19 @@ static int setcallerid_pres_exec(struct opbx_channel *chan, int argc, char **arg
 }
 
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	res |= opbx_unregister_application(setcallerid_pres_app);
-	STANDARD_HANGUP_LOCALUSERS;
+
+	res |= opbx_unregister_function(setcallerid_pres_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	setcallerid_pres_app = opbx_register_application(setcallerid_pres_name, setcallerid_pres_exec, setcallerid_pres_synopsis, setcallerid_pres_syntax, setcallerid_pres_descrip);
+	setcallerid_pres_app = opbx_register_function(setcallerid_pres_name, setcallerid_pres_exec, setcallerid_pres_synopsis, setcallerid_pres_syntax, setcallerid_pres_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-#if 0
-char *key()
-{
-	return OPBX_GPL_KEY;
-}
-#endif
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

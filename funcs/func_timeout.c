@@ -44,10 +44,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *timeout_function;
-static const char *timeout_func_name = "TIMEOUT";
-static const char *timeout_func_synopsis = "Gets or sets timeouts on the channel.";
-static const char *timeout_func_syntax = "TIMEOUT(timeouttype)";
-static const char *timeout_func_desc =
+static const char timeout_func_name[] = "TIMEOUT";
+static const char timeout_func_synopsis[] = "Gets or sets timeouts on the channel.";
+static const char timeout_func_syntax[] = "TIMEOUT(timeouttype[, value])";
+static const char timeout_func_desc[] =
 	"Gets or sets various channel timeouts. The timeouts that can be\n"
 	"manipulated are:\n"
 	"\n"
@@ -73,130 +73,104 @@ static const char *timeout_func_desc =
 	"	   terminated.  The default timeout is 10 seconds.\n";
 
 
-static char *builtin_function_timeout_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int builtin_function_timeout_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	time_t myt;
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(timeout_func_syntax);
 
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", timeout_func_syntax);
-                return NULL;
-	}
-	
-	switch(argv[0][0]) {
-	case 'a':
-	case 'A':
-		if (chan->whentohangup == 0) {
-			opbx_copy_string(buf, "0", len);
-		} else {
-			time(&myt);
-			snprintf(buf, len, "%d", (int) (chan->whentohangup - myt));
-		}
-		break;
-
-	case 'r':
-	case 'R':
-		if (chan->pbx) {
-			snprintf(buf, len, "%d", chan->pbx->rtimeout);
-		}
-		break;
-
-	case 'd':
-	case 'D':
-		if (chan->pbx) {
-			snprintf(buf, len, "%d", chan->pbx->dtimeout);
-		}
-		break;
-
-	default:
-		opbx_log(LOG_ERROR, "Unknown timeout type specified.\n");
-		break;
-	}
-
-	return buf;
-}
-
-static void builtin_function_timeout_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
-{
-	int x;
-	char timestr[64];
-	struct tm myt;
-
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", timeout_func_syntax);
-                return;
-	}
-	
         if (!chan) {
                 opbx_log(LOG_ERROR, "No channel! Timeout only works on channels\n");
-                return;
+                return -1;
         }
 
-	if (!value)
-		return;
+	if (argc > 1) {
+		int x = atoi(argv[1]);
 
-	x = atoi(value);
+		switch (argv[0][0]) {
+		case 'a':
+		case 'A':
+			opbx_channel_setwhentohangup(chan, x);
+			if (option_verbose > 2) {
+				if (chan->whentohangup) {
+					char timestr[64];
+					struct tm myt;
+					strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S UTC", gmtime_r(&chan->whentohangup, &myt));
+					opbx_verbose( VERBOSE_PREFIX_3 "%s will hangup at %s.\n", chan->name, timestr);
+				} else {
+					opbx_verbose( VERBOSE_PREFIX_3 "%s hangup cancelled.\n", chan->name);
+				} 
+			}
+			break;
 
-	switch (argv[0][0]) {
-	case 'a':
-	case 'A':
-		opbx_channel_setwhentohangup(chan, x);
-		if (option_verbose > 2) {
-			if (chan->whentohangup) {
-				strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S UTC", gmtime_r(&chan->whentohangup, &myt));
-				opbx_verbose( VERBOSE_PREFIX_3 "%s will hangup at %s.\n", chan->name, timestr);
-			} else {
-				opbx_verbose( VERBOSE_PREFIX_3 "%s hangup cancelled.\n", chan->name);
-			} 
+		case 'r':
+		case 'R':
+			if (chan->pbx) {
+				chan->pbx->rtimeout = x;
+				if (option_verbose > 2)
+					opbx_verbose( VERBOSE_PREFIX_3 "%s response timeout set to %d\n", chan->name, chan->pbx->rtimeout);
+			}
+			break;
+
+		case 'd':
+		case 'D':
+			if (chan->pbx) {
+				chan->pbx->dtimeout = x;
+				if (option_verbose > 2)
+					opbx_verbose( VERBOSE_PREFIX_3 "%s digit timeout set to %d\n", chan->name, chan->pbx->dtimeout);
+			}
+			break;
+
+		default:
+			return opbx_function_syntax(timeout_func_syntax);
 		}
-		break;
-
-	case 'r':
-	case 'R':
-		if (chan->pbx) {
-			chan->pbx->rtimeout = x;
-			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3 "%s response timeout set to %d\n", chan->name, chan->pbx->rtimeout);
-		}
-		break;
-
-	case 'd':
-	case 'D':
-		if (chan->pbx) {
-			chan->pbx->dtimeout = x;
-			if (option_verbose > 2)
-				opbx_verbose( VERBOSE_PREFIX_3 "%s digit timeout set to %d\n", chan->name, chan->pbx->dtimeout);
-		}
-		break;
-
-	default:
-		opbx_log(LOG_ERROR, "Unknown timeout type specified.\n");
-		break;
 	}
+	
+	if (buf) {
+		switch(argv[0][0]) {
+		case 'a':
+		case 'A':
+			if (chan->whentohangup == 0)
+				opbx_copy_string(buf, "0", len);
+			else
+				snprintf(buf, len, "%d", (int) (chan->whentohangup - time(NULL)));
+			break;
+
+		case 'r':
+		case 'R':
+			if (chan->pbx)
+				snprintf(buf, len, "%d", chan->pbx->rtimeout);
+			break;
+
+		case 'd':
+		case 'D':
+			if (chan->pbx)
+				snprintf(buf, len, "%d", chan->pbx->dtimeout);
+			break;
+
+		default:
+			return opbx_function_syntax(timeout_func_syntax);
+		}
+	}
+
+	return 0;
 }
 
 
-static char *tdesc = "string functions";
+static const char tdesc[] = "string functions";
 
-int unload_module(void)
+static int unload_module(void)
 {
         return opbx_unregister_function(timeout_function);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-        timeout_function = opbx_register_function(timeout_func_name, builtin_function_timeout_read, builtin_function_timeout_write, timeout_func_synopsis, timeout_func_syntax, timeout_func_desc);
+        timeout_function = opbx_register_function(timeout_func_name, builtin_function_timeout_rw, timeout_func_synopsis, timeout_func_syntax, timeout_func_desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 /*
 Local Variables:

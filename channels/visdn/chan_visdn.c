@@ -4864,7 +4864,7 @@ static struct opbx_cli_entry show_visdn_calls =
 
 /*---------------------------------------------------------------------------*/
 
-int load_module()
+static int load_module()
 {
 	// Initialize q.931 library.
 	// No worries, internal structures are read-only and thread safe
@@ -5034,13 +5034,8 @@ err_pipe_ccb_q931:
 	return -1;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-	visdn_ic_put(visdn.default_ic);
-	
-	visdn_disconnect_unregister();
-	visdn_overlap_unregister();
-
 	visdn_intf_cli_unregister();
 	visdn_hg_cli_unregister();
 
@@ -5055,6 +5050,16 @@ int unload_module(void)
 
 	opbx_channel_unregister(&visdn_tech);
 
+	return 0;
+}
+
+static int release_module(void)
+{
+	visdn_ic_put(visdn.default_ic);
+	
+	visdn_disconnect_unregister();
+	visdn_overlap_unregister();
+
 	q931_leave();
 
 	close(visdn.router_control_fd);
@@ -5063,24 +5068,12 @@ int unload_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	visdn_reload_config();
 
 	return 0;
 }
 
-int usecount()
-{
-	int res;
-	opbx_mutex_lock(&visdn.usecnt_lock);
-	res = visdn.usecnt;
-	opbx_mutex_unlock(&visdn.usecnt_lock);
-	return res;
-}
 
-char *description()
-{
-	return VISDN_DESCRIPTION;
-}
-
+MODULE_INFO(load_module, reload_module, unload_module, release_module, VISDN_DESCRIPTION)

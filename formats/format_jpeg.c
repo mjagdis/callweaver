@@ -47,7 +47,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/image.h"
 #include "callweaver/lock.h"
 
-static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
+static const char desc[] = "JPEG (Joint Picture Experts Group) Image Format";
 
 static struct opbx_frame *jpeg_read_image(int fd, int len)
 {
@@ -111,33 +111,24 @@ static int jpeg_write_image(int fd, struct opbx_frame *fr)
 
 static struct opbx_imager jpeg_format =
 {
-    "jpg",
-    "JPEG (Joint Picture Experts Group)",
-    "jpg|jpeg",
-    OPBX_FORMAT_JPEG,
-    jpeg_read_image,
-    jpeg_identify,
-    jpeg_write_image,
+	.name = "jpg",
+	.desc = "JPEG (Joint Picture Experts Group)",
+	.exts = "jpg|jpeg",
+	.format = OPBX_FORMAT_JPEG,
+	.read_image = jpeg_read_image,
+	.identify = jpeg_identify,
+	.write_image = jpeg_write_image,
 };
 
-int load_module(void)
+static int load_module(void)
 {
-    return opbx_image_register(&jpeg_format);
+	return opbx_image_register(&jpeg_format);
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    opbx_image_unregister(&jpeg_format);
-    return 0;
-}    
-
-int usecount(void)
-{
-    /* We never really have any users */
-    return 0;
+	return opbx_image_unregister(&jpeg_format);
 }
 
-char *description(void)
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

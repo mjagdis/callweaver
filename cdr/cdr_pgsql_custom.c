@@ -65,8 +65,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include <libpq-fe.h>
 
-static char *desc = "Custom PostgreSQL CDR Backend";
-static char *name = "pgsql_custom";
+static const char desc[] = "Custom PostgreSQL CDR Backend";
+static const char name[] = "pgsql_custom";
 
 OPBX_MUTEX_DEFINE_STATIC(pgsql_lock);
 #define CDR_PGSQL_CONF "cdr_pgsql_custom.conf"
@@ -218,59 +218,38 @@ static int pgsql_log(struct opbx_cdr *cdr)
 	return 0;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-static int my_unload_module(void)
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = pqsql_log,
+};
+
+
+static int unload_module(void)
 { 
-	opbx_cdr_unregister(name);
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-static int my_load_module(void)
+static int load_module(void)
 {
 	int res;
+
+	opbx_cdrbe_register(&cdrbe);
 
 	parse_config();
 	
 	pgsql_reconnect();
 
-	res = opbx_cdr_register(name, desc, pgsql_log);
-	if (res) {
-		opbx_log(LOG_ERROR, "Unable to register PGSQL CDR handling\n");
-	}
-
 	return res;
 }
 
-int load_module(void)
-{
-	return my_load_module();
-}
-
-int unload_module(void)
-{
-	return my_unload_module();
-}
-
-int reload(void)
+static int reload_module(void)
 {
 	my_unload_module();
 	return my_load_module();
 }
 
-int usecount(void)
-{
-	/* To be able to unload the module */
-	if ( opbx_mutex_trylock(&pgsql_lock) ) {
-		return 1;
-	} else {
-		opbx_mutex_unlock(&pgsql_lock);
-		return 0;
-	}
-}
 
-
-
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

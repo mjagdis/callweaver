@@ -48,40 +48,36 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/lock.h"
 
-static struct opbx_imager *list;
-OPBX_MUTEX_DEFINE_STATIC(listlock);
 
-int opbx_image_register(struct opbx_imager *img)
+static const char *imager_registry_obj_name(struct opbx_object *obj)
 {
-	if (option_verbose > 1)
-		opbx_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
-	opbx_mutex_lock(&listlock);
-	img->next = list;
-	list = img;
-	opbx_mutex_unlock(&listlock);
-	return 0;
+	struct opbx_imager *it = container_of(obj, struct opbx_imager, obj);
+	return it->name;
 }
 
-void opbx_image_unregister(struct opbx_imager *img)
+static int imager_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
 {
-	struct opbx_imager *i, *prev = NULL;
-	opbx_mutex_lock(&listlock);
-	i = list;
-	while(i) {
-		if (i == img) {
-			if (prev) 
-				prev->next = i->next;
-			else
-				list = i->next;
-			break;
-		}
-		prev = i;
-		i = i->next;
-	}
-	opbx_mutex_unlock(&listlock);
-	if (i && (option_verbose > 1))
-		opbx_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
+	struct opbx_imager *imager_a = container_of(a, struct opbx_imager, obj);
+	struct opbx_imager *imager_b = container_of(b, struct opbx_imager, obj);
+
+	return strcmp(imager_a->name, imager_b->name);
 }
+
+static int imager_registry_obj_match(struct opbx_object *obj, const void *pattern)
+{
+	struct opbx_imager *img = container_of(obj, struct opbx_imager, obj);
+	const int *format = pattern;
+	return !(img->format & *format);
+}
+
+struct opbx_registry imager_registry = {
+	.name = "Imager",
+	.obj_name = imager_registry_obj_name,
+	.obj_cmp = imager_registry_obj_cmp,
+	.obj_match = imager_registry_obj_match,
+	.lock = OPBX_MUTEX_INIT_VALUE,
+};
+
 
 int opbx_supports_images(struct opbx_channel *chan)
 {
@@ -117,60 +113,56 @@ static void make_filename(char *buf, int len, char *filename, char *preflang, ch
 	}
 }
 
-struct opbx_frame *opbx_read_image(char *filename, char *preflang, int format)
+struct read_image_args {
+	char *filename;
+	char *lang;
+	int format;
+	struct opbx_frame *frame;
+};
+
+static int read_image_try(struct opbx_object *obj, void *data)
 {
-	struct opbx_imager *i;
-	char buf[256];
-	char tmp[80];
-	char *e;
-	struct opbx_imager *found = NULL;
-	int fd;
-	int len=0;
-	struct opbx_frame *f = NULL;
-#if 0 /* We need to have some sort of read-only lock */
-	opbx_mutex_lock(&listlock);
-#endif	
-	i = list;
-	while(!found && i) {
-		if (i->format & format) {
-			char *stringp=NULL;
-			strncpy(tmp, i->exts, sizeof(tmp)-1);
-			stringp=tmp;
-			e = strsep(&stringp, "|,");
-			while(e) {
-				make_filename(buf, sizeof(buf), filename, preflang, e);
-				if ((len = file_exists(buf))) {
-					found = i;
-					break;
-				}
-				make_filename(buf, sizeof(buf), filename, NULL, e);
-				if ((len = file_exists(buf))) {
-					found = i;
-					break;
-				}
-				e = strsep(&stringp, "|,");
+	struct opbx_imager *img = container_of(obj, struct opbx_imager, obj);
+	struct read_image_args *args = data;
+
+	if (img->format & args->format) {
+		char *tmp = strdupa(img->exts);
+		char *stringp = tmp;
+		char *e;
+
+		while ((e = strsep(&stringp, "|,"))) {
+			char buf[OPBX_CONFIG_MAX_PATH];
+			size_t len;
+			make_filename(buf, sizeof(buf), args->filename, args->lang, e);
+			if ((len = file_exists(buf))) {
+				int fd = open(buf, O_RDONLY);
+				if (fd > -1) {
+					if (!img->identify || img->identify(fd)) {
+						lseek(fd, 0, SEEK_SET);
+						args->frame = img->read_image(fd, len); 
+					} else
+						opbx_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, img->name);
+					close(fd);
+				} else
+					opbx_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
+				return 1;
 			}
 		}
-		i = i->next;
 	}
-	if (found) {
-		fd = open(buf, O_RDONLY);
-		if (fd > -1) {
-			if (!found->identify || found->identify(fd)) {
-				/* Reset file pointer */
-				lseek(fd, 0, SEEK_SET);
-				f = found->read_image(fd,len); 
-			} else
-				opbx_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, i->name);
-			close(fd);
-		} else
-			opbx_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
-	} else
-		opbx_log(LOG_WARNING, "Image file '%s' not found\n", filename);
-#if 0
-	opbx_mutex_unlock(&listlock);
-#endif	
-	return f;
+
+	return 0;
+}
+
+struct opbx_frame *opbx_read_image(char *filename, char *lang, int format)
+{
+	struct read_image_args args = { filename, lang, format, NULL };
+
+	if (!opbx_registry_iterate(&imager_registry, read_image_try, &args)) {
+		args.lang = NULL;
+		if (!opbx_registry_iterate(&imager_registry, read_image_try, &args))
+			opbx_log(LOG_WARNING, "Image file '%s' not found\n", filename);
+	}
+	return args.frame;
 }
 
 
@@ -189,29 +181,35 @@ int opbx_send_image(struct opbx_channel *chan, char *filename)
 	return res;
 }
 
-static int show_image_formats(int fd, int argc, char *argv[])
-{
+
 #define FORMAT "%10s %10s %50s %10s\n"
 #define FORMAT2 "%10s %10s %50s %10s\n"
-	struct opbx_imager *i;
+
+static int imager_print(struct opbx_object *obj, void *data)
+{
+	struct opbx_imager *img = container_of(obj, struct opbx_imager, obj);
+	int *fd = data;
+
+	opbx_cli(*fd, FORMAT2, img->name, img->exts, img->desc, opbx_getformatname(img->format));
+	return 0;
+}
+
+static int show_image_formats(int fd, int argc, char *argv[])
+{
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	opbx_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	i = list;
-	while(i) {
-		opbx_cli(fd, FORMAT2, i->name, i->exts, i->desc, opbx_getformatname(i->format));
-		i = i->next;
-	};
+	opbx_registry_iterate(&imager_registry, imager_print, &fd);
 	return RESULT_SUCCESS;
 }
 
-struct opbx_cli_entry show_images =
-{
-	{ "show", "image", "formats" },
-	show_image_formats,
-	"Displays image formats",
-"Usage: show image formats\n"
-"       displays currently registered image formats (if any)\n"
+struct opbx_clicmd show_images = {
+	.cmda = { "show", "image", "formats" },
+	.handler = show_image_formats,
+	.summary = "Displays image formats",
+	.usage = "Usage: show image formats\n"
+	"       displays currently registered image formats (if any)\n",
 };
 
 
@@ -220,4 +218,3 @@ int opbx_image_init(void)
 	opbx_cli_register(&show_images);
 	return 0;
 }
-

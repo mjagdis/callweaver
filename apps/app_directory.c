@@ -45,13 +45,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/say.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Extension Directory";
+static const char tdesc[] = "Extension Directory";
 
 static void *directory_app;
-static char *directory_name = "Directory";
-static char *directory_synopsis = "Provide directory of voicemail extensions";
-static char *directory_syntax = "Directory(vm-context[, dial-context[, options]])";
-static char *directory_descrip =
+static const char directory_name[] = "Directory";
+static const char directory_synopsis[] = "Provide directory of voicemail extensions";
+static const char directory_syntax[] = "Directory(vm-context[, dial-context[, options]])";
+static const char directory_descrip[] =
 "Presents the user with a directory\n"
 "of extensions from which they  may  select  by name. The  list  of  names \n"
 "and  extensions  is discovered from  voicemail.conf. The  vm-context  argument\n"
@@ -73,9 +73,6 @@ static char *directory_descrip =
 /* How many digits to read in */
 #define NUMDIGITS 3
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static char *convert(char *lastname)
 {
@@ -165,13 +162,13 @@ static int play_mailbox_owner(struct opbx_channel *chan, char *context, char *di
 	snprintf(fn2, sizeof(fn2), "%s/vm/%s/greet",
 		(char *)opbx_config_OPBX_SPOOL_DIR, ext);
 
-	if (opbx_fileexists(fn, NULL, chan->language) > 0) {
+	if (opbx_fileexists(fn, NULL, chan->language)) {
 		res = opbx_streamfile(chan, fn, chan->language);
 		if (!res) {
 			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
 		}
 		opbx_stopstream(chan);
-	} else if (opbx_fileexists(fn2, NULL, chan->language) > 0) {
+	} else if (opbx_fileexists(fn2, NULL, chan->language)) {
 		res = opbx_streamfile(chan, fn2, chan->language);
 		if (!res) {
 			res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
@@ -408,7 +405,7 @@ static int do_directory(struct opbx_channel *chan, struct opbx_config *cfg, char
 	return res;
 }
 
-static int directory_exec(struct opbx_channel *chan, int argc, char **argv)
+static int directory_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct opbx_config *cfg;
@@ -416,10 +413,8 @@ static int directory_exec(struct opbx_channel *chan, int argc, char **argv)
 	int res = 0;
 	int last = 1;
 
-	if (argc < 1 || argc > 3) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", directory_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 3)
+		return opbx_function_syntax(directory_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -469,30 +464,19 @@ static int directory_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(directory_app);
+
+	res |= opbx_unregister_function(directory_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	directory_app = opbx_register_application(directory_name, directory_exec, directory_synopsis, directory_syntax, directory_descrip);
+	directory_app = opbx_register_function(directory_name, directory_exec, directory_synopsis, directory_syntax, directory_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

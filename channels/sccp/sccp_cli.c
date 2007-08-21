@@ -136,11 +136,11 @@ static int sccp_show_globals(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_globals = {
-  { "sccp", "show", "globals", NULL },
-  sccp_show_globals,
-  "Show SCCP global settings",
-  "Usage: sccp show globals\n"
+static struct opbx_clicmd cli_show_globals = {
+	.cmda = { "sccp", "show", "globals", NULL },
+	.handler = sccp_show_globals,
+	.summary = "Show SCCP global settings",
+	.usage = "Usage: sccp show globals\n",
 };
 
 /* ------------------------------------------------------------ */
@@ -214,28 +214,28 @@ static int sccp_show_device(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_device = {
-  { "sccp", "show", "device", NULL },
-  sccp_show_device,
-  "Show SCCP Device Information",
-  "Usage: sccp show device <deviceId>\n"
+static struct opbx_clicmd cli_show_device = {
+	.cmda = { "sccp", "show", "device", NULL },
+	.handler = sccp_show_device,
+	.summary = "Show SCCP Device Information",
+	.usage = "Usage: sccp show device <deviceId>\n",
 };
 
 /* ------------------------------------------------------------ */
 
 
-static struct opbx_cli_entry cli_reset = {
-  { "sccp", "reset", NULL },
-  sccp_reset_restart,
-  "Reset an SCCP device",
-  "Usage: sccp reset <deviceId>\n"
+static struct opbx_clicmd cli_reset = {
+	.cmda = { "sccp", "reset", NULL },
+	.handler = sccp_reset_restart,
+	.summary = "Reset an SCCP device",
+	.usage = "Usage: sccp reset <deviceId>\n",
 };
 
-static struct opbx_cli_entry cli_restart = {
-	{ "sccp", "restart", NULL },
-	sccp_reset_restart,
-	"Reset an SCCP device",
-	"Usage: sccp restart <deviceId>\n"
+static struct opbx_clicmd cli_restart = {
+	.cmda = { "sccp", "restart", NULL },
+	.handler = sccp_reset_restart,
+	.summary = "Reset an SCCP device",
+	.usage = "Usage: sccp restart <deviceId>\n",
 };
 
 /* ------------------------------------------------------------ */
@@ -262,11 +262,11 @@ static int sccp_show_channels(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_channels = {
-	{ "sccp", "show", "channels", NULL },
-	sccp_show_channels,
-	"Show all SCCP channels",
-	"Usage: sccp show channel\n",
+static struct opbx_clicmd cli_show_channels = {
+	.cmda = { "sccp", "show", "channels", NULL },
+	.handler = sccp_show_channels,
+	.summary = "Show all SCCP channels",
+	.usage = "Usage: sccp show channel\n",
 };
 
 /* ------------------------------------------------------------ */
@@ -293,11 +293,11 @@ static int sccp_show_devices(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_devices = {
-	{ "sccp", "show", "devices", NULL },
-	sccp_show_devices,
-	"Show all SCCP Devices",
-	"Usage: sccp show devices\n"
+static struct opbx_clicmd cli_show_devices = {
+	.cmda = { "sccp", "show", "devices", NULL },
+	.handler = sccp_show_devices,
+	.summary = "Show all SCCP Devices",
+	.usage = "Usage: sccp show devices\n",
 };
 
 static int sccp_message_devices(int fd, int argc, char * argv[]) {
@@ -324,11 +324,11 @@ static int sccp_message_devices(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_message_devices = {
-  { "sccp", "message", "devices", NULL },
-  sccp_message_devices,
-  "Send a message to all SCCP Devices",
-  "Usage: sccp messages devices <message text> <timeout>\n"
+static struct opbx_clicmd cli_message_devices = {
+  .cmda = { "sccp", "message", "devices", NULL },
+  .handler = sccp_message_devices,
+  .summary = "Send a message to all SCCP Devices",
+  .usage = "Usage: sccp messages devices <message text> <timeout>\n",
 };
 
 
@@ -381,11 +381,11 @@ static int sccp_show_lines(int fd, int argc, char * argv[]) {
   return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_lines = {
-  { "sccp", "show", "lines", NULL },
-  sccp_show_lines,
-  "Show All SCCP Lines",
-  "Usage: sccp show lines\n"
+static struct opbx_clicmd cli_show_lines = {
+  .cmda = { "sccp", "show", "lines", NULL },
+  .handler = sccp_show_lines,
+  .summary = "Show All SCCP Lines",
+  .usage = "Usage: sccp show lines\n",
 };
 
 /* ------------------------------------------------------------ */
@@ -422,11 +422,11 @@ static int sccp_show_sessions(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_sessions = {
-  { "sccp", "show", "sessions", NULL },
-  sccp_show_sessions,
-  "Show All SCCP Sessions",
-  "Usage: sccp show sessions\n"
+static struct opbx_clicmd cli_show_sessions = {
+  .cmda = { "sccp", "show", "sessions", NULL },
+  .handler = sccp_show_sessions,
+  .summary = "Show All SCCP Sessions",
+  .usage = "Usage: sccp show sessions\n"
 };
 
 /* ------------------------------------------------------------ */
@@ -470,11 +470,11 @@ static int sccp_system_message(int fd, int argc, char * argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_system_message = {
-   { "sccp", "system", "message", NULL },
-   sccp_system_message,
-   "Set the SCCP system message",
-   "Usage: sccp system message \"<message text>\" <timeout>\nThe default optional timeout is 0 (forever)\nExample: sccp system message \"The boss is gone. Let's have some fun!\"  10\n"
+static struct opbx_clicmd cli_system_message = {
+   .cmda = { "sccp", "system", "message", NULL },
+   .handler = sccp_system_message,
+   .summary = "Set the SCCP system message",
+   .usage = "Usage: sccp system message \"<message text>\" <timeout>\nThe default optional timeout is 0 (forever)\nExample: sccp system message \"The boss is gone. Let's have some fun!\"  10\n"
 };
 
 /* ------------------------------------------------------------ */
@@ -505,11 +505,12 @@ static int sccp_do_debug(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_do_debug = {
-  { "sccp", "debug", NULL },
-  sccp_do_debug,
-  "Enable SCCP debugging",
-  debug_usage };
+static struct opbx_clicmd cli_do_debug = {
+  .cmda = { "sccp", "debug", NULL },
+  .handler = sccp_do_debug,
+  .summary = "Enable SCCP debugging",
+  .usage = debug_usage,
+};
 
 static int sccp_no_debug(int fd, int argc, char *argv[]) {
 	if (argc != 3)
@@ -520,11 +521,12 @@ static int sccp_no_debug(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_no_debug = {
-  { "sccp", "no", "debug", NULL },
-  sccp_no_debug,
-  "Disable SCCP debugging",
-  no_debug_usage };
+static struct opbx_clicmd cli_no_debug = {
+  .cmda = { "sccp", "no", "debug", NULL },
+  .handler = sccp_no_debug,
+  .summary = "Disable SCCP debugging",
+  .usage = no_debug_usage,
+};
 
 static int sccp_do_reload(int fd, int argc, char *argv[]) {
 	opbx_cli(fd, "SCCP configuration reload not implemented yet! use unload and load.\n");
@@ -535,11 +537,12 @@ static char reload_usage[] =
 "Usage: sccp reload\n"
 "		Reloads SCCP configuration from sccp.conf (It will close all active connections)\n";
 
-static struct opbx_cli_entry cli_reload = {
-  { "sccp", "reload", NULL },
-  sccp_do_reload,
-  "SCCP module reload",
-  reload_usage };
+static struct opbx_clicmd cli_reload = {
+  .cmda = { "sccp", "reload", NULL },
+  .handler = sccp_do_reload,
+  .summary = "SCCP module reload",
+  .usage = reload_usage,
+};
 
 static char version_usage[] =
 "Usage: SCCP show version\n"
@@ -550,13 +553,14 @@ static int sccp_show_version(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static struct opbx_cli_entry cli_show_version = {
-  { "sccp", "show", "version", NULL },
-  sccp_show_version,
-  "SCCP show version",
-  version_usage };
+static struct opbx_clicmd cli_show_version = {
+  .cmda = { "sccp", "show", "version", NULL },
+  .handler = sccp_show_version,
+  .summary = "SCCP show version",
+  .usage = version_usage,
+};
 
-void sccp_register_cli(void) {
+void sccp_register_cli(struct module *module) {
   opbx_cli_register(&cli_show_channels);
   opbx_cli_register(&cli_show_devices);
   opbx_cli_register(&cli_show_lines);

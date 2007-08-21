@@ -50,13 +50,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/chanvars.h"
 
 
-static const char *tdesc = "Page Multiple Phones";
+static const char tdesc[] = "Page Multiple Phones";
 
 static void *page_app;
-static const char *page_name = "Page";
-static const char *page_synopsis = "Pages phones";
-static const char *page_syntax = "Page(Technology/Resource&Technology2/Resource2[, options])";
-static const char *page_descrip =
+static const char page_name[] = "Page";
+static const char page_synopsis[] = "Pages phones";
+static const char page_syntax[] = "Page(Technology/Resource&Technology2/Resource2[, options])";
+static const char page_descrip[] =
 "  Places outbound calls to the given technology / resource and dumps\n"
 "them into a conference bridge as muted participants.  The original\n"
 "caller is dumped into the conference as a speaker and the room is\n"
@@ -64,9 +64,8 @@ static const char *page_descrip =
 "        d - full duplex audio\n"
 "	 q - quiet, do not play beep to caller\n";
 
-STANDARD_LOCAL_USER;
+static unsigned int hash_nconference;
 
-LOCAL_USER_DECL;
 
 enum {
 	PAGE_DUPLEX = (1 << 0),
@@ -133,35 +132,26 @@ static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, 
 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(&t, &attr, page_thread, cd)) {
+		if (opbx_pthread_create(get_modinfo()->self, &t, &attr, page_thread, cd)) {
 			opbx_log(LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
 			free(cd);
 		}
 	}
 }
 
-static int page_exec(struct opbx_channel *chan, int argc, char **argv)
+static int page_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *tech, *resource;
 	char nconferenceopts[80];
 	unsigned char flags;
 	unsigned int confid = rand();
-	struct opbx_app *app;
 	int res=0;
 
-	if (argc < 1 || argc > 2) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", page_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 2)
+		return opbx_function_syntax(page_syntax);
 
 	LOCAL_USER_ADD(u);
-
-	if (!(app = pbx_findapp("NConference"))) {
-		opbx_log(LOG_WARNING, "There is no NConference application available!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	};
 
 	flags = 0;
 	if (argc > 1) {
@@ -189,7 +179,7 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 	}
 	if (!res) {
 		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
-		pbx_exec(chan, app, nconferenceopts);
+		opbx_function_exec_str(chan, hash_nconference, "NConference", nconferenceopts, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -197,30 +187,21 @@ static int page_exec(struct opbx_channel *chan, int argc, char **argv)
 	return -1;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	res |=  opbx_unregister_application(page_app);
-	STANDARD_HANGUP_LOCALUSERS;
+
+	res |=  opbx_unregister_function(page_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	page_app = opbx_register_application(page_name, page_exec, page_synopsis, page_syntax, page_descrip);
+	hash_nconference = opbx_hash_app_name("NConference");
+
+	page_app = opbx_register_function(page_name, page_exec, page_synopsis, page_syntax, page_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *) tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

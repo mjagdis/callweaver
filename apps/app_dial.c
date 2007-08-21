@@ -59,13 +59,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 #include "callweaver/privacy.h"
 
-static char *tdesc = "Dialing Application";
+static const char tdesc[] = "Dialing Application";
 
 static void *dial_app;
-static const char *dial_name = "Dial";
-static const char *dial_synopsis = "Place a call and connect to the current channel";
-static const char *dial_syntax = "Dial(Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
-static const char *dial_descrip =
+static const char dial_name[] = "Dial";
+static const char dial_synopsis[] = "Place a call and connect to the current channel";
+static const char dial_syntax[] = "Dial(Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
+static const char dial_descrip[] =
 "Requests one or more channels and places specified outgoing calls on them.\n"
 "As soon as a channel answers, the Dial app will answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
@@ -145,10 +145,10 @@ static const char *dial_descrip =
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static void *retrydial_app;
-static const char *retrydial_name = "RetryDial";
-static const char *retrydial_synopsis = "Place a call, retrying on failure allowing optional exit extension.";
-static const char *retrydial_syntax = "RetryDial(announce, sleep, loops, Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
-static const char *retrydial_descrip =
+static const char retrydial_name[] = "RetryDial";
+static const char retrydial_synopsis[] = "Place a call, retrying on failure allowing optional exit extension.";
+static const char retrydial_syntax[] = "RetryDial(announce, sleep, loops, Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
+static const char retrydial_descrip[] =
 "Attempt to place a call.  If no channel can be reached, play the file defined by 'announce'\n"
 "waiting 'sleep' seconds to retry the call.  If the specified number of attempts matches \n"
 "'loops' the call will continue in the dialplan.  If 'loops' is set to 0, the call will retry endlessly.\n\n"
@@ -158,10 +158,8 @@ static const char *retrydial_descrip =
 "All arguments after 'loops' are passed directly to the Dial() application.\n"
 "";
 
+static unsigned int hash_proc;
 
-/* We define a customer "local user" structure because we
-   use it not only for keeping track of what is in use but
-   also for keeping track of who we're dialing. */
 
 #define DIAL_STILLGOING			(1 << 0)
 #define DIAL_ALLOWREDIRECT_IN		(1 << 1)
@@ -178,19 +176,18 @@ static const char *retrydial_descrip =
 #define DIAL_PRESERVE_CALLERID		(1 << 12)
 #define DIAL_NOFORWARDHTML		(1 << 13)
 
-struct localuser {
+struct outchan {
 	struct opbx_channel *chan;
 	unsigned int flags;
 	int forwards;
-	struct localuser *next;
+	struct outchan *next;
 };
 
-LOCAL_USER_DECL;
 
-static void hanguptree(struct localuser *outgoing, struct opbx_channel *exception)
+static void hanguptree(struct outchan *outgoing, struct opbx_channel *exception)
 {
 	/* Hang up a tree of stuff */
-	struct localuser *oo;
+	struct outchan *oo;
 	while (outgoing) {
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception))
@@ -282,9 +279,9 @@ static void senddialevent(struct opbx_channel *src, struct opbx_channel *dst)
 			   dst->uniqueid);
 }
 
-static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct localuser *outgoing, int *to, struct opbx_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
+static struct opbx_channel *wait_for_answer(struct opbx_channel *in, struct outchan *outgoing, int *to, struct opbx_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
-	struct localuser *o;
+	struct outchan *o;
 	int found;
 	int numlines;
 	int numbusy = busystart;
@@ -638,7 +635,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	char privintro[1024];
 	char  announcemsg[256] = "", *ann;
 	int inputkey;
-	struct localuser *outgoing=NULL, *tmp;
+	struct outchan *outgoing=NULL, *tmp;
 	struct opbx_channel *peer;
 	int to;
 	int hasmacro = 0;
@@ -686,13 +683,10 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 	char *proc_result = NULL, *proc_transfer_dest = NULL;
 	int digit = 0, result = 0;
 	time_t start_time, answer_time, end_time;
-	struct opbx_app *app = NULL;
 	char *dblgoto = NULL;
 
-	if (argc < 1 || argc > 4) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", dial_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 4)
+		return opbx_function_syntax(dial_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -993,7 +987,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			/* make sure the priv-callerintros dir exists? */
 
 			snprintf(privintro,sizeof(privintro),"priv-callerintros/%s", privcid);
-			if( opbx_fileexists(privintro,NULL,NULL ) > 0 && strncmp(privcid,"NOCALLERID",10) != 0) {
+			if( opbx_fileexists(privintro,NULL,NULL ) && strncmp(privcid,"NOCALLERID",10) != 0) {
 				/* the DELUX version of this code would allow this caller the
 				   option to hear and retape their previously recorded intro.
 				*/
@@ -1014,7 +1008,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				if (res == -1) {
 					/* Delete the file regardless since they hung up during recording */
                                         opbx_filedelete(privintro, NULL);
-                                        if( opbx_fileexists(privintro,NULL,NULL ) > 0 )
+                                        if( opbx_fileexists(privintro,NULL,NULL ) )
                                                 opbx_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
                                         else if (option_verbose > 2)
                                                 opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
@@ -1046,12 +1040,12 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		}
 		*number = '\0';
 		number++;
-		tmp = malloc(sizeof(struct localuser));
+		tmp = malloc(sizeof(struct outchan));
 		if (!tmp) {
 			opbx_log(LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
-		memset(tmp, 0, sizeof(struct localuser));
+		memset(tmp, 0, sizeof(struct outchan));
 		if (options) {
 			opbx_set2_flag(tmp, strchr(options, 't'), DIAL_ALLOWREDIRECT_IN);
 			opbx_set2_flag(tmp, strchr(options, 'T'), DIAL_ALLOWREDIRECT_OUT);
@@ -1453,7 +1447,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				   just clog things up, and it's not useful information, not being tied to a CID */
 				if( strncmp(privcid,"NOCALLERID",10) == 0 || no_save_intros ) {
 					opbx_filedelete(privintro, NULL);
-					if( opbx_fileexists(privintro,NULL,NULL ) > 0 )
+					if( opbx_fileexists(privintro,NULL,NULL ) )
 						opbx_log(LOG_NOTICE,"privacy: opbx_filedelete didn't do its job on %s\n", privintro);
 					else if (option_verbose > 2)
 						opbx_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
@@ -1501,18 +1495,12 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				res = -1;
 			}
 
-			app = pbx_findapp("Proc");
-
-			if (app && !res) {
+			if (!res) {
 				for (res = 0;  res < strlen(proc_name);  res++)
 					if (proc_name[res] == '^')
 						proc_name[res] = ',';
-				res = pbx_exec(peer, app, proc_name);
-				opbx_log(LOG_DEBUG, "Proc exited with status %d\n", res);
+				res = opbx_function_exec_str(peer, hash_proc, "Proc", proc_name, NULL, 0);
 				res = 0;
-			} else {
-				opbx_log(LOG_ERROR, "Could not find application Proc\n");
-				res = -1;
 			}
 
 			if (opbx_autoservice_stop(chan) < 0) {
@@ -1662,24 +1650,22 @@ out:
 	return res;
 }
 
-static int dial_exec(struct opbx_channel *chan, int argc, char **argv)
+static int dial_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct opbx_flags peerflags;
 	memset(&peerflags, 0, sizeof(peerflags));
 	return dial_exec_full(chan, argc, argv, &peerflags);
 }
 
-static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv)
+static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *announce = NULL, *context = NULL;
 	int sleep = 0, loops = 0, res = 0;
 	struct localuser *u;
 	struct opbx_flags peerflags;
 	
-	if (argc < 4 || argc > 7) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", retrydial_syntax);
-		return -1;
-	}	
+	if (argc < 4 || argc > 7)
+		return opbx_function_syntax(retrydial_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -1738,32 +1724,23 @@ static int retrydial_exec(struct opbx_channel *chan, int argc, char **argv)
 
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(dial_app);
-	res |= opbx_unregister_application(retrydial_app);
+
+	res |= opbx_unregister_function(dial_app);
+	res |= opbx_unregister_function(retrydial_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	dial_app = opbx_register_application(dial_name, dial_exec, dial_synopsis, dial_syntax, dial_descrip);
-	retrydial_app = opbx_register_application(retrydial_name, retrydial_exec, retrydial_synopsis, retrydial_syntax, retrydial_descrip);
+	hash_proc = opbx_hash_app_name("Proc");
+
+	dial_app = opbx_register_function(dial_name, dial_exec, dial_synopsis, dial_syntax, dial_descrip);
+	retrydial_app = opbx_register_function(retrydial_name, retrydial_exec, retrydial_synopsis, retrydial_syntax, retrydial_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

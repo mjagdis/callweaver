@@ -20,7 +20,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "snmp/agent.h"
 
-static char *tdesc = "SNMP [Sub]Agent for Callweaver";
+
+static const char tdesc[] = "SNMP [Sub]Agent for Callweaver";
 
 static pthread_t thread = OPBX_PTHREADT_NULL;
 
@@ -86,7 +87,7 @@ static int load_config(void)
 	return 1;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	if (!load_config())
 		return -1;
@@ -95,11 +96,11 @@ int load_module(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create(&thread, NULL, agent_thread, NULL);
+		return opbx_pthread_create(get_modinfo()->self, &thread, NULL, agent_thread, NULL);
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	opbx_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
@@ -107,7 +108,7 @@ int unload_module(void)
 	return ((thread != OPBX_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	opbx_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
@@ -119,17 +120,15 @@ int reload(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create(&thread, NULL, agent_thread, NULL);
+		return opbx_pthread_create(get_modinfo()->self, &thread, NULL, agent_thread, NULL);
 	return 0;
 }
 
-int usecount(void)
-{
-	return 0;
-}
 
 char *description (void)
 {
-	return tdesc;
+	return (char *)tdesc;
 }
 
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

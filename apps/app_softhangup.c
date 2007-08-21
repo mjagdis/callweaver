@@ -42,23 +42,19 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 
-static char *tdesc = "Hangs up the requested channel";
+static const char tdesc[] = "Hangs up the requested channel";
 
 static void *softhangup_app;
-static const char *softhangup_name = "SoftHangup";
-static const char *softhangup_synopsis = "Soft Hangup Application";
-static const char *softhangup_syntax = "SoftHangup([Technology/resource[, options]])";
-static const char *softhangup_descrip =
+static const char softhangup_name[] = "SoftHangup";
+static const char softhangup_synopsis[] = "Soft Hangup Application";
+static const char softhangup_syntax[] = "SoftHangup([Technology/resource[, options]])";
+static const char softhangup_descrip[] =
 "Hangs up the requested channel.  Always returns 0\n"
 "- 'options' may contain the following letter:\n"
 "     'a' : hang up all channels on a specified device instead of a single resource\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv)
+static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct opbx_channel *c=NULL;
@@ -109,30 +105,19 @@ static int softhangup_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(softhangup_app);
+
+	res |= opbx_unregister_function(softhangup_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	softhangup_app = opbx_register_application(softhangup_name, softhangup_exec, softhangup_synopsis, softhangup_syntax, softhangup_descrip);
+	softhangup_app = opbx_register_function(softhangup_name, softhangup_exec, softhangup_synopsis, softhangup_syntax, softhangup_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

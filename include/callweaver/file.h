@@ -23,14 +23,61 @@
 #ifndef _CALLWEAVER_FILE_H
 #define _CALLWEAVER_FILE_H
 
+#include <fcntl.h>
+
 #include "callweaver/channel.h"
 #include "callweaver/frame.h"
-#include <fcntl.h>
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+
+struct opbx_format {
+	struct opbx_object obj;
+	struct opbx_registry_entry format_entry;
+	/* Name of format */
+	char *name;
+	/* Extensions (separated by | if more than one) 
+	   this format can read.  First is assumed for writing (e.g. .mp3) */
+	char *exts;
+	/* Format of frames it uses/provides (one only) */
+	int format;
+	/* Open an input stream, and start playback */
+	struct opbx_filestream * (*open)(FILE * f);
+	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
+	struct opbx_filestream * (*rewrite)(FILE *f, const char *comment);
+	/* Write a frame to a channel */
+	int (*write)(struct opbx_filestream *, struct opbx_frame *);
+	/* seek num samples into file, whence(think normal seek) */
+	int (*seek)(struct opbx_filestream *, long offset, int whence);
+	/* trunc file to current position */
+	int (*trunc)(struct opbx_filestream *fs);
+	/* tell current position */
+	long (*tell)(struct opbx_filestream *fs);
+	/* Read the next frame from the filestream (if available) and report when to get next one
+		(in samples) */
+	struct opbx_frame * (*read)(struct opbx_filestream *, int *whennext);
+	/* Close file, and destroy filestream structure */
+	void (*close)(struct opbx_filestream *);
+	/* Retrieve file comment */
+	char * (*getcomment)(struct opbx_filestream *);
+};
+
+extern struct opbx_registry format_registry;
+
+
+#define opbx_format_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
+	__ptr->format_entry.obj = &__ptr->obj; \
+	opbx_registry_add(&format_registry, &__ptr->format_entry); \
+})
+#define opbx_format_unregister(ptr)	opbx_registry_del(&format_registry, &(ptr)->format_entry)
 
 
 /*! Convenient for waiting */
@@ -43,29 +90,6 @@ extern "C" {
    pointer for use by the stream manager */
 struct opbx_filestream;
 
-/*! Registers a new file format */
-/*! Register a new file format capability
- * Adds a format to callweaver's format abilities.  Fill in the fields, and it will work. For examples, look at some of the various format code.
- * returns 0 on success, -1 on failure
- */
-int opbx_format_register(const char *name, const char *exts, int format,
-						struct opbx_filestream * (*open)(FILE *f),
-						struct opbx_filestream * (*rewrite)(FILE *f, const char *comment),
-						int (*write)(struct opbx_filestream *, struct opbx_frame *),
-						int (*seek)(struct opbx_filestream *, long offset, int whence),
-						int (*trunc)(struct opbx_filestream *),
-						long (*tell)(struct opbx_filestream *),
-						struct opbx_frame * (*read)(struct opbx_filestream *, int *timetonext),
-						void (*close)(struct opbx_filestream *),
-						char * (*getcomment)(struct opbx_filestream *));
-	
-/*! Unregisters a file format */
-/*!
- * \param name the name of the format you wish to unregister
- * Unregisters a format based on the name of the format.
- * Returns 0 on success, -1 on failure to unregister
- */
-int opbx_format_unregister(const char *name);
 
 /*! Streams a file */
 /*!
@@ -92,7 +116,7 @@ int opbx_stopstream(struct opbx_channel *c);
  * \param fmt the format you wish to check (the extension)
  * \param preflang (the preferred language you wisht to find the file in)
  * See if a given file exists in a given format.  If fmt is NULL,  any format is accepted.
- * Returns -1 if file does not exist, non-zero positive otherwise.
+ * Returns 0 if file does not exist, non-zero positive otherwise (actually a bit vector of available formats).
  */
 int opbx_fileexists(const char *filename, const char *fmt, const char *preflang);
 
@@ -266,6 +290,22 @@ int opbx_seekstream(struct opbx_filestream *fs, long sample_offset, int whence);
  * Returns 0 for success, or -1 for error
  */
 int opbx_truncstream(struct opbx_filestream *fs);
+
+/*! Fast forward stream ms */
+/*!
+ * \param opbx_filestream fs filestream to act on
+ * \param ms milliseconds to move
+ * Returns 0 for success, or -1 for error
+ */
+int opbx_stream_fastforward(struct opbx_filestream *fs, long ms);
+
+/*! Rewind stream ms */
+/*!
+ * \param opbx_filestream fs filestream to act on
+ * \param ms milliseconds to move
+ * Returns 0 for success, or -1 for error
+ */
+int opbx_stream_rewind(struct opbx_filestream *fs, long ms);
 
 /*! Fast forward stream ms */
 /*!

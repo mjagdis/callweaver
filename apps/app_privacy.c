@@ -49,13 +49,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define PRIV_CONFIG "privacy.conf"
 
-static char *tdesc = "Require phone number to be entered, if no CallerID sent";
+static const char tdesc[] = "Require phone number to be entered, if no CallerID sent";
 
 static void *privacy_app;
-static char *privacy_name = "PrivacyManager";
-static char *privacy_synopsis = "Require phone number to be entered, if no CallerID sent";
-static char *privacy_syntax = "PrivacyManager()";
-static char *privacy_descrip =
+static const char privacy_name[] = "PrivacyManager";
+static const char privacy_synopsis[] = "Require phone number to be entered, if no CallerID sent";
+static const char privacy_syntax[] = "PrivacyManager()";
+static const char privacy_descrip[] =
   "If no Caller*ID was received, PrivacyManager answers the\n"
   "channel and asks the caller to enter their phone number.\n"
   "The caller is given the configured attempts.  If after the attempts, they do not enter\n"
@@ -67,13 +67,8 @@ static char *privacy_descrip =
   "   minlength   default 10 -minimum allowable digits in the input callerid number.\n"
 ;
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-
-
-static int privacy_exec (struct opbx_channel *chan, int argc, char **argv)
+static int privacy_exec (struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char phone[30];
 	struct localuser *u;
@@ -166,33 +161,27 @@ static int privacy_exec (struct opbx_channel *chan, int argc, char **argv)
   return 0;
 }
 
-int
+static int
 unload_module (void)
 {
   int res = 0;
-  STANDARD_HANGUP_LOCALUSERS;
-  res |= opbx_unregister_application (privacy_app);
+
+  res |= opbx_unregister_function (privacy_app);
   return res;
 }
 
-int
+static int
 load_module (void)
 {
-	privacy_app = opbx_register_application(privacy_name, privacy_exec, privacy_synopsis, privacy_syntax, privacy_descrip);
+	privacy_app = opbx_register_function(privacy_name, privacy_exec, privacy_synopsis, privacy_syntax, privacy_descrip);
 	return 0;
 }
 
 char *
 description (void)
 {
-  return tdesc;
+  return (char *)tdesc;
 }
 
-int
-usecount (void)
-{
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
-}
 
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

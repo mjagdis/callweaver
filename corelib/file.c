@@ -53,36 +53,28 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/pbx.h"
 
-struct opbx_format {
-	/* Name of format */
-	char name[80];
-	/* Extensions (separated by | if more than one) 
-	   this format can read.  First is assumed for writing (e.g. .mp3) */
-	char exts[80];
-	/* Format of frames it uses/provides (one only) */
-	int format;
-	/* Open an input stream, and start playback */
-	struct opbx_filestream * (*open)(FILE * f);
-	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
-	struct opbx_filestream * (*rewrite)(FILE *f, const char *comment);
-	/* Write a frame to a channel */
-	int (*write)(struct opbx_filestream *, struct opbx_frame *);
-	/* seek num samples into file, whence(think normal seek) */
-	int (*seek)(struct opbx_filestream *, long offset, int whence);
-	/* trunc file to current position */
-	int (*trunc)(struct opbx_filestream *fs);
-	/* tell current position */
-	long (*tell)(struct opbx_filestream *fs);
-	/* Read the next frame from the filestream (if available) and report when to get next one
-		(in samples) */
-	struct opbx_frame * (*read)(struct opbx_filestream *, int *whennext);
-	/* Close file, and destroy filestream structure */
-	void (*close)(struct opbx_filestream *);
-	/* Retrieve file comment */
-	char * (*getcomment)(struct opbx_filestream *);
-	/* Link */
-	struct opbx_format *next;
+
+static const char *format_registry_obj_name(struct opbx_object *obj)
+{
+	struct opbx_format *it = container_of(obj, struct opbx_format, obj);
+	return it->name;
+}
+
+static int format_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+{
+	struct opbx_format *format_a = container_of(a, struct opbx_format, obj);
+	struct opbx_format *format_b = container_of(b, struct opbx_format, obj);
+
+	return strcmp(format_a->name, format_b->name);
+}
+
+struct opbx_registry format_registry = {
+	.name = "Format",
+	.obj_name = format_registry_obj_name,
+	.obj_cmp = format_registry_obj_cmp,
+	.lock = OPBX_MUTEX_INIT_VALUE,
 };
+
 
 struct opbx_filestream {
 	/* Everybody reserves a block of OPBX_RESERVED_POINTERS pointers for us */
@@ -101,87 +93,6 @@ struct opbx_filestream {
 	struct opbx_channel *owner;
 };
 
-OPBX_MUTEX_DEFINE_STATIC(formatlock);
-
-static struct opbx_format *formats = NULL;
-
-int opbx_format_register(const char *name, const char *exts, int format,
-						struct opbx_filestream * (*open)(FILE *f),
-						struct opbx_filestream * (*rewrite)(FILE *f, const char *comment),
-						int (*write)(struct opbx_filestream *, struct opbx_frame *),
-						int (*seek)(struct opbx_filestream *, long sample_offset, int whence),
-						int (*trunc)(struct opbx_filestream *),
-						long (*tell)(struct opbx_filestream *),
-						struct opbx_frame * (*read)(struct opbx_filestream *, int *whennext),
-						void (*close)(struct opbx_filestream *),
-						char * (*getcomment)(struct opbx_filestream *))
-{
-	struct opbx_format *tmp;
-	if (opbx_mutex_lock(&formatlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock format list\n");
-		return -1;
-	}
-	tmp = formats;
-	while(tmp) {
-		if (!strcasecmp(name, tmp->name)) {
-			opbx_mutex_unlock(&formatlock);
-			opbx_log(LOG_WARNING, "Tried to register '%s' format, already registered\n", name);
-			return -1;
-		}
-		tmp = tmp->next;
-	}
-	tmp = malloc(sizeof(struct opbx_format));
-	if (!tmp) {
-		opbx_log(LOG_WARNING, "Out of memory\n");
-		opbx_mutex_unlock(&formatlock);
-		return -1;
-	}
-	opbx_copy_string(tmp->name, name, sizeof(tmp->name));
-	opbx_copy_string(tmp->exts, exts, sizeof(tmp->exts));
-	tmp->open = open;
-	tmp->rewrite = rewrite;
-	tmp->read = read;
-	tmp->write = write;
-	tmp->seek = seek;
-	tmp->trunc = trunc;
-	tmp->tell = tell;
-	tmp->close = close;
-	tmp->format = format;
-	tmp->getcomment = getcomment;
-	tmp->next = formats;
-	formats = tmp;
-	opbx_mutex_unlock(&formatlock);
-	if (option_verbose > 1)
-		opbx_verbose( VERBOSE_PREFIX_2 "Registered file format %s, extension(s) %s\n", name, exts);
-	return 0;
-}
-
-int opbx_format_unregister(const char *name)
-{
-	struct opbx_format *tmp, *tmpl = NULL;
-	if (opbx_mutex_lock(&formatlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock format list\n");
-		return -1;
-	}
-	tmp = formats;
-	while(tmp) {
-		if (!strcasecmp(name, tmp->name)) {
-			if (tmpl) 
-				tmpl->next = tmp->next;
-			else
-				formats = tmp->next;
-			free(tmp);
-			opbx_mutex_unlock(&formatlock);
-			if (option_verbose > 1)
-				opbx_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
-			return 0;
-		}
-		tmpl = tmp;
-		tmp = tmp->next;
-	}
-	opbx_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
-	return -1;
-}
 
 int opbx_stopstream(struct opbx_channel *tmp)
 {
@@ -347,140 +258,116 @@ static int exts_compare(const char *exts, const char *type)
 #define ACTION_OPEN   4
 #define ACTION_COPY   5
 
+struct filehelper_args {
+	const char *filename;
+	const char *filename2;
+	const char *fmt;
+	int action;
+	int res;
+};
+
+static int filehelper_one(struct opbx_object *obj, void *data)
+{
+	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct filehelper_args *args = data;
+	struct opbx_filestream *s;
+	FILE *bfile;
+
+	/* Check for a specific format */
+	if (!args->fmt || exts_compare(f->exts, args->fmt)) {
+		char *exts = opbx_strdupa(f->exts);
+		char *ext;
+		/* Try each kind of extension */
+		for (ext = strsep(&exts, "|,"); ext; ext = strsep(&exts, "|,")) {
+			char *fn;
+			if ((fn = build_filename(args->filename, ext))) {
+				struct stat st;
+				char *nfn;
+				if (!stat(fn, &st)) {
+					switch (args->action) {
+					case ACTION_EXISTS:
+						args->res |= f->format;
+						break;
+					case ACTION_DELETE:
+						if (unlink(fn)) {
+							args->res = -1;
+							opbx_log(LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
+						}
+						break;
+					case ACTION_RENAME:
+						if ((nfn = build_filename(args->filename2, ext))) {
+							if (rename(fn, nfn)) {
+								args->res = -1;
+								opbx_log(LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+							}
+							free(nfn);
+						} else {
+							args->res = -1;
+							opbx_log(LOG_WARNING, "Out of memory\n");
+						}
+						break;
+					case ACTION_COPY:
+						if ((nfn = build_filename(args->filename2, ext))) {
+							if (copy(fn, nfn)) {
+								args->res = -1;
+								opbx_log(LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+							}
+							free(nfn);
+						} else {
+							args->res = -1;
+							opbx_log(LOG_WARNING, "Out of memory\n");
+						}
+						break;
+					case ACTION_OPEN: {
+						struct opbx_channel *chan = (struct opbx_channel *)args->filename2;
+						if (((chan->writeformat & f->format) || ((f->format >= OPBX_FORMAT_MAX_AUDIO) && args->fmt))) {
+							if ((bfile = fopen(fn, "r"))) {
+								if ((s = f->open(bfile))) {
+									s->lasttimeout = -1;
+									s->fmt = opbx_object_get(f);
+									s->trans = NULL;
+									s->filename = NULL;
+									if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO)
+										chan->stream = s;
+									else
+										chan->vstream = s;
+									args->res = 1;
+									free(fn);
+									return 1;
+								} else {
+									fclose(bfile);
+									opbx_log(LOG_WARNING, "Unable to open file on %s\n", fn);
+								}
+							} else {
+								opbx_log(LOG_WARNING, "Couldn't open file %s\n", fn);
+							}
+						}
+						break;
+					}
+					default:
+						opbx_log(LOG_WARNING, "Unknown helper %d\n", args->action);
+						break;
+					}
+				}
+				free(fn);
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int opbx_filehelper(const char *filename, const char *filename2, const char *fmt, int action)
 {
-	struct stat st;
-	struct opbx_format *f;
-	struct opbx_filestream *s;
-	int res=0, ret = 0;
-	char *ext=NULL, *exts, *fn, *nfn;
-	FILE *bfile;
-	struct opbx_channel *chan = (struct opbx_channel *)filename2;
-	
-	/* Start with negative response */
-	if (action == ACTION_EXISTS)
-		res = 0;
-	else
-		res = -1;
-	if (action == ACTION_OPEN)
-		ret = -1;
-	/* Check for a specific format */
-	if (opbx_mutex_lock(&formatlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock format list\n");
-		if (action == ACTION_EXISTS)
-			return 0;
-		else
-			return -1;
-	}
-	f = formats;
-	while (f)
-    {
-		if (!fmt  ||  exts_compare(f->exts, fmt))
-        {
-			char *stringp=NULL;
-			exts = opbx_strdupa(f->exts);
-			/* Try each kind of extension */
-			stringp=exts;
-			ext = strsep(&stringp, "|,");
-			do
-            {
-				fn = build_filename(filename, ext);
-				if (fn)
-                {
-					res = stat(fn, &st);
-					if (!res)
-                    {
-						switch(action)
-                        {
-						case ACTION_EXISTS:
-							ret |= f->format;
-							break;
-						case ACTION_DELETE:
-							res = unlink(fn);
-							if (res)
-								opbx_log(LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
-							break;
-						case ACTION_RENAME:
-							nfn = build_filename(filename2, ext);
-							if (nfn)
-                            {
-								res = rename(fn, nfn);
-								if (res)
-									opbx_log(LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
-								free(nfn);
-							}
-                            else
-                            {
-								opbx_log(LOG_WARNING, "Out of memory\n");
-							}
-                            break;
-						case ACTION_COPY:
-							nfn = build_filename(filename2, ext);
-							if (nfn) {
-								res = copy(fn, nfn);
-								if (res)
-									opbx_log(LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
-								free(nfn);
-							}
-                            else
-                            {
-								opbx_log(LOG_WARNING, "Out of memory\n");
-							}
-                            break;
-						case ACTION_OPEN:
-							if ((ret < 0) && ((chan->writeformat & f->format) ||
-										((f->format >= OPBX_FORMAT_MAX_AUDIO) && fmt))) {
-								bfile = fopen(fn, "r");
-								if (bfile)
-                                {
-									ret = 1;
-									s = f->open(bfile);
-									if (s)
-                                    {
-										s->lasttimeout = -1;
-										s->fmt = f;
-										s->trans = NULL;
-										s->filename = NULL;
-										if (s->fmt->format < OPBX_FORMAT_MAX_AUDIO)
-											chan->stream = s;
-										else
-											chan->vstream = s;
-									}
-                                    else
-                                    {
-										fclose(bfile);
-										opbx_log(LOG_WARNING, "Unable to open file on %s\n", fn);
-										ret = -1;
-									}
-								}
-                                else
-                                {
-									opbx_log(LOG_WARNING, "Couldn't open file %s\n", fn);
-									ret = -1;
-								}
-							}
-							break;
-						default:
-							opbx_log(LOG_WARNING, "Unknown helper %d\n", action);
-							break;
-						}
-						/* Conveniently this logic is the same for all */
-						if (res)
-							break;
-					}
-					free(fn);
-				}
-				ext = strsep(&stringp, "|,");
-			} while(ext);
-			
-		}
-		f = f->next;
-	}
-	opbx_mutex_unlock(&formatlock);
-	if ((action == ACTION_EXISTS) || (action == ACTION_OPEN))
-		res = ret ? ret : -1;
-	return res;
+	struct filehelper_args args = {
+		filename, filename2, fmt, action, 0
+	};
+
+	args.res = (action == ACTION_EXISTS ? 0 : -1);
+	opbx_registry_iterate(&format_registry, filehelper_one, &args);
+	return args.res;
 }
+
 
 struct opbx_filestream *opbx_openstream(struct opbx_channel *chan, const char *filename, const char *preflang)
 {
@@ -518,14 +405,14 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	/* Verify custom prompt first so it override default one */
 	snprintf(filename2, sizeof(filename2), "%s-custom/%s", preflang, filename);
 	fmts = opbx_fileexists(filename2, NULL, NULL);
-	if (fmts < 1 && preflang && !opbx_strlen_zero(preflang)) {
+	if (!fmts && preflang && !opbx_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = opbx_fileexists(filename2, NULL, NULL);
 	}
 				
 	
 	/* previous way to check sounds location (to keep backward compability, including voicemail) */
-	if (fmts < 1 && preflang && !opbx_strlen_zero(preflang)) {
+	if (!fmts && preflang && !opbx_strlen_zero(preflang)) {
 		strncpy(filename3, filename, sizeof(filename3) - 1);
 		endpart = strrchr(filename3, '/');
 		if (endpart) {
@@ -538,7 +425,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 		strncpy(filename2, filename, sizeof(filename2)-1);
 		fmts = opbx_fileexists(filename2, NULL, NULL);
 	}
-	if (fmts < 1) {
+	if (!fmts) {
 		opbx_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
 		return NULL;
 	}
@@ -547,7 +434,7 @@ struct opbx_filestream *opbx_openstream_full(struct opbx_channel *chan, const ch
 	res = opbx_set_write_format(chan, fmts);
 	
  	res = opbx_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
-	if (res >= 0)
+	if (res)
 		return chan->stream;
 	opbx_set_write_format(chan, chan->oldwriteformat);
 	return NULL;
@@ -576,21 +463,21 @@ struct opbx_filestream *opbx_openvstream(struct opbx_channel *chan, const char *
 	if (!opbx_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = opbx_fileexists(filename2, fmt, NULL);
-		if (fmts < 1) {
+		if (!fmts) {
 			opbx_copy_string(lang2, preflang, sizeof(lang2));
 			snprintf(filename2, sizeof(filename2), "%s/%s", lang2, filename);
 			fmts = opbx_fileexists(filename2, fmt, NULL);
 		}
 	}
-	if (fmts < 1) {
+	if (!fmts) {
 		opbx_copy_string(filename2, filename, sizeof(filename2));
 		fmts = opbx_fileexists(filename2, fmt, NULL);
 	}
-	if (fmts < 1) {
+	if (!fmts) {
 		return NULL;
 	}
  	fd = opbx_filehelper(filename2, (char *)chan, fmt, ACTION_OPEN);
-	if (fd >= 0)
+	if (fd)
 		return chan->vstream;
 	opbx_log(LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	return NULL;
@@ -710,6 +597,8 @@ int opbx_closestream(struct opbx_filestream *f)
 {
 	char *cmd = NULL;
 	size_t size = 0;
+	struct opbx_format *fmt;
+
 	/* Stop a running stream if there is one */
 	if (f->owner) {
 		if (f->fmt->format < OPBX_FORMAT_MAX_AUDIO) {
@@ -746,7 +635,10 @@ int opbx_closestream(struct opbx_filestream *f)
 		free(f->realfilename);
 		f->realfilename = NULL;
 	}
+
+	fmt = f->fmt;
 	f->fmt->close(f);
+	opbx_object_put(fmt);
 	return 0;
 }
 
@@ -759,7 +651,8 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
 	char *prefix;
 	char *c;
 	char lang2[MAX_LANGUAGE];
-	int res = -1;
+	int res = 0;
+
 	if (!opbx_strlen_zero(preflang)) {
 		/* Insert the language between the last two parts of the path */
 		opbx_copy_string(tmp, filename, sizeof(tmp));
@@ -775,7 +668,7 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
 			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, postfix);
 		}
 		res = opbx_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
-		if (res < 1) {
+		if (res == 0) {
 			char *stringp=NULL;
 			opbx_copy_string(lang2, preflang, sizeof(lang2));
 			stringp=lang2;
@@ -793,7 +686,7 @@ int opbx_fileexists(const char *filename, const char *fmt, const char *preflang)
 	}
 
 	/* Fallback to no language (usually winds up being American English) */
-	if (res < 1) {
+	if (res == 0) {
 		res = opbx_filehelper(filename, NULL, fmt, ACTION_EXISTS);
 	}
 	return res;
@@ -842,167 +735,186 @@ int opbx_streamfile(struct opbx_channel *chan, const char *filename, const char 
 	return -1;
 }
 
-struct opbx_filestream *opbx_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
+struct readfile_args {
+	const char *filename;
+	const char *type;
+	struct opbx_filestream *fs;
+};
+
+static int readfile_one(struct opbx_object *obj, void *data)
 {
+	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct readfile_args *args = data;
 	FILE *bfile;
-	struct opbx_format *f;
-	struct opbx_filestream *fs = NULL;
 	char *fn;
 
-	if (opbx_mutex_lock(&formatlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock format list\n");
-		return NULL;
+	if (exts_compare(f->exts, args->type)) {
+		if ((fn = build_filename(args->filename, args->type))) {
+			bfile = fopen(fn, "r");
+			free(fn);
+			if (bfile) {
+				if ((args->fs = f->open(bfile))) {
+					args->fs->fmt = opbx_object_get(f);
+					return 1;
+				} else {
+					opbx_log(LOG_WARNING, "Unable to open %s\n", fn);
+					fclose(bfile);
+				}
+			} else if (errno != EEXIST)
+				opbx_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+		} else
+			opbx_log(LOG_ERROR, "Out of memory");
 	}
 
-	for (f = formats; f && !fs; f = f->next) {
-		if (!exts_compare(f->exts, type))
-			continue;
-
-		fn = build_filename(filename, type);
-		bfile = fopen(fn, "r");
-		if (bfile) {
-			errno = 0;
-
-			if (!(fs = f->open(bfile))) {
-				opbx_log(LOG_WARNING, "Unable to open %s\n", fn);
-				fclose(bfile);
-				free(fn);
-				continue;
-			}
-
-			fs->trans = NULL;
-			fs->fmt = f;
-			fs->flags = flags;
-			fs->mode = mode;
-			fs->filename = strdup(filename);
-			fs->vfs = NULL;
-		} else if (errno != EEXIST)
-			opbx_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-		free(fn);
-	}
-
-	opbx_mutex_unlock(&formatlock);
-	if (!fs) 
-		opbx_log(LOG_WARNING, "No such format '%s'\n", type);
-
-	return fs;
+	return 0;
 }
 
-struct opbx_filestream *opbx_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
+struct opbx_filestream *opbx_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
-	int fd, myflags = 0;
+	struct readfile_args args = {
+		filename, type, NULL
+	};
+
+	opbx_registry_iterate(&format_registry, readfile_one, &args);
+
+	if (args.fs) {
+		args.fs->trans = NULL;
+		args.fs->flags = flags;
+		args.fs->mode = mode;
+		args.fs->filename = strdup(filename);
+		args.fs->vfs = NULL;
+	} else
+		opbx_log(LOG_WARNING, "No such format '%s'\n", type);
+
+	return args.fs;
+}
+
+
+struct writefile_args {
+	const char *filename;
+	const char *type;
+	const char *comment;
+	int flags, myflags;
+	mode_t mode;
+	struct opbx_filestream *fs;
+};
+
+static int writefile_one(struct opbx_object *obj, void *data)
+{
+	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct writefile_args *args = data;
 	/* compiler claims this variable can be used before initialization... */
 	FILE *bfile = NULL;
-	struct opbx_format *f;
-	struct opbx_filestream *fs = NULL;
 	char *fn, *orig_fn = NULL;
 	char *buf = NULL;
 	size_t size = 0;
-	int format_found = 0;
 
-	if (opbx_mutex_lock(&formatlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock format list\n");
-		return NULL;
-	}
-
-	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
-	if (flags & O_APPEND) { 
-		/* We really can't use O_APPEND as it will break WAV header updates */
-		flags &= ~O_APPEND;
-	} else {
-		myflags = O_TRUNC;
-	}
-	
-	myflags |= O_WRONLY | O_CREAT;
-
-	for (f = formats; f && !fs; f = f->next) {
-		if (!exts_compare(f->exts, type))
-			continue;
-		else
-			format_found = 1;
-
-		fn = build_filename(filename, type);
-		fd = open(fn, flags | myflags, mode);
-		if (fd > -1) {
-			/* fdopen() the resulting file stream */
-			bfile = fdopen(fd, ((flags | myflags) & O_RDWR) ? "w+" : "w");
-			if (!bfile) {
-				opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
-				close(fd);
-				fd = -1;
-			}
-		}
-		
-		if (option_cache_record_files && (fd > -1)) {
-			char *c;
-
-			fclose(bfile);
-			/*
-			  We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
-			  What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
-			*/
-			orig_fn = opbx_strdupa(fn);
-			for (c = fn; *c; c++)
-				if (*c == '/')
-					*c = '_';
-
-			size = strlen(fn) + strlen(record_cache_dir) + 2;
-			buf = alloca(size);
-			strcpy(buf, record_cache_dir);
-			strcat(buf, "/");
-			strcat(buf, fn);
-			free(fn);
-			fn = buf;
-			fd = open(fn, flags | myflags, mode);
+	if (exts_compare(f->exts, args->type)) {
+		if ((fn = build_filename(args->filename, args->type))) {
+			int fd = open(fn, args->flags | args->myflags, args->mode);
 			if (fd > -1) {
 				/* fdopen() the resulting file stream */
-				bfile = fdopen(fd, ((flags | myflags) & O_RDWR) ? "w+" : "w");
+				bfile = fdopen(fd, ((args->flags | args->myflags) & O_RDWR) ? "w+" : "w");
 				if (!bfile) {
 					opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
 					close(fd);
 					fd = -1;
 				}
 			}
-		}
-		if (fd > -1) {
-			errno = 0;
-			if ((fs = f->rewrite(bfile, comment))) {
-				fs->trans = NULL;
-				fs->fmt = f;
-				fs->flags = flags;
-				fs->mode = mode;
-				if (orig_fn) {
-					fs->realfilename = strdup(orig_fn);
-					fs->filename = strdup(fn);
-				} else {
-					fs->realfilename = NULL;
-					fs->filename = strdup(filename);
-				}
-				fs->vfs = NULL;
-			} else {
-				opbx_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
-				close(fd);
-				if (orig_fn) {
-					unlink(fn);
-					unlink(orig_fn);
+		
+			if (option_cache_record_files && (fd > -1)) {
+				char *c;
+
+				fclose(bfile);
+				/*
+				  We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
+				  What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
+				*/
+				orig_fn = opbx_strdupa(fn);
+				for (c = fn; *c; c++)
+					if (*c == '/')
+						*c = '_';
+
+				size = strlen(fn) + strlen(record_cache_dir) + 2;
+				buf = alloca(size);
+				strcpy(buf, record_cache_dir);
+				strcat(buf, "/");
+				strcat(buf, fn);
+				free(fn);
+				fn = buf;
+				fd = open(fn, args->flags | args->myflags, args->mode);
+				if (fd > -1) {
+					/* fdopen() the resulting file stream */
+					bfile = fdopen(fd, ((args->flags | args->myflags) & O_RDWR) ? "w+" : "w");
+					if (!bfile) {
+						opbx_log(LOG_WARNING, "Whoa, fdopen failed: %s!\n", strerror(errno));
+						close(fd);
+						fd = -1;
+					}
 				}
 			}
-		} else if (errno != EEXIST) {
-			opbx_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-			if (orig_fn)
-				unlink(orig_fn);
-		}
-		/* if buf != NULL then fn is already free and pointing to it */
-		if (!buf)
-			free(fn);
+			if (fd > -1) {
+				if ((args->fs = f->rewrite(bfile, args->comment))) {
+					args->fs->trans = NULL;
+					args->fs->fmt = opbx_object_get(f);
+					args->fs->flags = args->flags;
+					args->fs->mode = args->mode;
+					if (orig_fn) {
+						args->fs->realfilename = strdup(orig_fn);
+						args->fs->filename = strdup(fn);
+					} else {
+						args->fs->realfilename = NULL;
+						args->fs->filename = strdup(args->filename);
+					}
+					args->fs->vfs = NULL;
+				} else {
+					opbx_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
+					close(fd);
+					if (orig_fn) {
+						unlink(fn);
+						unlink(orig_fn);
+					}
+				}
+			} else if (errno != EEXIST) {
+				opbx_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+				if (orig_fn)
+					unlink(orig_fn);
+			}
+			/* if buf != NULL then fn is already free and pointing to it */
+			if (!buf)
+				free(fn);
+		} else
+			opbx_log(LOG_ERROR, "Out of memory\n");
+		return 1;
 	}
 
-	opbx_mutex_unlock(&formatlock);
-	if (!format_found)
+	return 0;
+}
+
+struct opbx_filestream *opbx_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
+{
+	struct writefile_args args = {
+		filename, type, comment, flags, O_WRONLY | O_CREAT, mode, NULL
+	};
+
+	/* set the O_TRUNC flag if and only if there is no O_APPEND specified
+	 * We really can't use O_APPEND as it will break WAV header updates
+	 */
+	if (flags & O_APPEND)
+		args.flags &= ~O_APPEND;
+	else
+		args.myflags |= O_TRUNC;
+
+	opbx_registry_iterate(&format_registry, writefile_one, &args);
+
+	if (args.fs) {
+		args.fs->trans = NULL;
+	} else
 		opbx_log(LOG_WARNING, "No such format '%s'\n", type);
 
-	return fs;
+	return args.fs;
 }
+
 
 int opbx_waitstream(struct opbx_channel *c, const char *breakon)
 {
@@ -1262,43 +1174,49 @@ int opbx_waitstream_exten(struct opbx_channel *c, const char *context)
 	return (c->_softhangup ? -1 : 0);
 }
 
-static int show_file_formats(int fd, int argc, char *argv[])
-{
+
 #define FORMAT "%-10s %-10s %-20s\n"
 #define FORMAT2 "%-10s %-10s %-20s\n"
-	struct opbx_format *f;
-	int count_fmt = 0;
+
+struct show_file_formats_args {
+	int fd;
+	int count;
+};
+
+static int show_file_formats_one(struct opbx_object *obj, void *data)
+{
+	struct opbx_format *f = container_of(obj, struct opbx_format, obj);
+	struct show_file_formats_args *args = data;
+
+	opbx_cli(args->fd, FORMAT2, opbx_getformatname(f->format), f->name, f->exts);
+	args->count++;
+	return 0;
+}
+
+static int show_file_formats(int fd, int argc, char *argv[])
+{
+	struct show_file_formats_args args = { fd, 0 };
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	opbx_cli(fd, FORMAT, "Format", "Name", "Extensions");
-	        
-	if (opbx_mutex_lock(&formatlock)) {
-		opbx_log(LOG_WARNING, "Unable to lock format list\n");
-		return -1;
-	}
 
-	f = formats;
-	while(f) {
-		opbx_cli(fd, FORMAT2, opbx_getformatname(f->format), f->name, f->exts);
-		f = f->next;
-		count_fmt++;
-	};
-	opbx_mutex_unlock(&formatlock);
-	opbx_cli(fd, "%d file formats registered.\n", count_fmt);
+	opbx_cli(fd, FORMAT, "Format", "Name", "Extensions");
+	opbx_registry_iterate(&format_registry, show_file_formats_one, &args);
+	opbx_cli(fd, "%d file formats registered.\n", args.count);
+
 	return RESULT_SUCCESS;
-#undef FORMAT
-#undef FORMAT2
-	
 }
 
-struct opbx_cli_entry show_file =
-{
-	{ "show", "file", "formats" },
-	show_file_formats,
-	"Displays file formats",
-	"Usage: show file formats\n"
-	"       displays currently registered file formats (if any)\n"
+#undef FORMAT
+#undef FORMAT2
+
+
+struct opbx_clicmd show_file = {
+	.cmda = { "show", "file", "formats" },
+	.handler = show_file_formats,
+	.summary = "Displays file formats",
+	.usage = "Usage: show file formats\n"
+	"       displays currently registered file formats (if any)\n",
 };
 
 int opbx_file_init(void)

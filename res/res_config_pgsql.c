@@ -43,7 +43,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include <libpq-fe.h>
 
-static char *tdesc = "PostgreSQL Configuration";
+static const char tdesc[] = "PostgreSQL Configuration";
 
 OPBX_MUTEX_DEFINE_STATIC(pgsql_lock);
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
@@ -53,9 +53,6 @@ static PGconn *conn = NULL;
 static int parse_config(void);
 static int pgsql_reconnect(const char *database);
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int parse_config(void)
 {
@@ -475,18 +472,19 @@ static struct opbx_config_engine pgsql_engine = {
 	.update_func = update_pgsql
 };
 
-int unload_module(void)
+static void release(void)
+{
+	opbx_mutex_lock(&pgsql_lock);
+	PQfinish(conn);
+	opbx_mutex_unlock(&pgsql_lock);
+}
+
+static int unload_module(void)
 {
 	/* acquire control before doing anything to the module itself */
 	opbx_mutex_lock(&pgsql_lock);
 
-	PQfinish(conn);
-	opbx_config_engine_deregister(&pgsql_engine);
-	if (option_verbose) {
-		opbx_verbose("PgSQL RealTime unloaded.\n");
-	}
-
-	STANDARD_HANGUP_LOCALUSERS;
+	opbx_config_engine_unregister(&pgsql_engine);
 
 	/* Unlock so something else can destroy the lock */
 	opbx_mutex_unlock(&pgsql_lock);
@@ -494,28 +492,19 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
+	opbx_config_engine_register(&pgsql_engine);
+
 	parse_config();
 
 	pgsql_reconnect(NULL);
 
-	opbx_config_engine_register(&pgsql_engine);
-	if (option_verbose) {
-		opbx_verbose("PgSQL RealTime driver loaded.\n");
-	}
-
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	/* never unload a config module */
-	return 1;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, release, tdesc)

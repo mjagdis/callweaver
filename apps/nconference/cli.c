@@ -29,8 +29,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
 
-STANDARD_LOCAL_USER ;
-LOCAL_USER_DECL;
 
 /* ************************************************************************
        RELATED APPLICATIONS - NCONFERENCEADMIN - TO BE FINISHED, IF NEEDED
@@ -48,15 +46,13 @@ static char *admin_description =
 
 // TODO - Do it if someone needs it
 
-static int app_admin_exec(struct opbx_channel *chan, int argc, char **argv)
+static int app_admin_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 	struct opbx_conference *conf;
 
-	if (argc < 2 || argc > 3 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", admin_syntax);
-		return -1;
-	}
+	if (argc < 2 || argc > 3 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(admin_syntax);
 
 	// Find the right conference 
 	if (!(conf = find_conf(argv[0]))) {
@@ -77,17 +73,19 @@ static int app_admin_exec(struct opbx_channel *chan, int argc, char **argv)
 
 
 static void *count_app;
-static char *count_name = "NConferenceCount";
-static char *count_synopsis= "NConference members count";
-static char *count_syntax = "NConferenceCount(confno[, var])";
-static char *count_description =
+static char count_name[] = "NConferenceCount";
+static char count_synopsis[] = "NConference members count";
+static char count_syntax[] = "NConferenceCount(confno[, var])";
+static char count_description[] =
 "Plays back the number of users in the specified\n"
 "conference to the conference members. \n"
+"If used in an expression context, e.g. Set(var=${NconferenceCount(confnno)})\n"
+"playback will be skipped and the value returned\n"
 "If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Returns 0.\n";
 
 
-static int app_count_exec(struct opbx_channel *chan, int argc, char **argv)
+static int app_count_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct localuser *u;
 
@@ -96,10 +94,8 @@ static int app_count_exec(struct opbx_channel *chan, int argc, char **argv)
 	int count;
 	char val[80] = "0"; 
 
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", count_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(count_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -113,14 +109,16 @@ static int app_count_exec(struct opbx_channel *chan, int argc, char **argv)
 	else
 		count = 0;
 
-	if (argc > 1 && argv[1][0]) {
+	if (buf) {
+		snprintf(buf, len, "%i", count);
+	} else if (argc > 1 && argv[1][0]) {
 		snprintf(val, sizeof(val), "%i", count);
 		pbx_builtin_setvar_helper(chan, argv[1], val);
 	} else if (conf != NULL) {
-		char buf[10];
-		snprintf(buf, sizeof(buf), "%d", count);
+		char tmp[10];
+		snprintf(tmp, sizeof(tmp), "%d", count);
 	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_SOUND,  0, "conf-thereare" );
-	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_NUMBER, 0, buf );
+	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_NUMBER, 0, tmp );
 	        add_command_to_queue( conf, NULL, CONF_ACTION_QUEUE_SOUND,  0, "conf-peopleinconf" );
 	}
 	LOCAL_USER_REMOVE(u);
@@ -141,12 +139,12 @@ static char nconference_admin_usage[] =
 	"       <command> can be: kick, list, lock, mute, show, unlock, unmute\n"
 ;
 
-static struct opbx_cli_entry nconference_admin_cli = { 
-	{ "NConference", NULL, NULL },
-	nconference_admin_exec,
-	"Administration Tool for NConference",
-	nconference_admin_usage,
-	nconference_admin_complete
+static struct opbx_clicmd nconference_admin_cli = { 
+	.cmda = { "NConference", NULL, NULL },
+	.handler = nconference_admin_exec,
+	.summary = "Administration Tool for NConference",
+	.usage = nconference_admin_usage,
+	.generator = nconference_admin_complete,
 } ;
 
 int nconference_admin_exec( int fd, int argc, char *argv[] )
@@ -376,15 +374,15 @@ static char *nconference_admin_complete(char *line, char *word, int pos, int sta
 void register_conference_cli( void ) 
 {
 	opbx_cli_register( &nconference_admin_cli ) ;
-	count_app = opbx_register_application(count_name, app_count_exec, count_synopsis, count_syntax, count_description);
-	//admin_app = opbx_register_application(admin_name, app_admin_exec, admin_synopsis, admin_syntax, admin_description);
+	count_app = opbx_register_function(count_name, app_count_exec, count_synopsis, count_syntax, count_description);
+	//admin_app = opbx_register_function(admin_name, app_admin_exec, admin_synopsis, admin_syntax, admin_description);
 }
 
 void unregister_conference_cli( void )
 {
 	opbx_cli_unregister( &nconference_admin_cli ) ;
-	opbx_unregister_application(count_app);
-	//opbx_unregister_application(app_admin);
+	opbx_unregister_function(count_app);
+	//opbx_unregister_function(app_admin);
 }
 
 

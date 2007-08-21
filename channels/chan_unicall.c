@@ -64,6 +64,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
 
+
 /* 
    XXX 
    XXX   We definitely need to lock the private structure in unicall_read and such 
@@ -1422,7 +1423,6 @@ static int unicall_hangup(struct opbx_channel *opbx)
         opbx_log(LOG_WARNING, "Usecnt < 0???\n");
     /*endif*/
     opbx_mutex_unlock(&usecnt_lock);
-    opbx_update_use_count();
     if (option_verbose > 2) 
         opbx_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", opbx->name);
     /*endif*/
@@ -2620,7 +2620,6 @@ static struct opbx_channel *unicall_new(unicall_pvt_t *i, int state, int startpb
     opbx_mutex_lock(&usecnt_lock);
     usecnt++;
     opbx_mutex_unlock(&usecnt_lock);
-    opbx_update_use_count();
     strncpy(tmp->context, i->context, sizeof(tmp->context) - 1);
     /* Copy call forward info */
     strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));
@@ -3059,6 +3058,7 @@ static void *do_monitor(void *data)
     fd_set rfds;
     int n;
     int res;
+    int err;
     struct timeval tv;
     time_t thispass = 0;
     time_t lastpass = 0;
@@ -3073,22 +3073,16 @@ static void *do_monitor(void *data)
 
     /* From here on out, we die whenever asked */
 #if 0
-    if (pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL))
-    {
-        opbx_log(LOG_WARNING, "Unable to set cancel type to asynchronous\n");
-        return NULL;
-    }
-    /*endif*/
     opbx_log(LOG_DEBUG, "Monitor starting...\n");
 #endif
     for (;;)
     {
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
         /* Lock the interface list */
-        if (opbx_mutex_lock(&iflock))
-        {
-            opbx_log(LOG_ERROR, "Unable to grab interface lock\n");
-            return NULL;
-        }
+	pthread_cleanup_push(opbx_mutex_unlock, &iflock);
+        opbx_mutex_lock(&iflock);
+
         /*endif*/
         /* Build the stuff we're going to select on. This is the socket of every
            unicall_pvt that does not have an associated owner channel. */
@@ -3099,8 +3093,11 @@ static void *do_monitor(void *data)
         {
             if (i->subs[SUB_REAL].fd >= 0  &&  i->protocol_class  &&  !i->radio)
             {
-                if (FD_ISSET(i->subs[SUB_REAL].fd, &efds))
+                if (FD_ISSET(i->subs[SUB_REAL].fd, &efds)) {
+                    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
                     opbx_log(LOG_WARNING, "Descriptor %d appears twice?\n", i->subs[SUB_REAL].fd);
+                    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+                }
                 /*endif*/
                 if (i->sigcheck  ||  (i->owner == NULL  &&  i->subs[SUB_REAL].owner == NULL))
                 {
@@ -3117,23 +3114,27 @@ static void *do_monitor(void *data)
         }
         /*endfor*/
         /* Okay, now that we know what to do, release the interface lock */
-        opbx_mutex_unlock(&iflock);
+	pthread_cleanup_pop(1);
         
         pthread_testcancel();
         /* Wait at least a second for something to happen */
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         res = select(n + 1, &rfds, NULL, &efds, &tv);
+        err = errno;
         pthread_testcancel();
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
         /* Okay, select has finished.  Let's see what happened.  */
         if (res < 0)
         {
-            if (errno != EAGAIN  &&  errno != EINTR)
-                opbx_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
+            if (err != EAGAIN  &&  err != EINTR) {
+                opbx_log(LOG_WARNING, "select return %d: %s\n", res, strerror(err));
+            }
             /*endif*/
             continue;
         }
         /*endif*/
+
         /* Alright, lock the interface list again, and let's look and see what has
            happened */
         if (opbx_mutex_lock(&iflock))
@@ -3253,7 +3254,7 @@ static int restart_monitor(void)
     else
     {
         /* Start a new monitor */
-        if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
@@ -3967,14 +3968,20 @@ static char uc_no_debug_help[] =
     "Usage: UC no debug span <span>\n"
     "       Disables debugging on a given PRI span\n";
 
-static struct opbx_cli_entry uc_debug =
-{
-    { "UC", "debug", "span", NULL }, handle_uc_debug, "Enables UC debugging on a span", uc_debug_help, complete_span 
+static struct opbx_clicmd uc_debug = {
+    .cmda = { "UC", "debug", "span", NULL },
+    .handler = handle_uc_debug,
+    .generator = complete_span,
+    .summary = "Enables UC debugging on a span",
+    .usage = uc_debug_help,
 };
 
-static struct opbx_cli_entry uc_no_debug =
-{
-    { "UC", "no", "debug", "span", NULL }, handle_uc_no_debug, "Disables PRI debugging on a span", uc_no_debug_help, complete_span
+static struct opbx_clicmd uc_no_debug = {
+    .cmda = { "UC", "no", "debug", "span", NULL },
+    .handler = handle_uc_no_debug,
+    .generator = complete_span,
+    .summary = "Disables PRI debugging on a span",
+    .usage = uc_no_debug_help,
 };
 
 static int unicall_destroy_channel(int fd, int argc, char **argv)
@@ -4118,19 +4125,25 @@ static char destroy_channel_usage[] =
     "Usage: UC destroy channel <chan num>\n"
     "    DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 
-static struct opbx_cli_entry cli_show_channels =
-{ 
-    {"UC", "show", "channels", NULL}, unicall_show_channels, "Show active UniCall channels", show_channels_usage, NULL
+static struct opbx_clicmd cli_show_channels = { 
+    .cmda = {"UC", "show", "channels", NULL},
+    .handler = unicall_show_channels,
+    .summary = "Show active UniCall channels",
+    .usage = show_channels_usage,
 };
 
-static struct opbx_cli_entry cli_show_channel =
-{ 
-    {"UC", "show", "channel", NULL}, unicall_show_channel, "Show information on a channel", show_channel_usage, NULL
+static struct opbx_clicmd cli_show_channel = { 
+    .cmda = {"UC", "show", "channel", NULL},
+    .handler = unicall_show_channel,
+    .summary = "Show information on a channel",
+    .usage = show_channel_usage,
 };
 
-static struct opbx_cli_entry cli_destroy_channel =
-{ 
-    {"UC", "destroy", "channel", NULL}, unicall_destroy_channel, "Destroy a channel", destroy_channel_usage, NULL
+static struct opbx_clicmd cli_destroy_channel = { 
+    .cmda = {"UC", "destroy", "channel", NULL},
+    .handler = unicall_destroy_channel,
+    .summary = "Destroy a channel",
+    .usage = destroy_channel_usage,
 };
 
 static int setup_unicall(int reload)
@@ -4182,7 +4195,6 @@ static int setup_unicall(int reload)
                 opbx_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
                 opbx_config_destroy(cfg);
                 opbx_mutex_unlock(&iflock);
-                unload_module();
                 return -1;
             }
             /*endif*/
@@ -4209,7 +4221,6 @@ static int setup_unicall(int reload)
                     opbx_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
                     opbx_config_destroy(cfg);
                     opbx_mutex_unlock(&iflock);
-                    unload_module();
                     return -1;
                 }
                 /*endif*/
@@ -4229,7 +4240,6 @@ static int setup_unicall(int reload)
                         opbx_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
                         opbx_config_destroy(cfg);
                         opbx_mutex_unlock(&iflock);
-                        unload_module();
                         return -1;
                     }
                     /*endif*/
@@ -4406,7 +4416,6 @@ static int setup_unicall(int reload)
     {
         opbx_log(LOG_ERROR, "Unable to read supervisory tone set %s\n", super_tones);
         opbx_config_destroy(cfg);
-        unload_module();
         return -1;
     }
     /*endif*/
@@ -4417,14 +4426,13 @@ static int setup_unicall(int reload)
     {
         opbx_log(LOG_ERROR, "Unable to register channel class %s\n", type);
         opbx_config_destroy(cfg);
-        unload_module();
         return -1;
     }
     /*endif*/
     return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
     uc_start();
     uc_set_error_handler(unicall_report);
@@ -4446,7 +4454,7 @@ int load_module(void)
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     unicall_pvt_t *p;
     unicall_pvt_t *pl;
@@ -4541,7 +4549,7 @@ static int unicall_send_text(struct opbx_channel *c, const char *text)
     return  0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
     if (setup_unicall(TRUE))
     {
@@ -4561,7 +4569,5 @@ int usecount(void)
     return res;
 }
 
-char *description(void)
-{
-    return (char *) desc;
-}
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

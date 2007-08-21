@@ -37,19 +37,16 @@
 #include "callweaver/chanvars.h"
 #include "callweaver/lock.h"
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define OPBX_MODULE "app_addon_sql_mysql"
 
 #define EXTRA_LOG 0
 
 static void *app;
-static const char *name = "MYSQL";
-static const char *synopsis = "Do several mySQLy things";
-static const char *syntax = "MYSQL()";
-static const char *descrip = 
+static const char name[] = "MYSQL";
+static const char synopsis[] = "Do several mySQLy things";
+static const char syntax[] = "MYSQL()";
+static const char descrip[] = 
 "Do several mySQLy things\n"
 "Syntax:\n"
 "  MYSQL(Connect connid dhhost dbuser dbpass dbname)\n"
@@ -378,10 +375,10 @@ static int aMYSQL_disconnect(struct opbx_channel *chan, char *data) {
 	return 0;
 }
 
-static int MYSQL_exec(struct opbx_channel *chan, int argc, char **argv)
+static int MYSQL_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	int result;
+	int res;
 	char sresult[10];
 
 	if (argc == 0 || !argv[0][0]) {
@@ -394,57 +391,48 @@ static int MYSQL_exec(struct opbx_channel *chan, int argc, char **argv)
 #endif
 
 	LOCAL_USER_ADD(u);
-	result=0;
+	res=0;
 
 	opbx_mutex_lock(&_mysql_mutex);
 
 	if (strncasecmp("connect",argv[0],strlen("connect"))==0) {
-		result=aMYSQL_connect(chan,opbx_strdupa(argv[0]));
+		res=aMYSQL_connect(chan,opbx_strdupa(argv[0]));
 	} else 	if (strncasecmp("query",argv[0],strlen("query"))==0) {
-		result=aMYSQL_query(chan,opbx_strdupa(argv[0]));
+		res=aMYSQL_query(chan,opbx_strdupa(argv[0]));
 	} else 	if (strncasecmp("fetch",argv[0],strlen("fetch"))==0) {
-		result=aMYSQL_fetch(chan,opbx_strdupa(argv[0]));
+		res=aMYSQL_fetch(chan,opbx_strdupa(argv[0]));
 	} else 	if (strncasecmp("clear",argv[0],strlen("clear"))==0) {
-		result=aMYSQL_clear(chan,opbx_strdupa(argv[0]));
+		res=aMYSQL_clear(chan,opbx_strdupa(argv[0]));
 	} else 	if (strncasecmp("disconnect",argv[0],strlen("disconnect"))==0) {
-		result=aMYSQL_disconnect(chan,opbx_strdupa(argv[0]));
+		res=aMYSQL_disconnect(chan,opbx_strdupa(argv[0]));
 	} else {
 		opbx_log(LOG_WARNING, "Unknown argument to MYSQL application : %s\n", argv[0]);
-		result=-1;	
+		res=-1;	
 	}
 		
 	opbx_mutex_unlock(&_mysql_mutex);
 
 	LOCAL_USER_REMOVE(u);
-	snprintf(sresult, sizeof(sresult), "%d", result);
+	snprintf(sresult, sizeof(sresult), "%d", res);
 	pbx_builtin_setvar_helper(chan, "MYSQL_STATUS", sresult);
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(app);
+
+	res |= opbx_unregister_function(app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	struct MYSQLidshead *headp = &_mysql_ids_head;
 	OPBX_LIST_HEAD_INIT(headp);
-	app = opbx_register_application(name, MYSQL_exec, synopsis, syntax, descrip);
+	app = opbx_register_function(name, MYSQL_exec, synopsis, syntax, descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return "Simple MySQL Interface";
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, "Simple MySQL Interface")

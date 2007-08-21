@@ -29,6 +29,7 @@
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
 
+
 static struct opbx_frame * sccp_rtp_read(sccp_channel_t * c) {
 	/* Retrieve audio/etc from channel.  Assumes c->lock is already held. */
 	struct opbx_frame * f;
@@ -190,7 +191,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Running the autoanswer thread on %s\n", d->id, ast->name);
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(&t, &attr, sccp_pbx_call_autoanswer_thread, &c->callid)) {
+			if (opbx_pthread_create(get_modinfo()->self, &t, &attr, sccp_pbx_call_autoanswer_thread, &c->callid)) {
 				opbx_log(LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 			}
 		}
@@ -210,8 +211,6 @@ static int sccp_pbx_hangup(struct opbx_channel * ast) {
 	opbx_mutex_lock(&GLOB(usecnt_lock));
 	GLOB(usecnt)--;
 	opbx_mutex_unlock(&GLOB(usecnt_lock));
-
-	opbx_update_use_count();
 
 	if (!c) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Asked to hangup channel %s. SCCP channel already hangup\n", ast->name);
@@ -579,8 +578,6 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	opbx_mutex_lock(&GLOB(usecnt_lock));
 	GLOB(usecnt)++;
 	opbx_mutex_unlock(&GLOB(usecnt_lock));
-
-	opbx_update_use_count();
 
 	if (l->cid_num)
 	  tmp->cid.cid_num = strdup(l->cid_num);

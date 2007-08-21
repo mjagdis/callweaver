@@ -33,22 +33,18 @@
 #include <stdio.h>
 
 
-static char *tdesc = "v.110 dialin Application";
+static const char tdesc[] = "v.110 dialin Application";
 
 static void *v110_app;
-static const char *v110_name = "V110";
-static const char *v110_synopsis = "Accept v.110 dialin connection.";
-static const char *v110_syntax = "V110()";
-static const char *v110_descrip = 
+static const char v110_name[] = "V110";
+static const char v110_synopsis[] = "Accept v.110 dialin connection.";
+static const char v110_syntax[] = "V110()";
+static const char v110_descrip[] = 
 	"Check the incoming call type. For v.110 data calls on an mISDN\n"
 	"channel, answer the call, assign a pseudotty and start a login process.\n"
 	"For non-v.110 calls, the V110() application does nothing, and immediately\n"
 	"passes on to the next item in the dialplan.\n";
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define URATE_EBITS	0 /* In E-bits or negotiated in-band */
 #define URATE_600	1
@@ -150,7 +146,7 @@ static struct opbx_generator v110_gen = {
 };
 
 
-static int login_v110(struct opbx_channel *chan, int argc, char **argv)
+static int login_v110(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=-1;
 	struct localuser *u;
@@ -797,28 +793,19 @@ int loginpty(char *source)
 	exit(1);
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(v110_app);
+
+	res |= opbx_unregister_function(v110_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	v110_app = opbx_register_application(v110_name, login_v110, v110_synopsis, v110_syntax, v110_descrip);
+	v110_app = opbx_register_function(v110_name, login_v110, v110_synopsis, v110_syntax, v110_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

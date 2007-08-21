@@ -29,21 +29,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "../channels/visdn/chan_visdn.h"
 
-static char *tdesc = "vISDN ppp RAS module";
+static const char tdesc[] = "vISDN ppp RAS module";
 
 static void *visdn_ppp_app;
-static const char *visdn_ppp_name = "vISDNppp";
-static const char *visdn_ppp_synopsis = "Runs pppd and connects channel to visdn-ppp gateway";
-static const char *visdn_ppp_syntax = "vISDNppp(args)";
-static const char *visdn_ppp_descrip = 
+static const char visdn_ppp_name[] = "vISDNppp";
+static const char visdn_ppp_synopsis[] = "Runs pppd and connects channel to visdn-ppp gateway";
+static const char visdn_ppp_syntax[] = "vISDNppp(args)";
+static const char visdn_ppp_descrip[] = 
 "Spawns pppd and connects the channel to a newly created\n"
 " visdn-ppp channel. pppd must support visdn.so plugin.\n"
 "Arguments are passed to pppd and should be separated by | characters.\n"
 "Always returns -1.\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define PPP_MAX_ARGS	32
 #define PPP_EXEC	"/usr/sbin/pppd"
@@ -88,7 +85,7 @@ static pid_t spawn_ppp(struct opbx_channel *chan, const char *argv[])
 }
 
 
-static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv)
+static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct visdn_chan *visdn_chan;
 	const char **nargv;
@@ -200,28 +197,19 @@ static int visdn_ppp_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(visdn_ppp_app);
+
+	res |= opbx_unregister_function(visdn_ppp_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	visdn_ppp_app = opbx_register_application(visdn_ppp_name, visdn_ppp_exec, visdn_ppp_synopsis, visdn_ppp_syntax, visdn_ppp_descrip);
+	visdn_ppp_app = opbx_register_function(visdn_ppp_name, visdn_ppp_exec, visdn_ppp_synopsis, visdn_ppp_syntax, visdn_ppp_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

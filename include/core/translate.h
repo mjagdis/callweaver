@@ -29,6 +29,8 @@ extern "C" {
 
 /*! data structure associated with a translator */
 struct opbx_translator {
+	struct opbx_object obj;
+	struct opbx_registry_entry translator_entry;
 	/*! Name of translator */
 	char name[80];
 	/*! Source format */
@@ -52,8 +54,6 @@ struct opbx_translator {
 	struct opbx_frame *(*sample)(void);
 	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
 	int cost;
-	/*! For linking, not to be modified by the translator */
-	struct opbx_translator *next;
 };
 
 #endif /* _CALLWEAVER_TRANSLATE_H */

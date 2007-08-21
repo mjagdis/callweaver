@@ -46,17 +46,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/app.h"
 
-static char *tdesc = "Virtual Dictation Machine";
+static const char tdesc[] = "Virtual Dictation Machine";
 
 static void *dictate_app;
-static char *dictate_name = "Dictate";
-static char *dictate_synopsis = "Virtual Dictation Machine";
-static char *dictate_syntax = "Dictate([base_dir])";
-static char *dictate_descrip = "Start dictation machine using optional base dir for files.\n";
+static const char dictate_name[] = "Dictate";
+static const char dictate_synopsis[] = "Virtual Dictation Machine";
+static const char dictate_syntax[] = "Dictate([base_dir])";
+static const char dictate_descrip[] = "Start dictation machine using optional base dir for files.\n";
 
-
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 typedef enum {
 	DFLAG_RECORD = (1 << 0),
@@ -82,7 +79,7 @@ static int play_and_wait(struct opbx_channel *chan, char *file, char *digits)
 	return res;
 }
 
-static int dictate_exec(struct opbx_channel *chan, int argc, char **argv)
+static int dictate_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *path = NULL, filein[256];
 	char dftbase[256];
@@ -317,31 +314,19 @@ static int dictate_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(dictate_app);
+
+	res |= opbx_unregister_function(dictate_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	dictate_app = opbx_register_application(dictate_name, dictate_exec, dictate_synopsis, dictate_syntax, dictate_descrip);
+	dictate_app = opbx_register_function(dictate_name, dictate_exec, dictate_synopsis, dictate_syntax, dictate_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

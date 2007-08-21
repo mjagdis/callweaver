@@ -37,7 +37,16 @@
 #include "callweaver/time.h"
 #include "callweaver/strings.h"
 
-#define arraysize(X)	(sizeof(X)/sizeof(X[0]))
+struct module;
+
+#define arraysize(X) (sizeof(X)/sizeof(X[0]))
+
+#ifndef offsetof
+#  define offsetof(type, member) ((size_t) &((type *)0)->member)
+#endif
+
+#define container_of(ptr, type, member) (type *)((size_t)(ptr) - offsetof(type, member))
+
 
 /*! \note
  \verbatim
@@ -221,8 +230,8 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 	 })
  	
 #define OPBX_STACKSIZE 256 * 1024
-#define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(a,b,c,d,0)
-extern int opbx_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
+#define opbx_pthread_create(m,a,b,c,d) opbx_pthread_create_stack((m),(a),(b),(c),(d),0)
+extern int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
 #ifdef linux
 #define opbx_random random

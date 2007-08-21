@@ -45,13 +45,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/callweaver_db.h"
 
-static char *tdesc = "Look up CallerID Name from local database";
+static const char tdesc[] = "Look up CallerID Name from local database";
 
 static void *app;
-static const char *name = "LookupCIDName";
-static const char *synopsis = "Look up CallerID Name from local database";
-static const char *syntax = "LookupCIDName()";
-static const char *descrip =
+static const char name[] = "LookupCIDName";
+static const char synopsis[] = "Look up CallerID Name from local database";
+static const char syntax[] = "LookupCIDName()";
+static const char descrip[] =
   "Looks up the Caller*ID number on the active\n"
   "channel in the CallWeaver database (family 'cidname') and sets the\n"
   "Caller*ID name.  Does nothing if no Caller*ID was received on the\n"
@@ -60,12 +60,7 @@ static const char *descrip =
   "calls.  Always returns 0.\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int
-lookupcidname_exec (struct opbx_channel *chan, int argc, char **argv)
+static int lookupcidname_exec (struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
   char dbname[64];
   struct localuser *u;
@@ -84,31 +79,26 @@ lookupcidname_exec (struct opbx_channel *chan, int argc, char **argv)
 }
 
 int
-unload_module (void)
+static unload_module (void)
 {
   int res = 0;
-  STANDARD_HANGUP_LOCALUSERS;
-  res |= opbx_unregister_application (app);
+
+  res |= opbx_unregister_function (app);
   return res;
 }
 
 int
-load_module (void)
+static load_module (void)
 {
-  app = opbx_register_application(name, lookupcidname_exec, synopsis, syntax, descrip);
+  app = opbx_register_function(name, lookupcidname_exec, synopsis, syntax, descrip);
   return 0;
 }
 
 char *
 description (void)
 {
-  return tdesc;
+  return (char *)tdesc;
 }
 
-int
-usecount (void)
-{
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -262,6 +262,7 @@ void * sccp_socket_thread(void * ignore) {
 	sccp_moo_t * m;
 	struct timeval tv;
 	sigset_t sigs;
+
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -280,12 +281,17 @@ void * sccp_socket_thread(void * ignore) {
 	maxfd = GLOB(descriptor);
 
 	while (1) {
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
 
 		fset = active_fd_set;
 		tv.tv_sec = 0;
 		tv.tv_usec = 500000;
 		res = select(maxfd + 1, &fset, 0, 0, &tv);
+
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		maxfd = GLOB(descriptor);
 		if (res == -1) {
 			opbx_log(LOG_ERROR, "SCCP select() returned -1. errno: %s\n", strerror(errno));
@@ -295,7 +301,7 @@ void * sccp_socket_thread(void * ignore) {
 		opbx_mutex_lock(&GLOB(sessions_lock));
 		s = GLOB(sessions);
 		now = time(0);
-	    while (s) {
+		while (s) {
 			if (s->fd > 0) {
 				if (s->fd > maxfd)
 					maxfd = s->fd;
@@ -338,5 +344,5 @@ void * sccp_socket_thread(void * ignore) {
 			sccp_accept_connection();
 		}
 	}
-  return NULL;
+	return NULL;
 }

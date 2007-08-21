@@ -61,9 +61,6 @@
 #include "callweaver/cli.h"
 #include "callweaver/utils.h"
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define OPBX_MODULE "res_config_mysql"
 
@@ -87,9 +84,12 @@ static char cli_realtime_mysql_status_usage[] =
 "Usage: realtime mysql status\n"
 "       Shows connection information for the MySQL RealTime driver\n";
 
-static struct opbx_cli_entry cli_realtime_mysql_status = {
-        { "realtime", "mysql", "status", NULL }, realtime_mysql_status,
-        "Shows connection information for the MySQL RealTime driver", cli_realtime_mysql_status_usage, NULL };
+static struct opbx_clicmd cli_realtime_mysql_status = {
+        .cmda = { "realtime", "mysql", "status", NULL },
+	.handler = realtime_mysql_status,
+        .summary = "Shows connection information for the MySQL RealTime driver",
+	.usage = cli_realtime_mysql_status_usage,
+};
 
 static struct opbx_variable *realtime_mysql(const char *database, const char *table, va_list ap)
 {
@@ -474,7 +474,16 @@ static struct opbx_config_engine mysql_engine = {
 	.update_func = update_mysql
 };
 
-int load_module(void)
+
+static void release(void)
+{
+	opbx_mutex_lock(&mysql_lock);
+	mysql_close(&mysql);
+	opbx_mutex_unlock(&mysql_lock);
+}
+
+
+static int load_module(void)
 {
 	parse_config();
 
@@ -485,37 +494,35 @@ int load_module(void)
 		opbx_log(LOG_DEBUG, "MySQL RealTime: Cannot Connect: %s\n", mysql_error(&mysql));
 	}
 
-	opbx_config_engine_register(&mysql_engine);
 	if(option_verbose) {
 		opbx_verbose("MySQL RealTime driver loaded.\n");
 	}
 	opbx_cli_register(&cli_realtime_mysql_status);
+	opbx_config_engine_register(&mysql_engine);
 
 	opbx_mutex_unlock(&mysql_lock);
 
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	/* Aquire control before doing anything to the module itself. */
 	opbx_mutex_lock(&mysql_lock);
 
-	mysql_close(&mysql);
+	opbx_config_engine_unregister(&mysql_engine);
 	opbx_cli_unregister(&cli_realtime_mysql_status);
-	opbx_config_engine_deregister(&mysql_engine);
 	if(option_verbose) {
 		opbx_verbose("MySQL RealTime unloaded.\n");
 	}
 
-	STANDARD_HANGUP_LOCALUSERS;
 	/* Unlock so something else can destroy the lock. */
 	opbx_mutex_unlock(&mysql_lock);
 
 	return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	/* Aquire control before doing anything to the module itself. */
 	opbx_mutex_lock(&mysql_lock);
@@ -698,16 +705,6 @@ static int realtime_mysql_status(int fd, int argc, char **argv)
 }
 
 
-
-char *description(void)
-{
-	return  "MySQL RealTime Configuration Driver";
-}
-
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
+MODULE_INFO(load_module, reload_module, unload_module, release,
+	"MySQL RealTime Configuration Driver"
+)

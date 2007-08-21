@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -76,12 +75,10 @@ struct opbx_filestream {
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(wav_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "wav49";
-static char *desc = "Microsoft WAV format (Proprietary GSM)";
-static char *exts = "WAV|wav49";
+static const char desc[] = "Microsoft WAV format (Proprietary GSM)";
+
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
@@ -356,19 +353,11 @@ static struct opbx_filestream *wav_open(FILE *f)
             free(tmp);
             return NULL;
         }
-        if (opbx_mutex_lock(&wav_lock)) {
-            opbx_log(LOG_WARNING, "Unable to lock wav list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, name);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, format.name);
         tmp->fr.data = tmp->gsm;
         /* datalen will vary for each frame */
         tmp->secondhalf = 0;
-        glistcnt++;
-        opbx_mutex_unlock(&wav_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -385,15 +374,7 @@ static struct opbx_filestream *wav_rewrite(FILE *f, const char *comment)
             free(tmp);
             return NULL;
         }
-        if (opbx_mutex_lock(&wav_lock)) {
-            opbx_log(LOG_WARNING, "Unable to lock wav list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&wav_lock);
-        opbx_update_use_count();
     } else
         opbx_log(LOG_WARNING, "Out of memory\n");
     return tmp;
@@ -402,13 +383,6 @@ static struct opbx_filestream *wav_rewrite(FILE *f, const char *comment)
 static void wav_close(struct opbx_filestream *s)
 {
     char zero = 0;
-    if (opbx_mutex_lock(&wav_lock)) {
-        opbx_log(LOG_WARNING, "Unable to lock wav list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&wav_lock);
-    opbx_update_use_count();
     /* Pad to even length */
     fseek(s->f, 0, SEEK_END);
     if (ftell(s->f) & 0x1)
@@ -568,33 +542,34 @@ static char *wav_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "wav49",
+	.exts = "WAV|wav49",
+	.format = OPBX_FORMAT_GSM,
+	.open = wav_open,
+	.rewrite = wav_rewrite,
+	.write = wav_write,
+	.seek = wav_seek,
+	.trunc = wav_trunc,
+	.tell = wav_tell,
+	.read = wav_read,
+	.close = wav_close,
+	.getcomment = wav_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_GSM,
-                                wav_open,
-                                wav_rewrite,
-                                wav_write,
-                                wav_seek,
-                                wav_trunc,
-                                wav_tell,
-                                wav_read,
-                                wav_close,
-                                wav_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount(void)
-{
-    return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description(void)
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

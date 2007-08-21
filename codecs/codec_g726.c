@@ -56,7 +56,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
-static char *tdesc = "ITU G.726-32kbps G726 to/from PCM16 translator";
+static const char tdesc[] = "ITU G.726-32kbps G726 to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -132,7 +132,6 @@ static struct opbx_translator_pvt *g726tolin_new(void)
     g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
     plc_init(&tmp->plc);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -155,7 +154,6 @@ static struct opbx_translator_pvt *lintog726_new(void)
     memset(tmp, 0, sizeof(*tmp));
     g726_init(&(tmp->g726_state), 32000, G726_ENCODING_LINEAR, G726_PACKING_LEFT);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -318,7 +316,6 @@ static void g726_destroy(struct opbx_translator_pvt *pvt)
 {
     free(pvt);
     localusecnt--;
-    opbx_update_use_count();
 }
 
 /*
@@ -326,16 +323,16 @@ static void g726_destroy(struct opbx_translator_pvt *pvt)
  */
 static opbx_translator_t g726tolin =
 {
-    "g726tolin",
-    OPBX_FORMAT_G726,
-    8000,
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    g726tolin_new,
-    g726tolin_framein,
-    g726tolin_frameout,
-    g726_destroy,
-    g726tolin_sample
+    .name = "g726tolin",
+    .src_format = OPBX_FORMAT_G726,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 8000,
+    .newpvt = g726tolin_new,
+    .framein = g726tolin_framein,
+    .frameout = g726tolin_frameout,
+    .destroy = g726_destroy,
+    .sample = g726tolin_sample
 };
 
 /*
@@ -343,16 +340,16 @@ static opbx_translator_t g726tolin =
  */
 static opbx_translator_t lintog726 =
 {
-    "lintog726",
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    OPBX_FORMAT_G726,
-    8000,
-    lintog726_new,
-    lintog726_framein,
-    lintog726_frameout,
-    g726_destroy,
-    lintog726_sample
+    .name = "lintog726",
+    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_G726,
+    .dst_rate = 8000,
+    .newpvt = lintog726_new,
+    .framein = lintog726_framein,
+    .frameout = lintog726_frameout,
+    .destroy = g726_destroy,
+    .sample = lintog726_sample
 };
 
 static void parse_config(void)
@@ -379,48 +376,34 @@ static void parse_config(void)
     }
 }
 
-int reload(void)
+static int reload_module(void)
 {
     parse_config();
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
+    int res = 0;
     
     opbx_mutex_lock(&localuser_lock);
-    if ((res = opbx_unregister_translator(&lintog726)) == 0)
-        res = opbx_unregister_translator(&g726tolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&g726tolin);
+    opbx_translator_unregister(&lintog726);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
  
     parse_config();
-    if ((res = opbx_register_translator(&g726tolin)) == 0)
-        res = opbx_register_translator(&lintog726);
-    else
-        opbx_unregister_translator(&g726tolin);
+    opbx_translator_register(&g726tolin);
+    opbx_translator_register(&lintog726);
     return res;
 }
 
-/*
- * Return a description of this module.
- */
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount (void)
-{
-    int res;
-    STANDARD_USECOUNT (res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

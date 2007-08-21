@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,14 +57,22 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-OPBX_MUTEX_DEFINE_STATIC(list_lock);
-static struct opbx_translator *list = NULL;
+
+struct opbx_registry translator_registry;
+
+static int translator_initialized;
+
 
 struct opbx_translator_dir
 {
-    struct opbx_translator *step;    /* Next step translator */
-    int cost;            /* Complete cost to destination */
+    struct opbx_translator *step; /* Next step translator */
+    int cost;                     /* Complete cost to destination */
+    int steps;                    /* Number of steps it takes */
 };
+
+OPBX_MUTEX_DEFINE_STATIC(tr_matrix_lock);
+static struct opbx_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
+
 
 struct opbx_frame_delivery
 {
@@ -75,7 +84,6 @@ struct opbx_frame_delivery
     struct opbx_frame_delivery *next;
 };
 
-static struct opbx_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
 struct opbx_trans_pvt
 {
@@ -85,6 +93,7 @@ struct opbx_trans_pvt
     struct timeval nextin;
     struct timeval nextout;
 };
+
 
 void opbx_translator_free_path(struct opbx_trans_pvt *p)
 {
@@ -98,6 +107,7 @@ void opbx_translator_free_path(struct opbx_trans_pvt *p)
         pn = pn->next;
         if (pl->state  &&  pl->step->destroy)
             pl->step->destroy(pl->state);
+	opbx_object_put(pl->step);
         free(pl);
     }
 }
@@ -105,62 +115,48 @@ void opbx_translator_free_path(struct opbx_trans_pvt *p)
 /* Build a set of translators based upon the given source and destination formats */
 struct opbx_trans_pvt *opbx_translator_build_path(int dest, int dest_rate, int source, int source_rate)
 {
-    struct opbx_trans_pvt *tmpr = NULL;
-    struct opbx_trans_pvt *tmp = NULL;
+	struct opbx_trans_pvt *tmpr = NULL;
+	struct opbx_trans_pvt **next = &tmpr;
+	struct opbx_translator *t;
+
+	source = bottom_bit(source);
+	dest = bottom_bit(dest);
     
-    source = bottom_bit(source);
-    dest = bottom_bit(dest);
-    
-    while (source != dest)
-    {
-        if (!tr_matrix[source][dest].step)
-        {
-            /* We shouldn't have allocated any memory */
-            opbx_log(LOG_WARNING,
-                     "No translator path from %s to %s\n", 
-                     opbx_getformatname(1 << source),
-                     opbx_getformatname(1 << dest));
-            return NULL;
-        }
+	opbx_mutex_lock(&tr_matrix_lock);
 
-        if (tmp)
-        {
-            tmp->next = malloc(sizeof(*tmp));
-            tmp = tmp->next;
-        }
-        else
-        {
-            tmp = malloc(sizeof(*tmp));
-        }
-        if (tmp == NULL)
-        {
-            opbx_log(LOG_WARNING, "Out of memory\n");
-            if (tmpr)
-                opbx_translator_free_path(tmpr);    
-            return NULL;
-        }
+	while (source != dest) {
+		if (!(t = opbx_object_get(tr_matrix[source][dest].step))) {
+			opbx_log(LOG_WARNING, "No translator path from %s to %s\n", opbx_getformatname(1 << source), opbx_getformatname(1 << dest));
+			opbx_translator_free_path(tmpr);
+			tmpr = NULL;
+			break;
+		}
 
-        /* Set the root, if it doesn't exist yet... */
-        if (tmpr == NULL)
-            tmpr = tmp;
+		if (!(*next = malloc(sizeof(*tmpr)))) {
+			opbx_log(LOG_ERROR, "Out of memory\n");
+			opbx_object_put(t);
+			opbx_translator_free_path(tmpr);    
+			tmpr = NULL;
+			break;
+		}
 
-        tmp->next = NULL;
-        tmp->nextin =
-        tmp->nextout = opbx_tv(0, 0);
-        tmp->step = tr_matrix[source][dest].step;
-        tmp->state = tmp->step->newpvt();
+		(*next)->next = NULL;
+		(*next)->nextin = (*next)->nextout = opbx_tv(0, 0);
+		(*next)->step = t;
+		if (!((*next)->state = t->newpvt())) {
+			opbx_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
+			opbx_translator_free_path(tmpr);    
+			tmpr = NULL;
+			break;
+		}
         
-        if (!tmp->state)
-        {
-            opbx_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
-            opbx_translator_free_path(tmpr);    
-            return NULL;
-        }
-        
-        /* Keep going if this isn't the final destination */
-        source = tmp->step->dst_format;
-    }
-    return tmpr;
+		/* Keep going if this isn't the final destination */
+		source = bottom_bit((*next)->step->dst_format);
+	}
+
+	opbx_mutex_unlock(&tr_matrix_lock);
+
+	return tmpr;
 }
 
 struct opbx_frame *opbx_translate(struct opbx_trans_pvt *path, struct opbx_frame *f, int consume)
@@ -313,9 +309,25 @@ static void calc_cost(struct opbx_translator *t, int secs)
         t->cost = 1;
 }
 
+static int rebuild_matrix_one(struct opbx_object *obj, void *data)
+{
+	struct opbx_translator *t = container_of(obj, struct opbx_translator, obj);
+	struct opbx_translator_dir *td = &tr_matrix[bottom_bit(t->src_format)][bottom_bit(t->dst_format)];
+	int *samples = data;
+
+	if (*samples || !t->cost)
+		calc_cost(t, *samples);
+
+	td->step = opbx_object_get(t);
+	td->cost = t->cost;
+	td->steps = 1;
+
+	return 0;
+}
+
 static void rebuild_matrix(int samples)
 {
-    struct opbx_translator *t;
+    struct opbx_translator_dir tr_old[MAX_FORMAT][MAX_FORMAT];
     int changed;
     int x;
     int y;
@@ -323,23 +335,22 @@ static void rebuild_matrix(int samples)
 
     if (option_debug)
         opbx_log(LOG_DEBUG, "Reseting translation matrix\n");
-    /* Use the list of translators to build a translation matrix */
-    bzero(tr_matrix, sizeof(tr_matrix));
-    t = list;
-    while (t)
-    {
-        if (samples)
-            calc_cost(t,samples);
-      
-        if (!tr_matrix[t->src_format][t->dst_format].step
-            ||
-            tr_matrix[t->src_format][t->dst_format].cost > t->cost)
-        {
-            tr_matrix[t->src_format][t->dst_format].step = t;
-            tr_matrix[t->src_format][t->dst_format].cost = t->cost;
+
+    opbx_mutex_lock(&tr_matrix_lock);
+
+    /* Regenerate the translation matrix then discard whatever we had before */
+    for (x = 0; x < MAX_FORMAT; x++)
+        for (y = 0; y < MAX_FORMAT; y++)
+		tr_old[x][y] = tr_matrix[x][y];
+    memset(tr_matrix, '\0', sizeof(tr_matrix));
+    opbx_registry_iterate(&translator_registry, rebuild_matrix_one, &samples);
+    for (x = 0; x < MAX_FORMAT; x++) {
+        for (y = 0; y < MAX_FORMAT; y++) {
+            if (tr_old[x][y].step)
+                opbx_object_put(tr_old[x][y].step);
         }
-        t = t->next;
     }
+
     do
     {
         changed = 0;
@@ -365,10 +376,11 @@ static void rebuild_matrix(int samples)
                                 /* We can get from x to z via y with a cost that
                                    is the sum of the transition from x to y and
                                    from y to z */
-                                tr_matrix[x][z].step = tr_matrix[x][y].step;
+                                tr_matrix[x][z].step = opbx_object_get(tr_matrix[x][y].step);
                                 tr_matrix[x][z].cost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
+                                tr_matrix[x][z].steps = tr_matrix[x][y].steps + tr_matrix[y][z].steps;
                                 if (option_debug)
-                                    opbx_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, opbx_getformatname(x), opbx_getformatname(z), y);
+                                    opbx_log(LOG_DEBUG, "Discovered path from %s to %s, via %s with %d steps and cost %d\n", opbx_getformatname(1 << x), opbx_getformatname(1 << z), opbx_getformatname(1 << y), tr_matrix[x][z].steps, tr_matrix[x][z].cost);
                                 changed++;
                             }
                         }
@@ -378,6 +390,8 @@ static void rebuild_matrix(int samples)
         }
     }
     while (changed);
+
+    opbx_mutex_unlock(&tr_matrix_lock);
 }
 
 static int show_translation(int fd, int argc, char *argv[])
@@ -412,7 +426,8 @@ static int show_translation(int fd, int argc, char *argv[])
 
     opbx_cli(fd, "         Translation times between formats (in milliseconds)\n");
     opbx_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
-    opbx_mutex_lock(&list_lock);
+
+    opbx_mutex_lock(&tr_matrix_lock);
     for (x = -1;  x < SHOW_TRANS;  x++)
     {
         line[0] = ' ';
@@ -431,9 +446,24 @@ static int show_translation(int fd, int argc, char *argv[])
         snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
         opbx_cli(fd, line);            
     }
-    opbx_mutex_unlock(&list_lock);
+    opbx_mutex_unlock(&tr_matrix_lock);
     return RESULT_SUCCESS;
 }
+
+static char show_trans_usage[] =
+"Usage: show translation [recalc] [<recalc seconds>]\n"
+"       Displays known codec translators and the cost associated\n"
+"with each conversion.  if the argument 'recalc' is supplied along\n"
+"with optional number of seconds to test a new test will be performed\n"
+"as the chart is being displayed.\n";
+
+static struct opbx_clicmd show_trans =
+{
+    .cmda = { "show", "translation", NULL },
+    .handler = show_translation,
+    .summary = "Display translation matrix",
+    .usage = show_trans_usage,
+};
 
 int opbx_translator_best_choice(int *dst, int *srcs)
 {
@@ -444,6 +474,7 @@ int opbx_translator_best_choice(int *dst, int *srcs)
     int bestdst = 0;
     int cur = 1;
     int besttime = INT_MAX;
+    int beststeps = INT_MAX;
     int common;
 
     if ((common = (*dst) & (*srcs)))
@@ -464,7 +495,7 @@ int opbx_translator_best_choice(int *dst, int *srcs)
     else
     {
         /* We will need to translate */
-        opbx_mutex_lock(&list_lock);
+        opbx_mutex_lock(&tr_matrix_lock);
         for (y = 0;  y < MAX_FORMAT;  y++)
         {
             if (cur & *dst)
@@ -475,7 +506,8 @@ int opbx_translator_best_choice(int *dst, int *srcs)
                         &&
                         tr_matrix[x][y].step        /* There's a step */
                         &&
-                        (tr_matrix[x][y].cost < besttime))
+                        (tr_matrix[x][y].cost < besttime
+			 || (tr_matrix[x][y].cost == besttime && tr_matrix[x][y].steps < beststeps)))
                     {
                         /* It's better than what we have so far */
                         best = 1 << x;
@@ -486,7 +518,7 @@ int opbx_translator_best_choice(int *dst, int *srcs)
             }
             cur <<= 1;
         }
-        opbx_mutex_unlock(&list_lock);
+        opbx_mutex_unlock(&tr_matrix_lock);
     }
     if (best > -1)
     {
@@ -498,88 +530,39 @@ int opbx_translator_best_choice(int *dst, int *srcs)
 }
 
 
-
-
-
-
-
-/* ************************************************************************** */
-
-static int added_cli = 0;
-
-static char show_trans_usage[] =
-"Usage: show translation [recalc] [<recalc seconds>]\n"
-"       Displays known codec translators and the cost associated\n"
-"with each conversion.  if the argument 'recalc' is supplied along\n"
-"with optional number of seconds to test a new test will be performed\n"
-"as the chart is being displayed.\n";
-
-static struct opbx_cli_entry show_trans =
+static const char *translator_registry_obj_name(struct opbx_object *obj)
 {
-    { "show", "translation", NULL },
-    show_translation,
-    "Display translation matrix",
-    show_trans_usage
+	struct opbx_translator *it = container_of(obj, struct opbx_translator, obj);
+	return it->name;
+}
+
+static int translator_registry_obj_cmp(struct opbx_object *a, struct opbx_object *b)
+{
+	struct opbx_translator *translator_a = container_of(a, struct opbx_translator, obj);
+	struct opbx_translator *translator_b = container_of(b, struct opbx_translator, obj);
+
+	return strcmp(translator_a->name, translator_b->name);
+}
+
+static void translator_registry_onchange(void)
+{
+	if (translator_initialized)
+		rebuild_matrix(0);
+}
+
+struct opbx_registry translator_registry = {
+	.name = "Translator",
+	.obj_name = translator_registry_obj_name,
+	.obj_cmp = translator_registry_obj_cmp,
+	.onchange = translator_registry_onchange,
+	.lock = OPBX_MUTEX_INIT_VALUE,
 };
 
-int opbx_register_translator(struct opbx_translator *t)
+
+int opbx_translator_init(void)
 {
-    char tmp[120]; /* Assume 120 character wide screen */
-
-    t->src_format = bottom_bit(t->src_format);
-    t->dst_format = bottom_bit(t->dst_format);
-    if (t->src_format >= MAX_FORMAT)
-    {
-        opbx_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", opbx_getformatname(1 << t->src_format));
-        return -1;
-    }
-    if (t->dst_format >= MAX_FORMAT)
-    {
-        opbx_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", opbx_getformatname(1 << t->dst_format));
-        return -1;
-    }
-    calc_cost(t, 1);
-    if (option_verbose > 1)
-        opbx_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->src_format), opbx_getformatname(1 << t->dst_format), t->cost);
-    opbx_mutex_lock(&list_lock);
-    if (!added_cli)
-    {
-        opbx_cli_register(&show_trans);
-        added_cli++;
-    }
-    t->next = list;
-    list = t;
-    rebuild_matrix(0);
-    opbx_mutex_unlock(&list_lock);
-    return 0;
+	translator_initialized = 1;
+	rebuild_matrix(0);
+	opbx_cli_register(&show_trans);
+	return 0;
 }
-
-int opbx_unregister_translator(struct opbx_translator *t)
-{
-    char tmp[120]; /* Assume 120 character wide screen */
-    struct opbx_translator *u;
-    struct opbx_translator *ul = NULL;
-    
-    opbx_mutex_lock(&list_lock);
-    u = list;
-    while (u)
-    {
-        if (u == t)
-        {
-            if (ul)
-                ul->next = u->next;
-            else
-                list = u->next;
-            if (option_verbose > 1)
-                opbx_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", opbx_term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), opbx_getformatname(1 << t->src_format), opbx_getformatname(1 << t->dst_format));
-            break;
-        }
-        ul = u;
-        u = u->next;
-    }
-    rebuild_matrix(0);
-    opbx_mutex_unlock(&list_lock);
-    return (u  ?  0  :  -1);
-}
-
-

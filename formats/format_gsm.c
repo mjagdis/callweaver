@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -76,12 +75,10 @@ struct opbx_filestream
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(gsm_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "gsm";
-static char *desc = "Raw GSM data";
-static char *exts = "gsm";
+static const char desc[] = "Raw GSM data";
+
 
 static struct opbx_filestream *gsm_open(FILE *f)
 {
@@ -93,19 +90,10 @@ static struct opbx_filestream *gsm_open(FILE *f)
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&gsm_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock gsm list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, name);
+        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_GSM, format.name);
         tmp->fr.data = tmp->gsm;
         /* datalen will vary for each frame */
-        glistcnt++;
-        opbx_mutex_unlock(&gsm_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -120,16 +108,7 @@ static struct opbx_filestream *gsm_rewrite(FILE *f, const char *comment)
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&gsm_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock gsm list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&gsm_lock);
-        opbx_update_use_count();
     }
     else
     {
@@ -140,14 +119,6 @@ static struct opbx_filestream *gsm_rewrite(FILE *f, const char *comment)
 
 static void gsm_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&gsm_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock gsm list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&gsm_lock);
-    opbx_update_use_count();
     fclose(s->f);
     free(s);
 }
@@ -247,7 +218,6 @@ static int gsm_seek(struct opbx_filestream *fs, long sample_offset, int whence)
     else if (offset > max)
     {
         int i;
-
         fseek(fs->f, 0, SEEK_END);
         for (i = 0;  i < (offset - max)/33;  i++)
             fwrite(gsm_silence, 1, 33, fs->f);
@@ -272,36 +242,34 @@ static char *gsm_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "gsm",
+	.exts = "gsm",
+	.format = OPBX_FORMAT_GSM,
+	.open = gsm_open,
+	.rewrite = gsm_rewrite,
+	.write = gsm_write,
+	.seek = gsm_seek,
+	.trunc = gsm_trunc,
+	.tell = gsm_tell,
+	.read = gsm_read,
+	.close = gsm_close,
+	.getcomment = gsm_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_GSM,
-                                gsm_open,
-                                gsm_rewrite,
-                                gsm_write,
-                                gsm_seek,
-                                gsm_trunc,
-                                gsm_tell,
-                                gsm_read,
-                                gsm_close,
-                                gsm_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module()
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount(void)
-{
-    return glistcnt;
-}
-
-char *description(void)
-{
-    return desc;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
 
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

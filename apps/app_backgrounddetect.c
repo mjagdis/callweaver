@@ -43,13 +43,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/dsp.h"
 
-static char *tdesc = "Playback with Talk and Fax Detection";
+static const char tdesc[] = "Playback with Talk and Fax Detection";
 
 static void *background_detect_app;
-static const char *background_detect_name = "BackgroundDetect";
-static const char *background_detect_synopsis = "Background a file with Talk and Fax detect";
-static const char *background_detect_syntax = "BackgroundDetect(filename[, options[, sildur[, mindur|, maxdur]]]])";
-static const char *background_detect_descrip = 
+static const char background_detect_name[] = "BackgroundDetect";
+static const char background_detect_synopsis[] = "Background a file with Talk and Fax detect";
+static const char background_detect_syntax[] = "BackgroundDetect(filename[, options[, sildur[, mindur|, maxdur]]]])";
+static const char background_detect_descrip[] = 
 "Parameters:\n"
 "      filename: File to play in the background.\n"
 "      options:\n"
@@ -89,11 +89,8 @@ static const char *background_detect_descrip =
 
 #define CALLERID_FIELD cid.cid_num
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int background_detect_exec(struct opbx_channel *chan, int argc, char **argv)
+static int background_detect_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char dtmf_did[256] = "\0";
 	struct timeval start = { 0, 0};
@@ -121,10 +118,8 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	pbx_builtin_setvar_helper(chan, "TALK_DETECTED", "0");
 	pbx_builtin_setvar_helper(chan, "DTMF_DID", "");
 	
-	if (argc < 1 || argc > 5) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", background_detect_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 5)
+		return opbx_function_syntax(background_detect_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -344,30 +339,19 @@ static int background_detect_exec(struct opbx_channel *chan, int argc, char **ar
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(background_detect_app);
+
+	res |= opbx_unregister_function(background_detect_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	background_detect_app = opbx_register_application(background_detect_name, background_detect_exec, background_detect_synopsis, background_detect_syntax, background_detect_descrip);
+	background_detect_app = opbx_register_function(background_detect_name, background_detect_exec, background_detect_synopsis, background_detect_syntax, background_detect_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

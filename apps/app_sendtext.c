@@ -43,13 +43,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/image.h"
 #include "callweaver/options.h"
 
-static const char *tdesc = "Send Text Applications";
+static const char tdesc[] = "Send Text Applications";
 
 static void *sendtext_app;
-static const char *sendtext_name = "SendText";
-static const char *sendtext_synopsis = "Send a Text Message";
-static const char *sendtext_syntax = "SendText(text)";
-static const char *sendtext_descrip = 
+static const char sendtext_name[] = "SendText";
+static const char sendtext_synopsis[] = "Send a Text Message";
+static const char sendtext_syntax[] = "SendText(text)";
+static const char sendtext_descrip[] = 
 "Sends text to current channel (callee).\n"
 "Otherwise, execution will continue at the next priority level.\n"
 "Result of transmission will be stored in the SENDTEXTSTATUS\n"
@@ -65,20 +65,15 @@ static const char *sendtext_descrip =
 " If the client does not support text transport, and there exists a\n"
 " step with priority n + 101, then execution will continue at that step.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv)
+static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res;
 	struct localuser *u;
 		
-	if (argc == 0) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", sendtext_syntax);
-		return -1;
-	}
-	
+	if (argc == 0)
+		return opbx_function_syntax(sendtext_syntax);
+
 	LOCAL_USER_ADD(u);
 
 	opbx_mutex_lock(&chan->lock);
@@ -102,32 +97,19 @@ static int sendtext_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(sendtext_app);
+
+	res |= opbx_unregister_function(sendtext_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	sendtext_app = opbx_register_application(sendtext_name, sendtext_exec, sendtext_synopsis, sendtext_syntax, sendtext_descrip);
+	sendtext_app = opbx_register_function(sendtext_name, sendtext_exec, sendtext_synopsis, sendtext_syntax, sendtext_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *) tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -44,14 +44,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/callweaver_db.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Authentication Application";
+static const char tdesc[] = "Authentication Application";
 
 static void *auth_app;
-static const char *auth_name = "Authenticate";
-static const char *auth_synopsis = "Authenticate a user";
-static const char *auth_syntax = "Authenticate(password[,options[,trylimit]])";
-static const char *auth_chanvar = "AUTH_STATUS";
-static const char *auth_descrip =
+static const char auth_name[] = "Authenticate";
+static const char auth_synopsis[] = "Authenticate a user";
+static const char auth_syntax[] = "Authenticate(password[,options[,trylimit]])";
+static const char auth_chanvar[] = "AUTH_STATUS";
+static const char auth_descrip[] =
 "Requires a user to enter a given password in order to continue execution.\n"
 "If the password begins with the '/' character, it is interpreted as\n"
 "a file which contains a list of valid passwords (1 per line).\n"
@@ -71,11 +71,8 @@ static const char *auth_descrip =
 "trylimit allows you to specify the number of times to try authentication.\n"
 "Default is 3, and if set to 0, no limit is enforced\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
+static int auth_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_len)
 {
 	int res=0;
 	int retries, trylimit=3, nolimit=0;
@@ -87,11 +84,9 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
 
 	pbx_builtin_setvar_helper(chan, auth_chanvar, "FAILURE"); /* default to fail */
 	
-	if (argc < 1 || argc > 3) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", auth_syntax);
-		return -1;
-	}
-	
+	if (argc < 1 || argc > 3)
+		return opbx_function_syntax(auth_syntax);
+
 	LOCAL_USER_ADD(u);
 
 	if (chan->_state != OPBX_STATE_UP) {
@@ -202,30 +197,19 @@ static int auth_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(auth_app);
+
+	res |= opbx_unregister_function(auth_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	auth_app = opbx_register_application(auth_name, auth_exec, auth_synopsis, auth_syntax, auth_descrip);
+	auth_app = opbx_register_function(auth_name, auth_exec, auth_synopsis, auth_syntax, auth_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -44,10 +44,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *math_function;
-static const char *math_func_name = "MATH";
-static const char *math_func_synopsis = "Performs Mathematical Functions";
-static const char *math_func_syntax = "MATH(number1 op number2[, type_of_result])";
-static const char *math_func_desc =
+static const char math_func_name[] = "MATH";
+static const char math_func_synopsis[] = "Performs Mathematical Functions";
+static const char math_func_syntax[] = "MATH(number1 op number2[, type_of_result])";
+static const char math_func_desc[] =
 	"Perform calculation on number 1 to number 2. Valid ops are: \n"
         "    +,-,/,*,%,<,>,>=,<=,==\n"
 	"and behave as their C equivalents.\n"
@@ -83,187 +83,174 @@ enum TypeOfResult
 };
 
 
-static char *builtin_function_math(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int builtin_function_math(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	float fnum1;
 	float fnum2;
 	float ftmp = 0;
 	char *op;
 	int iaction=-1;
-	int type_of_result=FLOAT_RESULT;
+	int type_of_result = FLOAT_RESULT;
 
 	/* dunno, big calulations :D */
 	char user_result[30];
 
-	char *mvalue1, *mvalue2=NULL, *mtype_of_result;
+	char *mvalue1, *mvalue2 = NULL;
 
-	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", math_func_syntax);
-		return NULL;
-	}
+	if (argc != 2 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(math_func_syntax);
 
-	mvalue1 = argv[0];
-	
-	if ((op = strchr(mvalue1, '+'))) {
-		iaction = ADDFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '-'))) {
-		iaction = SUBTRACTFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '*'))) {
-		iaction = MULTIPLYFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '/'))) {
-		iaction = DIVIDEFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '%'))) {
-		iaction = MODULUSFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '>'))) {
-		iaction = GTFUNCTION;
-		*op = '\0';
-		if (*(op+1) == '=') {
-			*++op = '\0';
-			iaction = GTEFUNCTION;
-		}
-	} else if ((op = strchr(mvalue1, '<'))) {
-		iaction = LTFUNCTION;
-		*op = '\0';
-		if (*(op+1) == '=') {
-			*++op = '\0';
-			iaction = LTEFUNCTION;
-		}
-	} else if ((op = strchr(mvalue1, '='))) {
-		iaction = GTFUNCTION;
-		*op = '\0';
-		if (*(op+1) == '=') {
-			*++op = '\0';
-			iaction = EQFUNCTION;
-		} else
-			op = NULL;
-	} 
-	
-	if (op) 
-		mvalue2 = op + 1;
-
-	/* detect wanted type of result */
-	mtype_of_result = argv[1];
-	if (mtype_of_result)
-	{
-		if (!strcasecmp(mtype_of_result,"float") || !strcasecmp(mtype_of_result,"f"))
+	if (buf) {
+		if (!strcasecmp(argv[1],"float") || !strcasecmp(argv[1],"f"))
 			type_of_result=FLOAT_RESULT;
-		else if (!strcasecmp(mtype_of_result,"int") || !strcasecmp(mtype_of_result,"i"))
+		else if (!strcasecmp(argv[1],"int") || !strcasecmp(argv[1],"i"))
 			type_of_result=INT_RESULT;
-		else if (!strcasecmp(mtype_of_result,"hex") || !strcasecmp(mtype_of_result,"h"))
+		else if (!strcasecmp(argv[1],"hex") || !strcasecmp(argv[1],"h"))
 			type_of_result=HEX_RESULT;
-		else if (!strcasecmp(mtype_of_result,"char") || !strcasecmp(mtype_of_result,"c"))
+		else if (!strcasecmp(argv[1],"char") || !strcasecmp(argv[1],"c"))
 			type_of_result=CHAR_RESULT;
-		else
-		{
-			opbx_log(LOG_WARNING, "Unknown type of result requested '%s'.\n", mtype_of_result);
-			return NULL;
+		else {
+			opbx_log(LOG_ERROR, "Unknown type of result requested '%s'\n", argv[1]);
+			return opbx_function_syntax(math_func_syntax);
 		}
-	}
+
+		mvalue1 = argv[0];
+
+		if ((op = strchr(mvalue1, '+'))) {
+			iaction = ADDFUNCTION;
+			*op = '\0';
+		} else if ((op = strchr(mvalue1, '-'))) {
+			iaction = SUBTRACTFUNCTION;
+			*op = '\0';
+		} else if ((op = strchr(mvalue1, '*'))) {
+			iaction = MULTIPLYFUNCTION;
+			*op = '\0';
+		} else if ((op = strchr(mvalue1, '/'))) {
+			iaction = DIVIDEFUNCTION;
+			*op = '\0';
+		} else if ((op = strchr(mvalue1, '%'))) {
+			iaction = MODULUSFUNCTION;
+			*op = '\0';
+		} else if ((op = strchr(mvalue1, '>'))) {
+			iaction = GTFUNCTION;
+			*op = '\0';
+			if (*(op+1) == '=') {
+				*++op = '\0';
+				iaction = GTEFUNCTION;
+			}
+		} else if ((op = strchr(mvalue1, '<'))) {
+			iaction = LTFUNCTION;
+			*op = '\0';
+			if (*(op+1) == '=') {
+				*++op = '\0';
+				iaction = LTEFUNCTION;
+			}
+		} else if ((op = strchr(mvalue1, '='))) {
+			iaction = GTFUNCTION;
+			*op = '\0';
+			if (*(op+1) == '=') {
+				*++op = '\0';
+				iaction = EQFUNCTION;
+			} else
+				op = NULL;
+		} 
 	
-	if (!mvalue1 || !mvalue2) {
-		opbx_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
-		return NULL;
-	}
+		if (op) 
+			mvalue2 = op + 1;
 
-	if (sscanf(mvalue1, "%f", &fnum1) != 1) {
-		opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
-		return NULL;
-	}
+		if (!mvalue1 || !mvalue2) {
+			opbx_log(LOG_WARNING, "Supply all the parameters - just this once, please\n");
+			return -1;
+		}
 
-	if (sscanf(mvalue2, "%f", &fnum2) != 1) {
-		opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
-		return NULL;
-	}
+		if (sscanf(mvalue1, "%f", &fnum1) != 1) {
+			opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
+			return -1;
+		}
 
-	switch (iaction) {
-	case ADDFUNCTION :
-		ftmp = fnum1 + fnum2;
-		break;
-	case DIVIDEFUNCTION :
-		if (fnum2 <= 0)
-			ftmp = 0; /* can't do a divide by 0 */
-		else
-			ftmp = (fnum1 / fnum2);
-		break;
-	case MULTIPLYFUNCTION :
-		ftmp = (fnum1 * fnum2);
-		break;
-	case SUBTRACTFUNCTION :
-		ftmp = (fnum1 - fnum2);
-		break;
-	case MODULUSFUNCTION :
-	{
-		int inum1 = fnum1;
-		int inum2 = fnum2;
+		if (sscanf(mvalue2, "%f", &fnum2) != 1) {
+			opbx_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
+			return -1;
+		}
+
+		switch (iaction) {
+		case ADDFUNCTION :
+			ftmp = fnum1 + fnum2;
+			break;
+		case DIVIDEFUNCTION :
+			if (fnum2 <= 0)
+				ftmp = 0; /* can't do a divide by 0 */
+			else
+				ftmp = (fnum1 / fnum2);
+			break;
+		case MULTIPLYFUNCTION :
+			ftmp = (fnum1 * fnum2);
+			break;
+		case SUBTRACTFUNCTION :
+			ftmp = (fnum1 - fnum2);
+			break;
+		case MODULUSFUNCTION :
+		{
+			int inum1 = fnum1;
+			int inum2 = fnum2;
 			
-		ftmp = (inum1 % inum2);
+			ftmp = (inum1 % inum2);
 		
-		break;
-	}
-	case GTFUNCTION :
-		opbx_copy_string (user_result, (fnum1 > fnum2)?"TRUE":"FALSE", sizeof (user_result));
-		break;
-	case LTFUNCTION :
-		opbx_copy_string (user_result, (fnum1 < fnum2)?"TRUE":"FALSE", sizeof (user_result));
-		break;
-	case GTEFUNCTION :
-		opbx_copy_string (user_result, (fnum1 >= fnum2)?"TRUE":"FALSE", sizeof (user_result));
-		break;
-	case LTEFUNCTION :
-		opbx_copy_string (user_result, (fnum1 <= fnum2)?"TRUE":"FALSE", sizeof (user_result));
-		break;					
-	case EQFUNCTION :
-		opbx_copy_string (user_result, (fnum1 == fnum2)?"TRUE":"FALSE", sizeof (user_result));
-		break;
-	default :
-		opbx_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
-		return NULL;
+			break;
+		}
+		case GTFUNCTION :
+			opbx_copy_string (user_result, (fnum1 > fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			break;
+		case LTFUNCTION :
+			opbx_copy_string (user_result, (fnum1 < fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			break;
+		case GTEFUNCTION :
+			opbx_copy_string (user_result, (fnum1 >= fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			break;
+		case LTEFUNCTION :
+			opbx_copy_string (user_result, (fnum1 <= fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			break;					
+		case EQFUNCTION :
+			opbx_copy_string (user_result, (fnum1 == fnum2)?"TRUE":"FALSE", sizeof (user_result));
+			break;
+		default :
+			opbx_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
+			return -1;
+		}
+
+		if (iaction < GTFUNCTION || iaction > EQFUNCTION) {
+			if (type_of_result == FLOAT_RESULT)
+				snprintf(user_result, sizeof(user_result), "%f", ftmp);
+			else if (type_of_result == INT_RESULT)
+				snprintf(user_result, sizeof(user_result), "%i", (int) ftmp);
+			else if (type_of_result == HEX_RESULT)
+				snprintf(user_result, sizeof(user_result), "%x", (unsigned int) ftmp);
+			else if (type_of_result == CHAR_RESULT)
+				snprintf(user_result, sizeof(user_result), "%c", (unsigned char) ftmp);
+		}
+
+		opbx_copy_string(buf, user_result, len);
 	}
 
-	if (iaction < GTFUNCTION || iaction > EQFUNCTION) {
-	    if (type_of_result == FLOAT_RESULT)
-		    snprintf(user_result, sizeof(user_result), "%f", ftmp);
-	    else if (type_of_result == INT_RESULT)
-		    snprintf(user_result, sizeof(user_result), "%i", (int) ftmp);
-	    else if (type_of_result == HEX_RESULT)
-		snprintf(user_result, sizeof(user_result), "%x", (unsigned int) ftmp);
-	    else if (type_of_result == CHAR_RESULT)
-		snprintf(user_result, sizeof(user_result), "%c", (unsigned char) ftmp);
-	}
-		
-	opbx_copy_string(buf, user_result, len);
-	
-	return buf;
+	return 0;
 }
 
 
-static char *tdesc = "math functions";
+static const char tdesc[] = "math functions";
 
-int unload_module(void)
+static int unload_module(void)
 {
         return opbx_unregister_function(math_function);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-        math_function = opbx_register_function(math_func_name, builtin_function_math, NULL, math_func_synopsis, math_func_syntax, math_func_desc);
+        math_function = opbx_register_function(math_func_name, builtin_function_math, math_func_synopsis, math_func_syntax, math_func_desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 /*
 Local Variables:

@@ -57,7 +57,7 @@ OPBX_MUTEX_DEFINE_STATIC(localuser_lock);
 
 static int localusecnt = 0;
 
-static char *tdesc = "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator";
+static const char tdesc[] = "DVI/IMA/Intel 32kbps ADPCM to/from PCM16 translator";
 
 static int useplc = 0;
 
@@ -133,7 +133,6 @@ static struct opbx_translator_pvt *dviadpcmtolin_new(void)
     ima_adpcm_init(&tmp->dvi_state, 32000);
     plc_init(&tmp->plc);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -156,7 +155,6 @@ static struct opbx_translator_pvt *lintodviadpcm_new(void)
     memset(tmp, 0, sizeof(*tmp));
     ima_adpcm_init(&tmp->dvi_state, 32000);
     localusecnt++;
-    opbx_update_use_count();
     return (struct opbx_translator_pvt *) tmp;
 }
 
@@ -348,7 +346,6 @@ static void dviadpcm_destroy(struct opbx_translator_pvt *pvt)
 {
     free (pvt);
     localusecnt--;
-    opbx_update_use_count ();
 }
 
 /*
@@ -356,17 +353,16 @@ static void dviadpcm_destroy(struct opbx_translator_pvt *pvt)
  */
 static opbx_translator_t dviadpcmtolin =
 {
-    "dviadpcmtolin",
-    OPBX_FORMAT_DVI_ADPCM,
-    8000,
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    dviadpcmtolin_new,
-    dviadpcmtolin_framein,
-    dviadpcmtolin_frameout,
-    dviadpcm_destroy,
-    /* NULL */
-    dviadpcmtolin_sample
+    .name = "dviadpcmtolin",
+    .src_format = OPBX_FORMAT_DVI_ADPCM,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_SLINEAR,
+    .dst_rate = 8000,
+    .newpvt = dviadpcmtolin_new,
+    .framein = dviadpcmtolin_framein,
+    .frameout = dviadpcmtolin_frameout,
+    .destroy = dviadpcm_destroy,
+    .sample = dviadpcmtolin_sample
 };
 
 /*
@@ -374,17 +370,16 @@ static opbx_translator_t dviadpcmtolin =
  */
 static opbx_translator_t lintodviadpcm =
 {
-    "lintodviadpcm",
-    OPBX_FORMAT_SLINEAR,
-    8000,
-    OPBX_FORMAT_DVI_ADPCM,
-    8000,
-    lintodviadpcm_new,
-    lintodviadpcm_framein,
-    lintodviadpcm_frameout,
-    dviadpcm_destroy,
-    /* NULL */
-    lintodviadpcm_sample
+    .name = "lintodviadpcm",
+    .src_format = OPBX_FORMAT_SLINEAR,
+    .src_rate = 8000,
+    .dst_format = OPBX_FORMAT_DVI_ADPCM,
+    .dst_rate = 8000,
+    .newpvt = lintodviadpcm_new,
+    .framein = lintodviadpcm_framein,
+    .frameout = lintodviadpcm_frameout,
+    .destroy = dviadpcm_destroy,
+    .sample = lintodviadpcm_sample
 };
 
 static void parse_config(void)
@@ -411,49 +406,34 @@ static void parse_config(void)
     }
 }
 
-int reload(void)
+static int reload_module(void)
 {
     parse_config();
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    int res;
+    int res = 0;
   
     opbx_mutex_lock(&localuser_lock);
-    if ((res = opbx_unregister_translator(&lintodviadpcm)) == 0)
-        res = opbx_unregister_translator(&dviadpcmtolin);
     if (localusecnt)
         res = -1;
     opbx_mutex_unlock(&localuser_lock);
+    opbx_translator_unregister(&dviadpcmtolin);
+    opbx_translator_unregister(&lintodviadpcm);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    int res;
+    int res = 0;
   
     parse_config();
-    if ((res = opbx_register_translator(&dviadpcmtolin)) == 0)
-        res = opbx_register_translator(&lintodviadpcm);
-    else
-        opbx_unregister_translator(&dviadpcmtolin);
+    opbx_translator_register(&dviadpcmtolin);
+    opbx_translator_register(&lintodviadpcm);
     return res;
 }
 
-/*
- * Return a description of this module.
- */
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    
-    STANDARD_USECOUNT (res);
-    return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

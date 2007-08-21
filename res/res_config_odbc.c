@@ -48,10 +48,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "include/res_odbc.h"
 
-static char *tdesc = "ODBC Configuration";
-STANDARD_LOCAL_USER;
+static const char tdesc[] = "ODBC Configuration";
 
-LOCAL_USER_DECL;
 
 static struct opbx_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
@@ -509,30 +507,25 @@ static struct opbx_config_engine odbc_engine = {
 	.update_func = update_odbc
 };
 
-int unload_module (void)
+static int unload_module (void)
 {
-	opbx_config_engine_deregister(&odbc_engine);
-	if (option_verbose)
-		opbx_verbose("res_config_odbc unloaded.\n");
-	STANDARD_HANGUP_LOCALUSERS;
+	opbx_config_engine_unregister(&odbc_engine);
 	return 0;
 }
 
-int load_module (void)
+static int load_module (void)
 {
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
 	opbx_config_engine_register(&odbc_engine);
-	if (option_verbose)
-		opbx_verbose("res_config_odbc loaded.\n");
 	return 0;
 }
 
 char *description (void)
 {
-	return tdesc;
+	return (char *)tdesc;
 }
 
-int usecount (void)
-{
-	/* never unload a config module */
-	return 1;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

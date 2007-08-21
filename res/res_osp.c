@@ -845,36 +845,35 @@ static char show_osp_usage[] =
 "Usage: show osp\n"
 "       Displays information on Open Settlement Protocol\n";
 
-static struct opbx_cli_entry cli_show_osp = 
-{ { "show", "osp", NULL }, show_osp, "Displays OSP information", show_osp_usage };
+static struct opbx_clicmd cli_show_osp = {
+	.cmda = { "show", "osp", NULL },
+	.handler = show_osp,
+	.summary = "Displays OSP information",
+	.usage = show_osp_usage,
+};
 
-int reload(void)
+static int reload_module(void)
 {
 	config_load();
 	opbx_log(LOG_NOTICE, "XXX Should reload OSP config XXX\n");
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
 	config_load();
 	opbx_cli_register(&cli_show_osp);
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	/* Can't unload this once we're loaded */
 	return -1;
 }
 
-char *description(void)
-{
-	return "Open Settlement Protocol Support";
-}
 
-int usecount(void)
-{
-	/* We should never be unloaded */
-	return 1;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, "Open Settlement Protocol Support")

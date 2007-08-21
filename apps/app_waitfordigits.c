@@ -43,13 +43,13 @@
 #define OPBX_VERSION_1_2
 #endif
 
-static char *tdesc = "Waits for overlap dialed digits";
+static const char tdesc[] = "Waits for overlap dialed digits";
 
 static void *waitfordigits_app;
-static const char *waitfordigits_name = "WaitForDigits";
-static const char *waitfordigits_synopsis = "Wait for digits";
-static const char *waitfordigits_syntax = "WaitForDigits(milliseconds,[maxnum],addexten,[control],[priority]):\n";
-static const char *waitfordigits_descrip =
+static const char waitfordigits_name[] = "WaitForDigits";
+static const char waitfordigits_synopsis[] = "Wait for digits";
+static const char waitfordigits_syntax[] = "WaitForDigits(milliseconds,[maxnum],addexten,[control],[priority]):\n";
+static const char waitfordigits_descrip[] =
 " WaitForDigits(milliseconds,[maxnum],addexten,[control],[priority]):\n"
 " Waits for given milliseconds for digits which are dialed in overlap mode.\n" 
 " Upon exit, sets the variable NEWEXTEN to the new extension (old + new digits)\n"
@@ -86,11 +86,6 @@ static const char *waitfordigits_descrip =
 
 //#include "compat.h"
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-
 
 #define CHANNEL_INFO " (%s,%s)"
 #ifdef ASTERISK_STATBLE
@@ -101,7 +96,7 @@ LOCAL_USER_DECL;
 
 
 
-static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv)
+static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res = 0;
 	struct localuser *u;
@@ -241,27 +236,16 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
 	return opbx_unregister_application(waitfordigits_app);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	waitfordigits_app = opbx_register_application(waitfordigits_name, waitfordigits_exec, waitfordigits_synopsis, waitfordigits_syntax, waitfordigits_descrip);
+	waitfordigits_app = opbx_register_function(waitfordigits_name, waitfordigits_exec, waitfordigits_synopsis, waitfordigits_syntax, waitfordigits_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

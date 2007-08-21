@@ -54,25 +54,26 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/say.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "MeetMe conference bridge";
+
+static const char tdesc[] = "MeetMe conference bridge";
 
 static void *app;
 static void *app2;
 static void *app3;
 
-static char *name = "MeetMe";
-static char *name2 = "MeetMeCount";
-static char *name3 = "MeetMeAdmin";
+static const char name[] = "MeetMe";
+static const char name2[] = "MeetMeCount";
+static const char name3[] = "MeetMeAdmin";
 
-static char *synopsis = "MeetMe conference bridge";
-static char *synopsis2 = "MeetMe participant count";
-static char *synopsis3 = "MeetMe conference Administration";
+static const char synopsis[] = "MeetMe conference bridge";
+static const char synopsis2[] = "MeetMe participant count";
+static const char synopsis3[] = "MeetMe conference Administration";
 
-static char *syntax = "MeetMe([confno[, options[, pin]]])";
-static char *syntax2 = "MeetMeCount(confno[, var])";
-static char *syntax3 = "MeetMeAdmin(confno,command[, user])";
+static const char syntax[] = "MeetMe([confno[, options[, pin]]])";
+static const char syntax2[] = "MeetMeCount(confno[, var])";
+static const char syntax3[] = "MeetMeAdmin(confno,command[, user])";
 
-static char *descrip =
+static const char descrip[] =
     "Enters the user into a specified MeetMe conference.\n"
     "If the conference number is omitted, the user will be prompted to enter\n"
     "one. \n"
@@ -109,13 +110,14 @@ static char *descrip =
     "      'A' -- set marked mode\n"
     "      'P' -- always prompt for the pin even if it is specified\n";
 
-static char *descrip2 =
-    "Plays back the number of users in the specifiedi\n"
-    "MeetMe conference. If var is specified, playback will be skipped and the value\n"
+static char descrip2[] =
+    "Plays back the number of users in the specified MeetMe conference.\n"
+    "If used in an expression playback will be skipped and the value returned.\n"
+    "If var is specified, playback will be skipped and the value\n"
     "will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
     "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
-static char *descrip3 =
+static char descrip3[] =
     "Run admin command for conference\n"
     "      'K' -- Kick all users out of conference\n"
     "      'k' -- Kick one user out of conference\n"
@@ -128,9 +130,8 @@ static char *descrip3 =
     "      'n' -- Unmute entire conference (except admin)\n"
     "";
 
-STANDARD_LOCAL_USER;
+static unsigned int hash_ogi;
 
-LOCAL_USER_DECL;
 
 static struct opbx_conference
 {
@@ -191,7 +192,7 @@ enum volume_action
 
 OPBX_MUTEX_DEFINE_STATIC(conflock);
 
-static int admin_exec(struct opbx_channel *chan, int argc, char **argv);
+static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
 
 static void *recordthread(void *args);
 
@@ -518,13 +519,12 @@ static int confs_show(int fd, int argc, char **argv)
 static char show_confs_usage[] =
     "Deprecated! Please use 'meetme' instead.\n";
 
-static struct opbx_cli_entry cli_show_confs =
+static struct opbx_clicmd cli_show_confs =
 {
-    {"show", "conferences", NULL},
-    confs_show,
-    "Show status of conferences",
-    show_confs_usage,
-    NULL
+    .cmda = {"show", "conferences", NULL},
+    .handler = confs_show,
+    .summary = "Show status of conferences",
+    .usage = show_confs_usage,
 };
 
 static int conf_cmd(int fd, int argc, char **argv)
@@ -674,7 +674,7 @@ static int conf_cmd(int fd, int argc, char **argv)
     else
         return RESULT_SHOWUSAGE;
 
-    admin_exec(NULL, argc, argv + 2);
+    admin_exec(NULL, argc, argv + 2, NULL, 0);
     return 0;
 }
 
@@ -773,13 +773,13 @@ static char conf_usage[] =
     "Usage: meetme  (un)lock|(un)mute|kick|list <confno> <usernumber>\n"
     "       Executes a command for the conference or on a conferee\n";
 
-static struct opbx_cli_entry cli_conf =
-    {
-        { "meetme", NULL, NULL
-        }
-        , conf_cmd,
-        "Execute a command on a conference or conferee", conf_usage, complete_confcmd
-    };
+static struct opbx_clicmd cli_conf = {
+        .cmda = { "meetme", NULL, NULL },
+        .handler = conf_cmd,
+        .summary = "Execute a command on a conference or conferee",
+	.usage = conf_usage,
+	.generator = complete_confcmd,
+};
 
 static void conf_flush(int fd)
 {
@@ -863,7 +863,6 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
     int duration=20;
     struct opbx_dsp *dsp=NULL;
 
-    struct opbx_app *app;
     char *ogifile;
     char *ogifiledefault = "conf-background.ogi";
     char meetmesecs[30] = "";
@@ -899,7 +898,7 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
         pthread_attr_init(&conf->attr);
         pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
         opbx_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n", conf->confno, conf->recordingfilename, conf->recordingformat);
-        opbx_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
+        opbx_pthread_create(get_modinfo()->self, &conf->recordthread, &conf->attr, recordthread, conf);
     }
 
     user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
@@ -1168,22 +1167,12 @@ zapretry:
             x = 1;
             opbx_channel_setoption(chan,OPBX_OPTION_TONE_VERIFY,&x,sizeof(char),0);
         }
-        /* Find a pointer to the ogi app and execute the script */
-        app = pbx_findapp("OGI");
-        if (app)
-        {
-            /* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
-              or use default filename of conf-background.ogi */
-            ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
-            ogifile = strdup(ogifile ? ogifile : ogifiledefault);
-            ret = pbx_exec(chan, app, ogifile);
-            free(ogifile);
-        }
-        else
-        {
-            opbx_log(LOG_WARNING, "Could not find application (ogi)\n");
-            ret = -2;
-        }
+        /* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
+          or use default filename of conf-background.ogi */
+        ogifile = pbx_builtin_getvar_helper(chan,"MEETME_OGI_BACKGROUND");
+        ogifile = strdup(ogifile ? ogifile : ogifiledefault);
+        ret = opbx_function_exec_str(chan, hash_ogi, "OGI", ogifile, NULL, 0);
+        free(ogifile);
         if (user->zapchannel)
         {
             /*  Remove CONFMUTE mode on Zap channel */
@@ -1894,8 +1883,9 @@ static struct opbx_conference *find_conf(struct opbx_channel *chan, char *confno
 }
 
 /*--- count_exec: The MeetmeCount application */
-static int count_exec(struct opbx_channel *chan, int argc, char **argv)
+static int count_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+    static int deprecated_var = 0;
     char val[80] = "0";
     struct localuser *u;
     int res = 0;
@@ -1903,10 +1893,7 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv)
     int count;
 
     if (argc < 1 || argc > 2)
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", syntax2);
-        return -1;
-    }
+        return opbx_function_syntax(syntax2);
 
     LOCAL_USER_ADD(u);
 
@@ -1916,9 +1903,17 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv)
     else
         count = 0;
 
-    if (argc > 1)
+    if (buf)
     {
-        /* have var so load it and exit */
+        snprintf(buf, len, "%d", count);
+    }
+    else if (argc > 1)
+    {
+        if (!deprecated_var)
+        {
+            opbx_log(LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", name2);
+            deprecated_var = 1;
+        }
         snprintf(val, sizeof(val), "%d",count);
         pbx_builtin_setvar_helper(chan, argv[1], val);
     }
@@ -1934,7 +1929,7 @@ static int count_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 
 /*--- conf_exec: The meetme() application */
-static int conf_exec(struct opbx_channel *chan, int argc, char **argv)
+static int conf_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     char confno[OPBX_MAX_EXTENSION] = "";
     char the_pin[OPBX_MAX_EXTENSION] = "";
@@ -1952,10 +1947,7 @@ static int conf_exec(struct opbx_channel *chan, int argc, char **argv)
     int always_prompt = 0;
 
     if (argc > 3)
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", syntax);
-        return -1;
-    }
+        return opbx_function_syntax(syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -2223,7 +2215,6 @@ static struct opbx_conf_user* find_user(struct opbx_conference *conf, char *call
 {
     struct opbx_conf_user *user = NULL;
     char usrno[1024] = "";
-
     if (conf && callerident)
     {
         user = conf->firstuser;
@@ -2240,17 +2231,14 @@ static struct opbx_conf_user* find_user(struct opbx_conference *conf, char *call
 
 /*--- admin_exec: The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
-static int admin_exec(struct opbx_channel *chan, int argc, char **argv)
+static int admin_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     struct opbx_conference *cnf;
     struct opbx_conf_user *user;
     struct localuser *u;
 
-    if (argc < 2  ||  argc > 3)
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", syntax3);
-        return -1;
-    }
+    if (argc < 2 || argc > 3)
+        return opbx_function_syntax(syntax3);
 
     LOCAL_USER_ADD(u);
     opbx_mutex_lock(&conflock);
@@ -2406,37 +2394,28 @@ static void *recordthread(void *args)
     pthread_exit(0);
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
-
-    STANDARD_HANGUP_LOCALUSERS;
     opbx_cli_unregister(&cli_show_confs);
     opbx_cli_unregister(&cli_conf);
-    res |= opbx_unregister_application(app3);
-    res |= opbx_unregister_application(app2);
-    res |= opbx_unregister_application(app);
+    res |= opbx_unregister_function(app3);
+    res |= opbx_unregister_function(app2);
+    res |= opbx_unregister_function(app);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
+    hash_ogi = opbx_hash_app_name("OGI");
+
     opbx_cli_register(&cli_show_confs);
     opbx_cli_register(&cli_conf);
-    app3 = opbx_register_application(name3, admin_exec, synopsis3, syntax3, descrip3);
-    app2 = opbx_register_application(name2, count_exec, synopsis2, syntax2, descrip2);
-    app = opbx_register_application(name, conf_exec, synopsis, syntax, descrip);
+    app3 = opbx_register_function(name3, admin_exec, synopsis3, syntax3, descrip3);
+    app2 = opbx_register_function(name2, count_exec, synopsis2, syntax2, descrip2);
+    app = opbx_register_function(name, conf_exec, synopsis, syntax, descrip);
     return 0;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

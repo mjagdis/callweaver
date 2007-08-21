@@ -41,21 +41,18 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 
 
-static char *tdesc = "Send verbose output";
+static const char tdesc[] = "Send verbose output";
 
 static void *verbose_app;
-static const char *verbose_name = "Verbose";
-static const char *verbose_synopsis = "Send arbitrary text to verbose output";
-static const char *verbose_syntax = "Verbose([level, ]message)";
-static const char *verbose_descrip =
+static const char verbose_name[] = "Verbose";
+static const char verbose_synopsis[] = "Send arbitrary text to verbose output";
+static const char verbose_syntax[] = "Verbose([level, ]message)";
+static const char verbose_descrip[] =
 "  level must be an integer value.  If not specified, defaults to 0."
 "  Always returns 0.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int verbose_exec(struct opbx_channel *chan, int argc, char **argv)
+static int verbose_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static char *prefix[] = {
 		"",
@@ -73,10 +70,8 @@ static int verbose_exec(struct opbx_channel *chan, int argc, char **argv)
 		argv++, argc--;
 	}
 
-	if (argc != 1 || level < 0 || level >= arraysize(prefix)) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", verbose_syntax);
-		return -1;
-	}
+	if (argc != 1 || level < 0 || level >= arraysize(prefix))
+		return opbx_function_syntax(verbose_syntax);
 
 	LOCAL_USER_ADD(u);
 	opbx_verbose("%s%s\n", prefix[level], argv[0]);
@@ -85,30 +80,19 @@ static int verbose_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(verbose_app);
+
+	res |= opbx_unregister_function(verbose_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	verbose_app = opbx_register_application(verbose_name, verbose_exec, verbose_synopsis, verbose_syntax, verbose_descrip);
+	verbose_app = opbx_register_function(verbose_name, verbose_exec, verbose_synopsis, verbose_syntax, verbose_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

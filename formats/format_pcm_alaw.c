@@ -40,7 +40,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -67,12 +66,9 @@ struct opbx_filestream {
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(pcm_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "alaw";
-static char *desc = "Raw aLaw 8khz PCM Audio support";
-static char *exts = "alaw|al";
+static const char desc[] = "Raw aLaw 8khz PCM Audio support";
 
 
 #if 0
@@ -100,21 +96,13 @@ static struct opbx_filestream *pcm_open(FILE *f)
 	struct opbx_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
 		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&pcm_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock pcm list\n");
-			free(tmp);
-			return NULL;
-		}
 		tmp->f = f;
 		tmp->fr.data = tmp->buf;
-        opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, name);
+		opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, format.name);
 		/* datalen will vary for each frame */
 #ifdef REALTIME_WRITE
 		tmp->start_time = get_time();
 #endif
-		glistcnt++;
-		opbx_mutex_unlock(&pcm_lock);
-		opbx_update_use_count();
 	}
 	return tmp;
 }
@@ -127,18 +115,10 @@ static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
 	struct opbx_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
 		memset(tmp, 0, sizeof(struct opbx_filestream));
-		if (opbx_mutex_lock(&pcm_lock)) {
-			opbx_log(LOG_WARNING, "Unable to lock pcm list\n");
-			free(tmp);
-			return NULL;
-		}
 		tmp->f = f;
 #ifdef REALTIME_WRITE
 		tmp->start_time = get_time();
 #endif
-		glistcnt++;
-		opbx_mutex_unlock(&pcm_lock);
-		opbx_update_use_count();
 	} else
 		opbx_log(LOG_WARNING, "Out of memory\n");
 	return tmp;
@@ -146,13 +126,6 @@ static struct opbx_filestream *pcm_rewrite(FILE *f, const char *comment)
 
 static void pcm_close(struct opbx_filestream *s)
 {
-	if (opbx_mutex_lock(&pcm_lock)) {
-		opbx_log(LOG_WARNING, "Unable to lock pcm list\n");
-		return;
-	}
-	glistcnt--;
-	opbx_mutex_unlock(&pcm_lock);
-	opbx_update_use_count();
 	fclose(s->f);
 	free(s);
 	s = NULL;
@@ -163,11 +136,10 @@ static struct opbx_frame *pcm_read(struct opbx_filestream *s, int *whennext)
 	int res;
 	/* Send a frame from the file to the appropriate channel */
 
-    opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, NULL);
+	opbx_fr_init_ex(&s->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_ALAW, NULL);
 	s->fr.offset = OPBX_FRIENDLY_OFFSET;
 	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1)
-    {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
 		if (res)
 			opbx_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -277,38 +249,40 @@ static long pcm_tell(struct opbx_filestream *fs)
 	return offset;
 }
 
+
 static char *pcm_getcomment(struct opbx_filestream *s)
 {
 	return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "alaw",
+	.exts = "alaw|al",
+	.format = OPBX_FORMAT_ALAW,
+	.open = pcm_open,
+	.rewrite = pcm_rewrite,
+	.write = pcm_write,
+	.seek = pcm_seek,
+	.trunc = pcm_trunc,
+	.tell = pcm_tell,
+	.read = pcm_read,
+	.close = pcm_close,
+	.getcomment = pcm_getcomment,
+};
+
+
+static int load_module(void)
 {
-	return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_ALAW,
-								pcm_open,
-								pcm_rewrite,
-								pcm_write,
-								pcm_seek,
-								pcm_trunc,
-								pcm_tell,
-								pcm_read,
-								pcm_close,
-								pcm_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-	return opbx_format_unregister(name);
-}	
-
-int usecount(void)
-{
-	return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description(void)
-{
-	return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

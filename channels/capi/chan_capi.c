@@ -68,14 +68,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 unsigned capi_ApplID = CAPI_APPLID_UNUSED;
 
 static _cword capi_MessageNumber;
-static char *ccdesc = "Common ISDN API for CallWeaver";
+static char ccdesc[] = "Common ISDN API for CallWeaver";
 static const char tdesc[] = "Common ISDN API Driver (" CC_VERSION ")";
 static const char channeltype[] = "CAPI";
 static const struct opbx_channel_tech capi_tech;
 
 static void *command_app;
-static char *commandsyntax = "See description";
-static char *commandtdesc = "CAPI command interface.\n"
+static char commandsyntax[] = "See description";
+static char commandtdesc[] = "CAPI command interface.\n"
 "The dial command:\n"
 "Dial(CAPI/g<group>/[<callerid>:]<destination>[/<params>])\n"
 "Dial(CAPI/contr<controller>/[<callerid>:]<destination>[/<params>])\n"
@@ -109,10 +109,8 @@ static char *commandtdesc = "CAPI command interface.\n"
 "CONNECTEDNUMBER,FAXEXTEN,PRI_CAUSE,REDIRECTINGNUMBER,REDIRECTREASON\n"
 "!!! for more details and samples, check the README of chan-capi !!!\n";
 
-static char *commandapp = "capiCommand";
-static char *commandsynopsis = "Execute special CAPI commands";
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
+static char commandapp[] = "capiCommand";
+static char commandsynopsis[] = "Execute special CAPI commands";
 
 static int usecnt;
 
@@ -1255,8 +1253,6 @@ static int pbx_capi_hangup(struct opbx_channel *c)
 	} else {
 		cleanup = 1;
 	}
-	
-	opbx_update_use_count();
 	
 	if ((i->doDTMF > 0) && (i->vad != NULL)) {
 		opbx_dsp_free(i->vad);
@@ -4548,16 +4544,14 @@ static struct capicommands_s {
 /*
  * capi command interface
  */
-static int pbx_capicommand_exec(struct opbx_channel *chan, int argc, char **argv)
+static int pbx_capicommand_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct capicommands_s *capicmd = &capicommands[0];
 	int res = 0;
 
-	if (argc < 1 || !argv[0][0]) {
-		cc_log(LOG_ERROR, "Syntax: capiCommand(command[, args...])\n");
-		return -1;
-	}
+	if (argc < 1 || !argv[0][0])
+		return opbx_function_syntax("capiCommand(command[, args...])");
 
 	LOCAL_USER_ADD(u);
 
@@ -4744,7 +4738,13 @@ static void *capidev_loop(void *data)
 {
 	unsigned int Info;
 	_cmsg monCMSG;
-	
+
+	/* FIXME: capidev_check_wait_get_cmsg not only waits but _loops_
+	 * waiting. Until this is rewritten to be cancellation safe
+	 * reloads are going to leak memory, descriptors, whatever
+	 */
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	for (/* for ever */;;) {
 		switch(Info = capidev_check_wait_get_cmsg(&monCMSG)) {
 		case 0x0000:
@@ -5200,14 +5200,31 @@ static char no_debug_usage[] =
 /*
  * define commands
  */
-static struct opbx_cli_entry  cli_info =
-	{ { "capi", "info", NULL }, pbxcli_capi_info, "Show CAPI info", info_usage };
-static struct opbx_cli_entry  cli_show_channels =
-	{ { "capi", "show", "channels", NULL }, pbxcli_capi_show_channels, "Show B-channel info", show_channels_usage };
-static struct opbx_cli_entry  cli_debug =
-	{ { "capi", "debug", NULL }, pbxcli_capi_do_debug, "Enable CAPI debugging", debug_usage };
-static struct opbx_cli_entry  cli_no_debug =
-	{ { "capi", "no", "debug", NULL }, pbxcli_capi_no_debug, "Disable CAPI debugging", no_debug_usage };
+static struct opbx_clicmd  cli_info = {
+	.cmda = { "capi", "info", NULL },
+	.handler = pbxcli_capi_info,
+	.summary = "Show CAPI info",
+	.usage = info_usage,
+};
+static struct opbx_clicmd  cli_show_channels = {
+	.cmda = { "capi", "show", "channels", NULL },
+	.handler = pbxcli_capi_show_channels,
+	.summary = "Show B-channel info",
+	.usage = show_channels_usage,
+};
+static struct opbx_clicmd  cli_debug = {
+	.cmda = { "capi", "debug", NULL },
+	.handler = pbxcli_capi_do_debug,
+	.summary = "Enable CAPI debugging",
+	.usage = debug_usage,
+};
+static struct opbx_clicmd  cli_no_debug = {
+	.cmda = { "capi", "no", "debug", NULL },
+	.handler = pbxcli_capi_no_debug,
+	.summary = "Disable CAPI debugging",
+	.usage = no_debug_usage,
+};
+
 
 static const struct opbx_channel_tech capi_tech = {
 	.type = channeltype,
@@ -5671,13 +5688,13 @@ static int capi_eval_config(struct opbx_config *cfg)
 /*
  * unload the module
  */
-int unload_module()
+static int unload_module(void)
 {
 	struct capi_pvt *i, *itmp;
 	int controller;
 	int res = 0;
 
-	res |= opbx_unregister_application(command_app);
+	res |= opbx_unregister_function(command_app);
 
 	opbx_cli_unregister(&cli_info);
 	opbx_cli_unregister(&cli_show_channels);
@@ -5727,7 +5744,7 @@ int unload_module()
 /*
  * main: load the module
  */
-int load_module(void)
+static int load_module(void)
 {
 	struct opbx_config *cfg;
 	char *config = "capi.conf";
@@ -5784,9 +5801,9 @@ int load_module(void)
 	opbx_cli_register(&cli_debug);
 	opbx_cli_register(&cli_no_debug);
 	
-	command_app = opbx_register_application(commandapp, pbx_capicommand_exec, commandsynopsis, commandsyntax, commandtdesc);
+	command_app = opbx_register_function(commandapp, pbx_capicommand_exec, commandsynopsis, commandsyntax, commandtdesc);
 
-	if (opbx_pthread_create(&monitor_thread, NULL, capidev_loop, NULL) < 0) {
+	if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, NULL, capidev_loop, NULL) < 0) {
 		monitor_thread = (pthread_t)(0-1);
 		cc_log(LOG_ERROR, "Unable to start monitor thread!\n");
 		return -1;
@@ -5806,7 +5823,5 @@ int usecount()
 	return res;
 }
 
-char *description()
-{
-	return ccdesc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, ccdesc)

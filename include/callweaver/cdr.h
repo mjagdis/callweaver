@@ -24,6 +24,13 @@
 #define _CALLWEAVER_CDR_H
 
 #include <sys/time.h>
+
+#include "callweaver/atomic.h"
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
+
+
 #define OPBX_CDR_FLAG_KEEP_VARS			(1 << 0)
 #define OPBX_CDR_FLAG_POSTED			(1 << 1)
 #define OPBX_CDR_FLAG_LOCKED			(1 << 2)
@@ -95,13 +102,32 @@ struct opbx_cdr {
 	struct opbx_cdr *next;
 };
 
+struct opbx_cdrbe {
+	struct opbx_object obj;
+	struct opbx_registry_entry cdrbe_entry;
+	int (*handler)(struct opbx_cdr *cdr);
+	const char *name;
+	const char *description;
+};
+
+
+extern struct opbx_registry cdrbe_registry;
+
+
+#define opbx_cdrbe_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
+	__ptr->cdrbe_entry.obj = &__ptr->obj; \
+	opbx_registry_add(&cdrbe_registry, &__ptr->cdrbe_entry); \
+})
+#define opbx_cdrbe_unregister(ptr)	opbx_registry_del(&cdrbe_registry, &(ptr)->cdrbe_entry)
+
+
 extern void opbx_cdr_getvar(struct opbx_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur);
 extern int opbx_cdr_setvar(struct opbx_cdr *cdr, const char *name, const char *value, int recur);
 extern int opbx_cdr_serialize_variables(struct opbx_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);
 extern void opbx_cdr_free_vars(struct opbx_cdr *cdr, int recur);
 extern int opbx_cdr_copy_vars(struct opbx_cdr *to_cdr, struct opbx_cdr *from_cdr);
-
-typedef int (*opbx_cdrbe)(struct opbx_cdr *cdr);
 
 /*! \brief Allocate a CDR record 
  * Returns a malloc'd opbx_cdr structure, returns NULL on error (malloc failure)
@@ -135,23 +161,6 @@ extern int opbx_cdr_init(struct opbx_cdr *cdr, struct opbx_channel *chan);
  * Return is negligible.  (returns 0 by default)
  */
 extern int opbx_cdr_setcid(struct opbx_cdr *cdr, struct opbx_channel *chan);
-
-/*! Register a CDR handling engine */
-/*!
- * \param name name associated with the particular CDR handler
- * \param desc description of the CDR handler
- * \param be function pointer to a CDR handler
- * Used to register a Call Detail Record handler.
- * Returns -1 on error, 0 on success.
- */
-extern int opbx_cdr_register(char *name, char *desc, opbx_cdrbe be);
-
-/*! Unregister a CDR handling engine */
-/*!
- * \param name name of CDR handler to unregister
- * Unregisters a CDR by it's name
- */
-extern void opbx_cdr_unregister(char *name);
 
 /*! Start a call */
 /*!

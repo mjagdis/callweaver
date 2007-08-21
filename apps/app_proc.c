@@ -51,13 +51,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* special result value used to force proc exit */
 #define PROC_EXIT_RESULT 1024
 
-static char *tdesc = "Extension Procs";
+static const char tdesc[] = "Extension Procs";
 
 static void *proc_app;
-static const char *proc_name = "Proc";
-static const char *proc_synopsis = "Proc Implementation";
-static const char *proc_syntax = "Proc(procname, arg1, arg2 ...)";
-static const char *proc_descrip =
+static const char proc_name[] = "Proc";
+static const char proc_synopsis[] = "Proc Implementation";
+static const char proc_syntax[] = "Proc(procname, arg1, arg2 ...)";
+static const char proc_descrip[] =
 "Executes a procedure using the context\n"
 "'proc-<procname>', jumping to the 's' extension of that context and\n"
 "executing each step, then returning when the steps end. \n"
@@ -71,30 +71,26 @@ static const char *proc_descrip =
 "at priority PROC_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n";
 
 static void *if_app;
-static const char *if_name = "ProcIf";
-static const char *if_synopsis = "Conditional Proc Implementation";
-static const char *if_syntax = "ProcIf(expr ? procname_a[, arg ...] [: procname_b[, arg ...]])";
-static const char *if_descrip =
+static const char if_name[] = "ProcIf";
+static const char if_synopsis[] = "Conditional Proc Implementation";
+static const char if_syntax[] = "ProcIf(expr ? procname_a[, arg ...] [: procname_b[, arg ...]])";
+static const char if_descrip[] =
 "Executes proc defined in <procname_a> if <expr> is true\n"
 "(otherwise <procname_b> if provided)\n"
 "Arguments and return values as in application proc()\n";
 
 static void *exit_app;
-static const char *exit_name = "ProcExit";
-static const char *exit_synopsis = "Exit From Proc";
-static const char *exit_syntax = "ProcExit()";
-static const char *exit_descrip =
+static const char exit_name[] = "ProcExit";
+static const char exit_synopsis[] = "Exit From Proc";
+static const char exit_syntax[] = "ProcExit()";
+static const char exit_descrip[] =
 "Causes the currently running proc to exit as if it had\n"
 "ended normally by running out of priorities to execute.\n"
 "If used outside a proc, will likely cause unexpected\n"
 "behavior.\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int proc_exec(struct opbx_channel *chan, int argc, char **argv)
+static int proc_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *tmp;
 	char *proc;
@@ -118,10 +114,8 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv)
 	char *save_proc_offset;
 	struct localuser *u;
  
-	if (argc < 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", proc_syntax);
-		return -1;
-	}
+	if (argc < 1)
+		return opbx_function_syntax(proc_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -308,16 +302,14 @@ static int proc_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int procif_exec(struct opbx_channel *chan, int argc, char **argv) 
+static int procif_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max) 
 {
 	char *s, *q;
 	int i;
 
 	/* First argument is "<condition ? ..." */
-	if (argc < 1 || !(s = strchr(argv[0], '?'))) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", if_syntax);
-		return -1;
-	}
+	if (argc < 1 || !(s = strchr(argv[0], '?')))
+		return opbx_function_syntax(if_syntax);
 
 	/* Trim trailing space from the condition */
 	q = s;
@@ -335,7 +327,7 @@ static int procif_exec(struct opbx_channel *chan, int argc, char **argv)
 				break;
 			}
 		}
-		return proc_exec(chan, argc, argv);
+		return proc_exec(chan, argc, argv, NULL, 0);
 	} else {
 		/* False: we want everything after ':' (if anything) */
 		argv[0] = s;
@@ -343,7 +335,7 @@ static int procif_exec(struct opbx_channel *chan, int argc, char **argv)
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));
 				argv[i] = s;
-				return proc_exec(chan, argc - i, argv + i);
+				return proc_exec(chan, argc - i, argv + i, NULL, 0);
 			}
 		}
 		/* No ": ..." so we just drop through */
@@ -351,37 +343,28 @@ static int procif_exec(struct opbx_channel *chan, int argc, char **argv)
 	}
 }
 			
-static int proc_exit_exec(struct opbx_channel *chan, int argc, char **argv)
+static int proc_exit_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	return PROC_EXIT_RESULT;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(if_app);
-	res |= opbx_unregister_application(exit_app);
-	res |= opbx_unregister_application(proc_app);
+
+	res |= opbx_unregister_function(if_app);
+	res |= opbx_unregister_function(exit_app);
+	res |= opbx_unregister_function(proc_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	exit_app = opbx_register_application(exit_name, proc_exit_exec, exit_synopsis, exit_syntax, exit_descrip);
-	if_app = opbx_register_application(if_name, procif_exec, if_synopsis, if_syntax, if_descrip);
-	proc_app = opbx_register_application(proc_name, proc_exec, proc_synopsis, proc_syntax, proc_descrip);
+	exit_app = opbx_register_function(exit_name, proc_exit_exec, exit_synopsis, exit_syntax, exit_descrip);
+	if_app = opbx_register_function(if_name, procif_exec, if_synopsis, if_syntax, if_descrip);
+	proc_app = opbx_register_function(proc_name, proc_exec, proc_synopsis, proc_syntax, proc_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

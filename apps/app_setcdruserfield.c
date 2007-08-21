@@ -44,13 +44,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static char *tdesc = "CDR user field apps";
+static const char tdesc[] = "CDR user field apps";
 
 static void *setcdruserfield_app;
-static char *setcdruserfield_name = "SetCDRUserField";
-static char *setcdruserfield_synopsis = "Set the CDR user field";
-static char *setcdruserfield_syntax = "SetCDRUserField(value)";
-static char *setcdruserfield_descrip = 
+static const char setcdruserfield_name[] = "SetCDRUserField";
+static const char setcdruserfield_synopsis[] = "Set the CDR user field";
+static const char setcdruserfield_syntax[] = "SetCDRUserField(value)";
+static const char setcdruserfield_descrip[] = 
                "Set the CDR 'user field' to value\n"
                "       The Call Data Record (CDR) user field is an extra field you\n"
                "       can use for data not stored anywhere else in the record.\n"
@@ -62,10 +62,10 @@ static char *setcdruserfield_descrip =
 		
 
 static void *appendcdruserfield_app;
-static char *appendcdruserfield_name = "AppendCDRUserField";
-static char *appendcdruserfield_synopsis = "Append to the CDR user field";
-static char *appendcdruserfield_syntax = "AppendCDRUserField(value)";
-static char *appendcdruserfield_descrip = 
+static const char appendcdruserfield_name[] = "AppendCDRUserField";
+static const char appendcdruserfield_synopsis[] = "Append to the CDR user field";
+static const char appendcdruserfield_syntax[] = "AppendCDRUserField(value)";
+static const char appendcdruserfield_descrip[] = 
                "Append value to the CDR user field\n"
                "       The Call Data Record (CDR) user field is an extra field you\n"
                "       can use for data not stored anywhere else in the record.\n"
@@ -74,10 +74,6 @@ static char *appendcdruserfield_descrip =
                "       Also see SetCDRUserField().\n"
                "       Always returns 0\n";
 		
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int action_setcdruserfield(struct mansession *s, struct message *m)
 {
@@ -108,7 +104,7 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int setcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv)
+static int setcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res = 0;
@@ -124,7 +120,7 @@ static int setcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv
 	return res;
 }
 
-static int appendcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv)
+static int appendcdruserfield_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res = 0;
@@ -140,34 +136,23 @@ static int appendcdruserfield_exec(struct opbx_channel *chan, int argc, char **a
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(setcdruserfield_app);
-	res |= opbx_unregister_application(appendcdruserfield_app);
+
+	res |= opbx_unregister_function(setcdruserfield_app);
+	res |= opbx_unregister_function(appendcdruserfield_app);
 	opbx_manager_unregister("SetCDRUserField");
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	setcdruserfield_app = opbx_register_application(setcdruserfield_name, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_syntax, setcdruserfield_descrip);
-	appendcdruserfield_app = opbx_register_application(appendcdruserfield_name, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_syntax, appendcdruserfield_descrip);
+	setcdruserfield_app = opbx_register_function(setcdruserfield_name, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_syntax, setcdruserfield_descrip);
+	appendcdruserfield_app = opbx_register_function(appendcdruserfield_name, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_syntax, appendcdruserfield_descrip);
 	opbx_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

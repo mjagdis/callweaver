@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -60,12 +59,8 @@ struct opbx_filestream
 };
 
 
-OPBX_MUTEX_DEFINE_STATIC(g723_lock);
-static int glistcnt = 0;
-
-static char *name = "g723.1";
-static char *desc = "G.723.1 Simple Timestamp File Format";
-static char *exts = "g723.1|g723";
+static struct opbx_format format;
+static const char desc[] = "G.723.1 Simple Timestamp File Format";
 
 static struct opbx_filestream *g723_open(FILE *f)
 {
@@ -77,20 +72,11 @@ static struct opbx_filestream *g723_open(FILE *f)
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&g723_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock g723 list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
         tmp->fr = (struct opbx_frame *) tmp->buf;
-        opbx_fr_init_ex(tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G723_1, name);
+        opbx_fr_init_ex(tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G723_1, format.name);
         tmp->fr->data = tmp->buf + sizeof(struct opbx_frame);
         /* datalen will vary for each frame */
-        glistcnt++;
-        opbx_mutex_unlock(&g723_lock);
-        opbx_update_use_count();
     }
     return tmp;
 }
@@ -105,16 +91,7 @@ static struct opbx_filestream *g723_rewrite(FILE *f, const char *comment)
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&g723_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock g723 list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&g723_lock);
-        opbx_update_use_count();
     }
     else
         opbx_log(LOG_WARNING, "Out of memory\n");
@@ -172,14 +149,6 @@ static struct opbx_frame *g723_read(struct opbx_filestream *s, int *whennext)
 
 static void g723_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&g723_lock))
-    {
-        opbx_log(LOG_WARNING, "Unable to lock g723 list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&g723_lock);
-    opbx_update_use_count();
     fclose(s->f);
     free(s);
     s = NULL;
@@ -222,7 +191,7 @@ static int g723_write(struct opbx_filestream *fs, struct opbx_frame *f)
     {
         opbx_log(LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
         return -1;
-    }    
+    }
     return 0;
 }
 
@@ -249,33 +218,34 @@ static char *g723_getcomment(struct opbx_filestream *s)
     return NULL;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "g723.1",
+	.exts = "g723.1|g723",
+	.format = OPBX_FORMAT_G723_1,
+	.open = g723_open,
+	.rewrite = g723_rewrite,
+	.write = g723_write,
+	.seek = g723_seek,
+	.trunc = g723_trunc,
+	.tell = g723_tell,
+	.read = g723_read,
+	.close = g723_close,
+	.getcomment = g723_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_G723_1,
-                                g723_open,
-                                g723_rewrite,
-                                g723_write,
-                                g723_seek,
-                                g723_trunc,
-                                g723_tell,
-                                g723_read,
-                                g723_close,
-                                g723_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount(void)
-{
-    return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description(void)
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

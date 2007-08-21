@@ -93,6 +93,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/astosp.h"
 #endif
 
+
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "CallWeaver"
 #endif
@@ -160,16 +161,16 @@ static const char notify_config[] = "sip_notify.conf";
 
 
 static void *sipheader_function;
-static const char *sipheader_func_name = "SIP_HEADER";
-static const char *sipheader_func_synopsis = "Gets or sets the specified SIP header";
-static const char *sipheader_func_syntax = "SIP_HEADER(<name>)";
-static const char *sipheader_func_desc = "";
+static const char sipheader_func_name[] = "SIP_HEADER";
+static const char sipheader_func_synopsis[] = "Gets or sets the specified SIP header";
+static const char sipheader_func_syntax[] = "SIP_HEADER(<name>)";
+static const char sipheader_func_desc[] = "";
 
 static void *sippeer_function;
-static const char *sippeer_func_name = "SIPPEER";
-static const char *sippeer_func_synopsis = "Gets SIP peer information";
-static const char *sippeer_func_syntax = "SIPPEER(<peername>[:item])";
-static const char *sippeer_func_desc =
+static const char sippeer_func_name[] = "SIPPEER";
+static const char sippeer_func_synopsis[] = "Gets SIP peer information";
+static const char sippeer_func_syntax[] = "SIPPEER(<peername>[:item])";
+static const char sippeer_func_desc[] =
 	"Valid items are:\n"
 	"- ip (default)          The IP address.\n"
 	"- mailbox               The configured mailbox.\n"
@@ -190,10 +191,10 @@ static const char *sippeer_func_desc =
 	"\n";
 
 static void *sipchaninfo_function;
-static const char *sipchaninfo_func_name = "SIPCHANINFO";
-static const char *sipchaninfo_func_synopsis = "Gets the specified SIP parameter from the current channel";
-static const char *sipchaninfo_func_syntax = "SIPCHANINFO(item)";
-static const char *sipchaninfo_func_desc =
+static const char sipchaninfo_func_name[] = "SIPCHANINFO";
+static const char sipchaninfo_func_synopsis[] = "Gets the specified SIP parameter from the current channel";
+static const char sipchaninfo_func_syntax[] = "SIPCHANINFO(item)";
+static const char sipchaninfo_func_desc[] =
 	"Valid items are:\n"
 	"- peerip                The IP address of the peer.\n"
 	"- recvip                The source IP address of the peer.\n"
@@ -203,10 +204,10 @@ static const char *sipchaninfo_func_desc =
 	"- peername              The name of the peer.\n";
 
 static void *checksipdomain_function;
-static const char *checksipdomain_func_name = "CHECKSIPDOMAIN";
-static const char *checksipdomain_func_synopsis = "Checks if domain is a local domain";
-static const char *checksipdomain_func_syntax = "CHECKSIPDOMAIN(<domain|IP>)";
-static const char *checksipdomain_func_desc =
+static const char checksipdomain_func_name[] = "CHECKSIPDOMAIN";
+static const char checksipdomain_func_synopsis[] = "Checks if domain is a local domain";
+static const char checksipdomain_func_syntax[] = "CHECKSIPDOMAIN(<domain|IP>)";
+static const char checksipdomain_func_desc[] =
 	"This function checks if the domain in the argument is configured\n"
         "as a local SIP domain that this CallWeaver server is configured to handle.\n"
         "Returns the domain name if it is locally handled, otherwise an empty string.\n"
@@ -3328,7 +3329,6 @@ static int sip_hangup(struct opbx_channel *ast)
     opbx_mutex_lock(&usecnt_lock);
     usecnt--;
     opbx_mutex_unlock(&usecnt_lock);
-    opbx_update_use_count();
 
     /* Do not destroy this pvt until we have timeout or
        get an answer to the BYE or INVITE/CANCEL 
@@ -3895,8 +3895,7 @@ static struct opbx_channel *sip_new(struct sip_pvt *i, int state, char *title)
     opbx_mutex_lock(&usecnt_lock);
     usecnt++;
     opbx_mutex_unlock(&usecnt_lock);
-    opbx_update_use_count();	
-                                
+
     return tmp;
 }
 
@@ -11735,15 +11734,13 @@ static char show_settings_usage[] =
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-static char *func_header_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int func_header_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     char *content;
     
-    if (argc != 1 || !argv[0][0]) {
-	    opbx_log(LOG_ERROR, "Syntax: %s\n", sipheader_func_syntax);
-	    return NULL;
-    }
+    if (argc != 1 || !argv[0][0])
+	    return opbx_function_syntax(sipheader_func_syntax);
 
     opbx_mutex_lock(&chan->lock);
 
@@ -11751,7 +11748,7 @@ static char *func_header_read(struct opbx_channel *chan, int argc, char **argv, 
     {
         opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
         opbx_mutex_unlock(&chan->lock);
-        return NULL;
+        return -1;
     }
 
     p = chan->tech_pvt;
@@ -11760,52 +11757,46 @@ static char *func_header_read(struct opbx_channel *chan, int argc, char **argv, 
     if (!p)
     {
         opbx_mutex_unlock(&chan->lock);
-        return NULL;
+        return -1;
     }
 
-    content = get_header(&p->initreq, argv[0]);
+    if (buf) {
+        content = get_header(&p->initreq, argv[0]);
 
-    if (opbx_strlen_zero(content))
-    {
-        opbx_mutex_unlock(&chan->lock);
-        return NULL;
+        if (!opbx_strlen_zero(content))
+            opbx_copy_string(buf, content, len);
+
     }
-
-    opbx_copy_string(buf, content, len);
     opbx_mutex_unlock(&chan->lock);
-
-    return buf;
+    return 0;
 }
 
 
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
-static char *func_check_sipdomain(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int func_check_sipdomain(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", checksipdomain_func_syntax);
-		return NULL;
-	}
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax(checksipdomain_func_syntax);
 
-	if (check_sip_domain(argv[0], NULL, 0))
+	if (buf && check_sip_domain(argv[0], NULL, 0))
 		opbx_copy_string(buf, argv[0], len);
-	else
-		buf[0] = '\0';
-	return buf;
+
+	return 0;
 }
 
 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-static char *function_sippeer(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_sippeer(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    char *ret = NULL;
     struct sip_peer *peer;
     char *colname;
     char iabuf[INET_ADDRSTRLEN];
 
-    if (argc != 1 || !argv[0][0]) {
-	    opbx_log(LOG_ERROR, "Syntax: %s\n", sippeer_func_syntax);
-	    return NULL;
-    }
+    if (argc != 1 || !argv[0][0])
+	    return opbx_function_syntax(sippeer_func_syntax);
+
+    if (!buf)
+	    return 0;
 
     if ((colname = strchr(argv[0], ':')))
     {
@@ -11817,7 +11808,7 @@ static char *function_sippeer(struct opbx_channel *chan, int argc, char **argv, 
         colname = "ip";
     }
     if (!(peer = find_peer(argv[0], NULL, 1)))
-        return ret;
+        return 0;
 
     if (!strcasecmp(colname, "ip"))
     {
@@ -11893,33 +11884,28 @@ static char *function_sippeer(struct opbx_channel *chan, int argc, char **argv, 
             opbx_copy_string(buf, opbx_getformatname(codec), len);
         }
     }
-    ret = buf;
 
     ASTOBJ_UNREF(peer, sip_destroy_peer);
 
-    return ret;
+    return 0;
 }
 
 
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static char *function_sipchaninfo_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int function_sipchaninfo_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     char iabuf[INET_ADDRSTRLEN];
 
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", sipchaninfo_func_syntax);
-		return NULL;
-	}
-
-    *buf = 0;
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax(sipchaninfo_func_syntax);
 
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
         opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
         opbx_mutex_unlock(&chan->lock);
-        return NULL;
+        return -1;
     }
 
 /*     opbx_verbose("function_sipchaninfo_read: %s\n", argv[0]); */
@@ -11929,7 +11915,12 @@ static char *function_sipchaninfo_read(struct opbx_channel *chan, int argc, char
     if (!p)
     {
         opbx_mutex_unlock(&chan->lock);
-        return NULL;
+        return -1;
+    }
+
+    if (!buf) {
+        opbx_mutex_unlock(&chan->lock);
+        return 0;
     }
 
     if (!strcasecmp(argv[0], "peerip"))
@@ -11959,11 +11950,11 @@ static char *function_sipchaninfo_read(struct opbx_channel *chan, int argc, char
     else
     {
         opbx_mutex_unlock(&chan->lock);
-        return NULL;
+        return -1;
     }
     opbx_mutex_unlock(&chan->lock);
 
-    return buf;
+    return 0;
 }
 
 
@@ -12941,7 +12932,7 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
         copy_request(&d->req, req);
         d->chan1 = chan1m;
         d->chan2 = chan2m;
-        if (!opbx_pthread_create(&th, NULL, sip_park_thread, d))
+        if (!opbx_pthread_create(get_modinfo()->self, &th, NULL, sip_park_thread, d))
             return 0;
         free(d);
     }
@@ -14363,9 +14354,6 @@ retrylock:
         opbx_mutex_unlock(&p->lock);
     }
     opbx_mutex_unlock(&netlock);
-    if (recount)
-        opbx_update_use_count();
-
     return 1;
 }
 
@@ -14528,7 +14516,11 @@ restartsearch:
         opbx_mutex_unlock(&netlock);
         /* And from now on, we're okay to be killed, so release the monitor lock as well */
         opbx_mutex_unlock(&monlock);
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         pthread_testcancel();
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 	/* Wait for sched or io */
 	res = opbx_sched_wait(sched);
 	if ((res < 0) || (res > 1000))
@@ -14608,7 +14600,7 @@ static int restart_monitor(void)
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         /* Start a new monitor */
-        if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
@@ -14871,7 +14863,6 @@ static struct opbx_channel *sip_request_call(const char *type, int format, void 
     opbx_mutex_unlock(&p->lock);
     if (!tmpc)
         sip_destroy(p);
-    opbx_update_use_count();
     restart_monitor();
     return tmpc;
 }
@@ -16632,16 +16623,16 @@ static int sip_handle_t38_reinvite(struct opbx_channel *chan, struct sip_pvt *pv
 }
 
 static void *dtmfmode_app;
-static char *dtmfmode_name = "SipDTMFMode";
-static char *dtmfmode_synopsis = "Change the DTMF mode for a SIP call";
-static char *dtmfmode_syntax = "SipDTMFMode(inband|info|rfc2833)";
-static char *dtmfmode_description = "Changes the DTMF mode for a SIP call\n";
+static char dtmfmode_name[] = "SipDTMFMode";
+static char dtmfmode_synopsis[] = "Change the DTMF mode for a SIP call";
+static char dtmfmode_syntax[] = "SipDTMFMode(inband|info|rfc2833)";
+static char dtmfmode_description[] = "Changes the DTMF mode for a SIP call\n";
 
 static void *sipaddheader_app;
-static char *sipaddheader_name = "SipAddHeader";
-static char *sipaddheader_synopsis= "Add a SIP header to the outbound call";
-static char *sipaddheader_syntax = "SipAddHeader(Header: Content)";
-static char *sipaddheader_description =
+static char sipaddheader_name[] = "SipAddHeader";
+static char sipaddheader_synopsis[] = "Add a SIP header to the outbound call";
+static char sipaddheader_syntax[] = "SipAddHeader(Header: Content)";
+static char sipaddheader_description[] =
 "Adds a header to a SIP call placed with DIAL.\n"
 "Remember to user the X-header if you are adding non-standard SIP\n"
 "headers, like \"X-CallWeaver-Accountcode:\". Use this with care.\n"
@@ -16649,23 +16640,23 @@ static char *sipaddheader_description =
 "Always returns 0\n";
 
 static void *sipgetheader_app;
-static char *sipgetheader_name= "SipGetHeader";
-static char *sipgetheader_synopsis= "Get a SIP header from an incoming call";
-static char *sipgetheader_syntax = "SipGetHeader(var=headername)";
-static char *sipgetheader_description =
+static char sipgetheader_name[] = "SipGetHeader";
+static char sipgetheader_synopsis[] = "Get a SIP header from an incoming call";
+static char sipgetheader_syntax[] = "SipGetHeader(var=headername)";
+static char sipgetheader_description[] =
 "Sets a channel variable to the content of a SIP header\n"
 "Skips to priority+101 if header does not exist\n"
 "Otherwise returns 0\n";
 
 static void *sipt38switchover_app;
-static char *sipt38switchover_name = "SipT38SwitchOver";
-static char *sipt38switchover_synopsis= "Forces a T38 switchover on a non-bridged channel.";
-static char *sipt38switchover_syntax= "SipT38SwitchOver()";
-static char *sipt38switchover_description= ""
+static char sipt38switchover_name[] = "SipT38SwitchOver";
+static char sipt38switchover_synopsis[] = "Forces a T38 switchover on a non-bridged channel.";
+static char sipt38switchover_syntax[] = "SipT38SwitchOver()";
+static char sipt38switchover_description[] = ""
 "Forces a T38 switchover on a non-bridged channel.\n";
 
 /*! \brief  app_sipt38switchover: forces a T38 Switchover on a sip channel. */
-static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv) 
+static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
 {
     struct sip_pvt *p;
     
@@ -16673,11 +16664,15 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv)
 
     opbx_mutex_lock(&chan->lock);
     if ( ( tmp_var=pbx_builtin_getvar_helper(chan, "T38_DISABLE")) != NULL ) {
-        opbx_log(LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
         opbx_mutex_unlock(&chan->lock);
+        opbx_log(LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
         return 0;
     }
-
+/*
+    if (argc < 1 || !argv[0][0])
+        return opbx_function_synax(sipt38switchover_syntax);
+*/
+    opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
         opbx_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
@@ -16735,21 +16730,19 @@ static int sip_t38switchover(struct opbx_channel *chan, int argc, char **argv)
 }
 
 static int sip_do_t38switchover(const struct opbx_channel *chan) {
-    return sip_t38switchover( (struct opbx_channel*) chan, 0, NULL);
+    return sip_t38switchover( (struct opbx_channel*) chan, 0, NULL, NULL, 0);
 }
 
 
 
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) */
-static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv)
+static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     struct sip_pvt *p;
 
     if (argc != 1 || !argv[0][0])
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", dtmfmode_syntax);
-        return -1;
-    }
+        return opbx_function_syntax(dtmfmode_syntax);
+
     opbx_mutex_lock(&chan->lock);
     if (chan->type != channeltype)
     {
@@ -16803,7 +16796,7 @@ static int sip_dtmfmode(struct opbx_channel *chan, int argc, char **argv)
 }
 
 /*! \brief  sip_addheader: Add a SIP header */
-static int sip_addheader(struct opbx_channel *chan, int argc, char **argv)
+static int sip_addheader(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     char varbuf[128];
     char *content = (char *) NULL;
@@ -16811,10 +16804,8 @@ static int sip_addheader(struct opbx_channel *chan, int argc, char **argv)
     int ok = 0;
     
     if (argc < 1 || !argv[0][0])
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", sipaddheader_syntax);
-        return -1;
-    }
+        return opbx_function_syntax(sipaddheader_syntax);
+
     opbx_mutex_lock(&chan->lock);
 
     /* Check for headers */
@@ -16842,7 +16833,7 @@ static int sip_addheader(struct opbx_channel *chan, int argc, char **argv)
 }
 
 /*! \brief  sip_getheader: Get a SIP header (dialplan app) */
-static int sip_getheader(struct opbx_channel *chan, int argc, char **argv)
+static int sip_getheader(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     static int dep_warning = 0;
     struct sip_pvt *p;
@@ -16854,10 +16845,9 @@ static int sip_getheader(struct opbx_channel *chan, int argc, char **argv)
         dep_warning = 1;
     }
 
-    if (argc != 1 || !(header = strchr(argv[0], '='))) {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", sipgetheader_syntax);
-        return -1;
-    }
+    if (argc != 1 || !(header = strchr(argv[0], '=')))
+        return opbx_function_syntax(sipgetheader_syntax);
+
     *(header++) = '\0';
 
     opbx_mutex_lock(&chan->lock);
@@ -17075,44 +17065,168 @@ static int sip_reload(int fd, int argc, char *argv[])
 }
 
 /*! \brief  reload: Part of CallWeaver module interface */
-int reload(void)
+static int reload_module(void)
 {
     return sip_reload(0, 0, NULL);
 }
 
-static struct opbx_cli_entry  my_clis[] =
-{
-    { { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify },
-    { { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage },
-    { { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage },
-    { { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage, complete_sip_show_user },
-    { { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage},
-    { { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage},
-    { { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  },
-    { { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  },
-    { { "sip", "show", "domains", NULL }, sip_show_domains, "List our local SIP domains.", show_domains_usage },
-    { { "sip", "show", "settings", NULL }, sip_show_settings, "Show SIP global settings", show_settings_usage  },
-    { { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage },
-    { { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage },
-    { { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage, complete_sip_debug_peer },
-    { { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage, complete_sip_show_peer },
-    { { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage },
-    { { "sip", "prune", "realtime", NULL }, sip_prune_realtime,
-      "Prune cached Realtime object(s)", prune_realtime_usage },
-    { { "sip", "prune", "realtime", "peer", NULL }, sip_prune_realtime,
-      "Prune cached Realtime peer(s)", prune_realtime_usage, complete_sip_prune_realtime_peer },
-    { { "sip", "prune", "realtime", "user", NULL }, sip_prune_realtime,
-      "Prune cached Realtime user(s)", prune_realtime_usage, complete_sip_prune_realtime_user },
-    { { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limits", show_inuse_usage },
-    { { "sip", "show", "registry", NULL }, sip_show_registry, "Show SIP registration status", show_reg_usage },
-    { { "sip", "history", NULL }, sip_do_history, "Enable SIP history", history_usage },
-    { { "sip", "no", "history", NULL }, sip_no_history, "Disable SIP history", no_history_usage },
-    { { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage },
-    { { "sip", "reload", NULL }, sip_reload, "Reload SIP configuration", sip_reload_usage },
+static struct opbx_clicmd  my_clis[] = {
+    {
+	    .cmda = { "sip", "notify", NULL },
+	    .handler = sip_notify,
+	    .summary = "Send a notify packet to a SIP peer",
+	    .usage = notify_usage,
+	    .generator = complete_sipnotify,
+    },
+    {
+	    .cmda = { "sip", "show", "objects", NULL },
+	    .handler = sip_show_objects,
+	    .summary = "Show all SIP object allocations",
+	    .usage = show_objects_usage,
+    },
+    {
+	    .cmda = { "sip", "show", "users", NULL },
+	    .handler = sip_show_users,
+	    .summary = "Show defined SIP users",
+	    .usage = show_users_usage,
+    },
+    {
+	    .cmda = { "sip", "show", "user", NULL },
+	    .handler = sip_show_user,
+	    .summary = "Show details on specific SIP user",
+	    .usage = show_user_usage,
+	    .generator = complete_sip_show_user,
+    },
+    {
+	    .cmda = { "sip", "show", "subscriptions", NULL },
+	    .handler = sip_show_subscriptions,
+	    .summary = "Show active SIP subscriptions",
+	    .usage = show_subscriptions_usage,
+    },
+    {
+	    .cmda = { "sip", "show", "channels", NULL },
+	    .handler = sip_show_channels,
+	    .summary = "Show active SIP channels",
+	    .usage = show_channels_usage,
+    },
+    {
+	    .cmda = { "sip", "show", "channel", NULL },
+	    .handler = sip_show_channel,
+	    .summary = "Show detailed SIP channel info",
+	    .usage = show_channel_usage,
+	    .generator = complete_sipch,
+    },
+    {
+	    .cmda = { "sip", "show", "history", NULL },
+	    .handler = sip_show_history,
+	    .summary = "Show SIP dialog history",
+	    .usage = show_history_usage,
+	    .generator = complete_sipch,
+    },
+    {
+	    .cmda = { "sip", "show", "domains", NULL },
+	    .handler = sip_show_domains,
+	    .summary = "List our local SIP domains.",
+	    .usage = show_domains_usage,
+    },
+    {
+	    .cmda = { "sip", "show", "settings", NULL },
+	    .handler = sip_show_settings,
+	    .summary = "Show SIP global settings",
+	    .usage = show_settings_usage,
+    },
+    {
+	    .cmda = { "sip", "debug", NULL },
+	    .handler = sip_do_debug,
+	    .summary = "Enable SIP debugging",
+	    .usage = debug_usage,
+    },
+    {
+	    .cmda = { "sip", "debug", "ip", NULL },
+	    .handler = sip_do_debug,
+	    .summary = "Enable SIP debugging on IP",
+	    .usage = debug_usage,
+    },
+    {
+	    .cmda = { "sip", "debug", "peer", NULL },
+	    .handler = sip_do_debug,
+	    .summary = "Enable SIP debugging on Peername",
+	    .usage = debug_usage,
+	    .generator = complete_sip_debug_peer,
+    },
+    {
+	    .cmda = { "sip", "show", "peer", NULL },
+	    .handler = sip_show_peer,
+	    .summary = "Show details on specific SIP peer",
+	    .usage = show_peer_usage,
+	    .generator = complete_sip_show_peer,
+    },
+    {
+	    .cmda = { "sip", "show", "peers", NULL },
+	    .handler = sip_show_peers,
+	    .summary = "Show defined SIP peers",
+	    .usage = show_peers_usage,
+    },
+    {
+	    .cmda = { "sip", "prune", "realtime", NULL },
+	    .handler = sip_prune_realtime,
+	    .summary = "Prune cached Realtime object(s)",
+	    .usage = prune_realtime_usage,
+    },
+    {
+	    .cmda = { "sip", "prune", "realtime", "peer", NULL },
+	    .handler = sip_prune_realtime,
+	    .summary = "Prune cached Realtime peer(s)",
+	    .usage = prune_realtime_usage,
+	    .generator = complete_sip_prune_realtime_peer,
+    },
+    {
+	    .cmda = { "sip", "prune", "realtime", "user", NULL },
+	    .handler = sip_prune_realtime,
+	    .summary = "Prune cached Realtime user(s)",
+	    .usage = prune_realtime_usage,
+	    .generator = complete_sip_prune_realtime_user,
+    },
+    {
+	    .cmda = { "sip", "show", "inuse", NULL },
+	    .handler = sip_show_inuse,
+	    .summary = "List all inuse/limits",
+	    .usage = show_inuse_usage,
+    },
+    {
+	    .cmda = { "sip", "show", "registry", NULL },
+	    .handler = sip_show_registry,
+	    .summary = "Show SIP registration status",
+	    .usage = show_reg_usage,
+    },
+    {
+	    .cmda = { "sip", "history", NULL },
+	    .handler = sip_do_history,
+	    .summary = "Enable SIP history",
+	    .usage = history_usage,
+    },
+    {
+	    .cmda = { "sip", "no", "history", NULL },
+	    .handler = sip_no_history,
+	    .summary = "Disable SIP history",
+	    .usage = no_history_usage,
+    },
+    {
+	    .cmda = { "sip", "no", "debug", NULL },
+	    .handler = sip_no_debug,
+	    .summary = "Disable SIP debugging",
+	    .usage = no_debug_usage,
+    },
+    {
+	    .cmda = { "sip", "reload", NULL },
+	    .handler = sip_reload,
+	    .summary = "Reload SIP configuration",
+	    .usage = sip_reload_usage,
+    },
 };
 
 /*! \brief  load_module: PBX load module - initialization */
-int load_module(void)
+static int load_module(void)
 {
 
     ASTOBJ_CONTAINER_INIT(&userl);    /* User object list */
@@ -17141,7 +17255,7 @@ int load_module(void)
     }
 
     /* Register all CLI functions for SIP */
-    opbx_cli_register_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
+    opbx_cli_register_multiple(my_clis, arraysize(my_clis));
 
     /* Tell the RTP subdriver that we're here */
     opbx_rtp_proto_register(&sip_rtp);
@@ -17152,20 +17266,18 @@ int load_module(void)
     /* Tell the TPKT subdriver that we're here */
     //opbx_tpkt_proto_register(&sip_tpkt);
 
-    /* Register dialplan applications */
-    dtmfmode_app = opbx_register_application(dtmfmode_name, sip_dtmfmode, dtmfmode_synopsis, dtmfmode_syntax, dtmfmode_description);
-    sipt38switchover_app = opbx_register_application(sipt38switchover_name, sip_t38switchover, sipt38switchover_synopsis, sipt38switchover_syntax, sipt38switchover_description);
+    /* Register dialplan functions */
+    dtmfmode_app = opbx_register_function(dtmfmode_name, sip_dtmfmode, dtmfmode_synopsis, dtmfmode_syntax, dtmfmode_description);
+    sipt38switchover_app = opbx_register_function(sipt38switchover_name, sip_t38switchover, sipt38switchover_synopsis, sipt38switchover_syntax, sipt38switchover_description);
     opbx_install_t38_functions(sip_do_t38switchover);
+    sipheader_function = opbx_register_function(sipheader_func_name, func_header_read, sipheader_func_synopsis, sipheader_func_syntax, sipheader_func_desc);
+    sippeer_function = opbx_register_function(sippeer_func_name, function_sippeer, sippeer_func_synopsis, sippeer_func_syntax, sippeer_func_desc);
+    sipchaninfo_function = opbx_register_function(sipchaninfo_func_name, function_sipchaninfo_read, sipchaninfo_func_synopsis, sipchaninfo_func_syntax, sipchaninfo_func_desc);
+    checksipdomain_function = opbx_register_function(checksipdomain_func_name, func_check_sipdomain, checksipdomain_func_synopsis, checksipdomain_func_syntax, checksipdomain_func_desc);
 
     /* These will be removed soon */
-    sipaddheader_app = opbx_register_application(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
-    sipgetheader_app = opbx_register_application(sipgetheader_name, sip_getheader, sipgetheader_synopsis, sipgetheader_syntax, sipgetheader_description);
-
-    /* Register dialplan functions */
-    sipheader_function = opbx_register_function(sipheader_func_name, func_header_read, NULL, sipheader_func_synopsis, sipheader_func_syntax, sipheader_func_desc);
-    sippeer_function = opbx_register_function(sippeer_func_name, function_sippeer, NULL, sippeer_func_synopsis, sippeer_func_syntax, sippeer_func_desc);
-    sipchaninfo_function = opbx_register_function(sipchaninfo_func_name, function_sipchaninfo_read, NULL, sipchaninfo_func_synopsis, sipchaninfo_func_syntax, sipchaninfo_func_desc);
-    checksipdomain_function = opbx_register_function(checksipdomain_func_name, func_check_sipdomain, NULL, checksipdomain_func_synopsis, checksipdomain_func_syntax, checksipdomain_func_desc);
+    sipaddheader_app = opbx_register_function(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
+    sipgetheader_app = opbx_register_function(sipgetheader_name, sip_getheader, sipgetheader_synopsis, sipgetheader_syntax, sipgetheader_description);
 
     /* Register manager commands */
     opbx_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -17182,7 +17294,7 @@ int load_module(void)
     return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     struct sip_pvt *p, *pl;
     int res = 0;
@@ -17195,16 +17307,16 @@ int unload_module(void)
     /* First, take us out of the channel type list */
     opbx_channel_unregister(&sip_tech);
 
-    opbx_unregister_function(checksipdomain_function);
-    opbx_unregister_function(sipchaninfo_function);
-    opbx_unregister_function(sippeer_function);
-    opbx_unregister_function(sipheader_function);
+    res |= opbx_unregister_function(checksipdomain_function);
+    res |= opbx_unregister_function(sipchaninfo_function);
+    res |= opbx_unregister_function(sippeer_function);
+    res |= opbx_unregister_function(sipheader_function);
 
-    res |= opbx_unregister_application(sipt38switchover_app);
+    res |= opbx_unregister_function(sipt38switchover_app);
     opbx_uninstall_t38_functions();
-    res |= opbx_unregister_application(dtmfmode_app);
-    res |= opbx_unregister_application(sipaddheader_app);
-    res |= opbx_unregister_application(sipgetheader_app);
+    res |= opbx_unregister_function(dtmfmode_app);
+    res |= opbx_unregister_function(sipaddheader_app);
+    res |= opbx_unregister_function(sipgetheader_app);
 
     opbx_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
@@ -17293,7 +17405,5 @@ int usecount()
     return usecnt;
 }
 
-char *description()
-{
-    return (char *) desc;
-}
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

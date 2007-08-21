@@ -42,20 +42,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/app.h"
 
-static const char *tdesc = "Directed Call Pickup Application";
+static const char tdesc[] = "Directed Call Pickup Application";
 
 static void *pickup_app;
-static const char *pickup_name = "Pickup";
-static const char *pickup_synopsis = "Directed Call Pickup application.";
-static const char *pickup_syntax = "Pickup(extension[@context])";
-static const char *pickup_descrip =
+static const char pickup_name[] = "Pickup";
+static const char pickup_synopsis[] = "Directed Call Pickup application.";
+static const char pickup_syntax[] = "Pickup(extension[@context])";
+static const char pickup_descrip[] =
 "Steals any calls to a specified extension that are in a ringing state and bridges them to the current channel. Context is an optional argument.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int pickup_exec(struct opbx_channel *chan, int argc, char **argv)
+static int pickup_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char workspace[256] = "";
 	struct localuser *u = NULL;
@@ -63,10 +60,8 @@ static int pickup_exec(struct opbx_channel *chan, int argc, char **argv)
 	char *tmp = NULL, *exten = NULL, *context = NULL;
 	int res = 0, locked = 0;
 
-	if (argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", pickup_syntax);
-		return -1;	
-	}
+	if (argc != 1)
+		return opbx_function_syntax(pickup_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -136,32 +131,19 @@ static int pickup_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(pickup_app);
+
+	res |= opbx_unregister_function(pickup_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	pickup_app = opbx_register_application(pickup_name, pickup_exec, pickup_synopsis, pickup_syntax, pickup_descrip);
+	pickup_app = opbx_register_function(pickup_name, pickup_exec, pickup_synopsis, pickup_syntax, pickup_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return (char *) tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

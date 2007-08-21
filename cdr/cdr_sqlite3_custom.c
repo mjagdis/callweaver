@@ -63,8 +63,8 @@ OPBX_MUTEX_DEFINE_STATIC(lock);
 
 static const char config_file[] = "cdr_sqlite3_custom.conf";
 
-static char *desc = "Customizable SQLite3 CDR Backend";
-static char *name = "cdr_sqlite3_custom";
+static const char desc[] = "Customizable SQLite3 CDR Backend";
+static const char name[] = "cdr_sqlite3_custom";
 static sqlite3 *db = NULL;
 
 static char table[80];
@@ -186,30 +186,35 @@ static int sqlite3_log(struct opbx_cdr *cdr)
 	return res;
 }
 
-int unload_module(void)
+
+static void release(void)
 {
 	if (db)
 		sqlite3_close(db);
+}
 
-	opbx_cdr_unregister(name);
 
+static struct opbx_cdrbe cdrbe = {
+	.name = name,
+	.description = desc,
+	.handler = sqlite3_log,
+};
+
+static int unload_module(void)
+{
+	opbx_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	char *zErr;
 	char fn[PATH_MAX];
 	int res;
 	char *sql_cmd;
 
-	if (!load_config(0)) {
-		res = opbx_cdr_register(name, desc, sqlite3_log);
-		if (res) {
-			opbx_log(LOG_ERROR, "%s: Unable to register custom SQLite3 CDR handling\n", name);
-			return -1;
-		}
-	}
+	if (load_config(0))
+		return -1;
 
 	/* is the database there? */
 	snprintf(fn, sizeof(fn), "%s/master.db", opbx_config_OPBX_LOG_DIR);
@@ -243,10 +248,12 @@ int load_module(void)
 		}
 	}
 
+	opbx_cdrbe_register(&cdrbe);
+
 	return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	int res;
 
@@ -257,18 +264,5 @@ int reload(void)
 	return res;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-int usecount(void)
-{
-	/* To be able to unload the module */
-	if ( opbx_mutex_trylock(&lock) ) {
-		return 1;
-	} else {
-		opbx_mutex_unlock(&lock);
-		return 0;
-	}
-}
+MODULE_INFO(load_module, reload_module, unload_module, release, desc)

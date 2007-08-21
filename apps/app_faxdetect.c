@@ -49,13 +49,13 @@
 #include "callweaver/indications.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Fax detection application";
+static const char tdesc[] = "Fax detection application";
 
 static void *detectfax_app;
-static char *detectfax_name = "FaxDetect";
-static char *detectfax_synopsis = "Detects fax sounds on all channel types (IAX and SIP too)";
-static char *detectfax_syntax = "FaxDetect([waitdur[, tonestr[, options[, sildur[, mindur[, maxdur]]]]]])";
-static char *detectfax_descrip = 
+static const char detectfax_name[] = "FaxDetect";
+static const char detectfax_synopsis[] = "Detects fax sounds on all channel types (IAX and SIP too)";
+static const char detectfax_syntax[] = "FaxDetect([waitdur[, tonestr[, options[, sildur[, mindur[, maxdur]]]]]])";
+static const char detectfax_descrip[] = 
 "Parameters:\n"
 "      waitdur:  Maximum number of seconds to wait (default=4)\n"
 "      tonestr:  Indication to be used while detecting (example: ring)\n"
@@ -98,11 +98,8 @@ static char *detectfax_descrip =
 
 #define CALLERID_FIELD cid.cid_num
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
+static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     int res = 0;
     struct localuser *u;
@@ -142,10 +139,8 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
     pbx_builtin_setvar_helper(chan, "TALK_DETECTED", "0");
         pbx_builtin_setvar_helper(chan, "DTMF_DID", "");
 
-	if (argc > 6) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", detectfax_syntax);
-		return -1;
-	}
+	if (argc > 6)
+		return opbx_function_syntax(detectfax_syntax);
 
 	waitdur = (argc > 0 ? atoi(argv[0]) : 4);
 	if (waitdur <= 0) waitdur = 4;
@@ -473,29 +468,19 @@ static int detectfax_exec(struct opbx_channel *chan, int argc, char **argv)
     return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
-    STANDARD_HANGUP_LOCALUSERS;
-    res |= opbx_unregister_application(detectfax_app);
+
+    res |= opbx_unregister_function(detectfax_app);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    detectfax_app = opbx_register_application(detectfax_name, detectfax_exec, detectfax_synopsis, detectfax_syntax, detectfax_descrip);
+    detectfax_app = opbx_register_function(detectfax_name, detectfax_exec, detectfax_synopsis, detectfax_syntax, detectfax_descrip);
     return 0;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    STANDARD_USECOUNT(res);
-    return res;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -562,27 +562,22 @@ direngine_t directory_embedded_engine = {
 
 #define DESC               "Embedded directory engine"
 
-int load_module(void)
+static int load_module(void)
 {
+    //TODO should we allow to unload this ?
+    opbx_module_get(get_modinfo()->self);
+
     return !direngine_engine_add( &directory_embedded_engine, "/etc/callweaver/directory.xml" ); 
     //TODO it's hardcoded fix it.
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     return !direngine_engine_release( directory_embedded_engine.name );
 }
 
-int usecount(void)
-{
-    return 1; //TODO should we allow to unload this ?
-    //return use_count;
-}
 
-char *description(void)
-{
-    return DESC;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, DESC)
 
 
 

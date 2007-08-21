@@ -70,7 +70,7 @@ static void FREE(void *ptr)
 
 static int aeldebug = 0;
 
-static char *dtext = "Asterisk Extension Language Compiler v2";
+static const char dtext[] = "Asterisk Extension Language Compiler v2";
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
 
@@ -122,7 +122,6 @@ int is_empty(char *arg);
 static pval *current_db;
 static pval *current_context;
 static pval *current_extension;
-char *description(void);
 
 static const char *match_context;
 static const char *match_exten;
@@ -3515,19 +3514,43 @@ static int ael2_reload(int fd, int argc, char *argv[])
 	return (pbx_load_module());
 }
 
-static struct opbx_cli_entry  ael_cli[] = {
-	{ { "ael", "reload", NULL }, ael2_reload, "Reload AEL configuration"},
-	{ { "ael", "debug", "read", NULL }, ael2_debug_read, "Enable AEL read debug (does nothing)"},
-	{ { "ael", "debug", "tokens", NULL }, ael2_debug_tokens, "Enable AEL tokens debug (does nothing)"},
-	{ { "ael", "debug", "procs", NULL }, ael2_debug_procs, "Enable AEL procs debug (does nothing)"},
-	{ { "ael", "debug", "contexts", NULL }, ael2_debug_contexts, "Enable AEL contexts debug (does nothing)"},
-	{ { "ael", "no", "debug", NULL }, ael2_no_debug, "Disable AEL debug messages"}
+static struct opbx_clicmd  ael_cli[] = {
+	{
+		.cmda = { "ael", "reload", NULL },
+		.handler = ael2_reload,
+		.summary = "Reload AEL configuration",
+	},
+	{
+		.cmda = { "ael", "debug", "read", NULL },
+		.handler = ael2_debug_read,
+		.summary = "Enable AEL read debug (does nothing)",
+	},
+	{
+		.cmda = { "ael", "debug", "tokens", NULL },
+		.handler = ael2_debug_tokens,
+		.summary = "Enable AEL tokens debug (does nothing)",
+	},
+	{
+		.cmda = { "ael", "debug", "procs", NULL },
+		.handler = ael2_debug_procs,
+		.summary = "Enable AEL procs debug (does nothing)",
+	},
+	{
+		.cmda = { "ael", "debug", "contexts", NULL },
+		.handler = ael2_debug_contexts,
+		.summary = "Enable AEL contexts debug (does nothing)",
+	},
+	{
+		.cmda = { "ael", "no", "debug", NULL },
+		.handler = ael2_no_debug,
+		.summary = "Disable AEL debug messages",
+	},
 };
 
 /*
  * Standard module functions ...
  */
-int unload_module(void)
+static int unload_module(void)
 {
 	opbx_context_destroy(NULL, registrar);
 	opbx_cli_unregister_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
@@ -3535,31 +3558,21 @@ int unload_module(void)
 }
 
 
-int load_module(void)
+static int load_module(void)
 {
-	opbx_cli_register_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
+	opbx_cli_register_multiple(ael_cli, arraysize(ael_cli));
 	return (pbx_load_module());
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	opbx_context_destroy(NULL, registrar);
 	return pbx_load_module();
 }
 
-char *description(void)
-{
-	return dtext;
-}
 
-int usecount(void)
-{
-	return 1;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, dtext)
 
-
-//STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);
-//STANDARD_USECOUNT(res);
 
 /* DESTROY the PVAL tree ============================================================================ */
 

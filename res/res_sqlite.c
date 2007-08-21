@@ -89,7 +89,6 @@ static char *create_config_sql =
 
 
 
-static char *cdr_name = "cdr_res_sqlite";
 static int has_cdr=-1;
 static int has_config=-1;
 static int has_switch=-1;
@@ -127,7 +126,7 @@ struct switch_config {
 	int seeheads;
 };
 
-static char *desc = "SQLite Resource Module";
+static const char desc[] = "SQLite Resource Module";
 static char default_dbfile[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
 static char clidb[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
 
@@ -135,13 +134,13 @@ static Hash extens;
 
 
 
-static const char *tdesc = "SQLite SQL Interface";
+static const char tdesc[] = "SQLite SQL Interface";
 
 static void *app;
-static const char *name = "SQL";
-static const char *synopsis = "SQL(\"[sql statement]\"|[dbname])\n" 
+static const char name[] = "SQL";
+static const char synopsis[] = "SQL(\"[sql statement]\"|[dbname])\n" 
 "[if it's a select it will auto-vivify chan vars matching the selected column names.]\n";
-static const char *syntax = "SQL(\"[sql statement]\"|[dbname])";
+static const char syntax[] = "SQL(\"[sql statement]\"|[dbname])";
 
 
 static void pick_path(char *dbname,char *buf, size_t size) {
@@ -169,14 +168,6 @@ static sqlite3 *open_db(char *filename) {
 }
 
 
-
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-
-
-
 static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	int x=0;
 	struct opbx_channel *chan = pArg;
@@ -188,7 +179,7 @@ static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc)
+static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *errmsg;
@@ -624,7 +615,6 @@ static int SQLiteSwitch_canmatch(struct opbx_channel *chan, const char *context,
 
 static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
-	struct opbx_app *app;
 	int res = 0;
 	extension_cache *cache;
 	char key[ARRAY_SIZE];
@@ -642,16 +632,8 @@ static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, con
 	opbx_verbose("%s\n",cache ? "match" : "fail");
 
 	if (cache) {
-		app = pbx_findapp(cache->app_name[priority]);
-		if (app) {
-			pbx_substitute_variables_helper(chan, cache->app_data[priority], app_data, sizeof(app_data));
-			opbx_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exec: call app %s(%s)\n",cache->app_name[priority],app_data);
-			res = pbx_exec(chan, app, app_data);
-		}
-		else {
-			opbx_log(LOG_WARNING, "application %s not registered\n",cache->app_name[priority]);
-			res = -1;
-		}
+		pbx_substitute_variables_helper(chan, cache->app_data[priority], app_data, sizeof(app_data));
+		res = opbx_function_exec_str(chan, opbx_hash_app_name(cache->app_name[priority]), cache->app_name[priority], app_data, NULL, 0);
 	}
 		
 	return res;
@@ -691,15 +673,60 @@ static char shelp[] = "\n\nsql [sql statement]\n"
 "[select][insert][update][delete][begin][rollback][create][drop] <...>\n";
 
 
-static struct opbx_cli_entry	 cli_sqlite1 = { { "select", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite2 = { { "insert", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite3 = { { "update", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite4 = { { "delete", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite5 = { { "begin", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite6 = { { "rollback", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite7 = { { "sql", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite8 = { { "create", NULL }, sqlite_cli, scmd, shelp};
-static struct opbx_cli_entry	 cli_sqlite9 = { { "drop", NULL }, sqlite_cli, scmd, shelp};
+static struct opbx_clicmd cli_sqlite1 = {
+	.cmda = { "select", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite2 = {
+	.cmda = { "insert", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite3 = {
+	.cmda = { "update", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite4 = {
+	.cmda = { "delete", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite5 = {
+	.cmda = { "begin", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite6 = {
+	.cmda = { "rollback", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite7 = {
+	.cmda = { "sql", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite8 = {
+	.cmda = { "create", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
+static struct opbx_clicmd cli_sqlite9 = {
+	.cmda = { "drop", NULL },
+	.handler = sqlite_cli,
+	.summary = scmd,
+	.usage = shelp,
+};
 
 static struct opbx_config *config_sqlite(const char *database, const char *table, const char *file, struct opbx_config *cfg)
 {
@@ -1096,7 +1123,7 @@ static int load_config(int hard) {
 }
 
 
-int reload(void) {
+static int reload_module(void) {
 	return load_config(0);
 }
 
@@ -1107,39 +1134,34 @@ static struct opbx_config_engine sqlite_engine = {
 
 };
 
-int load_module(void)
+static struct opbx_cdrbe_entry sqlite_cdrbe = {
+	.name = "cdr_req_sqlite",
+	.description = "RES SQLite CDR",
+	.handler = sqlite_log,
+};
+
+static void release(void)
+{
+	if (has_switch)
+		sqlite3HashClear(&extens);
+}
+
+
+static int load_module(void)
 {
 	int res = 0;
 	do_reload = 1;
 	load_config(1);
 	do_reload = 0;
 
+	app = opbx_register_function(name, sqlite_execapp, synopsis, syntax, tdesc);
+
 	opbx_config_engine_register(&sqlite_engine);
-	opbx_verbose(VERBOSE_PREFIX_2 "SQLite Config Handler Registered.\n");
+	opbx_switch_register(&sqlite_switch);
+	opbx_cdrbe_register(&sqlite_cdrbe);
 
-
-	if (has_cdr) {
-		opbx_verbose(VERBOSE_PREFIX_2 "Loading SQLite CDR\n");
-		res = opbx_cdr_register(cdr_name, "RES SQLite CDR", sqlite_log);
-	}
-	else 
-		opbx_verbose(VERBOSE_PREFIX_2 "SQLite CDR Disabled\n");
-
-
-
-	app = opbx_register_application(name, sqlite_execapp, synopsis, syntax, tdesc);
-
-
-	if (has_switch) {
-		if (opbx_register_switch(&sqlite_switch))
-			opbx_log(LOG_ERROR, "Unable to register SQLite Switch\n");
-		else {
-			sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
-			opbx_verbose(VERBOSE_PREFIX_2 "Registered SQLite Switch\n");
-		}
-	}
-	else 
-		opbx_verbose(VERBOSE_PREFIX_2 "Sqlite Switch Disabled\n");
+	if (has_switch)
+		sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
 
 	if (has_cli) {
 		opbx_verbose(VERBOSE_PREFIX_2 "Activating SQLite CLI Command Set.\n");
@@ -1161,16 +1183,10 @@ int load_module(void)
 
 
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 	do_reload = 1;
-
-	opbx_config_engine_deregister(&sqlite_engine);
-	if (has_cdr) {
-		opbx_cdr_unregister(cdr_name);
-		opbx_verbose(VERBOSE_PREFIX_2 "SQLite CDR Disabled\n");
-	}
 
 	if (has_cli) {
 		opbx_verbose(VERBOSE_PREFIX_2 "SQLite CLI Disabled\n");
@@ -1185,29 +1201,13 @@ int unload_module(void)
 		opbx_cli_unregister(&cli_sqlite9);  
 	}
 		
-	opbx_unregister_application(app);
+	opbx_config_engine_unregister(&sqlite_engine);
+	opbx_cdrbe_unregister(&sqlite_cdrbe);
+	opbx_switch_unregister(&sqlite_switch);
+	opbx_unregister_function(app);
 
-
-
-
-	if (has_switch) {
-		opbx_verbose(VERBOSE_PREFIX_2 "SQLite Switch Disabled\n");
-		opbx_unregister_switch(&sqlite_switch);
-		sqlite3HashClear(&extens);
-	}
-	
 	return res;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-int usecount(void)
-{
-	int res=0;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
+MODULE_INFO(load_module, reload_module, unload_module, release, desc)

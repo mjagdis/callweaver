@@ -31,6 +31,7 @@
 #include "callweaver/lock.h"
 #include "callweaver/cli.h"
 
+
 #define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
 
 #define JABBER_MSG_SIZE 512
@@ -52,18 +53,15 @@ OPBX_MUTEX_DEFINE_STATIC(global_lock);
 OPBX_MUTEX_DEFINE_STATIC(port_lock);
 OPBX_MUTEX_DEFINE_STATIC(callid_lock);
 
-static char *tdesc = "res_jabber";
+static const char tdesc[] = "res_jabber";
 
 static void *app;
-static const char *name = "NextGen";
-static const char *synopsis = "res_jabber";
-static const char *syntax = "";
-static const char *desc = "";
+static const char name[] = "NextGen";
+static const char synopsis[] = "res_jabber";
+static const char syntax[] = "";
+static const char desc[] = "";
 
 static char *configfile = "res_jabber.conf";
-
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 
 #define CHANSTATE_NEW "NEW"
@@ -201,7 +199,7 @@ static void jabber_profile_init(struct jabber_profile *profile, char *resource, 
 static void jabber_profile_destroy(struct jabber_profile *profile);
 static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
-static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv);
+static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max);
 static void init_globals(int do_free); 
 static int config_jabber(int reload); 
 static void *cli_command_thread(void *cli_command);
@@ -753,7 +751,7 @@ static void launch_jabber_thread(struct jabber_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, jabber_thread, profile);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, jabber_thread, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -850,7 +848,7 @@ static void launch_media_receive_thread(struct jabber_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, media_receive_thread, profile);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, media_receive_thread, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -877,7 +875,6 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 	} else if (!strcasecmp(jmsg->command, "exec")) {
 		char *app;
 		char *data;
-		struct opbx_app *APP;
 
 		if (arg) {
 			app = arg;
@@ -892,33 +889,26 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			data = "";
 		}
 		
-		if ((APP = pbx_findapp(app))) {
-			opbx_log(LOG_DEBUG, "Executing App %s(%s) on %s\n", app, data, chan->name);
-			res = pbx_exec(chan, APP, data);
-			if ((node = jabber_message_node_printf(profile->master,
-												   "Event",
-												   "EVENT ENDAPP\n"
-												   "ChannelName: %s\n"
-												   "From: %s\n"
-												   "Identifier: %s\n"
-												   "CallID: %d\n"
-												   "Application: %s\n"
-												   "Data: %s\n"
-												   ,
-												   chan->name,
-												   profile->resource,
-												   profile->identifier,
-												   profile->callid,
-												   app,
-												   data
-												   ))) {
-				jabber_message_node_push(profile, node, Q_OUTBOUND);
-			}
-
-		} else {
-			opbx_log(LOG_WARNING, "Unknown App %s(%s) called on %s\n", app, data, chan->name);
+		res = opbx_function_exec_str(chan, opbx_hash_app_name(app), app, data, NULL, 0);
+		if ((node = jabber_message_node_printf(profile->master,
+											   "Event",
+											   "EVENT ENDAPP\n"
+											   "ChannelName: %s\n"
+											   "From: %s\n"
+											   "Identifier: %s\n"
+											   "CallID: %d\n"
+											   "Application: %s\n"
+											   "Data: %s\n"
+											   ,
+											   chan->name,
+											   profile->resource,
+											   profile->identifier,
+											   profile->callid,
+											   app,
+											   data
+											   ))) {
+			jabber_message_node_push(profile, node, Q_OUTBOUND);
 		}
-		
 	} else if (!strcasecmp(jmsg->command, "hangup")) {
 		opbx_softhangup(chan, OPBX_SOFTHANGUP_EXPLICIT);
 	} else if (!strcasecmp(jmsg->command, "answer")) {
@@ -1628,7 +1618,7 @@ static void launch_jabber_pbx_session(struct jabber_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, jabber_pbx_session, profile);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, jabber_pbx_session, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1806,7 +1796,7 @@ static void launch_cli_thread(char *cli_command)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(&thread, &attr, cli_command_thread, cli_command_dup);
+	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, cli_command_thread, cli_command_dup);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1934,7 +1924,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 
 
-static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv)
+static int res_jabber_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct jabber_message_node *node;
@@ -1994,10 +1984,8 @@ static struct manager_custom_hook jabber_hook = {
 };
 #endif
 
-int unload_module(void)
+static int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
-
 #ifdef PATCHED_MANAGER
 	if (globals.event_master) {
 		opbx_log(LOG_NOTICE, "Un-Registering Manager Event Hook\n");
@@ -2011,7 +1999,7 @@ int unload_module(void)
 		sched_yield();
 	}
 	jabber_profile_destroy(&global_profile);
-	return opbx_unregister_application(app);
+	return opbx_unregister_function(app);
 }
 
 static void init_globals(int do_free) 
@@ -2079,14 +2067,14 @@ static int config_jabber(int reload)
 
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	config_jabber(1);
 	return 0;
 }
 
 
-int load_module(void)
+static int load_module(void)
 {
 	config_jabber(0);
 	
@@ -2098,18 +2086,9 @@ int load_module(void)
 		add_manager_hook(&jabber_hook);
 	}
 #endif
-	app = opbx_register_application(name, res_jabber_exec, synopsis, syntax, desc);
+	app = opbx_register_function(name, res_jabber_exec, synopsis, syntax, desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

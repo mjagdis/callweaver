@@ -45,23 +45,20 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Set RDNIS Number";
+static const char tdesc[] = "Set RDNIS Number";
 
 static void *setrdnis_app;
-static const char *setrdnis_name = "SetRDNIS";
-static const char *setrdnis_synopsis = "Set RDNIS Number";
-static const char *setrdnis_syntax = "SetRDNIS(cnum)";
-static const char *setrdnis_descrip = 
+static const char setrdnis_name[] = "SetRDNIS";
+static const char setrdnis_synopsis[] = "Set RDNIS Number";
+static const char setrdnis_syntax[] = "SetRDNIS(cnum)";
+static const char setrdnis_descrip[] = 
 "Set RDNIS Number on a call to a new\n"
 "value.  Always returns 0\n"
 "SetRDNIS has been deprecated in favor of the function\n"
 "CALLERID(rdnis)\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int setrdnis_exec(struct opbx_channel *chan, int argc, char **argv)
+static int setrdnis_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *n, *l;
@@ -90,30 +87,19 @@ static int setrdnis_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(setrdnis_app);
+
+	res |= opbx_unregister_function(setrdnis_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	setrdnis_app = opbx_register_application(setrdnis_name, setrdnis_exec, setrdnis_synopsis, setrdnis_syntax, setrdnis_descrip);
+	setrdnis_app = opbx_register_function(setrdnis_name, setrdnis_exec, setrdnis_synopsis, setrdnis_syntax, setrdnis_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

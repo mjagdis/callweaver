@@ -558,11 +558,19 @@ static char init_keys_usage[] =
 "Usage: init keys\n"
 "       Initializes private keys (by reading in pass code from the user)\n";
 
-static struct opbx_cli_entry cli_show_keys = 
-{ { "show", "keys", NULL }, show_keys, "Displays RSA key information", show_key_usage };
+static struct opbx_clicmd cli_show_keys = {
+	.cmda = { "show", "keys", NULL },
+	.handler = show_keys,
+	.summary = "Displays RSA key information",
+	.usage = show_key_usage,
+};
 
-static struct opbx_cli_entry cli_init_keys = 
-{ { "init", "keys", NULL }, init_keys, "Initialize RSA key passcodes", init_keys_usage };
+static struct opbx_clicmd cli_init_keys = {
+	.cmda = { "init", "keys", NULL },
+	.handler = init_keys,
+	.summary = "Initialize RSA key passcodes",
+	.usage = init_keys_usage,
+};
 
 int opbx_crypto_init(void)
 {

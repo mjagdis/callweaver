@@ -48,11 +48,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/enum.h"
 
 static void *enum_function;
-static const char *enum_func_name = "ENUMLOOKUP";
-static const char *enum_func_synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
+static const char enum_func_name[] = "ENUMLOOKUP";
+static const char enum_func_synopsis[] = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
 		" or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
-static const char *enum_func_syntax = "ENUMLOOKUP(number[, Method-type[, options|record#[, zone-suffix]]])";
-static const char *enum_func_desc =
+static const char enum_func_syntax[] = "ENUMLOOKUP(number[, Method-type[, options|record#[, zone-suffix]]])";
+static const char enum_func_desc[] =
 	"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
 	"Option '*%d*' (e.g. result%d) returns an integer count of the matched NAPTRs and sets\n"
 	"the results in variables (e.g. result1, result2, ...result<n>)\n"
@@ -61,28 +61,22 @@ static const char *enum_func_desc =
 	"For more information, see README.enum";
 
 static void *txtcidname_function;
-static const char *txtcidname_func_name = "TXTCIDNAME";
-static const char *txtcidname_func_synopsis = "TXTCIDNAME looks up a caller name via DNS";
-static const char *txtcidname_func_syntax = "TXTCIDNAME(number)";
-static const char *txtcidname_func_desc = "This function looks up the given phone number in DNS to retrieve\n"
+static const char txtcidname_func_name[] = "TXTCIDNAME";
+static const char txtcidname_func_synopsis[] = "TXTCIDNAME looks up a caller name via DNS";
+static const char txtcidname_func_syntax[] = "TXTCIDNAME(number)";
+static const char txtcidname_func_desc[] = "This function looks up the given phone number in DNS to retrieve\n"
 		"the caller id name.  The result will either be blank or be the value\n"
 		"found in the TXT record in DNS.\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static char *function_enum(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_enum(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
        char tech[80];
        struct localuser *u;
        char *p, *s;
 
-       if (argc < 1 || argc == arraysize(argv) || !argv[0][0]) {
-               opbx_log(LOG_ERROR, "Syntax: %s\n", enum_func_syntax);
-               return NULL;
-       }
+       if (argc < 1 || argc == arraysize(argv) || !argv[0][0])
+               return opbx_function_syntax(enum_func_syntax);
 
        /* A certain application from which CallWeaver was originally
 	* derived changed argument parsing at some stage and, possibly
@@ -102,41 +96,43 @@ static char *function_enum(struct opbx_channel *chan, int argc, char **argv, cha
 		}
        }
 
-       if (argc < 1 || !argv[1][0])
-               argv[1] = "sip";
+	if (buf) {
+		if (argc < 1 || !argv[1][0])
+			argv[1] = "sip";
 
-       if (argc < 2 || !argv[2][0])
-               argv[2] = "1";
+		if (argc < 2 || !argv[2][0])
+			argv[2] = "1";
 
-       if (argc < 3 || !argv[3][0])
-               argv[3] = "e164.arpa";
+		if (argc < 3 || !argv[3][0])
+			argv[3] = "e164.arpa";
 
-       /* strip any '-' signs from number */
-       for (s = p = argv[0]; *s; s++)
-               if (*s != '-')
-		       *(p++) = *s;
-       *p = '\0';
+		/* strip any '-' signs from number */
+		for (s = p = argv[0]; *s; s++)
+			if (*s != '-')
+				*(p++) = *s;
+		*p = '\0';
 
-       opbx_copy_string(tech, argv[1], sizeof(tech));
+		opbx_copy_string(tech, argv[1], sizeof(tech));
 
-       LOCAL_USER_ACF_ADD(u);
+		LOCAL_USER_ADD(u);
 
-       /* N.B. The oly reason opbx_get_enum returns tech is to support
-	* the old (and deprecated) apps/app_enum which hardcodes a mapping
-	* from enum method to channel technology. With funcs/func_enum
-	* you're expected to do it yourself in the dialplan.
-	*/
-       opbx_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), argv[3], argv[2]);
+		/* N.B. The oly reason opbx_get_enum returns tech is to support
+		 * the old (and deprecated) apps/app_enum which hardcodes a mapping
+		 * from enum method to channel technology. With funcs/func_enum
+		 * you're expected to do it yourself in the dialplan.
+		 */
+		opbx_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), argv[3], argv[2]);
 
-       LOCAL_USER_REMOVE(u);
+		LOCAL_USER_REMOVE(u);
 
-       if ((p = strchr(buf, ':')) && strcasecmp(argv[1], "ALL"))
-               opbx_copy_string(buf, p+1, len);
+		if ((p = strchr(buf, ':')) && strcasecmp(argv[1], "ALL"))
+			opbx_copy_string(buf, p+1, len);
+	}
 
-       return buf;
+       return 0;
 }
 
-static char *function_txtcidname(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_txtcidname(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res;
 	char tech[80];
@@ -144,29 +140,27 @@ static char *function_txtcidname(struct opbx_channel *chan, int argc, char **arg
 	char dest[80];
 	struct localuser *u;
 
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", txtcidname_func_syntax);
-		return NULL;
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax(txtcidname_func_syntax);
+
+	if (buf) {
+		LOCAL_USER_ADD(u);
+
+		res = opbx_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+
+		if (!opbx_strlen_zero(txt))
+	        	opbx_copy_string(buf, txt, len);
+
+		LOCAL_USER_REMOVE(u);
 	}
 
-	buf[0] = '\0';
-
-	LOCAL_USER_ACF_ADD(u);
-
-	res = opbx_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
-
-	if (!opbx_strlen_zero(txt))
-	        opbx_copy_string(buf, txt, len);
-
-	LOCAL_USER_REMOVE(u);
-
-	return buf;
+	return 0;
 }
 
 
-static char *tdesc = "ENUMLOOKUP allows for general or specific querying of NAPTR records or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
+static const char tdesc[] = "ENUMLOOKUP allows for general or specific querying of NAPTR records or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -175,26 +169,15 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	enum_function = opbx_register_function(enum_func_name, function_enum, NULL, enum_func_synopsis, enum_func_syntax, enum_func_desc);
-	txtcidname_function = opbx_register_function(txtcidname_func_name, function_txtcidname, NULL, txtcidname_func_synopsis, txtcidname_func_syntax, txtcidname_func_desc);
+	enum_function = opbx_register_function(enum_func_name, function_enum, enum_func_synopsis, enum_func_syntax, enum_func_desc);
+	txtcidname_function = opbx_register_function(txtcidname_func_name, function_txtcidname, txtcidname_func_synopsis, txtcidname_func_syntax, txtcidname_func_desc);
 	return 0;
 }
 
-char *description(void)
-{
-       return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 /*
 Local Variables:

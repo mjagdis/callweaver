@@ -58,6 +58,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"
 #include "callweaver/module.h"
+#include "callweaver/switch.h"
 #include "callweaver/pbx.h"
 #include "callweaver/sched.h"
 #include "callweaver/io.h"
@@ -89,6 +90,7 @@ opbx_timer_t trunktimer;
 #endif
 
 #include "callweaver/generic_jb.h"
+
 
 static struct opbx_jb_conf global_jbconf;
 
@@ -125,10 +127,10 @@ static int nochecksums = 0;
 
 
 static void *iaxpeer_func;
-static const char *iaxpeer_func_name = "IAXPEER";
-static const char *iaxpeer_func_synopsis = "Gets IAX peer information";
-static const char *iaxpeer_func_syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])";
-static const char *iaxpeer_func_desc =
+static const char iaxpeer_func_name[] = "IAXPEER";
+static const char iaxpeer_func_synopsis[] = "Gets IAX peer information";
+static const char iaxpeer_func_syntax[] = "IAXPEER(<peername|CURRENTCHANNEL>[:item])";
+static const char iaxpeer_func_desc[] =
 	"If peername specified, valid items are:\n"
 	"- ip (default)          The IP address.\n"
 	"- mailbox               The configured mailbox.\n"
@@ -143,6 +145,7 @@ static const char *iaxpeer_func_desc =
 	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
 	"\n";
 
+static unsigned int hash_dial;
 
 static struct opbx_codec_pref prefs;
 
@@ -1236,7 +1239,6 @@ static int iax2_predestroy(int callno)
 		opbx_mutex_unlock(&usecnt_lock);
 	}
 	opbx_mutex_unlock(&iaxsl[callno]);
-	opbx_update_use_count();
 	return 0;
 }
 
@@ -2737,7 +2739,6 @@ static struct opbx_channel *opbx_iax2_new(int callno, int state, int capability)
 		opbx_mutex_lock(&usecnt_lock);
 		usecnt++;
 		opbx_mutex_unlock(&usecnt_lock);
-		opbx_update_use_count();
 	}
 
 	/* Configure the new channel jb */
@@ -5362,7 +5363,7 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		opbx_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
 		if (callerid)
 			dpr->callerid = strdup(callerid);
-		if (opbx_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
+		if (opbx_pthread_create(get_modinfo()->self, &newthread, NULL, dp_lookup_thread, dpr)) {
 			opbx_log(LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
@@ -5440,7 +5441,7 @@ static int iax_park(struct opbx_channel *chan1, struct opbx_channel *chan2)
 		memset(d, 0, sizeof(*d));
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!opbx_pthread_create(&th, NULL, iax_park_thread, d))
+		if (!opbx_pthread_create(get_modinfo()->self, &th, NULL, iax_park_thread, d))
 			return 0;
 		free(d);
 	}
@@ -7069,7 +7070,11 @@ static void *network_thread(void *ignore)
 	int res, count;
 	struct iax_frame *f, *freeme;
 
-	for(;;) {
+	for (;;) {
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		/* Go through the queue, sending messages which have not yet been
 		   sent, and scheduling retransmissions if appropriate */
 		opbx_mutex_lock(&iaxq.lock);
@@ -7123,7 +7128,7 @@ static void *network_thread(void *ignore)
 
 static int start_network_thread(void)
 {
-	return opbx_pthread_create(&netthreadid, NULL, network_thread, NULL);
+	return opbx_pthread_create(get_modinfo()->self, &netthreadid, NULL, network_thread, NULL);
 }
 
 static struct iax2_context *build_context(char *context)
@@ -7984,11 +7989,6 @@ static int iax2_reload(int fd, int argc, char *argv[])
 	return reload_config();
 }
 
-int reload(void)
-{
-	return reload_config();
-}
-
 static int cache_get_callno_locked(const char *data)
 {
 	struct sockaddr_in sin;
@@ -8283,18 +8283,15 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 	char *ncontext;
 	char *dialstatus;
 	struct iax2_dpcache *dp;
-	struct opbx_app *dial;
+	struct opbx_func *dial;
 #if 0
 	opbx_log(LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif
 	if (priority == 2) {
 		/* Indicate status, can be overridden in dialplan */
 		dialstatus = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
-		if (dialstatus) {
-			dial = pbx_findapp(dialstatus);
-			if (dial) 
-				pbx_exec(chan, dial, "");
-		}
+		if (dialstatus)
+			opbx_function_exec_str(chan, opbx_hash_app_name(dialstatus), dialstatus, "", NULL, 0);
 		return -1;
 	} else if (priority != 1)
 		return -1;
@@ -8320,32 +8317,26 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 		}
 	}
 	opbx_mutex_unlock(&dpcache_lock);
-	dial = pbx_findapp("Dial");
-	if (dial) {
-		return pbx_exec(chan, dial, req);
-	} else {
-		opbx_log(LOG_WARNING, "No dial application registered\n");
-	}
-	return -1;
+	return opbx_function_exec_str(chan, hash_dial, "Dial", req, NULL, 0);
 }
 
-static char *function_iaxpeer(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_iaxpeer(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *ret = NULL;
 	struct iax2_peer *peer;
 	char *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", iaxpeer_func_syntax);
-		return NULL;
-	}
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax(iaxpeer_func_syntax);
+
+	if (!buf)
+		return 0;
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(argv[0], "CURRENTCHANNEL")) {
 	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
 		opbx_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
-		return buf;
+		return 0;
 	}
 
 	if ((colname = strchr(argv[0], ':'))) {
@@ -8355,7 +8346,7 @@ static char *function_iaxpeer(struct opbx_channel *chan, int argc, char **argv, 
 		colname = "ip";
 	}
 	if (!(peer = find_peer(argv[0], 1)))
-		return ret;
+		return 0;
 
 	if (!strcasecmp(colname, "ip")) {
 		opbx_copy_string(buf, peer->addr.sin_addr.s_addr ? opbx_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
@@ -8388,9 +8379,8 @@ static char *function_iaxpeer(struct opbx_channel *chan, int argc, char **argv, 
 			opbx_copy_string(buf, opbx_getformatname(codec), len);
 		}
 	}
-	ret = buf;
 
-	return ret;
+	return 0;
 }
 
 /*--- iax2_devicestate: Part of the device state notification system ---*/
@@ -8528,42 +8518,112 @@ static char iax2_test_resync_usage[] =
 
 #endif /* IAXTESTS */
 
-static struct opbx_cli_entry iax2_cli[] = {
-	{ { "iax2", "show", "stats", NULL }, iax2_show_stats,
-	  "Display IAX statistics", show_stats_usage },
-	{ { "iax2", "show", "cache", NULL }, iax2_show_cache,
-	  "Display IAX cached dialplan", show_cache_usage },
-	{ { "iax2", "show", "peer", NULL }, iax2_show_peer,
-	  "Show details on specific IAX peer", show_peer_usage, complete_iax2_show_peer },
-	{ { "iax2", "prune", "realtime", NULL }, iax2_prune_realtime,
-	  "Prune a cached realtime lookup", prune_realtime_usage, complete_iax2_show_peer },
-	{ { "iax2", "reload", NULL }, iax2_reload,
-	  "Reload IAX configuration", iax2_reload_usage },
-	{ { "iax2", "show", "users", NULL }, iax2_show_users,
-	  "Show defined IAX users", show_users_usage },
-	{ { "iax2", "show", "channels", NULL }, iax2_show_channels,
-	  "Show active IAX channels", show_channels_usage },
-	{ { "iax2", "show", "netstats", NULL }, iax2_show_netstats,
-	  "Show active IAX channel netstats", show_netstats_usage },
-	{ { "iax2", "show", "peers", NULL }, iax2_show_peers,
-	  "Show defined IAX peers", show_peers_usage },
-	{ { "iax2", "show", "registry", NULL }, iax2_show_registry,
-	  "Show IAX registration status", show_reg_usage },
-	{ { "iax2", "debug", NULL }, iax2_do_debug,
-	  "Enable IAX debugging", debug_usage },
-	{ { "iax2", "trunk", "debug", NULL }, iax2_do_trunk_debug,
-	  "Enable IAX trunk debugging", debug_trunk_usage },
-	{ { "iax2", "no", "debug", NULL }, iax2_no_debug,
-	  "Disable IAX debugging", no_debug_usage },
-	{ { "iax2", "no", "trunk", "debug", NULL }, iax2_no_trunk_debug,
-	  "Disable IAX trunk debugging", no_debug_trunk_usage },
-	{ { "iax2", "test", "losspct", NULL }, iax2_test_losspct,
-	  "Set IAX2 incoming frame loss percentage", iax2_test_losspct_usage },
+static struct opbx_clicmd iax2_cli[] = {
+	{
+		.cmda = { "iax2", "show", "stats", NULL },
+		.handler = iax2_show_stats,
+		.summary = "Display IAX statistics",
+		.usage = show_stats_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "cache", NULL },
+		.handler = iax2_show_cache,
+		.summary = "Display IAX cached dialplan",
+		.usage = show_cache_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "peer", NULL },
+		.handler = iax2_show_peer,
+		.summary = "Show details on specific IAX peer",
+		.usage = show_peer_usage,
+		.generator = complete_iax2_show_peer,
+	},
+	{
+		.cmda = { "iax2", "prune", "realtime", NULL },
+		.handler = iax2_prune_realtime,
+		.summary = "Prune a cached realtime lookup",
+		.usage = prune_realtime_usage,
+		.generator = complete_iax2_show_peer,
+	},
+	{
+		.cmda = { "iax2", "reload", NULL },
+		.handler = iax2_reload,
+		.summary = "Reload IAX configuration",
+		.usage = iax2_reload_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "users", NULL },
+		.handler = iax2_show_users,
+		.summary = "Show defined IAX users",
+		.usage = show_users_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "channels", NULL },
+		.handler = iax2_show_channels,
+		.summary = "Show active IAX channels",
+		.usage = show_channels_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "netstats", NULL },
+		.handler = iax2_show_netstats,
+		.summary = "Show active IAX channel netstats",
+		.usage = show_netstats_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "peers", NULL },
+		.handler = iax2_show_peers,
+		.summary = "Show defined IAX peers",
+		.usage = show_peers_usage,
+	},
+	{
+		.cmda = { "iax2", "show", "registry", NULL },
+		.handler = iax2_show_registry,
+		.summary = "Show IAX registration status",
+		.usage = show_reg_usage,
+	},
+	{
+		.cmda = { "iax2", "debug", NULL },
+		.handler = iax2_do_debug,
+		.summary = "Enable IAX debugging",
+		.usage = debug_usage,
+	},
+	{
+		.cmda = { "iax2", "trunk", "debug", NULL },
+		.handler = iax2_do_trunk_debug,
+		.summary = "Enable IAX trunk debugging",
+		.usage = debug_trunk_usage,
+	},
+	{
+		.cmda = { "iax2", "no", "debug", NULL },
+		.handler = iax2_no_debug,
+		.summary = "Disable IAX debugging",
+		.usage = no_debug_usage,
+	},
+	{
+		.cmda = { "iax2", "no", "trunk", "debug", NULL },
+		.handler = iax2_no_trunk_debug,
+		.summary = "Disable IAX trunk debugging",
+		.usage = no_debug_trunk_usage,
+	},
+	{
+		.cmda = { "iax2", "test", "losspct", NULL },
+		.handler = iax2_test_losspct,
+		.summary = "Set IAX2 incoming frame loss percentage",
+		.usage = iax2_test_losspct_usage,
+	},
 #ifdef IAXTESTS
-	{ { "iax2", "test", "late", NULL }, iax2_test_late,
-	  "Test the receipt of a late frame", iax2_test_late_usage },
-	{ { "iax2", "test", "resync", NULL }, iax2_test_resync,
-	  "Test a resync in received timestamps", iax2_test_resync_usage },
+	{
+		.cmda = { "iax2", "test", "late", NULL },
+		.handler = iax2_test_late,
+		.summary = "Test the receipt of a late frame",
+		.usage = iax2_test_late_usage,
+	},
+	{
+		.cmda = { "iax2", "test", "resync", NULL },
+		.handler = iax2_test_resync,
+		.summary = "Test a resync in received timestamps",
+		.usage = iax2_test_resync_usage,
+	},
 #endif /* IAXTESTS */
 };
 
@@ -8588,13 +8648,13 @@ static int __unload_module(void)
 	opbx_manager_unregister( "IAXpeers" );
 	opbx_manager_unregister( "IAXnetstats" );
 	opbx_cli_unregister_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
-	opbx_unregister_switch(&iax2_switch);
+	opbx_switch_unregister(&iax2_switch);
 	opbx_channel_unregister(&iax2_tech);
 	delete_users();
 	return 0;
 }
 
-int unload_module()
+static int unload_module()
 {
 	if (strcasecmp(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, "yes")) {
 		opbx_log(LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
@@ -8609,7 +8669,7 @@ int unload_module()
 }
 
 /*--- load_module: Load IAX2 module, load configuraiton ---*/
-int load_module(void)
+static int load_module(void)
 {
 	char *config = "iax.conf";
 	int res = 0;
@@ -8620,7 +8680,9 @@ int load_module(void)
 	struct opbx_netsock *ns;
 	struct sockaddr_in sin;
 
-	iaxpeer_func = opbx_register_function(iaxpeer_func_name, function_iaxpeer, NULL, iaxpeer_func_synopsis, iaxpeer_func_syntax, iaxpeer_func_desc);
+	hash_dial = opbx_hash_app_name("Dial");
+
+	iaxpeer_func = opbx_register_function(iaxpeer_func_name, function_iaxpeer, iaxpeer_func_synopsis, iaxpeer_func_syntax, iaxpeer_func_desc);
 
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
@@ -8666,9 +8728,8 @@ int load_module(void)
 		return -1;
 	}
 
-	if (opbx_register_switch(&iax2_switch)) 
-		opbx_log(LOG_ERROR, "Unable to register IAX switch\n");
-	
+	opbx_switch_register(&iax2_switch);
+
 	if (defaultsockfd < 0) {
 		if (!(ns = opbx_netsock_bindaddr(netsock, io, &sin, tos, socket_read, NULL))) {
 			opbx_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
@@ -8701,13 +8762,10 @@ int load_module(void)
 	return res;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
-
 int usecount()
 {
 	return usecnt;
 }
 
+
+MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)

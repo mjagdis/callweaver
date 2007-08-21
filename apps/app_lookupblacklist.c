@@ -45,13 +45,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/callweaver_db.h"
 
-static char *tdesc = "Look up Caller*ID name/number from blacklist database";
+static const char tdesc[] = "Look up Caller*ID name/number from blacklist database";
 
 static void *lookupblacklist_app;
-static char *lookupblacklist_name = "LookupBlacklist";
-static char *lookupblacklist_synopsis = "Look up Caller*ID name/number from blacklist database";
-static char *lookupblacklist_syntax = "LookupBlacklist()";
-static char *lookupblacklist_descrip =
+static const char lookupblacklist_name[] = "LookupBlacklist";
+static const char lookupblacklist_synopsis[] = "Look up Caller*ID name/number from blacklist database";
+static const char lookupblacklist_syntax[] = "LookupBlacklist()";
+static const char lookupblacklist_descrip[] =
   "Looks up the Caller*ID number on the active\n"
   "channel in the CallWeaver database (family 'blacklist').  If the\n"
   "number is found, and if there exists a priority n + 101,\n"
@@ -61,12 +61,8 @@ static char *lookupblacklist_descrip =
   "channel.\n"
   "Example: database put blacklist <name/number> 1\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int
-lookupblacklist_exec (struct opbx_channel *chan, int argc, char **argv)
+static int lookupblacklist_exec (struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char blacklist[1];
 	struct localuser *u;
@@ -99,28 +95,24 @@ lookupblacklist_exec (struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module (void)
+static int unload_module (void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(lookupblacklist_app);
+
+	res |= opbx_unregister_function(lookupblacklist_app);
 	return res;
 }
 
-int load_module (void)
+static int load_module (void)
 {
-	lookupblacklist_app = opbx_register_application(lookupblacklist_name, lookupblacklist_exec, lookupblacklist_synopsis, lookupblacklist_syntax, lookupblacklist_descrip);
+	lookupblacklist_app = opbx_register_function(lookupblacklist_name, lookupblacklist_exec, lookupblacklist_synopsis, lookupblacklist_syntax, lookupblacklist_descrip);
 	return 0;
 }
 
 char *description (void)
 {
-	return tdesc;
+	return (char *)tdesc;
 }
 
-int usecount (void)
-{
-	int res;
-	STANDARD_USECOUNT (res);
-	return res;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

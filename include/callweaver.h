@@ -90,27 +90,6 @@ extern void opbx_channels_init(void);
 extern int dnsmgr_init(void);
 extern void dnsmgr_reload(void);
 
-/*!
- * \brief Register the version of a source code file with the core.
- * \param file the source file name
- * \param version the version string (typically a CVS revision keyword string)
- * \return nothing
- *
- * This function should not be called directly, but instead the
- * CALLWEAVER_FILE_VERSION macro should be used to register a file with the core.
- */
-void opbx_register_file_version(const char *file, const char *version);
-
-/*!
- * \brief Unregister a source code file from the core.
- * \param file the source file name
- * \return nothing
- *
- * This function should not be called directly, but instead the
- * CALLWEAVER_FILE_VERSION macro should be used to automatically unregister
- * the file when the module is unloaded.
- */
-void opbx_unregister_file_version(const char *file);
 
 /*!
  * \brief Register/unregister a source code file with the core.
@@ -134,19 +113,38 @@ void opbx_unregister_file_version(const char *file);
  * revision number.
  */
 #if defined(__GNUC__) && !defined(LOW_MEMORY)
-#define CALLWEAVER_FILE_VERSION(file, version) \
+
+#  include "callweaver/object.h"
+#  include "callweaver/registry.h"
+	struct opbx_file_version {
+		struct opbx_object obj;
+		struct opbx_registry_entry file_version_entry;
+		char *file;
+		char *version;
+	};
+
+	extern struct opbx_registry file_version_registry;
+
+#  define CALLWEAVER_FILE_VERSION(scm_file, scm_version) \
+	static struct opbx_file_version __file_version = { \
+		.file = (scm_file), \
+		.version = (scm_version), \
+		.file_version_entry = { .obj = &__file_version.obj, }, \
+	}; \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		opbx_register_file_version(file, version); \
+		opbx_object_init_obj(&__file_version.obj, NULL); \
+		opbx_registry_add(&file_version_registry, &__file_version.file_version_entry); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		opbx_unregister_file_version(file); \
+		opbx_registry_del(&file_version_registry, &__file_version.file_version_entry); \
 	}
+
 #elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
-#define CALLWEAVER_FILE_VERSION(file, x) static const char __file_version[] = x;
+#  define CALLWEAVER_FILE_VERSION(file, x) static const char __file_version[] = x;
 #else /* LOW_MEMORY */
-#define CALLWEAVER_FILE_VERSION(file, x)
+#  define CALLWEAVER_FILE_VERSION(file, x)
 #endif /* __GNUC__ */
 
 #if defined(__OPBX_DEBUG_MALLOC)  &&  !defined(_CALLWEAVER_CALLWEAVER_MM_H)

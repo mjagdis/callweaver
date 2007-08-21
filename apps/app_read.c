@@ -44,13 +44,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Read Variable Application";
+static const char tdesc[] = "Read Variable Application";
 
 static void *read_app;
-static char *read_name = "Read";
-static char *read_synopsis = "Read a variable";
-static char *read_syntax = "Read(variable[, filename[, maxdigits[, option[, attempts[, timeout]]]]])";
-static char *read_descrip = 
+static const char read_name[] = "Read";
+static const char read_synopsis[] = "Read a variable";
+static const char read_syntax[] = "Read(variable[, filename[, maxdigits[, option[, attempts[, timeout]]]]])";
+static const char read_descrip[] = 
 "Reads a #-terminated string of digits a certain number of times from the\n"
 "user in to the given variable.\n"
 "  filename   -- file to play before reading digits.\n"
@@ -67,13 +67,9 @@ static char *read_descrip =
 "Returns -1 on hangup or error and 0 otherwise.\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 #define opbx_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
 
-static int read_exec(struct opbx_channel *chan, int argc, char **argv)
+static int read_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res = 0;
 	struct localuser *u;
@@ -84,10 +80,8 @@ static int read_exec(struct opbx_channel *chan, int argc, char **argv)
 	int tries = 1;
 	int to = 0;
 
-	if (argc < 1 || argc > 6) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", read_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 6)
+		return opbx_function_syntax(read_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -165,30 +159,19 @@ static int read_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(read_app);
+
+	res |= opbx_unregister_function(read_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	read_app = opbx_register_application(read_name, read_exec, read_synopsis, read_syntax, read_descrip);
+	read_app = opbx_register_function(read_name, read_exec, read_synopsis, read_syntax, read_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

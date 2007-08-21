@@ -51,13 +51,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define EXTRA_LOG 0
 
 
-static char *tdesc = "Simple PostgreSQL Interface";
+static const char tdesc[] = "Simple PostgreSQL Interface";
 
 static void *app;
-static char *name = "PGSQL";
-static char *synopsis = "Do several SQLy things";
-static char *syntax = "PGSQL()";
-static char *descrip = 
+static const char name[] = "PGSQL";
+static const char synopsis[] = "Do several SQLy things";
+static const char syntax[] = "PGSQL()";
+static const char descrip[] = 
 "Do several SQLy things\n"
 "Syntax:\n"
 "  PGSQL(Connect var option-string)\n"
@@ -122,9 +122,6 @@ exten => s,9,PGSQL(Disconnect ${connid})
 
 */
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 #define OPBX_PGSQL_ID_DUMMY 0
 #define OPBX_PGSQL_ID_CONNID 1
@@ -508,7 +505,7 @@ static int aPGSQL_debug(struct opbx_channel *chan, void *data) {
 		
 	
 
-static int PGSQL_exec(struct opbx_channel *chan, int argc, char **argv)
+static int PGSQL_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int result;
@@ -548,33 +545,24 @@ static int PGSQL_exec(struct opbx_channel *chan, int argc, char **argv)
 
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(app);
+
+	res |= opbx_unregister_function(app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	struct PGSQLidshead *headp;
 	
         headp=&PGSQLidshead;
         
 	OPBX_LIST_HEAD_INIT(headp);
-	app = opbx_register_application(name, PGSQL_exec, synopsis, syntax, descrip);
+	app = opbx_register_function(name, PGSQL_exec, synopsis, syntax, descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -279,7 +279,7 @@ static int pbx_start_chan(struct chan_list *ch);
 
 /* #define MISDN_DEBUG 1 */
 
-static char *desc = "Channel driver for mISDN Support (Bri/Pri)";
+static const char desc[] = "Channel driver for mISDN Support (Bri/Pri)";
 static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
@@ -327,8 +327,8 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
-static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv);
-static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv);
+static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len);
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
 
@@ -451,8 +451,10 @@ static void sighandler(int sig)
 
 static void* misdn_tasks_thread_func (void *data)
 {
-	int wait;
 	struct sigaction sa;
+	int wait;
+
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	sa.sa_handler = sighandler;
 	sa.sa_flags = SA_NODEFER;
@@ -466,9 +468,17 @@ static void* misdn_tasks_thread_func (void *data)
 		wait = opbx_sched_wait(misdn_tasks);
 		if (wait < 0)
 			wait = 8000;
-		if (poll(NULL, 0, wait) < 0)
+		wait = poll(NULL, 0, wait);
+		pthread_testcancel();
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		if (wait < 0)
 			chan_misdn_log(4, 0, "Waking up misdn_tasks thread\n");
 		opbx_sched_runq(misdn_tasks);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
 	}
 	return NULL;
 }
@@ -1328,153 +1338,153 @@ static char *complete_show_config (char *line, char *word, int pos, int state)
 	return NULL;
 }
 
-static struct opbx_cli_entry cli_send_cd =
-{ {"misdn","send","calldeflect", NULL},
-  misdn_send_cd,
-  "Sends CallDeflection to mISDN Channel", 
-  "Usage: misdn send calldeflect <channel> \"<nr>\" \n",
-  complete_ch
+static struct opbx_clicmd cli_send_cd = {
+	.cmda = {"misdn","send","calldeflect", NULL},
+	.handler = misdn_send_cd,
+	.summary = "Sends CallDeflection to mISDN Channel", 
+	.usage = "Usage: misdn send calldeflect <channel> \"<nr>\" \n",
+	.generator = complete_ch
 };
 
-static struct opbx_cli_entry cli_send_digit =
-{ {"misdn","send","digit", NULL},
-  misdn_send_digit,
-  "Sends DTMF Digit to mISDN Channel", 
-  "Usage: misdn send digit <channel> \"<msg>\" \n"
-  "       Send <digit> to <channel> as DTMF Tone\n"
-  "       when channel is a mISDN channel\n",
-  complete_ch
+static struct opbx_clicmd cli_send_digit = {
+	.cmda = {"misdn","send","digit", NULL},
+	.handler = misdn_send_digit,
+	.summary = "Sends DTMF Digit to mISDN Channel", 
+	.usage = "Usage: misdn send digit <channel> \"<msg>\" \n"
+	"       Send <digit> to <channel> as DTMF Tone\n"
+	"       when channel is a mISDN channel\n",
+	.generator = complete_ch
 };
 
-static struct opbx_cli_entry cli_toggle_echocancel =
-{ {"misdn","toggle","echocancel", NULL},
-  misdn_toggle_echocancel,
-  "Toggles EchoCancel on mISDN Channel", 
-  "Usage: misdn toggle echocancel <channel>\n", 
-  complete_ch
+static struct opbx_clicmd cli_toggle_echocancel = {
+	.cmda = {"misdn","toggle","echocancel", NULL},
+	.handler = misdn_toggle_echocancel,
+	.summary = "Toggles EchoCancel on mISDN Channel", 
+	.usage = "Usage: misdn toggle echocancel <channel>\n", 
+	.generator = complete_ch
 };
 
-static struct opbx_cli_entry cli_send_display =
-{ {"misdn","send","display", NULL},
-  misdn_send_display,
-  "Sends Text to mISDN Channel", 
-  "Usage: misdn send display <channel> \"<msg>\" \n"
-  "       Send <msg> to <channel> as Display Message\n"
-  "       when channel is a mISDN channel\n",
-  complete_ch
+static struct opbx_clicmd cli_send_display = {
+	.cmda = {"misdn","send","display", NULL},
+	.handler = misdn_send_display,
+	.summary = "Sends Text to mISDN Channel", 
+	.usage = "Usage: misdn send display <channel> \"<msg>\" \n"
+	"       Send <msg> to <channel> as Display Message\n"
+	"       when channel is a mISDN channel\n",
+	.generator = complete_ch
 };
 
-static struct opbx_cli_entry cli_show_config =
-{ {"misdn","show","config", NULL},
-  misdn_show_config,
-  "Shows internal mISDN config, read from cfg-file", 
-  "Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
-  "       Use 0 for <port> to only print the general config.\n",
-  complete_show_config
+static struct opbx_clicmd cli_show_config = {
+	.cmda = {"misdn","show","config", NULL},
+	.handler = misdn_show_config,
+	.summary = "Shows internal mISDN config, read from cfg-file", 
+	.usage = "Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
+	"       Use 0 for <port> to only print the general config.\n",
+	.generator = complete_show_config
 };
  
-static struct opbx_cli_entry cli_reload =
-{ {"misdn","reload", NULL},
-  misdn_reload,
-  "Reloads internal mISDN config, read from cfg-file", 
-  "Usage: misdn reload\n"
+static struct opbx_clicmd cli_reload = {
+	.cmda = {"misdn","reload", NULL},
+	.handler = misdn_reload,
+	.summary = "Reloads internal mISDN config, read from cfg-file", 
+	.usage = "Usage: misdn reload\n"
 };
 
-static struct opbx_cli_entry cli_set_tics =
-{ {"misdn","set","tics", NULL},
-  misdn_set_tics,
-  "", 
-  "\n"
+static struct opbx_clicmd cli_set_tics = {
+	.cmda = {"misdn","set","tics", NULL},
+	.handler = misdn_set_tics,
+	.summary = "", 
+	"\n"
 };
 
-static struct opbx_cli_entry cli_show_cls =
-{ {"misdn","show","channels", NULL},
-  misdn_show_cls,
-  "Shows internal mISDN chan_list", 
-  "Usage: misdn show channels\n"
+static struct opbx_clicmd cli_show_cls = {
+	.cmda = {"misdn","show","channels", NULL},
+	.handler = misdn_show_cls,
+	.summary = "Shows internal mISDN chan_list", 
+	.usage = "Usage: misdn show channels\n"
 };
 
-static struct opbx_cli_entry cli_show_cl =
-{ {"misdn","show","channel", NULL},
-  misdn_show_cl,
-  "Shows internal mISDN chan_list", 
-  "Usage: misdn show channels\n",
-  complete_ch
+static struct opbx_clicmd cli_show_cl = {
+	.cmda = {"misdn","show","channel", NULL},
+	.handler = misdn_show_cl,
+	.summary = "Shows internal mISDN chan_list", 
+	.usage = "Usage: misdn show channels\n",
+	.generator = complete_ch
 };
 
-static struct opbx_cli_entry cli_port_block=
-{ {"misdn","port","block", NULL},
-  misdn_port_block,
-  "Blocks the given port", 
-  "Usage: misdn port block\n"
+static struct opbx_clicmd cli_port_block = {
+	.cmda = {"misdn","port","block", NULL},
+	.handler = misdn_port_block,
+	.summary = "Blocks the given port", 
+	.usage = "Usage: misdn port block\n"
 };
 
-static struct opbx_cli_entry cli_port_unblock=
-{ {"misdn","port","unblock", NULL},
-  misdn_port_unblock,
-  "Unblocks the given port", 
-  "Usage: misdn port unblock\n"
-};
-
-
-static struct opbx_cli_entry cli_restart_port =
-{ {"misdn","restart","port", NULL},
-  misdn_restart_port,
-  "Restarts the given port", 
-  "Usage: misdn restart port\n"
-};
-
-static struct opbx_cli_entry cli_port_up =
-{ {"misdn","port","up", NULL},
-  misdn_port_up,
-  "Tries to establish L1 on the given port", 
-  "Usage: misdn port up <port>\n"
-};
-
-static struct opbx_cli_entry cli_port_down =
-{ {"misdn","port","down", NULL},
-  misdn_port_down,
-  "Tries to deacivate the L1 on the given port", 
-  "Usage: misdn port down <port>\n"
+static struct opbx_clicmd cli_port_unblock = {
+	.cmda = {"misdn","port","unblock", NULL},
+	.handler = misdn_port_unblock,
+	.summary = "Unblocks the given port", 
+	.usage = "Usage: misdn port unblock\n"
 };
 
 
-
-static struct opbx_cli_entry cli_show_stacks =
-{ {"misdn","show","stacks", NULL},
-  misdn_show_stacks,
-  "Shows internal mISDN stack_list", 
-  "Usage: misdn show stacks\n"
+static struct opbx_clicmd cli_restart_port = {
+	.cmda = {"misdn","restart","port", NULL},
+	.handler = misdn_restart_port,
+	.summary = "Restarts the given port", 
+	.usage = "Usage: misdn restart port\n"
 };
 
-static struct opbx_cli_entry cli_show_ports_stats =
-{ {"misdn","show","ports","stats", NULL},
-  misdn_show_ports_stats,
-  "Shows chan_misdns call statistics per port", 
-  "Usage: misdn show port stats\n"
+static struct opbx_clicmd cli_port_up = {
+	.cmda = {"misdn","port","up", NULL},
+	.handler = misdn_port_up,
+	.summary = "Tries to establish L1 on the given port", 
+	.usage = "Usage: misdn port up <port>\n"
+};
+
+static struct opbx_clicmd cli_port_down = {
+	.cmda = {"misdn","port","down", NULL},
+	.handler = misdn_port_down,
+	.summary = "Tries to deacivate the L1 on the given port", 
+	.usage = "Usage: misdn port down <port>\n"
 };
 
 
-static struct opbx_cli_entry cli_show_port =
-{ {"misdn","show","port", NULL},
-  misdn_show_port,
-  "Shows detailed information for given port", 
-  "Usage: misdn show port <port>\n"
+
+static struct opbx_clicmd cli_show_stacks = {
+	.cmda = {"misdn","show","stacks", NULL},
+	.handler = misdn_show_stacks,
+	.summary = "Shows internal mISDN stack_list", 
+	.usage = "Usage: misdn show stacks\n"
 };
 
-static struct opbx_cli_entry cli_set_debug =
-{ {"misdn","set","debug", NULL},
-  misdn_set_debug,
-  "Sets Debuglevel of chan_misdn",
-  "Usage: misdn set debug <level> [only] | [port <port> [only]]\n",
-  complete_debug_port
+static struct opbx_clicmd cli_show_ports_stats = {
+	.cmda = {"misdn","show","ports","stats", NULL},
+	.handler = misdn_show_ports_stats,
+	.summary = "Shows chan_misdns call statistics per port", 
+	.usage = "Usage: misdn show port stats\n"
 };
 
-static struct opbx_cli_entry cli_set_crypt_debug =
-{ {"misdn","set","crypt","debug", NULL},
-  misdn_set_crypt_debug,
-  "Sets CryptDebuglevel of chan_misdn, at the moment, level={1,2}", 
-  "Usage: misdn set crypt debug <level>\n"
+
+static struct opbx_clicmd cli_show_port = {
+	.cmda = {"misdn","show","port", NULL},
+	.handler = misdn_show_port,
+	.summary = "Shows detailed information for given port", 
+	.usage = "Usage: misdn show port <port>\n"
+};
+
+static struct opbx_clicmd cli_set_debug = {
+	.cmda = {"misdn","set","debug", NULL},
+	.handler = misdn_set_debug,
+	.summary = "Sets Debuglevel of chan_misdn",
+	.usage = "Usage: misdn set debug <level> [only] | [port <port> [only]]\n",
+	.generator = complete_debug_port
+};
+
+static struct opbx_clicmd cli_set_crypt_debug = {
+	.cmda = {"misdn","set","crypt","debug", NULL},
+	.handler = misdn_set_crypt_debug,
+	.summary = "Sets CryptDebuglevel of chan_misdn, at the moment, level={1,2}", 
+	.usage = "Usage: misdn set crypt debug <level>\n"
 };
 /*** CLI END ***/
 
@@ -2006,7 +2016,7 @@ static int misdn_call(struct opbx_channel *ast, char *dest, int timeout)
 		
 		/* Finally The Options Override Everything */
 		if (opts)
-			misdn_set_opt_exec(ast, 1, &opts);
+			misdn_set_opt_exec(ast, 1, &opts, NULL, 0);
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
@@ -4529,10 +4539,7 @@ static int g_config_initialized=0;
 static void *misdn_set_opt_app;
 static void *misdn_facility_app;
 
-static char *misdn_set_opt_app_name = "MISDNSetOpt";
-static char *misdn_facility_app_name = "MISDNFacility";
-
-int load_module(void)
+static int load_module(void)
 {
 	int i, port;
 	char ports[256]="";
@@ -4639,8 +4646,8 @@ int load_module(void)
 	opbx_cli_register(&cli_reload);
 
   
-	misdn_set_opt_app = opbx_register_application(misdn_set_opt_app_name, misdn_set_opt_exec, misdn_set_opt_app_name,
-				 "MISDNSetOpt(:<opt><optarg>:<opt><optarg>..)",
+	misdn_set_opt_app = opbx_register_function("MISDNSetOpt", misdn_set_opt_exec, "misdn_set_opt",
+				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..)",
 				 "Sets mISDN opts. and optargs\n"
 				 "\n"
 				 "The available options are:\n"
@@ -4656,8 +4663,8 @@ int load_module(void)
 		);
 
 	
-	misdn_facility_app = opbx_register_application(misdn_facility_app_name, misdn_facility_exec, misdn_facility_app_name,
-				 "MISDN_Facility(<FACILITY_TYPE>|<ARG1>|..)",
+	misdn_facility_app = opbx_register_function("MISDNFacility", misdn_facility_exec, "misdn_facility",
+				 "misdn_facility(<FACILITY_TYPE>|<ARG1>|..)",
 				 "Sends the Facility Message FACILITY_TYPE with \n"
 				 "the given Arguments to the current ISDN Channel\n"
 				 "Supported Facilities are:\n"
@@ -4695,7 +4702,7 @@ int load_module(void)
 
 
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -4728,9 +4735,8 @@ int unload_module(void)
 	opbx_cli_unregister(&cli_set_debug);
 	opbx_cli_unregister(&cli_set_crypt_debug);
 	opbx_cli_unregister(&cli_reload);
-	/* opbx_unregister_application("misdn_crypt"); */
-	res |= opbx_unregister_application(misdn_set_opt_app);
-	res |= opbx_unregister_application(misdn_facility_app);
+	res |= opbx_unregister_function(misdn_set_opt_app);
+	res |= opbx_unregister_function(misdn_facility_app);
   
 	opbx_channel_unregister(&misdn_tech);
 
@@ -4747,13 +4753,6 @@ int unload_module(void)
 	return res;
 }
 
-int reload(void)
-{
-	reload_config();
-
-	return 0;
-}
-
 int usecount(void)
 {
 	int res;
@@ -4763,18 +4762,14 @@ int usecount(void)
 	return res;
 }
 
-char *description(void)
-{
-	return desc;
-}
 
-
+MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)
 
 
 
 /*** SOME APPS ;)***/
 
-static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv)
+static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 
@@ -4805,7 +4800,7 @@ static int misdn_facility_exec(struct opbx_channel *chan, int argc, char **argv)
 }
 
 
-static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv)
+static int misdn_set_opt_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok,*tokb;

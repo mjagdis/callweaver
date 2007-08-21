@@ -39,13 +39,13 @@
 #include "callweaver/module.h"
 #include "callweaver/lock.h"
 
-static char *tdesc = "T.38 Gateway Dialer Application";
+static const char tdesc[] = "T.38 Gateway Dialer Application";
 
 static void *t38gateway_app;
-static const char *t38gateway_name = "T38Gateway";
-static const char *t38gateway_synopsis = "A PSTN <-> T.38 gateway";
-static const char *t38gateway_syntax = "T38Gateway(dialstring[, timeout[, options]])";
-static const char *t38gateway_descrip =
+static const char t38gateway_name[] = "T38Gateway";
+static const char t38gateway_synopsis[] = "A PSTN <-> T.38 gateway";
+static const char t38gateway_syntax[] = "T38Gateway(dialstring[, timeout[, options]])";
+static const char t38gateway_descrip[] =
 "Options:\n\n"
 " h -- Hangup if the call was successful.\n\n"
 " r -- Indicate 'ringing' to the caller.\n\n";
@@ -72,8 +72,6 @@ static int opbx_check_hangup_locked(struct opbx_channel *chan)
 
 #define MAX_BLOCK_SIZE 240
 
-STANDARD_LOCAL_USER;
-LOCAL_USER_DECL;
 
 static void span_message(int level, const char *msg)
 {
@@ -382,7 +380,7 @@ static int opbx_t38_gateway(struct opbx_channel *chan, struct opbx_channel *peer
     return running;
 }
 
-static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
+static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     int res = 0;
     struct localuser *u;
@@ -398,10 +396,7 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
     struct opbx_channel *channels[2];
     
     if (argc < 1  ||  argc > 3  ||  !argv[0][0])
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", t38gateway_syntax);
-        return -1;
-    }
+        return opbx_function_syntax(t38gateway_syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -611,30 +606,19 @@ static int t38gateway_exec(struct opbx_channel *chan, int argc, char **argv)
     ALL_DONE(u, (!res  &&  (argc > 2  &&  strchr(argv[2], 'h')))  ?  -1  :  0);
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
 
-    STANDARD_HANGUP_LOCALUSERS;
-    res |= opbx_unregister_application(t38gateway_app);
+    res |= opbx_unregister_function(t38gateway_app);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-    t38gateway_app = opbx_register_application(t38gateway_name, t38gateway_exec, t38gateway_synopsis, t38gateway_syntax, t38gateway_descrip);
+    t38gateway_app = opbx_register_function(t38gateway_name, t38gateway_exec, t38gateway_synopsis, t38gateway_syntax, t38gateway_descrip);
     return 0;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

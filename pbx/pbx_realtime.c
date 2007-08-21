@@ -44,6 +44,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
+#include "callweaver/switch.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/frame.h"
@@ -63,7 +64,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define EXT_DATA_SIZE 256
 
-static char *tdesc = "Realtime Switch";
+static const char tdesc[] = "Realtime Switch";
 
 /* Realtime switch looks up extensions in the supplied realtime table.
 
@@ -189,8 +190,6 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 	char app[256];
 	char appdata[512]="";
 	char *tmp="";
-
-	struct opbx_app *a;
 	struct opbx_variable *v;
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
@@ -204,29 +203,24 @@ static int realtime_exec(struct opbx_channel *chan, const char *context, const c
 		}
 		opbx_variables_destroy(var);
 		if (!opbx_strlen_zero(app)) {
-			a = pbx_findapp(app);
-			if (a) {
-				if(!opbx_strlen_zero(tmp))
-				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata));
-                if (option_verbose > 2)
-		    opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
+			if(!opbx_strlen_zero(tmp))
+			   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata));
+			if (option_verbose > 2)
+	 		    opbx_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
 			            app,
 				    chan->name,
 				    (!opbx_strlen_zero(appdata) ? (char *)appdata : "")
-                                );
-                manager_event(EVENT_FLAG_CALL, "Newexten",
-							  "Channel: %s\r\n"
-							  "Context: %s\r\n"
-							  "Extension: %s\r\n"
-							  "Priority: %d\r\n"
-							  "Application: %s\r\n"
-							  "AppData: %s\r\n"
-							  "Uniqueid: %s\r\n",
-							  chan->name, chan->context, chan->exten, chan->priority, app, appdata ? appdata : "(NULL)", chan->uniqueid);
-				
-				res = pbx_exec(chan, a, appdata);
-			} else
-				opbx_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
+			    );
+			manager_event(EVENT_FLAG_CALL, "Newexten",
+						  "Channel: %s\r\n"
+						  "Context: %s\r\n"
+						  "Extension: %s\r\n"
+						  "Priority: %d\r\n"
+						  "Application: %s\r\n"
+						  "AppData: %s\r\n"
+						  "Uniqueid: %s\r\n",
+						  chan->name, chan->context, chan->exten, chan->priority, app, appdata ? appdata : "(NULL)", chan->uniqueid);
+			res = opbx_function_exec_str(chan, opbx_hash_app_name(app), app, appdata, NULL, 0);
 		}
 	}
 	return res;
@@ -244,32 +238,25 @@ static int realtime_matchmore(struct opbx_channel *chan, const char *context, co
 static struct opbx_switch realtime_switch =
 {
         name:                   "Realtime",
-        description:    		"Realtime Dialplan Switch",
+        description:   		"Realtime Dialplan Switch",
         exists:                 realtime_exists,
         canmatch:               realtime_canmatch,
         exec:                   realtime_exec,
         matchmore:              realtime_matchmore,
 };
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
+static int unload_module(void)
 {
-	return 1;
-}
-
-int unload_module(void)
-{
-	opbx_unregister_switch(&realtime_switch);
+	opbx_switch_unregister(&realtime_switch);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	opbx_register_switch(&realtime_switch);
+	opbx_switch_register(&realtime_switch);
 	return 0;
 }
 
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

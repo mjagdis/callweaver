@@ -50,36 +50,33 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *vmcount_function;
-static const char *vmcount_func_name = "VMCOUNT";
-static const char *vmcount_func_synopsis = "Counts the voicemail in a specified mailbox";
-static const char *vmcount_func_syntax = "VMCOUNT(vmbox[@context][, folder])";
-static const char *vmcount_func_desc =
+static const char vmcount_func_name[] = "VMCOUNT";
+static const char vmcount_func_synopsis[] = "Counts the voicemail in a specified mailbox";
+static const char vmcount_func_syntax[] = "VMCOUNT(vmbox[@context][, folder])";
+static const char vmcount_func_desc[] =
 	"  context - defaults to \"default\"\n"
 	"  folder  - defaults to \"INBOX\"\n";
 
-static char *tdesc = "Indicator for whether a voice mailbox has messages in a given folder.";
+static const char tdesc[] = "Indicator for whether a voice mailbox has messages in a given folder.";
 
 static void *hasvoicemail_app;
-static const char *hasvoicemail_name = "HasVoicemail";
-static const char *hasvoicemail_synopsis = "Conditionally branches to priority + 101";
-static const char *hasvoicemail_syntax = "HasVoicemail(vmbox[/folder][@context][, varname])";
-static const char *hasvoicemail_descrip =
+static const char hasvoicemail_name[] = "HasVoicemail";
+static const char hasvoicemail_synopsis[] = "Conditionally branches to priority + 101";
+static const char hasvoicemail_syntax[] = "HasVoicemail(vmbox[/folder][@context][, varname])";
+static const char hasvoicemail_descrip[] =
 "Branches to priority + 101, if there is voicemail in folder indicated."
 "Optionally sets <varname> to the number of messages in that folder."
 "Assumes folder of INBOX if not specified.\n";
 
 static void *hasnewvoicemail_app;
-static const char *hasnewvoicemail_name = "HasNewVoicemail";
-static const char *hasnewvoicemail_synopsis = "Conditionally branches to priority + 101";
-static const char *hasnewvoicemail_syntax = "HasNewVoicemail(vmbox[/folder][@context][, varname])";
-static const char *hasnewvoicemail_descrip =
+static const char hasnewvoicemail_name[] = "HasNewVoicemail";
+static const char hasnewvoicemail_synopsis[] = "Conditionally branches to priority + 101";
+static const char hasnewvoicemail_syntax[] = "HasNewVoicemail(vmbox[/folder][@context][, varname])";
+static const char hasnewvoicemail_descrip[] =
 "Branches to priority + 101, if there is voicemail in folder 'folder' or INBOX.\n"
 "if folder is not specified. Optionally sets <varname> to the number of messages\n" 
 "in that folder.\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int hasvoicemail_internal(char *context, char *box, char *folder)
 {
@@ -102,7 +99,7 @@ static int hasvoicemail_internal(char *context, char *box, char *folder)
 	return count;
 }
 
-static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv)
+static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static int dep_warning = 0;
 	struct localuser *u;
@@ -115,10 +112,8 @@ static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv)
 		dep_warning = 1;
 	}
 	
-	if (argc != 2) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", hasvoicemail_syntax);
-		return -1;
-	}
+	if (argc != 2)
+		return opbx_function_syntax(hasvoicemail_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -154,60 +149,48 @@ static int hasvoicemail_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-static char *acf_vmcount_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int acf_vmcount_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *context;
 
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", vmcount_func_syntax);
-		return NULL;
-	}
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(vmcount_func_syntax);
 
-	LOCAL_USER_ACF_ADD(u);
+	if (!result)
+		return 0;
 
-	buf[0] = '\0';
+	LOCAL_USER_ADD(u);
 
 	if ((context = strchr(argv[0], '@')))
 		*(context++) = '\0';
 	else
 		context = "default";
 
-	snprintf(buf, len, "%d", hasvoicemail_internal(context, argv[0], (argc > 1 && argv[1][0] ? argv[1] : "INBOX")));
+	snprintf(result, result_max, "%d", hasvoicemail_internal(context, argv[0], (argc > 1 && argv[1][0] ? argv[1] : "INBOX")));
 
 	LOCAL_USER_REMOVE(u);
-	return buf;
-}
-
-
-int unload_module(void)
-{
-	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_function(vmcount_function);
-	res |= opbx_unregister_application(hasvoicemail_app);
-	res |= opbx_unregister_application(hasnewvoicemail_app);
-	return res;
-}
-
-int load_module(void)
-{
-	vmcount_function = opbx_register_function(vmcount_func_name, acf_vmcount_exec, NULL, vmcount_func_synopsis, vmcount_func_syntax, vmcount_func_desc);
-	hasvoicemail_app = opbx_register_application(hasvoicemail_name, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_syntax, hasvoicemail_descrip);
-	hasnewvoicemail_app = opbx_register_application(hasnewvoicemail_name, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_syntax, hasnewvoicemail_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
+static int unload_module(void)
 {
-	int res;
-	STANDARD_USECOUNT(res);
+	int res = 0;
+
+	res |= opbx_unregister_function(vmcount_function);
+	res |= opbx_unregister_function(hasvoicemail_app);
+	res |= opbx_unregister_function(hasnewvoicemail_app);
 	return res;
 }
 
+static int load_module(void)
+{
+	vmcount_function = opbx_register_function(vmcount_func_name, acf_vmcount_exec, vmcount_func_synopsis, vmcount_func_syntax, vmcount_func_desc);
+	hasvoicemail_app = opbx_register_function(hasvoicemail_name, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_syntax, hasvoicemail_descrip);
+	hasnewvoicemail_app = opbx_register_function(hasnewvoicemail_name, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_syntax, hasnewvoicemail_descrip);
+	return 0;
+}
 
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

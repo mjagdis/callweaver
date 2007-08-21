@@ -50,13 +50,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/phone_no_utils.h"
 
-static char *tdesc = "DISA (Direct Inward System Access) Application";
+static const char tdesc[] = "DISA (Direct Inward System Access) Application";
 
 static void *disa_app;
-static const char *disa_name = "DISA";
-static const char *disa_synopsis = "DISA (Direct Inward System Access)";
-static const char *disa_syntax = "DISA(numeric passcode[, context]) or disa(filename)";
-static const char *disa_descrip = 
+static const char disa_name[] = "DISA";
+static const char disa_synopsis[] = "DISA (Direct Inward System Access)";
+static const char disa_syntax[] = "DISA(numeric passcode[, context]) or disa(filename)";
+static const char disa_descrip[] = 
 	"The DISA, Direct Inward System Access, application allows someone from \n"
 	"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
 	"dialtone and to place calls from it as if they were placing a call from \n"
@@ -97,10 +97,6 @@ static const char *disa_descrip =
 	"exists in the context, it will be used.\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 static void play_dialtone(struct opbx_channel *chan, char *mailbox)
 {
 	const struct tone_zone_sound *ts = NULL;
@@ -115,7 +111,7 @@ static void play_dialtone(struct opbx_channel *chan, char *mailbox)
 		opbx_tonepair_start(chan, 350, 440, 0, 0);
 }
 
-static int disa_exec(struct opbx_channel *chan, int argc, char **argv)
+static int disa_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int i;
     int j;
@@ -139,10 +135,8 @@ static int disa_exec(struct opbx_channel *chan, int argc, char **argv)
 	FILE *fp;
 	char inbuf[128];
 
-	if (argc < 1 || argc > 3) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", disa_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 3)
+		return opbx_function_syntax(disa_syntax);
 
 	LOCAL_USER_ADD(u);
 	
@@ -394,28 +388,19 @@ reorder:
 	return -1;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(disa_app);
+
+	res |= opbx_unregister_function(disa_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	disa_app = opbx_register_application(disa_name, disa_exec, disa_synopsis, disa_syntax, disa_descrip);
+	disa_app = opbx_register_function(disa_name, disa_exec, disa_synopsis, disa_syntax, disa_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

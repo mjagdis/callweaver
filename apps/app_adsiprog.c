@@ -51,20 +51,17 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver_addon/adsi.h"
 
-static char *tdesc = "CallWeaver ADSI Programming Application";
+static const char tdesc[] = "CallWeaver ADSI Programming Application";
 
 static void *adsi_app;
-static const char *adsi_name = "ADSIProg";
-static const char *adsi_synopsis = "Load CallWeaver ADSI Scripts into phone";
-static const char *adsi_syntax = "ADSIProg(script)";
-static const char *adsi_descrip =
+static const char adsi_name[] = "ADSIProg";
+static const char adsi_synopsis[] = "Load CallWeaver ADSI Scripts into phone";
+static const char adsi_syntax[] = "ADSIProg(script)";
+static const char adsi_descrip[] =
 "Programs an ADSI Phone with the given script.\n"
 "If none is specified, the default is used.  Returns 0 unless CPE\n" 
 "is hungup.\n";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 struct adsi_event {
 	int id;
@@ -1552,7 +1549,7 @@ static int adsi_prog(struct opbx_channel *chan, char *script)
 	return 0;
 }
 
-static int adsi_exec(struct opbx_channel *chan, int argc, char **argv)
+static int adsi_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	int res=0;
 	struct localuser *u;
@@ -1577,30 +1574,19 @@ static int adsi_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(adsi_app);
+
+	res |= opbx_unregister_function(adsi_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	adsi_app = opbx_register_application(adsi_name, adsi_exec, adsi_synopsis, adsi_syntax, adsi_descrip);
+	adsi_app = opbx_register_function(adsi_name, adsi_exec, adsi_synopsis, adsi_syntax, adsi_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -41,30 +41,25 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 
-static char *tdesc = "Simple Echo Application";
+static const char tdesc[] = "Simple Echo Application";
 
 static void *echo_app;
-static const char *echo_name = "Echo";
-static const char *echo_synopsis = "Echo audio read back to the user";
-static const char *echo_syntax = "Echo()";
-static const char *echo_descrip = 
+static const char echo_name[] = "Echo";
+static const char echo_synopsis[] = "Echo audio read back to the user";
+static const char echo_syntax[] = "Echo()";
+static const char echo_descrip[] = 
 "Echo audio read from channel back to the channel. Returns 0\n"
 "if the user exits with the '#' key, or -1 if the user hangs up.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int echo_exec(struct opbx_channel *chan, int argc, char **argv)
+static int echo_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct opbx_frame *f;
 	int res = -1;
 
-	if (argc != 0) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", echo_syntax);
-		return -1;
-	}
+	if (argc != 0)
+		return opbx_function_syntax(echo_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -98,30 +93,19 @@ static int echo_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(echo_app);
+
+	res |= opbx_unregister_function(echo_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	echo_app = opbx_register_application(echo_name, echo_exec, echo_synopsis, echo_syntax, echo_descrip);
+	echo_app = opbx_register_function(echo_name, echo_exec, echo_synopsis, echo_syntax, echo_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

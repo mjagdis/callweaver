@@ -47,13 +47,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/cli.h"
 #include "callweaver/options.h"
 
-static char *tdesc = "Native Channel Monitoring Module";
+
+static const char tdesc[] = "Native Channel Monitoring Module";
 
 static void *muxmon_app;
-static char *muxmon_name = "MuxMon";
-static char *muxmon_synopsis = "Record A Call Natively";
-static char *muxmon_syntax = "MuxMon(file.ext[, options[, command]])";
-static char *muxmon_descrip =
+static const char muxmon_name[] = "MuxMon";
+static const char muxmon_synopsis[] = "Record A Call Natively";
+static const char muxmon_syntax[] = "MuxMon(file.ext[, options[, command]])";
+static const char muxmon_descrip[] =
     "Records The audio on the current channel to the specified file.\n\n"
     "Valid Options:\n"
     " b      - Only save audio to the file while the channel is bridged. *does not include conferences*\n"
@@ -67,9 +68,6 @@ static char *muxmon_descrip =
     "The variable MUXMON_FILENAME will be present as well.\n"
     "";
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 OPBX_MUTEX_DEFINE_STATIC(modlock);
 
@@ -92,6 +90,7 @@ typedef enum
     MUXFLAG_READVOLUME = (1 << 4),
     MUXFLAG_WRITEVOLUME = (1 << 5)
 } muxflags;
+
 
 OPBX_DECLARE_OPTIONS(muxmon_opts,{
     ['a'] = { MUXFLAG_APPEND },
@@ -155,6 +154,7 @@ static void stopmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
             }
             prev = cptr;
         }
+
         opbx_mutex_unlock(&chan->lock);
     }
 }
@@ -171,7 +171,7 @@ static void startmon(struct opbx_channel *chan, struct opbx_channel_spy *spy)
         if (chan->spiers)
         {
             for (cptr = chan->spiers;  cptr  &&  cptr->next;  cptr = cptr->next);
-                cptr->next = spy;
+            cptr->next = spy;
         }
         else
         {
@@ -278,7 +278,7 @@ static void *muxmon_thread(void *obj)
                 samp1 =
                 len0 =
                 len1 = 0;
-                
+
                 /* In case of hapgup it is safer to start from testing this */  
                 if (spy.status != CHANSPY_RUNNING)
                 {
@@ -359,7 +359,6 @@ static void *muxmon_thread(void *obj)
     if (muxmon->post_process)
     {
         char *p;
-    
         for (p = muxmon->post_process;  *p;  p++)
         {
             if (*p == '^'  &&  *(p+1) == '{')
@@ -425,12 +424,12 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
     result = pthread_attr_init(&attr);
     pthread_attr_setschedpolicy(&attr, SCHED_RR);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    result = opbx_pthread_create(&thread, &attr, muxmon_thread, muxmon);
+    result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, muxmon_thread, muxmon);
     result = pthread_attr_destroy(&attr);
 }
 
 
-static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv)
+static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct opbx_flags flags = {0};
     struct localuser *u;
@@ -439,11 +438,8 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv)
     int readvol = 0;
     int writevol = 0;
 
-    if (argc < 1  ||  argc > 3)
-    {
-        opbx_log(LOG_ERROR, "Syntax: %s\n", muxmon_syntax);
-        return -1;
-    }
+    if (argc < 1 || argc > 3)
+        return opbx_function_syntax(muxmon_syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -493,7 +489,6 @@ static int muxmon_exec(struct opbx_channel *chan, int argc, char **argv)
 static struct opbx_channel *local_channel_walk(struct opbx_channel *chan) 
 {
     struct opbx_channel *ret;
-    
     opbx_mutex_lock(&modlock);    
     if ((ret = opbx_channel_walk_locked(chan)))
         opbx_mutex_unlock(&ret->lock);
@@ -505,7 +500,6 @@ static struct opbx_channel *local_get_channel_begin_name(char *name)
 {
     struct opbx_channel *chan;
     struct opbx_channel *ret = NULL;
-
     opbx_mutex_lock(&modlock);
     chan = local_channel_walk(NULL);
     while (chan)
@@ -541,7 +535,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 
         if (!strcasecmp(op, "start"))
         {
-            muxmon_exec(chan, argc - 3, argv + 3);
+            muxmon_exec(chan, argc - 3, argv + 3, NULL, 0);
         }
         else if (!strcasecmp(op, "stop"))
         {
@@ -574,36 +568,30 @@ static int muxmon_cli(int fd, int argc, char **argv)
     return -1;
 }
 
-static struct opbx_cli_entry cli_muxmon =
-{
-    { "muxmon", NULL, NULL }, muxmon_cli, 
-    "Execute a monitor command", "muxmon <start|stop> <chan_name> <args>"
+
+static struct opbx_clicmd cli_muxmon = {
+    .cmda = { "muxmon", NULL, NULL },
+    .handler = muxmon_cli, 
+    .summary = "Execute a monitor command",
+    .usage = "muxmon <start|stop> <chan_name> <args>\n",
 };
 
-int unload_module(void)
+
+static int unload_module(void)
 {
     int res = 0;
-    STANDARD_HANGUP_LOCALUSERS;
+
     opbx_cli_unregister(&cli_muxmon);
-    res |= opbx_unregister_application(muxmon_app);
+    res |= opbx_unregister_function(muxmon_app);
     return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
     opbx_cli_register(&cli_muxmon);
-    muxmon_app = opbx_register_application(muxmon_name, muxmon_exec, muxmon_synopsis, muxmon_syntax, muxmon_descrip);
+    muxmon_app = opbx_register_function(muxmon_name, muxmon_exec, muxmon_synopsis, muxmon_syntax, muxmon_descrip);
     return 0;
 }
 
-char *description(void)
-{
-    return tdesc;
-}
 
-int usecount(void)
-{
-    int res;
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -47,13 +47,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/enum.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "ENUM Lookup";
+static const char tdesc[] = "ENUM Lookup";
 
 static void *enumlookup_app;
-static char *enumlookup_name = "EnumLookup";
-static char *enumlookup_synopsis = "Lookup number in ENUM";
-static char *enumlookup_syntax = "EnumLookup(exten)";
-static char *enumlookup_descrip =
+static const char enumlookup_name[] = "EnumLookup";
+static const char enumlookup_synopsis[] = "Lookup number in ENUM";
+static const char enumlookup_syntax[] = "EnumLookup(exten)";
+static const char enumlookup_descrip[] =
 "Looks up an extension via ENUM and sets\n"
 "the variable 'ENUM'. For VoIP URIs this variable will \n"
 "look like 'TECHNOLOGY/URI' with the appropriate technology.\n"
@@ -74,12 +74,9 @@ static char *enumlookup_descrip =
 static char h323driver[80] = "";
 #define H323DRIVERDEFAULT "H323"
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 /*--- enumlookup_exec: Look up number in ENUM and return result */
-static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv)
+static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static int dep_warning = 0;
 	char tech[80];
@@ -94,10 +91,8 @@ static int enumlookup_exec(struct opbx_channel *chan, int argc, char **argv)
 		dep_warning = 1;
 	}
 
-	if (argc != 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", enumlookup_syntax);
-		return -1;
-	}
+	if (argc != 1)
+		return opbx_function_syntax(enumlookup_syntax);
 		
 	LOCAL_USER_ADD(u);
 
@@ -199,40 +194,26 @@ static int load_config(void)
 
 
 /*--- unload_module: Unload this application from PBX */
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(enumlookup_app);
+
+	res |= opbx_unregister_function(enumlookup_app);
 	return res;
 }
 
 /*--- load_module: Load this application into PBX */
-int load_module(void)
+static int load_module(void)
 {
-	enumlookup_app = opbx_register_application(enumlookup_name, enumlookup_exec, enumlookup_synopsis, enumlookup_syntax, enumlookup_descrip);
+	enumlookup_app = opbx_register_function(enumlookup_name, enumlookup_exec, enumlookup_synopsis, enumlookup_syntax, enumlookup_descrip);
 	return 0;
 }
 
 /*--- reload: Reload configuration file */
-int reload(void)
+static int reload_module(void)
 {
 	return(load_config());
 }
 
 
-/*--- description: Describe module */
-char *description(void)
-{
-	return tdesc;
-}
-
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
-
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)

@@ -116,6 +116,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/causes.h"
 #include "callweaver/dsp.h"
 
+
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
 #endif
@@ -1059,7 +1060,6 @@ static int mgcp_hangup(struct opbx_channel *ast)
 	opbx_mutex_lock(&usecnt_lock);
 	usecnt--;
 	opbx_mutex_unlock(&usecnt_lock);
-	opbx_update_use_count();
 	/* SC: Decrement use count */
 
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
@@ -1121,8 +1121,12 @@ static char show_endpoints_usage[] =
 "Usage: mgcp show endpoints\n"
 "       Lists all endpoints known to the MGCP (Media Gateway Control Protocol) subsystem.\n";
 
-static struct opbx_cli_entry  cli_show_endpoints = 
-	{ { "mgcp", "show", "endpoints", NULL }, mgcp_show_endpoints, "Show defined MGCP endpoints", show_endpoints_usage };
+static struct opbx_clicmd  cli_show_endpoints = {
+	.cmda = { "mgcp", "show", "endpoints", NULL },
+	.handler = mgcp_show_endpoints,
+	.summary = "Show defined MGCP endpoints",
+	.usage = show_endpoints_usage,
+};
 
 static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 {
@@ -1182,8 +1186,12 @@ static char audit_endpoint_usage[] =
 "       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
 "       mgcp debug MUST be on to see the results of this command.\n";
 
-static struct opbx_cli_entry  cli_audit_endpoint = 
-	{ { "mgcp", "audit", "endpoint", NULL }, mgcp_audit_endpoint, "Audit specified MGCP endpoint", audit_endpoint_usage };
+static struct opbx_clicmd  cli_audit_endpoint = {
+	.cmda = { "mgcp", "audit", "endpoint", NULL },
+	.handler = mgcp_audit_endpoint,
+	.summary = "Audit specified MGCP endpoint",
+	.usage = audit_endpoint_usage,
+};
 
 static int mgcp_answer(struct opbx_channel *ast)
 {
@@ -1427,7 +1435,6 @@ static struct opbx_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		opbx_mutex_lock(&usecnt_lock);
 		usecnt++;
 		opbx_mutex_unlock(&usecnt_lock);
-		opbx_update_use_count();
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
@@ -2958,7 +2965,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				}
 				c = mgcp_new(sub, OPBX_STATE_DOWN);
 				if (c) {
-					if (opbx_pthread_create(&t, &attr, mgcp_ss, c)) {
+					if (opbx_pthread_create(get_modinfo()->self, &t, &attr, mgcp_ss, c)) {
 						opbx_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
 						opbx_hangup(c);
 					}
@@ -3458,9 +3465,17 @@ static void *do_monitor(void *data)
 		opbx_mutex_unlock(&netlock);
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
 		opbx_mutex_unlock(&monlock);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		/* Wait for IO */
 		res = opbx_io_wait(io, 10000);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
 	/* Never reached */
 	return NULL;
@@ -3489,7 +3504,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0) {
 			opbx_mutex_unlock(&monlock);
 			opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -3990,12 +4005,24 @@ static char mgcp_reload_usage[] =
 "Usage: mgcp reload\n"
 "       Reloads MGCP configuration from mgcp.conf\n";
 
-static struct opbx_cli_entry  cli_debug =
-	{ { "mgcp", "debug", NULL }, mgcp_do_debug, "Enable MGCP debugging", debug_usage };
-static struct opbx_cli_entry  cli_no_debug =
-	{ { "mgcp", "no", "debug", NULL }, mgcp_no_debug, "Disable MGCP debugging", no_debug_usage };
-static struct opbx_cli_entry  cli_mgcp_reload =
-	{ { "mgcp", "reload", NULL }, mgcp_reload, "Reload MGCP configuration", mgcp_reload_usage };
+static struct opbx_clicmd  cli_debug = {
+	.cmda = { "mgcp", "debug", NULL },
+	.handler = mgcp_do_debug,
+	.summary = "Enable MGCP debugging",
+	.usage = debug_usage,
+};
+static struct opbx_clicmd  cli_no_debug = {
+	.cmda = { "mgcp", "no", "debug", NULL },
+	.handler = mgcp_no_debug,
+	.summary = "Disable MGCP debugging",
+	.usage = no_debug_usage,
+};
+static struct opbx_clicmd  cli_mgcp_reload = {
+	.cmda = { "mgcp", "reload", NULL },
+	.handler = mgcp_reload,
+	.summary = "Reload MGCP configuration",
+	.usage = mgcp_reload_usage,
+};
 
 
 static void destroy_endpoint(struct mgcp_endpoint *e)
@@ -4264,7 +4291,7 @@ static int reload_config(void)
 	return 0;
 }
 
-int load_module()
+static int load_module(void)
 {
 	int res;
 
@@ -4324,13 +4351,13 @@ static int mgcp_reload(int fd, int argc, char *argv[])
 	return 0;
 }
 
-int reload(void)
+static int reload_module(void)
 {
 	mgcp_reload(0, 0, NULL);
 	return 0;
 }
 
-int unload_module()
+static int unload_module()
 {
 	struct mgcp_endpoint *e;
 	struct mgcp_gateway *g;
@@ -4406,7 +4433,5 @@ int usecount()
 	return usecnt;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

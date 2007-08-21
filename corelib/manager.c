@@ -47,7 +47,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
-#include "callweaver/module.h"
 #include "callweaver/manager.h"
 #include "callweaver/config.h"
 #include "callweaver/phone_no_utils.h"
@@ -251,17 +250,26 @@ static char showmanconn_help[] =
 "	Prints a listing of the users that are currently connected to the\n"
 "CallWeaver manager interface.\n";
 
-static struct opbx_cli_entry show_mancmd_cli =
-	{ { "show", "manager", "command", NULL },
-	handle_showmancmd, "Show a manager interface command", showmancmd_help, complete_show_mancmd };
+static struct opbx_clicmd show_mancmd_cli = {
+	.cmda = { "show", "manager", "command", NULL },
+	.handler = handle_showmancmd,
+	.summary = "Show a manager interface command",
+	.usage = showmancmd_help, complete_show_mancmd,
+};
 
-static struct opbx_cli_entry show_mancmds_cli =
-	{ { "show", "manager", "commands", NULL },
-	handle_showmancmds, "List manager interface commands", showmancmds_help };
+static struct opbx_clicmd show_mancmds_cli = {
+	.cmda = { "show", "manager", "commands", NULL },
+	.handler = handle_showmancmds,
+	.summary = "List manager interface commands",
+	.usage = showmancmds_help,
+};
 
-static struct opbx_cli_entry show_manconn_cli =
-	{ { "show", "manager", "connected", NULL },
-	handle_showmanconn, "Show connected manager interface users", showmanconn_help };
+static struct opbx_clicmd show_manconn_cli = {
+	.cmda = { "show", "manager", "connected", NULL },
+	.handler = handle_showmanconn,
+	.summary = "Show connected manager interface users",
+	.usage = showmanconn_help,
+};
 
 static void free_session(struct mansession *s)
 {
@@ -1126,29 +1134,20 @@ static int action_originate(struct mansession *s, struct message *m)
 			fast->priority = pi;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(&th, &attr, fopbx_originate, fast))
-            {
+			if (opbx_pthread_create(NULL, &th, &attr, fopbx_originate, fast)) {
 				free(fast);
 				res = -1;
-			}
-            else
-            {
+			} else {
 				res = 0;
 			}
+			
 		}
-	}
-    else if (!opbx_strlen_zero(app))
-    {
-      	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
-    }
-    else
-    {
+	} else if (!opbx_strlen_zero(app)) {
+        	res = opbx_pbx_outgoing_app(tech, OPBX_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
+    	} else {
 		if (exten && context && pi)
-	    {
-           	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
-		}
-        else
-        {
+	        	res = opbx_pbx_outgoing_exten(tech, OPBX_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
+		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
 		}
@@ -1589,7 +1588,7 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		opbx_mutex_unlock(&sessionlock);
-		if (opbx_pthread_create(&s->t, &attr, session_do, s))
+		if (opbx_pthread_create(NULL, &s->t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -1911,7 +1910,7 @@ int init_manager(void)
 		}
 		if (option_verbose)
 			opbx_verbose("CallWeaver Management interface listening on port %d\n", portno);
-		opbx_pthread_create(&t, NULL, accept_thread, NULL);
+		opbx_pthread_create(NULL, &t, NULL, accept_thread, NULL);
 	}
 	return 0;
 }

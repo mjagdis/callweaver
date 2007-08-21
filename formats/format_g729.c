@@ -38,7 +38,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -62,12 +61,9 @@ struct opbx_filestream
     unsigned char g729[20];                /* Two Real G729 Frames */
 };
 
-OPBX_MUTEX_DEFINE_STATIC(g729_lock);
-static int glistcnt = 0;
+static struct opbx_format format;
 
-static char *name = "g729";
-static char *desc = "Raw G729 data";
-static char *exts = "g729";
+static const char desc[] = "Raw G729 data";
 
 static struct opbx_filestream *g729_open(FILE *f)
 {
@@ -79,20 +75,11 @@ static struct opbx_filestream *g729_open(FILE *f)
     if ((tmp = malloc(sizeof(struct opbx_filestream))))
     {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&g729_lock))
-        {
-            opbx_log(LOG_WARNING, "Unable to lock g729 list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
         opbx_fr_init_ex(&tmp->fr, OPBX_FRAME_VOICE, OPBX_FORMAT_G729A, NULL);
         tmp->fr.data = tmp->g729;
         /* datalen will vary for each frame */
-        tmp->fr.src = name;
-        glistcnt++;
-        opbx_mutex_unlock(&g729_lock);
-        opbx_update_use_count();
+        tmp->fr.src = format.name;
     }
     return tmp;
 }
@@ -105,15 +92,7 @@ static struct opbx_filestream *g729_rewrite(FILE *f, const char *comment)
     struct opbx_filestream *tmp;
     if ((tmp = malloc(sizeof(struct opbx_filestream)))) {
         memset(tmp, 0, sizeof(struct opbx_filestream));
-        if (opbx_mutex_lock(&g729_lock)) {
-            opbx_log(LOG_WARNING, "Unable to lock g729 list\n");
-            free(tmp);
-            return NULL;
-        }
         tmp->f = f;
-        glistcnt++;
-        opbx_mutex_unlock(&g729_lock);
-        opbx_update_use_count();
     } else
         opbx_log(LOG_WARNING, "Out of memory\n");
     return tmp;
@@ -121,13 +100,6 @@ static struct opbx_filestream *g729_rewrite(FILE *f, const char *comment)
 
 static void g729_close(struct opbx_filestream *s)
 {
-    if (opbx_mutex_lock(&g729_lock)) {
-        opbx_log(LOG_WARNING, "Unable to lock g729 list\n");
-        return;
-    }
-    glistcnt--;
-    opbx_mutex_unlock(&g729_lock);
-    opbx_update_use_count();
     fclose(s->f);
     free(s);
     s = NULL;
@@ -222,33 +194,34 @@ static long g729_tell(struct opbx_filestream *fs)
     return (offset/20)*160;
 }
 
-int load_module(void)
+
+static struct opbx_format format = {
+	.name = "g729",
+	.exts = "g729",
+	.format = OPBX_FORMAT_G729A,
+	.open = g729_open,
+	.rewrite = g729_rewrite,
+	.write = g729_write,
+	.seek = g729_seek,
+	.trunc = g729_trunc,
+	.tell = g729_tell,
+	.read = g729_read,
+	.close = g729_close,
+	.getcomment = g729_getcomment,
+};
+
+
+static int load_module(void)
 {
-    return opbx_format_register(name,
-                                exts,
-                                OPBX_FORMAT_G729A,
-                                g729_open,
-                                g729_rewrite,
-                                g729_write,
-                                g729_seek,
-                                g729_trunc,
-                                g729_tell,
-                                g729_read,
-                                g729_close,
-                                g729_getcomment);
+	opbx_format_register(&format);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module()
 {
-    return opbx_format_unregister(name);
-}    
-
-int usecount(void)
-{
-    return glistcnt;
+	opbx_format_unregister(&format);
+	return 0;
 }
 
-char *description(void)
-{
-    return desc;
-}
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

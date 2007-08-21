@@ -41,13 +41,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/manager.h"
 
-static char *tdesc = "Custom User Event Application";
+static const char tdesc[] = "Custom User Event Application";
 
 static void *userevent_app;
-static const char *userevent_name = "UserEvent";
-static const char *userevent_synopsis = "Send an arbitrary event to the manager interface";
-static const char *userevent_syntax = "UserEvent(eventname[, body])";
-static const char *userevent_descrip = 
+static const char userevent_name[] = "UserEvent";
+static const char userevent_synopsis[] = "Send an arbitrary event to the manager interface";
+static const char userevent_syntax[] = "UserEvent(eventname[, body])";
+static const char userevent_descrip[] = 
 "Sends an arbitrary event to the\n"
 "manager interface, with an optional body representing additional\n"
 "arguments.  The format of the event will be:\n"
@@ -58,19 +58,14 @@ static const char *userevent_descrip =
 "If the body is not specified, only Event, Channel, and Uniqueid fields\n"
 "will be present.  Returns 0.";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int userevent_exec(struct opbx_channel *chan, int argc, char **argv)
+static int userevent_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_len)
 {
 	char eventname[512];
 	struct localuser *u;
 
-	if (argc < 1 || argc > 2 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", userevent_syntax);
-		return -1;
-	}
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(userevent_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -91,30 +86,19 @@ static int userevent_exec(struct opbx_channel *chan, int argc, char **argv)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(userevent_app);
+
+	res |= opbx_unregister_function(userevent_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	userevent_app = opbx_register_application(userevent_name, userevent_exec, userevent_synopsis, userevent_syntax, userevent_descrip);
+	userevent_app = opbx_register_function(userevent_name, userevent_exec, userevent_synopsis, userevent_syntax, userevent_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

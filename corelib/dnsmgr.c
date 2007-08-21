@@ -238,7 +238,7 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static struct opbx_cli_entry cli_reload = {
+static struct opbx_clicmd cli_reload = {
 	.cmda = { "dnsmgr", "reload", NULL },
 	.handler = handle_cli_reload,
 	.summary = "Reloads the DNS manager configuration",
@@ -247,7 +247,7 @@ static struct opbx_cli_entry cli_reload = {
 	"       Reloads the DNS manager configuration.\n"
 };
 
-static struct opbx_cli_entry cli_refresh = {
+static struct opbx_clicmd cli_refresh = {
 	.cmda = { "dnsmgr", "refresh", NULL },
 	.handler = handle_cli_refresh,
 	.summary = "Performs an immediate refresh",
@@ -257,7 +257,7 @@ static struct opbx_cli_entry cli_refresh = {
 	"       Optional regular expression pattern is used to filter the entries to refresh.\n",
 };
 
-static struct opbx_cli_entry cli_status = {
+static struct opbx_clicmd cli_status = {
 	.cmda = { "dnsmgr", "status", NULL },
 	.handler = handle_cli_status,
 	.summary = "Display the DNS manager status",

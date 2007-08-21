@@ -56,9 +56,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* Time zones on time stamps */
 /* user ref field */
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static volatile unsigned char message_ref;      /* arbitary message ref */
 static volatile unsigned int seq;       /* arbitrary message sequence number for unqiue files */
@@ -67,10 +64,10 @@ static char log_file[255];
 static char spool_dir[255];
 
 static void *sms_app;
-static const char *sms_name = "SMS";
-static const char *sms_synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
-static const char *sms_syntax = "SMS(name, [a][s])";
-static const char *sms_descrip =
+static const char sms_name[] = "SMS";
+static const char sms_synopsis[] = "Communicates with SMS service centres and SMS capable analogue phones";
+static const char sms_syntax[] = "SMS(name, [a][s])";
+static const char sms_descrip[] =
     "SMS handles exchange of SMS data with a call to/from SMS capabale\n"
     "phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
     "Works to ETSI ES 201 912 compatible with BT SMS PSTN service in UK\n"
@@ -1724,7 +1721,7 @@ static struct opbx_generator smsgen =
     generate:sms_generate,
 };
 
-static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
+static int sms_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     sms_t h = { 0 };
     int res = -1;
@@ -1735,10 +1732,8 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
     int original_read_fmt;
     int original_write_fmt;
 
-    if (argc < 1 || argc > 2) {
-    	opbx_log(LOG_ERROR, "Syntax: %s\n", sms_syntax);
-	return -1;
-    }
+    if (argc < 1 || argc > 2)
+    	return opbx_function_syntax(sms_syntax);
 
     LOCAL_USER_ADD(u);
 
@@ -1901,32 +1896,21 @@ static int sms_exec(struct opbx_channel *chan, int argc, char **argv)
     return (h.err);
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
     int res = 0;
     
-    STANDARD_HANGUP_LOCALUSERS;
-    res |= opbx_unregister_application(sms_app);
+    res |= opbx_unregister_function(sms_app);
     return res;    
 }
 
-int load_module(void)
+static int load_module(void)
 {
     snprintf(log_file, sizeof (log_file), "%s/sms", opbx_config_OPBX_LOG_DIR);
     snprintf(spool_dir, sizeof (spool_dir), "%s/sms", opbx_config_OPBX_SPOOL_DIR);
-    sms_app = opbx_register_application(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
+    sms_app = opbx_register_function(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
     return 0;
 }
 
-char *description(void)
-{
-    return (char *)sms_synopsis;
-}
 
-int usecount(void)
-{
-    int res;
-
-    STANDARD_USECOUNT(res);
-    return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, sms_synopsis)

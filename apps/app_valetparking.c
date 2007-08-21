@@ -57,6 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 #include "callweaver/devicestate.h"
 
+
 #define DEFAULT_VALETPARK_TIME 45000
 
 static struct opbx_channel *valet_request(const char *type, int format, void *data, int *cause);
@@ -75,10 +76,10 @@ static void *valetparkedcall_app;
 static void *valetunparkedcall_app;
 static void *valetparklist_app;
 
-static char *valetparking = "ValetParking";
-static char *valetparkedcall = "ValetParkCall";
-static char *valetunparkedcall = "ValetUnparkCall";
-static char *valetparklist = "ValetParkList";
+static const char valetparking[] = "ValetParking";
+static const char valetparkedcall[] = "ValetParkCall";
+static const char valetunparkedcall[] = "ValetUnparkCall";
+static const char valetparklist[] = "ValetParkList";
 
 /* No more than 45 seconds valetparked before you do something with them */
 static int valetparkingtime = DEFAULT_VALETPARK_TIME;
@@ -89,30 +90,30 @@ static int valetparking_start = 1;
 /* Lopbx available extension for valetparking */
 static int valetparking_stop = 10000;
 
-static char *vpsynopsis = "Valet Parking";
+static const char vpsynopsis[] = "Valet Parking";
 
-static char *vpcsynopsis = "Valet Park Call";
+static const char vpcsynopsis[] = "Valet Park Call";
 
-static char *vupsynopsis = "Valet UnPark Call";
+static const char vupsynopsis[] = "Valet UnPark Call";
 
-static char *vlsynopsis = "ValetParkList";
+static const char vlsynopsis[] = "ValetParkList";
 
-static char *vpsyntax = "ValetParking(exten, lotname, timeout[, return_ext][, return_pri][, return_context])";
-static char *vpcsyntax = "ValetParkCall(exten, lotname, timeout[, return_ext][, return_pri][, return_context])";
-static char *vupsyntax = "ValetUnparkCall(exten, lotname)";
-static char *vlsyntax = "ValetParkList(lotname)";
+static const char vpsyntax[] = "ValetParking(exten, lotname, timeout[, return_ext][, return_pri][, return_context])";
+static const char vpcsyntax[] = "ValetParkCall(exten, lotname, timeout[, return_ext][, return_pri][, return_context])";
+static const char vupsyntax[] = "ValetUnparkCall(exten, lotname)";
+static const char vlsyntax[] = "ValetParkList(lotname)";
 
-static char *vpdesc =
+static const char vpdesc[] =
 "Auto-Sense Valet Parking: if <exten> is not occupied, park it, if it is already parked, bridge to it.\n";
 
-static char *vpcdesc =
+static const char vpcdesc[] =
 "Park Call at <exten> in <lotname> until someone calls ValetUnparkCall on the same <exten> + <lotname>\n"
 "set <exten> to 'auto' to auto-choose the slot.\n";
 
-static char *vupdesc =
+static const char vupdesc[] =
 "Un-Park the call at <exten> in lot <lotname> use 'fifo' or 'filo' for auto-ordered Un-Park.\n";
 
-static char *vldesc =
+static const char vldesc[] =
 "Audibly list the slot number of all the calls in <lotname> press * to unpark it.\n";
 
 
@@ -138,9 +139,6 @@ OPBX_MUTEX_DEFINE_STATIC(valetparking_lock);
 
 static pthread_t valetparking_thread;
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int valetparking_count(void)
 {
@@ -485,28 +483,32 @@ std:					for (x=0;x<OPBX_MAX_FDS;x++) {
 			}
 		}
 		opbx_mutex_unlock(&valetparking_lock);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
+
 		rfds = nrfds;
 		efds = nefds;
 		tv.tv_sec = ms / 1000;
 		tv.tv_usec = (ms % 1000) * 1000;
 		/* Wait for something to happen */
 		opbx_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+
 		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
 	return NULL;	/* Never reached */
 }
 
-static int valetpark_call(struct opbx_channel *chan, int argc, char **argv)
+static int valetpark_call(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[80];
 	struct localuser *u;
 	int timeout;
 	int ext = 0, res = 0;
 
-	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", vpcsyntax);
-		return -1;
-	}
+	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(vpcsyntax);
 
 	timeout = (argc > 2 && argv[2][0] ? atoi(argv[2]) : DEFAULT_VALETPARK_TIME);
 
@@ -661,7 +663,7 @@ static struct opbx_channel *valet_request(const char *type, int format, void *da
 }
 
 
-static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv)
+static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
@@ -670,10 +672,8 @@ static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv)
 	int dres;
 	struct opbx_bridge_config config;
 
-	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", vupsyntax);
-		return -1;
-	}
+	if (argc != 2 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(vupsyntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -724,15 +724,13 @@ static int valetunpark_call(struct opbx_channel *chan, int argc, char **argv)
 }
 
 
-static int opbx_valetparking(struct opbx_channel *chan, int argc, char **argv) 
+static int opbx_valetparking(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	int res=0;
 
-	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", vpsyntax);
-		return -1;
-	}
+	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
+		return opbx_function_syntax(vpsyntax);
 
 	if (!isdigit(argv[0][0])) {
 		opbx_log(LOG_WARNING, "ValetParking requires a numeric extension.\n");
@@ -741,24 +739,22 @@ static int opbx_valetparking(struct opbx_channel *chan, int argc, char **argv)
 
 	LOCAL_USER_ADD(u);
 
-	res = (!opbx_is_valetparked(argv[0], argv[1]) ? valetpark_call(chan, argc, argv) : valetunpark_call(chan, argc, argv));
+	res = (!opbx_is_valetparked(argv[0], argv[1]) ? valetpark_call(chan, argc, argv, NULL, 0) : valetunpark_call(chan, argc, argv, NULL, 0));
 
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
 
-static int valetpark_list(struct opbx_channel *chan, int argc, char **argv)
+static int valetpark_list(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char buf[64];
 	char *nargv[3];
 	struct localuser *u;
 	int res = 0;
 
-	if (argc != 1 || !argv[0][0]) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", vlsyntax);
-		return -1;
-	}
+	if (argc != 1 || !argv[0][0])
+		return opbx_function_syntax(vlsyntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -769,7 +765,7 @@ static int valetpark_list(struct opbx_channel *chan, int argc, char **argv)
 		nargv[0] = buf;
 		nargv[1] = argv[0];
 		nargv[2] = NULL;
-		res = valetunpark_call(chan, 2, nargv);
+		res = valetunpark_call(chan, 2, nargv, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -839,8 +835,14 @@ static char showvaletparked_help[] =
 "Usage: show valetparkedcalls\n"
 "       Lists currently Valet Parked calls.\n";
 
-static struct opbx_cli_entry showvaletparked =
-{ { "show", "valetparkedcalls", NULL }, handle_valetparkedcalls, "Lists valetparked calls", showvaletparked_help };
+static struct opbx_clicmd showvaletparked = {
+	.cmda = { "show", "valetparkedcalls", NULL },
+	.handler = handle_valetparkedcalls,
+	.summary = "Lists valetparked calls",
+	.usage = showvaletparked_help,
+};
+
+
 /* Dump lot status */
 static int manager_valetparking_status( struct mansession *s, struct message *m )
 {
@@ -877,25 +879,23 @@ static int manager_valetparking_status( struct mansession *s, struct message *m 
 
 
 
-int load_module(void)
+static int load_module(void)
 {
 	opbx_cli_register(&showvaletparked);
 	valetparkingtime = DEFAULT_VALETPARK_TIME;
-	opbx_pthread_create(&valetparking_thread, NULL, do_valetparking_thread, NULL);
-	valetunparkedcall_app = opbx_register_application(valetunparkedcall, valetunpark_call, vupsynopsis, vupsyntax, vupdesc);
-	valetparkedcall_app = opbx_register_application(valetparkedcall, valetpark_call, vpcsynopsis, vpcsyntax, vpcdesc);
-	valetparking_app = opbx_register_application(valetparking, opbx_valetparking, vpsynopsis, vpsyntax, vpdesc);
-	valetparklist_app = opbx_register_application(valetparklist,valetpark_list, vlsynopsis, vlsyntax, vldesc);
+	opbx_pthread_create(get_modinfo()->self, &valetparking_thread, NULL, do_valetparking_thread, NULL);
+	valetunparkedcall_app = opbx_register_function(valetunparkedcall, valetunpark_call, vupsynopsis, vupsyntax, vupdesc);
+	valetparkedcall_app = opbx_register_function(valetparkedcall, valetpark_call, vpcsynopsis, vpcsyntax, vpcdesc);
+	valetparking_app = opbx_register_function(valetparking, opbx_valetparking, vpsynopsis, vpsyntax, vpdesc);
+	valetparklist_app = opbx_register_function(valetparklist,valetpark_list, vlsynopsis, vlsyntax, vldesc);
 	opbx_channel_register(&valet_tech);
 	opbx_manager_register( "ValetparkedCalls", 0, manager_valetparking_status, "List valetparked calls" );
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-
-	STANDARD_HANGUP_LOCALUSERS;
 
 	if (!opbx_mutex_lock(&valetparking_lock)) {
         if (valetparking_thread && (valetparking_thread != OPBX_PTHREADT_STOP)) {
@@ -913,23 +913,12 @@ int unload_module(void)
 	opbx_channel_unregister(&valet_tech);
 	opbx_manager_unregister( "ValetparkedCalls" );
 	opbx_cli_unregister(&showvaletparked);
-	res |= opbx_unregister_application(valetunparkedcall_app);
-	res |= opbx_unregister_application(valetparkedcall_app);
-	res |= opbx_unregister_application(valetparking_app);
-	res |= opbx_unregister_application(valetparklist_app);
+	res |= opbx_unregister_function(valetunparkedcall_app);
+	res |= opbx_unregister_function(valetparkedcall_app);
+	res |= opbx_unregister_function(valetparking_app);
+	res |= opbx_unregister_function(valetparklist_app);
 	return res;
 }
 
-char *description(void)
-{
-	return "Valet Parking Application";
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	res += valetparking_count();
-	return res;
-}
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, "Valet Parking Application")

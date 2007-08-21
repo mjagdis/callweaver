@@ -31,6 +31,7 @@
 
 
 
+#include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -80,6 +81,7 @@
 
 /* Don't switch between read/write modes fopbxer than every 300 ms */
 #define MIN_SWITCH_TIME 600
+
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
@@ -2212,7 +2214,7 @@ static struct chan_alsa_pvt
    with 160 sample frames, and a buffer size of 3, we have a 60ms buffer, 
    usually plenty. */
 
-pthread_t sthread;
+pthread_t sthread = OPBX_PTHREADT_NULL;
 
 #define MAX_BUFFER_SIZE 100
 
@@ -2328,7 +2330,10 @@ static void *sound_thread(void *unused)
 	fd_set wfds;
 	int max;
 	int res;
+
 	for(;;) {
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		max = sndcmd[0];
@@ -2346,6 +2351,9 @@ static void *sound_thread(void *unused)
 		}
 #endif
 		res = opbx_select(max + 1, &rfds, &wfds, NULL, NULL);
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		if (res < 1) {
 			opbx_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
 			continue;
@@ -2848,7 +2856,6 @@ static struct opbx_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		opbx_mutex_lock(&usecnt_lock);
 		usecnt++;
 		opbx_mutex_unlock(&usecnt_lock);
-		opbx_update_use_count();
 		if (state != OPBX_STATE_DOWN) {
 			if (opbx_pbx_start(tmp)) {
 				opbx_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -3082,18 +3089,43 @@ static char dial_usage[] =
 "       Dials a given extension (and context if specified)\n";
 
 
-static struct opbx_cli_entry myclis[] = {
-	{ { "answer", NULL }, console_answer, "Answer an incoming console call", answer_usage },
-	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
-	{ { "dial", NULL }, console_dial, "Dial an extension on the console", dial_usage },
-	{ { "send", "text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
-	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
+static struct opbx_clicmd myclis[] = {
+	{
+		.cmda = { "answer", NULL },
+		.handler = console_answer,
+		.summary = "Answer an incoming console call",
+		.usage = answer_usage,
+	},
+	{
+		.cmda = { "hangup", NULL },
+		.handler = console_hangup,
+		.summary = "Hangup a call on the console",
+		.usage = hangup_usage,
+	},
+	{
+		.cmda = { "dial", NULL },
+		.handler = console_dial,
+		.summary = "Dial an extension on the console",
+		.usage = dial_usage,
+	},
+	{
+		.cmda = { "send", "text", NULL },
+		.handler = console_sendtext,
+		.summary = "Send text to the remote device",
+		.usage = sendtext_usage,
+	},
+	{
+		.cmda = { "autoanswer", NULL },
+		.handler = console_autoanswer,
+		.generator = autoanswer_complete,
+		.summary = "Sets/displays autoanswer",
+		.usage = autoanswer_usage,
+	},
 };
 
-int load_module()
+static int load_module(void)
 {
 	int res;
-	int x;
 	struct opbx_config *cfg;
 	struct opbx_variable *v;
 	if ((cfg = opbx_config_load(config))) {
@@ -3138,9 +3170,8 @@ int load_module()
 		opbx_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
 		return -1;
 	}
-	for (x=0;x<sizeof(myclis)/sizeof(struct opbx_cli_entry); x++)
-		opbx_cli_register(myclis + x);
-	opbx_pthread_create(&sthread, NULL, sound_thread, NULL);
+	opbx_cli_register_multiple(myclis, arraysize(myclis));
+	opbx_pthread_create(get_modinfo()->self, &sthread, NULL, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start()) {
 		opbx_log(LOG_ERROR, "Problem starting Monitoring\n");
@@ -3151,12 +3182,18 @@ int load_module()
 
 
 
-int unload_module()
+static int unload_module()
 {
 	int x;
 	
+	if (sthread != OPBX_PTHREADT_NULL) {
+		pthread_cancel(sthread);
+		pthread_kill(sthread, SIGURG);
+		pthread_join(sthread, NULL);
+	}
+
 	opbx_channel_unregister(&alsa_tech);
-	for (x=0;x<sizeof(myclis)/sizeof(struct opbx_cli_entry); x++)
+	for (x=0;x<arraysize(myclis); x++)
 		opbx_cli_unregister(myclis + x);
 	snd_pcm_close(alsa.icard);
 	snd_pcm_close(alsa.ocard);
@@ -3171,12 +3208,11 @@ int unload_module()
 	return 0;
 }
 
-char *description()
-{
-	return (char *) desc;
-}
 
 int usecount()
 {
 	return usecnt;
 }
+
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

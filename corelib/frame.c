@@ -1042,51 +1042,51 @@ static char frame_stats_usage[] =
 #endif
 
 /* XXX no unregister function here ??? */
-static struct opbx_cli_entry my_clis[] =
+static struct opbx_clicmd my_clis[] =
 {
     {
-        { "show", "codecs", NULL },
-        show_codecs,
-        "Shows codecs",
-        frame_show_codecs_usage
+        .cmda = { "show", "codecs", NULL },
+        .handler = show_codecs,
+        .summary = "Shows codecs",
+        .usage = frame_show_codecs_usage
     },
     {
-        { "show", "audio", "codecs", NULL },
-        show_codecs,
-        "Shows audio codecs",
-        frame_show_codecs_usage
+        .cmda = { "show", "audio", "codecs", NULL },
+        .handler = show_codecs,
+        .summary = "Shows audio codecs",
+        .usage = frame_show_codecs_usage
     },
     {
-        { "show", "video", "codecs", NULL },
-        show_codecs,
-        "Shows video codecs",
-        frame_show_codecs_usage
+        .cmda = { "show", "video", "codecs", NULL },
+        .handler = show_codecs,
+        .summary = "Shows video codecs",
+        .usage = frame_show_codecs_usage
     },
     {
-        { "show", "image", "codecs", NULL },
-        show_codecs,
-        "Shows image codecs",
-        frame_show_codecs_usage
+        .cmda = { "show", "image", "codecs", NULL },
+        .handler = show_codecs,
+        .summary = "Shows image codecs",
+        .usage = frame_show_codecs_usage
     },
     {
-        { "show", "codec", NULL },
-        show_codec_n,
-        "Shows a specific codec",
-        frame_show_codec_n_usage
+        .cmda = { "show", "codec", NULL },
+        .handler = show_codec_n,
+        .summary = "Shows a specific codec",
+        .usage = frame_show_codec_n_usage
     },
 #ifdef TRACE_FRAMES
     {
-        { "show", "frame", "stats", NULL },
-        show_frame_stats,
-        "Shows frame statistics",
-        frame_stats_usage
+        .cmda = { "show", "frame", "stats", NULL },
+        .handler = show_frame_stats,
+        .summary = "Shows frame statistics",
+        .usage = frame_stats_usage
     },
 #endif
 };
 
 int init_framer(void)
 {
-    opbx_cli_register_multiple(my_clis, sizeof(my_clis)/sizeof(my_clis[0]));
+    opbx_cli_register_multiple(my_clis, arraysize(my_clis));
     return 0;
 }
 

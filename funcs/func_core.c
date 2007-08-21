@@ -1,0 +1,1155 @@
+/*
+ * CallWeaver -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2007, Eris Associates Ltd., UK
+ *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*! \file
+ *
+ * \brief Core functions
+ * 
+ */
+#ifdef HAVE_CONFIG_H
+#include "confdefs.h"
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "callweaver.h"
+
+CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+
+#include "callweaver/file.h"
+#include "callweaver/logger.h"
+#include "callweaver/callweaver_keywords.h"
+#include "callweaver/channel.h"
+#include "callweaver/options.h"
+#include "callweaver/pbx.h"
+#include "callweaver/module.h"
+#include "callweaver/lock.h"
+#include "callweaver/app.h"
+
+#ifndef VAR_BUF_SIZE
+#    define VAR_BUF_SIZE 4096
+#endif
+
+
+static const char tdesc[] = "Core functions";
+
+
+#define BACKGROUND_SKIP        (1 << 0)
+#define BACKGROUND_NOANSWER    (1 << 1)
+#define BACKGROUND_MATCHEXTEN    (1 << 2)
+#define BACKGROUND_PLAYBACK    (1 << 3)
+
+OPBX_DECLARE_OPTIONS(background_opts,{
+    ['s'] = { BACKGROUND_SKIP },
+    ['n'] = { BACKGROUND_NOANSWER },
+    ['m'] = { BACKGROUND_MATCHEXTEN },
+    ['p'] = { BACKGROUND_PLAYBACK },
+});
+
+#define WAITEXTEN_MOH        (1 << 0)
+
+OPBX_DECLARE_OPTIONS(waitexten_opts,{
+    ['m'] = { WAITEXTEN_MOH, 1 },
+});
+
+
+static void wait_for_hangup(struct opbx_channel *chan, char *s)
+{
+	struct opbx_frame *f;
+	int res, waittime;
+
+	if (!s || !strlen(s) || (sscanf(s, "%d", &waittime) != 1) || (waittime < 0))
+		waittime = -1;
+	if (waittime > -1)
+		opbx_safe_sleep(chan, waittime * 1000);
+	else {
+		while (opbx_waitfor(chan, -1) >= 0 && (f = opbx_read(chan)))
+			opbx_fr_free(f);
+	}
+}
+
+
+static int pbx_builtin_progress(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    opbx_indicate(chan, OPBX_CONTROL_PROGRESS);
+    return 0;
+}
+
+static int pbx_builtin_ringing(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    opbx_indicate(chan, OPBX_CONTROL_RINGING);
+    return 0;
+}
+
+static int pbx_builtin_busy(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    opbx_indicate(chan, OPBX_CONTROL_BUSY);        
+    if (chan->_state != OPBX_STATE_UP)
+        opbx_setstate(chan, OPBX_STATE_BUSY);
+    wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
+    return -1;
+}
+
+static int pbx_builtin_congestion(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    opbx_indicate(chan, OPBX_CONTROL_CONGESTION);
+    if (chan->_state != OPBX_STATE_UP)
+        opbx_setstate(chan, OPBX_STATE_BUSY);
+    wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
+    return -1;
+}
+
+static int pbx_builtin_answer(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    int delay = (argc > 0 ? atoi(argv[0]) : 0);
+    int res;
+    
+    if (chan->_state == OPBX_STATE_UP)
+        delay = 0;
+    res = opbx_answer(chan);
+    if (res)
+        return res;
+    if (delay)
+        res = opbx_safe_sleep(chan, delay);
+    return res;
+}
+
+static int pbx_builtin_setlanguage(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    static int deprecation_warning = 0;
+
+    if (!deprecation_warning)
+    {
+        opbx_log(LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
+        deprecation_warning = 1;
+    }
+
+    /* Copy the language as specified */
+    if (argc > 0)
+        opbx_copy_string(chan->language, argv[0], sizeof(chan->language));
+
+    return 0;
+}
+
+static int pbx_builtin_resetcdr(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	char *p;
+	int flags = 0;
+
+	for (; argc; argv++, argc--) {
+		for (p = argv[0]; *p; p++) {
+			switch (*p) {
+				case 'a':
+					flags |= OPBX_CDR_FLAG_LOCKED;
+					break;
+				case 'v':
+					flags |= OPBX_CDR_FLAG_KEEP_VARS;
+					break;
+				case 'w':
+					flags |= OPBX_CDR_FLAG_POSTED;
+					break;
+			}
+		}
+	}
+
+	opbx_cdr_reset(chan->cdr, flags);
+	return 0;
+}
+
+static int pbx_builtin_setaccount(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	opbx_cdr_setaccount(chan, (argc > 0 ? argv[0] : ""));
+	return 0;
+}
+
+static int pbx_builtin_setamaflags(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	opbx_cdr_setamaflags(chan, (argc > 0 ? argv[0] : ""));
+	return 0;
+}
+
+static int pbx_builtin_hangup(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    int n;
+    if (argc > 0 && (n = atoi(argv[0])) > 0)
+        chan->hangupcause = n;
+    /* Just return non-zero and it will hang up */
+    return -1;
+}
+
+static int pbx_builtin_stripmsd(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	int n;
+
+	if (argc != 1 || !(n = atoi(argv[0])) || n >= sizeof(chan->exten))
+		return opbx_function_syntax("StripMSD(n)");
+
+	memmove(chan->exten, chan->exten + n, sizeof(chan->exten) - n);
+
+	if (option_verbose > 2)
+		opbx_verbose(VERBOSE_PREFIX_3 "Stripped %d, new extension is %s\n", n, chan->exten);
+
+	return 0;
+}
+
+static int pbx_builtin_prefix(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	for (; argc; argv++, argc--) {
+		int n = strlen(argv[0]);
+		memmove(chan->exten + n, chan->exten, sizeof(chan->exten) - n - 1);
+		memcpy(chan->exten, argv[0], n);
+		if (option_verbose > 2)
+			opbx_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
+	}
+	return 0;
+}
+
+static int pbx_builtin_suffix(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	int l = strlen(chan->exten);
+
+	for (; argc; argv++, argc--) {
+		int n = strlen(argv[0]);
+		if (n > sizeof(chan->exten) - l - 1)
+			n = sizeof(chan->exten) - l - 1;
+		memcpy(chan->exten + l, argv[0], n);
+		if (option_verbose > 2)
+			opbx_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
+	}
+	return 0;
+}
+
+static int pbx_builtin_goto(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	char *context, *exten;
+	int res;
+
+	context = exten = NULL;
+	if (argc > 2) context = (argv++)[0];
+	if (argc > 1) exten = (argv++)[0];
+	res = opbx_explicit_gotolabel(chan, context, exten, argv[0]);
+	if (!res && option_verbose > 2)
+		opbx_verbose(VERBOSE_PREFIX_3 "Goto (%s, %s, %d)\n", chan->context, chan->exten, chan->priority + 1);
+	return res;
+}
+
+static int pbx_builtin_gotoiftime(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    char tmp[1024];
+    struct opbx_timing timing;
+    char *s;
+
+    s = NULL;
+    if (argc > 3) {
+    	if ((s = strchr(argv[3], '?')))
+    	    do { *(s++) = '\0'; } while (isspace(*s));
+    }
+
+    if (!s || !*s || argc > 6) {
+        opbx_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
+        return -1;
+    }
+
+    snprintf(tmp, sizeof(tmp), "%s,%s,%s,%s", argv[0], argv[1], argv[2], argv[3]);
+    opbx_build_timing(&timing, tmp);
+
+    if (opbx_check_timing(&timing)) {
+    	argv[3] = s;
+	argv += 3;
+    	argc -= 3;
+	return pbx_builtin_goto(chan, argc, argv, NULL, 0);
+    }
+
+    return 0;
+}
+
+static int pbx_builtin_execiftime(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    char tmp[1024];
+    struct opbx_timing timing;
+    char *s, *args, *p;
+
+    s = NULL;
+    if (argc > 3) {
+    	if ((s = strchr(argv[3], '?')))
+    	    do { *(s++) = '\0'; } while (isspace(*s));
+    }
+
+    if (!s || !*s) {
+        opbx_log(LOG_WARNING, "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<funcname>[(<args>)]\n");
+        return -1;
+    }
+
+    snprintf(tmp, sizeof(tmp), "%s,%s,%s,%s", argv[0], argv[1], argv[2], argv[3]);
+    opbx_build_timing(&timing, tmp);
+
+    if (opbx_check_timing(&timing)) {
+	    if ((args = strchr(s, '(')) && (p = strrchr(s, ')'))) {
+		*(args++) = '\0';
+		*p = '\0';
+		return opbx_function_exec_str(chan, opbx_hash_app_name(s), s, args, NULL, 0);
+	    } else {
+		return opbx_function_exec(chan, opbx_hash_app_name(s), s, argc - 4, argv + 5, NULL, 0);
+	    }
+    }
+
+    return 0;
+}
+
+static int pbx_builtin_wait(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    double ms;
+
+    /* Wait for "n" seconds */
+    if (argc > 0 && (ms = atof(argv[0])))
+        return opbx_safe_sleep(chan, (int)(ms * 1000.0));
+    return 0;
+}
+
+static int pbx_builtin_waitexten(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    struct opbx_flags flags = {0};
+    char *mohclass = NULL;
+    int ms, res;
+
+    if (argc > 1) {
+        char *opts[1];
+
+        opbx_parseoptions(waitexten_opts, &flags, opts, argv[1]);
+        if (opbx_test_flag(&flags, WAITEXTEN_MOH))
+            mohclass = opts[0];
+    }
+    
+    if (opbx_test_flag(&flags, WAITEXTEN_MOH))
+        opbx_moh_start(chan, mohclass);
+
+    /* Wait for "n" seconds */
+    if (argc < 1 || !(ms = (atof(argv[0]) * 1000.0))) 
+        ms = (chan->pbx ? chan->pbx->rtimeout * 1000 : 10000);
+
+    res = opbx_waitfordigit(chan, ms);
+    if (!res)
+    {
+        if (opbx_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num))
+        {
+            if (option_verbose > 2)
+                opbx_verbose(VERBOSE_PREFIX_3 "Timeout on %s, continuing...\n", chan->name);
+        }
+        else if (opbx_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num))
+        {
+            if (option_verbose > 2)
+                opbx_verbose(VERBOSE_PREFIX_3 "Timeout on %s, going to 't'\n", chan->name);
+            opbx_copy_string(chan->exten, "t", sizeof(chan->exten));
+            chan->priority = 0;
+        }
+        else
+        {
+            opbx_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
+            res = -1;
+        }
+    }
+
+    if (opbx_test_flag(&flags, WAITEXTEN_MOH))
+        opbx_moh_stop(chan);
+
+    return res;
+}
+
+static int pbx_builtin_background(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    int res = 0;
+    char *options = NULL; 
+    char *filename = NULL;
+    char *front = NULL, *back = NULL;
+    char *lang = NULL;
+    char *context = NULL;
+    struct opbx_flags flags = {0};
+    unsigned int hash = 0;
+
+    switch (argc)
+    {
+    case 4:
+        context = argv[3];
+    case 3:
+        lang = argv[2];
+    case 2:
+        options = argv[1];
+        hash = opbx_hash_app_name(options);
+    case 1:
+        filename = argv[0];
+        break;
+    default:
+        opbx_log(LOG_WARNING, "Background requires an argument (filename)\n");
+        return -1;
+    }
+
+    if (!lang)
+        lang = chan->language;
+
+    if (!context)
+        context = chan->context;
+
+    if (options)
+    {
+        if (hash == OPBX_KEYWORD_SKIP)
+            flags.flags = BACKGROUND_SKIP;
+        else if (hash == OPBX_KEYWORD_NOANSWER)
+            flags.flags = BACKGROUND_NOANSWER;
+        else
+            opbx_parseoptions(background_opts, &flags, NULL, options);
+    }
+
+    /* Answer if need be */
+    if (chan->_state != OPBX_STATE_UP)
+    {
+        if (opbx_test_flag(&flags, BACKGROUND_SKIP))
+            return 0;
+        if (!opbx_test_flag(&flags, BACKGROUND_NOANSWER))
+            res = opbx_answer(chan);
+    }
+
+    if (!res)
+    {
+        /* Stop anything playing */
+        opbx_stopstream(chan);
+        /* Stream a file */
+        front = filename;
+        while (!res  &&  front)
+        {
+            if ((back = strchr(front, '&')))
+            {
+                *back = '\0';
+                back++;
+            }
+            res = opbx_streamfile(chan, front, lang);
+            if (!res)
+            {
+                if (opbx_test_flag(&flags, BACKGROUND_PLAYBACK))
+                {
+                    res = opbx_waitstream(chan, "");
+                }
+                else
+                {
+                    if (opbx_test_flag(&flags, BACKGROUND_MATCHEXTEN))
+                        res = opbx_waitstream_exten(chan, context);
+                    else
+                        res = opbx_waitstream(chan, OPBX_DIGIT_ANY);
+                }
+                opbx_stopstream(chan);
+            }
+            else
+            {
+                opbx_log(LOG_WARNING, "opbx_streamfile failed on %s for %s, %s, %s, %s\n", chan->name, argv[0], argv[1], argv[2], argv[3]);
+                res = 0;
+                break;
+            }
+            front = back;
+        }
+    }
+    if (context != chan->context  &&  res)
+    {
+        snprintf(chan->exten, sizeof(chan->exten), "%c", res);
+        opbx_copy_string(chan->context, context, sizeof(chan->context));
+        chan->priority = 0;
+        return 0;
+    }
+    return res;
+}
+
+static int pbx_builtin_atimeout(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    static int deprecation_warning = 0;
+    int x = (argc > 0 ? atoi(argv[0]) : 0);
+
+    if (!deprecation_warning)
+    {
+        opbx_log(LOG_WARNING, "AbsoluteTimeout is deprecated, please use Set(TIMEOUT(absolute)=timeout) instead.\n");
+        deprecation_warning = 1;
+    }
+            
+    /* Set the absolute maximum time how long a call can be connected */
+    opbx_channel_setwhentohangup(chan, x);
+    if (option_verbose > 2)
+        opbx_verbose( VERBOSE_PREFIX_3 "Set Absolute Timeout to %d\n", x);
+    return 0;
+}
+
+static int pbx_builtin_rtimeout(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    static int deprecation_warning = 0;
+
+    if (!deprecation_warning)
+    {
+        opbx_log(LOG_WARNING, "ResponseTimeout is deprecated, please use Set(TIMEOUT(response)=timeout) instead.\n");
+        deprecation_warning = 1;
+    }
+
+    /* If the channel is not in a PBX, return now */
+    if (!chan->pbx)
+        return 0;
+
+    /* Set the timeout for how long to wait between digits */
+    chan->pbx->rtimeout = atoi(argv[0]);
+    if (option_verbose > 2)
+        opbx_verbose( VERBOSE_PREFIX_3 "Set Response Timeout to %d\n", chan->pbx->rtimeout);
+    return 0;
+}
+
+static int pbx_builtin_dtimeout(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    static int deprecation_warning = 0;
+
+    if (!deprecation_warning)
+    {
+        opbx_log(LOG_WARNING, "DigitTimeout is deprecated, please use Set(TIMEOUT(digit)=timeout) instead.\n");
+        deprecation_warning = 1;
+    }
+
+    /* If the channel is not in a PBX, return now */
+    if (!chan->pbx)
+        return 0;
+
+    /* Set the timeout for how long to wait between digits */
+    chan->pbx->dtimeout = atoi(argv[0]);
+    if (option_verbose > 2)
+        opbx_verbose( VERBOSE_PREFIX_3 "Set Digit Timeout to %d\n", chan->pbx->dtimeout);
+    return 0;
+}
+
+static int pbx_builtin_setvar(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	char *value;
+
+	if (argc < 1) {
+		opbx_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
+		return 0;
+	}
+
+	/* check for a trailing flags argument */
+	if ((argc > 1)  &&  !strchr(argv[argc-1], '=')) {
+		argc--;
+		if (strchr(argv[argc], 'g'))
+			chan = NULL;
+	}
+
+	for (; argc; argv++, argc--) {
+		if ((value = strchr(argv[0], '='))) {
+			char *args, *p;
+			int l;
+			*(value++) = '\0';
+			if ((args = strchr(argv[0], '(')) && (p = strrchr(args, ')'))) {
+				/* In the old world order funcs were made to behave like variables
+				 * for the sake of Set(FUNC(args)=value). In the new world order
+				 * all funcs that set values use FUNC(args, value) however the
+				 * old style Set() notation is retained (for now) to support
+				 * existing dialplans. If used the value is simply appended to
+				 * the arg list here.
+				 */
+				static int deprecated = 0;
+				if (!deprecated) {
+					opbx_log(LOG_WARNING, "Set(FUNC(args)=value) is deprecated. Use FUNC(args, value) instead\n");
+					deprecated = 1;
+				}
+				*(args++) = '\0';
+				l = strlen(value) + 1;
+				*(p++) = ',';
+				memmove(p, value, l);
+				opbx_function_exec_str(chan, opbx_hash_app_name(argv[0]), argv[0], args, NULL, 0);
+			} else {
+				pbx_builtin_setvar_helper(chan, argv[0], value);
+			}
+		} else {
+			opbx_log(LOG_WARNING, "Ignoring entry '%s' with no '=' (and not last 'options' entry)\n", argv[0]);
+		}
+	}
+
+	if (result && value)
+		opbx_copy_string(result, value, result_max);
+
+	return 0;
+}
+
+static int pbx_builtin_setvar_old(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    static int deprecation_warning = 0;
+
+    if (!deprecation_warning) {
+        opbx_log(LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
+        deprecation_warning = 1;
+    }
+
+    return pbx_builtin_setvar(chan, argc, argv, NULL, 0);
+}
+
+int pbx_builtin_importvar(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	char tmp[VAR_BUF_SIZE];
+	struct opbx_channel *chan2;
+	char *channel, *s;
+
+	if (argc != 2 || !(channel = strchr(argv[0], '=')))
+		return opbx_function_syntax("ImportVar(newvar=channelname,variable)");
+
+	s = channel;
+	do { *(s--) = '\0'; } while (isspace(*s));
+	do { channel++; } while (isspace(*channel));
+
+	tmp[0] = '\0';
+	chan2 = opbx_get_channel_by_name_locked(channel);
+	if (chan2) {
+		if ((s = alloca(strlen(argv[1]) + 4))) {
+			sprintf(s, "${%s}", argv[1]);
+			pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp));
+		}
+		opbx_mutex_unlock(&chan2->lock);
+	}
+	pbx_builtin_setvar_helper(chan, argv[0], tmp);
+
+	return(0);
+}
+
+static int pbx_builtin_setglobalvar(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	for (; argc; argv++, argc--) {
+ 		char *value;
+		if ((value = strchr(argv[0], '='))) {
+			*(value++) = '\0';
+			pbx_builtin_setvar_helper(NULL, argv[0], value);
+		} else {
+			opbx_log(LOG_WARNING, "Ignoring entry '%s' with no '='\n", argv[0]);
+		}
+	}
+
+	return(0);
+}
+
+static int pbx_builtin_noop(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    // The following is added to relax dialplan execution.
+    // When doing small loops with lots of iteration, this
+    // allows other threads to re-schedule smoothly.
+    // This will for sure dramatically slow down benchmarks but
+    // will improve performance under load or in particular circumstances.
+
+    // sched_yield(); // This doesn't seem to have the effect we want.
+    usleep(1);
+    return 0;
+}
+
+static int pbx_builtin_gotoif(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	char *s, *q;
+	int i;
+
+	/* First argument is "<condition ? ..." */
+	if (argc > 0) {
+		q = s = strchr(argv[0], '?');
+		if (s) {
+			/* Trim trailing space from the condition */
+			do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
+
+			do { *(s++) = '\0'; } while (isspace(*s));
+
+			if (pbx_checkcondition(argv[0])) {
+				/* True: we want everything between '?' and ':' */
+				argv[0] = s;
+				for (i = 0; i < argc; i++) {
+					if ((s = strchr(argv[i], ':'))) {
+						do { *(s--) = '\0'; } while (s >= argv[i] && isspace(*s));
+						argc = i + 1;
+						break;
+					}
+				}
+				return pbx_builtin_goto(chan, argc, argv, NULL, 0);
+			} else {
+				/* False: we want everything after ':' (if anything) */
+				argv[0] = s;
+				for (i = 0; i < argc; i++) {
+					if ((s = strchr(argv[i], ':'))) {
+						do { *(s++) = '\0'; } while (isspace(*s));
+						argv[i] = s;
+						return pbx_builtin_goto(chan, argc - i, argv + i, NULL, 0);
+					}
+				}
+				/* No ": ..." so we just drop through */
+				return 0;
+			}
+		}
+	}
+    
+	return opbx_function_syntax("GotoIf(boolean ? [[context,]exten,]priority : [[context,]exten,]priority)");
+}           
+
+static int pbx_builtin_saynumber(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    if (argc < 1) {
+        opbx_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
+        return -1;
+    }
+    if (argc > 1) { 
+        argv[1][0] = tolower(argv[1][0]);
+        if (!strchr("fmcn", argv[1][0])) {
+            opbx_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
+            return -1;
+        }
+    }
+    return opbx_say_number(chan, atoi(argv[0]), "", chan->language, (argc > 1 ? argv[1] : NULL));
+}
+
+static int pbx_builtin_saydigits(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    int res = 0;
+
+    for (; !res && argc; argv++, argc--)
+        res = opbx_say_digit_str(chan, argv[0], "", chan->language);
+    return res;
+}
+    
+static int pbx_builtin_saycharacters(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    int res = 0;
+
+    for (; !res && argc; argv++, argc--)
+        res = opbx_say_character_str(chan, argv[0], "", chan->language);
+    return res;
+}
+    
+static int pbx_builtin_sayphonetic(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+    int res = 0;
+
+    for (; !res && argc; argv++, argc--)
+        res = opbx_say_phonetic_str(chan, argv[0], "", chan->language);
+    return res;
+}
+
+
+static struct opbx_func func_list[] = 
+{
+	/* These applications are built into the PBX core and do not
+	   need separate modules */
+	
+	{
+		.name = "AbsoluteTimeout",
+		.handler = pbx_builtin_atimeout,
+		.synopsis = "Set absolute maximum time of call",
+		.syntax = "AbsoluteTimeout(seconds)",
+		.description = "Set the absolute maximum amount of time permitted for a call.\n"
+		"A setting of 0 disables the timeout.  Always returns 0.\n" 
+		"AbsoluteTimeout has been deprecated in favor of Set(TIMEOUT(absolute)=timeout)\n"
+	},
+
+	{
+		.name = "Answer",
+		.handler = pbx_builtin_answer, 
+		.synopsis = "Answer a channel if ringing", 
+		.syntax = "Answer([delay])",
+		.description = "If the channel is ringing, answer it, otherwise do nothing. \n"
+		"If delay is specified, callweaver will pause execution for the specified amount\n"
+		"of milliseconds if an answer is required, in order to give audio a chance to\n"
+		"become ready. Returns 0 unless it tries to answer the channel and fails.\n"   
+	},
+
+	{
+		.name = "Background",
+		.handler = pbx_builtin_background,
+		.synopsis = "Play a file while awaiting extension",
+		.syntax = "Background(filename1[&filename2...][, options[, langoverride][, context]])",
+		.description = "Plays given files, while simultaneously waiting for the user to begin typing\n"
+		"an extension. The timeouts do not count until the last BackGround\n"
+		"application has ended. Options may also be included following a pipe \n"
+		"symbol. The 'langoverride' may be a language to use for playing the prompt\n"
+		"which differs from the current language of the channel.  The optional\n"
+		"'context' can be used to specify an optional context to exit into.\n"
+		"Returns -1 if thhe channel was hung up, or if the file does not exist./n"
+		"Returns 0 otherwise.\n\n"
+		"  Options:\n"
+		"    's' - causes the playback of the message to be skipped\n"
+		"          if the channel is not in the 'up' state (i.e. it\n"
+		"          hasn't been answered yet.) If this happens, the\n"
+		"          application will return immediately.\n"
+		"    'n' - don't answer the channel before playing the files\n"
+		"    'm' - only break if a digit hit matches a one digit\n"
+		"         extension in the destination context\n"
+	},
+
+	{
+		.name = "Busy",
+		.handler = pbx_builtin_busy,
+		.synopsis = "Indicate busy condition and stop",
+		.syntax = "Busy([timeout])",
+		.description = "Requests that the channel indicate busy condition and then waits\n"
+		"for the user to hang up or the optional timeout to expire.\n"
+		"Always returns -1." 
+	},
+
+	{
+		.name = "Congestion",
+		.handler = pbx_builtin_congestion,
+		.synopsis = "Indicate congestion and stop",
+		.syntax = "Congestion([timeout])",
+		.description = "Requests that the channel indicate congestion and then waits for\n"
+		"the user to hang up or for the optional timeout to expire.\n"
+		"Always returns -1." 
+	},
+
+	{
+		.name = "DigitTimeout",
+		.handler = pbx_builtin_dtimeout,
+		.synopsis = "Set maximum timeout between digits",
+		.syntax = "DigitTimeout(seconds)",
+		.description = "Set the maximum amount of time permitted between digits when the\n"
+		"user is typing in an extension. When this timeout expires,\n"
+		"after the user has started to type in an extension, the extension will be\n"
+		"considered complete, and will be interpreted. Note that if an extension\n"
+		"typed in is valid, it will not have to timeout to be tested, so typically\n"
+		"at the expiry of this timeout, the extension will be considered invalid\n"
+		"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
+		"exist the call would be terminated). The default timeout is 5 seconds.\n"
+		"Always returns 0.\n" 
+		"DigitTimeout has been deprecated in favor of Set(TIMEOUT(digit)=timeout)\n"
+	},
+
+	{
+		.name = "ExecIfTime",
+		.handler = pbx_builtin_execiftime,
+		.synopsis = "Conditional application execution on current time",
+		.syntax = "ExecIfTime(times, weekdays, mdays, months ? appname[, arg, ...])",
+		.description = "If the current time matches the specified time, then execute the specified\n"
+		"application. Each of the elements may be specified either as '*' (for always)\n"
+		"or as a range. See the 'include' syntax for details. It will return whatever\n"
+		"<appname> returns, or a non-zero value if the application is not found.\n"
+	},
+
+	{
+		.name = "Goto",
+		.handler = pbx_builtin_goto, 
+		.synopsis = "Goto a particular priority, extension, or context",
+		.syntax = "Goto([[context, ]extension, ]priority)",
+		.description = "Set the  priority to the specified\n"
+		"value, optionally setting the extension and optionally the context as well.\n"
+		"The extension BYEXTENSION is special in that it uses the current extension,\n"
+		"thus  permitting you to go to a different context, without specifying a\n"
+		"specific extension. Always returns 0, even if the given context, extension,\n"
+		"or priority is invalid.\n" 
+	},
+
+	{
+		.name = "GotoIf",
+		.handler = pbx_builtin_gotoif,
+		.synopsis = "Conditional goto",
+		.syntax = "GotoIf(condition ? [context, [exten, ]]priority|label [: [context, [exten, ]]priority|label])",
+		.description = "Go to label 1 if condition is\n"
+		"true, to label2 if condition is false. Either label1 or label2 may be\n"
+		"omitted (in that case, we just don't take the particular branch) but not\n"
+		"both. Look for the condition syntax in examples or documentation." 
+	},
+
+	{
+		.name = "GotoIfTime",
+		.handler = pbx_builtin_gotoiftime,
+		.synopsis = "Conditional goto on current time",
+		.syntax = "GotoIfTime(times, weekdays, mdays, months ? [[context, ]extension, ]priority|label)",
+		.description = "If the current time matches the specified time, then branch to the specified\n"
+		"extension. Each of the elements may be specified either as '*' (for always)\n"
+		"or as a range. See the 'include' syntax for details." 
+	},
+
+	{
+		.name = "Hangup",
+		.handler = pbx_builtin_hangup,
+		.synopsis = "Unconditional hangup",
+		.syntax = "Hangup()",
+		.description = "Unconditionally hangs up a given channel by returning -1 always.\n" 
+	},
+
+	{
+		.name = "ImportVar",
+		.handler = pbx_builtin_importvar,
+		.synopsis = "Import a variable from a channel into a new variable",
+		.syntax = "ImportVar(newvar=channelname, variable)",
+		.description = "This application imports a\n"
+		"variable from the specified channel (as opposed to the current one)\n"
+		"and stores it as a variable in the current channel (the channel that\n"
+		"is calling this application). If the new variable name is prefixed by\n"
+		"a single underscore \"_\", then it will be inherited into any channels\n"
+		"created from this one. If it is prefixed with two underscores,then\n"
+		"the variable will have infinite inheritance, meaning that it will be\n"
+		"present in any descendent channel of this one.\n"
+	},
+
+	{
+		.name = "NoOp",
+		.handler = pbx_builtin_noop,
+		.synopsis = "No operation",
+		.syntax = "NoOp()",
+		.description = "No-operation; Does nothing except relaxing the dialplan and \n"
+		"re-scheduling over threads. It's necessary and very useful in tight loops." 
+	},
+
+	{
+		.name = "Prefix",
+		.handler = pbx_builtin_prefix, 
+		.synopsis = "Prepend leading digits",
+		.syntax = "Prefix(digits)",
+		.description = "Prepends the digit string specified by digits to the\n"
+		"channel's associated extension. For example, the number 1212 when prefixed\n"
+		"with '555' will become 5551212. This app always returns 0, and the PBX will\n"
+		"continue processing at the next priority for the *new* extension.\n"
+		"  So, for example, if priority  3  of 1212 is  Prefix  555, the next step\n"
+		"executed will be priority 4 of 5551212. If you switch into an extension\n"
+		"which has no first step, the PBX will treat it as though the user dialed an\n"
+		"invalid extension.\n" 
+	},
+
+	{
+		.name = "Progress",
+		.handler = pbx_builtin_progress,
+		.synopsis = "Indicate progress",
+		.syntax = "Progress()",
+		.description = "Request that the channel indicate in-band progress is \n"
+		"available to the user.\nAlways returns 0.\n" 
+	},
+
+	{
+		.name = "ResetCDR",
+		.handler = pbx_builtin_resetcdr,
+		.synopsis = "Resets the Call Data Record",
+		.syntax = "ResetCDR([options])",
+		.description = "Causes the Call Data Record to be reset, optionally\n"
+		"storing the current CDR before zeroing it out\n"
+		" - if 'w' option is specified record will be stored.\n"
+		" - if 'a' option is specified any stacked records will be stored.\n"
+		" - if 'v' option is specified any variables will be saved.\n"
+		"Always returns 0.\n"  
+	},
+
+	{
+		.name = "ResponseTimeout",
+		.handler = pbx_builtin_rtimeout,
+		.synopsis = "Set maximum timeout awaiting response",
+		.syntax = "ResponseTimeout(seconds)",
+		.description = "Set the maximum amount of time permitted after\n"
+		"falling through a series of priorities for a channel in which the user may\n"
+		"begin typing an extension. If the user does not type an extension in this\n"
+		"amount of time, control will pass to the 't' extension if it exists, and\n"
+		"if not the call would be terminated. The default timeout is 10 seconds.\n"
+		"Always returns 0.\n"  
+		"ResponseTimeout has been deprecated in favor of Set(TIMEOUT(response)=timeout)\n"
+	},
+
+	{
+		.name = "Ringing",
+		.handler = pbx_builtin_ringing,
+		.synopsis = "Indicate ringing tone",
+		.syntax = "Ringing()",
+		.description = "Request that the channel indicate ringing tone to the user.\n"
+		"Always returns 0.\n" 
+	},
+
+	{
+		.name = "SayAlpha",
+		.handler = pbx_builtin_saycharacters,
+		.synopsis = "Say Alpha",
+		.syntax = "SayAlpha(string)",
+		.description = "Spells the passed string\n" 
+	},
+
+	{
+		.name = "SayDigits",
+		.handler = pbx_builtin_saydigits,
+		.synopsis = "Say Digits",
+		.syntax = "SayDigits(digits)",
+		.description = "Says the passed digits. SayDigits is using the\n" 
+		"current language setting for the channel. (See app setLanguage)\n"
+	},
+
+	{
+		.name = "SayNumber",
+		.handler = pbx_builtin_saynumber,
+		.synopsis = "Say Number",
+		.syntax = "SayNumber(digits[, gender])",
+		.description = "Says the passed number. SayNumber is using\n" 
+		"the current language setting for the channel. (See app SetLanguage).\n"
+	},
+
+	{
+		.name = "SayPhonetic",
+		.handler = pbx_builtin_sayphonetic,
+		.synopsis = "Say Phonetic",
+		.syntax = "SayPhonetic(string)",
+		.description = "Spells the passed string with phonetic alphabet\n" 
+	},
+
+	{
+		.name = "Set",
+		.handler = pbx_builtin_setvar,
+	  	.synopsis = "Set channel variable(s)",
+	  	.syntax = "Set(name1=value1, name2=value2, ...[, options])",
+	  	.description = "This function can be used to set the value of channel variables.\n"
+	  	"It will accept up to 24 name/value pairs.\n"
+	  	"When setting variables, if the variable name is prefixed with _,\n"
+	  	"the variable will be inherited into channels created from the\n"
+	  	"current channel. If the variable name is prefixed with __,\n"
+	  	"the variable will be inherited into channels created from the\n"
+	  	"current channel and all child channels.\n"
+	  	"The last argument, if it does not contain '=', is interpreted\n"
+	  	"as a string of options. The valid options are:\n"
+	  	"  g - Set variable globally instead of on the channel\n"
+	},
+
+	{
+		.name = "SET",
+		.handler = pbx_builtin_setvar,
+	  	.synopsis = "[DEPRECATED: use Set()]",
+	  NULL,
+	  NULL,
+	},
+
+	{
+		.name = "SetAccount",
+		.handler = pbx_builtin_setaccount,
+		.synopsis = "Sets account code",
+		.syntax = "SetAccount([account])",
+		.description = "Set the channel account code for billing\n"
+		"purposes. Always returns 0.\n"
+	},
+
+	{
+		.name = "SetAMAFlags",
+		.handler = pbx_builtin_setamaflags,
+		.synopsis = "Sets AMA Flags",
+		.syntax = "SetAMAFlags([flag])",
+		.description = "Set the channel AMA Flags for billing\n"
+		"purposes. Always returns 0.\n"
+	},
+
+	{
+		.name = "SetGlobalVar",
+		.handler = pbx_builtin_setglobalvar,
+		.synopsis = "Set global variable to value",
+		.syntax = "SetGlobalVar(#n=value)",
+		.description = "Sets global variable n to value. Global\n" 
+		"variable are available across channels.\n"
+	},
+
+	{
+		.name = "SetLanguage",
+		.handler = pbx_builtin_setlanguage,
+		.synopsis = "Sets channel language",
+		.syntax = "SetLanguage(language)",
+		.description = "Set the channel language to 'language'. This\n"
+		"information is used for the syntax in generation of numbers, and to choose\n"
+		"a natural language file when available.\n"
+		"  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
+		"requested to be played, if the file 'fr/demo-congrats' exists, then\n"
+		"it will play that file, and if not will play the normal 'demo-congrats'.\n"
+		"For some language codes, SetLanguage also changes the syntax of some\n"
+		"CallWeaver functions, like SayNumber.\n"
+		"Always returns 0.\n"
+		"SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
+	},
+
+	{
+		.name = "SetVar",
+		.handler = pbx_builtin_setvar_old,
+	  	.synopsis = "Set channel variable(s)",
+	  	.syntax = "SetVar(name1=value1, name2=value2, ...[, options])",
+	  	.description = "SetVar has been deprecated in favor of Set.\n"
+	},
+
+	{
+		.name = "StripMSD",
+		.handler = pbx_builtin_stripmsd,
+		.synopsis = "Strip leading digits",
+		.syntax = "StripMSD(count)",
+		.description = "Strips the leading 'count' digits from the channel's\n"
+		"associated extension. For example, the number 5551212 when stripped with a\n"
+		"count of 3 would be changed to 1212. This app always returns 0, and the PBX\n"
+		"will continue processing at the next priority for the *new* extension.\n"
+		"  So, for example, if priority 3 of 5551212 is StripMSD 3, the next step\n"
+		"executed will be priority 4 of 1212. If you switch into an extension which\n"
+		"has no first step, the PBX will treat it as though the user dialed an\n"
+		"invalid extension.\n" 
+	},
+
+	{
+		.name = "Suffix",
+		.handler = pbx_builtin_suffix, 
+		.synopsis = "Append trailing digits",
+		.syntax = "Suffix(digits)",
+		.description = "Appends the digit string specified by digits to the\n"
+		"channel's associated extension. For example, the number 555 when suffixed\n"
+		"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
+		"continue processing at the next priority for the *new* extension.\n"
+		"  So, for example, if priority 3 of 555 is Suffix 1212, the next step\n"
+		"executed will be priority 4 of 5551212. If you switch into an extension\n"
+		"which has no first step, the PBX will treat it as though the user dialed an\n"
+		"invalid extension.\n" 
+	},
+
+	{
+		.name = "Wait",
+		.handler = pbx_builtin_wait, 
+		.synopsis = "Waits for some time", 
+		.syntax = "Wait(seconds)",
+		.description = "Waits for a specified number of seconds, then returns 0.\n"
+		"seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" 
+	},
+
+	{
+		.name = "WaitExten",
+		.handler = pbx_builtin_waitexten, 
+		.synopsis = "Waits for an extension to be entered", 
+		.syntax = "WaitExten([seconds][, options])",
+		.description = "Waits for the user to enter a new extension for the \n"
+		"specified number of seconds, then returns 0. Seconds can be passed with\n"
+		"fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
+		"default extension timeout will be used.\n"
+		"  Options:\n"
+		"    'm[(x)]' - Provide music on hold to the caller while waiting for an extension.\n"
+		"               Optionally, specify the class for music on hold within parenthesis.\n"
+	},
+};
+
+
+static int unload_module(void)
+{
+	int i, res = 0;
+
+	for (i = 0;  i < arraysize(func_list);  i++)
+		opbx_function_unregister(&func_list[i]);
+
+	return res;
+}
+
+static int load_module(void)
+{
+	int i;
+
+	for (i = 0;  i < arraysize(func_list);  i++)
+		opbx_function_register(&func_list[i]);
+
+	return 0;
+}
+
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

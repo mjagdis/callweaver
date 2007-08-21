@@ -39,48 +39,44 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *moh_function;
-static const char *moh_func_name = "MUSICCLASS";
-static const char *moh_func_synopsis = "Read or Set the MusicOnHold class";
-static const char *moh_func_syntax = "MUSICCLASS()";
-static const char *moh_func_desc =
+static const char moh_func_name[] = "MUSICCLASS";
+static const char moh_func_synopsis[] = "Read or Set the MusicOnHold class";
+static const char moh_func_syntax[] = "MUSICCLASS([value])";
+static const char moh_func_desc[] =
 	"This function will read or set the music on hold class for a channel.\n";
 
 
-static char *function_moh_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_moh_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	opbx_copy_string(buf, chan->musicclass, len);
+	if (argc > 1)
+		return opbx_function_syntax(moh_func_syntax);
 
-	return buf;
+	if (chan) {
+		if (argc > 0)
+			opbx_copy_string(chan->musicclass, argv[0], MAX_MUSICCLASS);
+		if (buf)
+			opbx_copy_string(buf, chan->musicclass, len);
+	}
+
+	return 0;
 }
 
-static void function_moh_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
-{
-	opbx_copy_string(chan->musicclass, value, MAX_MUSICCLASS);
-}
 
+static const char tdesc[] = "MOH functions";
 
-static char *tdesc = "MOH functions";
-
-int unload_module(void)
+static int unload_module(void)
 {
         return opbx_unregister_function(moh_function);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-        moh_function = opbx_register_function(moh_func_name, function_moh_read, function_moh_write, moh_func_synopsis, moh_func_syntax, moh_func_desc);
+        moh_function = opbx_register_function(moh_func_name, function_moh_rw, moh_func_synopsis, moh_func_syntax, moh_func_desc);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 /*
 Local Variables:

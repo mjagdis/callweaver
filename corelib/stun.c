@@ -539,11 +539,19 @@ static char stun_no_debug_usage[] =
   "Usage: stun no debug\n"
   "       Disable STUN debugging\n";
 
-static struct opbx_cli_entry  cli_stun_debug =
-{{ "stun", "debug", NULL } , stun_do_debug, "Enable STUN debugging", stun_debug_usage };
+static struct opbx_clicmd  cli_stun_debug = {
+	.cmda = { "stun", "debug", NULL },
+	.handler = stun_do_debug,
+	.summary = "Enable STUN debugging",
+	.usage = stun_debug_usage,
+};
 
-static struct opbx_cli_entry  cli_stun_no_debug =
-{{ "stun", "no", "debug", NULL } , stun_no_debug, "Disable STUN debugging", stun_no_debug_usage };
+static struct opbx_clicmd  cli_stun_no_debug = {
+	.cmda = { "stun", "no", "debug", NULL },
+	.handler = stun_no_debug,
+	.summary = "Disable STUN debugging",
+	.usage = stun_no_debug_usage,
+};
 
 void opbx_stun_init(void)
 {

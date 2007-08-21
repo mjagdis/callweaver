@@ -45,28 +45,25 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-static char *tdesc = "Executes applications";
+static const char tdesc[] = "Executes applications";
 
 static void *exec_app;
-static char *name_exec = "Exec";
-static char *exec_synopsis = "Executes internal application";
-static char *exec_syntax = "Exec(appname(arguments))";
-static char *exec_descrip =
+static const char name_exec[] = "Exec";
+static const char exec_synopsis[] = "Executes internal application";
+static const char exec_syntax[] = "Exec(appname(arguments))";
+static const char exec_descrip[] =
 "Allows an arbitrary application to be invoked even when not\n"
 "hardcoded into the dialplan. To invoke external applications\n"
 "see the application System. Returns whatever value the\n"
 "app returns or a non-zero value if the app cannot be found.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int exec_exec(struct opbx_channel *chan, int argc, char **argv)
+static int exec_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res=0;
 	struct localuser *u;
 	char *s, *appname, *endargs, args[MAXRESULT];
-	struct opbx_app *app;
+	struct opbx_func *app;
 
 	LOCAL_USER_ADD(u);
 
@@ -80,45 +77,26 @@ static int exec_exec(struct opbx_channel *chan, int argc, char **argv)
 				*endargs = '\0';
 			pbx_substitute_variables_helper(chan, s, args, sizeof(args));
 		}
-		if (appname) {
-			app = pbx_findapp(appname);
-			if (app) {
-				res = pbx_exec(chan, app, args);
-			} else {
-				opbx_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-				res = -1;
-			}
-		}
+		if (appname)
+			res = opbx_function_exec_str(chan, opbx_hash_app_name(appname), appname, args, NULL, 0);
 	}
 
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(exec_app);
+
+	res |= opbx_unregister_function(exec_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	exec_app = opbx_register_application(name_exec, exec_exec, exec_synopsis, exec_syntax, exec_descrip);
+	exec_app = opbx_register_function(name_exec, exec_exec, exec_synopsis, exec_syntax, exec_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
-
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

@@ -42,13 +42,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/utils.h"
 
-static char *tdesc = "Sound File Playback Application";
+static const char tdesc[] = "Sound File Playback Application";
 
 static void *playback_app;
-static char *playback_name = "Playback";
-static char *playback_synopsis = "Play a file";
-static char *playback_syntax = "Playback(filename[&filename2...][, option])";
-static char *playback_descrip = 
+static const char playback_name[] = "Playback";
+static const char playback_synopsis[] = "Play a file";
+static const char playback_syntax[] = "Playback(filename[&filename2...][, option])";
+static const char playback_descrip[] = 
 "Plays back given filenames (do not put\n"
 "extension). Options may also be  included following a pipe symbol. The 'skip'\n"
 "option causes the playback of the message to  be  skipped  if  the  channel\n"
@@ -60,11 +60,8 @@ static char *playback_descrip =
 "The channel variable PLAYBACKSTATUS is set to SUCCESS or FAILED on termination."
 "\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int playback_exec(struct opbx_channel *chan, int argc, char **argv)
+static int playback_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	char *front = NULL, *back = NULL;
@@ -73,10 +70,8 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv)
 	int option_noanswer = 0;
 	int i;
 
-	if (argc < 1) {
-		opbx_log(LOG_ERROR, "Syntax: %s\n", playback_syntax);
-		return -1;
-	}
+	if (argc < 1)
+		return opbx_function_syntax(playback_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -125,30 +120,19 @@ static int playback_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(playback_app);
+
+	res |= opbx_unregister_function(playback_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	playback_app = opbx_register_application(playback_name, playback_exec, playback_synopsis, playback_syntax, playback_descrip);
+	playback_app = opbx_register_function(playback_name, playback_exec, playback_synopsis, playback_syntax, playback_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

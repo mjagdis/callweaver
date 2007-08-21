@@ -23,8 +23,15 @@
 #ifndef _CALLWEAVER_IMAGE_H
 #define _CALLWEAVER_IMAGE_H
 
+#include "callweaver/object.h"
+#include "callweaver/registry.h"
+#include "callweaver/module.h"
+
+
 /*! \brief structure associated with registering an image format */
 struct opbx_imager {
+	struct opbx_object obj;
+	struct opbx_registry_entry imager_entry;
 	/*! Name */
 	char *name;						
 	/*! Description */
@@ -39,9 +46,20 @@ struct opbx_imager {
 	int (*identify)(int fd);				
 	/*! Returns length written */
 	int (*write_image)(int fd, struct opbx_frame *frame); 	
-	/*! For linked list */
-	struct opbx_imager *next;
 };
+
+
+extern struct opbx_registry imager_registry;
+
+
+#define opbx_image_register(ptr) ({ \
+	const typeof(ptr) __ptr = (ptr); \
+	opbx_object_init_obj(&__ptr->obj, get_modinfo()->self); \
+	__ptr->imager_entry.obj = &__ptr->obj; \
+	opbx_registry_add(&imager_registry, &__ptr->imager_entry); \
+})
+#define opbx_image_unregister(ptr)	opbx_registry_del(&imager_registry, &(ptr)->imager_entry)
+
 
 /*! Check for image support on a channel */
 /*! 
@@ -68,23 +86,7 @@ extern int opbx_send_image(struct opbx_channel *chan, char *filename);
  * Make an image from a filename ??? No estoy positivo
  * Returns an opbx_frame on success, NULL on failure
  */
-extern struct opbx_frame *opbx_read_image(char *filename, char *preflang, int format);
-
-/*! Register image format */
-/*! 
- * \param imgdrv Populated opbx_imager structure with info to register
- * Registers an image format
- * Returns 0 regardless
- */
-extern int opbx_image_register(struct opbx_imager *imgdrv);
-
-/*! Unregister an image format */
-/*!
- * \param imgdrv pointer to the opbx_imager structure you wish to unregister
- * Unregisters the image format passed in
- * Returns nothing
- */
-extern void opbx_image_unregister(struct opbx_imager *imgdrv);
+extern struct opbx_frame *opbx_read_image(char *filename, char *lang, int format);
 
 /*! Initialize image stuff */
 /*!

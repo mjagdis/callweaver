@@ -55,10 +55,10 @@ OPBX_MUTEX_DEFINE_STATIC(monitorlock);
 static unsigned long seq = 0;
 
 static void *monitor_app;
-static const char *monitor_name = "Monitor";
-static const char *monitor_synopsis = "Monitor a channel";
-static const char *monitor_syntax = "Monitor([file_format[:urlbase]|[fname_base]|[options]])";
-static const char *monitor_descrip =
+static const char monitor_name[] = "Monitor";
+static const char monitor_synopsis[] = "Monitor a channel";
+static const char monitor_syntax[] = "Monitor([file_format[:urlbase]|[fname_base]|[options]])";
+static const char monitor_descrip[] =
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"
 "monitoring is stopped by the StopMonitor application.\n"
@@ -83,17 +83,17 @@ static const char *monitor_descrip =
 ;
 
 static void *stopmonitor_app;
-static const char *stopmonitor_name = "StopMonitor";
-static const char *stopmonitor_synopsis = "Stop monitoring a channel";
-static const char *stopmonitor_syntax = "StopMonitor";
-static const char *stopmonitor_descrip =
+static const char stopmonitor_name[] = "StopMonitor";
+static const char stopmonitor_synopsis[] = "Stop monitoring a channel";
+static const char stopmonitor_syntax[] = "StopMonitor";
+static const char stopmonitor_descrip[] =
 	"Stops monitoring a channel. Has no effect if the channel is not monitored\n";
 
 static void *changemonitor_app;
-static const char *changemonitor_name = "ChangeMonitor";
-static const char *changemonitor_synopsis = "Change monitoring filename of a channel";
-static const char *changemonitor_syntax = "ChangeMonitor(filename_base)";
-static const char *changemonitor_descrip =
+static const char changemonitor_name[] = "ChangeMonitor";
+static const char changemonitor_synopsis[] = "Change monitoring filename of a channel";
+static const char changemonitor_syntax[] = "ChangeMonitor(filename_base)";
+static const char changemonitor_descrip[] =
 	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored\n"
 	"The argument is the new filename base to use for monitoring this channel.\n";
 
@@ -185,7 +185,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 		}
 		
 		/* open files */
-		if (opbx_fileexists(monitor->read_filename, NULL, NULL) > 0) {
+		if (opbx_fileexists(monitor->read_filename, NULL, NULL)) {
 			opbx_filedelete(monitor->read_filename, NULL);
 		}
 		if (!(monitor->read_stream = opbx_writefile(monitor->read_filename,
@@ -197,7 +197,7 @@ static int __opbx_monitor_start(	struct opbx_channel *chan, const char *format_s
 			opbx_mutex_unlock(&chan->lock);
 			return -1;
 		}
-		if (opbx_fileexists(monitor->write_filename, NULL, NULL) > 0) {
+		if (opbx_fileexists(monitor->write_filename, NULL, NULL)) {
 			opbx_filedelete(monitor->write_filename, NULL);
 		}
 		if (!(monitor->write_stream = opbx_writefile(monitor->write_filename,
@@ -251,9 +251,9 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 		}
 
 		if (chan->monitor->filename_changed && !opbx_strlen_zero(chan->monitor->filename_base)) {
-			if (opbx_fileexists(chan->monitor->read_filename,NULL,NULL) > 0) {
+			if (opbx_fileexists(chan->monitor->read_filename,NULL,NULL)) {
 				snprintf(filename, FILENAME_MAX, "%s-in", chan->monitor->filename_base);
-				if (opbx_fileexists(filename, NULL, NULL) > 0) {
+				if (opbx_fileexists(filename, NULL, NULL)) {
 					opbx_filedelete(filename, NULL);
 				}
 				opbx_filerename(chan->monitor->read_filename, filename, chan->monitor->format);
@@ -261,9 +261,9 @@ static int __opbx_monitor_stop(struct opbx_channel *chan, int need_lock)
 				opbx_log(LOG_WARNING, "File %s not found\n", chan->monitor->read_filename);
 			}
 
-			if (opbx_fileexists(chan->monitor->write_filename,NULL,NULL) > 0) {
+			if (opbx_fileexists(chan->monitor->write_filename,NULL,NULL)) {
 				snprintf(filename, FILENAME_MAX, "%s-out", chan->monitor->filename_base);
-				if (opbx_fileexists(filename, NULL, NULL) > 0) {
+				if (opbx_fileexists(filename, NULL, NULL)) {
 					opbx_filedelete(filename, NULL);
 				}
 				opbx_filerename(chan->monitor->write_filename, filename, chan->monitor->format);
@@ -368,7 +368,7 @@ static int __opbx_monitor_change_fname(struct opbx_channel *chan, const char *fn
 	return 0;
 }
 
-static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
+static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[256];
 	char *urlprefix = NULL;
@@ -411,12 +411,12 @@ static int start_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int stop_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
+static int stop_monitor_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	return __opbx_monitor_stop(chan, 1);
 }
 
-static int change_monitor_exec(struct opbx_channel *chan, int argc, char **argv)
+static int change_monitor_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	return __opbx_monitor_change_fname(chan, argv[0], 1);
 }
@@ -556,11 +556,14 @@ static void __opbx_monitor_setjoinfiles(struct opbx_channel *chan, int turnon)
 		chan->monitor->joinfiles = turnon;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	monitor_app = opbx_register_application(monitor_name, start_monitor_exec, monitor_synopsis, monitor_syntax, monitor_descrip);
-	stopmonitor_app = opbx_register_application(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);
-	changemonitor_app = opbx_register_application(changemonitor_name, change_monitor_exec, changemonitor_synopsis, changemonitor_syntax, changemonitor_descrip);
+	/* We should never be unloaded */
+	opbx_module_get(get_modinfo()->self);
+
+	monitor_app = opbx_register_function(monitor_name, start_monitor_exec, monitor_synopsis, monitor_syntax, monitor_descrip);
+	stopmonitor_app = opbx_register_function(stopmonitor_name, stop_monitor_exec, stopmonitor_synopsis, stopmonitor_syntax, stopmonitor_descrip);
+	changemonitor_app = opbx_register_function(changemonitor_name, change_monitor_exec, changemonitor_synopsis, changemonitor_syntax, changemonitor_descrip);
 
 	opbx_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
 	opbx_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
@@ -574,11 +577,11 @@ int load_module(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
-	opbx_unregister_application(monitor_app);
-	opbx_unregister_application(stopmonitor_app);
-	opbx_unregister_application(changemonitor_app);
+	opbx_unregister_function(monitor_app);
+	opbx_unregister_function(stopmonitor_app);
+	opbx_unregister_function(changemonitor_app);
 
 	opbx_manager_unregister("Monitor");
 	opbx_manager_unregister("StopMonitor");
@@ -586,20 +589,5 @@ int unload_module(void)
 	return 0;
 }
 
-char *description(void)
-{
-	return "Call Monitoring Resource";
-}
 
-int usecount(void)
-{
-	/* Never allow monitor to be unloaded because it will
-	   unresolve needed symbols in the channel */
-#if 0
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-#else
-	return 1;
-#endif
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, "Call Monitoring Resource")

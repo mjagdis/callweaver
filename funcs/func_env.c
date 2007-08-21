@@ -41,59 +41,52 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 static void *env_function;
-static const char *env_func_name = "ENV";
-static const char *env_func_synopsis = "Gets or sets the environment variable specified";
-static const char *env_func_syntax = "ENV(envname)";
-static const char *env_func_desc = "";
+static const char env_func_name[] = "ENV";
+static const char env_func_synopsis[] = "Gets or sets the environment variable specified";
+static const char env_func_syntax[] = "ENV(envname[, value])";
+static const char env_func_desc[] = "";
 
 
-static char *builtin_function_env_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int builtin_function_env_rw(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *ret = "";
+	char *ret;
 
-	if (argv[0]) {
-		ret = getenv(argv[0]);
-		if (!ret)
-			ret = "";
-	}
-	opbx_copy_string(buf, ret, len);
+	if (argc < 1 || argc > 2 || !argv[0][0])
+		return opbx_function_syntax(env_func_syntax);
 
-	return buf;
-}
-
-static void builtin_function_env_write(struct opbx_channel *chan, int argc, char **argv, const char *value) 
-{
-	if (argc > 0 && argv[0][0]) {
-		if (value && *value) {
-			setenv(argv[0], value, 1);
+	/* FIXME: getenv/setenv are not reentrant. We should lock... */
+	if (argc > 1) {
+		if (argv[1][0]) {
+			setenv(argv[0], argv[1], 1);
 		} else {
 			unsetenv(argv[0]);
 		}
 	}
+
+	if (buf) {
+		if ((ret = getenv(argv[0])))
+			opbx_copy_string(buf, ret, len);
+	}
+
+	return 0;
 }
 
-static char *tdesc = "Get or set environment variables.";
 
-int unload_module(void)
+static const char tdesc[] = "Get or set environment variables.";
+
+static int unload_module(void)
 {
        return opbx_unregister_function(env_function);
 }
 
-int load_module(void)
+static int load_module(void)
 {
-       env_function = opbx_register_function(env_func_name, builtin_function_env_read, builtin_function_env_write, env_func_synopsis, env_func_syntax, env_func_desc);
+       env_function = opbx_register_function(env_func_name, builtin_function_env_rw, env_func_synopsis, env_func_syntax, env_func_desc);
        return 0;
 }
 
-char *description(void)
-{
-       return tdesc;
-}
 
-int usecount(void)
-{
-       return 0;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 /*
 Local Variables:

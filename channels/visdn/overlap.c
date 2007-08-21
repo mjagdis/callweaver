@@ -39,9 +39,6 @@
 #include "huntgroup.h"
 #include "util.h"
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
 
 static int supports_overlapping(
 	struct opbx_channel *chan,

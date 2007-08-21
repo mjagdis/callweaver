@@ -32,13 +32,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$");
  *        Text Descriptions
  ***********************************************************/
 
-static char *tdesc = "Navynet Channel Independent Conference Application" ;
+static char tdesc[] = "Navynet Channel Independent Conference Application" ;
 
 static void *conference_app;
-static const char *conference_name = APP_CONFERENCE_NAME ;
-static const char *conference_synopsis = "Navynet Channel Independent Conference" ;
-static const char *conference_syntax = APP_CONFERENCE_NAME "(confno/options/pin)";
-static const char *conference_description =
+static const char conference_name[] = APP_CONFERENCE_NAME ;
+static const char conference_synopsis[] = "Navynet Channel Independent Conference" ;
+static const char conference_syntax[] = APP_CONFERENCE_NAME "(confno/options/pin)";
+static const char conference_description[] =
 "The options string may contain zero or more of the following:\n"
 "   'M': Caller is Moderator (can do everything).\n"
 "   'S': Caller is Speaker.\n"
@@ -62,42 +62,32 @@ static const char *conference_description =
 "Please note that the options parameter list delimiter is '/'\n"
 "Returns 0 if the user exits with the '#' key, or -1 if the user hangs up.\n" ;
 
-STANDARD_LOCAL_USER ;
-LOCAL_USER_DECL;
 
-int unload_module( void ) {
+static int unload_module( void ) {
 	int res = 0;
 	opbx_log( LOG_NOTICE, "unloading " APP_CONFERENCE_NAME " module\n" );
-	STANDARD_HANGUP_LOCALUSERS;
 	unregister_conference_cli();
-	res |= opbx_unregister_application( conference_app ) ;
+	res |= opbx_unregister_function( conference_app ) ;
 	return res;
 }
 
-int load_module( void ) {
+static int load_module( void ) {
 	opbx_log( LOG_NOTICE, "Loading " APP_CONFERENCE_NAME " module\n" );
 	init_conference() ;
 	register_conference_cli();
-	conference_app = opbx_register_application( conference_name, app_conference_main, conference_synopsis, conference_syntax, conference_description ) ;
+	conference_app = opbx_register_function( conference_name, app_conference_main, conference_synopsis, conference_syntax, conference_description ) ;
 	return 0;
 }
 
-char *description( void ) {
-	return tdesc ;
-}
 
-int usecount( void ) {
-	int res;
-	STANDARD_USECOUNT( res ) ;
-	return res;
-}
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 
 /************************************************************
  *        Main Conference function
  ***********************************************************/
 
-int app_conference_main( struct opbx_channel* chan, int argc, char **argv ) {
+int app_conference_main( struct opbx_channel* chan, int argc, char **argv, char *result, size_t result_max) {
 	int res = 0 ;
 	struct localuser *u ;
 	LOCAL_USER_ADD( u ) ; 

@@ -45,33 +45,27 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/options.h"
 #include "callweaver/lock.h"
 
-static char *tdesc = "Waits until first ring after time";
+static const char tdesc[] = "Waits until first ring after time";
 
 static void *waitforring_app;
-static const char *waitforring_name = "WaitForRing";
-static const char *waitforring_synopsis = "Wait for Ring Application";
-static const char *waitforring_syntax = "WaitForRing(timeout)";
-static const char *waitforring_descrip =
+static const char waitforring_name[] = "WaitForRing";
+static const char waitforring_synopsis[] = "Wait for Ring Application";
+static const char waitforring_syntax[] = "WaitForRing(timeout)";
+static const char waitforring_descrip[] =
 "Returns 0 after waiting at least timeout seconds. and\n"
 "only after the next ring has completed.  Returns 0 on\n"
 "success or -1 on hangup\n";
 
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
-static int waitforring_exec(struct opbx_channel *chan, int argc, char **argv)
+static int waitforring_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
 	struct opbx_frame *f;
 	int res = 0;
 	int ms;
 
-	if (argc != 1 || !isdigit(argv[0][0])) {
-                opbx_log(LOG_ERROR, "Syntax: %s\n", waitforring_syntax);
-		return 0;
-	}
+	if (argc != 1 || !isdigit(argv[0][0]))
+                return opbx_function_syntax(waitforring_syntax);
 
 	LOCAL_USER_ADD(u);
 
@@ -125,30 +119,19 @@ static int waitforring_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(waitforring_app);
+
+	res |= opbx_unregister_function(waitforring_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	waitforring_app = opbx_register_application(waitforring_name, waitforring_exec, waitforring_synopsis, waitforring_syntax, waitforring_descrip);
+	waitforring_app = opbx_register_function(waitforring_name, waitforring_exec, waitforring_synopsis, waitforring_syntax, waitforring_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

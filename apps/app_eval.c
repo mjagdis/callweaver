@@ -44,23 +44,20 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-static char *tdesc = "Reevaluates strings";
+static const char tdesc[] = "Reevaluates strings";
 
 static void *eval_app;
-static char *eval_name = "Eval";
-static char *eval_synopsis = "Evaluates a string";
-static char *eval_syntax = "Eval(newvar=somestring)";
-static char *eval_descrip =
+static const char eval_name[] = "Eval";
+static const char eval_synopsis[] = "Evaluates a string";
+static const char eval_syntax[] = "Eval(newvar=somestring)";
+static const char eval_descrip[] =
 "Normally CallWeaver evaluates variables inline.  But what if you want to\n"
 "store variable offsets in a database, to be evaluated later?  Eval is\n"
 "the answer, by allowing a string to be evaluated twice in the dialplan,\n"
 "the first time as part of the normal dialplan, and the second using Eval.\n";
 
-STANDARD_LOCAL_USER;
 
-LOCAL_USER_DECL;
-
-static int eval_exec(struct opbx_channel *chan, int argc, char **argv)
+static int eval_exec(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	static int dep_warning = 0;
 	char tmp[MAXRESULT];
@@ -88,30 +85,19 @@ static int eval_exec(struct opbx_channel *chan, int argc, char **argv)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	int res = 0;
-	STANDARD_HANGUP_LOCALUSERS;
-	res |= opbx_unregister_application(eval_app);
+
+	res |= opbx_unregister_function(eval_app);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	eval_app = opbx_register_application(eval_name, eval_exec, eval_synopsis, eval_syntax, eval_descrip);
+	eval_app = opbx_register_function(eval_name, eval_exec, eval_synopsis, eval_syntax, eval_descrip);
 	return 0;
 }
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)

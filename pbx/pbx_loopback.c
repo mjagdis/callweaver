@@ -40,6 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
+#include "callweaver/switch.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/frame.h"
@@ -54,7 +55,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/crypto.h"
 #include "callweaver/callweaver_db.h"
 
-static char *tdesc = "Loopback Switch";
+static const char tdesc[] = "Loopback Switch";
 
 /* Loopback switch substitutes ${EXTEN}, ${CONTEXT}, and ${PRIORITY} into
    the data passed to it to try to get a string of the form:
@@ -217,32 +218,25 @@ static int loopback_matchmore(struct opbx_channel *chan, const char *context, co
 static struct opbx_switch loopback_switch =
 {
         name:                   "Loopback",
-        description:    		"Loopback Dialplan Switch",
+        description:   		"Loopback Dialplan Switch",
         exists:                 loopback_exists,
         canmatch:               loopback_canmatch,
         exec:                   loopback_exec,
         matchmore:              loopback_matchmore,
 };
 
-char *description(void)
-{
-	return tdesc;
-}
 
-int usecount(void)
+static int unload_module(void)
 {
-	return 1;
-}
-
-int unload_module(void)
-{
-	opbx_unregister_switch(&loopback_switch);
+	opbx_switch_unregister(&loopback_switch);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void)
 {
-	opbx_register_switch(&loopback_switch);
+	opbx_switch_register(&loopback_switch);
 	return 0;
 }
 
+
+MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
