@@ -49,8 +49,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
 #include "callweaver/pbx.h"
-#include "callweaver/term.h"
 #include "callweaver/utils.h"
+
+#include "core/term.h"
 
 
 static const char *func_registry_obj_name(struct opbx_object *obj)
