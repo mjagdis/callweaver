@@ -116,6 +116,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/linkedlists.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/directory_engine.h"
+#include "callweaver/crypto.h"
 
 #include "core/ulaw.h"
 #include "core/alaw.h"
@@ -2618,6 +2619,9 @@ int callweaver_main(int argc, char *argv[])
     if (dnsmgr_init())
     {
         opbx_exit(1);
+    }
+    if (opbx_crypto_init()) {
+	    opbx_exit(1);
     }
     /* initialize module loader */
     if (opbx_loader_init() < 0)

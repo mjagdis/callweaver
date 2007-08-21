@@ -14,11 +14,6 @@ res_features_la_SOURCES		= res_features.c
 res_features_la_LDFLAGS 	= -module -avoid-version -no-undefined
 res_features_la_LIBADD		= ${top_builddir}/corelib/libcallweaver.la
 
-res_crypto_la_SOURCES		= res_crypto.c
-res_crypto_la_CFLAGS		= $(AM_CFLAGS) @SSL_CFLAGS@
-res_crypto_la_LDFLAGS 		= -module -avoid-version -no-undefined
-res_crypto_la_LIBADD		= @SSL_LIBS@ ${top_builddir}/corelib/libcallweaver.la     
-
 res_musiconhold_la_SOURCES	= res_musiconhold.c
 res_musiconhold_la_LDFLAGS 	= -module -avoid-version -no-undefined
 res_musiconhold_la_LIBADD	= ${top_builddir}/corelib/libcallweaver.la     

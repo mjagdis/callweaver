@@ -12,14 +12,14 @@ libcallweaver_la_SOURCES = io.c sched.c logger.c frame.c config.c channel.c \
 	malloc.c utils.c dnsmgr.c devicestate.c \
 	netsock.c slinfactory.c callweaver_expr2.c \
 	callweaver_expr2f.c strcompat.c loader.c callweaver.c \
-	stubfunctions-adsi.c stubfunctions-crypto.c stubfunctions-features.c \
+	stubfunctions-adsi.c stubfunctions-features.c \
 	stubfunctions-monitor.c udp.c udptl.c udpfromto.c stun.c coef_in.h coef_out.h \
 	ecdisa.h aesopt.h callweaver_expr2.h timer.c jitterbuffer/libcwjb.la \
 	resample.c \
 	directory_engine.c \
 	hashtable.c mpool.c xml_parser.c eventlib.c \
 	hashtable_helper.c \
-	file.c filestreams.c
+	file.c filestreams.c crypto.c
 
 nodist_libcallweaver_la_SOURCES = defaults.h
 
