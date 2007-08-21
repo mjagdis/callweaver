@@ -2082,6 +2082,7 @@ static int zt_call(struct opbx_channel *opbx, char *rdest, int timeout)
 	if (p->pri) {
 		struct pri_sr *sr;
 		char *useruser;
+		char *t;
 		int pridialplan;
 		int dp_strip;
 		int prilocaldialplan;
