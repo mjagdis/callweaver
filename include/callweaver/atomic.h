@@ -30,7 +30,12 @@
 
 #ifdef __linux__
 
-/* Atomic implementation using assmembly optimizations from the kernel */
+/* Atomic implementation using assembly optimizations from the kernel */
+
+/* x86_64 requires CONFIG_SMP to enable the lock prefixing, i386 does
+ * it right. Sigh...
+ */
+#define CONFIG_SMP
 
 #include <asm/atomic.h>
 
