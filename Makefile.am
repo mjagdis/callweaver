@@ -158,7 +158,7 @@ uninstall-sgml-docs:
 ###################
 
 SUBDIRS =   libltdl libs
-SUBDIRS +=  stdtime @SQLITE3_SUBDIR@ include corelib . pbx funcs
+SUBDIRS +=  stdtime include corelib . pbx funcs
 SUBDIRS +=  cdr apps codecs formats channels ogi utils res configs
 
 ############################
