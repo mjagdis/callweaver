@@ -65,7 +65,7 @@ extern char opbx_config_OPBX_CTL_GROUP[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_CTL[OPBX_CONFIG_MAX_PATH];
 extern char opbx_config_OPBX_SYSTEM_NAME[20];
 extern char opbx_config_OPBX_SOUNDS_DIR[OPBX_CONFIG_MAX_PATH];
-extern char opbx_config_OPBX_ALLOW_UNSAFE_UNLOAD[20];
+extern char opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD[20];
 
 /* Provided by callweaver.c */
 extern int opbx_set_priority(int);
