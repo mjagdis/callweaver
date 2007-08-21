@@ -186,7 +186,7 @@ static int sqlite_execapp(struct opbx_channel *chan, char **argv, int argc, char
 	sqlite3 *db;
 	int res=0;
 
-	if (argv < 1 || !argv[0][0]) {
+	if (argc < 1 || !argv[0][0]) {
 		opbx_log(LOG_WARNING, "sql requires an argument (sql)\n");
 		return -1;
 	}
