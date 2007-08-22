@@ -283,7 +283,7 @@ int opbx_device_state_engine_init(void)
 	opbx_cond_init(&change_pending, NULL);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(NULL, &change_thread, &attr, do_devstate_changes, NULL) < 0) {
+	if (opbx_pthread_create(&change_thread, &attr, do_devstate_changes, NULL) < 0) {
 		opbx_log(LOG_ERROR, "Unable to start device state change thread.\n");
 		return -1;
 	}

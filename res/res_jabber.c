@@ -751,7 +751,7 @@ static void launch_jabber_thread(struct jabber_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, jabber_thread, profile);
+	result = opbx_pthread_create(&thread, &attr, jabber_thread, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -848,7 +848,7 @@ static void launch_media_receive_thread(struct jabber_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, media_receive_thread, profile);
+	result = opbx_pthread_create(&thread, &attr, media_receive_thread, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1618,7 +1618,7 @@ static void launch_jabber_pbx_session(struct jabber_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, jabber_pbx_session, profile);
+	result = opbx_pthread_create(&thread, &attr, jabber_pbx_session, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1796,7 +1796,7 @@ static void launch_cli_thread(char *cli_command)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, cli_command_thread, cli_command_dup);
+	result = opbx_pthread_create(&thread, &attr, cli_command_thread, cli_command_dup);
 	result = pthread_attr_destroy(&attr);
 }
 

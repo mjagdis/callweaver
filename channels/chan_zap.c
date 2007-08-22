@@ -4064,7 +4064,7 @@ static struct opbx_frame *zt_handle_event(struct opbx_channel *opbx)
 						p->owner = chan;
 						if (!chan) {
 							opbx_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
-						} else if (opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
+						} else if (opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
 							opbx_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 							zt_enable_ec(p);
@@ -6101,7 +6101,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
 						opbx_log(LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
-					if (opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
+					if (opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
 						opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 						if (res < 0)
@@ -6131,7 +6131,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, OPBX_STATE_RING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
+				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
 					opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
@@ -6220,7 +6220,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				if (option_verbose > 1)
 					opbx_verbose(VERBOSE_PREFIX_2 "Starting post polarity/DTMF CID detection on channel %d\n", i->channel);
 				chan = zt_new(i, OPBX_STATE_PRERING, 0, SUB_REAL, 0, 0);
-				if (chan && opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, chan)) {
+				if (chan && opbx_pthread_create(&threadid, &attr, ss_thread, chan)) {
 					opbx_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				}
 				break;
@@ -6496,7 +6496,7 @@ static int restart_monitor(void)
 #endif
 	} else {
 		/* Start a new monitor */
-		if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			opbx_mutex_unlock(&monlock);
 			opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -7908,7 +7908,7 @@ static void *pri_dchannel(void *vpri)
 					idle = zt_request("Zap", OPBX_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
-						if (opbx_pthread_create(get_modinfo()->self, &p, NULL, do_idle_thread, idle)) {
+						if (opbx_pthread_create(&p, NULL, do_idle_thread, idle)) {
 							opbx_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
 							zt_hangup(idle);
 						}
@@ -8333,7 +8333,7 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 							opbx_mutex_lock(&pri->lock);
-							if (c && !opbx_pthread_create(get_modinfo()->self, &threadid, &attr, ss_thread, c)) {
+							if (c && !opbx_pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									opbx_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 										plancallingnum, !opbx_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
@@ -8920,7 +8920,7 @@ static int start_pri(struct zt_pri *pri)
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
 	pri->resetpos = -1;
-	if (opbx_pthread_create(get_modinfo()->self, &pri->master, NULL, pri_dchannel, pri)) {
+	if (opbx_pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;

@@ -3254,7 +3254,7 @@ static int restart_monitor(void)
     else
     {
         /* Start a new monitor */
-        if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");

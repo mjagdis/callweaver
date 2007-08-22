@@ -2956,7 +2956,7 @@ static icd_status icd_caller__create_thread(icd_caller * that)
     /* Adjust the thread state before creating thread */
     that->thread_state = ICD_THREAD_STATE_PAUSED;
     /* Create thread */
-    result = opbx_pthread_create(get_modinfo()->self, &(that->thread), &attr, icd_caller__run, that);
+    result = opbx_pthread_create(&(that->thread), &attr, icd_caller__run, that);
     that->using_caller_thread = 1;
     opbx_verbose(VERBOSE_PREFIX_2 "Spawn thread for Caller id[%d] [%s]\n", icd_caller__get_id(that),
         icd_caller__get_name(that));

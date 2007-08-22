@@ -757,7 +757,7 @@ static int moh_register(struct mohclass *moh)
 		opbx_set_flag(moh, MOH_CUSTOM);
 		
 		moh->srcfd = -1;
-		if (opbx_pthread_create(get_modinfo()->self, &moh->thread, NULL, monitor_custom_command, moh)) {
+		if (opbx_pthread_create(&moh->thread, NULL, monitor_custom_command, moh)) {
 			opbx_log(LOG_WARNING, "Unable to create moh...\n");
 			opbx_moh_free_class(&moh);
 			return -1;

@@ -322,7 +322,7 @@ static int opbx_generator_start_thread(struct opbx_channel *pchan)
 		return -1;
 	}
 	opbx_cond_init(&pgcd->gen_req_cond, NULL);
-	if(opbx_pthread_create(NULL, pgcd->pgenerator_thread, NULL, opbx_generator_thread, pchan)) {
+	if(opbx_pthread_create(pgcd->pgenerator_thread, NULL, opbx_generator_thread, pchan)) {
 		free(pgcd->pgenerator_thread);
 		pgcd->pgenerator_thread = NULL;
 		opbx_cond_destroy(&pgcd->gen_req_cond);

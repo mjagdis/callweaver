@@ -125,7 +125,7 @@ int opbx_autoservice_start(struct opbx_channel *chan)
 			aslist = as;
 			res = 0;
 			if (needstart) {
-				if (opbx_pthread_create(NULL, &asthread, NULL, autoservice_run, NULL)) {
+				if (opbx_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
 					opbx_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 					free(aslist);
 					aslist = NULL;

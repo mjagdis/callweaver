@@ -450,7 +450,7 @@ sccp_channel_t * sccp_channel_newcall(sccp_line_t * l, char * dial) {
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   /* let's call it */
-	if (opbx_pthread_create(get_modinfo()->self, &t, &attr, sccp_pbx_startchannel, c->owner)) {
+	if (opbx_pthread_create(&t, &attr, sccp_pbx_startchannel, c->owner)) {
 		opbx_log(LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 		sccp_indicate_lock(c, SCCP_CHANNELSTATE_CONGESTION);
 	}
@@ -825,7 +825,7 @@ void sccp_channel_transfer_complete(sccp_channel_t * c) {
 		pthread_t t;
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(get_modinfo()->self, &t, &attr, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
+		if (opbx_pthread_create(&t, &attr, sccp_channel_transfer_ringing_thread, strdup(transferred->name))) {
 			opbx_log(LOG_WARNING, "%s: Unable to create thread for the blind transfer ring indication. %s\n", d->id, strerror(errno));
 		}
 	}
@@ -993,7 +993,7 @@ void sccp_channel_park(sccp_channel_t * c) {
 		memset(d, 0, sizeof(*dual));
 		dual->chan1 = chan1m;
 		dual->chan2 = chan2m;
-		if (!opbx_pthread_create(get_modinfo()->self, &th, NULL, sccp_channel_park_thread, dual))
+		if (!opbx_pthread_create(&th, NULL, sccp_channel_park_thread, dual))
 			return;
 		free(dual);
 	}

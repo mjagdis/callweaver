@@ -2277,7 +2277,7 @@ enum opbx_pbx_result opbx_pbx_start(struct opbx_channel *c)
     /* Start a new thread, and get something handling this channel. */
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (opbx_pthread_create(NULL, &t, &attr, pbx_thread, c))
+    if (opbx_pthread_create(&t, &attr, pbx_thread, c))
     {
         opbx_log(LOG_WARNING, "Failed to create new channel thread\n");
         return OPBX_PBX_FAILED;
@@ -4772,7 +4772,7 @@ int opbx_pbx_outgoing_exten(const char *type, int format, void *data, int timeou
         opbx_set_variables(chan, vars);
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (opbx_pthread_create(NULL, &as->p, &attr, async_wait, as))
+        if (opbx_pthread_create(&as->p, &attr, async_wait, as))
         {
             opbx_log(LOG_WARNING, "Failed to start async wait\n");
             free(as);
@@ -4876,7 +4876,7 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
                         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
                         if (locked_channel) 
                             opbx_mutex_lock(&chan->lock);
-                        if (opbx_pthread_create(NULL, &tmp->t, &attr, opbx_pbx_run_app, tmp))
+                        if (opbx_pthread_create(&tmp->t, &attr, opbx_pbx_run_app, tmp))
                         {
                             opbx_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
                             free(tmp);
@@ -4957,7 +4957,7 @@ int opbx_pbx_outgoing_app(const char *type, int format, void *data, int timeout,
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         if (locked_channel) 
             opbx_mutex_lock(&chan->lock);
-        if (opbx_pthread_create(NULL, &as->p, &attr, async_wait, as))
+        if (opbx_pthread_create(&as->p, &attr, async_wait, as))
         {
             opbx_log(LOG_WARNING, "Failed to start async wait\n");
             free(as);

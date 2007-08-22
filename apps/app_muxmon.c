@@ -424,7 +424,7 @@ static void launch_monitor_thread(struct opbx_channel *chan, char *filename, uns
     result = pthread_attr_init(&attr);
     pthread_attr_setschedpolicy(&attr, SCHED_RR);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, muxmon_thread, muxmon);
+    result = opbx_pthread_create(&thread, &attr, muxmon_thread, muxmon);
     result = pthread_attr_destroy(&attr);
 }
 

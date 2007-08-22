@@ -1226,7 +1226,7 @@ static void launch_woomera_thread(woomera_profile *profile)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &profile->thread, &attr, woomera_thread_run, profile);
+	result = opbx_pthread_create(&profile->thread, &attr, woomera_thread_run, profile);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1239,7 +1239,7 @@ static void launch_tech_thread(private_object *tech_pvt)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &tech_pvt->thread, &attr, tech_monitor_thread, tech_pvt);
+	result = opbx_pthread_create(&tech_pvt->thread, &attr, tech_monitor_thread, tech_pvt);
 	result = pthread_attr_destroy(&attr);
 }
 

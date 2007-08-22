@@ -132,7 +132,7 @@ static void launch_page(struct opbx_channel *chan, const char *nconferenceopts, 
 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (opbx_pthread_create(get_modinfo()->self, &t, &attr, page_thread, cd)) {
+		if (opbx_pthread_create(&t, &attr, page_thread, cd)) {
 			opbx_log(LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
 			free(cd);
 		}

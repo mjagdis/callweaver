@@ -12932,7 +12932,7 @@ static int sip_park(struct opbx_channel *chan1, struct opbx_channel *chan2, stru
         copy_request(&d->req, req);
         d->chan1 = chan1m;
         d->chan2 = chan2m;
-        if (!opbx_pthread_create(get_modinfo()->self, &th, NULL, sip_park_thread, d))
+        if (!opbx_pthread_create(&th, NULL, sip_park_thread, d))
             return 0;
         free(d);
     }
@@ -14600,7 +14600,7 @@ static int restart_monitor(void)
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         /* Start a new monitor */
-        if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0)
+        if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0)
         {
             opbx_mutex_unlock(&monlock);
             opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");

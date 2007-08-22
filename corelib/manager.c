@@ -1134,7 +1134,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			fast->priority = pi;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(NULL, &th, &attr, fopbx_originate, fast)) {
+			if (opbx_pthread_create(&th, &attr, fopbx_originate, fast)) {
 				free(fast);
 				res = -1;
 			} else {
@@ -1588,7 +1588,7 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		opbx_mutex_unlock(&sessionlock);
-		if (opbx_pthread_create(NULL, &s->t, &attr, session_do, s))
+		if (opbx_pthread_create(&s->t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -1910,7 +1910,7 @@ int init_manager(void)
 		}
 		if (option_verbose)
 			opbx_verbose("CallWeaver Management interface listening on port %d\n", portno);
-		opbx_pthread_create(NULL, &t, NULL, accept_thread, NULL);
+		opbx_pthread_create(&t, NULL, accept_thread, NULL);
 	}
 	return 0;
 }

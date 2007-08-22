@@ -898,7 +898,7 @@ static int conf_run(struct opbx_channel *chan, struct opbx_conference *conf, int
         pthread_attr_init(&conf->attr);
         pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
         opbx_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n", conf->confno, conf->recordingfilename, conf->recordingformat);
-        opbx_pthread_create(get_modinfo()->self, &conf->recordthread, &conf->attr, recordthread, conf);
+        opbx_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
     }
 
     user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */

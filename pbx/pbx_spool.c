@@ -291,7 +291,7 @@ static void launch_service(struct outgoing *o)
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(get_modinfo()->self, &t, &attr, attempt_thread, o) == -1) {
+	if (opbx_pthread_create(&t, &attr, attempt_thread, o) == -1) {
 		opbx_log(LOG_WARNING, "Unable to create thread :(\n");
 		free_outgoing(o);
 	}
@@ -453,7 +453,7 @@ static int load_module(void)
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-	if (opbx_pthread_create(get_modinfo()->self, &scan_thread_id, &attr, scan_thread, NULL) == -1) {
+	if (opbx_pthread_create(&scan_thread_id, &attr, scan_thread, NULL) == -1) {
 		opbx_log(LOG_WARNING, "Unable to create thread :(\n");
 		return -1;
 	}

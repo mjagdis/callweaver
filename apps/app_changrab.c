@@ -164,7 +164,7 @@ static void opbx_bridge_call_thread_launch(struct opbx_channel *chan, struct opb
 		result = pthread_attr_init(&attr);
 		pthread_attr_setschedpolicy(&attr, SCHED_RR);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, opbx_bridge_call_thread, tobj);
+		result = opbx_pthread_create(&thread, &attr, opbx_bridge_call_thread, tobj);
 		result = pthread_attr_destroy(&attr);
 	}
 }
@@ -434,7 +434,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, originate, in);
+	result = opbx_pthread_create(&thread, &attr, originate, in);
 	result = pthread_attr_destroy(&attr);	
 	return 0;
 }

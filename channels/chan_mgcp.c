@@ -2965,7 +2965,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				}
 				c = mgcp_new(sub, OPBX_STATE_DOWN);
 				if (c) {
-					if (opbx_pthread_create(get_modinfo()->self, &t, &attr, mgcp_ss, c)) {
+					if (opbx_pthread_create(&t, &attr, mgcp_ss, c)) {
 						opbx_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
 						opbx_hangup(c);
 					}
@@ -3504,7 +3504,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (opbx_pthread_create(get_modinfo()->self, &monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (opbx_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			opbx_mutex_unlock(&monlock);
 			opbx_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;

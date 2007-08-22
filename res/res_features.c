@@ -265,7 +265,7 @@ static void __opbx_bridge_call_thread_launch(void *data)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr,__opbx_bridge_call_thread, data);
+	result = opbx_pthread_create(&thread, &attr,__opbx_bridge_call_thread, data);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -2162,7 +2162,7 @@ static int load_module(void)
 		return res;
 	opbx_cli_register(&showparked);
 	opbx_cli_register(&showfeatures);
-	opbx_pthread_create(get_modinfo()->self, &parking_thread, NULL, do_parking_thread, NULL);
+	opbx_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 
 	parkedcall_app = opbx_register_function(parkedcall_name, park_exec, parkedcall_synopsis, parkedcall_syntax, parkedcall_descrip);
 	parkcall_app = opbx_register_function(parkcall_name, park_call_exec, parkcall_synopsis, parkcall_syntax, parkcall_descrip);

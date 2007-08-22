@@ -646,7 +646,7 @@ static void *listener(void *unused)
 					flags = fcntl(consoles[x].p[1], F_GETFL);
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
-					if (opbx_pthread_create(NULL, &consoles[x].t, &attr, netconsole, &consoles[x])) {
+					if (opbx_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						opbx_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");
@@ -702,7 +702,7 @@ static int opbx_makesocket(void)
 		return -1;
 	}
 	opbx_register_verbose(network_verboser);
-	opbx_pthread_create(NULL, &lthread, NULL, listener, NULL);
+	opbx_pthread_create(&lthread, NULL, listener, NULL);
 
 	if (!opbx_strlen_zero(opbx_config_OPBX_CTL_OWNER)) {
 		struct passwd *pw;

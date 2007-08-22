@@ -799,7 +799,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(get_modinfo()->self, &lookupthread, &attr, dundi_query_thread, st)) {
+		if (opbx_pthread_create(&lookupthread, &attr, dundi_query_thread, st)) {
 			trans->thread = 0;
 			opbx_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -1030,7 +1030,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(get_modinfo()->self, &lookupthread, &attr, dundi_precache_thread, st)) {
+		if (opbx_pthread_create(&lookupthread, &attr, dundi_precache_thread, st)) {
 			trans->thread = 0;
 			opbx_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -1122,7 +1122,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (opbx_pthread_create(get_modinfo()->self, &lookupthread, &attr, dundi_lookup_thread, st)) {
+		if (opbx_pthread_create(&lookupthread, &attr, dundi_lookup_thread, st)) {
 			trans->thread = 0;
 			opbx_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
@@ -4792,8 +4792,8 @@ static int reload_module(void)
 
 	set_config("dundi.conf", &sin);
 
-	if (opbx_pthread_create(get_modinfo()->self, &netthreadid, NULL, network_thread, NULL)
-	|| opbx_pthread_create(get_modinfo()->self, &precachethreadid, NULL, process_precache, NULL)) {
+	if (opbx_pthread_create(&netthreadid, NULL, network_thread, NULL)
+	|| opbx_pthread_create(&precachethreadid, NULL, process_precache, NULL)) {
 		opbx_log(LOG_ERROR, "Unable to start network threads\n");
 		stop_threads();
 		return -1;

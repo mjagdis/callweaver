@@ -562,7 +562,7 @@ static int statechange_queue(const char *dev, int state, void *ign)
         strcpy(sc->dev, dev);
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (opbx_pthread_create(get_modinfo()->self, &t, &attr, changethread, sc))
+        if (opbx_pthread_create(&t, &attr, changethread, sc))
         {
             opbx_log(LOG_WARNING, "Failed to create update thread!\n");
             free(sc);

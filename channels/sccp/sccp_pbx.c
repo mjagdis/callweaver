@@ -191,7 +191,7 @@ static int sccp_pbx_call(struct opbx_channel *ast, char *dest, int timeout) {
 			sccp_log(1)(VERBOSE_PREFIX_3 "%s: Running the autoanswer thread on %s\n", d->id, ast->name);
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (opbx_pthread_create(get_modinfo()->self, &t, &attr, sccp_pbx_call_autoanswer_thread, &c->callid)) {
+			if (opbx_pthread_create(&t, &attr, sccp_pbx_call_autoanswer_thread, &c->callid)) {
 				opbx_log(LOG_WARNING, "%s: Unable to create switch thread for channel (%s-%d) %s\n", d->id, l->name, c->callid, strerror(errno));
 			}
 		}

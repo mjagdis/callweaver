@@ -96,7 +96,7 @@ static int load_module(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create(get_modinfo()->self, &thread, NULL, agent_thread, NULL);
+		return opbx_pthread_create(&thread, NULL, agent_thread, NULL);
 	return 0;
 }
 
@@ -120,7 +120,7 @@ static int reload_module(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return opbx_pthread_create(get_modinfo()->self, &thread, NULL, agent_thread, NULL);
+		return opbx_pthread_create(&thread, NULL, agent_thread, NULL);
 	return 0;
 }
 

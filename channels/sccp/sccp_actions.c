@@ -227,7 +227,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 	/* starting thread for monitored line status poll */
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (opbx_pthread_create(get_modinfo()->self, &t, &attr, sccp_dev_postregistration, d)) {
+	if (opbx_pthread_create(&t, &attr, sccp_dev_postregistration, d)) {
 		opbx_log(LOG_WARNING, "%s: Unable to create thread for monitored status line poll. %s\n", d->id, strerror(errno));
 	}
 }

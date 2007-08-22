@@ -229,8 +229,13 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 	 	value; \
 	 })
  	
+/*! opbx_pthread_create pins a reference to the module it is called from
+ * for the life of the thread. Hence the thread function MUST be in the
+ * same module, i.e. you cannot have a globally visible function foo in
+ * module A and call opbx_pthread_create(..., foo, ...) from module B.
+ */
+#define opbx_pthread_create(a,b,c,d) opbx_pthread_create_stack(get_modinfo()->self,(a),(b),(c),(d),0)
 #define OPBX_STACKSIZE 256 * 1024
-#define opbx_pthread_create(m,a,b,c,d) opbx_pthread_create_stack((m),(a),(b),(c),(d),0)
 extern int opbx_pthread_create_stack(struct module *module, pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
 #ifdef linux

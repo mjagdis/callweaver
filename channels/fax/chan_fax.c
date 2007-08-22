@@ -750,7 +750,7 @@ static void launch_faxmodem_media_thread(struct private_object *tech_pvt)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, faxmodem_media_thread, tech_pvt);
+	result = opbx_pthread_create(&thread, &attr, faxmodem_media_thread, tech_pvt);
 	result = pthread_attr_destroy(&attr);
 }
 
@@ -1142,7 +1142,7 @@ static void launch_faxmodem_thread(volatile struct faxmodem *fm)
 	result = pthread_attr_init(&attr);
 	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = opbx_pthread_create(get_modinfo()->self, &thread, &attr, faxmodem_thread, 
+	result = opbx_pthread_create(&thread, &attr, faxmodem_thread, 
 				     (void*)fm);
 	result = pthread_attr_destroy(&attr);
 }
