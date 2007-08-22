@@ -261,7 +261,7 @@ int test_for_thread_safety(void)
 	lock_count += 1;
 	opbx_mutex_lock(&test_lock);
 	lock_count += 1;
-	opbx_pthread_create(NULL, &test_thread, NULL, test_thread_body, NULL); 
+	opbx_pthread_create(&test_thread, NULL, test_thread_body, NULL); 
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
