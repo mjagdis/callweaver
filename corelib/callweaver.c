@@ -232,7 +232,7 @@ static const char *atexit_registry_obj_name(struct opbx_object *obj)
 	return it->name;
 }
 
-static int atexit_registry_obj_match(struct opbx_object *obj, void *pattern)
+static int atexit_registry_obj_match(struct opbx_object *obj, const void *pattern)
 {
 	struct opbx_atexit *it = container_of(obj, struct opbx_atexit, obj);
 	return (it->function == pattern);
