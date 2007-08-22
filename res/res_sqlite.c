@@ -50,7 +50,7 @@
 
 static char *create_dialplan_sql = "CREATE TABLE dialplan(context varchar(255), exten varchar(255), pri int, app varchar(255), data varchar(255));";
 static char *create_cdr_sql = 
-"CREATE TABLE opbx_cdr (\n"
+"CREATE TABLE cw_cdr (\n"
 "   acctid      INTEGER PRIMARY KEY,\n"
 "   clid        VARCHAR(80),\n"
 "   src     VARCHAR(80),\n"
@@ -74,7 +74,7 @@ static char *create_cdr_sql =
 
 
 static char *create_config_sql = 
-"create table opbx_config (\n"
+"create table cw_config (\n"
 "						 id integer primary key,\n"
 "						 cat_metric int not null default 0,\n"
 "						 var_metric int not null default 0,\n"
@@ -84,9 +84,9 @@ static char *create_config_sql =
 "						 var_name varchar(128) not null,\n"
 "						 var_val varchar(128) not null\n"
 "						 );\n\n"
-"CREATE INDEX opbx_config_index_1 ON opbx_config(filename);\n"
-"CREATE INDEX opbx_config_index_2 ON opbx_config(filename,category);\n"
-"CREATE INDEX opbx_config_index_3 ON opbx_config(filename,category,var_name);";
+"CREATE INDEX cw_config_index_1 ON cw_config(filename);\n"
+"CREATE INDEX cw_config_index_2 ON cw_config(filename,category);\n"
+"CREATE INDEX cw_config_index_3 ON cw_config(filename,category,var_name);";
 
 
 
