@@ -982,6 +982,8 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     char *c;
     char *n;
     char *l;
+    char *category;
+    int cat;
     int ret;
     uc_makecall_t makecall;
 
@@ -1079,6 +1081,24 @@ static int unicall_call(struct opbx_channel *opbx, char *rdest, int timeout)
     uc_callparm_original_called_number_npi(callparms, npi);
     uc_callparm_original_called_number(callparms, num);
 #endif
+    if ((category = pbx_builtin_getvar_helper(opbx, "CALLING_PARTY_CATEGORY")) == NULL)
+    {
+        uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
+    }
+    else
+    {
+        cat = atoi(category);
+        if (cat >= 0  &&  cat <= 9)
+        {
+            opbx_log(LOG_DEBUG, "Calling party category set to %s (%d).\n", category, cat);
+            uc_callparm_calling_party_category(callparms, cat);
+        }
+        else
+        {
+            opbx_log(LOG_WARNING, "Strange value (%d) for ${CAT} variable - using default\n", cat);
+            uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
+        }
+    }
     uc_callparm_calling_party_category(callparms, UC_CALLER_CATEGORY_NATIONAL_SUBSCRIBER_CALL);
     uc_callparm_originating_number(callparms, l);
     uc_callparm_destination_number(callparms, c + p->stripmsd);
@@ -2669,6 +2689,7 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
     int ch;
     int ret;
     uc_requestmoreinfo_t reqmoreinfo;
+    char category[15];
     
     ch = 0;
     i = (unicall_pvt_t *) user_data;
@@ -2789,12 +2810,14 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
     case UC_EVENT_OFFERED:
         /* Check for callerid, digits, etc */
         opbx_log(LOG_WARNING,
-                "CRN %d - Offered on channel %d (ANI: %s, DNIS: %s, Cat: %d)\n",
-                ev->offered.crn,
-                ev->offered.channel,
-                ev->offered.parms.originating_number,
-                ev->offered.parms.destination_number,
-                ev->offered.parms.calling_party_category);
+                 "CRN %d - Offered on channel %d (ANI: %s, DNIS: %s, Cat: %d)\n",
+                 ev->offered.crn,
+                 ev->offered.channel,
+                 ev->offered.parms.originating_number,
+                 ev->offered.parms.destination_number,
+                 ev->offered.parms.calling_party_category);
+        sprintf(category, "%d", ev->offered.parms.calling_party_category);
+        pbx_builtin_setvar_helper(ev->offered.call, "CALLING_PARTY_CATEGORY", category);
         if ((ch = ev->offered.channel) >= 0)
         {
             /* Get caller ID */
