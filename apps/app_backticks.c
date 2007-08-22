@@ -75,7 +75,7 @@ static int do_backticks(char *command, char *buf, size_t len)
         } else {
                 pid = fork();
                 if (pid < 0) {
-                        opbx_log(LOG_ERROR, "Fork failed\n", strerror(errno));
+                        opbx_log(LOG_ERROR, "Fork failed: %s\n", strerror(errno));
                         close(fds[0]);
                         close(fds[1]);
                 } else if (pid) { /* parent */
