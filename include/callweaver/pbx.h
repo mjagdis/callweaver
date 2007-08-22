@@ -29,6 +29,7 @@
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
 #include "callweaver/function.h"
+#include "callweaver/callweaver_hash.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
