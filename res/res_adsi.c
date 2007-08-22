@@ -165,9 +165,11 @@ static int adsi_careful_send(struct opbx_channel *chan, unsigned char *buf, int 
 static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **msg, int *msglen, int *msgtype)
 {
 	/* msglen must be no more than 256 bits, each */
-	uint8_t buf[24000 * 5];
-	int16_t lin[(sizeof(buf)/sizeof(buf[0])) * sizeof(int16_t)];
+	uint8_t cas_buf[MAX_CALLERID_SIZE]; /* Actually only need enough for CAS - <250ms */
 	adsi_tx_state_t adsi;
+	void *mem = NULL;
+	uint8_t *buf;
+	int16_t *lin;
 	int pos = 0, res;
 	int x;
 	int start=0;
@@ -188,10 +190,10 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	while(retries < maxretries) {
 		if (!(chan->adsicpe & ADSI_FLAG_DATAMODE)) {
 			/* Generate CAS (no SAS) */
-			opbx_gen_cas(buf, 680, 0, OPBX_FORMAT_ULAW);
+			opbx_gen_cas(cas_buf, 680, 0, OPBX_FORMAT_ULAW);
 		
 			/* Send CAS */
-			if (adsi_careful_send(chan, buf, 680, NULL)) {
+			if (adsi_careful_send(chan, cas_buf, 680, NULL)) {
 				opbx_log(LOG_WARNING, "Unable to send CAS\n");
 			}
 			/* Wait For DTMF result */
@@ -236,6 +238,17 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 		} else
 			opbx_log(LOG_DEBUG, "Already in data mode\n");
 
+		if (!mem) {
+			mem = malloc(24000 * 5 * sizeof(uint16_t) + 24000 * 5 * sizeof(int8_t));
+			if (mem) {
+				lin = mem;
+				buf = mem + 24000 * 5 * sizeof(uint16_t);
+			} else {
+				opbx_log(LOG_ERROR, "Out of memory!\n");
+				return -1;
+			}
+		}
+
 		x = 0;
 #if 1
 		def= opbx_channel_defer_dtmf(chan);
@@ -268,8 +281,10 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 		res = adsi_careful_send(chan, buf, pos, &rem); 
 		if (!def)
 			opbx_channel_undefer_dtmf(chan);
-		if (res)
+		if (res) {
+			free(mem);
 			return -1;
+		}
 
 		opbx_log(LOG_DEBUG, "Sent total spill of %d bytes\n", pos);
 
@@ -277,8 +292,10 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 		/* Get real result */
 		res = opbx_readstring(chan, ack, 2, 1000, 1000, "");
 		/* Check for hangup */
-		if (res < 0)
+		if (res < 0) {
+			free(mem);
 			return -1;
+		}
 		if (ack[0] == 'D') {
 			opbx_log(LOG_DEBUG, "Acked up to message %d\n", atoi(ack + 1));
 			start += atoi(ack + 1);
@@ -295,9 +312,11 @@ static int __adsi_transmit_messages(struct opbx_channel *chan, unsigned char **m
 	}
 	if (retries >= maxretries) {
 		opbx_log(LOG_WARNING, "Maximum ADSI Retries (%d) exceeded\n", maxretries);
+		free(mem);
 		errno = ETIMEDOUT;
 		return -1;
 	}
+	free(mem);
 	return 0;
 	
 }
