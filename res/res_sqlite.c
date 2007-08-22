@@ -20,8 +20,10 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sqlite3.h>
-#include <sqliteInt.h>
 
+#include "callweaver/hashtable_helper.h"
+#include "callweaver/switch.h"
+#include "callweaver/cdr.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
@@ -130,8 +132,8 @@ static const char desc[] = "SQLite Resource Module";
 static char default_dbfile[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
 static char clidb[ARRAY_SIZE] = {"/usr/local/callweaver/sqlite/callweaver.db"};
 
-static Hash extens;
 
+static hash_table_t 	extens;
 
 
 static const char tdesc[] = "SQLite SQL Interface";
@@ -269,7 +271,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 	extension_cache *cache;
 	memset(&config,0,sizeof(switch_config));
 	sqlite3 *db=NULL;
-	HashElem *elem;
+        hash_entry_t *entry;
 	char path[ARRAY_SIZE];
 	char *sql = NULL;
 
@@ -383,7 +385,23 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"clearcache")) {
+                        hash_search_t search;
+
 			opbx_mutex_lock(&switch_lock);
+
+                        for (entry = hash_first_entry(&extens, &search);
+                             entry;
+                             entry = hash_next_entry(&search))
+                        {
+                            cache = hash_get_key(&extens, entry);
+			    opbx_cli(fd,"OK Erasing %s@%s\n",cache->exten,cache->context);
+			    free(cache);
+			    cache = NULL;
+                            hash_delete_entry(entry);
+                        }
+                        hash_delete_table(&extens);
+                        hash_init_table(&extens, HASH_STRING_KEYS);
+/*
 			elem = extens.first;
 			while ( elem ){
 				HashElem *next_elem = elem->next;
@@ -395,11 +413,11 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 			}
 			sqlite3HashClear(&extens);
 			sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
+*/
 			opbx_mutex_unlock(&switch_lock);
 			opbx_cli(fd,"\nOK. Cache Clear!\n\n");
 			return 0;
 		}
-
 	}
 
 	if (argc > start) {
@@ -443,7 +461,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 
 
 static int exist_callback(void *pArg, int argc, char **argv, char **columnNames){
-	extension_cache *cache;
+	extension_cache *cache = NULL;
 	char key[ARRAY_SIZE];
 	int pri;
 	time_t now;
@@ -471,8 +489,8 @@ static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
 	time(&now);
 	pri = atoi(argv[2]);
 
-
-	cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+	//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+        opbx_core_hash_get ( &extens, key, (void*)cache );
 
 	if (! cache) {
 		cache = malloc(sizeof(extension_cache));
@@ -495,7 +513,8 @@ static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
 	strncpy(cache->app_data[pri], argv[4], sizeof(cache->app_data[pri]));
 	
 	if (needs_add) {
-		sqlite3HashInsert(&extens, key, strlen(key), cache);
+		//sqlite3HashInsert(&extens, key, strlen(key), cache);
+                opbx_core_hash_insert ( &extens, key, cache );
 	}
 	return 0;
 }
@@ -507,7 +526,7 @@ static int SQLiteSwitch_exists(struct opbx_channel *chan, const char *context, c
 {
 	int res = 0; 
 	char key[ARRAY_SIZE];
-	extension_cache *cache;
+	extension_cache *cache = NULL;
 	time_t now;
 	char *errmsg = NULL;
 	char databuf[ARRAY_SIZE];
@@ -548,7 +567,10 @@ static int SQLiteSwitch_exists(struct opbx_channel *chan, const char *context, c
 	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
 
 	opbx_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exists lookup [%s]: ",key);
-	cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+
+	//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+        opbx_core_hash_get ( &extens, key, (void*)cache );
+
 	opbx_verbose("%s\n",cache ? "match" : "fail");
 
 
@@ -583,7 +605,8 @@ static int SQLiteSwitch_exists(struct opbx_channel *chan, const char *context, c
 				sqlite3_free(sql);
 				sql = NULL;
 			}
-			cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+			//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+                        opbx_core_hash_get ( &extens, key, (void*)cache );
 		}  else {
 			opbx_log(LOG_WARNING,"ERROR OPEINING DB.\n");
 			return -1;
@@ -613,10 +636,10 @@ static int SQLiteSwitch_canmatch(struct opbx_channel *chan, const char *context,
 }
 
 
-static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
-	extension_cache *cache;
+	extension_cache *cache = NULL;
 	char key[ARRAY_SIZE];
 	time_t now;
 	char app_data[1024];
@@ -628,12 +651,15 @@ static int SQLiteSwitch_exec(struct opbx_channel *chan, const char *context, con
 	snprintf(key, ARRAY_SIZE, "%s.%s", exten, context);
 
 	opbx_verbose(VERBOSE_PREFIX_2 "SQLiteSwitch_exec lookup [%s]: ",key);
-	cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+	//cache = (extension_cache *) sqlite3HashFind(&extens,key,strlen(key));
+        opbx_core_hash_get ( &extens, key, (void*)cache );
 	opbx_verbose("%s\n",cache ? "match" : "fail");
 
 	if (cache) {
 		pbx_substitute_variables_helper(chan, cache->app_data[priority], app_data, sizeof(app_data));
-		res = opbx_function_exec_str(chan, opbx_hash_app_name(cache->app_name[priority]), cache->app_name[priority], app_data, NULL, 0);
+		res = opbx_function_exec_str(chan, 
+                                opbx_hash_app_name(cache->app_name[priority]), 
+                                cache->app_name[priority], app_data, NULL, 0);
 	}
 		
 	return res;
@@ -655,7 +681,7 @@ static int SQLiteSwitch_matchmore(struct opbx_channel *chan, const char *context
 static struct opbx_switch sqlite_switch = 
 	{
 		name:			"SQLite",
-		description:	"Read The Dialplan From The SQLite Database",
+		description:	        "Read The Dialplan From The SQLite Database",
 		exists:			SQLiteSwitch_exists,
 		canmatch:		SQLiteSwitch_canmatch,
 		exec:			SQLiteSwitch_exec,
@@ -822,13 +848,17 @@ static struct opbx_config *config_sqlite(const char *database, const char *table
 				opbx_verbose(VERBOSE_PREFIX_3"SQLite Config: %d=%s\n",i,sqlite3_column_text(stmt,i));
 			}
 		
-		if (strcmp (last, sqlite3_column_text(stmt,5)) || last_cat_metric != cat_metric) {
+		if  (   
+                        strcmp (last, (const char*) sqlite3_column_text(stmt,5)) || 
+                        last_cat_metric != cat_metric
+                    )
+                {
 			cur_cat = opbx_category_new((char *)sqlite3_column_text(stmt,5));
 			if (!cur_cat) {
 				opbx_log(LOG_WARNING, "Out of memory!\n");
 				break;
 			}
-			strcpy (last, sqlite3_column_text(stmt,5));
+			strcpy (last, (const char*) sqlite3_column_text(stmt,5));
 			last_cat_metric	= cat_metric;
 			opbx_category_append(cfg, cur_cat);
 		}
@@ -1032,6 +1062,7 @@ static int load_config(int hard) {
 				do_reload = opbx_true(v->value);
 			}
 		}
+
 		if (!hard)
 			if (!do_reload) {
 				opbx_verbose(VERBOSE_PREFIX_2 "RES SQLite Skipping Reload set reload => yes in [general]\n");
@@ -1130,11 +1161,9 @@ static int reload_module(void) {
 static struct opbx_config_engine sqlite_engine = {
 	.name = "sqlite",
 	.load_func = config_sqlite
-
-
 };
 
-static struct opbx_cdrbe_entry sqlite_cdrbe = {
+static struct opbx_cdrbe sqlite_cdrbe = {
 	.name = "cdr_req_sqlite",
 	.description = "RES SQLite CDR",
 	.handler = sqlite_log,
@@ -1143,7 +1172,8 @@ static struct opbx_cdrbe_entry sqlite_cdrbe = {
 static void release(void)
 {
 	if (has_switch)
-		sqlite3HashClear(&extens);
+                hash_delete_table(&extens);
+//		sqlite3HashClear(&extens);
 }
 
 
@@ -1160,8 +1190,10 @@ static int load_module(void)
 	opbx_switch_register(&sqlite_switch);
 	opbx_cdrbe_register(&sqlite_cdrbe);
 
-	if (has_switch)
-		sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
+	if (has_switch) {
+		//sqlite3HashInit(&extens,SQLITE_HASH_STRING,COPY_KEYS);
+                hash_init_table(&extens, HASH_STRING_KEYS);
+        }
 
 	if (has_cli) {
 		opbx_verbose(VERBOSE_PREFIX_2 "Activating SQLite CLI Command Set.\n");
