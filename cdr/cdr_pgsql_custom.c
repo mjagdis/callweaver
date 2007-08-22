@@ -222,7 +222,7 @@ static int pgsql_log(struct opbx_cdr *cdr)
 static struct opbx_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
-	.handler = pqsql_log,
+	.handler = pgsql_log,
 };
 
 
