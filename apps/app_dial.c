@@ -1077,6 +1077,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
 			opbx_log(LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, opbx_cause2str(cause));
+			free(tmp);
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
 			if (!cur)
@@ -1115,6 +1116,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 				cause = OPBX_CAUSE_CONGESTION;
 			}
 			if (!tmp->chan) {
+				free(tmp);
 				HANDLE_CAUSE(cause, chan);
 				cur = rest;
 				continue;
@@ -1181,7 +1183,7 @@ static int dial_exec_full(struct opbx_channel *chan, int argc, char **argv, stru
 			if (option_verbose > 2)
 				opbx_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			opbx_hangup(tmp->chan);
-			tmp->chan = NULL;
+			free(tmp);
 			cur = rest;
 			continue;
 		} else {
