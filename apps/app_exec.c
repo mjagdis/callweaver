@@ -63,7 +63,6 @@ static int exec_exec(struct opbx_channel *chan, int argc, char **argv, char *res
 	int res=0;
 	struct localuser *u;
 	char *s, *appname, *endargs, args[MAXRESULT];
-	struct opbx_func *app;
 
 	LOCAL_USER_ADD(u);
 
