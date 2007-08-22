@@ -1,0 +1,19 @@
+The following modules use priority jumping. This should be changed to setting
+variables instead and always returning zero
+
+apps/app_chanisavail.c
+apps/app_controlplayback.c
+apps/app_enumlookup.c
+apps/app_hasnewvoicemail.c
+apps/app_ldap.c
+apps/app_lookupblacklist.c
+apps/app_osplookup.c
+apps/app_queue.c
+apps/app_sendtext.c
+apps/app_transfer.c
+apps/app_valetparking.c
+apps/app_voicemail.c
+apps/icd/icd_bridge.c
+channels/chan_agent.c
+channels/chan_sip.c
+pbx/pbx_dundi.c
