@@ -1251,8 +1251,8 @@ static int reload_config(void) {
 }
 
 static void *sccp_setcalledparty_app;
-static char *sccp_setcalledparty_syntax = "SetCalledParty(\"Name\" <ext>)";
-static char *sccp_setcalledparty_descrip = "Sets the name and number of the called party for use with chan_sccp\n";
+static const char sccp_setcalledparty_syntax[] = "SetCalledParty(\"Name\" <ext>)";
+static const char sccp_setcalledparty_descrip[] = "Sets the name and number of the called party for use with chan_sccp\n";
 
 static int sccp_setcalledparty_exec(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
