@@ -559,7 +559,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module()
+static int unload_module(void)
 {
 	struct feature_pvt *p;
 	/* First, take us out of the channel loop */

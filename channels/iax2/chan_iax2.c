@@ -8654,7 +8654,7 @@ static int __unload_module(void)
 	return 0;
 }
 
-static int unload_module()
+static int unload_module(void)
 {
 	if (strcasecmp(opbx_config_OPBX_ENABLE_UNSAFE_UNLOAD, "yes")) {
 		opbx_log(LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");

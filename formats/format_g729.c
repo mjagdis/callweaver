@@ -217,7 +217,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module()
+static int unload_module(void)
 {
 	opbx_format_unregister(&format);
 	return 0;

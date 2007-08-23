@@ -4357,7 +4357,7 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module()
+static int unload_module(void)
 {
 	struct mgcp_endpoint *e;
 	struct mgcp_gateway *g;

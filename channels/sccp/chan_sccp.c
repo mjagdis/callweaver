@@ -1341,7 +1341,7 @@ static int load_module(void) {
 	return 0;
 }
 
-static int unload_module() {
+static int unload_module(void) {
 	sccp_line_t * l;
 	sccp_device_t * d;
 	sccp_session_t * s;

@@ -337,6 +337,8 @@ int add_in_calls(int port);
 
 static int update_ec_config(struct misdn_bchannel *bc);
 
+static int load_module(void);
+static int unload_module(void);
 
 void trigger_read(struct chan_list *ch, char *data, int len);
 
@@ -921,7 +923,7 @@ static char *misdn_get_ch_state(struct chan_list *p)
 
 
 
-void reload_config(void)
+static void reload_config(void)
 {
 	int i, cfg_debug;
 	

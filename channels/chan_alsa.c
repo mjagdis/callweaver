@@ -3182,7 +3182,7 @@ static int load_module(void)
 
 
 
-static int unload_module()
+static int unload_module(void)
 {
 	int x;
 	

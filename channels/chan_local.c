@@ -636,7 +636,7 @@ static int load_module(void)
 }
 
 /*--- unload_module: Unload the local proxy channel from CallWeaver */
-static int unload_module()
+static int unload_module(void)
 {
 	struct local_pvt *p;
 

@@ -2458,7 +2458,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int reload_module()
+static int reload_module(void)
 {
 	read_agent_config();
 	if (persistent_agents)
@@ -2466,7 +2466,7 @@ static int reload_module()
 	return 0;
 }
 
-static int unload_module()
+static int unload_module(void)
 {
 	struct agent_pvt *p;
 	int res = 0;

@@ -1975,7 +1975,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module()
+static int unload_module(void)
 {
 	time_t then, now;
 	woomera_profile *profile = NULL;
