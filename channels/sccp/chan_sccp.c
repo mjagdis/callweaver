@@ -1423,15 +1423,6 @@ static int unload_module() {
 	return res;
 }
 
-int usecount() {
-	int res;
-	opbx_mutex_lock(&GLOB(usecnt_lock));
-	res = GLOB(usecnt);
-	opbx_mutex_unlock(&GLOB(usecnt_lock));
-	return res;
-}
-
-
 MODULE_INFO(load_module, NULL, unload_module, NULL,
 	"Skinny Client Control Protocol (SCCP). Release: " SCCP_VERSION
 )

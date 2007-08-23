@@ -4753,16 +4753,6 @@ static int unload_module(void)
 	return res;
 }
 
-int usecount(void)
-{
-	int res;
-	opbx_mutex_lock(&usecnt_lock);
-	res = usecnt;
-	opbx_mutex_unlock(&usecnt_lock);
-	return res;
-}
-
-
 MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)
 
 

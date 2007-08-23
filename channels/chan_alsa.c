@@ -3208,11 +3208,4 @@ static int unload_module()
 	return 0;
 }
 
-
-int usecount()
-{
-	return usecnt;
-}
-
-
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

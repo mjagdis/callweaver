@@ -4582,15 +4582,4 @@ static int reload_module(void)
     return 0;
 }
 
-int usecount(void)
-{
-    int res;
-
-    opbx_mutex_lock(&usecnt_lock);
-    res = usecnt;
-    opbx_mutex_unlock(&usecnt_lock);
-    return res;
-}
-
-
 MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

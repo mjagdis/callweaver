@@ -1335,14 +1335,4 @@ static int unload_module()
 	return 0;
 }
 
-int usecount()
-{
-	int res;
-	opbx_mutex_lock(&usecnt_lock);
-	res = usecnt;
-	opbx_mutex_unlock(&usecnt_lock);
-	return res;
-}
-
-
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

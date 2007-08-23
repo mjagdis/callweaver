@@ -8762,10 +8762,4 @@ static int load_module(void)
 	return res;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-
 MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)

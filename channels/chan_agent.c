@@ -2502,10 +2502,4 @@ static int unload_module()
 	return res;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-
 MODULE_INFO(load_module, reload_module, unload_module, NULL, desc)

@@ -726,11 +726,6 @@ static u_char *opbx_var_indications_table(struct variable *vp, oid *name, size_t
     return NULL;
 }
 
-static int countmodule(const char *mod, const char *desc, int use, const char *like)
-{
-    return 1;
-}
-
 static u_char *opbx_var_Modules(struct variable *vp,
                                 oid *name, size_t *length,
                                 int exact,

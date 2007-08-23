@@ -124,11 +124,4 @@ static int reload_module(void)
 	return 0;
 }
 
-
-char *description (void)
-{
-	return (char *)tdesc;
-}
-
-
 MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
