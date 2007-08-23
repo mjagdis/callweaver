@@ -31,7 +31,6 @@
 
 
 struct opbx_object {
-	int pad;
 	atomic_t refs;
 	struct module *module;
 	void (*release)(struct opbx_object *);
