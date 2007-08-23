@@ -732,6 +732,8 @@ static u_char *opbx_var_Modules(struct variable *vp,
                                 size_t *var_len,
                                 WriteMethod **write_method)
 {
+#if 0
+    /* FIXME */
     static unsigned long long_ret;
 
     if (header_generic(vp, name, length, exact, var_len, write_method))
@@ -745,6 +747,7 @@ static u_char *opbx_var_Modules(struct variable *vp,
     default:
         break;
     }
+#endif
     return NULL;
 }
 
