@@ -220,7 +220,7 @@ static struct opbx_cdrbe cdrbe = {
 
 static int load_module(void)
 {
-	int res;
+	int res = 0;
 
 	opbx_cdrbe_register(&cdrbe);
 
