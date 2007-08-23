@@ -74,7 +74,7 @@ OPBX_DECLARE_OPTIONS(waitexten_opts,{
 static void wait_for_hangup(struct opbx_channel *chan, char *s)
 {
 	struct opbx_frame *f;
-	int res, waittime;
+	int waittime;
 
 	if (!s || !strlen(s) || (sscanf(s, "%d", &waittime) != 1) || (waittime < 0))
 		waittime = -1;

@@ -8283,7 +8283,6 @@ static int iax2_exec(struct opbx_channel *chan, const char *context, const char 
 	char *ncontext;
 	char *dialstatus;
 	struct iax2_dpcache *dp;
-	struct opbx_func *dial;
 #if 0
 	opbx_log(LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif
