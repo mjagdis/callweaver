@@ -2582,7 +2582,7 @@ static int misdn_write(struct opbx_channel *ast, struct opbx_frame *frame)
 		return 0;
 	}
 	
-#if MISDN_DEBUG
+#ifdef MISDN_DEBUG
 	{
 		int i, max=5>frame->samples?frame->samples:5;
 		
