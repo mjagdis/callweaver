@@ -599,7 +599,7 @@ static int pbx_builtin_setvar_old(struct opbx_channel *chan, int argc, char **ar
     return pbx_builtin_setvar(chan, argc, argv, NULL, 0);
 }
 
-int pbx_builtin_importvar(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pbx_builtin_importvar(struct opbx_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char tmp[VAR_BUF_SIZE];
 	struct opbx_channel *chan2;

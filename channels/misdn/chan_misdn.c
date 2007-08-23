@@ -1592,7 +1592,7 @@ static int update_config (struct chan_list *ch, int orig)
 
 
 
-void config_jitterbuffer(struct chan_list *ch)
+static void config_jitterbuffer(struct chan_list *ch)
 {
 	struct misdn_bchannel *bc=ch->bc;
 	int len=ch->jb_len, threshold=ch->jb_upper_threshold;
@@ -1629,7 +1629,7 @@ void config_jitterbuffer(struct chan_list *ch)
 }
 
 
-void debug_numplan(int port, int numplan, char *type)
+static void debug_numplan(int port, int numplan, char *type)
 {
 	switch (numplan) {
 	case NUMPLAN_INTERNATIONAL:
@@ -2631,7 +2631,7 @@ static int misdn_write(struct opbx_channel *ast, struct opbx_frame *frame)
 
 
 
-enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
+static enum opbx_bridge_result  misdn_bridge (struct opbx_channel *c0,
 				      struct opbx_channel *c1, int flags,
 				      struct opbx_frame **fo,
 				      struct opbx_channel **rc,
@@ -2994,7 +2994,7 @@ static struct opbx_channel *misdn_request(const char *type, int format, void *da
 }
 
 
-int misdn_send_text (struct opbx_channel *chan, const char *text)
+static int misdn_send_text (struct opbx_channel *chan, const char *text)
 {
 	struct chan_list *tmp=chan->tech_pvt;
 	
