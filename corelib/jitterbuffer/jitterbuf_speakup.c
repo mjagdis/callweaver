@@ -738,7 +738,7 @@ static void calculate_info(speakup_jitterbuffer *jb, long ts, long now, int code
   if (jb->settings.min_jb && (jb->settings.min_jb > d) ) {
     jb->target = jb->min + jb->settings.min_jb; 
   } else if (jb->settings.max_jb && (jb->settings.max_jb > d) ){
-    jb->min + jb->settings.max_jb;
+    jb->target = jb->min + jb->settings.max_jb;
   } else {
     jb->target = jb->min + d; 
   }
