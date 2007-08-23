@@ -2677,7 +2677,7 @@ static int adsi_load_vmail(struct opbx_channel *chan, int *useadsi)
 	bytes += adsi_data_mode(buf + bytes);
  	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 
-	if (adsi_begin_download(chan, addesc, adsifdn, adsisec, adsiver)) {
+	if (adsi_begin_download(chan, (char *)addesc, adsifdn, adsisec, adsiver)) {
 		bytes = 0;
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Load Cancelled.", "");
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "ADSI Unavailable", "");
