@@ -560,7 +560,7 @@ static struct opbx_clicmd cli_show_version = {
   .usage = version_usage,
 };
 
-void sccp_register_cli(struct module *module) {
+void sccp_register_cli(void) {
   opbx_cli_register(&cli_show_channels);
   opbx_cli_register(&cli_show_devices);
   opbx_cli_register(&cli_show_lines);

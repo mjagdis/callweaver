@@ -1336,7 +1336,7 @@ static int load_module(void) {
 		}
 	}
 
-	sccp_register_cli(module);
+	sccp_register_cli();
 	sccp_setcalledparty_app = opbx_register_function("SetCalledParty", sccp_setcalledparty_exec, "Sets the name of the called party", sccp_setcalledparty_syntax, sccp_setcalledparty_descrip);
 	return 0;
 }
