@@ -79,7 +79,6 @@ static int execif_exec(struct opbx_channel *chan, int argc, char **argv, char *r
 {
 	int res=0;
 	struct localuser *u;
-	struct opbx_func *app = NULL;
 
 	if (argc < 2 || !argv[0][0] || !argv[1][0])
 		return opbx_function_syntax(execif_syntax);

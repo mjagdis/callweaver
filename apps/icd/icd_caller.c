@@ -3157,7 +3157,6 @@ icd_status icd_caller__dial_channel(icd_caller * that)
     char *verify_app, *verify_app_arg;
     int timeout;
     int result;
-    struct opbx_func *app;
 
     assert(that != NULL);
     assert(that->chan != NULL);

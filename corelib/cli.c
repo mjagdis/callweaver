@@ -651,8 +651,6 @@ static int handle_softhangup(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static char *__opbx_cli_generator(char *text, char *word, int state, int lock);
-
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
     char *buf, *obuf;

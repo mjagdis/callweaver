@@ -269,7 +269,6 @@ static void release(void)
 		password_alloc = 0;
 	}
 	dbport = 0;
-	return 0;
 }
 
 

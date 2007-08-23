@@ -139,18 +139,6 @@ OPBX_MUTEX_DEFINE_STATIC(valetparking_lock);
 
 static pthread_t valetparking_thread;
 
-
-static int valetparking_count(void)
-{
-	struct valetparkeduser *cur;
-	int x=0;
-	opbx_mutex_lock(&valetparking_lock);
-	for(cur = valetparkinglot;cur;cur = cur->next)
-		x++;
-	opbx_mutex_unlock(&valetparking_lock);
-	return x;
-}
-
 static int valetparking_say(struct opbx_channel *chan,char *lotname)
 {
 	struct valetparkeduser *cur;
