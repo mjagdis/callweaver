@@ -2147,7 +2147,6 @@ static struct opbx_channel *capi_new(struct capi_pvt *i, int state)
 	cc_mutex_lock(&usecnt_lock);
 	usecnt++;
 	cc_mutex_unlock(&usecnt_lock);
-	opbx_update_use_count();
 	
 	opbx_setstate(tmp, state);
 
