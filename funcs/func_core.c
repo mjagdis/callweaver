@@ -29,11 +29,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/musiconhold.h"
+#include "callweaver/say.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/callweaver_keywords.h"

@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#include "callweaver/lock.h"
+
 struct module;
 
 
