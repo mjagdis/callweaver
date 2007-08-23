@@ -238,7 +238,7 @@ static int waitfordigits_exec(struct opbx_channel *chan, int argc, char **argv, 
 
 static int unload_module(void)
 {
-	return opbx_unregister_application(waitfordigits_app);
+	return opbx_unregister_function(waitfordigits_app);
 }
 
 static int load_module(void)
