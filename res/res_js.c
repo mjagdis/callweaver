@@ -94,7 +94,7 @@ static const char tdesc[] = "Embedded JavaScript Application";
 static void *app;
 static const char name[] = "JavaScript";
 static const char synopsis[] = "Embedded JavaScript Application";
-static const char syntax[] = NULL;
+static const char syntax[] = "";
 
 static char global_dir[128] = "/usr/local/callweaver/logic";
 
@@ -502,7 +502,7 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 {
 	char dbuf[1024] = "";
 	struct jchan *jc = JS_GetPrivate(cx, obj);
-	char *fdata = NULL, *fname = NULL, *data = NULL;
+	char *fdata = NULL, *fname = NULL;
 	char *args, *p;
 	int x = 0;
 	int deny = 0;
@@ -1345,18 +1345,18 @@ static int js_exec(struct opbx_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static char *function_js_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_js_read(struct opbx_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *ret;
 
 	if (argc < 1 || !argv[0][0])
 		return opbx_function_syntax(js_func_syntax);
 
-	if (js_exec(chan, argc, argv, NULL, 0, NULL) > -1 && (ret = pbx_builtin_getvar_helper(chan, "JSFUNC"))) {
+	if (js_exec(chan, argc, argv, NULL, 0) > -1 && (ret = pbx_builtin_getvar_helper(chan, "JSFUNC"))) {
 		opbx_copy_string(buf, ret, len);
-		return buf;
+		return 0;
 	}
-	return NULL;
+	return -1;
 }
 
 static int reload_module(void) {
