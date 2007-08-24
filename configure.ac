@@ -2550,7 +2550,8 @@ echo "At this right moment, it's undergoing major changes in "
 echo "order to be able to accomodate new features and a major "
 echo "core rework."
 echo "Use 1.2 version from SVN or daily snapshots if you need "
-echo "something stable."
+echo "something stable. Version 1.2 may be found in svn at"
+echo "http://svn.callweaver.org/callweaver/branches/rel/1.2"
 echo ""
 
 #
