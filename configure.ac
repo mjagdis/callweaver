@@ -449,6 +449,12 @@ if test -z "${opbxmoddir}"; then
 fi
 AC_SUBST([opbxmoddir])
 
+# directory for add-on modules
+if test -z "${opbxaddondir}"; then
+	opbxaddondir='${opbxlibdir}/add-on'
+fi
+AC_SUBST([opbxaddondir])
+
 # directory for ICD modules
 if test -z "${opbxicdmoddir}"; then
 	opbxicdmoddir='${opbxmoddir}/icd'
@@ -2519,6 +2525,7 @@ echo "opbxconfdir:      ${opbxconfdir}"
 echo "opbxconffile:     ${opbxconffile}"
 echo "opbxlibdir:       ${opbxlibdir}"
 echo "opbxmoddir:       ${opbxmoddir}"
+echo "opbxaddondir:     ${opbxaddondir}"
 echo "opbxvardir:       ${opbxvardir}"
 echo "opbxdbdir:        ${opbxdbdir}"
 echo "opbxdbfile:       ${opbxdbfile}"

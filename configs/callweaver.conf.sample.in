@@ -6,7 +6,7 @@ cwrungroup => @opbxrunuser@
 
 [directories]
 cwetcdir => @opbxconfdir@
-cwmoddir => @opbxmoddir@
+cwmoddir => @opbxmoddir@:@opbxaddondir@
 cwvarlibdir => @opbxvardir@
 cwdbdir => @opbxdbdir@
 cwogidir => @opbxogidir@

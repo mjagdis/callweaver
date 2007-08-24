@@ -13,6 +13,7 @@ substitute = $(SED) \
 	-e 's,@opbxconffile\@,${opbxconffile},g' \
 	-e 's,@opbxlibdir\@,${opbxlibdir},g' \
 	-e 's,@opbxmoddir\@,${opbxmoddir},g' \
+	-e 's,@opbxaddondir\@,${opbxaddondir},g' \
 	-e 's,@opbxvardir\@,${opbxvardir},g' \
 	-e 's,@opbxvardir\@,${opbxvardir},g' \
 	-e 's,@opbxdbdir\@,${opbxdbdir},g' \

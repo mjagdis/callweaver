@@ -194,6 +194,7 @@ INSTALL_DIRS +=	$(opbximagesdir)
 
 # create directories, set ownership and permissions
 install-data-hook:
+	rm -fr "$(opbxmoddir)"; \
 	for install_dir in $(INSTALL_DIRS); \
 	do \
 		if test ! -d "$(DESTDIR)$${install_dir}"; \

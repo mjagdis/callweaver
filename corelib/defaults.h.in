@@ -3,7 +3,7 @@
 #define opbxconfdir_default      "@opbxconfdir@"
 #define opbxconffile_default     "@opbxconffile@"
 #define opbxlibdir_default       "@opbxlibdir@"
-#define opbxmoddir_default       "@opbxmoddir@"
+#define opbxmoddir_default       "@opbxmoddir@:@opbxaddondir@"
 #define opbxvardir_default       "@opbxvardir@"
 #define opbxdbdir_default        "@opbxdbdir@"
 #define opbxdbfile_default       "@opbxdbfile@"
